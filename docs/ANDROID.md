@@ -76,16 +76,31 @@ the device; until the TV has heard it for that profile, the start asks
 ### Language
 
 Pley is in English, French and Spanish. The app shows the language of the
-account, else the first of the device's languages that Pley has, else the
-server language, else English ([API.md](API.md#language)): `language` of
+account, else this device's (one picked with the globe, below, else the
+first of the device's languages that Pley has), else the server
+language, else English ([API.md](API.md#language)): `language` of
 `GET /api/auth/me` and of `GET /api/server`, which the app asks while
-signed in. With no server chosen, it shows the device's. A code Pley
-doesn't have counts as none, and a region doesn't count (`fr-CA` is
-French).
+signed in. Without an account (no server chosen, or signed out of the one
+chosen), it shows this device's. A code Pley doesn't have counts as none,
+and a region doesn't count (`fr-CA` is French).
+
+The screens shown before signing in have a globe, labelled with the
+language shown ("Français") and heard as "Choose a language". On phones
+it is in the top bar of the sign-in screen (choosing a server, or typing
+its address) and of the code screen. On TVs it is a button beside "Choose
+your server"'s title, and in the code screen's top-right corner, over the
+QR code: Up from the first server, or from Change server, reaches it. It
+opens **Automatic (English)** (the device's language where Pley has it,
+else English), then English, Français and Español, each named in itself,
+the current choice checked: in a sheet on phones, in a side panel on TVs,
+as Settings' choices open. A pick shows at once and is this device's
+language, kept on the device and read before the first screen; Automatic
+forgets it. Signed in, an account's own language comes first, and its
+Automatic means this one.
 
 Settings has a **Language** row, on phones at the top and on TVs under
 Profile: **Automatic**, naming what that is on this device ("Automatic
-(Français)": the device's language, or the server's on a device in a
+(Français)": this device's language, or the server's on a device in a
 language Pley doesn't have), then English, Français and Español, each
 named in itself. A choice is the account's, on every device it signs
 in on (`PUT /api/me/language`); it shows at once, and is put back, with a
@@ -98,10 +113,11 @@ doesn't have, for the server's, so no other language shows for a
 moment. Android 13 and later keep it as the app's own language, which
 the system's settings list (Apps → Pley → Language); the app sets it
 again as it hears the account's and the server's. A language picked
-there is chosen as the Language row chooses it, for the account, and its
-System default is Automatic; signed out, or refused by the server, the
-language the app goes by comes back. Below 13 the app keeps
-it itself, and remakes its screens when it changes. A player open then
+there is chosen as the app's own picker would choose it, and its System
+default is that picker's Automatic: signed in, the Language row's, for
+the account (refused by the server, the language the app goes by comes
+back); without an account, the globe's, for this device. Below 13 the
+app keeps it itself, and remakes its screens when it changes. A player open then
 plays on: on Android 13 and later its words change where they are, below
 the next time it opens.
 

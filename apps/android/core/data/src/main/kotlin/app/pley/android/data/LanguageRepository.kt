@@ -13,11 +13,11 @@ import kotlinx.coroutines.flow.flowOf
  * server's.
  */
 sealed interface LanguageSources {
-    /** Still reading, or signed out of the server in use: the language shown stays. */
+    /** Still reading: the language shown stays. */
     data object Unknown : LanguageSources
 
-    /** No server chosen: the device's. */
-    data object NoServer : LanguageSources
+    /** No account: no server chosen, or signed out of the one in use. This device's language. */
+    data object NoAccount : LanguageSources
 
     /**
      * Signed in. [account] is the profile's own choice ("fr"; `null`:
@@ -34,18 +34,21 @@ sealed interface LanguageSources {
     ) : LanguageSources
 
     /**
-     * The language to show, the device's being [device] (the system's
-     * languages, the one it prefers first): the account's, else the
-     * device's, else the server language, else English. `null` while the
-     * server hasn't said what decides: the language shown stays, rather
-     * than another showing for a moment.
+     * The language to show: the account's, else this device's (the one
+     * [picked] on it before signing in, else the first of the system's
+     * languages, [device], that Pley has), else the server language, else
+     * English. `null` while the server hasn't said what decides: the
+     * language shown stays, rather than another showing for a moment.
      */
-    fun wanted(device: List<Locale>): Language? = when (this) {
-        Unknown -> null
-        NoServer -> Language.ofDevice(device) ?: Language.English
-        is SignedIn -> Language.of(account) ?: when {
-            !accountKnown -> null
-            else -> Language.ofDevice(device) ?: if (serverKnown) Language.of(server) ?: Language.English else null
+    fun wanted(device: List<Locale>, picked: Language? = null): Language? {
+        val here = picked ?: Language.ofDevice(device)
+        return when (this) {
+            Unknown -> null
+            NoAccount -> here ?: Language.English
+            is SignedIn -> Language.of(account) ?: when {
+                !accountKnown -> null
+                else -> here ?: if (serverKnown) Language.of(server) ?: Language.English else null
+            }
         }
     }
 }
@@ -80,8 +83,8 @@ internal class SessionLanguage(
 ) : LanguageRepository {
     override val sources: Flow<LanguageSources> = combine(session.state, session.meState, session.serverLanguage) { state, me, server ->
         when (state) {
-            SessionState.Starting, is SessionState.SignedOut -> LanguageSources.Unknown
-            SessionState.NoServer -> LanguageSources.NoServer
+            SessionState.Starting -> LanguageSources.Unknown
+            SessionState.NoServer, is SessionState.SignedOut -> LanguageSources.NoAccount
             is SessionState.SignedIn -> {
                 val said = server?.takeIf { it.issuer == state.session.issuer }
                 LanguageSources.SignedIn(

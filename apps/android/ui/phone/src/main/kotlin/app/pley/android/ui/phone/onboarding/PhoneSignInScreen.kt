@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
@@ -64,6 +63,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.Language
 import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
@@ -81,6 +81,8 @@ import app.pley.android.screens.onboarding.SignInProblem
 import app.pley.android.screens.onboarding.SignInViewModel
 import app.pley.android.screens.onboarding.go
 import app.pley.android.screens.onboarding.onboardingSource
+import app.pley.android.screens.settings.DeviceLanguageUiState
+import app.pley.android.screens.settings.DeviceLanguageViewModel
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.BusyLine
 import app.pley.android.ui.phone.kit.ConfirmDialog
@@ -97,7 +99,8 @@ import app.pley.android.ui.phone.shell.LocalPhoneNavigator
  * opens that page does the button sign in with a code from another device
  * instead. Over the button, a chosen server that requires two-step sign-in
  * says so: its page sets it up. [preselect] is the server the app was
- * signed out of (PleyKey.SignIn).
+ * signed out of (PleyKey.SignIn). The globe in the top bar picks this
+ * device's language.
  */
 @Composable
 internal fun PhoneSignInScreen(preselect: String?) {
@@ -109,6 +112,8 @@ internal fun PhoneSignInScreen(preselect: String?) {
     val signIn = viewModel(key = "sign-in") { SignInViewModel(given ?: onboardingSource(), createSavedStateHandle()) }
     val state by servers.state.collectAsStateWithLifecycle()
     val signInState by signIn.state.collectAsStateWithLifecycle()
+    val languageModel: DeviceLanguageViewModel = viewModel(factory = DeviceLanguageViewModel.factory)
+    val language by languageModel.state.collectAsStateWithLifecycle()
     val withoutBrowser = remember(state.selected) { noBrowserFor(context, state.selected) }
     var viaCode by rememberSaveable { mutableStateOf(false) }
 
@@ -164,6 +169,8 @@ internal fun PhoneSignInScreen(preselect: String?) {
             state.selected?.let(servers::choose)
         },
         onOpenInBrowser = { server -> openInBrowser(context, server) },
+        language = language,
+        onLanguage = languageModel::choose,
     )
 }
 
@@ -200,6 +207,9 @@ internal fun PhoneSignInContent(
     onOpenInBrowser: (String) -> Unit,
     /** Continue with the address typed, once it answers: the button under the field says Continue, so it goes there. */
     onConnectAndContinue: (String) -> Unit = onConnect,
+    /** This device's language, for the globe; `null`: no globe. */
+    language: DeviceLanguageUiState? = null,
+    onLanguage: (Language?) -> Unit = {},
 ) {
     var forgetting by remember { mutableStateOf<ServerRow?>(null) }
     var addressOpen by rememberSaveable { mutableStateOf(false) }
@@ -226,16 +236,17 @@ internal fun PhoneSignInContent(
             .testTag(SIGN_IN_TAG),
     ) {
         Column(Modifier.fillMaxSize()) {
+            OnboardingTopBar(language, onLanguage, enabled = !busy)
             Column(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .statusBarsPadding()
                     .padding(horizontal = 24.dp)
                     .widthIn(max = 560.dp),
             ) {
-                Spacer(Modifier.height(96.dp))
+                // The wordmark where it was without the bar, 96 dp under the status bar.
+                Spacer(Modifier.height(32.dp))
                 PleyWordmark()
                 Spacer(Modifier.height(56.dp))
                 Text(stringResource(R.string.onboarding_title), style = MaterialTheme.typography.headlineMedium, color = PleyColors.Fg)

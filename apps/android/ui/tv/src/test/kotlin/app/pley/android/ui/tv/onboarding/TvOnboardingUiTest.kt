@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performImeAction
 import androidx.compose.ui.test.performTextInput
 import app.pley.android.auth.Needs
 import app.pley.android.common.FoundServer
+import app.pley.android.common.Language
 import app.pley.android.screens.onboarding.LinkCode
 import app.pley.android.screens.onboarding.LinkStatus
 import app.pley.android.screens.onboarding.LinkUiState
@@ -28,6 +29,7 @@ import app.pley.android.screens.onboarding.ProfilesStep
 import app.pley.android.screens.onboarding.ServerRow
 import app.pley.android.screens.onboarding.ServersProblem
 import app.pley.android.screens.onboarding.ServersUiState
+import app.pley.android.screens.settings.DeviceLanguageUiState
 import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
@@ -304,6 +306,58 @@ class TvOnboardingUiTest {
         compose.press(Key.DirectionDown)
         compose.press(Key.DirectionCenter)
         assertEquals(listOf("http://192.168.1.42:7539"), chosen)
+    }
+
+    @Test
+    fun upFromTheServersTheGlobePicksThisDevicesLanguage() {
+        val nas = ServerRow("http://192.168.1.20:7539", "Living room NAS", "192.168.1.20:7539", saved = true, found = true)
+        val picks = mutableListOf<Language?>()
+        compose.setContent {
+            TvTheme(reducedMotion = true) {
+                TvServersContent(
+                    ServersUiState(rows = listOf(nas), searched = true),
+                    onChoose = {},
+                    onForget = {},
+                    onEnterAddress = {},
+                    onSearchNetwork = {},
+                    onDemo = {},
+                    language = DeviceLanguageUiState(shown = Language.English, picked = null, device = Language.English),
+                    onLanguage = { picks += it },
+                )
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(SERVER_ROW_TAG + nas.url).assertIsFocused()
+        compose.press(Key.DirectionUp)
+        compose.onNodeWithTag(LANGUAGE_TAG).assertIsFocused().assertContentDescriptionEquals("Choose a language")
+        compose.onNodeWithText("English").assertExists()
+        compose.press(Key.DirectionCenter)
+        // The current choice, Automatic, has focus; Español is the last.
+        compose.onNodeWithText("Automatic (English)").assertIsFocused()
+        repeat(3) { compose.press(Key.DirectionDown) }
+        compose.press(Key.DirectionCenter)
+        assertEquals(listOf<Language?>(Language.Spanish), picks)
+        compose.onNodeWithTag(LANGUAGE_TAG).assertIsFocused()
+    }
+
+    @Test
+    fun upFromChangeServerTheGlobeOnTheCodeScreen() {
+        compose.setContent {
+            TvTheme(reducedMotion = true) {
+                TvLinkContent(
+                    LinkUiState("http://192.168.1.20:7539", code, LinkStatus.Waiting),
+                    onNewCode = {},
+                    backLabel = "Change server",
+                    onBack = {},
+                    language = DeviceLanguageUiState(shown = Language.French, picked = Language.French, device = Language.English),
+                )
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithTag(BACK_TAG).assertIsFocused()
+        compose.press(Key.DirectionUp)
+        compose.onNodeWithTag(LANGUAGE_TAG).assertIsFocused()
+        compose.onNodeWithText("Français").assertExists()
     }
 
     @Test

@@ -32,7 +32,11 @@ data class LanguageUiState(
     val chosen: Language? = null,
     /** The server language, which Automatic stands for on a device in a language Pley doesn't have. */
     val server: Language? = null,
-    /** This device's language: the first of the system's that Pley has; `null` when Pley has none of them. */
+    /**
+     * This device's language: the one picked on it before signing in (the
+     * globe), else the first of the system's that Pley has; `null` when
+     * none.
+     */
     val device: Language? = null,
     /** A choice is on its way to the server. */
     val saving: Boolean = false,
@@ -64,7 +68,7 @@ data class LanguageUiState(
  */
 class LanguageViewModel(
     private val language: LanguageRepository,
-    /** This device's language when Pley has it, read when the row shows. */
+    /** This device's language (the globe's pick, else the system's) when Pley has it, read when the row shows. */
     private val device: () -> Language?,
 ) : ViewModel() {
     private val saving = MutableStateFlow(false)
@@ -107,7 +111,7 @@ class LanguageViewModel(
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                 LanguageViewModel(screensGraph().data.language) {
-                    app?.let { Language.ofDevice(AppLanguage.deviceLocales(it)) }
+                    AppLanguage.picked.value ?: app?.let { Language.ofDevice(AppLanguage.deviceLocales(it)) }
                 }
             }
         }

@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Which language Pley is shown in: the account's, else the device's, else the server language, else English. */
+/** Which language Pley is shown in: the account's, else the device's (one picked on it, else the system's), else the server language, else English. */
 class LanguageTest {
     private val german = listOf(Locale.GERMANY)
 
@@ -31,6 +31,15 @@ class LanguageTest {
         assertEquals(Language.Spanish, Language.pick(null, null, listOf(Locale.forLanguageTag("es-MX"))))
         assertEquals(Language.English, Language.pick(null, null, german))
         assertEquals(Language.English, Language.pick(null, null, emptyList()))
+    }
+
+    @Test
+    fun aLanguagePickedOnTheDeviceComesAfterTheAccountsBeforeTheSystems() {
+        assertEquals(Language.Spanish, Language.pick(null, "fr", listOf(Locale.FRANCE), picked = Language.Spanish))
+        assertEquals(Language.Spanish, Language.pick(null, "fr", german, picked = Language.Spanish))
+        assertEquals(Language.French, Language.pick("fr", "en", german, picked = Language.Spanish))
+        // An account's language Pley doesn't have counts as none: the device's pick.
+        assertEquals(Language.English, Language.pick("de", "fr", listOf(Locale.FRANCE), picked = Language.English))
     }
 
     @Test

@@ -55,9 +55,37 @@ class LanguageTest {
         assertNull(signedIn(null, server = null, serverKnown = false).wanted(german))
         assertEquals(Language.French, signedIn(null, server = "fr", serverKnown = true).wanted(german))
         assertNull(LanguageSources.Unknown.wanted(french))
-        // No server at all: the device's.
-        assertEquals(Language.French, LanguageSources.NoServer.wanted(french))
-        assertEquals(Language.English, LanguageSources.NoServer.wanted(german))
+        // No account: the device's.
+        assertEquals(Language.French, LanguageSources.NoAccount.wanted(french))
+        assertEquals(Language.English, LanguageSources.NoAccount.wanted(german))
+    }
+
+    @Test
+    fun theLanguagePickedOnTheDeviceIsTheDevicesAfterTheAccounts() {
+        val spanish = Language.Spanish
+        // Before the system's languages, and before the server's.
+        assertEquals(spanish, LanguageSources.NoAccount.wanted(french, picked = spanish))
+        assertEquals(spanish, signedIn(null, server = "fr").wanted(french, picked = spanish))
+        assertEquals(spanish, signedIn(null, server = "fr").wanted(german, picked = spanish))
+        // The account's own comes first.
+        assertEquals(Language.French, signedIn("fr", server = "en").wanted(german, picked = spanish))
+        // It doesn't go before the account's answer, nor while nothing is known.
+        assertNull(signedIn(null, accountKnown = false, server = null, serverKnown = false).wanted(german, picked = spanish))
+        assertNull(LanguageSources.Unknown.wanted(french, picked = spanish))
+        // Without it, the server's answer isn't waited for.
+        assertEquals(spanish, signedIn(null, server = null, serverKnown = false).wanted(german, picked = spanish))
+    }
+
+    @Test
+    fun withoutAnAccountTheDevicesLanguageShows() = runTest {
+        val data = TestData(this, folder.newFolder())
+        val sources = collect(data.graph.language.sources)
+        testScheduler.runCurrent()
+        assertEquals(LanguageSources.NoAccount, sources.last())
+        // A server chosen, not signed in to: still none.
+        data.useServer()
+        testScheduler.runCurrent()
+        assertEquals(LanguageSources.NoAccount, sources.last())
     }
 
     @Test

@@ -28,16 +28,24 @@ import kotlinx.coroutines.flow.asStateFlow
  * its activities ([shown]).
  *
  * The device's languages ([deviceLocales]) are always the system's, never
- * the app's own.
+ * the app's own. A language picked on this device before signing in (the
+ * globe of the screens without an account, [picked]) comes before them,
+ * remembered on the device and read before the first screen too.
  */
 object AppLanguage {
     private const val PREFERENCES = "language"
     private const val KEY = "language"
+    private const val PICKED = "picked"
 
     private val _shown = MutableStateFlow(Language.English)
 
     /** The language shown. */
     val shown: StateFlow<Language> = _shown.asStateFlow()
+
+    private val _picked = MutableStateFlow<Language?>(null)
+
+    /** The language picked on this device ([pick]); `null`: Automatic, the system's. */
+    val picked: StateFlow<Language?> = _picked.asStateFlow()
 
     /** The locale the language is shown in: the one dates and numbers are written in. */
     @Volatile
@@ -57,17 +65,19 @@ object AppLanguage {
 
     /**
      * As the app starts, before anything is drawn (the application's
-     * attachBaseContext): the language shown last, else the device's;
+     * attachBaseContext): the language shown last, else this device's;
      * [base] made in it.
      */
     fun attach(base: Context): Context {
         val device = deviceLocales(base)
+        val (remembered, picked) = remembered(base)
         val last = if (Build.VERSION.SDK_INT >= 33) {
             base.getSystemService(LocaleManager::class.java)?.applicationLocales?.takeIf { !it.isEmpty }?.get(0)?.language.let(Language::of)
         } else {
-            remembered(base)
+            remembered
         }
-        val language = last ?: Language.ofDevice(device) ?: Language.English
+        _picked.value = picked
+        val language = last ?: picked ?: Language.ofDevice(device) ?: Language.English
         set(language, Language.localeOf(language, device))
         return wrap(base)
     }
@@ -88,6 +98,20 @@ object AppLanguage {
         set(language, locale)
         if (Build.VERSION.SDK_INT >= 33) keep(context, locale) else remember(context, language)
         return true
+    }
+
+    /**
+     * Picks this device's language (`null`: Automatic, the system's again),
+     * remembered on the device: the globe of the screens without an
+     * account. It comes before the system's languages, and an account's
+     * Automatic means it. LanguageSync shows it.
+     */
+    fun pick(context: Context, language: Language?) {
+        if (language == _picked.value) return
+        _picked.value = language
+        context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).edit {
+            if (language == null) remove(PICKED) else putString(PICKED, language.code)
+        }
     }
 
     /** The configuration changed (the application's onConfigurationChanged): below Android 13, Android set the device's locale as the default again. */
@@ -172,12 +196,14 @@ object AppLanguage {
         setLayoutDirection(locale)
     }
 
-    private fun remembered(context: Context): Language? {
+    /** The language shown last (kept here below Android 13 only), and the one picked on this device. */
+    private fun remembered(context: Context): Pair<Language?, Language?> {
         // One small file, read on the main thread as the app starts: the first
         // screen is made in what it says, and nothing is drawn before it.
         val policy = StrictMode.allowThreadDiskWrites()
         return try {
-            Language.of(context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE).getString(KEY, null))
+            val preferences = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+            Language.of(preferences.getString(KEY, null)) to Language.of(preferences.getString(PICKED, null))
         } finally {
             StrictMode.setThreadPolicy(policy)
         }

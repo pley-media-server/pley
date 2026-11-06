@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Language row of Settings, on phones and TVs (LanguageViewModel). -->
+<!-- The Language row of Settings (LanguageViewModel) and the globe of the screens shown before signing in (DeviceLanguageViewModel), on phones and TVs. -->
 <resources>
     <string name="language_title">Language</string>
     <!-- No language of the account's own: %1$s is what that is here, this device's language or else the server's, named in itself ("Français"). -->
     <string name="language_automatic">Automatic (%1$s)</string>
     <string name="language_hint">What Pley is in for you, on every device you sign in on. Automatic follows each device\'s language.</string>
+    <!-- The globe, as screen readers hear it; it shows the language shown. -->
+    <string name="language_choose">Choose a language</string>
 </resources>

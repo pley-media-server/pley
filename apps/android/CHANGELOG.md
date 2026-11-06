@@ -12,12 +12,15 @@ describes how they are made.
 
 - Pley is in English, French and Spanish: your account's language, else
   this device's, else your server's, and Settings has a Language row on
-  phones and TVs that sets it for your account on every device. Every
-  screen on phones, tablets and TVs is in it; dates, times, runtimes,
-  counts, the names of audio and subtitle languages and connection errors
-  follow it, and a download that failed says why in it. On Android 13 and
-  later the system's settings list Pley's languages, and one picked there
-  is your account's, as in Settings.
+  phones and TVs that sets it for your account on every device. Before you
+  sign in, a globe on the screens that choose a server and sign in (in the
+  top bar on phones, beside the title and over the QR code on TVs) picks
+  this device's language. Every screen on phones, tablets and TVs is in
+  it; dates, times, runtimes, counts, the names of audio and subtitle
+  languages and connection errors follow it, and a download that failed
+  says why in it. On Android 13 and later the system's settings list
+  Pley's languages, and one picked there is your account's, as in
+  Settings, or before you sign in this device's, as with the globe.
 - The phone's remote and Play on… list the devices of everyone in your
   household too, each saying whose profile it is on ("On Sam's
   profile"), never what it plays. Sending something there ends what

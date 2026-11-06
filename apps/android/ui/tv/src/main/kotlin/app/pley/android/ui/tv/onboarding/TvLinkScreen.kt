@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.Language
 import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
@@ -55,6 +56,8 @@ import app.pley.android.screens.onboarding.LinkUiState
 import app.pley.android.screens.onboarding.LinkViewModel
 import app.pley.android.screens.onboarding.go
 import app.pley.android.screens.onboarding.onboardingSource
+import app.pley.android.screens.settings.DeviceLanguageUiState
+import app.pley.android.screens.settings.DeviceLanguageViewModel
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvTextButton
@@ -71,11 +74,15 @@ internal fun TvLinkScreen(server: String) {
     LaunchedEffect(vm) { vm.navigation.collect { navigator.go(it) } }
     TvLinkRunner(vm)
     val state by vm.state.collectAsStateWithLifecycle()
+    val languageModel: DeviceLanguageViewModel = viewModel(factory = DeviceLanguageViewModel.factory)
+    val language by languageModel.state.collectAsStateWithLifecycle()
     TvLinkContent(
         state = state,
         onNewCode = vm::newCode,
         backLabel = stringResource(R.string.tv_onboarding_change_server),
         onBack = { navigator.restart(PleyKey.Servers) },
+        language = language,
+        onLanguage = languageModel::choose,
     )
 }
 
@@ -120,6 +127,8 @@ private fun TvLinkRunner(vm: LinkViewModel) {
  * the steps and the code on the left from x = 96, the QR code and
  * [backLabel] on the right from x = 600. [backLabel] has focus, except
  * after a decline or once the code expired, when "Get a new code" has it.
+ * Signing in, the globe in the top-right corner, over the QR code, picks
+ * this device's [language].
  */
 @Composable
 internal fun TvLinkContent(
@@ -130,7 +139,11 @@ internal fun TvLinkContent(
     title: String = stringResource(R.string.tv_onboarding_link_title),
     /** Under the title. Signing in, it says when the server requires two-step sign-in. */
     intro: String? = if (state.twoStepRequired) stringResource(R.string.tv_onboarding_two_step_required) else null,
+    /** This device's language, for the globe; `null`, as when a profile is approved: no globe. */
+    language: DeviceLanguageUiState? = null,
+    onLanguage: (Language?) -> Unit = {},
 ) {
+    val picker = rememberTvLanguagePicker()
     val status = state.status
     val code = state.code
     val newCode = remember { FocusRequester() }
@@ -219,6 +232,10 @@ internal fun TvLinkContent(
                 modifier = Modifier.focusRequester(back).initialFocus(enabled = !needsNewCode).testTag(BACK_TAG),
             )
         }
+        if (language != null && status !is LinkStatus.SignedIn) {
+            TvLanguageButton(picker, language, Modifier.align(Alignment.TopEnd).padding(top = 27.dp, end = 48.dp))
+        }
+        if (language != null) TvLanguagePanel(picker, language, onLanguage)
     }
 }
 

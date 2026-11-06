@@ -26,12 +26,13 @@ enum class Language(val code: String, @StringRes val autonym: Int) {
         fun ofDevice(device: List<Locale>): Language? = device.firstNotNullOfOrNull { of(it.language) }
 
         /**
-         * The language to show: the account's own, else the first of the
-         * device's that Pley has, else the server language, else English. A
-         * code Pley doesn't have counts as none.
+         * The language to show: the account's own, else this device's (the
+         * one [picked] on it before signing in, else the first of the
+         * system's that Pley has), else the server language, else English.
+         * A code Pley doesn't have counts as none.
          */
-        fun pick(account: String?, server: String?, device: List<Locale>): Language =
-            of(account) ?: ofDevice(device) ?: of(server) ?: English
+        fun pick(account: String?, server: String?, device: List<Locale>, picked: Language? = null): Language =
+            of(account) ?: picked ?: ofDevice(device) ?: of(server) ?: English
 
         /**
          * The locale [language] is shown in: the device's own where the

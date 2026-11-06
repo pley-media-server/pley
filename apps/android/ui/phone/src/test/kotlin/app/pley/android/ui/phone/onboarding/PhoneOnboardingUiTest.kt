@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
 import app.pley.android.auth.Needs
 import app.pley.android.auth.TOO_OLD
+import app.pley.android.common.Language
 import app.pley.android.common.UiText
 import app.pley.android.screens.onboarding.BrowserSignIn
 import app.pley.android.screens.onboarding.LinkCode
@@ -30,6 +31,7 @@ import app.pley.android.screens.onboarding.ServerRow
 import app.pley.android.screens.onboarding.ServersProblem
 import app.pley.android.screens.onboarding.ServersUiState
 import app.pley.android.screens.onboarding.SignInProblem
+import app.pley.android.screens.settings.DeviceLanguageUiState
 import app.pley.android.ui.phone.theme.PhoneTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -56,7 +58,12 @@ class PhoneOnboardingUiTest {
 
     private val events = mutableListOf<String>()
 
-    private fun signIn(state: ServersUiState, signIn: BrowserSignIn = BrowserSignIn.Idle, withoutBrowser: Boolean = false) {
+    private fun signIn(
+        state: ServersUiState,
+        signIn: BrowserSignIn = BrowserSignIn.Idle,
+        withoutBrowser: Boolean = false,
+        language: DeviceLanguageUiState? = null,
+    ) {
         compose.setContent {
             PhoneTheme {
                 PhoneSignInContent(
@@ -74,10 +81,36 @@ class PhoneOnboardingUiTest {
                     onUseCode = { events += "code" },
                     onRetry = { events += "retry" },
                     onOpenInBrowser = { events += "browser $it" },
+                    language = language,
+                    onLanguage = { events += "language ${it?.code}" },
                 )
             }
         }
         compose.waitForIdle()
+    }
+
+    @Test
+    fun theGlobeInTheTopBarPicksThisDevicesLanguage() {
+        signIn(
+            ServersUiState(rows = listOf(nas), selected = nas.url, searched = true),
+            language = DeviceLanguageUiState(shown = Language.English, picked = null, device = Language.English),
+        )
+        compose.onNodeWithTag(LANGUAGE_TAG).assertContentDescriptionEquals("Choose a language").assertIsEnabled().performClick()
+        compose.onNodeWithText("Automatic (English)").assertIsSelected()
+        compose.onNodeWithText("Español").performClick()
+        compose.onNodeWithText("Automatic (English)").assertDoesNotExist()
+        assertEquals(listOf("language es"), events)
+    }
+
+    @Test
+    fun theGlobeIsLabelledWithTheLanguageShownAndWaitsWhileSigningIn() {
+        signIn(
+            ServersUiState(rows = listOf(nas), selected = nas.url, searched = true),
+            signIn = BrowserSignIn.Waiting,
+            language = DeviceLanguageUiState(shown = Language.French, picked = Language.French, device = Language.English),
+        )
+        compose.onNodeWithText("Français").assertExists()
+        compose.onNodeWithTag(LANGUAGE_TAG).assertIsNotEnabled()
     }
 
     @Test

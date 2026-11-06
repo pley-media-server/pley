@@ -3,4 +3,5 @@
     <string name="language_title">Langue</string>
     <string name="language_automatic">Automatique (%1$s)</string>
     <string name="language_hint">La langue de Pley pour vous, sur tous les appareils où vous vous connectez. Automatique suit la langue de chaque appareil.</string>
+    <string name="language_choose">Choisir une langue</string>
 </resources>

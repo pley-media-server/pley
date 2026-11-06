@@ -204,7 +204,8 @@ fun TvRoundButton(
  * A text button: Change server, Cancel, Clear filters. 40 tall, its label
  * on a faint fill, quieter than a pill's (no edge), so beside a focused
  * button it still reads as one. A [link] (an album's artist, in a column
- * of text) has no fill until focused.
+ * of text) has no fill until focused. An [icon] goes before the label (the
+ * globe of the screens before signing in).
  */
 @Composable
 fun TvTextButton(
@@ -214,6 +215,7 @@ fun TvTextButton(
     enabled: Boolean = true,
     color: Color = PleyColors.Fg,
     link: Boolean = false,
+    icon: PleyIcon? = null,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
@@ -242,6 +244,10 @@ fun TvTextButton(
         glow = ButtonDefaults.glow(Glow.None, Glow.None, Glow.None),
         contentPadding = PaddingValues(horizontal = 16.dp),
     ) {
+        if (icon != null) {
+            Icon(icon, contentDescription = null, size = PleyTv.IconSize, tint = androidx.tv.material3.LocalContentColor.current)
+            Spacer(Modifier.width(8.dp))
+        }
         Text(label, style = PleyType.Tv.Label)
     }
 }

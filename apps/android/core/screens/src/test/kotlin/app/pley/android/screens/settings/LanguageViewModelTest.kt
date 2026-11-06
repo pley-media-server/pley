@@ -90,7 +90,7 @@ class LanguageViewModelTest {
 
     @Test
     fun withoutASignInThereIsNoRow() = runTest {
-        val vm = LanguageViewModel(Account(LanguageSources.NoServer)) { Language.English }
+        val vm = LanguageViewModel(Account(LanguageSources.NoAccount)) { Language.English }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         assertFalse(vm.state.value.available)
         vm.choose(Language.French)

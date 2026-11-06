@@ -10,18 +10,21 @@ import android.os.Bundle
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.Language
 import app.pley.android.data.LanguageRepository
+import app.pley.android.data.LanguageSources
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
  * Keeps the app in the language it should be in (docs/ANDROID.md,
- * "Language"): the account's, else the device's, else the server
- * language, as the data side learns them, and never another while the
- * server hasn't said. A change shows at once. Android 13 and later remake
+ * "Language"): the account's, else this device's (picked with the globe
+ * before signing in, else the system's), else the server language, as the
+ * data side learns them, and never another while the server hasn't said.
+ * A change shows at once. Android 13 and later remake
  * the activities themselves; below 13 the open ones are remade here, all
  * but those that take a change of language themselves (the players, which
  * play on, and show it the next time they open), as Android 13 does.
@@ -34,6 +37,10 @@ internal class LanguageSync(private val app: Application) : Application.Activity
     @Volatile
     private var followed: LanguageRepository? = null
 
+    /** What decides the language now, as [follow] last heard it. */
+    @Volatile
+    private var sources: LanguageSources = LanguageSources.Unknown
+
     private val picks = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     init {
@@ -43,8 +50,9 @@ internal class LanguageSync(private val app: Application) : Application.Activity
     /** Follows [language]'s sources for as long as the calling coroutine lasts. */
     suspend fun follow(language: LanguageRepository) {
         followed = language
-        language.sources.collect { sources ->
-            val wanted = sources.wanted(AppLanguage.deviceLocales(app)) ?: return@collect
+        combine(language.sources, AppLanguage.picked, ::Pair).collect { (sources, picked) ->
+            this.sources = sources
+            val wanted = sources.wanted(AppLanguage.deviceLocales(app), picked) ?: return@collect
             val changed = withContext(Dispatchers.Main.immediate) {
                 AppLanguage.show(app, wanted).also { changed -> if (changed && Build.VERSION.SDK_INT < 33) remake() }
             }
@@ -57,19 +65,27 @@ internal class LanguageSync(private val app: Application) : Application.Activity
      * The configuration changed (the application's onConfigurationChanged),
      * on the main thread. Android 13 and later list Pley's languages in the
      * system's settings (Apps → Pley → Language): one picked there is chosen
-     * as the Language row chooses it, the account's on every device, and its
-     * "System default" is Automatic. Signed out, or refused by the server,
-     * the language the app goes by comes back.
+     * as the app's own picker would choose it, and "System default" is that
+     * picker's Automatic. Signed in, that is the Language row, for the
+     * account on every device (refused by the server, the language the app
+     * goes by comes back); without an account, the globe, for this device.
      */
     fun configurationChanged() {
         if (Build.VERSION.SDK_INT < 33) return
         val locales = app.getSystemService(LocaleManager::class.java)?.applicationLocales ?: return
         val picked = if (locales.isEmpty) null else Language.of(locales[0].language) ?: return
-        val language = picked ?: Language.ofDevice(AppLanguage.deviceLocales(app)) ?: Language.English
         // The app's own setting (AppLanguage.show) is heard here too: the language shown already.
-        if (picked != null && language == AppLanguage.shown.value) return
-        val before = AppLanguage.shown.value
+        if (picked != null && picked == AppLanguage.shown.value) return
+        val device = Language.ofDevice(AppLanguage.deviceLocales(app))
         val repository = followed
+        if (sources == LanguageSources.NoAccount) {
+            AppLanguage.pick(app, picked)
+            if (AppLanguage.show(app, picked ?: device ?: Language.English)) repository?.shown()
+            return
+        }
+        // The account's Automatic is this device's language: the one picked with the globe, else the system's.
+        val language = picked ?: AppLanguage.picked.value ?: device ?: Language.English
+        val before = AppLanguage.shown.value
         if (AppLanguage.show(app, language)) repository?.shown()
         picks.launch {
             try {

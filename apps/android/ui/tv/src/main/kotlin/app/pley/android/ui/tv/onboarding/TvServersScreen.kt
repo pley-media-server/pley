@@ -58,6 +58,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.pley.android.common.Language
 import app.pley.android.common.UiText
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
@@ -72,6 +73,8 @@ import app.pley.android.screens.onboarding.ServersProblem
 import app.pley.android.screens.onboarding.ServersUiState
 import app.pley.android.screens.onboarding.ServersViewModel
 import app.pley.android.screens.onboarding.onboardingSource
+import app.pley.android.screens.settings.DeviceLanguageUiState
+import app.pley.android.screens.settings.DeviceLanguageViewModel
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.TvTextButton
 import app.pley.android.ui.tv.kit.HeldEnds
@@ -84,7 +87,8 @@ import app.pley.android.ui.tv.shell.LocalTvNavigator
  * "Choose your server" on TV (design spec §4.7): saved servers first, then
  * those that answer as they come; "Enter an address" (on the TV's keyboard),
  * "Search this network", and the demo server in debug builds. Holding OK
- * on a saved server forgets it.
+ * on a saved server forgets it. Beside the title, the globe picks this
+ * device's language.
  */
 @Composable
 internal fun TvServersScreen() {
@@ -92,6 +96,8 @@ internal fun TvServersScreen() {
     val given = LocalOnboardingSource.current
     val vm = viewModel { ServersViewModel(given ?: onboardingSource(), explainFirst = true) }
     val state by vm.state.collectAsStateWithLifecycle()
+    val languageModel: DeviceLanguageViewModel = viewModel(factory = DeviceLanguageViewModel.factory)
+    val language by languageModel.state.collectAsStateWithLifecycle()
     LaunchedEffect(vm) {
         vm.chosen.collect { chosen ->
             navigator.restart(
@@ -132,6 +138,8 @@ internal fun TvServersScreen() {
             onSearchNetwork = vm::searchNetwork,
             onDemo = vm::useDemo,
             onOpenSettings = { openAppSettings(context) },
+            language = language,
+            onLanguage = languageModel::choose,
         )
     }
     if (state.access == LocalAccess.Explain) {
@@ -166,8 +174,11 @@ internal fun TvServersContent(
     onSearchNetwork: () -> Unit,
     onDemo: () -> Unit,
     onOpenSettings: () -> Unit = {},
+    language: DeviceLanguageUiState = DeviceLanguageUiState(),
+    onLanguage: (Language?) -> Unit = {},
 ) {
     var forgetting by remember { mutableStateOf<ServerRow?>(null) }
+    val picker = rememberTvLanguagePicker()
     val firstRow = remember { FocusRequester() }
     // Each row's focus, for the row a cancelled Forget goes back to.
     val rowFocus = remember { HashMap<String, FocusRequester>() }
@@ -190,12 +201,14 @@ internal fun TvServersContent(
             .testTag(SERVERS_TAG),
     ) {
         Column(Modifier.padding(start = 96.dp, top = 27.dp, end = 48.dp, bottom = 27.dp).fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().height(38.dp), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically) {
                 BasicText(
                     stringResource(R.string.tv_onboarding_servers_title),
                     style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg),
                     modifier = Modifier.weight(1f),
                 )
+                TvLanguageButton(picker, language)
+                Spacer(Modifier.width(24.dp))
                 PleyLogo(height = 32.dp)
             }
             Spacer(Modifier.height(25.dp))
@@ -253,6 +266,7 @@ internal fun TvServersContent(
                 BasicText(stringResource(R.string.tv_onboarding_forget_hint), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
             }
         }
+        TvLanguagePanel(picker, language, onLanguage)
     }
     forgetting?.let { row ->
         TvDialog(
