@@ -385,7 +385,7 @@ private fun LazyListScope.pane(
                     )
                 }
             }
-            // The account's: on every device it signs in on.
+            // The account's, on every device it signs in on; on a Pley from before languages, this TV's.
             if (language.available) {
                 item(key = "row-language", contentType = SETTING_ROW) {
                     TvSettingRow(

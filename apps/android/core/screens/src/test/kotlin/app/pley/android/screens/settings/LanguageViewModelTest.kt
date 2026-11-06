@@ -77,6 +77,8 @@ class LanguageViewModelTest {
         assertEquals("Automatic (Français)", state.value.inEnglish())
         assertEquals(listOf(null, Language.English, Language.French, Language.Spanish), state.choices)
         assertEquals(listOf("Automatic (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
+        // The account's, on every device.
+        assertEquals(UiText.res(R.string.language_hint), state.hint)
 
         // No server language either (a Pley from before languages): English.
         account.sources.value = signedIn(server = null)
@@ -132,6 +134,8 @@ class LanguageViewModelTest {
         val before = vm.shown()
         assertTrue(before.onDevice)
         assertEquals("Automatic (English)", before.value.inEnglish())
+        // The hint says it is this device's, and why.
+        assertEquals("What Pley is in on this device. Keeping it for your account needs a newer Pley on the server.", before.hint.inEnglish())
         vm.choose(Language.French)
         assertEquals(emptyList<String?>(), account.chosen)
         assertEquals(Language.French, vm.state.first { it.chosen != null }.chosen)
@@ -148,7 +152,7 @@ class LanguageViewModelTest {
         val picked = MutableStateFlow<Language?>(null)
         val vm = LanguageViewModel(account, picked, { picked.value = it }) { Language.English }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
-        vm.shown()
+        assertEquals(UiText.res(R.string.language_hint), vm.shown().hint)
         val heard = mutableListOf<Throwable>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.errors.collect { heard += it } }
         vm.choose(Language.Spanish)
@@ -156,6 +160,7 @@ class LanguageViewModelTest {
         assertEquals(Language.Spanish, picked.value)
         val after = vm.state.first { it.onDevice }
         assertEquals(Language.Spanish, after.chosen)
+        assertEquals(UiText.res(R.string.language_hint_device), after.hint)
         assertEquals(emptyList<Throwable>(), heard)
         // From then on the row is this device's: nothing more goes to the server.
         vm.choose(Language.French)
@@ -168,6 +173,7 @@ class LanguageViewModelTest {
         val shown = again.shown()
         assertTrue(shown.onDevice)
         assertEquals("Français", shown.value.inEnglish())
+        assertEquals(UiText.res(R.string.language_hint_device), shown.hint)
         // And Automatic forgets the pick, there too.
         again.choose(null)
         assertEquals(null, picked.value)

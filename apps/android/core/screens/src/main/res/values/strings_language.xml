@@ -5,6 +5,8 @@
     <!-- No language of the account's own: %1$s is what that is here, this device's language or else the server's, named in itself ("Français"). -->
     <string name="language_automatic">Automatic (%1$s)</string>
     <string name="language_hint">What Pley is in for you, on every device you sign in on. Automatic follows each device\'s language.</string>
+    <!-- On a server from before languages, which keeps no account's language: the row is this device's. -->
+    <string name="language_hint_device">What Pley is in on this device. Keeping it for your account needs a newer Pley on the server.</string>
     <!-- The globe, as screen readers hear it; it shows the language shown. -->
     <string name="language_choose">Choose a language</string>
 </resources>

@@ -89,7 +89,7 @@ internal fun SettingsScreen() {
         ) {
             if (language.available) {
                 item(key = "language") {
-                    SettingsGroup(null, Modifier.widthIn(max = MAX_WIDTH), footer = stringResource(ScreensR.string.language_hint)) {
+                    SettingsGroup(null, Modifier.widthIn(max = MAX_WIDTH), footer = language.hint.asString()) {
                         SettingsRow(
                             stringResource(ScreensR.string.language_title),
                             value = language.value.asString(),

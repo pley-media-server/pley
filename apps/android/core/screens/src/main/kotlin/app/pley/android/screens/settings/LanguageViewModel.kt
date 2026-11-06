@@ -54,6 +54,9 @@ data class LanguageUiState(
     /** What the row says: the account's language. */
     val value: UiText get() = label(chosen)
 
+    /** What the row is for: the account, on every device it signs in on, or only this device on an older server. */
+    val hint: UiText get() = UiText.res(if (onDevice) R.string.language_hint_device else R.string.language_hint)
+
     /**
      * How [choice] reads: a language by its own name ("Français"),
      * Automatic by what it is on this device, its language, else the

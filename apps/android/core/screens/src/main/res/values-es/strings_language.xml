@@ -3,5 +3,6 @@
     <string name="language_title">Idioma</string>
     <string name="language_automatic">Automático (%1$s)</string>
     <string name="language_hint">El idioma de Pley para ti, en todos los dispositivos en los que inicies sesión. Automático sigue el idioma de cada dispositivo.</string>
+    <string name="language_hint_device">El idioma de Pley en este dispositivo. Para guardarlo en tu cuenta, el servidor necesita una versión más reciente de Pley.</string>
     <string name="language_choose">Elegir un idioma</string>
 </resources>

@@ -111,10 +111,12 @@ word, if the server refuses. A Pley from before languages keeps no
 account's language (its `GET /api/server` names none, and the route
 answers 404 or 405): there the row is this device's, as the globe picks it, and
 a choice shows and stays on this device. A language picked in the
-system's settings is too. A server that answers a choice 404 or 405 is
-taken for one such, though it names a language, until another server is
-in use or the app starts again, so the row stays this device's when
-Settings opens again.
+system's settings is too. On phones the hint under the row says so:
+what Pley is in on this device, and that keeping it for the account
+needs a newer Pley on the server. A server that answers a choice 404 or
+405 is taken for one such, though it names a language, until another
+server is in use or the app starts again, so the row stays this
+device's when Settings opens again.
 
 The app remembers the language it showed last and starts in it, before
 the server has answered; signed in, it waits for the account's language
