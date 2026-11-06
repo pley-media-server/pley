@@ -68,6 +68,13 @@ sealed class FakeAccount : IMeSource, ISettingsSource
     public IReadOnlyList<string> TvLanguages { get; set; } = new[] { "en-US" };
 
     public string? DeviceLanguage { get; set; }
+
+    /// <summary>False: a Pley from before languages, as AppState finds it.</summary>
+    public bool KeepsLanguage { get; set; } = true;
+
+    public void LanguageRouteMissing() => KeepsLanguage = false;
+
+    public void ChooseDeviceLanguage(string? language) => DeviceLanguage = language;
 }
 
 /// <summary>The Me page: the Android app's MeViewModelTest.</summary>
@@ -314,7 +321,7 @@ public class SettingsModelTests
     }
 
     [Fact]
-    public void Language_is_changed_on_the_web_without_the_play_scope_or_the_servers_route()
+    public void Language_is_changed_on_the_web_without_the_play_scope()
     {
         var m = Model(scope: "library");
         var row = Row(m, SettingsCategory.Profile, "row-language");
@@ -329,10 +336,59 @@ public class SettingsModelTests
         Assert.Equal("It broke.", told.Last());
         Assert.Null(account.Me.Value!.Language);
         Assert.True(m.State.Value.Me.Language!.Editable);
-        account.SaveFailure = new ApiException(404, "not_found", "no such route");
+        account.SaveFailure = new ApiException(403, "forbidden", "the play scope is needed");
         m.Choose(new SettingPick.Language(), 2);
         Assert.False(m.State.Value.Me.Language!.Editable);
         Assert.Equal(new SettingAction.Web("/account"), Row(m, SettingsCategory.Profile, "row-language").Action);
+    }
+
+    [Fact]
+    public void On_a_server_from_before_languages_the_Language_row_is_this_TVs_as_the_globe_picks_it()
+    {
+        // Its GET /api/server names none: nothing goes to it, and the one picked with the globe is the row's.
+        account.KeepsLanguage = false;
+        account.DeviceLanguage = "es";
+        var m = Model(scope: "library");
+        var told = new List<string>();
+        m.Told += told.Add;
+        var row = Row(m, SettingsCategory.Profile, "row-language");
+        Assert.Equal("Español", row.Value);
+        // Kept on the TV, it needs no play scope.
+        Assert.Equal(new SettingAction.Pick(new SettingPick.Language()), row.Action);
+        // Automatic is the TV's own language, not the one picked.
+        var panel = m.Panel(new SettingPick.Language());
+        Assert.Equal(new[] { "Automatic (English)", "English", "Français", "Español" }, panel.Choices.Select(c => c.Label));
+        Assert.Equal(3, panel.Focus);
+        m.Choose(new SettingPick.Language(), 2);
+        Assert.Equal("fr", account.DeviceLanguage);
+        Assert.Equal("Français", Row(m, SettingsCategory.Profile, "row-language").Value);
+        // Automatic forgets the pick.
+        m.Choose(new SettingPick.Language(), 0);
+        Assert.Null(account.DeviceLanguage);
+        Assert.Equal("Automatic (English)", Row(m, SettingsCategory.Profile, "row-language").Value);
+        Assert.Empty(account.LanguagesSent);
+        Assert.Empty(told);
+    }
+
+    [Fact]
+    public void A_server_that_answers_the_choice_404_keeps_it_on_this_TV_with_no_word()
+    {
+        var m = Model();
+        var told = new List<string>();
+        m.Told += told.Add;
+        account.SaveFailure = new ApiException(404, "not_found", "no such route");
+        m.Choose(new SettingPick.Language(), 2);
+        Assert.Equal(new string?[] { "fr" }, account.LanguagesSent);
+        Assert.Equal("fr", account.DeviceLanguage);
+        Assert.False(account.KeepsLanguage);
+        Assert.Null(account.Me.Value!.Language);
+        Assert.Equal(new LanguageState("fr", true, OnDevice: true), m.State.Value.Me.Language);
+        Assert.Equal("Français", Row(m, SettingsCategory.Profile, "row-language").Value);
+        Assert.Empty(told);
+        // From then on the row is this TV's: nothing more goes to the server.
+        m.Choose(new SettingPick.Language(), 3);
+        Assert.Single(account.LanguagesSent);
+        Assert.Equal("es", account.DeviceLanguage);
     }
 
     [Fact]

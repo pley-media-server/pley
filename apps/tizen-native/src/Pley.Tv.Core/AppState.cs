@@ -220,8 +220,10 @@ public sealed class AppState
     Task orderQueue = Task.CompletedTask;
     /// <summary>When the events last brought everything up to date (<see cref="IScheduler.Elapsed"/>).</summary>
     long? lastSync;
-    /// <summary>What each server said of its language in this launch (GET /api/server), by its address; null: none of its own.</summary>
+    /// <summary>What each server said of its language in this launch (GET /api/server), by its address; null: none, as a Pley from before languages.</summary>
     readonly Dictionary<string, string?> serverLanguages = new Dictionary<string, string?>();
+    /// <summary>The servers that answered a choice of language 404 (or 405) in this launch, by their address: they have no route for it.</summary>
+    readonly HashSet<string> noLanguageRoute = new HashSet<string>();
     IReadOnlyList<string> tvLanguages;
     string? deviceLanguage;
 
@@ -256,6 +258,20 @@ public sealed class AppState
 
     /// <summary>The language of the server in use, for accounts without their own; null when it has none, or hasn't said yet.</summary>
     public string? ServerLanguage => Server.Value != null && serverLanguages.TryGetValue(Server.Value, out var language) ? language : null;
+
+    /// <summary>
+    /// The server in use keeps an account's language. False for a Pley from before languages, whose
+    /// GET /api/server names none, or one that answered a choice 404 (<see cref="LanguageRouteMissing"/>):
+    /// Settings' Language row is then this TV's, as the globe picks it. True until the server has said.
+    /// </summary>
+    public bool KeepsLanguage =>
+        Server.Value is not { } server || (!noLanguageRoute.Contains(server) && (!serverLanguages.TryGetValue(server, out var language) || language != null));
+
+    /// <summary>The server in use answered a choice of language 404 (or 405): it has no route for it, and keeps no account's language.</summary>
+    public void LanguageRouteMissing()
+    {
+        if (Server.Value is { } server) noLanguageRoute.Add(server);
+    }
 
     /// <summary><paramref name="url"/>'s server said what its language is (GET /api/server): the app shows it when the account has none.</summary>
     public void HeardServer(string url, string? language)
@@ -297,15 +313,15 @@ public sealed class AppState
 
     /// <summary>
     /// Picks this TV's language (null: Automatic, the TV's own again), kept on the TV. Signed out
-    /// (the globe), it shows at once, Automatic as what it says it is; signed in, unless the account
-    /// has its own.
+    /// (the globe), or on a server that keeps no account's language (<see cref="KeepsLanguage"/>),
+    /// it shows at once, Automatic as what it says it is; signed in, unless the account has its own.
     /// </summary>
     public void ChooseDeviceLanguage(string? language)
     {
         deviceLanguage = Languages.Supported(language);
         if (deviceLanguage != null) store.Set(DeviceLanguageKey, deviceLanguage);
         else store.Remove(DeviceLanguageKey);
-        if (tokens?.Kept == true) ChooseLanguage();
+        if (tokens?.Kept == true && KeepsLanguage) ChooseLanguage();
         else ShowLanguage(Languages.Pick(null, ServerLanguage, tvLanguages, deviceLanguage));
     }
 

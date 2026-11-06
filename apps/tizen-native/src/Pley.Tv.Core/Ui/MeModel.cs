@@ -31,9 +31,13 @@ public sealed record TrackDefaultsState(TrackDefaults Defaults, bool Editable, b
 }
 
 /// <summary>The language the profile chose for Pley, and whether this app may change it.</summary>
-/// <param name="Code">"en", "fr" or "es"; null: the server's.</param>
-/// <param name="Editable">False: shown read-only, to change on the web (no "play" scope, or a server without the route).</param>
-public sealed record LanguageState(string? Code, bool Editable, bool Saving = false);
+/// <param name="Code">"en", "fr" or "es"; null: Automatic.</param>
+/// <param name="Editable">False: shown read-only, to change on the web (no "play" scope).</param>
+/// <param name="OnDevice">
+/// The server keeps no account's language (a Pley from before languages): the row is this TV's, as
+/// the globe picks it, and <paramref name="Code"/> is the one picked there.
+/// </param>
+public sealed record LanguageState(string? Code, bool Editable, bool Saving = false, bool OnDevice = false);
 
 public sealed record MeState(MeProfile? Profile = null, TrackDefaultsState? TrackDefaults = null, bool SigningOut = false, LanguageState? Language = null);
 
@@ -78,6 +82,18 @@ public interface IMeSource
     /// <summary>PUT /api/me/language ("en", "fr", "es", or null for the server's): the profile as the server has it after.</summary>
     Task<User> SaveLanguage(string? language);
 
+    /// <summary>The server keeps an account's language; false for a Pley from before languages (<see cref="AppState.KeepsLanguage"/>).</summary>
+    bool KeepsLanguage { get; }
+
+    /// <summary>The server answered a choice of language 404 (or 405): it keeps none (<see cref="AppState.LanguageRouteMissing"/>).</summary>
+    void LanguageRouteMissing();
+
+    /// <summary>The language picked on this TV, as the globe picks it; null: Automatic, the TV's own.</summary>
+    string? DeviceLanguage { get; }
+
+    /// <summary>Picks this TV's language, kept on the TV, as the globe does (<see cref="AppState.ChooseDeviceLanguage"/>).</summary>
+    void ChooseDeviceLanguage(string? language);
+
     /// <summary>The track defaults changed: item details kept name the tracks they started with before.</summary>
     void TracksChanged();
 
@@ -88,9 +104,9 @@ public interface IMeSource
 /// <summary>
 /// The Me page, Settings' Profile (the Android app's MeViewModel): who is signed in, the
 /// profile's audio and subtitle defaults (PUT /api/me/track-defaults), its language (PUT
-/// /api/me/language), and signing out, which ends the sign-in on the server, deletes what was
-/// saved from it and stops the music. Profiles are switched on "Who's watching?"
-/// (<see cref="ProfilesModel"/>).
+/// /api/me/language; on a Pley from before languages, this TV's), and signing out, which ends
+/// the sign-in on the server, deletes what was saved from it and stops the music. Profiles are
+/// switched on "Who's watching?" (<see cref="ProfilesModel"/>).
 /// </summary>
 public sealed class MeModel : IDisposable
 {
@@ -120,13 +136,22 @@ public sealed class MeModel : IDisposable
     /// <summary>
     /// The profile's language ("en", "fr", "es"; null: the server's), on all its devices. The
     /// profile the server answers is the app's from then on, so the app shows the language once
-    /// the server has it: a refusal leaves everything as it was.
+    /// the server has it: a refusal leaves everything as it was. A Pley from before languages
+    /// keeps none (its GET /api/server names none, and the route answers 404): there the choice is
+    /// this TV's, as the globe picks it, and shows at once.
     /// </summary>
     public void SetLanguage(string? code)
     {
         var current = State.Value.Language;
         if (current == null || !current.Editable || current.Saving || current.Code == code) return;
+        if (current.OnDevice)
+        {
+            source.ChooseDeviceLanguage(code);
+            Compute();
+            return;
+        }
         var who = source.Me.Value?.Id;
+        var server = source.Server;
         savingLanguage = true;
         Compute();
         Plays.When(scheduler, () => source.SaveLanguage(code), me =>
@@ -139,7 +164,19 @@ public sealed class MeModel : IDisposable
         }, e =>
         {
             savingLanguage = false;
-            if (e is ApiException { Status: 403 or 404 or 405 })
+            if (e is ApiException { Status: 404 or 405 })
+            {
+                // No route for it, a Pley from before languages: the choice is this TV's, with no word.
+                // Another server since: the answer was the one before's.
+                if (source.Server == server)
+                {
+                    source.LanguageRouteMissing();
+                    source.ChooseDeviceLanguage(code);
+                }
+                Compute();
+                return;
+            }
+            if (e is ApiException { Status: 403 })
             {
                 languageReadOnly = true;
                 Compute();
@@ -217,6 +254,10 @@ public sealed class MeModel : IDisposable
         var me = source.Me.Value;
         var server = (source.Server ?? "").TrimEnd('/');
         var scopes = (me?.Scope ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+        // On a server that keeps no account's language, the TV's: a choice needs nothing of the server.
+        var language = me == null ? null
+            : !source.KeepsLanguage ? new LanguageState(source.DeviceLanguage, true, OnDevice: true)
+            : new LanguageState(Languages.Supported(me.Language), !languageReadOnly && MayChange(scopes), savingLanguage);
         State.Value = new MeState(
             me == null ? null : new MeProfile(
                 me.Id,
@@ -228,7 +269,7 @@ public sealed class MeModel : IDisposable
                 server),
             me == null ? null : new TrackDefaultsState(new TrackDefaults(me.AudioLanguage, me.SubtitleLanguage, me.SubtitleMode), !readOnly && MayChange(scopes), saving),
             signingOut,
-            me == null ? null : new LanguageState(Languages.Supported(me.Language), !languageReadOnly && MayChange(scopes), savingLanguage));
+            language);
     }
 
     /// <summary>Changing track defaults and the language needs the "play" scope; a sign-in whose scopes aren't known may try.</summary>
@@ -258,6 +299,14 @@ public sealed class AppMeSource : IMeSource
         var api = app.Api.Value ?? throw new SignedOutException();
         return Profile(await api.SetLanguage(language));
     }
+
+    public bool KeepsLanguage => app.KeepsLanguage;
+
+    public void LanguageRouteMissing() => app.LanguageRouteMissing();
+
+    public string? DeviceLanguage => app.DeviceLanguage;
+
+    public void ChooseDeviceLanguage(string? language) => app.ChooseDeviceLanguage(language);
 
     /// <summary>The profile a change answers; an answer without one (Id 0) keeps the change made here.</summary>
     static User Profile(JsonElement? answer)

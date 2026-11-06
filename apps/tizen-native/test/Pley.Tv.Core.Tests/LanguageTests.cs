@@ -420,6 +420,48 @@ public class AppLanguageTests
     }
 
     [Fact]
+    public async Task A_server_from_before_languages_keeps_no_accounts_language_and_the_TVs_choice_shows_at_once()
+    {
+        var store = new MemoryKeyValue();
+        var scheduler = new FakeScheduler();
+        var server = new FakeServer();
+        // A Pley from before languages names none in GET /api/server, and its accounts have none.
+        server.On("GET", Home + "/api/server", 200, @"{""name"":""Home"",""version"":""0.1.0""}");
+        server.On("GET", Home + "/api/auth/me", 200, @"{""id"":1,""username"":""a"",""name"":""A""}");
+        server.On("GET", Home + "/api/libraries", 200, "[]");
+        var state = State(store, server, scheduler, "en-US");
+        state.Use(Home);
+        // Until it has said, a server keeps the account's.
+        Assert.True(state.KeepsLanguage);
+        SignIn(state, scheduler);
+        await state.LoadServer();
+        await state.LoadAccount();
+        Assert.False(state.KeepsLanguage);
+        Assert.Equal("en", state.Language.Value);
+        state.ChooseDeviceLanguage("fr");
+        Assert.Equal(("fr", "fr"), (state.Language.Value, store.Get("pley.deviceLanguage")));
+        state.ChooseDeviceLanguage(null);
+        Assert.Equal("en", state.Language.Value);
+        Assert.Null(store.Get("pley.deviceLanguage"));
+        // A current server names its language: it keeps the account's.
+        state.HeardServer(Home, "fr");
+        Assert.True(state.KeepsLanguage);
+    }
+
+    [Fact]
+    public void A_server_without_the_route_keeps_no_accounts_language_but_another_may()
+    {
+        var state = State(new MemoryKeyValue(), new FakeServer(), new FakeScheduler(), "en-US");
+        state.Use(Home);
+        state.HeardServer(Home, "en");
+        Assert.True(state.KeepsLanguage);
+        state.LanguageRouteMissing();
+        Assert.False(state.KeepsLanguage);
+        state.Use("https://other.example.com");
+        Assert.True(state.KeepsLanguage);
+    }
+
+    [Fact]
     public async Task Requests_ask_for_answers_in_the_language_shown()
     {
         var server = new FakeServer();

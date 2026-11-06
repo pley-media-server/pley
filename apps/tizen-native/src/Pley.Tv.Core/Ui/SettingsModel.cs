@@ -347,7 +347,7 @@ public sealed class SettingsModel : IDisposable
                 if (me.Language is { } language)
                     items.Add(new SettingsItem.Row("row-language", SettingsText.Language,
                         language.Editable ? new SettingAction.Pick(new SettingPick.Language()) : new SettingAction.Web("/account"),
-                        LanguageLabel(language.Code) + (language.Editable ? "" : " · " + SettingsText.ChangeOnWeb), "languages"));
+                        LanguageLabel(language.Code, language.OnDevice) + (language.Editable ? "" : " · " + SettingsText.ChangeOnWeb), "languages"));
                 items.Add(new SettingsItem.Row("row-history", SettingsText.History, new SettingAction.Open(new PageKey.History()), Icon: "history", Chevron: true));
                 // The Libraries page sorts them; with three or fewer, the rail lists them and has no way there.
                 items.Add(new SettingsItem.Row("row-sort-libraries", SettingsText.SortLibraries, new SettingAction.Open(new PageKey.Libraries()), SettingsText.SortLibrariesValue, "arrow-up-down", Chevron: true));
@@ -425,7 +425,8 @@ public sealed class SettingsModel : IDisposable
             SettingPick.SubtitleMode => (SettingsText.Subtitles, SubtitleModes.Select(m => (SettingsText.ModeLabel(m), (string?)SettingsText.ModeHint(m))).ToList(),
                 Math.Max(0, Index(SubtitleModes, defaults?.SubtitleMode ?? "forced"))),
             SettingPick.SubtitleLanguage => (SettingsText.SubtitleLanguage, TrackChoices(SettingsText.SameAsAudio), LanguageIndex(defaults?.SubtitleLanguage)),
-            SettingPick.Language => (SettingsText.Language, new[] { LanguageLabel(null) }.Concat(Languages.All.Select(Languages.NameOf)).Select(l => (l, (string?)null)).ToList(),
+            SettingPick.Language => (SettingsText.Language,
+                new[] { LanguageLabel(null, state.Me.Language?.OnDevice == true) }.Concat(Languages.All.Select(Languages.NameOf)).Select(l => (l, (string?)null)).ToList(),
                 state.Me.Language?.Code is { } code ? Index(Languages.All, code) + 1 : 0),
             SettingPick.AlwaysStartAs => (SettingsText.AlwaysStartAs,
                 new[] { (SettingsText.UsedLast, (string?)null) }.Concat(state.Profiles.Select(x => (x.Name, (string?)null))).ToList(),
@@ -533,12 +534,14 @@ public sealed class SettingsModel : IDisposable
     /// <summary>
     /// The Language row's value: the profile's language, named in itself ("Français"), or for
     /// none "Automatic" with what that is on this TV: the one picked with the globe, else its
-    /// language, else the server's.
+    /// language, else the server's. On a server that keeps no account's language
+    /// (<paramref name="onDevice"/>), the row is the globe's: Automatic is the TV's own language,
+    /// not the one picked.
     /// </summary>
-    string LanguageLabel(string? code) =>
+    string LanguageLabel(string? code, bool onDevice) =>
         code != null
             ? Languages.NameOf(code)
-            : SettingsText.Automatic(Languages.NameOf(Languages.Pick(null, source.ServerLanguage, source.TvLanguages, source.DeviceLanguage)));
+            : SettingsText.Automatic(Languages.NameOf(Languages.Pick(null, source.ServerLanguage, source.TvLanguages, onDevice ? null : source.DeviceLanguage)));
 
     static int LanguageIndex(string? code)
     {

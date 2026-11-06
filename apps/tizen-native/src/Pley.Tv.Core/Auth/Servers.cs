@@ -15,8 +15,8 @@ namespace Pley.Tv.Core.Auth;
 /// up for whoever hasn't yet. Servers before it leave it out.
 /// </param>
 /// <param name="Language">
-/// The server's language, for accounts without their own ("fr"); null when it leaves it to each
-/// device, and from servers before languages.
+/// The server's language, for accounts without their own ("fr"); null from servers before
+/// languages, which name none.
 /// </param>
 public sealed record ServerInfo(string Url, string Name, string Version, bool TwoStepRequired = false, string? Language = null);
 
