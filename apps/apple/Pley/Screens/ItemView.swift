@@ -446,7 +446,7 @@ struct ItemView: View {
             if !tracks.subtitles.isEmpty {
                 let subtitles = Binding<Int?>(get: { tracks.subtitleIndex },
                                               set: { index in Task { await model.chooseSubtitle(index) } })
-                let chosen = tracks.subtitles.first { $0.id == tracks.subtitleIndex }?.label ?? "Off"
+                let chosen = tracks.subtitles.first { $0.id == tracks.subtitleIndex }?.label ?? localized("Off")
                 pickerRow("Subtitles", chosen: chosen, id: "item.subtitles") {
                     Picker("Subtitles", selection: subtitles) {
                         Text("Off").tag(Int?.none)
@@ -479,7 +479,7 @@ struct ItemView: View {
     /// A picker's name, and its choice on one line beside it: a long
     /// choice is cut short rather than wrapped, which a menu picker's own
     /// label does. The choices open in a menu.
-    private func pickerRow(_ title: String, chosen: String, id: String,
+    private func pickerRow(_ title: LocalizedStringKey, chosen: String, id: String,
                            @ViewBuilder picker: () -> some View) -> some View {
         HStack(spacing: 12) {
             Text(title).fixedSize()
@@ -494,7 +494,7 @@ struct ItemView: View {
             }
             .menuStyle(.button)
             .buttonStyle(.borderless)
-            .accessibilityLabel(title)
+            .accessibilityLabel(Text(title))
             .accessibilityValue(chosen)
             .accessibilityIdentifier(id)
         }

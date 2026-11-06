@@ -5179,6 +5179,40 @@
         }
       }
     },
+    "Skip credits on %@" : {
+      "comment" : "VoiceOver: the remote's Skip Credits, with the device's name.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar créditos en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer le générique sur %@"
+          }
+        }
+      }
+    },
+    "Skip intro on %@" : {
+      "comment" : "VoiceOver: the remote's Skip Intro, with the device's name.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar intro en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer l’intro sur %@"
+          }
+        }
+      }
+    },
     "Someone" : {
       "comment" : "Requests: Discover, a title page, the lists, the managers' dialogs and notices (RequestWords).",
       "localizations" : {
