@@ -9,6 +9,7 @@ use std::rc::Rc;
 use common::{TestApp, device, fixtures, http, registry, sign_in, store};
 use pley_base::{Key, KeyEvent};
 use pley_core::device::Drive;
+use pley_core::model::ServerEvent;
 use pley_shell::{NavCommand, Rail, Registry, Route, placeholder_text};
 use pley_ui::InputEvent;
 
@@ -336,6 +337,12 @@ fn pages_under_the_top_hear_what_changed_when_they_show_again() {
     sign_in(&server, pley_fixtures::ids::ALEX, &store, &http);
     let heard = heard();
     let mut app = TestApp::new(device, store, http, registry(&heard, &[]));
+    // The event stream opens on its own thread: connected, it asks for everything again (a
+    // `Changed`), and the server names the TV a receiver (`sessions_changed`). Both come before
+    // the steps below, or they land among what the pages hear.
+    let receiver_named = pley_shell::AppEvent::Server(ServerEvent::SessionsChanged);
+    assert!(app.until(|_| heard.borrow().iter().any(|(_, e)| *e == receiver_named)), "the events never connected");
+    app.settle();
     app.press(Key::Ok);
     heard.borrow_mut().clear();
     app.state.refresh();
