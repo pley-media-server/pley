@@ -179,11 +179,13 @@ def progress(program: dict, now: float) -> float:
 
 
 def time_format() -> str:
-    """Kodi's time format, without seconds ("%H:%M", "%I:%M %p"), when Kodi
-    is in the language shown (its region is the person's); else the
-    language's own."""
+    """Kodi's time format, without seconds ("%H:%M", "%I:%M %p"): its region
+    is the person's, unless Kodi is in another of Pley's languages than the
+    one shown, which then has its own clock. A Kodi in a language Pley
+    doesn't have keeps its region's."""
     language = kodi.language()
-    if i18n.supported(kodi.kodi_language()) != language:
+    kodi_language = i18n.supported(kodi.kodi_language())
+    if kodi_language and kodi_language != language:
         return CLOCKS[language]
     region = getattr(xbmc, "getRegion", None)
     found = region("time") if region else ""

@@ -16,7 +16,7 @@ import support
 import xbmc
 import xbmcaddon
 import xbmcgui
-from pley import api, i18n, kodi, language, words
+from pley import api, i18n, kodi, language, livetv, words
 from pley import layout as L
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -308,6 +308,19 @@ class LanguageTest(Shown):
         self.addCleanup(server.close)
         api.Client(server.url, "pleyKodi/test").get("/api/hubs/home")
         self.assertEqual(server.requests[0].headers.get("accept-language"), "fr")
+
+    def test_the_guide_keeps_kodis_clock_unless_kodi_is_in_another_of_pleys_languages(self):
+        self.addCleanup(xbmc.region.update, {"time": xbmc.region["time"]})
+        xbmc.region["time"] = "%H:%M:%S"
+        self.show(kodi_language="de")
+        self.assertEqual(livetv.time_format(), "%H:%M", "Kodi in German, the add-on in English: Kodi's region")
+        self.show(kodi_language="fr", choice="en")
+        self.assertEqual(livetv.time_format(), "%I:%M %p", "Kodi in French, the add-on in English: English's clock")
+        xbmc.region["time"] = "%I:%M:%S %p"
+        self.show(kodi_language="en", choice="fr")
+        self.assertEqual(livetv.time_format(), "%H:%M", "Kodi in English, the add-on in French: French's clock")
+        self.show(kodi_language="de", server="es")
+        self.assertEqual(livetv.time_format(), "%I:%M %p", "Kodi in German, the add-on in Spanish: Kodi's region")
 
 
 class ProfileLanguageTest(Shown):

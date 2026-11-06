@@ -450,9 +450,9 @@ same answers.
   shown, so what the server writes itself (Home's rows) comes in it.
 - **Dates and numbers** are written in the language shown: "Mar 5, 2024",
   "5 mars 2024", "5 mar 2024"; "12,345", "12 345", "12.345"; "7.4" or
-  "7,4". Times of Live TV's guide take Kodi's region format when Kodi is
-  in the language shown, else that language's own clock (24 hours in
-  French and Spanish). Counts take each language's plural forms, as CLDR
+  "7,4". Times of Live TV's guide take Kodi's region format, unless Kodi
+  is in another of Pley's languages than the one shown: then they take
+  that language's own clock (24 hours in French and Spanish). Counts take each language's plural forms, as CLDR
   has them: English one and other, French and Spanish one, many and
   other.
 - **What Kodi draws itself** stays in Kodi's language: the add-on's
