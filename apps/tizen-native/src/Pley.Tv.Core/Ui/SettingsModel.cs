@@ -199,6 +199,9 @@ public interface ISettingsSource
 
     /// <summary>The TV's languages: the first Pley has is what Automatic is.</summary>
     IReadOnlyList<string> TvLanguages { get; }
+
+    /// <summary>The language picked on this TV with the globe before signing in, which Automatic is when there is one.</summary>
+    string? DeviceLanguage { get; }
 }
 
 /// <summary>Settings' source in the app: <see cref="AppState"/>, with the TV's facts the Tizen app reads.</summary>
@@ -229,6 +232,8 @@ public sealed class AppSettingsSource : ISettingsSource
     public string? ServerLanguage => app.ServerLanguage;
 
     public IReadOnlyList<string> TvLanguages => app.TvLanguages;
+
+    public string? DeviceLanguage => app.DeviceLanguage;
 }
 
 /// <summary>
@@ -527,12 +532,13 @@ public sealed class SettingsModel : IDisposable
 
     /// <summary>
     /// The Language row's value: the profile's language, named in itself ("Français"), or for
-    /// none "Automatic" with what that is on this TV: its language, else the server's.
+    /// none "Automatic" with what that is on this TV: the one picked with the globe, else its
+    /// language, else the server's.
     /// </summary>
     string LanguageLabel(string? code) =>
         code != null
             ? Languages.NameOf(code)
-            : SettingsText.Automatic(Languages.NameOf(Languages.Pick(null, source.ServerLanguage, source.TvLanguages)));
+            : SettingsText.Automatic(Languages.NameOf(Languages.Pick(null, source.ServerLanguage, source.TvLanguages, source.DeviceLanguage)));
 
     static int LanguageIndex(string? code)
     {

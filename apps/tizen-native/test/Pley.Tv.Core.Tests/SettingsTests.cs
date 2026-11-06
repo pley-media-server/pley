@@ -66,6 +66,8 @@ sealed class FakeAccount : IMeSource, ISettingsSource
     public string? ServerLanguage { get; set; }
 
     public IReadOnlyList<string> TvLanguages { get; set; } = new[] { "en-US" };
+
+    public string? DeviceLanguage { get; set; }
 }
 
 /// <summary>The Me page: the Android app's MeViewModelTest.</summary>
@@ -280,6 +282,10 @@ public class SettingsModelTests
         // A TV in a language Pley doesn't have: the server's.
         account.TvLanguages = new[] { "de-DE" };
         Assert.Equal("Automatic (Français)", Row(m, SettingsCategory.Profile, "row-language").Value);
+        // The one picked on this TV with the globe, before the TV's.
+        account.DeviceLanguage = "en";
+        Assert.Equal("Automatic (English)", Row(m, SettingsCategory.Profile, "row-language").Value);
+        account.DeviceLanguage = null;
 
         var panel = m.Panel(new SettingPick.Language());
         Assert.Equal("Language", panel.Title);

@@ -708,10 +708,21 @@ and the music's reports share one queue, which the switch waits up to
 ### Language
 
 The native app is in English, French and Spanish, in the language
-[API.md](API.md#language) describes: the account's, else the TV's own
-when Pley has it, else the server's, else English
-(`packages/tv/test/fixtures/language.json` pins the order for both Samsung
-apps). The last language shown is kept on the TV, so the next start shows
+[API.md](API.md#language) describes: the account's, else the one picked on
+this TV, else the TV's own when Pley has it, else the server's, else
+English (`packages/tv/test/fixtures/language.json` pins the order for both
+Samsung apps).
+
+Choose your server, typing an address and the sign-in code have a globe at
+the top right, as the web Samsung app has it (left of the logo on Choose
+your server), naming the language shown; Up reaches it. OK opens a side
+panel: "Automatic (English)" (the TV's language where Pley has it, else
+the server's, else English), then English, Français and Español, the
+choice in force checked. A choice shows at once, the screen drawn again in
+it with the globe focused and an address being typed kept, and is kept in
+the TV's preferences (`pley.deviceLanguage`); Automatic forgets it. Signed
+in, an account's own language comes first, and its Automatic is this
+choice. The last language shown is kept on the TV, so the next start shows
 it before the server answers, rather than the TV's for a moment; when the
 account's or the server's turns out to be another, the app changes to it.
 The pages are drawn again where they were, Settings on the row that had
@@ -720,9 +731,9 @@ list and the sign-in code are drawn again too, the code unchanged, while
 Who's watching? and the moment after a code is approved keep theirs until
 the next page, which the profile brings its own language to.
 
-Settings → Profile → Language lists "Automatic (Français)" (the TV's
-language, else the server's), then English, Français and Español, each in
-itself. Choosing
+Settings → Profile → Language lists "Automatic (Français)" (the one picked
+with the globe, else the TV's language, else the server's), then English,
+Français and Español, each in itself. Choosing
 one sends `PUT /api/me/language`, and the app shows it once the server has
 it. Requests carry `Accept-Language` with the language shown, so what the
 server writes itself (Home's rows) comes in it. Dates and numbers follow

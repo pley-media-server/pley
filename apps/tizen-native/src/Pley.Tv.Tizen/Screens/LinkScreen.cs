@@ -12,7 +12,8 @@ namespace Pley.Tv.Tizen.Screens;
 /// The TV's way in (design spec §2.8; the Android app's TvLinkScreen): the steps and the code on
 /// the left from x = 96, the QR code and "Change server" on the right from x = 600. "Change server"
 /// has focus, except after a decline or once the code expired, when "Get a new code" has it.
-/// Signing in, a server that requires two-step sign-in is said so under the title, once it answers.
+/// Signing in, a server that requires two-step sign-in is said so under the title, once it answers,
+/// and the globe at the top right picks the TV's language (Up reaches it).
 /// </summary>
 sealed class LinkScreen : Sheet
 {
@@ -34,6 +35,10 @@ sealed class LinkScreen : Sheet
     readonly View qrBox;
     readonly View qrSide;
     readonly ButtonView back;
+    readonly ButtonView? globeButton;
+    /// <summary>Get a new code and the way back, side by side under the globe.</summary>
+    readonly FocusGroup actions = new FocusGroup(Axis.Row, "link-actions");
+    readonly LanguageGlobe? globe;
     readonly StatusLine status;
     readonly Timer countdown = new Timer(1000);
     readonly IDisposable watch;
@@ -49,9 +54,12 @@ sealed class LinkScreen : Sheet
     /// </param>
     /// <param name="title">The heading; "Sign in to Pley" without.</param>
     /// <param name="backLabel">The way back; "Change server" without.</param>
-    public LinkScreen(LinkModel model, Action onBack, string? title = null, string? intro = null, string? backLabel = null) : base("link", Axis.Row)
+    /// <param name="globe">The globe, signing in; none approving a profile, where a household is signed in.</param>
+    public LinkScreen(LinkModel model, Action onBack, string? title = null, string? intro = null, string? backLabel = null, Shell? shell = null, LanguageGlobe? globe = null)
+        : base("link")
     {
         this.model = model;
+        this.globe = globe;
         View.BackgroundColor = PleyColors.Bg;
         View.Add(Onboarding.BrandGlow());
 
@@ -109,8 +117,16 @@ sealed class LinkScreen : Sheet
         qrSide.Add(back);
         View.Add(qrSide);
 
-        Root.Add(newCode.Item);
-        Root.Add(back.Item);
+        if (shell != null && globe != null)
+        {
+            globeButton = GlobeButton.Of(shell, globe);
+            globeButton.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - GlobeButton.Right) - globeButton.SizeWidth, Ui.Dp(GlobeButton.Top));
+            View.Add(globeButton);
+            Root.Add(globeButton.Item);
+        }
+        actions.Add(newCode.Item);
+        actions.Add(back.Item);
+        Root.Add(actions);
 
         countdown.Tick += (s, e) =>
         {
@@ -127,10 +143,11 @@ sealed class LinkScreen : Sheet
         };
     }
 
-    /// <summary>On screen: the code is asked about.</summary>
+    /// <summary>On screen: the code is asked about. Drawn again after the globe changed the language, the globe has focus.</summary>
     public void Started()
     {
-        Tree.Focus(back.Item);
+        if (globeButton != null && globe!.TakeFocus()) Tree.Focus(globeButton.Item);
+        else Tree.Focus(back.Item);
         model.Started();
     }
 
@@ -293,6 +310,11 @@ sealed class LinkScreen : Sheet
         column.Hide();
         qrSide.Hide();
         status.Hide();
+        if (globeButton != null)
+        {
+            globeButton.Hide();
+            globeButton.Item.Shown = false;
+        }
         Tree.Blur();
         signedIn = new View { Position = new Position(Ui.Dp(Left), Ui.Dp(200)), Size = new Size(Ui.Dp(ColumnWidth), Ui.Dp(64 + 20 + PleyType.PageTitle.Line * 2)) };
         var tile = new View { Size = new Size(Ui.Dp(64), Ui.Dp(64)), CornerRadius = Ui.Dp(PleyShape.DialogRadius), BackgroundColor = PleyColors.Success };

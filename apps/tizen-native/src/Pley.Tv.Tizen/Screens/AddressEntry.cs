@@ -11,7 +11,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// Typing a server's address (design spec §2.11, tv-addendum §4.4; the Android app's TvAddressEntry):
 /// a field and Connect under it. The TV's keyboard opens with the screen, so a name or a whole https
 /// address types as easily as an IP; once it is closed, the remote's digit keys type too. Port 7539
-/// is used by default. Back goes back to the list.
+/// is used by default. Back goes back to the list. The globe at the top right picks the TV's language.
 /// </summary>
 sealed class AddressEntry : Sheet
 {
@@ -21,12 +21,14 @@ sealed class AddressEntry : Sheet
     readonly ServersModel model;
     readonly TextInput field;
     readonly ButtonView connect;
+    readonly ButtonView globeButton;
     readonly TextLabel problem;
     readonly IDisposable watch;
     readonly IDisposable keys;
     string connectLabel = Strings.T("signin.address.connect");
 
-    public AddressEntry(Shell shell, ServersModel model) : base("address-entry")
+    /// <param name="typed">In the field at first: what was typed before the screen was drawn again in another language.</param>
+    public AddressEntry(Shell shell, ServersModel model, LanguageGlobe globe, string typed = "") : base("address-entry")
     {
         this.shell = shell;
         this.model = model;
@@ -44,6 +46,7 @@ sealed class AddressEntry : Sheet
         {
             Position = new Position(Ui.Dp(center - FieldWidth / 2), Ui.Dp(fieldTop)),
         };
+        field.Value = typed;
         field.Changed += _ => model.AddressEdited();
         field.Submitted = Connect;
         View.Add(field);
@@ -62,6 +65,12 @@ sealed class AddressEntry : Sheet
         problem.Position = new Position(hint.PositionX, hint.PositionY + hint.SizeHeight + Ui.Dp(12));
         View.Add(problem);
 
+        globeButton = GlobeButton.Of(shell, globe);
+        globeButton.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - GlobeButton.Right) - globeButton.SizeWidth, Ui.Dp(GlobeButton.Top));
+        View.Add(globeButton);
+
+        // Up from the field reaches the globe.
+        Root.Add(globeButton.Item);
         Root.Add(field.Item);
         Root.Add(connect.Item);
 
@@ -87,12 +96,21 @@ sealed class AddressEntry : Sheet
         };
     }
 
-    public void Show()
+    /// <param name="focusGlobe">The globe has focus, and the TV's keyboard stays closed: drawn again after the globe changed the language.</param>
+    public void Show(bool focusGlobe = false)
     {
         shell.Push(this);
+        if (focusGlobe)
+        {
+            Tree.Focus(globeButton.Item);
+            return;
+        }
         Tree.Focus(field.Item);
         field.Start();
     }
+
+    /// <summary>What the field holds.</summary>
+    public string Address => field.Value;
 
     void Show(ServersState state)
     {

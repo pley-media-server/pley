@@ -50,6 +50,10 @@ class App : NUIApplication
     PageKey? shown;
     /// <summary>The code signing in is about, for the link screen to be drawn again with it.</summary>
     LinkModel? link;
+    /// <summary>Choose your server, while it shows: drawn again in another language, with the address being typed over it.</summary>
+    ServersScreen? servers;
+    /// <summary>The globe of the screens before signing in, which picks this TV's language.</summary>
+    LanguageGlobe globe = null!;
 
     protected override void OnCreate()
     {
@@ -75,6 +79,7 @@ class App : NUIApplication
         Core.Auth.ServerProofs.FollowNetworks();
         state = new AppState(Platform.Of());
         Profile.Took("app state", made);
+        globe = new LanguageGlobe(state);
         // The language last shown, before the first page; the account's or the server's follows when it is another.
         ApplyLanguage(state.Language.Value);
         ui = new ContextScheduler();
@@ -189,7 +194,8 @@ class App : NUIApplication
 
     /// <summary>
     /// What shows, again in the language shown and where it was: the pages with their back stack
-    /// (Settings on its row), the servers, or the code being signed in with. A player keeps its
+    /// (Settings on its row), the servers (with the address being typed over them), or the code being
+    /// signed in with; after the globe, with the globe focused. A player keeps its
     /// words until it closes, and the pages under it are drawn again then. Signing in once the code
     /// is approved, and Who's watching?, keep theirs for the moment before the next page, which
     /// the profile chosen brings its own language to.
@@ -205,7 +211,10 @@ class App : NUIApplication
         switch (shown)
         {
             case PageKey.Servers:
+                // Typing an address: open again, with what was typed.
+                var typing = servers?.Typing;
                 Go(new PageKey.Servers());
+                if (typing != null) servers?.ReopenAddress(typing);
                 break;
             case PageKey.Link key when link is { Approved: false } model:
                 ShowLink(model, key);
@@ -286,11 +295,16 @@ class App : NUIApplication
         switch (key)
         {
             case PageKey.Servers:
-                var servers = new ServersScreen(shell, new ServersModel(new AppServersSource(state), new ContextScheduler()))
+                var screen = new ServersScreen(shell, new ServersModel(new AppServersSource(state), new ContextScheduler()), globe)
                 {
                     Chosen = chosen => Go(chosen.Next),
                 };
-                shell.Show(servers);
+                servers = screen;
+                screen.Gone += () =>
+                {
+                    if (servers == screen) servers = null;
+                };
+                shell.Show(screen);
                 Showing(key);
                 break;
             case PageKey.Link signIn:
@@ -321,7 +335,7 @@ class App : NUIApplication
     /// <summary>The link screen on <paramref name="model"/>'s code: a new one, or the same code drawn again in another language.</summary>
     void ShowLink(LinkModel model, PageKey.Link key)
     {
-        var screen = new LinkScreen(model, ChangeServer);
+        var screen = new LinkScreen(model, ChangeServer, shell: shell, globe: globe);
         shell.Show(screen);
         Showing(key);
         screen.Started();

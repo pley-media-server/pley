@@ -13,7 +13,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// "Choose your server" (design spec §4.7; the Android app's TvServersScreen): saved servers first,
 /// then those that answer as they come; "Enter an address" (on the TV's keyboard) and "Search this
-/// network". Holding OK on a saved server forgets it.
+/// network". Holding OK on a saved server forgets it. The globe left of the logo picks the TV's language.
 /// </summary>
 sealed class ServersScreen : Sheet
 {
@@ -23,6 +23,8 @@ sealed class ServersScreen : Sheet
 
     readonly Shell shell;
     readonly ServersModel model;
+    readonly LanguageGlobe globe;
+    readonly ButtonView globeButton;
     readonly View list;
     readonly View listContent;
     readonly FocusGroup listGroup = new FocusGroup(Axis.Column, "servers");
@@ -37,13 +39,16 @@ sealed class ServersScreen : Sheet
     readonly IDisposable anyKey;
     AddressEntry? address;
     bool touched;
+    /// <summary>Drawn again after the globe changed the language: the globe has focus, as it had.</summary>
+    bool refocus;
     bool sweepShown;
     float listScroll;
 
-    public ServersScreen(Shell shell, ServersModel model) : base("servers-screen")
+    public ServersScreen(Shell shell, ServersModel model, LanguageGlobe globe) : base("servers-screen")
     {
         this.shell = shell;
         this.model = model;
+        this.globe = globe;
         View.BackgroundColor = PleyColors.Bg;
         View.Add(Onboarding.BrandGlow());
 
@@ -54,6 +59,9 @@ sealed class ServersScreen : Sheet
         var logo = Onboarding.Logo(32);
         logo.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - Right) - logo.SizeWidth, Ui.Dp(Top + 3));
         View.Add(logo);
+        globeButton = GlobeButton.Of(shell, globe);
+        globeButton.Position = new Position(logo.PositionX - Ui.Dp(20) - globeButton.SizeWidth, Ui.Dp(GlobeButton.Top));
+        View.Add(globeButton);
 
         // The list scrolls inside its 300 dp; rows are drawn without scale, so nothing spills.
         list = new View
@@ -78,6 +86,8 @@ sealed class ServersScreen : Sheet
         forgetHint.Position = new Position(Ui.Dp(Left), Ui.Dp(PleyTv.CanvasHeight - Top - PleyType.Caption.Line));
         View.Add(forgetHint);
 
+        // Up from the list or the buttons reaches the globe.
+        Root.Add(globeButton.Item);
         Root.Add(listGroup);
         Root.Add(buttons.Group);
         listGroup.ChildFocused += ScrollTo;
@@ -88,8 +98,11 @@ sealed class ServersScreen : Sheet
             if (shell.Top == this) touched = true;
             return false;
         });
+        refocus = globe.TakeFocus();
+        touched = refocus;
         model.Chosen += OnChosen;
         watch = model.State.Watch(Show);
+        if (refocus) Tree.Focus(globeButton.Item);
         Gone += () =>
         {
             watch.Dispose();
@@ -105,11 +118,29 @@ sealed class ServersScreen : Sheet
 
     void OnChosen(ChosenServer chosen) => Chosen?.Invoke(chosen);
 
-    void OpenAddress()
+    void OpenAddress() => OpenAddress("", focusGlobe: false);
+
+    void OpenAddress(string typed, bool focusGlobe)
     {
-        address = new AddressEntry(shell, model);
+        address = new AddressEntry(shell, model, globe, typed);
         address.Gone += () => address = null;
-        address.Show();
+        address.Show(focusGlobe);
+    }
+
+    /// <summary>What is typed on the address screen over this one; null when it isn't open.</summary>
+    public string? Typing => address?.Address;
+
+    /// <summary>
+    /// The address screen again, with <paramref name="typed"/> in its field: it was open when the
+    /// language changed, and this screen was drawn again in the new one.
+    /// </summary>
+    public void ReopenAddress(string typed)
+    {
+        var focusGlobe = refocus;
+        refocus = false;
+        touched = true;
+        Tree.Focus(enterAddress.Item);
+        OpenAddress(typed, focusGlobe);
     }
 
     void Show(ServersState state)

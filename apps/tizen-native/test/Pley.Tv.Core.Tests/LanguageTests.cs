@@ -29,6 +29,19 @@ public class LanguageFixtureTests
         Assert.Equal(c.GetProperty("out").GetString(), Languages.Pick(Text("account"), Text("server"), device));
     }
 
+    public static IEnumerable<object[]> ChoiceCases() =>
+        Fixtures.Load("language").GetProperty("pickLanguageWithChoice").EnumerateArray().Select(c => new object[] { c.GetRawText() });
+
+    [Theory]
+    [MemberData(nameof(ChoiceCases))]
+    public void The_one_picked_on_the_TV_comes_after_the_accounts_as_the_web_Samsung_app_has_it(string json)
+    {
+        var c = JsonDocument.Parse(json).RootElement;
+        string? Text(string name) => c.GetProperty(name).ValueKind == JsonValueKind.String ? c.GetProperty(name).GetString() : null;
+        var device = c.GetProperty("device").EnumerateArray().Select(d => d.GetString()!).ToList();
+        Assert.Equal(c.GetProperty("out").GetString(), Languages.Pick(Text("account"), Text("server"), device, Text("choice")));
+    }
+
     [Fact]
     public void Tags_match_by_their_language()
     {
@@ -331,6 +344,79 @@ public class AppLanguageTests
         Assert.Equal("fr", state.Language.Value);
         await state.SignOutNow();
         Assert.Equal("es", state.Language.Value);
+    }
+
+    [Fact]
+    public void The_globes_choice_shows_at_once_is_kept_on_the_TV_and_Automatic_forgets_it()
+    {
+        var store = new MemoryKeyValue();
+        var state = State(store, new FakeServer(), new FakeScheduler(), "fr-FR");
+        var globe = new LanguageGlobe(state);
+        Assert.Equal("Français", globe.Label);
+        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español" }, globe.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { true, false, false, false }, globe.Choices.Select(c => c.Checked));
+        Assert.Equal(0, globe.Focus);
+
+        globe.Choose(3);
+        Assert.Equal(("es", "es", "es"), (state.Language.Value, state.DeviceLanguage, store.Get("pley.deviceLanguage")));
+        Assert.Equal("Español", globe.Label);
+        Assert.Equal(3, globe.Focus);
+        Assert.Equal(new[] { false, false, false, true }, globe.Choices.Select(c => c.Checked));
+        // The screen drawn again in Spanish gives the globe focus, once.
+        Assert.True(globe.TakeFocus());
+        Assert.False(globe.TakeFocus());
+        // The next start shows it, before the TV's.
+        store.Remove("pley.language");
+        Assert.Equal("es", State(store, new FakeServer(), new FakeScheduler(), "fr-FR").Language.Value);
+
+        globe.Choose(0);
+        Assert.Equal("fr", state.Language.Value);
+        Assert.Null(state.DeviceLanguage);
+        Assert.Null(store.Get("pley.deviceLanguage"));
+        // Choosing what shows already draws nothing again.
+        globe.Choose(2);
+        Assert.False(globe.TakeFocus());
+    }
+
+    [Fact]
+    public void Automatic_on_the_globe_is_the_servers_on_a_TV_in_a_language_Pley_doesnt_have_else_English()
+    {
+        var state = State(new MemoryKeyValue(), new FakeServer(), new FakeScheduler(), "de-DE");
+        var globe = new LanguageGlobe(state);
+        globe.Choose(2);
+        Assert.Equal("fr", state.Language.Value);
+        // No server says yet: Automatic is English, and shows at once.
+        Assert.Equal("Automatic (English)", globe.Choices[0].Label);
+        globe.Choose(0);
+        Assert.Equal("en", state.Language.Value);
+        state.Use(Home);
+        state.HeardServer(Home, "es");
+        Assert.Equal("es", state.Language.Value);
+        Assert.Equal("Automatic (Español)", new LanguageGlobe(state).Choices[0].Label);
+    }
+
+    [Fact]
+    public async Task Signed_in_the_one_picked_on_the_TV_comes_after_the_accounts_and_before_the_TVs()
+    {
+        var store = new MemoryKeyValue();
+        store.Set("pley.deviceLanguage", "es");
+        var scheduler = new FakeScheduler();
+        var server = new FakeServer();
+        server.On("GET", Home + "/api/server", 200, ServerJson("fr"));
+        server.On("GET", Home + "/api/auth/me", 200, @"{""id"":1,""username"":""a"",""name"":""A"",""language"":null}");
+        server.On("GET", Home + "/api/libraries", 200, "[]");
+        var state = State(store, server, scheduler, "en-US");
+        Assert.Equal(("es", "es"), (state.Language.Value, state.DeviceLanguage));
+        state.Use(Home);
+        SignIn(state, scheduler);
+        await state.LoadServer();
+        await state.LoadAccount();
+        Assert.Equal("es", state.Language.Value);
+        state.Me.Value = state.Me.Value! with { Language = "fr" };
+        Assert.Equal("fr", state.Language.Value);
+        state.Me.Value = state.Me.Value! with { Language = null };
+        state.ChooseDeviceLanguage(null);
+        Assert.Equal("en", state.Language.Value);
     }
 
     [Fact]

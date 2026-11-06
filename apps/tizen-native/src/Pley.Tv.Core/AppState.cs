@@ -182,6 +182,8 @@ public sealed class AppState
     const long OfflineNoticeMs = 6_000;
     /// <summary>The language last shown, for the next start to show before the server answers.</summary>
     const string LanguageKey = "pley.language";
+    /// <summary>The language picked on this TV with the globe, under the web apps' key.</summary>
+    const string DeviceLanguageKey = "pley.deviceLanguage";
 
     static readonly JsonSerializerOptions Camel = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
     static readonly JsonSerializerOptions SettingsJson = new JsonSerializerOptions
@@ -221,14 +223,16 @@ public sealed class AppState
     /// <summary>What each server said of its language in this launch (GET /api/server), by its address; null: none of its own.</summary>
     readonly Dictionary<string, string?> serverLanguages = new Dictionary<string, string?>();
     IReadOnlyList<string> tvLanguages;
+    string? deviceLanguage;
 
     /// <param name="http">Sends the app's requests; Core's transport over <see cref="AppPlatform.Handlers"/> without.</param>
     public AppState(AppPlatform platform, Transport? http = null, EventConnect? connect = null, IScheduler? scheduler = null)
     {
         this.platform = platform;
         tvLanguages = platform.Languages;
+        deviceLanguage = Languages.Supported(platform.Storage.Get(DeviceLanguageKey));
         // The last language shown, until the account's or the server's is known: the TV's meanwhile would flash.
-        Language = new Signal<string>(Languages.Supported(platform.Storage.Get(LanguageKey)) ?? Languages.Pick(null, null, tvLanguages));
+        Language = new Signal<string>(Languages.Supported(platform.Storage.Get(LanguageKey)) ?? Languages.Pick(null, null, tvLanguages, deviceLanguage));
         this.http = Transports.WithLanguage(Transports.WithUserAgent(http ?? Transports.Create(platform.Handlers), platform.UserAgent), () => Language.Value);
         this.connect = connect ?? EventStream.Over(platform.Handlers);
         this.scheduler = scheduler ?? new ContextScheduler();
@@ -240,8 +244,8 @@ public sealed class AppState
     }
 
     /// <summary>
-    /// The language the app shows ("en", "fr", "es"): the account's own, else the server's, else the
-    /// TV's that Pley has, else English (<see cref="Languages.Pick"/>). It starts as the last one
+    /// The language the app shows ("en", "fr", "es"): the account's own, else the one picked on
+    /// this TV, else the TV's that Pley has, else the server's, else English (<see cref="Languages.Pick"/>). It starts as the last one
     /// shown, and changes once the account or the server says otherwise; requests ask for answers
     /// in it (<c>Accept-Language</c>).
     /// </summary>
@@ -285,10 +289,31 @@ public sealed class AppState
     }
 
     /// <summary>
-    /// The language to show now: the account's once who is watching is known, else the TV's, else
-    /// the server's once it has said. Signed in and waiting for who is watching, or on a TV in a
-    /// language Pley doesn't have waiting for the server, the language shown stays. A change is
-    /// kept for the next start.
+    /// The language picked on this TV with the globe of the screens before signing in; null for
+    /// Automatic, the TV's own. It comes after the account's and before the TV's, so an account's
+    /// Automatic is it.
+    /// </summary>
+    public string? DeviceLanguage => deviceLanguage;
+
+    /// <summary>
+    /// Picks this TV's language (null: Automatic, the TV's own again), kept on the TV. Signed out
+    /// (the globe), it shows at once, Automatic as what it says it is; signed in, unless the account
+    /// has its own.
+    /// </summary>
+    public void ChooseDeviceLanguage(string? language)
+    {
+        deviceLanguage = Languages.Supported(language);
+        if (deviceLanguage != null) store.Set(DeviceLanguageKey, deviceLanguage);
+        else store.Remove(DeviceLanguageKey);
+        if (tokens?.Kept == true) ChooseLanguage();
+        else ShowLanguage(Languages.Pick(null, ServerLanguage, tvLanguages, deviceLanguage));
+    }
+
+    /// <summary>
+    /// The language to show now: the account's once who is watching is known, else the one picked
+    /// on this TV, else the TV's, else the server's once it has said. Signed in and waiting for who
+    /// is watching, or on a TV in a language Pley doesn't have waiting for the server, the language
+    /// shown stays. A change is kept for the next start.
     /// </summary>
     void ChooseLanguage()
     {
@@ -297,10 +322,17 @@ public sealed class AppState
         string? next;
         if (me != null && Languages.Supported(me.Language) is { } own) next = own;
         else if (me == null && tokens?.Kept == true) next = null;
+        else if (deviceLanguage != null) next = deviceLanguage;
         else if (Languages.OfDevice(tvLanguages) is { } tv) next = tv;
         else if (server != null && serverLanguages.TryGetValue(server, out var language)) next = Languages.Pick(null, language, tvLanguages);
         else next = null;
-        if (next == null || next == Language.Value) return;
+        if (next != null) ShowLanguage(next);
+    }
+
+    /// <summary>The app in <paramref name="next"/> from now on, and at the next start.</summary>
+    void ShowLanguage(string next)
+    {
+        if (next == Language.Value) return;
         Language.Value = next;
         store.Set(LanguageKey, next);
     }

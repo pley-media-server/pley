@@ -1,4 +1,7 @@
 {
+  "language": {
+    "choose": "Choisir une langue"
+  },
   "servers": {
     "title": "Choisissez votre serveur",
     "enterAddress": "Saisir une adresse",
