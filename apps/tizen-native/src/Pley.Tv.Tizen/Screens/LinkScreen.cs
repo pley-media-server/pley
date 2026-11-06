@@ -13,7 +13,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// the left from x = 96, the QR code and "Change server" on the right from x = 600. "Change server"
 /// has focus, except after a decline or once the code expired, when "Get a new code" has it.
 /// Signing in, a server that requires two-step sign-in is said so under the title, once it answers,
-/// and the globe at the top right picks the TV's language (Up reaches it).
+/// and the globe at the bottom left picks the TV's language (Down reaches it).
 /// </summary>
 sealed class LinkScreen : Sheet
 {
@@ -117,16 +117,18 @@ sealed class LinkScreen : Sheet
         qrSide.Add(back);
         View.Add(qrSide);
 
-        if (shell != null && globe != null)
-        {
-            globeButton = GlobeButton.Of(shell, globe);
-            globeButton.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - GlobeButton.Right) - globeButton.SizeWidth, Ui.Dp(GlobeButton.Top));
-            View.Add(globeButton);
-            Root.Add(globeButton.Item);
-        }
         actions.Add(newCode.Item);
         actions.Add(back.Item);
         Root.Add(actions);
+        if (shell != null && globe != null)
+        {
+            // At the bottom left, the status beside it; Down from the buttons reaches it.
+            globeButton = GlobeButton.Of(shell, globe, Left);
+            View.Add(globeButton);
+            Root.Add(globeButton.Item);
+            var beside = GlobeButton.Beside(globeButton);
+            status.Position = new Position(Ui.Dp(beside), Ui.Dp(GlobeButton.BesideTop(globeButton, PleyType.Label.Line)));
+        }
 
         countdown.Tick += (s, e) =>
         {

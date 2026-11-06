@@ -10,7 +10,7 @@ import { F, G } from "../../kit/focusable";
 import { TextField } from "../../kit/field";
 import { Icon } from "../../kit/icons";
 import { Dialog, sentence, useApp } from "../common";
-import { BrandGlow, LanguageGlobe, LanguagePanel, PleyLogo, StatusLine } from "./kit";
+import { BrandGlow, LanguagePanel, OnboardingFoot, PleyLogo, StatusLine } from "./kit";
 
 /** A row of the server list. */
 interface Row {
@@ -242,7 +242,6 @@ export function ServersScreen() {
           <div class="t-page c-fg one-line" style="flex:1">
             {t("onboarding.servers.title")}
           </div>
-          <LanguageGlobe class="servers-globe" onOpen={() => setChoosingLanguage(true)} />
           <PleyLogo height={32} />
         </div>
         {rows.length > 0 && (
@@ -272,7 +271,8 @@ export function ServersScreen() {
             </div>
           </div>
         )}
-        <G kind="row" class="server-buttons" style={`margin-top:${rows.length ? 16 : 0}px`}>
+        {/* Under the list, or 25 under the title as the list would be, as on the other TV apps. */}
+        <G kind="row" class="server-buttons" style={`margin-top:${rows.length ? 16 : 25}px`}>
           <F class="text-btn t-label" label={t("onboarding.servers.enterAddress")} elRef={(el) => (enterRef.current = el)} initial={!rows.length} onSelect={() => setEntering(true)}>
             <span>{t("onboarding.servers.enterAddress")}</span>
           </F>
@@ -293,8 +293,10 @@ export function ServersScreen() {
           ) : null}
           {problem && <div class="t-body c-danger">{textOf(problem)}</div>}
         </div>
-        {anySaved && <div class="forget-hint t-caption c-subtle">{t("onboarding.servers.forgetHint")}</div>}
       </div>
+      <OnboardingFoot onLanguage={() => setChoosingLanguage(true)}>
+        {anySaved && <div class="t-caption c-subtle one-line">{t("onboarding.servers.forgetHint")}</div>}
+      </OnboardingFoot>
       {choosingLanguage && <LanguagePanel onClose={() => setChoosingLanguage(false)} />}
       {forgetting && (
         <Dialog
@@ -431,7 +433,7 @@ function AddressEntry(p: {
           {p.problem && <div class="t-body c-danger">{textOf(p.problem)}</div>}
         </div>
       </div>
-      <LanguageGlobe class="globe-corner" onOpen={() => setChoosingLanguage(true)} />
+      <OnboardingFoot onLanguage={() => setChoosingLanguage(true)} />
       {choosingLanguage && <LanguagePanel onClose={() => setChoosingLanguage(false)} />}
     </BrandGlow>
   );

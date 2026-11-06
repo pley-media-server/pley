@@ -11,11 +11,13 @@ namespace Pley.Tv.Tizen.Screens;
 /// Typing a server's address (design spec §2.11, tv-addendum §4.4; the Android app's TvAddressEntry):
 /// a field and Connect under it. The TV's keyboard opens with the screen, so a name or a whole https
 /// address types as easily as an IP; once it is closed, the remote's digit keys type too. Port 7539
-/// is used by default. Back goes back to the list. The globe at the top right picks the TV's language.
+/// is used by default. Back goes back to the list. The globe at the bottom left picks the TV's language.
 /// </summary>
 sealed class AddressEntry : Sheet
 {
     const float Top = 27, FieldWidth = 480;
+    /// <summary>The other screens' left edge, which the globe lines up with.</summary>
+    const float ScreenLeft = 96;
 
     readonly Shell shell;
     readonly ServersModel model;
@@ -65,14 +67,13 @@ sealed class AddressEntry : Sheet
         problem.Position = new Position(hint.PositionX, hint.PositionY + hint.SizeHeight + Ui.Dp(12));
         View.Add(problem);
 
-        globeButton = GlobeButton.Of(shell, globe);
-        globeButton.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - GlobeButton.Right) - globeButton.SizeWidth, Ui.Dp(GlobeButton.Top));
+        globeButton = GlobeButton.Of(shell, globe, ScreenLeft);
         View.Add(globeButton);
 
-        // Up from the field reaches the globe.
-        Root.Add(globeButton.Item);
+        // Down from Connect reaches the globe.
         Root.Add(field.Item);
         Root.Add(connect.Item);
+        Root.Add(globeButton.Item);
 
         // D-pad rule 10: with the keyboard closed, the remote's digit keys type into the field, with the
         // letters and "." ":" "/" "-" "_" a keyboard sends. While it is open, the field takes every key first.

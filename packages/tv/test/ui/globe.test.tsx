@@ -14,7 +14,7 @@ import { AppContext } from "../../src/ui/screens/common";
 import { LinkScreen } from "../../src/ui/screens/onboarding/link";
 import { ServersScreen } from "../../src/ui/screens/onboarding/servers";
 
-/** The globe of the screens before signing in: this TV's language, kept on the TV. */
+/** The globe of the screens before signing in, at the bottom left: this TV's language, kept on the TV. */
 
 const SERVER = "http://192.168.1.20:7539";
 
@@ -119,7 +119,7 @@ afterEach(() => {
 describe("the globe on Choose your server", () => {
   it("names the language shown, and lists Automatic (the TV's) and each language named in itself", async () => {
     const { focus, press, globe, rows, checked } = await show(<ServersScreen />);
-    expect(globe()!.textContent).toBe("English");
+    expect(globe()!.textContent).toBe("EN");
     expect(globe()!.getAttribute("aria-label")).toBe("Choose a language, English");
     // Not where focus starts: that stays on the way to a server.
     expect(focus.current?.textContent).toBe("Enter an address");
@@ -142,7 +142,7 @@ describe("the globe on Choose your server", () => {
     expect(store.get("pley.deviceLanguage")).toBe("fr");
     expect(document.querySelector(".side-panel")).toBeNull();
     expect(page.querySelector(".servers-header .t-page")!.textContent).toBe("Choisissez votre serveur");
-    expect(globe()!.textContent).toBe("Français");
+    expect(globe()!.textContent).toBe("FR");
     expect(focus.current).toBe(globe());
 
     press("ok");
@@ -165,7 +165,7 @@ describe("the globe on Choose your server", () => {
     press("ok");
     expect(currentLanguage()).toBe("fr");
     expect(store.get("pley.deviceLanguage")).toBeNull();
-    expect(globe()!.textContent).toBe("Français");
+    expect(globe()!.textContent).toBe("FR");
   });
 
   it("is on the address screen too, and Back there closes its list, not the screen", async () => {

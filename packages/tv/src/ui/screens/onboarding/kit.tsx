@@ -32,34 +32,43 @@ export function LogoMark(p: { size: number }) {
   );
 }
 
-/** The logo (PleyLogo): the mark, then "pley" at three quarters of its height. */
+/** The logo (PleyLogo): the mark, then "Pley" at three quarters of its height, close by. */
 export function PleyLogo(p: { height: number }) {
   const h = p.height;
   return (
     <div class="pley-logo" style={`height:${h}px`} aria-label="Pley" role="img">
       <LogoMark size={h} />
-      <span style={`margin-left:${h * 0.4}px;font-size:${h * 0.75}px;line-height:${h}px;font-weight:700;letter-spacing:-0.25px;color:var(--fg)`}>Pley</span>
+      <span style={`margin-left:${h * 0.15}px;font-size:${h * 0.75}px;line-height:${h}px;font-weight:700;letter-spacing:-0.25px;color:var(--fg)`}>Pley</span>
     </div>
   );
 }
 
 /**
- * The globe of the screens before signing in (the web's LanguagePicker): the
- * language shown, named in itself; OK opens {@link LanguagePanel}. A row of
- * its own, so the remote reaches it from what is under it.
+ * The globe of the screens before signing in (the web's LanguagePicker): a
+ * small plain globe and the language shown, by its two letters ("FR"), heard by
+ * its name; OK opens {@link LanguagePanel}. A row of its own, at the bottom
+ * left in {@link OnboardingFoot}, so the remote reaches it from above.
  */
 export function LanguageGlobe(p: { onOpen: () => void; class?: string }) {
   const shown = currentLanguage();
   const name = t(`settings.language.names.${shown}`);
   return (
     <G kind="row" class={p.class}>
-      <F class="text-btn t-label globe-btn" fid="language-globe" label={`${t("onboarding.language.choose")}, ${name}`} onSelect={p.onOpen}>
-        <Icon name="globe" size={20} />
-        <span class="one-line" lang={shown}>
-          {name}
-        </span>
+      <F class="text-btn link t-caption globe-btn" fid="language-globe" label={`${t("onboarding.language.choose")}, ${name}`} onSelect={p.onOpen}>
+        <Icon name="globe" size={16} />
+        <span lang={shown}>{shown.toUpperCase()}</span>
       </F>
     </G>
+  );
+}
+
+/** The foot of the screens before signing in: the globe at the bottom left, then a line beside it. */
+export function OnboardingFoot(p: { onLanguage: () => void; children?: ComponentChildren }) {
+  return (
+    <div class="onboarding-foot">
+      <LanguageGlobe onOpen={p.onLanguage} />
+      {p.children && <div class="foot-text">{p.children}</div>}
+    </div>
   );
 }
 

@@ -352,14 +352,14 @@ public class AppLanguageTests
         var store = new MemoryKeyValue();
         var state = State(store, new FakeServer(), new FakeScheduler(), "fr-FR");
         var globe = new LanguageGlobe(state);
-        Assert.Equal("Français", globe.Label);
+        Assert.Equal("FR", globe.Label);
         Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español" }, globe.Choices.Select(c => c.Label));
         Assert.Equal(new[] { true, false, false, false }, globe.Choices.Select(c => c.Checked));
         Assert.Equal(0, globe.Focus);
 
         globe.Choose(3);
         Assert.Equal(("es", "es", "es"), (state.Language.Value, state.DeviceLanguage, store.Get("pley.deviceLanguage")));
-        Assert.Equal("Español", globe.Label);
+        Assert.Equal("ES", globe.Label);
         Assert.Equal(3, globe.Focus);
         Assert.Equal(new[] { false, false, false, true }, globe.Choices.Select(c => c.Checked));
         // The screen drawn again in Spanish gives the globe focus, once.

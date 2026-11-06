@@ -10,7 +10,7 @@ describes how they are made.
 
 ### Added
 
-- A globe at the top right of Choose your server, the address screen and
+- A globe at the bottom left of Choose your server, the address screen and
   the sign-in code picks the TV's language before anyone signs in:
   Automatic (the TV's own), English, Français or Español. The TV keeps the
   choice, and a profile set to Automatic uses it.

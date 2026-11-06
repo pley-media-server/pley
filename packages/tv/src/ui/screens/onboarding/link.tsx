@@ -9,7 +9,7 @@ import { Pill, TextButton } from "../../kit/buttons";
 import { G } from "../../kit/focusable";
 import { Icon } from "../../kit/icons";
 import { sentence, useApp } from "../common";
-import { BrandGlow, LanguageGlobe, LanguagePanel, PleyLogo, QrCode, StatusLine } from "./kit";
+import { BrandGlow, LanguagePanel, OnboardingFoot, PleyLogo, QrCode, StatusLine } from "./kit";
 
 /** Where signing in with a code stands (the Android app's LinkStatus). */
 export type LinkStatus =
@@ -404,7 +404,7 @@ function LinkContent(p: {
           )}
         </div>
       </div>
-      {line && (
+      {!p.globe && line && (
         <div class="link-status">
           <StatusLine text={line.text} waiting={line.waiting} class={line.cls} />
         </div>
@@ -422,7 +422,11 @@ function LinkContent(p: {
           </G>
         </div>
       </div>
-      {p.globe && <LanguageGlobe class="globe-corner" onOpen={() => setChoosingLanguage(true)} />}
+      {p.globe && (
+        <OnboardingFoot onLanguage={() => setChoosingLanguage(true)}>
+          {line && <StatusLine text={line.text} waiting={line.waiting} class={line.cls} />}
+        </OnboardingFoot>
+      )}
       {p.globe && choosingLanguage && <LanguagePanel onClose={() => setChoosingLanguage(false)} />}
     </BrandGlow>
   );

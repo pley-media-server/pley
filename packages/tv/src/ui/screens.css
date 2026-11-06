@@ -85,10 +85,13 @@
 .status-line { display: flex; align-items: center; min-height: 20px; }
 .status-line .breathing-dot { margin-right: 12px; }
 
-/* The globe before signing in: at the top right, by the logo where it is there. */
-.globe-btn .icon { margin-right: 8px; }
-.globe-corner { position: absolute; top: 26px; right: 48px; }
-.servers-globe { flex: none; margin: 0 20px 0 16px; }
+/* The foot of the screens before signing in: the globe at the bottom left, its icon in line with
+   the screen's left edge, then the screen's last line (a status, a hint) beside it. */
+.onboarding-foot { position: absolute; left: 96px; bottom: 24px; display: flex; align-items: center; min-height: 32px; max-width: 504px; }
+.globe-btn { height: 32px; min-width: 0; padding: 0 10px; }
+.globe-btn .icon { margin-right: 6px; }
+.onboarding-foot .globe-btn { margin-left: -10px; }
+.foot-text { flex: 1; min-width: 0; margin-left: 6px; }
 
 /* Servers */
 .servers { position: absolute; left: 96px; top: 27px; right: 48px; bottom: 27px; }
@@ -135,7 +138,6 @@
   from { transform: scaleX(0); }
   to { transform: scaleX(1); }
 }
-.forget-hint { position: absolute; left: 0; bottom: 0; }
 
 /* Typing an address */
 .address-entry { position: absolute; left: 0; right: 0; top: 27px; display: flex; flex-direction: column; align-items: center; }

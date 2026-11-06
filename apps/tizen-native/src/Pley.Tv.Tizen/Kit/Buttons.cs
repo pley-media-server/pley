@@ -12,6 +12,8 @@ enum ButtonKind
     Text,
     /// <summary>Play, Connect: at least 128 wide, Fg at 12 % with a 1 dp Control edge, 20 either side.</summary>
     Pill,
+    /// <summary>The globe before signing in: 32 tall, no fill at rest, a 16 dp icon and Caption, 10 either side.</summary>
+    Small,
 }
 
 /// <summary>
@@ -37,7 +39,7 @@ sealed class ButtonView : View
         this.maxWidth = maxWidth;
         ink = color ?? PleyColors.Fg;
         Item = new FocusItem(text) { Selected = onClick };
-        label = Text.Label(text, PleyType.Label, ink);
+        label = Text.Label(text, Style, ink);
         label.HorizontalAlignment = HorizontalAlignment.Center;
         CornerRadius = Ui.Dp(PleyShape.ControlRadius);
         PivotPoint = global::Tizen.NUI.PivotPoint.Center;
@@ -48,7 +50,7 @@ sealed class ButtonView : View
         }
         if (iconName != null)
         {
-            icon = Icons.Icon(iconName, PleyTv.IconSize, ink);
+            icon = Icons.Icon(iconName, IconSize, ink);
             Add(icon);
         }
         Add(label);
@@ -59,28 +61,36 @@ sealed class ButtonView : View
 
     public FocusItem Item { get; }
 
+    /// <summary>Its height in dp: 40, or 32 for <see cref="ButtonKind.Small"/>.</summary>
+    public float Height => kind == ButtonKind.Small ? 32 : PleyTv.ButtonHeight;
+
+    float IconSize => kind == ButtonKind.Small ? 16 : PleyTv.IconSize;
+
+    TextStyle Style => kind == ButtonKind.Small ? PleyType.Caption : PleyType.Label;
+
     public void SetText(string text)
     {
         label.Text = text;
-        var padding = kind == ButtonKind.Pill ? 20 : 16;
+        var padding = kind switch { ButtonKind.Pill => 20, ButtonKind.Small => 10, _ => 16 };
         var textWidth = Text.Width(label);
-        var iconRoom = icon != null ? PleyTv.IconSize + 8 : 0;
+        var iconGap = kind == ButtonKind.Small ? 6 : 8;
+        var iconRoom = icon != null ? IconSize + iconGap : 0;
         if (maxWidth > 0 && textWidth > maxWidth - padding * 2 - iconRoom)
         {
             // Wider than the button may grow: cut to fit with "…" (Text.Fit), as NUI's own ellipsis isn't to be trusted.
             textWidth = maxWidth - padding * 2 - iconRoom;
-            label.Text = Text.Fit(text, PleyType.Label, textWidth);
+            label.Text = Text.Fit(text, Style, textWidth);
         }
         var content = textWidth + iconRoom;
         var width = Math.Max(content + padding * 2, kind == ButtonKind.Pill ? PillMinWidth : 0);
-        Size = new Size(Ui.Dp(width), Ui.Dp(PleyTv.ButtonHeight));
+        Size = new Size(Ui.Dp(width), Ui.Dp(Height));
         var x = (width - content) / 2;
         if (icon != null)
         {
-            icon.Position = new Position(Ui.Dp(x), Ui.Dp((PleyTv.ButtonHeight - PleyTv.IconSize) / 2));
-            x += PleyTv.IconSize + 8;
+            icon.Position = new Position(Ui.Dp(x), Ui.Dp((Height - IconSize) / 2));
+            x += IconSize + iconGap;
         }
-        label.Size = new Size(Ui.Dp(textWidth) + 2, Ui.Dp(PleyTv.ButtonHeight));
+        label.Size = new Size(Ui.Dp(textWidth) + 2, Ui.Dp(Height));
         label.Position = new Position(Ui.Dp(x), 0);
     }
 
@@ -133,7 +143,7 @@ sealed class ButtonView : View
     {
         // Let go already: a focus change can still reach it on its way to the view in its place.
         if (Disposed) return;
-        var fill = kind == ButtonKind.Pill ? 0.12f : 0.08f;
+        var fill = kind switch { ButtonKind.Pill => 0.12f, ButtonKind.Small => 0f, _ => 0.08f };
         BackgroundColor = focused ? PleyColors.Accent : rest ?? new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, fill);
         if (kind == ButtonKind.Pill) BorderlineColor = focused ? Color.Transparent : PleyColors.Control;
         var content = focused ? PleyColors.OnAccent : ink;

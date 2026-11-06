@@ -8,7 +8,7 @@ public sealed record LanguageChoice(string Label, bool Checked);
 
 /// <summary>
 /// The globe of the screens before signing in (the web app's LanguagePicker, the web Samsung app's
-/// LanguageGlobe): the language shown, named in itself, and its list: Automatic, with what that
+/// LanguageGlobe): the language shown, by its two letters, and its list: Automatic, with what that
 /// is on this TV (its own language where Pley has it, else the server's, else English), then each
 /// language named in itself, the choice in force checked. A choice shows at once and is kept on
 /// the TV; Automatic forgets it (<see cref="AppState.ChooseDeviceLanguage"/>).
@@ -20,8 +20,8 @@ public sealed class LanguageGlobe
 
     public LanguageGlobe(AppState app) => this.app = app;
 
-    /// <summary>The globe's words: the language shown, in itself ("Français").</summary>
-    public string Label => Languages.NameOf(app.Language.Value);
+    /// <summary>The globe's words: the language shown, by its two letters ("FR").</summary>
+    public string Label => app.Language.Value.ToUpperInvariant();
 
     /// <summary>The list's title: "Choose a language".</summary>
     public static string Title => Strings.T("signin.language.choose");

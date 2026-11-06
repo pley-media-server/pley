@@ -350,8 +350,9 @@ else the server's, else English. `packages/tv/test/fixtures/language.json`
 pins that order for both Samsung apps.
 
 - **The globe:** Choose your server, typing an address and the sign-in
-  code have a globe at the top right (by the logo on Choose your server)
-  that names the language shown; Up reaches it. OK opens a side panel:
+  code have a small globe at the bottom left, the screen's last line (the
+  forget hint, the code's status) beside it, that names the language shown
+  by its two letters ("FR"); Down reaches it. OK opens a side panel:
   Automatic, with what that is on this TV (its language, else the
   server's, else English), then English, Français and Español, the choice
   in force checked. A choice shows at once and is kept on the TV
@@ -713,9 +714,10 @@ this TV, else the TV's own when Pley has it, else the server's, else
 English (`packages/tv/test/fixtures/language.json` pins the order for both
 Samsung apps).
 
-Choose your server, typing an address and the sign-in code have a globe at
-the top right, as the web Samsung app has it (left of the logo on Choose
-your server), naming the language shown; Up reaches it. OK opens a side
+Choose your server, typing an address and the sign-in code have a small
+globe at the bottom left, as the web Samsung app has it (`ButtonKind.Small`:
+32 tall, no fill until focused), the screen's last line beside it, naming
+the language shown by its two letters ("FR"); Down reaches it. OK opens a side
 panel: "Automatic (English)" (the TV's language where Pley has it, else
 the server's, else English), then English, Français and Español, the
 choice in force checked. A choice shows at once, the screen drawn again in

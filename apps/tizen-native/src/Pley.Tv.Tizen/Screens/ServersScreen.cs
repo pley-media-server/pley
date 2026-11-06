@@ -13,7 +13,7 @@ namespace Pley.Tv.Tizen.Screens;
 /// <summary>
 /// "Choose your server" (design spec §4.7; the Android app's TvServersScreen): saved servers first,
 /// then those that answer as they come; "Enter an address" (on the TV's keyboard) and "Search this
-/// network". Holding OK on a saved server forgets it. The globe left of the logo picks the TV's language.
+/// network". Holding OK on a saved server forgets it. The globe at the bottom left picks the TV's language.
 /// </summary>
 sealed class ServersScreen : Sheet
 {
@@ -59,9 +59,6 @@ sealed class ServersScreen : Sheet
         var logo = Onboarding.Logo(32);
         logo.Position = new Position(Ui.Dp(PleyTv.CanvasWidth - Right) - logo.SizeWidth, Ui.Dp(Top + 3));
         View.Add(logo);
-        globeButton = GlobeButton.Of(shell, globe);
-        globeButton.Position = new Position(logo.PositionX - Ui.Dp(20) - globeButton.SizeWidth, Ui.Dp(GlobeButton.Top));
-        View.Add(globeButton);
 
         // The list scrolls inside its 300 dp; rows are drawn without scale, so nothing spills.
         list = new View
@@ -82,14 +79,16 @@ sealed class ServersScreen : Sheet
         status = new View { PositionX = Ui.Dp(Left), Size = new Size(Ui.Dp(RowWidth), 0) };
         View.Add(status);
 
+        globeButton = GlobeButton.Of(shell, globe, Left);
+        View.Add(globeButton);
         forgetHint = Text.Label(Strings.T("signin.servers.forgetHint"), PleyType.Caption, PleyColors.Subtle, width: 600);
-        forgetHint.Position = new Position(Ui.Dp(Left), Ui.Dp(PleyTv.CanvasHeight - Top - PleyType.Caption.Line));
+        forgetHint.Position = new Position(Ui.Dp(GlobeButton.Beside(globeButton)), Ui.Dp(GlobeButton.BesideTop(globeButton, PleyType.Caption.Line)));
         View.Add(forgetHint);
 
-        // Up from the list or the buttons reaches the globe.
-        Root.Add(globeButton.Item);
+        // Down from the list or the buttons reaches the globe.
         Root.Add(listGroup);
         Root.Add(buttons.Group);
+        Root.Add(globeButton.Item);
         listGroup.ChildFocused += ScrollTo;
 
         // D-pad rule 1 holds until the first key: focus follows the first server as it shows.
