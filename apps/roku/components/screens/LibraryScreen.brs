@@ -623,7 +623,7 @@ sub onSaved(event as object)
     if answer.ok and httpObject(answer.data) <> invalid
         uiNavigate({ to: "playlist", params: { id: answer.data.id, title: httpSentence(answer.data.title) } })
     else if not uiFailed(answer)
-        uiMessage(t("browse.failed"), [pagePlaylistRefusal(answer)])
+        uiMessage(t("common.states.failed"), [pagePlaylistRefusal(answer)])
     end if
 end sub
 

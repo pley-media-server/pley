@@ -976,7 +976,7 @@ end sub
 sub onFavorite(event as object)
     answer = event.getData()
     if not answer.ok
-        if not uiFailed(answer) then uiMessage(t("livetv.favourites.failed"), [answer.message])
+        if not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
         return
     end if
     loadGroups(false)

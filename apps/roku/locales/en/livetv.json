@@ -84,7 +84,6 @@
     "remove": "Remove from favourites",
     "added": "{{name}} is in your favourites",
     "removed": "{{name}} is out of your favourites",
-    "failed": "That didn't work",
     "mark": "Favourite"
   },
   "player": {

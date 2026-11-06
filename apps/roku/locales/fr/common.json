@@ -20,6 +20,7 @@
     "loading": "Chargement…",
     "saved": "Enregistré.",
     "on": "Activé",
-    "off": "Désactivé"
+    "off": "Désactivé",
+    "failed": "Ça n’a pas fonctionné"
   }
 }

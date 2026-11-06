@@ -1,5 +1,4 @@
 {
-  "failed": "Ça n’a pas fonctionné",
   "watched": "Vu",
   "smart": "Intelligente",
   "nothingToPlay": "Rien à lire",
@@ -16,12 +15,7 @@
     "goTo": "Aller à {{title}}",
     "playEpisode": "Lire {{episode}}",
     "resumeEpisode": "Reprendre {{episode}}",
-    "playFromStart": "Lire depuis le début",
     "audioAndSubtitles": "Audio et sous-titres",
-    "trailer": "Bande-annonce",
-    "episodes": "Épisodes",
-    "more": "Plus…",
-    "rate": "Noter",
     "shuffle": "Aléatoire",
     "nowPlaying": "Lecture en cours",
     "rename": "Renommer",
@@ -43,8 +37,6 @@
     "tracks_other": "{{count, number}} titres"
   },
   "seasons": {
-    "numbered": "Saison {{number}}",
-    "specials": "Épisodes spéciaux",
     "noEpisodes": "Aucun épisode trouvé."
   },
   "page": {
@@ -55,11 +47,6 @@
       "moreLikeThis": "Titres similaires",
       "collections": "Collections"
     },
-    "notPlayable": "Pley pour Roku ne lit pas encore ce type de titre.",
-    "noFile": "Cet élément n’a aucun fichier à lire.",
-    "directedBy": "Réalisation : {{names}}",
-    "createdBy": "Création : {{names}}",
-    "starring": "Avec {{names}}",
     "mediaInfo": "Informations sur le média",
     "about": "Détails",
     "version": "Version",
@@ -68,30 +55,7 @@
     "versionIs": "Version : {{value}}",
     "audioIs": "Audio : {{value}}",
     "subtitlesIs": "Sous-titres : {{value}}",
-    "yourRating": "Votre note",
-    "yourStars": "Votre note : {{stars}}",
-    "noRating": "Aucune note",
-    "stars_one": "{{count}} étoile",
-    "stars_many": "{{count}} d’étoiles",
-    "stars_other": "{{count}} étoiles",
-    "facts": {
-      "fact": "{{label}} : {{value}}",
-      "createdBy": "Création",
-      "directors_one": "Réalisation",
-      "directors_many": "Réalisation",
-      "directors_other": "Réalisation",
-      "writers_one": "Scénario",
-      "writers_many": "Scénario",
-      "writers_other": "Scénario",
-      "andMore_one": "{{names}} et {{count, number}} autre",
-      "andMore_many": "{{names}} et {{count, number}} autres",
-      "andMore_other": "{{names}} et {{count, number}} autres",
-      "originalTitle": "Titre original",
-      "released": "Date de sortie",
-      "network": "Chaîne",
-      "studio": "Studio",
-      "plays": "Lectures"
-    }
+    "yourRating": "Votre note"
   },
   "extras": {
     "trailer": "Bande-annonce",

@@ -371,7 +371,7 @@ sub onAsked(event as object)
     title = m.shown.title
     if not answer.ok
         if uiFailed(answer) then return
-        uiMessage(t("requests.didntWork"), [reqAskProblem(answer, m.shown.allowance, m.shown.kind, CreateObject("roDateTime").AsSeconds())])
+        uiMessage(t("common.states.failed"), [reqAskProblem(answer, m.shown.allowance, m.shown.kind, CreateObject("roDateTime").AsSeconds())])
         ' Someone asked meanwhile, or it arrived, or the limits moved.
         if answer.status = 409 or answer.status = 429 then changedHere()
         return

@@ -1,5 +1,4 @@
 {
-  "failed": "No funcionó",
   "watched": "Visto",
   "smart": "Inteligente",
   "nothingToPlay": "No hay nada que reproducir",
@@ -16,12 +15,7 @@
     "goTo": "Ir a {{title}}",
     "playEpisode": "Reproducir {{episode}}",
     "resumeEpisode": "Reanudar {{episode}}",
-    "playFromStart": "Reproducir desde el principio",
     "audioAndSubtitles": "Audio y subtítulos",
-    "trailer": "Tráiler",
-    "episodes": "Episodios",
-    "more": "Más…",
-    "rate": "Valorar",
     "shuffle": "Aleatorio",
     "nowPlaying": "Reproduciendo ahora",
     "rename": "Cambiar nombre",
@@ -43,8 +37,6 @@
     "tracks_other": "{{count, number}} pistas"
   },
   "seasons": {
-    "numbered": "Temporada {{number}}",
-    "specials": "Especiales",
     "noEpisodes": "No se encontraron episodios."
   },
   "page": {
@@ -55,11 +47,6 @@
       "moreLikeThis": "Títulos similares",
       "collections": "Colecciones"
     },
-    "notPlayable": "Pley para Roku aún no reproduce este tipo de título.",
-    "noFile": "Este elemento no tiene ningún archivo que reproducir.",
-    "directedBy": "Dirección: {{names}}",
-    "createdBy": "Creación: {{names}}",
-    "starring": "Reparto: {{names}}",
     "mediaInfo": "Información multimedia",
     "about": "Detalles",
     "version": "Versión",
@@ -68,30 +55,7 @@
     "versionIs": "Versión: {{value}}",
     "audioIs": "Audio: {{value}}",
     "subtitlesIs": "Subtítulos: {{value}}",
-    "yourRating": "Tu valoración",
-    "yourStars": "Tu valoración: {{stars}}",
-    "noRating": "Sin valoración",
-    "stars_one": "{{count}} estrella",
-    "stars_many": "{{count}} estrellas",
-    "stars_other": "{{count}} estrellas",
-    "facts": {
-      "fact": "{{label}}: {{value}}",
-      "createdBy": "Creación",
-      "directors_one": "Dirección",
-      "directors_many": "Dirección",
-      "directors_other": "Dirección",
-      "writers_one": "Guion",
-      "writers_many": "Guion",
-      "writers_other": "Guion",
-      "andMore_one": "{{names}} y {{count, number}} más",
-      "andMore_many": "{{names}} y {{count, number}} más",
-      "andMore_other": "{{names}} y {{count, number}} más",
-      "originalTitle": "Título original",
-      "released": "Fecha de estreno",
-      "network": "Cadena",
-      "studio": "Estudio",
-      "plays": "Reproducciones"
-    }
+    "yourRating": "Tu valoración"
   },
   "extras": {
     "trailer": "Tráiler",

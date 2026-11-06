@@ -193,7 +193,7 @@ sub onAlbumTracks(event as object)
     answer = event.getData()
     if not answer.ok
         m.gathering = invalid
-        if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
+        if not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
         return
     end if
     gathering.lists[spec.at] = answer.data.queue

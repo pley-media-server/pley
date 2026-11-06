@@ -10,7 +10,6 @@
   },
   "quoted": "“{{text}}”",
   "credit": "Details and pictures from TMDB.",
-  "didntWork": "That didn't work",
   "following": "Following",
   "counts": {
     "movies_one": "{{count, number}} movie",

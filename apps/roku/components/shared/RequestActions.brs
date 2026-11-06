@@ -104,7 +104,7 @@ sub uiRequestActed(event as object)
     if not answer.ok
         if uiFailed(answer) then return
         text = reqActProblem(answer, spec.action, reqSummaryOf(m.top.getScene().requestSummary), httpString(m.requestTarget.kind), CreateObject("roDateTime").AsSeconds())
-        uiMessage(t("requests.didntWork"), [text])
+        uiMessage(t("common.states.failed"), [text])
         if answer.status = 404 or answer.status = 409 or answer.status = 429 then onRequestActed()
         return
     end if

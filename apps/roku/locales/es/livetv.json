@@ -88,7 +88,6 @@
     "remove": "Quitar de favoritos",
     "added": "{{name}} está en tus favoritos",
     "removed": "{{name}} ya no está en tus favoritos",
-    "failed": "No funcionó",
     "mark": "Favorito"
   },
   "player": {

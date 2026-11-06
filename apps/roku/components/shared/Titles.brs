@@ -65,7 +65,7 @@ sub uiTitleActionDone(event as object)
     answer = event.getData()
     spec = event.getRoSGNode().spec
     if not answer.ok
-        if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
+        if not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
         return
     end if
     scene = m.top.getScene()
@@ -87,7 +87,7 @@ end sub
 sub uiPlaylistsListed(event as object)
     answer = event.getData()
     if not answer.ok or answer.data = invalid
-        if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
+        if not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
         return
     end if
     m.playlistChoices = pagePlaylistChoices(answer.data.playlists, pagePlaylistKind(httpString(m.playlistTile.kind)))
@@ -134,7 +134,7 @@ sub uiPlaylistAdded(event as object)
     if answer.ok
         uiMessage(t("titles.playlist.added"), [t("titles.playlist.addedTo", { title: event.getRoSGNode().spec.playlist })])
     else if not uiFailed(answer)
-        uiMessage(t("titles.failed"), [pagePlaylistRefusal(answer)])
+        uiMessage(t("common.states.failed"), [pagePlaylistRefusal(answer)])
     end if
 end sub
 

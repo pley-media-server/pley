@@ -172,7 +172,7 @@ sub onChanged(event as object)
     if answer.ok
         load()
     else if not uiFailed(answer)
-        uiMessage(t("titles.failed"), [pagePlaylistRefusal(answer)])
+        uiMessage(t("common.states.failed"), [pagePlaylistRefusal(answer)])
         load()
     end if
 end sub

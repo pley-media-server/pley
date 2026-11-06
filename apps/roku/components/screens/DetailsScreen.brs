@@ -647,7 +647,7 @@ end sub
 
 sub onTracksSaved(event as object)
     answer = event.getData()
-    if not answer.ok and not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
+    if not answer.ok and not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
     if m.item <> invalid then uiGet("/api/items/" + urlValue(m.item.id), "onDetail")
 end sub
 
@@ -671,7 +671,7 @@ sub onRated(event as object)
     rating = invalid
     if before > 0 then rating = before * 2
     showRating(rating)
-    if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
+    if not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
 end sub
 
 sub showRating(rating as dynamic)

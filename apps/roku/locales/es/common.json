@@ -20,6 +20,7 @@
     "loading": "Cargando…",
     "saved": "Guardado.",
     "on": "Activado",
-    "off": "Desactivado"
+    "off": "Desactivado",
+    "failed": "No funcionó"
   }
 }

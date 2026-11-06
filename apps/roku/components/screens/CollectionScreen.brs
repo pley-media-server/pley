@@ -198,7 +198,7 @@ sub onOnDeck(event as object)
     m.picking = false
     answer = event.getData()
     if not answer.ok
-        if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
+        if not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
         return
     end if
     episode = invalid

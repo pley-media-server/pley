@@ -10,7 +10,6 @@
   },
   "quoted": "« {{text}} »",
   "credit": "Informations et images fournies par TMDB.",
-  "didntWork": "Ça n’a pas marché",
   "following": "Vous suivez",
   "counts": {
     "movies_one": "{{count, number}} film",

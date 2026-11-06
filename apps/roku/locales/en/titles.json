@@ -1,5 +1,4 @@
 {
-  "failed": "That didn't work",
   "watched": "Watched",
   "smart": "Smart",
   "nothingToPlay": "Nothing to play",
@@ -16,12 +15,7 @@
     "goTo": "Go to {{title}}",
     "playEpisode": "Play {{episode}}",
     "resumeEpisode": "Resume {{episode}}",
-    "playFromStart": "Play from start",
     "audioAndSubtitles": "Audio and subtitles",
-    "trailer": "Trailer",
-    "episodes": "Episodes",
-    "more": "More…",
-    "rate": "Rate",
     "shuffle": "Shuffle",
     "nowPlaying": "Now playing",
     "rename": "Rename",
@@ -39,8 +33,6 @@
     "tracks_other": "{{count, number}} tracks"
   },
   "seasons": {
-    "numbered": "Season {{number}}",
-    "specials": "Specials",
     "noEpisodes": "No episodes found."
   },
   "page": {
@@ -51,11 +43,6 @@
       "moreLikeThis": "More like this",
       "collections": "Collections"
     },
-    "notPlayable": "Pley for Roku doesn't play this kind of title yet.",
-    "noFile": "This item has no file to play.",
-    "directedBy": "Directed by {{names}}",
-    "createdBy": "Created by {{names}}",
-    "starring": "Starring {{names}}",
     "mediaInfo": "Media info",
     "about": "Details",
     "version": "Version",
@@ -64,26 +51,7 @@
     "versionIs": "Version: {{value}}",
     "audioIs": "Audio: {{value}}",
     "subtitlesIs": "Subtitles: {{value}}",
-    "yourRating": "Your rating",
-    "yourStars": "Your rating: {{stars}}",
-    "noRating": "No rating",
-    "stars_one": "{{count}} star",
-    "stars_other": "{{count}} stars",
-    "facts": {
-      "fact": "{{label}}: {{value}}",
-      "createdBy": "Created by",
-      "directors_one": "Director",
-      "directors_other": "Directors",
-      "writers_one": "Writer",
-      "writers_other": "Writers",
-      "andMore_one": "{{names}} and {{count, number}} more",
-      "andMore_other": "{{names}} and {{count, number}} more",
-      "originalTitle": "Original title",
-      "released": "Released",
-      "network": "Network",
-      "studio": "Studio",
-      "plays": "Plays"
-    }
+    "yourRating": "Your rating"
   },
   "extras": {
     "trailer": "Trailer",

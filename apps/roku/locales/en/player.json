@@ -30,7 +30,6 @@
     "backGoesBack": "Back goes back."
   },
   "details": {
-    "row": "{{label}}: {{value}}",
     "picturesDrawn": "Subtitles: Drawn by Pley",
     "qualityLowered": "Quality: {{quality}} · Lowered for your connection"
   },

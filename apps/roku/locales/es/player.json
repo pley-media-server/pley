@@ -30,7 +30,6 @@
     "backGoesBack": "Atrás para volver."
   },
   "details": {
-    "row": "{{label}}: {{value}}",
     "picturesDrawn": "Subtítulos: Dibujados por Pley",
     "qualityLowered": "Calidad: {{quality}} · Reducida para tu conexión"
   },

@@ -104,7 +104,7 @@ end sub
 sub onRemoved(event as object)
     answer = event.getData()
     if not answer.ok
-        if not uiFailed(answer) then uiMessage(t("browse.failed"), [answer.message])
+        if not uiFailed(answer) then uiMessage(t("common.states.failed"), [answer.message])
         return
     end if
     ' By its id: rows taken out meanwhile moved the others.

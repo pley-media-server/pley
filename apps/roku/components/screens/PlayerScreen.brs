@@ -2047,7 +2047,7 @@ sub showDetails(live as dynamic)
     if details.why <> "" then lines.Push(details.why)
     lines.Push("")
     for each row in details.rows
-        lines.Push(t("player.details.row", { label: row.label, value: row.value }))
+        lines.Push(detLine(row))
     end for
     if m.pictureIndex >= 0 then lines.Push(t("player.details.picturesDrawn"))
     if m.watch <> invalid and aqLowered(m.watch) then lines.Push(t("player.details.qualityLowered", { quality: qualityShown() }))
