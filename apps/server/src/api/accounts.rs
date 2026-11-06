@@ -105,7 +105,21 @@ async fn admins_left_after(state: &AppState, without: i64) -> ApiResult<i64> {
 // ------------------------------------------------------------------ admin: users
 
 pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<UserDto>>> {
-    Ok(Json(accounts::users(&state.db).await?))
+    Ok(Json(accounts::with_birthdays(&state.db, accounts::users(&state.db).await?).await?))
+}
+
+/// A user as an administrator sees it: with their birthday.
+async fn admin_view(state: &AppState, id: i64) -> ApiResult<UserDto> {
+    let user = accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?;
+    Ok(accounts::with_birthdays(&state.db, vec![user]).await?.remove(0))
+}
+
+/// An age limit is fixed or follows a birthday, not both.
+fn one_limit(max_age: bool, birth_month: bool) -> ApiResult<()> {
+    if max_age && birth_month {
+        return Err(AppError::bad_request("an age limit is fixed or follows a birthday, not both"));
+    }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -130,6 +144,10 @@ pub struct NewUser {
     max_age: Option<i64>,
     #[serde(default)]
     max_age_system: Option<String>,
+    /// "2015-03": the age limit is the profile's age (see
+    /// `accounts::birthday_limit`), instead of `max_age`.
+    #[serde(default)]
+    birth_month: Option<String>,
     #[serde(default)]
     pin: Option<String>,
     /// Left out: profiles without a password and accounts with an age limit
@@ -151,6 +169,15 @@ pub async fn create_user(
     validate_username(&username)?;
     check_age(body.max_age)?;
     let max_age_system = check_system(body.max_age_system.as_deref())?;
+    one_limit(body.max_age.is_some(), body.birth_month.is_some())?;
+    let birth_month = match body.birth_month.as_deref() {
+        Some(born) => Some(accounts::check_birth_month(born, &accounts::local_month(&state.db).await?)?),
+        None => None,
+    };
+    let max_age = match &birth_month {
+        Some(born) => accounts::birthday_limit(born, &accounts::local_month(&state.db).await?),
+        None => body.max_age,
+    };
     if body.managed && body.is_admin {
         return Err(AppError::bad_request("a managed profile can't be an administrator"));
     }
@@ -176,15 +203,15 @@ pub async fn create_user(
     if exists.is_some() {
         return Err(AppError::conflict(format!("user '{username}' already exists")));
     }
-    let request_access = body.request_access.unwrap_or(if body.managed || body.max_age.is_some() {
+    let request_access = body.request_access.unwrap_or(if body.managed || max_age.is_some() {
         RequestAccess::Off
     } else {
         RequestAccess::Ask
     });
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (id, username, password_hash, display_name, is_admin, managed, home, all_libraries, max_age,
-                            max_age_system, pin_hash, request_access, created_at)
-         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                            max_age_system, birth_month, pin_hash, request_access, created_at)
+         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&username)
     .bind(password_hash)
@@ -193,8 +220,9 @@ pub async fn create_user(
     .bind(body.managed)
     .bind(body.home)
     .bind(body.all_libraries)
-    .bind(body.max_age)
+    .bind(max_age)
     .bind(max_age_system)
+    .bind(birth_month)
     .bind(pin_hash)
     .bind(request_access.as_str())
     .bind(now())
@@ -203,8 +231,7 @@ pub async fn create_user(
     if !body.all_libraries {
         accounts::set_libraries(&state.db, id, &body.library_ids).await?;
     }
-    let user = accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?;
-    Ok((StatusCode::CREATED, Json(user)))
+    Ok((StatusCode::CREATED, Json(admin_view(&state, id).await?)))
 }
 
 #[derive(Deserialize)]
@@ -228,6 +255,11 @@ pub struct UserPatch {
     /// `null`: the metadata region's.
     #[serde(default, deserialize_with = "nullable")]
     max_age_system: Option<Option<String>>,
+    /// "2015-03": the age limit follows the profile's age from now on;
+    /// `null` stops it following (the limit stays as it is). A `max_age`
+    /// stops it too.
+    #[serde(default, deserialize_with = "nullable")]
+    birth_month: Option<Option<String>>,
     /// `null` removes the PIN.
     #[serde(default, deserialize_with = "nullable")]
     pin: Option<Option<String>>,
@@ -274,6 +306,18 @@ pub async fn update_user(
         Some(system) => Some(check_system(system.as_deref())?),
         None => None,
     };
+    one_limit(body.max_age.is_some(), matches!(body.birth_month, Some(Some(_))))?;
+    let month = accounts::local_month(&state.db).await?;
+    let birth_month = match &body.birth_month {
+        Some(Some(born)) => Some(Some(accounts::check_birth_month(born, &month)?)),
+        Some(None) => Some(None),
+        // A fixed limit (or none) replaces one that follows a birthday.
+        None => body.max_age.is_some().then_some(None),
+    };
+    let max_age = match &birth_month {
+        Some(Some(born)) => Some(accounts::birthday_limit(born, &month)),
+        _ => body.max_age,
+    };
     if body.pin.is_some() && id == admin.id {
         // As the password: from Account, which asks for the password. A PIN
         // switches a profile to this one without its two-step code.
@@ -285,7 +329,7 @@ pub async fn update_user(
 
     // What the user may see changes: their devices are told to fetch it again.
     let sees_otherwise =
-        body.is_admin.is_some() || body.all_libraries.is_some() || body.library_ids.is_some() || body.max_age.is_some();
+        body.is_admin.is_some() || body.all_libraries.is_some() || body.library_ids.is_some() || max_age.is_some();
     if let Some(password) = body.password {
         let hash = hash_password(password).await?;
         sqlx::query("UPDATE users SET password_hash = ?, managed = 0 WHERE id = ?")
@@ -346,7 +390,14 @@ pub async fn update_user(
     if let Some(ids) = &body.library_ids {
         accounts::set_libraries(&state.db, id, ids).await?;
     }
-    if let Some(max_age) = body.max_age {
+    if let Some(born) = &birth_month {
+        sqlx::query("UPDATE users SET birth_month = ? WHERE id = ?")
+            .bind(born)
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
+    }
+    if let Some(max_age) = max_age {
         sqlx::query("UPDATE users SET max_age = ? WHERE id = ?")
             .bind(max_age)
             .bind(id)
@@ -377,7 +428,7 @@ pub async fn update_user(
             .bind(id)
             .execute(&state.db.write)
             .await?;
-    } else if current.max_age.is_none() && matches!(body.max_age, Some(Some(_))) {
+    } else if current.max_age.is_none() && matches!(max_age, Some(Some(_))) {
         // An age limit added: the account no longer asks until an
         // administrator lets it, as those made with one.
         sqlx::query("UPDATE users SET request_access = 'off' WHERE id = ? AND request_access = 'ask'")
@@ -394,7 +445,7 @@ pub async fn update_user(
     if body.request_access.is_some() || sees_otherwise {
         state.events.send(ServerEvent::RequestsSettingsChanged { user_id: Some(id) });
     }
-    Ok(Json(accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?))
+    Ok(Json(admin_view(&state, id).await?))
 }
 
 pub async fn delete_user(

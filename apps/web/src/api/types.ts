@@ -26,6 +26,8 @@ export interface User {
   max_age: number | null;
   /** The rating system the limit is shown in (`GB`, or `age`); `null`: the metadata region's. Only in administrators' lists. */
   max_age_system?: string | null;
+  /** "2015-03": the limit follows this birthday (only in administrators' lists). */
+  birth_month?: string | null;
   disabled: boolean;
   created_at: Timestamp;
   /** Default tracks for titles without a remembered choice. ISO 639 code; `null`: the file's default track. */

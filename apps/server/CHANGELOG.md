@@ -17,6 +17,10 @@ describes how they are made.
   list didn't offer shows as its age, no longer as "No limit".
   `GET /api/ratings/systems` gives the ratings, and users and invitations
   keep the system in `max_age_system`.
+- An account's age limit can follow its age: "Their age" asks for the
+  month and year of a birthday, and the limit goes up on the first of that
+  month each year, until it ends at 21. Only administrators see the
+  birthday, never the account itself or its apps.
 
 ### Changed
 

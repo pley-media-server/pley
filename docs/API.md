@@ -217,6 +217,7 @@ interface User {
   max_age: number | null;           // age limit for movies and shows; null = none
   max_age_system?: string | null;   // in /api/users: the rating system the limit is shown in, a country
                                     // ("GB") or "age"; null = the metadata region's (see Access rules)
+  birth_month?: string;             // in /api/users only, when the limit follows a birthday: "2015-03"
   disabled: boolean;
   created_at: Timestamp;
   // Default tracks for titles without a remembered choice (see Your account):
@@ -1523,6 +1524,14 @@ says which system it's shown in: a country of the table below ("GB",
 where 12 shows as "12, 12A"), or `age` for a plain age; `null` is the
 metadata region's. A limit no rating of the system has (8 in the US)
 shows as an age. An unknown system is `400`.
+
+A limit can follow a birthday instead: `birth_month` ("2015-03", the month
+and year, never the day) makes `max_age` the account's age, which goes up
+on the first of that month in the server's time and ends (`null`) at 21.
+The server keeps `max_age` up to date, checking hourly, so everything that
+reads it works as for a fixed limit. Only administrators see the birthday,
+in `/api/users`: the account's own answers and apps never get it.
+Invitations have fixed limits only.
 
 | Method | Path | Who | What |
 |---|---|---|---|
@@ -4151,8 +4160,8 @@ interface LiveTuner {                  // a connection in use
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/users` | `admin` | `User[]` |
-| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, max_age_system?, pin?, request_access? }` → `201` `User`; managed profiles need no password and can't be administrators (`400`) |
-| PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, max_age_system?, pin?, request_access? }` (`null` clears nullable fields) → `User` |
+| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, max_age_system?, birth_month?, pin?, request_access? }` → `201` `User`; managed profiles need no password and can't be administrators (`400`) |
+| PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, max_age_system?, birth_month?, pin?, request_access? }` (`null` clears nullable fields; `max_age` and a `birth_month` together are `400`, and a `max_age` stops a limit following a birthday) → `User` |
 | DELETE | `/api/users/{id}` | `admin` | `204` (not yourself); their apps end with them, and each of their [requests](#requests) someone follows goes to its earliest follower (the others go with them) |
 | GET | `/api/users/{id}/devices` | `admin` | `Device[]` |
 | DELETE | `/api/users/{id}/devices` | `admin` | `204`: signs the user out everywhere, apps and compatibility tokens included |

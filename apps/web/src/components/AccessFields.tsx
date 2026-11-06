@@ -2,7 +2,21 @@ import { Check, Clapperboard, Music, Tv } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLibraries, useRatingSystems } from "@/api/hooks";
 import type { Id, LibraryKind } from "@/api/types";
-import { ageIn, ageLevels, ageToSelect, selectToAge, shownSystem, systemChoices, toggleId } from "@/lib/access";
+import {
+  ageIn,
+  ageLevels,
+  ageToSelect,
+  BIRTHDAY_LIMIT_ENDS,
+  birthdayLimit,
+  birthdayLimitEnd,
+  birthMonthOf,
+  monthNames,
+  parseBirthMonth,
+  selectToAge,
+  shownSystem,
+  systemChoices,
+  toggleId,
+} from "@/lib/access";
 import { cn } from "@/lib/cn";
 import { Field, Select } from "./ui";
 
@@ -12,7 +26,12 @@ export interface AccessValue {
   max_age: number | null;
   /** The rating system the limit is picked in; `null`: the metadata region's. */
   max_age_system: string | null;
+  /** "2015-03": the limit is their age, from this birthday (accounts only, not invitations). */
+  birth_month?: string | null;
 }
+
+/** The rating select's value for "Their age". */
+const THEIR_AGE = "birthday";
 
 const KIND_ICON: Record<LibraryKind, typeof Tv> = { movies: Clapperboard, shows: Tv, music: Music };
 
@@ -21,10 +40,13 @@ export function AccessFields({
   value,
   onChange,
   idPrefix,
+  birthday = false,
 }: {
   value: AccessValue;
   onChange: (v: AccessValue) => void;
   idPrefix: string;
+  /** Offer "Their age", a limit that follows a birthday. */
+  birthday?: boolean;
 }) {
   const { t } = useTranslation(["components", "common"]);
   const libs = useLibraries();
@@ -32,12 +54,23 @@ export function AccessFields({
   const system = shownSystem(systems, value.max_age_system, value.max_age);
   const levels = ageLevels(systems, system);
   const shown = levels.find((l) => l.age === value.max_age);
-  const hint =
+  const born = value.birth_month ? parseBirthMonth(value.birth_month) : null;
+  const limitHint =
     value.max_age == null
-      ? t("accessFields.noLimitHint")
+      ? born
+        ? t("accessFields.grownUpHint", { age: BIRTHDAY_LIMIT_ENDS })
+        : t("accessFields.noLimitHint")
       : shown?.rating
         ? t("accessFields.ratingHint", { rating: shown.rating, age: value.max_age })
         : t("accessFields.ageHint", { age: value.max_age });
+  const hint =
+    born && value.birth_month && value.max_age != null
+      ? `${limitHint} ${t("accessFields.birthdayHint", { month: monthNames()[born.month - 1], end: birthdayLimitEnd(value.birth_month) })}`
+      : limitHint;
+  const thisYear = new Date().getFullYear();
+  const years = Array.from({ length: BIRTHDAY_LIMIT_ENDS + 1 }, (_, i) => thisYear - i);
+  if (born && !years.includes(born.year)) years.push(born.year);
+  const setBirthMonth = (birthMonth: string) => set({ birth_month: birthMonth, max_age: birthdayLimit(birthMonth) });
   const set = (patch: Partial<AccessValue>) => onChange({ ...value, ...patch });
 
   return (
@@ -112,7 +145,9 @@ export function AccessFields({
               disabled={!systems}
               onChange={(e) => {
                 const next = e.target.value;
-                set({ max_age_system: next, max_age: ageIn(systems, next, value.max_age) });
+                // A limit that follows a birthday stays their age.
+                if (value.birth_month) set({ max_age_system: next });
+                else set({ max_age_system: next, max_age: ageIn(systems, next, value.max_age) });
               }}
             >
               {systemChoices(systems).map((o) => (
@@ -126,10 +161,16 @@ export function AccessFields({
             <Select
               id={`${idPrefix}-age`}
               className="h-10 w-full"
-              value={ageToSelect(value.max_age)}
-              onChange={(e) => set({ max_age: selectToAge(e.target.value) })}
+              value={value.birth_month ? THEIR_AGE : ageToSelect(value.max_age)}
+              onChange={(e) => {
+                if (e.target.value !== THEIR_AGE) return set({ max_age: selectToAge(e.target.value), birth_month: birthday ? null : undefined });
+                // Born this month, as many years ago as the limit was: the limit stays.
+                const now = new Date();
+                setBirthMonth(birthMonthOf(now.getFullYear() - (value.max_age ?? 10), now.getMonth() + 1));
+              }}
             >
               <option value="">{t("common:access.noLimit")}</option>
+              {birthday ? <option value={THEIR_AGE}>{t("accessFields.theirAge")}</option> : null}
               {levels.map((l) => (
                 <option key={l.age} value={ageToSelect(l.age)}>
                   {l.rating ? t("accessFields.ratingOption", { rating: l.rating, age: l.age }) : t("common:access.age", { age: l.age })}
@@ -138,6 +179,38 @@ export function AccessFields({
             </Select>
           </Field>
         </div>
+        {born && value.birth_month ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t("accessFields.birthMonth")} htmlFor={`${idPrefix}-birth-month`}>
+              <Select
+                id={`${idPrefix}-birth-month`}
+                className="h-10 w-full"
+                value={born.month}
+                onChange={(e) => setBirthMonth(birthMonthOf(born.year, Number(e.target.value)))}
+              >
+                {monthNames().map((name, i) => (
+                  <option key={name} value={i + 1}>
+                    {name}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("accessFields.birthYear")} htmlFor={`${idPrefix}-birth-year`}>
+              <Select
+                id={`${idPrefix}-birth-year`}
+                className="h-10 w-full"
+                value={born.year}
+                onChange={(e) => setBirthMonth(birthMonthOf(Number(e.target.value), born.month))}
+              >
+                {years.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
         <p className="text-xs text-subtle">{hint}</p>
       </fieldset>
     </div>

@@ -979,3 +979,59 @@ async fn age_limits_keep_their_rating_system() {
     let ann = user_named(&app, &admin, "ann").await;
     assert_eq!((ann["max_age"].clone(), ann["max_age_system"].clone()), (json!(15), json!("DE")));
 }
+
+/// A limit that follows a birthday is the profile's age, kept up by the
+/// server; only administrators see the birthday.
+#[tokio::test]
+async fn age_limits_follow_birthdays() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let month: String =
+        sqlx::query_scalar("SELECT strftime('%Y-%m', 'now', 'localtime')").fetch_one(&app.state.db.read).await.unwrap();
+    let year: i64 = month[..4].parse().unwrap();
+    let born = |years: i64| format!("{}{}", year - years, &month[4..]);
+
+    let made = app
+        .post("/api/users", &admin, json!({"username": "kid", "managed": true, "home": true, "birth_month": born(9)}))
+        .await;
+    assert_eq!(made.status, StatusCode::CREATED, "{:?}", made.body);
+    assert_eq!((made.body["max_age"].clone(), made.body["birth_month"].clone()), (json!(9), json!(born(9))));
+    let kid_id = made.body["id"].as_i64().unwrap();
+    let both = app.post("/api/users", &admin, json!({"username": "two", "max_age": 7, "birth_month": born(9)})).await;
+    assert_eq!(both.status, StatusCode::BAD_REQUEST, "fixed or following, not both");
+    let future = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"birth_month": born(-1)})).await;
+    assert_eq!(future.status, StatusCode::BAD_REQUEST);
+
+    assert_eq!(user_named(&app, &admin, "kid").await["birth_month"], json!(born(9)));
+    // The household's profile list doesn't carry it.
+    let profiles = app.get("/api/auth/profiles", &admin).await;
+    assert_eq!(profiles.status, StatusCode::OK, "{:?}", profiles.body);
+    assert!(profiles.body.as_array().unwrap().iter().all(|p| p.get("birth_month").is_none()));
+
+    // A birthday month later: the server's next look raises the limit.
+    sqlx::query("UPDATE users SET birth_month = ? WHERE id = ?")
+        .bind(born(12))
+        .bind(kid_id)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    app.state.birthday_ages().await;
+    assert_eq!(user_named(&app, &admin, "kid").await["max_age"], json!(12));
+    // From 21, no limit.
+    let grown = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"birth_month": born(21)})).await;
+    assert_eq!((grown.body["max_age"].clone(), grown.body["birth_month"].clone()), (Value::Null, json!(born(21))));
+
+    // A fixed limit replaces it.
+    let fixed = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"max_age": 13})).await;
+    assert_eq!((fixed.body["max_age"].clone(), fixed.body.get("birth_month")), (json!(13), None));
+    app.state.birthday_ages().await;
+    assert_eq!(user_named(&app, &admin, "kid").await["max_age"], json!(13), "no longer follows a birthday");
+
+    // The profile's own answers never carry the birthday.
+    app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"birth_month": born(9)})).await;
+    let switched = switch(&app, &admin, json!({"user_id": kid_id})).await;
+    let kid = switched.body["token"].as_str().unwrap().to_owned();
+    let me = app.get("/api/auth/me", &kid).await;
+    assert_eq!(me.body["max_age"], json!(9));
+    assert!(me.body.get("birth_month").is_none(), "{:?}", me.body);
+}

@@ -274,7 +274,13 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
   const [isAdmin, setIsAdmin] = useState(false);
   const [home, setHome] = useState(true);
   const [disabled, setDisabled] = useState(false);
-  const [access, setAccess] = useState<AccessValue>({ all_libraries: true, library_ids: [], max_age: null, max_age_system: null });
+  const [access, setAccess] = useState<AccessValue>({
+    all_libraries: true,
+    library_ids: [],
+    max_age: null,
+    max_age_system: null,
+    birth_month: null,
+  });
   const [pin, setPin] = useState("");
   const [clearPin, setClearPin] = useState(false);
   // What the Requests select was set to; `null` until then (a new account, or an administrator).
@@ -302,6 +308,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
       library_ids: user?.library_ids ?? [],
       max_age: user?.max_age ?? null,
       max_age_system: user?.max_age_system ?? null,
+      birth_month: user?.birth_month ?? null,
     });
     setPin("");
     setClearPin(false);
@@ -355,6 +362,9 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
           managed: kind === "managed",
           home,
           ...access,
+          // A limit that follows a birthday is worked out by the server.
+          max_age: access.birth_month ? undefined : access.max_age,
+          birth_month: access.birth_month || undefined,
           pin: pin || undefined,
           request_access: requestsKnown && !asAdmin ? requestAccess : undefined,
         },
@@ -379,7 +389,12 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
     const sameLibraries =
       access.library_ids.length === user.library_ids.length && access.library_ids.every((id) => user.library_ids.includes(id));
     if (!access.all_libraries && !sameLibraries) patch.library_ids = access.library_ids;
-    if (access.max_age !== user.max_age) patch.max_age = access.max_age;
+    if (access.birth_month) {
+      if (access.birth_month !== user.birth_month) patch.birth_month = access.birth_month;
+    } else if (access.max_age !== user.max_age || user.birth_month) {
+      // A fixed limit (or none) stops one following a birthday.
+      patch.max_age = access.max_age;
+    }
     if (access.max_age_system !== (user.max_age_system ?? null)) patch.max_age_system = access.max_age_system;
     if (pin) patch.pin = pin;
     else if (clearPin) patch.pin = null;
@@ -561,7 +576,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
           </Field>
         ) : null}
 
-        <AccessFields value={access} onChange={setAccess} idPrefix="user" />
+        <AccessFields value={access} onChange={setAccess} idPrefix="user" birthday />
 
         {self ? null : (
           <Field
@@ -611,7 +626,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
 
 function UserRow({ user, self, libraries, onOpen }: { user: User; self: boolean; libraries: ReturnType<typeof useLibraries>["data"]; onOpen: () => void }) {
   const { t } = useTranslation("settings");
-  const age = ageBadge(useRatingSystems().data, user.max_age_system, user.max_age);
+  const age = ageBadge(useRatingSystems().data, user.max_age_system, user.max_age, user.birth_month);
   const server = useServer();
   return (
     <li>

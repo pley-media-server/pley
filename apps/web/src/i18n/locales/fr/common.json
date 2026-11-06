@@ -123,6 +123,8 @@
     "age": "{{age}} ans",
     "upTo": "Jusqu’à {{rating}}",
     "upToAge": "Jusqu’à {{age}} ans",
+    "upToByBirthday": "Jusqu’à {{rating}} ({{age}} ans, selon l’anniversaire)",
+    "upToAgeByBirthday": "Jusqu’à {{age}} ans (selon l’anniversaire)",
     "ratingFor": {
       "film": "{{rating}} (film)",
       "tv": "{{rating}} (TV)"

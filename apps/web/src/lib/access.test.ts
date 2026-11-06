@@ -7,6 +7,8 @@ import {
   ageIn,
   ageLevels,
   ageToSelect,
+  birthdayLimit,
+  birthdayLimitEnd,
   librariesLabel,
   limitLabel,
   selectToAge,
@@ -100,6 +102,19 @@ describe("age limits", () => {
 
   it("lists the systems by name, then Age", () => {
     expect(systemChoices(systems).map((c) => c.value)).toEqual(["CA", "US", AGE_SYSTEM]);
+  });
+
+  it("follows a birthday as the server does", () => {
+    const november = new Date(2026, 10, 15);
+    expect(birthdayLimit("2015-03", new Date(2026, 1, 28))).toBe(10);
+    expect(birthdayLimit("2015-03", new Date(2026, 2, 1))).toBe(11);
+    expect(birthdayLimit("2026-11", november)).toBe(0);
+    expect(birthdayLimit("2005-12", november)).toBe(20);
+    expect(birthdayLimit("2005-11", november)).toBeNull();
+    expect(birthdayLimit("2015-13", november)).toBeNull();
+    expect(birthdayLimitEnd("2015-03")).toBe("March 2036");
+    expect(ageBadge(systems, null, 13, "2013-01")).toBe("Up to PG-13 (age 13, by birthday)");
+    expect(ageBadge(systems, null, 9, "2017-01")).toBe("Up to age 9 (by birthday)");
   });
 
   it("round-trips through the select", () => {

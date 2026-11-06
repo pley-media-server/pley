@@ -11,7 +11,12 @@
     "ratingOption": "{{rating}} (desde {{age}} años)",
     "noLimitHint": "Todas las películas y series, clasificadas o no.",
     "ratingHint": "{{rating}} o menos, los títulos clasificados hasta {{age}} años en otros países, y ningún título sin clasificar. La música no tiene límite.",
-    "ageHint": "Los títulos clasificados hasta {{age}} años, y ningún título sin clasificar. La música no tiene límite."
+    "ageHint": "Los títulos clasificados hasta {{age}} años, y ningún título sin clasificar. La música no tiene límite.",
+    "theirAge": "Según su edad",
+    "birthMonth": "Mes de nacimiento",
+    "birthYear": "Año",
+    "birthdayHint": "Sube cada año el 1 de {{month}} y termina en {{end}}.",
+    "grownUpHint": "Sin límite: tiene {{age}} años o más."
   },
   "addToCollection": {
     "title": "Añadir a una colección",

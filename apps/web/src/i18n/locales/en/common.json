@@ -120,6 +120,8 @@
     "age": "Age {{age}}",
     "upTo": "Up to {{rating}}",
     "upToAge": "Up to age {{age}}",
+    "upToByBirthday": "Up to {{rating}} (age {{age}}, by birthday)",
+    "upToAgeByBirthday": "Up to age {{age}} (by birthday)",
     "ratingFor": {
       "film": "{{rating}} (film)",
       "tv": "{{rating}} (TV)"

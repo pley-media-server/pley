@@ -258,6 +258,25 @@ describe("UsersSettings", () => {
     await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ max_age_system: "age" }));
   });
 
+  it("lets a limit follow a birthday", async () => {
+    const user = userEvent.setup();
+    const requests = renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await waitFor(() => expect(within(dialog).getByLabelText("Rating system")).toHaveValue("US"));
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "Their age");
+    // Born this month seven years ago: the limit stays 7.
+    const now = new Date();
+    const year = now.getFullYear() - 7;
+    expect(within(dialog).getByLabelText("Year")).toHaveValue(String(year));
+    expect(within(dialog).getByLabelText("Birthday month")).toHaveValue(String(now.getMonth() + 1));
+    expect(within(dialog).getByText(/TV-Y7 and below/)).toBeInTheDocument();
+    expect(within(dialog).getByText(new RegExp(`ends in .* ${year + 21}`))).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ birth_month: `${year}-${month}` }));
+  });
+
   it("saves only what changed", async () => {
     const user = userEvent.setup();
     const requests = renderUsers();

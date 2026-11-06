@@ -87,15 +87,60 @@ export function limitLabel(systems: RatingSystems | undefined, stored: string | 
   return limitRating(systems, stored, maxAge) ?? t("access.age", { age: maxAge });
 }
 
-/** "Up to PG-13", "Up to age 8", or null without a limit. */
+/** "Up to PG-13", "Up to age 8", "Up to PG-13 (age 13, by birthday)", or null without a limit. */
 export function ageBadge(
   systems: RatingSystems | undefined,
   stored: string | null | undefined,
   maxAge: number | null | undefined,
+  birthMonth?: string | null,
 ): string | null {
   if (maxAge == null) return null;
   const rating = limitRating(systems, stored, maxAge);
+  if (birthMonth) {
+    return rating ? t("access.upToByBirthday", { rating, age: maxAge }) : t("access.upToAgeByBirthday", { age: maxAge });
+  }
   return rating ? t("access.upTo", { rating }) : t("access.upToAge", { age: maxAge });
+}
+
+/** The age a limit that follows a birthday ends at, as the server's. */
+export const BIRTHDAY_LIMIT_ENDS = 21;
+
+/** `"2015-03"` → year and month (1 to 12). */
+export function parseBirthMonth(birthMonth: string): { year: number; month: number } | null {
+  const match = /^(\d{4})-(\d{2})$/.exec(birthMonth);
+  if (!match) return null;
+  const [year, month] = [Number(match[1]), Number(match[2])];
+  return month >= 1 && month <= 12 ? { year, month } : null;
+}
+
+export function birthMonthOf(year: number, month: number): string {
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+}
+
+/**
+ * The limit of someone born in `birthMonth` (their age, which goes up on
+ * the first of the month they were born in), as the server works it out;
+ * null from 21.
+ */
+export function birthdayLimit(birthMonth: string, now: Date = new Date()): number | null {
+  const born = parseBirthMonth(birthMonth);
+  if (!born) return null;
+  const age = Math.max(0, now.getFullYear() - born.year - (now.getMonth() + 1 < born.month ? 1 : 0));
+  return age < BIRTHDAY_LIMIT_ENDS ? age : null;
+}
+
+/** "March 2036": when a limit that follows a birthday ends. */
+export function birthdayLimitEnd(birthMonth: string): string {
+  const born = parseBirthMonth(birthMonth);
+  if (!born) return "";
+  const end = new Date(born.year + BIRTHDAY_LIMIT_ENDS, born.month - 1, 1);
+  return new Intl.DateTimeFormat(currentLocale(), { month: "long", year: "numeric" }).format(end);
+}
+
+/** The months' names in the language shown, January first. */
+export function monthNames(): string[] {
+  const format = new Intl.DateTimeFormat(currentLocale(), { month: "long" });
+  return Array.from({ length: 12 }, (_, i) => format.format(new Date(2000, i, 1)));
 }
 
 /** "All libraries", "Movies", "2 libraries". */

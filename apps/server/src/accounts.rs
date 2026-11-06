@@ -67,6 +67,10 @@ pub struct UserDto {
     /// `GET /api/ratings/systems`): a country, or "age"; `None`: the
     /// metadata region's.
     pub max_age_system: Option<String>,
+    /// For administrators only (see [`with_birthdays`]): the month and year
+    /// the profile was born ("2015-03") when its age limit is its age.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub birth_month: Option<String>,
     pub disabled: bool,
     pub created_at: i64,
     /// Default tracks for titles without a choice (see `crate::streams`).
@@ -109,6 +113,7 @@ impl UserRow {
             library_ids,
             max_age: if self.is_admin { None } else { self.max_age },
             max_age_system: if self.is_admin { None } else { self.max_age_system },
+            birth_month: None,
             disabled: self.disabled,
             created_at: self.created_at,
             audio_language: self.audio_language,
@@ -170,6 +175,80 @@ pub async fn users(db: &Db) -> sqlx::Result<Vec<UserDto>> {
             r.into_dto(libraries)
         })
         .collect())
+}
+
+/// The oldest age any rating is for: a limit that follows a birthday ends
+/// there.
+pub const BIRTHDAY_LIMIT_ENDS: i64 = 21;
+
+/// `users` with their birthdays, for administrators: no other answer
+/// carries them.
+pub async fn with_birthdays(db: &Db, mut users: Vec<UserDto>) -> sqlx::Result<Vec<UserDto>> {
+    let months: HashMap<i64, String> =
+        sqlx::query_as("SELECT id, birth_month FROM users WHERE birth_month IS NOT NULL")
+            .fetch_all(&db.read)
+            .await?
+            .into_iter()
+            .collect();
+    for user in &mut users {
+        user.birth_month = if user.is_admin { None } else { months.get(&user.id).cloned() };
+    }
+    Ok(users)
+}
+
+/// The server's local month, "2026-11".
+pub async fn local_month(db: &Db) -> sqlx::Result<String> {
+    sqlx::query_scalar("SELECT strftime('%Y-%m', 'now', 'localtime')").fetch_one(&db.read).await
+}
+
+fn year_month(text: &str) -> Option<(i64, i64)> {
+    let (year, month) = text.split_once('-')?;
+    if year.len() != 4 || month.len() != 2 {
+        return None;
+    }
+    let (year, month) = (year.parse().ok()?, month.parse().ok()?);
+    (1..=12).contains(&month).then_some((year, month))
+}
+
+/// The age limit of someone born in `birth_month` during `month`: their age,
+/// which goes up on the first of the month they were born in; `None` from
+/// [`BIRTHDAY_LIMIT_ENDS`].
+pub fn birthday_limit(birth_month: &str, month: &str) -> Option<i64> {
+    let ((born, born_in), (year, now_in)) = (year_month(birth_month)?, year_month(month)?);
+    let age = (year - born - i64::from(now_in < born_in)).max(0);
+    (age < BIRTHDAY_LIMIT_ENDS).then_some(age)
+}
+
+/// A birth month as given, checked: "2015-03", not after `month` and not
+/// more than 120 years before it.
+pub fn check_birth_month(text: &str, month: &str) -> Result<String, AppError> {
+    let invalid = || AppError::bad_request("the birthday must be a month and year (YYYY-MM), not in the future");
+    let text = text.trim();
+    let (born, born_in) = year_month(text).ok_or_else(invalid)?;
+    let (year, now_in) = year_month(month).ok_or_else(invalid)?;
+    if (born, born_in) > (year, now_in) || year - born > 120 {
+        return Err(invalid());
+    }
+    Ok(text.to_owned())
+}
+
+/// Keep the age limits that follow birthdays equal to the profiles' ages,
+/// in the server's local month. Returns the profiles whose limit changed.
+pub async fn birthday_ages(db: &Db) -> sqlx::Result<Vec<i64>> {
+    let month = local_month(db).await?;
+    let rows: Vec<(i64, String, Option<i64>)> =
+        sqlx::query_as("SELECT id, birth_month, max_age FROM users WHERE birth_month IS NOT NULL")
+            .fetch_all(&db.read)
+            .await?;
+    let mut changed = Vec::new();
+    for (id, born, max_age) in rows {
+        let limit = birthday_limit(&born, &month);
+        if limit != max_age {
+            sqlx::query("UPDATE users SET max_age = ? WHERE id = ?").bind(limit).bind(id).execute(&db.write).await?;
+            changed.push(id);
+        }
+    }
+    Ok(changed)
 }
 
 /// Replace a user's library list.
@@ -769,5 +848,28 @@ mod tests {
         assert_eq!((admin.all_libraries, admin.max_age, admin.max_age_system), (true, None, None));
         assert_eq!(admin.request_access, RequestAccess::Auto, "administrators' requests are approved as made");
         assert_eq!(avatar_url(1, None), None);
+    }
+
+    /// An age goes up on the first of the month someone was born in, and a
+    /// limit that follows it ends at 21.
+    #[test]
+    fn birthday_limits() {
+        assert_eq!(birthday_limit("2015-03", "2026-02"), Some(10));
+        assert_eq!(birthday_limit("2015-03", "2026-03"), Some(11));
+        assert_eq!(birthday_limit("2015-03", "2026-12"), Some(11));
+        assert_eq!(birthday_limit("2026-11", "2026-11"), Some(0));
+        assert_eq!(birthday_limit("2005-12", "2026-11"), Some(20));
+        assert_eq!(birthday_limit("2005-11", "2026-11"), None, "21: no limit");
+        assert_eq!(birthday_limit("1980-01", "2026-11"), None);
+        assert_eq!(birthday_limit("2015-13", "2026-11"), None, "not a month");
+    }
+
+    #[test]
+    fn birth_months_are_checked() {
+        assert_eq!(check_birth_month(" 2015-03 ", "2026-11").unwrap(), "2015-03");
+        assert!(check_birth_month("2026-11", "2026-11").is_ok());
+        for bad in ["2026-12", "2015-3", "2015-00", "2015-13", "15-03", "2015-03-01", "1900-01", "March 2015", ""] {
+            assert!(check_birth_month(bad, "2026-11").is_err(), "{bad}");
+        }
     }
 }

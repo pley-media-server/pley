@@ -1068,6 +1068,7 @@ export interface NewUserInput {
   library_ids?: Id[];
   max_age?: number | null;
   max_age_system?: string | null;
+  birth_month?: string;
   pin?: string;
   request_access?: RequestAccess;
 }
@@ -1094,6 +1095,7 @@ export interface UserPatch {
   library_ids?: Id[];
   max_age?: number | null;
   max_age_system?: string | null;
+  birth_month?: string | null;
   pin?: string | null;
   request_access?: RequestAccess;
 }
