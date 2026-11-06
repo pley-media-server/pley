@@ -392,6 +392,29 @@ public class SettingsModelTests
     }
 
     [Fact]
+    public void A_choice_on_its_way_keeps_the_row_busy_once_it_is_this_TVs_so_its_late_404_overwrites_nothing()
+    {
+        // Settings before the server has said: Français goes to it.
+        var m = Model();
+        account.Saving = new TaskCompletionSource<bool>();
+        account.SaveFailure = new ApiException(404, "not_found", "no such route");
+        m.Choose(new SettingPick.Language(), 2);
+        // It names no language, a Pley from before languages, and the profile is heard again: the row is this TV's.
+        account.KeepsLanguage = false;
+        account.Me.Value = account.Me.Value! with { DisplayName = "Ann" };
+        Assert.Equal(new LanguageState(null, true, Saving: true, OnDevice: true), m.State.Value.Me.Language);
+        // One change at a time, as on Android: Español waits for Français's answer.
+        m.Choose(new SettingPick.Language(), 3);
+        Assert.Null(account.DeviceLanguage);
+        account.Saving.SetResult(true);
+        Assert.Equal("fr", account.DeviceLanguage);
+        Assert.Equal(new LanguageState("fr", true, OnDevice: true), m.State.Value.Me.Language);
+        m.Choose(new SettingPick.Language(), 3);
+        Assert.Equal("es", account.DeviceLanguage);
+        Assert.Equal(new string?[] { "fr" }, account.LanguagesSent);
+    }
+
+    [Fact]
     public void Always_start_as_names_the_households_profiles()
     {
         account.Profiles.AddRange(new[] { new HouseholdProfile { Id = 7, Name = "Ann" }, new HouseholdProfile { Id = 8, Name = "Bo" } });

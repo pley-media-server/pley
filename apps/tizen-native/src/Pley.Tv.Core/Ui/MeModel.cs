@@ -137,8 +137,9 @@ public sealed class MeModel : IDisposable
     /// The profile's language ("en", "fr", "es"; null: the server's), on all its devices. The
     /// profile the server answers is the app's from then on, so the app shows the language once
     /// the server has it: a refusal leaves everything as it was. A Pley from before languages
-    /// keeps none (its GET /api/server names none, and the route answers 404): there the choice is
-    /// this TV's, as the globe picks it, and shows at once.
+    /// keeps none (its GET /api/server names none, and the route answers 404 or 405): there the
+    /// choice is this TV's, as the globe picks it, and shows at once. One change at a time, as on
+    /// Android: while a choice is on its way, the row takes no other, even once it is the TV's.
     /// </summary>
     public void SetLanguage(string? code)
     {
@@ -254,9 +255,10 @@ public sealed class MeModel : IDisposable
         var me = source.Me.Value;
         var server = (source.Server ?? "").TrimEnd('/');
         var scopes = (me?.Scope ?? "").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-        // On a server that keeps no account's language, the TV's: a choice needs nothing of the server.
+        // On a server that keeps no account's language, the TV's: a choice needs nothing of the server. One
+        // still on its way to it keeps the row busy, as its 404 makes that choice the TV's.
         var language = me == null ? null
-            : !source.KeepsLanguage ? new LanguageState(source.DeviceLanguage, true, OnDevice: true)
+            : !source.KeepsLanguage ? new LanguageState(source.DeviceLanguage, true, savingLanguage, OnDevice: true)
             : new LanguageState(Languages.Supported(me.Language), !languageReadOnly && MayChange(scopes), savingLanguage);
         State.Value = new MeState(
             me == null ? null : new MeProfile(
