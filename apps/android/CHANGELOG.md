@@ -61,6 +61,13 @@ describes how they are made.
   first, and Switch profile still shows every profile. Settings' Always
   start as calls this Profile used last, where it said Ask who's watching.
 
+### Fixed
+
+- On phones and tablets, the player's controls are at the screen's edges
+  again: since 0.1.7 the top row sat a status bar's height down the screen
+  and the buttons along the bottom a navigation bar's height up it, though
+  the player hides both bars.
+
 ## [0.1.7] - 2026-11-05
 
 ### Added
