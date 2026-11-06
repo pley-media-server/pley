@@ -136,7 +136,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
-- A title's page on iPhone keeps From start on one line, with the time left
-  under Resume when they don't fit across; a line of facts no longer ends
-  in a dot where it wraps; and Version, Audio and Subtitles show their
-  choice on one line.
+- A title's page on iPhone, iPad and Mac: Resume and From start share the
+  row, with how far you got and the time left inside Resume; a line of
+  facts no longer ends in a dot where it wraps, nor repeats the edition the
+  Version picker shows; Version names the edition, with the picture, codec
+  and size in its menu; and Audio and Subtitles show their choice on one
+  line.
