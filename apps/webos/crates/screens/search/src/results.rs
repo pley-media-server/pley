@@ -6,7 +6,7 @@
 use pley_base::ImageRequest;
 use pley_core::ApiError;
 use pley_core::format::{
-    card_subtitle, episode_label, format_time_left, is_in_progress, progress_fraction, unwatched_count,
+    card_subtitle, episode_label, format_time_left, is_in_progress, progress_fraction, season_title, unwatched_count,
 };
 use pley_core::model::{
     DiscoverPage, DiscoverTitle, ItemKind, ItemSummary, LiveChannel, LiveProgram, PersonSummary, SearchResults,
@@ -253,7 +253,12 @@ pub fn item_tile(item: &ItemSummary, kind: TileKind, resolve: Resolve) -> Result
         (show.to_string(), line)
     } else {
         let line = if time_left.is_empty() { card_subtitle(item) } else { time_left };
-        (item.title.clone(), line)
+        let title = if item.kind == ItemKind::Season {
+            season_title(Some(&item.title), item.index)
+        } else {
+            item.title.clone()
+        };
+        (title, line)
     };
     let paths =
         if matches!(kind, TileKind::Landscape | TileKind::Episode) { thumb_art(item) } else { poster_art(item) };
@@ -458,6 +463,16 @@ mod tests {
         assert!(found.tiles(Group::Live).is_empty());
         assert_eq!(found.people[0].opens, Route::Person { id: 7 });
         assert!(found.people[0].art.is_empty(), "no photo, no picture");
+    }
+
+    #[test]
+    fn a_season_the_server_titles_season_n_is_named_in_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        let season = ItemSummary { index: Some(2), ..item(9, ItemKind::Season, "Season 2") };
+        let own = ItemSummary { index: Some(1), ..item(10, ItemKind::Season, "Book One") };
+        assert_eq!(item_tile(&season, TileKind::Poster, &resolve).title, "Season 2");
+        assert_eq!(with_language(Language::Fr, || item_tile(&season, TileKind::Poster, &resolve).title), "Saison 2");
+        assert_eq!(with_language(Language::Fr, || item_tile(&own, TileKind::Poster, &resolve).title), "Book One");
     }
 
     #[test]

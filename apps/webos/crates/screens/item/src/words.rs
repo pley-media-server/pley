@@ -2,7 +2,9 @@
 //! (`strings_tv_item.xml`, `ItemPages.kt`, `PersonViewModel.kt`; the TV app's `item.tsx`), in the
 //! language shown (`locales/<language>/item.json`).
 
-use pley_core::format::{episode_label, format_duration, format_runtime, format_time_left, is_in_progress};
+use pley_core::format::{
+    episode_label, format_duration, format_runtime, format_time_left, is_in_progress, season_title,
+};
 use pley_core::model::{CreditRole, ExtraType, ItemKind, ItemSummary, PersonCredit, PersonRole};
 use pley_i18n::t;
 
@@ -176,12 +178,13 @@ pub fn actions_subtitle(item: &ItemSummary) -> String {
     pley_core::format::card_subtitle(item)
 }
 
-/// A title as its actions name it: an episode by its show.
+/// A title as its actions name it: an episode by its show, a season as its page does.
 pub fn actions_title(item: &ItemSummary) -> String {
     match item.kind {
         ItemKind::Episode => {
             item.grandparent_title.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| item.title.clone())
         }
+        ItemKind::Season => season_title(Some(&item.title), item.index),
         _ => item.title.clone(),
     }
 }
@@ -292,6 +295,15 @@ mod tests {
         );
         let started = ItemSummary { user_state: UserState { position_ms: 32 * 60_000, ..UserState::default() }, ..e };
         assert_eq!(episode_length(&started), "26 min left");
+    }
+
+    #[test]
+    fn a_season_s_actions_name_it_as_its_page_does() {
+        use pley_i18n::{Language, with_language};
+        let season =
+            ItemSummary { kind: ItemKind::Season, title: "Specials".into(), index: Some(0), ..ItemSummary::default() };
+        assert_eq!(actions_title(&season), "Specials");
+        assert_eq!(with_language(Language::Es, || actions_title(&season)), "Especiales");
     }
 
     #[test]
