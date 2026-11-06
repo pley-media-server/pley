@@ -332,6 +332,23 @@ fn a_server_that_answers_a_language_405_keeps_the_choice_on_the_tv() {
     app.settle();
     assert!(app.shows("Idioma") && app.shows("Español"));
     assert!(!app.shows("Guardado"));
+    // Settings opened again: the row is still the TV's, and Automatic there forgets the choice.
+    app.open(Route::Settings { section: None });
+    app.settle();
+    assert!(app.shows("Español"));
+    pick_language(&mut app, 0);
+    assert_eq!(app.state.language_choice(), None);
+    assert_eq!(app.state.language(), Language::En);
+}
+
+#[test]
+fn a_later_pley_in_a_language_the_tv_hasnt_keeps_the_accounts() {
+    // GET /api/server names German: a language at all, so the account keeps its own.
+    let mut app =
+        TestApp::start_with(ids::ALEX, None, Route::Settings { section: None }, |s| s.set_server_language("de"));
+    app.settle();
+    assert!(app.state.keeps_language());
+    assert!(app.shows("Automatic (English)"));
 }
 
 #[test]
