@@ -268,8 +268,10 @@ other apps (`pley_ct_…`), never with a session's
   taken away takes them at once. Each is checked by name where it applies:
   no token is ever an administrator. No scope administers accounts, sign-in
   or the server's settings, and the Jellyfin-compatible API takes every token
-  for what `play` allows: it lists no one but the caller, and a user id in
-  a path must be its own.
+  for what `play` allows, and one with `manage` for editing metadata: it
+  lists no one but the caller, and a user id in a path must be its own. A
+  picture it is sent to fetch must be on one of the hosts Pley takes
+  pictures from, as on the Plex-compatible API.
 - A token may be limited to addresses and networks (or the home network).
   From elsewhere it is refused as if it didn't exist; the address is the
   connection's, or the one a proxy on this computer or its network names

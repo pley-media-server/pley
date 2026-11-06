@@ -353,6 +353,147 @@ async fn details_carry_what_apps_need_and_never_where_files_are() {
     assert_ne!(bobs["MediaSources"][0]["Id"], source["Id"]);
 }
 
+/// A request to this API with a raw body, as apps upload pictures.
+async fn jf_upload(app: &TestApp, uri: &str, token: &str, content_type: &str, body: Vec<u8>) -> StatusCode {
+    let req = axum::http::Request::builder()
+        .method(Method::POST)
+        .uri(uri)
+        .header("x-emby-token", token)
+        .header("content-type", content_type)
+        .body(axum::body::Body::from(body))
+        .unwrap();
+    tower::ServiceExt::oneshot(app.jellyfin.clone(), req).await.unwrap().status()
+}
+
+/// The fields Pley's own API says are locked.
+async fn locked(app: &TestApp, admin: &str, id: i64) -> Vec<String> {
+    let item = app.get(&format!("/api/items/{id}"), admin).await.body;
+    item["locked_fields"].as_array().unwrap().iter().map(|f| f.as_str().unwrap().to_owned()).collect()
+}
+
+#[tokio::test]
+async fn metadata_is_edited_with_a_token_that_may_manage_libraries() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let film = app.jf_item(w.film);
+    let manager = app.compatibility_token(admin, "manage").await;
+    let as_manager = |method: Method, uri: String, body: Option<Value>| {
+        let token = manager.clone();
+        async move { app.jf_raw(method, &uri, &[("x-emby-token", &token)], body).await }
+    };
+
+    // An app sends back the item it was given, with its changes.
+    let mut item = as_manager(Method::GET, format!("/Items/{film}"), None).await.body;
+    assert_eq!((&item["LockedFields"], &item["LockData"], &item["Tags"]), (&json!([]), &json!(false), &json!([])));
+    item["Name"] = json!("Alpha Redux");
+    item["Overview"] = json!("A new summary.");
+    item["Genres"] = json!(["Drama", "Mystery"]);
+    item["Tags"] = json!(["Favourites"]);
+    item["OfficialRating"] = json!("PG-13");
+    item["ProductionYear"] = json!(1980);
+    let player = app.jf(Method::POST, &format!("/Items/{film}"), admin, Some(item.clone())).await;
+    assert_eq!(player.status, StatusCode::FORBIDDEN, "a player's token edits nothing");
+    let edited = as_manager(Method::POST, format!("/Items/{film}"), Some(item)).await;
+    assert_eq!(edited.status, StatusCode::NO_CONTENT, "{}", edited.text());
+    let item = as_manager(Method::GET, format!("/Items/{film}"), None).await.body;
+    assert_eq!((&item["Name"], &item["Overview"]), (&json!("Alpha Redux"), &json!("A new summary.")));
+    assert_eq!((&item["Genres"], &item["Tags"]), (&json!(["Drama", "Mystery"]), &json!(["Favourites"])));
+    assert_eq!((&item["OfficialRating"], &item["ProductionYear"]), (&json!("PG-13"), &json!(1980)));
+    // Edits are locked, as Pley's editor locks them.
+    assert_eq!(item["LockedFields"], json!(["Name", "Overview", "Genres", "OfficialRating"]));
+    assert_eq!(locked(app, admin, w.film).await, ["content_rating", "genres", "summary", "title", "year"]);
+
+    // Left out of LockedFields, a field goes back to the metadata source;
+    // LockData locks every one.
+    let mut unlock = item.clone();
+    unlock["LockedFields"] = json!(["Name", "Genres"]);
+    assert_eq!(as_manager(Method::POST, format!("/Items/{film}"), Some(unlock)).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(locked(app, admin, w.film).await, ["genres", "title", "year"]);
+    let mut all = as_manager(Method::GET, format!("/Items/{film}"), None).await.body;
+    all["LockData"] = json!(true);
+    assert_eq!(as_manager(Method::POST, format!("/Items/{film}"), Some(all)).await.status, StatusCode::NO_CONTENT);
+    let item = as_manager(Method::GET, format!("/Items/{film}"), None).await.body;
+    assert_eq!(item["LockData"], json!(true));
+
+    // What Pley doesn't keep is refused, and nothing of that request applied.
+    let mut cast = item.clone();
+    cast["Name"] = json!("Not this");
+    cast["People"] = json!([{"Name": "Someone", "Type": "Director"}]);
+    let refused = as_manager(Method::POST, format!("/Items/{film}"), Some(cast)).await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST);
+    assert!(refused.text().contains("People"), "{}", refused.text());
+    let mut lock = item.clone();
+    lock["LockedFields"] = json!(["Cast"]);
+    assert_eq!(as_manager(Method::POST, format!("/Items/{film}"), Some(lock)).await.status, StatusCode::BAD_REQUEST);
+    assert_eq!(as_manager(Method::GET, format!("/Items/{film}"), None).await.body["Name"], json!("Alpha Redux"));
+
+    // Collections: their name and overview.
+    let made = app
+        .post(
+            &format!("/api/libraries/{}/collections", w.movies),
+            admin,
+            json!({"title": "Picks", "item_ids": [w.film]}),
+        )
+        .await;
+    assert_eq!(made.status, StatusCode::CREATED, "{}", made.text());
+    let collection = app.jf_ids().of(pley::jellyfin::ids::Kind::Collection, made.body["id"].as_i64().unwrap());
+    let renamed =
+        as_manager(Method::POST, format!("/Items/{collection}"), Some(json!({"Name": "Best", "Overview": "Ours."})))
+            .await;
+    assert_eq!(renamed.status, StatusCode::NO_CONTENT, "{}", renamed.text());
+    let shown = as_manager(Method::GET, format!("/Items/{collection}"), None).await.body;
+    assert_eq!((&shown["Name"], &shown["Overview"]), (&json!("Best"), &json!("Ours.")));
+
+    let editor = as_manager(Method::GET, format!("/Items/{film}/MetadataEditor"), None).await;
+    assert_eq!(editor.status, StatusCode::OK);
+    for field in ["ParentalRatingOptions", "Countries", "Cultures", "ExternalIdInfos", "ContentTypeOptions"] {
+        assert_eq!(editor.body[field], json!([]), "{field}");
+    }
+    let refresh = as_manager(Method::POST, format!("/Items/{}/Refresh", app.jf_library(w.movies)), None).await;
+    assert_eq!(refresh.status, StatusCode::NO_CONTENT, "{}", refresh.text());
+}
+
+#[tokio::test]
+async fn pictures_and_matches_through_the_editing_endpoints() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let film = app.jf_item(w.film);
+    let manager = app.compatibility_token(admin, "manage").await;
+    let as_manager = |method: Method, uri: String, body: Option<Value>| {
+        let token = manager.clone();
+        async move { app.jf_raw(method, &uri, &[("x-emby-token", &token)], body).await }
+    };
+
+    // A picture uploaded as Jellyfin takes it, in base64, then put back.
+    let mut png = Vec::new();
+    image::RgbImage::from_pixel(4, 6, image::Rgb([200, 30, 30]))
+        .write_to(&mut std::io::Cursor::new(&mut png), image::ImageFormat::Png)
+        .unwrap();
+    let encoded = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &png);
+    let uri = format!("/Items/{film}/Images/Primary");
+    assert_eq!(jf_upload(app, &uri, &manager, "image/png", encoded.into_bytes()).await, StatusCode::NO_CONTENT);
+    assert!(locked(app, admin, w.film).await.contains(&"poster".to_owned()));
+    let player = app.jellyfin_token(admin).await;
+    assert_eq!(jf_upload(app, &uri, &player, "image/png", png.clone()).await, StatusCode::FORBIDDEN);
+    assert_eq!(jf_upload(app, &uri, &manager, "image/png", b"not a picture".to_vec()).await, StatusCode::BAD_REQUEST);
+    assert_eq!(as_manager(Method::DELETE, uri.clone(), None).await.status, StatusCode::NO_CONTENT);
+    assert!(!locked(app, admin, w.film).await.contains(&"poster".to_owned()));
+
+    // Without a TMDB key: no pictures to choose from, nor matches.
+    let remote = as_manager(Method::GET, format!("/Items/{film}/RemoteImages?type=Primary"), None).await;
+    assert_eq!(remote.body, json!({"Images": [], "TotalRecordCount": 0, "Providers": []}));
+    assert_eq!(as_manager(Method::GET, format!("/Items/{film}/RemoteImages/Providers"), None).await.body, json!([]));
+    let search = json!({"SearchInfo": {"Name": "Alpha", "Year": 1979}, "ItemId": &film});
+    let searched = as_manager(Method::POST, "/Items/RemoteSearch/Movie".into(), Some(search)).await;
+    assert_eq!(searched.status, StatusCode::BAD_REQUEST);
+    // A picture is taken only from the hosts Pley takes pictures from.
+    let elsewhere = format!("/Items/{film}/RemoteImages/Download?type=Primary&imageUrl=http://192.168.1.1/a.jpg");
+    assert_eq!(as_manager(Method::POST, elsewhere, None).await.status, StatusCode::BAD_REQUEST);
+    let no_id =
+        as_manager(Method::POST, format!("/Items/RemoteSearch/Apply/{film}"), Some(json!({"Name": "Alpha"}))).await;
+    assert_eq!(no_id.status, StatusCode::BAD_REQUEST, "Pley matches by TMDB id");
+}
+
 #[tokio::test]
 async fn a_stream_opens_by_its_source_while_its_sign_in_works() {
     let w = world().await;

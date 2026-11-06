@@ -13,6 +13,7 @@
 pub mod ids;
 
 mod dto;
+mod editing;
 mod items;
 mod playback;
 mod socket;
@@ -286,6 +287,30 @@ impl FromRequestParts<AppState> for JfUser {
     }
 }
 
+/// A caller that changes what only administrators change in Pley
+/// (collections, metadata): a token that may manage libraries (`manage`),
+/// on an account that is an administrator now, as on the Plex-compatible
+/// API. It acts with an administrator's rights for that change alone, and
+/// `Policy.IsAdministrator` stays `false`.
+pub struct JfManager(pub AuthUser);
+
+impl FromRequestParts<AppState> for JfManager {
+    type Rejection = JfError;
+
+    async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
+        let JfUser { user, .. } = JfUser::from_request_parts(parts, state).await?;
+        Ok(JfManager(manager(user)?))
+    }
+}
+
+/// The caller as [`JfManager`] takes it: `403` without `manage`.
+pub(crate) fn manager(user: AuthUser) -> JfResult<AuthUser> {
+    if !user.compatibility_allows(compatibility::Scope::Manage) {
+        return Err(JfError::Forbidden);
+    }
+    Ok(AuthUser { is_admin: true, ..user })
+}
+
 /// The client as it names itself, signed in or not.
 pub struct ClientOf(pub Client);
 
@@ -441,6 +466,7 @@ fn router(state: AppState, jellyfin: Arc<Jellyfin>) -> Router {
     Router::new()
         .merge(system::routes())
         .merge(users::routes())
+        .merge(editing::routes())
         .merge(items::routes())
         .merge(playback::routes())
         .merge(socket::routes())
