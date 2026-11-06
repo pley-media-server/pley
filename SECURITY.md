@@ -280,9 +280,10 @@ other apps (`pley_ct_…`), never with a session's
   or token) or paths it alone has reach it; `/api/…` never does. Answers
   are never pages (a sandboxing `Content-Security-Policy`, `nosniff`, no
   framing), and vary with the headers that decide for caches.
-- Players open streams, subtitles and pictures without a token. A
-  stream's HLS session is reached by its 128-bit id, and a Jellyfin media
-  source by an id keyed with the server's `secret.key` (an HMAC): either
+- Players open streams, subtitles, seek previews and pictures without a
+  token. A stream's HLS session is reached by its 128-bit id, and a
+  Jellyfin media source by an id keyed with the server's `secret.key` (an
+  HMAC): either
   stands for the token that started or listed it, and works only while that
   token does, from where it may be used, for what its user may see. A
   Jellyfin picture answers for an id someone was given, and with a token

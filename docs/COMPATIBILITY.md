@@ -630,9 +630,10 @@ Many players open streams, subtitles and pictures without a token:
 
 - **Media sources.** A file's id as a media source (64 hexadecimal
   characters, `MediaSourceId`) stands for the sign-in it was listed to:
-  `/Videos/{id}/stream?MediaSourceId=…` and the subtitles' `DeliveryUrl`
-  open with it alone, while that sign-in works and from where its token may
-  be used, for what its user may see. Each sign-in is given its own.
+  `/Videos/{id}/stream?MediaSourceId=…`, the subtitles' `DeliveryUrl` and
+  the seek previews' sheets open with it alone, while that sign-in works and
+  from where its token may be used, for what its user may see. Each sign-in
+  is given its own.
 - **HLS.** A stream's playlists and segments are reached by its session's
   id (128 random bits), for streams started through this API, while the
   token that started them works and from where it may be used: not once the
@@ -673,6 +674,19 @@ Pley's Dashboard, by the device's `DeviceId`. Playback stopped from Pley
 tells the device's socket (`Playstate` `Stop`), and its reports don't start
 it again until it stops. `/MediaSegments/{id}` gives the intro and credits
 Pley found as `Intro` and `Outro`, for Skip buttons.
+
+Seek-bar previews are the sprite sheets Pley makes for its own players
+([API.md](API.md#playback)), at the one width it makes them. An item's
+`Trickplay` (in its details, and in lists with `Fields=Trickplay`) gives
+each media source's, and `/Videos/{id}/Trickplay/{width}/{n}.jpg` serves
+sheet `n` (`MediaSourceId` names another version than the first);
+`tiles.m3u8` there lists them as an HLS playlist of tiles. They are frames
+of the video, so they open as its stream does: with a token, or a media
+source's id alone, never by the item's id. Opening an item or its
+`PlaybackInfo` has them made when the file has none, as Pley's own item page
+does; until then `Trickplay` lists none and the sheets answer `404`.
+Jellyfin for Android TV shows none: it reads a media source's id as a GUID,
+and Pley's are longer.
 
 The user's Pley apps list a Jellyfin app's playback among their sessions,
 and control it as their own ([API.md](API.md#remote-control)) once the device
@@ -722,7 +736,7 @@ closes once it ends.
 | Browsing | `GET /UserViews`, `/Items` (by `ParentId`, `Ids`, `SearchTerm`, `PersonIds`, `ArtistIds`; `IncludeItemTypes`, `Recursive`, `Filters`, `Genres`, `Years`, `OfficialRatings`, `Tags`, `Studios`, `NameStartsWith`, `SortBy`, `SortOrder`, `StartIndex`, `Limit`), `/Items/{id}`, `/Items/Latest`, `/Items/Suggestions`, `/UserItems/Resume`, `/Shows/NextUp`, `/Shows/Upcoming` (none), `/Shows/{id}/Seasons`, `/Shows/{id}/Episodes`, `/Items/{id}/Similar`, `/LocalTrailers`, `/SpecialFeatures`, `/Ancestors`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/MusicGenres`, `/Artists`, `/Artists/AlbumArtists`, `/Studios`, `/Years`, `/Tags` (none), `/Persons?SearchTerm=`, `/Search/Hints`, `/Playlists/{id}/Items`, and the `/Users/{id}/…` forms of these |
 | Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
 | Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
-| Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
+| Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `/Videos/{id}/Trickplay/{width}/{n}.jpg`, `/Videos/{id}/Trickplay/{width}/tiles.m3u8`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
 | Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping`; `GET /Sessions` (none listed) |
 | Socket | `GET /socket` |
 
@@ -747,7 +761,7 @@ Run against Pley with the API on Pley's port and on a port of its own:
   none), and finding the server on the network (UDP 7359): apps are given
   its address.
 - Making or changing playlists and collections, and editing metadata.
-- Lyrics, seek previews (trickplay), instant mixes, theme songs and
-  videos, and intros before a title.
+- Lyrics, instant mixes, theme songs and videos, and intros before a
+  title.
 - Downloads converted for a device: `/Items/{id}/Download` hands over the
   file as it is.

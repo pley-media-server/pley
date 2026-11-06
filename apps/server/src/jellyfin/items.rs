@@ -107,7 +107,7 @@ pub async fn dtos(
     rows: &[ItemRow],
     fields: Fields,
 ) -> JfResult<Vec<Item>> {
-    let batch = Batch::load(&state.db, user, rows, fields).await?;
+    let batch = Batch::load(state, user, rows, fields).await?;
     Ok(rows.iter().map(|row| dto::build(jellyfin, row, &batch)).collect())
 }
 
@@ -780,6 +780,12 @@ async fn details(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, id: &st
     match jellyfin.ids.read(id) {
         Some((Kind::Item, _)) => {
             let row = visible_item(state, jellyfin, user, id).await?;
+            // Opened, as on Pley's own item page: its seek previews are made.
+            if matches!(row.kind.as_str(), "movie" | "episode") {
+                for file in catalog::files_for_item(&state.db, row.id).await? {
+                    state.trickplay.request(&file);
+                }
+            }
             let mut items = dtos(state, jellyfin, user, &[row], Fields::all()).await?;
             Ok(Json(items.remove(0)).into_response())
         }

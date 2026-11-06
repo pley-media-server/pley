@@ -397,6 +397,103 @@ async fn a_stream_opens_by_its_source_while_its_sign_in_works() {
     assert_eq!(app.jf_raw(Method::GET, &bobs_stream, &[], None).await.status, StatusCode::UNAUTHORIZED);
 }
 
+/// Fake seek previews of `item`'s first file (tests have no transcoder):
+/// one sheet of four 8x4 tiles. Its id.
+async fn previews(app: &TestApp, item: i64) -> i64 {
+    let (file, path): (i64, String) = sqlx::query_as("SELECT id, path FROM media_files WHERE item_id = ? ORDER BY id")
+        .bind(item)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    let fingerprint = app.state.store.fingerprint_of(file, &path, None).await.unwrap();
+    let dir = app.state.store.media_dir(&fingerprint).unwrap().join("trickplay");
+    std::fs::create_dir_all(&dir).unwrap();
+    image::RgbImage::new(16, 8).save(dir.join("0.jpg")).unwrap();
+    let info = pley_transcoder_api::TrickplayInfo {
+        id: "t".into(),
+        interval_ms: 10_000,
+        width: 8,
+        height: 4,
+        columns: 2,
+        rows: 2,
+        count: 4,
+        sheets: 1,
+        version: 1,
+    };
+    std::fs::write(dir.join("index.json"), serde_json::to_vec(&info).unwrap()).unwrap();
+    file
+}
+
+#[tokio::test]
+async fn seek_previews_are_pleys_own_and_open_as_the_stream_does() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let film = app.jf_item(w.film);
+    let sheet = format!("/Videos/{film}/Trickplay/8/0.jpg");
+
+    // None made yet: none listed, none served.
+    assert_eq!(app.jf_json(&format!("/Items/{film}"), admin).await["Trickplay"], json!({}));
+    assert_eq!(app.jf(Method::GET, &sheet, admin, None).await.status, StatusCode::NOT_FOUND);
+
+    // Keyed by the file's media source, then by width, as players look them up.
+    let file = previews(app, w.film).await;
+    let source = app.jf_source(file, admin).await;
+    let item = app.jf_json(&format!("/Items/{film}"), admin).await;
+    let info = &item["Trickplay"][&source]["8"];
+    assert_eq!(
+        (&info["Width"], &info["Height"], &info["TileWidth"], &info["TileHeight"]),
+        (&json!(8), &json!(4), &json!(2), &json!(2)),
+        "{item}"
+    );
+    assert_eq!((&info["ThumbnailCount"], &info["Interval"]), (&json!(4), &json!(10_000)));
+    assert!(info["Bandwidth"].as_u64().unwrap() > 0, "{info}");
+    assert_eq!(item["MediaSources"][0]["Id"], json!(source));
+    // Lists have them when they ask.
+    let listed = app.jf_json(&format!("/Items?Ids={film}&Fields=Trickplay"), admin).await;
+    assert_eq!(listed["Items"][0]["Trickplay"], item["Trickplay"]);
+    assert!(app.jf_json(&format!("/Items?Ids={film}"), admin).await["Items"][0].get("Trickplay").is_none());
+
+    // A sheet opens with a token, or with the media source's id alone.
+    let with_token = app.jf(Method::GET, &sheet, admin, None).await;
+    assert_eq!(with_token.status, StatusCode::OK);
+    assert_eq!(with_token.headers[header::CONTENT_TYPE], "image/jpeg");
+    assert_eq!(&with_token.bytes[..2], &[0xff, 0xd8], "a JPEG");
+    let by_source = format!("{sheet}?MediaSourceId={source}");
+    assert_eq!(app.jf_raw(Method::GET, &by_source, &[], None).await.status, StatusCode::OK);
+    assert_eq!(app.jf_raw(Method::GET, &sheet, &[], None).await.status, StatusCode::UNAUTHORIZED);
+    for uri in [
+        format!("/Videos/{film}/Trickplay/320/0.jpg"),
+        format!("/Videos/{film}/Trickplay/8/1.jpg"),
+        format!("/Videos/{film}/Trickplay/8/0.png"),
+    ] {
+        assert_eq!(app.jf(Method::GET, &uri, admin, None).await.status, StatusCode::NOT_FOUND, "{uri}");
+    }
+
+    // The playlist of tiles names the sheets by the source, not the token.
+    let playlist = app.jf(Method::GET, &format!("/Videos/{film}/Trickplay/8/tiles.m3u8"), admin, None).await;
+    assert_eq!(playlist.status, StatusCode::OK);
+    assert_eq!(playlist.headers[header::CONTENT_TYPE], "application/vnd.apple.mpegurl");
+    let text = playlist.text();
+    assert!(text.contains("#EXTINF:40,\n#EXT-X-TILES:RESOLUTION=8x4,LAYOUT=2x2,DURATION=10\n"), "{text}");
+    assert!(text.contains(&format!("\n0.jpg?MediaSourceId={source}\n")), "{text}");
+    assert!(!text.contains(&app.jellyfin_token(admin).await));
+
+    // Someone who may not open the library, and a sign-in that ended: no sheet.
+    let (bob, _) = app.user(admin, "bob", json!({"all_libraries": false, "library_ids": [w.tv]})).await;
+    assert_eq!(app.jf(Method::GET, &sheet, &bob, None).await.status, StatusCode::NOT_FOUND);
+    let bobs = format!("{sheet}?MediaSourceId={}", app.jf_source(file, &bob).await);
+    assert_eq!(app.jf_raw(Method::GET, &bobs, &[], None).await.status, StatusCode::NOT_FOUND);
+    let signed_in = sign_in(app, json!({"Username": "admin", "Pw": "secret-one"})).await;
+    let token = signed_in.body["AccessToken"].as_str().unwrap().to_owned();
+    let auth = [("x-emby-token", token.as_str())];
+    let item = app.jf_raw(Method::GET, &format!("/Items/{film}"), &auth, None).await;
+    let theirs = item.body["Trickplay"].as_object().unwrap().keys().next().unwrap().clone();
+    let by_theirs = format!("{sheet}?MediaSourceId={theirs}");
+    assert_eq!(app.jf_raw(Method::GET, &by_theirs, &[], None).await.status, StatusCode::OK);
+    app.jf_raw(Method::POST, "/Sessions/Logout", &auth, None).await;
+    assert_eq!(app.jf_raw(Method::GET, &by_theirs, &[], None).await.status, StatusCode::UNAUTHORIZED);
+}
+
 #[tokio::test]
 async fn watch_state_favorites_and_ratings_are_pleys() {
     let w = world().await;

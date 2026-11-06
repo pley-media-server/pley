@@ -321,6 +321,12 @@ async fn bounded<T: Send + 'static>(
     }))
 }
 
+/// The previews kept in `dir`, if it has them.
+fn read_index(dir: &Path) -> Option<TrickplayInfo> {
+    let bytes = std::fs::read(dir.join("index.json")).ok()?;
+    serde_json::from_slice(&bytes).ok()
+}
+
 /// What `TrickplayInfo` says about a tile: its sheet and position.
 fn tile(info: &TrickplayInfo, n: u32) -> (u32, u32, u32) {
     let per_sheet = (info.columns * info.rows).max(1);
@@ -386,13 +392,30 @@ impl TrickplayService {
     }
 
     fn dir(&self, file: &FileRow) -> Option<PathBuf> {
-        Some(self.store.media_dir(file.fingerprint.as_deref()?)?.join("trickplay"))
+        self.dir_of(file.fingerprint.as_deref()?)
+    }
+
+    fn dir_of(&self, fingerprint: &str) -> Option<PathBuf> {
+        Some(self.store.media_dir(fingerprint)?.join("trickplay"))
     }
 
     /// The previews of this file, if they exist.
     pub fn index(&self, file: &FileRow) -> Option<TrickplayInfo> {
-        let bytes = std::fs::read(self.dir(file)?.join("index.json")).ok()?;
-        serde_json::from_slice(&bytes).ok()
+        read_index(&self.dir(file)?)
+    }
+
+    /// The previews of the file with this fingerprint, if they exist, and
+    /// the size of their largest sheet, from which a player that fetches
+    /// them as it plays (Jellyfin's) is told the bandwidth they take at most.
+    pub fn index_and_largest(&self, fingerprint: &str) -> Option<(TrickplayInfo, u64)> {
+        let dir = self.dir_of(fingerprint)?;
+        let info = read_index(&dir)?;
+        let largest = (0..info.sheets)
+            .filter_map(|n| std::fs::metadata(dir.join(format!("{n}.jpg"))).ok())
+            .map(|meta| meta.len())
+            .max()
+            .unwrap_or(0);
+        Some((info, largest))
     }
 
     pub fn sheet(&self, file: &FileRow, n: u32) -> Option<PathBuf> {

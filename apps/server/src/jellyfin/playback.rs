@@ -18,7 +18,7 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Extension, Json, Router};
-use pley_transcoder_api::StreamKind;
+use pley_transcoder_api::{StreamKind, TrickplayInfo};
 use serde::Serialize;
 
 use super::dto::{self, TICKS_PER_MS};
@@ -39,6 +39,7 @@ pub fn routes() -> Router<AppState> {
         .route("/videos/{id}/main.m3u8", get(master))
         .route("/audio/{id}/master.m3u8", get(master))
         .route("/videos/{id}/hls1/{session}/{file}", get(session_file))
+        .route("/videos/{id}/trickplay/{width}/{file}", get(trickplay))
         .route("/audio/{id}/hls1/{session}/{file}", get(session_file))
         .route("/videos/{id}/{file}", get(video_file).head(video_file))
         .route("/audio/{id}/{file}", get(audio_file).head(audio_file))
@@ -212,6 +213,10 @@ async fn playback_info(
     };
     let mut sources = Vec::new();
     for file in chosen {
+        // About to be played: its seek previews are made, if they aren't yet.
+        if dto::is_video(&row.kind) {
+            state.trickplay.request(file);
+        }
         let mut out = dto::media_source(&jellyfin, &row, file, token_id);
         let streams = file.streams();
         let info = file.media_info();
@@ -578,6 +583,75 @@ fn end_sessions(state: &AppState, sessions: Vec<Arc<Session>>) {
     state.events.sessions_changed(sessions.iter().map(|s| s.user_id));
 }
 
+// ------------------------------------------------------------------ seek previews
+
+/// `/Videos/{id}/Trickplay/{width}/tiles.m3u8` and `…/{n}.jpg`: a file's
+/// seek-bar previews, Pley's own sprite sheets ([`crate::trickplay`]), at
+/// the one width Pley makes them. They are frames of the video, so they open
+/// as its stream does: with a token, or a media source's id that stands for
+/// one (`MediaSourceId`), for what its user may see. `404` while they are
+/// being made, and asking queues them.
+async fn trickplay(
+    State(state): State<AppState>,
+    Extension(jellyfin): Extension<Arc<Jellyfin>>,
+    Path((id, width, name)): Path<(String, String, String)>,
+    q: Q,
+    request: Request,
+) -> JfResult<Response> {
+    let (user, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
+    let Some(info) = state.trickplay.index(&file) else {
+        state.trickplay.request(&file);
+        return Err(JfError::NotFound);
+    };
+    if width.parse::<u32>().ok() != Some(info.width) {
+        return Err(JfError::NotFound);
+    }
+    if name == "tiles.m3u8" {
+        let source = jellyfin.ids.source(file.id, user.compatibility.map(|c| c.token_id).unwrap_or(0));
+        let playlist = tiles_playlist(&info, &source);
+        return Ok(([(header::CONTENT_TYPE, "application/vnd.apple.mpegurl")], playlist).into_response());
+    }
+    let n: u32 = name.strip_suffix(".jpg").and_then(|n| n.parse().ok()).ok_or(JfError::NotFound)?;
+    let path = state.trickplay.sheet(&file, n).ok_or(JfError::NotFound)?;
+    let bytes = tokio::fs::read(path).await.map_err(|e| JfError::Internal(e.into()))?;
+    Ok(([(header::CONTENT_TYPE, "image/jpeg"), (header::CACHE_CONTROL, "private, max-age=86400")], bytes)
+        .into_response())
+}
+
+/// Seconds of `ms`, as HLS writes durations: `10`, `2.5`.
+fn seconds(ms: u64) -> String {
+    let text = format!("{}.{:03}", ms / 1000, ms % 1000);
+    text.trim_end_matches('0').trim_end_matches('.').to_owned()
+}
+
+/// The previews as an HLS playlist of images (Apple's `EXT-X-TILES`), as
+/// Jellyfin writes it: a sheet a segment, the last as long as its tiles.
+/// The sheets are named with the media source's id rather than a token.
+fn tiles_playlist(info: &TrickplayInfo, source: &str) -> String {
+    let per_sheet = (info.columns * info.rows).max(1);
+    let interval = info.interval_ms.max(1) as u64;
+    let sheets = info.count.div_ceil(per_sheet).min(info.sheets);
+    let mut out = format!(
+        "#EXTM3U\n#EXT-X-TARGETDURATION:{}\n#EXT-X-VERSION:7\n#EXT-X-MEDIA-SEQUENCE:1\n\
+         #EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-IMAGES-ONLY\n",
+        (interval * u64::from(per_sheet)).div_ceil(1000)
+    );
+    for n in 0..sheets {
+        let tiles = (info.count - n * per_sheet).min(per_sheet);
+        out.push_str(&format!(
+            "#EXTINF:{},\n#EXT-X-TILES:RESOLUTION={}x{},LAYOUT={}x{},DURATION={}\n{n}.jpg?MediaSourceId={source}\n",
+            seconds(interval * u64::from(tiles)),
+            info.width,
+            info.height,
+            info.columns,
+            info.rows,
+            seconds(interval),
+        ));
+    }
+    out.push_str("#EXT-X-ENDLIST\n");
+    out
+}
+
 // ------------------------------------------------------------------ subtitles
 
 /// The most of a subtitle file beside the video that is served as it is.
@@ -940,6 +1014,28 @@ mod tests {
         assert!(none.video_codecs.contains(&"hevc".to_owned()) && none.dolby_vision, "no profile: plays anything");
         let empty = caps_of(Some(&serde_json::json!({"DirectPlayProfiles": []})));
         assert!(empty.containers.contains(&"mkv".to_owned()), "no profiles: plays anything");
+    }
+
+    #[test]
+    fn previews_are_a_playlist_of_tiles() {
+        let info = TrickplayInfo {
+            id: "t".into(),
+            interval_ms: 2500,
+            width: 320,
+            height: 180,
+            columns: 10,
+            rows: 10,
+            count: 150,
+            sheets: 2,
+            version: 1,
+        };
+        let playlist = tiles_playlist(&info, "abc");
+        assert!(playlist.starts_with("#EXTM3U\n#EXT-X-TARGETDURATION:250\n"), "{playlist}");
+        let tiles = "#EXT-X-TILES:RESOLUTION=320x180,LAYOUT=10x10,DURATION=2.5";
+        assert!(playlist.contains(&format!("#EXTINF:250,\n{tiles}\n0.jpg?MediaSourceId=abc\n")), "{playlist}");
+        assert!(playlist.contains(&format!("#EXTINF:125,\n{tiles}\n1.jpg?MediaSourceId=abc\n")), "the last: 50 tiles");
+        assert!(playlist.ends_with("#EXT-X-ENDLIST\n") && !playlist.contains("2.jpg"));
+        assert_eq!((seconds(10_000), seconds(1_250), seconds(60)), ("10".into(), "1.25".into(), "0.06".into()));
     }
 
     #[test]

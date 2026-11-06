@@ -6,7 +6,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 
-use pley_transcoder_api::{DynamicRange, MediaStream as Probed, StreamKind};
+use pley_transcoder_api::{DynamicRange, MediaStream as Probed, StreamKind, TrickplayInfo};
 use serde::Serialize;
 
 use super::Jellyfin;
@@ -17,6 +17,7 @@ use crate::catalog::{self, FileRow, ItemRow};
 use crate::db::Db;
 use crate::library::{LibraryKind, LibraryRow};
 use crate::people::{Credit, Role};
+use crate::state::AppState;
 
 /// Jellyfin's ticks: 100 ns.
 pub const TICKS_PER_MS: i64 = 10_000;
@@ -33,6 +34,7 @@ pub struct Fields {
     pub chapters: bool,
     pub taglines: bool,
     pub original_title: bool,
+    pub trickplay: bool,
 }
 
 impl Fields {
@@ -50,6 +52,7 @@ impl Fields {
                 "chapters" => fields.chapters = true,
                 "taglines" => fields.taglines = true,
                 "originaltitle" => fields.original_title = true,
+                "trickplay" => fields.trickplay = true,
                 _ => {}
             }
         }
@@ -68,6 +71,7 @@ impl Fields {
             chapters: true,
             taglines: true,
             original_title: true,
+            trickplay: true,
         }
     }
 }
@@ -297,6 +301,44 @@ pub struct Item {
     pub media_streams: Option<Vec<Stream>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chapters: Option<Vec<Chapter>>,
+    /// Seek-bar previews by media source, then by width.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub trickplay: Option<BTreeMap<String, BTreeMap<String, Trickplay>>>,
+}
+
+/// A media source's seek-bar previews at one width, as Jellyfin 10.9's
+/// `TrickplayInfo`: thumbnails `Width`×`Height`, `TileWidth`×`TileHeight` of
+/// them to a sheet, left to right, top to bottom, one every `Interval` ms.
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "PascalCase")]
+pub struct Trickplay {
+    pub width: u32,
+    pub height: u32,
+    pub tile_width: u32,
+    pub tile_height: u32,
+    pub thumbnail_count: u32,
+    pub interval: i64,
+    /// What fetching the sheets as the video plays takes at most, in bits a
+    /// second: the largest sheet over the time it covers.
+    pub bandwidth: u32,
+}
+
+impl Trickplay {
+    /// Pley's previews ([`crate::trickplay`]), whose largest sheet is
+    /// `largest` bytes.
+    pub fn of(info: &TrickplayInfo, largest: u64) -> Trickplay {
+        let covers_ms = (info.interval_ms.max(1) as u64) * u64::from((info.columns * info.rows).max(1));
+        let bandwidth = (largest * 8 * 1000).div_ceil(covers_ms).min(i32::MAX as u64) as u32;
+        Trickplay {
+            width: info.width,
+            height: info.height,
+            tile_width: info.columns,
+            tile_height: info.rows,
+            thumbnail_count: info.count,
+            interval: info.interval_ms,
+            bandwidth,
+        }
+    }
 }
 
 impl Item {
@@ -362,6 +404,9 @@ pub struct Batch {
     people: HashMap<i64, Vec<Credit>>,
     favorites: std::collections::HashSet<i64>,
     extras_count: HashMap<i64, (i64, i64)>,
+    /// The seek-bar previews of the files, by file, and the size of each
+    /// one's largest sheet, when the list asked for them.
+    previews: HashMap<i64, (TrickplayInfo, u64)>,
     fields: Fields,
     /// The token for other apps the list is for, which its media sources'
     /// ids stand for ([`super::ids::Ids::source`]).
@@ -369,7 +414,8 @@ pub struct Batch {
 }
 
 impl Batch {
-    pub async fn load(db: &Db, user: &AuthUser, rows: &[ItemRow], fields: Fields) -> sqlx::Result<Batch> {
+    pub async fn load(state: &AppState, user: &AuthUser, rows: &[ItemRow], fields: Fields) -> sqlx::Result<Batch> {
+        let db = &state.db;
         let user_id = user.id;
         let token_id = user.compatibility.map(|c| c.token_id).unwrap_or(0);
         let ids: Vec<i64> = rows.iter().map(|r| r.id).collect();
@@ -383,13 +429,38 @@ impl Batch {
         let titles: Vec<i64> =
             rows.iter().filter(|r| matches!(r.kind.as_str(), "movie" | "show")).map(|r| r.id).collect();
         let extras_count = if fields.media_sources { count_extras(db, &titles).await? } else { HashMap::new() };
-        Ok(Batch { extras, files, people, favorites, extras_count, fields, token_id })
+        let previews = if fields.trickplay { previews(state, rows, &files).await } else { HashMap::new() };
+        Ok(Batch { extras, files, people, favorites, extras_count, previews, fields, token_id })
     }
 
     /// The first file of an item, which plays unless a client picks another.
     pub fn files(&self, id: i64) -> &[FileRow] {
         self.files.get(&id).map(Vec::as_slice).unwrap_or(&[])
     }
+}
+
+/// The seek-bar previews of the videos' files that have them, read from the
+/// disk off the async workers.
+async fn previews(
+    state: &AppState,
+    rows: &[ItemRow],
+    files: &HashMap<i64, Vec<FileRow>>,
+) -> HashMap<i64, (TrickplayInfo, u64)> {
+    let wanted: Vec<(i64, String)> = rows
+        .iter()
+        .filter(|r| is_video(&r.kind))
+        .flat_map(|r| files.get(&r.id).into_iter().flatten())
+        .filter_map(|f| Some((f.id, f.fingerprint.clone()?)))
+        .collect();
+    if wanted.is_empty() {
+        return HashMap::new();
+    }
+    let service = state.trickplay.clone();
+    crate::util::blocking(move || {
+        Ok(wanted.into_iter().filter_map(|(id, fp)| Some((id, service.index_and_largest(&fp)?))).collect())
+    })
+    .await
+    .unwrap_or_default()
 }
 
 /// Which of `ids` are in the user's My List, Jellyfin's favorites.
@@ -431,6 +502,11 @@ async fn count_extras(db: &Db, ids: &[i64]) -> sqlx::Result<HashMap<i64, (i64, i
 
 pub fn is_playable(kind: &str) -> bool {
     matches!(kind, "movie" | "episode" | "track" | "extra")
+}
+
+/// Whether items of this kind are videos.
+pub fn is_video(kind: &str) -> bool {
+    matches!(kind, "movie" | "episode" | "extra")
 }
 
 /// The version of an item's artwork: its `updated_at`, which changes when
@@ -652,6 +728,15 @@ pub fn build(jellyfin: &Jellyfin, row: &ItemRow, batch: &Batch) -> Item {
         if fields.chapters {
             item.chapters = Some(chapters(file));
         }
+    }
+    // Keyed by each file's id as a media source, as players look them up.
+    if fields.trickplay && is_video(kind) {
+        let previews = files.iter().filter_map(|f| {
+            let (info, largest) = batch.previews.get(&f.id)?;
+            let by_width = BTreeMap::from([(info.width.to_string(), Trickplay::of(info, *largest))]);
+            Some((jellyfin.ids.source(f.id, batch.token_id), by_width))
+        });
+        item.trickplay = Some(previews.collect());
     }
     item
 }

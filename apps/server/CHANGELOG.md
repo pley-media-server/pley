@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- Jellyfin apps that show seek-bar previews, such as Findroid and
+  Streamyfin, show Pley's as you scrub: the same previews Pley's own players
+  use. Jellyfin for Android TV doesn't show them.
+
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays
