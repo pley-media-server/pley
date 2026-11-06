@@ -149,6 +149,7 @@ class PleyApplication : Application(), PleyGraphOwner, DownloadsOwner, Singleton
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         AppLanguage.configurationChanged()
+        language.configurationChanged()
     }
 
     /** Coil's one loader, on the images client; made with the first picture. */

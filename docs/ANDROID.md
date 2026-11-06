@@ -97,7 +97,10 @@ before it turns to the device's, and on a device in a language Pley
 doesn't have, for the server's, so no other language shows for a
 moment. Android 13 and later keep it as the app's own language, which
 the system's settings list (Apps → Pley → Language); the app sets it
-again as it hears the account's and the server's. Below 13 the app keeps
+again as it hears the account's and the server's. A language picked
+there is chosen as the Language row chooses it, for the account, and its
+System default is Automatic; signed out, or refused by the server, the
+language the app goes by comes back. Below 13 the app keeps
 it itself, and remakes its screens when it changes. A player open then
 plays on: on Android 13 and later its words change where they are, below
 the next time it opens.

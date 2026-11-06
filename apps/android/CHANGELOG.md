@@ -16,7 +16,8 @@ describes how they are made.
   screen on phones, tablets and TVs is in it; dates, times, runtimes,
   counts, the names of audio and subtitle languages and connection errors
   follow it, and a download that failed says why in it. On Android 13 and
-  later the system's settings list Pley's languages.
+  later the system's settings list Pley's languages, and one picked there
+  is your account's, as in Settings.
 - The phone's remote and Play on… list the devices of everyone in your
   household too, each saying whose profile it is on ("On Sam's
   profile"), never what it plays. Sending something there ends what
