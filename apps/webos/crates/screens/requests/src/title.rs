@@ -71,9 +71,13 @@ pub fn season_badge(s: &DiscoverSeason) -> Option<(&'static str, Tone)> {
     }
 }
 
-/// A season's name.
+/// A season's name: its own, else "Season 2" or "Specials" in the language shown.
 fn season_name(s: &DiscoverSeason) -> String {
-    if s.name.is_empty() { pley_core::requests::season_name(s.number) } else { s.name.clone() }
+    if s.name.is_empty() || pley_core::format::generic_season_title(&s.name, Some(s.number)) {
+        pley_core::requests::season_name(s.number)
+    } else {
+        s.name.clone()
+    }
 }
 
 /// The season picker, open.

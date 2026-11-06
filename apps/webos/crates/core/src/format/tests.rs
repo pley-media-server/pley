@@ -394,6 +394,12 @@ fn counts_and_episodes_in_french_and_spanish() {
         assert_eq!(episode_label(None, Some(3)), "É3");
         assert_eq!(season_title(None, Some(0)), "Épisodes spéciaux");
         assert_eq!(season_title(None, Some(2)), "Saison 2");
+        // The server's English names for seasons without a title of their own are said in French;
+        // a title of its own, or one for another season, stays.
+        assert_eq!(season_title(Some("Season 2"), Some(2)), "Saison 2");
+        assert_eq!(season_title(Some("Specials"), Some(0)), "Épisodes spéciaux");
+        assert_eq!(season_title(Some("Season 1"), Some(2)), "Season 1");
+        assert_eq!(season_title(Some("Book One"), Some(1)), "Book One");
         assert_eq!(grouped(12_345), "12\u{a0}345");
     });
     with_language(Language::Es, || {

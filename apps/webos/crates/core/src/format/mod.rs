@@ -708,13 +708,25 @@ pub fn episode_label(season: Option<i64>, episode: Option<i64>) -> String {
     }
 }
 
-/// A season's own title, else "Specials" for season 0, else "Season 2".
+/// A season's own title, else "Specials" for season 0, else "Season 2", in the language shown.
 pub fn season_title(title: Option<&str>, index: Option<i64>) -> String {
-    match (title.filter(|t| !t.is_empty()), index) {
+    let own = title.filter(|t| !t.is_empty() && !generic_season_title(t, index));
+    match (own, index) {
         (Some(t), _) => t.to_string(),
         (None, Some(0)) => t!("format.season.specials").into(),
         (None, Some(i)) => t!("format.season.numbered", number = i),
         (None, None) => t!("format.season.plain").into(),
+    }
+}
+
+/// Whether `title` is the name the server gives a season it has no title for, in English
+/// ("Season 2", "Specials" for season 0, as its scanner and TMDB's lists write them): such a
+/// season is named in the language shown instead.
+pub fn generic_season_title(title: &str, index: Option<i64>) -> bool {
+    match index {
+        Some(0) => title.eq_ignore_ascii_case("Specials"),
+        Some(i) => title.strip_prefix("Season ").and_then(|n| n.trim().parse::<i64>().ok()).is_some_and(|n| n == i),
+        None => false,
     }
 }
 
