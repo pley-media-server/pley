@@ -164,8 +164,17 @@ export function pending(root = ROOT) {
   const tag = tags[0] ?? null;
   if (tag && tagExists(tag, root)) wrong.push(`the tag ${tag} exists already`);
   const title = units.length === 1 ? `${units[0].title} ${units[0].to}` : `Pley ${tag?.replace(/^release-/, "") ?? ""}`.trim();
-  const body = units.length === 1 ? units[0].notes : units.map((u) => `## ${u.title} ${u.to}\n\n${u.notes}`).join("\n\n");
+  const body = units.length === 1 ? units[0].notes : units.map(folded).join("\n\n");
   return { since, tag, title, units, notes: body, problems: wrong };
+}
+
+/**
+ * A unit's notes in a release of several, folded under its name and version:
+ * each reader opens their app's rather than scrolling past every other's.
+ * GitHub renders Markdown in <details> only after a blank line.
+ */
+function folded(u) {
+  return `<details>\n<summary><strong>${u.title} ${u.to}</strong></summary>\n\n${u.notes}\n\n</details>`;
 }
 
 /** The tag for a release prepared on `date`: the one HEAD waits for, else that day's first free one. */

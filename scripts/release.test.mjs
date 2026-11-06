@@ -328,7 +328,10 @@ describe("releases", () => {
     const two = pending(dir);
     expect(two).toMatchObject({ tag: "release-2026-11-01", title: "Pley 2026-11-01", problems: [] });
     expect(two.units.map((u) => `${u.unit} ${u.to}`)).toEqual(["kodi 0.0.2", "roku 0.1.0"]);
-    expect(two.notes).toBe("## Pley for Kodi 0.0.2\n\n### Fixed\n\n- Kodi's fix\n\n## Pley for Roku 0.1.0\n\n### Fixed\n\n- Roku's fix");
+    expect(two.notes).toBe(
+      "<details>\n<summary><strong>Pley for Kodi 0.0.2</strong></summary>\n\n### Fixed\n\n- Kodi's fix\n\n</details>\n\n" +
+        "<details>\n<summary><strong>Pley for Roku 0.1.0</strong></summary>\n\n### Fixed\n\n- Roku's fix\n\n</details>",
+    );
     expect(status(dir).filter((u) => u.waits).map((u) => u.unit)).toEqual(["kodi", "roku"]);
 
     // A unit waiting for its release isn't bumped again.

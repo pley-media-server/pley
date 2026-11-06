@@ -4,9 +4,11 @@ Each app (a "unit") has its own version and changelog. A release takes the
 units whose versions went up since the last release, each at its own
 version, under one tag named after the day it was prepared
 (`release-2026-11-02`, then `release-2026-11-02.2` for a second that day),
-and one GitHub release with each unit's notes. The first is
-`release-2026-11-01`, for 0.1.1; the versions before it have no tag, and
-the changelogs link them to the source at their commit.
+and one GitHub release with each unit's notes. With several units, each
+unit's notes are folded under its name and version, so readers open only
+their app's. The first release is `release-2026-11-01`, for 0.1.1; the
+versions before it have no tag, and the changelogs link them to the source
+at their commit.
 
 ## Releasing
 
