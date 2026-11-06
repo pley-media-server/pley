@@ -569,15 +569,18 @@ class PhonePlayerScreenTest {
             bounds(compose.onNodeWithText("Lock")),
         )
 
-        // The player's first frame, before the bars have gone: the controls are clear of them.
-        bars(shown = true)
-        val screen = bounds(compose.onNodeWithTag(TAG_PLAYER))
-        val first = controls()
-        assertTrue(first[0].top >= screen.top + status.top)
-        assertTrue(first[2].bottom <= screen.bottom - navigation.bottom)
+        // Where the controls are on a screen without bars.
+        val bare = controls()
 
-        // The bars go a moment later: nothing moves.
+        // The player's first frame, before the bars have gone: nothing is where the bars would push it.
+        bars(shown = true)
+        val first = controls()
+        assertEquals(bare, first)
+
+        // The bars go a moment later, and a swipe brings them back over the picture: nothing moves.
         bars(shown = false)
+        assertEquals(first, controls())
+        bars(shown = true)
         assertEquals(first, controls())
     }
 

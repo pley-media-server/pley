@@ -63,6 +63,10 @@ describes how they are made.
 
 ### Fixed
 
+- On phones and tablets, the player's controls are at the screen's edges
+  again: since 0.1.7 the top row sat a status bar's height down the screen
+  and the buttons along the bottom a navigation bar's height up it, though
+  the player hides both bars.
 - On Android TV and Fire TV, a seek's preview in French or Spanish shows
   a chapter called "Chapitre 3" or "Capítulo 3" once, not as "Chapitre 3 ·
   Chapitre 3".

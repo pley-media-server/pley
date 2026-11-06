@@ -35,6 +35,10 @@ describes how they are made.
   channel is still starting on the TV, as it does once it plays.
 - Leaving Live TV, or the TV hiding the app, just as a channel starts lets
   its connection go at once, not 45 s later.
+- On Requests, the first card is as far from the second as the others are
+  from each other, so its focus ring shows whole rather than under the
+  second card, and the last card of a long list scrolls up clear of the
+  screen's bottom edge.
 
 ## [0.1.6] - 2026-11-05
 

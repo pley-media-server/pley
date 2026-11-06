@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -22,8 +21,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.systemBarsIgnoringVisibility
-import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -67,15 +64,15 @@ private val BottomScrim = 150.dp
 internal val ControlsLift = 120.dp
 
 /**
- * What the player keeps its controls clear of: the camera cutout, and the
- * system bars where they are, shown or not. The player hides the bars,
- * but they go a moment after its first frame, and a swipe brings them
- * back over it for a while: padding by the bars as they show would move
- * every control as they come and go.
+ * What the player keeps its controls clear of: the camera cutout alone.
+ * The player hides the system bars for as long as it shows, and a swipe
+ * brings them back over the picture for a moment, so they take no room.
+ * Keeping clear of where they would be put the top row a status bar's
+ * height down the screen; keeping clear of them as they show would move
+ * every control when they go, a moment after the player's first frame.
  */
-@OptIn(ExperimentalLayoutApi::class)
 internal val WindowInsets.Companion.player: WindowInsets
-    @Composable get() = systemBarsIgnoringVisibility.union(displayCutout)
+    @Composable get() = displayCutout
 
 /**
  * The scrim over the picture while the controls show, as streaming apps'
