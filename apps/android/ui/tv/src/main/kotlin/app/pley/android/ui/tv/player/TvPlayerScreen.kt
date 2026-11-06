@@ -310,14 +310,15 @@ internal fun TvPlayerScreen(
         val first = down && native.repeatCount == 0
         when (key) {
             is PlayerKey.Step -> when {
+                // Let go, a scrub waits for OK where it got to: even while busy, or a hold that began
+                // before would never end and the seek would never go by itself.
+                !down -> seeker.release()
                 busy -> Unit
-                down -> {
+                else -> {
                     // The first press shows the controls on the scrubber, the preview with them.
                     if (!ui.controls) ui.showControls(PlayerFocus.Scrubber)
                     if (first) seeker.press(key.direction) else seeker.repeat(key.direction, native.eventTime)
                 }
-                // Let go, a scrub waits for OK where it got to.
-                else -> seeker.release()
             }
             else -> if (first) act(key)
         }

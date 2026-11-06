@@ -269,6 +269,24 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `a hold let go while the player is busy still ends, and its seek goes by itself`() {
+        val controller = playing()
+        show(controller)
+        val start = SystemClock.uptimeMillis()
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start)
+        for (i in 1..10) send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, i, start + 400 + i * 50L)
+        // The player turns busy under the hold (a display-mode switch, say), and the key is let go then.
+        controller.update { it.copy(phase = PlayerPhase.Preparing) }
+        compose.waitForIdle()
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start + 1_000)
+        controller.update { it.copy(phase = PlayerPhase.Playing) }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals(1, controller.calls("seekTo").size)
+    }
+
+    @Test
     fun `Back lets a seek waiting go, and the controls stay`() {
         val controller = playing()
         show(controller)
