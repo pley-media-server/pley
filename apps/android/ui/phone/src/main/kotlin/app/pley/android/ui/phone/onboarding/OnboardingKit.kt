@@ -35,10 +35,10 @@ import app.pley.android.designsystem.icon.PleyMark
  */
 val LocalOnboardingSource = staticCompositionLocalOf<OnboardingSource?> { null }
 
-/** The pley mark and wordmark, as the sign-in screens open (mockup phone-signin). */
+/** The pley mark and the wordmark close by, as the sign-in screens open (mockup phone-signin). */
 @Composable
 internal fun PleyWordmark(modifier: Modifier = Modifier) {
-    Row(modifier.semantics { heading() }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+    Row(modifier.semantics { heading() }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Image(rememberVectorPainter(PleyMark.Glyph), contentDescription = null, modifier = Modifier.size(44.dp))
         Text("Pley", style = PleyType.Phone.HeadlineMedium.copy(fontSize = 30.sp, lineHeight = 36.sp), color = PleyColors.Fg)
     }
@@ -59,13 +59,16 @@ internal fun Modifier.brandCorner(): Modifier = drawWithCache {
     onDrawBehind { drawRect(brush) }
 }
 
-/** Lucide `globe`, for "Continue in browser" (not among the design system's icons). */
-internal val GlobeIcon = PleyIcon(
-    "globe",
+/**
+ * Lucide `external-link`, for "Continue in browser" (not among the design
+ * system's icons): the globe stands for the language at the top.
+ */
+internal val BrowserIcon = PleyIcon(
+    "external-link",
     false,
-    "M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z",
-    "M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20",
-    "M2 12h20",
+    "M15 3h6v6",
+    "M10 14 21 3",
+    "M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6",
 )
 
 /** Opens this app's page in the system's settings. */

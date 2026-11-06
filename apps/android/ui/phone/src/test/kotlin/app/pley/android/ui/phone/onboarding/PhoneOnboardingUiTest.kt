@@ -109,7 +109,7 @@ class PhoneOnboardingUiTest {
             signIn = BrowserSignIn.Waiting,
             language = DeviceLanguageUiState(shown = Language.French, picked = Language.French, device = Language.English),
         )
-        compose.onNodeWithText("Français").assertExists()
+        compose.onNodeWithText("FR").assertExists()
         compose.onNodeWithTag(LANGUAGE_TAG).assertIsNotEnabled()
     }
 

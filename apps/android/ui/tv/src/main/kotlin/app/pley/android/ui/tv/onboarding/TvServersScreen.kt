@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -186,7 +187,10 @@ internal fun TvServersContent(
     var touched by remember { mutableStateOf(false) }
     val rows = state.rows
     // D-pad rule 1: focus on the first server; "Enter an address" until one shows, or when none does.
-    LaunchedEffect(rows.isNotEmpty(), state.searched) {
+    // Asked again once the window has focus: asked before, on a cold start, it is lost, and the
+    // window's own first focus goes to the left-most thing on the screen, the globe.
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(rows.isNotEmpty(), state.searched, windowFocused) {
         if (touched) return@LaunchedEffect
         if (rows.isNotEmpty()) runCatching { firstRow.requestFocus() } else runCatching { enterAddress.requestFocus() }
     }
@@ -207,8 +211,6 @@ internal fun TvServersContent(
                     style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg),
                     modifier = Modifier.weight(1f),
                 )
-                TvLanguageButton(picker, language)
-                Spacer(Modifier.width(24.dp))
                 PleyLogo(height = 32.dp)
             }
             Spacer(Modifier.height(25.dp))
@@ -261,9 +263,10 @@ internal fun TvServersContent(
             }
             Spacer(Modifier.height(16.dp))
             ServersStatus(state, onOpenSettings, Modifier.width(ROW_WIDTH))
-            Spacer(Modifier.weight(1f))
+        }
+        TvOnboardingFoot(picker, language) {
             if (rows.any { it.saved }) {
-                BasicText(stringResource(R.string.tv_onboarding_forget_hint), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
+                BasicText(stringResource(R.string.tv_onboarding_forget_hint), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle), maxLines = 1)
             }
         }
         TvLanguagePanel(picker, language, onLanguage)

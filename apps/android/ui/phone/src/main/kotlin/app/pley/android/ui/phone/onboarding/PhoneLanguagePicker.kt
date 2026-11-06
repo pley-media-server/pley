@@ -2,6 +2,7 @@ package app.pley.android.ui.phone.onboarding
 
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -35,7 +36,8 @@ import app.pley.android.screens.R as ScreensR
 /**
  * The top bar of the screens shown before signing in: no title (the
  * screen's wordmark is under it), over the screen's own background, and
- * the globe as its action, which picks this device's [language].
+ * the globe at its start, which picks this device's [language], its icon
+ * in line with the screen's 24 dp edge.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,31 +49,32 @@ internal fun OnboardingTopBar(
 ) {
     TopAppBar(
         title = {},
-        actions = { if (language != null) LanguageButton(language, onLanguage, enabled) },
+        // The bar keeps 4 dp at its start and the button 12 around its content: 8 more lines the icon up at 24.
+        navigationIcon = { if (language != null) LanguageButton(language, onLanguage, enabled, Modifier.padding(start = 8.dp)) },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent, scrolledContainerColor = Color.Transparent),
         modifier = modifier,
     )
 }
 
 /**
- * The globe: the language shown ("Français"), heard as "Choose a
- * language". It opens this device's choices in a sheet, as Settings'
+ * The globe: the language shown by its two letters ("FR"), heard as
+ * "Choose a language". It opens this device's choices in a sheet, as Settings'
  * choices open: Automatic, English, Français, Español, the current one
  * checked. A pick shows at once.
  */
 @Composable
-private fun LanguageButton(state: DeviceLanguageUiState, onPick: (Language?) -> Unit, enabled: Boolean) {
+private fun LanguageButton(state: DeviceLanguageUiState, onPick: (Language?) -> Unit, enabled: Boolean, modifier: Modifier = Modifier) {
     var open by rememberSaveable { mutableStateOf(false) }
     val label = stringResource(ScreensR.string.language_choose)
     TextButton(
         onClick = { open = true },
         enabled = enabled,
-        modifier = Modifier.heightIn(min = 48.dp).semantics { contentDescription = label }.testTag(LANGUAGE_TAG),
+        modifier = modifier.heightIn(min = 48.dp).semantics { contentDescription = label }.testTag(LANGUAGE_TAG),
         colors = ButtonDefaults.textButtonColors(contentColor = PleyColors.Fg),
     ) {
         Icon(PleyIcons.Globe, contentDescription = null, size = 20.dp, tint = if (enabled) PleyColors.Fg else PleyColors.Disabled)
         Spacer(Modifier.width(8.dp))
-        Text(state.value.asString(), style = MaterialTheme.typography.labelLarge)
+        Text(state.short, style = MaterialTheme.typography.labelLarge)
     }
     if (open) {
         ChoiceSheet(

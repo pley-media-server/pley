@@ -85,11 +85,14 @@ chosen), it shows this device's. A code Pley doesn't have counts as none,
 and a region doesn't count (`fr-CA` is French).
 
 The screens shown before signing in have a globe, labelled with the
-language shown ("Français") and heard as "Choose a language". On phones
-it is in the top bar of the sign-in screen (choosing a server, or typing
-its address) and of the code screen. On TVs it is a button beside "Choose
-your server"'s title, and in the code screen's top-right corner, over the
-QR code: Up from the first server, or from Change server, reaches it. It
+language shown by its two letters ("FR") and heard as "Choose a
+language". On phones it is at the top left of the sign-in screen
+(choosing a server, or typing its address) and of the code screen, in
+line with their text; "Continue in browser" has an arrow out of a box, so
+the globe only means the language. On TVs it is a small button at the bottom left of "Choose your server"
+and of the code screen, the screen's last line (the forget hint, the
+code's status) beside it: Down from the buttons, or from Change server,
+reaches it, and Left or Right never does. It
 opens **Automatic (English)** (the device's language where Pley has it,
 else English), then English, Français and Español, each named in itself,
 the current choice checked: in a sheet on phones, in a side panel on TVs,

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.util.Locale
 
 /** The globe of the screens without an account: this device's language. */
 data class DeviceLanguageUiState(
@@ -26,8 +27,11 @@ data class DeviceLanguageUiState(
     /** The choices in order: "Automatic" (`null`), then each language. */
     val choices: List<Language?> get() = listOf<Language?>(null) + Language.entries
 
-    /** What the globe says: the language shown, by its own name. */
+    /** What Settings' Language row says: the language shown, by its own name. */
     val value: UiText get() = UiText.res(shown.autonym)
+
+    /** What the globe before signing in says: the language shown, by its two letters ("FR"). */
+    val short: String get() = shown.code.uppercase(Locale.ROOT)
 
     /** How [choice] reads: a language by its own name ("Français"), Automatic by what it is here: "Automatic (English)". */
     fun label(choice: Language?): UiText = when (choice) {

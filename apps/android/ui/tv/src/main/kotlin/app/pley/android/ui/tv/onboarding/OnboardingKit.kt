@@ -59,10 +59,10 @@ import kotlin.math.floor
  */
 val LocalOnboardingSource = staticCompositionLocalOf<OnboardingSource?> { null }
 
-/** The pley mark on its tile and the wordmark, [height] tall (design spec §2.8: 40 on the link screen). */
+/** The pley mark on its tile and the wordmark close by, [height] tall (design spec §2.8: 40 on the link screen). */
 @Composable
 internal fun PleyLogo(modifier: Modifier = Modifier, height: Dp = 40.dp) {
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(height * 0.4f)) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(height * 0.15f)) {
         Image(rememberVectorPainter(PleyMark.Tile), contentDescription = null, modifier = Modifier.size(height))
         BasicText(
             "Pley",

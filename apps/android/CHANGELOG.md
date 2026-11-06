@@ -13,8 +13,8 @@ describes how they are made.
 - Pley is in English, French and Spanish: your account's language, else
   this device's, else your server's, and Settings has a Language row on
   phones and TVs that sets it for your account on every device. Before you
-  sign in, a globe on the screens that choose a server and sign in (in the
-  top bar on phones, beside the title and over the QR code on TVs) picks
+  sign in, a globe on the screens that choose a server and sign in (at the top
+  left on phones, at the bottom left on TVs) picks
   this device's language. Every screen on phones, tablets and TVs is in
   it; dates, times, runtimes, counts, the names of audio and subtitle
   languages and connection errors follow it, and a download that failed

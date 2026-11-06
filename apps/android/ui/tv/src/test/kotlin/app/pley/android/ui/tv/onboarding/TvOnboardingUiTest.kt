@@ -309,7 +309,7 @@ class TvOnboardingUiTest {
     }
 
     @Test
-    fun upFromTheServersTheGlobePicksThisDevicesLanguage() {
+    fun downFromTheServersTheGlobePicksThisDevicesLanguage() {
         val nas = ServerRow("http://192.168.1.20:7539", "Living room NAS", "192.168.1.20:7539", saved = true, found = true)
         val picks = mutableListOf<Language?>()
         compose.setContent {
@@ -328,9 +328,11 @@ class TvOnboardingUiTest {
         }
         compose.waitForIdle()
         compose.onNodeWithTag(SERVER_ROW_TAG + nas.url).assertIsFocused()
-        compose.press(Key.DirectionUp)
+        // Down past the buttons to the bottom left.
+        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionDown)
         compose.onNodeWithTag(LANGUAGE_TAG).assertIsFocused().assertContentDescriptionEquals("Choose a language")
-        compose.onNodeWithText("English").assertExists()
+        compose.onNodeWithText("EN").assertExists()
         compose.press(Key.DirectionCenter)
         // The current choice, Automatic, has focus; Español is the last.
         compose.onNodeWithText("Automatic (English)").assertIsFocused()
@@ -341,7 +343,7 @@ class TvOnboardingUiTest {
     }
 
     @Test
-    fun upFromChangeServerTheGlobeOnTheCodeScreen() {
+    fun downFromChangeServerTheGlobeOnTheCodeScreen() {
         compose.setContent {
             TvTheme(reducedMotion = true) {
                 TvLinkContent(
@@ -355,9 +357,9 @@ class TvOnboardingUiTest {
         }
         compose.waitForIdle()
         compose.onNodeWithTag(BACK_TAG).assertIsFocused()
-        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionDown)
         compose.onNodeWithTag(LANGUAGE_TAG).assertIsFocused()
-        compose.onNodeWithText("Français").assertExists()
+        compose.onNodeWithText("FR").assertExists()
     }
 
     @Test

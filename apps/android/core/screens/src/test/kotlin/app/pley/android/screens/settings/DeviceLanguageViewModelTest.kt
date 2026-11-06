@@ -57,6 +57,7 @@ class DeviceLanguageViewModelTest {
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         val state = vm.state.value
         assertEquals("Français", state.value.inEnglish())
+        assertEquals("FR", state.short)
         assertNull(state.picked)
         assertEquals(listOf(null, Language.English, Language.French, Language.Spanish), state.choices)
         assertEquals(listOf("Automatic (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
