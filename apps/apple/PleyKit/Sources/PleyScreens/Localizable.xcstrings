@@ -2933,7 +2933,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ningún canal tiene “%@” en su nombre, su número o el programa en emisión."
+            "value" : "Ningún canal tiene «%@» en su nombre, su número o el programa en emisión."
           }
         },
         "fr" : {
@@ -3579,7 +3579,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reproducir “%@”"
+            "value" : "Reproducir «%@»"
           }
         },
         "fr" : {
@@ -4327,13 +4327,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sistema usa tu estilo de subtítulos de Ajustes → Accesibilidad → Subtítulos."
+            "value" : "Sistema usa tu estilo de subtítulos de Ajustes → Accesibilidad → Subtítulos y subtitulado."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Système utilise votre style de sous-titres de Réglages → Accessibilité → Sous-titres."
+            "value" : "Système reprend votre style de sous-titres défini dans Réglages → Accessibilité → Sous-titres et sous-titrage codé."
           }
         }
       }

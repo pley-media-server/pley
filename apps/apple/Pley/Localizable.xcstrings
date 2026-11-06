@@ -2793,13 +2793,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nada suyo está en tus bibliotecas."
+            "value" : "Ninguno de sus títulos está en tus bibliotecas."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rien de ses titres n’est dans vos bibliothèques."
+            "value" : "Aucun de ses titres n’est dans vos bibliothèques."
           }
         }
       }
@@ -4799,7 +4799,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Para encontrar servidores en casa, permite Pley en Ajustes → Privacidad y seguridad → Red local. Los servidores se pueden seguir añadiendo por su dirección."
+            "value" : "Para encontrar servidores en casa, permite Pley en Ajustes → Privacidad y seguridad → Red local. Puedes seguir añadiendo servidores por su dirección."
           }
         },
         "fr" : {
@@ -4958,7 +4958,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "À suivre attend que vous choisissiez Lire la suite."
+            "value" : "À suivre attend que vous choisissiez Lire le suivant."
           }
         }
       }

@@ -393,7 +393,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Écran : %@, %@ Hz, Faire correspondre le contenu activé"
+            "value" : "Écran : %@, %@ Hz, Ajuster le contenu activé"
           }
         }
       }

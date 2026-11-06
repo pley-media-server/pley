@@ -2382,13 +2382,13 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Nada suyo está en tus bibliotecas."
+            "value" : "Ninguno de sus títulos está en tus bibliotecas."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rien de ses titres n’est dans vos bibliothèques."
+            "value" : "Aucun de ses titres n’est dans vos bibliothèques."
           }
         }
       }
@@ -3198,7 +3198,7 @@
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Renombrar"
+            "value" : "Cambiar nombre"
           }
         },
         "fr" : {
@@ -3952,7 +3952,7 @@
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pour trouver les serveurs de la maison, autorisez Pley dans Réglages → Confidentialité → Réseau local. Vous pouvez toujours ajouter un serveur par son adresse."
+            "value" : "Pour trouver les serveurs chez vous, autorisez Pley dans Réglages → Confidentialité → Réseau local. Vous pouvez toujours ajouter un serveur par son adresse."
           }
         }
       }
