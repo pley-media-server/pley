@@ -156,7 +156,7 @@ public enum Words {
     /// `value` with `digits` decimals, rounded as `%f` does, its decimal
     /// separator the shown locale's ("1.5" in English, "1,5" in French),
     /// without grouping, as Android's `fixed` writes it.
-    static func fixed(_ value: Double, digits: Int) -> String {
+    public static func fixed(_ value: Double, digits: Int) -> String {
         let text = String(format: "%.\(digits)f", locale: Locale(identifier: "en_US_POSIX"), value)
         guard digits > 0, let separator = ShownLanguage.locale.decimalSeparator, separator != "." else { return text }
         return text.replacingOccurrences(of: ".", with: separator)

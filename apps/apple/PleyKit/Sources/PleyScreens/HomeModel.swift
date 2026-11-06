@@ -80,7 +80,7 @@ public struct HomeInfo: Hashable, Sendable {
         if let rating = detail?.contentRating, !rating.isEmpty { meta.append(rating) }
         if !(item.kind == .show && runtime == year) { meta.append(runtime) }
         if let critics = item.rating ?? detail?.summary.rating, critics > 0 {
-            meta.append("★ " + String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), critics))
+            meta.append("★ " + Words.rating(critics))
         }
         if let file = detail?.files.first {
             if let resolution = Words.resolution(width: file.width ?? file.video?.width,

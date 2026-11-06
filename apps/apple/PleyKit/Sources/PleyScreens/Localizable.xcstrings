@@ -1,6 +1,23 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "%@ fps" : {
+      "comment" : "A video track's frame rate in a title's media info: \"23.98 fps\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ fps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ i/s"
+          }
+        }
+      }
+    },
     "%@ of %@" : {
       "comment" : "VoiceOver, Now Playing's scrubber: \"1 minute of 3 minutes\".",
       "localizations" : {
@@ -897,6 +914,23 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "%lld-bit" : {
+      "comment" : "A video track's bit depth in a title's media info: \"10-bit\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bits"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld bits"
           }
         }
       }

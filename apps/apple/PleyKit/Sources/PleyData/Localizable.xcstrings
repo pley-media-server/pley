@@ -18,6 +18,57 @@
         }
       }
     },
+    "1080p · 8 Mbps" : {
+      "comment" : "Settings → Downloads → Quality: a choice, its lines and bitrate.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p · 8 Mbps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1080p · 8 Mbit/s"
+          }
+        }
+      }
+    },
+    "480p · 1.5 Mbps" : {
+      "comment" : "Settings → Downloads → Quality: a choice, its lines and bitrate.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "480p · 1,5 Mbps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "480p · 1,5 Mbit/s"
+          }
+        }
+      }
+    },
+    "720p · 4 Mbps" : {
+      "comment" : "Settings → Downloads → Quality: a choice, its lines and bitrate.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "720p · 4 Mbps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "720p · 4 Mbit/s"
+          }
+        }
+      }
+    },
     "Bottom" : {
       "comment" : "Where text subtitles sit: at the bottom.",
       "localizations" : {

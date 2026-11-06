@@ -552,17 +552,18 @@ public struct ItemPage: Hashable, Sendable {
             if let w = s.width, let h = s.height, w > 0, h > 0 { parts.append("\(w)×\(h)") }
             if let rate = s.frameRate, rate > 0 {
                 let rounded = (rate * 100).rounded() / 100
-                let text = rounded == rounded.rounded() ? String(Int(rounded)) : String(rounded)
-                parts.append("\(text) fps")
+                let text = rounded == rounded.rounded() ? String(Int(rounded))
+                    : String(rounded).replacingOccurrences(of: ".", with: ShownLanguage.locale.decimalSeparator ?? ".")
+                parts.append(localized("\(text) fps"))
             }
-            if let depth = s.bitDepth, depth > 0 { parts.append("\(depth)-bit") }
+            if let depth = s.bitDepth, depth > 0 { parts.append(localized("\(depth)-bit")) }
             if let range = Words.dynamicRange(s) { parts.append(range) }
             if let profile = nonEmpty(s.profile) { parts.append(profile) }
         case .audio:
             let channels = Words.channels(s.channels, layout: s.channelLayout)
             if !channels.isEmpty { parts.append(channels) }
             if let rate = s.sampleRate, rate > 0 {
-                parts.append(String(format: "%.1f kHz", locale: Locale(identifier: "en_US_POSIX"), Double(rate) / 1000))
+                parts.append(Words.fixed(Double(rate) / 1000, digits: 1) + " kHz")
             }
         default:
             parts.append(s.textBased == false ? localized("Image-based") : localized("Text"))

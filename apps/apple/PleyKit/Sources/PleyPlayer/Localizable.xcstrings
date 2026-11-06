@@ -52,6 +52,23 @@
         }
       }
     },
+    "%lld Mbps %@" : {
+      "comment" : "A quality by its bitrate and lines, in the Quality menus and Settings: \"8 Mbps 1080p\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Mbps %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Mbit/s %@"
+          }
+        }
+      }
+    },
     "%lld min left" : {
       "comment" : "The Sleep Timer menu's second line: minutes before it pauses.",
       "localizations" : {
