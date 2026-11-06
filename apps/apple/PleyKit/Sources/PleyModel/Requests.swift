@@ -149,11 +149,11 @@ public enum DiscoverList: String, CaseIterable, Codable, Hashable, Sendable {
     /// The row's title.
     public var title: String {
         switch self {
-        case .trending: "Trending this week"
-        case .movies: "Popular movies"
-        case .shows: "Popular shows"
-        case .upcoming: "Coming to cinemas"
-        case .anime: "Popular anime"
+        case .trending: localized("Trending this week")
+        case .movies: localized("Popular movies")
+        case .shows: localized("Popular shows")
+        case .upcoming: localized("Coming to cinemas")
+        case .anime: localized("Popular anime")
         }
     }
 }
