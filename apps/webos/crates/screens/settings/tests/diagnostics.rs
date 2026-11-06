@@ -96,7 +96,7 @@ fn without_notices_the_page_says_so_with_back() {
     notices::use_paths(Vec::new());
     let mut app = TestApp::open_on(Route::Settings { section: Some(SettingsSection::About) });
     // About says the file is missing, as the Licences page does.
-    assert!(app.until(|a| a.shows(pley_settings::licences::NO_NOTICES)));
+    assert!(app.until(|a| a.shows(pley_settings::licences::no_notices())));
     // TMDB's credit comes after the licences, whatever the file holds.
     assert!(app.shows("Credits") && app.shows("TMDB"));
     assert!(app.shows(pley_core::requests::TMDB_NOTICE));

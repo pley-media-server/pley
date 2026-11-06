@@ -3,6 +3,7 @@
 //! outside it closes it; focus starts on Close and goes back to the row that opened it.
 
 use pley_base::{Color, Key, Point, Rect, TextOpts};
+use pley_i18n::t;
 use pley_kit::{Button, Qr, bar_group, inert, is_inert, scrim_fill};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Id, Motion, Ui};
@@ -63,14 +64,14 @@ impl WebDialog {
             let full = Rect::new(0.0, 0.0, theme::CANVAS_W, theme::CANVAS_H);
             closed |= ui.clickable(id.with("outside"), full).activated;
         }
-        let title = "Manage your account on the web";
-        let body = "Scan the code with your phone, or go to this address on a phone or computer on the same network:";
+        let title = t!("settings.web.title");
+        let body = t!("settings.web.body");
         let address = WebDialog::shown_address(&self.url).to_string();
         let wrap = TextOpts::wrap(COLUMN, 0);
         let title_l = ui.layout(title, &theme::TITLE, &wrap);
         let body_l = ui.layout(body, &theme::BODY, &wrap);
         let address_l = ui.layout(&address, &theme::TITLE, &wrap);
-        let close = Button::pill("Close");
+        let close = Button::pill(t!("settings.actions.close"));
         // Title, body and address 10 apart, then the button 28 below (10, a spacer of 8, 10).
         let column_h =
             title_l.size.h + GAP + body_l.size.h + GAP + address_l.size.h + GAP + 8.0 + GAP + close.size(ui).h;

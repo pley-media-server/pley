@@ -3,7 +3,7 @@
 //! these; the tests read them.
 
 use pley_base::Icon;
-use pley_core::model::{QUALITY_PRESETS, SubtitleMode, TrackDefaults, quality_preset};
+use pley_core::model::{QUALITY_PRESETS, QualityPreset, SubtitleMode, TrackDefaults, quality_preset};
 use pley_core::requests::TMDB_NOTICE;
 use pley_core::store::{
     PassthroughChoice, PassthroughFormat, Settings, SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize,
@@ -11,74 +11,31 @@ use pley_core::store::{
 use pley_i18n::{Language, t};
 use pley_shell::SettingsSection;
 
-/// The languages a profile's defaults offer (ISO 639-2/B, `MeViewModel.kt:213-225`), by English
-/// name, in the order the panel lists them.
-pub const LANGUAGES: [(&str, &str); 34] = [
-    ("ara", "Arabic"),
-    ("bul", "Bulgarian"),
-    ("cat", "Catalan"),
-    ("chi", "Chinese"),
-    ("hrv", "Croatian"),
-    ("cze", "Czech"),
-    ("dan", "Danish"),
-    ("dut", "Dutch"),
-    ("eng", "English"),
-    ("fin", "Finnish"),
-    ("fre", "French"),
-    ("ger", "German"),
-    ("gre", "Greek"),
-    ("heb", "Hebrew"),
-    ("hin", "Hindi"),
-    ("hun", "Hungarian"),
-    ("ind", "Indonesian"),
-    ("ita", "Italian"),
-    ("jpn", "Japanese"),
-    ("kor", "Korean"),
-    ("nor", "Norwegian"),
-    ("per", "Persian"),
-    ("pol", "Polish"),
-    ("por", "Portuguese"),
-    ("rum", "Romanian"),
-    ("rus", "Russian"),
-    ("srp", "Serbian"),
-    ("slo", "Slovak"),
-    ("spa", "Spanish"),
-    ("swe", "Swedish"),
-    ("tha", "Thai"),
-    ("tur", "Turkish"),
-    ("ukr", "Ukrainian"),
-    ("vie", "Vietnamese"),
+/// The languages a profile's defaults offer (ISO 639-2/B, `MeViewModel.kt:213-225`). The panel
+/// names them in the language shown and lists them by those names ([`languages`]).
+pub const LANGUAGES: [&str; 34] = [
+    "ara", "bul", "cat", "chi", "cze", "dan", "dut", "eng", "fin", "fre", "ger", "gre", "heb", "hin", "hrv", "hun",
+    "ind", "ita", "jpn", "kor", "nor", "per", "pol", "por", "rum", "rus", "slo", "spa", "srp", "swe", "tha", "tur",
+    "ukr", "vie",
 ];
 
-/// The subtitle modes a profile can have, with what each does (`strings_tv_account.xml`).
-pub const SUBTITLE_MODES: [(SubtitleMode, &str, &str); 4] = [
-    (SubtitleMode::Off, "Off", "Subtitles stay off until you turn them on."),
-    (SubtitleMode::Forced, "Only for foreign dialogue", "Only forced subtitles, for signs and foreign dialogue."),
-    (
-        SubtitleMode::Foreign,
-        "When the audio is in another language",
-        "Full subtitles come on when the audio isn't in your subtitle language.",
-    ),
-    (SubtitleMode::Always, "Always", "Subtitles in your language come on whenever there are some."),
-];
-
-/// What a read-only default says after its value.
-pub const ON_THE_WEB: &str = " · change on the web";
-/// The toast after the server refused to change the defaults (403, 404 or 405).
-pub const READ_ONLY: &str = "This server doesn't let the app change these: change them on the web";
-/// The toast after a change the server kept.
-pub const SAVED: &str = "Saved";
+/// The subtitle modes a profile can have, in the panel's order.
+pub const SUBTITLE_MODES: [SubtitleMode; 4] =
+    [SubtitleMode::Off, SubtitleMode::Forced, SubtitleMode::Foreign, SubtitleMode::Always];
 
 /// The passthrough switches LG offers (the TV app's Audio category): the TV's own pipeline always
 /// passes Dolby Digital, Dolby Digital Plus and Atmos through, so only these two are choices.
-pub const PASSTHROUGH_SWITCHES: [(PassthroughFormat, &str, &str); 2] = [
-    (PassthroughFormat::TrueHd, "Pass through Dolby TrueHD", "Only with a receiver that takes TrueHD from the TV"),
-    (PassthroughFormat::Dts, "Pass through DTS", "Only with a receiver that takes DTS from the TV"),
-];
+pub const PASSTHROUGH_SWITCHES: [PassthroughFormat; 2] = [PassthroughFormat::TrueHd, PassthroughFormat::Dts];
 
-/// The Audio category's intro (the TV app's, since LG's pipeline decides the rest).
-pub const AUDIO_INTRO: &str = "Dolby Digital, Dolby Digital Plus and Atmos are always passed through. Turn these on if \
-                               your receiver supports them; otherwise Pley converts them.";
+/// A passthrough switch's label and the line under it.
+pub fn passthrough_words(format: PassthroughFormat) -> (&'static str, &'static str) {
+    match format {
+        PassthroughFormat::TrueHd => (t!("settings.audio.trueHd"), t!("settings.audio.trueHdHint")),
+        PassthroughFormat::Dts => (t!("settings.audio.dts"), t!("settings.audio.dtsHint")),
+        // Never a switch here: the TV passes the others through itself.
+        other => (other.label(), ""),
+    }
+}
 
 /// A category's label and icon (`TvSettingsScreen.kt:83-92`; Lucide's `activity` is drawn as
 /// `gauge`, as the TV app does).
@@ -96,15 +53,65 @@ pub fn category_look(c: SettingsSection) -> (&'static str, Icon) {
     (c.label(), icon)
 }
 
-/// The English name of a language code: the panel's name, else the one `pley-core` gives, else
-/// the code itself.
+/// A language code's name in the language shown: the `languages` catalog's, else the one
+/// `pley-core` gives, else the code itself.
 pub fn language_label(code: &str) -> String {
-    LANGUAGES
-        .iter()
-        .find(|(c, _)| *c == code)
-        .map(|(_, name)| name.to_string())
+    pley_i18n::lookup(&format!("languages.{code}"))
+        .map(str::to_string)
         .or_else(|| pley_core::format::language_name(Some(code)))
         .unwrap_or_else(|| code.to_string())
+}
+
+/// The panel's languages, code and name, by name in the language shown (Android's
+/// `TrackLanguages`).
+pub fn languages() -> Vec<(&'static str, String)> {
+    by_name(LANGUAGES.iter().map(|code| (*code, language_label(code))).collect())
+}
+
+/// `list` in the order of its names, an accent sorting with its letter: Spanish "Árabe" with the
+/// A's, not after "Vietnamita".
+fn by_name(mut list: Vec<(&'static str, String)>) -> Vec<(&'static str, String)> {
+    list.sort_by_cached_key(|(_, name)| {
+        let key: String = name.chars().map(base_letter).flat_map(char::to_lowercase).collect();
+        (key, name.clone())
+    });
+    list
+}
+
+/// A letter without its accent, as names sort.
+fn base_letter(c: char) -> char {
+    match c {
+        'À'..='Å' | 'à'..='å' => 'a',
+        'Ç' | 'ç' => 'c',
+        'È'..='Ë' | 'è'..='ë' => 'e',
+        'Ì'..='Ï' | 'ì'..='ï' => 'i',
+        'Ñ' | 'ñ' => 'n',
+        'Ò'..='Ö' | 'ò'..='ö' => 'o',
+        'Ù'..='Ü' | 'ù'..='ü' => 'u',
+        'Ý' | 'ý' | 'ÿ' => 'y',
+        _ => c,
+    }
+}
+
+/// A quality's name in the language shown: "Original", "Automatic", "8 Mbps 1080p".
+pub fn quality_label(q: &QualityPreset) -> String {
+    match (q.max_bitrate_kbps, q.max_height) {
+        (Some(kbps), Some(height)) => {
+            let lines = if height >= 2160 { "4K".to_string() } else { format!("{height}p") };
+            t!("settings.playback.preset", mbps = kbps / 1000, lines = lines)
+        }
+        _ if q.id == "original" => t!("settings.playback.original").to_string(),
+        _ => t!("settings.playback.automatic").to_string(),
+    }
+}
+
+/// What Settings says under a quality, where it says anything.
+pub fn quality_hint(q: &QualityPreset) -> Option<&'static str> {
+    match q.id {
+        "original" => Some(t!("settings.playback.originalHint")),
+        "auto" => Some(t!("settings.playback.automaticHint")),
+        _ => None,
+    }
 }
 
 /// The commit the app was built from, when the build says (`PLEY_COMMIT`, as the TV app's
@@ -120,9 +127,25 @@ pub fn build_label(version: &str, commit: Option<&str>) -> String {
     }
 }
 
-/// A subtitle mode's label.
+/// A subtitle mode's label (`strings_tv_account.xml`); a mode this app doesn't know is the server's
+/// default, forced.
 pub fn mode_label(mode: SubtitleMode) -> &'static str {
-    SUBTITLE_MODES.iter().find(|(m, _, _)| *m == mode).map_or("Only for foreign dialogue", |(_, label, _)| label)
+    match mode {
+        SubtitleMode::Off => t!("settings.subtitleModes.off"),
+        SubtitleMode::Foreign => t!("settings.subtitleModes.foreign"),
+        SubtitleMode::Always => t!("settings.subtitleModes.always"),
+        _ => t!("settings.subtitleModes.forced"),
+    }
+}
+
+/// What a subtitle mode does, under its label in the panel.
+pub fn mode_hint(mode: SubtitleMode) -> &'static str {
+    match mode {
+        SubtitleMode::Off => t!("settings.subtitleModes.offHint"),
+        SubtitleMode::Foreign => t!("settings.subtitleModes.foreignHint"),
+        SubtitleMode::Always => t!("settings.subtitleModes.alwaysHint"),
+        _ => t!("settings.subtitleModes.forcedHint"),
+    }
 }
 
 /// Everything a pane needs to know, gathered from the app's state when it changes.
@@ -305,25 +328,27 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
         SettingsSection::Profile => return profile(f),
         SettingsSection::Playback => {
             let q = quality_preset(&f.settings.quality).unwrap_or(&QUALITY_PRESETS[1]);
-            row(Row::new(Some(Icon::Gauge), "Quality", q.label, RowAction::Choose(Picking::Quality)));
+            let quality = t!("settings.playback.quality");
+            row(Row::new(Some(Icon::Gauge), quality, quality_label(q), RowAction::Choose(Picking::Quality)));
             row(switch(
                 Icon::SkipForward,
-                "Play the next episode by itself",
-                "After a 10 second countdown",
+                t!("settings.playback.autoplay"),
+                t!("settings.playback.autoplayHint"),
                 Toggle::AutoplayNext,
                 f,
             ));
             row(switch(
                 Icon::Info,
-                "Playback details",
-                "Show how a video plays (direct, remux or transcode) over it",
+                t!("settings.playback.details"),
+                t!("settings.playback.detailsHint"),
                 Toggle::PlaybackDetails,
                 f,
             ));
         }
         SettingsSection::Audio => {
-            out.push(Item::Intro(AUDIO_INTRO.into()));
-            for (format, label, hint) in PASSTHROUGH_SWITCHES {
+            out.push(Item::Intro(t!("settings.audio.intro").into()));
+            for format in PASSTHROUGH_SWITCHES {
+                let (label, hint) = passthrough_words(format);
                 out.push(Item::Row(switch(Icon::Volume2, label, hint, Toggle::Passthrough(format), f)));
             }
         }
@@ -331,60 +356,60 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
             let s = &f.settings;
             row(Row::new(
                 Some(Icon::Captions),
-                "Subtitle size",
+                t!("settings.display.subtitleSize"),
                 s.subtitle_size.label(),
                 RowAction::Choose(Picking::Size),
             ));
             row(Row::new(
                 Some(Icon::Square),
-                "Subtitle background",
+                t!("settings.display.subtitleBackground"),
                 s.subtitle_background.label(),
                 RowAction::Choose(Picking::Background),
             ));
             row(Row::new(
                 Some(Icon::Pencil),
-                "Subtitle font",
+                t!("settings.display.subtitleFont"),
                 s.subtitle_font.label(),
                 RowAction::Choose(Picking::Font),
             ));
             row(Row::new(
                 Some(Icon::ArrowUp),
-                "Subtitle position",
+                t!("settings.display.subtitlePosition"),
                 s.subtitle_position.label(),
                 RowAction::Choose(Picking::Position),
             ));
             row(switch(
                 Icon::Sparkles,
-                "Reduce motion",
-                "No zooming, sliding or fading: things change in place",
+                t!("settings.display.reduceMotion"),
+                t!("settings.display.reduceMotionHint"),
                 Toggle::ReduceMotion,
                 f,
             ));
         }
         SettingsSection::Server => {
-            let name = f.server.clone().unwrap_or_else(|| "No server".into());
-            row(Row::new(Some(Icon::Server), name, "The server this TV uses", RowAction::None));
-            row(Row::new(Some(Icon::ArrowLeft), "Switch server", "", RowAction::Restart(pley_shell::Route::Servers))
-                .chevron());
+            let name = f.server.clone().unwrap_or_else(|| t!("settings.server.unknown").into());
+            row(Row::new(Some(Icon::Server), name, t!("settings.server.value"), RowAction::None));
+            let switch = t!("settings.server.switch");
+            row(Row::new(Some(Icon::ArrowLeft), switch, "", RowAction::Restart(pley_shell::Route::Servers)).chevron());
         }
         SettingsSection::Diagnostics => {
             row(Row::new(
                 Some(Icon::Activity),
-                "Open diagnostics",
-                "What this TV decodes and shows, and why",
+                t!("settings.diagnostics.open"),
+                t!("settings.diagnostics.openValue"),
                 RowAction::Open(pley_shell::Route::Diagnostics),
             )
             .chevron());
             out.push(Item::Facts(f.device.clone()));
         }
         SettingsSection::About => {
-            row(Row::new(Some(Icon::Info), "Version", f.version.clone(), RowAction::None));
-            out.push(Item::Heading("Open-source licences"));
+            row(Row::new(Some(Icon::Info), t!("settings.about.version"), f.version.clone(), RowAction::None));
+            out.push(Item::Heading(t!("settings.about.licences")));
             match &f.licences {
                 // Read off the main thread: the rows come when it is done.
                 None => {}
                 // The Licences page says the same without the file.
-                Some(list) if list.is_empty() => out.push(Item::Intro(crate::licences::NO_NOTICES.into())),
+                Some(list) if list.is_empty() => out.push(Item::Intro(crate::licences::no_notices().into())),
                 Some(list) => {
                     for (i, (name, licence)) in list.iter().enumerate() {
                         out.push(Item::Row(Row::new(None, name.clone(), licence.clone(), RowAction::Licence(i))));
@@ -392,24 +417,24 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
                 }
             }
             // Discover's titles and pictures come from TMDB, whose terms ask for this line.
-            out.push(Item::Heading("Credits"));
+            out.push(Item::Heading(t!("settings.about.credits")));
             out.push(Item::Row(Row::new(None, "TMDB", TMDB_NOTICE, RowAction::None)));
         }
         SettingsSection::SignOut => {
-            let server = f.server.as_deref().unwrap_or("the server");
-            out.push(Item::Intro(format!(
-                "Sign this TV out of {server}. You'll need a new link code to sign in again."
-            )));
+            out.push(Item::Intro(match f.server.as_deref() {
+                Some(server) => t!("settings.signOut.intro", server = server),
+                None => t!("settings.signOut.introNoServer").into(),
+            }));
             out.push(Item::Row(Row {
                 danger: true,
-                ..Row::new(Some(Icon::LogOut), "Sign out", "", RowAction::SignOut)
+                ..Row::new(Some(Icon::LogOut), t!("settings.signOut.button"), "", RowAction::SignOut)
             }));
             out.push(Item::Row(Row {
                 danger: true,
                 ..Row::new(
                     Some(Icon::Trash2),
-                    "Delete all local data",
-                    "Every server, sign-in, setting and saved picture on this TV",
+                    t!("settings.signOut.deleteData"),
+                    t!("settings.signOut.deleteDataValue"),
                     RowAction::DeleteData,
                 )
             }));
@@ -427,32 +452,43 @@ fn profile(f: &Facts) -> Vec<Item> {
     let mut out = vec![Item::Profile];
     let mut row = |r: Row| out.push(Item::Row(r));
     if f.can_switch {
-        row(Row::new(Some(Icon::Users), "Switch profile", "", RowAction::Restart(pley_shell::Route::Profiles))
-            .chevron());
+        let label = t!("settings.profile.switchProfile");
+        row(Row::new(Some(Icon::Users), label, "", RowAction::Restart(pley_shell::Route::Profiles)).chevron());
     }
-    let web = if f.defaults_editable() { "" } else { ON_THE_WEB };
     let pick = |p: Picking| if f.defaults_editable() { RowAction::Choose(p) } else { RowAction::Web };
     let d = f.defaults.as_ref();
-    let value = |text: String| if d.is_some() { format!("{text}{web}") } else { String::new() };
-    let audio = d.and_then(|d| d.audio_language.as_deref()).map_or("The file's default".into(), language_label);
-    row(Row::new(Some(Icon::AudioLines), "Audio language", value(audio), pick(Picking::AudioLanguage)));
+    let value = |text: String| match d {
+        None => String::new(),
+        Some(_) if f.defaults_editable() => text,
+        // Read-only: changed on the web.
+        Some(_) => t!("settings.profile.onTheWeb", value = text),
+    };
+    let audio = d
+        .and_then(|d| d.audio_language.as_deref())
+        .map_or_else(|| t!("settings.profile.fileDefault").into(), language_label);
+    let label = t!("settings.profile.audioLanguage");
+    row(Row::new(Some(Icon::AudioLines), label, value(audio), pick(Picking::AudioLanguage)));
     let mode = d.map_or(SubtitleMode::Forced, |d| d.subtitle_mode);
-    row(Row::new(Some(Icon::Captions), "Subtitles", value(mode_label(mode).into()), pick(Picking::SubtitleMode)));
+    let label = t!("settings.profile.subtitles");
+    row(Row::new(Some(Icon::Captions), label, value(mode_label(mode).into()), pick(Picking::SubtitleMode)));
     if d.is_some() && matches!(mode, SubtitleMode::Foreign | SubtitleMode::Always) {
-        let language =
-            d.and_then(|d| d.subtitle_language.as_deref()).map_or("Same as the audio language".into(), language_label);
-        row(Row::new(Some(Icon::Captions), "Subtitle language", value(language), pick(Picking::SubtitleLanguage)));
+        let language = d
+            .and_then(|d| d.subtitle_language.as_deref())
+            .map_or_else(|| t!("settings.profile.sameAsAudio").into(), language_label);
+        let label = t!("settings.profile.subtitleLanguage");
+        row(Row::new(Some(Icon::Captions), label, value(language), pick(Picking::SubtitleLanguage)));
     }
     if f.profile.is_some() {
         let action = if f.can_play { RowAction::Choose(Picking::Language) } else { RowAction::Web };
         row(Row::new(Some(Icon::Languages), t!("settings.language.label"), language_value(f), action));
     }
-    row(Row::new(Some(Icon::History), "Watch history", "", RowAction::Open(pley_shell::Route::History)).chevron());
+    let history = t!("settings.profile.history");
+    row(Row::new(Some(Icon::History), history, "", RowAction::Open(pley_shell::Route::History)).chevron());
     // The Libraries page sorts them; with three or fewer the rail lists them and has no way there.
     row(Row::new(
         Some(Icon::ArrowUpDown),
-        "Sort libraries",
-        "Your order, on all your devices",
+        t!("settings.profile.sortLibraries"),
+        t!("settings.profile.sortLibrariesValue"),
         RowAction::Open(pley_shell::Route::Libraries { sort: true }),
     )
     .chevron());
@@ -460,13 +496,14 @@ fn profile(f: &Facts) -> Vec<Item> {
         let name = f
             .always_start_as
             .and_then(|id| f.household.iter().find(|(p, _)| *p == id))
-            .map_or("Profile used last".to_string(), |(_, name)| name.clone());
-        row(Row::new(Some(Icon::UserRound), "Always start as", name, RowAction::Choose(Picking::AlwaysStartAs)));
+            .map_or_else(|| t!("settings.profile.usedLast").to_string(), |(_, name)| name.clone());
+        let label = t!("settings.profile.alwaysStartAs");
+        row(Row::new(Some(Icon::UserRound), label, name, RowAction::Choose(Picking::AlwaysStartAs)));
     }
     row(Row::new(
         Some(Icon::AppWindow),
-        "Manage your account on the web",
-        "Name, picture, password, PIN, two-step, devices and apps",
+        t!("settings.profile.manageWeb"),
+        t!("settings.profile.manageWebValue"),
         RowAction::Web,
     ));
     out
@@ -547,30 +584,34 @@ pub struct Panel {
 /// The panel of `p`. `fonts` are the subtitle faces this TV draws differently from the default.
 pub fn panel(p: Picking, f: &Facts, fonts: &[SubtitleFont]) -> Panel {
     let d = f.defaults.clone().unwrap_or_default();
-    let languages = |none: &str| {
+    let with_languages = |none: &str| {
         std::iter::once(Choice::new(none, Value::Language(None)))
-            .chain(LANGUAGES.iter().map(|(code, name)| Choice::new(*name, Value::Language(Some(code.to_string())))))
+            .chain(languages().into_iter().map(|(code, name)| Choice::new(name, Value::Language(Some(code.into())))))
             .collect::<Vec<_>>()
     };
     let s = &f.settings;
     let (title, choices, current) = match p {
-        Picking::AudioLanguage => {
-            ("Audio language", languages("The file's default"), Value::Language(d.audio_language))
-        }
-        Picking::SubtitleLanguage => {
-            ("Subtitle language", languages("Same as the audio language"), Value::Language(d.subtitle_language))
-        }
+        Picking::AudioLanguage => (
+            t!("settings.profile.audioLanguage"),
+            with_languages(t!("settings.profile.fileDefault")),
+            Value::Language(d.audio_language),
+        ),
+        Picking::SubtitleLanguage => (
+            t!("settings.profile.subtitleLanguage"),
+            with_languages(t!("settings.profile.sameAsAudio")),
+            Value::Language(d.subtitle_language),
+        ),
         Picking::SubtitleMode => (
-            "Subtitles",
+            t!("settings.profile.subtitles"),
             SUBTITLE_MODES
                 .iter()
-                .map(|(m, label, hint)| Choice { hint: Some(*hint), ..Choice::new(*label, Value::Mode(*m)) })
+                .map(|m| Choice { hint: Some(mode_hint(*m)), ..Choice::new(mode_label(*m), Value::Mode(*m)) })
                 .collect(),
             Value::Mode(d.subtitle_mode),
         ),
         Picking::AlwaysStartAs => (
-            "Always start as",
-            std::iter::once(Choice::new("Profile used last", Value::Profile(None)))
+            t!("settings.profile.alwaysStartAs"),
+            std::iter::once(Choice::new(t!("settings.profile.usedLast"), Value::Profile(None)))
                 .chain(f.household.iter().map(|(id, name)| Choice::new(name.clone(), Value::Profile(Some(*id)))))
                 .collect(),
             Value::Profile(f.always_start_as),
@@ -586,25 +627,25 @@ pub fn panel(p: Picking, f: &Facts, fonts: &[SubtitleFont]) -> Panel {
             Value::AppLanguage(f.language),
         ),
         Picking::Quality => (
-            "Quality",
+            t!("settings.playback.quality"),
             QUALITY_PRESETS
                 .iter()
-                .map(|q| Choice { hint: q.hint, ..Choice::new(q.label, Value::Quality(q.id)) })
+                .map(|q| Choice { hint: quality_hint(q), ..Choice::new(quality_label(q), Value::Quality(q.id)) })
                 .collect(),
             Value::Quality(quality_preset(&s.quality).map_or("auto", |q| q.id)),
         ),
         Picking::Size => (
-            "Subtitle size",
+            t!("settings.display.subtitleSize"),
             SubtitleSize::ALL.iter().map(|v| Choice::new(v.label(), Value::Size(*v))).collect(),
             Value::Size(s.subtitle_size),
         ),
         Picking::Background => (
-            "Subtitle background",
+            t!("settings.display.subtitleBackground"),
             SubtitleBackground::ALL.iter().map(|v| Choice::new(v.label(), Value::Background(*v))).collect(),
             Value::Background(s.subtitle_background),
         ),
         Picking::Font => (
-            "Subtitle font",
+            t!("settings.display.subtitleFont"),
             // The default, the faces this TV has, and the one in force even if it no longer has it.
             SubtitleFont::ALL
                 .iter()
@@ -614,7 +655,7 @@ pub fn panel(p: Picking, f: &Facts, fonts: &[SubtitleFont]) -> Panel {
             Value::Font(s.subtitle_font),
         ),
         Picking::Position => (
-            "Subtitle position",
+            t!("settings.display.subtitlePosition"),
             SubtitlePosition::ALL.iter().map(|v| Choice::new(v.label(), Value::Position(*v))).collect(),
             Value::Position(s.subtitle_position),
         ),
@@ -922,6 +963,53 @@ mod tests {
         assert_eq!(language_label("ger"), "German");
         // Codes the panel doesn't offer are named as pley-core names them.
         assert_eq!(language_label("xx"), pley_core::format::language_name(Some("xx")).unwrap_or_else(|| "xx".into()));
+        // In English the panel lists them as Android does, every one named.
+        let names: Vec<String> = languages().into_iter().map(|(_, name)| name).collect();
+        assert_eq!(names.first().map(String::as_str), Some("Arabic"));
+        assert_eq!(names.iter().position(|n| n == "Croatian"), Some(4));
+        assert_eq!(names.last().map(String::as_str), Some("Vietnamese"));
+        assert!(languages().iter().all(|(code, name)| !name.eq_ignore_ascii_case(code)));
+    }
+
+    #[test]
+    fn languages_sort_by_their_letters_whatever_the_accent() {
+        let list = vec![("vie", "Vietnamita".to_string()), ("ara", "Árabe".to_string()), ("bul", "Búlgaro".into())];
+        let codes: Vec<&str> = by_name(list).into_iter().map(|(code, _)| code).collect();
+        assert_eq!(codes, ["ara", "bul", "vie"]);
+    }
+
+    #[test]
+    fn the_panes_speak_french_and_spanish() {
+        let f = Facts { can_play: false, defaults: Some(TrackDefaults::default()), ..alex() };
+        pley_i18n::with_language(Language::Fr, || {
+            assert_eq!(category_look(SettingsSection::SubtitlesAndDisplay).0, "Sous-titres et affichage");
+            let profile = items(SettingsSection::Profile, &f);
+            let audio = rows(&profile).into_iter().find(|r| r.label == "Langue audio").map(|r| r.value.clone());
+            assert_eq!(audio.as_deref(), Some("Celle du fichier par défaut · à modifier sur le web"));
+            let quality = panel(Picking::Quality, &f, &[]);
+            let labels: Vec<&str> = quality.choices.iter().map(|c| c.label.as_str()).collect();
+            assert_eq!(labels[..3], ["Original", "Automatique", "30 Mbit/s 4K"]);
+            assert_eq!(labels.last(), Some(&"2 Mbit/s 480p"));
+            assert_eq!(quality.choices[1].hint, Some("S\u{2019}adapte aux conditions."));
+            assert_eq!(rows(&items(SettingsSection::Playback, &f))[0].value, "Automatique");
+            let sign_out = items(SettingsSection::SignOut, &f);
+            let Item::Intro(intro) = &sign_out[0] else { panic!("Sign out starts with what it does") };
+            assert!(intro.starts_with("Déconnectez cette TV de 192.168.1.20:7539."), "{intro}");
+        });
+        pley_i18n::with_language(Language::Es, || {
+            let display = items(SettingsSection::SubtitlesAndDisplay, &f);
+            let values: Vec<&str> = rows(&display).iter().map(|r| r.value.as_str()).collect();
+            assert_eq!(values[..4], ["Normal", "Ninguno", "Sans serif", "Abajo"]);
+            let sizes = panel(Picking::Size, &f, &[]);
+            assert_eq!(sizes.title, "Tamaño de los subtítulos");
+            assert_eq!(sizes.choices.last().map(|c| c.label.as_str()), Some("Muy grande"));
+            let modes = panel(Picking::SubtitleMode, &f, &[]);
+            assert_eq!(modes.choices[2].label, "Cuando el audio está en otro idioma");
+            let audio = items(SettingsSection::Audio, &f);
+            assert_eq!(labels(&audio), ["Enviar Dolby TrueHD tal cual", "Enviar DTS tal cual"]);
+            let server = items(SettingsSection::Server, &Facts { server: None, ..f.clone() });
+            assert_eq!(labels(&server), ["Ningún servidor", "Cambiar de servidor"]);
+        });
     }
 
     #[test]

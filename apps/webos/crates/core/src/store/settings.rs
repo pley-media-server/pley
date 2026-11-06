@@ -46,10 +46,10 @@ impl SubtitleSize {
     /// The name Settings shows.
     pub fn label(self) -> &'static str {
         match self {
-            SubtitleSize::Small => "Small",
-            SubtitleSize::Normal => "Normal",
-            SubtitleSize::Large => "Large",
-            SubtitleSize::Huge => "Huge",
+            SubtitleSize::Small => pley_i18n::t!("settings.display.sizes.small"),
+            SubtitleSize::Normal => pley_i18n::t!("settings.display.sizes.normal"),
+            SubtitleSize::Large => pley_i18n::t!("settings.display.sizes.large"),
+            SubtitleSize::Huge => pley_i18n::t!("settings.display.sizes.huge"),
         }
     }
 }
@@ -71,8 +71,8 @@ impl SubtitleBackground {
     /// The name Settings shows.
     pub fn label(self) -> &'static str {
         match self {
-            SubtitleBackground::None => "None",
-            SubtitleBackground::DarkBox => "Dark box",
+            SubtitleBackground::None => pley_i18n::t!("settings.display.backgrounds.none"),
+            SubtitleBackground::DarkBox => pley_i18n::t!("settings.display.backgrounds.darkBox"),
         }
     }
 }
@@ -97,10 +97,10 @@ impl SubtitleFont {
     /// The name Settings shows.
     pub fn label(self) -> &'static str {
         match self {
-            SubtitleFont::Sans => "Sans serif",
-            SubtitleFont::Serif => "Serif",
-            SubtitleFont::Monospace => "Monospace",
-            SubtitleFont::Casual => "Casual",
+            SubtitleFont::Sans => pley_i18n::t!("settings.display.fonts.sans"),
+            SubtitleFont::Serif => pley_i18n::t!("settings.display.fonts.serif"),
+            SubtitleFont::Monospace => pley_i18n::t!("settings.display.fonts.monospace"),
+            SubtitleFont::Casual => pley_i18n::t!("settings.display.fonts.casual"),
         }
     }
 }
@@ -134,10 +134,10 @@ impl SubtitlePosition {
     /// The name Settings shows.
     pub fn label(self) -> &'static str {
         match self {
-            SubtitlePosition::Bottom => "Bottom",
-            SubtitlePosition::Raised => "Raised",
-            SubtitlePosition::Higher => "Higher",
-            SubtitlePosition::Highest => "Highest",
+            SubtitlePosition::Bottom => pley_i18n::t!("settings.display.positions.bottom"),
+            SubtitlePosition::Raised => pley_i18n::t!("settings.display.positions.raised"),
+            SubtitlePosition::Higher => pley_i18n::t!("settings.display.positions.higher"),
+            SubtitlePosition::Highest => pley_i18n::t!("settings.display.positions.highest"),
         }
     }
 }

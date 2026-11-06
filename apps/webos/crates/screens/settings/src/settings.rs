@@ -23,7 +23,7 @@ use pley_ui::theme;
 use pley_ui::{Dirs, Edge, Group, Id, Ui};
 
 use crate::notices;
-use crate::pane::{self, End, Facts, Item, Panel, Picking, ProfileFacts, READ_ONLY, RowAction, SAVED, Value};
+use crate::pane::{self, End, Facts, Item, Panel, Picking, ProfileFacts, RowAction, Value};
 use crate::web::WebDialog;
 
 /// The categories' column.
@@ -292,10 +292,10 @@ impl SettingsScreen {
         match answer {
             Ok(me) => {
                 cx.state.account_changed(me);
-                cx.toast(SAVED);
+                cx.toast(t!("settings.saved"));
             }
             Err(e) if e.is(404) || e.is(405) => cx.toast(t!("settings.language.needsNewer")),
-            Err(e) if e.is(403) => cx.toast(READ_ONLY),
+            Err(e) if e.is(403) => cx.toast(t!("settings.readOnly")),
             Err(e) if !e.cancelled() => cx.toast(sentence(&e.to_string())),
             Err(_) => {}
         }
@@ -323,7 +323,7 @@ impl SettingsScreen {
                 // again, so every page has the new defaults.
                 cx.state.tracks_changed(None);
                 cx.state.load_account();
-                cx.toast(SAVED);
+                cx.toast(t!("settings.saved"));
             }
             Err(e) => {
                 self.defaults = None;
@@ -331,7 +331,7 @@ impl SettingsScreen {
                 // Said as "Saved" is, at the top right for 3.5 s (`TvSettingsScreen.kt`'s message).
                 if [403, 404, 405].iter().any(|s| e.is(*s)) {
                     self.refused = true;
-                    cx.toast(READ_ONLY);
+                    cx.toast(t!("settings.readOnly"));
                 } else if !e.cancelled() {
                     cx.toast(sentence(&e.to_string()));
                 }
@@ -539,7 +539,11 @@ impl SettingsScreen {
             let title_w = area.w - 16.0;
             if cache.as_ref().is_none_or(|c| c.picking != p || c.revision != revision || c.width != area.w) {
                 let panel = pane::panel(p, facts, fonts);
-                let heights = panel.choices.iter().map(|c| choice_row(c, false).height(ui, area.w)).collect();
+                // Measured as drawn: the check narrows the choice in force, whose words may then wrap.
+                let current = panel.current;
+                let heights =
+                    panel.choices.iter().enumerate().map(|(i, c)| choice_row(c, i == current).height(ui, area.w));
+                let heights = heights.collect();
                 *cache = Some(PanelCache { picking: p, revision, width: area.w, panel, heights });
             }
             let Some(PanelCache { panel, heights, .. }) = cache.as_ref() else { return };
@@ -588,19 +592,20 @@ impl SettingsScreen {
     }
 
     fn confirm(&mut self, ui: &mut Ui, root: Id, cx: &mut AppCx) {
-        let server = self.facts.server.clone().unwrap_or_default();
+        let cancel = DialogButton::new(t!("settings.actions.cancel"));
         let (title, body, buttons) = match self.confirm_drawn {
             Confirm::SignOut => (
-                "Sign out?",
-                format!("You'll be signed out of {server}."),
-                [DialogButton::new("Cancel"), DialogButton::danger("Sign out")],
+                t!("settings.signOut.title"),
+                match self.facts.server.as_deref() {
+                    Some(server) => t!("settings.signOut.body", server = server),
+                    None => t!("settings.signOut.bodyNoServer").to_string(),
+                },
+                [cancel, DialogButton::danger(t!("settings.signOut.button"))],
             ),
             Confirm::DeleteData => (
-                "Delete all local data?",
-                "Pley forgets every server, sign-in, setting and saved picture on this TV, as if it were just \
-                 installed."
-                    .to_string(),
-                [DialogButton::new("Cancel"), DialogButton::danger("Delete")],
+                t!("settings.signOut.deleteTitle"),
+                t!("settings.signOut.deleteBody").to_string(),
+                [cancel, DialogButton::danger(t!("settings.signOut.delete"))],
             ),
         };
         let r = Dialog::new(title).body(&body).buttons(&buttons).initial(0).show(
@@ -650,7 +655,7 @@ impl Screen for SettingsScreen {
         };
         ui.text(
             Point::new(theme::GUTTER, theme::SAFE_Y),
-            "Settings",
+            t!("settings.title"),
             &theme::PAGE_TITLE,
             &TextOpts::line(CATEGORIES_W + PANE_W),
             theme::FG,
@@ -740,7 +745,7 @@ fn profile_header(ui: &mut Ui, rect: Rect, f: &Facts, avatar: &[ImageRequest]) {
     ProfileTile::new(&p.name).color(avatar_color(p.avatar_color.as_deref())).picture(avatar).avatar(ui, circle);
     let x = circle.right() + 16.0;
     let w = rect.right() - x;
-    let line = [p.managed.then_some("Managed profile"), f.server.as_deref()]
+    let line = [p.managed.then(|| t!("settings.profile.managed")), f.server.as_deref()]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()

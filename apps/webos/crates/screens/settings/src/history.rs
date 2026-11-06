@@ -16,6 +16,7 @@ use pley_core::http::sentence;
 use pley_core::model::{HistoryEntry, HistoryPage, ItemKind};
 use pley_core::store::{Snapshots, snapshot_keys};
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::look::{focus_progress, mix};
 use pley_kit::{Button, SCROLL, first_art, placeholder, skeleton_block};
 use pley_shell::{AppCx, AppEvent, Chrome, REVALIDATE, Route, Screen};
@@ -37,24 +38,36 @@ const TOP: f32 = 81.0;
 /// Room under the last row (the list's bottom padding).
 const BOTTOM: f32 = 120.0;
 
-/// Seconds per unit and the age below which that unit is used (the web's table, as Android's
+/// A unit a time is worded in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Unit {
+    Second,
+    Minute,
+    Hour,
+    Day,
+    Week,
+    Month,
+    Year,
+}
+
+/// The age below which each unit is used, and its seconds (the web's table, as Android's
 /// `Times.kt` has it).
-const UNITS: [(i64, &str, i64); 7] = [
-    (60, "second", 1),
-    (3_600, "minute", 60),
-    (86_400, "hour", 3_600),
-    (86_400 * 7, "day", 86_400),
-    (86_400 * 30, "week", 86_400 * 7),
-    (86_400 * 365, "month", 86_400 * 30),
-    (i64::MAX, "year", 86_400 * 365),
+const UNITS: [(i64, Unit, i64); 7] = [
+    (60, Unit::Second, 1),
+    (3_600, Unit::Minute, 60),
+    (86_400, Unit::Hour, 3_600),
+    (86_400 * 7, Unit::Day, 86_400),
+    (86_400 * 30, Unit::Week, 86_400 * 7),
+    (86_400 * 365, Unit::Month, 86_400 * 30),
+    (i64::MAX, Unit::Year, 86_400 * 365),
 ];
 
-/// Unix seconds `ts` worded from `now`: "now", "3 minutes ago", "yesterday", "last week", "in 2
-/// days": the largest unit that fits, as `Intl.RelativeTimeFormat` with numeric "auto" says it in
-/// English (Android's `formatRelative`). "never" without a time.
+/// Unix seconds `ts` worded from `now` in the language shown: "now", "3 minutes ago",
+/// "yesterday", "last week", "in 2 days": the largest unit that fits, as `Intl.RelativeTimeFormat`
+/// with numeric "auto" says it (Android's `formatRelative`). "never" without a time.
 pub fn relative_time(ts: i64, now: i64) -> String {
     if ts == 0 {
-        return "never".into();
+        return t!("history.time.never").into();
     }
     // The time is the server's: any i64, so nothing here may overflow.
     let diff = ts.saturating_sub(now);
@@ -62,19 +75,39 @@ pub fn relative_time(ts: i64, now: i64) -> String {
         UNITS.iter().copied().find(|u| diff.unsigned_abs() < u.0.unsigned_abs()).unwrap_or(UNITS[6]);
     // Java's Math.round: halves go up, toward positive infinity (a float casts back saturating).
     let value = (diff as f64 / seconds as f64 + 0.5).floor() as i64;
-    match (value, unit) {
-        (0, "second") => return "now".into(),
-        (0, "day") => return "today".into(),
-        (0, _) => return format!("this {unit}"),
-        (-1, "day") => return "yesterday".into(),
-        (-1, "week" | "month" | "year") => return format!("last {unit}"),
-        (1, "day") => return "tomorrow".into(),
-        (1, "week" | "month" | "year") => return format!("next {unit}"),
-        _ => {}
+    let said = match (value, unit) {
+        // Only seconds come to none: a unit is used from one of it on.
+        (0, _) => t!("history.time.now"),
+        (-1, Unit::Day) => t!("history.time.yesterday"),
+        (-1, Unit::Week) => t!("history.time.lastWeek"),
+        (-1, Unit::Month) => t!("history.time.lastMonth"),
+        (-1, Unit::Year) => t!("history.time.lastYear"),
+        (1, Unit::Day) => t!("history.time.tomorrow"),
+        (1, Unit::Week) => t!("history.time.nextWeek"),
+        (1, Unit::Month) => t!("history.time.nextMonth"),
+        (1, Unit::Year) => t!("history.time.nextYear"),
+        _ => "",
+    };
+    if !said.is_empty() {
+        return said.into();
     }
     let n = value.unsigned_abs();
-    let words = if n == 1 { format!("1 {unit}") } else { format!("{n} {unit}s") };
-    if value < 0 { format!("{words} ago") } else { format!("in {words}") }
+    match (value < 0, unit) {
+        (true, Unit::Second) => t!("history.time.agoSecond", count = n),
+        (true, Unit::Minute) => t!("history.time.agoMinute", count = n),
+        (true, Unit::Hour) => t!("history.time.agoHour", count = n),
+        (true, Unit::Day) => t!("history.time.agoDay", count = n),
+        (true, Unit::Week) => t!("history.time.agoWeek", count = n),
+        (true, Unit::Month) => t!("history.time.agoMonth", count = n),
+        (true, Unit::Year) => t!("history.time.agoYear", count = n),
+        (false, Unit::Second) => t!("history.time.inSecond", count = n),
+        (false, Unit::Minute) => t!("history.time.inMinute", count = n),
+        (false, Unit::Hour) => t!("history.time.inHour", count = n),
+        (false, Unit::Day) => t!("history.time.inDay", count = n),
+        (false, Unit::Week) => t!("history.time.inWeek", count = n),
+        (false, Unit::Month) => t!("history.time.inMonth", count = n),
+        (false, Unit::Year) => t!("history.time.inYear", count = n),
+    }
 }
 
 /// A play as its row shows it (`historyRow`).
@@ -166,7 +199,7 @@ pub fn history_row(entry: &HistoryEntry, now: i64) -> HistoryRow {
 
 /// "1 play", "12 plays".
 pub fn plays(total: i64) -> String {
-    if total == 1 { "1 play".into() } else { format!("{total} plays") }
+    t!("history.plays", count = total)
 }
 
 /// Seconds since 1970 now.
@@ -410,7 +443,7 @@ impl HistoryScreen {
     fn header(&self, ui: &mut Ui) {
         let title = ui.text(
             Point::new(theme::GUTTER, theme::SAFE_Y),
-            "Watch history",
+            t!("history.title"),
             &theme::PAGE_TITLE,
             &TextOpts::default(),
             theme::FG,
@@ -522,7 +555,7 @@ impl HistoryScreen {
                     });
                 }
                 if more && d1 == n {
-                    let label = if self.loading.is_some() { "Loading…" } else { "Show more" };
+                    let label = if self.loading.is_some() { t!("history.loading") } else { t!("history.more") };
                     let at = Point::new(theme::GUTTER, TOP + more_top - shown);
                     let b = Button::pill(label).icon(Icon::ChevronDown).enabled(self.loading.is_none());
                     if b.show(ui, list_id.with("more"), at).activated {
@@ -613,10 +646,9 @@ impl Screen for HistoryScreen {
         self.header(ui);
         match (&self.rows, &self.error) {
             (None, Some(e)) => {
-                let title =
-                    if e.unreachable() { "Can't reach your server" } else { "Couldn't load your watch history" };
+                let title = if e.unreachable() { t!("history.unreachable") } else { t!("history.failed") };
                 let body = e.problem();
-                if message(ui, root.with("message"), title, &body, "Retry") {
+                if message(ui, root.with("message"), title, &body, t!("history.retry")) {
                     self.error = None;
                     self.load(cx, 0, PAGE);
                 }
@@ -627,8 +659,8 @@ impl Screen for HistoryScreen {
                 }
             }
             (Some(rows), _) if rows.is_empty() => {
-                let body = "Movies, episodes and songs you finish show up here.";
-                if message(ui, root.with("message"), "No history yet", body, "Back") {
+                let (title, body) = (t!("history.emptyTitle"), t!("history.empty"));
+                if message(ui, root.with("message"), title, body, t!("history.back")) {
                     cx.back();
                 }
             }
@@ -677,6 +709,31 @@ mod tests {
         assert_eq!(relative_time(now, now), "now");
         assert_eq!(relative_time(now - 60, now), "1 minute ago");
         assert_eq!(relative_time(0, now), "never");
+        assert_eq!(relative_time(now + 86_400, now), "tomorrow");
+        assert_eq!(relative_time(now - 400 * 86_400, now), "last year");
+        assert_eq!(relative_time(now + 40 * 86_400, now), "next month");
+    }
+
+    #[test]
+    fn times_are_worded_in_french_and_spanish() {
+        use pley_i18n::{Language, with_language};
+        let now = 1_700_000_000;
+        with_language(Language::Fr, || {
+            assert_eq!(relative_time(now - 180, now), "il y a 3 minutes");
+            assert_eq!(relative_time(now - 60, now), "il y a 1 minute");
+            assert_eq!(relative_time(now + 5 * 3600, now), "dans 5 heures");
+            assert_eq!(relative_time(now - 86_400, now), "hier");
+            assert_eq!(relative_time(now - 400 * 86_400, now), "l\u{2019}année dernière");
+            assert_eq!(relative_time(now, now), "maintenant");
+            assert_eq!(relative_time(0, now), "jamais");
+            assert_eq!((plays(0), plays(2)), ("0 lecture".to_string(), "2 lectures".to_string()));
+        });
+        with_language(Language::Es, || {
+            assert_eq!(relative_time(now - 14 * 86_400, now), "hace 2 semanas");
+            assert_eq!(relative_time(now + 7 * 86_400, now), "la próxima semana");
+            assert_eq!(relative_time(now - 30, now), "hace 30 segundos");
+            assert_eq!((plays(1), plays(3)), ("1 reproducción".to_string(), "3 reproducciones".to_string()));
+        });
     }
 
     #[test]

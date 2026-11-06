@@ -67,14 +67,14 @@ impl SettingsSection {
     /// The category's name on screen.
     pub fn label(self) -> &'static str {
         match self {
-            SettingsSection::Profile => "Profile",
-            SettingsSection::Playback => "Playback",
-            SettingsSection::Audio => "Audio",
-            SettingsSection::SubtitlesAndDisplay => "Subtitles and display",
-            SettingsSection::Server => "Server",
-            SettingsSection::Diagnostics => "Diagnostics",
-            SettingsSection::About => "About",
-            SettingsSection::SignOut => "Sign out",
+            SettingsSection::Profile => pley_i18n::t!("settings.categories.profile"),
+            SettingsSection::Playback => pley_i18n::t!("settings.categories.playback"),
+            SettingsSection::Audio => pley_i18n::t!("settings.categories.audio"),
+            SettingsSection::SubtitlesAndDisplay => pley_i18n::t!("settings.categories.display"),
+            SettingsSection::Server => pley_i18n::t!("settings.categories.server"),
+            SettingsSection::Diagnostics => pley_i18n::t!("settings.categories.diagnostics"),
+            SettingsSection::About => pley_i18n::t!("settings.categories.about"),
+            SettingsSection::SignOut => pley_i18n::t!("settings.categories.signOut"),
         }
     }
 
