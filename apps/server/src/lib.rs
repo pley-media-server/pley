@@ -25,6 +25,7 @@ pub mod http;
 pub mod i18n;
 pub mod identity;
 pub mod images;
+pub mod import;
 pub mod instance;
 pub mod jellyfin;
 pub mod labels;

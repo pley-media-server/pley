@@ -55,7 +55,7 @@ details.
   [Watch state on other devices](#watch-state-on-other-devices)
 - [Live TV](#live-tv)
 - [Users](#users-admin), [Invitations](#invitations),
-  [System](#system-admin)
+  [System](#system-admin), [Moving from Plex](#moving-from-plex-admin)
 
 ## Conventions
 
@@ -3475,7 +3475,8 @@ administrator's account sees everyone's sessions
 
 `/api/events`: each stream gets the events of the libraries its user may
 open, and the user's own events; an administrator's gets everyone's
-`sessions_changed` too, for the dashboard, as does that of one of Pley's
+`sessions_changed` too, for the dashboard, and `import_changed` while
+[the Plex import](#moving-from-plex-admin) runs, as does that of one of Pley's
 own apps allowed `activity` on an administrator's account. A comment line
 keeps it alive every 15 s. The token is checked again every 30 s: the
 stream ends once it is signed out, expired or its account disabled, and
@@ -4520,3 +4521,123 @@ interface TranscoderStatus {
   }[];
 }
 ```
+
+## Moving from Plex *(admin)*
+
+The Plex import reads a Plex Media Server through Plex's own API, never
+its database, and brings over its libraries, its Home users as profiles
+with their restrictions, the titles' labels and dates added, and each
+person's watched titles, resume points, ratings and plays. Pley's scan
+makes the titles; the import finds which of them each of Plex's is, by
+its file (through the folders' mapping, with the same size), then by its
+TMDB, IMDb or TheTVDB id (an episode by its show's and its numbers),
+never by its title. Music is matched by file only. None of these routes
+are open to apps.
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| POST | `/api/import/plex/pin` | `admin` | `{ forward_url? }` → `{ code, auth_url }`: starts Plex's sign-in; the person allows Pley at `auth_url`, which goes on to `forward_url` (http or https) |
+| GET | `/api/import/plex/pin` | `admin` | `{ signed_in }`, asked every few seconds until `true`; `409 plex_pin_expired` once the PIN has expired |
+| POST | `/api/import/plex/token` | `admin` | `{ token }` → `204`: signs in with a Plex token instead |
+| GET | `/api/import/plex/servers` | `admin` | `{ id, name, owned, version }[]`: the servers the account owns (only an owner can read everyone's history and the Home's restrictions) |
+| POST | `/api/import/plex/server` | `admin` | `{ id }`, or `{ address }` for a server plex.tv doesn't list or Pley can't reach through it → `{ name }`: connected; `409 plex_not_owned` for a server the account doesn't own |
+| GET | `/api/import/plex/plan` | `admin` | `ImportPlan` |
+| POST | `/api/import/plex/start` | `admin` | `ImportChoices` → `202`; `409 import_running` while one runs |
+| GET | `/api/import/plex` | `admin` | `ImportProgress`: the import running, or the last one's report |
+| DELETE | `/api/import/plex` | `admin` | `204`: stops the import, and forgets the Plex sign-in |
+
+Before signing in, the routes that need it answer `409 plex_signed_out`,
+and before a server is chosen `409 plex_no_server`. Plex refusing the
+token is `409 plex_refused`; Plex out of reach, `503`.
+
+```ts
+interface ImportPlan {
+  server: string;
+  libraries: {
+    key: string; title: string;
+    kind: "movies" | "shows" | "music";   // Plex's photo libraries are left out
+    locations: string[];                  // Plex's folders
+    pairing: {
+      status: "matched" | "unsure" | "not_in_pley";
+      library_id: Id | null;              // the Pley library most of its files are in
+      folders: { plex: string; pley: string }[];  // read off the files found
+      folders_here: string[];             // Plex's folders this server can open
+    };
+  }[];
+  users: {
+    id: number; title: string;            // Plex's
+    admin: boolean;                       // the account signed in, which comes as the administrator
+    restricted: boolean; protected: boolean;
+    profile_id: Id | null;                // the profile an earlier import made
+    limits: { max_age: number | null; max_age_system: string | null;
+              show_labels: string[]; hide_labels: string[];
+              left_over: string[];        // labels past the 50 a profile keeps
+              not_kept: string[] };       // parts of Plex's rules Pley can't keep
+  }[];
+}
+
+interface ImportChoices {
+  // A Plex library goes to a Pley library, or to one made for it with
+  // `new`; one not listed is left out.
+  libraries: { key: string; library_id?: Id; new?: { name: string; paths: string[] } }[];
+  folders?: { plex: string; pley: string }[];   // where Plex's folders are for Pley
+  users?: { id: number; pin?: string }[];       // Home users; a PIN only when Plex asked for it
+}
+
+interface ImportProgress {
+  state: "idle" | "running" | "done" | "failed" | "cancelled";
+  step: "scanning" | "profiles" | "matching" | "labels" | "watch_state" | "history" | null;
+  done: number; total: number;
+  error: string | null;
+  report: {
+    finished_at: number;
+    outcome: "done" | "failed" | "cancelled";   // kept with the report, so it's known after a restart
+    error: string | null;
+    libraries: { title: string; library_id: Id | null; created: boolean;
+                 matched: number; missed: number; missed_titles: string[] }[];
+    profiles: { title: string; user_id: Id | null; created: boolean;
+                skipped: "pin_needed" | "refused" | "no_access" | null;
+                max_age: number | null; show_labels: string[]; hide_labels: string[];
+                left_over: string[]; not_kept: string[];
+                watched: number; resumed: number; rated: number; plays: number;
+                incomplete: boolean }[];   // Plex refused some of their lists
+    labels_added: number;
+    dates_moved: number;
+  } | null;
+}
+```
+
+- **Libraries.** `pairing` looks for a few of each Plex library's files
+  among Pley's, by name and size. Every choice is checked before anything
+  is made. Libraries made with `new` are scanned before anything is
+  matched, and the import waits for them. A Plex library's titles are
+  looked for only in the Pley library it's paired with.
+- **People.** The Plex account comes as the administrator who starts the
+  import. Each Home user listed becomes a managed profile of the home
+  with their name, or the one an earlier import made for them, before
+  anything else is brought. Pley switches to them as the Home's
+  administrator, without a PIN first; one whose PIN Plex asks for and
+  `users` doesn't give is skipped (`pin_needed`). A new profile opens all
+  of Pley's libraries only when Plex let them open all of its own and
+  every Pley library is one of those brought; otherwise just the ones
+  they could open. Plex refusing one person's lists marks theirs
+  `incomplete` and the import goes on.
+- **Restrictions.** A restricted Home user's profile is made with them,
+  in one go: an age limit from Plex's ratings (the lower of the movie and
+  TV rules', in the system most of them are in; a rating written with its
+  country is read with that country's ratings only, and left out when
+  Pley doesn't know it there), "always show" labels from `label=` (only
+  those every rule with ratings has) and "never show" labels from
+  `label!=`. A rule allowing only some labels, which Pley can't keep,
+  becomes the strictest it can: rated for all ages, or with those
+  labels. A profile found again keeps its own age limit and gets Plex's
+  labels added to its own.
+- **What's merged.** Labels are added to titles, never removed. A date
+  added only moves earlier. Watched is never taken away, and the play
+  count and last played are the larger; a resume point comes when
+  Plex's is newer than Pley's (on a watched title too, as a rewatch), and
+  one Pley has from after Plex's watch stays; a rating when Pley has
+  none, rounded as Pley keeps them; a play once (by person, title and
+  time), with its device's name.
+- `import_changed` goes to administrators' event streams as it moves on;
+  they fetch `GET /api/import/plex` again.

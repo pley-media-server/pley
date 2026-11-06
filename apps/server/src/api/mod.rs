@@ -9,6 +9,7 @@ pub(crate) mod collections;
 mod compatibility_tokens;
 pub(crate) mod editing;
 mod history;
+mod import;
 pub(crate) mod items;
 mod libraries;
 mod livetv;
@@ -36,6 +37,8 @@ use tower_http::trace::TraceLayer;
 
 use crate::error::AppError;
 use crate::state::AppState;
+
+pub(crate) use libraries::{add as add_library, validate_paths as validate_library_paths};
 
 pub fn router(state: AppState) -> Router {
     let api = Router::new()
@@ -76,6 +79,13 @@ pub fn router(state: AppState) -> Router {
         .route("/oauth/device/verify", post(oauth::verify_user_code).layer(DefaultBodyLimit::max(FORM_MAX)))
         .route("/oauth/device/qr", get(oauth::device_qr))
         .route("/oauth/profiles", get(oauth::profiles))
+        .route("/import/plex", get(import::progress).delete(import::forget))
+        .route("/import/plex/pin", get(import::sign_in_status).post(import::start_sign_in))
+        .route("/import/plex/token", post(import::use_token))
+        .route("/import/plex/servers", get(import::servers))
+        .route("/import/plex/server", post(import::choose_server))
+        .route("/import/plex/plan", get(import::plan))
+        .route("/import/plex/start", post(import::start))
         .route("/libraries", get(libraries::list).post(libraries::create))
         .route("/libraries/scan", post(libraries::scan_all))
         .route("/libraries/order", put(libraries::reorder))

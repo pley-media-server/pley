@@ -71,7 +71,7 @@ impl Rating {
 impl System {
     /// The age of `rating` in this country: a rating of the kind first, then
     /// one of the other kind (TMDB gives some TV shows a film rating).
-    fn age(&self, kind: Kind, rating: &str) -> Option<i64> {
+    pub fn age(&self, kind: Kind, rating: &str) -> Option<i64> {
         let named = |r: &&Rating| r.names.iter().any(|n| same(n, rating));
         let found = self.ratings.iter().filter(named).find(|r| r.kind.is_none_or(|k| k == kind));
         found.or_else(|| self.ratings.iter().find(named)).map(|r| r.age)

@@ -134,7 +134,7 @@ pub struct CreateLibrary {
     paths: Vec<String>,
 }
 
-fn validate_paths(paths: &[String]) -> ApiResult<Vec<String>> {
+pub(crate) fn validate_paths(paths: &[String]) -> ApiResult<Vec<String>> {
     let mut out = Vec::new();
     for raw in paths {
         let p = raw.trim();
@@ -165,11 +165,18 @@ pub async fn create(
     _admin: AdminUser,
     Json(body): Json<CreateLibrary>,
 ) -> ApiResult<(StatusCode, Json<LibraryDto>)> {
-    let name = body.name.trim();
+    let id = add(&state, &body.name, body.kind, &body.paths).await?;
+    let lib = library_or_404(&state, id).await?;
+    Ok((StatusCode::CREATED, Json(to_dto(&state, &lib, None).await?)))
+}
+
+/// Adds a library and starts its first scan.
+pub(crate) async fn add(state: &AppState, name: &str, kind: LibraryKind, paths: &[String]) -> ApiResult<i64> {
+    let name = name.trim();
     if name.is_empty() || name.chars().count() > 100 {
         return Err(AppError::bad_request("library name must be 1-100 characters"));
     }
-    let paths = validate_paths(&body.paths)?;
+    let paths = validate_paths(paths)?;
     // Listed last, with an id no library has had (migrations/0021).
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO libraries (id, name, kind, paths, created_at, position)
@@ -177,7 +184,7 @@ pub async fn create(
          RETURNING id",
     )
     .bind(name)
-    .bind(body.kind.as_str())
+    .bind(kind.as_str())
     .bind(serde_json::to_string(&paths).map_err(|e| AppError::Internal(e.into()))?)
     .bind(now())
     .fetch_one(&state.db.write)
@@ -185,8 +192,7 @@ pub async fn create(
     state.scanner.enqueue(id, false);
     state.watcher.reload().await;
     state.events.send(ServerEvent::LibrariesChanged);
-    let lib = library_or_404(&state, id).await?;
-    Ok((StatusCode::CREATED, Json(to_dto(&state, &lib, None).await?)))
+    Ok(id)
 }
 
 #[derive(Deserialize)]

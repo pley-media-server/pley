@@ -484,6 +484,31 @@ other apps (`pley_ct_…`), never with a session's
 - TMDB's pictures are fetched 8 at once, 10 MB each at most, and kept up
   to 256 MB in all.
 
+### Moving from Plex
+
+- Only administrators import, and none of the import's routes are open to
+  apps.
+- The Plex token, from Plex's own sign-in page or pasted, is kept in
+  memory only: never saved, logged or sent to the browser, and forgotten
+  when the import is cancelled or the server stops. Home users' tokens
+  are made from it as the import needs them, and kept no longer. Plex
+  PINs given for Home users are sent to plex.tv only.
+- Pley reads Plex's answers 8 MB at most each, follows no redirects, and
+  sends tokens in headers, never in addresses. It connects only to the
+  server's addresses plex.tv lists, or one the administrator types, never
+  to a link-local address (neither one typed in nor one a name resolves
+  to), and checks that the server answering is the one chosen. It falls
+  back to plain HTTP only for the server's addresses on the home network,
+  never one across the internet.
+- A Home user's profile is made with Plex's restrictions in the same
+  step, so it's never open to everything while the import runs, or if it
+  stops. A restriction Pley can't keep is made stricter, never dropped.
+- What Plex sends is checked as any input: labels and label rules as
+  Settings checks them, at most 50 rules of each kind on a profile, and
+  the import's choices bounded (libraries, folders, people, PINs).
+- Profiles the import makes are managed profiles with no password, as
+  those made in Settings; Plex's PINs aren't copied to them.
+
 ### The desktop app
 
 - Its window shows the server's own pages only; other sites open in the

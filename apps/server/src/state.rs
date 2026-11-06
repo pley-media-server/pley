@@ -33,6 +33,8 @@ pub struct Inner {
     pub auth: AuthService,
     pub settings: Arc<SettingsStore>,
     pub events: EventBus,
+    /// The Plex import (see [`crate::import`]).
+    pub plex_import: Arc<crate::import::Importer>,
     pub transcoder: Arc<Transcoder>,
     pub metadata: Arc<MetadataAgent>,
     /// Subtitle search and downloads (see [`crate::subtitles`]).
@@ -209,6 +211,7 @@ impl AppState {
                 identity,
                 oauth,
                 started_at: Instant::now(),
+                plex_import: Arc::new(crate::import::Importer::new(&config.plex_tv)),
                 stopping,
                 config,
                 db,

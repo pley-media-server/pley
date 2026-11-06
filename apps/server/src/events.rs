@@ -272,6 +272,13 @@ pub enum ServerEvent {
         #[serde(skip)]
         user_id: Option<i64>,
     },
+    /// The Plex import moved on (a step, its progress, or it ended): to the
+    /// streams of the administrator who started it and other
+    /// administrators', who fetch its state again.
+    ImportChanged {
+        #[serde(skip)]
+        user_id: i64,
+    },
 }
 
 /// A cast's switch ticket (see `ServerEvent::Cast`): sent as it is, never
@@ -310,7 +317,8 @@ impl ServerEvent {
             | ServerEvent::RequestDecided { .. }
             | ServerEvent::RequestCreated { .. }
             | ServerEvent::RequestFailed { .. }
-            | ServerEvent::RequestsSettingsChanged { .. } => None,
+            | ServerEvent::RequestsSettingsChanged { .. }
+            | ServerEvent::ImportChanged { .. } => None,
         }
     }
 
@@ -325,7 +333,8 @@ impl ServerEvent {
             | ServerEvent::SessionStopped { user_id, .. }
             | ServerEvent::PlayerCommand { user_id, .. }
             | ServerEvent::Cast { user_id, .. }
-            | ServerEvent::LiveTakenOver { user_id, .. } => Some(*user_id),
+            | ServerEvent::LiveTakenOver { user_id, .. }
+            | ServerEvent::ImportChanged { user_id } => Some(*user_id),
             ServerEvent::RequestsSettingsChanged { user_id } => *user_id,
             _ => None,
         }
@@ -345,7 +354,7 @@ impl ServerEvent {
     /// Whether administrators' streams get the event too, whoever's it is:
     /// their dashboard lists everyone's sessions.
     pub fn to_administrators(&self) -> bool {
-        matches!(self, ServerEvent::SessionsChanged { .. })
+        matches!(self, ServerEvent::SessionsChanged { .. } | ServerEvent::ImportChanged { .. })
     }
 
     /// Whom a request's event is for.
