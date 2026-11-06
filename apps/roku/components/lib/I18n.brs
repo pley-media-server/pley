@@ -192,7 +192,9 @@ function i18nNumber(n as dynamic, decimals = 0 as integer) as string
     group = ","
     point = "."
     if language = "fr"
-        group = Chr(8239)
+        ' A no-break space, not the narrow one French prefers: every Latin font draws U+00A0, while a
+        ' Roku's system font may not have U+202F.
+        group = Chr(160)
         point = ","
     else if language = "es"
         group = "."
