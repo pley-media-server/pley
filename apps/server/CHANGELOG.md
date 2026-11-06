@@ -15,6 +15,10 @@ describes how they are made.
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays
   as you, after your PIN when your profile has one.
+- A device that gives itself a TV's name and id on the TV's profile is
+  listed beside the TV ("Living room TV (2)"), never in its place: the TV
+  is listed again the moment it is back from being off or reconnecting,
+  and what you send the TV reaches the TV alone.
 - The web app's Play on… lists your household's devices too, and asks for
   your PIN in its menu's place when your profile has one. The desktop app
   switches to the profile of the remote that sends it something, as a TV
