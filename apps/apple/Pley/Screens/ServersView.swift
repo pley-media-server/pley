@@ -35,8 +35,10 @@ struct ServersView: View {
                     row(entry)
                 }
                 if model.foundEntries.isEmpty && !model.searching && !model.blocked {
-                    Text("No servers found on this network. Turn on Bonjour in the server's "
-                         + "Settings → Network, or add it by its address.")
+                    Text("""
+                         No servers found on this network. Turn on Bonjour in the server's \
+                         Settings → Network, or add it by its address.
+                         """)
                         .foregroundStyle(.secondary)
                 }
             } header: {
@@ -132,8 +134,10 @@ struct ServersView: View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Pley can't see your local network", systemImage: "wifi.exclamationmark")
                 .font(.headline)
-            Text("To find servers at home, allow Pley in Settings → Privacy & Security → Local Network. "
-                + "Servers can still be added by their address.")
+            Text("""
+                 To find servers at home, allow Pley in Settings → Privacy & Security → Local Network. \
+                 Servers can still be added by their address.
+                 """)
                 .font(.footnote)
                 .foregroundStyle(.secondary)
             #if os(iOS)

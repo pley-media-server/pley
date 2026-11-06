@@ -131,8 +131,11 @@ enum SettingsSections {
             } header: {
                 Text("Playback")
             } footer: {
-                Text(model.autoplayNext ? "Up Next counts down, then plays the next episode."
-                     : "Up Next waits for you to choose Play Next.")
+                if model.autoplayNext {
+                    Text("Up Next counts down, then plays the next episode.")
+                } else {
+                    Text("Up Next waits for you to choose Play Next.")
+                }
             }
         }
 
@@ -175,7 +178,7 @@ enum SettingsSections {
             } header: {
                 Text("Subtitles")
             } footer: {
-                Text(SettingsModel.systemStyleNote + " Position moves text subtitles only.")
+                Text(SettingsModel.systemStyleNote + " " + localized("Position moves text subtitles only."))
             }
         }
     }
@@ -273,7 +276,7 @@ struct HistoryView: View {
         case .loading:
             StateView(kind: .loading)
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load your history", why: why,
+            StateView(kind: .failed(title: localized("Couldn't load your history"), why: why,
                                     retry: { Task { await model.load() } }))
         case .loaded where model.rows.isEmpty:
             StateView(kind: .empty(symbol: "clock", text: HistoryModel.emptyText, action: nil))
@@ -405,7 +408,7 @@ struct AboutView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Pley").font(.title.bold())
+                    Text(verbatim: "Pley").font(.title.bold())
                     Text(model.title)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("about.version")

@@ -104,7 +104,9 @@ struct MeView: View {
         #endif
         .navigationTitle("Me")
         .task(id: app.user?.id) { await model.load() }
-        .confirmationDialog("Sign out of \(app.server?.name ?? "this server")?", isPresented: $confirmSignOut,
+        .confirmationDialog(app.server.map { localized("Sign out of \($0.name)?") }
+                                ?? localized("Sign out of this server?"),
+                            isPresented: $confirmSignOut,
                             titleVisibility: .visible) {
             Button("Sign out", role: .destructive) { Task { await model.signOut() } }
                 .accessibilityIdentifier("me.signOut.confirm")

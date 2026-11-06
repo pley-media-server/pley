@@ -55,14 +55,14 @@ struct PleyApp: App {
 
         #if os(macOS)
         // The player, in a window of its own per playback.
-        WindowGroup("Player", id: PlayerWindow.id, for: PlayRequest.self) { $request in
+        WindowGroup(localized("Player"), id: PlayerWindow.id, for: PlayRequest.self) { $request in
             PlayerWindow(app: app, request: request)
                 .environment(\.locale, app.locale)
         }
         .defaultSize(width: 960, height: 540)
         .restorationBehavior(.disabled)
         // Live TV's player, a window of its own too.
-        WindowGroup("Live TV", id: LiveWindow.id, for: LiveRequest.self) { $request in
+        WindowGroup(localized("Live TV"), id: LiveWindow.id, for: LiveRequest.self) { $request in
             LiveWindow(app: app, request: request)
                 .environment(\.locale, app.locale)
         }

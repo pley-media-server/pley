@@ -14,6 +14,9 @@ import SwiftUI
 ///   (⇧⌘R) where requests are open, Reload (⌘R), Larger and Smaller Tiles (⌘=, ⌘−;
 ///   ⌘+ too, through `MacAppDelegate`'s key monitor),
 ///   then the sidebar's and the toolbar's own commands.
+///
+/// Menus have no environment, so no locale: their words go through
+/// `localized`, and observing `AppModel` makes them again in another language.
 struct MacCommands: Commands {
     @ObservedObject var app: AppModel
     @ObservedObject var shell: ShellModel
@@ -29,18 +32,18 @@ struct MacCommands: Commands {
 
     var body: some Commands {
         CommandGroup(replacing: .appInfo) {
-            Button("About Pley") { openWindow(id: AboutWindow.id) }
+            Button(localized("About Pley")) { openWindow(id: AboutWindow.id) }
         }
         CommandGroup(replacing: .newItem) {
-            Button("Add Server…") { app.showServers(adding: true) }
+            Button(localized("Add Server…")) { app.showServers(adding: true) }
                 .keyboardShortcut("n", modifiers: [.command, .shift])
-            Button("Servers") { app.showServers() }
+            Button(localized("Servers")) { app.showServers() }
                 .disabled(app.root == .servers || app.root == .starting)
             Divider()
-            Button("Switch Profile…") { app.showProfiles() }
+            Button(localized("Switch Profile…")) { app.showProfiles() }
                 .keyboardShortcut("p", modifiers: [.command, .shift])
                 .disabled(!signedIn || !app.canSwitchProfile)
-            Button("Sign Out…") { signOut() }
+            Button(localized("Sign Out…")) { signOut() }
                 .disabled(app.user == nil)
         }
         CommandGroup(before: .sidebar) {
@@ -58,14 +61,14 @@ struct MacCommands: Commands {
                     .disabled(!signedIn)
             }
             Divider()
-            Button("Reload") { Task { await shell.reloadShowing() } }
+            Button(localized("Reload")) { Task { await shell.reloadShowing() } }
                 .keyboardShortcut("r")
                 .disabled(!signedIn || !shell.canReload)
             // ⌘=, the key ⌘+ is typed on: a menu item named "+" would need ⇧ too.
-            Button("Larger Tiles") { step(1) }
+            Button(localized("Larger Tiles")) { step(1) }
                 .keyboardShortcut("=")
                 .disabled(!signedIn || current.stepped(by: 1) == nil)
-            Button("Smaller Tiles") { step(-1) }
+            Button(localized("Smaller Tiles")) { step(-1) }
                 .keyboardShortcut("-")
                 .disabled(!signedIn || current.stepped(by: -1) == nil)
             Divider()
@@ -91,7 +94,7 @@ struct MacCommands: Commands {
                 button
             }
         } else {
-            Button("Search") { shell.findInSearch() }
+            Button(localized("Search")) { shell.findInSearch() }
                 .keyboardShortcut("f")
                 .disabled(!signedIn)
         }
@@ -112,10 +115,11 @@ struct MacCommands: Commands {
     /// Asks first, as Me's Sign out does.
     private func signOut() {
         let alert = NSAlert()
-        alert.messageText = "Sign out of \(app.server?.name ?? "this server")?"
-        alert.informativeText = "You can sign in again from Servers."
-        alert.addButton(withTitle: "Sign Out")
-        alert.addButton(withTitle: "Cancel")
+        alert.messageText = app.server.map { localized("Sign out of \($0.name)?") }
+            ?? localized("Sign out of this server?")
+        alert.informativeText = localized("You can sign in again from Servers.")
+        alert.addButton(withTitle: localized("Sign Out"))
+        alert.addButton(withTitle: localized("Cancel"))
         alert.buttons.first?.hasDestructiveAction = true
         guard alert.runModal() == .alertFirstButtonReturn else { return }
         Task { await app.signOut() }
@@ -125,10 +129,11 @@ struct MacCommands: Commands {
 /// About Pley: a window of its own, in place of the standard panel.
 struct AboutWindow: Scene {
     static let id = "about"
-    let app: AppModel
+    /// Observed, so the window's title follows the language shown.
+    @ObservedObject var app: AppModel
 
     var body: some Scene {
-        Window("About Pley", id: Self.id) {
+        Window(localized("About Pley"), id: Self.id) {
             InLanguage(app: app) {
                 AboutView()
                     .frame(minWidth: 420, idealWidth: 460, minHeight: 300, idealHeight: 320)

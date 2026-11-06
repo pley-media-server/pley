@@ -47,7 +47,7 @@ struct CollectionTile: View {
                     }
                     .overlay(alignment: .topLeading) {
                         if card.smart || card.automatic {
-                            ListBadge(text: card.smart ? "Smart" : "TMDB").padding(6)
+                            ListBadge(text: card.smart ? localized("Smart") : "TMDB").padding(6)
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
@@ -95,6 +95,7 @@ struct CollectionTile: View {
 
 /// A small word over a picture: "Smart", "TMDB".
 struct ListBadge: View {
+    /// Shown as it is: callers pass words through `localized`.
     let text: String
 
     var body: some View {
@@ -157,7 +158,7 @@ struct PlaylistTile: View {
             VStack(alignment: .leading, spacing: 6) {
                 PlaylistMosaic(app: app, artwork: card.artwork, video: card.video, size: width)
                     .overlay(alignment: .topLeading) {
-                        if card.smart { ListBadge(text: "Smart").padding(6) }
+                        if card.smart { ListBadge(text: localized("Smart")).padding(6) }
                     }
                     .overlay {
                         if hovering && reduceMotion {

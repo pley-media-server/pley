@@ -34,7 +34,9 @@ struct ArtistView: View {
         case .notFound:
             StateView(kind: .empty(symbol: "music.mic", text: ItemModel.notFoundTitle, action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load this artist", why: why) { Task { await model.load() } })
+            StateView(kind: .failed(title: localized("Couldn't load this artist"), why: why) {
+                Task { await model.load() }
+            })
         case .loaded:
             if let page = model.page {
                 loaded(page)
@@ -134,7 +136,9 @@ struct AlbumView: View {
         case .notFound:
             StateView(kind: .empty(symbol: "music.note", text: ItemModel.notFoundTitle, action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load this album", why: why) { Task { await model.load() } })
+            StateView(kind: .failed(title: localized("Couldn't load this album"), why: why) {
+                Task { await model.load() }
+            })
         case .loaded:
             if let page = model.page {
                 loaded(page)
@@ -274,8 +278,11 @@ struct AlbumView: View {
         .overlay(alignment: .bottom) { Divider().padding(.leading, 44) }
         .contextMenu { PlayOnMenu(remote: app.remote, target: .item(track.id), prefix: "album.track") }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(track.spoken + (current ? (playing ? ", playing" : ", paused") : ""))
-        .accessibilityHint(current ? (playing ? "Pauses" : "Plays on") : "Plays the album from this track")
+        .accessibilityLabel(current
+            ? (playing ? localized("\(track.spoken), playing") : localized("\(track.spoken), paused"))
+            : track.spoken)
+        .accessibilityHint(current ? (playing ? localized("Pauses") : localized("Plays on"))
+            : localized("Plays the album from this track"))
         .accessibilityAddTraits(highlighted ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier("album.track.\(track.id)")
     }

@@ -76,7 +76,7 @@ struct SearchView: View {
                     .accessibilityIdentifier("search.empty")
             }
         case .failed(_, let why):
-            StateView(kind: .failed(title: "Search failed", why: why, retry: { model.retry() }))
+            StateView(kind: .failed(title: localized("Search failed"), why: why, retry: { model.retry() }))
         }
     }
 
@@ -85,7 +85,7 @@ struct SearchView: View {
     @ViewBuilder private var recent: some View {
         if model.recent.isEmpty && !shell.requestsEntry.discover {
             StateView(kind: .empty(symbol: "magnifyingglass",
-                                   text: "Search for movies, shows, people and music.", action: nil))
+                                   text: localized("Search for movies, shows, people and music."), action: nil))
         } else {
             List {
                 if shell.requestsEntry.discover {
@@ -160,7 +160,7 @@ private struct ChannelsRow: View {
     var body: some View {
         let gutter = Metrics.gutter(regular: layout.wide)
         VStack(alignment: .leading, spacing: 10) {
-            Text("\(group.kind.title) (\(group.count))")
+            Text(verbatim: "\(group.kind.title) (\(group.count))")
                 .font(.title3.bold())
                 .accessibilityAddTraits(.isHeader)
                 .padding(.horizontal, gutter)
@@ -230,7 +230,7 @@ private struct PeopleRow: View {
     var body: some View {
         let gutter = Metrics.gutter(regular: layout.wide)
         VStack(alignment: .leading, spacing: 10) {
-            Text("\(group.kind.title) (\(group.count))")
+            Text(verbatim: "\(group.kind.title) (\(group.count))")
                 .font(.title3.bold())
                 .accessibilityAddTraits(.isHeader)
                 .padding(.horizontal, gutter)

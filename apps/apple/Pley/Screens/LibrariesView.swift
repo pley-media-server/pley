@@ -47,8 +47,10 @@ struct LibrariesView: View {
             StateView(kind: .failed(title: LibrariesModel.failedTitle, why: why) { Task { await model.reload() } })
         case .loaded where model.entries.isEmpty:
             StateView(kind: .empty(symbol: "square.stack",
-                                   text: "\(LibrariesModel.emptyTitle). Add a library on the server, "
-                                       + "or ask its owner for one.",
+                                   text: localized("""
+                                       \(LibrariesModel.emptyTitle). Add a library on the server, \
+                                       or ask its owner for one.
+                                       """),
                                    action: nil))
         case .loaded:
             List {
