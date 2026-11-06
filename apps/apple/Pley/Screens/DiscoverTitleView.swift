@@ -137,13 +137,13 @@ struct DiscoverTitleView: View {
             FlowLayout(spacing: 8, lineSpacing: 4) {
                 ForEach(Array(page.meta.enumerated()), id: \.offset) { index, part in
                     HStack(spacing: 8) {
-                        if index > 0 { Text("·") }
+                        if index > 0 { Text(verbatim: "·") }
                         Text(part)
                     }
                 }
                 if let certification = page.certification {
                     HStack(spacing: 8) {
-                        Text("·")
+                        Text(verbatim: "·")
                         Text(certification)
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 4)
@@ -356,7 +356,7 @@ private struct CastPhoto: View {
         }
         .frame(width: min(size, 140) + 16)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel([person.name, person.character.map { "as \($0)" }].compactMap { $0 }
+        .accessibilityLabel([person.name, person.character.map { localized("as \($0)") }].compactMap { $0 }
             .joined(separator: ", "))
         .accessibilityIdentifier("discoverTitle.cast.\(person.index)")
     }

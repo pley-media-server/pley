@@ -105,7 +105,7 @@ struct DiscoverView: View {
                     .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button(RequestWords.seeAll) { app.shell.open(.requests) }
-                    .accessibilityLabel("\(RequestWords.seeAll), \(model.yourRequestsTitle)")
+                    .accessibilityLabel(Text(verbatim: "\(RequestWords.seeAll), \(model.yourRequestsTitle)"))
                     .accessibilityIdentifier("discover.yourRequests.seeAll")
             }
             .padding(.horizontal, gutter)
