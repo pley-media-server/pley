@@ -18,7 +18,7 @@ pub fn clamp_offset(ms: i64) -> i32 {
 }
 
 /// The offset as the sync row shows it: `+0.5 s`, `−1.2 s` (a true minus
-/// sign), `0.0 s`.
+/// sign), `0.0 s`; `+0,5 s` in French and Spanish.
 pub fn format_offset(ms: i64) -> String {
     let v = clamp_offset(ms);
     let sign = match v {
@@ -26,8 +26,9 @@ pub fn format_offset(ms: i64) -> String {
         ..0 => "\u{2212}",
         0 => "",
     };
-    let a = v.unsigned_abs();
-    format!("{sign}{}.{} s", a / 1000, a % 1000 / 100)
+    // Whole steps of 100 ms: the tenths are exact.
+    let tenths = v.unsigned_abs() / 100;
+    format!("{sign}{} s", pley_i18n::decimal(f64::from(tenths) / 10.0, 1))
 }
 
 /// The offsets this TV remembers, by file and profile, oldest first, as the
@@ -128,6 +129,10 @@ mod tests {
         assert_eq!(format_offset(-1200), "\u{2212}1.2 s");
         assert_eq!(format_offset(0), "0.0 s");
         assert_eq!(format_offset(-10_000), "\u{2212}10.0 s");
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            assert_eq!(format_offset(500), "+0,5 s");
+            assert_eq!(format_offset(-10_000), "\u{2212}10,0 s");
+        });
     }
 
     #[test]

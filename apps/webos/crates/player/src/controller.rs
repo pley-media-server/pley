@@ -46,6 +46,7 @@ use pley_core::model::{
 };
 use pley_core::task::{Cancel, Promise};
 use pley_core::{ApiError, CapsReport};
+use pley_i18n::t;
 use pley_subs::{Fetch, PictureAnswer, PictureTrack, Presenter, Shown, TrackKind, Trouble, clamp_offset};
 
 use crate::autoquality::{AutoOptions, AutoQuality, AutoStep, FIRST_MINUTE_MS, LiveStream, Remembered};
@@ -286,7 +287,7 @@ impl Default for PlayerState {
             subtitle: None,
             audio: Vec::new(),
             subtitles: Vec::new(),
-            quality: "Original".into(),
+            quality: t!("player.quality.original").into(),
             qualities: Vec::new(),
             method: None,
             note: None,
@@ -1165,7 +1166,7 @@ impl PlaybackController {
     fn begin(&mut self, at_ms: i64, g: u64, alongside: bool, restart: bool, flush: bool) {
         let Some(detail_id) = self.item.as_ref().map(|d| d.id) else { return };
         let Some(chosen) = self.file.clone() else {
-            self.fail(details::NO_FILE, false, None);
+            self.fail(details::no_file(), false, None);
             return;
         };
         let mut flush = flush;
@@ -1335,7 +1336,7 @@ impl PlaybackController {
         if self.env.keyed_urls && !self.local() && !is_keyed(&info.url) {
             self.discard(&info);
             self.preparing = None;
-            self.fail(details::TOO_OLD, false, None);
+            self.fail(details::too_old(), false, None);
             return;
         }
         if asked.alongside {
@@ -1595,7 +1596,7 @@ impl PlaybackController {
         }
         // A file on a drive has no server to burn them in.
         if self.local() {
-            self.notice(details::SUBTITLES_FAILED);
+            self.notice(details::subtitles_failed());
             return;
         }
         self.pictures_unavailable = true;
@@ -1804,7 +1805,7 @@ impl PlaybackController {
         // A file on a drive that still can't be read (the drive pulled out) says so, not that a
         // server is away (`SessionPlaybackController.kt`'s `act`).
         if self.local() && matches!(action, RecoveryAction::Fail { failure: Failure::Network | Failure::Stopped, .. }) {
-            self.fail(details::DRIVE_UNREADABLE, true, None);
+            self.fail(details::drive_unreadable(), true, None);
             return;
         }
         match action {
@@ -1833,11 +1834,11 @@ impl PlaybackController {
             }
             RecoveryAction::SuggestLowerQuality => {
                 self.state.suggest_lower_quality = true;
-                self.state.note = Some(details::SLOW_SERVER.into());
+                self.state.note = Some(details::slow_server().into());
                 self.changed();
             }
             RecoveryAction::Fail { failure, detail } => {
-                let title = (failure == Failure::Network).then(|| details::OFFLINE_TITLE.to_string());
+                let title = (failure == Failure::Network).then(|| details::offline_title().to_string());
                 self.fail(&failure_text(failure, detail.as_deref()), failure != Failure::Unplayable, title);
             }
         }
@@ -1982,7 +1983,7 @@ impl PlaybackController {
             // again: one whose picture never came isn't one this TV plays; one that played, here
             // or before the file was started again, can't be read any more (the drive pulled out).
             if self.local() {
-                let why = if self.shown_once { details::DRIVE_UNREADABLE } else { details::LOCAL_STUCK };
+                let why = if self.shown_once { details::drive_unreadable() } else { details::local_stuck() };
                 self.fail(why, true, None);
                 return;
             }
@@ -2154,13 +2155,13 @@ impl PlaybackController {
             RemoteAction::Play => {
                 self.play();
                 self.report(ProgressState::Playing);
-                self.remote_notice(remote::PLAYING.into());
+                self.remote_notice(remote::playing().into());
             }
             RemoteAction::Pause => {
                 self.pause();
                 // Nobody here paused it: the screen doesn't keep its controls for this pause.
                 self.state.paused_by_remote = true;
-                self.remote_notice(remote::PAUSED.into());
+                self.remote_notice(remote::paused().into());
             }
             // Playing or paused already: said again, so a remote a little behind settles.
             RemoteAction::Report => {
@@ -2783,7 +2784,8 @@ impl PlaybackController {
             (NextFor::Ended { sleeping }, Some(f)) => self.show_up_next(f, !sleeping),
             (NextFor::PlayNext, Some(f)) => self.switch_to(f),
             (NextFor::PlayNext, None) => {
-                let text = if self.current.queue.is_some() { details::LAST_IN_QUEUE } else { details::LAST_EPISODE };
+                let text =
+                    if self.current.queue.is_some() { details::last_in_queue() } else { details::last_episode() };
                 self.notice(text);
             }
             (NextFor::Remote, Some(f)) => self.switch_to(f),
@@ -3134,7 +3136,7 @@ impl PlaybackController {
 
     fn subtitle_trouble(&mut self, trouble: Option<Trouble>) {
         match trouble {
-            Some(Trouble::Failed) => self.notice(details::SUBTITLES_FAILED),
+            Some(Trouble::Failed) => self.notice(details::subtitles_failed()),
             Some(Trouble::PicturesUnavailable) => self.pictures_failed(),
             None => {}
         }
@@ -3270,7 +3272,7 @@ impl PlaybackController {
         } else {
             let off = TrackChoice {
                 index: None,
-                label: details::SUBTITLES_OFF.into(),
+                label: details::subtitles_off().into(),
                 selected: self.subtitle.is_none(),
                 burn_in: false,
                 added: false,
@@ -3310,7 +3312,7 @@ impl PlaybackController {
         };
         let auto_now = eased.clone().unwrap_or_else(|| {
             if playing.id == ORIGINAL_ID {
-                converted.unwrap_or_else(|| "Original".into())
+                converted.unwrap_or_else(|| t!("player.quality.original").into())
             } else {
                 playing.label.clone()
             }
@@ -3330,7 +3332,7 @@ impl PlaybackController {
                                 .map(details::lowered_text);
                             details::auto_now(&auto_now, why)
                         }
-                        None => details::AUTO_HINT.into(),
+                        None => details::auto_hint().into(),
                     })
                 } else if p.id == ORIGINAL_ID {
                     hint.clone()
@@ -3407,7 +3409,7 @@ impl PlaybackController {
         // A file on a drive asks nothing of a server: what fails is reading it. What nothing
         // converts says so itself.
         if self.local() && !matches!(e, ApiError::Status { code, .. } if code == "local_file") {
-            self.fail(details::DRIVE_UNREADABLE, true, None);
+            self.fail(details::drive_unreadable(), true, None);
             return;
         }
         if let ApiError::SessionStopped { message } = e {
@@ -3415,7 +3417,7 @@ impl PlaybackController {
             return;
         }
         if e.unreachable() {
-            self.fail(details::OFFLINE_BODY, true, Some(details::OFFLINE_TITLE.into()));
+            self.fail(details::offline_body(), true, Some(details::offline_title().into()));
             return;
         }
         let can_retry = !matches!(e, ApiError::SignedOut) && !matches!(e.status(), Some(401 | 403 | 404));
@@ -3490,7 +3492,7 @@ impl PlaybackController {
             Err(e) if !e.out_of_reach() => self.reach_back(true),
             Err(_) if self.now - since >= OUTAGE_MS => {
                 self.end_outage();
-                self.fail(details::OFFLINE_BODY, true, Some(details::OFFLINE_TITLE.into()));
+                self.fail(details::offline_body(), true, Some(details::offline_title().into()));
             }
             Err(_) => self.ask_again_later(),
         }

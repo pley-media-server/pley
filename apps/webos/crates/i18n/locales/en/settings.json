@@ -51,11 +51,6 @@
   },
   "playback": {
     "quality": "Quality",
-    "original": "Original",
-    "originalHint": "Full quality. May buffer on a slow connection.",
-    "automatic": "Automatic",
-    "automaticHint": "Dynamically adjust to conditions.",
-    "preset": "{{mbps}} Mbps {{lines}}",
     "autoplay": "Play the next episode by itself",
     "autoplayHint": "After a 10 second countdown",
     "details": "Playback details",

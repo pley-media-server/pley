@@ -10,6 +10,7 @@
 
 use pley_core::format::format_clock;
 use pley_core::model::{Control, ServerEvent, quality_preset};
+use pley_i18n::t;
 
 use crate::seeker::badge_text;
 
@@ -233,9 +234,14 @@ pub fn channel_step(at: Option<i64>, by: i64, total: i64) -> Option<i64> {
 }
 
 /// What a video says of the remote's play.
-pub const PLAYING: &str = "Playing";
+pub fn playing() -> &'static str {
+    t!("player.toasts.playing")
+}
+
 /// What a video says of the remote's pause.
-pub const PAUSED: &str = "Paused";
+pub fn paused() -> &'static str {
+    t!("player.toasts.paused")
+}
 
 /// What a video says of the remote's skip: "+30 s", "−10 s", the whole seconds asked for, as the
 /// seek badge says them.
@@ -246,26 +252,26 @@ pub fn skipped(offset_ms: i64) -> String {
 /// What a video says of the remote's seek: "Jumped to 12:34", "Jumped to 1:02:03", in the
 /// player's own times.
 pub fn jumped(position_ms: i64) -> String {
-    format!("Jumped to {}", format_clock(Some(position_ms)))
+    t!("player.toasts.jumpedTo", time = format_clock(Some(position_ms)))
 }
 
 /// What a video says of the audio track the remote picked, named as the Audio menu names it.
 pub fn audio_picked(label: &str) -> String {
-    format!("Audio: {label}")
+    t!("player.toasts.audio", track = label)
 }
 
 /// What a video says of the subtitles the remote picked, named as the Subtitles menu names them,
 /// or that it turned them off.
 pub fn subtitles_picked(label: Option<&str>) -> String {
     match label {
-        Some(label) => format!("Subtitles: {label}"),
-        None => "Subtitles off".into(),
+        Some(label) => t!("player.toasts.subtitles", track = label),
+        None => t!("player.toasts.subtitlesOff").into(),
     }
 }
 
 /// What a video says of the quality the remote picked, named as the Quality menu names it.
 pub fn quality_picked(label: &str) -> String {
-    format!("Quality: {label}")
+    t!("player.toasts.quality", quality = label)
 }
 
 #[cfg(test)]
@@ -472,7 +478,7 @@ mod tests {
 
     #[test]
     fn a_video_says_what_the_remote_did_in_android_tvs_words() {
-        assert_eq!((PLAYING, PAUSED), ("Playing", "Paused"));
+        assert_eq!((playing(), paused()), ("Playing", "Paused"));
         assert_eq!(skipped(30_000), "+30 s");
         assert_eq!(skipped(-10_000), "−10 s");
         assert_eq!(jumped(754_000), "Jumped to 12:34");
@@ -481,6 +487,20 @@ mod tests {
         assert_eq!(subtitles_picked(Some("English (SRT)")), "Subtitles: English (SRT)");
         assert_eq!(subtitles_picked(None), "Subtitles off");
         assert_eq!(quality_picked("8 Mbps 1080p"), "Quality: 8 Mbps 1080p");
+    }
+
+    #[test]
+    fn a_video_says_what_the_remote_did_in_french_and_spanish() {
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            assert_eq!((playing(), paused()), ("Lecture", "En pause"));
+            assert_eq!(jumped(754_000), "Position\u{a0}: 12:34");
+            assert_eq!(subtitles_picked(Some("Anglais (SRT)")), "Sous-titres\u{a0}: Anglais (SRT)");
+            assert_eq!(subtitles_picked(None), "Sous-titres désactivés");
+        });
+        pley_i18n::with_language(pley_i18n::Language::Es, || {
+            assert_eq!(skipped(-10_000), "−10 s");
+            assert_eq!(quality_picked("8 Mbps 1080p"), "Calidad: 8 Mbps 1080p");
+        });
     }
 
     #[test]

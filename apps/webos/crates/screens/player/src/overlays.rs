@@ -7,6 +7,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use pley_base::{Color, Icon, ImageRequest, Point, Priority, Rect, RgbaImage, Size, TextOpts};
+use pley_i18n::t;
 use pley_kit::look::shade;
 use pley_kit::{Button, placeholder};
 use pley_ui::theme::{self, focus::ControlLook, radius};
@@ -71,9 +72,9 @@ pub fn sleep_notice(
     controls: bool,
     scrubber: Id,
 ) -> Response {
-    let said = format!("Pausing in {seconds} s");
+    let said = t!("player.sleep.pausingIn", seconds = seconds);
     let l = ui.layout(&said, &theme::LABEL, &TextOpts::default());
-    let keep = ui.layout("Keep watching", &theme::LABEL, &TextOpts::default());
+    let keep = ui.layout(t!("player.sleep.keepWatching"), &theme::LABEL, &TextOpts::default());
     let button = Size::new(keep.size.w + 40.0, keep.size.h + 8.0);
     let h = button.h + 16.0;
     let w = 20.0 + theme::ICON_SIZE + 16.0 + l.size.w + 16.0 + button.w + 8.0;
@@ -160,7 +161,7 @@ pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, 
     ui.group(group, g, |ui| {
         ui.initial_focus(play_id);
         let w = play_now(ui, play_id, Point::new(rect.x + pad, y), card.seconds_left, reduced, &mut answer);
-        let cancel = Button::text("Cancel").tall();
+        let cancel = Button::text(t!("player.upNext.cancel")).tall();
         let at = Point::new(rect.x + pad + w + 12.0, y);
         answer.cancel = cancel.show(ui, cancel_id, at).activated;
     });
@@ -172,9 +173,10 @@ pub fn up_next(ui: &mut Ui, group: Id, play_id: Id, cancel_id: Id, card: &Card, 
 /// Reduce motion. At rest Fg 12 % with a 1 dp Control edge; focused the Accent, 1.05 larger. Its
 /// width.
 fn play_now(ui: &mut Ui, id: Id, at: Point, left: Option<i64>, reduced: bool, answer: &mut CardAnswer) -> f32 {
-    let l = ui.layout("Play now", &theme::LABEL, &TextOpts::default());
-    let next_in =
-        left.filter(|_| reduced).map(|s| ui.layout(&format!("Next in {s}"), &theme::CAPTION, &TextOpts::default()));
+    let l = ui.layout(t!("player.upNext.playNow"), &theme::LABEL, &TextOpts::default());
+    let next_in = left
+        .filter(|_| reduced)
+        .map(|s| ui.layout(&t!("player.upNext.nextIn", seconds = s), &theme::CAPTION, &TextOpts::default()));
     let ring = left.is_some() && !reduced;
     let after = match &next_in {
         Some(n) => 12.0 + n.size.w,
@@ -266,7 +268,7 @@ pub fn seek_badge(ui: &mut Ui, ms: i64) {
 
 /// "Reconnecting…" 16 dp under the buffering ring, on Bg 60 % (padded 12 × 6, radius 6).
 pub fn reconnecting(ui: &mut Ui, ring_bottom: f32) {
-    let l = ui.layout(pley_player::details::RECONNECTING, &theme::LABEL, &TextOpts::default());
+    let l = ui.layout(pley_player::details::reconnecting(), &theme::LABEL, &TextOpts::default());
     let (w, h) = (l.size.w + 24.0, l.size.h + 12.0);
     let rect = Rect::new((theme::CANVAS_W - w) / 2.0, ring_bottom + 16.0, w, h);
     ui.fill(rect, theme::BG.alpha(0.6), radius::CONTROL);

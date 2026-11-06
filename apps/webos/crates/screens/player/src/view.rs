@@ -10,6 +10,7 @@ use pley_core::Settings;
 use pley_core::format::FactBlock;
 use pley_core::model::SubtitleResult;
 use pley_core::store::{SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize};
+use pley_i18n::t;
 use pley_kit::feedback::{BUFFERING_DELAY, HANDOFF_DELAY};
 use pley_kit::{ListState, LoadingRing, Message, MessageStyle, SidePanel, inert};
 use pley_player::controller::{SeekPreview, SubtitleSearch, UpNextCard, next_chapter_start, previous_chapter_start};
@@ -561,10 +562,10 @@ impl PlayerView {
             self.say(ui, n, KEY_TOAST_SECS, false);
         }
         if original {
-            self.say(ui, format!("{note} Play original is in Quality."), LONG_TOAST_SECS, false);
+            self.say(ui, t!("player.toasts.playOriginalInQuality", note = note), LONG_TOAST_SECS, false);
         }
         if lower {
-            self.say(ui, format!("{note} Choose one in Quality."), LONG_TOAST_SECS, true);
+            self.say(ui, t!("player.toasts.chooseInQuality", note = note), LONG_TOAST_SECS, true);
         }
         if card.is_some() && card != self.seen.up_next {
             // Up Next takes the screen: the seek goes, the panel and controls make way.
@@ -866,7 +867,7 @@ impl PlayerView {
         if let Some(on) = subs.iter().find(|t| t.selected && t.index.is_some()) {
             self.remembered_subtitle = on.index;
             p.select_subtitle(None);
-            self.say(ui, "Subtitles off".into(), KEY_TOAST_SECS, false);
+            self.say(ui, t!("player.toasts.subtitlesOff").into(), KEY_TOAST_SECS, false);
             return;
         }
         let tracks: Vec<_> = subs.iter().filter(|t| t.index.is_some()).collect();
@@ -878,7 +879,7 @@ impl PlayerView {
             .map(|t| (t.index, t.label.clone()));
         if let Some((index, label)) = pick {
             p.select_subtitle(index);
-            self.say(ui, format!("Subtitles: {label}"), KEY_TOAST_SECS, false);
+            self.say(ui, t!("player.toasts.subtitles", track = label), KEY_TOAST_SECS, false);
         }
     }
 
@@ -1064,16 +1065,16 @@ impl PlayerView {
 
         if let Phase::Error { message, can_retry, title } = &s.phase {
             let title = if s.stopped_by_server {
-                "Playback stopped"
+                t!("player.errors.stopped")
             } else {
-                title.as_deref().unwrap_or("Can't play this item")
+                title.as_deref().unwrap_or(t!("player.errors.cantPlay"))
             };
             ui.group(ids.error, Group::row().trap(), |ui| {
                 let m = Message::new(MessageStyle::Player, title).body(message);
                 let m = if *can_retry {
-                    m.action("Try again", Icon::RefreshCw).secondary("Back")
+                    m.action(t!("player.errors.tryAgain"), Icon::RefreshCw).secondary(t!("player.errors.back"))
                 } else {
-                    m.action("Back", Icon::ArrowLeft)
+                    m.action(t!("player.errors.back"), Icon::ArrowLeft)
                 };
                 let r = m.show(ui, ids.error.with("message"));
                 if r.action.is_some_and(|r| r.activated) {
@@ -1112,7 +1113,7 @@ impl PlayerView {
         let time = clock::time_of_day(now, env.hours24);
         let ends = (s.phase == Phase::Paused).then(|| {
             let left = clock.duration_ms.saturating_sub(clock.position_ms).clamp(0, ENDS_AT_MAX_MS) / 1000;
-            format!("Ends at {}", clock::time_of_day(now.saturating_add(left), env.hours24))
+            t!("player.controls.endsAt", time = clock::time_of_day(now.saturating_add(left), env.hours24))
         });
         controls::top_bar(
             ui,

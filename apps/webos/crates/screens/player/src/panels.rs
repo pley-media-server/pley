@@ -11,10 +11,11 @@ use pley_core::format::{channels_label, codec_label, format_bitrate};
 use pley_core::media::EngineStats;
 use pley_core::model::SubtitleResult;
 use pley_core::store::{SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize};
+use pley_i18n::t;
 use pley_kit::{Heading, List, ListRow, ListState, Stepper, Trailing};
 use pley_player::PlayerState;
 use pley_player::controller::SubtitleSearch;
-use pley_player::details::{BURNED_IN, SubtitleDelivery};
+use pley_player::details::{SubtitleDelivery, burned_in};
 use pley_player::sleep::{SLEEP_CHOICES, SleepChoice, sleep_label};
 use pley_subs::{SYNC_MAX_MS, format_offset};
 use pley_ui::theme;
@@ -161,36 +162,36 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
     let mut out = Vec::new();
     match panel {
         Panel::Subtitles => {
-            out.push(Row::Title("Subtitles".into()));
+            out.push(Row::Title(t!("player.controls.subtitles").into()));
             if s.subtitle_sync {
                 out.push(Row::Sync(s.subtitle_offset_ms));
             }
             for t in &s.subtitles {
                 let mut r = Row::choice(Pick::Subtitle(t.index), &t.label, t.selected);
                 if t.burn_in {
-                    r = r.hint(BURNED_IN);
+                    r = r.hint(burned_in());
                 } else if t.added {
-                    r = r.hint("Added");
+                    r = r.hint(t!("player.subtitles.added"));
                 }
                 out.push(r);
             }
             if i.can_find {
-                out.push(Row::choice(Pick::Find, "Find subtitles…", false).icon(Icon::Search));
+                out.push(Row::choice(Pick::Find, t!("player.subtitles.find"), false).icon(Icon::Search));
             }
             let set = i.settings;
-            out.push(Row::Heading("Subtitle size".into()));
+            out.push(Row::Heading(t!("player.subtitles.size").into()));
             out.extend(
                 SubtitleSize::ALL.iter().map(|v| Row::choice(Pick::Size(*v), v.label(), *v == set.subtitle_size)),
             );
-            out.push(Row::Heading("Subtitle background".into()));
+            out.push(Row::Heading(t!("player.subtitles.background").into()));
             out.extend(
                 SubtitleBackground::ALL
                     .iter()
                     .map(|v| Row::choice(Pick::Background(*v), v.label(), *v == set.subtitle_background)),
             );
-            out.push(Row::Heading("Subtitle font".into()));
+            out.push(Row::Heading(t!("player.subtitles.font").into()));
             out.extend(i.fonts.iter().map(|v| Row::choice(Pick::Font(*v), v.label(), *v == set.subtitle_font)));
-            out.push(Row::Heading("Subtitle position".into()));
+            out.push(Row::Heading(t!("player.subtitles.position").into()));
             out.extend(
                 SubtitlePosition::ALL
                     .iter()
@@ -198,15 +199,17 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
             );
         }
         Panel::Find => {
-            out.push(Row::Title("Find subtitles…".into()));
+            out.push(Row::Title(t!("player.subtitles.find").into()));
             if let Some(why) = i.add_failed {
                 out.push(Row::Note(why.into()));
             }
             match &s.search {
-                SubtitleSearch::Idle | SubtitleSearch::Searching => out.push(Row::Note("Searching…".into())),
+                SubtitleSearch::Idle | SubtitleSearch::Searching => {
+                    out.push(Row::Note(t!("player.find.searching").into()));
+                }
                 SubtitleSearch::Failed(e) if i.add_failed.is_none() => out.push(Row::Note(text::search_problem(e))),
                 SubtitleSearch::Found(r) if r.is_empty() => {
-                    out.push(Row::Note("No subtitles found for this file".into()));
+                    out.push(Row::Note(t!("player.find.nothing").into()));
                 }
                 _ => {
                     let adding = match &s.search {
@@ -215,7 +218,7 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
                     };
                     for (n, r) in i.found.iter().enumerate() {
                         let mine = adding == Some(r.id.as_str());
-                        let hint = if mine { "Adding…".to_string() } else { text::result_hint(r) };
+                        let hint = if mine { t!("player.find.adding").to_string() } else { text::result_hint(r) };
                         let row = Row::Choice {
                             pick: Pick::Result(n),
                             label: text::result_label(r),
@@ -230,7 +233,7 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
             }
         }
         Panel::Audio => {
-            out.push(Row::Title("Audio".into()));
+            out.push(Row::Title(t!("player.controls.audio").into()));
             for t in &s.audio {
                 if let Some(index) = t.index {
                     out.push(Row::choice(Pick::Audio(index), &t.label, t.selected));
@@ -238,14 +241,14 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
             }
         }
         Panel::Quality => {
-            out.push(Row::Title("Quality".into()));
+            out.push(Row::Title(t!("player.controls.quality").into()));
             if let Some(note) = &s.note {
                 out.push(Row::Note(note.clone()));
             }
             if s.can_play_original {
                 out.push(
-                    Row::choice(Pick::PlayOriginal, "Play original", false)
-                        .hint("Try the original again")
+                    Row::choice(Pick::PlayOriginal, t!("player.quality.playOriginal"), false)
+                        .hint(t!("player.quality.tryOriginal"))
                         .icon(Icon::RotateCcw),
                 );
             }
@@ -256,20 +259,20 @@ pub fn rows(panel: Panel, i: &PanelInput) -> Vec<Row> {
             }
         }
         Panel::Sleep => {
-            out.push(Row::Title("Sleep timer".into()));
+            out.push(Row::Title(t!("player.sleep.title").into()));
             for c in SLEEP_CHOICES {
                 let on = c == s.sleep.choice;
                 let mut r = Row::choice(Pick::Sleep(c), sleep_label(c, s.kind), on);
                 if let (true, SleepChoice::Minutes(_), Some(m)) = (on, c, s.sleep.minutes_left) {
-                    r = r.hint(format!("{m} min left"));
+                    r = r.hint(t!("player.sleep.minutesLeft", count = m));
                 }
                 out.push(r);
             }
         }
         Panel::Speed => {
-            out.push(Row::Title("Speed".into()));
+            out.push(Row::Title(t!("player.controls.speed").into()));
             if s.speeds.is_empty() {
-                out.push(Row::Note("Not on this TV: it plays at normal speed only.".into()));
+                out.push(Row::Note(t!("player.speed.notOffered").into()));
             }
             for rate in &s.speeds {
                 out.push(Row::choice(Pick::Speed(*rate), text::speed(*rate), *rate == s.speed));
@@ -353,7 +356,8 @@ pub fn draw(ui: &mut Ui, list: Id, area: Rect, rows: &[Row], state: &mut ListSta
                 }
                 Row::Sync(ms) => {
                     let value = format_offset(i64::from(*ms));
-                    let r = Stepper::new("Sync", &value)
+                    let r = Stepper::new(t!("player.subtitles.sync"), &value)
+                        .hint(t!("player.subtitles.syncHint"))
                         .limits(*ms > -SYNC_MAX_MS, *ms < SYNC_MAX_MS)
                         .show(ui, slot.id, at, w);
                     if r.step != 0 {
@@ -373,9 +377,6 @@ pub fn draw(ui: &mut Ui, list: Id, area: Rect, rows: &[Row], state: &mut ListSta
     answer
 }
 
-/// How fast the TV's network receives, in Info's How it plays; the server's row is Speed.
-pub const NETWORK_ROW: &str = "TV network speed";
-
 /// Info's sections (`readoutSections`): how it plays, the file, its video and audio, the
 /// subtitles, and what this TV says.
 pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
@@ -386,54 +387,51 @@ pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
         Some(p) => format!("{} · {p}", d.method),
         None => d.method.clone(),
     };
-    let mut how = vec![fact("Playback", playback)];
+    let mut how = vec![fact(t!("player.info.playback"), playback)];
     if let Some(why) = &d.why {
-        how.push(fact("Why", why.clone()));
+        how.push(fact(t!("player.info.why"), why.clone()));
     }
     how.extend(d.rows.iter().map(|r| fact(&r.label, r.value.clone())));
-    // Beside the server's Speed: a server keeping up whose video stalls is a network that can't
-    // carry it (the Samsung app's row; Android's Network is ExoPlayer's own estimate).
+    // How fast the TV's network receives, beside the server's Speed: a server keeping up whose
+    // video stalls is a network that can't carry it (the Samsung app's row; Android's Network is
+    // ExoPlayer's own estimate).
     if let Some(bps) = stats.network_bps.filter(|b| *b > 0) {
-        how.push(fact(NETWORK_ROW, format_bitrate(Some(i64::try_from(bps).unwrap_or(i64::MAX)))));
+        how.push(fact(t!("player.info.network"), format_bitrate(Some(i64::try_from(bps).unwrap_or(i64::MAX)))));
     }
-    how.push(fact("Quality", s.quality.clone()));
-    out.push(FactBlock { title: "How it plays".into(), facts: how });
+    how.push(fact(t!("player.info.quality"), s.quality.clone()));
+    out.push(FactBlock { title: t!("player.info.howItPlays").into(), facts: how });
     if let Some(file) = &d.file
         && let Some(block) = media_facts(file).into_iter().next()
     {
         out.push(block);
     }
     if let Some(v) = &d.video {
-        out.push(stream_block(v, "Video"));
+        out.push(stream_block(v, t!("player.details.video")));
     }
     if let Some(a) = &d.audio {
-        out.push(stream_block(a, "Audio"));
+        out.push(stream_block(a, t!("player.details.audio")));
     }
     // The stream's facts as Video and Audio give theirs (Format, Language by name, Title,
     // Flags), then how it is shown (`TvReadout.subtitles`).
     match &d.subtitle {
-        None => out.push(FactBlock { title: "Subtitles".into(), facts: vec![fact("Track", "Off".into())] }),
-        Some(t) => {
-            let mut block = stream_block(t, "Subtitles");
+        None => out.push(FactBlock {
+            title: t!("player.details.subtitles").into(),
+            facts: vec![fact(t!("player.info.track"), t!("player.info.off").into())],
+        }),
+        Some(track) => {
+            let mut block = stream_block(track, t!("player.details.subtitles"));
             let shown = d.subtitle_delivery.unwrap_or(SubtitleDelivery::ServerText).label();
-            block.facts.push(fact("Shown", shown.into()));
+            block.facts.push(fact(t!("player.info.shown"), shown.into()));
             out.push(block);
         }
     }
-    let mut tv = vec![fact("Player", stats.player.clone())];
+    let mut tv = vec![fact(t!("player.info.player"), stats.player.clone())];
     let mut decoded = Vec::new();
     if let (Some(w), Some(h)) = (stats.width, stats.height) {
         decoded.push(format!("{w}×{h}"));
     }
     if let Some(fps) = stats.fps.filter(|f| *f > 0.0) {
-        let mut n = format!("{fps:.3}");
-        while n.ends_with('0') {
-            n.pop();
-        }
-        if n.ends_with('.') {
-            n.pop();
-        }
-        decoded.push(format!("{n} fps"));
+        decoded.push(t!("player.info.fps", fps = text::short_decimal(f64::from(fps), 3)));
     }
     if let Some(r) = &stats.dynamic_range {
         decoded.push(r.clone());
@@ -442,30 +440,30 @@ pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
         decoded.push(codec_label(c));
     }
     if !decoded.is_empty() {
-        tv.push(fact("Decoded", decoded.join(" · ")));
+        tv.push(fact(t!("player.info.decoded"), decoded.join(" · ")));
     }
     if let Some(c) = &stats.audio_codec {
         let ch = channels_label(stats.audio_channels.map(i64::from), None);
         tv.push(fact(
-            "Audio",
+            t!("player.details.audio"),
             [codec_label(c), ch].iter().filter(|s| !s.is_empty()).cloned().collect::<Vec<_>>().join(" "),
         ));
     }
     if let Some(kbps) = stats.bitrate_kbps.filter(|k| *k > 0) {
-        tv.push(fact("Current bitrate", format_bitrate(Some(i64::from(kbps) * 1000))));
+        tv.push(fact(t!("player.info.currentBitrate"), format_bitrate(Some(i64::from(kbps) * 1000))));
     }
     if let (Some(dropped), Some(total)) = (stats.dropped_frames, stats.total_frames.filter(|t| *t > 0)) {
-        tv.push(fact("Dropped frames", format!("{dropped} of {total}")));
+        tv.push(fact(t!("player.info.droppedFrames"), t!("player.info.framesOf", dropped = dropped, frames = total)));
     }
     if let Some(ms) = stats.buffered_ahead_ms {
-        tv.push(fact("Buffered ahead", format!("{} s", (ms + 500) / 1000)));
+        tv.push(fact(t!("player.info.bufferedAhead"), t!("player.info.seconds", seconds = (ms + 500) / 1000)));
     }
-    tv.push(fact("Stalls", s.stalls.to_string()));
+    tv.push(fact(t!("player.info.stalls"), s.stalls.to_string()));
     tv.extend(stats.extra.iter().map(|(l, v)| fact(l, v.clone())));
     if let Some(ms) = s.first_frame_ms {
-        tv.push(fact("First frame", format!("{ms} ms")));
+        tv.push(fact(t!("player.info.firstFrame"), t!("player.info.milliseconds", ms = ms)));
     }
-    out.push(FactBlock { title: "This TV".into(), facts: tv });
+    out.push(FactBlock { title: t!("player.info.thisTv").into(), facts: tv });
     out
 }
 
@@ -475,7 +473,7 @@ pub fn info_sections(s: &PlayerState, stats: &EngineStats) -> Vec<FactBlock> {
 pub fn readout_lines(s: &PlayerState, stats: &EngineStats) -> Vec<(String, String)> {
     let Some(d) = &s.details else { return Vec::new() };
     let mut out = vec![(
-        "Playback".to_string(),
+        t!("player.info.playback").to_string(),
         match &d.pipeline {
             Some(p) => format!("{} · {p}", d.method),
             None => d.method.clone(),
@@ -483,31 +481,32 @@ pub fn readout_lines(s: &PlayerState, stats: &EngineStats) -> Vec<(String, Strin
     )];
     // The rows' own Bitrate gives way to the one line below, the file's and what arrives now
     // (`TvReadout.compact` has a single Bitrate line).
-    out.extend(d.rows.iter().filter(|r| r.label != "Bitrate").map(|r| (r.label.clone(), r.value.clone())));
+    let bitrate = t!("player.details.bitrate");
+    out.extend(d.rows.iter().filter(|r| r.label != bitrate).map(|r| (r.label.clone(), r.value.clone())));
     let sub = match &d.subtitle {
         Some(t) => {
             let lang = t.language.clone().unwrap_or_default();
             [lang, codec_label(&t.codec)].iter().filter(|x| !x.is_empty()).cloned().collect::<Vec<_>>().join(" · ")
         }
-        None => "Off".into(),
+        None => t!("player.info.off").into(),
     };
-    out.push(("Subtitles".into(), sub));
+    out.push((t!("player.details.subtitles").into(), sub));
     let file = d.file.as_ref().and_then(|f| f.bitrate).filter(|b| *b > 0).map(|b| format_bitrate(Some(b)));
     let now = stats.bitrate_kbps.filter(|k| *k > 0).map(|k| format_bitrate(Some(i64::from(k) * 1000)));
     let mut rates: Vec<String> = file.into_iter().chain(now).collect();
     rates.dedup();
     if !rates.is_empty() {
-        out.push(("Bitrate".into(), rates.join(" → ")));
+        out.push((bitrate.into(), rates.join(" → ")));
     }
     if let (Some(w), Some(h)) = (stats.width, stats.height) {
         let range = stats.dynamic_range.as_ref().map(|r| format!(" · {r}")).unwrap_or_default();
-        out.push(("Decoded".into(), format!("{w}×{h}{range}")));
+        out.push((t!("player.info.decoded").into(), format!("{w}×{h}{range}")));
     }
     if let (Some(dropped), Some(total)) = (stats.dropped_frames, stats.total_frames.filter(|t| *t > 0)) {
-        out.push(("Dropped".into(), format!("{dropped} of {total}")));
+        out.push((t!("player.info.dropped").into(), t!("player.info.framesOf", dropped = dropped, frames = total)));
     }
     if let Some(ms) = stats.buffered_ahead_ms {
-        out.push(("Buffer".into(), format!("{} s ahead", (ms + 500) / 1000)));
+        out.push((t!("player.info.buffer").into(), t!("player.info.secondsAhead", seconds = (ms + 500) / 1000)));
     }
     out
 }
@@ -539,9 +538,9 @@ pub fn info(ui: &mut Ui, id: Id, area: Rect, sections: &[FactBlock], scroll: &mu
     let shown = ui.animate(id.with("scroll"), *scroll, pley_kit::SCROLL);
     ui.clip(area, |ui| {
         let mut y = area.y - shown;
-        y += Heading::PanelTitle.show(ui, "Playback details", Point::new(area.x, y), area.w);
+        y += Heading::PanelTitle.show(ui, t!("player.details.title"), Point::new(area.x, y), area.w);
         if sections.is_empty() {
-            Heading::Note.show(ui, "Asking the server…", Point::new(area.x, y), area.w);
+            Heading::Note.show(ui, t!("player.details.asking"), Point::new(area.x, y), area.w);
             return;
         }
         for s in sections {
@@ -554,33 +553,37 @@ pub fn info(ui: &mut Ui, id: Id, area: Rect, sections: &[FactBlock], scroll: &mu
 }
 
 fn info_height(ui: &Ui, sections: &[FactBlock], width: f32) -> f32 {
-    let mut h = Heading::PanelTitle.height(ui, "Playback details", width);
+    let mut h = Heading::PanelTitle.height(ui, t!("player.details.title"), width);
     for s in sections {
         h += Heading::Section.height(ui, &s.title, width);
         for f in &s.facts {
-            h += value_layout_height(ui, &f.value, width - 32.0) + 4.0;
+            h += fact_height(ui, f, width - 32.0) + 4.0;
         }
     }
     h + 24.0
 }
 
-fn value_layout_height(ui: &Ui, value: &str, width: f32) -> f32 {
-    ui.measure(value, &theme::CAPTION, &TextOpts::wrap((width - FACT_LABEL_W).max(1.0), 3))
-        .h
-        .max(theme::CAPTION.line_height)
+/// A fact's label, up to two lines: French and Spanish labels can outgrow the column.
+fn label_opts() -> TextOpts {
+    TextOpts::wrap(FACT_LABEL_W - 8.0, 2)
 }
 
-/// A fact: its label in Muted in a 112 dp column, its value in Fg, up to three lines.
+fn value_opts(width: f32) -> TextOpts {
+    TextOpts::wrap((width - FACT_LABEL_W).max(1.0), 3)
+}
+
+fn fact_height(ui: &Ui, f: &Fact, width: f32) -> f32 {
+    let label = ui.measure(&f.label, &theme::CAPTION, &label_opts()).h;
+    let value = ui.measure(&f.value, &theme::CAPTION, &value_opts(width)).h;
+    label.max(value).max(theme::CAPTION.line_height)
+}
+
+/// A fact: its label in Muted in a 112 dp column, up to two lines, its value in Fg, up to three.
 fn fact_line(ui: &mut Ui, f: &Fact, at: Point, width: f32) -> f32 {
-    ui.text(at, &f.label, &theme::CAPTION, &TextOpts::line(FACT_LABEL_W - 8.0), theme::MUTED);
-    let s = ui.text(
-        Point::new(at.x + FACT_LABEL_W, at.y),
-        &f.value,
-        &theme::CAPTION,
-        &TextOpts::wrap((width - FACT_LABEL_W).max(1.0), 3),
-        theme::FG,
-    );
-    s.h.max(theme::CAPTION.line_height)
+    let label = ui.text(at, &f.label, &theme::CAPTION, &label_opts(), theme::MUTED);
+    let value =
+        ui.text(Point::new(at.x + FACT_LABEL_W, at.y), &f.value, &theme::CAPTION, &value_opts(width), theme::FG);
+    label.h.max(value.h).max(theme::CAPTION.line_height)
 }
 
 #[cfg(test)]
@@ -674,6 +677,19 @@ mod tests {
         assert!(matches!(&r[4], Row::Choice { hint, checked: true, .. } if hint == "42 min left"));
         let r = rows(Panel::Speed, &input(&s, &settings, &[]));
         assert!(matches!(&r[3], Row::Choice { label, checked: true, .. } if label == "1×"));
+
+        // In Spanish: the minutes left counted, the end named for an episode, speeds with a comma.
+        pley_i18n::with_language(pley_i18n::Language::Es, || {
+            let r = rows(Panel::Sleep, &input(&s, &settings, &[]));
+            assert_eq!(r[0], Row::Title("Temporizador de suspensión".into()));
+            assert!(matches!(&r[4], Row::Choice { hint, checked: true, .. } if hint == "Quedan 42 min"));
+            assert!(matches!(&r[7], Row::Choice { label, .. } if label == "Final de este episodio"));
+            s.sleep.minutes_left = Some(1);
+            let r = rows(Panel::Sleep, &input(&s, &settings, &[]));
+            assert!(matches!(&r[4], Row::Choice { hint, .. } if hint == "Queda 1 min"));
+            let r = rows(Panel::Speed, &input(&s, &settings, &[]));
+            assert!(matches!(&r[5], Row::Choice { label, .. } if label == "1,5×"));
+        });
     }
 
     #[test]

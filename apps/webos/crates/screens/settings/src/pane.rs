@@ -3,7 +3,7 @@
 //! these; the tests read them.
 
 use pley_base::Icon;
-use pley_core::model::{QUALITY_PRESETS, QualityPreset, SubtitleMode, TrackDefaults, quality_preset};
+use pley_core::model::{QUALITY_PRESETS, SubtitleMode, TrackDefaults, quality_preset};
 use pley_core::requests::tmdb_notice;
 use pley_core::store::{
     PassthroughChoice, PassthroughFormat, Settings, SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize,
@@ -90,27 +90,6 @@ fn base_letter(c: char) -> char {
         'Ù'..='Ü' | 'ù'..='ü' => 'u',
         'Ý' | 'ý' | 'ÿ' => 'y',
         _ => c,
-    }
-}
-
-/// A quality's name in the language shown: "Original", "Automatic", "8 Mbps 1080p".
-pub fn quality_label(q: &QualityPreset) -> String {
-    match (q.max_bitrate_kbps, q.max_height) {
-        (Some(kbps), Some(height)) => {
-            let lines = if height >= 2160 { "4K".to_string() } else { format!("{height}p") };
-            t!("settings.playback.preset", mbps = kbps / 1000, lines = lines)
-        }
-        _ if q.id == "original" => t!("settings.playback.original").to_string(),
-        _ => t!("settings.playback.automatic").to_string(),
-    }
-}
-
-/// What Settings says under a quality, where it says anything.
-pub fn quality_hint(q: &QualityPreset) -> Option<&'static str> {
-    match q.id {
-        "original" => Some(t!("settings.playback.originalHint")),
-        "auto" => Some(t!("settings.playback.automaticHint")),
-        _ => None,
     }
 }
 
@@ -329,7 +308,7 @@ pub fn items(c: SettingsSection, f: &Facts) -> Vec<Item> {
         SettingsSection::Playback => {
             let q = quality_preset(&f.settings.quality).unwrap_or(&QUALITY_PRESETS[1]);
             let quality = t!("settings.playback.quality");
-            row(Row::new(Some(Icon::Gauge), quality, quality_label(q), RowAction::Choose(Picking::Quality)));
+            row(Row::new(Some(Icon::Gauge), quality, q.label(), RowAction::Choose(Picking::Quality)));
             row(switch(
                 Icon::SkipForward,
                 t!("settings.playback.autoplay"),
@@ -630,7 +609,7 @@ pub fn panel(p: Picking, f: &Facts, fonts: &[SubtitleFont]) -> Panel {
             t!("settings.playback.quality"),
             QUALITY_PRESETS
                 .iter()
-                .map(|q| Choice { hint: quality_hint(q), ..Choice::new(quality_label(q), Value::Quality(q.id)) })
+                .map(|q| Choice { hint: q.hint(), ..Choice::new(q.label(), Value::Quality(q.id)) })
                 .collect(),
             Value::Quality(quality_preset(&s.quality).map_or("auto", |q| q.id)),
         ),

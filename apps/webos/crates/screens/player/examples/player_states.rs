@@ -2,10 +2,11 @@
 //! real video passes through too quickly for the simulator's screenshots (a seek on its way, Skip,
 //! Up Next, the sleep notice, buffering, an error, subtitles):
 //!
-//! `cargo run -p pley-player-ui --example player_states -- <folder> [state …]`
+//! `cargo run -p pley-player-ui --example player_states -- [--locale fr-FR] <folder> [state …]`
 //!
-//! writes `<folder>/<state>.png` for each state named, or for every state. The picture's place is
-//! transparent, as on the TV. `--list` names the states.
+//! writes `<folder>/<state>.png` for each state named, or for every state, in the language of
+//! `--locale` (English by default). The picture's place is transparent, as on the TV. `--list`
+//! names the states.
 
 #[path = "../tests/common/mod.rs"]
 mod common;
@@ -21,11 +22,13 @@ use pley_core::model::{SubtitleResult, TrickplayInfo};
 use pley_core::store::SubtitleBackground;
 use pley_core::{Settings, Tasks};
 use pley_gfx::{ImageCache, ImageCacheConfig, Renderer, screenshot};
+use pley_i18n::t;
 use pley_platform::Platform;
 use pley_platform::desktop::{DesktopOptions, DesktopPlatform};
 use pley_player::Phase;
 use pley_player::controller::{QualityChoice, SeekPreview, Trickplay};
-use pley_player::details::{DetailRow, PlaybackDetails};
+use pley_player::details::{self, DetailRow, PlaybackDetails};
+use pley_player::quality::preset;
 use pley_player_ui::{FrameEnv, PlayerView, Previews};
 use pley_subs::{PictureCue, Shown, parse_vtt};
 use pley_text::{FontSet, TextEngine};
@@ -48,15 +51,25 @@ const fn state(name: &'static str, setup: fn(&mut Fake, &mut Settings), script: 
 fn states() -> Vec<State> {
     vec![
         state("controls-paused", |_, _| {}, "ok wait:400"),
-        state("controls-row", |p, _| p.state.method = Some("Transcoding".into()), "down right wait:400"),
+        state(
+            "controls-row",
+            |p, _| p.state.method = Some(t!("player.method.transcode").into()),
+            "down right wait:400",
+        ),
+        // Sleep timer first in the row, its label nearest the edge.
+        state("controls-left", |p, _| p.state.chapters.clear(), "down left left left wait:400"),
         state("seek-preview", preview, "up wait:300 hold:right:1500"),
         state("seek-chapter", |_, _| {}, "up wait:300 hold:left:700"),
         state("seek-badge", |_, _| {}, "right right right"),
-        state("skip", |p, _| p.state.skip_label = Some("Skip Intro".into()), "wait:400"),
-        state("skip-lifted", |p, _| p.state.skip_label = Some("Skip Credits".into()), "wait:200 info wait:400"),
+        state("skip", |p, _| p.state.skip_label = Some(t!("player.skip.intro").into()), "wait:400"),
+        state(
+            "skip-lifted",
+            |p, _| p.state.skip_label = Some(t!("player.skip.credits").into()),
+            "wait:200 info wait:400",
+        ),
         state("up-next", up_next, "wait:400"),
         State { reduced_motion: true, ..state("up-next-reduced", up_next, "wait:400") },
-        state("up-next-no-still", |p, _| p.state.up_next = Some(Fake::card(7)), "wait:400"),
+        state("up-next-no-still", |p, _| p.state.up_next = Some(card(7)), "wait:400"),
         state("sleep-notice", |p, _| p.state.sleep.seconds_left = Some(28), "wait:400"),
         state("buffering", |p, _| p.state.phase = Phase::Buffering, "wait:900"),
         state(
@@ -80,10 +93,10 @@ fn states() -> Vec<State> {
             "wait:200",
         ),
         state("subtitles-picture", |p, _| p.shown = picture(), "up wait:400"),
-        state("subtitles-panel", |p, _| p.state.subtitle_sync = true, "down ok wait:400"),
-        state("find", find, "down ok wait:300 down down ok wait:400"),
+        state("subtitles-panel", |p, _| p.state.subtitle_sync = true, "down right right ok wait:400"),
+        state("find", find, "down right right ok wait:300 down down ok wait:400"),
         state("audio-panel", |_, _| {}, "audio wait:400"),
-        state("quality", quality, "down right right ok wait:400"),
+        state("quality", quality, "down right right right right ok wait:400"),
         state("chapters", |_, _| {}, "down left left left left left left left left ok wait:400"),
         state(
             "sleep",
@@ -91,14 +104,11 @@ fn states() -> Vec<State> {
                 p.state.sleep.choice = pley_player::sleep::SleepChoice::Minutes(45);
                 p.state.sleep.minutes_left = Some(42);
             },
-            "down left left left left left left left ok wait:400",
+            "down left left left ok wait:400",
         ),
-        state(
-            "speed",
-            |p, _| p.state.speeds = vec![0.5, 0.75, 1.0, 1.25, 1.5, 2.0],
-            "down left left left left left left ok wait:400",
-        ),
-        state("info", details, "down right right ok wait:400"),
+        state("speed", |p, _| p.state.speeds = vec![0.5, 0.75, 1.0, 1.25, 1.5, 2.0], "down left left ok wait:400"),
+        state("info", details, "down right right right right ok wait:400"),
+        state("info-end", details, "down right right right right ok wait:300 down down down wait:600"),
         state(
             "readout",
             |p, s| {
@@ -126,25 +136,27 @@ fn preview(p: &mut Fake, _: &mut Settings) {
     p.preview = Some(SeekPreview::Sheet { url: "sheet:0".into(), x: 320, y: 180, width: 160, height: 90 });
 }
 
+/// The stand-in's card, its heading in the language shown.
+fn card(seconds: i64) -> pley_player::controller::UpNextCard {
+    let mut card = Fake::card(seconds);
+    card.heading = details::up_next(Some("S1 · E3"));
+    card
+}
+
+/// The card as it first shows, its countdown at its widest ("Next in 10" under Reduce motion).
 fn up_next(p: &mut Fake, _: &mut Settings) {
-    let mut card = Fake::card(7);
+    let mut card = card(pley_player::controller::COUNTDOWN_SECONDS);
     card.image_url = Some("still:next".into());
     p.state.up_next = Some(card);
 }
 
 fn error(p: &mut Fake, _: &mut Settings) {
-    p.state.phase = Phase::Error {
-        message: "The server couldn't convert this video. It may be damaged, or a codec it uses isn't supported."
-            .into(),
-        can_retry: true,
-        title: None,
-    };
+    p.state.phase = Phase::Error { message: t!("player.errors.sameSpot").into(), can_retry: true, title: None };
 }
 
 fn stopped(p: &mut Fake, _: &mut Settings) {
     p.state.stopped_by_server = true;
-    p.state.phase =
-        Phase::Error { message: "An administrator stopped this playback.".into(), can_retry: false, title: None };
+    p.state.phase = Phase::Error { message: details::stopped_text(None, true), can_retry: false, title: None };
 }
 
 fn cues() -> Shown {
@@ -201,35 +213,38 @@ fn find(p: &mut Fake, _: &mut Settings) {
 }
 
 fn quality(p: &mut Fake, _: &mut Settings) {
-    p.state.note = Some("Lowered for your connection".into());
+    p.state.note = Some(details::fallback_text(pley_player::recovery::FallbackReason::NotSmooth).into());
     p.state.can_play_original = true;
-    let q = |id: &'static str, label: &str, hint: Option<&str>, selected: bool| QualityChoice {
+    let q = |id: &'static str, hint: Option<String>, selected: bool| QualityChoice {
         id,
-        label: label.into(),
-        hint: hint.map(str::to_string),
+        label: preset(id).expect("a preset").label,
+        hint,
         selected,
     };
+    let now = preset("8m").expect("a preset").label;
     p.state.qualities = vec![
-        q("auto", "Automatic", Some("8 Mbps 1080p now"), true),
-        q("original", "Original", Some("40 Mbps 2160p"), false),
-        q("20m", "20 Mbps 1080p", None, false),
-        q("8m", "8 Mbps 1080p", None, false),
-        q("4m", "4 Mbps 720p", None, false),
+        q("auto", Some(details::auto_now(&now, Some(t!("player.quality.lowered.network")))), true),
+        q("original", Some("2160p · 40 Mbps".into()), false),
+        q("20m", None, false),
+        q("8m", None, false),
+        q("4m", None, false),
     ];
 }
 
 fn details(p: &mut Fake, _: &mut Settings) {
     let row = |label: &str, value: &str| DetailRow { label: label.into(), value: value.into() };
+    let speed = t!("player.details.realTimeReady", speed = pley_i18n::decimal(2.5, 1), seconds = 40);
     p.state.details = Some(PlaybackDetails {
-        method: "Transcoding".into(),
+        method: t!("player.method.transcode").into(),
+        // The server's words.
         why: Some("The TV can't decode TrueHD audio".into()),
         pipeline: Some("GPU".into()),
         rows: vec![
-            row("Video", "HEVC 4K HDR10 → H.264 1080p SDR"),
-            row("Audio", "TrueHD 7.1 → AAC 2.0"),
-            row("Bitrate", "40 Mbps → 8 Mbps"),
-            row("Encoder", "NVIDIA NVENC (GPU)"),
-            row("Speed", "2.5× real time · 40 s ready"),
+            row(t!("player.details.video"), "HEVC 4K HDR10 → H.264 1080p SDR"),
+            row(t!("player.details.audio"), "TrueHD 7.1 → AAC 2.0"),
+            row(t!("player.details.bitrate"), "40 Mbps → 8 Mbps"),
+            row(t!("player.details.encoder"), "NVIDIA NVENC (GPU)"),
+            row(t!("player.details.speed"), &speed),
         ],
         playback_method: PlaybackMethod::Transcode,
         file: None,
@@ -239,19 +254,32 @@ fn details(p: &mut Fake, _: &mut Settings) {
         subtitle_delivery: None,
         transcode: None,
     });
-    p.state.method = Some("Transcoding".into());
+    p.state.method = Some(t!("player.method.transcode").into());
     p.state.first_frame_ms = Some(843);
+    p.stats.bitrate_kbps = Some(7_800);
+    p.stats.network_bps = Some(48_000_000);
     p.stats.width = Some(1920);
     p.stats.height = Some(1080);
     p.stats.fps = Some(23.976);
     p.stats.dynamic_range = Some("SDR".into());
     p.stats.video_codec = Some("h264".into());
     p.stats.buffered_ahead_ms = Some(18_000);
+    p.stats.dropped_frames = Some(12);
+    p.stats.total_frames = Some(4_210);
 }
 
 fn toast(p: &mut Fake, _: &mut Settings) {
-    p.state.notice = Some("Subtitles added".into());
+    p.state.notice = Some(details::subtitles_added("English (SRT)"));
     p.state.notice_id = 1;
+}
+
+/// The stand-in's words that the player makes, in the language shown (the tests keep English's).
+fn in_language(p: &mut Fake) {
+    p.state.method = Some(t!("player.method.direct").into());
+    p.state.quality = t!("player.quality.original").into();
+    if let Some(off) = p.state.subtitles.iter_mut().find(|s| s.index.is_none()) {
+        off.label = details::subtitles_off().into();
+    }
 }
 
 /// Pictures the stand-in names: a sheet of seek previews (5 × 5 tiles of 160 × 90, each its own
@@ -367,6 +395,7 @@ impl Shooter {
 
     fn shoot(&mut self, s: &State, out: &Path) {
         let mut p = Fake::episode();
+        in_language(&mut p);
         let mut settings = Settings::default();
         (s.setup)(&mut p, &mut settings);
         let mut ui = UiState::new();
@@ -412,7 +441,13 @@ impl Shooter {
 }
 
 fn main() {
-    let mut args = std::env::args().skip(1);
+    let mut args = std::env::args().skip(1).peekable();
+    if args.peek().is_some_and(|a| a == "--locale") {
+        args.next();
+        let tag = args.next().unwrap_or_default();
+        let language = pley_i18n::supported(Some(&tag)).unwrap_or_else(|| panic!("not a language Pley has: {tag}"));
+        pley_i18n::set_language(language);
+    }
     let first = args.next().unwrap_or_default();
     let all = states();
     if first.is_empty() || first == "--list" {

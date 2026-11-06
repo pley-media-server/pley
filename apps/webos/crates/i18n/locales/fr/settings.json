@@ -51,11 +51,6 @@
   },
   "playback": {
     "quality": "Qualité",
-    "original": "Original",
-    "originalHint": "Qualité maximale. Peut s’interrompre pour charger sur une connexion lente.",
-    "automatic": "Automatique",
-    "automaticHint": "S’adapte aux conditions.",
-    "preset": "{{mbps}} Mbit/s {{lines}}",
     "autoplay": "Lire l’épisode suivant automatiquement",
     "autoplayHint": "Après un compte à rebours de 10 secondes",
     "details": "Détails de lecture",

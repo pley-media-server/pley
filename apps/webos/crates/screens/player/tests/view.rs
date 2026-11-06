@@ -10,7 +10,7 @@ use pley_core::model::{MediaStream, PlaybackMethod, StreamKind, SubtitleResult};
 use pley_core::store::SubtitleSize;
 use pley_player::Phase;
 use pley_player::controller::SubtitleSearch;
-use pley_player::details::{DetailRow, PlaybackDetails, RECONNECTING, SubtitleDelivery};
+use pley_player::details::{DetailRow, PlaybackDetails, SubtitleDelivery, reconnecting};
 use pley_player_ui::{Btn, Out, Panel, Playback, PlayerView, Style, Target, keeps_awake};
 use pley_ui::testing::{Frame, Harness, Step};
 
@@ -868,12 +868,12 @@ fn reconnecting_shows_under_the_ring_only() {
     let mut pl = Player::new(Fake::movie());
     pl.p.state.reconnecting = true;
     pl.wait(1.0);
-    assert!(!pl.texts().iter().any(|t| t == RECONNECTING), "playing on from what it holds");
+    assert!(!pl.texts().iter().any(|t| t == reconnecting()), "playing on from what it holds");
     pl.p.state.phase = Phase::Buffering;
     pl.wait(0.2);
-    assert!(!pl.texts().iter().any(|t| t == RECONNECTING), "not before the ring's delay");
+    assert!(!pl.texts().iter().any(|t| t == reconnecting()), "not before the ring's delay");
     pl.wait(0.5);
-    assert!(pl.texts().iter().any(|t| t == RECONNECTING));
+    assert!(pl.texts().iter().any(|t| t == reconnecting()));
 }
 
 #[test]

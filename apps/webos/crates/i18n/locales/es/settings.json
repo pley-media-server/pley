@@ -51,11 +51,6 @@
   },
   "playback": {
     "quality": "Calidad",
-    "original": "Original",
-    "originalHint": "Calidad máxima. Puede detenerse a cargar con una conexión lenta.",
-    "automatic": "Automática",
-    "automaticHint": "Se adapta a las condiciones.",
-    "preset": "{{mbps}} Mbps {{lines}}",
     "autoplay": "Reproducir el siguiente episodio automáticamente",
     "autoplayHint": "Tras una cuenta regresiva de 10 segundos",
     "details": "Detalles de reproducción",

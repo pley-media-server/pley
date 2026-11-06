@@ -16,6 +16,7 @@
 //! Budgets start over after 5 s of playback and on Retry.
 
 use pley_core::model::{PlaybackMethod, PlaybackMode};
+use pley_i18n::t;
 
 /// Why a fallback plays something other than the original.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -281,18 +282,18 @@ impl Recovery {
 /// What people read for a failure (the Android app's strings_session.xml).
 pub fn failure_text(failure: Failure, detail: Option<&str>) -> String {
     match failure {
-        Failure::Unplayable => "This video can't be played on this device.".into(),
-        Failure::Stuck => "This video doesn't play on this device: it stops at the same spot each time.".into(),
-        Failure::Short => "This video ends before the point it was to play from.".into(),
-        Failure::Stopped => "Playback stopped and couldn't get going again.".into(),
-        Failure::Network => "Check that the server is on and that this device is on its network.".into(),
+        Failure::Unplayable => t!("player.errors.unplayable").into(),
+        Failure::Stuck => t!("player.errors.sameSpot").into(),
+        Failure::Short => t!("player.errors.endsEarly").into(),
+        Failure::Stopped => t!("player.errors.stalled").into(),
+        Failure::Network => t!("player.errors.reachHint").into(),
         Failure::Engine => {
             // The TV's own words when it gives any ("PIPELINE_ERROR_DECODE"), not its generic ones.
             let short = detail.unwrap_or("").split(':').next().unwrap_or("").trim();
             if !short.is_empty() && !short.eq_ignore_ascii_case("playback failed") {
-                format!("The TV's player gave up ({short}).")
+                t!("player.errors.playerGaveUpWith", detail = short)
             } else {
-                "The TV's player gave up.".into()
+                t!("player.errors.playerGaveUp").into()
             }
         }
     }

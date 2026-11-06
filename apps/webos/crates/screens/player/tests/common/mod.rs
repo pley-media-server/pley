@@ -107,7 +107,7 @@ impl Fake {
     /// The user's remote on another device did something the playback says as `said`, as the
     /// controller says it; a pause is the remote's until something plays it again.
     pub fn remote(&mut self, said: &str) {
-        if said == pley_player::remote::PAUSED {
+        if said == pley_player::remote::paused() {
             self.playing = false;
             self.state.phase = Phase::Paused;
             self.state.paused_by_remote = true;

@@ -24,6 +24,7 @@ mod view;
 use std::sync::Arc;
 
 use pley_core::Device;
+use pley_i18n::t;
 use pley_player::{PlaybackController, SavedPlayback};
 use pley_shell::{AppCx, AppEvent, Chrome, PlayQueue, PlayRequest, Route, Screen};
 use pley_ui::Ui;
@@ -35,7 +36,9 @@ pub use previews::{KEEP_SHEET_S, Previews, Tile, Want};
 pub use view::{CONFIRM_MS, FrameEnv, HIDE_AFTER_MS, Out, PlayerView, STOPPED_LEAVE_MS, Style, Target, keeps_awake};
 
 /// What the player says when a drive's video is opened and the drive is gone.
-pub const NO_DRIVE: &str = "Can't play this video: its USB drive was pulled out.";
+pub fn no_drive() -> &'static str {
+    t!("player.errors.noDrive")
+}
 
 /// The screen of `route` when it is one of this crate's pages: the video player.
 pub fn screen(route: &Route, _cx: &mut AppCx) -> Option<Box<dyn Screen>> {
@@ -147,10 +150,10 @@ impl PlayerScreen {
     fn cant_begin(&mut self, cx: &mut AppCx) {
         if self.request.file.is_some() {
             log::warn!("the player opened on a drive that isn't there");
-            cx.toast_error(NO_DRIVE);
+            cx.toast_error(no_drive());
         } else {
             log::warn!("the player opened without a server");
-            cx.toast_error("Can't play this item: no server is chosen.");
+            cx.toast_error(t!("player.errors.noServer"));
         }
         self.leave(cx);
     }
