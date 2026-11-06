@@ -37,8 +37,8 @@ public final class SubtitleSearchModel: ObservableObject, Identifiable {
         case failed(String, canRetry: Bool)
     }
 
-    public static let notSetUp = "Subtitle search isn't set up on this server"
-    public static let setUpHint = "Set it up in Pley on the web, under Settings → Server."
+    public static var notSetUp: String { localized("Subtitle search isn't set up on this server") }
+    public static var setUpHint: String { localized("Set it up in Pley on the web, under Settings → Server.") }
 
     @Published public private(set) var state: State = .searching
     /// The language asked for (a code of `languages`); `nil`: the profile's.
@@ -83,7 +83,7 @@ public final class SubtitleSearchModel: ObservableObject, Identifiable {
 
     /// The language's name as the screen shows it: "English".
     public var languageName: String {
-        Self.name(language ?? profileLanguage) ?? "English"
+        Self.name(language ?? profileLanguage) ?? localized("English")
     }
 
     /// Searches, in the language picked.
@@ -98,7 +98,8 @@ public final class SubtitleSearchModel: ObservableObject, Identifiable {
                 guard let api = await self.api() else { throw PleyError.signedOut }
                 let results = try await api.searchSubtitles(itemId: itemId, fileId: fileId, language: language)
                 guard !Task.isCancelled else { return }
-                self.state = results.isEmpty ? .none("No subtitles found in \(self.languageName)")
+                let name = self.languageName
+                self.state = results.isEmpty ? .none(localized("No subtitles found in \(name)"))
                     : .found(results.map(Self.row))
             } catch is CancellationError {
             } catch {
@@ -157,7 +158,7 @@ public final class SubtitleSearchModel: ObservableObject, Identifiable {
         case .notAvailable(_, _, setup: true)?, .api(429, _, _)?:
             .failed(Self.message(error), canRetry: false)
         case .api(404, _, _)?, .api(405, _, _)?:
-            .failed("This server can't search for subtitles: it may need an update.", canRetry: false)
+            .failed(localized("This server can't search for subtitles: it may need an update."), canRetry: false)
         default:
             .failed(Self.message(error), canRetry: true)
         }
@@ -173,13 +174,12 @@ public final class SubtitleSearchModel: ObservableObject, Identifiable {
 
     /// "English · Hearing impaired · Forced · Made for this file", and the downloads.
     static func row(_ result: SubtitleResult) -> FoundSubtitleRow {
-        let detail = [Words.language(result.language), result.hearingImpaired ? "Hearing impaired" : nil,
-                      result.forced ? "Forced" : nil, result.madeForFile ? "Made for this file" : nil]
+        let detail = [Words.language(result.language), result.hearingImpaired ? localized("Hearing impaired") : nil,
+                      result.forced ? localized("Forced") : nil,
+                      result.madeForFile ? localized("Made for this file") : nil]
             .compactMap { $0 }.joined(separator: " · ")
-        let downloads = result.downloads > 0
-            ? "\(result.downloads.formatted(.number.locale(Locale(identifier: "en_US")))) download"
-                + (result.downloads == 1 ? "" : "s")
-            : nil
+        let count = result.downloads
+        let downloads = count > 0 ? localized("\(count) downloads") : nil
         let title = result.name.isEmpty ? (Words.language(result.language) ?? result.id) : result.name
         let spoken = [title, detail, downloads].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
         return FoundSubtitleRow(id: result.id, title: title, detail: detail, downloads: downloads, spokenLabel: spoken)

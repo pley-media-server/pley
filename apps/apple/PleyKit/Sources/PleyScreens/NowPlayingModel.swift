@@ -73,7 +73,7 @@ public struct NowPlayingModel: Equatable, Sendable {
             return Row(position: position, itemId: item.id, title: item.title, byline: byline, duration: duration,
                        artPath: MusicState.artPath(item), spoken: spoken)
         }
-        spoken = ["Now playing", title, state.artist].compactMap { $0 }.filter { !$0.isEmpty }
+        spoken = [localized("Now playing"), title, state.artist].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: ", ") + (state.error.map { ". " + $0.text } ?? "")
     }
 
@@ -87,8 +87,8 @@ public struct NowPlayingModel: Equatable, Sendable {
 
     /// "1 minute of 3 minutes", for VoiceOver's scrubber.
     public static func spokenTime(_ positionMs: Int, _ durationMs: Int) -> String {
-        let at = positionMs < 1_000 ? "0 seconds" : Words.spokenDuration(ms: positionMs)
+        let at = positionMs < 1_000 ? localized("0 seconds") : Words.spokenDuration(ms: positionMs)
         let of = Words.spokenDuration(ms: durationMs)
-        return of.isEmpty ? at : "\(at) of \(of)"
+        return of.isEmpty ? at : localized("\(at) of \(of)")
     }
 }

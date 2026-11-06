@@ -8,8 +8,8 @@ public enum LiveViewKind: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .guide: "Guide"
-        case .channels: "Channels"
+        case .guide: localized("Guide")
+        case .channels: localized("Channels")
         }
     }
 }
@@ -102,17 +102,17 @@ public enum LiveTvRules {
 
     /// "UK · Sport" for a group of a region; its label otherwise, or `name`.
     public static func groupName(_ group: LiveGroup?, name: String) -> String {
-        guard let group else { return name.isEmpty ? "No group" : name }
+        guard let group else { return name.isEmpty ? localized("No group") : name }
         if let region = group.region { return "\(region) · \(group.label)" }
-        return group.label.isEmpty ? "No group" : group.label
+        return group.label.isEmpty ? localized("No group") : group.label
     }
 
     /// A category's name: "All channels", "Favourites", "Recently watched", or its group's.
     public static func categoryName(_ category: LiveCategory, groups: [LiveGroup]) -> String {
         switch category {
-        case .all: "All channels"
-        case .favorites: "Favourites"
-        case .recent: "Recently watched"
+        case .all: localized("All channels")
+        case .favorites: localized("Favourites")
+        case .recent: localized("Recently watched")
         case .group(let name): groupName(groups.first { $0.name == name }, name: splitRegion(name).map {
             "\($0.region) · \($0.rest)"
         } ?? name)
@@ -163,8 +163,8 @@ public enum LiveTvRules {
     /// "1 h 5 min left", "2 h left", "25 min left".
     public static func leftText(_ program: LiveProgram, now: Int64) -> String {
         let (hours, minutes) = left(program, now: now)
-        if hours == 0 { return "\(minutes) min left" }
-        return minutes == 0 ? "\(hours) h left" : "\(hours) h \(minutes) min left"
+        if hours == 0 { return localized("\(minutes) min left") }
+        return minutes == 0 ? localized("\(hours) h left") : localized("\(hours) h \(minutes) min left")
     }
 
     /// How many days `seconds`'s date is from `now`'s (unix seconds) in
@@ -178,9 +178,10 @@ public enum LiveTvRules {
         return calendar.dateComponents([.day], from: a, to: b).day ?? 0
     }
 
-    /// "6:00 PM" in the device's style.
+    /// "6:00 PM" in the style of the language shown.
     public static func time(_ seconds: Int64) -> String {
-        Date(timeIntervalSince1970: TimeInterval(seconds)).formatted(date: .omitted, time: .shortened)
+        Date(timeIntervalSince1970: TimeInterval(seconds))
+            .formatted(Date.FormatStyle(date: .omitted, time: .shortened, locale: ShownLanguage.locale))
     }
 
     /// "6:00 – 6:30 PM", with "Tomorrow" or "Yesterday" before a time on another day.
@@ -188,11 +189,12 @@ public enum LiveTvRules {
         let text = "\(time(program.start)) – \(time(program.stop))"
         switch daysApart(program.start, now: now) {
         case 0: return text
-        case 1: return "Tomorrow, \(text)"
-        case -1: return "Yesterday, \(text)"
+        case 1: return localized("Tomorrow, \(text)")
+        case -1: return localized("Yesterday, \(text)")
         default:
-            let day = Date(timeIntervalSince1970: TimeInterval(program.start)).formatted(.dateTime.weekday(.wide))
-            return "\(day), \(text)"
+            let day = Date(timeIntervalSince1970: TimeInterval(program.start))
+                .formatted(.dateTime.weekday(.wide).locale(ShownLanguage.locale))
+            return localized("\(day), \(text)")
         }
     }
 
@@ -201,9 +203,10 @@ public enum LiveTvRules {
     public static func spoken(_ program: LiveProgram, channel: LiveChannel, now: Int64) -> String {
         var parts = [channel.name]
         if let number = channel.number { parts.append(number) }
-        parts.append(program.title.isEmpty ? "No information for this time" : program.title)
-        parts.append("\(time(program.start)) to \(time(program.stop))")
-        if program.airing(at: now) { parts.append("on now") }
+        parts.append(program.title.isEmpty ? localized("No information for this time") : program.title)
+        let start = time(program.start), stop = time(program.stop)
+        parts.append(localized("\(start) to \(stop)"))
+        if program.airing(at: now) { parts.append(localized("on now")) }
         return parts.joined(separator: ", ")
     }
 

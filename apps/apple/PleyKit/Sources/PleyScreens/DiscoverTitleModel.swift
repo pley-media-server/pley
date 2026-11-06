@@ -35,7 +35,7 @@ public struct DiscoverTitlePage: Hashable, Sendable {
         if let year = detail.year { meta.append(String(year)) }
         if detail.kind == .show {
             let seasons = (detail.seasons ?? []).filter { $0.number > 0 }.count
-            if seasons > 0 { meta.append(Words.pluralize(seasons, "season")) }
+            if seasons > 0 { meta.append(localized("\(seasons) seasons")) }
         } else if let minutes = detail.runtimeMinutes, minutes > 0 {
             meta.append(Words.duration(ms: minutes * 60_000))
         }

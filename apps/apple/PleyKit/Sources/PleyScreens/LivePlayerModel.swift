@@ -206,7 +206,7 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
                 if self.category != .all, await !self.inCategory(found.id) { self.show(.all) }
                 self.tune(found)
             } else {
-                self.say("No channel \(number)")
+                self.say(localized("No channel \(number)"))
             }
         }
     }
@@ -248,7 +248,8 @@ public final class LivePlayerModel: ObservableObject, Identifiable {
             do {
                 try await self.live.setFavorite(channel.id, favorite)
             } catch {
-                self.toast("The favourite wasn't saved: \(describe(error))")
+                let reason = describe(error)
+                self.toast(localized("The favourite wasn't saved: \(reason)"))
             }
         }
         remark()
