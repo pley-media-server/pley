@@ -35,8 +35,11 @@ pub(crate) fn routes() -> Vec<Route> {
                 "setup_required": false,
                 "setup_code_required": false,
                 "two_step_required": state.two_step_required,
-                "language": state.server_language,
             });
+            // A Pley from before languages leaves it out.
+            if let Some(language) = &state.server_language {
+                body["language"] = json!(language);
+            }
             let Some((proof, address)) = proof else { return Ok(json(200, &body)) };
             body["proof"] = json!(proof);
             body["address"] = json!(address);

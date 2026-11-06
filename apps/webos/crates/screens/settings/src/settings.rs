@@ -70,6 +70,15 @@ struct PanelCache {
     heights: Vec<f32>,
 }
 
+/// A change of the account's language the server is keeping.
+struct SavingLanguage {
+    answer: Promise<Result<Me, ApiError>>,
+    /// The language chosen; none: Automatic.
+    language: Option<Language>,
+    /// The server it went to.
+    server: Option<String>,
+}
+
 /// What doesn't change while Settings shows: the TV's facts and the app's version.
 struct Fixed {
     device: Vec<(String, String)>,
@@ -95,8 +104,7 @@ pub struct SettingsScreen {
     web: WebDialog,
     /// The change of the defaults the server is keeping.
     saving: Option<Promise<Result<Me, ApiError>>>,
-    /// The account's language the server is keeping.
-    saving_language: Option<Promise<Result<Me, ApiError>>>,
+    saving_language: Option<SavingLanguage>,
     /// A change made while another was being kept: sent once that one is (`MeViewModel.save`
     /// keeps one request at a time).
     queued: Option<TrackDefaults>,
@@ -244,7 +252,10 @@ impl SettingsScreen {
             stale = true;
         }
         stale |= self.facts.settings != *state.settings();
-        stale |= self.facts.automatic_language != state.account_automatic_language();
+        let on_device = !state.keeps_language();
+        let automatic = if on_device { state.automatic_language() } else { state.account_automatic_language() };
+        stale |= self.facts.automatic_language != automatic || self.facts.language_on_device != on_device;
+        stale |= on_device && self.facts.language != state.language_choice();
         if !stale {
             return;
         }
@@ -273,28 +284,39 @@ impl SettingsScreen {
             device: fixed.map(|f| f.device.clone()).unwrap_or_default(),
             version: fixed.map(|f| f.version.clone()).unwrap_or_default(),
             licences: self.licences.clone(),
-            language: pley_i18n::supported(me.and_then(|m| m.language.as_deref())),
-            automatic_language: state.account_automatic_language(),
+            language: match on_device {
+                true => state.language_choice(),
+                false => pley_i18n::supported(me.and_then(|m| m.language.as_deref())),
+            },
+            automatic_language: automatic,
+            language_on_device: on_device,
         });
         self.revision += 1;
     }
 
     /// Collects the server's answer to a change of the account's language: the app shows it at
-    /// once. A server before the route says it needs a newer Pley.
+    /// once. A server without the route (404 or 405, a Pley from before languages) keeps none:
+    /// the choice is this TV's from then on, as the globe picks it, and shows with no word.
     fn collect_language(&mut self, cx: &mut AppCx) {
-        let Some(p) = self.saving_language.as_mut() else { return };
-        let answer = match p.take() {
+        let Some(saving) = self.saving_language.as_mut() else { return };
+        let answer = match saving.answer.take() {
             Some(a) => a,
-            None if p.failed() => Err(ApiError::Unreadable("the request stopped".into())),
+            None if saving.answer.failed() => Err(ApiError::Unreadable("the request stopped".into())),
             None => return,
         };
-        self.saving_language = None;
+        let Some(SavingLanguage { language, server, .. }) = self.saving_language.take() else { return };
         match answer {
             Ok(me) => {
                 cx.state.account_changed(me);
                 cx.toast(t!("settings.saved"));
             }
-            Err(e) if e.is(404) || e.is(405) => cx.toast(t!("settings.language.needsNewer")),
+            Err(e) if e.is(404) || e.is(405) => {
+                // Another server since: the answer was the one before's.
+                if cx.state.server() == server.as_deref() {
+                    cx.state.language_route_missing();
+                    cx.state.choose_language_here(language);
+                }
+            }
             Err(e) if e.is(403) => cx.toast(t!("settings.readOnly")),
             Err(e) if !e.cancelled() => cx.toast(sentence(&e.to_string())),
             Err(_) => {}
@@ -346,12 +368,19 @@ impl SettingsScreen {
     fn pick(&mut self, picking: Picking, value: &Value, cx: &mut AppCx) {
         match value {
             Value::Profile(p) => cx.state.set_always_start_as(*p),
-            Value::AppLanguage(language) => {
-                if self.saving_language.is_none() && *language != self.facts.language {
+            Value::AppLanguage(language) if *language != self.facts.language => {
+                if self.facts.language_on_device {
+                    cx.state.choose_language_here(*language);
+                } else if self.saving_language.is_none() {
                     let code = language.map(Language::code);
-                    self.saving_language = Some(cx.spawn(move |api| api.set_language(code)));
+                    self.saving_language = Some(SavingLanguage {
+                        answer: cx.spawn(move |api| api.set_language(code)),
+                        language: *language,
+                        server: cx.state.server().map(str::to_string),
+                    });
                 }
             }
+            Value::AppLanguage(_) => {}
             Value::Language(_) | Value::Mode(_) => {
                 // Nothing to change before who is watching is known.
                 let Some(before) = self.facts.defaults.clone() else { return };

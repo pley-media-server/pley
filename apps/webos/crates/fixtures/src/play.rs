@@ -22,7 +22,7 @@ use crate::model::{ItemDetail, Kind, MediaFile, MediaStream, is_false};
 use crate::pictures::{Shape, picture};
 use crate::random::{hex_id, token};
 use crate::server::{
-    Answer, Cx, Need, PLAY, Route, State, bad_request, forbidden, free, json, locked, no_content, not_found,
+    Answer, Cx, Need, PLAY, Route, State, bad_request, error, forbidden, free, json, locked, no_content, not_found,
     session_stopped,
 };
 use crate::views;
@@ -1420,6 +1420,10 @@ fn track_defaults(cx: &Cx<'_>, state: &mut State) -> Answer {
 
 /// PUT /api/me/language: `en`, `fr`, `es`, or null for Automatic; answers the profile.
 fn account_language(cx: &Cx<'_>, state: &mut State) -> Answer {
+    if let Some(status) = state.language_route_refusal {
+        let code = if status == 405 { "method_not_allowed" } else { "not_found" };
+        return Err(error(status, code, "no such route"));
+    }
     let body = cx.req.json().filter(Value::is_object).ok_or_else(|| bad_request("the body isn't a language"))?;
     let language = match &body["language"] {
         Value::Null => None,

@@ -155,11 +155,15 @@ pub struct Facts {
     /// The open-source parts the app is built from (name, licence), once read; `None` while
     /// reading, an empty list when the app carries no NOTICES.txt.
     pub licences: Option<Vec<(String, String)>>,
-    /// The account's own language; none: Automatic.
+    /// The account's own language, or on a server that keeps none the one picked on this TV;
+    /// none: Automatic.
     pub language: Option<Language>,
-    /// What the account's Automatic is on this TV: the language picked with the globe, else the
-    /// TV's, else the server's.
+    /// What Automatic is on this TV: for an account, the language picked with the globe, else the
+    /// TV's, else the server's; on a server that keeps none, the TV's, else the server's.
     pub automatic_language: Language,
+    /// The server keeps no account's language (a Pley from before languages): the Language row is
+    /// this TV's, as the globe picks it.
+    pub language_on_device: bool,
 }
 
 /// Who the Profile category's header shows.
@@ -458,7 +462,9 @@ fn profile(f: &Facts) -> Vec<Item> {
         row(Row::new(Some(Icon::Captions), label, value(language), pick(Picking::SubtitleLanguage)));
     }
     if f.profile.is_some() {
-        let action = if f.can_play { RowAction::Choose(Picking::Language) } else { RowAction::Web };
+        // This TV's language needs nothing of the server; the account's needs play.
+        let editable = f.can_play || f.language_on_device;
+        let action = if editable { RowAction::Choose(Picking::Language) } else { RowAction::Web };
         row(Row::new(Some(Icon::Languages), t!("settings.language.label"), language_value(f), action));
     }
     let history = t!("settings.profile.history");
@@ -488,8 +494,8 @@ fn profile(f: &Facts) -> Vec<Item> {
     out
 }
 
-/// The Language row's value: the account's language, named in itself ("Français"), else
-/// Automatic with what that is on this TV.
+/// The Language row's value: the account's language (or this TV's, on a server that keeps
+/// none), named in itself ("Français"), else Automatic with what that is on this TV.
 fn language_value(f: &Facts) -> String {
     match f.language {
         Some(l) => l.name().to_string(),
@@ -762,6 +768,17 @@ mod tests {
         let items = items(SettingsSection::Profile, &Facts { can_play: false, ..f });
         let row = rows(&items).into_iter().find(|r| r.label == "Language").unwrap();
         assert_eq!(row.action, RowAction::Web);
+    }
+
+    #[test]
+    fn on_a_server_that_keeps_no_language_the_row_is_this_tvs() {
+        // Without play too: the TV's language needs nothing of the server.
+        let f = Facts { language_on_device: true, can_play: false, language: Some(Language::Fr), ..alex() };
+        let items = items(SettingsSection::Profile, &f);
+        let row = rows(&items).into_iter().find(|r| r.label == "Language").unwrap();
+        assert_eq!((row.value.as_str(), &row.action), ("Français", &RowAction::Choose(Picking::Language)));
+        let p = panel(Picking::Language, &Facts { language: None, ..f }, &[]);
+        assert_eq!((p.choices[0].label.as_str(), p.current), ("Automatic (English)", 0));
     }
 
     #[test]

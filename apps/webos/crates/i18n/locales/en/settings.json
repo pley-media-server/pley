@@ -1,8 +1,7 @@
 {
   "language": {
     "label": "Language",
-    "automatic": "Automatic ({{language}})",
-    "needsNewer": "Choosing a language needs a newer Pley on the server"
+    "automatic": "Automatic ({{language}})"
   },
   "title": "Settings",
   "categories": {

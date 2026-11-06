@@ -215,6 +215,9 @@ pub struct AppState {
     /// The server in use was heard (`GET /api/server`), and its language.
     server_language: Option<Option<String>>,
     server_language_task: Option<Pending<Result<ServerInfo, ApiError>>>,
+    /// The servers that answered a choice of the account's language 404 (or 405) in this launch,
+    /// by address: they have no route for it.
+    no_language_route: HashSet<String>,
 }
 
 impl AppState {
@@ -298,6 +301,7 @@ impl AppState {
             tv_languages,
             server_language: None,
             server_language_task: None,
+            no_language_route: HashSet::new(),
         };
         if let Some(server) = state.store.active_server() {
             state.use_server(&server);
@@ -1380,8 +1384,27 @@ impl AppState {
         self.language_choice.unwrap_or_else(|| self.automatic_language())
     }
 
-    /// Picks this TV's language with the globe (none: Automatic, which forgets the pick); it
-    /// shows at once.
+    /// The server in use keeps an account's language. False for a Pley from before languages,
+    /// whose `GET /api/server` names none, or one that answered a choice 404 or 405
+    /// ([`AppState::language_route_missing`]): Settings' Language row is then this TV's, as the
+    /// globe picks it. True until the server has said.
+    pub fn keeps_language(&self) -> bool {
+        let Some(server) = self.server.as_deref() else { return true };
+        !self.no_language_route.contains(server) && self.server_language.as_ref().is_none_or(Option::is_some)
+    }
+
+    /// The server in use answered a choice of the account's language 404 or 405: it has no route
+    /// for it, and keeps no account's language.
+    pub fn language_route_missing(&mut self) {
+        if let Some(server) = self.server.clone() {
+            self.no_language_route.insert(server);
+            self.follow_language();
+        }
+    }
+
+    /// Picks this TV's language with the globe, or with Settings on a server that keeps no
+    /// account's language (none: Automatic, which forgets the pick); it shows at once unless the
+    /// account has its own.
     pub fn choose_language_here(&mut self, choice: Option<Language>) {
         self.language_choice = choice;
         if let Err(e) = self.store.set_device_language(choice) {
@@ -1429,7 +1452,10 @@ impl AppState {
             // The TV says its language a moment after the app starts.
             self.tv_languages = self.device.languages();
         }
-        let account = if self.fetched.account.is_some() {
+        let account = if !self.keeps_language() {
+            // A server that keeps none: nothing of the account to wait for.
+            Some(None)
+        } else if self.fetched.account.is_some() {
             Some(self.me.as_ref().and_then(|m| m.language.as_deref()))
         } else {
             None

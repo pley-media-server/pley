@@ -35,8 +35,20 @@ impl TestApp {
 
     /// The app signed in as `profile` (with only `scope` when given), on `route`.
     pub fn start(profile: i64, scope: Option<&str>, route: Route) -> TestApp {
+        TestApp::start_with(profile, scope, route, |_| {})
+    }
+
+    /// The app signed in as `profile` on `route`, the server set up by `prepare` before the app
+    /// starts.
+    pub fn start_with(
+        profile: i64,
+        scope: Option<&str>,
+        route: Route,
+        prepare: impl FnOnce(&FixtureServer),
+    ) -> TestApp {
         let options = Options { scan_every: None, ..Options::default() };
         let server = FixtureServer::start_with(options).unwrap();
+        prepare(&server);
         let device = Arc::new(FakeDevice::new(|| Box::new(NullEngine::default()) as Box<dyn PlayerEngine>));
         let store = Store::open(device.data_dir().join("store")).unwrap();
         let http = Http::network("pleyLG/0.1.0 (webOS 22; test)");
