@@ -480,9 +480,14 @@ ACCOUNT_LANGUAGE = "language.account"
 SERVER_LANGUAGE = "language.server"
 # "none" where the server is a Pley from before languages, which keeps no
 # account's language: its GET /api/server names none (every Pley with
-# languages names its own), or it answered a choice with 404.
+# languages names its own, one Pley has or not).
 ACCOUNT_LANGUAGES = "language.accounts"
 NO_ACCOUNT_LANGUAGES = "none"
+# The server as GET /api/server last named it ("id version"), and the one
+# that answered a choice of the account's language 404 or 405: it keeps
+# none either, until another server, or this one updated, answers.
+LANGUAGE_SERVER = "language.server_named"
+LANGUAGE_REFUSED_BY = "language.refused_by"
 # A Home property: the language the windows' words (layout.WORDS) are in.
 SHOWN_LANGUAGE = "pley.language"
 # What the add-on tells its other parts (NotifyAll) when the language shown
@@ -612,21 +617,31 @@ def heard_server(info) -> None:
     found = i18n.supported(info.get("language")) or ""
     if remembered(SERVER_LANGUAGE) != found:
         remember(SERVER_LANGUAGE, found)
+    # Whether it names one at all: a later Pley in a language the add-on
+    # hasn't still keeps an account's.
     keeps = "" if "language" in info else NO_ACCOUNT_LANGUAGES
     if remembered(ACCOUNT_LANGUAGES) != keeps:
         remember(ACCOUNT_LANGUAGES, keeps)
+    named = "%s %s" % (info.get("id") or "", info.get("version") or "")
+    remember(LANGUAGE_SERVER, named)
+    if remembered(LANGUAGE_REFUSED_BY) not in ("", named):
+        remember(LANGUAGE_REFUSED_BY, "")
 
 
 def keeps_account_language() -> bool:
     """Whether the server keeps an account's own language: not a Pley from
     before languages, as far as the add-on has heard."""
-    return remembered(ACCOUNT_LANGUAGES) != NO_ACCOUNT_LANGUAGES
+    if remembered(ACCOUNT_LANGUAGES) == NO_ACCOUNT_LANGUAGES:
+        return False
+    refused = remembered(LANGUAGE_REFUSED_BY)
+    return not refused or refused != remembered(LANGUAGE_SERVER)
 
 
 def keep_no_account_language() -> None:
-    """The server answered a choice of the account's language with 404 or 405: it
-    keeps none, though it may name its own."""
-    remember(ACCOUNT_LANGUAGES, NO_ACCOUNT_LANGUAGES)
+    """The server answered a choice of the account's language with 404 or
+    405: it keeps none, though it names its own, until another server (or
+    this one updated) answers GET /api/server."""
+    remember(LANGUAGE_REFUSED_BY, remembered(LANGUAGE_SERVER) or " ")
 
 
 def choose_device_language(choice) -> None:

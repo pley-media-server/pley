@@ -441,6 +441,33 @@ class ProfileLanguageTest(Shown):
         self.assertEqual(len(client.puts), 1)
         self.assertEqual(kodi.language(), "es")
 
+    def test_a_404_holds_until_another_server_answers(self):
+        # The stream opening again asks GET /api/server again: the same
+        # server still keeps no account's language, and Automatic forgets
+        # this device's choice.
+        self.show()
+        kodi.heard_server({"id": "s", "version": "0.2.0", "language": "en"})
+        client = self.Client(api.ApiError(404, "not_found", "no"))
+        self.choose(client, 2)
+        self.assertEqual(kodi.language(), "fr")
+        kodi.heard_server({"id": "s", "version": "0.2.0", "language": "en"})
+        self.assertFalse(kodi.keeps_account_language())
+        _, asked, _ = self.choose(client, 0)
+        self.assertEqual(asked[0][2], 2, "this device's choice, checked")
+        self.assertEqual(len(client.puts), 1, "nothing asked of the server")
+        self.assertEqual(xbmcaddon.settings["language"], "auto")
+        self.assertEqual(kodi.language(), "en")
+        # The server updated, or another one: it is asked again.
+        kodi.heard_server({"id": "s", "version": "0.3.0", "language": "en"})
+        self.assertTrue(kodi.keeps_account_language())
+
+    def test_a_later_pley_in_a_language_the_add_on_hasnt_keeps_the_accounts(self):
+        self.show()
+        kodi.heard_server({"id": "s", "version": "0.4.0", "language": "de"})
+        self.assertTrue(kodi.keeps_account_language())
+        kodi.heard_server({"id": "s", "version": "0.4.0"})
+        self.assertFalse(kodi.keeps_account_language(), "one that names none")
+
     def test_a_choice_answered_405_is_this_devices_too(self):
         self.show()
         client = self.Client(api.ApiError(405, "method_not_allowed", "no"))

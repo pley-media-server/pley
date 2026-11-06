@@ -435,8 +435,9 @@ same answers.
   `GET /api/server` names none, and that route answers 404 or 405):
   there Profile language is this device's choice, as the Language setting
   is, whose Automatic is Kodi's language; a choice shows at once and stays
-  on this device, with no error. So does a choice a server answers with 404 or 405
-  though it names a language. A 403 (no permission) is said, as other
+  on this device, with no error. So does a choice a server answers with
+  404 or 405 though it names a language, until another server, or this
+  one updated, is the one in use. A 403 (no permission) is said, as other
   refusals are.
 - **When it changes:** the account's language is heard as the service's
   event stream opens (as Kodi starts, on another sign-in or profile, when
