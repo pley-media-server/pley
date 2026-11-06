@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- The web and desktop apps' remote offers Skip Intro and Skip Credits while
+  what a device plays is in an intro or the credits, as its player would;
+  `GET /api/sessions` gives each session's intro and credits. Its back
+  button goes 30 seconds, as far as forward.
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays
@@ -25,6 +29,10 @@ describes how they are made.
   does, and says so when it can't. An administrator's remote sends only to
   Pley's apps, never to a browser or the desktop app, which would stay
   signed in with the administrator's rights.
+- Jellyfin apps make, rename, fill, reorder and delete your playlists, and
+  with a token that may manage libraries, make and change collections. Each
+  playlist entry has an id of its own, so an app removes or moves the one
+  you picked when a title is there twice.
 - Pley reads the NFO files Kodi, Jellyfin, Emby, Radarr, Sonarr,
   tinyMediaManager and MediaElch keep next to movies, shows, seasons and
   episodes. Their ids decide what a title is matched to, and their titles,
@@ -34,6 +42,9 @@ describes how they are made.
   with NFO files get their metadata from them. Jellyfin's lockdata keeps an
   item from being fetched online. Settings → Server has a switch for it, on
   by default.
+- Scripts and tools edit metadata through the Jellyfin-compatible API with
+  a token that may manage libraries: titles' fields, locks, pictures and
+  Fix Match, as Pley's own editor does them.
 - In the web and desktop apps, an item's Edit details says which fields
   come from its NFO file, and Fix match says when a title was matched by
   hand, with Undo Fix Match to let its NFO file decide again.

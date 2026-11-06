@@ -3541,7 +3541,7 @@ profile of the remote that sent it something.
 - **Without its controls.** Whoever sent a command is on another device,
   so Pley's players don't bring up their controls for it: what it changed
   shows for a moment where the player puts its brief notices ("Paused",
-  "Playing", "+30 s" or "−10 s" as far as a skip asked, "Jumped to 12:34"
+  "Playing", "+30 s" or "−30 s" as far as a skip asked, "Jumped to 12:34"
   where a seek went, "Audio: …", "Subtitles: …" or "Subtitles off" and
   "Quality: …" as the menus name them), and a command that changes
   nothing shows nothing. The remote's pause doesn't keep the controls up
@@ -3809,6 +3809,8 @@ interface PlayingSession {      // GET /api/sessions
   quality: string | null;       // the Quality menu's pick, by id ("auto", "8m"); null until its player says
   qualities: { id: string; label: string }[]; // what its menu offers for the file, which `quality`
                                 // picks from; empty for music and on live (Remote control, "Quality")
+  markers: Marker[];            // the intro and credits of the file it plays, for a remote's Skip Intro
+                                // and Skip Credits (a seek); empty on live
 }
 
 interface TrackOption {

@@ -23,6 +23,7 @@ import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -40,6 +41,8 @@ import app.pley.android.model.DeviceKind
 import app.pley.android.model.DeviceProfileName
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
+import app.pley.android.model.Marker
+import app.pley.android.model.MarkerKind
 import app.pley.android.model.PlayerCommandRequest
 import app.pley.android.model.PlayingChannel
 import app.pley.android.model.PlayingKind
@@ -54,6 +57,7 @@ import app.pley.android.ui.phone.theme.PhoneTheme
 import java.util.Date
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -243,27 +247,32 @@ class RemoteUiTest {
     }
 
     @Test
-    fun theDeviceAskedForShowsItsControlsOnceItPlays() {
+    fun aCastFromHereIsFollowedByTheBarAloneWhichOpensItsControls() {
         remote.devices.value = listOf(episode(), bedroom())
-        // Play on… sent it something.
+        // Play on… sent it something: the bar says it starts there, and no sheet comes up over it.
         show(asked = RemoteAsk("app-20"))
-        compose.onNodeWithTag(REMOTE_DEVICE + "app-20").assertExists()
-        compose.onNodeWithTag(REMOTE_CONTROLS + "app-20").assertDoesNotExist()
+        compose.onNodeWithText("Starting on Bedroom TV…").assertExists()
+        compose.onNodeWithTag(REMOTE_SHEET).assertDoesNotExist()
         val bedroom = episode(id = "s9", deviceId = "app-20", device = "Bedroom TV")
         remote.devices.value = listOf(episode(), bedroom)
         compose.waitForIdle()
+        // It plays: the same bar says so, with what plays.
+        compose.onNodeWithText("Starting on Bedroom TV…").assertDoesNotExist()
+        compose.onNodeWithText("Playing on Bedroom TV").assertExists()
+        compose.onNodeWithText("A Show — S1 · E2 — The Second One").assertExists()
+        compose.onNodeWithTag(REMOTE_BAR).performClick()
+        compose.waitForIdle()
         compose.onNodeWithTag(REMOTE_CARD + "s9").assertExists()
         compose.onNodeWithContentDescription("Pause on Bedroom TV").assertExists()
-        // Sent from here: the bar follows it.
-        compose.onNodeWithText("Playing on Bedroom TV").assertExists()
     }
 
     @Test
     fun aCastToADevicePlayingSomethingElseShowsTheBarOnceWhatWasSentPlays() {
         remote.devices.value = listOf(episode())
         show(asked = RemoteAsk("app-12"))
-        // What played there before isn't this phone's.
-        compose.onNodeWithTag(REMOTE_BAR).assertDoesNotExist()
+        // What played there before isn't this phone's: the bar says what was sent starts there.
+        compose.onNodeWithText("Starting on Living room TV…").assertExists()
+        compose.onNodeWithText("Playing on Living room TV").assertDoesNotExist()
         // The old title stops before the new one is listed.
         remote.devices.value = listOf(episode().copy(session = null))
         compose.mainClock.advanceTimeBy(1_000)
@@ -295,6 +304,7 @@ class RemoteUiTest {
     fun aCastThatNeverStartedIsNotWaitedForForever() {
         remote.devices.value = listOf(episode(), bedroom())
         show(asked = RemoteAsk("app-20"))
+        compose.onNodeWithText("Starting on Bedroom TV…").assertExists()
         compose.mainClock.advanceTimeBy(CAST_START_WAIT_MS + 1_000)
         compose.waitForIdle()
         // Played later, by someone else: not this phone's.
@@ -320,7 +330,7 @@ class RemoteUiTest {
         show()
         control("app-12")
         listOf(
-            "Back 10 seconds on Living room TV",
+            "Back 30 seconds on Living room TV",
             "Pause on Living room TV",
             "Forward 30 seconds on Living room TV",
             "Next on Living room TV",
@@ -351,7 +361,7 @@ class RemoteUiTest {
         compose.onNodeWithText("CHANNEL", useUnmergedTree = true).assertDoesNotExist()
         // A channel has no pause, no skips, no place, no tracks and no quality.
         compose.onAllNodesWithContentDescription("Pause on Kitchen phone").assertCountEquals(0)
-        compose.onNodeWithContentDescription("Back 10 seconds on Kitchen phone").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Back 30 seconds on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithContentDescription("Seek on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithContentDescription("Audio on Kitchen phone").assertDoesNotExist()
         compose.onNodeWithContentDescription("Quality on Kitchen phone").assertDoesNotExist()
@@ -367,7 +377,7 @@ class RemoteUiTest {
         val density = card.layoutInfo.density.density
         fun bounds(label: String) = compose.onNodeWithContentDescription(label).fetchSemanticsNode().boundsInRoot
         val previous = bounds("Previous on Living room TV")
-        val back = bounds("Back 10 seconds on Living room TV")
+        val back = bounds("Back 30 seconds on Living room TV")
         val pause = bounds("Pause on Living room TV")
         val forward = bounds("Forward 30 seconds on Living room TV")
         val next = bounds("Next on Living room TV")
@@ -593,6 +603,10 @@ class RemoteUiTest {
         compose.onNodeWithContentDescription("Forward 30 seconds on Living room TV").performClick()
         compose.waitForIdle()
         assertEquals("s1" to PlayerCommandRequest(Control.Skip, offsetMs = 30_000), remote.commands.last())
+        // Back goes as far as forward.
+        compose.onNodeWithContentDescription("Back 30 seconds on Living room TV").performClick()
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Skip, offsetMs = -30_000), remote.commands.last())
 
         // The player paused and reported.
         remote.devices.value = listOf(episode(state = ProgressState.Paused))
@@ -600,6 +614,79 @@ class RemoteUiTest {
         compose.waitForIdle()
         compose.onNodeWithContentDescription("Play on Living room TV").assertExists()
         compose.onNodeWithText("Living room TV didn't answer.").assertDoesNotExist()
+    }
+
+    /** [device]'s session with [markers], paused at 19:45 unless [device] says otherwise. */
+    private fun marked(vararg markers: Marker, device: OtherDevice = episode(state = ProgressState.Paused)): OtherDevice {
+        val session = device.session!!
+        return device.copy(session = session.copy(session = session.session.copy(markers = markers.toList())))
+    }
+
+    @Test
+    fun inAnIntroTheControlsOfferToSkipItAsThePlayerWould() {
+        // Paused at 19:45, in an intro from 16:40 to 21:40.
+        remote.devices.value = listOf(marked(Marker(1, MarkerKind.Intro, 1_000_000, 1_300_000)))
+        show()
+        open()
+        assertTouchTarget("Skip intro on Living room TV")
+        compose.onNodeWithContentDescription("Skip intro on Living room TV").performClick()
+        compose.waitForIdle()
+        // Just before the intro ends, where the player's own Skip Intro lands.
+        assertEquals("s1" to PlayerCommandRequest(Control.Seek, positionMs = 1_299_250), remote.commands.last())
+        // Shown there at once: past the intro, it isn't offered.
+        compose.onNodeWithTag(REMOTE_SKIP).assertDoesNotExist()
+    }
+
+    @Test
+    fun inTheCreditsTheControlsOfferToSkipThemToTheEnd() {
+        remote.devices.value = listOf(marked(Marker(1, MarkerKind.Credits, 1_100_000, 3_000_000)))
+        show()
+        open()
+        compose.onNodeWithContentDescription("Skip credits on Living room TV").performClick()
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Seek, positionMs = 3_000_000), remote.commands.last())
+        // Credits said to run past the title's end (53:29) go to its end: the server refuses a seek past it.
+        remote.devices.value = listOf(marked(Marker(1, MarkerKind.Credits, 1_100_000, 3_300_000)))
+        compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Skip credits on Living room TV").performClick()
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Seek, positionMs = 3_209_000), remote.commands.last())
+    }
+
+    @Test
+    fun noSkipIsOfferedOutsideAMarkerInItsLastSecondOrWithoutSeeking() {
+        fun offered(device: OtherDevice): Boolean {
+            remote.devices.value = listOf(device)
+            compose.waitForIdle()
+            return compose.onAllNodesWithTag(REMOTE_SKIP).fetchSemanticsNodes().isNotEmpty()
+        }
+        show()
+        remote.devices.value = listOf(episode(state = ProgressState.Paused))
+        open()
+        assertFalse("before the intro", offered(marked(Marker(1, MarkerKind.Intro, 0, 60_000))))
+        // 19:45 is within the last second of an intro ending at 19:45.5: the button goes a second early, as the player's.
+        assertFalse("its last second", offered(marked(Marker(1, MarkerKind.Intro, 1_000_000, 1_185_500))))
+        assertFalse("an unknown kind", offered(marked(Marker(1, MarkerKind.Unknown, 1_000_000, 1_300_000))))
+        val noSeek = episode(state = ProgressState.Paused, controls = listOf(Control.Play, Control.Pause, Control.Skip))
+        assertFalse("a player that doesn't seek", offered(marked(Marker(1, MarkerKind.Intro, 1_000_000, 1_300_000), device = noSeek)))
+        assertTrue("in the intro", offered(marked(Marker(1, MarkerKind.Intro, 1_000_000, 1_300_000))))
+    }
+
+    @Test
+    fun aLongTitleGivesWayToSkipAndKeepsInsideTheCard() {
+        val long = movie(controls = listOf(Control.Play, Control.Pause, Control.Seek))
+        val session = long.session!!
+        val title = "A Film Whose Title Runs On And On Well Past What Two Lines Of The Remote Can Hold Beside A Button"
+        val film = session.session.copy(state = ProgressState.Paused, item = session.session.item!!.copy(title = title))
+        remote.devices.value = listOf(marked(Marker(1, MarkerKind.Intro, 1_000_000, 1_300_000), device = long.copy(session = session.copy(session = film))))
+        show()
+        open()
+        val card = compose.onNodeWithTag(REMOTE_CARD + "s1").fetchSemanticsNode().boundsInRoot
+        val skip = compose.onNodeWithTag(REMOTE_SKIP).fetchSemanticsNode().boundsInRoot
+        val text = compose.onNodeWithText(title).fetchSemanticsNode().boundsInRoot
+        assertTrue("the title ends before the button: $text, $skip", text.right <= skip.left)
+        assertTrue("the button stays inside the card: $skip, $card", skip.right <= card.right)
     }
 
     @Test

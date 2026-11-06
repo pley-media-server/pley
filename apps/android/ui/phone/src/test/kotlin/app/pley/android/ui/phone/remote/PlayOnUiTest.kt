@@ -53,8 +53,9 @@ import org.robolectric.annotation.Config
 
 /**
  * Play on…: its button only while another device takes what a page plays,
- * the chooser of those devices, the cast it sends, "Playing on" the
- * device and the remote opening on it, and what a refusal says.
+ * the chooser of those devices, the cast it sends, the remote's bar
+ * saying it starts on the device (no sheet coming up over it), and what a
+ * refusal says.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(application = TestApplication::class)
@@ -141,9 +142,9 @@ class PlayOnUiTest {
         compose.waitForIdle()
         assertEquals(listOf("tv-1" to CastRequest(itemId = 101, startMs = 60_000)), graph.castsSent.toList())
         compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
-        compose.onNodeWithText("Playing on Living room TV").assertExists()
-        // The remote opens on the list, the device's controls to show once it plays what it was sent.
-        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
+        // The bar alone follows it: no toast saying the same, and no sheet coming up over them.
+        compose.onNodeWithText("Starting on Living room TV…").assertExists()
+        compose.onNodeWithTag(REMOTE_SHEET).assertDoesNotExist()
         compose.onNodeWithTag(REMOTE_CONTROLS + "app-12").assertDoesNotExist()
     }
 
@@ -168,7 +169,7 @@ class PlayOnUiTest {
         compose.onNodeWithTag(PLAY_ON_DEVICE + "app-20").performClick()
         compose.waitForIdle()
         assertEquals(listOf("tv-2" to CastRequest(channelId = 7)), graph.castsSent.toList())
-        compose.onNodeWithText("Playing on Bedroom TV").assertExists()
+        compose.onNodeWithText("Starting on Bedroom TV…").assertExists()
     }
 
     @Test
@@ -198,7 +199,7 @@ class PlayOnUiTest {
         compose.waitForIdle()
         compose.onNodeWithText("Live TV isn't open to you.").assertExists()
         assertTrue(graph.castsSent.isEmpty())
-        compose.onNodeWithText("Playing on Living room TV").assertDoesNotExist()
+        compose.onNodeWithText("Starting on Living room TV…").assertDoesNotExist()
     }
 
     @Test
@@ -212,7 +213,7 @@ class PlayOnUiTest {
         // This profile has no PIN: no pad, straight there.
         compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
         assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3, deviceId = "app-31")), graph.castsSent.toList())
-        compose.onNodeWithText("Playing on Den TV").assertExists()
+        compose.onNodeWithText("Starting on Den TV…").assertExists()
     }
 
     @Test
@@ -229,7 +230,7 @@ class PlayOnUiTest {
         type("1234")
         assertEquals(listOf("tv-3" to CastRequest(itemId = 101, profileId = 3, deviceId = "app-31", pin = "1234")), graph.castsSent.toList())
         compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
-        compose.onNodeWithText("Playing on Den TV").assertExists()
+        compose.onNodeWithText("Starting on Den TV…").assertExists()
     }
 
     @Test
@@ -279,14 +280,12 @@ class PlayOnUiTest {
     }
 
     @Test
-    fun aCastFromTheLivePlayerIsSaidByTheShellWhichOpensTheRemoteOnTheDevice() {
+    fun aCastFromTheLivePlayerIsFollowedByTheRemotesBar() {
         shell(livingRoom())
         CastsSent.tell("app-12", "Living room TV")
         compose.waitForIdle()
-        compose.onNodeWithText("Playing on Living room TV").assertExists()
-        // Open on the list until the device plays it.
-        compose.onNodeWithTag(REMOTE_SHEET).assertExists()
-        compose.onNodeWithTag(REMOTE_DEVICE + "app-12").assertExists()
+        compose.onNodeWithText("Starting on Living room TV…").assertExists()
+        compose.onNodeWithTag(REMOTE_SHEET).assertDoesNotExist()
         assertNull(CastsSent.pending.value)
     }
 

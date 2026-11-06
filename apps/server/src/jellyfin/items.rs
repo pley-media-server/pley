@@ -37,7 +37,7 @@ pub fn routes() -> Router<AppState> {
         .route("/users/{user}/items/resume", get(resume))
         .route("/items/filters", get(filters))
         .route("/items/filters2", get(filters2))
-        .route("/items/{id}", get(item))
+        .route("/items/{id}", get(item).delete(super::lists::delete_item))
         .route("/users/{user}/items/{id}", get(user_item))
         .route("/items/{id}/similar", get(similar))
         .route("/items/{id}/localtrailers", get(trailers))
@@ -66,7 +66,10 @@ pub fn routes() -> Router<AppState> {
         .route("/tags", get(nothing))
         .route("/persons", get(persons))
         .route("/search/hints", get(search_hints))
-        .route("/playlists/{id}/items", get(playlist_items))
+        .route(
+            "/playlists/{id}/items",
+            get(playlist_items).post(super::lists::add_to_playlist).delete(super::lists::remove_from_playlist),
+        )
         .route("/userplayeditems/{id}", post(played).delete(unplayed))
         .route("/users/{user}/playeditems/{id}", post(user_played).delete(user_unplayed))
         .route("/userfavoriteitems/{id}", post(favorite).delete(unfavorite))
@@ -437,7 +440,7 @@ async fn lists(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, q: &Q) ->
             }
             for c in crate::collections::list(&state.db, user, lib.id).await? {
                 let tag = collection_tag(jellyfin, c.updated_at, user);
-                items.push(list_item(
+                let mut collection = list_item(
                     jellyfin,
                     Kind::Collection,
                     c.id,
@@ -448,7 +451,9 @@ async fn lists(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, q: &Q) ->
                     c.created_at,
                     c.summary.clone(),
                     Some(tag),
-                ));
+                );
+                collection.can_delete = manages(user);
+                items.push(collection);
             }
         }
         items.sort_by(|a, b| a.sort_name.cmp(&b.sort_name));
@@ -491,6 +496,8 @@ fn list_item(
         id: jellyfin.ids.of(kind, id),
         etag: Some(format!("{updated_at:x}")),
         date_created: Some(super::users::iso(created_at)),
+        // Playlists are listed to their owner alone, who may delete them.
+        can_delete: kind == Kind::Playlist,
         sort_name: Some(title.to_lowercase()),
         is_folder: true,
         kind: item_type,
@@ -506,6 +513,11 @@ fn list_item(
         item.image_tags.insert("Primary", tag);
     }
     item
+}
+
+/// Whether the caller changes collections: with `manage` ([`super::JfManager`]).
+fn manages(user: &AuthUser) -> bool {
+    user.compatibility_allows(crate::auth::compatibility::Scope::Manage)
 }
 
 /// A collection's picture tag: when it last changed, and whose list it was
@@ -534,6 +546,11 @@ async fn items(
     }
     if let Some((items, total)) = lists(&state, &jellyfin, &user, &q).await? {
         return Ok(answer(items, total, start));
+    }
+    // A playlist's titles, as some apps list them, with their entries' ids.
+    let playlist = q.get("parentId").and_then(|p| jellyfin.ids.number(Kind::Playlist, p));
+    if let Some(playlist) = playlist.filter(|_| q.get("ids").is_none() && q.get("searchTerm").is_none()) {
+        return playlist_entries(&state, &jellyfin, &user, playlist, &q).await;
     }
     let (rows, total) = list(&state, &jellyfin, &user, &q).await?;
     let items = dtos(&state, &jellyfin, &user, &rows, Fields::of(&q)).await?;
@@ -744,7 +761,7 @@ async fn other(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, kind: Kin
         Kind::Collection => {
             let (c, _) = crate::collections::get(&state.db, user, id).await?.ok_or(JfError::NotFound)?;
             let tag = collection_tag(jellyfin, c.updated_at, user);
-            Ok(list_item(
+            let mut collection = list_item(
                 jellyfin,
                 Kind::Collection,
                 c.id,
@@ -755,7 +772,9 @@ async fn other(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, kind: Kin
                 c.created_at,
                 c.summary.clone(),
                 Some(tag),
-            ))
+            );
+            collection.can_delete = manages(user);
+            Ok(collection)
         }
         Kind::Playlist => {
             let (p, _) = crate::playlists::get_rows(&state.db, user, id).await?.ok_or(JfError::NotFound)?;
@@ -780,8 +799,15 @@ async fn details(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, id: &st
     match jellyfin.ids.read(id) {
         Some((Kind::Item, _)) => {
             let row = visible_item(state, jellyfin, user, id).await?;
-            let mut items = dtos(state, jellyfin, user, &[row], Fields::all()).await?;
-            Ok(Json(items.remove(0)).into_response())
+            let mut items = dtos(state, jellyfin, user, std::slice::from_ref(&row), Fields::all()).await?;
+            let mut item = items.remove(0);
+            // What an editor sends back: the locks and the labels.
+            let (locked, all, sort) = super::editing::locks(state, row.id).await?;
+            item.locked_fields = Some(locked);
+            item.lock_data = Some(all);
+            item.forced_sort_name = sort;
+            item.tags = Some(crate::labels::for_items(&state.db, &[row.id]).await?.remove(&row.id).unwrap_or_default());
+            Ok(Json(item).into_response())
         }
         Some((kind, number)) => Ok(Json(other(state, jellyfin, user, kind, number).await?).into_response()),
         None => Err(JfError::NotFound),
@@ -1227,10 +1253,33 @@ async fn playlist_items(
     q: Q,
 ) -> JfResult<Response> {
     let id = jellyfin.ids.number(Kind::Playlist, &id).ok_or(JfError::NotFound)?;
-    let (_, entries) = crate::playlists::get_rows(&state.db, &user, id).await?.ok_or(JfError::NotFound)?;
-    let page = page(&q);
-    let (rows, total) = page.apply(entries.into_iter().map(|(_, row)| row).collect());
-    let items = dtos(&state, &jellyfin, &user, &rows, Fields::of(&q)).await?;
+    playlist_entries(&state, &jellyfin, &user, id, &q).await
+}
+
+/// The entries of playlist `id` the user sees, in its order, each with its
+/// own id (`PlaylistItemId`), by which apps remove and move it: an item may
+/// be there more than once. `IncludeItemTypes` and `ExcludeItemTypes`
+/// narrow them, as other lists.
+async fn playlist_entries(
+    state: &AppState,
+    jellyfin: &Jellyfin,
+    user: &AuthUser,
+    id: i64,
+    q: &Q,
+) -> JfResult<Response> {
+    let (_, mut entries) = crate::playlists::get_rows(&state.db, user, id).await?.ok_or(JfError::NotFound)?;
+    let wanted: Vec<&'static str> = q.list("includeItemTypes").iter().filter_map(|t| dto::kind_of_type(t)).collect();
+    let excluded: Vec<&'static str> = q.list("excludeItemTypes").iter().filter_map(|t| dto::kind_of_type(t)).collect();
+    entries.retain(|(_, row)| {
+        (wanted.is_empty() || wanted.contains(&row.kind.as_str())) && !excluded.contains(&row.kind.as_str())
+    });
+    let page = page(q);
+    let (entries, total) = page.apply(entries);
+    let (keys, rows): (Vec<i64>, Vec<ItemRow>) = entries.into_iter().unzip();
+    let mut items = dtos(state, jellyfin, user, &rows, Fields::of(q)).await?;
+    for (item, entry) in items.iter_mut().zip(keys) {
+        item.playlist_item_id = Some(jellyfin.ids.of(Kind::PlaylistEntry, entry));
+    }
     Ok(answer(items, total, page.start))
 }
 
@@ -1238,7 +1287,7 @@ async fn playlist_items(
 
 /// Pley's artwork kind and Jellyfin's image type: a poster is Primary (an
 /// episode's still), a backdrop Backdrop, a frame of the video Thumb.
-fn artwork_kind(row_kind: &str, image: &str) -> Option<&'static str> {
+pub(super) fn artwork_kind(row_kind: &str, image: &str) -> Option<&'static str> {
     Some(match image {
         "primary" if matches!(row_kind, "episode" | "extra") => "thumb",
         "primary" => "poster",
