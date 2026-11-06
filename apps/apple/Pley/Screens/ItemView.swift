@@ -181,7 +181,7 @@ struct ItemView: View {
                 }
             }
             if let season = context.seasonTitle {
-                Text("·").foregroundStyle(.secondary).accessibilityHidden(true)
+                Text("·").foregroundStyle(.secondary).accessibilityHidden(true).flowSeparator()
                 if let id = context.seasonId {
                     Button(season) { app.shell.open(.item(id)) }
                         .accessibilityHint("Opens the season")
@@ -196,37 +196,22 @@ struct ItemView: View {
         .foregroundStyle(Color.accentColor)
     }
 
-    /// The facts, a dot between each, and the file's badges on a line of
-    /// their own under them, so a dot never ends a line before the badges.
     @ViewBuilder private func meta(_ page: ItemPage) -> some View {
         if !page.meta.isEmpty {
-            let facts = page.meta.filter { if case .badges = $0 { false } else { true } }
-            let badges = page.meta.flatMap { part -> [String] in
-                if case .badges(let badges) = part { badges } else { [] }
-            }
-            VStack(alignment: .leading, spacing: 6) {
-                if !facts.isEmpty {
-                    FlowLayout(spacing: 8, lineSpacing: 4) {
-                        ForEach(Array(facts.enumerated()), id: \.offset) { index, part in
-                            if index > 0 { Text("·") }
-                            switch part {
-                            case .text(let text):
-                                Text(text)
-                            case .contentRating(let rating):
-                                Text(rating)
-                                    .font(.caption.weight(.semibold))
-                                    .padding(.horizontal, 4)
-                                    .overlay(RoundedRectangle(cornerRadius: 3).stroke(.secondary))
-                            case .rating(let rating):
-                                Label(rating, systemImage: "star.fill").labelStyle(.titleAndIcon)
-                            case .badges:
-                                EmptyView()
-                            }
-                        }
-                    }
-                }
-                if !badges.isEmpty {
-                    FlowLayout(spacing: 6, lineSpacing: 4) {
+            FlowLayout(spacing: 8, lineSpacing: 4) {
+                ForEach(Array(page.meta.enumerated()), id: \.offset) { index, part in
+                    if index > 0 { Text("·").flowSeparator() }
+                    switch part {
+                    case .text(let text):
+                        Text(text)
+                    case .contentRating(let rating):
+                        Text(rating)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 4)
+                            .overlay(RoundedRectangle(cornerRadius: 3).stroke(.secondary))
+                    case .rating(let rating):
+                        Label(rating, systemImage: "star.fill").labelStyle(.titleAndIcon)
+                    case .badges(let badges):
                         ForEach(badges, id: \.self) { badge in
                             Text(badge)
                                 .font(.caption.weight(.bold))
@@ -444,53 +429,63 @@ struct ItemView: View {
     private func pickers(_ tracks: PleyScreens.TrackChoices) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if tracks.versions.count > 1 {
-                pickerRow("Version") {
+                let chosen = tracks.versions.first { $0.id == tracks.versionId }?.label ?? ""
+                pickerRow("Version", chosen: chosen, id: "item.version") {
                     Picker("Version", selection: Binding(get: { tracks.versionId ?? 0 },
                                                          set: { model.chooseVersion($0) })) {
                         ForEach(tracks.versions) { Text($0.label).tag($0.id) }
                     }
-                    .labelsHidden()
-                    .accessibilityIdentifier("item.version")
                 }
             }
             if !tracks.audio.isEmpty {
                 let audio = Binding<Int?>(get: { tracks.automaticAudio ? nil : tracks.audioIndex },
                                           set: { index in Task { await model.chooseAudio(index) } })
-                pickerRow("Audio") {
+                let chosen = tracks.automaticAudio ? tracks.automaticLabel
+                    : tracks.audio.first { $0.id == tracks.audioIndex }?.label ?? tracks.automaticLabel
+                pickerRow("Audio", chosen: chosen, id: "item.audio") {
                     Picker("Audio", selection: audio) {
                         Text(tracks.automaticLabel).tag(Int?.none)
                         ForEach(tracks.audio) { Text($0.label).tag(Int?.some($0.id)) }
                     }
-                    .labelsHidden()
-                    .accessibilityIdentifier("item.audio")
                 }
             }
             if !tracks.subtitles.isEmpty {
                 let subtitles = Binding<Int?>(get: { tracks.subtitleIndex },
                                               set: { index in Task { await model.chooseSubtitle(index) } })
-                pickerRow("Subtitles") {
+                let chosen = tracks.subtitles.first { $0.id == tracks.subtitleIndex }?.label ?? "Off"
+                pickerRow("Subtitles", chosen: chosen, id: "item.subtitles") {
                     Picker("Subtitles", selection: subtitles) {
                         Text("Off").tag(Int?.none)
                         ForEach(tracks.subtitles) { Text($0.label).tag(Int?.some($0.id)) }
                     }
-                    .labelsHidden()
-                    .accessibilityIdentifier("item.subtitles")
                 }
             }
         }
-        .pickerStyle(.menu)
         .frame(maxWidth: 420, alignment: .leading)
     }
 
     /// A picker's name, and its choice on one line beside it: a long
-    /// choice is cut short rather than wrapped.
-    private func pickerRow(_ title: String, @ViewBuilder picker: () -> some View) -> some View {
+    /// choice is cut short rather than wrapped, which a menu picker's own
+    /// label does. The choices open in a menu.
+    private func pickerRow(_ title: String, chosen: String, id: String,
+                           @ViewBuilder picker: () -> some View) -> some View {
         HStack(spacing: 12) {
             Text(title).fixedSize()
             Spacer(minLength: 0)
-            picker().lineLimit(1)
+            Menu {
+                picker().pickerStyle(.inline).labelsHidden()
+            } label: {
+                HStack(spacing: 4) {
+                    Text(chosen).lineLimit(1)
+                    Image(systemName: "chevron.up.chevron.down").imageScale(.small)
+                }
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .accessibilityLabel(title)
+            .accessibilityValue(chosen)
+            .accessibilityIdentifier(id)
         }
-        .accessibilityElement(children: .contain)
     }
 
     // MARK: Crew
