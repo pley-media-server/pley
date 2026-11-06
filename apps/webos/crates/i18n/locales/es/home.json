@@ -8,7 +8,7 @@
     "markUnwatched": "Marcar como no visto"
   },
   "seeAll": "Ver todo",
-  "nothingToPlay": "No hay nada que reproducir",
+  "nothingToPlay": "Nada que reproducir",
   "states": {
     "offline": "No se puede conectar con tu servidor",
     "failed": "No se pudo cargar tu pantalla de inicio",

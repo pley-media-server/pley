@@ -84,7 +84,7 @@
     "add": "Ajouter aux favoris",
     "remove": "Retirer des favoris",
     "failed": "Le favori n’a pas été enregistré : {{error}}",
-    "requestStopped": "La demande s’est interrompue."
+    "requestStopped": "La requête s’est interrompue."
   },
   "player": {
     "tuning": "Chargement de la chaîne…",

@@ -199,7 +199,7 @@
   "music": {
     "offline": "Impossible de joindre le serveur.",
     "signedOut": "Votre session a pris fin : reconnectez-vous.",
-    "stopped": "Le serveur a arrêté la lecture.",
-    "unplayable": "Impossible de lire ce titre."
+    "stopped": "La lecture a été arrêtée par le serveur.",
+    "unplayable": "Ce titre ne peut pas être lu."
   }
 }

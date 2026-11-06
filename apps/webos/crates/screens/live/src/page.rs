@@ -844,7 +844,7 @@ mod tests {
         });
         with_language(Language::Es, || {
             assert_eq!(empty_words(&Category::Favorites).0, "Aún no hay favoritos");
-            assert!(empty_words(&search).1.starts_with("Ningún canal tiene “zzz”"));
+            assert!(empty_words(&search).1.starts_with("Ningún canal tiene «zzz»"));
         });
     }
 

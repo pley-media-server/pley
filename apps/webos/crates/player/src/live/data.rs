@@ -493,10 +493,11 @@ mod tests {
         });
         with_language(Language::Es, || {
             assert_eq!(format_guide_day(t - 86_400, t, 0), "Ayer");
-            assert_eq!(format_guide_day(t, t + 3 * 86_400, 0), "vie. 30 oct.");
+            assert_eq!(format_guide_day(t, t + 3 * 86_400, 0), "vie 30 oct");
             assert_eq!(time_left(60, 0), "Queda 1 min");
             assert_eq!(time_left(7200, 0), "Quedan 2 h");
             assert_eq!(category_name(&Category::Recent, &[]), "Vistos recientemente");
+            assert_eq!(category_name(&Category::Search("bbc".into()), &[]), "Resultados de «bbc»");
         });
     }
 

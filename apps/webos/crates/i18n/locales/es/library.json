@@ -130,7 +130,7 @@
     "play": "Reproducir",
     "shuffle": "Aleatorio",
     "empty": "Esta colección aún está vacía.",
-    "noEpisodes": "No hay nada que reproducir: esta serie aún no tiene episodios",
+    "noEpisodes": "Nada que reproducir: esta serie aún no tiene episodios",
     "byRelease": "Por fecha de estreno",
     "byTitle": "Por título",
     "customOrder": "Orden personalizado",

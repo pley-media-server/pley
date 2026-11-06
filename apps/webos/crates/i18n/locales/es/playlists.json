@@ -4,7 +4,7 @@
     "new": "Nueva lista de reproducción",
     "failed": "No se pudieron cargar tus listas de reproducción",
     "noneTitle": "Aún no hay listas de reproducción",
-    "noneBody": "Crea una aquí o usa «Añadir a una lista» en una película, serie, álbum o episodio (también manteniendo pulsado OK en un póster).",
+    "noneBody": "Crea una aquí o usa «Añadir a una lista de reproducción» en una película, serie, álbum o episodio (también manteniendo pulsado OK en un póster).",
     "retry": "Reintentar",
     "smart": "Inteligente"
   },
@@ -28,8 +28,8 @@
     "back": "Atrás",
     "retry": "Reintentar",
     "emptySmart": "Todavía nada coincide con el filtro de esta lista de reproducción.",
-    "emptyVideo": "Esta lista de reproducción está vacía. Usa «Añadir a una lista» en una película, serie o episodio, o mantén pulsado OK en un póster.",
-    "emptyMusic": "Esta lista de reproducción está vacía. Usa «Añadir a una lista» en un artista o álbum, o mantén pulsado OK en una portada.",
+    "emptyVideo": "Esta lista de reproducción está vacía. Usa «Añadir a una lista de reproducción» en una película, serie o episodio, o mantén pulsado OK en un póster.",
+    "emptyMusic": "Esta lista de reproducción está vacía. Usa «Añadir a una lista de reproducción» en un artista o álbum, o mantén pulsado OK en una portada.",
     "more": "Más",
     "playFromHere": "Reproducir desde aquí",
     "goTo": "Ir a {{title}}",
@@ -49,7 +49,7 @@
   "form": {
     "newTitle": "Nueva lista de reproducción",
     "smartTitle": "Guardar estos filtros",
-    "newBody": "Ponle un nombre y luego añádele títulos con «Añadir a una lista» en cualquier título.",
+    "newBody": "Ponle un nombre y luego llénala con «Añadir a una lista de reproducción» desde cualquier título.",
     "smartBody": "Se mantiene al día con la biblioteca por sí sola.",
     "smartBodyFilters": "{{filters}}. Se mantiene al día con la biblioteca por sí sola.",
     "titleField": "Título",
