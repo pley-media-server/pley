@@ -33,7 +33,7 @@ from . import api
 from .auth import NotYourServer, SignedOut, Tokens
 
 # What passes from Kodi to the server, and back.
-REQUEST_HEADERS = ("range", "if-range", "if-none-match", "if-modified-since", "content-type", "accept")
+REQUEST_HEADERS = ("range", "if-range", "if-none-match", "if-modified-since", "content-type", "accept", "accept-language")
 RESPONSE_HEADERS = (
     "content-type",
     "content-length",

@@ -16,7 +16,7 @@ import urllib.parse
 
 import xbmc
 
-from . import api, auth, autoquality, kodi, listing, news, overlay, profiles, prompts, remote, requests, tracks
+from . import api, auth, autoquality, kodi, language, listing, news, overlay, profiles, prompts, remote, requests, tracks
 from .events import CHANGES, Events, Refresher
 from .proxy import Proxy, new_secret
 
@@ -921,11 +921,11 @@ class Player(xbmc.Player):
         if step.kind == autoquality.BITRATE:
             kodi.log("automatic: %s to %d kbps as it is sent at %d s (%s)" % ("down" if step.down else "up", step.kbps, position / 1000, why))
             if step.down:
-                kodi.notify(kodi.text("smoother") % autoquality.bitrate_label(step.kbps, watch.lines))
+                kodi.notify(kodi.text("smoother") % autoquality.bitrate_label(step.kbps, watch.lines, kodi.decimal))
             session = playing["session_id"]
             self.worker.put(lambda: self.set_bitrate(watch, session, step.kbps))
             return
-        notice = kodi.text("smoother") % autoquality.label(step.quality) if step.down else None
+        notice = kodi.text("smoother") % autoquality.label(step.quality, kodi.text) if step.down else None
         kodi.log("automatic: %s at %d s (%s)" % ("converted, as the player gave up" if step.quality == autoquality.CONVERTED else "down to " + step.quality, position / 1000, why))
         item_id = playing["item_id"]
         self.restarting = (item_id, watch, notice)
@@ -1320,6 +1320,10 @@ class Monitor(xbmc.Monitor):
     def onNotification(self, sender, method, data) -> None:
         if sender == kodi.ADDON_ID and method.endswith(requests.ASKING):
             self.asking()
+        elif sender == kodi.ADDON_ID and method.endswith(kodi.LANGUAGE_CHANGED):
+            # The plugin changed it (the profile's own): the service's
+            # notices are in it too.
+            kodi.forget_language()
         elif sender == "xbmc" and method == "System.OnWake":
             # Maybe on another network: the server proves itself again.
             auth.network_may_have_changed()
@@ -1329,7 +1333,13 @@ def run() -> None:
     profile = kodi.profile_dir()
     user_agent = kodi.user_agent()
     quality = QualitySetting(user_agent)
-    monitor = Monitor(lambda: worker.put(quality.read), asking=lambda: told.asked())
+
+    def settings_changed() -> None:
+        worker.put(quality.read)
+        # The language setting: the add-on shows the one chosen.
+        worker.put(kodi.follow_language)
+
+    monitor = Monitor(settings_changed, asking=lambda: told.asked())
     tokens = auth.Tokens(auth.Store(os.path.join(profile, "tokens.json")), user_agent)
     config = proxy_config(profile)
     worker = Worker()
@@ -1359,7 +1369,15 @@ def run() -> None:
         player.heard(event)
         told.heard(event)
 
-    events = Events(tokens, user_agent, heard, opened=told.opened, query=receiver_query(user_agent))
+    def opened() -> None:
+        told.opened()
+        # The account's language and the server's, as they are now (another
+        # sign-in or profile opens the stream again too).
+        news_worker.put(lambda: language.hear(player.call))
+
+    # The windows' words, in the language last shown, before anything asks.
+    kodi.follow_language()
+    events = Events(tokens, user_agent, heard, opened=opened, query=receiver_query(user_agent))
     events.start()
     # A quality chosen before Automatic, shown in the settings as it was.
     worker.put(quality.read)

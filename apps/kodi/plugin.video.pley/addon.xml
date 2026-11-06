@@ -15,6 +15,12 @@
     <summary lang="en_GB">Your Pley server's movies, shows and music</summary>
     <description lang="en_GB">Browse and play what is on your Pley server: Continue Watching, My List, every library, search and playlists, and ask for movies and shows it doesn't have yet. Pley plays files as they are whenever Kodi can, and converts the rest on the server. Sign in with a code shown on screen, typed on your server's link page.[CR][CR]This product uses the TMDB API but is not endorsed or certified by TMDB.</description>
     <disclaimer lang="en_GB">Pley isn't affiliated with Plex Inc. or Team Kodi.</disclaimer>
+    <summary lang="fr_FR">Les films, séries et musique de votre serveur Pley</summary>
+    <description lang="fr_FR">Parcourez et lisez ce qui se trouve sur votre serveur Pley : Reprendre la lecture, Ma liste, chaque bibliothèque, la recherche et les playlists, et demandez les films et séries qu’il n’a pas encore. Pley lit les fichiers tels quels chaque fois que Kodi le peut, et convertit les autres sur le serveur. Connectez-vous avec un code affiché à l’écran, saisi sur la page d’association de votre serveur.[CR][CR]Ce produit utilise l’API de TMDB, mais n’est ni approuvé ni certifié par TMDB.</description>
+    <disclaimer lang="fr_FR">Pley n’est affilié ni à Plex Inc. ni à la Team Kodi.</disclaimer>
+    <summary lang="es_ES">Las películas, series y música de tu servidor Pley</summary>
+    <description lang="es_ES">Explora y reproduce lo que hay en tu servidor Pley: Seguir viendo, Mi lista, cada biblioteca, la búsqueda y las listas de reproducción, y solicita las películas y series que aún no tiene. Pley reproduce los archivos tal cual siempre que Kodi puede, y convierte el resto en el servidor. Inicia sesión con un código que aparece en pantalla, introducido en la página de vinculación de tu servidor.[CR][CR]Este producto usa la API de TMDB, pero TMDB no lo respalda ni lo certifica.</description>
+    <disclaimer lang="es_ES">Pley no está afiliado a Plex Inc. ni al Team Kodi.</disclaimer>
     <platform>all</platform>
     <license>GPL-2.0-or-later AND ISC AND MIT</license>
     <source>https://github.com/pley-media-server/pley</source>

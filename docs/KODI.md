@@ -410,6 +410,55 @@ Discover's plots end with "Details and pictures from TMDB."; the add-on's
 description, in its information in Kodi, ends with "This product uses the
 TMDB API but is not endorsed or certified by TMDB."
 
+### Language
+
+The add-on is in English, French and Spanish, in the language
+[API.md](API.md#language) describes: the account's own, else the one
+chosen in the add-on's settings, else Kodi's where Pley has it, else the
+server's, else English. `packages/tv/test/fixtures/language.json` pins
+that order for the Samsung apps, and the add-on's tests hold it to the
+same answers.
+
+- **Kodi's language:** what Kodi says of its own
+  (`xbmc.getLanguage(xbmc.ISO_639_1)`). A region doesn't count: a Kodi
+  in Canadian French is in French.
+- **This device's choice:** Settings → Screens → Language: Automatic,
+  English, Français or Español, each named in itself. Kodi has no globe
+  as the TVs' sign-in screens do; this setting stands for it, and its
+  Automatic is Kodi's language, else the server's. Signed in, a profile's
+  own language comes first.
+- **Profile language:** in the profile's menu, and in the add-on's
+  settings under Switch profile: "Automatic (Français)", with what that is
+  here, then English, Français and Español. A choice is the profile's on
+  all its devices (`PUT /api/me/language`), and shows once the server has
+  it. A Pley from before languages keeps no account's language (its
+  `GET /api/server` names none, and that route answers 404): there Profile
+  language is this device's choice, as the Language setting is, whose
+  Automatic is Kodi's language; a choice shows at once and stays on this
+  device, with no error. So does a choice a server answers with 404 though
+  it names a language.
+- **When it changes:** the account's language is heard as the service's
+  event stream opens (as Kodi starts, on another sign-in or profile, when
+  the server is back), on signing in, and in the profile's menu; the
+  server's at the same times and on the sign-in screen, so a Kodi in a
+  language Pley doesn't have shows the server's. Signing out leaves this
+  device's. The last ones heard are kept on the device
+  (`remembered.json`), so Kodi starts in the language it showed last.
+  Pley's window draws its page again in the new language, Kodi's lists
+  refresh, and the service's notices follow.
+- **Requests** to the server carry `Accept-Language` with the language
+  shown, so what the server writes itself (Home's rows) comes in it.
+- **Dates and numbers** are written in the language shown: "Mar 5, 2024",
+  "5 mars 2024", "5 mar 2024"; "12,345", "12 345", "12.345"; "7.4" or
+  "7,4". Times of Live TV's guide take Kodi's region format when Kodi is
+  in the language shown, else that language's own clock (24 hours in
+  French and Spanish). Counts take each language's plural forms, as CLDR
+  has them: English one and other, French and Spanish one, many and
+  other.
+- **What Kodi draws itself** stays in Kodi's language: the add-on's
+  settings screen, and Kodi's own dialogs' buttons. Track languages in the
+  player's notices are named as Kodi's menus name them.
+
 ## Building and testing
 
 ### How it works
@@ -459,6 +508,19 @@ TMDB API but is not endorsed or certified by TMDB."
   fail. `bun scripts/render-kodi-skin.mjs` renders its pictures from the
   Android app's icons, and `bun scripts/render-icons.mjs` the add-on's icon
   and fanart.
+- **The words** are in `resources/language/resource.language.<code>/strings.po`
+  (`en_gb`, `fr_fr`, `es_es`), in Kodi's layout, each by its id. Kodi's
+  `getLocalizedString` would give them in Kodi's language only, so the
+  add-on reads the files itself (`i18n.py`) in the language shown:
+  `kodi.text("name")` by the names in `kodi.TEXT`, `kodi.count("name", n)`
+  for a count, whose three ids in a row are its forms one, many and other
+  (`kodi.COUNTS`; English writes many as other). Values are `%s` and `%d`,
+  or `{name}` where languages order them differently (dates). A word a
+  language lacks shows in English. The windows' XML draws its words from
+  Home window properties (`pley.word.<id>`, the ids in `layout.WORDS`)
+  that the add-on fills in the language shown, since Kodi's `$ADDON[]`
+  would be in Kodi's. Kodi's settings screen reads the same files, in
+  Kodi's language.
 - **Python 3.8:** Kodi 21 runs Python 3.8 on Windows, so the add-on uses
   nothing newer. CI checks.
 
@@ -485,7 +547,11 @@ PLEY_BIN=target/debug/pley PLEY_FFMPEG_DIR=/usr/bin python -m unittest test_e2e
 `test_asking.py` covers Discover, search's Discover entry, the picker
 and the requests' lists and actions, `test_news.py` the service's
 summary, refreshes and notices, and `test_requests.py` the rules and
-words; none reaches TMDB. CI runs all of them.
+words; none reaches TMDB. `test_language.py` holds every language to
+English's words with the same values, French and Spanish to their
+punctuation, the language order to `packages/tv/test/fixtures/language.json`,
+and checks the lookup, counts, dates and Profile language. CI runs all of
+them.
 
 By hand, use a portable Kodi (`kodi.exe -p` on Windows) with the add-on
 copied into `portable_data/addons`. With JSON-RPC on (Settings → Services →

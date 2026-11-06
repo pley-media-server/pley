@@ -55,6 +55,13 @@
             <close>true</close>
           </control>
         </setting>
+        <setting id="profile_language" type="action" label="30601">
+          <level>0</level>
+          <data>RunPlugin(plugin://plugin.video.pley/?route=language)</data>
+          <control type="button" format="action">
+            <close>true</close>
+          </control>
+        </setting>
         <setting id="sign_out" type="action" label="30002">
           <level>0</level>
           <data>RunPlugin(plugin://plugin.video.pley/?route=sign_out)</data>
@@ -77,6 +84,25 @@
           </constraints>
           <control type="list" format="string">
             <heading>30161</heading>
+          </control>
+        </setting>
+      </group>
+      <group id="2">
+        <!-- This device's language: Automatic is Kodi's where Pley has it,
+             else the server's; a profile's own language comes first. -->
+        <setting id="language" type="string" label="30600">
+          <level>0</level>
+          <default>auto</default>
+          <constraints>
+            <options>
+              <option label="30607">auto</option>
+              <option label="30602">en</option>
+              <option label="30603">fr</option>
+              <option label="30604">es</option>
+            </options>
+          </constraints>
+          <control type="list" format="string">
+            <heading>30600</heading>
           </control>
         </setting>
       </group>

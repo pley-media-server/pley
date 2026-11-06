@@ -10,6 +10,13 @@ describes how they are made.
 
 ### Added
 
+- The add-on is in French and Spanish too: in your profile's language,
+  else the one chosen in the add-on's settings (Screens → Language), else
+  Kodi's, else the server's. Profile language, in the profile's menu and
+  the add-on's settings, sets it for your profile on all your devices; on
+  a server from before languages it is kept on this device. Dates,
+  numbers and counts are written in the language shown, and what the
+  server writes itself, such as Home's rows, comes in it.
 - Sent from a device on another profile of your household, Kodi switches
   to that profile first, and plays it as that profile. Needs a server from
   the same release.

@@ -207,7 +207,7 @@ def notice(command: dict, action: dict, text) -> str:
     if act in TRACKS and action.get("track") is not None:
         return text("remote_" + act) % track_name(action["track"])
     if act == "quality":
-        return text("remote_quality") % autoquality.label(action["quality"])
+        return text("remote_quality") % autoquality.label(action["quality"], text)
     return ""
 
 
@@ -221,7 +221,7 @@ def track_name(entry: dict) -> str:
     language = (convert(code, getattr(xbmc, "ENGLISH_NAME", None)) if convert and code else "") or code
     if not language:
         found = getattr(xbmc, "getLocalizedString", None)
-        language = (found(UNKNOWN) if found else "") or "Unknown"
+        language = (found(UNKNOWN) if found else "") or kodi.text("unknown")
     name = (entry.get("name") or "").strip()
     return "%s - %s" % (language, name) if name else language
 

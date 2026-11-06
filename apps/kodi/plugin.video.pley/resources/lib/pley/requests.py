@@ -1,14 +1,14 @@
 """Requests (docs/API.md, Requests): what the summary lets this profile do,
 what a TMDB title or a request says of itself, and what can be done about
-it, in the words every pley app uses. No Kodi here: Kodi's lists
-(asking.py), the service's notices (news.py) and the tests use it, each
-with kodi.text (`text`)."""
+it, in the words every pley app uses. Kodi's lists (asking.py), the
+service's notices (news.py) and the tests use it, each with kodi.text
+(`text`); counts and numbers are kodi's, in the language shown."""
 
 from __future__ import annotations
 
 import urllib.parse
 
-from . import api, words
+from . import api, kodi, words
 from . import layout as L
 from .profiles import sentence
 
@@ -133,7 +133,7 @@ def entry_label(s, text) -> str:
     number, danger = count(s)
     label = text("requests_page") if manages(s) else text("your_requests")
     if number:
-        label += " " + colored("({:,})".format(number), RED if danger else None)
+        label += " " + colored("(%s)" % kodi.number(number), RED if danger else None)
     return label
 
 
@@ -293,11 +293,12 @@ def season_state(season: dict, detail: dict, text, manage: bool, now: float) -> 
     if season.get("declined"):
         return text("declined"), RED
     if state == "partial":
-        return text("episodes_in_library") % (season.get("in_library") or 0, season.get("aired") or 0), None
+        aired = season.get("aired") or 0
+        return kodi.counted("episodes_in_library", aired) % (kodi.number(season.get("in_library") or 0), kodi.number(aired)), None
     if state == "unaired":
         aired = season.get("air_date")
         return (text("airs") % words.day(aired, now) if aired else text("not_out_yet")), None
-    return words.plural(season.get("episodes") or 0, "episode"), None
+    return kodi.count("episodes", season.get("episodes") or 0), None
 
 
 # ---------------------------------------------------------------- requests
@@ -316,7 +317,7 @@ def downloading(download, text, now: float) -> str:
         return text("importing")
     if not download:
         return text("downloading")
-    line = "%s %d%%" % (text("downloading"), int(100 * min(max(download.get("progress") or 0, 0), 1)))
+    line = text("downloading_percent") % kodi.number(int(100 * min(max(download.get("progress") or 0, 0), 1)))
     eta = download.get("eta")
     return line + " · " + words.relative(eta, now) if eta and eta > now else line
 
@@ -370,7 +371,7 @@ def details(request: dict, text, manage: bool, now: float) -> list:
         elif not manage:
             lines.append(text("failed_waits"))
     if kind == "declined" and (request.get("reason") or "").strip():
-        lines.append("“%s”" % request["reason"].strip())
+        lines.append(text("quoted") % request["reason"].strip())
     if kind in ("available", "partial") and not request.get("item_id"):
         lines.append(text("ready_cant_open"))
     if manage and request.get("note"):
@@ -465,19 +466,24 @@ def allowance(left: dict, s, text, now: float) -> list:
             lines.append(text("seasons_used_up") % when("seasons_next_at"))
         more = []
         if movies:
-            more.append(words.plural(movies, "more movie", "more movies"))
+            more.append(kodi.count("more_movies", movies))
         if seasons:
-            more.append(words.plural(seasons, "more season", "more seasons"))
+            more.append(kodi.count("more_seasons", seasons))
         if more:
-            lines.append(text("can_ask_for") % " and ".join(more))
+            lines.append(text("can_ask_for") % both(more, text))
     limits = []
     if (s or {}).get("movies_limit") is not None and movies is not None:
-        limits.append(words.plural(s["movies_limit"], "movie"))
+        limits.append(kodi.count("movies", s["movies_limit"]))
     if (s or {}).get("seasons_limit") is not None and seasons is not None:
-        limits.append(words.plural(s["seasons_limit"], "season"))
+        limits.append(kodi.count("seasons", s["seasons_limit"]))
     if limits:
-        lines.append(text("limits") % " and ".join(limits))
+        lines.append(text("limits") % both(limits, text))
     return lines
+
+
+def both(parts: list, text) -> str:
+    """One or two things: "3 more movies and 2 more seasons"."""
+    return text("and") % tuple(parts) if len(parts) == 2 else parts[0]
 
 
 # ---------------------------------------------------------------- refusals
@@ -505,7 +511,7 @@ def problem(error: api.ApiError, text, manage: bool = False, s=None, kind=None, 
             return text("more_in") % words.relative(body["retry_at"], now), "", False
         limit = (s or {}).get("seasons_limit" if kind == "show" else "movies_limit")
         if limit is not None:
-            noun = words.plural(limit, "season") if kind == "show" else words.plural(limit, "movie")
+            noun = kodi.count("seasons" if kind == "show" else "movies", limit)
             return text("at_most") % noun, "", False
     if code in ("restricted", "in_library", "conflict", "declined", "too_many_requests") or error.status in (400, 409):
         return sentence(error.message), "", False
@@ -537,7 +543,7 @@ def ready(event: dict, text) -> str:
 
 def news(count_: int, text) -> str:
     """"3 of your requests have news"."""
-    return text("news") % "{:,}".format(count_)
+    return kodi.count("news", count_)
 
 
 def ready_now(request: dict) -> bool:

@@ -1,11 +1,13 @@
 """What pley's screens say of a title, as the Android TV app says it
 (apps/android/core/model/.../format: Durations.kt, Labels.kt, Media.kt),
 which says it as the web does: runtimes, time left, card lines, episode
-numbers and quality badges."""
+numbers and quality badges, in the language shown (kodi.text)."""
 
 from __future__ import annotations
 
 import datetime
+
+from . import kodi
 
 MINUTE_MS = 60_000
 DAY = 86400
@@ -22,11 +24,13 @@ def duration(ms) -> str:
         return ""
     minutes = whole_minutes(ms)
     if minutes < 1:
-        return "%ds" % max(1, int(ms / 1000 + 0.5))
+        return kodi.text("seconds_short") % kodi.number(max(1, int(ms / 1000 + 0.5)))
     h, m = divmod(minutes, 60)
     if h == 0:
-        return "%dm" % m
-    return "%dh %dm" % (h, m) if m else "%dh" % h
+        return kodi.text("minutes_short") % kodi.number(m)
+    if not m:
+        return kodi.text("hours_short") % kodi.number(h)
+    return kodi.text("hours_minutes").format(hours=kodi.number(h), minutes=kodi.number(m))
 
 
 def runtime(ms) -> str:
@@ -34,7 +38,7 @@ def runtime(ms) -> str:
     if not ms or ms <= 0:
         return ""
     minutes = whole_minutes(ms)
-    return "%d min" % minutes if 1 <= minutes <= 59 else duration(ms)
+    return kodi.text("runtime_minutes") % kodi.number(minutes) if 1 <= minutes <= 59 else duration(ms)
 
 
 def clock(ms) -> str:
@@ -52,21 +56,16 @@ def time_left(position_ms, duration_ms) -> str:
     if not duration_ms or duration_ms <= 0:
         return ""
     left = runtime(max(0, duration_ms - (position_ms or 0)))
-    return left + " left" if left else ""
-
-
-def plural(n: int, one: str, many: str = "") -> str:
-    """"1 movie", "12,345 movies"."""
-    return "{:,} {}".format(n, one if n == 1 else (many or one + "s"))
+    return kodi.text("time_left") % left if left else ""
 
 
 def episode_label(season, episode) -> str:
     """"S1 · E3", "E3", or ""."""
     parts = []
     if season is not None:
-        parts.append("S%d" % season)
+        parts.append(kodi.text("season_short") % season)
     if episode is not None:
-        parts.append("E%d" % episode)
+        parts.append(kodi.text("episode_short") % episode)
     return " · ".join(parts)
 
 
@@ -74,9 +73,9 @@ def episode_long_label(season, episode) -> str:
     """"Season 2 · Episode 5", for an episode's line on its show's page."""
     parts = []
     if season is not None:
-        parts.append("Specials" if season == 0 else "Season %d" % season)
+        parts.append(kodi.text("specials") if season == 0 else kodi.text("season_number") % season)
     if episode is not None:
-        parts.append("Episode %d" % episode)
+        parts.append(kodi.text("episode_number") % episode)
     return " · ".join(parts)
 
 
@@ -84,8 +83,8 @@ def season_title(title, index) -> str:
     if title:
         return title
     if index == 0:
-        return "Specials"
-    return "Season %d" % index if index is not None else "Season"
+        return kodi.text("specials")
+    return kodi.text("season_number") % index if index is not None else kodi.text("season")
 
 
 def card_subtitle(item: dict) -> str:
@@ -96,16 +95,16 @@ def card_subtitle(item: dict) -> str:
         return year
     if kind == "show":
         if item.get("child_count"):
-            return plural(item["child_count"], "season")
+            return kodi.count("seasons", item["child_count"])
         if item.get("leaf_count") is not None:
-            return plural(item["leaf_count"], "episode")
+            return kodi.count("episodes", item["leaf_count"])
         return year
     if kind == "season":
-        return plural(item["leaf_count"], "episode") if item.get("leaf_count") is not None else ""
+        return kodi.count("episodes", item["leaf_count"]) if item.get("leaf_count") is not None else ""
     if kind == "episode":
         return episode_label(item.get("parent_index"), item.get("index"))
     if kind == "artist":
-        return plural(item["child_count"], "album") if item.get("child_count") is not None else ""
+        return kodi.count("albums", item["child_count"]) if item.get("child_count") is not None else ""
     if kind == "album":
         return " · ".join(p for p in (item.get("parent_title") or "", year) if p)
     if kind == "track":
@@ -217,17 +216,24 @@ def quality_badges(file) -> list:
 # best first, as the server lists them.
 RESOLUTIONS = {"4k": "4K", "1080": "1080p", "720": "720p", "sd": "SD"}
 # HDR10 and HDR10+ read as plain "HDR" and "HDR+" here and on the posters;
-# a title's page names them exactly.
-DYNAMIC_RANGES = {"hdr": "Any HDR", "dolby_vision": "Dolby Vision", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG", "sdr": "SDR"}
+# a title's page names them exactly. "hdr", any of them, is in words
+# (dynamic_ranges()).
+RANGE_NAMES = {"dolby_vision": "Dolby Vision", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG", "sdr": "SDR"}
 # A poster's dynamic range badge, by its file's (the web's mediaBadges):
 # SDR and HDR of no known kind have none.
 RANGE_BADGES = {"dolby_vision": "DV", "hdr10plus": "HDR+", "hdr10": "HDR", "hlg": "HLG"}
 
 
-# The Filter chip's short words for a dynamic range while it's on, the
-# posters' where they have one: "4K · DV" fits the chip row where
-# "4K · Dolby Vision" can push it past the screen.
-CHIP_RANGES = dict(DYNAMIC_RANGES, **RANGE_BADGES)
+def dynamic_ranges() -> dict:
+    """The dynamic range filter's choices, by the server's tokens, best first."""
+    return dict({"hdr": kodi.text("any_hdr")}, **RANGE_NAMES)
+
+
+def chip_ranges() -> dict:
+    """The Filter chip's short words for a dynamic range while it's on, the
+    posters' where they have one: "4K · DV" fits the chip row where
+    "4K · Dolby Vision" can push it past the screen."""
+    return dict(dynamic_ranges(), **RANGE_BADGES)
 
 
 def media_badge_keys(media) -> list:
@@ -253,21 +259,21 @@ def size(n) -> str:
     "" when unknown."""
     if not n or n < 0:
         return ""
-    units = ("B", "KB", "MB", "GB", "TB")
     value, unit = float(n), 0
-    while value >= 1024 and unit < len(units) - 1:
+    while value >= 1024 and unit < len(kodi.BYTES) - 1:
         value /= 1024
         unit += 1
-    return ("%.0f %s" if value >= 100 or unit == 0 else "%.1f %s") % (value, units[unit])
+    return "%s %s" % (kodi.decimal(value, 0 if value >= 100 or unit == 0 else 1), kodi.text_of(kodi.BYTES[unit]))
 
 
 def bitrate(bps) -> str:
-    """Bits a second as the web writes them: "8.2 Mbps", "42 Mbps", "320 kbps"."""
+    """Bits a second as the web writes them: "8.2 Mbps", "42 Mbps", "320 kbps"
+    (the units the same in every language, the decimal mark the language's)."""
     if not bps or bps <= 0:
         return ""
     if bps >= 1_000_000:
-        return ("%.0f Mbps" if bps >= 10_000_000 else "%.1f Mbps") % (bps / 1_000_000)
-    return "%d kbps" % int(bps / 1000 + 0.5)
+        return "%s Mbps" % kodi.decimal(bps / 1_000_000, 0 if bps >= 10_000_000 else 1)
+    return "%s kbps" % kodi.number(int(bps / 1000 + 0.5))
 
 
 def media_line(media) -> str:
@@ -275,20 +281,21 @@ def media_line(media) -> str:
     "Bitrate unknown" when neither is known, "" without a summary."""
     if not isinstance(media, dict):
         return ""
-    return " · ".join(p for p in (bitrate(media.get("bitrate")), size(media.get("size"))) if p) or "Bitrate unknown"
+    return " · ".join(p for p in (bitrate(media.get("bitrate")), size(media.get("size"))) if p) or kodi.text("bitrate_unknown")
 
 
 def stars(value) -> str:
     """Your rating, 0 to 10 on the server, in stars: 7 → "3½ stars"."""
     whole, half = divmod(int(value), 2)
     if not whole:
-        return "½ star"
-    return "%d%s star%s" % (whole, "½" if half else "", "" if whole == 1 and not half else "s")
+        # Half a star counts as one.
+        return kodi.counted("stars", 1) % "½"
+    return kodi.counted("stars", whole + 0.5 * half) % ("%d%s" % (whole, "½" if half else ""))
 
 
 def rating(value) -> str:
     """The critics' rating, "7.4"; "" without one."""
-    return "%.1f" % value if value else ""
+    return kodi.decimal(value, 1) if value else ""
 
 
 def hue(seed: str) -> int:
@@ -306,15 +313,19 @@ def placeholder(seed: str) -> str:
     return "ph-%02d.png" % (int(hue(seed) / 15 + 0.5) % 24)
 
 
-MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+def month(number: int) -> str:
+    """A month's short name in the language shown: 3 → "Mar"."""
+    return kodi.text_of(kodi.MONTHS[number - 1])
 
 
 def date(text) -> str:
     """"2024-03-05" → "Mar 5, 2024" (an episode's air date); as given when
     it isn't a date."""
     try:
-        year, month, day = (int(part) for part in (text or "").split("-"))
-        return "%s %d, %d" % (MONTHS[month - 1], day, year)
+        year, number, day = (int(part) for part in (text or "").split("-"))
+        if not 1 <= number <= 12:
+            raise ValueError(text)
+        return kodi.text("date").format(month=month(number), day=day, year=year)
     except (ValueError, IndexError):
         return text or ""
 
@@ -331,19 +342,18 @@ def relative(at, now) -> str:
     seconds = abs(at - now)
     if seconds < 3600:
         if not ahead and seconds < 60:
-            return "just now"
-        minutes = min(max(int(seconds / 60 + 0.5), 1), 59)
-        return "in %d min" % minutes if ahead else "%d min ago" % minutes
+            return kodi.text("just_now")
+        minutes = kodi.number(min(max(int(seconds / 60 + 0.5), 1), 59))
+        return kodi.text("in_minutes" if ahead else "minutes_ago") % minutes
     if seconds < DAY - 1800:
-        hours = plural(int(seconds / 3600 + 0.5), "hour")
-        return "in " + hours if ahead else hours + " ago"
+        return kodi.count("in_hours" if ahead else "hours_ago", int(seconds / 3600 + 0.5))
     days = max(abs((datetime.date.fromtimestamp(at) - datetime.date.fromtimestamp(now)).days), 1)
     if ahead:
-        return "tomorrow" if days == 1 else "in %d days" % days
+        return kodi.text("tomorrow_in_text") if days == 1 else kodi.count("in_days", days)
     if days == 1:
-        return "yesterday"
+        return kodi.text("yesterday_in_text")
     if days < 30:
-        return "%d days ago" % days
+        return kodi.count("days_ago", days)
     return date(datetime.date.fromtimestamp(at).isoformat())
 
 
@@ -353,14 +363,17 @@ def day(value, now) -> str:
     (as given when it isn't a date)."""
     try:
         if isinstance(value, str):
-            year, month, number = (int(part) for part in value.split("-"))
+            year, number, day_ = (int(part) for part in value.split("-"))
         else:
             found = datetime.date.fromtimestamp(value)
-            year, month, number = found.year, found.month, found.day
-        name = "%s %d" % (MONTHS[month - 1], number)
+            year, number, day_ = found.year, found.month, found.day
+        if not 1 <= number <= 12:
+            raise ValueError(value)
+        name = month(number)
     except (ValueError, IndexError, TypeError, OverflowError, OSError):
         return value if isinstance(value, str) else ""
-    return name if year == datetime.date.fromtimestamp(now).year else "%s, %d" % (name, year)
+    pattern = "day_of_year" if year == datetime.date.fromtimestamp(now).year else "date"
+    return kodi.text(pattern).format(month=name, day=day_, year=year)
 
 
 def seasons_label(numbers) -> str:
@@ -370,7 +383,7 @@ def seasons_label(numbers) -> str:
     numbered = [n for n in numbers if n > 0]
     specials = bool(numbers) and numbers[0] == 0
     if not numbered:
-        return "Specials" if specials else ""
+        return kodi.text("specials") if specials else ""
     ranges = []
     first = last = numbered[0]
     for number in numbered[1:] + [None]:
@@ -379,8 +392,8 @@ def seasons_label(numbers) -> str:
             continue
         ranges.append(str(first) if first == last else "%d–%d" % (first, last))
         first = last = number
-    label = ("Season %s" if len(numbered) == 1 else "Seasons %s") % ", ".join(ranges)
-    return label + " and specials" if specials else label
+    label = kodi.text("season_number" if len(numbered) == 1 else "seasons_numbered") % ", ".join(ranges)
+    return kodi.text("and_specials") % label if specials else label
 
 
 def year_range(year, seasons=None) -> str:
@@ -410,12 +423,12 @@ def item_meta(detail: dict, seasons=None) -> list:
     if kind == "show":
         count = detail.get("child_count") or len([s for s in seasons or [] if (s.get("index") or 1) > 0]) or None
         if count:
-            text(plural(count, "season"))
+            text(kodi.count("seasons", count))
         text(year_range(detail.get("year"), seasons))
     elif kind == "season":
         text(str(detail["year"]) if detail.get("year") else "")
         if detail.get("leaf_count"):
-            text(plural(detail["leaf_count"], "episode"))
+            text(kodi.count("episodes", detail["leaf_count"]))
     elif kind == "episode":
         text(date(detail.get("release_date")))
         text(edition)
@@ -439,15 +452,15 @@ def music_meta(detail: dict, children=None) -> list:
     parts = []
     if detail.get("kind") == "artist":
         if detail.get("child_count") is not None:
-            parts.append(("text", plural(detail["child_count"], "album")))
+            parts.append(("text", kodi.count("albums", detail["child_count"])))
         if detail.get("leaf_count") is not None:
-            parts.append(("text", plural(detail["leaf_count"], "track")))
+            parts.append(("text", kodi.count("tracks", detail["leaf_count"])))
         return parts
     tracks = children or []
     if detail.get("year"):
         parts.append(("text", str(detail["year"])))
     if tracks:
-        parts.append(("text", plural(len(tracks), "track")))
+        parts.append(("text", kodi.count("tracks", len(tracks))))
         total = sum(t.get("duration_ms") or 0 for t in tracks)
         if total:
             parts.append(("text", duration(total)))

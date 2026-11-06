@@ -144,7 +144,7 @@ class WhatsOnTest(unittest.TestCase):
                     self.assertNotIn(livetv.day(at(days + 2, 0, 1), now), ("Today", "Tomorrow"))
                     self.assertNotIn(livetv.day(at(days - 2, 23, 59), now), ("Today", "Yesterday"))
         later = time.localtime(at(3, 0, 1))
-        self.assertEqual(livetv.day(at(3, 0, 1), NOW), "%s %d %s" % (livetv.ENGLISH_DAYS[later.tm_wday], later.tm_mday, livetv.ENGLISH_MONTHS[later.tm_mon - 1]))
+        self.assertEqual(livetv.day(at(3, 0, 1), NOW), "%s %d %s" % (time.strftime("%a", later), later.tm_mday, time.strftime("%b", later)))
 
     def test_what_kodis_info_says(self):
         text = livetv.plot(NEWS, NOW)
