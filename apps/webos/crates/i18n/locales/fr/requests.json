@@ -108,7 +108,7 @@
     "paused": "Téléchargement en pause",
     "warning": "Le téléchargement a un problème",
     "importing": "Ajout à la bibliothèque",
-    "progress": "{{percent}} % téléchargés"
+    "progress": "{{percent}} % téléchargés"
   },
   "asked": {
     "byYou": "Demandé par vous",

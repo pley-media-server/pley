@@ -35,10 +35,10 @@
     "inMinute_many": "dans {{count}} de minutes",
     "inMinute_other": "dans {{count}} minutes",
     "agoHour_one": "il y a {{count}} heure",
-    "agoHour_many": "il y a {{count}} de heures",
+    "agoHour_many": "il y a {{count}} d’heures",
     "agoHour_other": "il y a {{count}} heures",
     "inHour_one": "dans {{count}} heure",
-    "inHour_many": "dans {{count}} de heures",
+    "inHour_many": "dans {{count}} d’heures",
     "inHour_other": "dans {{count}} heures",
     "agoDay_one": "il y a {{count}} jour",
     "agoDay_many": "il y a {{count}} de jours",
@@ -59,10 +59,10 @@
     "inMonth_many": "dans {{count}} de mois",
     "inMonth_other": "dans {{count}} mois",
     "agoYear_one": "il y a {{count}} an",
-    "agoYear_many": "il y a {{count}} de ans",
+    "agoYear_many": "il y a {{count}} d’années",
     "agoYear_other": "il y a {{count}} ans",
     "inYear_one": "dans {{count}} an",
-    "inYear_many": "dans {{count}} de ans",
+    "inYear_many": "dans {{count}} d’années",
     "inYear_other": "dans {{count}} ans"
   }
 }
