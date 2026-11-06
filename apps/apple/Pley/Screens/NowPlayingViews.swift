@@ -428,10 +428,11 @@ struct SleepMenu: View {
 /// Window menu (⌥⌘P).
 struct NowPlayingWindow: Scene {
     static let id = "now-playing"
-    let app: AppModel
+    /// Observed, so the window's title follows the language shown.
+    @ObservedObject var app: AppModel
 
     var body: some Scene {
-        Window("Now Playing", id: Self.id) {
+        Window(localized("Now Playing"), id: Self.id) {
             InLanguage(app: app) {
                 NowPlayingView(app: app)
                     .frame(minWidth: 360, idealWidth: 420, minHeight: 520, idealHeight: 720)

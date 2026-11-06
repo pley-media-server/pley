@@ -282,7 +282,7 @@ private struct EntryRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.title).font(.headline).lineLimit(1)
-                Text(moving ? "Move up or down, then press Select" : row.subtitle)
+                Text(moving ? localized("Move up or down, then press Select") : row.subtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
