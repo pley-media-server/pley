@@ -20,10 +20,11 @@ sealed interface LanguageSources {
     data object NoServer : LanguageSources
 
     /**
-     * Signed in. [account] is the profile's own choice ("fr"; `null`: the
-     * server's), once GET /api/auth/me answered ([accountKnown]); [server]
-     * the server's (`null`: each device's own), once GET /api/server
-     * answered ([serverKnown]).
+     * Signed in. [account] is the profile's own choice ("fr"; `null`:
+     * Automatic, each device's), once GET /api/auth/me answered
+     * ([accountKnown]); [server] the server language, for a device in a
+     * language Pley doesn't have, once GET /api/server answered
+     * ([serverKnown]).
      */
     data class SignedIn(
         val account: String?,
@@ -35,16 +36,16 @@ sealed interface LanguageSources {
     /**
      * The language to show, the device's being [device] (the system's
      * languages, the one it prefers first): the account's, else the
-     * server's, else the device's, else English. `null` while the server
-     * hasn't said what decides: the language shown stays, rather than the
-     * device's showing for a moment.
+     * device's, else the server language, else English. `null` while the
+     * server hasn't said what decides: the language shown stays, rather
+     * than another showing for a moment.
      */
     fun wanted(device: List<Locale>): Language? = when (this) {
         Unknown -> null
         NoServer -> Language.ofDevice(device) ?: Language.English
         is SignedIn -> Language.of(account) ?: when {
             !accountKnown -> null
-            else -> Language.of(server) ?: if (serverKnown) Language.ofDevice(device) ?: Language.English else null
+            else -> Language.ofDevice(device) ?: if (serverKnown) Language.of(server) ?: Language.English else null
         }
     }
 }
@@ -54,7 +55,7 @@ interface LanguageRepository {
     val sources: Flow<LanguageSources>
 
     /**
-     * Makes [language] ("en", "fr", "es"; `null`: the server's) the
+     * Makes [language] ("en", "fr", "es"; `null`: Automatic) the
      * account's (PUT /api/me/language), shown at once and put back if the
      * server refuses.
      */

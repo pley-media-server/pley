@@ -213,7 +213,7 @@ describe("plural forms", () => {
 });
 
 describe("the language shown", () => {
-  it("is the account's, else the server's, else the TV's, else English, as the shared fixture has it", () => {
+  it("is the account's, else the TV's, else the server's, else English, as the shared fixture has it", () => {
     for (const c of fixture.pickLanguage) {
       expect([c, pickLanguage(c.account, c.server, c.device)]).toEqual([c, c.out]);
     }

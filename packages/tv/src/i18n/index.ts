@@ -39,12 +39,12 @@ export function deviceLanguage(tags: readonly string[]): Language | undefined {
 }
 
 /**
- * The language to show: the account's, else the server's, else the first
- * of the device's that Pley has, else English. Anything Pley isn't in
+ * The language to show: the account's, else the first of the device's that
+ * Pley has, else the server language, else English. Anything Pley isn't in
  * counts as none (packages/tv/test/fixtures/language.json).
  */
 export function pickLanguage(account: string | null | undefined, server: string | null | undefined, device: readonly string[]): Language {
-  return supportedLanguage(account) ?? supportedLanguage(server) ?? deviceLanguage(device) ?? "en";
+  return supportedLanguage(account) ?? deviceLanguage(device) ?? supportedLanguage(server) ?? "en";
 }
 
 /** The browser engine's languages, its preferred first. */

@@ -277,13 +277,14 @@ public class AppLanguageTests
     }
 
     [Fact]
-    public async Task Signing_in_goes_by_the_servers_language_then_the_accounts()
+    public async Task Signing_in_goes_by_the_accounts_language_then_the_TVs_then_the_servers()
     {
         var store = new MemoryKeyValue();
         var scheduler = new FakeScheduler();
         var server = new FakeServer();
         server.On("GET", Home + "/api/server", 200, ServerJson("fr"));
-        var state = State(store, server, scheduler, "en-US");
+        // A TV in a language Pley doesn't have: the server's decides.
+        var state = State(store, server, scheduler, "de-DE");
         state.Use(Home);
         // Until the server says, the language shown stays.
         Assert.Equal("en", state.Language.Value);
@@ -299,7 +300,7 @@ public class AppLanguageTests
         server.On("GET", Home + "/api/libraries", 200, "[]");
         await state.LoadAccount();
         Assert.Equal("es", state.Language.Value);
-        // The account's own comes before the server's; without one, the server's; without either, the TV's.
+        // The account's own comes first; without one, the TV's; without either, the server's.
         state.HeardServer(Home, "fr");
         Assert.Equal("es", state.Language.Value);
         state.Me.Value = state.Me.Value! with { Language = null };
@@ -307,6 +308,8 @@ public class AppLanguageTests
         state.HeardServer(Home, "de");
         Assert.Equal("en", state.Language.Value);
         state.TvLanguagesChanged(new[] { "es-ES" });
+        Assert.Equal("es", state.Language.Value);
+        state.HeardServer(Home, "fr");
         Assert.Equal("es", state.Language.Value);
         // The next start shows the last language before anyone answers.
         Assert.Equal("es", State(store, new FakeServer(), scheduler, "en-US").Language.Value);
@@ -335,11 +338,12 @@ public class AppLanguageTests
     {
         var server = new FakeServer();
         server.On("GET", Home + "/api/server", 200, ServerJson("es"));
-        var state = State(new MemoryKeyValue(), server, new FakeScheduler(), "fr-FR");
+        // A TV in a language Pley doesn't have: English, then the server's once it has said.
+        var state = State(new MemoryKeyValue(), server, new FakeScheduler(), "de-DE");
         state.Use(Home);
         await state.LoadServer();
         await state.LoadServer();
-        Assert.Equal(new[] { "fr", "es" }, server.Requests.Select(r => r.Headers!["Accept-Language"]));
+        Assert.Equal(new[] { "en", "es" }, server.Requests.Select(r => r.Headers!["Accept-Language"]));
     }
 }
 
@@ -401,7 +405,7 @@ public sealed class SignInWordsTests : IDisposable
     {
         Strings.Use("fr", new[] { "en-GB" });
         Assert.Equal("fr", Strings.Culture.Name);
-        Assert.Equal("Langue du serveur (langue de cet appareil, English)", SettingsText.ServerDefault(SettingsText.TvLanguage(Languages.NameOf("en"))));
+        Assert.Equal("Automatique (English)", SettingsText.Automatic(Languages.NameOf("en")));
         Strings.Use("en", new[] { "en-GB" });
         Assert.Equal("en-GB", Strings.Culture.Name);
         // A language Pley hasn't is English.

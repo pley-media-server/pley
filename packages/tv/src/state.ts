@@ -566,16 +566,16 @@ export class AppState {
 
   /**
    * The language the app is in (packages/tv/test/fixtures/language.json):
-   * the account's as soon as it is heard; else, once the server has said
-   * its own and, signed in, who is watching was heard, the server's, else
-   * the TV's. Until then the last one shown stays, as going by the TV's
-   * meanwhile would flash it.
+   * the account's as soon as it is heard; else, once who is watching was
+   * heard (signed in), the TV's, or for a TV in a language Pley doesn't
+   * have, the server language once the server has said it. Until then the
+   * last one shown stays, as going by another meanwhile would flash it.
    */
   private followLanguage(): void {
     const account = this.signedIn && this.accountHeard ? this.me.value?.language : null;
     if (!supportedLanguage(account)) {
-      if (this.serverLanguage.value === undefined) return;
       if (this.signedIn && !this.accountHeard) return;
+      if (this.serverLanguage.value === undefined && !deviceLanguage(this.deviceLanguages())) return;
     }
     this.showLanguage(pickLanguage(account, this.serverLanguage.value, this.deviceLanguages()));
   }

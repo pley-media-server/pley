@@ -19,9 +19,9 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /**
- * The language shown goes by the account's, else the server's, else the
- * device's; the app learns the account's and the server's while signed in,
- * and never goes by the device's before the server has said.
+ * The language shown goes by the account's, else the device's, else the
+ * server language; the app learns the account's and the server's while
+ * signed in, and never goes by another before the server has said.
  */
 class LanguageTest {
     @get:Rule
@@ -34,8 +34,9 @@ class LanguageTest {
         LanguageSources.SignedIn(account, accountKnown, server, serverKnown)
 
     @Test
-    fun theAccountsThenTheServersThenTheDevicesThenEnglish() {
+    fun theAccountsThenTheDevicesThenTheServersThenEnglish() {
         assertEquals(Language.Spanish, signedIn("es", server = "fr").wanted(french))
+        assertEquals(Language.French, signedIn(null, server = "es").wanted(french))
         assertEquals(Language.French, signedIn(null, server = "fr").wanted(german))
         assertEquals(Language.French, signedIn(null, server = null).wanted(french))
         assertEquals(Language.English, signedIn(null, server = null).wanted(german))
@@ -48,9 +49,10 @@ class LanguageTest {
     fun nothingChangesWhileTheServerHasntSaid() {
         // The account's own choice is enough.
         assertEquals(Language.Spanish, signedIn("es", accountKnown = false, server = null, serverKnown = false).wanted(french))
-        // Without it, the device's waits for the account and the server.
-        assertNull(signedIn(null, accountKnown = false, server = "fr").wanted(german))
-        assertNull(signedIn(null, server = null, serverKnown = false).wanted(french))
+        // Without it, the device's waits for the account; a device in a language Pley doesn't have, for the server too.
+        assertNull(signedIn(null, accountKnown = false, server = "fr").wanted(french))
+        assertEquals(Language.French, signedIn(null, server = null, serverKnown = false).wanted(french))
+        assertNull(signedIn(null, server = null, serverKnown = false).wanted(german))
         assertEquals(Language.French, signedIn(null, server = "fr", serverKnown = true).wanted(german))
         assertNull(LanguageSources.Unknown.wanted(french))
         // No server at all: the device's.

@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** Which language Pley is shown in: the account's, else the server's, else the device's, else English. */
+/** Which language Pley is shown in: the account's, else the device's, else the server language, else English. */
 class LanguageTest {
     private val german = listOf(Locale.GERMANY)
 
@@ -23,9 +23,11 @@ class LanguageTest {
     }
 
     @Test
-    fun theAccountsComesFirstThenTheServersThenTheDevicesThenEnglish() {
+    fun theAccountsComesFirstThenTheDevicesThenTheServersThenEnglish() {
         assertEquals(Language.Spanish, Language.pick("es", "fr", listOf(Locale.FRANCE)))
-        assertEquals(Language.French, Language.pick(null, "fr", listOf(Locale.US)))
+        // The device's English before the server's French; a German device's, the server's.
+        assertEquals(Language.English, Language.pick(null, "fr", listOf(Locale.US)))
+        assertEquals(Language.French, Language.pick(null, "fr", german))
         assertEquals(Language.Spanish, Language.pick(null, null, listOf(Locale.forLanguageTag("es-MX"))))
         assertEquals(Language.English, Language.pick(null, null, german))
         assertEquals(Language.English, Language.pick(null, null, emptyList()))

@@ -140,16 +140,13 @@ export function SettingsScreen(p: { entry: Entry }) {
   const webSuffix = canDefaults ? "" : ` · ${t("settings.profile.changeOnWeb")}`;
   const modeLabel = (mode: SubtitleMode) => t(`settings.modes.${mode}.label`);
 
-  // The language Pley is in for the profile: the server's until it picks one, each language named in itself.
+  // The language Pley is in for the profile: Automatic (the TV's, else the server's) until it picks one, each named in itself.
   const shownIn = supportedLanguage(me?.language) ?? null;
-  const serverLanguage = supportedLanguage(app.serverLanguage.value);
-  const serverDefault = t("settings.language.serverDefault", {
-    language: serverLanguage
-      ? t(`settings.language.names.${serverLanguage}`)
-      : `${t("settings.language.deviceLanguage")}, ${t(`settings.language.names.${deviceLanguage(app.deviceLanguages()) ?? "en"}`)}`,
+  const automatic = t("settings.language.automatic", {
+    language: t(`settings.language.names.${deviceLanguage(app.deviceLanguages()) ?? supportedLanguage(app.serverLanguage.value) ?? "en"}`),
   });
   const languageChoices: Choice<Language | null>[] = [
-    { value: null, label: serverDefault },
+    { value: null, label: automatic },
     ...APP_LANGUAGES.map((l) => ({ value: l, label: t(`settings.language.names.${l}`) })),
   ];
   const saveLanguage = (next: Language | null) => {

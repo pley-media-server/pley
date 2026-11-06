@@ -55,7 +55,7 @@ describes how they are made.
 ### Added
 
 - Pley for Samsung TV is in French and Spanish as well as English: the
-  account's language, else the server's, else the TV's. Settings → Profile
+  account's language, else the TV's, else the server's. Settings → Profile
   → Language picks the account's, on all its devices, and the app changes
   to it at once.
 - Your phone or browser changes the quality of a film or episode playing

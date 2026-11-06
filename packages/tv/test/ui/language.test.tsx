@@ -104,9 +104,9 @@ afterEach(() => {
 });
 
 describe("the language the app is in", () => {
-  it("is the one shown last until the server answers, then the server's", async () => {
+  it("on a TV in a language Pley doesn't have, is the one shown last until the server answers, then the server's", async () => {
     const server = later<HttpResponse>();
-    const { store } = setup({ remembered: "es", device: ["en-US"], server: () => server.promise });
+    const { store } = setup({ remembered: "es", device: ["de-DE"], server: () => server.promise });
     expect(currentLanguage()).toBe("es");
     expect(document.documentElement.lang).toBe("es");
     server.resolve(answer({ name: "Den", version: "1.0.0", language: "fr" }));
@@ -115,18 +115,18 @@ describe("the language the app is in", () => {
     expect(store.get("pley.language")).toBe("fr");
   });
 
-  it("is the TV's at the first start, and when the server leaves it to each device", async () => {
+  it("is the TV's at the first start, and before the server's", async () => {
     const server = later<HttpResponse>();
     setup({ device: ["de-DE", "es-MX"], server: () => server.promise });
     expect(currentLanguage()).toBe("es");
-    server.resolve(answer({ name: "Den", version: "1.0.0", language: null }));
+    server.resolve(answer({ name: "Den", version: "1.0.0", language: "fr" }));
     await settle();
     expect(currentLanguage()).toBe("es");
   });
 
   it("stays while the server doesn't answer, and follows it once its events come back", async () => {
     let reply: () => Promise<HttpResponse> = () => Promise.reject(new NetworkError("Can't reach the server"));
-    const { app } = setup({ remembered: "fr", device: ["en-US"], server: () => reply() });
+    const { app } = setup({ remembered: "fr", device: ["de-DE"], server: () => reply() });
     await settle();
     expect(currentLanguage()).toBe("fr");
     reply = () => Promise.resolve(answer({ name: "Den", version: "1.0.0", language: "es" }));
@@ -144,14 +144,14 @@ describe("the language the app is in", () => {
     expect(asked).toContain("home");
   });
 
-  it("signed in, is the server's for an account without its own", async () => {
+  it("signed in, is the server's for an account without its own, on a TV in a language Pley doesn't have", async () => {
     const { app } = setup({ server: () => Promise.resolve(answer({ version: "1.0.0", language: "fr" })), signedIn: true, account: null });
     await app.loadAccount();
     await settle();
     expect(currentLanguage()).toBe("fr");
   });
 
-  it("is the profile's choice at once, and the server's again without one", async () => {
+  it("is the profile's choice at once, and the TV's again without one", async () => {
     const { app, asked } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ version: "1.0.0", language: null })), signedIn: true, account: null });
     await app.loadAccount();
     await app.setAccountLanguage("fr");
@@ -188,8 +188,8 @@ describe("Settings' Language row", () => {
     root = null;
   });
 
-  async function show(serverLanguage: string | null, account: string | null) {
-    const { app, asked } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ version: "1.0.0", language: serverLanguage })), signedIn: true, account });
+  async function show(serverLanguage: string | null, account: string | null, device = ["en-US"]) {
+    const { app, asked } = setup({ device, server: () => Promise.resolve(answer({ version: "1.0.0", language: serverLanguage })), signedIn: true, account });
     await app.loadAccount();
     await settle();
     document.body.innerHTML = "";
@@ -232,15 +232,16 @@ describe("Settings' Language row", () => {
     return { app, asked, focus, row, press, toasts };
   }
 
-  it("says the server's language for a profile without its own, in it", async () => {
+  it("says what Automatic is for a profile without its own: the TV's language", async () => {
     const { row } = await show("fr", null);
-    expect(row().querySelector(".row-label")!.textContent).toBe("Langue");
-    expect(row().querySelector(".row-value")!.textContent).toBe("Langue du serveur (Français)");
+    expect(row().querySelector(".row-label")!.textContent).toBe("Language");
+    expect(row().querySelector(".row-value")!.textContent).toBe("Automatic (English)");
   });
 
-  it("says the TV's when the server leaves it to each device", async () => {
-    const { row } = await show(null, null);
-    expect(row().querySelector(".row-value")!.textContent).toBe("Server default (this device's language, English)");
+  it("says the server's, in it, on a TV in a language Pley doesn't have", async () => {
+    const { row } = await show("fr", null, ["de-DE"]);
+    expect(row().querySelector(".row-label")!.textContent).toBe("Langue");
+    expect(row().querySelector(".row-value")!.textContent).toBe("Automatique (Français)");
   });
 
   it("offers each language named in itself, and shows the one picked at once", async () => {
@@ -250,7 +251,7 @@ describe("Settings' Language row", () => {
     });
     press("ok");
     const panel = () => Array.from(document.querySelectorAll(".side-panel [data-f]")).map((el) => el.textContent);
-    expect(panel()).toEqual(["Server default (this device's language, English)", "English", "Français", "Español"]);
+    expect(panel()).toEqual(["Automatic (English)", "English", "Français", "Español"]);
     press("down");
     press("down");
     press("down");

@@ -1,8 +1,7 @@
 {
   "language": {
     "label": "Language",
-    "serverDefault": "Server default ({{language}})",
-    "deviceLanguage": "this device's language, {{language}}"
+    "automatic": "Automatic ({{language}})"
   },
   "title": "Settings",
   "categories": {

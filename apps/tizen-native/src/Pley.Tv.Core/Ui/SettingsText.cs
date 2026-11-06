@@ -58,11 +58,8 @@ public static class SettingsText
     // The language, in the catalogs (Locales/*/settings.json).
     public static string Language => Strings.T("settings.language.label");
 
-    /// <summary>"Server default (Français)": the profile has no language of its own.</summary>
-    public static string ServerDefault(string language) => Strings.T("settings.language.serverDefault", ("language", language));
-
-    /// <summary>"this device's language, English": what Server default stands for when the server has no language.</summary>
-    public static string TvLanguage(string language) => Strings.T("settings.language.deviceLanguage", ("language", language));
+    /// <summary>"Automatic (Français)": the profile has no language of its own, and this is what that is here.</summary>
+    public static string Automatic(string language) => Strings.T("settings.language.automatic", ("language", language));
 
     // Playback.
     public static string Quality => Strings.T("settings.playback.quality");

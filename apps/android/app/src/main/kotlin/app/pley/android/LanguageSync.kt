@@ -13,12 +13,12 @@ import kotlinx.coroutines.withContext
 
 /**
  * Keeps the app in the language it should be in (docs/ANDROID.md,
- * "Language"): the account's, else the server's, else the device's, as the
- * data side learns them, and never the device's while the server hasn't
- * said. A change shows at once. Android 13 and later remake the activities
- * themselves; below 13 the open ones are remade here, all but those that
- * take a change of language themselves (the players, which play on, and
- * show it the next time they open), as Android 13 does.
+ * "Language"): the account's, else the device's, else the server
+ * language, as the data side learns them, and never another while the
+ * server hasn't said. A change shows at once. Android 13 and later remake
+ * the activities themselves; below 13 the open ones are remade here, all
+ * but those that take a change of language themselves (the players, which
+ * play on, and show it the next time they open), as Android 13 does.
  */
 internal class LanguageSync(private val app: Application) : Application.ActivityLifecycleCallbacks {
     /** The activities made and not yet destroyed: the main thread's only. */

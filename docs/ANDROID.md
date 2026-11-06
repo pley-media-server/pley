@@ -76,24 +76,25 @@ the device; until the TV has heard it for that profile, the start asks
 ### Language
 
 Pley is in English, French and Spanish. The app shows the language of the
-account, else the server's, else the first of the device's languages that
-Pley has, else English ([API.md](API.md#language)): `language` of
+account, else the first of the device's languages that Pley has, else the
+server language, else English ([API.md](API.md#language)): `language` of
 `GET /api/auth/me` and of `GET /api/server`, which the app asks while
 signed in. With no server chosen, it shows the device's. A code Pley
 doesn't have counts as none, and a region doesn't count (`fr-CA` is
 French).
 
 Settings has a **Language** row, on phones at the top and on TVs under
-Profile: **Server default**, naming what it stands for ("Server default
-(Français)", or "Server default (this device's language, English)" when
-the server leaves it to each device), then English, Français and Español,
-each named in itself. A choice is the account's, on every device it signs
+Profile: **Automatic**, naming what that is on this device ("Automatic
+(Français)": the device's language, or the server's on a device in a
+language Pley doesn't have), then English, Français and Español, each
+named in itself. A choice is the account's, on every device it signs
 in on (`PUT /api/me/language`); it shows at once, and is put back, with a
 word, if the server refuses.
 
 The app remembers the language it showed last and starts in it, before
-the server has answered; it doesn't turn to the device's language until
-the server has said that it should, so no other language shows for a
+the server has answered; signed in, it waits for the account's language
+before it turns to the device's, and on a device in a language Pley
+doesn't have, for the server's, so no other language shows for a
 moment. Android 13 and later keep it as the app's own language, which
 the system's settings list (Apps → Pley → Language); the app sets it
 again as it hears the account's and the server's. Below 13 the app keeps

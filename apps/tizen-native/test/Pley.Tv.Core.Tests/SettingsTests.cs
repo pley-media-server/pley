@@ -266,22 +266,24 @@ public class SettingsModelTests
     }
 
     [Fact]
-    public void Language_is_the_profiles_own_or_the_server_default_and_says_what_that_stands_for()
+    public void Language_is_the_profiles_own_or_Automatic_and_says_what_that_is_here()
     {
         var m = Model();
         var row = Row(m, SettingsCategory.Profile, "row-language");
         Assert.Equal(("Language", "languages"), (row.Label, row.Icon));
         Assert.Equal(new SettingAction.Pick(new SettingPick.Language()), row.Action);
-        // The server leaves it to each device: the TV's, in itself.
-        Assert.Equal("Server default (this device's language, English)", row.Value);
+        // Automatic is the TV's language, in itself, before the server's.
+        Assert.Equal("Automatic (English)", row.Value);
         account.TvLanguages = new[] { "de-DE", "es-MX" };
-        Assert.Equal("Server default (this device's language, Español)", Row(m, SettingsCategory.Profile, "row-language").Value);
         account.ServerLanguage = "fr";
-        Assert.Equal("Server default (Français)", Row(m, SettingsCategory.Profile, "row-language").Value);
+        Assert.Equal("Automatic (Español)", Row(m, SettingsCategory.Profile, "row-language").Value);
+        // A TV in a language Pley doesn't have: the server's.
+        account.TvLanguages = new[] { "de-DE" };
+        Assert.Equal("Automatic (Français)", Row(m, SettingsCategory.Profile, "row-language").Value);
 
         var panel = m.Panel(new SettingPick.Language());
         Assert.Equal("Language", panel.Title);
-        Assert.Equal(new[] { "Server default (Français)", "English", "Français", "Español" }, panel.Choices.Select(c => c.Label));
+        Assert.Equal(new[] { "Automatic (Français)", "English", "Français", "Español" }, panel.Choices.Select(c => c.Label));
         Assert.Equal(0, panel.Focus);
         Assert.Equal("row-language", panel.Pick.RowKey);
 
@@ -310,7 +312,7 @@ public class SettingsModelTests
     {
         var m = Model(scope: "library");
         var row = Row(m, SettingsCategory.Profile, "row-language");
-        Assert.Equal("Server default (this device's language, English) · change on the web", row.Value);
+        Assert.Equal("Automatic (English) · change on the web", row.Value);
         Assert.Equal(new SettingAction.Web("/account"), row.Action);
 
         m = Model();

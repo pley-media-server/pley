@@ -27,9 +27,9 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * The Language row: "Server default" (the server's language, or this
- * device's when the server leaves it to each device), then each language
- * by its own name; a choice goes to the server, and a refusal is said.
+ * The Language row: "Automatic" (this device's language, or the server's
+ * on a device in a language Pley doesn't have), then each language by its
+ * own name; a choice goes to the server, and a refusal is said.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -60,34 +60,32 @@ class LanguageViewModelTest {
     private suspend fun LanguageViewModel.shown(): LanguageUiState = state.first { it.available }
 
     @Test
-    fun serverDefaultSaysWhatItStandsFor() = runTest {
+    fun automaticSaysWhatItIsHere() = runTest {
+        // A device in a language Pley doesn't have: the server's.
         val account = Account(signedIn(server = "fr"))
-        val vm = LanguageViewModel(account) { Language.English }
+        val vm = LanguageViewModel(account) { null }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         val state = vm.shown()
         assertEquals(null, state.chosen)
-        assertEquals("Server default (Français)", state.value.inEnglish())
+        assertEquals("Automatic (Français)", state.value.inEnglish())
         assertEquals(listOf(null, Language.English, Language.French, Language.Spanish), state.choices)
-        assertEquals(listOf("Server default (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
+        assertEquals(listOf("Automatic (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
 
-        // A server that leaves it to each device: this device's.
+        // No server language either: English.
         account.sources.value = signedIn(server = null)
-        assertEquals("Server default (this device's language, English)", vm.state.first { it.server == null }.value.inEnglish())
+        assertEquals("Automatic (English)", vm.state.first { it.server == null }.value.inEnglish())
         account.sources.value = signedIn(account = "es", server = "de")
         val chosen = vm.state.first { it.chosen != null }
         assertEquals(Language.Spanish, chosen.chosen)
         assertEquals(UiText.res(Language.Spanish.autonym), chosen.value)
-        assertEquals(
-            UiText.res(R.string.language_server_default, UiText.res(R.string.language_this_device, UiText.res(Language.English.autonym))),
-            chosen.label(null),
-        )
+        assertEquals(UiText.res(R.string.language_automatic, UiText.res(Language.English.autonym)), chosen.label(null))
     }
 
     @Test
-    fun theDevicesLanguageIsTheSystems() = runTest {
-        val vm = LanguageViewModel(Account(signedIn())) { Language.French }
+    fun theDevicesLanguageComesBeforeTheServers() = runTest {
+        val vm = LanguageViewModel(Account(signedIn(server = "es"))) { Language.French }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
-        assertEquals("Server default (this device's language, Français)", vm.shown().value.inEnglish())
+        assertEquals("Automatic (Français)", vm.shown().value.inEnglish())
     }
 
     @Test

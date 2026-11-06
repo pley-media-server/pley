@@ -25,9 +25,12 @@ public static class Languages
         return All.FirstOrDefault(l => l == code);
     }
 
-    /// <summary>The language to show: <paramref name="account"/>'s, else <paramref name="server"/>'s, else the first of <paramref name="device"/>'s Pley has, else English.</summary>
+    /// <summary>The first of <paramref name="device"/>'s languages Pley has; null for none.</summary>
+    public static string? OfDevice(IEnumerable<string> device) => device.Select(Supported).FirstOrDefault(l => l != null);
+
+    /// <summary>The language to show: <paramref name="account"/>'s, else the first of <paramref name="device"/>'s Pley has, else <paramref name="server"/>'s, else English.</summary>
     public static string Pick(string? account, string? server, IEnumerable<string> device) =>
-        Supported(account) ?? Supported(server) ?? device.Select(Supported).FirstOrDefault(l => l != null) ?? English;
+        Supported(account) ?? OfDevice(device) ?? Supported(server) ?? English;
 
     /// <summary>A language's name in itself, as the Language row lists it: "Français".</summary>
     public static string NameOf(string language) => language switch

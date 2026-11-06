@@ -345,7 +345,7 @@ also what waits for them, in red while some failed.
 ### Language
 
 The app is in English, French and Spanish ([API.md](API.md#language)):
-the account's language, else the server's, else the TV's, else English.
+the account's language, else the TV's, else the server's, else English.
 `packages/tv/test/fixtures/language.json` pins that order for both
 Samsung apps.
 
@@ -354,18 +354,19 @@ Samsung apps.
   `navigator.languages`, which Tizen's runtime sets from the TV's menu
   language. A tag such as `fr-CA` counts as French.
 - **At a start** the app shows the language it showed last
-  (`pley.language`), never the TV's while it waits, which would flash. It
-  changes once the server has said its own (`GET /api/server`, asked again
-  when the events reconnect if it didn't answer) and, signed in, once the
-  account has been heard (`GET /api/auth/me`). The account's own language
-  counts as soon as it is heard.
+  (`pley.language`), never another while it waits, which would flash. It
+  changes, signed in, once the account has been heard
+  (`GET /api/auth/me`), and on a TV in a language Pley doesn't have, once
+  the server has said its own (`GET /api/server`, asked again when the
+  events reconnect if it didn't answer). The account's own language counts
+  as soon as it is heard.
 - **A change** (another profile, signing out, Settings) draws the screens
   again in the new language at once, and asks for Home's and the
   libraries' rows again, as the server writes their titles.
-- **Settings → Profile → Language:** Server default, with the server's
-  language, or "this device's language" and the TV's when the server
-  leaves it to each device; then English, Français and Español, each named
-  in itself. A choice is the profile's on all its devices
+- **Settings → Profile → Language:** Automatic, with what that is on
+  this TV: its language, or the server's on a TV in a language Pley
+  doesn't have; then English, Français and Español, each named in
+  itself. A choice is the profile's on all its devices
   (`PUT /api/me/language`); a server without that route says it needs a
   newer Pley.
 - **Requests** to the server carry `Accept-Language` with the language
@@ -698,8 +699,8 @@ and the music's reports share one queue, which the switch waits up to
 ### Language
 
 The native app is in English, French and Spanish, in the language
-[API.md](API.md#language) describes: the account's, else the server's,
-else the TV's own when Pley has it, else English
+[API.md](API.md#language) describes: the account's, else the TV's own
+when Pley has it, else the server's, else English
 (`packages/tv/test/fixtures/language.json` pins the order for both Samsung
 apps). The last language shown is kept on the TV, so the next start shows
 it before the server answers, rather than the TV's for a moment; when the
@@ -710,9 +711,9 @@ list and the sign-in code are drawn again too, the code unchanged, while
 Who's watching? and the moment after a code is approved keep theirs until
 the next page, which the profile brings its own language to.
 
-Settings → Profile → Language lists "Server default (Français)" ("Server
-default (this device's language, English)" when the server leaves it to
-each device), then English, Français and Español, each in itself. Choosing
+Settings → Profile → Language lists "Automatic (Français)" (the TV's
+language, else the server's), then English, Français and Español, each in
+itself. Choosing
 one sends `PUT /api/me/language`, and the app shows it once the server has
 it. Requests carry `Accept-Language` with the language shown, so what the
 server writes itself (Home's rows) comes in it. Dates and numbers follow

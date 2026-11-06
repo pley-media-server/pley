@@ -2,9 +2,7 @@
 <!-- The Language row of Settings, on phones and TVs (LanguageViewModel). -->
 <resources>
     <string name="language_title">Language</string>
-    <!-- %1$s: the server's language, named in itself ("Français"), or language_this_device. -->
-    <string name="language_server_default">Server default (%1$s)</string>
-    <!-- %1$s: this device's language, named in itself ("English"). -->
-    <string name="language_this_device">this device\'s language, %1$s</string>
-    <string name="language_hint">What Pley is in for you, on every device you sign in on.</string>
+    <!-- No language of the account's own: %1$s is what that is here, this device's language or else the server's, named in itself ("Français"). -->
+    <string name="language_automatic">Automatic (%1$s)</string>
+    <string name="language_hint">What Pley is in for you, on every device you sign in on. Automatic follows each device\'s language.</string>
 </resources>

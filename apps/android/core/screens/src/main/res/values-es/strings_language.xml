@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="language_title">Idioma</string>
-    <string name="language_server_default">Idioma del servidor (%1$s)</string>
-    <string name="language_this_device">idioma de este dispositivo, %1$s</string>
-    <string name="language_hint">El idioma de Pley para ti, en todos los dispositivos en los que inicies sesión.</string>
+    <string name="language_automatic">Automático (%1$s)</string>
+    <string name="language_hint">El idioma de Pley para ti, en todos los dispositivos en los que inicies sesión. Automático sigue el idioma de cada dispositivo.</string>
 </resources>

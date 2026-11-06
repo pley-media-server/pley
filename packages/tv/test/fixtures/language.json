@@ -10,6 +10,12 @@
       "account": null,
       "server": "es",
       "device": ["fr-FR"],
+      "out": "fr"
+    },
+    {
+      "account": null,
+      "server": "es",
+      "device": ["de-DE"],
       "out": "es"
     },
     {
@@ -34,6 +40,12 @@
       "account": "de",
       "server": "fr-CA",
       "device": ["en-GB"],
+      "out": "en"
+    },
+    {
+      "account": "de",
+      "server": "fr-CA",
+      "device": ["de-DE"],
       "out": "fr"
     },
     {

@@ -6,8 +6,7 @@
       "fr": "Français",
       "es": "Español"
     },
-    "serverDefault": "Idioma del servidor ({{language}})",
-    "deviceLanguage": "idioma de este dispositivo",
+    "automatic": "Automático ({{language}})",
     "needsNewer": "Elegir un idioma requiere una versión más reciente de Pley en el servidor"
   },
   "title": "Ajustes",

@@ -24,51 +24,48 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** The Language row: the account's choice, and what "Server default" stands for. */
+/** The Language row: the account's choice, and what "Automatic" stands for here. */
 data class LanguageUiState(
     /** Signed in: the account's language can be chosen. */
     val available: Boolean = false,
-    /** The account's own language; `null`: the server's default. */
+    /** The account's own language; `null`: Automatic. */
     val chosen: Language? = null,
-    /** The server's language, which "Server default" stands for; `null` when it leaves it to each device ([device]). */
+    /** The server language, which Automatic stands for on a device in a language Pley doesn't have. */
     val server: Language? = null,
-    /** This device's language: the first of the system's that Pley has, else English. */
-    val device: Language = Language.English,
+    /** This device's language: the first of the system's that Pley has; `null` when Pley has none of them. */
+    val device: Language? = null,
     /** A choice is on its way to the server. */
     val saving: Boolean = false,
 ) {
-    /** The choices in order: "Server default" (`null`), then each language. */
+    /** The choices in order: "Automatic" (`null`), then each language. */
     val choices: List<Language?> get() = listOf<Language?>(null) + Language.entries
 
     /** What the row says: the account's language. */
     val value: UiText get() = label(chosen)
 
     /**
-     * How [choice] reads: a language by its own name ("Français"), the
-     * server's default by what it stands for: "Server default (Français)",
-     * or "Server default (this device's language, English)".
+     * How [choice] reads: a language by its own name ("Français"),
+     * Automatic by what it is on this device, its language, else the
+     * server's: "Automatic (Français)".
      */
     fun label(choice: Language?): UiText = when (choice) {
-        null -> UiText.res(
-            R.string.language_server_default,
-            server?.let { UiText.res(it.autonym) } ?: UiText.res(R.string.language_this_device, UiText.res(device.autonym)),
-        )
+        null -> UiText.res(R.string.language_automatic, UiText.res((device ?: server ?: Language.English).autonym))
         else -> UiText.res(choice.autonym)
     }
 }
 
 /**
  * The account's language, as the Settings of phones and TVs offer it
- * (docs/ANDROID.md, "Language"): "Server default", which is the server's
- * language or, when the server leaves it to each device, this device's,
+ * (docs/ANDROID.md, "Language"): "Automatic", which is each device's
+ * language, or the server language on a device in one Pley doesn't have,
  * then English, Français and Español. A choice goes to the server
  * (PUT /api/me/language) and shows at once; one the server refuses is put
  * back, and said ([errors]).
  */
 class LanguageViewModel(
     private val language: LanguageRepository,
-    /** This device's language, read when the row shows. */
-    private val device: () -> Language,
+    /** This device's language when Pley has it, read when the row shows. */
+    private val device: () -> Language?,
 ) : ViewModel() {
     private val saving = MutableStateFlow(false)
     private val channel = Channel<Throwable>(Channel.BUFFERED)
@@ -87,7 +84,7 @@ class LanguageViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LanguageUiState(device = device()))
 
-    /** Makes [choice] the account's language; `null`: the server's default. */
+    /** Makes [choice] the account's language; `null`: Automatic. */
     fun choose(choice: Language?) {
         val now = state.value
         if (!now.available || now.saving || choice == now.chosen) return
@@ -110,7 +107,7 @@ class LanguageViewModel(
             initializer {
                 val app = this[ViewModelProvider.AndroidViewModelFactory.APPLICATION_KEY]
                 LanguageViewModel(screensGraph().data.language) {
-                    app?.let { Language.ofDevice(AppLanguage.deviceLocales(it)) } ?: Language.English
+                    app?.let { Language.ofDevice(AppLanguage.deviceLocales(it)) }
                 }
             }
         }

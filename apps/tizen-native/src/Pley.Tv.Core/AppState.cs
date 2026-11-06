@@ -277,7 +277,7 @@ public sealed class AppState
         }
     }
 
-    /// <summary>The TV was set to other languages: the app follows when neither the account nor the server has one.</summary>
+    /// <summary>The TV was set to other languages: the app follows when the account has none.</summary>
     public void TvLanguagesChanged(IReadOnlyList<string> languages)
     {
         tvLanguages = languages;
@@ -285,9 +285,10 @@ public sealed class AppState
     }
 
     /// <summary>
-    /// The language to show now: the account's once who is watching is known, else the server's
-    /// once it has said, else the TV's. Signed in and waiting for who is watching, or for the
-    /// server, the language shown stays. A change is kept for the next start.
+    /// The language to show now: the account's once who is watching is known, else the TV's, else
+    /// the server's once it has said. Signed in and waiting for who is watching, or on a TV in a
+    /// language Pley doesn't have waiting for the server, the language shown stays. A change is
+    /// kept for the next start.
     /// </summary>
     void ChooseLanguage()
     {
@@ -296,6 +297,7 @@ public sealed class AppState
         string? next;
         if (me != null && Languages.Supported(me.Language) is { } own) next = own;
         else if (me == null && tokens?.Kept == true) next = null;
+        else if (Languages.OfDevice(tvLanguages) is { } tv) next = tv;
         else if (server != null && serverLanguages.TryGetValue(server, out var language)) next = Languages.Pick(null, language, tvLanguages);
         else next = null;
         if (next == null || next == Language.Value) return;

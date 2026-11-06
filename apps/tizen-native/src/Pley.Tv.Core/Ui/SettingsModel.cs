@@ -194,10 +194,10 @@ public interface ISettingsSource
     /// <summary>The TV's facts under "Open diagnostics".</summary>
     IReadOnlyList<Fact> DeviceFacts { get; }
 
-    /// <summary>The server's language, which "Server default" stands for; null when it has none, or hasn't said.</summary>
+    /// <summary>The server's language, which Automatic is on a TV in a language Pley doesn't have; null until it has said.</summary>
     string? ServerLanguage { get; }
 
-    /// <summary>The TV's languages, which "Server default" stands for when the server has none.</summary>
+    /// <summary>The TV's languages: the first Pley has is what Automatic is.</summary>
     IReadOnlyList<string> TvLanguages { get; }
 }
 
@@ -527,16 +527,12 @@ public sealed class SettingsModel : IDisposable
 
     /// <summary>
     /// The Language row's value: the profile's language, named in itself ("Français"), or for
-    /// none "Server default" with what that stands for: the server's language, or this TV's.
+    /// none "Automatic" with what that is on this TV: its language, else the server's.
     /// </summary>
-    string LanguageLabel(string? code)
-    {
-        if (code != null) return Languages.NameOf(code);
-        var fallback = source.ServerLanguage is { } server
-            ? Languages.NameOf(server)
-            : SettingsText.TvLanguage(Languages.NameOf(Languages.Pick(null, null, source.TvLanguages)));
-        return SettingsText.ServerDefault(fallback);
-    }
+    string LanguageLabel(string? code) =>
+        code != null
+            ? Languages.NameOf(code)
+            : SettingsText.Automatic(Languages.NameOf(Languages.Pick(null, source.ServerLanguage, source.TvLanguages)));
 
     static int LanguageIndex(string? code)
     {

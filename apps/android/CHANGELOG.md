@@ -11,7 +11,7 @@ describes how they are made.
 ### Added
 
 - Pley is in English, French and Spanish: your account's language, else
-  your server's, else this device's, and Settings has a Language row on
+  this device's, else your server's, and Settings has a Language row on
   phones and TVs that sets it for your account on every device. Every
   screen on phones, tablets and TVs is in it; dates, times, runtimes,
   counts, the names of audio and subtitle languages and connection errors
