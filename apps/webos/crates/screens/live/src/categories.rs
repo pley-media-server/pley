@@ -7,6 +7,7 @@
 use pley_base::{Icon, Point, Rect, TextOpts};
 use pley_core::format::grouped;
 use pley_core::model::{LiveGroup, LiveGroups};
+use pley_i18n::t;
 use pley_kit::{ListState, TextField};
 use pley_player::live::Category;
 use pley_player::live::data::{Region, category_name, group_sections};
@@ -105,13 +106,13 @@ impl Sections {
             out.push(Line::Search);
         }
         if !found.is_empty() {
-            out.push(Line::Heading("Groups found"));
+            out.push(Line::Heading(t!("livetv.categories.found")));
             out.extend(found.iter().cloned().map(Line::Found));
         }
         out.extend([Line::Favorites, Line::Recent, Line::All]);
         let has_regions = !self.regions.is_empty();
         if has_regions {
-            out.push(Line::Heading("Regions"));
+            out.push(Line::Heading(t!("livetv.categories.regions")));
             for r in &self.regions {
                 let expanded = open == Some(r.region.as_str());
                 out.push(Line::Region { region: r.region.clone(), count: r.count, open: expanded });
@@ -124,7 +125,8 @@ impl Sections {
         // A lone group without regions is All channels again: it isn't listed.
         let others = &self.others;
         if others.len() > 1 || (others.len() == 1 && has_regions) {
-            out.push(Line::Heading(if has_regions { "More groups" } else { "Groups" }));
+            let heading = if has_regions { t!("livetv.categories.moreGroups") } else { t!("livetv.categories.groups") };
+            out.push(Line::Heading(heading));
             out.extend(others.iter().map(|g| Line::Group { group: g.clone(), indent: GROUP_INSET }));
         }
         out
@@ -344,9 +346,13 @@ fn row(ui: &mut Ui, id: Id, rect: Rect, line: &Line, v: &ColumnView, selected: b
     };
     let groups = v.groups;
     let (icon, name, count, indent) = match line {
-        Line::Favorites => (Some(Icon::Star), "Favourites".to_string(), groups.map(|g| g.favorites), INSET),
-        Line::Recent => (Some(Icon::History), "Recently watched".to_string(), groups.map(|g| g.recent), INSET),
-        Line::All => (Some(Icon::Layers), "All channels".to_string(), groups.map(|g| g.total), INSET),
+        Line::Favorites => {
+            (Some(Icon::Star), t!("livetv.categories.favorites").to_string(), groups.map(|g| g.favorites), INSET)
+        }
+        Line::Recent => {
+            (Some(Icon::History), t!("livetv.categories.recent").to_string(), groups.map(|g| g.recent), INSET)
+        }
+        Line::All => (Some(Icon::Layers), t!("livetv.categories.all").to_string(), groups.map(|g| g.total), INSET),
         Line::Region { region, count, open } => {
             let icon = if *open { Icon::ChevronDown } else { Icon::ChevronRight };
             (Some(icon), region.clone(), Some(*count), INSET)
@@ -359,7 +365,7 @@ fn row(ui: &mut Ui, id: Id, rect: Rect, line: &Line, v: &ColumnView, selected: b
             let name = if *indent > GROUP_INSET {
                 group.shown_label().to_string()
             } else if group.name.is_empty() {
-                "No group".to_string()
+                t!("livetv.categories.noGroup").to_string()
             } else {
                 group.name.clone()
             };

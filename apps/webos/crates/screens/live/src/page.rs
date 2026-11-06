@@ -12,6 +12,7 @@ use pley_core::http::sentence;
 use pley_core::model::{LiveChannel, LiveChannelPage, LiveGroup, LiveGroups, LiveProgram};
 use pley_core::store::snapshot_keys;
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{Button, Keyboard, KeyboardState, Message, MessageStyle, SidePanel, TextEdit};
 use pley_player::live::data::groups_matching;
 use pley_player::live::{Category, ChannelPages, GuideStore};
@@ -326,9 +327,9 @@ impl LiveTvScreen {
                     }
                     let why = match other {
                         Some(Err(e)) => sentence(&e.to_string()),
-                        _ => "The request stopped.".to_string(),
+                        _ => t!("livetv.favorites.requestStopped").to_string(),
                     };
-                    self.notice = Some((format!("The favourite wasn't saved: {why}"), cx.now));
+                    self.notice = Some((t!("livetv.favorites.failed", error = why), cx.now));
                 }
             }
         }
@@ -405,7 +406,7 @@ impl LiveTvScreen {
             rev: self.column_rev,
             selected: Some(&self.category),
             found: &self.found,
-            search: Some(Search { text: &self.query.text, placeholder: "Search", typing: self.typing }),
+            search: Some(Search { text: &self.query.text, placeholder: t!("livetv.page.search"), typing: self.typing }),
         }
     }
 
@@ -492,12 +493,13 @@ impl Screen for LiveTvScreen {
 
         // The title row.
         let title_y = HEADER_TOP + (HEADER_H - theme::PAGE_TITLE.line_height) / 2.0;
-        ui.text(Point::new(theme::GUTTER, title_y), "Live TV", &theme::PAGE_TITLE, &TextOpts::line(400.0), theme::FG);
+        let title = t!("livetv.title");
+        ui.text(Point::new(theme::GUTTER, title_y), title, &theme::PAGE_TITLE, &TextOpts::line(400.0), theme::FG);
         let tabs = ui.id("tabs");
         let tab_id = |v: View| tabs.with(v.key());
         if allowed {
-            let guide = Button::tab("Guide", self.view == View::Guide);
-            let channels = Button::tab("Channels", self.view == View::Channels);
+            let guide = Button::tab(t!("livetv.tabs.guide"), self.view == View::Guide);
+            let channels = Button::tab(t!("livetv.tabs.channels"), self.view == View::Channels);
             let (gw, cw) = (guide.size(ui).w, channels.size(ui).w);
             let right = theme::CANVAS_W - theme::SAFE_X;
             let mut chosen = None;
@@ -516,14 +518,10 @@ impl Screen for LiveTvScreen {
             self.closed = false;
         } else {
             self.settled = true;
-            let body = "An administrator can open it in Pley's web app, under Settings → Live TV.";
             let closed = ui.id("closed");
-            Message::new(
-                MessageStyle::Column { top: HEADER_TOP + HEADER_H + 40.0 },
-                "Live TV isn't open to this profile",
-            )
-            .body(body)
-            .show(ui, closed);
+            Message::new(MessageStyle::Column { top: HEADER_TOP + HEADER_H + 40.0 }, t!("livetv.page.notAllowedTitle"))
+                .body(t!("livetv.page.notAllowedBody"))
+                .show(ui, closed);
             if !std::mem::replace(&mut self.closed, true) {
                 cx.to_rail();
             }
@@ -564,13 +562,13 @@ impl Screen for LiveTvScreen {
         match (total, error) {
             (None, Some(e)) => {
                 self.settled = true;
-                let title = if e.unreachable() { "Can't reach your server" } else { "Live TV didn't load" };
+                let title = if e.unreachable() { t!("livetv.trouble.offline") } else { t!("livetv.page.failed") };
                 let body = e.problem();
                 let retry_id = ui.id("retry");
                 let r = ui.translate(Point::new(CHANNELS_X - theme::GUTTER, 0.0), |ui| {
                     Message::new(MessageStyle::Column { top: CONTENT_TOP + 24.0 }, title)
                         .body(&body)
-                        .action("Try again", Icon::RefreshCw)
+                        .action(t!("livetv.page.retry"), Icon::RefreshCw)
                         .show(ui, retry_id)
                 });
                 content = Some(retry_id.with("action"));
@@ -697,7 +695,12 @@ impl Screen for LiveTvScreen {
         // The keyboard over the foot while the search is typed into.
         if self.typing {
             let keyboard = ui.id("keyboard");
-            let r = Keyboard::new().action_label("Search").show(ui, keyboard, &mut self.keyboard, &mut self.query);
+            let r = Keyboard::new().action_label(t!("livetv.page.search")).show(
+                ui,
+                keyboard,
+                &mut self.keyboard,
+                &mut self.query,
+            );
             if r.done {
                 self.typing = false;
                 self.to_content = true;
@@ -798,18 +801,11 @@ impl Screen for LiveTvScreen {
 /// What an empty category says (`Empty`).
 fn empty_words(listed: &Category) -> (&'static str, String) {
     match listed {
-        Category::Search(q) => {
-            ("No channels match", format!("No channel's name, number or programme on now has “{}” in it.", q.trim()))
-        }
-        Category::Favorites => {
-            ("No favourites yet", "Hold OK on a channel and add it to your favourites to find it here.".into())
-        }
-        Category::Recent => ("Nothing watched yet", "The channels you watch show here, the last first.".into()),
-        Category::Group(_) => ("No channels in this group.", String::new()),
-        Category::All => (
-            "No channels yet",
-            "Channels appear here once an administrator adds an IPTV provider in Pley's web app.".into(),
-        ),
+        Category::Search(q) => (t!("livetv.page.noMatchTitle"), t!("livetv.page.noMatchSearch", query = q.trim())),
+        Category::Favorites => (t!("livetv.page.noneFavoritesTitle"), t!("livetv.page.noneFavoritesBody").into()),
+        Category::Recent => (t!("livetv.page.noneRecentTitle"), t!("livetv.page.noneRecentBody").into()),
+        Category::Group(_) => (t!("livetv.page.noMatch"), String::new()),
+        Category::All => (t!("livetv.page.noneTitle"), t!("livetv.page.noneBody").into()),
     }
 }
 
@@ -835,6 +831,21 @@ mod tests {
         let (title, body) = empty_words(&Category::Search(" zzz ".into()));
         assert_eq!(title, "No channels match");
         assert_eq!(body, "No channel's name, number or programme on now has “zzz” in it.");
+    }
+
+    #[test]
+    fn an_empty_search_says_its_words_in_french_and_spanish() {
+        use pley_i18n::{Language, with_language};
+        let search = Category::Search(" zzz ".into());
+        with_language(Language::Fr, || {
+            let (title, body) = empty_words(&search);
+            assert_eq!(title, "Aucune chaîne ne correspond");
+            assert_eq!(body, "Aucune chaîne n’a «\u{a0}zzz\u{a0}» dans son nom, son numéro ou le programme en cours.");
+        });
+        with_language(Language::Es, || {
+            assert_eq!(empty_words(&Category::Favorites).0, "Aún no hay favoritos");
+            assert!(empty_words(&search).1.starts_with("Ningún canal tiene “zzz”"));
+        });
     }
 
     #[test]

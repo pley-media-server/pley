@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use pley_core::api::LiveBrowse;
 use pley_core::format::format_time_of_day;
 use pley_core::model::{LiveCategory, LiveChannel, LiveGroup, LiveGuide, LiveProgram};
+use pley_i18n::t;
 
 /// The guide's columns: half an hour each.
 pub const SLOT: i64 = 1800;
@@ -55,10 +56,14 @@ pub fn program_progress(p: &LiveProgram, now: i64) -> f32 {
 pub fn time_left(stop: i64, now: i64) -> String {
     let minutes = (((stop - now) as f64 / 60.0).round() as i64).max(1);
     if minutes < 60 {
-        return format!("{minutes} min left");
+        return t!("livetv.time.minutesLeft", count = minutes);
     }
     let (h, m) = (minutes / 60, minutes % 60);
-    if m > 0 { format!("{h} h {m} min left") } else { format!("{h} h left") }
+    if m > 0 {
+        t!("livetv.time.hoursMinutesLeft", hours = h, minutes = m)
+    } else {
+        t!("livetv.time.hoursLeft", count = h)
+    }
 }
 
 /// "20:00" or "8:00 PM", as the TV writes the time; `utc_offset` is the TV's, in seconds.
@@ -72,8 +77,36 @@ pub fn format_span(p: &LiveProgram, hours24: bool, utc_offset: i64) -> String {
     format!("{} – {}", format_time(p.start, hours24, utc_offset), format_time(p.stop, hours24, utc_offset))
 }
 
-const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+/// A weekday's short name, Sunday first ("Fri", "ven.", "vie.").
+fn weekday_name(weekday: usize) -> &'static str {
+    match weekday {
+        0 => t!("livetv.time.weekdays.sun"),
+        1 => t!("livetv.time.weekdays.mon"),
+        2 => t!("livetv.time.weekdays.tue"),
+        3 => t!("livetv.time.weekdays.wed"),
+        4 => t!("livetv.time.weekdays.thu"),
+        5 => t!("livetv.time.weekdays.fri"),
+        _ => t!("livetv.time.weekdays.sat"),
+    }
+}
+
+/// A month's short name, 1–12 ("Oct", "oct.").
+fn month_name(month: u32) -> &'static str {
+    match month {
+        1 => t!("livetv.time.months.jan"),
+        2 => t!("livetv.time.months.feb"),
+        3 => t!("livetv.time.months.mar"),
+        4 => t!("livetv.time.months.apr"),
+        5 => t!("livetv.time.months.may"),
+        6 => t!("livetv.time.months.jun"),
+        7 => t!("livetv.time.months.jul"),
+        8 => t!("livetv.time.months.aug"),
+        9 => t!("livetv.time.months.sep"),
+        10 => t!("livetv.time.months.oct"),
+        11 => t!("livetv.time.months.nov"),
+        _ => t!("livetv.time.months.dec"),
+    }
+}
 
 /// Days since 1970-01-01 as (year, month 1–12, day 1–31) (Howard Hinnant's `civil_from_days`).
 fn civil_from_days(days: i64) -> (i64, u32, u32) {
@@ -88,23 +121,24 @@ fn civil_from_days(days: i64) -> (i64, u32, u32) {
     (yoe + era * 400 + i64::from(m <= 2), m, d)
 }
 
-/// "Today", "Tomorrow", "Yesterday", or "Fri 30 Oct", in the TV's own days.
+/// "Today", "Tomorrow", "Yesterday", or "Fri 30 Oct" ("ven. 30 oct." in French), in the TV's own
+/// days.
 pub fn format_guide_day(ts: i64, now: i64, utc_offset: i64) -> String {
     let day = |t: i64| (t + utc_offset).div_euclid(86_400);
     let (d, today) = (day(ts), day(now));
     if d == today {
-        return "Today".into();
+        return t!("livetv.time.today").into();
     }
     if d == today + 1 {
-        return "Tomorrow".into();
+        return t!("livetv.time.tomorrow").into();
     }
     if d == today - 1 {
-        return "Yesterday".into();
+        return t!("livetv.time.yesterday").into();
     }
     let (_, month, date) = civil_from_days(d);
     // 1970-01-01 was a Thursday.
     let weekday = (d + 4).rem_euclid(7) as usize;
-    format!("{} {date} {}", DAYS[weekday], MONTHS[month as usize - 1])
+    t!("livetv.time.day", weekday = weekday_name(weekday), date = date, month = month_name(month))
 }
 
 /// "S2 E14", when the guide numbers the episode.
@@ -230,10 +264,10 @@ pub fn groups_matching(groups: &[LiveGroup], q: &str, max: usize) -> Vec<LiveGro
 /// What a category is called: "Favourites", "UK · Sport", "Results for “bbc”".
 pub fn category_name(c: &Category, groups: &[LiveGroup]) -> String {
     match c {
-        Category::All => "All channels".into(),
-        Category::Favorites => "Favourites".into(),
-        Category::Recent => "Recently watched".into(),
-        Category::Search(q) => format!("Results for “{q}”"),
+        Category::All => t!("livetv.categories.all").into(),
+        Category::Favorites => t!("livetv.categories.favorites").into(),
+        Category::Recent => t!("livetv.categories.recent").into(),
+        Category::Search(q) => t!("livetv.categories.resultsFor", query = q),
         Category::Group(name) => match groups.iter().find(|g| g.name == *name) {
             Some(g) => match g.region.as_deref().filter(|r| !r.is_empty()) {
                 Some(r) => format!("{r} · {}", g.label),
@@ -441,6 +475,29 @@ mod tests {
         assert_eq!(format_guide_day(t - 86_400, t, 0), "Yesterday");
         assert_eq!(format_guide_day(t, t + 3 * 86_400, 0), "Fri 30 Oct");
         assert_eq!(channel_title(&channel(1, None, None)), "101 Ch 1");
+    }
+
+    #[test]
+    fn days_and_whats_left_in_french_and_spanish() {
+        use pley_i18n::{Language, with_language};
+        // 2026-10-30 20:00 UTC was a Friday.
+        let t = 1_793_390_400;
+        with_language(Language::Fr, || {
+            assert_eq!(format_guide_day(t, t, 0), "Aujourd’hui");
+            assert_eq!(format_guide_day(t + 86_400, t, 0), "Demain");
+            assert_eq!(format_guide_day(t, t + 3 * 86_400, 0), "ven. 30 oct.");
+            assert_eq!(format_guide_day(t - 30 * 86_400, t, 0), "mer. 30 sept.");
+            assert_eq!(time_left(600, 0), "Il reste 10 min");
+            assert_eq!(time_left(3900, 0), "Il reste 1 h 5 min");
+            assert_eq!(category_name(&Category::Search("bbc".into()), &[]), "Résultats pour «\u{a0}bbc\u{a0}»");
+        });
+        with_language(Language::Es, || {
+            assert_eq!(format_guide_day(t - 86_400, t, 0), "Ayer");
+            assert_eq!(format_guide_day(t, t + 3 * 86_400, 0), "vie. 30 oct.");
+            assert_eq!(time_left(60, 0), "Queda 1 min");
+            assert_eq!(time_left(7200, 0), "Quedan 2 h");
+            assert_eq!(category_name(&Category::Recent, &[]), "Vistos recientemente");
+        });
     }
 
     #[test]

@@ -18,6 +18,7 @@
 
 use pley_base::{Key, Point, Rect, TextOpts, Weight};
 use pley_core::model::{LiveChannel, LiveProgram};
+use pley_i18n::t;
 use pley_kit::SCROLL;
 use pley_player::live::data::{GUIDE_SPAN, SLOT, channel_name, time_left};
 use pley_player::live::{Category, GuideStore};
@@ -508,9 +509,7 @@ impl Guide {
             }
         } else {
             meta.extend(number);
-            meta.push(
-                if channel.has_guide { "No information for this time" } else { "No guide for this channel" }.into(),
-            );
+            meta.push(if channel.has_guide { t!("livetv.guide.noInfo") } else { t!("livetv.guide.noGuide") }.into());
         }
         let meta_y = top + title_h + 2.0;
         ui.text(Point::new(x, meta_y), &meta.join("  ·  "), &theme::LABEL, &TextOpts::line(width), theme::MUTED);
@@ -610,7 +609,7 @@ impl Guide {
                 let focused = focused_start == Some(-1);
                 let inner = Rect::new(grid.x + 2.0, y + 4.0, grid.w - 4.0, ROW_H - 8.0);
                 ui.fill(inner, if focused { theme::ACCENT } else { theme::SURFACE.alpha(0.6) }, radius::CONTROL);
-                let label = if c.has_guide { "No information for this time".to_string() } else { name.clone() };
+                let label = if c.has_guide { t!("livetv.guide.noInfo").to_string() } else { name.clone() };
                 let color = if focused { theme::ON_ACCENT } else { theme::SUBTLE };
                 line_mid(ui, &label, &theme::CAPTION, inner.x + 12.0, inner.y, inner.h, inner.w - 24.0, color);
             } else if focused_start == Some(-1) && any {
@@ -628,7 +627,7 @@ impl Guide {
                     let lx = inner.x.max(grid.x) + 10.0;
                     line_mid(
                         ui,
-                        "No information",
+                        t!("livetv.guide.noInfoShort"),
                         &theme::CAPTION,
                         lx,
                         inner.y,

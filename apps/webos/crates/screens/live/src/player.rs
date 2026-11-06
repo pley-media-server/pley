@@ -18,6 +18,7 @@ use pley_base::{Align, Color, Icon, Key, Point, Rect, TextOpts};
 use pley_core::http::sentence;
 use pley_core::model::{BusyConnection, LiveCategory, LiveChannel, LiveChannelPage, ServerEvent};
 use pley_core::{ApiError, Device, Promise};
+use pley_i18n::t;
 use pley_kit::button::ROUND_SIZE;
 use pley_kit::{Button, LoadingRing, RoundButton, bar_group, inert};
 use pley_player::live::data::{CHANNEL_PAGE, channel_by_number, channel_name, time_left};
@@ -121,7 +122,7 @@ impl Digits {
             return Some((self.typed.clone(), true));
         }
         let (number, at) = self.not_found.as_ref()?;
-        (now - at < NOT_FOUND).then(|| (format!("No channel {number}"), false))
+        (now - at < NOT_FOUND).then(|| (t!("livetv.player.noChannel", number = number), false))
     }
 
     /// When it next has something to do: the lookup, or the end of "No channel 123".
@@ -307,7 +308,7 @@ impl LivePlayerScreen {
                 match answer {
                     Ok(c) => c,
                     Err(e) => {
-                        self.unknown = Some(trouble_of(&e, "This channel"));
+                        self.unknown = Some(trouble_of(&e, t!("livetv.player.thisChannel")));
                         return;
                     }
                 }
@@ -490,11 +491,11 @@ impl LivePlayerScreen {
                     continue;
                 }
                 Some(Err(e)) => sentence(&e.to_string()),
-                None => "The request stopped.".to_string(),
+                None => t!("livetv.favorites.requestStopped").to_string(),
             };
             // The server didn't keep it: undone.
             self.mark(m.id, !m.on);
-            cx.toast_error(format!("The favourite wasn't saved: {why}"));
+            cx.toast_error(t!("livetv.favorites.failed", error = why));
         }
         // What's on, asked again once the programme playing ended.
         if let Some(p) = self.refresh.as_mut()
@@ -898,7 +899,7 @@ fn tuning(ui: &mut Ui, cx: &AppCx, stage: Rect, c: &LiveChannel, category: &Live
     y += 36.0 + 18.0;
     centred(ui, &numbered_name(c, category), &theme::SECTION, cx_, y, stage.w - 96.0, theme::FG);
     y += theme::SECTION.line_height + 6.0;
-    let on = c.on_at(seconds).map_or("Tuning…", |p| p.title.as_str());
+    let on = c.on_at(seconds).map_or(t!("livetv.player.tuning"), |p| p.title.as_str());
     centred(ui, on, &theme::BODY, cx_, y, stage.w - 96.0, theme::MUTED);
 }
 
@@ -911,7 +912,7 @@ fn sound_only(ui: &mut Ui, cx: &AppCx, stage: Rect, c: &LiveChannel, seconds: i6
     let well = Well::PAGE.named().styled(theme::TITLE).filled(Color::WHITE.alpha(0.06), radius::DIALOG);
     channel_tile(ui, cx, Rect::new(x - 120.0, y, 240.0, 135.0), c, well);
     y += 135.0 + 18.0;
-    let label = "Sound only";
+    let label = t!("livetv.player.radio");
     let w = 20.0 + 8.0 + measure(ui, label, &theme::LABEL);
     ui.icon(Rect::new(x - w / 2.0, y, 20.0, 20.0), Icon::Radio, theme::MUTED);
     line_mid(ui, label, &theme::LABEL, x - w / 2.0 + 28.0, y, 20.0, w, theme::MUTED);
@@ -1016,8 +1017,8 @@ fn info_bar(
             }
             let title = match &on {
                 Some(p) => p.title.as_str(),
-                None if c.has_guide => "Nothing in the guide now",
-                None => "No guide for this channel",
+                None if c.has_guide => t!("livetv.guide.nothingNow"),
+                None => t!("livetv.guide.noGuide"),
             };
             ui.text(Point::new(tx, y), title, &theme::SECTION, &TextOpts::line((x + width - tx).max(1.0)), theme::FG);
             y += theme::SECTION.line_height;
@@ -1035,7 +1036,7 @@ fn info_bar(
             }
             if let Some(n) = &next {
                 y += 4.0;
-                let text = format!("Next {} · {}", clock.time(n.start), n.title);
+                let text = t!("livetv.guide.next", time = clock.time(n.start), title = n.title);
                 ui.text(Point::new(x, y), &text, &theme::CAPTION, &TextOpts::line(width), theme::SUBTLE);
             }
 
@@ -1049,13 +1050,17 @@ fn info_bar(
                 }
                 // The star alone, as in the details: its label, wider than both buttons, ran under Channels.
                 let favourite = if c.favorite {
-                    RoundButton::new(Icon::Star, "Remove from favourites")
+                    RoundButton::new(Icon::Star, t!("livetv.favorites.remove"))
                 } else {
-                    RoundButton::new(Icon::StarOutline, "Add to favourites")
+                    RoundButton::new(Icon::StarOutline, t!("livetv.favorites.add"))
                 }
                 .show_label(false);
                 ui.group(id.with("controls"), bar_group(), |ui| {
-                    let r = RoundButton::new(Icon::List, "Channels").show(ui, channels_id, Point::new(x0, at));
+                    let r = RoundButton::new(Icon::List, t!("livetv.player.channels")).show(
+                        ui,
+                        channels_id,
+                        Point::new(x0, at),
+                    );
                     if r.activated {
                         action = Some(BarAction::Channels);
                     }
@@ -1069,7 +1074,7 @@ fn info_bar(
                     }
                 });
             } else {
-                let hint = "▲▼ change channel · OK for channels · hold OK for more";
+                let hint = t!("livetv.player.hint");
                 ui.text(
                     Point::new(x0, below + 12.0),
                     hint,
@@ -1085,7 +1090,7 @@ fn info_bar(
 
 /// Live: a red pill with a white dot, its right edge at `right`, centred on `mid`; its width.
 fn live_pill(ui: &mut Ui, right: f32, mid: f32) -> f32 {
-    let text = ui.layout("LIVE", &theme::BADGE, &TextOpts::default());
+    let text = ui.layout(t!("livetv.player.live"), &theme::BADGE, &TextOpts::default());
     let (tw, th) = (text.size.w, text.size.h);
     let (w, h) = (12.0 + 7.0 + 7.0 + tw + 12.0, 6.0 + th + 6.0);
     let rect = Rect::new(right - w, mid - h / 2.0, w, h);
@@ -1107,7 +1112,7 @@ fn digits_box(ui: &mut Ui, text: &str, code: bool) {
 
 /// "Its 2 connections are watching:".
 pub fn connections_heading(n: usize) -> String {
-    if n == 1 { "Its one connection is watching:".into() } else { format!("Its {n} connections are watching:") }
+    t!("livetv.player.connectionsWatching", count = n)
 }
 
 /// How many of `n` connections the busy card lists with `room` dp for their rows and what follows
@@ -1140,10 +1145,10 @@ fn trouble_card(
     let connections: &[BusyConnection] = &t.connections;
 
     // The buttons, to measure the card by.
-    let again = if t.kind == TroubleKind::Stopped { "Watch again" } else { "Try again" };
+    let again = if t.kind == TroubleKind::Stopped { t!("livetv.player.watchAgain") } else { t!("livetv.player.retry") };
     let retry = t.can_retry.then(|| Button::pill(again).icon(Icon::RefreshCw));
-    let others = Button::pill("Other channels").icon(Icon::List);
-    let back = Button::pill("Back to the guide");
+    let others = Button::pill(t!("livetv.player.otherChannels")).icon(Icon::List);
+    let back = Button::pill(t!("livetv.player.backToGuide"));
     let gap = theme::BUTTON_GAP;
     let mut buttons_w = others.size(ui).w + gap + back.size(ui).w;
     if let Some(r) = &retry {
@@ -1172,15 +1177,18 @@ fn trouble_card(
     // As many connections as the screen has room for, the rest counted (Android lists them all; on a
     // 540 dp screen four or five would push the buttons off it).
     let none_to_take = !connections.iter().any(|c| c.can_take_over);
-    let note = "A channel already being watched can be joined, or try again once one is stopped.";
+    let note = t!("livetv.player.noneToTake");
     let note = (!connections.is_empty() && none_to_take).then(|| ui.layout(note, &theme::CAPTION, &centered(inner)));
     let room = theme::CANVAS_H - 2.0 * theme::SAFE_Y - 2.0 * CARD_PAD - h;
     let note_h = note.as_ref().map_or(0.0, |n| 6.0 + n.size.h);
     let shown = connections_shown(connections.len(), room, note_h, 6.0 + theme::CAPTION.line_height);
     let more = connections.len() - shown;
     let first_to_take = connections.iter().take(shown).find(|c| c.can_take_over).map(|c| c.channel_id);
-    let footnote =
-        if more > 0 { Some(ui.layout(&format!("and {more} more"), &theme::CAPTION, &centered(inner))) } else { note };
+    let footnote = if more > 0 {
+        Some(ui.layout(&t!("livetv.player.andMore", count = more), &theme::CAPTION, &centered(inner)))
+    } else {
+        note
+    };
     let words =
         (connections.is_empty() && !message.is_empty()).then(|| ui.layout(message, &theme::BODY, &centered(inner)));
 
@@ -1223,7 +1231,7 @@ fn trouble_card(
         for (i, c) in connections.iter().take(shown).enumerate() {
             let row = Rect::new(x, y, inner, BUSY_ROW_H);
             ui.fill(row, Color::WHITE.alpha(0.04), radius::CONTROL);
-            let take = c.can_take_over.then(|| Button::pill("Watch here instead"));
+            let take = c.can_take_over.then(|| Button::pill(t!("livetv.player.takeOver")));
             let take_w = take.as_ref().map_or(0.0, |b| b.size(ui).w + 12.0);
             let text_w = (inner - 32.0 - take_w).max(1.0);
             let block = theme::LABEL.line_height + theme::CAPTION.line_height;
@@ -1356,6 +1364,20 @@ mod tests {
     fn the_busy_heading_counts_the_connections() {
         assert_eq!(connections_heading(1), "Its one connection is watching:");
         assert_eq!(connections_heading(3), "Its 3 connections are watching:");
+    }
+
+    #[test]
+    fn the_busy_heading_and_a_missed_number_in_french_and_spanish() {
+        use pley_i18n::{Language, with_language};
+        with_language(Language::Fr, || {
+            assert_eq!(connections_heading(1), "Sa seule connexion diffuse\u{a0}:");
+            assert_eq!(connections_heading(2), "Ses 2 connexions diffusent\u{a0}:");
+            let mut d = Digits::default();
+            d.push(7, 0.0);
+            d.missed(2.0);
+            assert_eq!(d.text(2.5), Some(("Aucune chaîne 7".into(), false)));
+        });
+        with_language(Language::Es, || assert_eq!(connections_heading(4), "Sus 4 conexiones están ocupadas con:"));
     }
 
     #[test]

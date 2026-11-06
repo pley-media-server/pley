@@ -7,6 +7,7 @@
 
 use pley_base::{Icon, Key, Point, Rect};
 use pley_core::model::LiveChannel;
+use pley_i18n::t;
 use pley_kit::{Badge, BadgeStyle, GridState, PosterGrid, Tile, TileKind, TileSlot};
 use pley_player::live::data::channel_name;
 use pley_player::live::{Category, ChannelPages};
@@ -116,8 +117,8 @@ impl Cards {
 pub fn whats_on(c: &LiveChannel, now: i64) -> String {
     match c.on_at(now) {
         Some(p) => p.title.clone(),
-        None if c.has_guide => "Nothing in the guide now".into(),
-        None => "No guide for this channel".into(),
+        None if c.has_guide => t!("livetv.guide.nothingNow").into(),
+        None => t!("livetv.guide.noGuide").into(),
     }
 }
 

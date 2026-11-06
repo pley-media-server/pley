@@ -1,1 +1,139 @@
-{}
+{
+  "title": "TV en direct",
+  "tabs": {
+    "guide": "Guide",
+    "channels": "Chaînes"
+  },
+  "page": {
+    "failed": "Impossible de charger la TV en direct",
+    "retry": "Réessayer",
+    "notAllowedTitle": "La TV en direct n’est pas ouverte à ce profil",
+    "notAllowedBody": "Un administrateur peut l’ouvrir dans l’application web de Pley, sous Paramètres → TV en direct.",
+    "noneTitle": "Aucune chaîne pour l’instant",
+    "noneBody": "Les chaînes apparaissent ici dès qu’un administrateur ajoute un fournisseur IPTV dans l’application web de Pley.",
+    "noMatch": "Aucune chaîne dans ce groupe.",
+    "search": "Rechercher",
+    "noMatchTitle": "Aucune chaîne ne correspond",
+    "noMatchSearch": "Aucune chaîne n’a « {{query}} » dans son nom, son numéro ou le programme en cours.",
+    "noneFavoritesTitle": "Aucun favori pour l’instant",
+    "noneFavoritesBody": "Maintenez OK sur une chaîne et ajoutez-la à vos favoris pour la retrouver ici.",
+    "noneRecentTitle": "Vous n’avez encore rien regardé",
+    "noneRecentBody": "Les chaînes que vous regardez s’affichent ici, la plus récente en premier."
+  },
+  "categories": {
+    "all": "Toutes les chaînes",
+    "favorites": "Favoris",
+    "recent": "Regardées récemment",
+    "groups": "Groupes",
+    "regions": "Régions",
+    "moreGroups": "Autres groupes",
+    "noGroup": "Sans groupe",
+    "found": "Groupes trouvés",
+    "resultsFor": "Résultats pour « {{query}} »"
+  },
+  "guide": {
+    "nothingNow": "Aucun programme en ce moment",
+    "noGuide": "Pas de guide pour cette chaîne",
+    "noInfo": "Aucune information pour ce créneau",
+    "noInfoShort": "Aucune information",
+    "next": "À suivre {{time}} · {{title}}"
+  },
+  "time": {
+    "today": "Aujourd’hui",
+    "tomorrow": "Demain",
+    "yesterday": "Hier",
+    "minutesLeft_one": "Il reste {{count}} min",
+    "minutesLeft_many": "Il reste {{count}} min",
+    "minutesLeft_other": "Il reste {{count}} min",
+    "hoursLeft_one": "Il reste {{count}} h",
+    "hoursLeft_many": "Il reste {{count}} h",
+    "hoursLeft_other": "Il reste {{count}} h",
+    "hoursMinutesLeft": "Il reste {{hours}} h {{minutes}} min",
+    "day": "{{weekday}} {{date}} {{month}}",
+    "weekdays": {
+      "sun": "dim.",
+      "mon": "lun.",
+      "tue": "mar.",
+      "wed": "mer.",
+      "thu": "jeu.",
+      "fri": "ven.",
+      "sat": "sam."
+    },
+    "months": {
+      "jan": "janv.",
+      "feb": "févr.",
+      "mar": "mars",
+      "apr": "avr.",
+      "may": "mai",
+      "jun": "juin",
+      "jul": "juil.",
+      "aug": "août",
+      "sep": "sept.",
+      "oct": "oct.",
+      "nov": "nov.",
+      "dec": "déc."
+    }
+  },
+  "program": {
+    "watchNow": "Regarder maintenant",
+    "watchChannel": "Regarder la chaîne",
+    "noDescription": "Le guide n’en dit pas plus.",
+    "ended": "Ce programme est terminé."
+  },
+  "favorites": {
+    "add": "Ajouter aux favoris",
+    "remove": "Retirer des favoris",
+    "failed": "Le favori n’a pas été enregistré : {{error}}",
+    "requestStopped": "La demande s’est interrompue."
+  },
+  "player": {
+    "tuning": "Chargement de la chaîne…",
+    "live": "DIRECT",
+    "radio": "Son uniquement",
+    "hint": "▲▼ changer de chaîne · OK pour les chaînes · maintenez OK pour plus",
+    "channels": "Chaînes",
+    "channelGroups": "Groupes de chaînes",
+    "searchChannels": "Rechercher des chaînes",
+    "retry": "Réessayer",
+    "watchAgain": "Regarder à nouveau",
+    "otherChannels": "Autres chaînes",
+    "backToGuide": "Retour au guide",
+    "noChannel": "Aucune chaîne {{number}}",
+    "thisChannel": "Cette chaîne",
+    "heldByYou": "Vous, sur un autre appareil",
+    "someoneElse": "Quelqu’un d’autre",
+    "people_one": "{{count}} personne",
+    "people_many": "{{count}} de personnes",
+    "people_other": "{{count}} personnes",
+    "connectionsWatching_one": "Sa seule connexion diffuse :",
+    "connectionsWatching_many": "Ses {{count}} de connexions diffusent :",
+    "connectionsWatching_other": "Ses {{count}} connexions diffusent :",
+    "takeOver": "Regarder ici à la place",
+    "noneToTake": "Vous pouvez rejoindre une chaîne déjà regardée, ou réessayer quand l’une d’elles est arrêtée.",
+    "andMore_one": "et {{count}} de plus",
+    "andMore_many": "et {{count}} de plus",
+    "andMore_other": "et {{count}} de plus"
+  },
+  "trouble": {
+    "busy": "Toutes les connexions sont utilisées",
+    "stopped": "La TV en direct s’est arrêtée",
+    "stoppedBody": "Cette chaîne n’est plus regardée.",
+    "stoppedByAdmin": "La TV en direct a été arrêtée par l’administrateur du serveur.",
+    "stoppedElsewhere": "La TV en direct a été arrêtée depuis un autre appareil.",
+    "missing": "Cette chaîne n’existe plus",
+    "notAllowed": "La TV en direct n’est pas ouverte à ce profil",
+    "offline": "Impossible de joindre votre serveur",
+    "unavailable": "{{channel}} est indisponible",
+    "didNotStart": "{{channel}} n’a pas démarré",
+    "channelStopped": "La lecture de {{channel}} s’est arrêtée",
+    "olderTitle": "La TV en direct nécessite une version plus récente de Pley sur le serveur",
+    "olderBody": "Ce serveur ne peut pas envoyer les chaînes en direct au lecteur de la TV. Mettez à jour Pley sur le serveur, puis réessayez."
+  },
+  "engine": {
+    "said": "Le lecteur de la TV a indiqué : {{detail}}",
+    "late": "la lecture n’a pas démarré à temps",
+    "ended": "le flux s’est arrêté",
+    "directEnded": "son flux s’est arrêté",
+    "stalled": "la lecture s’est bloquée"
+  }
+}
