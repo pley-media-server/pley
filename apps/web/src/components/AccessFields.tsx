@@ -21,6 +21,8 @@ import {
 } from "@/lib/access";
 import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { inBoth } from "@/lib/labels";
+import { LabelPicker } from "./LabelPicker";
 import { Field, Select } from "./ui";
 
 export interface AccessValue {
@@ -31,6 +33,10 @@ export interface AccessValue {
   max_age_system: string | null;
   /** "2015-03": the limit is their age, from this birthday (accounts only, not invitations). */
   birth_month?: string | null;
+  /** Labels whose titles show even above the age limit. */
+  show_labels: string[];
+  /** Labels whose titles never show, whatever their rating. */
+  hide_labels: string[];
 }
 
 /** Ages a limit can be set to: 21 is the oldest any rating is for. */
@@ -38,7 +44,10 @@ const AGES = Array.from({ length: BIRTHDAY_LIMIT_ENDS + 1 }, (_, age) => age);
 
 const KIND_ICON: Record<LibraryKind, typeof Tv> = { movies: Clapperboard, shows: Tv, music: Music };
 
-/** Library access (all, or a chosen set) and an age limit, picked as a rating of a rating system. */
+/**
+ * Library access (all, or a chosen set), an age limit, picked as a rating of
+ * a rating system, and its exceptions by label.
+ */
 export function AccessFields({
   value,
   onChange,
@@ -81,6 +90,7 @@ export function AccessFields({
   const years = Array.from({ length: BIRTHDAY_LIMIT_ENDS + 1 }, (_, i) => thisYear - i);
   if (born && !years.includes(born.year)) years.push(born.year);
   const set = (patch: Partial<AccessValue>) => onChange({ ...value, ...patch });
+  const both = inBoth(value.show_labels, value.hide_labels);
   const setBirthMonth = (birthMonth: string) => set({ birth_month: birthMonth, max_age: birthdayLimit(birthMonth) });
   // A limit that isn't a birthday's clears it (for accounts; invitations have none).
   const fixed = birthday ? { birth_month: null } : {};
@@ -261,6 +271,35 @@ export function AccessFields({
         ) : null}
         <p className="text-xs text-subtle">{hint}</p>
       </div>
+
+      <fieldset className="space-y-3">
+        <legend className="mb-1.5 text-sm font-medium">{t("accessFields.exceptions")}</legend>
+        <p className="-mt-1 text-xs text-subtle">{t("accessFields.exceptionsHint")}</p>
+        {/* Only an age limit hides what these would show; kept as they are while there's none. */}
+        {mode !== "none" ? (
+          <Field label={t("accessFields.showLabels")} htmlFor={`${idPrefix}-show-labels`} hint={t("accessFields.showLabelsHint")}>
+            <LabelPicker
+              id={`${idPrefix}-show-labels`}
+              value={value.show_labels}
+              onChange={(show_labels) => set({ show_labels })}
+              removeLabel={(label) => t("accessFields.removeLabel", { label })}
+            />
+          </Field>
+        ) : null}
+        <Field
+          label={t("accessFields.hideLabels")}
+          htmlFor={`${idPrefix}-hide-labels`}
+          hint={t("accessFields.hideLabelsHint")}
+          error={both.length > 0 ? t("accessFields.inBoth", { labels: both.join(", ") }) : null}
+        >
+          <LabelPicker
+            id={`${idPrefix}-hide-labels`}
+            value={value.hide_labels}
+            onChange={(hide_labels) => set({ hide_labels })}
+            removeLabel={(label) => t("accessFields.removeLabel", { label })}
+          />
+        </Field>
+      </fieldset>
     </div>
   );
 }

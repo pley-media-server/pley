@@ -625,6 +625,24 @@ async fn restricted_profiles_cant_switch_into_freer_ones() {
     let start = app.login("admin", "secret-one").await;
     let both_token = switch(&app, &start, json!({"user_id": both})).await.body["token"].as_str().unwrap().to_owned();
     assert_eq!(switch(&app, &both_token, json!({"user_id": one})).await.status, StatusCode::OK);
+
+    // And label rules: a label the current profile never sees missing, or
+    // one a profile with an age limit doesn't always see added, is more.
+    let new = |name: &str, rules: Value| {
+        let mut body = json!({"username": name, "managed": true, "max_age": 12});
+        body.as_object_mut().unwrap().extend(rules.as_object().unwrap().clone());
+        new_profile(body)
+    };
+    let careful = new("careful", json!({"hide_labels": ["Scary"]})).await;
+    let open = new("open", json!({})).await;
+    let shown = new("shown", json!({"hide_labels": ["Scary"], "show_labels": ["Kids OK"]})).await;
+    let strict = new("strict", json!({"hide_labels": ["scary", "Loud"]})).await;
+    let start = app.login("admin", "secret-one").await;
+    let token = switch(&app, &start, json!({"user_id": careful})).await.body["token"].as_str().unwrap().to_owned();
+    for freer in [open, shown] {
+        assert_eq!(switch(&app, &token, json!({"user_id": freer})).await.status, StatusCode::FORBIDDEN, "{freer}");
+    }
+    assert_eq!(switch(&app, &token, json!({"user_id": strict})).await.status, StatusCode::OK, "more hidden is less");
 }
 
 #[tokio::test]
@@ -1034,4 +1052,61 @@ async fn age_limits_follow_birthdays() {
     let me = app.get("/api/auth/me", &kid).await;
     assert_eq!(me.body["max_age"], json!(9));
     assert!(me.body.get("birth_month").is_none(), "{:?}", me.body);
+}
+
+/// Label rules are kept as given, checked, carried by invitations, and
+/// shown to administrators only.
+#[tokio::test]
+async fn label_rules_are_kept_and_shown_to_administrators_only() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let rules = json!({"max_age": 7, "show_labels": [" Kids OK ", "kids ok", ""], "hide_labels": ["Override: Adult"]});
+    let (kid, kid_id) = app.user(&admin, "kid", rules).await;
+    let listed = user_named(&app, &admin, "kid").await;
+    assert_eq!(
+        (listed["show_labels"].clone(), listed["hide_labels"].clone()),
+        (json!(["Kids OK"]), json!(["Override: Adult"]))
+    );
+    let me = app.get("/api/auth/me", &kid).await;
+    assert!(me.body.get("hide_labels").is_none(), "a profile isn't told its own: {:?}", me.body);
+
+    // A list left out stays; one given replaces it.
+    let user = format!("/api/users/{kid_id}");
+    let changed = app.patch(&user, &admin, json!({"hide_labels": ["Horror"]})).await;
+    assert_eq!(changed.status, StatusCode::OK, "{:?}", changed.body);
+    assert_eq!(
+        (changed.body["show_labels"].clone(), changed.body["hide_labels"].clone()),
+        (json!(["Kids OK"]), json!(["Horror"]))
+    );
+    // Refused, changing nothing: the same label in both, too many, too long.
+    let many: Vec<String> = (0..51).map(|n| format!("L{n}")).collect();
+    for bad in [
+        json!({"hide_labels": ["KIDS OK"]}),
+        json!({"show_labels": ["Horror"]}),
+        json!({"show_labels": many}),
+        json!({"hide_labels": ["x".repeat(121)]}),
+    ] {
+        assert_eq!(app.patch(&user, &admin, bad.clone()).await.status, StatusCode::BAD_REQUEST, "{bad}");
+    }
+    let kept = user_named(&app, &admin, "kid").await;
+    assert_eq!((kept["show_labels"].clone(), kept["hide_labels"].clone()), (json!(["Kids OK"]), json!(["Horror"])));
+    let both =
+        app.post("/api/users", &admin, json!({"username": "two", "show_labels": ["A"], "hide_labels": ["a"]})).await;
+    assert_eq!(both.status, StatusCode::BAD_REQUEST);
+
+    // Invitations carry them to the account they make.
+    let bad = app.post("/api/invites", &admin, json!({"show_labels": ["A"], "hide_labels": ["A"]})).await;
+    assert_eq!(bad.status, StatusCode::BAD_REQUEST);
+    let invite = app
+        .post("/api/invites", &admin, json!({"max_age": 12, "show_labels": ["Kids OK"], "hide_labels": ["Horror"]}))
+        .await;
+    assert_eq!(invite.status, StatusCode::CREATED, "{:?}", invite.body);
+    assert_eq!(invite.body["hide_labels"], json!(["Horror"]));
+    let listed = app.get("/api/invites", &admin).await;
+    assert_eq!(listed.body[0]["show_labels"], json!(["Kids OK"]));
+    let code = invite.body["code"].as_str().unwrap();
+    let joined = accept(&app, code, json!({"username": "ann", "password": "test-pass-1"})).await;
+    assert_eq!(joined.status, StatusCode::OK, "{:?}", joined.body);
+    let ann = user_named(&app, &admin, "ann").await;
+    assert_eq!((ann["show_labels"].clone(), ann["hide_labels"].clone()), (json!(["Kids OK"]), json!(["Horror"])));
 }

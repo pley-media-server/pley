@@ -1,13 +1,69 @@
 //! Labels on items (see migrations/0015_labels.sql) and on collections
 //! (0043_collection_labels.sql): free-form tags, matched without regard to
-//! case. They are set through the Plex-compatible API.
+//! case. They are set through the Plex-compatible API and the web app's
+//! edit dialog, and a profile's label rules show or hide titles by them (see
+//! `catalog::VISIBLE`).
 
 use std::collections::HashMap;
 
+use serde::Serialize;
+
 use crate::db::Db;
+use crate::error::AppError;
 
 /// Longest label kept, in characters.
 const MAX_LEN: usize = 120;
+
+/// The kinds of item the web app labels: titles and what holds them.
+pub const LABELLED: &[&str] = &["movie", "show", "season", "episode", "artist", "album"];
+
+/// Most labels an item takes from the edit dialog.
+const MAX_PER_ITEM: usize = 100;
+
+/// `labels` as they're kept: trimmed, without empty ones or the same label
+/// twice (whatever its case), in their order. Refused: too many, or too
+/// long.
+pub fn check(labels: &[String]) -> Result<Vec<String>, AppError> {
+    let mut kept: Vec<String> = Vec::new();
+    for label in labels.iter().map(|l| l.trim()).filter(|l| !l.is_empty()) {
+        if label.chars().count() > MAX_LEN {
+            return Err(AppError::bad_request(format!("a label is at most {MAX_LEN} characters")));
+        }
+        if !kept.iter().any(|k| k.to_lowercase() == label.to_lowercase()) {
+            kept.push(label.to_owned());
+        }
+    }
+    if kept.len() > MAX_PER_ITEM {
+        return Err(AppError::bad_request(format!("at most {MAX_PER_ITEM} labels")));
+    }
+    Ok(kept)
+}
+
+/// A label and how many titles carry it.
+#[derive(Debug, Serialize, sqlx::FromRow, PartialEq)]
+pub struct LabelUse {
+    pub label: String,
+    pub items: i64,
+}
+
+/// Every label on an item, with how many items carry it, by name.
+pub async fn all(db: &Db) -> sqlx::Result<Vec<LabelUse>> {
+    sqlx::query_as(
+        "SELECT MIN(label) AS label, COUNT(*) AS items FROM item_labels
+         GROUP BY label ORDER BY label COLLATE NOCASE",
+    )
+    .fetch_all(&db.read)
+    .await
+}
+
+/// Makes `labels` (checked by [`check`]) item `item_id`'s labels.
+pub async fn replace(db: &Db, item_id: i64, labels: &[String]) -> sqlx::Result<()> {
+    let current = for_items(db, &[item_id]).await?.remove(&item_id).unwrap_or_default();
+    let lower = |l: &String| l.to_lowercase();
+    let remove: Vec<String> =
+        current.iter().filter(|c| !labels.iter().any(|l| lower(l) == lower(c))).cloned().collect();
+    edit(db, item_id, labels, &remove).await
+}
 
 /// What labels are on: the table and its owner column.
 #[derive(Clone, Copy)]

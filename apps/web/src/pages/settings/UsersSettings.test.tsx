@@ -82,6 +82,7 @@ function serve() {
     "GET /api/users/4/apps": () => [],
     "GET /api/users": () => [admin, kid, ann, lee],
     "GET /api/ratings/systems": () => ratingSystems,
+    "GET /api/labels": () => [{ label: "Override: Kids", items: 3 }],
     "GET /api/libraries": () => libraries,
     "GET /api/users/1/devices": () => [],
     "GET /api/users/2/devices": () => [{ id: "d1", name: "Safari on iPhone", user_agent: null, ip: "192.0.2.4", created_at: 0, last_seen_at: 0, current: false }],
@@ -209,6 +210,8 @@ describe("UsersSettings", () => {
       library_ids: [],
       max_age: null,
       max_age_system: null,
+      show_labels: [],
+      hide_labels: [],
       pin: "1234",
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -295,6 +298,32 @@ describe("UsersSettings", () => {
 
     expect(await screen.findByText("Saved Kiddo Two")).toBeInTheDocument();
     expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ display_name: "Kiddo Two", pin: null });
+  });
+
+  it("sets exceptions by label, refusing one both always and never shown", async () => {
+    const user = userEvent.setup();
+    const requests = renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+
+    await user.type(within(dialog).getByLabelText("Always show"), "Override: Kids{Enter}");
+    await user.type(within(dialog).getByLabelText("Never show"), "Scary{Enter}");
+    await user.type(within(dialog).getByLabelText("Always show"), " scary {Enter}");
+    expect(within(dialog).getByText("A label can't be both always and never shown: scary.")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Remove scary" }));
+    expect(within(dialog).queryByText(/both always and never/)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ show_labels: ["Override: Kids"], hide_labels: ["Scary"] }),
+    );
+  });
+
+  it("offers Always show only with an age limit, and Never show always", async () => {
+    renderUsers();
+    const { dialog } = await openAddDialog();
+    expect(within(dialog).queryByLabelText("Always show")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Never show")).toBeInTheDocument();
   });
 
   it("closes without a request when nothing changed", async () => {

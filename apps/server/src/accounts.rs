@@ -67,10 +67,18 @@ pub struct UserDto {
     /// `GET /api/ratings/systems`): a country, or "age"; `None`: the
     /// metadata region's.
     pub max_age_system: Option<String>,
-    /// For administrators only (see [`with_birthdays`]): the month and year
-    /// the profile was born ("2015-03") when its age limit is its age.
+    /// For administrators only (see [`for_administrators`]): the month and
+    /// year the profile was born ("2015-03") when its age limit is its age.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub birth_month: Option<String>,
+    /// For administrators only (see [`for_administrators`]): labels whose
+    /// titles the profile sees even above its age limit, and labels whose
+    /// titles it never sees (see `catalog::VISIBLE`). A profile isn't told
+    /// its own: a child shouldn't read "Override: Adult".
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub show_labels: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hide_labels: Option<Vec<String>>,
     pub disabled: bool,
     pub created_at: i64,
     /// Default tracks for titles without a choice (see `crate::streams`).
@@ -114,6 +122,8 @@ impl UserRow {
             max_age: if self.is_admin { None } else { self.max_age },
             max_age_system: if self.is_admin { None } else { self.max_age_system },
             birth_month: None,
+            show_labels: None,
+            hide_labels: None,
             disabled: self.disabled,
             created_at: self.created_at,
             audio_language: self.audio_language,
@@ -181,19 +191,84 @@ pub async fn users(db: &Db) -> sqlx::Result<Vec<UserDto>> {
 /// there.
 pub const BIRTHDAY_LIMIT_ENDS: i64 = 21;
 
-/// `users` with their birthdays, for administrators: no other answer
-/// carries them.
-pub async fn with_birthdays(db: &Db, mut users: Vec<UserDto>) -> sqlx::Result<Vec<UserDto>> {
+/// `users` as administrators see them, with their birthdays and label
+/// rules: no other answer carries them.
+pub async fn for_administrators(db: &Db, mut users: Vec<UserDto>) -> sqlx::Result<Vec<UserDto>> {
     let months: HashMap<i64, String> =
         sqlx::query_as("SELECT id, birth_month FROM users WHERE birth_month IS NOT NULL")
             .fetch_all(&db.read)
             .await?
             .into_iter()
             .collect();
+    let rules: Vec<(i64, String, String)> =
+        sqlx::query_as("SELECT user_id, label, kind FROM user_label_rules ORDER BY label COLLATE NOCASE")
+            .fetch_all(&db.read)
+            .await?;
     for user in &mut users {
+        let (mut show, mut hide) = (Vec::new(), Vec::new());
+        if !user.is_admin {
+            for (_, label, kind) in rules.iter().filter(|(id, ..)| *id == user.id) {
+                if kind == "show" { &mut show } else { &mut hide }.push(label.clone());
+            }
+        }
         user.birth_month = if user.is_admin { None } else { months.get(&user.id).cloned() };
+        user.show_labels = Some(show);
+        user.hide_labels = Some(hide);
     }
     Ok(users)
+}
+
+/// Most labels in each of a profile's lists of rules.
+pub const MAX_LABEL_RULES: usize = 50;
+
+/// `labels` as a profile's rules keep them (see `labels::check`), at most
+/// [`MAX_LABEL_RULES`] of them.
+pub fn check_label_rules(labels: &[String]) -> Result<Vec<String>, AppError> {
+    let kept = crate::labels::check(labels)?;
+    if kept.len() > MAX_LABEL_RULES {
+        return Err(AppError::bad_request(format!("at most {MAX_LABEL_RULES} labels in each list")));
+    }
+    Ok(kept)
+}
+
+/// Refuses a label both always and never shown: which one was meant isn't
+/// known.
+pub fn check_rules_apart(show: &[String], hide: &[String]) -> Result<(), AppError> {
+    match show.iter().find(|s| hide.iter().any(|h| h.to_lowercase() == s.to_lowercase())) {
+        Some(label) => Err(AppError::bad_request(format!("\"{label}\" is both always and never shown"))),
+        None => Ok(()),
+    }
+}
+
+/// Replaces a profile's rules of `kind` ("show" or "hide") with `labels`
+/// (checked by [`check_label_rules`]).
+pub async fn set_label_rules(db: &Db, user_id: i64, kind: &str, labels: &[String]) -> sqlx::Result<()> {
+    let mut tx = db.write.begin().await?;
+    sqlx::query("DELETE FROM user_label_rules WHERE user_id = ? AND kind = ?")
+        .bind(user_id)
+        .bind(kind)
+        .execute(&mut *tx)
+        .await?;
+    for label in labels {
+        sqlx::query("INSERT OR REPLACE INTO user_label_rules (user_id, label, kind) VALUES (?, ?, ?)")
+            .bind(user_id)
+            .bind(label)
+            .bind(kind)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await
+}
+
+/// A profile's rules of `kind` ("show" or "hide").
+pub async fn label_rules(db: &Db, user_id: i64, kind: &str) -> sqlx::Result<Vec<String>> {
+    sqlx::query_scalar(
+        "SELECT label FROM user_label_rules WHERE user_id = ? AND kind = ? ORDER BY label COLLATE NOCASE",
+    )
+    .bind(user_id)
+    .bind(kind)
+    .fetch_all(&db.read)
+    .await
 }
 
 /// The server's local month, "2026-11".

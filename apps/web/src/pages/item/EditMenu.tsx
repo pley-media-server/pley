@@ -5,11 +5,13 @@ import { Check, FileText, ImageUp, Lock, LockOpen, Pencil, RotateCcw, Search } f
 import { api, errorMessage, request } from "@/api/client";
 import type { ItemDetail } from "@/api/types";
 import { useAuth } from "@/auth";
+import { LabelPicker } from "@/components/LabelPicker";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button, Field, Spinner, TextInput } from "@/components/ui";
 import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { sameLabels } from "@/lib/labels";
 
 type ArtworkKind = "poster" | "backdrop" | "thumb";
 
@@ -79,6 +81,9 @@ const FIELDS = [
 ] as const;
 type FieldKey = (typeof FIELDS)[number];
 
+/** The kinds of item that take labels (the server's `labels::LABELLED`). */
+const LABELLED = new Set(["movie", "show", "season", "episode", "artist", "album"]);
+
 function initialValue(item: ItemDetail, key: FieldKey): string {
   switch (key) {
     case "genres":
@@ -100,6 +105,8 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
   );
   const [values, setValues] = useState(initial);
   const [unlock, setUnlock] = useState<Set<FieldKey>>(new Set());
+  const [labels, setLabels] = useState(item.labels ?? []);
+  const labelled = LABELLED.has(item.kind) && item.labels !== undefined;
   const locked = new Set(item.locked_fields ?? []);
   const fromNfo = new Set(item.nfo_fields ?? []);
   const fields = FIELDS.filter((key) => (item.kind === "episode" || item.kind === "season" ? !["original_title", "studio", "tagline", "content_rating", "genres"].includes(key) : true));
@@ -118,6 +125,7 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
         else if (key === "year") body[key] = v === "" ? null : Number(v);
         else body[key] = v === "" ? null : v;
       }
+      if (labelled && !sameLabels(labels, item.labels ?? [])) body.labels = labels;
       return api.patch<ItemDetail>(`/api/items/${item.id}`, body);
     },
     onSuccess: (detail) => {
@@ -205,6 +213,18 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
             </div>
           );
         })}
+        {labelled ? (
+          <div className="sm:col-span-2">
+            <Field label={t("edit.details.fields.labels")} htmlFor="edit-labels" hint={t("edit.details.labelsHint")}>
+              <LabelPicker
+                id="edit-labels"
+                value={labels}
+                onChange={setLabels}
+                removeLabel={(label) => t("edit.details.removeLabel", { label })}
+              />
+            </Field>
+          </div>
+        ) : null}
       </div>
     </Modal>
   );

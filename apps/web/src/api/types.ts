@@ -28,6 +28,10 @@ export interface User {
   max_age_system?: string | null;
   /** "2015-03": the limit follows this birthday (only in administrators' lists). */
   birth_month?: string | null;
+  /** Labels whose titles it sees even above its age limit (only in administrators' lists). */
+  show_labels?: string[];
+  /** Labels whose titles it never sees (only in administrators' lists). */
+  hide_labels?: string[];
   disabled: boolean;
   created_at: Timestamp;
   /** Default tracks for titles without a remembered choice. ISO 639 code; `null`: the file's default track. */
@@ -86,7 +90,15 @@ export interface Invite {
   library_ids: Id[];
   max_age: number | null;
   max_age_system: string | null;
+  show_labels?: string[];
+  hide_labels?: string[];
   note: string | null;
+}
+
+/** `GET /api/labels`: a label on titles, and how many carry it. */
+export interface LabelUse {
+  label: string;
+  items: number;
 }
 
 /** `GET /api/ratings/systems`: what an age limit is picked and shown in. */
@@ -248,6 +260,8 @@ export interface ItemDetail extends ItemSummary {
   locked_fields?: string[];
   /** Fields the item's NFO file sets, named as `locked_fields` are, and "rating". Absent from servers before it. */
   nfo_fields?: string[];
+  /** The item's labels: for administrators only, absent for others. */
+  labels?: string[];
   /** Intro and credits of the files (absent on servers without detection). */
   markers?: Marker[];
   /** Trailers and other bonus material (movies and shows). */

@@ -77,6 +77,7 @@ const ADMIN: &[(&str, &str)] = &[
     ("DELETE", "/api/libraries/{id}"),
     ("POST", "/api/libraries/{id}/scan"),
     ("POST", "/api/libraries/{id}/collections"),
+    ("GET", "/api/labels"),
     ("PATCH", "/api/collections/{id}"),
     ("DELETE", "/api/collections/{id}"),
     ("POST", "/api/collections/{id}/items"),

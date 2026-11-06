@@ -1129,6 +1129,9 @@ fn restricted(user: &AuthUser, age: Option<i64>) -> bool {
     user.max_age.is_some_and(|max| age.is_none_or(|age| age > max))
 }
 
+/// Why an account can't ask for a title a label it never sees is on.
+const UNAVAILABLE: &str = "Not available to this account";
+
 /// Why an account with an age limit can't ask for a title rated
 /// `certification`.
 fn restriction(certification: Option<&str>) -> String {
@@ -1691,11 +1694,19 @@ impl Requests {
                 Err(err) => tracing::debug!("TMDB: {} {}'s details: {err}", key.0.as_str(), key.1),
             }
         }
+        let mut hidden = HashSet::new();
+        for kind in [TitleKind::Movie, TitleKind::Show] {
+            let ids: Vec<i64> = found.results.iter().filter(|t| t.kind == kind).map(|t| t.tmdb_id).collect();
+            hidden.extend(self.hidden_by_labels(user, kind, &ids).await?.into_iter().map(|id| (kind, id)));
+        }
         let mut results = Vec::new();
         for title in &found.results {
             let key = (title.kind, title.tmdb_id);
             let known = details.get(&key);
-            if known.is_some_and(|d| d.adult) || (limited && known.is_none_or(|d| restricted(user, d.age()))) {
+            if known.is_some_and(|d| d.adult)
+                || (limited && known.is_none_or(|d| restricted(user, d.age())))
+                || hidden.contains(&key)
+            {
                 continue;
             }
             let mark = marks.get(&key).cloned().unwrap_or_default();
@@ -1840,6 +1851,27 @@ impl Requests {
         Ok(found)
     }
 
+    /// TMDB ids among `tmdb_ids` whose library title of `kind` has a label
+    /// `user` never sees (see `catalog::VISIBLE`): Discover leaves them out
+    /// and they can't be asked for, as a title above an age limit.
+    async fn hidden_by_labels(&self, user: &AuthUser, kind: TitleKind, tmdb_ids: &[i64]) -> sqlx::Result<HashSet<i64>> {
+        if user.is_admin || tmdb_ids.is_empty() {
+            return Ok(HashSet::new());
+        }
+        let sql = format!(
+            "SELECT DISTINCT i.tmdb_id FROM user_label_rules r
+               JOIN item_labels l ON l.label = r.label JOIN items i ON i.id = l.item_id
+             WHERE r.user_id = ? AND r.kind = 'hide' AND i.kind = ? AND i.tmdb_id IN ({})",
+            vec!["?"; tmdb_ids.len()].join(",")
+        );
+        let mut query =
+            sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(sql.as_str())).bind(user.id).bind(kind.as_str());
+        for id in tmdb_ids {
+            query = query.bind(id);
+        }
+        Ok(query.fetch_all(&self.db.read).await?.into_iter().collect())
+    }
+
     /// Whether some library show has no TMDB id (another TV source named
     /// it): shows are then looked for by their other ids too.
     async fn shows_without_tmdb(&self) -> sqlx::Result<bool> {
@@ -1933,7 +1965,9 @@ impl Requests {
         let details = self.title(caller, kind, tmdb_id).await?;
         let mark = self.marks(caller, kind, &[Known::of(&details)]).await?.remove(&tmdb_id).unwrap_or_default();
         let counts = self.season_counts(&mark.shows).await?;
-        let restricted = restricted(user, details.age());
+        let by_age = restricted(user, details.age());
+        let hidden = self.hidden_by_labels(user, kind, &[tmdb_id]).await?.contains(&tmdb_id);
+        let restricted = by_age || hidden;
         let lacking = (kind == TitleKind::Show).then(|| lacking(&details, &counts));
         let status = status_of(kind, &mark, lacking.as_deref(), restricted);
         let asked = mark.asked();
@@ -1984,7 +2018,13 @@ impl Requests {
             cast: details.cast.clone(),
             seasons,
             declined: mark.refusal.clone(),
-            restriction: restricted.then(|| restriction(details.certification.as_deref())),
+            // Not told why when a label keeps it out: the label may say
+            // what the profile isn't to read.
+            restriction: match (by_age, hidden) {
+                (true, _) => Some(restriction(details.certification.as_deref())),
+                (false, true) => Some(UNAVAILABLE.to_owned()),
+                (false, false) => None,
+            },
             watching: mark.watching(),
             requests,
             movies_left: quota.left(TitleKind::Movie),
@@ -2432,6 +2472,10 @@ impl Requests {
         let details = self.title(caller, new.kind, new.tmdb_id).await?;
         if restricted(user, details.age()) {
             return Err(RequestError::Restricted(restriction(details.certification.as_deref())));
+        }
+        // Not told why: the label may say what the profile isn't to read.
+        if self.hidden_by_labels(user, new.kind, &[new.tmdb_id]).await?.contains(&new.tmdb_id) {
+            return Err(RequestError::Restricted(UNAVAILABLE.to_owned()));
         }
         if let Some(n) = new.seasons.iter().flatten().find(|n| !details.seasons.iter().any(|s| s.number == **n)) {
             return Err(AppError::bad_request(format!("TMDB lists no season {n} of {}", details.title)).into());

@@ -140,8 +140,11 @@
         "studio": "Estudio",
         "tagline": "Eslogan",
         "genres": "Géneros",
-        "summary": "Sinopsis"
-      }
+        "summary": "Sinopsis",
+        "labels": "Etiquetas"
+      },
+      "labelsHint": "Solo las ven los administradores. Las excepciones de los perfiles, en Ajustes → Usuarios, se basan en ellas.",
+      "removeLabel": "Quitar {{label}}"
     },
     "match": {
       "title": "Corregir coincidencia",

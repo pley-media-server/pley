@@ -2343,3 +2343,37 @@ async fn approving_from_several_sessions_at_once_answers_each_and_sends_once() {
     w.app.state.requests.settled().await;
     assert_eq!(w.services.radarr_calls("POST", "/movie").len(), 1, "sent once; the one added by hand never");
 }
+
+#[tokio::test]
+async fn labels_a_profile_never_sees_keep_titles_out_of_discover() {
+    let w = world().await;
+    w.turn_on(json!({})).await;
+    w.add(w.movies, &["movies/The Matrix (1999).mkv"]).await;
+    w.identify("The Matrix", "tmdb_id = 603").await;
+    let matrix: i64 =
+        sqlx::query_scalar("SELECT id FROM items WHERE tmdb_id = 603").fetch_one(&w.app.state.db.read).await.unwrap();
+    let labelled = w.app.patch(&format!("/api/items/{matrix}"), &w.admin, json!({"labels": ["Not for Ann"]})).await;
+    assert_eq!(labelled.status, StatusCode::OK, "{}", labelled.text());
+    let rules =
+        w.app.patch(&format!("/api/users/{}", w.ann_id), &w.admin, json!({"hide_labels": ["not for ann"]})).await;
+    assert_eq!(rules.status, StatusCode::OK, "{}", rules.text());
+
+    // Left out of the lists, restricted on its page, and not to be asked
+    // for, without the label being said.
+    let trending = w.app.get("/api/discover/trending", &w.ann).await;
+    assert_eq!(common::titles(&trending.body["results"]), ["Breaking Bad"], "{}", trending.text());
+    let detail = w.app.get("/api/discover/movie/603", &w.ann).await;
+    assert_eq!(
+        (&detail.body["status"], &detail.body["restriction"]),
+        (&json!("restricted"), &json!("Not available to this account")),
+        "{}",
+        detail.text()
+    );
+    let refused = w.ask(&w.ann, json!({"kind": "movie", "tmdb_id": 603})).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("restricted")));
+    assert!(!refused.mentions("Not for Ann"), "{}", refused.text());
+
+    // Others see it as before.
+    let trending = w.app.get("/api/discover/trending", &w.admin).await;
+    assert_eq!(trending.body["results"].as_array().unwrap().len(), 2);
+}

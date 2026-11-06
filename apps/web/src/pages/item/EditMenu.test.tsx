@@ -33,6 +33,26 @@ describe("EditDialogs", () => {
     expect(screen.getByRole("button", { name: "Locked: click to unlock" })).toBeInTheDocument();
   });
 
+  it("replaces the labels, suggesting those titles carry", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/labels": () => [{ label: "Kometa", items: 12 }],
+      "PATCH /api/items/5": () => movie({ labels: ["Override: Kids"] }),
+    });
+    renderWithProviders(<EditDialogs item={movie({ labels: ["Kometa", "4K"] })} dialog="details" onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: "Remove 4K" }));
+    await user.type(screen.getByLabelText("Labels"), "Override: Kids{Enter}");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ labels: ["Kometa", "Override: Kids"] }),
+    );
+  });
+
+  it("has no labels field where the server gave none", () => {
+    renderWithProviders(<EditDialogs item={movie()} dialog="details" onClose={() => {}} />);
+    expect(screen.queryByLabelText("Labels")).not.toBeInTheDocument();
+  });
+
   it("says nothing of NFO files for an item without one", () => {
     renderWithProviders(<EditDialogs item={movie()} dialog="details" onClose={() => {}} />);
     expect(screen.queryByText("From the NFO file")).not.toBeInTheDocument();

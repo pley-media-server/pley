@@ -21,6 +21,12 @@ describes how they are made.
   month and year of a birthday, and the limit goes up on the first of that
   month each year, until it ends at 21. Only administrators see the
   birthday, never the account itself or its apps.
+- Exceptions by label: in Settings → Users and Invitations, a profile
+  can always see titles with some labels, even above its age limit, and
+  never see titles with others, whatever their rating (a label on a show
+  or album counts for its episodes and tracks). Discover leaves the hidden
+  ones out, and they can't be asked for. Labels are set in a title's Edit
+  details, and only administrators see them; `GET /api/labels` lists them.
 
 ### Changed
 

@@ -25,6 +25,7 @@ import { ConfirmModal, Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, EmptyState, Field, PageSpinner, Select, TextInput, Toggle } from "@/components/ui";
 import { ageBadge, librariesLabel } from "@/lib/access";
+import { sameLabels } from "@/lib/labels";
 import { cn } from "@/lib/cn";
 import { passwordProblem } from "@/lib/passwords";
 import { formatAgo } from "@/lib/format";
@@ -280,6 +281,8 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
     max_age: null,
     max_age_system: null,
     birth_month: null,
+    show_labels: [],
+    hide_labels: [],
   });
   const [pin, setPin] = useState("");
   const [clearPin, setClearPin] = useState(false);
@@ -309,6 +312,8 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
       max_age: user?.max_age ?? null,
       max_age_system: user?.max_age_system ?? null,
       birth_month: user?.birth_month ?? null,
+      show_labels: user?.show_labels ?? [],
+      hide_labels: user?.hide_labels ?? [],
     });
     setPin("");
     setClearPin(false);
@@ -396,6 +401,8 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
       patch.max_age = access.max_age;
     }
     if (access.max_age_system !== (user.max_age_system ?? null)) patch.max_age_system = access.max_age_system;
+    if (!sameLabels(access.show_labels, user.show_labels ?? [])) patch.show_labels = access.show_labels;
+    if (!sameLabels(access.hide_labels, user.hide_labels ?? [])) patch.hide_labels = access.hide_labels;
     if (pin) patch.pin = pin;
     else if (clearPin) patch.pin = null;
     // One no longer an administrator keeps what the dialog shows, not what was kept from before.

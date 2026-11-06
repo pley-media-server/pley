@@ -24,7 +24,21 @@
     "birthMonth": "Mes de nacimiento",
     "birthYear": "Año",
     "birthdayHint": "El límite sube cada año el 1 de {{month}} y termina en {{end}}.",
-    "grownUpHint": "Sin límite: tiene {{age}} años o más."
+    "grownUpHint": "Sin límite: tiene {{age}} años o más.",
+    "exceptions": "Excepciones",
+    "exceptionsHint": "Según las etiquetas de los títulos, que se ponen en Editar detalles de un título.",
+    "showLabels": "Mostrar siempre",
+    "showLabelsHint": "Los títulos con alguna de estas etiquetas se muestran incluso por encima del límite de edad.",
+    "hideLabels": "No mostrar nunca",
+    "hideLabelsHint": "Los títulos con alguna de estas etiquetas no se muestran nunca, sea cual sea su clasificación.",
+    "removeLabel": "Quitar {{label}}",
+    "inBoth": "Una etiqueta no puede mostrarse siempre y nunca a la vez: {{labels}}."
+  },
+  "labelPicker": {
+    "placeholder": "Añadir una etiqueta",
+    "titles_one": "{{count, number}} título",
+    "titles_many": "{{count, number}} de títulos",
+    "titles_other": "{{count, number}} títulos"
   },
   "addToCollection": {
     "title": "Añadir a una colección",

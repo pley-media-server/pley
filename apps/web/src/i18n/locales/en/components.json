@@ -24,7 +24,20 @@
     "birthMonth": "Birthday month",
     "birthYear": "Year",
     "birthdayHint": "The limit goes up each year on the first of {{month}}, and ends in {{end}}.",
-    "grownUpHint": "No limit: they're {{age}} or older."
+    "grownUpHint": "No limit: they're {{age}} or older.",
+    "exceptions": "Exceptions",
+    "exceptionsHint": "By the labels on titles, which you set in a title's Edit details.",
+    "showLabels": "Always show",
+    "showLabelsHint": "Titles with one of these labels show even above the age limit.",
+    "hideLabels": "Never show",
+    "hideLabelsHint": "Titles with one of these labels never show, whatever their rating.",
+    "removeLabel": "Remove {{label}}",
+    "inBoth": "A label can't be both always and never shown: {{labels}}."
+  },
+  "labelPicker": {
+    "placeholder": "Add a label",
+    "titles_one": "{{count, number}} title",
+    "titles_other": "{{count, number}} titles"
   },
   "addToCollection": {
     "title": "Add to collection",

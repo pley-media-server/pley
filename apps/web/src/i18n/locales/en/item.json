@@ -128,8 +128,11 @@
         "studio": "Studio",
         "tagline": "Tagline",
         "genres": "Genres",
-        "summary": "Summary"
-      }
+        "summary": "Summary",
+        "labels": "Labels"
+      },
+      "labelsHint": "Only administrators see them. Profiles' exceptions in Settings → Users go by them.",
+      "removeLabel": "Remove {{label}}"
     },
     "match": {
       "title": "Fix match",

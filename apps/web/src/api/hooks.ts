@@ -20,6 +20,7 @@ import type {
   InviteCheck,
   ItemDetail,
   ItemSummary,
+  LabelUse,
   Library,
   LibraryFilters,
   LibraryItemsQuery,
@@ -81,6 +82,7 @@ export const keys = {
   devices: ["devices"] as const,
   invites: ["invites"] as const,
   ratingSystems: ["ratings", "systems"] as const,
+  labels: ["labels"] as const,
   invite: (code: string) => ["invite", code] as const,
   settings: ["settings"] as const,
   network: ["network"] as const,
@@ -1069,6 +1071,8 @@ export interface NewUserInput {
   max_age?: number | null;
   max_age_system?: string | null;
   birth_month?: string;
+  show_labels?: string[];
+  hide_labels?: string[];
   pin?: string;
   request_access?: RequestAccess;
 }
@@ -1096,6 +1100,8 @@ export interface UserPatch {
   max_age?: number | null;
   max_age_system?: string | null;
   birth_month?: string | null;
+  show_labels?: string[];
+  hide_labels?: string[];
   pin?: string | null;
   request_access?: RequestAccess;
 }
@@ -1152,6 +1158,15 @@ export function useRatingSystems() {
   });
 }
 
+/** Every label on a title, with how many carry it (administrators only). */
+export function useLabels() {
+  return useQuery({
+    queryKey: keys.labels,
+    queryFn: () => api.get<LabelUse[]>("/api/labels"),
+    staleTime: 60_000,
+  });
+}
+
 export function useInvites() {
   return useQuery(queries.invites());
 }
@@ -1163,6 +1178,8 @@ export interface NewInviteInput {
   library_ids?: Id[];
   max_age?: number | null;
   max_age_system?: string | null;
+  show_labels?: string[];
+  hide_labels?: string[];
   note?: string;
 }
 

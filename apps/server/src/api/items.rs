@@ -29,6 +29,9 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
     detail.locked_fields = crate::overrides::locked_fields(&state.db, id).await?;
     detail.nfo_fields = crate::overrides::nfo_fields(&state.db, id).await?;
     detail.in_watchlist = catalog::in_watchlist(&state.db, user.id, id).await?;
+    if user.is_admin && user.app.is_none() {
+        detail.labels = Some(crate::labels::for_items(&state.db, &[id]).await?.remove(&id).unwrap_or_default());
+    }
     if matches!(detail.summary.kind.as_str(), "movie" | "show") {
         detail.extras = catalog::extras(&state.db, user.id, id).await?.iter().map(ItemRow::to_summary).collect();
     }

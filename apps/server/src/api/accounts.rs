@@ -105,13 +105,13 @@ async fn admins_left_after(state: &AppState, without: i64) -> ApiResult<i64> {
 // ------------------------------------------------------------------ admin: users
 
 pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<UserDto>>> {
-    Ok(Json(accounts::with_birthdays(&state.db, accounts::users(&state.db).await?).await?))
+    Ok(Json(accounts::for_administrators(&state.db, accounts::users(&state.db).await?).await?))
 }
 
 /// A user as an administrator sees it: with their birthday.
 async fn admin_view(state: &AppState, id: i64) -> ApiResult<UserDto> {
     let user = accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?;
-    Ok(accounts::with_birthdays(&state.db, vec![user]).await?.remove(0))
+    Ok(accounts::for_administrators(&state.db, vec![user]).await?.remove(0))
 }
 
 /// An age limit is fixed or follows a birthday, not both.
@@ -148,6 +148,12 @@ pub struct NewUser {
     /// `accounts::birthday_limit`), instead of `max_age`.
     #[serde(default)]
     birth_month: Option<String>,
+    /// Labels whose titles it sees even above its age limit, and labels
+    /// whose titles it never sees (see `catalog::VISIBLE`).
+    #[serde(default)]
+    show_labels: Vec<String>,
+    #[serde(default)]
+    hide_labels: Vec<String>,
     #[serde(default)]
     pin: Option<String>,
     /// Left out: profiles without a password and accounts with an age limit
@@ -170,6 +176,9 @@ pub async fn create_user(
     check_age(body.max_age)?;
     let max_age_system = check_system(body.max_age_system.as_deref())?;
     one_limit(body.max_age.is_some(), body.birth_month.is_some())?;
+    let show_labels = accounts::check_label_rules(&body.show_labels)?;
+    let hide_labels = accounts::check_label_rules(&body.hide_labels)?;
+    accounts::check_rules_apart(&show_labels, &hide_labels)?;
     let birth_month = match body.birth_month.as_deref() {
         Some(born) => Some(accounts::check_birth_month(born, &accounts::local_month(&state.db).await?)?),
         None => None,
@@ -231,6 +240,8 @@ pub async fn create_user(
     if !body.all_libraries {
         accounts::set_libraries(&state.db, id, &body.library_ids).await?;
     }
+    accounts::set_label_rules(&state.db, id, "show", &show_labels).await?;
+    accounts::set_label_rules(&state.db, id, "hide", &hide_labels).await?;
     Ok((StatusCode::CREATED, Json(admin_view(&state, id).await?)))
 }
 
@@ -260,6 +271,11 @@ pub struct UserPatch {
     /// stops it too.
     #[serde(default, deserialize_with = "nullable")]
     birth_month: Option<Option<String>>,
+    /// Replace the profile's label rules (see [`NewUser`]).
+    #[serde(default)]
+    show_labels: Option<Vec<String>>,
+    #[serde(default)]
+    hide_labels: Option<Vec<String>>,
     /// `null` removes the PIN.
     #[serde(default, deserialize_with = "nullable")]
     pin: Option<Option<String>>,
@@ -326,10 +342,28 @@ pub async fn update_user(
     if let Some(Some(pin)) = body.pin.as_ref().map(|p| p.as_deref().filter(|p| !p.is_empty())) {
         accounts::validate_pin(pin)?;
     }
+    let show_labels = body.show_labels.as_deref().map(accounts::check_label_rules).transpose()?;
+    let hide_labels = body.hide_labels.as_deref().map(accounts::check_label_rules).transpose()?;
+    if show_labels.is_some() || hide_labels.is_some() {
+        // A list left out stays as it is, and is checked against the other.
+        let show = match &show_labels {
+            Some(show) => show.clone(),
+            None => accounts::label_rules(&state.db, id, "show").await?,
+        };
+        let hide = match &hide_labels {
+            Some(hide) => hide.clone(),
+            None => accounts::label_rules(&state.db, id, "hide").await?,
+        };
+        accounts::check_rules_apart(&show, &hide)?;
+    }
 
     // What the user may see changes: their devices are told to fetch it again.
-    let sees_otherwise =
-        body.is_admin.is_some() || body.all_libraries.is_some() || body.library_ids.is_some() || max_age.is_some();
+    let sees_otherwise = body.is_admin.is_some()
+        || body.all_libraries.is_some()
+        || body.library_ids.is_some()
+        || max_age.is_some()
+        || show_labels.is_some()
+        || hide_labels.is_some();
     if let Some(password) = body.password {
         let hash = hash_password(password).await?;
         sqlx::query("UPDATE users SET password_hash = ?, managed = 0 WHERE id = ?")
@@ -389,6 +423,12 @@ pub async fn update_user(
     }
     if let Some(ids) = &body.library_ids {
         accounts::set_libraries(&state.db, id, ids).await?;
+    }
+    if let Some(labels) = &show_labels {
+        accounts::set_label_rules(&state.db, id, "show", labels).await?;
+    }
+    if let Some(labels) = &hide_labels {
+        accounts::set_label_rules(&state.db, id, "hide", labels).await?;
     }
     if let Some(born) = &birth_month {
         sqlx::query("UPDATE users SET birth_month = ? WHERE id = ?")
@@ -837,6 +877,8 @@ struct InviteRow {
     library_ids: String,
     max_age: Option<i64>,
     max_age_system: Option<String>,
+    show_labels: String,
+    hide_labels: String,
     note: Option<String>,
 }
 
@@ -850,6 +892,8 @@ pub struct InviteDto {
     library_ids: Vec<i64>,
     max_age: Option<i64>,
     max_age_system: Option<String>,
+    show_labels: Vec<String>,
+    hide_labels: Vec<String>,
     note: Option<String>,
 }
 
@@ -857,6 +901,8 @@ impl From<InviteRow> for InviteDto {
     fn from(r: InviteRow) -> Self {
         InviteDto {
             library_ids: serde_json::from_str(&r.library_ids).unwrap_or_default(),
+            show_labels: serde_json::from_str(&r.show_labels).unwrap_or_default(),
+            hide_labels: serde_json::from_str(&r.hide_labels).unwrap_or_default(),
             code: r.code,
             created_at: r.created_at,
             expires_at: r.expires_at,
@@ -870,7 +916,8 @@ impl From<InviteRow> for InviteDto {
 }
 
 const INVITE_COLUMNS: &str =
-    "code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, max_age_system, note";
+    "code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, max_age_system, show_labels,
+     hide_labels, note";
 
 pub async fn list_invites(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<InviteDto>>> {
     let rows: Vec<InviteRow> =
@@ -896,6 +943,10 @@ pub struct NewInvite {
     #[serde(default)]
     max_age_system: Option<String>,
     #[serde(default)]
+    show_labels: Vec<String>,
+    #[serde(default)]
+    hide_labels: Vec<String>,
+    #[serde(default)]
     note: Option<String>,
 }
 
@@ -906,6 +957,9 @@ pub async fn create_invite(
 ) -> ApiResult<(StatusCode, Json<InviteDto>)> {
     check_age(body.max_age)?;
     let max_age_system = check_system(body.max_age_system.as_deref())?;
+    let show_labels = accounts::check_label_rules(&body.show_labels)?;
+    let hide_labels = accounts::check_label_rules(&body.hide_labels)?;
+    accounts::check_rules_apart(&show_labels, &hide_labels)?;
     let days = body.expires_in_days.unwrap_or(7);
     let uses = body.uses.unwrap_or(1).clamp(1, 1000);
     let code = accounts::invite_code();
@@ -914,8 +968,8 @@ pub async fn create_invite(
     let note = body.note.map(|n| n.trim().chars().take(200).collect::<String>()).filter(|n| !n.is_empty());
     sqlx::query(
         "INSERT INTO invites (code, created_by, created_at, expires_at, uses_left, all_libraries, library_ids, max_age,
-                              max_age_system, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                              max_age_system, show_labels, hide_labels, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&code)
     .bind(admin.id)
@@ -926,6 +980,8 @@ pub async fn create_invite(
     .bind(serde_json::to_string(&body.library_ids).unwrap_or_else(|_| "[]".into()))
     .bind(body.max_age)
     .bind(&max_age_system)
+    .bind(serde_json::to_string(&show_labels).unwrap_or_else(|_| "[]".into()))
+    .bind(serde_json::to_string(&hide_labels).unwrap_or_else(|_| "[]".into()))
     .bind(&note)
     .execute(&state.db.write)
     .await?;
@@ -938,6 +994,8 @@ pub async fn create_invite(
         library_ids: body.library_ids,
         max_age: body.max_age,
         max_age_system,
+        show_labels,
+        hide_labels,
         note,
     };
     Ok((StatusCode::CREATED, Json(invite)))
@@ -1037,6 +1095,17 @@ pub async fn accept_invite(
     .bind(now())
     .fetch_one(&mut *tx)
     .await?;
+    // Made with the account: it never signs in without them.
+    for (kind, labels) in [("show", &invite.show_labels), ("hide", &invite.hide_labels)] {
+        for label in labels {
+            sqlx::query("INSERT OR IGNORE INTO user_label_rules (user_id, label, kind) VALUES (?, ?, ?)")
+                .bind(id)
+                .bind(label)
+                .bind(kind)
+                .execute(&mut *tx)
+                .await?;
+        }
+    }
     tx.commit().await?;
     if !invite.all_libraries {
         accounts::set_libraries(&state.db, id, &invite.library_ids).await?;

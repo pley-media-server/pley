@@ -52,14 +52,28 @@ function CreateInviteModal({ open, onClose, onCreated }: { open: boolean; onClos
   const [days, setDays] = useState(7);
   const [uses, setUses] = useState(1);
   const [note, setNote] = useState("");
-  const [access, setAccess] = useState<AccessValue>({ all_libraries: true, library_ids: [], max_age: null, max_age_system: null });
+  const [access, setAccess] = useState<AccessValue>({
+    all_libraries: true,
+    library_ids: [],
+    max_age: null,
+    max_age_system: null,
+    show_labels: [],
+    hide_labels: [],
+  });
   const [error, setError] = useState<string | null>(null);
 
   const close = () => {
     setDays(7);
     setUses(1);
     setNote("");
-    setAccess({ all_libraries: true, library_ids: [], max_age: null, max_age_system: null });
+    setAccess({
+    all_libraries: true,
+    library_ids: [],
+    max_age: null,
+    max_age_system: null,
+    show_labels: [],
+    hide_labels: [],
+  });
     setError(null);
     onClose();
   };

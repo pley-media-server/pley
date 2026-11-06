@@ -218,6 +218,8 @@ interface User {
   max_age_system?: string | null;   // in /api/users: the rating system the limit is shown in, a country
                                     // ("GB") or "age"; null = the metadata region's (see Access rules)
   birth_month?: string;             // in /api/users only, when the limit follows a birthday: "2015-03"
+  show_labels?: string[];           // in /api/users only: labels whose titles it sees above its age limit
+  hide_labels?: string[];           // in /api/users only: labels whose titles it never sees (see Access rules)
   disabled: boolean;
   created_at: Timestamp;
   // Default tracks for titles without a remembered choice (see Your account):
@@ -309,6 +311,7 @@ interface ItemDetail extends ItemSummary {
   locked_fields: string[];          // fields an administrator edited (PATCH /api/items/{id}), and "match"
                                     // after Fix Match
   nfo_fields: string[];             // fields the item's NFO file sets, named as locked_fields are, and "rating"
+  labels?: string[];                // administrators only (not apps): the item's labels
   files: MediaFile[];               // empty for containers (show, season, artist, album)
   markers: Marker[];                // intro and credits (Skip Intro, Skip Credits)
   extras: ItemSummary[];            // movies and shows: trailers first, then other bonus material (kind "extra")
@@ -1516,6 +1519,25 @@ content rating allows that age:
 - unrated titles are hidden;
 - music is exempt.
 
+A profile's label rules make exceptions, by the labels on titles (set in
+the edit dialog, `PATCH /api/items/{id}`, or by tools such as Kometa through
+the Plex-compatible API):
+
+- `show_labels`: a title with one of these shows even above the age limit,
+  and even unrated;
+- `hide_labels`: a title with one of these never shows, whatever its
+  rating, also to an account without an age limit. Discover leaves out a
+  title whose library copy has one, and asking for it is refused
+  (`restricted`, without the label);
+- "never" wins over "always". A label counts on the title or on what it's
+  part of (a show for its seasons and episodes, an album or artist for its
+  tracks), and is matched whatever its case;
+- a rule never opens a library the account can't.
+
+Each list holds at most 50 labels of at most 120 characters; a label in
+both is `400`. Only administrators see them, in `/api/users`: an account
+isn't told its own, nor the labels of a title.
+
 Hidden libraries and items answer `404` everywhere: lists, hubs, search,
 artwork, streams and the compatibility APIs.
 
@@ -1535,6 +1557,7 @@ Invitations have fixed limits only.
 
 | Method | Path | Who | What |
 |---|---|---|---|
+| GET | `/api/labels` | `admin` | `{ label, items }[]`: every label on a title, with how many carry it, by name |
 | GET | `/api/ratings/systems` | `user` | `{ region, systems: { country, name, ratings: { name, age, kind: "film" \| "tv" \| null }[] }[] }`: the metadata region (`"GB"`) and each country's ratings, youngest first, as ages are read from them. A name is the board's own, or its shortest when that's a sentence; `kind` null is for films and TV alike |
 
 ## Libraries
@@ -1620,7 +1643,7 @@ user's watch state and their access are unchanged.
 | POST | `/api/items/{id}/unwatched` | `play` | `204` |
 | PUT | `/api/items/{id}/rating` | `play` | `{ rating: number \| null }` → `204`: the user's own rating (`user_state.rating`); `400` outside 0-10 |
 | PUT | `/api/items/{id}/streams` | `play` | `{ file_id?, audio_index?, subtitle_index? }` → `204`: remembers track choices |
-| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match? }` → `ItemDetail` |
+| PATCH | `/api/items/{id}` | `admin` | `{ title?, sort_title?, original_title?, year?, summary?, tagline?, studio?, content_rating?, release_date?, genres?, match?, labels? }` → `ItemDetail` |
 | GET | `/api/items/{id}/matches?title=&year=` | `admin` | TMDB candidates `{ tmdb_id, title, original_title, year, overview, poster_url }[]` for movies and shows (needs a TMDB key) |
 | POST | `/api/items/{id}/match` | `admin` | `{ tmdb_id }` → `ItemDetail`, re-matched and refreshed |
 | GET | `/api/items/{id}/artwork/{poster\|backdrop\|thumb}` | `admin` | TMDB images `{ url, preview_url, width, height, language, votes }[]` |
@@ -1685,7 +1708,9 @@ user's watch state and their access are unchanged.
   ([CONFIGURATION.md](CONFIGURATION.md#nfo-files)), whose fields
   `ItemDetail.nfo_fields` lists. `match` takes only `null`, which undoes
   Fix Match: the NFO file's ids decide the match again (any other value:
-  `400`).
+  `400`). `labels` replaces the labels of a movie, show, season, episode,
+  artist or album (at most 100, of at most 120 characters); labels aren't
+  metadata, so they aren't locked and no refresh changes them.
 - **`match`**: a show whose TV source is TVmaze or TheTVDB is found there by
   the chosen entry's IMDb and TheTVDB ids. The choice wins over the NFO
   file's ids, and `locked_fields` then lists `"match"`. When none of the
@@ -4160,8 +4185,8 @@ interface LiveTuner {                  // a connection in use
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/users` | `admin` | `User[]` |
-| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, max_age_system?, birth_month?, pin?, request_access? }` → `201` `User`; managed profiles need no password and can't be administrators (`400`) |
-| PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, max_age_system?, birth_month?, pin?, request_access? }` (`null` clears nullable fields; `max_age` and a `birth_month` together are `400`, and a `max_age` stops a limit following a birthday) → `User` |
+| POST | `/api/users` | `admin` | `{ username, password?, display_name?, is_admin?, managed?, home? (true), all_libraries? (true), library_ids?, max_age?, max_age_system?, birth_month?, show_labels?, hide_labels?, pin?, request_access? }` → `201` `User`; managed profiles need no password and can't be administrators (`400`) |
+| PATCH | `/api/users/{id}` | `admin` | `{ password?, display_name?, is_admin?, home?, disabled?, all_libraries?, library_ids?, max_age?, max_age_system?, birth_month?, show_labels?, hide_labels?, pin?, request_access? }` (`null` clears nullable fields; `max_age` and a `birth_month` together are `400`, and a `max_age` stops a limit following a birthday; a list of labels given replaces that list, one left out stays) → `User` |
 | DELETE | `/api/users/{id}` | `admin` | `204` (not yourself); their apps end with them, and each of their [requests](#requests) someone follows goes to its earliest follower (the others go with them) |
 | GET | `/api/users/{id}/devices` | `admin` | `Device[]` |
 | DELETE | `/api/users/{id}/devices` | `admin` | `204`: signs the user out everywhere, apps and compatibility tokens included |
@@ -4186,8 +4211,8 @@ interface LiveTuner {                  // a connection in use
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/invites` | `admin` | `Invite[]`: `{ code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, max_age_system, note }` |
-| POST | `/api/invites` | `admin` | `{ expires_in_days? (7; 0 = never), uses? (1, at most 1000), all_libraries? (true), library_ids?, max_age?, max_age_system?, note? (200 characters kept) }` → `201` `Invite`; share `/invite/{code}` |
+| GET | `/api/invites` | `admin` | `Invite[]`: `{ code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, max_age_system, show_labels, hide_labels, note }` |
+| POST | `/api/invites` | `admin` | `{ expires_in_days? (7; 0 = never), uses? (1, at most 1000), all_libraries? (true), library_ids?, max_age?, max_age_system?, show_labels?, hide_labels?, note? (200 characters kept) }` → `201` `Invite`; share `/invite/{code}` |
 | DELETE | `/api/invites/{code}` | `admin` | `204` |
 | GET | `/api/invites/{code}` | `public` | `{ server_name, expires_at }`; `404` when invalid, used up or expired |
 | POST | `/api/invites/{code}/accept` | `public` | `{ username, password, display_name? }` → `{ user, token? }` (as `/api/auth/login`): a new (non-home) account with the invitation's access, signed in; with an age limit, its `request_access` is `"off"`; `404` when the invitation is invalid, used up or expired, `409` for a username taken. While the server requires two-step sign-in, the account is made but not signed in: `401 two_step_setup` with the secret, and the client goes on with `POST /api/auth/login` and its first code |
