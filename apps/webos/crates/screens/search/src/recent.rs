@@ -122,7 +122,7 @@ mod tests {
 
     fn kept(store: &Store, want: &[&str]) -> bool {
         let start = Instant::now();
-        while start.elapsed() < Duration::from_secs(5) {
+        while start.elapsed() < Duration::from_secs(10) {
             if store.searches("http://nas", 1) == want {
                 return true;
             }

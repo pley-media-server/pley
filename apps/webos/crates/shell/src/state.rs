@@ -105,6 +105,8 @@ struct Listening {
     stream: EventStream,
     news: Receiver<StreamNews>,
     live: bool,
+    /// The stream has connected since it started.
+    connected: bool,
 }
 
 /// An answer on its way, with the generation (server, sign-in and profile) it was asked for:
@@ -1240,7 +1242,7 @@ impl AppState {
             let live = self.casts_live();
             let receiver = CastReceiver { id: self.install_id.clone(), live };
             let stream = EventStream::start(api, Some(receiver), tx, self.waker.clone());
-            self.events = Some(Listening { stream, news, live });
+            self.events = Some(Listening { stream, news, live, connected: false });
         }
     }
 
@@ -1274,6 +1276,12 @@ impl AppState {
     /// Whether the event stream runs.
     pub fn listening(&self) -> bool {
         self.events.is_some()
+    }
+
+    /// Whether the event stream runs and has connected (tests wait for it: connecting asks for
+    /// everything again and tells the pages [`AppEvent::Changed`]).
+    pub fn connected(&self) -> bool {
+        self.events.as_ref().is_some_and(|l| l.connected)
     }
 
     fn reconnected(&mut self) {
@@ -1747,7 +1755,12 @@ impl AppState {
         }
         for n in news {
             match n {
-                StreamNews::Connected => self.reconnected(),
+                StreamNews::Connected => {
+                    if let Some(listening) = self.events.as_mut() {
+                        listening.connected = true;
+                    }
+                    self.reconnected();
+                }
                 StreamNews::Event(e) => self.handle_event(e),
                 StreamNews::Stopped => stopped = true,
                 // Until the events connect again, the summary is asked for every 60 s.

@@ -1215,9 +1215,13 @@ mod tests {
         let typed = server.url().trim_start_matches("http://").to_string();
         s.pad.as_mut().unwrap().edit = TextEdit::new(&typed);
         rig.frame(&mut s, Vec::new());
+        // The server answers late, so the check is still on its way at the next frame: answered at
+        // once, the sign-in can open before "Checking…" is ever drawn.
+        server.set_mode(pley_fixtures::Mode::Slow).unwrap();
         rig.cx(|cx| s.connect(cx));
         rig.frame(&mut s, Vec::new());
         assert!(rig.says(CHECKING));
+        server.set_mode(pley_fixtures::Mode::Normal).unwrap();
         let link = Route::Link { server: server.url().to_string() };
         assert!(rig.until(&mut s, |rig| rig.reset_to(&link)), "the sign-in never opened");
         // Kept first on the list, and the server in use.

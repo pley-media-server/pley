@@ -311,18 +311,29 @@ fn a_cast_film_plays_from_where_the_remote_said_with_where_it_came_from_over_it(
     assert_eq!(app.server.cast(ids::ALEX, &id, &film, Some(PHONE)), 202);
 
     // The player opens over the page, asks the server for the film from there, and the TV's
-    // player loads it there.
-    assert!(app.until(|a| a.engine().is_some_and(|e| !e.loads().is_empty())), "the film never loaded");
+    // player loads it there. "Playing from" shows from the frame the cast came, the server's
+    // answer still on its way.
+    let notice = "Playing from Pley for Android";
+    let (mut began, mut drawn) = (None, false);
+    let loaded = app.until(|a| {
+        if began.is_none() && a.shell.toast() == Some(notice) {
+            began = Some(a.time);
+        }
+        drawn |= a.shows(notice);
+        a.engine().is_some_and(|e| !e.loads().is_empty())
+    });
+    assert!(loaded, "the film never loaded");
     assert!(matches!(app.shell.top_route(), Some(Route::Player(r)) if r.item_id == ids::SAMPLE_HDR10));
     let asked: Value = serde_json::from_str(&app.server.writes("POST", "/api/playback")[0].body).unwrap();
     assert_eq!((asked["item_id"].as_i64(), asked["start_ms"].as_i64()), (Some(ids::SAMPLE_HDR10), Some(6_000)));
     assert_eq!(app.engine().unwrap().loads()[0].start_ms, 6_000);
-    // "Playing from" over the player, for about 4 s.
-    assert!(app.until(|a| a.shows("Playing from Pley for Android")), "no word of where it came from");
-    app.advance(pley_shell::CAST_NOTICE_SECONDS - 0.5);
-    assert!(app.shows("Playing from Pley for Android"), "the notice went early");
-    app.advance(1.0);
-    assert!(!app.shows("Playing from Pley for Android"), "the notice stayed");
+    // "Playing from" over the player, for about 4 s from then: a busy machine can take longer
+    // than that to load the film, so the notice is timed from the frame it began.
+    let began = began.expect("no word of where it came from");
+    assert!(drawn || app.until(|a| a.shows(notice)), "the notice was never drawn");
+    assert_eq!(app.shell.toast_ends(), Some(began + pley_shell::CAST_NOTICE_SECONDS), "the notice's time");
+    app.advance((began + pley_shell::CAST_NOTICE_SECONDS + 0.5 - app.time).max(0.0));
+    assert!(!app.shows(notice), "the notice stayed");
 
     // Another cast replaces it: the film before ends on the server, and the other plays.
     let first = app.session_of(ids::SAMPLE_HDR10)["session_id"].as_str().unwrap().to_string();

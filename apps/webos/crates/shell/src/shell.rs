@@ -216,6 +216,11 @@ impl Shell {
         self.toasts.text()
     }
 
+    /// When the toast showing starts fading out (tests check how long one shows).
+    pub fn toast_ends(&self) -> Option<f64> {
+        self.toasts.next_due()
+    }
+
     /// Whether the idle dimmer is down.
     pub fn dimmed(&self) -> bool {
         self.dimmed

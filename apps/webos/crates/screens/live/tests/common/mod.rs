@@ -171,7 +171,9 @@ impl TestApp {
     }
 }
 
-/// Keeps a sign-in of `profile` on `server` in `store`, and makes it the server in use.
+/// Keeps a sign-in of `profile` on `server` in `store`, and makes it the server in use, `profile`
+/// its last: the profile is known from the start, as on every launch after the first, so what
+/// the pages keep per profile is kept from their first answers.
 fn sign_in(server: &FixtureServer, profile: i64, store: &Store, http: &Http) {
     let t = server.sign_in(profile);
     let parsed = TokenAnswerParsed {
@@ -187,4 +189,5 @@ fn sign_in(server: &FixtureServer, profile: i64, store: &Store, http: &Http) {
         StoredTokens::new(&parsed, url, &format!("{url}/api/oauth/token"), &format!("{url}/api/oauth/revoke"), now_ms);
     Tokens::shared(url, store, http).install(stored, &parsed.scope).unwrap();
     store.set_active_server(Some(url)).unwrap();
+    store.set_last_profile(url, profile).unwrap();
 }
