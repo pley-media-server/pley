@@ -21,4 +21,5 @@
         <field id="rowWidth" type="integer" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/ChipRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
 </component>

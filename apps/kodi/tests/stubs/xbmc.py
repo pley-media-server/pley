@@ -21,6 +21,15 @@ def getRegion(name):
     return region.get(name, "")
 
 
+# Kodi's own language (getLanguage), as a two-letter code.
+ISO_639_1 = 0
+language = "en"
+
+
+def getLanguage(format=None, region=False):
+    return language
+
+
 def getInfoLabel(name):
     return info_labels.get(name, "")
 

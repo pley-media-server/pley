@@ -1,0 +1,58 @@
+{
+  "language": {
+    "choose": "Choisir une langue"
+  },
+  "servers": {
+    "title": "Choisissez votre serveur",
+    "enterAddress": "Saisir une adresse",
+    "searchNetwork": "Rechercher sur ce réseau",
+    "forgetHint": "Maintenez OK sur un serveur enregistré pour l’oublier.",
+    "checkingRange": "Vérification de {{subnet}}1-254…",
+    "checkingNetwork": "Vérification de ce réseau…",
+    "looking": "Recherche de Pley sur votre réseau…",
+    "noneFound": "Aucun serveur trouvé. Vérifiez que cette TV et le serveur sont sur le même réseau.",
+    "forgetTitle": "Oublier {{name}} ?",
+    "forgetBody": "Pley déconnecte cette TV de ce serveur et supprime ce qu’elle en a enregistré.",
+    "forget": "Oublier",
+    "notYours": "Pas votre serveur enregistré",
+    "notEncrypted": "Non chiffré",
+    "onNetwork": "Sur ce réseau",
+    "connecting": "Connexion à {{address}}…",
+    "unreachable": "Impossible de le joindre"
+  },
+  "address": {
+    "title": "Saisissez l’adresse de votre serveur",
+    "placeholder": "192.168.1.20 ou pley.example.com",
+    "connect": "Connexion",
+    "checking": "Vérification…",
+    "port": "Le port {{port}} est utilisé par défaut."
+  },
+  "problem": {
+    "unencrypted": "{{address}} n’est pas chiffré : ce que vous regardez pourrait être lu en chemin. Utilisez son adresse https s’il en a une, ou appuyez de nouveau sur Connexion pour continuer quand même."
+  },
+  "link": {
+    "title": "Se connecter à Pley",
+    "changeServer": "Changer de serveur",
+    "scan": "Scannez le code avec votre téléphone",
+    "goTo": "ou allez sur",
+    "enterCode": "et saisissez ce code",
+    "sameWifi": "Votre téléphone doit être sur le même Wi-Fi que cette TV.",
+    "otherDevice": "Ou ouvrez Pley sur un appareil connecté → Associer une TV",
+    "newCode": "Obtenir un nouveau code",
+    "scanCamera": "Scannez avec votre téléphone",
+    "gettingCode": "Obtention d’un code…",
+    "waiting": "En attente d’approbation…",
+    "retrying": "Impossible de joindre le serveur. Nouvel essai dans {{seconds}} s",
+    "declined": "Demande refusée",
+    "expired": "Code expiré : appuyez sur OK pour en obtenir un nouveau",
+    "signedInAs": "Connecté en tant que {{name}}",
+    "signedIn": "Connecté",
+    "twoStepRequired": "Ce serveur exige la connexion en deux étapes : votre téléphone la configure si ce n’est pas déjà fait."
+  },
+  "approve": {
+    "title": "Approuvez sur votre téléphone",
+    "intro": "Le profil {{name}} demande son mot de passe : approuvez ce code sur un téléphone connecté à Pley, et choisissez-y {{name}}.",
+    "anyTitle": "Se connecter avec un autre profil",
+    "anyIntro": "Approuvez ce code sur un téléphone connecté à Pley, et choisissez-y le profil."
+  }
+}

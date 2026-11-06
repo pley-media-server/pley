@@ -15,6 +15,7 @@ use pley_core::requests::{
     problem_words, requests_problem, requests_title, title_key,
 };
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{Dialog, DialogButton, Message, MessageStyle, SlotMode, Tile, TileKind, TileSlot, tile_look};
 use pley_shell::{AppCx, Route};
 use pley_ui::theme::{self, radius};
@@ -419,7 +420,7 @@ pub fn summary_problem(s: Option<&RequestSummary>) -> Option<RequestsProblem> {
 
 /// A failed load's title: `title`, or "Can't reach your server" when the server answered nothing.
 pub fn failed_title<'a>(e: Option<&ApiError>, title: &'a str) -> &'a str {
-    if e.is_some_and(ApiError::unreachable) { "Can't reach your server" } else { title }
+    if e.is_some_and(ApiError::unreachable) { t!("requests.unreachable") } else { title }
 }
 
 /// What a page that can't show requests offers.
@@ -460,15 +461,15 @@ pub fn problem_page(
         let body = e.map(ApiError::problem).unwrap_or_default();
         let r = Message::new(MessageStyle::Item, failed_title(e, title))
             .body(&body)
-            .action("Retry", Icon::RefreshCw)
+            .action(t!("requests.buttons.retry"), Icon::RefreshCw)
             .show(ui, id);
         return (r.action.is_some_and(|a| a.activated).then_some(ProblemAction::Retry), true);
     };
     let label = requests_title(s);
     let action = if words.retry {
-        Some(("Retry", Icon::RefreshCw, ProblemAction::Retry))
+        Some((t!("requests.buttons.retry"), Icon::RefreshCw, ProblemAction::Retry))
     } else if *problem == RequestsProblem::SignIn {
-        Some(("Sign in", Icon::UserRound, ProblemAction::SignIn))
+        Some((t!("requests.buttons.signIn"), Icon::UserRound, ProblemAction::SignIn))
     } else if *problem == RequestsProblem::NoAccess && s.is_some_and(|s| s.own > 0 || s.manage) {
         Some((label, Icon::Inbox, ProblemAction::Requests))
     } else {
@@ -493,12 +494,17 @@ pub struct SignInAgain {
 impl SignInAgain {
     pub fn show(&mut self, ui: &mut Ui, cx: &mut AppCx, id: Id) {
         let server = cx.state.server().map(str::to_string);
-        let body = format!(
-            "This TV signs out of {} and shows a code to link it again.",
-            server.as_deref().map_or_else(|| "the server".to_string(), display_address)
-        );
-        let buttons = [DialogButton::new("Cancel"), DialogButton::new("Sign in")];
-        let r = Dialog::new("Sign in again?").body(&body).buttons(&buttons).initial(1).show(ui, id, self.open);
+        let body = match server.as_deref() {
+            Some(server) => t!("requests.signInAgain.bodyServer", server = display_address(server)),
+            None => t!("requests.signInAgain.body").to_string(),
+        };
+        let buttons =
+            [DialogButton::new(t!("requests.buttons.cancel")), DialogButton::new(t!("requests.buttons.signIn"))];
+        let r = Dialog::new(t!("requests.signInAgain.title"))
+            .body(&body)
+            .buttons(&buttons)
+            .initial(1)
+            .show(ui, id, self.open);
         if r.dismissed || r.chosen == Some(0) {
             self.open = false;
         }

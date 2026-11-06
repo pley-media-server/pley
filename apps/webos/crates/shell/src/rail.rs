@@ -16,6 +16,7 @@
 use pley_base::{Color, Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{Library, LibraryKind, Me, RequestSummary};
 use pley_core::requests::{has_requests, may_ask, requests_count, requests_title};
+use pley_i18n::t;
 use pley_ui::theme::{self, focus};
 use pley_ui::{Dir, Dirs, Easing, Edge, Group, Id, ImageOpts, Motion, Ui, nudge};
 
@@ -77,7 +78,7 @@ pub fn requests_entry(s: Option<&RequestSummary>) -> Option<RailEntry> {
     let (count, danger) = requests_count(s);
     let badge = (count > 0).then_some((count, danger));
     let entry = if may_ask(s) {
-        RailEntry::new("discover", "Discover", Icon::Compass, Route::Discover)
+        RailEntry::new("discover", t!("shell.rail.discover"), Icon::Compass, Route::Discover)
     } else if has_requests(s) {
         RailEntry::new("requests", requests_title(s), Icon::Inbox, Route::Requests)
     } else {
@@ -124,37 +125,47 @@ pub fn rail_entries(
 ) -> RailEntries {
     let shown = libraries.len().min(MAX_LIBRARIES);
     let mut top = vec![
-        RailEntry::new("search", "Search", Icon::Search, Route::Search { query: String::new() }),
-        RailEntry::new("home", "Home", Icon::House, Route::Home),
+        RailEntry::new("search", t!("shell.rail.search"), Icon::Search, Route::Search { query: String::new() }),
+        RailEntry::new("home", t!("shell.rail.home"), Icon::House, Route::Home),
     ];
     top.extend(requests);
     if live {
-        top.push(RailEntry::new("live-tv", "Live TV", Icon::TvMinimal, Route::LiveTv));
+        top.push(RailEntry::new("live-tv", t!("shell.rail.liveTv"), Icon::TvMinimal, Route::LiveTv));
     }
     for l in &libraries[..shown] {
         let route = Route::Library { id: l.id, tab: None, sort: None };
         top.push(RailEntry::new(format!("library:{}", l.id), l.name.clone(), library_icon(l.kind), route));
     }
     if libraries.len() > shown {
-        top.push(RailEntry::new("libraries", "Libraries", Icon::Layers, Route::Libraries { sort: false }));
+        top.push(RailEntry::new(
+            "libraries",
+            t!("shell.rail.libraries"),
+            Icon::Layers,
+            Route::Libraries { sort: false },
+        ));
     }
-    top.push(RailEntry::new("playlists", "Playlists", Icon::ListMusic, Route::Playlists));
+    top.push(RailEntry::new("playlists", t!("shell.rail.playlists"), Icon::ListMusic, Route::Playlists));
     // Collections while every library has an entry: the first one's that isn't music.
     if libraries.len() == shown
         && let Some(first) = libraries.iter().find(|l| l.kind != LibraryKind::Music).or(libraries.first())
     {
         let route = Route::Collections { library_id: Some(first.id) };
-        top.push(RailEntry::new("collections", "Collections", Icon::Layers, route));
+        top.push(RailEntry::new("collections", t!("shell.rail.collections"), Icon::Layers, route));
     }
     if now_playing {
-        top.push(RailEntry::new("now-playing", "Now Playing", Icon::AudioLines, Route::NowPlaying));
+        top.push(RailEntry::new("now-playing", t!("shell.rail.nowPlaying"), Icon::AudioLines, Route::NowPlaying));
     }
     if drive {
-        top.push(RailEntry::new("storage", "USB drive", Icon::Usb, Route::Storage { path: None }));
+        top.push(RailEntry::new("storage", t!("shell.rail.storage"), Icon::Usb, Route::Storage { path: None }));
     }
     RailEntries {
         top,
-        settings: RailEntry::new("settings", "Settings", Icon::Settings, Route::Settings { section: None }),
+        settings: RailEntry::new(
+            "settings",
+            t!("shell.rail.settings"),
+            Icon::Settings,
+            Route::Settings { section: None },
+        ),
     }
 }
 
@@ -353,7 +364,7 @@ impl Rail {
                     focus_now = Some(r.id);
                 }
                 if r.activated {
-                    chosen = Some(RailEntry::new("profile", "Profiles", Icon::Users, Route::Profiles));
+                    chosen = Some(RailEntry::new("profile", t!("shell.rail.profiles"), Icon::Users, Route::Profiles));
                 }
             }
             let mut entry = |ui: &mut Ui, entry: &RailEntry, y: f32| {
@@ -544,7 +555,7 @@ fn entry_ui(
 ) -> Option<pley_ui::Response> {
     let id = ui.id(e.id.as_str());
     ui.name(id, || match e.badge {
-        Some((n, _)) => format!("{}, {n}", e.label),
+        Some((n, _)) => format!("{}, {}", e.label, pley_i18n::number(n)),
         None => e.label.clone(),
     });
     let hit = Rect::new(X, y, ENTRY_W_OPEN, ENTRY_H);
@@ -598,9 +609,10 @@ fn badge(ui: &mut Ui, at: Point, count: i64, danger: bool, focused: bool) {
 /// over "Switch profile".
 fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Option<pley_ui::Response> {
     let id = ui.id("profile");
+    let switch = t!("shell.rail.switchProfile");
     ui.name(id, || match view.me {
-        Some(m) => format!("{}, Switch profile", m.name),
-        None => "Switch profile".to_string(),
+        Some(m) => format!("{}, {switch}", m.name),
+        None => switch.to_string(),
     });
     let r = open.then(|| ui.focusable(id, Rect::new(X, TOP, ENTRY_W_OPEN, AVATAR_ENTRY)));
     let focused = r.is_some_and(|r| r.focused);
@@ -644,13 +656,7 @@ fn profile_entry(ui: &mut Ui, view: &RailView, open: bool, t: f32, g: f32) -> Op
                 ui.text(Point::new(x, y), name, &theme::RAIL_PROFILE, &TextOpts::line(LABEL_W), content);
                 let below = y + theme::RAIL_PROFILE.line_height;
                 ui.opacity(0.8, |ui| {
-                    ui.text(
-                        Point::new(x, below),
-                        "Switch profile",
-                        &theme::RAIL_SWITCH,
-                        &TextOpts::line(LABEL_W),
-                        content,
-                    )
+                    ui.text(Point::new(x, below), switch, &theme::RAIL_SWITCH, &TextOpts::line(LABEL_W), content)
                 });
             });
         }

@@ -10,7 +10,7 @@ use axum::Json;
 use axum::body::Bytes;
 use axum::extract::rejection::{JsonRejection, PathRejection, QueryRejection};
 use axum::extract::{Path, Query, State};
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -71,10 +71,11 @@ pub async fn summary(State(state): State<AppState>, user: AuthUser) -> ApiResult
 pub async fn discover(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<String>, PathRejection>,
     query: Params,
 ) -> RequestResult<Json<DiscoverPage>> {
-    let caller = state.requests.asker(&user).await?;
+    let caller = state.requests.asker(&user, &headers).await?;
     let page = page_of(&params(query)?)?;
     let unknown = || AppError::not_found("Discover lists trending, movies, shows, upcoming and anime");
     let Path(list) = path.map_err(|_| unknown())?;
@@ -83,8 +84,13 @@ pub async fn discover(
 }
 
 /// `GET /api/discover/search?q=&page=&missing=`.
-pub async fn search(State(state): State<AppState>, user: AuthUser, query: Params) -> RequestResult<Json<DiscoverPage>> {
-    let caller = state.requests.asker(&user).await?;
+pub async fn search(
+    State(state): State<AppState>,
+    user: AuthUser,
+    headers: HeaderMap,
+    query: Params,
+) -> RequestResult<Json<DiscoverPage>> {
+    let caller = state.requests.asker(&user, &headers).await?;
     let query = params(query)?;
     let text = query.get("q").map(|q| q.trim()).unwrap_or_default();
     if text.is_empty() || text.chars().count() > QUERY_MAX {
@@ -99,9 +105,10 @@ pub async fn search(State(state): State<AppState>, user: AuthUser, query: Params
 pub async fn movie(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
 ) -> RequestResult<Json<DiscoverDetail>> {
-    let caller = state.requests.asker(&user).await?;
+    let caller = state.requests.asker(&user, &headers).await?;
     let tmdb_id = id_of(path, "a TMDB")?;
     Ok(Json(state.requests.detail(&caller, TitleKind::Movie, tmdb_id).await?))
 }
@@ -110,9 +117,10 @@ pub async fn movie(
 pub async fn show(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
 ) -> RequestResult<Json<DiscoverDetail>> {
-    let caller = state.requests.asker(&user).await?;
+    let caller = state.requests.asker(&user, &headers).await?;
     let tmdb_id = id_of(path, "a TMDB")?;
     Ok(Json(state.requests.detail(&caller, TitleKind::Show, tmdb_id).await?))
 }
@@ -123,10 +131,11 @@ pub async fn show(
 pub async fn image(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<(String, String)>, PathRejection>,
     query: Params,
 ) -> RequestResult<Response> {
-    let caller = state.requests.reader(&user).await?;
+    let caller = state.requests.reader(&user, &headers).await?;
     // As for library artwork, a width that isn't one is left out.
     let width = params(query)?.get("w").and_then(|w| w.parse::<u32>().ok()).filter(|w| *w > 0);
     let Path((kind, file)) = path.map_err(|_| AppError::not_found("no such picture"))?;
@@ -145,16 +154,22 @@ pub async fn image(
 pub async fn item_request(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
 ) -> RequestResult<Json<ItemRequest>> {
-    let caller = state.requests.reader(&user).await?;
+    let caller = state.requests.reader(&user, &headers).await?;
     let id = id_of(path, "an item's")?;
     Ok(Json(state.requests.for_item(&caller, id).await?))
 }
 
 /// `GET /api/requests?status=&attention=&kind=&user_id=&q=&order=&mine=&unseen=&changed_since=&offset=&limit=`.
-pub async fn list(State(state): State<AppState>, user: AuthUser, query: Params) -> RequestResult<Json<RequestList>> {
-    let caller = state.requests.reader(&user).await?;
+pub async fn list(
+    State(state): State<AppState>,
+    user: AuthUser,
+    headers: HeaderMap,
+    query: Params,
+) -> RequestResult<Json<RequestList>> {
+    let caller = state.requests.reader(&user, &headers).await?;
     let query = params(query)?;
     let text = |name: &str| query.get(name).map(|v| v.trim()).filter(|v| !v.is_empty());
     let mut statuses = Vec::new();
@@ -206,9 +221,10 @@ pub async fn list(State(state): State<AppState>, user: AuthUser, query: Params) 
 pub async fn create(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     body: Result<Json<NewRequest>, JsonRejection>,
 ) -> RequestResult<(StatusCode, Json<MediaRequest>)> {
-    let caller = state.requests.asker(&user).await?;
+    let caller = state.requests.asker(&user, &headers).await?;
     let Json(new) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
     let (made, request) = state.requests.create(&caller, new).await?;
     Ok((if made { StatusCode::CREATED } else { StatusCode::OK }, Json(request)))
@@ -218,9 +234,10 @@ pub async fn create(
 pub async fn get(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
 ) -> RequestResult<Json<MediaRequest>> {
-    let caller = state.requests.reader(&user).await?;
+    let caller = state.requests.reader(&user, &headers).await?;
     let id = id_of(path, "a request's")?;
     Ok(Json(state.requests.get(&caller, id).await?))
 }
@@ -230,10 +247,11 @@ pub async fn get(
 pub async fn approve(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
     body: Bytes,
 ) -> RequestResult<Json<MediaRequest>> {
-    let caller = state.requests.manager(&user).await?;
+    let caller = state.requests.manager(&user, &headers).await?;
     let id = id_of(path, "a request's")?;
     let approval: Approval = optional_body(&body)?;
     Ok(Json(state.requests.approve(&caller, id, approval).await?))
@@ -249,10 +267,11 @@ pub struct Decline {
 pub async fn decline(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
     body: Bytes,
 ) -> RequestResult<Json<MediaRequest>> {
-    let caller = state.requests.manager(&user).await?;
+    let caller = state.requests.manager(&user, &headers).await?;
     let id = id_of(path, "a request's")?;
     let decline: Decline = optional_body(&body)?;
     Ok(Json(state.requests.decline(&caller, id, decline.reason).await?))
@@ -263,27 +282,33 @@ pub async fn decline(
 pub async fn handled(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
 ) -> RequestResult<Json<MediaRequest>> {
-    let caller = state.requests.manager(&user).await?;
+    let caller = state.requests.manager(&user, &headers).await?;
     let id = id_of(path, "a request's")?;
     Ok(Json(state.requests.handled(&caller, id).await?))
 }
 
 /// `GET /api/requests/options`: what approving may choose in Radarr and
 /// Sonarr.
-pub async fn options(State(state): State<AppState>, user: AuthUser) -> RequestResult<Json<RequestOptions>> {
-    state.requests.manager(&user).await?;
-    Ok(Json(state.requests.options().await))
+pub async fn options(
+    State(state): State<AppState>,
+    user: AuthUser,
+    headers: HeaderMap,
+) -> RequestResult<Json<RequestOptions>> {
+    let caller = state.requests.manager(&user, &headers).await?;
+    Ok(Json(state.requests.options(&caller).await))
 }
 
 /// `DELETE /api/requests/{id}`.
 pub async fn delete(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
 ) -> RequestResult<StatusCode> {
-    let caller = state.requests.reader(&user).await?;
+    let caller = state.requests.reader(&user, &headers).await?;
     let id = id_of(path, "a request's")?;
     state.requests.delete(&caller, id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -293,9 +318,10 @@ pub async fn delete(
 pub async fn unwatch(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     path: Result<Path<i64>, PathRejection>,
 ) -> RequestResult<StatusCode> {
-    let caller = state.requests.reader(&user).await?;
+    let caller = state.requests.reader(&user, &headers).await?;
     let id = id_of(path, "a request's")?;
     state.requests.unwatch(&caller, id).await?;
     Ok(StatusCode::NO_CONTENT)
@@ -306,9 +332,10 @@ pub async fn unwatch(
 pub async fn seen(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     CurrentToken(token): CurrentToken,
 ) -> RequestResult<StatusCode> {
-    let caller = state.requests.reader(&user).await?;
+    let caller = state.requests.reader(&user, &headers).await?;
     state.requests.seen(&caller, token.as_deref()).await?;
     Ok(StatusCode::NO_CONTENT)
 }

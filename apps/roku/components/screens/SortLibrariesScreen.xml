@@ -10,6 +10,7 @@
         <field id="active" type="boolean" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/SortLibrariesScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -17,7 +18,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Nodes.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/LibraryOrder.brs" />
     <children>
-        <Label translation="[96, 56]" text="Sort libraries" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[96, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="hint" translation="[96, 160]" width="1600" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <LabelList id="list" translation="[96, 260]" itemSize="[760, 72]" numRows="9" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" />
         <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[960, 260]" minWidth="520" />

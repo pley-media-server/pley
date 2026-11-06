@@ -235,6 +235,99 @@ sub test_pages_watch_history()
     tkEqual(rows[0].historyId, 9)
 end sub
 
+sub test_pages_in_french()
+    i18nUse("fr")
+    detail = { cast: [{ id: 8, name: "Jeremy Renner", role: "actor", character: "Ian Donnelly" }], crew: [{ id: 9, name: "Denis Villeneuve", role: "director" }, { id: 9, name: "Denis Villeneuve", role: "writer" }, { id: 9, name: "Denis Villeneuve", role: "writer" }, { id: 8, name: "Jeremy Renner", role: "producer" }] }
+    names = []
+    for each tile in pageCredits(detail, "http://nas:7539")
+        names.Push(tile.title + ": " + tile.subtitle)
+    end for
+    tkEqual(names, ["Jeremy Renner: Ian Donnelly, Production", "Denis Villeneuve: Réalisation, Scénario"], "a role credited twice said once")
+    tkEqual(pageDetailRows(detail, "http://nas:7539")[0].title, "Distribution et équipe")
+    person = { id: 7, name: "Amy Adams", credits: [
+        { item: { id: 99, kind: "show", title: "Sharp Objects", year: 2018 }, roles: [{ role: "actor", character: "Camille", episodes: 8 }, { role: "producer" }] },
+        { item: { id: 12, kind: "movie", title: "Arrival", year: 2016 }, roles: [{ role: "actor", episodes: 1 }] },
+        { item: { id: 13, kind: "movie", title: "Untitled" }, roles: [{ role: "director" }] }
+    ] }
+    page = pagePerson(person, "http://nas:7539")
+    tkEqual(page.line, "2 films · 1 série dans vos bibliothèques")
+    rows = []
+    for each row in page.rows
+        captions = []
+        for each tile in row.tiles
+            captions.Push(tile.subtitle)
+        end for
+        rows.Push(row.title + " — " + captions.Join(" | "))
+    end for
+    tkEqual(rows, ["Interprétation — 2018 · Camille (8 épisodes) | 2016 · Apparition (1 épisode)", "Réalisation — Réalisation", "Production — 2018 · Production"])
+    seasons = pageSeasonTiles([{ id: 100, kind: "season", index: 1, leaf_count: 9 }, { id: 101, kind: "season", index: 2, leaf_count: 1 }], "http://nas:7539")
+    tkEqual(seasons[0].subtitle, "9 épisodes")
+    tkEqual(seasons[1].subtitle, "1 épisode")
+    collection = pageCollection({ id: 3, title: "Dune", sort: "release", item_count: 2, items: [] }, "http://nas:7539")
+    tkEqual(pageCollectionFacts(collection, { name: "Films", kind: "movies" }), "2 films · Films · Par date de sortie")
+    nb = Chr(160)
+    tkEqual(pageFilterNotes("type=1&genre=Drame&unwatched=1&sort=year%3Adesc&limit=20"), ["Genre" + nb + ": Drame", "Non vu", "Les plus récents d’abord", "20 au maximum"])
+    tkEqual(pageFilterNotes("year%3E%3E=2019&decade=1980&contentRating=PG-13&inProgress=0&mediaHeight=2160"), ["Après 2019", "Années 1980", "Classification" + nb + ": PG-13", "Pas en cours", "mediaHeight" + nb + ": 2160"])
+    tkEqual(pageFilterOrder("mediaHeight:desc"), "Trié par mediaHeight")
+    tkEqual(pageRelativeTime(1800000000 - 720, 1800000000), "il y a 12 min")
+    tkEqual(pageRelativeTime(1772582400, 1800000000), "4 mars 2026")
+    tkEqual(pagePlaylistRefusal({ status: 403, message: "not allowed" }), "Cette connexion ne permet pas de modifier les playlists" + nb + ": déconnectez-vous dans Paramètres et reconnectez-vous pour l’autoriser.")
+end sub
+
+sub test_pages_in_spanish()
+    i18nUse("es")
+    labels = []
+    for each option in pageTileOptions({ kind: "episode", itemId: 101, parentId: 100, grandparentId: 99, watched: true }, true, invalid)
+        labels.Push(option.label)
+    end for
+    tkEqual(labels, ["Marcar como no visto", "Añadir a una lista", "Quitar de Seguir viendo", "Ir a la serie", "Ir a la temporada"])
+    tkEqual(pageTileOptions({ kind: "movie", itemId: 12, watched: false }, false, true)[1].label, "Quitar de Mi lista")
+    extras = pageExtras({ extras: [{ id: 40, kind: "extra", title: "Official Trailer", extra_type: "trailer", duration_ms: 150000 }, { id: 41, kind: "extra", title: "Making of", extra_type: "behind_the_scenes" }] }, "http://nas:7539")
+    tkEqual(extras[0].subtitle, "Tráiler · 3 min")
+    tkEqual(extras[1].subtitle, "Detrás de cámaras")
+    tkEqual(pageCollectionTile({ id: 3, title: "Dune", item_count: 2 }, "http://nas:7539").subtitle, "2 títulos")
+    tkEqual(pagePlaylistLine({ kind: "video", item_count: 12, duration_ms: 12000000, smart_filter: invalid }), "12 títulos · 3 h 20 min")
+    tkEqual(pagePlaylistLine({ kind: "audio", item_count: 1, duration_ms: 200000, smart_filter: invalid }), "1 pista · 3 min")
+    tkEqual(pagePlaylistLine({ kind: "video", item_count: 40, duration_ms: 0, smart_filter: "genre=Drama" }), "Inteligente · 40 títulos")
+    rows = pagePlaylistEntries([{ entry_id: 6, item: contentTestEpisode() }], "http://nas:7539")
+    tkEqual(rows[0].subtitle, "T1 E1 · Good News About Hell · 55 min · Visto")
+    tkEqual(pageRoleText([{ role: "actor", character: "Neo" }, { role: "editor", episodes: 2 }]), "como Neo, Equipo técnico (2 episodios)")
+    tkEqual(pageFilterNotes("unwatched=0&year=1999&sort=titleSort:desc"), ["Visto", "Año: 1999", "Por título, de la Z a la A"])
+end sub
+
+' The words a kind or a field picks: each language has every one.
+sub test_pages_words_picked_by_kind_are_in_every_language()
+    for each language in i18nLanguages()
+        i18nUse(language)
+        words = []
+        for each kind in ["trailer", "featurette", "behind_the_scenes", "deleted_scene", "interview", "scene", "short", "odd"]
+            words.Push(pageExtraLabel(kind))
+        end for
+        for each role in ["creator", "director", "writer", "producer"]
+            words.Push(pageRoleLabel(role))
+        end for
+        for each sort in ["release", "title", "custom"]
+            words.Push(pageCollectionOrder(sort))
+        end for
+        for each field in ["titleSort", "year", "originallyAvailableAt", "addedAt", "rating", "audienceRating", "userRating", "lastViewedAt", "duration", "viewCount"]
+            words.Push(pageFilterOrder(field))
+            words.Push(pageFilterOrder(field + ":desc"))
+        end for
+        words.Append(pageFilterNotes("genre=a&label=b&studio=c&contentRating=d&year=1&year%3E%3E=2&year%3C%3C=3&decade=1980&limit=4&unwatched=1&unwatched=0&inProgress=1&inProgress=0&odd=5"))
+        roles = []
+        for each role in ["actor", "director", "creator", "writer", "producer"]
+            roles.Push({ role: role })
+        end for
+        for each row in pagePerson({ id: 1, name: "A", credits: [{ item: { id: 2, kind: "movie", title: "B" }, roles: roles }] }, "http://nas:7539").rows
+            words.Push(row.title)
+        end for
+        tkEqual(words.Count(), 54, language)
+        for each word in words
+            tkTrue(word <> "" and Left(word, 7) <> "titles.", language + ": " + word)
+        end for
+    end for
+end sub
+
 sub test_pages_actions_ask_the_server()
     tkEqual(pageActionRequest("watched", 12), { method: "POST", path: "/api/items/12/watched" })
     tkEqual(pageActionRequest("unwatched", 12), { method: "POST", path: "/api/items/12/unwatched" })

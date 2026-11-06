@@ -11,8 +11,8 @@ use pley_core::model::{LiveCategory, TitleKind};
 use pley_core::{Device, FakeDevice, Http, PlayerEngine, Store, Tasks};
 use pley_fixtures::{FixtureServer, Mode, Options, ids, request_titles};
 use pley_search::screen::{
-    CANT_REACH, DISCOVER, EMPTY_TITLE, KEYBOARD_ACTION, NONE_BODY, NONE_IN_LIBRARIES, RECENT, RETRY, SEARCHING,
-    none_title,
+    cant_reach, discover_title, empty_title, keyboard_action, none_body, none_in_libraries, none_title, recent_title,
+    retry_label, searching,
 };
 use pley_shell::{AppState, NavCommand, Registry, Route, Shell};
 use pley_ui::testing::{StubImages, StubShaper};
@@ -186,7 +186,7 @@ fn sign_in(server: &FixtureServer, store: &Store, http: &Http) {
 fn the_field_has_focus_first_and_says_what_search_finds() {
     let app = App::new();
     assert_eq!(app.focused(), Some(app.field()));
-    assert!(app.says(EMPTY_TITLE));
+    assert!(app.says(empty_title()));
     assert!(app.says("Search movies, shows, people…"));
     assert!(!app.typing());
 }
@@ -196,7 +196,7 @@ fn ok_opens_the_keyboard_and_back_closes_it_leaving_focus_on_the_field() {
     let mut app = App::new();
     app.press(Key::Ok);
     assert!(app.typing());
-    assert!(app.says(KEYBOARD_ACTION) && app.says("&123"));
+    assert!(app.says(keyboard_action()) && app.says("&123"));
     assert_ne!(app.focused(), Some(app.field()), "focus is on the keyboard");
     app.press(Key::Back);
     assert!(!app.typing());
@@ -211,10 +211,10 @@ fn what_is_typed_is_asked_once_typing_pauses_and_shows_in_rows() {
     app.press(Key::Ok);
     app.type_text("ma");
     assert!(!app.says("Movies"), "not before typing pauses");
-    assert!(app.says(EMPTY_TITLE));
+    assert!(app.says(empty_title()));
     app.shows("Movies");
     assert!(!app.says("People"), "people come after the titles and Live TV, below the screen");
-    assert!(!app.says(SEARCHING));
+    assert!(!app.says(searching()));
     assert!(app.typing(), "results come in while the keyboard shows");
 }
 
@@ -291,7 +291,7 @@ fn nothing_found_says_so() {
     let mut app = App::new();
     app.type_text("zzqx");
     app.shows(&none_title("zzqx"));
-    assert!(app.says(NONE_BODY));
+    assert!(app.says(none_body()));
     app.press(Key::Down);
     assert_eq!(app.focused(), Some(app.field()), "nothing to go down to");
 }
@@ -299,7 +299,7 @@ fn nothing_found_says_so() {
 #[test]
 fn search_on_the_keyboard_keeps_the_query_and_recent_searches_show_with_nothing_typed() {
     let mut app = App::with(|store, server| store.remember_search(server, ids::ALEX, "zzqx").unwrap());
-    assert!(app.says(RECENT) && app.says("zzqx"));
+    assert!(app.says(recent_title()) && app.says("zzqx"));
     app.press(Key::Ok);
     app.type_text("ma");
     // The keyboard's Search key: down to the bottom row from "q", then along to it.
@@ -316,7 +316,7 @@ fn search_on_the_keyboard_keeps_the_query_and_recent_searches_show_with_nothing_
     for key in [Key::Down, Key::Down, Key::Down, Key::Right, Key::Right, Key::Right, Key::Right, Key::Ok, Key::Back] {
         app.press(key);
     }
-    assert!(app.says(RECENT));
+    assert!(app.says(recent_title()));
     app.press(Key::Down);
     app.press(Key::Right);
     app.press(Key::Ok);
@@ -336,7 +336,7 @@ fn search_on_the_keyboard_keeps_the_query_and_recent_searches_show_with_nothing_
     app.press(Key::Ok);
     assert!(app.kept(&[]));
     app.advance(0.1);
-    assert!(app.says(EMPTY_TITLE));
+    assert!(app.says(empty_title()));
     assert_eq!(app.focused(), Some(app.field()));
 }
 
@@ -345,8 +345,8 @@ fn a_failure_offers_retry_below_the_field() {
     let mut app = App::new();
     app.server.set_mode(Mode::Down).unwrap();
     app.type_text("ma");
-    app.shows(CANT_REACH);
-    assert!(app.says(RETRY));
+    app.shows(cant_reach());
+    assert!(app.says(retry_label()));
     assert_eq!(app.focused(), Some(app.field()), "focus stays on the field");
     app.press(Key::Down);
     assert_ne!(app.focused(), Some(app.field()));
@@ -388,7 +388,7 @@ fn what_tmdb_has_that_the_libraries_lack_shows_under_them_and_opens_its_page() {
     // A movie Sam asked for: no library has it.
     app.type_text("moons");
     app.shows("Paper Moons");
-    assert!(app.says(NONE_IN_LIBRARIES) && app.says(DISCOVER));
+    assert!(app.says(none_in_libraries()) && app.says(discover_title()));
     assert!(app.says("Requested"), "badged");
     assert!(!app.says(&none_title("moons")), "TMDB's row takes the place of the notice");
     app.press(Key::Down);
@@ -412,7 +412,7 @@ fn without_requests_nothing_found_says_so_alone() {
     assert!(app.until(|a| a.state.request_summary().is_some_and(|s| !s.enabled)), "requests never went off");
     app.type_text("zzqx");
     app.shows(&none_title("zzqx"));
-    assert!(!app.says(DISCOVER) && !app.says(NONE_IN_LIBRARIES));
+    assert!(!app.says(discover_title()) && !app.says(none_in_libraries()));
 }
 
 #[test]
@@ -429,7 +429,7 @@ fn the_results_stay_when_asking_them_again_fails() {
     app.server.set_mode(Mode::Down).unwrap();
     app.advance(31.0);
     app.press(Key::Back);
-    assert!(app.until(|a| a.state.offline() && !a.says(SEARCHING)), "never asked again");
-    assert!(app.says("Movies") && !app.says(CANT_REACH), "the results stay");
+    assert!(app.until(|a| a.state.offline() && !a.says(searching())), "never asked again");
+    assert!(app.says("Movies") && !app.says(cant_reach()), "the results stay");
     assert_eq!(app.focused(), tile, "on the tile it had");
 }

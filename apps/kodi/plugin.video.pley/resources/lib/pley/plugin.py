@@ -483,7 +483,7 @@ class Plugin(asking.Asking):
     def category(self, title: str, count, params: dict, icon: str) -> None:
         """A folder of Live TV's: a category of channels, how many it has."""
         params = dict({"route": "live_channels"}, **params)
-        label = "%s  [COLOR %s](%s)[/COLOR]" % (title, "FF8B95A5", "{:,}".format(count)) if count is not None else title
+        label = "%s  [COLOR %s](%s)[/COLOR]" % (title, "FF8B95A5", kodi.number(count)) if count is not None else title
         self.folder(label, params, icon)
 
     def route_live_search(self) -> None:
@@ -645,6 +645,7 @@ class Plugin(asking.Asking):
 
         client = self.client()
         me = client.get("/api/auth/me")
+        heard(me)
         dialog = xbmcgui.Dialog()
         tracks.edit_defaults(
             client,
@@ -653,6 +654,23 @@ class Plugin(asking.Asking):
             lambda words, error: kodi.notify(words, error=error),
             kodi.text,
             api.ApiError,
+        )
+
+    def route_language(self) -> None:
+        """Profile language (from the add-on's settings): the profile's own,
+        on all its devices (this device's on a server from before
+        languages), in Kodi's list dialog."""
+        from . import language
+
+        client = self.client()
+        me = client.get("/api/auth/me")
+        heard(me)
+        dialog = xbmcgui.Dialog()
+        language.choose(
+            client,
+            me,
+            lambda heading, labels, preselect: dialog.select(heading, labels, preselect=preselect),
+            lambda words, error: kodi.notify(words, error=error),
         )
 
     def route_subtitles(self) -> None:
@@ -841,6 +859,8 @@ class Plugin(asking.Asking):
     def sign_out(self) -> None:
         """Signs out, asked already, and says so."""
         if self.sign_out_quietly():
+            # No account: this device's language.
+            heard(None)
             kodi.notify(kodi.text("signed_out"))
         else:
             kodi.notify(kodi.text("service_off"), error=True)
@@ -945,6 +965,7 @@ ACTIONS = (
     "my_list",
     "settings",
     "tracks",
+    "language",
     "profiles",
     "rename_playlist",
     "delete_playlist",
@@ -971,12 +992,20 @@ def choose(server: str, name: str, server_id: str) -> None:
     kodi.set_setting("server_id", server_id)
 
 
+def heard(me) -> None:
+    """The profile as GET /api/auth/me says it (None: signed out): its own
+    language shows."""
+    kodi.heard_account(me if isinstance(me, dict) else None)
+    kodi.follow_language()
+
+
 def signed_in_text(server: str, access_token: str) -> str:
     """"Signed in as Alice", or "Signed in" when the server doesn't say
-    who (the sign-in worked all the same)."""
+    who (the sign-in worked all the same), in the profile's language."""
     try:
         me = api.Client(server, kodi.user_agent(), access_token, timeout=5).get("/api/auth/me") or {}
         name = me.get("name") or me.get("username")
+        heard(me)
     except (api.ApiError, AttributeError):
         name = None
     return kodi.text("signed_in_as") % name if name else kodi.text("signed_in")
@@ -1012,6 +1041,10 @@ def two_step_required(server: str) -> bool:
         found = api.Client(server, kodi.user_agent(), timeout=5).get("/api/server")
     except api.ApiError:
         return False
+    # Its language too, for a Kodi in a language Pley doesn't have: the
+    # sign-in screen's words change to it.
+    kodi.heard_server(found)
+    kodi.follow_language()
     return isinstance(found, dict) and found.get("two_step_required") is True
 
 
@@ -1019,9 +1052,7 @@ def waiting_text(seconds_left: float) -> str:
     minutes = int(seconds_left // 60)
     if minutes < 1:
         return kodi.text("waiting_last_minute")
-    if minutes == 1:
-        return kodi.text("waiting_one_minute")
-    return kodi.text("waiting") % minutes
+    return kodi.count("waiting_minutes", minutes)
 
 
 def server_setting() -> str:

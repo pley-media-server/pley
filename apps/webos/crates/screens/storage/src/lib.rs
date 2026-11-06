@@ -29,7 +29,7 @@ use pley_shell::{AppCx, AppEvent, Chrome, PlayRequest, Route, Screen};
 use pley_ui::theme;
 use pley_ui::{Edge, Id, Ui};
 
-pub use listing::{Line, Listing, Pick, Problem, TITLE, UP, list, unreadable};
+pub use listing::{Line, Listing, Pick, Problem, UP, list, unreadable, usb_drive};
 
 /// Where the caption and the list are (`StorageScreen.cs`): the caption 8 under the title, the
 /// list 16 under the caption, 720 wide.
@@ -189,7 +189,7 @@ impl StorageScreen {
 
     /// The page's title: the drive's make and model once known.
     fn page_title(&self) -> &str {
-        self.listing.as_ref().map_or(TITLE, |l| l.title.as_str())
+        self.listing.as_ref().map_or(usb_drive(), |l| l.title.as_str())
     }
 }
 

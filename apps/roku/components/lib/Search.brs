@@ -7,17 +7,11 @@
 ' then Live TV, then people; the server puts the closest matches first in
 ' each.
 function searchGroups() as object
-    return [
-        { key: "movie", title: "Movies" },
-        { key: "show", title: "Shows" },
-        { key: "season", title: "Seasons" },
-        { key: "episode", title: "Episodes" },
-        { key: "artist", title: "Artists" },
-        { key: "album", title: "Albums" },
-        { key: "track", title: "Tracks" },
-        { key: "channel", title: "Live TV" },
-        { key: "person", title: "People" }
-    ]
+    groups = []
+    for each key in ["movie", "show", "season", "episode", "artist", "album", "track", "channel", "person"]
+        groups.Push({ key: key, title: t("browse.search.groups." + key) })
+    end for
+    return groups
 end function
 
 ' GET /api/search for query: up to 200 titles, 200 people and 200 Live TV
@@ -33,8 +27,9 @@ end function
 function searchRows(data as dynamic, server as string, now as integer, twelve as boolean) as object
     answer = httpObject(data)
     if answer = invalid then answer = {}
+    groups = searchGroups()
     byKind = {}
-    for each group in searchGroups()
+    for each group in groups
         byKind[group.key] = []
     end for
     for each person in httpArray(answer.people)
@@ -50,7 +45,7 @@ function searchRows(data as dynamic, server as string, now as integer, twelve as
         end if
     end for
     rows = []
-    for each group in searchGroups()
+    for each group in groups
         tiles = byKind[group.key]
         if tiles.Count() > 0 then rows.Push({ key: group.key, title: group.title, wide: group.key = "episode", square: contentMusic(group.key), tiles: tiles })
     end for

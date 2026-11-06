@@ -1,0 +1,57 @@
+{
+  "rail": {
+    "search": "Search",
+    "home": "Home",
+    "discover": "Discover",
+    "liveTv": "Live TV",
+    "libraries": "Libraries",
+    "playlists": "Playlists",
+    "collections": "Collections",
+    "nowPlaying": "Now Playing",
+    "storage": "USB drive",
+    "settings": "Settings",
+    "profiles": "Profiles",
+    "switchProfile": "Switch profile"
+  },
+  "exit": {
+    "title": "Exit Pley?",
+    "exit": "Exit"
+  },
+  "offline": "Pley is offline",
+  "cast": {
+    "playingFrom": "Playing from {{device}}",
+    "playingFromAnother": "Playing from another device",
+    "nothingToPlay": "Nothing to play",
+    "switchFailed": "Couldn't switch to the remote's profile"
+  },
+  "placeholder": {
+    "notBuilt": "This page isn't built yet.",
+    "goBack": "Go back"
+  },
+  "errors": {
+    "noServer": "no server is in use"
+  },
+  "pages": {
+    "pin": "Enter the PIN",
+    "library": "Library {{id}}",
+    "collection": "Collection {{id}}",
+    "playlist": "Playlist {{id}}",
+    "addToPlaylist": "Add “{{title}}” to a playlist",
+    "newPlaylist": "New playlist",
+    "item": "Item {{id}}",
+    "itemActions": "Actions of item {{id}}",
+    "person": "Person {{id}}",
+    "artist": "Artist {{id}}",
+    "album": "Album {{id}}",
+    "discoverList": "Discover: {{list}}",
+    "discoverSearch": "On TMDB: {{query}}",
+    "title": "{{kind}} {{id}} on TMDB",
+    "requests": "Requests",
+    "channel": "Channel {{id}}",
+    "player": "Playing item {{id}}",
+    "settingsSection": "Settings: {{section}}",
+    "history": "Watch history",
+    "diagnostics": "Diagnostics",
+    "licences": "Open-source licences"
+  }
+}

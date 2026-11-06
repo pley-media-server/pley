@@ -9,6 +9,7 @@
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/SeasonPickRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="background" width="1000" height="88" color="0x1E222AFF" />
         <Rectangle id="bar" width="6" height="88" color="0x38BDF8FF" visible="false" />

@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 pley-base = { path = "../../base" }
 pley-core = { path = "../../core" }
+pley-i18n = { path = "../../i18n" }
 pley-ui = { path = "../../ui" }
 pley-kit = { path = "../../kit" }
 pley-shell = { path = "../../shell" }

@@ -16,13 +16,14 @@ use pley_core::http::sentence;
 use pley_core::model::{AppProfile, Me, TrackDefaults};
 use pley_core::store::SubtitleFont;
 use pley_core::{ApiError, Promise};
+use pley_i18n::{Language, t};
 use pley_kit::{Dialog, DialogButton, Heading, List, ListRow, ListState, ProfileTile, SidePanel, Trailing, is_inert};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen, SettingsSection, avatar_color};
 use pley_ui::theme;
 use pley_ui::{Dirs, Edge, Group, Id, Ui};
 
 use crate::notices;
-use crate::pane::{self, End, Facts, Item, Panel, Picking, ProfileFacts, READ_ONLY, RowAction, SAVED, Value};
+use crate::pane::{self, End, Facts, Item, Panel, Picking, ProfileFacts, RowAction, Value};
 use crate::web::WebDialog;
 
 /// The categories' column.
@@ -69,6 +70,15 @@ struct PanelCache {
     heights: Vec<f32>,
 }
 
+/// A change of the account's language the server is keeping.
+struct SavingLanguage {
+    answer: Promise<Result<Me, ApiError>>,
+    /// The language chosen; none: Automatic.
+    language: Option<Language>,
+    /// The server it went to.
+    server: Option<String>,
+}
+
 /// What doesn't change while Settings shows: the TV's facts and the app's version.
 struct Fixed {
     device: Vec<(String, String)>,
@@ -94,6 +104,7 @@ pub struct SettingsScreen {
     web: WebDialog,
     /// The change of the defaults the server is keeping.
     saving: Option<Promise<Result<Me, ApiError>>>,
+    saving_language: Option<SavingLanguage>,
     /// A change made while another was being kept: sent once that one is (`MeViewModel.save`
     /// keeps one request at a time).
     queued: Option<TrackDefaults>,
@@ -137,6 +148,7 @@ impl SettingsScreen {
             to_sign_out: false,
             web: WebDialog::default(),
             saving: None,
+            saving_language: None,
             queued: None,
             defaults: None,
             refused: false,
@@ -240,6 +252,10 @@ impl SettingsScreen {
             stale = true;
         }
         stale |= self.facts.settings != *state.settings();
+        let on_device = !state.keeps_language();
+        let automatic = if on_device { state.automatic_language() } else { state.account_automatic_language() };
+        stale |= self.facts.automatic_language != automatic || self.facts.language_on_device != on_device;
+        stale |= on_device && self.facts.language != state.language_choice();
         if !stale {
             return;
         }
@@ -268,8 +284,43 @@ impl SettingsScreen {
             device: fixed.map(|f| f.device.clone()).unwrap_or_default(),
             version: fixed.map(|f| f.version.clone()).unwrap_or_default(),
             licences: self.licences.clone(),
+            language: match on_device {
+                true => state.language_choice(),
+                false => pley_i18n::supported(me.and_then(|m| m.language.as_deref())),
+            },
+            automatic_language: automatic,
+            language_on_device: on_device,
         });
         self.revision += 1;
+    }
+
+    /// Collects the server's answer to a change of the account's language: the app shows it at
+    /// once. A server without the route (404 or 405, a Pley from before languages) keeps none:
+    /// the choice is this TV's from then on, as the globe picks it, and shows with no word.
+    fn collect_language(&mut self, cx: &mut AppCx) {
+        let Some(saving) = self.saving_language.as_mut() else { return };
+        let answer = match saving.answer.take() {
+            Some(a) => a,
+            None if saving.answer.failed() => Err(ApiError::Unreadable("the request stopped".into())),
+            None => return,
+        };
+        let Some(SavingLanguage { language, server, .. }) = self.saving_language.take() else { return };
+        match answer {
+            Ok(me) => {
+                cx.state.account_changed(me);
+                cx.toast(t!("settings.saved"));
+            }
+            Err(e) if e.is(404) || e.is(405) => {
+                // Another server since: the answer was the one before's.
+                if cx.state.server() == server.as_deref() {
+                    cx.state.language_route_missing();
+                    cx.state.choose_language_here(language);
+                }
+            }
+            Err(e) if e.is(403) => cx.toast(t!("settings.readOnly")),
+            Err(e) if !e.cancelled() => cx.toast(sentence(&e.to_string())),
+            Err(_) => {}
+        }
     }
 
     /// Collects the server's answer to a change of the defaults.
@@ -294,7 +345,7 @@ impl SettingsScreen {
                 // again, so every page has the new defaults.
                 cx.state.tracks_changed(None);
                 cx.state.load_account();
-                cx.toast(SAVED);
+                cx.toast(t!("settings.saved"));
             }
             Err(e) => {
                 self.defaults = None;
@@ -302,7 +353,7 @@ impl SettingsScreen {
                 // Said as "Saved" is, at the top right for 3.5 s (`TvSettingsScreen.kt`'s message).
                 if [403, 404, 405].iter().any(|s| e.is(*s)) {
                     self.refused = true;
-                    cx.toast(READ_ONLY);
+                    cx.toast(t!("settings.readOnly"));
                 } else if !e.cancelled() {
                     cx.toast(sentence(&e.to_string()));
                 }
@@ -317,6 +368,19 @@ impl SettingsScreen {
     fn pick(&mut self, picking: Picking, value: &Value, cx: &mut AppCx) {
         match value {
             Value::Profile(p) => cx.state.set_always_start_as(*p),
+            Value::AppLanguage(language) if *language != self.facts.language => {
+                if self.facts.language_on_device {
+                    cx.state.choose_language_here(*language);
+                } else if self.saving_language.is_none() {
+                    let code = language.map(Language::code);
+                    self.saving_language = Some(SavingLanguage {
+                        answer: cx.spawn(move |api| api.set_language(code)),
+                        language: *language,
+                        server: cx.state.server().map(str::to_string),
+                    });
+                }
+            }
+            Value::AppLanguage(_) => {}
             Value::Language(_) | Value::Mode(_) => {
                 // Nothing to change before who is watching is known.
                 let Some(before) = self.facts.defaults.clone() else { return };
@@ -504,14 +568,18 @@ impl SettingsScreen {
             let title_w = area.w - 16.0;
             if cache.as_ref().is_none_or(|c| c.picking != p || c.revision != revision || c.width != area.w) {
                 let panel = pane::panel(p, facts, fonts);
-                let heights = panel.choices.iter().map(|c| choice_row(c, false).height(ui, area.w)).collect();
+                // Measured as drawn: the check narrows the choice in force, whose words may then wrap.
+                let current = panel.current;
+                let heights =
+                    panel.choices.iter().enumerate().map(|(i, c)| choice_row(c, i == current).height(ui, area.w));
+                let heights = heights.collect();
                 *cache = Some(PanelCache { picking: p, revision, width: area.w, panel, heights });
             }
             let Some(PanelCache { panel, heights, .. }) = cache.as_ref() else { return };
             let h = ui
                 .text(
                     Point::new(area.x + 16.0, area.y + 8.0),
-                    panel.title,
+                    &panel.title,
                     &theme::TITLE,
                     &TextOpts::wrap(title_w, 2),
                     theme::FG,
@@ -553,19 +621,20 @@ impl SettingsScreen {
     }
 
     fn confirm(&mut self, ui: &mut Ui, root: Id, cx: &mut AppCx) {
-        let server = self.facts.server.clone().unwrap_or_default();
+        let cancel = DialogButton::new(t!("settings.actions.cancel"));
         let (title, body, buttons) = match self.confirm_drawn {
             Confirm::SignOut => (
-                "Sign out?",
-                format!("You'll be signed out of {server}."),
-                [DialogButton::new("Cancel"), DialogButton::danger("Sign out")],
+                t!("settings.signOut.title"),
+                match self.facts.server.as_deref() {
+                    Some(server) => t!("settings.signOut.body", server = server),
+                    None => t!("settings.signOut.bodyNoServer").to_string(),
+                },
+                [cancel, DialogButton::danger(t!("settings.signOut.button"))],
             ),
             Confirm::DeleteData => (
-                "Delete all local data?",
-                "Pley forgets every server, sign-in, setting and saved picture on this TV, as if it were just \
-                 installed."
-                    .to_string(),
-                [DialogButton::new("Cancel"), DialogButton::danger("Delete")],
+                t!("settings.signOut.deleteTitle"),
+                t!("settings.signOut.deleteBody").to_string(),
+                [cancel, DialogButton::danger(t!("settings.signOut.delete"))],
             ),
         };
         let r = Dialog::new(title).body(&body).buttons(&buttons).initial(0).show(
@@ -604,6 +673,7 @@ impl SettingsScreen {
 impl Screen for SettingsScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         self.collect(cx);
+        self.collect_language(cx);
         self.gather(ui, cx);
         let root = ui.scope_id();
         let avatar: Vec<ImageRequest> = match (&self.facts.profile, self.shown) {
@@ -614,7 +684,7 @@ impl Screen for SettingsScreen {
         };
         ui.text(
             Point::new(theme::GUTTER, theme::SAFE_Y),
-            "Settings",
+            t!("settings.title"),
             &theme::PAGE_TITLE,
             &TextOpts::line(CATEGORIES_W + PANE_W),
             theme::FG,
@@ -661,6 +731,18 @@ impl Screen for SettingsScreen {
     fn modal(&self) -> bool {
         self.panel.is_some() || self.confirm.is_some() || self.web.is_open()
     }
+
+    /// Every word comes from the facts and the panes made from them, so they are made again in
+    /// the new language and the page keeps its place: a language picked in Settings leaves focus
+    /// on the Language row, and a change being kept is still heard.
+    fn relabel(&mut self, cx: &mut AppCx) -> bool {
+        if let Some(fixed) = self.fixed.as_mut() {
+            fixed.device = device_facts(&cx.device().info(), cx.device().tier());
+        }
+        self.dirty = true;
+        self.panel_cache = None;
+        true
+    }
 }
 
 /// A pane row as the kit draws it.
@@ -704,7 +786,7 @@ fn profile_header(ui: &mut Ui, rect: Rect, f: &Facts, avatar: &[ImageRequest]) {
     ProfileTile::new(&p.name).color(avatar_color(p.avatar_color.as_deref())).picture(avatar).avatar(ui, circle);
     let x = circle.right() + 16.0;
     let w = rect.right() - x;
-    let line = [p.managed.then_some("Managed profile"), f.server.as_deref()]
+    let line = [p.managed.then(|| t!("settings.profile.managed")), f.server.as_deref()]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()
@@ -730,15 +812,21 @@ fn facts_table(ui: &mut Ui, rect: Rect, list: &[(String, String)]) {
 
 /// The TV's facts, label and value, as Settings' Diagnostics and the Diagnostics page list them.
 pub fn device_facts(info: &pley_core::DeviceInfo, tier: pley_base::Tier) -> Vec<(String, String)> {
+    let tier = match tier {
+        pley_base::Tier::Low => t!("diagnostics.tiers.low"),
+        pley_base::Tier::Mid => t!("diagnostics.tiers.mid"),
+        pley_base::Tier::High => t!("diagnostics.tiers.high"),
+    };
+    let or_dash = |s: &str| if s.is_empty() { "—".to_string() } else { s.to_string() };
     let mut out = vec![
-        ("Model".to_string(), if info.model.is_empty() { "—".to_string() } else { info.model.clone() }),
-        ("System".to_string(), if info.os.is_empty() { "—".to_string() } else { info.os.clone() }),
-        ("Firmware".to_string(), info.firmware.clone().unwrap_or_else(|| "—".into())),
-        ("Tier".to_string(), tier.as_str().to_string()),
+        (t!("diagnostics.facts.model").to_string(), or_dash(&info.model)),
+        (t!("diagnostics.facts.system").to_string(), or_dash(&info.os)),
+        (t!("diagnostics.facts.firmware").to_string(), info.firmware.clone().unwrap_or_else(|| "—".into())),
+        (t!("diagnostics.facts.tier").to_string(), tier.to_string()),
     ];
     if !info.data_durable {
         // The data folder is in /tmp: say so, since the sign-in goes with it.
-        out.push(("Saved data".to_string(), "Lost when the TV restarts".to_string()));
+        out.push((t!("diagnostics.facts.savedData").to_string(), t!("diagnostics.facts.lostOnRestart").to_string()));
     }
     out
 }

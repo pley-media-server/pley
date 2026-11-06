@@ -295,6 +295,10 @@ impl Http {
         if req.header_value("Accept-Encoding").is_none() {
             req.headers.push(("Accept-Encoding".into(), "gzip".into()));
         }
+        // The language shown, so what the server writes itself (Home's rows) comes in it.
+        if req.header_value("Accept-Language").is_none() {
+            req.headers.push(("Accept-Language".into(), pley_i18n::language().code().into()));
+        }
         let mut answer = self.transport.open(req)?;
         let gzip = answer.header("Content-Encoding").is_some_and(|e| e.trim().eq_ignore_ascii_case("gzip"));
         if gzip {

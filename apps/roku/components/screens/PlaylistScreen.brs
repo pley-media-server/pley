@@ -13,6 +13,8 @@ sub init()
     m.entries = m.top.findNode("entries")
     m.message = m.top.findNode("message")
     m.hint = m.top.findNode("hint")
+    m.message.text = t("common.states.loading")
+    m.hint.text = t("titles.playlist.movingHint")
     m.started = false
     ' The entry lifted (its place now), -1 for none; the rows' fields as
     ' they are now, and as they were when it was lifted.
@@ -23,7 +25,9 @@ sub init()
     m.dialog = invalid
     m.entryOptions = invalid
     m.lastFocus = m.buttons
-    m.buttons.buttons = ["Play", "Shuffle", "Rename", "Delete"]
+    ' What the buttons do, in their order.
+    m.actions = ["play", "shuffle", "rename", "delete"]
+    m.buttons.buttons = [t("common.actions.play"), t("titles.actions.shuffle"), t("titles.actions.rename"), t("common.actions.delete")]
     m.buttons.observeField("buttonSelected", "onButton")
     m.entries.observeField("itemSelected", "onEntry")
     m.entries.observeField("itemFocused", "onEntryFocused")
@@ -70,7 +74,7 @@ sub onPlaylist(event as object)
     m.entries.content = event.getRoSGNode().content
     if keep > 0 and keep < m.playlist.shown then m.entries.jumpToItem = keep
     if m.playlist.shown = 0
-        m.message.text = "This playlist is empty. Add titles to it with the Options key on them."
+        m.message.text = t("titles.playlist.empty")
         m.message.visible = true
     else
         m.message.visible = false
@@ -82,24 +86,24 @@ end sub
 
 sub onButton(event as object)
     if m.playlist = invalid then return
-    chosen = m.buttons.buttons[event.getData()]
-    if chosen = "Play"
+    action = m.actions[event.getData()]
+    if action = "play"
         play(0, false)
-    else if chosen = "Shuffle"
+    else if action = "shuffle"
         play(0, true)
-    else if chosen = "Rename"
+    else if action = "rename"
         dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
-        dialog.title = "Rename playlist"
+        dialog.title = t("titles.playlist.renameTitle")
         dialog.text = m.playlist.title
-        dialog.buttons = ["Rename", "Cancel"]
+        dialog.buttons = [t("titles.actions.rename"), t("common.actions.cancel")]
         dialog.observeField("buttonSelected", "onRename")
         m.dialog = dialog
         m.top.getScene().dialog = dialog
     else
         dialog = CreateObject("roSGNode", "StandardMessageDialog")
-        dialog.title = "Delete " + m.playlist.title + "?"
-        dialog.message = ["The playlist goes; its titles stay in your libraries."]
-        dialog.buttons = ["Delete", "Cancel"]
+        dialog.title = t("titles.playlist.deleteTitle", { title: m.playlist.title })
+        dialog.message = [t("titles.playlist.deleteBody")]
+        dialog.buttons = [t("common.actions.delete"), t("common.actions.cancel")]
         dialog.observeField("buttonSelected", "onDelete")
         m.dialog = dialog
         m.top.getScene().dialog = dialog
@@ -157,7 +161,7 @@ sub onDeleted(event as object)
     if answer.ok
         uiNavigate({ back: true })
     else if not uiFailed(answer)
-        uiMessage("The playlist wasn't deleted", [pagePlaylistRefusal(answer)])
+        uiMessage(t("titles.playlist.notDeleted"), [pagePlaylistRefusal(answer)])
     end if
 end sub
 
@@ -168,7 +172,7 @@ sub onChanged(event as object)
     if answer.ok
         load()
     else if not uiFailed(answer)
-        uiMessage("That didn't work", [pagePlaylistRefusal(answer)])
+        uiMessage(t("common.states.failed"), [pagePlaylistRefusal(answer)])
         load()
     end if
 end sub
@@ -182,10 +186,10 @@ sub entryOptions()
     tile = { itemId: entry.itemId, kind: entry.kind, title: entry.title, watched: entry.watched, parentId: entry.parentId, grandparentId: entry.grandparentId }
     options = []
     if not m.playlist.smart
-        if m.entries.content.getChildCount() > 1 then options.Push({ label: "Move", action: "move" })
-        options.Push({ label: "Remove from playlist", action: "remove" })
+        if m.entries.content.getChildCount() > 1 then options.Push({ label: t("titles.actions.move"), action: "move" })
+        options.Push({ label: t("titles.actions.removeFromPlaylist"), action: "remove" })
     end if
-    if navForTile(tile) <> invalid then options.Push({ label: "Go to " + httpSentence(entry.title), action: "open" })
+    if navForTile(tile) <> invalid then options.Push({ label: t("titles.actions.goTo", { title: httpSentence(entry.title) }), action: "open" })
     for each option in pageTileOptions(tile, false, invalid)
         if option.action <> "playlist" then options.Push(option)
     end for
@@ -193,7 +197,7 @@ sub entryOptions()
     for each option in options
         labels.Push(option.label)
     end for
-    labels.Push("Cancel")
+    labels.Push(t("common.actions.cancel"))
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
     dialog.title = entry.title
     dialog.buttons = labels
@@ -253,7 +257,7 @@ sub retitle(first as integer, last as integer)
         if i < content.getChildCount()
             fields = {}
             fields.Append(m.rows[i])
-            if i = m.moving then fields.title = fields.title + "  (moving)"
+            if i = m.moving then fields.title = t("titles.playlist.moving", { title: fields.title })
             fresh = CreateObject("roSGNode", "ContentNode")
             nodesFill(fresh, fields)
             content.replaceChild(fresh, i)

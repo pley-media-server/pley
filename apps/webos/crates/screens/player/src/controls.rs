@@ -4,6 +4,7 @@
 
 use pley_base::{Cmd, Color, GradientStop, Icon, ImageRequest, Point, Rect, Size, TextOpts, Weight};
 use pley_core::model::MarkerKind;
+use pley_i18n::t;
 use pley_kit::look::shade;
 use pley_player::controller::{ChapterMark, SeekPreview};
 use pley_player::markers::active_marker;
@@ -199,7 +200,8 @@ pub fn scrubber(ui: &mut Ui, group: Id, id: Id, s: &Scrub) -> Response {
     track(ui, s, focus);
 
     if let Some(m) = active_marker(s.markers, s.position_ms) {
-        let label = if m.kind == MarkerKind::Intro { "Intro" } else { "Credits" };
+        let label =
+            if m.kind == MarkerKind::Intro { t!("player.controls.intro") } else { t!("player.controls.credits") };
         let l = ui.layout(label, &theme::CAPTION, &TextOpts::default());
         let d = s.duration_ms.max(1) as f32;
         let mid = left + ((m.start_ms + m.end_ms) as f32 / 2.0 / d).clamp(0.0, 1.0) * BAR_W;
@@ -349,17 +351,17 @@ impl Btn {
     /// What it says under itself when focused (and to screen readers).
     pub fn label(self, playing: bool) -> &'static str {
         match self {
-            Btn::Chapters => "Chapters",
-            Btn::Sleep => "Sleep timer",
-            Btn::Speed => "Speed",
-            Btn::Previous => "Previous",
-            Btn::PlayPause if playing => "Pause",
-            Btn::PlayPause => "Play",
-            Btn::Next => "Next",
-            Btn::Subtitles => "Subtitles",
-            Btn::Audio => "Audio",
-            Btn::Quality => "Quality",
-            Btn::Info => "Info",
+            Btn::Chapters => t!("player.controls.chapters"),
+            Btn::Sleep => t!("player.controls.sleep"),
+            Btn::Speed => t!("player.controls.speed"),
+            Btn::Previous => t!("player.controls.previous"),
+            Btn::PlayPause if playing => t!("player.controls.pause"),
+            Btn::PlayPause => t!("player.controls.play"),
+            Btn::Next => t!("player.controls.next"),
+            Btn::Subtitles => t!("player.controls.subtitles"),
+            Btn::Audio => t!("player.controls.audio"),
+            Btn::Quality => t!("player.controls.quality"),
+            Btn::Info => t!("player.controls.info"),
         }
     }
 }
@@ -477,7 +479,8 @@ const LOOK: ControlLook = ControlLook {
     focus_scale: theme::focus::ROUND.focus_scale,
 };
 
-/// One button of the row, its label fading in 8 dp under it while focused.
+/// One button of the row, its label fading in 8 dp under it while focused: centred under it, but
+/// kept inside the safe area, where a long label under a button at either end would run off.
 fn button(ui: &mut Ui, id: Id, rect: Rect, b: Btn, playing: bool) -> Response {
     let r = register(ui, id, rect, FocusOpts::default());
     let s = shade(ui, &LOOK, &r);
@@ -488,7 +491,8 @@ fn button(ui: &mut Ui, id: Id, rect: Rect, b: Btn, playing: bool) -> Response {
     let shown = ui.animate(id.with("label"), if r.focused { 1.0 } else { 0.0 }, Motion::REVEAL);
     if shown > 0.0 {
         let l = ui.layout(b.label(playing), &theme::CAPTION, &TextOpts::default());
-        let at = Point::new(rect.center().x - l.size.w / 2.0, rect.bottom() + LABEL_GAP);
+        let x = (rect.center().x - l.size.w / 2.0).min(theme::CANVAS_W - theme::SAFE_X - l.size.w).max(theme::SAFE_X);
+        let at = Point::new(x, rect.bottom() + LABEL_GAP);
         ui.opacity(shown, |ui| ui.draw_text(at, l, theme::FG));
     }
     r

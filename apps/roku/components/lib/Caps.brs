@@ -107,41 +107,45 @@ function capsLines(report as object) as object
     display = httpObject(report.display)
     if display <> invalid
         rates = httpArray(display.refresh_rates)
-        line = "Display: " + urlValue(display.width) + "×" + urlValue(display.height)
-        if rates.Count() > 0 then line = line + " at " + urlValue(rates[0]) + " Hz"
-        lines.Push(line)
+        size = urlValue(display.width) + "×" + urlValue(display.height)
+        if rates.Count() > 0
+            lines.Push(t("player.caps.displayRate", { size: size, rate: urlValue(rates[0]) }))
+        else
+            lines.Push(t("player.caps.display", { size: size }))
+        end if
     end if
     hdr = []
     for each kind in httpArray(report.hdr_types)
         hdr.Push(capsHdrName(kind))
     end for
-    if hdr.Count() = 0 then hdr.Push("none")
-    lines.Push("HDR: " + hdr.Join(", "))
+    if hdr.Count() = 0 then hdr.Push(t("player.caps.none"))
+    lines.Push(t("player.caps.hdr", { list: hdr.Join(", ") }))
     profiles = []
     for each entry in httpArray(report.dolby_vision_profiles)
         profiles.Push(urlValue(entry.profile))
     end for
-    if profiles.Count() > 0 then lines.Push("Dolby Vision: profiles " + profiles.Join(", "))
+    if profiles.Count() > 0 then lines.Push(t("player.caps.dolbyVision", { list: profiles.Join(", ") }))
     video = []
+    tenBit = t("player.media.bits", { n: 10 })
     for each entry in httpArray(report.video)
         text = capsCodecName(entry.codec) + " " + urlValue(entry.max_width) + "×" + urlValue(entry.max_height)
-        if httpNumber(entry.max_bit_depth, 8) >= 10 then text = text + " 10-bit"
+        if httpNumber(entry.max_bit_depth, 8) >= 10 then text = text + " " + tenBit
         video.Push(text)
     end for
-    lines.Push("Video: " + video.Join(", "))
-    lines.Push("Audio decoded: " + httpArray(report.audio_decode).Join(", "))
+    lines.Push(t("player.caps.video", { list: video.Join(", ") }))
+    lines.Push(t("player.caps.audioDecoded", { list: httpArray(report.audio_decode).Join(", ") }))
     passthrough = httpArray(report.audio_passthrough)
-    sent = "nothing"
+    sent = t("player.caps.nothing")
     if passthrough.Count() > 0 then sent = passthrough.Join(", ")
-    lines.Push("Sent to the receiver: " + sent)
-    sound = "Stereo"
-    if httpNumber(report.audio_channels, 2) > 2 then sound = "Surround (5.1)"
-    lines.Push("Sound: " + sound)
+    lines.Push(t("player.caps.sent", { list: sent }))
+    sound = t("player.media.stereo")
+    if httpNumber(report.audio_channels, 2) > 2 then sound = t("player.caps.surround")
+    lines.Push(t("player.caps.sound", { sound: sound }))
     if httpTrue(report.picture_subtitles_sideload) and capsListed(httpArray(report.subtitle_codecs), "hdmv_pgs_subtitle")
-        lines.Push("Picture subtitles: PGS drawn here, VobSub and DVB burned in")
+        lines.Push(t("player.caps.pictures"))
     end if
-    lines.Push("Containers: " + httpArray(report.containers).Join(", "))
-    lines.Push("Streams: HLS, in several sizes")
+    lines.Push(t("player.caps.containers", { list: httpArray(report.containers).Join(", ") }))
+    lines.Push(t("player.caps.streams"))
     return lines
 end function
 

@@ -1153,6 +1153,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-player",
  "pley-shell",
@@ -1166,6 +1167,7 @@ dependencies = [
  "flate2",
  "httparse",
  "pley-base",
+ "pley-i18n",
  "ring",
  "rustls",
  "serde",
@@ -1209,6 +1211,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-item",
  "pley-kit",
  "pley-shell",
@@ -1225,12 +1228,28 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-gfx",
+ "pley-i18n",
  "pley-platform",
  "pley-player",
  "pley-shell",
  "pley-text",
  "pley-ui",
  "pley-webos",
+]
+
+[[package]]
+name = "pley-i18n"
+version = "0.0.0"
+dependencies = [
+ "pley-i18n-macros",
+ "serde_json",
+]
+
+[[package]]
+name = "pley-i18n-macros"
+version = "0.0.0"
+dependencies = [
+ "serde_json",
 ]
 
 [[package]]
@@ -1242,6 +1261,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-player",
  "pley-requests",
@@ -1254,6 +1274,7 @@ name = "pley-kit"
 version = "0.0.0"
 dependencies = [
  "pley-base",
+ "pley-i18n",
  "pley-ui",
  "qrcodegen",
 ]
@@ -1289,6 +1310,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-player",
  "pley-shell",
@@ -1302,6 +1324,7 @@ dependencies = [
  "flate2",
  "pley-core",
  "pley-fixtures",
+ "pley-i18n",
  "pley-player",
  "pley-subs",
 ]
@@ -1315,6 +1338,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-player",
  "pley-shell",
@@ -1330,6 +1354,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-shell",
  "pley-ui",
@@ -1355,6 +1380,7 @@ dependencies = [
  "pley-base",
  "pley-core",
  "pley-fixtures",
+ "pley-i18n",
  "pley-local",
  "pley-subs",
  "serde",
@@ -1371,6 +1397,7 @@ dependencies = [
  "pley-fixtures",
  "pley-gfx",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-platform",
  "pley-player",
@@ -1390,6 +1417,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-live",
  "pley-shell",
@@ -1405,6 +1433,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-requests",
  "pley-shell",
@@ -1420,6 +1449,7 @@ dependencies = [
  "pley-core",
  "pley-fixtures",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-player",
  "pley-shell",
@@ -1434,6 +1464,7 @@ dependencies = [
  "pley-base",
  "pley-core",
  "pley-fixtures",
+ "pley-i18n",
  "pley-kit",
  "pley-local",
  "pley-player",
@@ -1449,6 +1480,7 @@ dependencies = [
  "pley-base",
  "pley-core",
  "pley-host",
+ "pley-i18n",
  "pley-kit",
  "pley-local",
  "pley-shell",
@@ -1460,6 +1492,7 @@ name = "pley-subs"
 version = "0.0.0"
 dependencies = [
  "pley-base",
+ "pley-i18n",
 ]
 
 [[package]]
@@ -1491,6 +1524,7 @@ dependencies = [
  "libloading",
  "pley-base",
  "pley-core",
+ "pley-i18n",
  "pley-platform",
  "serde_json",
 ]

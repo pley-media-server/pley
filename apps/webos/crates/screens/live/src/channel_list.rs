@@ -7,6 +7,7 @@
 use pley_base::{Color, Icon, Point, Rect, TextOpts};
 use pley_core::model::{LiveCategory, LiveChannel, LiveGroups};
 use pley_core::store::snapshot_keys;
+use pley_i18n::t;
 use pley_kit::{Keyboard, KeyboardState, SidePanel, TextEdit, TextField};
 use pley_player::live::data::{channel_name, split_region};
 use pley_player::live::{Category, ChannelPages};
@@ -183,7 +184,8 @@ impl ChannelList {
         }
         if self.typing {
             let kb = id.with("keyboard");
-            let r = Keyboard::new().action_label("Search").show(ui, kb, &mut self.keyboard, &mut self.search);
+            let label = t!("livetv.page.search");
+            let r = Keyboard::new().action_label(label).show(ui, kb, &mut self.keyboard, &mut self.search);
             if r.done || r.closed {
                 self.typing = false;
             }
@@ -239,7 +241,7 @@ impl ChannelList {
             ui.icon(Rect::new(hx, heading.y + 8.0, 18.0, 18.0), Icon::Star, content);
             hx += 26.0;
         }
-        let label = if self.picking { "Channel groups".to_string() } else { list_label(&self.shown) };
+        let label = if self.picking { t!("livetv.player.channelGroups").to_string() } else { list_label(&self.shown) };
         let room = heading.right() - 8.0 - hx - if self.picking { 0.0 } else { 26.0 };
         let w = line_mid(ui, &label, &theme::TITLE, hx, heading.y, heading.h, room, content);
         if !self.picking {
@@ -287,7 +289,7 @@ impl ChannelList {
 
         let field_id = id.with("search");
         let field = TextField::new(&self.search.text, area.w)
-            .placeholder("Search channels")
+            .placeholder(t!("livetv.player.searchChannels"))
             .icon(Icon::Search)
             .typing(self.typing);
         let fr = field.show(ui, field_id, Point::new(area.x, top));
@@ -315,7 +317,7 @@ impl ChannelList {
         if pages.total() == Some(0) {
             ui.text(
                 Point::new(view.x + 8.0, view.y + 8.0),
-                "No channels in this group.",
+                t!("livetv.page.noMatch"),
                 &theme::LABEL,
                 &TextOpts::line(view.w - 16.0),
                 theme::SUBTLE,
@@ -373,9 +375,9 @@ impl ChannelList {
 /// The heading's words for a category (`categoryLabel`).
 pub fn list_label(c: &Category) -> String {
     match c {
-        Category::All | Category::Search(_) => "All channels".into(),
-        Category::Favorites => "Favourites".into(),
-        Category::Recent => "Recently watched".into(),
+        Category::All | Category::Search(_) => t!("livetv.categories.all").into(),
+        Category::Favorites => t!("livetv.categories.favorites").into(),
+        Category::Recent => t!("livetv.categories.recent").into(),
         Category::Group(name) => match split_region(name) {
             Some((region, label)) => format!("{region} · {label}"),
             None => name.clone(),
@@ -447,5 +449,9 @@ mod tests {
         assert_eq!(list_label(&Category::Favorites), "Favourites");
         assert_eq!(list_label(&Category::Group("UK| Sport".into())), "UK · Sport");
         assert_eq!(list_label(&Category::Group("Kids".into())), "Kids");
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            assert_eq!(list_label(&Category::All), "Toutes les chaînes");
+            assert_eq!(list_label(&Category::Group("UK| Sport".into())), "UK · Sport");
+        });
     }
 }

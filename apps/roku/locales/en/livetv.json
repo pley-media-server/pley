@@ -1,0 +1,124 @@
+{
+  "title": "Live TV",
+  "tabs": {
+    "guide": "Guide",
+    "channels": "Channels"
+  },
+  "categories": {
+    "title": "Categories",
+    "all": "All channels",
+    "favourites": "Favourites",
+    "recent": "Recently watched",
+    "regions": "Regions",
+    "groups": "Groups",
+    "moreGroups": "More groups",
+    "noGroup": "No group",
+    "region_one": "{{region}}  ·  {{count, number}} group",
+    "region_other": "{{region}}  ·  {{count, number}} groups",
+    "resultsFor": "Results for “{{search}}”"
+  },
+  "search": {
+    "rail": "Search",
+    "railWith": "Search: “{{search}}”",
+    "title": "Search Live TV",
+    "prompt": "Channels, groups and what's on",
+    "search": "Search",
+    "clear": "Clear",
+    "channelsTitle": "Search channels",
+    "channelsPrompt": "Channels and what's on"
+  },
+  "page": {
+    "notOpen": "Live TV isn't open to this account.",
+    "notOpenHint": "An administrator can open it on the web, in Settings → Live TV.",
+    "noChannels": "No channels yet.",
+    "noChannelsHint": "Channels appear here once an administrator adds an IPTV provider on the web, in Settings → Live TV.",
+    "loadingGuide": "Loading the guide…",
+    "channelCount_one": "{{count, number}} channel",
+    "channelCount_other": "{{count, number}} channels",
+    "noMatch": "No channel's name, number or programme on now has “{{search}}” in it.",
+    "noFavourites": "No favourites yet: the Options key (*) on a channel adds it.",
+    "nothingWatched": "Nothing watched yet.",
+    "empty": "No channels here.",
+    "guideHint": "OK: watch   ·   Options (*): favourite   ·   Rewind and fast forward: earlier and later   ·   Play: now   ·   Replay: search",
+    "cardsHint": "OK: watch   ·   Options (*): favourite   ·   Replay: search"
+  },
+  "channelRange": "Channels {{from, number}}–{{to, number}} of {{total, number}}",
+  "unnamedChannel": "Channel {{id}}",
+  "nothingNow": "Nothing in the guide now",
+  "noGuide": "No guide",
+  "noGuideHere": "No guide for this channel",
+  "guide": {
+    "noInformation": "No guide information",
+    "noGuide": "This channel has no guide",
+    "onNow": "On now"
+  },
+  "program": {
+    "untitled": "Untitled",
+    "live": "Live",
+    "new": "New"
+  },
+  "time": {
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday",
+    "days": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    },
+    "dayAndTime": "{{day}} {{time}}",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "hoursLeft_one": "{{count}} h left",
+    "hoursLeft_other": "{{count}} h left",
+    "hoursMinutesLeft": "{{hours}} h {{minutes}} min left"
+  },
+  "options": {
+    "watch": "Watch {{name}}"
+  },
+  "favourites": {
+    "add": "Add to favourites",
+    "remove": "Remove from favourites",
+    "added": "{{name}} is in your favourites",
+    "removed": "{{name}} is out of your favourites",
+    "mark": "Favourite"
+  },
+  "player": {
+    "tuning": "Tuning…",
+    "radio": "Radio",
+    "next": "Next   {{time}}   {{title}}",
+    "bannerHint": "Up and down: channels   ·   Left: {{category}}   ·   Options (*): favourite   ·   OK: close",
+    "listHint": "OK: watch   ·   Options (*): favourite   ·   Back: close",
+    "listMoreHint": "Left: categories   ·   Replay: search",
+    "categoriesHint": "OK: its channels   ·   Back: the channels",
+    "stalled": "It stopped and couldn't get going again.",
+    "channelStopped": "{{channel}} stopped",
+    "watchAgain": "Watch again",
+    "otherChannels": "Other channels",
+    "watchHere": "Watch here instead",
+    "watchHereFor": "Watch here instead of {{channel}}"
+  },
+  "trouble": {
+    "busy": "All connections are in use",
+    "didntStart": "{{channel}} didn't start",
+    "notPlaying": "{{channel}} isn't playing",
+    "gone": "This channel isn't here any more",
+    "goneHint": "It may have been hidden, or its source removed.",
+    "notOpen": "Live TV isn't open to this account",
+    "notOpenHint": "An administrator can open it in Settings → Live TV, on the web.",
+    "stopped": "Live TV stopped",
+    "notWatched": "This channel isn't being watched any more.",
+    "stoppedByAdmin": "Live TV was stopped by the server's administrator.",
+    "stoppedElsewhere": "Live TV was stopped from another device.",
+    "you": "You, on another device",
+    "someoneElse": "Someone else",
+    "people_one": "{{count, number}} person",
+    "people_other": "{{count, number}} people",
+    "connectionsWatching_one": "Its one connection is watching:",
+    "connectionsWatching_other": "Its {{count, number}} connections are watching:",
+    "joinHint": "A channel already being watched can be joined, or try again once one is stopped."
+  }
+}

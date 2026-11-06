@@ -8,6 +8,7 @@ use pley_base::Icon;
 use pley_core::model::{ItemDetail, ItemKind, ItemSummary};
 use pley_core::store::snapshot_keys;
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{
     Action, ActionSheet, Backdrop, BackdropArt, BackdropScrim, BackdropState, Heading, List, ListRow, ListState,
     SidePanel, backdrop_px,
@@ -15,7 +16,7 @@ use pley_kit::{
 use pley_shell::{AppCx, AppEvent, Chrome, Load, Overlay, PlayRequest, Resource, Route, Screen};
 use pley_ui::Ui;
 
-use crate::common::{self, ArtKind, Change, NOTHING_TO_PLAY};
+use crate::common::{self, ArtKind, Change, nothing_to_play};
 use crate::page;
 use crate::words;
 
@@ -42,18 +43,18 @@ impl ItemAction {
     /// What its row says.
     pub fn label(self) -> &'static str {
         match self {
-            ItemAction::Open => "Open",
-            ItemAction::Resume => "Resume",
-            ItemAction::FromStart => "Play from start",
-            ItemAction::Play => "Play",
-            ItemAction::MarkWatched => "Mark as watched",
-            ItemAction::MarkUnwatched => "Mark as unwatched",
-            ItemAction::RemoveFromContinueWatching => "Remove from Continue Watching",
-            ItemAction::AddToMyList => "Add to My List",
-            ItemAction::RemoveFromMyList => "Remove from My List",
-            ItemAction::AddToPlaylist => "Add to playlist",
-            ItemAction::GoToShow => "Go to show",
-            ItemAction::GoToSeason => "Go to season",
+            ItemAction::Open => t!("item.actions.open"),
+            ItemAction::Resume => t!("item.hero.resume"),
+            ItemAction::FromStart => t!("item.actions.playFromStart"),
+            ItemAction::Play => t!("item.hero.play"),
+            ItemAction::MarkWatched => t!("item.hero.markWatched"),
+            ItemAction::MarkUnwatched => t!("item.hero.markUnwatched"),
+            ItemAction::RemoveFromContinueWatching => t!("item.actions.removeFromContinueWatching"),
+            ItemAction::AddToMyList => t!("item.hero.addToMyList"),
+            ItemAction::RemoveFromMyList => t!("item.actions.removeFromMyList"),
+            ItemAction::AddToPlaylist => t!("item.hero.addToPlaylist"),
+            ItemAction::GoToShow => t!("item.actions.goToShow"),
+            ItemAction::GoToSeason => t!("item.actions.goToSeason"),
         }
     }
 
@@ -238,7 +239,7 @@ impl TileActions {
         let Some(shown) = &self.shown else { return };
         match effect(action, &shown.item) {
             Effect::Open(route) => cx.push(route),
-            Effect::Play(_) if shown.no_files => cx.toast(NOTHING_TO_PLAY),
+            Effect::Play(_) if shown.no_files => cx.toast(nothing_to_play()),
             Effect::Play(request) => cx.play(request),
             Effect::PlayNext { id, from_start } => {
                 self.next = Some(NextEpisode { answer: cx.spawn(move |api| api.on_deck(id)), from_start });
@@ -292,9 +293,9 @@ impl TileActions {
         self.next = None;
         match next {
             Some(Ok(Some(e))) => cx.play(common::play_request(e.id, from_start)),
-            Some(Ok(None)) => cx.toast(NOTHING_TO_PLAY),
+            Some(Ok(None)) => cx.toast(nothing_to_play()),
             Some(Err(e)) => cx.toast_error(e.problem()),
-            None => cx.toast_error("The request stopped."),
+            None => cx.toast_error(t!("item.states.requestStopped")),
         }
     }
 }
@@ -400,7 +401,7 @@ impl ItemActionsScreen {
             self.next_known = match p.take() {
                 Some(Ok(next)) => Some(Ok(next)),
                 Some(Err(e)) => Some(Err(e.problem())),
-                None => Some(Err("The request stopped.".to_string())),
+                None => Some(Err(t!("item.states.requestStopped").to_string())),
             };
             self.next = None;
         }
@@ -444,7 +445,7 @@ impl ItemActionsScreen {
             }
             Effect::Play(_) if no_files => {
                 cx.pop();
-                cx.toast(NOTHING_TO_PLAY);
+                cx.toast(nothing_to_play());
             }
             Effect::Play(request) => {
                 cx.pop();
@@ -468,7 +469,7 @@ fn play_next(cx: &mut AppCx, next: Result<Option<ItemSummary>, String>, from_sta
     cx.pop();
     match next {
         Ok(Some(e)) => cx.play(common::play_request(e.id, from_start)),
-        Ok(None) => cx.toast(NOTHING_TO_PLAY),
+        Ok(None) => cx.toast(nothing_to_play()),
         Err(why) => cx.toast_error(why),
     }
 }
@@ -479,9 +480,10 @@ impl Screen for ItemActionsScreen {
         let root = ui.scope_id();
         let Some(sheet) = &self.sheet else {
             if let Load::Failed { error, .. } = self.detail.state() {
-                let title = common::failed_title(error, "Couldn't load this item");
+                let title = common::failed_title(error, t!("item.states.failed"));
                 let body = error.problem();
-                if common::message(ui, root.with("message"), Icon::CircleAlert, title, &body, "Back").activated {
+                let back = t!("item.states.back");
+                if common::message(ui, root.with("message"), Icon::CircleAlert, title, &body, back).activated {
                     cx.back();
                 }
             }

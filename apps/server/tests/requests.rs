@@ -931,6 +931,93 @@ async fn failures_say_why_and_approving_again_retries() {
 }
 
 #[tokio::test]
+async fn pleys_own_words_on_requests_are_in_each_managers_language() {
+    const ENGLISH: &str = "Radarr refused: Root folder is not writable";
+    const FRENCH: &str = "Radarr a refusé\u{a0}: Root folder is not writable";
+    const SPANISH: &str = "Radarr lo rechazó: Root folder is not writable";
+    let w = world().await;
+    w.turn_on(json!({})).await;
+    // Another administrator, who reads Spanish on any device.
+    let (eva, _) = w.app.user(&w.admin, "eva", json!({"is_admin": true})).await;
+    let chosen = w.app.patch("/api/me", &eva, json!({"language": "es"})).await;
+    assert_eq!(chosen.status, StatusCode::OK, "{}", chosen.text());
+    // The first one on a French device, and on a German one: the server
+    // language there, English.
+    let mut french = events_in(&w.app, &w.admin, Some("fr-FR,fr;q=0.9")).await;
+    let mut german = events_in(&w.app, &w.admin, Some("de-DE")).await;
+    let mut spanish = events_in(&w.app, &eva, Some("fr")).await;
+
+    *w.services.refusals.lock() = 1;
+    let asked = w.ask(&w.ann, json!({"kind": "movie", "tmdb_id": 604})).await;
+    let id = asked.body["id"].as_i64().unwrap();
+    let approved = w.app.post(&format!("/api/requests/{id}/approve"), &w.admin, json!({})).await;
+    assert_eq!(status(&approved), (StatusCode::OK, "approved".to_owned()));
+    w.app.state.requests.settled().await;
+    w.app.state.events.send(ServerEvent::LibrariesChanged);
+    // Each stream hears it once, Pley's words in its language and
+    // Radarr's as Radarr said them.
+    for (stream, reason) in [(&mut french, FRENCH), (&mut german, ENGLISH), (&mut spanish, SPANISH)] {
+        let heard = heard(stream).await;
+        assert_eq!(heard.matches(r#""type":"request_failed""#).count(), 1, "{heard}");
+        assert!(heard.contains(&format!(r#""reason":"{reason}""#)), "{heard}");
+    }
+
+    // The request reads the same way: the account's language, else the
+    // device's, else the server language.
+    let uri = format!("/api/requests/{id}");
+    let read = w.app.call(Method::GET, &uri, Some(&w.admin), None, &[("accept-language", "fr")]).await;
+    assert_eq!(read.body["reason"], json!(FRENCH), "{}", read.text());
+    assert_eq!(w.app.get(&uri, &eva).await.body["reason"], json!(SPANISH));
+    let list =
+        w.app.call(Method::GET, "/api/requests?status=failed", Some(&eva), None, &[("accept-language", "fr")]).await;
+    assert_eq!(list.body["requests"][0]["reason"], json!(SPANISH), "{}", list.text());
+    assert_eq!(w.app.get(&uri, &w.admin).await.body["reason"], json!(ENGLISH));
+    let saved = w.app.put("/api/settings", &w.admin, json!({"language": "fr"})).await;
+    assert_eq!(saved.status, StatusCode::OK, "{}", saved.text());
+    assert_eq!(w.app.get(&uri, &w.admin).await.body["reason"], json!(FRENCH));
+    // Words kept before Pley kept what happened stay as they were.
+    sqlx::query("UPDATE requests SET reason = 'Radarr refused: Movie exists' WHERE id = ?")
+        .bind(id)
+        .execute(&w.app.state.db.write)
+        .await
+        .unwrap();
+    assert_eq!(w.app.get(&uri, &eva).await.body["reason"], json!("Radarr refused: Movie exists"));
+
+    // A key Radarr refuses, a request added by hand, and Sonarr where
+    // nothing answers.
+    let reply = w.app.put("/api/settings", &w.admin, json!({"radarr_api_key": "wrong"})).await;
+    assert_eq!(reply.status, StatusCode::OK);
+    let asked = w.ask(&w.ann, json!({"kind": "movie", "tmdb_id": 605})).await;
+    let id = asked.body["id"].as_i64().unwrap();
+    w.app.post(&format!("/api/requests/{id}/approve"), &w.admin, json!({})).await;
+    w.app.state.requests.settled().await;
+    let uri = format!("/api/requests/{id}");
+    assert_eq!(w.app.get(&uri, &w.admin).await.body["reason"], json!("Radarr a refusé la clé d’API"));
+    assert_eq!(w.app.get(&uri, &eva).await.body["reason"], json!("Radarr rechazó la clave de API"));
+    let handled = w.app.post(&format!("/api/requests/{id}/handled"), &eva, json!({})).await;
+    assert_eq!(handled.body["note"], json!("Añadido a mano"), "{}", handled.text());
+    let english = w.app.call(Method::GET, &uri, Some(&w.admin), None, &[("accept-language", "en")]).await;
+    assert_eq!(english.body["note"], json!("Added by hand"));
+    let moved =
+        w.app.put("/api/settings", &w.admin, json!({"sonarr_url": "http://127.0.0.1:9", "sonarr_api_key": "k"})).await;
+    assert_eq!(moved.status, StatusCode::OK, "{}", moved.text());
+    let options = w.app.get("/api/requests/options", &eva).await;
+    assert_eq!(options.body["sonarr"]["error"], json!("Sonarr no responde"), "{}", options.text());
+    let options = w.app.get("/api/requests/options", &w.admin).await;
+    assert_eq!(options.body["sonarr"]["error"], json!("Sonarr ne répond pas"));
+    // A send that can't reach Radarr says so the same way.
+    let moved =
+        w.app.put("/api/settings", &w.admin, json!({"radarr_url": "http://127.0.0.1:9", "radarr_api_key": "k"})).await;
+    assert_eq!(moved.status, StatusCode::OK, "{}", moved.text());
+    let asked = w.ask(&w.admin, json!({"kind": "movie", "tmdb_id": 606})).await;
+    assert_eq!(status(&asked), (StatusCode::CREATED, "approved".to_owned()), "{}", asked.text());
+    w.app.state.requests.settled().await;
+    let uri = format!("/api/requests/{}", asked.body["id"]);
+    assert_eq!(w.app.get(&uri, &w.admin).await.body["reason"], json!("Radarr ne répond pas"));
+    assert_eq!(w.app.get(&uri, &eva).await.body["reason"], json!("Radarr no responde"));
+}
+
+#[tokio::test]
 async fn a_send_cut_short_is_made_again_as_it_was_approved() {
     let w = world().await;
     w.turn_on(json!({})).await;
@@ -1491,11 +1578,17 @@ async fn apps_ask_with_requests_and_manage_with_approvals() {
 
 /// `/api/events` as `token`'s account hears it.
 async fn events(app: &TestApp, token: &str) -> BodyDataStream {
-    let request = axum::http::Request::builder()
-        .uri("/api/events")
-        .header("authorization", format!("Bearer {token}"))
-        .body(axum::body::Body::empty())
-        .unwrap();
+    events_in(app, token, None).await
+}
+
+/// The same, on a device that asks for `accept_language`.
+async fn events_in(app: &TestApp, token: &str, accept_language: Option<&str>) -> BodyDataStream {
+    let mut request =
+        axum::http::Request::builder().uri("/api/events").header("authorization", format!("Bearer {token}"));
+    if let Some(language) = accept_language {
+        request = request.header("accept-language", language);
+    }
+    let request = request.body(axum::body::Body::empty()).unwrap();
     let response = tower::ServiceExt::oneshot(app.api.clone(), request).await.unwrap();
     assert_eq!(response.status(), StatusCode::OK);
     response.into_body().into_data_stream()

@@ -9,6 +9,7 @@
 //! top and bottom.
 
 use pley_base::{Icon, Key, Point, Rect, Size, TextOpts};
+use pley_i18n::t;
 use pley_ui::theme::{self, radius};
 use pley_ui::{Group, Id, Motion, Ui};
 
@@ -157,13 +158,13 @@ pub struct Dialog<'a> {
     title: &'a str,
     body: &'a str,
     buttons: &'a [DialogButton<'a>],
+    /// A text to read's Close, in place of `buttons`.
+    close: Option<DialogButton<'a>>,
     initial: usize,
     reading: bool,
     /// A width of its own (a short question's narrow card), else as wide as its content.
     width: Option<f32>,
 }
-
-const CLOSE: [DialogButton<'static>; 1] = [DialogButton { label: "Close", danger: false }];
 
 impl<'a> Dialog<'a> {
     /// The least width.
@@ -173,13 +174,14 @@ impl<'a> Dialog<'a> {
 
     /// A dialog titled `title` (padding 24; its text in `Tv.Body` Muted, 8 below the title).
     pub fn new(title: &'a str) -> Dialog<'a> {
-        Dialog { title, body: "", buttons: &[], initial: 0, reading: false, width: None }
+        Dialog { title, body: "", buttons: &[], close: None, initial: 0, reading: false, width: None }
     }
 
     /// A text to read (a title's full summary): padding 28, the text in `Tv.BodyLarge` at Fg 85 %
     /// 16 below the title, keeping its line breaks, and a Close button.
     pub fn reading(title: &'a str, text: &'a str) -> Dialog<'a> {
-        Dialog { title, body: text, buttons: &CLOSE, initial: 0, reading: true, width: None }
+        let close = Some(DialogButton::new(t!("common.actions.close")));
+        Dialog { title, body: text, buttons: &[], close, initial: 0, reading: true, width: None }
     }
 
     /// Its text.
@@ -189,7 +191,15 @@ impl<'a> Dialog<'a> {
 
     /// Its buttons, left to right.
     pub fn buttons(self, buttons: &'a [DialogButton<'a>]) -> Dialog<'a> {
-        Dialog { buttons, ..self }
+        Dialog { buttons, close: None, ..self }
+    }
+
+    /// The buttons it shows.
+    fn shown_buttons(&self) -> &[DialogButton<'a>] {
+        match &self.close {
+            Some(close) => std::slice::from_ref(close),
+            None => self.buttons,
+        }
     }
 
     /// The button focused first.
@@ -220,8 +230,9 @@ impl<'a> Dialog<'a> {
         let opts = TextOpts { max_lines: 0, ..TextOpts::wrap(inner_max, 0) };
         let title = ui.measure(self.title, &theme::TITLE, &TextOpts::wrap(inner_max, 0));
         let body = if self.body.is_empty() { Size::ZERO } else { ui.measure(self.body, &style, &opts) };
-        let buttons: f32 = self.buttons.iter().map(|b| Button::text(b.label).size(ui).w).sum::<f32>()
-            + 12.0 * self.buttons.len().saturating_sub(1) as f32;
+        let shown = self.shown_buttons();
+        let buttons: f32 = shown.iter().map(|b| Button::text(b.label).size(ui).w).sum::<f32>()
+            + 12.0 * shown.len().saturating_sub(1) as f32;
         let w = self.width.unwrap_or_else(|| {
             (title.w.max(body.w).max(buttons) + 2.0 * pad).clamp(Dialog::MIN_WIDTH, Dialog::MAX_WIDTH)
         });
@@ -229,7 +240,7 @@ impl<'a> Dialog<'a> {
         let title_h = ui.measure(self.title, &theme::TITLE, &TextOpts::wrap(inner, 0)).h;
         let body_h =
             if self.body.is_empty() { 0.0 } else { gap + ui.measure(self.body, &style, &TextOpts::wrap(inner, 0)).h };
-        let buttons_h = if self.buttons.is_empty() { 0.0 } else { 16.0 + theme::BUTTON_HEIGHT };
+        let buttons_h = if shown.is_empty() { 0.0 } else { 16.0 + theme::BUTTON_HEIGHT };
         let h = pad + title_h + body_h + buttons_h + pad;
         Rect::new((theme::CANVAS_W - w) / 2.0, (theme::CANVAS_H - h) / 2.0, w, h)
     }
@@ -266,7 +277,8 @@ impl<'a> Dialog<'a> {
                 y += gap;
                 ui.text(Point::new(rect.x + pad, y), self.body, &style, &TextOpts::wrap(inner, 0), color);
             }
-            if self.buttons.is_empty() {
+            let shown = self.shown_buttons();
+            if shown.is_empty() {
                 return;
             }
             let by = rect.bottom() - pad - theme::BUTTON_HEIGHT;
@@ -274,11 +286,11 @@ impl<'a> Dialog<'a> {
                 // A trap with nothing in it would hold focus nowhere: none while drawn inert.
                 let group = if is_inert() { Group::free() } else { bar_group().trap() };
                 ui.group(id, group, |ui| {
-                    let widths: Vec<f32> = self.buttons.iter().map(|b| Button::text(b.label).size(ui).w).collect();
+                    let widths: Vec<f32> = shown.iter().map(|b| Button::text(b.label).size(ui).w).collect();
                     let total: f32 = widths.iter().sum::<f32>() + 12.0 * (widths.len() - 1) as f32;
                     let mut x = rect.right() - pad - total;
                     let mut chosen = None;
-                    for (i, b) in self.buttons.iter().enumerate() {
+                    for (i, b) in shown.iter().enumerate() {
                         let bid = ui.id(i);
                         if i == self.initial {
                             ui.initial_focus(bid);

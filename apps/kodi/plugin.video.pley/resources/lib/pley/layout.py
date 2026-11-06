@@ -14,6 +14,22 @@ from collections import namedtuple
 
 WIDTH, HEIGHT = 1920, 1080
 
+# The add-on's words the windows' XML draws (strings.po ids). Kodi's own
+# $ADDON[] would draw them in Kodi's language: each is a Home window
+# property instead, which the add-on fills in the language shown
+# (kodi.show_words) and fills again when it changes.
+WORDS = (
+    30003, 30004, 30005, 30019, 30020, 30021, 30027, 30100, 30101, 30102, 30103, 30104, 30105, 30106, 30107, 30109,
+    30110, 30111, 30171, 30172, 30174, 30175, 30176, 30177, 30178, 30180, 30207, 30214, 30219, 30247, 30257,
+)
+
+
+def word(id_: int) -> str:
+    """The label that draws the words of `id_` (one of WORDS)."""
+    if id_ not in WORDS:
+        raise ValueError("%d isn't one of layout.WORDS" % id_)
+    return "$INFO[Window(Home).Property(pley.word.%d)]" % id_
+
 # pley's colours (PleyColors.kt), as Kodi writes them: AARRGGBB.
 BG = "FF0B0D10"
 SURFACE = "FF12151A"

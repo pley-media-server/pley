@@ -1,0 +1,33 @@
+{
+  "facts": {
+    "model": "Modelo",
+    "system": "Sistema",
+    "firmware": "Firmware",
+    "tier": "Nivel",
+    "savedData": "Datos guardados",
+    "lostOnRestart": "Se pierden al reiniciar la TV"
+  },
+  "tiers": {
+    "low": "bajo",
+    "mid": "medio",
+    "high": "alto"
+  },
+  "lines": {
+    "tv": "TV: {{model}}",
+    "tvFirmware": "TV: {{model}} (firmware {{firmware}})",
+    "webosRelease": "webOS {{version}} · versión {{release}}",
+    "panel": "Panel: {{panel}}",
+    "hdr": "HDR: {{formats}}",
+    "none": "ninguno",
+    "dolbyVision": "Dolby Vision: perfiles {{profiles}}, en {{containers}}",
+    "video": "Video: {{decoders}}",
+    "audioDecoded": "Audio decodificado: {{formats}}",
+    "sent": "Enviado al receptor: {{formats}}",
+    "nothing": "nada",
+    "sound": "Sonido: {{output}}",
+    "digital": "{{output}} (digital {{digital}})",
+    "unknown": "desconocida",
+    "streams": "Flujos: HLS {{segments}}",
+    "pipeline": "Decodificadores del pipeline: {{video}}; {{audio}}"
+  }
+}

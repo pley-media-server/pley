@@ -16,6 +16,7 @@
 //! signed in to the fake server; the `fixture_server` example runs a fake server whose codes are
 //! approved, declined or never answered, for the code screen (`--server <its address>`).
 
+pub mod globe;
 pub mod kit;
 pub mod link;
 pub mod profiles;

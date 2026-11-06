@@ -5,6 +5,7 @@
 //! in `TvHomeParts.kt`) strings a title's facts together with "·".
 
 use pley_base::{Color, Icon, Point, Rect, Size};
+use pley_i18n::t;
 use pley_ui::Ui;
 use pley_ui::theme::{self, radius};
 
@@ -45,17 +46,17 @@ impl<'a> Badge<'a> {
 
     /// "LIVE".
     pub fn live() -> Badge<'static> {
-        Badge::new("LIVE", BadgeStyle::Live)
+        Badge::new(t!("common.badges.live"), BadgeStyle::Live)
     }
 
     /// "ON NOW".
     pub fn on_now() -> Badge<'static> {
-        Badge::new("ON NOW", BadgeStyle::Live)
+        Badge::new(t!("common.badges.onNow"), BadgeStyle::Live)
     }
 
     /// "NEW".
     pub fn new_programme() -> Badge<'static> {
-        Badge::new("NEW", BadgeStyle::New)
+        Badge::new(t!("common.badges.new"), BadgeStyle::New)
     }
 
     fn padding(&self) -> (f32, f32) {

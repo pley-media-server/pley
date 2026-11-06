@@ -1,0 +1,273 @@
+{
+  "names": {
+    "discover": "Descubrir",
+    "yours": "Tus solicitudes",
+    "manage": "Solicitudes"
+  },
+  "kind": {
+    "movie": "Película",
+    "show": "Serie"
+  },
+  "quoted": "«{{text}}»",
+  "credit": "Información e imágenes de TMDB.",
+  "following": "Siguiendo",
+  "counts": {
+    "movies_one": "{{count, number}} película",
+    "movies_many": "{{count, number}} películas",
+    "movies_other": "{{count, number}} películas",
+    "seasons_one": "{{count, number}} temporada",
+    "seasons_many": "{{count, number}} temporadas",
+    "seasons_other": "{{count, number}} temporadas",
+    "episodes_one": "{{count, number}} episodio",
+    "episodes_many": "{{count, number}} episodios",
+    "episodes_other": "{{count, number}} episodios",
+    "requests_one": "{{count, number}} solicitud",
+    "requests_many": "{{count, number}} solicitudes",
+    "requests_other": "{{count, number}} solicitudes"
+  },
+  "badge": {
+    "library": "En la biblioteca",
+    "partial": "Parcialmente",
+    "requested": "Solicitado",
+    "declined": "Rechazado"
+  },
+  "allowance": {
+    "canAsk": "Puedes solicitar {{what}}.",
+    "canAskBoth": "Puedes solicitar {{movies}} y {{seasons}}.",
+    "canAskMoviesSeasonsLater": "Puedes solicitar {{movies}}, y más temporadas {{when}}.",
+    "canAskMoviesNoSeasons": "Puedes solicitar {{movies}}, pero no más temporadas por ahora.",
+    "canAskSeasonsMoviesLater": "Puedes solicitar {{seasons}}, y más películas {{when}}.",
+    "canAskSeasonsNoMovies": "Puedes solicitar {{seasons}}, pero no más películas por ahora.",
+    "moreMovies_one": "{{count, number}} película más",
+    "moreMovies_many": "{{count, number}} películas más",
+    "moreMovies_other": "{{count, number}} películas más",
+    "moreSeasons_one": "{{count, number}} temporada más",
+    "moreSeasons_many": "{{count, number}} temporadas más",
+    "moreSeasons_other": "{{count, number}} temporadas más",
+    "moviesUsedUp": "Ya solicitaste todas las películas que puedes por ahora.",
+    "moviesUsedUpUntil": "Ya solicitaste todas las películas que puedes por ahora: podrás solicitar más {{when}}.",
+    "seasonsUsedUp": "Ya solicitaste todas las temporadas que puedes por ahora.",
+    "seasonsUsedUpUntil": "Ya solicitaste todas las temporadas que puedes por ahora: podrás solicitar más {{when}}.",
+    "allUsedUp": "Ya solicitaste todo lo que puedes por ahora.",
+    "allUsedUpUntil": "Ya solicitaste todo lo que puedes por ahora: más películas {{movies}}, más temporadas {{seasons}}.",
+    "allUsedUpMoviesUntil": "Ya solicitaste todo lo que puedes por ahora: más películas {{when}}.",
+    "allUsedUpSeasonsUntil": "Ya solicitaste todo lo que puedes por ahora: más temporadas {{when}}.",
+    "limit": "Límite: {{what}} cada 7 días.",
+    "limits": "Límites: {{movies}} y {{seasons}} cada 7 días."
+  },
+  "asking": {
+    "auto": "Se aprueba en cuanto lo solicitas y se envía a descargar.",
+    "decided": "Lo decide un administrador. Recibirás un aviso cuando esté listo para ver.",
+    "confirm": "¿Solicitar «{{title}}»?",
+    "following": "Te avisaremos cuando «{{title}}» esté listo.",
+    "approved": "«{{title}}» está aprobado y en camino.",
+    "failed": "Solicitaste «{{title}}», pero aún no se pudo enviar a descargar.",
+    "pending": "Solicitaste «{{title}}»: un administrador decidirá."
+  },
+  "seasons": {
+    "list_one": "Temporada {{list}}",
+    "list_many": "Temporadas {{list}}",
+    "list_other": "Temporadas {{list}}",
+    "andSpecials": "{{seasons}} y especiales",
+    "specials": "Especiales",
+    "season": "Temporada {{number}}"
+  },
+  "season": {
+    "library": "En la biblioteca",
+    "requested": "Solicitada",
+    "declined": "Rechazada",
+    "notAired": "Aún no se ha emitido",
+    "airs": "Se emite el {{day}}",
+    "partial_one": "Ya hay {{count, number}} de {{episodes, number}} episodios",
+    "partial_many": "Ya hay {{count, number}} de {{episodes, number}} episodios",
+    "partial_other": "Ya hay {{count, number}} de {{episodes, number}} episodios",
+    "why": "{{season}}: {{state}}."
+  },
+  "problem": {
+    "off": "Las solicitudes están desactivadas",
+    "offText": "Este servidor no acepta solicitudes de películas y series.",
+    "tmdbKey": "TMDB rechazó la clave de este servidor",
+    "tmdbKeyText": "Un administrador tiene que revisarla.",
+    "tmdbKeyManage": "Corrígela en la app web de Pley, en Ajustes → Servidor.",
+    "tmdbDown": "TMDB no responde",
+    "noAccess": "Esta cuenta no puede hacer solicitudes",
+    "noAccessText": "Un administrador puede permitirle solicitar películas y series.",
+    "signIn": "Vuelve a iniciar sesión para solicitar películas y series",
+    "askAgain": "Podrás volver a solicitarlo {{when}}.",
+    "askMore": "Podrás solicitar más {{when}}.",
+    "atMostMovies_one": "Puedes solicitar como máximo {{count, number}} película cada 7 días: elige menos.",
+    "atMostMovies_many": "Puedes solicitar como máximo {{count, number}} películas cada 7 días: elige menos.",
+    "atMostMovies_other": "Puedes solicitar como máximo {{count, number}} películas cada 7 días: elige menos.",
+    "atMostSeasons_one": "Puedes solicitar como máximo {{count, number}} temporada cada 7 días: elige menos.",
+    "atMostSeasons_many": "Puedes solicitar como máximo {{count, number}} temporadas cada 7 días: elige menos.",
+    "atMostSeasons_other": "Puedes solicitar como máximo {{count, number}} temporadas cada 7 días: elige menos.",
+    "deleted": "Esta solicitud se eliminó mientras tanto.",
+    "removeLater": "Una solicitud rechazada se queda 30 días: podrás quitarla {{when}}.",
+    "doLater": "Podrás hacerlo {{when}}."
+  },
+  "discover": {
+    "lists": {
+      "trending": "Tendencias de la semana",
+      "movies": "Películas populares",
+      "shows": "Series populares",
+      "upcoming": "Próximamente en cines",
+      "anime": "Anime popular"
+    },
+    "resultsFor": "Resultados de «{{query}}»",
+    "nothingFound": "No se encontró nada para «{{query}}».",
+    "nothingHere": "No hay nada por ahora.",
+    "loadFailed": "No se pudieron cargar"
+  },
+  "tiles": {
+    "theseFailed": "No se pudo cargar. OK para reintentar.",
+    "moreFailed": "No se pudo cargar más. OK para reintentar.",
+    "problemRetry": "{{problem}}. OK para reintentar.",
+    "further": "Puede haber más. OK para buscar."
+  },
+  "buttons": {
+    "signIn": "Iniciar sesión",
+    "request": "Solicitar",
+    "requestMoreSeasons": "Solicitar más temporadas",
+    "details": "Detalles",
+    "tellMeToo": "Avisarme también"
+  },
+  "title": {
+    "requested": "Solicitado",
+    "askedAlready": "Alguien ya lo solicitó.",
+    "notOpen": "Las solicitudes no están disponibles para esta cuenta.",
+    "loadFailed": "No se pudo cargar este título",
+    "seasons": "Temporadas",
+    "cast": "Reparto"
+  },
+  "declined": {
+    "plain": "Rechazado.",
+    "because": "Rechazado: «{{reason}}».",
+    "when": "Rechazado. Podrás volver a solicitarlo {{when}}.",
+    "becauseWhen": "Rechazado: «{{reason}}». Podrás volver a solicitarlo {{when}}."
+  },
+  "picker": {
+    "title": "¿Qué temporadas?",
+    "pickOne": "Elige una temporada.",
+    "request_one": "Solicitar {{count, number}} temporada",
+    "request_many": "Solicitar {{count, number}} temporadas",
+    "request_other": "Solicitar {{count, number}} temporadas"
+  },
+  "stage": {
+    "pending": "Esperando aprobación",
+    "approved": "Aprobada",
+    "searching": "Buscando",
+    "downloading": "Descargando",
+    "importing": "Añadiendo a la biblioteca",
+    "partial": "Listo para ver: {{seasons}}",
+    "partly": "En parte en la biblioteca",
+    "available": "Listo para ver",
+    "gone": "Ya no está en una biblioteca",
+    "declined": "Rechazada",
+    "failed": "No se pudo enviar",
+    "failedBecause": "No se pudo enviar: {{reason}}",
+    "notSent": "Aún no enviada",
+    "notSentLine": "Aún no se pudo enviar a descargar: un administrador la revisará.",
+    "retry": "Se volverá a intentar {{when}}.",
+    "notOut": "Aún no se ha estrenado",
+    "out": "Se estrena el {{day}}",
+    "airs": "Se emite el {{day}}",
+    "airsAt": "Se emite a las {{time}}",
+    "airsTomorrow": "Se emite mañana a las {{time}}",
+    "outOfReach": "Disponible en una biblioteca que no puedes abrir: pregunta a un administrador"
+  },
+  "download": {
+    "queued": "Esperando para descargar",
+    "paused": "Descarga en pausa",
+    "warning": "La descarga tiene un problema",
+    "progress": "Descargando {{percent}} %",
+    "progressUntil": "Descargando {{percent}} % · {{when}}"
+  },
+  "asked": {
+    "byYou": "Solicitado por ti",
+    "byName": "Solicitado por {{name}}",
+    "bySomeone": "Lo solicitó otra persona"
+  },
+  "actions": {
+    "watch": "Ver",
+    "withdraw": "Retirar",
+    "unwatch": "Dejar de seguir",
+    "approve": "Aprobar",
+    "decline": "Rechazar",
+    "declineReason": "Rechazar con un motivo…",
+    "handled": "Marcar como añadido a mano",
+    "askAgain": "Volver a solicitar",
+    "none": "No se puede hacer nada con esta solicitud por ahora."
+  },
+  "confirm": {
+    "remove": "¿Quitar «{{title}}» de tus solicitudes?",
+    "withdraw": "¿Retirar tu solicitud de «{{title}}»?",
+    "delete": "¿Eliminar esta solicitud? Radarr y Sonarr conservan lo que tienen."
+  },
+  "decline": {
+    "title": "Rechazar «{{title}}»",
+    "text": "El motivo le llega a quien lo solicitó."
+  },
+  "page": {
+    "loadFailed": "No se pudieron cargar las solicitudes",
+    "signInToDecide": "Vuelve a iniciar sesión para aprobar y rechazar aquí.",
+    "hint": "En una solicitud, pulsa * para ver qué puedes hacer con ella.",
+    "tabs": {
+      "attention": "Por revisar",
+      "all": "Todas",
+      "pending": "En espera",
+      "approved": "Aprobadas",
+      "available": "Listas",
+      "declined": "Rechazadas",
+      "failed": "Fallidas",
+      "mine": "Las tuyas"
+    },
+    "empty": {
+      "match": "Nada coincide.",
+      "attention": "Nada requiere tu atención.",
+      "everyone": {
+        "pending": "Ninguna solicitud espera una decisión.",
+        "approved": "Ninguna solicitud está en camino.",
+        "available": "Ninguna solicitud está lista para ver todavía.",
+        "declined": "No se ha rechazado ninguna solicitud.",
+        "failed": "No ha fallado ninguna solicitud.",
+        "none": "Nadie ha solicitado nada todavía."
+      },
+      "yours": {
+        "pending": "Ninguna de tus solicitudes espera una decisión.",
+        "approved": "Ninguna de tus solicitudes está en camino.",
+        "available": "Ninguna de tus solicitudes está lista para ver todavía.",
+        "declined": "No se ha rechazado ninguna de tus solicitudes.",
+        "failed": "No ha fallado ninguna de tus solicitudes.",
+        "none": "Todavía no has solicitado nada."
+      }
+    }
+  },
+  "filters": {
+    "filter": "Filtrar",
+    "kinds": {
+      "both": "Películas y series",
+      "movie": "Películas",
+      "show": "Series"
+    },
+    "everyone": "Todos",
+    "anyTitle": "Cualquiera",
+    "show": "Mostrar",
+    "showKind": "Mostrar: {{kind}}",
+    "askedBy": "Solicitado por",
+    "askedByPerson": "Solicitado por: {{person}}",
+    "title": "Título",
+    "titleWords": "Título: {{words}}",
+    "titleText": "Solicitudes cuyo título tiene estas palabras.",
+    "clear": "Borrar filtros"
+  },
+  "news": {
+    "ready": "«{{title}}» está listo para ver.",
+    "seasonsReady_one": "{{seasons}} de «{{title}}» ya está lista para ver.",
+    "seasonsReady_many": "{{seasons}} de «{{title}}» ya están listas para ver.",
+    "seasonsReady_other": "{{seasons}} de «{{title}}» ya están listas para ver.",
+    "specialsReady": "Los especiales de «{{title}}» ya están listos para ver.",
+    "several_one": "{{count, number}} de tus solicitudes tiene novedades",
+    "several_many": "{{count, number}} de tus solicitudes tienen novedades",
+    "several_other": "{{count, number}} de tus solicitudes tienen novedades"
+  }
+}

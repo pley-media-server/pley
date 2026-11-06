@@ -1,0 +1,100 @@
+{
+  "duration": {
+    "seconds": "{{n}}s",
+    "minutes": "{{n}}m",
+    "hours": "{{n}}h",
+    "hoursMinutes": "{{hours}}h {{minutes}}m",
+    "runtime": "{{n}} min",
+    "left": "{{time}} left"
+  },
+  "clock": {
+    "am": "AM",
+    "pm": "PM"
+  },
+  "episode": {
+    "both": "S{{season}} · E{{episode}}",
+    "season": "S{{season}}",
+    "episode": "E{{episode}}"
+  },
+  "season": {
+    "specials": "Specials",
+    "numbered": "Season {{number}}",
+    "plain": "Season"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} season",
+    "seasons_other": "{{count, number}} seasons",
+    "episodes_one": "{{count, number}} episode",
+    "episodes_other": "{{count, number}} episodes",
+    "albums_one": "{{count, number}} album",
+    "albums_other": "{{count, number}} albums"
+  },
+  "channels": {
+    "mono": "Mono",
+    "stereo": "Stereo",
+    "count": "{{n}}ch"
+  },
+  "track": {
+    "unknown": "Unknown",
+    "forced": "Forced",
+    "external": "External",
+    "bitDepth": "{{n}}-bit",
+    "automatic": "Automatic",
+    "automaticLanguage": "Automatic ({{language}})",
+    "version": "Version {{number}}"
+  },
+  "sizes": {
+    "bytes": "{{n}} B",
+    "kilobytes": "{{n}} KB",
+    "megabytes": "{{n}} MB",
+    "gigabytes": "{{n}} GB",
+    "terabytes": "{{n}} TB"
+  },
+  "rates": {
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps",
+    "kilohertz": "{{rate}} kHz",
+    "fps": "{{rate}} fps",
+    "fpsInterlaced": "{{rate}} fps, interlaced"
+  },
+  "media": {
+    "file": "File",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "numbered": "{{kind}} {{n}}",
+    "name": "Name",
+    "container": "Container",
+    "size": "Size",
+    "duration": "Duration",
+    "overallBitrate": "Overall bitrate",
+    "codec": "Codec",
+    "profile": "Profile",
+    "resolution": "Resolution",
+    "frameRate": "Frame rate",
+    "bitDepth": "Bit depth",
+    "hdr": "HDR",
+    "dolbyVision": "Dolby Vision",
+    "primaries": "Primaries",
+    "transfer": "Transfer",
+    "matrix": "Matrix",
+    "bitrate": "Bitrate",
+    "title": "Title",
+    "channels": "Channels",
+    "sampleRate": "Sample rate",
+    "language": "Language",
+    "flags": "Flags",
+    "format": "Format",
+    "default": "Default",
+    "forced": "Forced",
+    "beside": "Beside the media",
+    "picture": "picture",
+    "text": "text",
+    "level": "Level {{level}}",
+    "dvProfile": "Profile {{profile}}",
+    "noBaseLayer": "no compatible base layer",
+    "baseLayer": "{{range}}-compatible base layer",
+    "fullLayer": "full enhancement layer",
+    "minimalLayer": "minimal enhancement layer"
+  }
+}

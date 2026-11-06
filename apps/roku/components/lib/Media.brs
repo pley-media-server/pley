@@ -10,12 +10,34 @@ function mediaLanguage(code as dynamic) as string
     text = httpString(code).Trim()
     if text = "" then return ""
     lower = LCase(text)
-    special = { und: "Unknown", mul: "Multiple", zxx: "No linguistic content" }
-    if special.DoesExist(lower) then return special[lower]
+    if lower = "und" or lower = "mul" or lower = "zxx" then return t("player.media.languages." + lower)
     name = fmtLanguageName(lower, "")
     if name <> lower then return name
     if Len(text) <= 3 then return UCase(text)
     return text
+end function
+
+' A language's English name, as files' titles mostly have it ("English
+' SDH" while the app is in French); "" for a code not among the 34. Files
+' name some by their ISO 639-2/T code, as fmtLanguageName knows.
+function mediaEnglishLanguage(code as dynamic) as string
+    wanted = LCase(httpString(code).Trim())
+    other = { fra: "fre", deu: "ger", zho: "chi", ces: "cze", nld: "dut", ell: "gre", fas: "per", ron: "rum", slk: "slo" }
+    if other.DoesExist(wanted) then wanted = other[wanted]
+    if wanted = "" or Instr(1, wanted, ".") > 0 then return ""
+    name = i18nTemplate("en", "format.languages." + wanted, invalid)
+    if name = invalid then return ""
+    return name
+end function
+
+' The name of a track's language (language, as shown; code, the file's)
+' that its title has: the one shown, or the English one; "" for neither.
+function mediaNameInTitle(title as string, language as string, code as dynamic) as string
+    lower = LCase(title)
+    for each name in [language, mediaEnglishLanguage(code)]
+        if name <> "" and Instr(1, lower, LCase(name)) > 0 then return name
+    end for
+    return ""
 end function
 
 ' Dolby Atmos, as ffprobe names it in the stream's profile or a title says.
@@ -30,9 +52,11 @@ end function
 function mediaChannels(channels as dynamic, layout as dynamic) as string
     count = Int(httpNumber(channels, 0))
     if count <= 0 then return httpString(layout)
-    names = { "1": "Mono", "2": "Stereo", "3": "2.1", "6": "5.1", "7": "6.1", "8": "7.1" }
+    if count = 1 then return t("player.media.mono")
+    if count = 2 then return t("player.media.stereo")
+    names = { "3": "2.1", "6": "5.1", "7": "6.1", "8": "7.1" }
     name = names[urlValue(count)]
-    if name = invalid then return urlValue(count) + "ch"
+    if name = invalid then return t("player.media.channelCount", { n: count })
     return name
 end function
 
@@ -84,31 +108,37 @@ end function
 
 ' A track as the title's page lists it, as the other apps do. Audio:
 ' "English (EAC3 5.1)", "English – Commentary (AAC Stereo)". Subtitles:
-' "French – SDH (SRT, Forced)".
+' "French – SDH (SRT, Forced)". A title naming the language, as shown or
+' in English ("English SDH" in French), doesn't name it twice.
 function mediaTrackLabel(stream as object) as string
     language = mediaLanguage(stream.language)
     title = httpSentence(stream.title)
+    named = ""
+    if title <> "" and language <> "" then named = mediaNameInTitle(title, language, stream.language)
     if httpString(stream.kind) = "audio"
         base = language
         if base = "" then base = title
-        if base = "" then base = "Unknown"
+        if base = "" then base = t("player.tracks.unknown")
         extra = ""
-        if title <> "" and language <> "" and Instr(1, LCase(title), LCase(language)) = 0 then extra = " – " + title
+        if title <> "" and language <> "" and named = "" then extra = " – " + title
         format = mediaAudioFormat(stream)
         if format <> "" then format = " (" + format + ")"
         return base + extra + format
     end if
     base = language
     if base = "" then base = title
-    if base = "" then base = "Unknown"
+    if base = "" then base = t("player.tracks.unknown")
     rest = ""
-    if title <> "" and language <> "" then rest = mediaTitleRest(title, language)
+    if title <> "" and language <> ""
+        if named = "" then named = language
+        rest = mediaTitleRest(title, named)
+    end if
     if rest <> "" then rest = " – " + rest
     flags = []
     codec = detCodec(stream.codec)
     if codec <> "" then flags.Push(codec)
-    if mediaForced(stream) then flags.Push("Forced")
-    if httpTrue(stream.external) then flags.Push("External")
+    if mediaForced(stream) then flags.Push(t("player.tracks.forced"))
+    if httpTrue(stream.external) then flags.Push(t("player.tracks.external"))
     text = base + rest
     if flags.Count() > 0 then text = text + " (" + flags.Join(", ") + ")"
     return text
@@ -137,8 +167,8 @@ function mediaAutomaticLabel(file as object) as string
     if track = invalid and audio.Count() > 0 then track = audio[0]
     code = ""
     if track <> invalid then code = LCase(httpString(track.language))
-    if code = "" or code = "und" or code = "zxx" or code = "mul" then return "Automatic"
-    return "Automatic (" + mediaLanguage(code) + ")"
+    if code = "" or code = "und" or code = "zxx" or code = "mul" then return t("player.tracks.automatic")
+    return t("player.tracks.automaticLanguage", { language: mediaLanguage(code) })
 end function
 
 ' What a title's page offers before its file plays: { audio, subtitles },
@@ -168,7 +198,7 @@ function mediaTracks(file as dynamic) as object
         subtitle = httpObject(stream)
         if subtitle <> invalid and httpString(subtitle.kind) = "subtitle" and httpNumber(subtitle.index, -1) >= 0
             if out.subtitles.values.Count() = 0
-                out.subtitles.labels.Push("Off")
+                out.subtitles.labels.Push(t("player.tracks.off"))
                 out.subtitles.values.Push(-1)
             end if
             index = Int(httpNumber(subtitle.index, -1))
@@ -250,7 +280,7 @@ function mediaVersionLine(file as object, number as integer) as string
         if format <> "" then parts.Push(format)
     end if
     if httpNumber(file.size, 0) > 0 then parts.Push(fmtBytes(file.size))
-    if parts.Count() = 0 then return "Version " + urlValue(number)
+    if parts.Count() = 0 then return t("player.tracks.version", { number: number })
     return parts.Join(" · ")
 end function
 
@@ -276,14 +306,17 @@ end function
 ' words it.
 
 ' A codec level as people write it: HEVC 153 → "5.1", H.264 51 → "5.1",
-' AV1 13 → "5.1"; "" without one.
+' AV1 13 → "5.1"; "" without one. A level is a name, written with a point
+' in every language, as Dolby Vision's profiles are.
 function mediaLevel(codec as dynamic, level as dynamic) as string
     value = Int(httpNumber(level, 0))
     if value <= 0 then return ""
     name = LCase(httpString(codec))
     if name = "av1" then return urlValue(2 + Int(value / 4)) + "." + urlValue(value mod 4)
-    if name = "hevc" or name = "h265" then return fmtOneDecimal(value / 30)
-    return fmtOneDecimal(value / 10)
+    tenths = value
+    if name = "hevc" or name = "h265" then tenths = Int(value / 3 + 0.5)
+    if tenths mod 10 = 0 then return urlValue(tenths \ 10)
+    return urlValue(tenths \ 10) + "." + urlValue(tenths mod 10)
 end function
 
 ' "Main 10 · Level 5.1".
@@ -292,34 +325,34 @@ function mediaProfile(stream as object) as string
     profile = httpSentence(stream.profile)
     if profile <> "" then parts.Push(profile)
     level = mediaLevel(stream.codec, stream.level)
-    if level <> "" then parts.Push("Level " + level)
+    if level <> "" then parts.Push(t("player.media.level", { level: level }))
     return parts.Join(" · ")
 end function
 
-' "23.976 fps": up to three decimals, trailing zeros left out.
+' "23.976 fps" ("23,976 i/s" in French): up to three decimals, trailing
+' zeros left out.
 function mediaFrameRate(fps as dynamic, interlaced as boolean) as string
     value = httpNumber(fps, 0)
     if value <= 0 then return ""
     thousandths = Int(value * 1000 + 0.5)
-    text = urlValue(Int(thousandths / 1000))
-    decimals = thousandths mod 1000
-    if decimals > 0
-        digits = Right("00" + urlValue(decimals), 3)
+    decimals = 0
+    if thousandths mod 1000 > 0
+        digits = Right("00" + urlValue(thousandths mod 1000), 3)
         while Right(digits, 1) = "0"
             digits = Left(digits, Len(digits) - 1)
         end while
-        text = text + "." + digits
+        decimals = Len(digits)
     end if
-    text = text + " fps"
-    if interlaced then text = text + ", interlaced"
-    return text
+    text = i18nNumber(thousandths / 1000, decimals)
+    if interlaced then return t("player.media.fpsInterlaced", { fps: text })
+    return t("player.media.fps", { fps: text })
 end function
 
 ' "10-bit · 4:2:0".
 function mediaBitDepth(depth as dynamic, pixFmt as dynamic) as string
     parts = []
     bits = Int(httpNumber(depth, 0))
-    if bits > 0 then parts.Push(urlValue(bits) + "-bit")
+    if bits > 0 then parts.Push(t("player.media.bits", { n: bits }))
     format = LCase(httpString(pixFmt))
     chroma = ""
     if CreateObject("roRegex", "^(yuv420|nv12|p010)", "").IsMatch(format)
@@ -362,17 +395,21 @@ function mediaDolbyVision(stream as object) as string
     profile = Int(httpNumber(stream.dv_profile, -1))
     if profile < 0 then return ""
     compat = Int(httpNumber(stream.dv_bl_compat, 0))
-    label = "Profile " + urlValue(profile)
-    if profile >= 8 and (compat = 1 or compat = 2 or compat = 4) then label = label + "." + urlValue(compat)
-    parts = [label]
+    name = urlValue(profile)
+    if profile >= 8 and (compat = 1 or compat = 2 or compat = 4) then name = name + "." + urlValue(compat)
+    parts = [t("player.media.dvProfile", { profile: name })]
     level = httpNumber(stream.dv_level, -1)
-    if level >= 0 then parts.Push("Level " + urlValue(level))
-    bases = { "0": "no compatible base layer", "1": "HDR10-compatible base layer", "2": "SDR-compatible base layer", "4": "HLG-compatible base layer", "6": "Blu-ray HDR10-compatible base layer" }
+    if level >= 0 then parts.Push(t("player.media.level", { level: urlValue(level) }))
+    bases = { "1": "HDR10", "2": "SDR", "4": "HLG", "6": "Blu-ray HDR10" }
     base = bases[urlValue(compat)]
-    if base <> invalid then parts.Push(base)
+    if compat = 0
+        parts.Push(t("player.media.noBaseLayer"))
+    else if base <> invalid
+        parts.Push(t("player.media.baseLayer", { range: base }))
+    end if
     layer = httpString(stream.dv_el)
-    if profile = 7 and layer = "fel" then parts.Push("full enhancement layer")
-    if profile = 7 and layer = "mel" then parts.Push("minimal enhancement layer")
+    if profile = 7 and layer = "fel" then parts.Push(t("player.media.fullLayer"))
+    if profile = 7 and layer = "mel" then parts.Push(t("player.media.minimalLayer"))
     return parts.Join(" · ")
 end function
 
@@ -390,9 +427,9 @@ end function
 ' "Default, Forced, Beside the media".
 function mediaFlags(stream as object) as string
     flags = []
-    if httpTrue(stream.default) then flags.Push("Default")
-    if httpTrue(stream.forced) then flags.Push("Forced")
-    if httpTrue(stream.external) then flags.Push("Beside the media")
+    if httpTrue(stream.default) then flags.Push(t("player.media.default"))
+    if httpTrue(stream.forced) then flags.Push(t("player.tracks.forced"))
+    if httpTrue(stream.external) then flags.Push(t("player.media.beside"))
     return flags.Join(", ")
 end function
 
@@ -417,13 +454,13 @@ end sub
 ' file, then each stream, video first.
 function mediaFacts(file as object) as object
     facts = []
-    mediaFact(facts, "Name", mediaFileName(file.path))
-    mediaFact(facts, "Container", UCase(httpString(file.container)))
-    if httpNumber(file.size, 0) > 0 then mediaFact(facts, "Size", fmtBytes(file.size))
-    mediaFact(facts, "Duration", fmtDuration(file.duration_ms))
-    mediaFact(facts, "Overall bitrate", fmtBitrate(file.bitrate))
-    blocks = [{ title: "File", facts: facts }]
-    names = { video: "Video", audio: "Audio", subtitle: "Subtitles" }
+    mediaFact(facts, t("player.media.name"), mediaFileName(file.path))
+    mediaFact(facts, t("player.media.container"), UCase(httpString(file.container)))
+    if httpNumber(file.size, 0) > 0 then mediaFact(facts, t("player.media.size"), fmtBytes(file.size))
+    mediaFact(facts, t("player.media.duration"), fmtDuration(file.duration_ms))
+    mediaFact(facts, t("player.media.overallBitrate"), fmtBitrate(file.bitrate))
+    blocks = [{ title: t("player.media.file"), facts: facts }]
+    names = { video: t("player.media.video"), audio: t("player.media.audio"), subtitle: t("player.media.subtitles") }
     for each kind in ["video", "audio", "subtitle"]
         streams = []
         for each stream in httpArray(file.streams)
@@ -432,7 +469,7 @@ function mediaFacts(file as object) as object
         streams.SortBy("index")
         for i = 0 to streams.Count() - 1
             title = names[kind]
-            if streams.Count() > 1 then title = title + " " + urlValue(i + 1)
+            if streams.Count() > 1 then title = t("player.media.numbered", { kind: title, n: i + 1 })
             blocks.Push({ title: title, facts: mediaStreamFacts(streams[i]) })
         end for
     end for
@@ -445,43 +482,43 @@ function mediaStreamFacts(stream as object) as object
     kind = httpString(stream.kind)
     language = mediaLanguage(stream.language)
     if kind = "video"
-        mediaFact(facts, "Codec", detCodec(stream.codec))
-        mediaFact(facts, "Profile", mediaProfile(stream))
-        mediaFact(facts, "Resolution", mediaDimensions(stream.width, stream.height))
+        mediaFact(facts, t("player.media.codec"), detCodec(stream.codec))
+        mediaFact(facts, t("player.media.profile"), mediaProfile(stream))
+        mediaFact(facts, t("player.media.resolution"), mediaDimensions(stream.width, stream.height))
         order = httpString(stream.field_order)
-        mediaFact(facts, "Frame rate", mediaFrameRate(stream.frame_rate, httpTrue(stream.interlaced) or (order <> "" and order <> "progressive")))
-        mediaFact(facts, "Bit depth", mediaBitDepth(stream.bit_depth, stream.pix_fmt))
+        mediaFact(facts, t("player.media.frameRate"), mediaFrameRate(stream.frame_rate, httpTrue(stream.interlaced) or (order <> "" and order <> "progressive")))
+        mediaFact(facts, t("player.media.bitDepth"), mediaBitDepth(stream.bit_depth, stream.pix_fmt))
         range = detRange(stream)
         if range = "" then range = "SDR"
         mediaFact(facts, "HDR", range)
         mediaFact(facts, "Dolby Vision", mediaDolbyVision(stream))
-        mediaFact(facts, "Primaries", mediaColour(mediaPrimaries(), stream.color_primaries))
-        mediaFact(facts, "Transfer", mediaColour(mediaTransfers(), stream.color_transfer))
-        mediaFact(facts, "Matrix", mediaColour(mediaMatrices(), stream.color_space))
-        mediaFact(facts, "Bitrate", fmtBitrate(stream.bitrate))
-        mediaFact(facts, "Title", httpSentence(stream.title))
+        mediaFact(facts, t("player.media.primaries"), mediaColour(mediaPrimaries(), stream.color_primaries))
+        mediaFact(facts, t("player.media.transfer"), mediaColour(mediaTransfers(), stream.color_transfer))
+        mediaFact(facts, t("player.media.matrix"), mediaColour(mediaMatrices(), stream.color_space))
+        mediaFact(facts, t("player.media.bitrate"), fmtBitrate(stream.bitrate))
+        mediaFact(facts, t("player.media.title"), httpSentence(stream.title))
     else if kind = "audio"
         codec = detCodec(stream.codec)
         if mediaAtmos(stream) then codec = codec + " Atmos"
-        mediaFact(facts, "Codec", codec)
-        mediaFact(facts, "Profile", httpSentence(stream.profile))
+        mediaFact(facts, t("player.media.codec"), codec)
+        mediaFact(facts, t("player.media.profile"), httpSentence(stream.profile))
         channels = mediaChannels(stream.channels, stream.channel_layout)
         layout = httpString(stream.channel_layout)
         if layout <> "" and channels <> "" and layout <> channels then channels = channels + " (" + layout + ")"
-        mediaFact(facts, "Channels", channels)
+        mediaFact(facts, t("player.media.channels"), channels)
         hertz = httpNumber(stream.sample_rate, 0)
-        if hertz > 0 then mediaFact(facts, "Sample rate", fmtOneDecimal(hertz / 1000) + " kHz")
-        mediaFact(facts, "Language", language)
-        mediaFact(facts, "Title", httpSentence(stream.title))
-        mediaFact(facts, "Bitrate", fmtBitrate(stream.bitrate))
-        mediaFact(facts, "Flags", mediaFlags(stream))
+        if hertz > 0 then mediaFact(facts, t("player.media.sampleRate"), fmtOneDecimal(hertz / 1000) + " kHz")
+        mediaFact(facts, t("player.media.language"), language)
+        mediaFact(facts, t("player.media.title"), httpSentence(stream.title))
+        mediaFact(facts, t("player.media.bitrate"), fmtBitrate(stream.bitrate))
+        mediaFact(facts, t("player.media.flags"), mediaFlags(stream))
     else
-        nature = "text"
-        if GetInterface(stream.text_based, "ifBoolean") <> invalid and not stream.text_based then nature = "picture"
-        mediaFact(facts, "Format", detCodec(stream.codec) + ", " + nature)
-        mediaFact(facts, "Language", language)
-        mediaFact(facts, "Title", httpSentence(stream.title))
-        mediaFact(facts, "Flags", mediaFlags(stream))
+        format = t("player.media.formatText", { codec: detCodec(stream.codec) })
+        if GetInterface(stream.text_based, "ifBoolean") <> invalid and not stream.text_based then format = t("player.media.formatPicture", { codec: detCodec(stream.codec) })
+        mediaFact(facts, t("player.media.format"), format)
+        mediaFact(facts, t("player.media.language"), language)
+        mediaFact(facts, t("player.media.title"), httpSentence(stream.title))
+        mediaFact(facts, t("player.media.flags"), mediaFlags(stream))
     end if
     return facts
 end function
@@ -497,7 +534,7 @@ function mediaInfoText(item as object) as string
     lines = []
     for i = 0 to files.Count() - 1
         title = httpSentence(files[i].edition)
-        if title = "" and files.Count() > 1 then title = "Version " + urlValue(i + 1)
+        if title = "" and files.Count() > 1 then title = t("player.tracks.version", { number: i + 1 })
         if title <> ""
             if lines.Count() > 0 then lines.Push("")
             lines.Push(UCase(title))
@@ -508,7 +545,7 @@ function mediaInfoText(item as object) as string
             under = false
             lines.Push(block.title)
             for each fact in block.facts
-                lines.Push(fact.label + ": " + fact.value)
+                lines.Push(t("player.media.fact", { label: fact.label, value: fact.value }))
             end for
         end for
     end for

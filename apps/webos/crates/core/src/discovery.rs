@@ -11,6 +11,7 @@ use std::sync::mpsc::Sender;
 use std::time::{Duration, Instant};
 
 use pley_base::Waker;
+use pley_i18n::t;
 
 use crate::addresses::{DEFAULT_PORT, candidates, display_address, host_port, is_local_host, origin};
 use crate::http::{Http, NetError, Request};
@@ -147,9 +148,11 @@ impl ConnectProblem {
     /// The Android app's words for it.
     pub fn text(&self) -> String {
         match self {
-            ConnectProblem::BadAddress => "Enter an address such as nas, 192.168.1.20 or pley.example.com.".into(),
-            ConnectProblem::NotPley { address } => format!("Something answers at {address}, but it isn't Pley."),
-            ConnectProblem::Unreachable { address, reason } => format!("Couldn't reach {address}: {reason}."),
+            ConnectProblem::BadAddress => t!("errors.connect.badAddress").into(),
+            ConnectProblem::NotPley { address } => t!("errors.connect.notPley", address = address),
+            ConnectProblem::Unreachable { address, reason } => {
+                t!("errors.connect.unreachable", address = address, reason = reason)
+            }
         }
     }
 }
@@ -175,7 +178,7 @@ pub fn connect(http: &Http, input: &str) -> Result<FoundServer, ConnectProblem> 
     if let Some(address) = not_pley {
         return Err(ConnectProblem::NotPley { address });
     }
-    let (address, reason) = last.unwrap_or_else(|| (input.to_string(), "nothing answers there".into()));
+    let (address, reason) = last.unwrap_or_else(|| (input.to_string(), NetError::Refused.reason().into()));
     Err(ConnectProblem::Unreachable { address, reason })
 }
 
@@ -337,6 +340,28 @@ mod tests {
         );
         assert_eq!(connect(&http, "two words").unwrap_err(), ConnectProblem::BadAddress);
         assert!(matches!(check(&http, "http://10.9.9.9:7539"), Err(ConnectProblem::Unreachable { .. })));
+    }
+
+    #[test]
+    fn connect_says_why_in_french_and_spanish() {
+        use pley_i18n::{Language, with_language};
+        let http = server_at("http://pley.example.org:7539");
+        with_language(Language::Fr, || {
+            assert_eq!(
+                connect(&http, "10.9.9.9").unwrap_err().text(),
+                "Impossible de joindre 10.9.9.9:7539\u{a0}: rien ne répond à cette adresse."
+            );
+            assert_eq!(
+                connect(&http, "www.example.com").unwrap_err().text(),
+                "Quelque chose répond à www.example.com, mais ce n’est pas Pley."
+            );
+        });
+        with_language(Language::Es, || {
+            assert_eq!(
+                ConnectProblem::BadAddress.text(),
+                "Introduce una dirección como nas, 192.168.1.20 o pley.example.com."
+            );
+        });
     }
 
     #[test]

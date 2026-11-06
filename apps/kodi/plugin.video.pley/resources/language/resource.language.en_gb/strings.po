@@ -1,4 +1,4 @@
-# pley for Kodi
+# Pley for Kodi
 # Addon id: plugin.video.pley
 msgid ""
 msgstr ""
@@ -141,16 +141,8 @@ msgctxt "#30067"
 msgid "Check that the server is on and that this device is on its network. Pley doesn't need the internet."
 msgstr ""
 
-msgctxt "#30073"
-msgid "Waiting for approval. The code works for %d more minutes."
-msgstr ""
-
 msgctxt "#30074"
 msgid "Waiting for approval. The code works for less than a minute more."
-msgstr ""
-
-msgctxt "#30075"
-msgid "Waiting for approval. The code works for 1 more minute."
 msgstr ""
 
 msgctxt "#30076"
@@ -168,8 +160,6 @@ msgstr ""
 msgctxt "#30079"
 msgid "Playback was stopped from another of your devices."
 msgstr ""
-
-# Settings
 
 msgctxt "#30040"
 msgid "Server"
@@ -491,10 +481,6 @@ msgctxt "#30168"
 msgid "Known for"
 msgstr ""
 
-msgctxt "#30170"
-msgid "%d items"
-msgstr ""
-
 msgctxt "#30171"
 msgid "Sign in to Pley"
 msgstr ""
@@ -557,10 +543,6 @@ msgstr ""
 
 msgctxt "#30186"
 msgid "Save these filters"
-msgstr ""
-
-msgctxt "#30187"
-msgid "%s of %s"
 msgstr ""
 
 msgctxt "#30188"
@@ -803,7 +785,6 @@ msgctxt "#30247"
 msgid "Live TV"
 msgstr ""
 
-
 msgctxt "#30249"
 msgid "Favourites"
 msgstr ""
@@ -811,8 +792,6 @@ msgstr ""
 msgctxt "#30250"
 msgid "Recently watched"
 msgstr ""
-
-
 
 msgctxt "#30253"
 msgid "Add to favourites"
@@ -908,10 +887,6 @@ msgstr ""
 
 msgctxt "#30276"
 msgid "Someone else"
-msgstr ""
-
-msgctxt "#30277"
-msgid "%d people"
 msgstr ""
 
 msgctxt "#30278"
@@ -1190,10 +1165,6 @@ msgctxt "#30514"
 msgid "%s of “%s” are ready to watch."
 msgstr ""
 
-msgctxt "#30515"
-msgid "%s of your requests have news"
-msgstr ""
-
 msgctxt "#30516"
 msgid "Requests are off"
 msgstr ""
@@ -1292,10 +1263,6 @@ msgstr ""
 
 msgctxt "#30543"
 msgid "Seasons"
-msgstr ""
-
-msgctxt "#30544"
-msgid "%s of %s episodes in library"
 msgstr ""
 
 msgctxt "#30545"
@@ -1424,4 +1391,798 @@ msgstr ""
 
 msgctxt "#30575"
 msgid "Couldn't switch to the remote's profile"
+msgstr ""
+
+msgctxt "#30600"
+msgid "Language"
+msgstr ""
+
+msgctxt "#30601"
+msgid "Profile language"
+msgstr ""
+
+#. Named in itself, the same in every language
+msgctxt "#30602"
+msgid "English"
+msgstr ""
+
+#. Named in itself, the same in every language
+msgctxt "#30603"
+msgid "Français"
+msgstr ""
+
+#. Named in itself, the same in every language
+msgctxt "#30604"
+msgid "Español"
+msgstr ""
+
+#. %s: the language Automatic is here, named in itself
+msgctxt "#30605"
+msgid "Automatic (%s)"
+msgstr ""
+
+#. The language setting's Automatic
+msgctxt "#30607"
+msgid "Automatic"
+msgstr ""
+
+#. A month's short name
+msgctxt "#30610"
+msgid "Jan"
+msgstr ""
+
+msgctxt "#30611"
+msgid "Feb"
+msgstr ""
+
+msgctxt "#30612"
+msgid "Mar"
+msgstr ""
+
+msgctxt "#30613"
+msgid "Apr"
+msgstr ""
+
+msgctxt "#30614"
+msgid "May"
+msgstr ""
+
+msgctxt "#30615"
+msgid "Jun"
+msgstr ""
+
+msgctxt "#30616"
+msgid "Jul"
+msgstr ""
+
+msgctxt "#30617"
+msgid "Aug"
+msgstr ""
+
+msgctxt "#30618"
+msgid "Sep"
+msgstr ""
+
+msgctxt "#30619"
+msgid "Oct"
+msgstr ""
+
+msgctxt "#30620"
+msgid "Nov"
+msgstr ""
+
+msgctxt "#30621"
+msgid "Dec"
+msgstr ""
+
+#. A day's short name
+msgctxt "#30622"
+msgid "Mon"
+msgstr ""
+
+msgctxt "#30623"
+msgid "Tue"
+msgstr ""
+
+msgctxt "#30624"
+msgid "Wed"
+msgstr ""
+
+msgctxt "#30625"
+msgid "Thu"
+msgstr ""
+
+msgctxt "#30626"
+msgid "Fri"
+msgstr ""
+
+msgctxt "#30627"
+msgid "Sat"
+msgstr ""
+
+msgctxt "#30628"
+msgid "Sun"
+msgstr ""
+
+#. A date: {month} is a month's short name
+msgctxt "#30629"
+msgid "{month} {day}, {year}"
+msgstr ""
+
+#. A date of this year
+msgctxt "#30630"
+msgid "{month} {day}"
+msgstr ""
+
+#. A day in the Live TV guide
+msgctxt "#30631"
+msgid "{weekday} {day} {month}"
+msgstr ""
+
+#. A length
+msgctxt "#30632"
+msgid "{hours}h {minutes}m"
+msgstr ""
+
+#. Minutes
+msgctxt "#30633"
+msgid "%sm"
+msgstr ""
+
+#. Hours
+msgctxt "#30634"
+msgid "%sh"
+msgstr ""
+
+#. Seconds
+msgctxt "#30635"
+msgid "%ss"
+msgstr ""
+
+#. A runtime under an hour
+msgctxt "#30636"
+msgid "%s min"
+msgstr ""
+
+#. %s: a length
+msgctxt "#30637"
+msgid "%s left"
+msgstr ""
+
+#. Within a sentence
+msgctxt "#30638"
+msgid "just now"
+msgstr ""
+
+#. Within a sentence
+msgctxt "#30639"
+msgid "in %s min"
+msgstr ""
+
+#. Within a sentence
+msgctxt "#30640"
+msgid "%s min ago"
+msgstr ""
+
+#. Within a sentence
+msgctxt "#30641"
+msgid "tomorrow"
+msgstr ""
+
+#. Within a sentence
+msgctxt "#30642"
+msgid "yesterday"
+msgstr ""
+
+msgctxt "#30643"
+msgid "Specials"
+msgstr ""
+
+msgctxt "#30644"
+msgid "Season %s"
+msgstr ""
+
+msgctxt "#30645"
+msgid "Season"
+msgstr ""
+
+msgctxt "#30646"
+msgid "Episode %s"
+msgstr ""
+
+#. A season's number, short
+msgctxt "#30647"
+msgid "S%s"
+msgstr ""
+
+#. An episode's number, short
+msgctxt "#30648"
+msgid "E%s"
+msgstr ""
+
+#. %s: their numbers, 1–3, 5
+msgctxt "#30649"
+msgid "Seasons %s"
+msgstr ""
+
+#. %s: Seasons 1–3
+msgctxt "#30650"
+msgid "%s and specials"
+msgstr ""
+
+msgctxt "#30651"
+msgid "Bitrate unknown"
+msgstr ""
+
+#. Bytes
+msgctxt "#30652"
+msgid "B"
+msgstr ""
+
+msgctxt "#30653"
+msgid "KB"
+msgstr ""
+
+msgctxt "#30654"
+msgid "MB"
+msgstr ""
+
+msgctxt "#30655"
+msgid "GB"
+msgstr ""
+
+msgctxt "#30656"
+msgid "TB"
+msgstr ""
+
+msgctxt "#30657"
+msgid "Any HDR"
+msgstr ""
+
+msgctxt "#30658"
+msgid "%s and %s"
+msgstr ""
+
+#. %s: a percentage
+msgctxt "#30659"
+msgid "Downloading %s%%"
+msgstr ""
+
+msgctxt "#30660"
+msgid "Director"
+msgstr ""
+
+msgctxt "#30661"
+msgid "Creator"
+msgstr ""
+
+msgctxt "#30662"
+msgid "Writer"
+msgstr ""
+
+#. A track's language
+msgctxt "#30663"
+msgid "Unknown"
+msgstr ""
+
+#. A label and its value
+msgctxt "#30664"
+msgid "%s: %s"
+msgstr ""
+
+#. Words quoted
+msgctxt "#30665"
+msgid "“%s”"
+msgstr ""
+
+#. A track's language
+msgctxt "#30670"
+msgid "Arabic"
+msgstr ""
+
+msgctxt "#30671"
+msgid "Bulgarian"
+msgstr ""
+
+msgctxt "#30672"
+msgid "Catalan"
+msgstr ""
+
+msgctxt "#30673"
+msgid "Chinese"
+msgstr ""
+
+msgctxt "#30674"
+msgid "Croatian"
+msgstr ""
+
+msgctxt "#30675"
+msgid "Czech"
+msgstr ""
+
+msgctxt "#30676"
+msgid "Danish"
+msgstr ""
+
+msgctxt "#30677"
+msgid "Dutch"
+msgstr ""
+
+msgctxt "#30678"
+msgid "English"
+msgstr ""
+
+msgctxt "#30679"
+msgid "Finnish"
+msgstr ""
+
+msgctxt "#30680"
+msgid "French"
+msgstr ""
+
+msgctxt "#30681"
+msgid "German"
+msgstr ""
+
+msgctxt "#30682"
+msgid "Greek"
+msgstr ""
+
+msgctxt "#30683"
+msgid "Hebrew"
+msgstr ""
+
+msgctxt "#30684"
+msgid "Hindi"
+msgstr ""
+
+msgctxt "#30685"
+msgid "Hungarian"
+msgstr ""
+
+msgctxt "#30686"
+msgid "Indonesian"
+msgstr ""
+
+msgctxt "#30687"
+msgid "Italian"
+msgstr ""
+
+msgctxt "#30688"
+msgid "Japanese"
+msgstr ""
+
+msgctxt "#30689"
+msgid "Korean"
+msgstr ""
+
+msgctxt "#30690"
+msgid "Norwegian"
+msgstr ""
+
+msgctxt "#30691"
+msgid "Persian"
+msgstr ""
+
+msgctxt "#30692"
+msgid "Polish"
+msgstr ""
+
+msgctxt "#30693"
+msgid "Portuguese"
+msgstr ""
+
+msgctxt "#30694"
+msgid "Romanian"
+msgstr ""
+
+msgctxt "#30695"
+msgid "Russian"
+msgstr ""
+
+msgctxt "#30696"
+msgid "Serbian"
+msgstr ""
+
+msgctxt "#30697"
+msgid "Slovak"
+msgstr ""
+
+msgctxt "#30698"
+msgid "Spanish"
+msgstr ""
+
+msgctxt "#30699"
+msgid "Swedish"
+msgstr ""
+
+msgctxt "#30700"
+msgid "Thai"
+msgstr ""
+
+msgctxt "#30701"
+msgid "Turkish"
+msgstr ""
+
+msgctxt "#30702"
+msgid "Ukrainian"
+msgstr ""
+
+msgctxt "#30703"
+msgid "Vietnamese"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30710"
+msgid "%s season"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30711"
+msgid "%s seasons"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30712"
+msgid "%s seasons"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30713"
+msgid "%s episode"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30714"
+msgid "%s episodes"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30715"
+msgid "%s episodes"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30716"
+msgid "%s album"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30717"
+msgid "%s albums"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30718"
+msgid "%s albums"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30719"
+msgid "%s track"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30720"
+msgid "%s tracks"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30721"
+msgid "%s tracks"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30722"
+msgid "%s movie"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30723"
+msgid "%s movies"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30724"
+msgid "%s movies"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30725"
+msgid "%s show"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30726"
+msgid "%s shows"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30727"
+msgid "%s shows"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30728"
+msgid "%s artist"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30729"
+msgid "%s artists"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30730"
+msgid "%s artists"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30731"
+msgid "%s item"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30732"
+msgid "%s items"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30733"
+msgid "%s items"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30734"
+msgid "%s title"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30735"
+msgid "%s titles"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30736"
+msgid "%s titles"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30737"
+msgid "%s channel"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30738"
+msgid "%s channels"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30739"
+msgid "%s channels"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30740"
+msgid "%s person"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30741"
+msgid "%s people"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30742"
+msgid "%s people"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30743"
+msgid "in %s hour"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30744"
+msgid "in %s hours"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30745"
+msgid "in %s hours"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30746"
+msgid "%s hour ago"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30747"
+msgid "%s hours ago"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30748"
+msgid "%s hours ago"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30749"
+msgid "in %s day"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30750"
+msgid "in %s days"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30751"
+msgid "in %s days"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30752"
+msgid "%s day ago"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30753"
+msgid "%s days ago"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30754"
+msgid "%s days ago"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30755"
+msgid "%s more movie"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30756"
+msgid "%s more movies"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30757"
+msgid "%s more movies"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30758"
+msgid "%s more season"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30759"
+msgid "%s more seasons"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30760"
+msgid "%s more seasons"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30761"
+msgid "%s of %s movie"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30762"
+msgid "%s of %s movies"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30763"
+msgid "%s of %s movies"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30764"
+msgid "%s of %s show"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30765"
+msgid "%s of %s shows"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30766"
+msgid "%s of %s shows"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30767"
+msgid "%s of %s artist"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30768"
+msgid "%s of %s artists"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30769"
+msgid "%s of %s artists"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30770"
+msgid "%s of %s item"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30771"
+msgid "%s of %s items"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30772"
+msgid "%s of %s items"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30773"
+msgid "Waiting for approval. The code works for %s more minute."
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30774"
+msgid "Waiting for approval. The code works for %s more minutes."
+msgstr ""
+
+#. Counted, other
+msgctxt "#30775"
+msgid "Waiting for approval. The code works for %s more minutes."
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30776"
+msgid "%s of your requests has news"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30777"
+msgid "%s of your requests have news"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30778"
+msgid "%s of your requests have news"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30779"
+msgid "%s star"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30780"
+msgid "%s stars"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30781"
+msgid "%s stars"
+msgstr ""
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30782"
+msgid "%s of %s episode in library"
+msgstr ""
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30783"
+msgid "%s of %s episodes in library"
+msgstr ""
+
+#. Counted, other
+msgctxt "#30784"
+msgid "%s of %s episodes in library"
 msgstr ""

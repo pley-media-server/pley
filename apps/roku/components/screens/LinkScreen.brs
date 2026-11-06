@@ -4,13 +4,19 @@ sub init()
     m.intro = m.top.findNode("intro")
     m.twoStep = m.top.findNode("twoStep")
     m.steps = m.top.findNode("steps")
+    m.goTo = m.top.findNode("goTo")
     m.url = m.top.findNode("url")
+    m.enterCode = m.top.findNode("enterCode")
     m.code = m.top.findNode("code")
+    m.sameNetwork = m.top.findNode("sameNetwork")
+    m.scan = m.top.findNode("scan")
     m.qrBox = m.top.findNode("qrBox")
     m.qr = m.top.findNode("qr")
     m.status = m.top.findNode("status")
     m.actions = m.top.findNode("actions")
     m.leave = m.top.findNode("leave")
+    m.globe = m.top.findNode("globe")
+    m.languages = m.top.findNode("languages")
     m.started = false
     m.request = invalid
     m.done = false
@@ -18,10 +24,49 @@ sub init()
     ' so since a button was pressed.
     m.renewed = false
     m.renewals = 0
+    ' What the screen says, drawn again in a new language: why to sign in
+    ' again, whether the server requires two-step sign-in, the status line
+    ' ({ key, values, text, problem }), the buttons (their actions) and,
+    ' signed in, the profile's name.
+    m.reason = ""
+    m.twoStepShown = false
+    m.statusWords = { key: "", values: invalid, text: "", problem: false }
+    m.buttonActions = []
+    m.signedInAs = invalid
     m.qr.observeField("loadStatus", "onQrStatus")
     m.actions.observeField("buttonSelected", "onAction")
     m.leave.observeField("fire", "onLeave")
+    m.languages.observeField("picked", "onLanguagePicked")
+    m.languages.observeField("closed", "onLanguagesClosed")
     m.top.observeField("active", "onActive")
+    m.top.observeField("language", "relabel")
+    relabel()
+end sub
+
+' The screen's words in the language shown; the code, the address and the
+' focus stay.
+sub relabel()
+    session = m.global.session
+    if m.done
+        m.title.text = t("signin.link.signedIn")
+        if m.signedInAs <> invalid then m.title.text = t("signin.link.signedInAs", { name: m.signedInAs })
+    else
+        m.title.text = t("signin.link.title")
+    end if
+    m.server.text = ""
+    if session.server <> "" then m.server.text = t("signin.link.onServer", { name: session.serverName, address: urlDisplayAddress(session.server) })
+    reasons = { ended: "signin.link.ended", wider_scope: "signin.link.widerScope", requests: "signin.link.requests", approvals: "signin.link.approvals" }
+    if reasons.DoesExist(m.reason) then m.intro.text = t(reasons[m.reason])
+    if m.twoStepShown then m.twoStep.text = t("signin.link.twoStep")
+    m.goTo.text = t("signin.link.goTo")
+    m.enterCode.text = t("signin.link.enterCode")
+    m.sameNetwork.text = t("signin.link.sameNetwork")
+    m.scan.text = t("signin.link.scan")
+    m.globe.language = m.global.language
+    showStatus()
+    focused = m.actions.buttonFocused
+    showButtons()
+    if focused > 0 and focused < m.buttonActions.Count() then m.actions.focusButton = focused
 end sub
 
 sub onActive()
@@ -31,30 +76,20 @@ sub onActive()
     end if
     if not m.started
         m.started = true
-        session = m.global.session
-        m.server.text = "on " + session.serverName + " (" + urlDisplayAddress(session.server) + ")"
-        reason = httpString(m.top.params.reason)
-        if reason = "ended"
-            m.intro.text = "The server ended this TV's sign-in: sign in again."
-            m.intro.visible = true
-        else if reason = "wider_scope"
-            m.intro.text = "The server allowed more than Pley for Roku asks for, so it was signed out."
-            m.intro.visible = true
-        else if reason = "requests"
-            ' Discover's Sign in: this sign-in goes on until the new one.
-            m.intro.text = "Sign in again to let this TV ask for movies and shows."
-            m.intro.visible = true
-        else if reason = "approvals"
-            m.intro.text = "Sign in again to approve and decline requests here."
-            m.intro.visible = true
-        end if
+        m.reason = httpString(m.top.params.reason)
+        m.intro.visible = m.reason = "ended" or m.reason = "wider_scope" or m.reason = "requests" or m.reason = "approvals"
+        relabel()
         ask()
         ' Whether the server requires two-step sign-in, asked after the code,
         ' which never waits for it. Anyone may ask, so it goes without the
         ' token.
         uiRequest({ method: "GET", path: "/api/server", auth: false }, "onServerInfo")
     end if
-    m.actions.setFocus(true)
+    if m.languages.visible
+        m.languages.open = true
+    else
+        m.actions.setFocus(true)
+    end if
 end sub
 
 ' A server that requires two-step sign-in says so under its name. Below
@@ -64,6 +99,7 @@ end sub
 sub onServerInfo(event as object)
     note = authTwoStepNote(event.getData())
     if note = "" or m.done then return
+    m.twoStepShown = true
     m.twoStep.text = note
     if m.intro.visible
         m.twoStep.translation = [96, m.intro.translation[1] + 36]
@@ -88,8 +124,8 @@ sub ask(renewed = false as boolean)
     m.code.opacity = 1.0
     m.url.text = ""
     hideQr()
-    setStatus("Getting a code…", false)
-    setButtons(["Change server"])
+    setStatus("signin.link.gettingCode", invalid, false)
+    setButtons(["changeServer"])
     m.request = uiRequest({ op: "signIn" }, "onCode")
     m.request.observeField("update", "onUpdate")
 end sub
@@ -107,8 +143,8 @@ sub onCode(event as object)
     if not answer.ok
         m.request = invalid
         if uiFailed(answer) then return
-        setStatus(answer.message, true)
-        setButtons(["Try again", "Change server"])
+        setStatusText(answer.message, true)
+        setButtons(["tryAgain", "changeServer"])
         return
     end if
     m.code.text = answer.data.userCode
@@ -169,14 +205,14 @@ sub onUpdate(event as object)
     status = update.status
     if status = "waiting"
         if m.renewed
-            setStatus("That code expired, so here is a new one. Waiting for approval…", false)
+            setStatus("signin.link.renewed", invalid, false)
         else
-            setStatus("Waiting for approval…", false)
+            setStatus("signin.link.waiting", invalid, false)
         end if
     else if status = "retrying"
-        setStatus("Can't reach the server. Trying again in " + urlValue(update.seconds) + " s.", true)
+        setStatus("signin.link.retrying", { seconds: Int(httpNumber(update.seconds, 0)) }, true)
     else if status = "denied"
-        expired("Request declined.", true)
+        expired("signin.link.declined", "", true)
     else if status = "expired"
         ' A new one at once: the TV may be left on this screen a while. After
         ' an hour of them, OK gets the next, so a Roku left on overnight
@@ -184,12 +220,12 @@ sub onUpdate(event as object)
         if m.renewals < renewalsMax()
             ask(true)
         else
-            expired("Code expired: press OK for a new one.", false)
+            expired("signin.link.expired", "", false)
         end if
     else if status = "signed_in"
         signedIn()
     else
-        expired(httpString(update.message), true)
+        expired("", httpString(update.message), true)
     end if
 end sub
 
@@ -199,13 +235,18 @@ function renewalsMax() as integer
     return 5
 end function
 
-' The code can't be used any more: a new one is a button away.
-sub expired(text as string, problem as boolean)
+' The code can't be used any more: a new one is a button away. Why: key's
+' words, else text, as it came.
+sub expired(key as string, text as string, problem as boolean)
     m.request = invalid
     m.code.opacity = 0.4
     hideQr()
-    setStatus(text, problem)
-    setButtons(["Get a new code", "Change server"])
+    if key <> ""
+        setStatus(key, invalid, problem)
+    else
+        setStatusText(text, problem)
+    end if
+    setButtons(["newCode", "changeServer"])
 end sub
 
 sub signedIn()
@@ -216,8 +257,8 @@ sub signedIn()
     m.steps.visible = false
     m.intro.visible = false
     m.twoStep.visible = false
-    m.title.text = "Signed in"
-    setStatus("", false)
+    m.title.text = t("signin.link.signedIn")
+    setStatus("", invalid, false)
     setButtons([])
     m.top.setFocus(true)
     uiGet("/api/auth/me", "onMe")
@@ -227,7 +268,10 @@ sub onMe(event as object)
     answer = event.getData()
     if answer.ok and answer.data <> invalid
         name = httpSentence(answer.data.name)
-        if name <> "" then m.title.text = "Signed in as " + name
+        if name <> ""
+            m.signedInAs = name
+            m.title.text = t("signin.link.signedInAs", { name: name })
+        end if
     end if
     m.leave.control = "start"
 end sub
@@ -236,29 +280,98 @@ sub onLeave()
     uiNavigate({ to: "home", reset: true })
 end sub
 
-sub setStatus(text as string, problem as boolean)
+' The status line: key's words with values ("" for none).
+sub setStatus(key as string, values as dynamic, problem as boolean)
+    m.statusWords = { key: key, values: values, text: "", problem: problem }
+    showStatus()
+end sub
+
+' The status line: a sentence that came written, an answer's message.
+sub setStatusText(text as string, problem as boolean)
+    m.statusWords = { key: "", values: invalid, text: text, problem: problem }
+    showStatus()
+end sub
+
+sub showStatus()
+    words = m.statusWords
+    text = words.text
+    if words.key <> "" then text = t(words.key, words.values)
     m.status.text = text
-    if problem
+    if words.problem
         m.status.color = uiColors().danger
     else
         m.status.color = uiColors().muted
     end if
 end sub
 
-sub setButtons(labels as object)
-    m.actions.buttons = labels
-    m.actions.visible = labels.Count() > 0
-    if labels.Count() > 0 and m.top.isInFocusChain()
+' The buttons, by what they do: "tryAgain", "newCode", "changeServer".
+sub setButtons(actions as object)
+    m.buttonActions = actions
+    showButtons()
+    if actions.Count() > 0 and m.top.isInFocusChain() and not m.globe.isInFocusChain() and not m.languages.visible
         m.actions.focusButton = 0
         m.actions.setFocus(true)
     end if
 end sub
 
+sub showButtons()
+    words = { tryAgain: "common.actions.tryAgain", newCode: "signin.link.newCode", changeServer: "signin.link.changeServer" }
+    labels = []
+    for each action in m.buttonActions
+        labels.Push(t(words[action]))
+    end for
+    m.actions.buttons = labels
+    m.actions.visible = labels.Count() > 0
+end sub
+
 sub onAction(event as object)
-    label = m.actions.buttons[event.getData()]
-    if label = "Change server"
+    at = event.getData()
+    if at < 0 or at >= m.buttonActions.Count() then return
+    if m.buttonActions[at] = "changeServer"
         uiNavigate({ to: "servers", reset: true })
     else
         ask()
     end if
 end sub
+
+' --- The globe ---
+
+' The languages, Automatic naming what that is on this Roku.
+sub openLanguages()
+    facts = uiLanguageFacts()
+    m.languages.automatic = i18nSystem(facts.serverLanguage, facts.device)
+    m.languages.current = facts.choice
+    m.languages.open = true
+end sub
+
+' A choice shows at once and is kept on this Roku (the scene), Automatic
+' forgets it; the focus stays on the globe as the screen is drawn again.
+sub onLanguagePicked(event as object)
+    m.globe.setFocus(true)
+    choice = event.getData()
+    if choice = "auto" then choice = ""
+    m.top.getScene().languageChoice = choice
+end sub
+
+sub onLanguagesClosed()
+    m.globe.setFocus(true)
+end sub
+
+' Up from the buttons reaches the globe at the top; Down goes back to
+' them. Left and Right never do.
+function onKeyEvent(key as string, press as boolean) as boolean
+    if not press or m.done then return false
+    if m.globe.isInFocusChain()
+        if key = "OK"
+            openLanguages()
+        else if key = "down" and m.actions.visible
+            m.actions.setFocus(true)
+        end if
+        return key = "OK" or key = "up" or key = "down" or key = "left" or key = "right" or key = "options"
+    end if
+    if key = "up" and m.actions.isInFocusChain()
+        m.globe.setFocus(true)
+        return true
+    end if
+    return false
+end function

@@ -29,5 +29,24 @@
       "scanning": "scanning {{library}}",
       "scanningLibraries": "scanning libraries"
     }
+  },
+  "requests": {
+    "addedByHand": "Added by hand",
+    "notAnswering": "{{service}} isn't answering",
+    "unsaved": "Pley couldn't save how sending it went: {{why}}",
+    "arr": {
+      "unauthorized": "{{service}} rejected the API key",
+      "unreachable": "{{service}} couldn't be reached: {{why}}",
+      "refused": "{{service}} refused: {{why}}",
+      "unexpected": "{{service}} answered something unexpected: {{why}}",
+      "redirected": "it answered with a redirect: give its address with its base URL, as its own settings show",
+      "tooLarge": "its answer is larger than {{size}} MB",
+      "noMovie": "its lookup found no movie",
+      "noId": "no id in its answer",
+      "noShow": "it found no show with TheTVDB id {{tvdb}}",
+      "noTvdbId": "TMDB knows no TheTVDB id for this show, which Sonarr needs: add it to Sonarr by hand",
+      "qualityProfile": "choose {{service}}'s quality profile in Settings → Requests",
+      "rootFolder": "choose {{service}}'s root folder in Settings → Requests"
+    }
   }
 }

@@ -1,0 +1,58 @@
+{
+  "language": {
+    "choose": "Elegir un idioma"
+  },
+  "servers": {
+    "title": "Elige tu servidor",
+    "enterAddress": "Introducir una dirección",
+    "searchNetwork": "Buscar en esta red",
+    "forgetHint": "Mantén presionado OK en un servidor guardado para olvidarlo.",
+    "checkingRange": "Comprobando {{subnet}}1-254…",
+    "checkingNetwork": "Comprobando esta red…",
+    "looking": "Buscando Pley en tu red…",
+    "noneFound": "No se encontraron servidores. Asegúrate de que esta TV y el servidor estén en la misma red.",
+    "forgetTitle": "¿Olvidar {{name}}?",
+    "forgetBody": "Pley cierra la sesión de esta TV en ese servidor y elimina lo que guardó de él.",
+    "forget": "Olvidar",
+    "notYours": "No es tu servidor guardado",
+    "notEncrypted": "Sin cifrar",
+    "onNetwork": "En esta red",
+    "connecting": "Conectando con {{address}}…",
+    "unreachable": "No se puede conectar"
+  },
+  "address": {
+    "title": "Introduce la dirección de tu servidor",
+    "placeholder": "192.168.1.20 o pley.example.com",
+    "connect": "Conectar",
+    "checking": "Comprobando…",
+    "port": "Se usa el puerto {{port}} de forma predeterminada."
+  },
+  "problem": {
+    "unencrypted": "{{address}} no está cifrado: lo que ves podría leerse por el camino. Usa su dirección https si tiene una, o vuelve a presionar Conectar para continuar de todos modos."
+  },
+  "link": {
+    "title": "Iniciar sesión en Pley",
+    "changeServer": "Cambiar de servidor",
+    "scan": "Escanea el código con tu teléfono",
+    "goTo": "o ve a",
+    "enterCode": "e introduce este código",
+    "sameWifi": "Tu teléfono debe estar en la misma red Wi-Fi que esta TV.",
+    "otherDevice": "O abre Pley en un dispositivo conectado → Vincular una TV",
+    "newCode": "Obtener un código nuevo",
+    "scanCamera": "Escanea con la cámara de tu teléfono",
+    "gettingCode": "Obteniendo un código…",
+    "waiting": "Esperando aprobación…",
+    "retrying": "No se puede conectar con el servidor. Se volverá a intentar en {{seconds}} s",
+    "declined": "Solicitud rechazada",
+    "expired": "El código expiró: presiona OK para obtener uno nuevo",
+    "signedInAs": "Sesión iniciada como {{name}}",
+    "signedIn": "Sesión iniciada",
+    "twoStepRequired": "Este servidor exige el inicio de sesión en dos pasos: tu teléfono lo configura si aún no lo has hecho."
+  },
+  "approve": {
+    "title": "Aprueba en tu teléfono",
+    "intro": "El perfil de {{name}} necesita su contraseña: aprueba este código en un teléfono con la sesión iniciada en Pley y elige allí a {{name}}.",
+    "anyTitle": "Iniciar sesión con otro perfil",
+    "anyIntro": "Aprueba este código en un teléfono con la sesión iniciada en Pley y elige allí el perfil."
+  }
+}

@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 use pley_base::{Icon, Point, Rect, TextOpts};
 use pley_core::Promise;
+use pley_i18n::t;
 use pley_kit::look::{focus_progress, mix};
 use pley_kit::{Button, List, ListSlot, ListState};
 use pley_shell::{AppCx, AppEvent, Chrome, Screen};
@@ -128,21 +129,22 @@ pub fn lines(
     network: &[(String, String)],
     log: Option<&[String]>,
 ) -> Vec<Line> {
-    let mut out = vec![Line::Title, Line::Heading("This TV", true)];
+    let mut out = vec![Line::Title, Line::Heading(t!("settings.diagnostics.thisTv"), true)];
     out.extend(facts.iter().map(|(l, v)| Line::Fact(l.clone(), v.clone())));
-    out.push(Line::Heading("What it plays", false));
+    out.push(Line::Heading(t!("settings.diagnostics.plays"), false));
+    let checking = Line::Note(t!("settings.diagnostics.checking"), false);
     match check {
-        Check::Checking => out.push(Line::Note("Checking what this TV plays…", false)),
-        Check::Rechecking => out.extend([Line::Note("Checking what this TV plays…", false), Line::Again]),
-        Check::Failed => out.extend([Line::Note("The check of this TV failed.", true), Line::Again]),
+        Check::Checking => out.push(checking),
+        Check::Rechecking => out.extend([checking, Line::Again]),
+        Check::Failed => out.extend([Line::Note(t!("settings.diagnostics.failed"), true), Line::Again]),
         Check::Lines(lines) => out.extend(lines.iter().cloned().map(Line::Plays)),
     }
-    out.push(Line::Heading("Network", false));
+    out.push(Line::Heading(t!("settings.diagnostics.network"), false));
     out.extend(network.iter().map(|(l, v)| Line::Fact(l.clone(), v.clone())));
-    out.push(Line::Heading("Log", false));
+    out.push(Line::Heading(t!("settings.diagnostics.log"), false));
     match log {
-        None => out.push(Line::Note("Reading the log…", false)),
-        Some([]) => out.push(Line::Note("This TV keeps no log.", false)),
+        None => out.push(Line::Note(t!("settings.diagnostics.readingLog"), false)),
+        Some([]) => out.push(Line::Note(t!("settings.diagnostics.noLog"), false)),
         Some(lines) => out.extend(lines.iter().cloned().map(Line::Log)),
     }
     out.push(Line::End);
@@ -224,8 +226,8 @@ impl DiagnosticsScreen {
     /// The app's and the TV's facts: "Pley 0.2.0 (1a2b3c4d5)", the model, the system.
     fn read_facts(cx: &AppCx) -> Vec<(String, String)> {
         let info = cx.device().info();
-        let mut facts =
-            vec![("App".to_string(), format!("Pley {}", pane::build_label(&info.app_version, pane::COMMIT)))];
+        let app = format!("Pley {}", pane::build_label(&info.app_version, pane::COMMIT));
+        let mut facts = vec![(t!("settings.diagnostics.app").to_string(), app)];
         facts.extend(device_facts(&info, cx.device().tier()));
         facts
     }
@@ -234,17 +236,21 @@ impl DiagnosticsScreen {
     fn read_network(cx: &AppCx) -> Vec<(String, String)> {
         let server = cx.state.server().map(pley_core::addresses::host_port);
         let connection = match (&server, cx.state.offline()) {
-            (None, _) => "No server",
-            (Some(_), true) => "Can't reach the server",
-            (Some(_), false) => "Connected",
+            (None, _) => t!("settings.diagnostics.noServer"),
+            (Some(_), true) => t!("settings.diagnostics.unreachable"),
+            (Some(_), false) => t!("settings.diagnostics.connected"),
         };
+        let address = cx
+            .device()
+            .local_ipv4()
+            .map_or_else(|| t!("settings.diagnostics.noNetwork").to_string(), |ip| ip.to_string());
         vec![
+            (t!("settings.diagnostics.address").to_string(), address),
             (
-                "Address".to_string(),
-                cx.device().local_ipv4().map_or_else(|| "No network".to_string(), |ip| ip.to_string()),
+                t!("settings.diagnostics.server").to_string(),
+                server.unwrap_or_else(|| t!("settings.diagnostics.none").into()),
             ),
-            ("Server".to_string(), server.unwrap_or_else(|| "None".into())),
-            ("Connection".to_string(), connection.to_string()),
+            (t!("settings.diagnostics.connection").to_string(), connection.to_string()),
         ]
     }
 
@@ -364,7 +370,7 @@ fn draw_line(ui: &mut Ui, s: &ListSlot, line: &Line) -> bool {
         Line::Title => {
             ui.text(
                 Point::new(r.x, r.y + theme::SAFE_Y),
-                "Diagnostics",
+                t!("settings.categories.diagnostics"),
                 &theme::PAGE_TITLE,
                 &TextOpts::line(r.w),
                 theme::FG,
@@ -380,7 +386,7 @@ fn draw_line(ui: &mut Ui, s: &ListSlot, line: &Line) -> bool {
         }
         Line::Again => {
             let at = Point::new(r.x, r.y + 12.0);
-            return Button::pill("Check again").icon(Icon::RefreshCw).show(ui, s.id, at).activated;
+            return Button::pill(t!("settings.diagnostics.again")).icon(Icon::RefreshCw).show(ui, s.id, at).activated;
         }
         Line::End => {}
         Line::Fact(label, value) => {

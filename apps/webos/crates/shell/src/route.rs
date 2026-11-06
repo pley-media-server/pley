@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 
 use pley_core::model::{DiscoverList, LibrarySort, LiveCategory, TitleKind};
+use pley_i18n::t;
 
 use crate::screen::Chrome;
 
@@ -66,14 +67,14 @@ impl SettingsSection {
     /// The category's name on screen.
     pub fn label(self) -> &'static str {
         match self {
-            SettingsSection::Profile => "Profile",
-            SettingsSection::Playback => "Playback",
-            SettingsSection::Audio => "Audio",
-            SettingsSection::SubtitlesAndDisplay => "Subtitles and display",
-            SettingsSection::Server => "Server",
-            SettingsSection::Diagnostics => "Diagnostics",
-            SettingsSection::About => "About",
-            SettingsSection::SignOut => "Sign out",
+            SettingsSection::Profile => pley_i18n::t!("settings.categories.profile"),
+            SettingsSection::Playback => pley_i18n::t!("settings.categories.playback"),
+            SettingsSection::Audio => pley_i18n::t!("settings.categories.audio"),
+            SettingsSection::SubtitlesAndDisplay => pley_i18n::t!("settings.categories.display"),
+            SettingsSection::Server => pley_i18n::t!("settings.categories.server"),
+            SettingsSection::Diagnostics => pley_i18n::t!("settings.categories.diagnostics"),
+            SettingsSection::About => pley_i18n::t!("settings.categories.about"),
+            SettingsSection::SignOut => pley_i18n::t!("settings.categories.signOut"),
         }
     }
 
@@ -302,44 +303,45 @@ impl Route {
         }
     }
 
-    /// What the page is called on screen, for the placeholder of a page not built yet.
+    /// What the page is called on screen, for the placeholder of a page not built yet. Ids,
+    /// Discover's lists and a title's kind are written as the server writes them.
     pub fn title(&self) -> String {
         match self {
-            Route::Servers => "Choose your server".into(),
-            Route::AddressPad => "Enter your server's address".into(),
-            Route::Link { .. } => "Sign in to Pley".into(),
-            Route::Profiles => "Who's watching?".into(),
-            Route::Pin { .. } => "Enter the PIN".into(),
-            Route::Home => "Home".into(),
-            Route::Libraries { .. } => "Libraries".into(),
-            Route::Library { id, .. } => format!("Library {id}"),
-            Route::Collections { .. } => "Collections".into(),
-            Route::Collection { id } => format!("Collection {id}"),
-            Route::Playlists => "Playlists".into(),
-            Route::Playlist { id } => format!("Playlist {id}"),
-            Route::AddToPlaylist { title, .. } => format!("Add “{title}” to a playlist"),
-            Route::NewPlaylist { .. } => "New playlist".into(),
-            Route::Item { id } => format!("Item {id}"),
-            Route::ItemActions { id, .. } => format!("Actions of item {id}"),
-            Route::Person { id } => format!("Person {id}"),
-            Route::Search { .. } => "Search".into(),
-            Route::Artist { id } => format!("Artist {id}"),
-            Route::Album { id, .. } => format!("Album {id}"),
-            Route::NowPlaying => "Now Playing".into(),
-            Route::LiveTv => "Live TV".into(),
-            Route::Discover => "Discover".into(),
-            Route::DiscoverList { list } => format!("Discover: {}", list.as_str()),
-            Route::DiscoverSearch { query } => format!("On TMDB: {query}"),
-            Route::Title { kind, tmdb_id, .. } => format!("{} {tmdb_id} on TMDB", kind.as_str()),
-            Route::Requests => "Requests".into(),
-            Route::LivePlayer { channel_id, .. } => format!("Channel {channel_id}"),
-            Route::Player(r) => format!("Playing item {}", r.item_id),
-            Route::Storage { .. } => "USB drive".into(),
-            Route::Settings { section: Some(s) } => format!("Settings: {}", s.label()),
-            Route::Settings { section: None } => "Settings".into(),
-            Route::History => "Watch history".into(),
-            Route::Diagnostics => "Diagnostics".into(),
-            Route::Licences => "Open-source licences".into(),
+            Route::Servers => t!("signin.servers.title").into(),
+            Route::AddressPad => t!("signin.address.title").into(),
+            Route::Link { .. } => t!("signin.link.title").into(),
+            Route::Profiles => t!("profiles.title").into(),
+            Route::Pin { .. } => t!("shell.pages.pin").into(),
+            Route::Home => t!("shell.rail.home").into(),
+            Route::Libraries { .. } => t!("shell.rail.libraries").into(),
+            Route::Library { id, .. } => t!("shell.pages.library", id = id),
+            Route::Collections { .. } => t!("shell.rail.collections").into(),
+            Route::Collection { id } => t!("shell.pages.collection", id = id),
+            Route::Playlists => t!("shell.rail.playlists").into(),
+            Route::Playlist { id } => t!("shell.pages.playlist", id = id),
+            Route::AddToPlaylist { title, .. } => t!("shell.pages.addToPlaylist", title = title),
+            Route::NewPlaylist { .. } => t!("shell.pages.newPlaylist").into(),
+            Route::Item { id } => t!("shell.pages.item", id = id),
+            Route::ItemActions { id, .. } => t!("shell.pages.itemActions", id = id),
+            Route::Person { id } => t!("shell.pages.person", id = id),
+            Route::Search { .. } => t!("shell.rail.search").into(),
+            Route::Artist { id } => t!("shell.pages.artist", id = id),
+            Route::Album { id, .. } => t!("shell.pages.album", id = id),
+            Route::NowPlaying => t!("shell.rail.nowPlaying").into(),
+            Route::LiveTv => t!("shell.rail.liveTv").into(),
+            Route::Discover => t!("shell.rail.discover").into(),
+            Route::DiscoverList { list } => t!("shell.pages.discoverList", list = list.as_str()),
+            Route::DiscoverSearch { query } => t!("shell.pages.discoverSearch", query = query),
+            Route::Title { kind, tmdb_id, .. } => t!("shell.pages.title", kind = kind.as_str(), id = tmdb_id),
+            Route::Requests => t!("shell.pages.requests").into(),
+            Route::LivePlayer { channel_id, .. } => t!("shell.pages.channel", id = channel_id),
+            Route::Player(r) => t!("shell.pages.player", id = r.item_id),
+            Route::Storage { .. } => t!("shell.rail.storage").into(),
+            Route::Settings { section: Some(s) } => t!("shell.pages.settingsSection", section = s.label()),
+            Route::Settings { section: None } => t!("shell.rail.settings").into(),
+            Route::History => t!("shell.pages.history").into(),
+            Route::Diagnostics => t!("shell.pages.diagnostics").into(),
+            Route::Licences => t!("shell.pages.licences").into(),
         }
     }
 

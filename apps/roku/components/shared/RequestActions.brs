@@ -16,7 +16,7 @@ function uiRequestOptions(target as object) as boolean
     for each option in options
         labels.Push(option.label)
     end for
-    labels.Push("Cancel")
+    labels.Push(t("common.actions.cancel"))
     m.requestTarget = target
     m.requestOptions = options
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
@@ -52,9 +52,9 @@ sub uiRequestAct(target as object, action as string)
     end if
     if action = "declineReason"
         dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
-        dialog.title = "Decline " + reqQuoted(target.title)
-        dialog.message = ["The reason goes to whoever asked for it."]
-        dialog.buttons = ["Decline", "Cancel"]
+        dialog.title = t("requests.decline.title", { title: target.title })
+        dialog.message = [t("requests.decline.text")]
+        dialog.buttons = [t("requests.actions.decline"), t("common.actions.cancel")]
         dialog.observeField("buttonSelected", "uiRequestReasonGiven")
         m.top.getScene().dialog = dialog
         return
@@ -64,7 +64,7 @@ sub uiRequestAct(target as object, action as string)
         m.requestConfirmed = action
         dialog = CreateObject("roSGNode", "StandardMessageDialog")
         dialog.title = confirm.message
-        dialog.buttons = [confirm.button, "Cancel"]
+        dialog.buttons = [confirm.button, t("common.actions.cancel")]
         dialog.observeField("buttonSelected", "uiRequestConfirmed")
         m.top.getScene().dialog = dialog
         return
@@ -104,7 +104,7 @@ sub uiRequestActed(event as object)
     if not answer.ok
         if uiFailed(answer) then return
         text = reqActProblem(answer, spec.action, reqSummaryOf(m.top.getScene().requestSummary), httpString(m.requestTarget.kind), CreateObject("roDateTime").AsSeconds())
-        uiMessage("That didn't work", [text])
+        uiMessage(t("common.states.failed"), [text])
         if answer.status = 404 or answer.status = 409 or answer.status = 429 then onRequestActed()
         return
     end if

@@ -13,7 +13,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use axum::Json;
-use axum::http::{HeaderValue, StatusCode, header};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use bytes::Bytes;
 use futures::StreamExt;
@@ -32,6 +32,7 @@ use crate::discover::pictures::{self, Picture, Pictures, Unavailable};
 use crate::discover::{self, CastMember, Details, Discover, Found, List, TitleKind};
 use crate::error::AppError;
 use crate::events::{Audience, EventBus, ServerEvent};
+use crate::i18n;
 use crate::metadata::{MetadataAgent, TmdbError};
 use crate::ratings::rating_age;
 use crate::settings::{Settings, SettingsStore};
@@ -69,8 +70,6 @@ const ASK_LOOKS: usize = 3;
 /// an answer waits for them after that.
 const OFFER_TTL: Duration = Duration::from_secs(300);
 const OFFER_WAIT: Duration = Duration::from_secs(3);
-/// What managers read of a request added by hand.
-const HAND_NOTE: &str = "Added by hand";
 
 /// Whether an account may ask for titles.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -282,6 +281,49 @@ pub struct Caller<'a> {
     /// Approves and declines, sees and deletes everyone's requests
     /// ([`AuthUser::manages_requests`]).
     pub manager: bool,
+    /// The language the account sees: Pley's own words on requests (why
+    /// one couldn't be sent, a note) are in it.
+    pub language: &'static str,
+}
+
+/// What went wrong with Radarr or Sonarr, for approvals' options and failed
+/// requests: what happened, worded in the language of whoever reads it
+/// ([`Failure::words`]). A failed request keeps it as JSON in its `reason`,
+/// so its codes and fields stay as they are.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Failure {
+    /// It didn't answer in time, or couldn't be reached.
+    NotAnswering(Service),
+    /// What it answered, or why it couldn't be asked.
+    Arr(ArrError),
+    /// How sending the request went couldn't be saved: why, in the
+    /// database's words.
+    Unsaved(String),
+}
+
+impl Failure {
+    /// What went wrong, in `language`.
+    pub fn words(&self, language: &str) -> String {
+        match self {
+            Failure::NotAnswering(service) => {
+                i18n::t_with(language, "requests.notAnswering", &[("service", service.name())])
+            }
+            Failure::Arr(err) => err.words(language),
+            Failure::Unsaved(why) => i18n::t_with(language, "requests.unsaved", &[("why", why)]),
+        }
+    }
+
+    /// As a failed request keeps it, in its `reason`.
+    fn kept(&self) -> String {
+        serde_json::to_string(self).unwrap_or_else(|_| self.words("en"))
+    }
+
+    /// A failed request's `reason` as kept, in `language`: words kept
+    /// before Pley kept what happened are as they were.
+    fn read(kept: &str, language: &str) -> String {
+        serde_json::from_str::<Failure>(kept).map_or_else(|_| kept.to_owned(), |failure| failure.words(language))
+    }
 }
 
 /// `GET /api/requests/summary`: what this session may do with requests,
@@ -460,9 +502,9 @@ pub struct MediaRequest {
     /// Always `None`: no stage says when it ends.
     pub stage_at: Option<i64>,
     /// Declined: the administrator's, for its maker and managers. Failed:
-    /// what went wrong, for managers.
+    /// what went wrong, for managers, in their language.
     pub reason: Option<String>,
-    /// Managers: what to know of it.
+    /// Managers: what to know of it, in their language.
     pub note: Option<String>,
     /// The account made it.
     pub mine: bool,
@@ -557,7 +599,8 @@ pub struct ArrOptions {
     pub root_folder: Option<String>,
     pub anime_quality_profile: Option<i64>,
     pub anime_root_folder: Option<String>,
-    /// It didn't answer: the lists are the last it gave (none, if never).
+    /// It didn't answer, in the manager's language: the lists are the last
+    /// it gave (none, if never).
     pub error: Option<String>,
 }
 
@@ -797,7 +840,9 @@ impl RequestRow {
         let decision = viewer.manager || (mine && !self.decided_before_inherited());
         let reason = match status {
             RequestStatus::Declined if decision => self.reason.clone(),
-            RequestStatus::Failed if viewer.manager => self.reason.clone(),
+            RequestStatus::Failed if viewer.manager => {
+                self.reason.as_deref().map(|kept| Failure::read(kept, viewer.language))
+            }
             _ => None,
         };
         MediaRequest {
@@ -815,7 +860,7 @@ impl RequestRow {
             stage,
             stage_at: None,
             reason,
-            note: self.hand().then(|| HAND_NOTE.to_owned()).filter(|_| viewer.manager),
+            note: (self.hand() && viewer.manager).then(|| i18n::t(viewer.language, "requests.addedByHand")),
             mine,
             watching,
             watchers: if viewer.manager { viewer.followers.get(&self.id).copied().unwrap_or(0) } else { 0 },
@@ -865,6 +910,8 @@ struct Viewer {
     following: HashSet<i64>,
     /// Radarr and Sonarr, where connected.
     connected: Vec<Service>,
+    /// The language the account sees.
+    language: &'static str,
 }
 
 fn seasons_of(json: &str) -> Vec<i64> {
@@ -1243,7 +1290,7 @@ struct Offer {
     to: Option<Connection>,
     answered: Option<Instant>,
     lists: Lists,
-    error: Option<String>,
+    error: Option<Failure>,
     asking: Option<watch::Receiver<bool>>,
 }
 
@@ -1297,35 +1344,40 @@ impl Requests {
         if self.enabled() { Ok(()) } else { Err(RequestError::Off) }
     }
 
-    /// Who `user` is to requests ([`Caller`]). An administrator's account
-    /// asks without limits: approved as it asks from pley's own sign-in and
-    /// apps, and for a manager to approve from other publishers' apps.
-    /// Other accounts ask as their `request_access` says.
-    pub async fn caller<'a>(&self, user: &'a AuthUser) -> sqlx::Result<Caller<'a>> {
+    /// Who `user` is to requests ([`Caller`]), asking from a device that
+    /// sends `headers` (its language, where the account has none). An
+    /// administrator's account asks without limits: approved as it asks
+    /// from pley's own sign-in and apps, and for a manager to approve from
+    /// other publishers' apps. Other accounts ask as their `request_access`
+    /// says.
+    pub async fn caller<'a>(&self, user: &'a AuthUser, headers: Option<&HeaderMap>) -> sqlx::Result<Caller<'a>> {
         let manager = user.manages_requests();
+        let (access, own): (Option<String>, Option<String>) =
+            sqlx::query_as("SELECT request_access, language FROM users WHERE id = ?")
+                .bind(user.id)
+                .fetch_optional(&self.db.read)
+                .await?
+                .unwrap_or_default();
+        let language = i18n::of_account(own.as_deref(), &self.settings.get().language, headers);
         if user.account_admin {
             let access = if user.first_party() { RequestAccess::Auto } else { RequestAccess::Ask };
-            return Ok(Caller { user, access, limited: false, manager });
+            return Ok(Caller { user, access, limited: false, manager, language });
         }
-        let access: Option<String> = sqlx::query_scalar("SELECT request_access FROM users WHERE id = ?")
-            .bind(user.id)
-            .fetch_optional(&self.db.read)
-            .await?;
         let access = access.as_deref().map_or(RequestAccess::Off, RequestAccess::parse);
-        Ok(Caller { user, access, limited: true, manager })
+        Ok(Caller { user, access, limited: true, manager, language })
     }
 
     /// Requests are on: who `user` is to them. Every route but the summary
     /// starts here (or with [`Self::asker`], [`Self::manager`]): an account
     /// that may not ask keeps its own requests.
-    pub async fn reader<'a>(&self, user: &'a AuthUser) -> RequestResult<Caller<'a>> {
+    pub async fn reader<'a>(&self, user: &'a AuthUser, headers: &HeaderMap) -> RequestResult<Caller<'a>> {
         self.on()?;
-        Ok(self.caller(user).await?)
+        Ok(self.caller(user, Some(headers)).await?)
     }
 
     /// The same, for Discover and asking: the account may ask.
-    pub async fn asker<'a>(&self, user: &'a AuthUser) -> RequestResult<Caller<'a>> {
-        let caller = self.reader(user).await?;
+    pub async fn asker<'a>(&self, user: &'a AuthUser, headers: &HeaderMap) -> RequestResult<Caller<'a>> {
+        let caller = self.reader(user, headers).await?;
         if caller.access == RequestAccess::Off {
             return Err(RequestError::NoAccess);
         }
@@ -1333,8 +1385,8 @@ impl Requests {
     }
 
     /// The same, for approving and declining: `user` manages requests.
-    pub async fn manager<'a>(&self, user: &'a AuthUser) -> RequestResult<Caller<'a>> {
-        let caller = self.reader(user).await?;
+    pub async fn manager<'a>(&self, user: &'a AuthUser, headers: &HeaderMap) -> RequestResult<Caller<'a>> {
+        let caller = self.reader(user, headers).await?;
         if !caller.manager {
             return Err(AppError::forbidden("only administrators approve and decline requests").into());
         }
@@ -1484,7 +1536,7 @@ impl Requests {
     /// `GET /api/requests/summary`: for any session. While requests are
     /// off, and for an app that can't ask, every number is 0.
     pub async fn summary(&self, user: &AuthUser) -> sqlx::Result<Summary> {
-        let caller = self.caller(user).await?;
+        let caller = self.caller(user, None).await?;
         let enabled = self.enabled();
         if !enabled || !user.allowed(Scope::Requests) {
             return Ok(Summary {
@@ -2116,6 +2168,7 @@ impl Requests {
                 .into_iter()
                 .filter(|s| s.connected(&settings).is_some())
                 .collect(),
+            language: caller.language,
         })
     }
 
@@ -2803,7 +2856,7 @@ impl Requests {
             }
             Err(err) => {
                 tracing::warn!("request {id}: {} wasn't added to {}: {err}", row.title, service.name());
-                self.fail(&row, err.to_string()).await?;
+                self.fail(&row, not_answering(service, err)).await?;
             }
         }
         self.changed(id, row.kind(), row.tmdb_id).await;
@@ -2811,29 +2864,34 @@ impl Requests {
     }
 
     /// Request `row`, being sent, couldn't be: it is `failed` for a manager,
-    /// saying why (`reason`), and managers hear it. `false`: it no longer
-    /// was being sent.
-    async fn fail(&self, row: &RequestRow, reason: String) -> sqlx::Result<bool> {
+    /// keeping why (`failure`, worded as each manager reads it), and
+    /// managers hear it, each in their language. `false`: it no longer was
+    /// being sent.
+    async fn fail(&self, row: &RequestRow, failure: Failure) -> sqlx::Result<bool> {
         let failed = sqlx::query(
             "UPDATE requests SET status = 'failed', reason = ?, sending_at = NULL, send_profile = NULL,
                                  send_folder = NULL, updated_at = ?
              WHERE id = ? AND status = 'approved' AND sent_to IS NULL AND sending_at IS NOT NULL",
         )
-        .bind(&reason)
+        .bind(failure.kept())
         .bind(now())
         .bind(row.id)
         .execute(&self.db.write)
         .await?
         .rows_affected();
         if failed == 1 {
-            self.events.send(ServerEvent::RequestFailed {
-                to: Audience::of(Vec::new()),
-                request_id: row.id,
-                title: row.title.clone(),
-                kind: row.kind(),
-                reason,
-                retry_at: None,
-            });
+            // Managers may read different languages: one event for each,
+            // which only the streams in it get.
+            for language in i18n::LANGUAGES {
+                self.events.send(ServerEvent::RequestFailed {
+                    to: Audience { language: Some(language), ..Audience::of(Vec::new()) },
+                    request_id: row.id,
+                    title: row.title.clone(),
+                    kind: row.kind(),
+                    reason: failure.words(language),
+                    retry_at: None,
+                });
+            }
         }
         Ok(failed == 1)
     }
@@ -2843,7 +2901,7 @@ impl Requests {
     /// in Radarr or Sonarr, should it have got there).
     async fn unsaved(&self, id: i64, err: &sqlx::Error) -> sqlx::Result<()> {
         let Some(row) = self.row(id).await? else { return Ok(()) };
-        if self.fail(&row, format!("Pley couldn't save how sending it went: {err}")).await? {
+        if self.fail(&row, Failure::Unsaved(err.to_string())).await? {
             self.changed(id, row.kind(), row.tmdb_id).await;
         }
         Ok(())
@@ -3058,17 +3116,19 @@ impl Requests {
     // -------------------------------------------------------------- choices
 
     /// `GET /api/requests/options`: what approving may choose in Radarr and
-    /// Sonarr, where each is connected.
-    pub async fn options(self: &Arc<Self>) -> RequestOptions {
+    /// Sonarr, where each is connected, for `caller`.
+    pub async fn options(self: &Arc<Self>, caller: &Caller<'_>) -> RequestOptions {
         let settings = self.settings.get();
-        let (radarr, sonarr) =
-            tokio::join!(self.offer(Service::Radarr, &settings), self.offer(Service::Sonarr, &settings));
+        let (radarr, sonarr) = tokio::join!(
+            self.offer(Service::Radarr, &settings, caller.language),
+            self.offer(Service::Sonarr, &settings, caller.language)
+        );
         RequestOptions { radarr, sonarr }
     }
 
     /// What `service` offers, where it is connected, and the settings'
-    /// choices.
-    async fn offer(self: &Arc<Self>, service: Service, settings: &Settings) -> Option<ArrOptions> {
+    /// choices; why it didn't answer in `language`.
+    async fn offer(self: &Arc<Self>, service: Service, settings: &Settings, language: &str) -> Option<ArrOptions> {
         let to = service.connected(settings)?;
         let (lists, error) = self.offered(service, &to).await;
         let ((profile, folder), (anime_profile, anime_folder)) = service.chosen(settings);
@@ -3081,7 +3141,7 @@ impl Requests {
             root_folder: folder_of(folder),
             anime_quality_profile: profile_of(anime_profile),
             anime_root_folder: folder_of(anime_folder),
-            error,
+            error: error.map(|error| error.words(language)),
         })
     }
 
@@ -3089,7 +3149,7 @@ impl Requests {
     /// it last answered, asked again once that is [`OFFER_TTL`] old (one
     /// question at a time) and waited for [`OFFER_WAIT`] at most; with why
     /// not while it doesn't answer.
-    async fn offered(self: &Arc<Self>, service: Service, to: &Connection) -> (Lists, Option<String>) {
+    async fn offered(self: &Arc<Self>, service: Service, to: &Connection) -> (Lists, Option<Failure>) {
         let slot = &self.offers[service as usize];
         let mut asking = {
             let mut offer = slot.lock();
@@ -3118,7 +3178,7 @@ impl Requests {
                                 }
                                 Err(err) => {
                                     tracing::debug!("{err}");
-                                    offer.error = Some(not_answering(service, &err));
+                                    offer.error = Some(not_answering(service, err));
                                 }
                             }
                         }
@@ -3131,7 +3191,7 @@ impl Requests {
         };
         let answered = matches!(tokio::time::timeout(OFFER_WAIT, asking.wait_for(|done| *done)).await, Ok(Ok(_)));
         let offer = slot.lock();
-        let error = if answered { offer.error.clone() } else { Some(format!("{} isn't answering", service.name())) };
+        let error = if answered { offer.error.clone() } else { Some(Failure::NotAnswering(service)) };
         (offer.lists.clone(), error)
     }
 
@@ -3369,11 +3429,13 @@ pub async fn hand_down(tx: &mut SqliteConnection, user_id: i64) -> sqlx::Result<
     Ok(Some(Audience::of(heirs)))
 }
 
-/// What approvals are told when Radarr or Sonarr didn't answer them.
-fn not_answering(service: Service, err: &ArrError) -> String {
+/// What approvals and failed requests are told when Radarr or Sonarr didn't
+/// answer them: that it isn't answering, where it couldn't be reached (the
+/// network's own words go to the log only).
+fn not_answering(service: Service, err: ArrError) -> Failure {
     match err {
-        ArrError::Unreachable(..) => format!("{} isn't answering", service.name()),
-        err => err.to_string(),
+        ArrError::Unreachable { .. } => Failure::NotAnswering(service),
+        err => Failure::Arr(err),
     }
 }
 

@@ -11,13 +11,13 @@
 use std::rc::Rc;
 
 use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
-use pley_core::format::pluralize;
 use pley_core::http::sentence;
 use pley_core::model::{
     CollectionDetail, CollectionList, CollectionSort, CollectionSummary, ItemKind, ItemSummary, Library, LibraryKind,
 };
 use pley_core::store::snapshot_keys;
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, Badge, BadgeStyle, BarItem, Button, ColumnState, GridState,
     PosterGrid, RoundButton, Row, RowColumn, RowState, Section, Tile, TileKind, backdrop_px, button_bar,
@@ -143,14 +143,15 @@ impl CollectionsScreen {
 
 impl Screen for CollectionsScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
-        page_title(ui, "Collections", theme::CANVAS_W - theme::GUTTER - theme::SAFE_X);
+        page_title(ui, t!("library.collections.title"), theme::CANVAS_W - theme::GUTTER - theme::SAFE_X);
         self.has_focus = false;
         let Some(libraries) = cx.state.libraries() else {
             // The libraries couldn't be had, with nothing saved: say so, with Retry.
             if let Some(error) = cx.state.account_error() {
                 let problem = error.problem();
-                let title = failed_title(error, "Couldn't load collections");
-                let r = column_message(ui, ui.id("state"), ROWS_Y, title, &problem, Some("Retry"));
+                let title = failed_title(error, t!("library.collections.failed"));
+                let r =
+                    column_message(ui, ui.id("state"), ROWS_Y, title, &problem, Some(t!("library.collections.retry")));
                 self.has_focus = true;
                 if r.is_some_and(|r| r.activated) {
                     cx.state.load_account();
@@ -186,16 +187,17 @@ impl Screen for CollectionsScreen {
                 .collect::<Option<Vec<_>>>();
             if let Some(error) = failure.and_then(|errors| errors.first().copied()) {
                 let problem = error.problem();
-                let title = failed_title(error, "Couldn't load collections");
-                let r = column_message(ui, ui.id("state"), ROWS_Y, title, &problem, Some("Retry"));
+                let title = failed_title(error, t!("library.collections.failed"));
+                let r =
+                    column_message(ui, ui.id("state"), ROWS_Y, title, &problem, Some(t!("library.collections.retry")));
                 self.has_focus = true;
                 if r.is_some_and(|r| r.activated) {
                     self.shelves.iter_mut().for_each(|s| s.list.invalidate());
                 }
                 return;
             }
-            let body = "Movies of the same TMDB collection are grouped here once two of them are in a library.";
-            column_message(ui, ui.id("state"), ROWS_Y, "No collections yet", body, None);
+            let (title, body) = (t!("library.collections.noneTitle"), t!("library.collections.noneBody"));
+            column_message(ui, ui.id("state"), ROWS_Y, title, body, None);
             if !std::mem::replace(&mut self.sent_to_rail, true) {
                 cx.to_rail();
             }
@@ -306,15 +308,15 @@ impl CollectionScreen {
         let notes = match &detail.smart_filter {
             Some(f) => describe_smart_filter(f).join("  ·  "),
             None => match detail.sort {
-                CollectionSort::Release => "By release date".into(),
-                CollectionSort::Title => "By title".into(),
-                CollectionSort::Custom => "Custom order".into(),
+                CollectionSort::Release => t!("library.collections.byRelease").into(),
+                CollectionSort::Title => t!("library.collections.byTitle").into(),
+                CollectionSort::Custom => t!("library.collections.customOrder").into(),
                 CollectionSort::Unknown => String::new(),
             },
         };
         let count = match library {
             Some(l) => collection_count(detail.item_count, Some(l.kind)),
-            None => pluralize(detail.item_count, "title", None),
+            None => t!("library.count.titles", count = detail.item_count),
         };
         let facts: Vec<&str> = [count.as_str(), library.map_or("", |l| l.name.as_str()), notes.as_str()]
             .into_iter()
@@ -355,13 +357,14 @@ impl CollectionScreen {
         ui.icon(Rect::new(x, y, 18.0, 18.0), Icon::Layers, theme::MUTED);
         let mut bx = x + 18.0 + 8.0;
         let label_y = y + (row_h - theme::LABEL.line_height) / 2.0;
-        bx += ui.text(Point::new(bx, label_y), "Collection", &theme::LABEL, &TextOpts::default(), theme::MUTED).w + 8.0;
+        let label = t!("library.collections.label");
+        bx += ui.text(Point::new(bx, label_y), label, &theme::LABEL, &TextOpts::default(), theme::MUTED).w + 8.0;
         let badge_y = y + (row_h - pley_kit::badge::BADGE_HEIGHT) / 2.0;
         if detail.automatic {
             bx += Badge::new("TMDB", BadgeStyle::Outline).show(ui, Point::new(bx, badge_y)).w + 8.0;
         }
         if detail.smart_filter.is_some() {
-            Badge::new("Smart", BadgeStyle::Outline).show(ui, Point::new(bx, badge_y));
+            Badge::new(t!("library.collections.smart"), BadgeStyle::Outline).show(ui, Point::new(bx, badge_y));
         }
         y += row_h + 10.0;
         y += ui.text(Point::new(x, y), &detail.title, &theme::HERO_TITLE, &TextOpts::wrap(TEXT_W, 2), theme::FG).h;
@@ -373,8 +376,9 @@ impl CollectionScreen {
         }
         let empty = detail.items.is_empty();
         let by = (if empty { BUTTONS_Y_EMPTY } else { BUTTONS_Y }) - lift;
-        let play = Button::pill("Play").icon(Icon::Play).enabled(!empty);
-        let shuffle = RoundButton::new(Icon::Shuffle, "Shuffle").enabled(detail.items.len() >= 2);
+        let play = Button::pill(t!("library.collections.play")).icon(Icon::Play).enabled(!empty);
+        let shuffle =
+            RoundButton::new(Icon::Shuffle, t!("library.collections.shuffle")).enabled(detail.items.len() >= 2);
         let bar_id = ui.id("buttons");
         let initial = if empty { bar_id.with("shuffle") } else { bar_id.with("play") };
         ui.initial_focus(initial);
@@ -403,7 +407,7 @@ impl CollectionScreen {
         if empty {
             let ey = by + theme::BUTTON_HEIGHT + 36.0;
             let opts = TextOpts::wrap(TEXT_W, 2);
-            ui.text(Point::new(x, ey), "Nothing in this collection yet.", &theme::BODY, &opts, theme::MUTED);
+            ui.text(Point::new(x, ey), t!("library.collections.empty"), &theme::BODY, &opts, theme::MUTED);
         }
     }
 }
@@ -446,7 +450,7 @@ impl Screen for CollectionScreen {
             self.on_deck = None;
             match answer {
                 Ok(Some(episode)) => cx.play(PlayRequest::item(episode.id)),
-                Ok(None) => self.say("Nothing to play: this show has no episodes yet".into(), cx.now),
+                Ok(None) => self.say(t!("library.collections.noEpisodes").into(), cx.now),
                 Err(e) if e.cancelled() => {}
                 Err(e) => self.say(sentence(&e.to_string()), cx.now),
             }
@@ -467,8 +471,9 @@ impl Screen for CollectionScreen {
             }
             Load::Failed { error, stale: None } => {
                 let problem = error.problem();
-                let title = failed_title(error, "Couldn't load this collection");
-                let r = column_message(ui, ui.id("state"), CONTENT_Y, title, &problem, Some("Retry"));
+                let title = failed_title(error, t!("library.collections.failedOne"));
+                let retry = Some(t!("library.collections.retry"));
+                let r = column_message(ui, ui.id("state"), CONTENT_Y, title, &problem, retry);
                 if r.is_some_and(|r| r.activated) {
                     self.detail.invalidate();
                 }

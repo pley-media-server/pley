@@ -1,0 +1,13 @@
+{
+  "title": "Who's watching?",
+  "useAnother": "Use another profile",
+  "pin": {
+    "title": "Enter {{name}}'s PIN",
+    "keysHint": "You can also type with the number keys on your remote."
+  },
+  "errors": {
+    "locked": "This profile can't be used from the app.",
+    "cantSwitch": "This sign-in can't switch profiles: sign in again to allow it.",
+    "notAllowed": "You can't switch to this profile."
+  }
+}

@@ -7,8 +7,12 @@
         <field id="params" type="assocarray" />
         <field id="navigate" type="assocarray" alwaysNotify="true" />
         <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The language shown changed: the screen draws its words again,
+             a PIN pad it opened staying. -->
+        <field id="language" type="string" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/ProfilesScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -17,9 +21,9 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
     <children>
-        <Label id="title" translation="[0, 200]" width="1920" horizAlign="center" text="Who's watching?" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[0, 200]" width="1920" horizAlign="center" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <MarkupGrid id="profiles" translation="[0, 400]" itemComponentName="ProfileTile" numRows="1" numColumns="6" itemSize="[220, 330]" itemSpacing="[48, 0]" drawFocusFeedback="false" />
-        <Label id="message" translation="[360, 780]" width="1200" wrap="true" maxLines="3" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:SmallSystemFont" />
+        <Label id="message" translation="[360, 780]" width="1200" wrap="true" maxLines="3" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[660, 900]" minWidth="600" visible="false" />
     </children>
 </component>

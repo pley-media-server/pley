@@ -909,3 +909,61 @@ fn relative_times_are_written_by_the_app() {
     assert_eq!(day_and_time(AT + 23 * HOUR, true, t), "tomorrow at 11:00");
     assert_eq!(day_and_time(AT + 2 * DAY, true, t), "Nov 1");
 }
+
+#[test]
+fn french_counts_seasons_days_and_dates_its_own_way() {
+    use pley_i18n::{Language, with_language};
+    with_language(Language::Fr, || {
+        let t = now();
+        assert_eq!(seasons_label(&[5, 1, 2, 3]), "Saisons 1–3, 5");
+        assert_eq!(seasons_label(&[0, 1, 2]), "Saisons 1–2 et épisodes spéciaux");
+        assert_eq!(seasons_label(&[2]), "Saison 2");
+        assert_eq!((picker_button(1), picker_button(3)), ("Demander 1 saison".into(), "Demander 3 saisons".into()));
+        assert_eq!(relative_time(AT - 30, t), "à l’instant");
+        assert_eq!(relative_time(AT - HOUR, t), "il y a 1 heure");
+        assert_eq!(relative_time(AT - 3 * DAY, t), "il y a 3 jours");
+        assert_eq!(relative_time(AT - 40 * DAY, t), "20 sept. 2026");
+        assert_eq!(time_until(AT + 5 * MIN, t), "dans 5 min");
+        assert_eq!(time_until(AT + DAY, t), "demain");
+        assert_eq!(short_date(AT + 5 * DAY, t, false), "4 nov.");
+        assert_eq!(short_date(AT + 90 * DAY, t, false), "28 janv. 2027");
+        let declined = Declined { reason: Some("Not on any service.".into()), at: AT, again_at: AT + 12 * DAY };
+        assert_eq!(
+            declined_text(Some(&declined), t),
+            "Refusé\u{a0}: «\u{a0}Not on any service\u{a0}». Vous pourrez redemander dans 12 jours."
+        );
+        let mut partly = season(1, SeasonState::Partial);
+        (partly.in_library, partly.episodes) = (1, 10);
+        assert_eq!(season_line(&partly, t), "1 épisode sur 10 en bibliothèque");
+        assert_eq!(news_text(2), "2 de vos demandes ont du nouveau");
+        assert_eq!(
+            ready_text("Severance", Some(&[0]), false),
+            "Les épisodes spéciaux de «\u{a0}Severance\u{a0}» sont prêts à regarder."
+        );
+        let failed = request(with_status(RequestStatus::Failed, RequestStage::Failed));
+        let failed = MediaRequest { retry_at: Some(AT + 5 * MIN), ..failed };
+        assert_eq!(stage_words(&failed, false, t).note.as_deref(), Some("Nouvel essai dans 5 min."));
+    });
+}
+
+#[test]
+fn spanish_says_what_may_be_asked_for_and_how_far_a_download_is() {
+    use pley_i18n::{Language, with_language};
+    with_language(Language::Es, || {
+        let a = Allowance { movies_limit: Some(3), seasons_limit: Some(10), ..allowance(Some(2), Some(1), None, None) };
+        assert_eq!(
+            allowance_lines(&a, now()).unwrap(),
+            [
+                "Puedes solicitar 2 películas más y 1 temporada más.",
+                "Límites: 3 películas y 10 temporadas cada 7 días."
+            ]
+        );
+        let w = words(&downloading(0.423, DownloadState::Downloading, Some(AT + 20 * MIN)));
+        assert_eq!(w.text, "Descargando 42\u{a0}% · en 20 min");
+        assert_eq!(ready_text("Severance", Some(&[2]), false), "Temporada 2 de «Severance» ya está lista para ver.");
+        assert_eq!(news_text(1), "1 de tus solicitudes tiene novedades");
+        assert_eq!(asked_line(&request(|_| {}), false, now()), "Solicitado por ti · hace 3 días");
+        assert_eq!(requests_tabs(false)[0], (RequestsTab::All, "Todas"));
+        assert_eq!(title_badge(TitleStatus::Partial, Some(5)), Some("Parcialmente"));
+    });
+}

@@ -8,10 +8,11 @@ use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::http::sentence;
 use pley_core::model::{DiscoverDetail, DiscoverSeason, NewRequest, RequestSummary, TitleKind};
 use pley_core::requests::{
-    Allowance, MainAction, RequestsProblem, TMDB_CREDIT, Tone, TvTime, allowance_lines, askable, has_requests,
-    main_action, moving, picker_button, picker_seasons, preselected, requests_problem, requests_title, season_line,
-    season_stage, title_key,
+    Allowance, MainAction, RequestsProblem, Tone, TvTime, allowance_lines, askable, has_requests, main_action, moving,
+    picker_button, picker_seasons, preselected, requests_problem, requests_title, season_line, season_stage, title_key,
+    tmdb_credit,
 };
+use pley_i18n::t;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, Button, ColumnState, Dialog, Heading, InfoBlock, List,
     ListRow, ListState, Message, MessageStyle, Row, RowColumn, RowState, Section, SidePanel, Tile, TileKind, Trailing,
@@ -62,22 +63,20 @@ pub fn can_pick(d: &DiscoverDetail, s: Option<&RequestSummary>, time: TvTime) ->
 pub fn season_badge(s: &DiscoverSeason) -> Option<(&'static str, Tone)> {
     use pley_core::model::SeasonState;
     match s.state {
-        SeasonState::Library => Some(("In library", Tone::Green)),
-        SeasonState::Partial => Some(("Partly in library", Tone::Green)),
-        SeasonState::Requested => Some(("Requested", Tone::Blue)),
-        _ if s.declined => Some(("Declined", Tone::Red)),
+        SeasonState::Library => Some((t!("requests.season.library"), Tone::Green)),
+        SeasonState::Partial => Some((t!("requests.season.partly"), Tone::Green)),
+        SeasonState::Requested => Some((t!("requests.season.requested"), Tone::Blue)),
+        _ if s.declined => Some((t!("requests.season.declined"), Tone::Red)),
         _ => None,
     }
 }
 
-/// A season's name.
+/// A season's name: its own, else "Season 2" or "Specials" in the language shown.
 fn season_name(s: &DiscoverSeason) -> String {
-    if !s.name.is_empty() {
-        s.name.clone()
-    } else if s.number == 0 {
-        "Specials".into()
+    if s.name.is_empty() || pley_core::format::generic_season_title(&s.name, Some(s.number)) {
+        pley_core::requests::season_name(s.number)
     } else {
-        format!("Season {}", s.number)
+        s.name.clone()
     }
 }
 
@@ -251,16 +250,16 @@ impl Screen for TitleScreen {
                     self.settled = true;
                     let why = requests_problem(&e);
                     if why == RequestsProblem::Missing {
-                        let r = Message::new(MessageStyle::Item, "Not on TMDB")
-                            .body("TMDB doesn't know this title, or it can't be shown here.")
-                            .action("Back", Icon::ArrowLeft)
+                        let r = Message::new(MessageStyle::Item, t!("requests.title.notOnTmdb"))
+                            .body(t!("requests.title.notOnTmdbText"))
+                            .action(t!("requests.buttons.back"), Icon::ArrowLeft)
                             .show(ui, page.with("missing"));
                         if r.action.is_some_and(|a| a.activated) {
                             cx.pop();
                         }
                     } else {
                         let (pressed, focusable) =
-                            problem_page(ui, cx, page.with("problem"), &why, "Couldn't load this title");
+                            problem_page(ui, cx, page.with("problem"), &why, t!("requests.title.loadFailed"));
                         self.rail_if(cx, !focusable);
                         match pressed {
                             Some(ProblemAction::Retry) => self.detail.invalidate(),
@@ -412,7 +411,8 @@ impl TitleScreen {
             extras.push(Extra { key: "requests", icon: Icon::Inbox, label, unclaimed_only: true });
         }
         if words.cut {
-            extras.push(Extra { key: "overview", icon: Icon::Ellipsis, label: "Overview", unclaimed_only: false });
+            let label = t!("requests.buttons.overview");
+            extras.push(Extra { key: "overview", icon: Icon::Ellipsis, label, unclaimed_only: false });
         }
         // A page with nothing to focus (it can't be asked for, and no rows): the rail, so the
         // remote is never dead.
@@ -455,7 +455,7 @@ impl TitleScreen {
                     }
                 }
                 SEASONS => {
-                    let r = Row::new(TileKind::Poster, top).header("Seasons").show(
+                    let r = Row::new(TileKind::Poster, top).header(t!("requests.title.seasons")).show(
                         ui,
                         ui.id("row"),
                         &mut rows[0],
@@ -493,7 +493,7 @@ impl TitleScreen {
                     }
                 }
                 CAST => {
-                    Row::new(TileKind::Person, top).header("Cast").show(
+                    Row::new(TileKind::Person, top).header(t!("requests.title.cast")).show(
                         ui,
                         ui.id("row"),
                         &mut rows[1],
@@ -513,7 +513,7 @@ impl TitleScreen {
                 _ => {
                     ui.text(
                         Point::new(theme::GUTTER, top),
-                        TMDB_CREDIT,
+                        tmdb_credit(),
                         &theme::CAPTION,
                         &TextOpts::line(800.0),
                         theme::SUBTLE,
@@ -577,7 +577,7 @@ impl TitleScreen {
         });
         let panel = SidePanel::new().back_closes(false).show(ui, id, open, |ui, area| {
             let mut y = area.y;
-            y += Heading::PanelTitle.show(ui, "Which seasons?", Point::new(area.x, y), area.w);
+            y += Heading::PanelTitle.show(ui, t!("requests.picker.title"), Point::new(area.x, y), area.w);
             y +=
                 ui.text(
                     Point::new(area.x + 16.0, y),

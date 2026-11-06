@@ -9,7 +9,7 @@ use std::rc::Rc;
 use common::{TestApp, device, fixtures, http, registry, sign_in, store};
 use pley_base::{Key, KeyEvent};
 use pley_core::device::Drive;
-use pley_shell::{NavCommand, PLACEHOLDER_TEXT, Rail, Registry, Route};
+use pley_shell::{NavCommand, Rail, Registry, Route, placeholder_text};
 use pley_ui::InputEvent;
 
 fn heard() -> common::Heard {
@@ -354,7 +354,7 @@ fn every_route_has_a_screen_and_placeholders_name_theirs() {
         app.navigate(NavCommand::Reset(route.clone()));
         assert_eq!(app.shell.top_route(), Some(&route));
         assert_eq!(app.shell.top().unwrap().screen().chrome(), route.chrome(), "{}", route.name());
-        assert!(app.list.says(PLACEHOLDER_TEXT), "{}", route.name());
+        assert!(app.list.says(placeholder_text()), "{}", route.name());
         assert!(app.list.says(&route.title()), "{}", route.name());
         // Its one button does what Back does.
         assert!(app.focused().is_some(), "{}", route.name());

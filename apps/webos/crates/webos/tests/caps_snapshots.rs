@@ -31,6 +31,7 @@ fn tv(over: impl FnOnce(&mut WebosFacts)) -> WebosFacts {
         memory: Some("3G".into()),
         codecs: None,
         clock_24h: true,
+        languages: Vec::new(),
     };
     over(&mut f);
     f

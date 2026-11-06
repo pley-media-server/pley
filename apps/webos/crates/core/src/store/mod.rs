@@ -47,6 +47,11 @@ pub mod keys {
     /// Where videos on a USB drive stopped: `[[file id, position ms, length ms], …]`,
     /// newest first, at most 500 (pley-local's `resume`).
     pub const LOCAL_RESUME: &str = "pley.localResume";
+    /// The language shown last (`en`, `fr`, `es`): the next start shows it before the server
+    /// answers.
+    pub const LANGUAGE: &str = "pley.language";
+    /// The language picked on this TV with the globe before signing in; none: Automatic.
+    pub const DEVICE_LANGUAGE: &str = "pley.deviceLanguage";
 
     /// A sign-in's tokens.
     pub fn tokens(server: &str) -> String {
@@ -336,6 +341,29 @@ impl Store {
         let id = format!("webos-{}", bytes.iter().map(|b| format!("{b:02x}")).collect::<String>());
         let _ = self.set(keys::INSTALL_ID, &id);
         id
+    }
+
+    /// The language shown last, if one was.
+    pub fn shown_language(&self) -> Option<pley_i18n::Language> {
+        pley_i18n::supported(self.get::<String>(keys::LANGUAGE).as_deref())
+    }
+
+    /// Keeps the language shown.
+    pub fn set_shown_language(&self, language: pley_i18n::Language) -> io::Result<()> {
+        self.set(keys::LANGUAGE, language.code())
+    }
+
+    /// The language picked on this TV with the globe; none: Automatic.
+    pub fn device_language(&self) -> Option<pley_i18n::Language> {
+        pley_i18n::supported(self.get::<String>(keys::DEVICE_LANGUAGE).as_deref())
+    }
+
+    /// Keeps the language picked with the globe, or forgets it (Automatic).
+    pub fn set_device_language(&self, language: Option<pley_i18n::Language>) -> io::Result<()> {
+        match language {
+            Some(l) => self.set(keys::DEVICE_LANGUAGE, l.code()),
+            None => self.remove(keys::DEVICE_LANGUAGE),
+        }
     }
 
     /// The server in use, if any.

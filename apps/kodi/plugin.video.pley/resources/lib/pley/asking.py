@@ -507,7 +507,7 @@ class Asking:
             tag.setSeason(season.get("number") or 0)
             if season.get("air_date"):
                 tag.setPremiered(season["air_date"])
-            count = words.plural(season["episodes"], "episode") if season.get("episodes") else ""
+            count = kodi.count("episodes", season["episodes"]) if season.get("episodes") else ""
             tag.setPlot(plot(line, "" if count == line else count, T("tmdb_credit")))
             tag.setProductionCode(line)
             url = self.url(route="title", kind="show", tmdb=detail["tmdb_id"], season=season.get("number") or 0)
@@ -670,7 +670,7 @@ class Asking:
             who = names.get(chosen.get("user_id") or "", T("everyone"))
             self.entry(who, dict(here, pick="user_id"), "DefaultActor.png", folder=False, label2=heading, top=True)
         typed = chosen.get("q")
-        self.entry(T("search"), dict(here, pick="q"), "DefaultAddonsSearch.png", folder=False, label2="“%s”" % typed if typed else heading, top=True)
+        self.entry(T("search"), dict(here, pick="q"), "DefaultAddonsSearch.png", folder=False, label2=T("quoted") % typed if typed else heading, top=True)
 
     def route_request_filter(self) -> None:
         """One of Requests' filters changed (its dialog), and the list shown

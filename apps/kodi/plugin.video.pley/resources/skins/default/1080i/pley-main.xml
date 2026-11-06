@@ -548,7 +548,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30101]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30101)]</label>
               </control>
             </control>
             <control type="group" id="2079">
@@ -587,7 +587,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30102]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30102)]</label>
               </control>
             </control>
             <control type="group" id="2080">
@@ -626,7 +626,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30019]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30019)]</label>
               </control>
             </control>
             <control type="group" id="2081">
@@ -664,7 +664,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30020]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30020)]</label>
               </control>
             </control>
           </control>
@@ -11822,7 +11822,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30214]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30214)]</label>
               </control>
             </control>
             <control type="group" id="3080">
@@ -11861,7 +11861,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30101]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30101)]</label>
               </control>
             </control>
             <control type="group" id="3081">
@@ -11900,7 +11900,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30019]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30019)]</label>
               </control>
             </control>
             <control type="group" id="3082">
@@ -11939,7 +11939,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30020]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30020)]</label>
               </control>
             </control>
             <control type="group" id="3083">
@@ -11978,7 +11978,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30021]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30021)]</label>
               </control>
             </control>
             <control type="group" id="3084">
@@ -12017,7 +12017,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30103]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30103)]</label>
               </control>
             </control>
             <control type="group" id="3085">
@@ -12056,7 +12056,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30104]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30104)]</label>
               </control>
             </control>
             <control type="group" id="3087">
@@ -12095,7 +12095,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30180]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30180)]</label>
               </control>
             </control>
             <control type="group" id="3086">
@@ -12133,7 +12133,7 @@
                 <align>center</align>
                 <aligny>center</aligny>
                 <scroll>false</scroll>
-                <label>$ADDON[plugin.video.pley 30105]</label>
+                <label>$INFO[Window(Home).Property(pley.word.30105)]</label>
               </control>
             </control>
           </control>
@@ -18323,7 +18323,7 @@
           <align>center</align>
           <aligny>center</aligny>
           <textoffsetx>32</textoffsetx>
-          <label>$ADDON[plugin.video.pley 30106]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30106)]</label>
           <ondown>4020</ondown>
           <onleft>100</onleft>
           <width min="80" max="600">auto</width>
@@ -18341,7 +18341,7 @@
           <align>center</align>
           <aligny>center</aligny>
           <textoffsetx>32</textoffsetx>
-          <label>$ADDON[plugin.video.pley 30106]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30106)]</label>
           <ondown>4020</ondown>
           <onleft>100</onleft>
           <width min="80" max="600">auto</width>
@@ -18359,7 +18359,7 @@
           <align>center</align>
           <aligny>center</aligny>
           <textoffsetx>32</textoffsetx>
-          <label>$ADDON[plugin.video.pley 30107]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30107)]</label>
           <ondown>4020</ondown>
           <onleft>100</onleft>
           <width min="80" max="600">auto</width>
@@ -18377,7 +18377,7 @@
           <align>center</align>
           <aligny>center</aligny>
           <textoffsetx>32</textoffsetx>
-          <label>$ADDON[plugin.video.pley 30107]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30107)]</label>
           <ondown>4020</ondown>
           <onleft>100</onleft>
           <width min="80" max="600">auto</width>
@@ -18395,7 +18395,7 @@
           <align>center</align>
           <aligny>center</aligny>
           <textoffsetx>32</textoffsetx>
-          <label>$ADDON[plugin.video.pley 30005]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30005)]</label>
           <ondown>4020</ondown>
           <onleft>100</onleft>
           <width min="80" max="600">auto</width>
@@ -18413,7 +18413,7 @@
           <align>center</align>
           <aligny>center</aligny>
           <textoffsetx>32</textoffsetx>
-          <label>$ADDON[plugin.video.pley 30005]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30005)]</label>
           <ondown>4020</ondown>
           <onleft>100</onleft>
           <width min="80" max="600">auto</width>
@@ -18513,7 +18513,7 @@
             <align>center</align>
             <aligny>center</aligny>
             <textoffsetx>32</textoffsetx>
-            <label>$ADDON[plugin.video.pley 30109]</label>
+            <label>$INFO[Window(Home).Property(pley.word.30109)]</label>
             <width min="80" max="700">auto</width>
           </control>
           <control type="button" id="4123">
@@ -18545,7 +18545,7 @@
             <align>center</align>
             <aligny>center</aligny>
             <textoffsetx>32</textoffsetx>
-            <label>$ADDON[plugin.video.pley 30110]</label>
+            <label>$INFO[Window(Home).Property(pley.word.30110)]</label>
             <width min="80" max="700">auto</width>
           </control>
           <control type="button" id="4124">
@@ -18577,7 +18577,7 @@
             <align>center</align>
             <aligny>center</aligny>
             <textoffsetx>32</textoffsetx>
-            <label>$ADDON[plugin.video.pley 30111]</label>
+            <label>$INFO[Window(Home).Property(pley.word.30111)]</label>
             <width min="80" max="700">auto</width>
           </control>
           <control type="button" id="4125">
@@ -36511,7 +36511,7 @@
         <align>left</align>
         <aligny>center</aligny>
         <scroll>false</scroll>
-        <label>$ADDON[plugin.video.pley 30247]</label>
+        <label>$INFO[Window(Home).Property(pley.word.30247)]</label>
       </control>
       <control type="label" id="10012">
         <left>600</left>
@@ -37168,7 +37168,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30257]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30257)]</label>
         </control>
         <control type="label">
           <left>1416</left>
@@ -37213,7 +37213,7 @@
         <align>left</align>
         <aligny>center</aligny>
         <scroll>false</scroll>
-        <label>$ADDON[plugin.video.pley 30207]</label>
+        <label>$INFO[Window(Home).Property(pley.word.30207)]</label>
       </control>
       <control type="grouplist" id="8012">
         <left>1000</left>
@@ -37516,7 +37516,7 @@
         <align>center</align>
         <aligny>center</aligny>
         <scroll>false</scroll>
-        <label>$ADDON[plugin.video.pley 30219]</label>
+        <label>$INFO[Window(Home).Property(pley.word.30219)]</label>
       </control>
       <control type="list" id="9020">
         <left>830</left>
@@ -37927,7 +37927,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30003]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30003)]</label>
         </control>
         <control type="label" id="1115">
           <left>113</left>
@@ -37942,7 +37942,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30003]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30003)]</label>
         </control>
         <control type="label" id="1116">
           <left>113</left>
@@ -37955,7 +37955,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30003]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30003)]</label>
         </control>
       </control>
       <control type="group" id="212">
@@ -38035,7 +38035,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30100]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30100)]</label>
         </control>
         <control type="label" id="1125">
           <left>113</left>
@@ -38050,7 +38050,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30100]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30100)]</label>
         </control>
         <control type="label" id="1126">
           <left>113</left>
@@ -38063,7 +38063,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30100]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30100)]</label>
         </control>
       </control>
       <control type="group" id="217">
@@ -38143,7 +38143,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30247]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30247)]</label>
         </control>
         <control type="label" id="1175">
           <left>113</left>
@@ -38158,7 +38158,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30247]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30247)]</label>
         </control>
         <control type="label" id="1176">
           <left>113</left>
@@ -38171,7 +38171,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30247]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30247)]</label>
         </control>
       </control>
       <control type="group" id="213">
@@ -38791,7 +38791,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30207]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30207)]</label>
         </control>
         <control type="label" id="1165">
           <left>113</left>
@@ -38806,7 +38806,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30207]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30207)]</label>
         </control>
         <control type="label" id="1166">
           <left>113</left>
@@ -38819,7 +38819,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30207]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30207)]</label>
         </control>
       </control>
       <control type="group" id="219">
@@ -38899,7 +38899,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30004]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30004)]</label>
         </control>
         <control type="label" id="1195">
           <left>113</left>
@@ -38914,7 +38914,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30004]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30004)]</label>
         </control>
         <control type="label" id="1196">
           <left>113</left>
@@ -38927,7 +38927,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30004]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30004)]</label>
         </control>
       </control>
       <control type="group" id="220">
@@ -39007,7 +39007,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30005]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30005)]</label>
         </control>
         <control type="label" id="1205">
           <left>113</left>
@@ -39022,7 +39022,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30005]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30005)]</label>
         </control>
         <control type="label" id="1206">
           <left>113</left>
@@ -39035,7 +39035,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30005]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30005)]</label>
         </control>
       </control>
       <control type="group" id="221">
@@ -39114,7 +39114,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30027]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30027)]</label>
         </control>
         <control type="label" id="1215">
           <left>113</left>
@@ -39129,7 +39129,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30027]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30027)]</label>
         </control>
         <control type="label" id="1216">
           <left>113</left>
@@ -39142,7 +39142,7 @@
           <align>left</align>
           <aligny>center</aligny>
           <scroll>false</scroll>
-          <label>$ADDON[plugin.video.pley 30027]</label>
+          <label>$INFO[Window(Home).Property(pley.word.30027)]</label>
         </control>
       </control>
     </control>

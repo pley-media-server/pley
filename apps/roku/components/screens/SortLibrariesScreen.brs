@@ -7,6 +7,7 @@ sub init()
     m.buttons = m.top.findNode("buttons")
     m.hint = m.top.findNode("hint")
     m.message = m.top.findNode("message")
+    m.top.findNode("title").text = t("browse.sortLibraries.title")
     m.libraries = []
     ' The library lifted (its place now), -1 for none, and the order before.
     m.moving = -1
@@ -14,7 +15,7 @@ sub init()
     m.saving = false
     ' A server from before the profile's own order: nothing moves.
     m.older = false
-    m.buttons.buttons = ["Use the server's order", "Done"]
+    m.buttons.buttons = [t("browse.sortLibraries.serverOrder"), t("common.actions.done")]
     m.buttons.observeField("buttonSelected", "onButton")
     m.list.observeField("itemSelected", "onSelected")
     m.list.observeField("itemFocused", "onFocused")
@@ -59,7 +60,7 @@ sub retitle()
         node = content.getChild(i)
         if node <> invalid
             title = m.libraries[i].name
-            if i = m.moving then title = title + "  (moving)"
+            if i = m.moving then title = t("browse.sortLibraries.moving", { name: title })
             node.title = title
         end if
     end for
@@ -67,9 +68,9 @@ end sub
 
 sub hint()
     if m.moving >= 0
-        m.hint.text = "Up and down move it, OK puts it there, Back puts it back."
+        m.hint.text = t("browse.sortLibraries.movingHint")
     else
-        m.hint.text = "Select a library to move it. Your order applies on all your devices."
+        m.hint.text = t("browse.sortLibraries.hint")
     end if
 end sub
 
@@ -131,7 +132,7 @@ sub onSaved(event as object)
     refusal = orderRefusal(answer.status)
     if refusal = "older"
         m.older = true
-        m.message.text = "Sorting libraries needs a newer Pley on the server."
+        m.message.text = t("browse.sortLibraries.needsNewer")
         place(m.before)
     else if refusal = "changed"
         ' A library came or went since they were listed: as they are now.

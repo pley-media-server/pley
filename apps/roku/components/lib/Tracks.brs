@@ -6,14 +6,19 @@
 ' matching ones. Indexes are the file's stream indexes (sidecar subtitle
 ' files from 1000).
 
-' When subtitles come on by default (subtitle_mode), worded as on the TVs.
+' When subtitles come on by default (subtitle_mode), in order.
+function tracksModeIds() as object
+    return ["off", "forced", "foreign", "always"]
+end function
+
+' The modes worded as on the TVs: [{ id, label, hint }].
 function tracksModes() as object
-    return [
-        { id: "off", label: "Off", hint: "Subtitles stay off until you turn them on." },
-        { id: "forced", label: "Only for foreign dialogue", hint: "Only forced subtitles, for signs and foreign dialogue." },
-        { id: "foreign", label: "When the audio is in another language", hint: "Full subtitles come on when the audio isn't in your subtitle language." },
-        { id: "always", label: "Always", hint: "Subtitles in your language come on whenever there are some." }
-    ]
+    modes = []
+    for each id in tracksModeIds()
+        key = "player.settings.modes." + id
+        modes.Push({ id: id, label: t(key + ".label"), hint: t(key + ".hint") })
+    end for
+    return modes
 end function
 
 ' A profile's defaults (GET /api/auth/me) as { audio, subtitle, mode }: ""
@@ -26,8 +31,8 @@ function tracksDefaults(me as dynamic) as object
     defaults.audio = httpString(data.audio_language)
     defaults.subtitle = httpString(data.subtitle_language)
     mode = httpString(data.subtitle_mode)
-    for each known in tracksModes()
-        if known.id = mode then defaults.mode = mode
+    for each known in tracksModeIds()
+        if known = mode then defaults.mode = mode
     end for
     return defaults
 end function
@@ -59,8 +64,8 @@ function tracksRefused(status as integer) as boolean
 end function
 
 function tracksModeLabel(mode as string) as string
-    for each known in tracksModes()
-        if known.id = mode then return known.label
+    for each known in tracksModeIds()
+        if known = mode then return t("player.settings.modes." + mode + ".label")
     end for
     return ""
 end function
@@ -72,18 +77,25 @@ end function
 
 ' Settings' rows for the defaults, in order: [{ kind, text }]. defaults is
 ' invalid until the profile came; readOnly once the server refused a change.
+' A row says its value in fewer words than the choices do where a language
+' needs them to fit (settings.rows, the modes' row).
 function tracksRows(defaults as dynamic, readOnly as boolean) as object
-    suffix = ""
-    if readOnly then suffix = " · change on the web"
     if defaults = invalid
-        return [{ kind: "audio", text: "Audio language" }, { kind: "mode", text: "Subtitles" }]
+        return [{ kind: "audio", text: t("player.settings.audioLanguage") }, { kind: "mode", text: t("player.settings.subtitles") }]
     end if
+    mode = ""
+    if tracksModeLabel(defaults.mode) <> "" then mode = t("player.settings.modes." + defaults.mode + ".row")
     rows = [
-        { kind: "audio", text: "Audio language: " + fmtLanguageName(defaults.audio, "The file's default") + suffix },
-        { kind: "mode", text: "Subtitles: " + tracksModeLabel(defaults.mode) + suffix }
+        { kind: "audio", text: t("player.settings.rows.audio", { language: fmtLanguageName(defaults.audio, t("player.settings.rows.fileDefault")) }) },
+        { kind: "mode", text: t("player.settings.rows.mode", { mode: mode }) }
     ]
     if tracksAsksSubtitleLanguage(defaults.mode)
-        rows.Push({ kind: "subtitle", text: "Subtitle language: " + fmtLanguageName(defaults.subtitle, "Same as the audio language") + suffix })
+        rows.Push({ kind: "subtitle", text: t("player.settings.rows.subtitle", { language: fmtLanguageName(defaults.subtitle, t("player.settings.rows.sameAsAudio")) }) })
+    end if
+    if readOnly
+        for each row in rows
+            row.text = t("player.settings.rows.readOnly", { row: row.text })
+        end for
     end if
     return rows
 end function
@@ -95,18 +107,18 @@ function tracksChoices(kind as string, defaults as object) as object
     values = []
     hints = []
     if kind = "mode"
-        title = "Subtitles"
+        title = t("player.settings.subtitles")
         for each known in tracksModes()
             labels.Push(known.label)
             values.Push(known.id)
             hints.Push(known.hint)
         end for
     else
-        title = "Audio language"
-        none = "The file's default"
+        title = t("player.settings.audioLanguage")
+        none = t("player.settings.fileDefault")
         if kind = "subtitle"
-            title = "Subtitle language"
-            none = "Same as the audio language"
+            title = t("player.settings.subtitleLanguage")
+            none = t("player.settings.sameAsAudio")
         end if
         labels.Push(none)
         values.Push("")

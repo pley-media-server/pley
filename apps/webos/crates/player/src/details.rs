@@ -4,6 +4,7 @@
 
 use pley_core::format::{codec_label, format_bitrate, resolution_label, stream_range};
 use pley_core::model::{MediaFile, MediaStream, PlaybackInfo, PlaybackMethod, StreamAction, StreamKind, TranscodeInfo};
+use pley_i18n::t;
 
 use crate::autoquality::Lowered;
 use crate::plan::is_picture;
@@ -11,100 +12,135 @@ use crate::recovery::FallbackReason;
 
 /// The menu's value while Automatic plays: "Automatic · 8 Mbps 1080p".
 pub fn automatic(now: &str) -> String {
-    format!("Automatic · {now}")
+    t!("player.quality.automaticAt", quality = now)
 }
 
 /// Automatic's hint when it isn't chosen.
-pub const AUTO_HINT: &str = "Dynamically adjust to conditions";
+pub fn auto_hint() -> &'static str {
+    t!("player.quality.automaticHint")
+}
 
 /// Automatic's hint when chosen: "Now 8 Mbps 1080p · Lowered for your connection".
 pub fn auto_now(now: &str, why: Option<&str>) -> String {
     match why {
-        Some(why) => format!("Now {now} · {why}"),
-        None => format!("Now {now}"),
+        Some(why) => t!("player.quality.nowBecause", quality = now, why = why),
+        None => t!("player.quality.now", quality = now),
     }
 }
 
 /// Why Automatic plays below the original.
 pub fn lowered_text(why: Lowered) -> &'static str {
     match why {
-        Lowered::Network => "Lowered for your connection",
-        Lowered::Device => "Lowered for this device",
+        Lowered::Network => t!("player.quality.lowered.network"),
+        Lowered::Device => t!("player.quality.lowered.device"),
     }
 }
 
 /// The notice of a step down: "Quality lowered to 4 Mbps 1080p".
 pub fn smoother(label: &str) -> String {
-    format!("Quality lowered to {label}")
+    t!("player.toasts.qualityLowered", quality = label)
 }
 
 /// Up Next's heading: "Up next · S1 · E2", or "Up next".
 pub fn up_next(label: Option<&str>) -> String {
     match label {
-        Some(l) => format!("Up next · {l}"),
-        None => "Up next".into(),
+        Some(l) => t!("player.upNext.episode", episode = l),
+        None => t!("player.upNext.title").into(),
     }
 }
 
 /// Play next with no episode after this one.
-pub const LAST_EPISODE: &str = "This is the last episode";
+pub fn last_episode() -> &'static str {
+    t!("player.toasts.lastEpisode")
+}
+
 /// Play next at the end of a playlist or collection.
-pub const LAST_IN_QUEUE: &str = "This is the last one";
+pub fn last_in_queue() -> &'static str {
+    t!("player.toasts.lastInQueue")
+}
+
 /// The subtitles menu's first row.
-pub const SUBTITLES_OFF: &str = "Off";
+pub fn subtitles_off() -> &'static str {
+    t!("player.subtitles.off")
+}
+
 /// A subtitle track that couldn't be loaded.
-pub const SUBTITLES_FAILED: &str = "These subtitles couldn't be loaded.";
+pub fn subtitles_failed() -> &'static str {
+    t!("player.toasts.subtitlesNotLoaded")
+}
+
 /// The note when the server's conversion runs slower than real time.
-pub const SLOW_SERVER: &str = "The server can't keep up with this video. Try a lower quality.";
+pub fn slow_server() -> &'static str {
+    t!("player.errors.slowServer")
+}
+
 /// An item with no file.
-pub const NO_FILE: &str = "This item has no file to play.";
+pub fn no_file() -> &'static str {
+    t!("player.errors.noFile")
+}
+
 /// Subtitles the server draws onto the video.
-pub const BURNED_IN: &str = "Burned in";
+pub fn burned_in() -> &'static str {
+    t!("player.subtitles.burnedIn")
+}
+
 /// Under the ring while the server is out of reach.
-pub const RECONNECTING: &str = "Reconnecting…";
+pub fn reconnecting() -> &'static str {
+    t!("player.errors.reconnecting")
+}
+
 /// The title of an error when the server is out of reach.
-pub const OFFLINE_TITLE: &str = "Can't reach your server";
+pub fn offline_title() -> &'static str {
+    t!("player.errors.offline")
+}
+
 /// What to check when the server is out of reach.
-pub const OFFLINE_BODY: &str = "Check that the server is on and that this device is on its network.";
+pub fn offline_body() -> &'static str {
+    t!("player.errors.reachHint")
+}
+
 /// A server that can't give keyed addresses.
-pub const TOO_OLD: &str = "This server is too old to play on this TV: update it.";
+pub fn too_old() -> &'static str {
+    t!("player.errors.serverTooOld")
+}
+
 /// A video on a drive that can't be read (Android's `driveUnreadable`): what a server out of reach
 /// would say of a stream.
-pub const DRIVE_UNREADABLE: &str = "This video can't be read. The drive may have been pulled out.";
+pub fn drive_unreadable() -> &'static str {
+    t!("player.errors.driveUnreadable")
+}
+
 /// A video on a drive whose picture never started in 12 s: the same file again wouldn't either.
-pub const LOCAL_STUCK: &str =
-    "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy.";
+pub fn local_stuck() -> &'static str {
+    t!("player.errors.driveStuck")
+}
 
 /// "Subtitles added: French (SRT)".
 pub fn subtitles_added(label: &str) -> String {
-    format!("Subtitles added: {label}")
+    t!("player.toasts.subtitlesAdded", track = label)
 }
 
 /// How the session plays, in words.
 pub fn method_text(info: &PlaybackInfo) -> &'static str {
     match info.method {
-        PlaybackMethod::Remux if info.audio_converted => "Direct stream · Audio transcoding",
-        PlaybackMethod::Remux => "Direct stream",
-        PlaybackMethod::Transcode => "Transcoding",
-        _ => "Direct play",
+        PlaybackMethod::Remux if info.audio_converted => t!("player.method.remuxAudio"),
+        PlaybackMethod::Remux => t!("player.method.remux"),
+        PlaybackMethod::Transcode => t!("player.method.transcode"),
+        _ => t!("player.method.direct"),
     }
 }
 
 /// Why a fallback plays something other than the original.
 pub fn fallback_text(reason: FallbackReason) -> &'static str {
     match reason {
-        FallbackReason::Unplayable => "This device couldn't play the original file.",
-        FallbackReason::NotSmooth => "The original didn't play smoothly on this device.",
+        FallbackReason::Unplayable => t!("player.errors.originalFailed"),
+        FallbackReason::NotSmooth => t!("player.errors.originalNotSmooth"),
     }
 }
 
 /// The server stopped the playback: who did, and their message when given.
 pub fn stopped_text(message: Option<&str>, by_admin: bool) -> String {
-    let who = if by_admin {
-        "Playback was stopped by the server's administrator."
-    } else {
-        "Playback was stopped from another device."
-    };
+    let who = if by_admin { t!("player.errors.stoppedByAdmin") } else { t!("player.errors.stoppedElsewhere") };
     match message.map(str::trim).filter(|m| !m.is_empty()) {
         Some(m) => format!("{who}\n{m}"),
         None => who.to_string(),
@@ -123,8 +159,8 @@ impl SubtitleDelivery {
     /// What Info's Subtitles section says.
     pub fn label(self) -> &'static str {
         match self {
-            SubtitleDelivery::BurnedIn => "Burned in by the server",
-            _ => "Drawn by this TV",
+            SubtitleDelivery::BurnedIn => t!("player.info.burnedIn"),
+            _ => t!("player.info.drawnHere"),
         }
     }
 }
@@ -182,9 +218,9 @@ fn encoder_name(encoder: &str) -> &str {
 fn pipeline_name(pipeline: &str) -> &str {
     match pipeline {
         "gpu" => "GPU",
-        "hybrid" => "GPU and CPU",
+        "hybrid" => t!("player.details.pipeline.hybrid"),
         "cpu" => "CPU",
-        "copy" => "copy",
+        "copy" => t!("player.details.pipeline.copy"),
         other => other,
     }
 }
@@ -197,7 +233,7 @@ fn channels_name(channels: i64) -> String {
         6 => "5.1".into(),
         7 => "6.1".into(),
         8 => "7.1".into(),
-        n => format!("{n}ch"),
+        n => t!("player.details.channels", n = n),
     }
 }
 
@@ -220,7 +256,7 @@ pub fn video_label(v: Option<&MediaStream>) -> String {
 /// layer)"), else none (SDR video, or an older server).
 pub fn shown_as(info: &PlaybackInfo, live: Option<&TranscodeInfo>) -> Option<String> {
     if let Some(t) = live.and_then(|l| l.tonemap.as_deref()) {
-        return Some(format!("SDR (tone-mapped with {t})"));
+        return Some(t!("player.details.toneMapped", method = t));
     }
     info.video_range.clone()
 }
@@ -341,28 +377,32 @@ pub fn build_details(o: DetailsInput<'_>) -> PlaybackDetails {
     let mut rows = Vec::new();
     let mut row = |label: &str, value: String| rows.push(DetailRow { label: label.into(), value });
     if video.is_some() {
-        row("Video", video_row);
+        row(t!("player.details.video"), video_row);
     }
     if audio.is_some() {
-        row("Audio", audio_row);
+        row(t!("player.details.audio"), audio_row);
     }
     if !bitrate.is_empty() {
-        row("Bitrate", bitrate);
+        row(t!("player.details.bitrate"), bitrate);
     }
     if let Some(t) = transcode.filter(|t| t.video == StreamAction::Transcode && t.encoder.is_some()) {
-        row("Encoder", encoder_label(t));
+        row(t!("player.details.encoder"), encoder_label(t));
     }
     if let Some(shown) = video.and_then(|_| shown_as(info, transcode)) {
-        row("Shown as", shown);
+        row(t!("player.details.shownAs"), shown);
     }
     if transcode.is_some_and(|t| t.subtitle_burn) {
-        row("Subtitles", BURNED_IN.into());
+        row(t!("player.details.subtitles"), burned_in().into());
     }
     if let Some(speed) = transcode.and_then(|t| t.speed).filter(|s| *s > 0.0) {
-        let speed = format!("{speed:.1}");
+        let speed = pley_i18n::decimal(speed, 1);
         row(
-            "Speed",
-            if ahead > 0 { format!("{speed}× real time · {ahead} s ready") } else { format!("{speed}× real time") },
+            t!("player.details.speed"),
+            if ahead > 0 {
+                t!("player.details.realTimeReady", speed = speed, seconds = ahead)
+            } else {
+                t!("player.details.realTime", speed = speed)
+            },
         );
     }
     PlaybackDetails {
@@ -452,5 +492,35 @@ mod tests {
         assert_eq!(rows[1].1, "EAC3 5.1");
         assert!(rows.contains(&("Encoder", "NVIDIA NVENC (GPU)")));
         assert!(rows.contains(&("Speed", "2.5× real time · 36 s ready")));
+
+        // In French: the method, the rows and the server's speed with a decimal comma.
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            let d = build_details(DetailsInput {
+                info: &info,
+                file: Some(&file),
+                audio_index: None,
+                note: None,
+                position_ms: 34_000,
+                live: Some(&live),
+                subtitle: None,
+                sideload: true,
+            });
+            assert_eq!(d.method, "Transcodage");
+            let rows: Vec<(&str, &str)> = d.rows.iter().map(|r| (r.label.as_str(), r.value.as_str())).collect();
+            assert!(rows.contains(&("Encodeur", "NVIDIA NVENC (GPU)")));
+            assert!(rows.contains(&("Vitesse", "2,5× temps réel · 36 s d’avance")));
+        });
+    }
+
+    #[test]
+    fn automatic_says_what_it_plays_in_the_language_shown() {
+        pley_i18n::with_language(pley_i18n::Language::Es, || {
+            assert_eq!(automatic("8 Mbps 1080p"), "Automática · 8 Mbps 1080p");
+            assert_eq!(
+                auto_now("4 Mbps 720p", Some(lowered_text(Lowered::Network))),
+                "Ahora 4 Mbps 720p · Reducida para tu conexión"
+            );
+            assert_eq!(up_next(Some("S1 · E2")), "A continuación · S1 · E2");
+        });
     }
 }

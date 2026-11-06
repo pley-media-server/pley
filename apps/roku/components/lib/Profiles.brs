@@ -79,9 +79,9 @@ end function
 
 ' What a profile asks for under its name.
 function profNeedsLabel(needs as string) as string
-    if needs = "pin" then return "PIN"
-    if needs = "password" then return "Password"
-    if needs = "locked" then return "Not from the app"
+    if needs = "pin" then return t("signin.profiles.needs.pin")
+    if needs = "password" then return t("signin.profiles.needs.password")
+    if needs = "locked" then return t("signin.profiles.needs.locked")
     return ""
 end function
 
@@ -178,7 +178,7 @@ end sub
 ' Settings' choices of "Always start as": Profile used last, then the
 ' household's profiles ([{ id, name }]); the one kept checked.
 function profStartAsChoices(profiles as object, startAs as integer) as object
-    choice = { title: "Always start as", labels: ["Profile used last"], values: [0], hints: [], current: 0 }
+    choice = { title: t("settings.alwaysStartAs"), labels: [t("settings.usedLast")], values: [0], hints: [], current: 0 }
     for each profile in profiles
         if profile.id = startAs then choice.current = choice.values.Count()
         choice.labels.Push(profile.name)
@@ -193,7 +193,7 @@ function profStartAsLabel(profiles as object, startAs as integer) as string
     for each profile in profiles
         if profile.id = startAs then return profile.name
     end for
-    return "Profile used last"
+    return t("settings.usedLast")
 end function
 
 ' The household's profiles as Settings lists them: [{ id, name }].

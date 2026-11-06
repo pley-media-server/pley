@@ -9,6 +9,7 @@
 //! [`SleepTimer::next_due`].
 
 use pley_core::model::ItemKind;
+use pley_i18n::t;
 
 /// What the sleep timer is set to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,13 +33,13 @@ pub const SLEEP_CHOICES: [SleepChoice; 7] = [
 /// "Off", "30 min", "End of this episode" (of this movie, track or video, by what plays).
 pub fn sleep_label(c: SleepChoice, playing: Option<ItemKind>) -> String {
     match c {
-        SleepChoice::Off => "Off".into(),
-        SleepChoice::Minutes(m) => format!("{m} min"),
+        SleepChoice::Off => t!("player.sleep.off").into(),
+        SleepChoice::Minutes(m) => t!("player.sleep.minutes", minutes = m),
         SleepChoice::EndOfItem => match playing {
-            Some(ItemKind::Episode) => "End of this episode",
-            Some(ItemKind::Movie) => "End of this movie",
-            Some(ItemKind::Track) => "End of this track",
-            _ => "End of this video",
+            Some(ItemKind::Episode) => t!("player.sleep.end.episode"),
+            Some(ItemKind::Movie) => t!("player.sleep.end.movie"),
+            Some(ItemKind::Track) => t!("player.sleep.end.track"),
+            _ => t!("player.sleep.end.video"),
         }
         .into(),
     }

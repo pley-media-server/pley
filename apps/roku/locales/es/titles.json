@@ -1,0 +1,203 @@
+{
+  "watched": "Visto",
+  "smart": "Inteligente",
+  "nothingToPlay": "No hay nada que reproducir",
+  "actions": {
+    "markWatched": "Marcar como visto",
+    "markUnwatched": "Marcar como no visto",
+    "addToMyList": "Añadir a Mi lista",
+    "removeFromMyList": "Quitar de Mi lista",
+    "addToPlaylist": "Añadir a una lista",
+    "removeFromContinueWatching": "Quitar de Seguir viendo",
+    "goToShow": "Ir a la serie",
+    "goToSeason": "Ir a la temporada",
+    "goToArtist": "Ir al artista",
+    "goTo": "Ir a {{title}}",
+    "playEpisode": "Reproducir {{episode}}",
+    "resumeEpisode": "Reanudar {{episode}}",
+    "audioAndSubtitles": "Audio y subtítulos",
+    "shuffle": "Aleatorio",
+    "nowPlaying": "Reproduciendo ahora",
+    "rename": "Cambiar nombre",
+    "move": "Mover",
+    "removeFromPlaylist": "Quitar de la lista"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} temporada",
+    "seasons_many": "{{count, number}} de temporadas",
+    "seasons_other": "{{count, number}} temporadas",
+    "episodes_one": "{{count, number}} episodio",
+    "episodes_many": "{{count, number}} de episodios",
+    "episodes_other": "{{count, number}} episodios",
+    "albums_one": "{{count, number}} álbum",
+    "albums_many": "{{count, number}} de álbumes",
+    "albums_other": "{{count, number}} álbumes",
+    "tracks_one": "{{count, number}} pista",
+    "tracks_many": "{{count, number}} de pistas",
+    "tracks_other": "{{count, number}} pistas"
+  },
+  "seasons": {
+    "noEpisodes": "No se encontraron episodios."
+  },
+  "page": {
+    "rows": {
+      "seasons": "Temporadas",
+      "castAndCrew": "Reparto y equipo",
+      "extras": "Extras",
+      "moreLikeThis": "Títulos similares",
+      "collections": "Colecciones"
+    },
+    "mediaInfo": "Información multimedia",
+    "about": "Detalles",
+    "version": "Versión",
+    "audio": "Audio",
+    "subtitles": "Subtítulos",
+    "versionIs": "Versión: {{value}}",
+    "audioIs": "Audio: {{value}}",
+    "subtitlesIs": "Subtítulos: {{value}}",
+    "yourRating": "Tu valoración"
+  },
+  "extras": {
+    "trailer": "Tráiler",
+    "featurette": "Reportaje",
+    "behindTheScenes": "Detrás de cámaras",
+    "deletedScene": "Escena eliminada",
+    "interview": "Entrevista",
+    "scene": "Escena",
+    "short": "Cortometraje",
+    "other": "Extra"
+  },
+  "roles": {
+    "actor": "Interpretación",
+    "creator": "Creación",
+    "director": "Dirección",
+    "writer": "Guion",
+    "producer": "Producción",
+    "crew": "Equipo técnico",
+    "guestStar": "Aparición especial",
+    "as": "como {{character}}",
+    "withEpisodes_one": "{{role}} ({{count, number}} episodio)",
+    "withEpisodes_many": "{{role}} ({{count, number}} de episodios)",
+    "withEpisodes_other": "{{role}} ({{count, number}} episodios)"
+  },
+  "person": {
+    "rows": {
+      "acting": "Interpretación",
+      "directing": "Dirección",
+      "creating": "Creación",
+      "writing": "Guion",
+      "producing": "Producción"
+    },
+    "inLibraries": "{{counts}} en tus bibliotecas",
+    "notFound": "Persona no encontrada. Ese enlace no lleva a nadie de tus bibliotecas.",
+    "nothing": "No hay nada que mostrar aquí."
+  },
+  "collection": {
+    "label": "Colección",
+    "empty": "Esta colección aún está vacía.",
+    "noEpisodes": "Esta serie aún no tiene episodios.",
+    "order": {
+      "release": "Por fecha de estreno",
+      "title": "Por título",
+      "custom": "Orden personalizado"
+    }
+  },
+  "smartFilter": {
+    "genre": "Género: {{value}}",
+    "label": "Etiqueta: {{value}}",
+    "studio": "Estudio: {{value}}",
+    "rated": "Clasificación: {{value}}",
+    "watched": "Visto",
+    "unwatched": "No visto",
+    "inProgress": "En curso",
+    "notInProgress": "No en curso",
+    "year": "Año: {{value}}",
+    "after": "Después de {{value}}",
+    "before": "Antes de {{value}}",
+    "decade": "Años {{value}}",
+    "limit": "{{value}} como máximo",
+    "other": "{{name}}: {{value}}",
+    "sortedBy": "Ordenado por {{name}}",
+    "sort": {
+      "titleSort": {
+        "asc": "Por título",
+        "desc": "Por título, de la Z a la A"
+      },
+      "year": {
+        "asc": "Más antiguos primero",
+        "desc": "Más recientes primero"
+      },
+      "originallyAvailableAt": {
+        "asc": "Estreno más antiguo primero",
+        "desc": "Estreno más reciente primero"
+      },
+      "addedAt": {
+        "asc": "Añadidos hace más tiempo primero",
+        "desc": "Añadidos recientemente primero"
+      },
+      "rating": {
+        "asc": "Peor valorados primero",
+        "desc": "Mejor valorados primero"
+      },
+      "userRating": {
+        "asc": "Tus peor valorados primero",
+        "desc": "Tus mejor valorados primero"
+      },
+      "lastViewedAt": {
+        "asc": "Reproducidos hace más tiempo primero",
+        "desc": "Reproducidos recientemente primero"
+      },
+      "duration": {
+        "asc": "Más cortos primero",
+        "desc": "Más largos primero"
+      },
+      "viewCount": {
+        "asc": "Menos reproducidos primero",
+        "desc": "Más reproducidos primero"
+      }
+    }
+  },
+  "music": {
+    "artist": "Artista",
+    "albums": "Álbumes",
+    "disc": "Disco {{number}}",
+    "noAlbums": "No se encontraron álbumes.",
+    "noTracks": "Este álbum no tiene pistas.",
+    "noTracksToPlay": "No tiene pistas."
+  },
+  "playlist": {
+    "new": "Nueva lista de reproducción",
+    "newMenu": "Nueva lista de reproducción…",
+    "create": "Crear",
+    "added": "Añadido",
+    "addedTo": "Añadido a {{title}}.",
+    "refused": "Este inicio de sesión no permite cambiar las listas: cierra sesión en Ajustes y vuelve a iniciarla para permitirlo.",
+    "renameTitle": "Cambiar nombre de la lista",
+    "deleteTitle": "¿Eliminar {{title}}?",
+    "deleteBody": "La lista se elimina; sus títulos siguen en tus bibliotecas.",
+    "notDeleted": "No se eliminó la lista",
+    "empty": "Esta lista está vacía. Añádele títulos con el botón Opciones sobre cada uno.",
+    "moving": "{{title}}  (moviendo)",
+    "movingHint": "Arriba y abajo lo mueven, OK lo suelta aquí, Atrás lo devuelve a su sitio."
+  },
+  "playback": {
+    "method": {
+      "direct": "Reproducción directa",
+      "remux": "Transmisión directa",
+      "remuxAudio": "Transmisión directa · Audio transcodificado",
+      "transcode": "Transcodificación"
+    },
+    "video": "Video",
+    "audio": "Audio",
+    "bitrate": "Tasa de bits",
+    "shownAs": "Se muestra en",
+    "subtitles": "Subtítulos",
+    "burnedIn": "Incrustados",
+    "speed": "Velocidad",
+    "toneMapped": "SDR (mapeo de tonos con {{method}})",
+    "realTime": "{{speed}}× tiempo real",
+    "realTimeReady": "{{speed}}× tiempo real · {{seconds, number}} s de adelanto",
+    "chapter": "Capítulo {{number}}",
+    "line": "{{label}}: {{value}}"
+  }
+}

@@ -5,9 +5,10 @@
 //! cover, or New playlist when there are none, and comes back to the cover left.
 
 use pley_base::{Cmd, Icon, ImageRequest, Point, Rect, Size, TextOpts};
-use pley_core::format::{format_duration, pluralize};
+use pley_core::format::format_duration;
 use pley_core::model::{PlaylistKind, PlaylistList, PlaylistSummary};
 use pley_core::store::snapshot_keys;
+use pley_i18n::t;
 use pley_kit::{Button, GridState, PosterGrid, Tile, TileKind, skeleton_row};
 use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Route, Screen};
 use pley_ui::theme;
@@ -27,7 +28,7 @@ const GLYPH: f32 = 48.0;
 
 /// "12 items · 3h 12m", "1 item", "0 items" (`Playlists.meta`).
 pub fn playlist_meta(playlist: &PlaylistSummary) -> String {
-    let count = pluralize(playlist.item_count, "item", None);
+    let count = t!("playlists.count.items", count = playlist.item_count);
     let duration = format_duration(Some(playlist.duration_ms));
     [count, duration].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ")
 }
@@ -55,7 +56,11 @@ impl Card {
         let meta = playlist_meta(playlist);
         let smart = playlist.smart();
         let caption = if smart {
-            [meta.as_str(), "Smart"].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join(" · ")
+            [meta.as_str(), t!("playlists.list.smart")]
+                .into_iter()
+                .filter(|s| !s.is_empty())
+                .collect::<Vec<_>>()
+                .join(" · ")
         } else {
             meta.clone()
         };
@@ -142,13 +147,13 @@ impl PlaylistsScreen {
     /// until the list is known, so the first cover gets it); whether it was chosen.
     fn header(&self, ui: &mut Ui, with_button: bool, live: bool, initial: bool) -> bool {
         let title_y = HEADER_Y + (HEADER_H - theme::PAGE_TITLE.line_height) / 2.0;
-        let pill = Button::pill("New playlist").icon(Icon::Plus);
+        let pill = Button::pill(t!("playlists.list.new")).icon(Icon::Plus);
         let pill_w = pill.size(ui).w;
         let right = theme::CANVAS_W - theme::SAFE_X;
         let title_w = right - pill_w - 16.0 - theme::GUTTER;
         ui.text(
             Point::new(theme::GUTTER, title_y),
-            "Playlists",
+            t!("playlists.list.title"),
             &theme::PAGE_TITLE,
             &TextOpts::line(title_w),
             theme::FG,
@@ -192,9 +197,10 @@ impl Screen for PlaylistsScreen {
                 return;
             }
             Load::Failed { error, stale: None } => {
-                let title = failed_title(error, "Couldn't load your playlists");
+                let title = failed_title(error, t!("playlists.list.failed"));
                 let problem = error.problem();
-                let r = column_message(ui, ui.id("state"), STATE_TOP, title, &problem, Some("Retry"));
+                let r =
+                    column_message(ui, ui.id("state"), STATE_TOP, title, &problem, Some(t!("playlists.list.retry")));
                 if r.is_some_and(|r| r.activated) {
                     self.list.invalidate();
                 }
@@ -203,9 +209,8 @@ impl Screen for PlaylistsScreen {
             _ => {}
         }
         if none {
-            let body = "Make one here, or use “Add to playlist” on a movie, show, album or episode (also when \
-                        holding OK on a poster).";
-            column_message(ui, ui.id("state"), STATE_TOP, "No playlists yet", body, None);
+            let (title, body) = (t!("playlists.list.noneTitle"), t!("playlists.list.noneBody"));
+            column_message(ui, ui.id("state"), STATE_TOP, title, body, None);
             return;
         }
         let grid_id = ui.id("grid");
@@ -245,7 +250,7 @@ impl Screen for PlaylistsScreen {
 
     /// Its own name, for Audio Guidance to read as it opens.
     fn title(&self) -> Option<String> {
-        Some("Playlists".into())
+        Some(t!("playlists.list.title").into())
     }
 }
 
@@ -260,5 +265,15 @@ mod tests {
         let one = PlaylistSummary { item_count: 1, duration_ms: 0, ..PlaylistSummary::default() };
         assert_eq!(playlist_meta(&one), "1 item");
         assert_eq!(playlist_meta(&PlaylistSummary::default()), "0 items");
+    }
+
+    #[test]
+    fn a_playlist_counts_in_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        let none = PlaylistSummary::default();
+        let many = PlaylistSummary { item_count: 1200, ..PlaylistSummary::default() };
+        assert_eq!(with_language(Language::Fr, || playlist_meta(&none)), "0 élément");
+        assert_eq!(with_language(Language::Fr, || playlist_meta(&many)), "1\u{a0}200 éléments");
+        assert_eq!(with_language(Language::Es, || playlist_meta(&none)), "0 elementos");
     }
 }

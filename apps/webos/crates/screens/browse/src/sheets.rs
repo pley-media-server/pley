@@ -9,6 +9,7 @@ use pley_core::http::sentence;
 use pley_core::model::{Added, ItemDetail, ItemKind, NewPlaylist, PlaylistDetail, PlaylistKind, PlaylistList};
 use pley_core::store::snapshot_keys;
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, List, ListRow, ListState, SidePanel, TextField, backdrop_px,
     inert, skeleton_block,
@@ -27,8 +28,6 @@ const LEFT_W: f32 = theme::TEXT_COLUMN_END - theme::GUTTER;
 const LEFT_Y: f32 = 58.0;
 /// How long "Added to …" shows before the page closes (`DONE_MS`).
 const DONE_FOR: f64 = 1.4;
-/// The keyboard's action key.
-const DONE: &str = "Done";
 /// A playlist row's cover (`TvPlaylistArt` at 40 dp, its glyph 18), 16 in from the row's edge as
 /// a panel row's leading picture is.
 const ROW_ART: f32 = 40.0;
@@ -50,9 +49,9 @@ pub fn kind_of(kind: ItemKind) -> PlaylistKind {
 /// trip", "Added 12 items to Road trip".
 pub fn added_message(added: i64, playlist: &str) -> String {
     match added {
-        0 => "Nothing to add".to_string(),
-        1 => format!("Added to {playlist}"),
-        n => format!("Added {n} items to {playlist}"),
+        0 => t!("playlists.add.nothing").to_string(),
+        1 => t!("playlists.add.addedTo", playlist = playlist),
+        n => t!("playlists.add.addedItems", count = n, playlist = playlist),
     }
 }
 
@@ -113,14 +112,14 @@ impl NewPlaylistScreen {
     }
 
     fn heading(&self) -> &'static str {
-        if self.smart.is_some() { "Save these filters" } else { "New playlist" }
+        if self.smart.is_some() { t!("playlists.form.smartTitle") } else { t!("playlists.form.newTitle") }
     }
 
     fn body(&self) -> String {
         match &self.smart {
-            None => "Name it, then add to it with “Add to playlist” on any title.".to_string(),
-            Some(_) if self.filters.is_empty() => "It keeps up with the library by itself.".to_string(),
-            Some(_) => format!("{}. It keeps up with the library by itself.", self.filters.join(" · ")),
+            None => t!("playlists.form.newBody").to_string(),
+            Some(_) if self.filters.is_empty() => t!("playlists.form.smartBody").to_string(),
+            Some(_) => t!("playlists.form.smartBodyFilters", filters = self.filters.join(" · ")),
         }
     }
 
@@ -185,26 +184,37 @@ impl Screen for NewPlaylistScreen {
             let mut y = area.y;
             y += panel_title(ui, area, y, heading, "");
             ui.initial_focus(field_id);
-            typing.field(ui, field_id, Point::new(area.x + 4.0, y + 6.0), area.w - 8.0, "Title");
+            typing.field(
+                ui,
+                field_id,
+                Point::new(area.x + 4.0, y + 6.0),
+                area.w - 8.0,
+                t!("playlists.form.titleField"),
+            );
             y += 6.0 + 44.0 + 6.0;
-            let hint = "Press OK on the title to type it.";
+            let hint = t!("playlists.form.hint");
             let opts = TextOpts::wrap(area.w - 8.0, 2);
             y += 4.0 + ui.text(Point::new(area.x + 8.0, y + 4.0), hint, &theme::CAPTION, &opts, theme::MUTED).h;
             if asks {
-                y += panel_heading(ui, area, y, "For");
-                let video = ListRow::new("Movies & TV").icon(Icon::ListVideo).checked(current == PlaylistKind::Video);
+                y += panel_heading(ui, area, y, t!("playlists.form.for"));
+                let video = ListRow::new(t!("playlists.form.video"))
+                    .icon(Icon::ListVideo)
+                    .checked(current == PlaylistKind::Video);
                 if video.show(ui, video_id, Point::new(area.x, y), area.w).activated {
                     kind = Some(PlaylistKind::Video);
                 }
                 y += video.height(ui, area.w);
-                let music = ListRow::new("Music").icon(Icon::ListMusic).checked(current == PlaylistKind::Audio);
+                let music = ListRow::new(t!("playlists.form.music"))
+                    .icon(Icon::ListMusic)
+                    .checked(current == PlaylistKind::Audio);
                 if music.show(ui, music_id, Point::new(area.x, y), area.w).activated {
                     kind = Some(PlaylistKind::Audio);
                 }
                 y += music.height(ui, area.w);
             }
             y += 16.0;
-            let (label, icon) = if smart { ("Save", Icon::Save) } else { ("Create", Icon::Plus) };
+            let (label, icon) =
+                if smart { (t!("playlists.form.save"), Icon::Save) } else { (t!("playlists.form.create"), Icon::Plus) };
             create =
                 ListRow::new(label).icon(icon).enabled(ok).show(ui, create_id, Point::new(area.x, y), area.w).activated;
         });
@@ -212,7 +222,7 @@ impl Screen for NewPlaylistScreen {
             self.kind = k;
             ui.request_repaint();
         }
-        if self.typing.keyboard(ui, ui.id("keyboard"), DONE) && ok {
+        if self.typing.keyboard(ui, ui.id("keyboard"), t!("playlists.form.done")) && ok {
             create = true;
         }
         if create {
@@ -375,8 +385,9 @@ impl Screen for AddToPlaylistScreen {
         let title = self.title.clone();
         behind(ui, |ui, y| {
             let x = theme::GUTTER;
-            let h =
-                ui.text(Point::new(x, y), "Add to playlist", &theme::LABEL, &TextOpts::line(LEFT_W), theme::MUTED).h;
+            let h = ui
+                .text(Point::new(x, y), t!("playlists.add.title"), &theme::LABEL, &TextOpts::line(LEFT_W), theme::MUTED)
+                .h;
             ui.text(Point::new(x, y + h + 6.0), &title, &theme::PAGE_TITLE, &TextOpts::wrap(LEFT_W, 3), theme::FG);
         });
 
@@ -397,8 +408,7 @@ impl Screen for AddToPlaylistScreen {
         // The panel is one list that scrolls with focus (`TvPlaylistSheets.kt`): its title, the
         // field, Create, "Your playlists", then what there is to say or the playlists.
         let mut lines = vec![AddLine::Title, AddLine::Field, AddLine::Create, AddLine::Heading];
-        let none =
-            if music { "No music playlists yet: name one above." } else { "No video playlists yet: name one above." };
+        let none = if music { t!("playlists.add.noneMusic") } else { t!("playlists.add.noneVideo") };
         if loading {
             lines.push(AddLine::Loading);
         } else if let Some(problem) = &failed {
@@ -432,7 +442,7 @@ impl Screen for AddToPlaylistScreen {
                 ui.text(Point::new(area.x, top + 64.0), message, &theme::TITLE, &opts, theme::FG);
                 return;
             }
-            let placeholder = if music { "New music playlist" } else { "New video playlist" };
+            let placeholder = if music { t!("playlists.add.newMusic") } else { t!("playlists.add.newVideo") };
             let ok = kind.is_some() && !busy && fits(&typing.edit.text);
             let w = area.w;
             let height = |ui: &Ui, i: usize| lines[i].height(ui, w, subtitle, !busy);
@@ -440,7 +450,7 @@ impl Screen for AddToPlaylistScreen {
                 let (rect, at) = (slot.rect, slot.rect.origin());
                 match lines[slot.index] {
                     AddLine::Title => {
-                        panel_title(ui, rect, rect.y, "Add to playlist", subtitle);
+                        panel_title(ui, rect, rect.y, t!("playlists.add.title"), subtitle);
                     }
                     AddLine::Field => {
                         let field_at = Point::new(rect.x + 4.0, rect.y + 6.0);
@@ -452,11 +462,11 @@ impl Screen for AddToPlaylistScreen {
                         }
                     }
                     AddLine::Create => {
-                        let row = ListRow::new("Create").icon(Icon::Plus).enabled(ok);
+                        let row = ListRow::new(t!("playlists.add.create")).icon(Icon::Plus).enabled(ok);
                         create = row.show(ui, slot.id, at, rect.w).activated;
                     }
                     AddLine::Heading => {
-                        panel_heading(ui, rect, rect.y, "Your playlists");
+                        panel_heading(ui, rect, rect.y, t!("playlists.add.yours"));
                     }
                     AddLine::Loading => {
                         for k in 0..2 {
@@ -483,7 +493,7 @@ impl Screen for AddToPlaylistScreen {
                 }
             });
         });
-        if self.typing.keyboard(ui, ui.id("keyboard"), DONE) {
+        if self.typing.keyboard(ui, ui.id("keyboard"), t!("playlists.add.done")) {
             create = true;
         }
         if create {
@@ -538,14 +548,16 @@ impl AddLine<'_> {
         let w = width - 16.0;
         match self {
             AddLine::Title => {
-                let title = ui.measure("Add to playlist", &theme::TITLE, &TextOpts::wrap(w, 2)).h;
+                let title = ui.measure(t!("playlists.add.title"), &theme::TITLE, &TextOpts::wrap(w, 2)).h;
                 let sub =
                     if subtitle.is_empty() { 0.0 } else { ui.measure(subtitle, &theme::CAPTION, &TextOpts::line(w)).h };
                 8.0 + title + sub + 12.0
             }
             AddLine::Field => FIELD_H,
-            AddLine::Create => ListRow::new("Create").icon(Icon::Plus).height(ui, width),
-            AddLine::Heading => 16.0 + ui.measure("Your playlists", &theme::LABEL, &TextOpts::line(width)).h + 6.0,
+            AddLine::Create => ListRow::new(t!("playlists.add.create")).icon(Icon::Plus).height(ui, width),
+            AddLine::Heading => {
+                16.0 + ui.measure(t!("playlists.add.yours"), &theme::LABEL, &TextOpts::line(width)).h + 6.0
+            }
             AddLine::Loading => 8.0 + 56.0 + 40.0 + 8.0,
             AddLine::Note(text, _) => 8.0 + ui.measure(text, &theme::BODY, &TextOpts::wrap(width - 32.0, 0)).h + 8.0,
             // The rows are 2 apart.
@@ -568,6 +580,26 @@ mod tests {
         assert_eq!(added_message(0, "Road trip"), "Nothing to add");
         assert_eq!(added_message(1, "Road trip"), "Added to Road trip");
         assert_eq!(added_message(12, "Road trip"), "Added 12 items to Road trip");
+    }
+
+    #[test]
+    fn adding_says_what_it_did_in_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        with_language(Language::Fr, || {
+            assert_eq!(added_message(0, "Road trip"), "Rien à ajouter");
+            assert_eq!(added_message(12, "Road trip"), "12 éléments ajoutés à Road trip");
+        });
+        with_language(Language::Es, || {
+            assert_eq!(added_message(1, "Road trip"), "Añadido a Road trip");
+            assert_eq!(added_message(1500, "Road trip"), "Se añadieron 1500 elementos a Road trip");
+        });
+        let smart = SmartPlaylist { library_id: 1, filter: "genre=Comedy&unwatched=1".into() };
+        let (heading, body) = with_language(Language::Fr, || {
+            let s = NewPlaylistScreen::new(Vec::new(), Some(smart));
+            (s.heading(), s.body())
+        });
+        assert_eq!(heading, "Enregistrer ces filtres");
+        assert_eq!(body, "Genre\u{a0}: Comedy · Non vu. Elle se met à jour toute seule avec la bibliothèque.");
     }
 
     #[test]

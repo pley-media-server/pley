@@ -458,6 +458,7 @@ pub(crate) fn me(profile: &Profile, scope: String) -> Me {
         has_password: profile.has_password,
         two_step: false,
         scope,
+        language: profile.language.clone(),
     }
 }
 

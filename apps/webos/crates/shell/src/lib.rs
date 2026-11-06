@@ -16,6 +16,7 @@
 
 pub mod cast;
 mod cx;
+mod language;
 mod load;
 mod notice;
 mod overlay;
@@ -30,7 +31,7 @@ mod state;
 pub use cast::{CAST_NOTICE_SECONDS, CastTracks};
 pub use cx::{AppCx, BackgroundSession, NavCommand, Requests, ToastRequest};
 pub use load::{Load, Resource};
-pub use notice::{CLOSE as NOTICE_CLOSE, NOTICE_IDLE, NOTICE_SHOWN, Notices, OPEN as NOTICE_OPEN};
+pub use notice::{NOTICE_IDLE, NOTICE_SHOWN, Notices};
 pub use overlay::{DIM_AFTER, DIM_ALPHA, ERROR_TOAST_SECONDS, TOAST_SECONDS};
 pub use rail::{MAX_LIBRARIES, Rail, RailEntries, RailEntry, avatar_color, current_entry, initial, rail_entries};
 pub use request_state::{
@@ -38,11 +39,11 @@ pub use request_state::{
 };
 pub use route::{LibraryTab, PlayQueue, PlayRequest, Route, SettingsSection, SmartPlaylist};
 pub use screen::{
-    AppEvent, CastMusic, Chrome, Overlay, PLACEHOLDER_TEXT, PlaceholderScreen, Registry, Screen, ScreenFactory,
-    TileActionsFactory,
+    AppEvent, CastMusic, Chrome, Overlay, PlaceholderScreen, Registry, Screen, ScreenFactory, TileActionsFactory,
+    placeholder_text,
 };
 pub use shell::{Entry, Shell};
 pub use state::{
-    AppState, CurrentFetch, ITEM_TTL, LIBRARY_GATHER, OFFLINE_ASK, OFFLINE_NOTICE, OFFLINE_TEXT, REVALIDATE,
-    STATE_GATHER, Scan,
+    AppState, CurrentFetch, ITEM_TTL, LIBRARY_GATHER, OFFLINE_ASK, OFFLINE_NOTICE, REVALIDATE, STATE_GATHER, Scan,
+    offline_text,
 };

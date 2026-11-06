@@ -108,12 +108,33 @@ sub uiLaunched()
     scene.signalBeacon("AppLaunchComplete")
 end sub
 
+' What picks the language shown (I18n.brs's i18nShown and i18nRow): the
+' sign-in's and the server's, the Roku's own and the one picked on it.
+function uiLanguageFacts() as object
+    session = m.global.session
+    scene = m.top.getScene()
+    if scene = invalid then scene = m.top
+    refused = scene.languageRefused
+    if refused = invalid then refused = ""
+    return {
+        signedIn: session.signedIn,
+        accountHeard: session.accountHeard,
+        account: session.accountLanguage,
+        server: session.server,
+        serverHeard: session.serverHeard,
+        serverLanguage: session.serverLanguage,
+        refused: refused <> "" and refused = session.server,
+        device: CreateObject("roDeviceInfo").GetCurrentLocale(),
+        choice: CreateObject("roRegistrySection", "language").Read("choice")
+    }
+end function
+
 ' A message with an OK button.
 sub uiMessage(title as string, lines as object)
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
     dialog.title = title
     dialog.message = lines
-    dialog.buttons = ["OK"]
+    dialog.buttons = [t("common.actions.ok")]
     dialog.observeField("buttonSelected", "uiCloseDialog")
     m.top.getScene().dialog = dialog
 end sub

@@ -29,6 +29,7 @@ use pley_core::http::{Method, sentence};
 use pley_core::media::{EngineEvent, EngineStats, LoadRequest, MediaKind, PlayerEngine};
 use pley_core::model::{BusyConnection, DeviceKind, LiveChannel, LivePlan, ServerEvent, WatchRequest};
 use pley_core::task::{Cancel, Promise, Tasks};
+use pley_i18n::t;
 
 use crate::controller::engine_error;
 use crate::env::PlayerEnv;
@@ -108,12 +109,12 @@ impl Trouble {
 /// Who holds a connection: "You, on another device", their names, or how many.
 pub fn holders(c: &BusyConnection) -> String {
     if c.yours {
-        return "You, on another device".into();
+        return t!("livetv.player.heldByYou").into();
     }
     if !c.watchers.is_empty() {
         return c.watchers.join(", ");
     }
-    if c.people == 1 { "Someone else".into() } else { format!("{} people", c.people) }
+    if c.people == 1 { t!("livetv.player.someoneElse").into() } else { t!("livetv.player.people", count = c.people) }
 }
 
 /// Watching ended on the server: its connection taken over, stopped there, or let go after the TV
@@ -123,8 +124,8 @@ pub fn stopped_trouble(why: Option<&str>) -> Trouble {
     let why = why.map(str::trim).filter(|w| !w.is_empty());
     Trouble::new(
         TroubleKind::Stopped,
-        "Live TV stopped",
-        why.map_or_else(|| "This channel isn't being watched any more.".to_string(), sentence),
+        t!("livetv.trouble.stopped"),
+        why.map_or_else(|| t!("livetv.trouble.stoppedBody").to_string(), sentence),
         true,
     )
 }
@@ -132,11 +133,7 @@ pub fn stopped_trouble(why: Option<&str>) -> Trouble {
 /// The session stopped from elsewhere (`session_stopped`): who stopped it, and their message on a
 /// line of its own when given, as a video's and Android's.
 pub fn stopped_sentence(message: Option<&str>, by_admin: bool) -> String {
-    let who = if by_admin {
-        "Live TV was stopped by the server's administrator."
-    } else {
-        "Live TV was stopped from another device."
-    };
+    let who = if by_admin { t!("livetv.trouble.stoppedByAdmin") } else { t!("livetv.trouble.stoppedElsewhere") };
     match message.map(str::trim).filter(|m| !m.is_empty()) {
         Some(m) => format!("{who}\n{m}"),
         None => who.to_string(),
@@ -156,7 +153,7 @@ fn stopped_note(e: &ApiError) -> Option<String> {
 pub fn trouble_of(e: &ApiError, channel: &str) -> Trouble {
     let message = sentence(&e.to_string());
     if e.is(409) {
-        let mut t = Trouble::new(TroubleKind::Busy, "All connections are in use", message, true);
+        let mut t = Trouble::new(TroubleKind::Busy, t!("livetv.trouble.busy"), message, true);
         t.connections = e.busy().map(|b| b.connections).unwrap_or_default();
         return t;
     }
@@ -164,18 +161,23 @@ pub fn trouble_of(e: &ApiError, channel: &str) -> Trouble {
         return stopped_trouble(stopped_note(e).as_deref());
     }
     if e.is(404) {
-        return Trouble::new(TroubleKind::Missing, "This channel isn't here any more", message, false);
+        return Trouble::new(TroubleKind::Missing, t!("livetv.trouble.missing"), message, false);
     }
     if e.is(403) {
-        return Trouble::new(TroubleKind::Other, "Live TV isn't open to this profile", message, false);
+        return Trouble::new(TroubleKind::Other, t!("livetv.trouble.notAllowed"), message, false);
     }
     if matches!(e.status(), Some(502..=504)) {
-        return Trouble::new(TroubleKind::Unavailable, format!("{channel} isn't playing"), message, true);
+        return Trouble::new(
+            TroubleKind::Unavailable,
+            t!("livetv.trouble.unavailable", channel = channel),
+            message,
+            true,
+        );
     }
     if e.unreachable() {
-        return Trouble::new(TroubleKind::Away, "Can't reach your server", e.problem(), true);
+        return Trouble::new(TroubleKind::Away, t!("livetv.trouble.offline"), e.problem(), true);
     }
-    Trouble::new(TroubleKind::Other, format!("{channel} didn't start"), message, true)
+    Trouble::new(TroubleKind::Other, t!("livetv.trouble.didNotStart", channel = channel), message, true)
 }
 
 /// Where watching is.
@@ -464,7 +466,7 @@ impl LiveSession {
         }
         // The message as the server gives it, as a video's and Android's: no full stop added.
         let said = stopped_sentence(message.as_deref(), *by_admin);
-        let trouble = Trouble::new(TroubleKind::Stopped, "Live TV stopped", said, true);
+        let trouble = Trouble::new(TroubleKind::Stopped, t!("livetv.trouble.stopped"), said, true);
         if error {
             // Only a card without the server's words takes these: another stop's words stay.
             if let Some(shown) = self.state.trouble.as_mut()
@@ -587,8 +589,8 @@ impl LiveSession {
             if !watching.url.contains("/api/live/media/") {
                 let older = Trouble::new(
                     TroubleKind::Older,
-                    "Live TV needs a newer Pley on the server",
-                    "This server can't send live channels to the TV's own player. Update Pley on the server, then try again.",
+                    t!("livetv.trouble.olderTitle"),
+                    t!("livetv.trouble.olderBody"),
                     false,
                 );
                 return handed_on(Done::Tuned { g, session, channel: named, result: Err(older) });
@@ -697,7 +699,7 @@ impl LiveSession {
         if self.start_deadline.is_some_and(|t| now >= t) {
             self.start_deadline = None;
             if !self.state.shown {
-                self.on_engine_error(EngineError::Other { detail: "it didn't start in time".into() });
+                self.on_engine_error(EngineError::Other { detail: t!("livetv.engine.late").into() });
             }
         }
         if self.picture_at.is_some_and(|t| now >= t) {
@@ -731,7 +733,7 @@ impl LiveSession {
         if self.stall_give_up_at.is_some_and(|t| now >= t) {
             self.stall_give_up_at = None;
             if self.state.phase == LivePhase::Buffering {
-                self.on_engine_error(EngineError::Other { detail: "it stalled".into() });
+                self.on_engine_error(EngineError::Other { detail: t!("livetv.engine.stalled").into() });
             }
         }
     }
@@ -849,11 +851,11 @@ impl LiveSession {
             }
             // A stream.ts that ends before it plays: its HLS now, not after the wait.
             EngineEvent::Ended if self.direct && !self.state.shown => {
-                self.on_engine_error(EngineError::Other { detail: "its stream ended".into() });
+                self.on_engine_error(EngineError::Other { detail: t!("livetv.engine.directEnded").into() });
             }
             EngineEvent::Ended => {
                 if !matches!(self.state.phase, LivePhase::Error | LivePhase::Tuning) {
-                    self.on_engine_error(EngineError::Other { detail: "the stream ended".into() });
+                    self.on_engine_error(EngineError::Other { detail: t!("livetv.engine.ended").into() });
                 }
             }
             EngineEvent::Error { code, message, .. } => self.on_engine_error(engine_error(code, &message, true)),
@@ -966,8 +968,9 @@ impl LiveSession {
             | EngineError::Other { detail } => detail.clone(),
             EngineError::Stopped { message } => message.clone().unwrap_or_default(),
         };
-        let message = if detail.is_empty() { String::new() } else { format!("The TV's player said: {detail}") };
-        self.fail(Trouble::new(TroubleKind::Other, format!("{} stopped", channel.name), message, true));
+        let message = if detail.is_empty() { String::new() } else { t!("livetv.engine.said", detail = detail) };
+        let title = t!("livetv.trouble.channelStopped", channel = channel.name);
+        self.fail(Trouble::new(TroubleKind::Other, title, message, true));
     }
 
     fn fail(&mut self, trouble: Trouble) {
@@ -1069,4 +1072,43 @@ impl Drop for LiveSession {
 /// What a watch let go for a newer one stands for: never shown.
 fn cancelled() -> ApiError {
     ApiError::Net(pley_core::NetError::Cancelled)
+}
+
+#[cfg(test)]
+mod tests {
+    use pley_i18n::{Language, with_language};
+
+    use super::*;
+
+    fn refused(status: u16) -> ApiError {
+        ApiError::Status { status, code: "x".into(), message: "Upstream said no.".into(), body: None }
+    }
+
+    #[test]
+    fn troubles_name_the_channel_in_french_and_spanish() {
+        with_language(Language::Fr, || {
+            assert_eq!(trouble_of(&refused(502), "Voyage News").title, "Voyage News est indisponible");
+            let stopped = trouble_of(&ApiError::SessionStopped { message: None }, "Voyage News");
+            assert_eq!(stopped.title, "La TV en direct s’est arrêtée");
+            assert_eq!(stopped.message, "Cette chaîne n’est plus regardée.");
+            assert_eq!(
+                stopped_sentence(Some("Bonne nuit"), true),
+                "La TV en direct a été arrêtée par l’administrateur du serveur.\nBonne nuit"
+            );
+        });
+        with_language(Language::Es, || {
+            assert_eq!(trouble_of(&refused(500), "Voyage News").title, "Voyage News no se inició");
+        });
+    }
+
+    #[test]
+    fn who_holds_a_connection_is_counted_in_the_language_shown() {
+        let held = |people: i64| BusyConnection { people, ..BusyConnection::default() };
+        with_language(Language::Fr, || {
+            assert_eq!(holders(&held(1)), "Quelqu’un d’autre");
+            assert_eq!(holders(&held(3)), "3 personnes");
+            assert_eq!(holders(&BusyConnection { yours: true, ..held(1) }), "Vous, sur un autre appareil");
+        });
+        with_language(Language::Es, || assert_eq!(holders(&held(2)), "2 personas"));
+    }
 }

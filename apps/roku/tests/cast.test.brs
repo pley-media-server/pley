@@ -175,6 +175,13 @@ sub test_cast_says_where_it_came_from()
     tkEqual(castBanner("  "), "Playing from another device")
     tkEqual(castBanner("Den" + Chr(10) + "phone"), "Playing from Den phone", "on one line")
     tkEqual(castNothing(), "Nothing to play")
+    i18nUse("fr")
+    tkEqual(castBanner("Living room phone"), "Lecture depuis Living room phone")
+    tkEqual(castBanner(invalid), "Lecture depuis un autre appareil")
+    i18nUse("es")
+    tkEqual(castBanner("  "), "Reproduciendo desde otro dispositivo")
+    tkEqual(castNothing(), "Nada que reproducir")
+    tkEqual(castSwitchNotice({ ok: false, error: "x", message: "" }), "No se pudo cambiar al perfil del control remoto")
 end sub
 
 ' What each kind plays, as Play on its page does.

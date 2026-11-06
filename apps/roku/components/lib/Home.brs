@@ -61,11 +61,11 @@ function homeInfo(item as object, server as string, complete as boolean) as obje
     year = httpNumber(item.year, 0)
     if year > 0 then meta.Push(urlValue(year))
     if kind = "show"
-        seasons = httpNumber(item.child_count, 0)
-        if seasons > 0 then meta.Push(homeCount(seasons, "season"))
+        seasons = Int(httpNumber(item.child_count, 0))
+        if seasons > 0 then meta.Push(t("browse.counts.seasons", { count: seasons }))
     else if kind = "season"
-        episodes = httpNumber(item.leaf_count, 0)
-        if episodes > 0 then meta.Push(homeCount(episodes, "episode"))
+        episodes = Int(httpNumber(item.leaf_count, 0))
+        if episodes > 0 then meta.Push(t("browse.counts.episodes", { count: episodes }))
     else
         duration = fmtDuration(item.duration_ms)
         if duration <> "" then meta.Push(duration)
@@ -112,13 +112,6 @@ function homeInfo(item as object, server as string, complete as boolean) as obje
     }
 end function
 
-' "1 season", "3 seasons".
-function homeCount(count as dynamic, noun as string) as string
-    n = Int(httpNumber(count, 0))
-    if n = 1 then return "1 " + noun
-    return n.ToStr() + " " + noun + "s"
-end function
-
 ' The quality badges of a title's details: its media summary's where the
 ' server sends one, else its first file's ("4K", "DV").
 function homeBadges(item as object) as object
@@ -162,24 +155,24 @@ function homeHeroButtons(info as object) as object
     actions = []
     if info.video
         if info.timeLeft <> ""
-            labels = ["Resume", "From start"]
+            labels = [t("common.actions.resume"), t("browse.home.fromStart")]
             actions = ["resume", "start"]
         else
-            labels = ["Play"]
+            labels = [t("common.actions.play")]
             actions = ["start"]
         end if
-        labels.Push("Info")
+        labels.Push(t("browse.home.info"))
         actions.Push("info")
     else
-        labels = ["Open"]
+        labels = [t("common.actions.open")]
         actions = ["info"]
     end if
     if info.kind = "movie" or info.kind = "episode" or info.kind = "show" or info.kind = "season"
         if info.watched
-            labels.Push("Mark as unwatched")
+            labels.Push(t("browse.title.markUnwatched"))
             actions.Push("unwatched")
         else
-            labels.Push("Mark as watched")
+            labels.Push(t("browse.title.markWatched"))
             actions.Push("watched")
         end if
     end if
@@ -191,11 +184,11 @@ end function
 ' yet", as on Android TV. libraries is GET /api/libraries' answer, invalid
 ' until it comes. { title, text }.
 function homeEmpty(libraries as dynamic) as object
-    if libraries <> invalid and httpArray(libraries).Count() = 0 then return { title: "No libraries yet", text: "Ask the server owner to add a library." }
+    if libraries <> invalid and httpArray(libraries).Count() = 0 then return { title: t("browse.home.noLibraries"), text: t("browse.home.noLibrariesHint") }
     for each library in httpArray(libraries)
-        if GetInterface(library, "ifAssociativeArray") <> invalid and httpTrue(library.scanning) then return { title: "Scanning your libraries…", text: "New titles show up here as soon as they're found." }
+        if GetInterface(library, "ifAssociativeArray") <> invalid and httpTrue(library.scanning) then return { title: t("browse.home.scanning"), text: t("browse.home.scanningHint") }
     end for
-    return { title: "Nothing here yet", text: "Your libraries are empty. Add media to the library folders and run a scan." }
+    return { title: t("browse.home.empty"), text: t("browse.home.emptyHint") }
 end function
 
 ' Home's menu, in the order of the other TVs' rail: Search, Home, Discover
@@ -204,19 +197,20 @@ end function
 ' there is a library of movies or shows (the page says when none has any),
 ' Now Playing while music plays, and Settings last. [{ title, action, library, count, danger }].
 function homeMenu(libraries as object, live as boolean, requests as object, music as boolean) as object
-    entries = [{ title: "Search", action: "search" }, { title: "Home", action: "home" }]
+    entries = [{ title: t("browse.menu.search"), action: "search" }, { title: t("browse.menu.home"), action: "home" }]
     for each entry in requests
         entries.Push(entry)
     end for
-    if live then entries.Push({ title: "Live TV", action: "live" })
+    if live then entries.Push({ title: t("browse.menu.liveTv"), action: "live" })
     videos = false
+    ' A library's name is the server's, never translated.
     for each library in libraries
         entries.Push({ title: library.name, action: "library", library: library })
         if library.kind = "movies" or library.kind = "shows" then videos = true
     end for
-    entries.Push({ title: "Playlists", action: "playlists" })
-    if videos then entries.Push({ title: "Collections", action: "collections" })
-    if music then entries.Push({ title: "Now playing", action: "nowPlaying" })
-    entries.Push({ title: "Settings", action: "settings" })
+    entries.Push({ title: t("browse.menu.playlists"), action: "playlists" })
+    if videos then entries.Push({ title: t("browse.menu.collections"), action: "collections" })
+    if music then entries.Push({ title: t("browse.menu.nowPlaying"), action: "nowPlaying" })
+    entries.Push({ title: t("browse.menu.settings"), action: "settings" })
     return entries
 end function

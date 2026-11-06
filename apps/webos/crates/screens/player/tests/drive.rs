@@ -125,7 +125,7 @@ fn a_drives_video_whose_drive_is_gone_says_so_and_leaves() {
         app.frame();
     }
     assert_eq!(app.shell.top_route(), Some(&Route::Home));
-    assert!(app.list.texts().any(|t| t == pley_player_ui::NO_DRIVE), "{:?}", app.list.texts().collect::<Vec<_>>());
+    assert!(app.list.texts().any(|t| t == pley_player_ui::no_drive()), "{:?}", app.list.texts().collect::<Vec<_>>());
     assert!(app.loads().is_empty());
 }
 
@@ -145,6 +145,6 @@ fn a_drive_pulled_out_while_the_app_was_hidden_says_so_and_leaves_when_it_shows(
     }
     // Not an empty page only Back leaves.
     assert_eq!(app.shell.top_route(), Some(&Route::Home));
-    assert!(app.list.texts().any(|t| t == pley_player_ui::NO_DRIVE), "{:?}", app.list.texts().collect::<Vec<_>>());
+    assert!(app.list.texts().any(|t| t == pley_player_ui::no_drive()), "{:?}", app.list.texts().collect::<Vec<_>>());
     assert_eq!(app.loads().len(), 1);
 }

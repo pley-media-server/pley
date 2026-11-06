@@ -20,6 +20,7 @@ pley-gfx = { path = "../gfx" }
 pley-text = { path = "../text" }
 pley-platform = { path = "../platform", default-features = false }
 pley-core = { path = "../core" }
+pley-i18n = { path = "../i18n" }
 pley-ui = { path = "../ui" }
 pley-shell = { path = "../shell" }
 pley-player = { path = "../player" }

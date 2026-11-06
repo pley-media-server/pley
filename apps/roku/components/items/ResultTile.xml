@@ -12,4 +12,5 @@
         <field id="rowListHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/ResultTile.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
 </component>

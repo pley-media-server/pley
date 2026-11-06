@@ -1,0 +1,57 @@
+{
+  "rail": {
+    "search": "Recherche",
+    "home": "Accueil",
+    "discover": "Découvrir",
+    "liveTv": "TV en direct",
+    "libraries": "Bibliothèques",
+    "playlists": "Playlists",
+    "collections": "Collections",
+    "nowPlaying": "En cours de lecture",
+    "storage": "Périphérique USB",
+    "settings": "Paramètres",
+    "profiles": "Profils",
+    "switchProfile": "Changer de profil"
+  },
+  "exit": {
+    "title": "Quitter Pley ?",
+    "exit": "Quitter"
+  },
+  "offline": "Pley est hors ligne",
+  "cast": {
+    "playingFrom": "Lecture depuis {{device}}",
+    "playingFromAnother": "Lecture depuis un autre appareil",
+    "nothingToPlay": "Rien à lire",
+    "switchFailed": "Impossible de passer au profil de la télécommande"
+  },
+  "placeholder": {
+    "notBuilt": "Cette page n’est pas encore faite.",
+    "goBack": "Retour"
+  },
+  "errors": {
+    "noServer": "aucun serveur n’est utilisé"
+  },
+  "pages": {
+    "pin": "Saisissez le code PIN",
+    "library": "Bibliothèque {{id}}",
+    "collection": "Collection {{id}}",
+    "playlist": "Playlist {{id}}",
+    "addToPlaylist": "Ajouter « {{title}} » à une playlist",
+    "newPlaylist": "Nouvelle playlist",
+    "item": "Élément {{id}}",
+    "itemActions": "Actions de l’élément {{id}}",
+    "person": "Personne {{id}}",
+    "artist": "Artiste {{id}}",
+    "album": "Album {{id}}",
+    "discoverList": "Découvrir : {{list}}",
+    "discoverSearch": "Sur TMDB : {{query}}",
+    "title": "{{kind}} {{id}} sur TMDB",
+    "requests": "Demandes",
+    "channel": "Chaîne {{id}}",
+    "player": "Lecture de l’élément {{id}}",
+    "settingsSection": "Paramètres : {{section}}",
+    "history": "Historique de visionnage",
+    "diagnostics": "Diagnostic",
+    "licences": "Licences open source"
+  }
+}

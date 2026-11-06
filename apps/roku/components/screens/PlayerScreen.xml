@@ -22,6 +22,7 @@
         <field id="playerCommand" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/PlayerScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -58,11 +59,11 @@
             <Label id="bannerLine" translation="[96, 116]" width="1500" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         </Group>
         <!-- "Loading…", or "Reconnecting…" while the server is out of reach. -->
-        <Label id="loading" translation="[0, 500]" width="1920" horizAlign="center" text="Loading…" color="0xA1A9B6FF" font="font:MediumSystemFont" />
+        <Label id="loading" translation="[0, 500]" width="1920" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <Group id="upNext" translation="[0, 700]" visible="false">
             <Rectangle width="1920" height="380" color="0x16191EE6" />
             <Poster id="nextImage" translation="[96, 60]" width="400" height="225" loadWidth="400" loadHeight="225" loadDisplayMode="scaleToZoom" />
-            <Label translation="[540, 56]" text="Up next" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
+            <Label id="upNextTitle" translation="[540, 56]" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
             <Label id="nextTitle" translation="[540, 100]" width="880" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="nextLine" translation="[540, 156]" width="880" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
             <Label id="countdown" translation="[540, 214]" width="880" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
@@ -71,9 +72,9 @@
         <!-- At the top, clear of the subtitles it moves. -->
         <Group id="sync" translation="[560, 72]" visible="false">
             <Rectangle width="800" height="236" color="0x16191EE6" />
-            <Label translation="[48, 40]" text="Subtitle sync" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
+            <Label id="syncTitle" translation="[48, 40]" width="380" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
             <Label id="syncValue" translation="[48, 84]" width="340" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label translation="[48, 150]" width="360" wrap="true" maxLines="2" text="Left: earlier · Right: later" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+            <Label id="syncHint" translation="[48, 150]" width="360" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
             <ButtonGroup id="syncButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[440, 48]" minWidth="312" />
         </Group>
         <!-- Pley's menu, at the right over the video: its entries, a
@@ -95,7 +96,7 @@
         <!-- The sleep timer's last 30 s, at the bottom left: Keep watching
              adds the same time again. -->
         <Group id="sleepNotice" translation="[96, 916]" visible="false">
-            <Rectangle width="840" height="112" color="0x16191EE6" />
+            <Rectangle id="sleepBack" width="840" height="112" color="0x16191EE6" />
             <Label id="sleepText" translation="[40, 0]" width="420" height="112" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
             <ButtonGroup id="sleepButtons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[480, 20]" minWidth="320" />
         </Group>
@@ -103,7 +104,7 @@
              what the user's remote did ("Paused", "+30 s"). -->
         <Group id="toast" visible="false">
             <Rectangle translation="[460, 72]" width="1000" height="96" color="0x16191EE6" />
-            <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallSystemFont" />
+            <Label id="toastText" translation="[460, 72]" width="1000" height="96" horizAlign="center" vertAlign="center" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:SmallSystemFont" />
         </Group>
         <Timer id="countdownTimer" duration="1" repeat="true" />
         <Timer id="toastTimer" duration="4" />

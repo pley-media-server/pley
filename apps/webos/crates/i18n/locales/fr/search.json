@@ -1,0 +1,39 @@
+{
+  "field": "Rechercher des films, séries, personnes…",
+  "searching": "Recherche…",
+  "recent": {
+    "title": "Recherches récentes",
+    "clear": "Effacer"
+  },
+  "empty": {
+    "title": "Rechercher dans vos bibliothèques",
+    "body": "Trouvez des films, séries, épisodes, personnes, artistes, albums, titres et chaînes de TV en direct. Appuyez sur OK dans le champ pour saisir."
+  },
+  "none": {
+    "title": "Aucun résultat pour « {{query}} »",
+    "body": "Essayez une autre orthographe ou moins de mots."
+  },
+  "failed": "La recherche a échoué",
+  "offline": "Impossible de joindre votre serveur",
+  "retry": "Réessayer",
+  "keyboardAction": "Rechercher",
+  "discover": "Découvrir",
+  "seeAll": "Tout voir",
+  "nothingInLibraries": "Rien dans vos bibliothèques ne correspond",
+  "tmdbFailed": "Impossible de rechercher sur TMDB",
+  "groups": {
+    "people": "Personnes",
+    "liveTv": "TV en direct",
+    "movies": "Films",
+    "shows": "Séries",
+    "seasons": "Saisons",
+    "episodes": "Épisodes",
+    "artists": "Artistes",
+    "albums": "Albums",
+    "tracks": "Titres"
+  },
+  "channel": {
+    "nothingNow": "Aucun programme en ce moment",
+    "noGuide": "Pas de guide pour cette chaîne"
+  }
+}

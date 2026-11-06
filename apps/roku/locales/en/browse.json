@@ -1,0 +1,262 @@
+{
+  "menu": {
+    "search": "Search",
+    "home": "Home",
+    "discover": "Discover",
+    "liveTv": "Live TV",
+    "playlists": "Playlists",
+    "collections": "Collections",
+    "nowPlaying": "Now playing",
+    "settings": "Settings"
+  },
+  "home": {
+    "fromStart": "From start",
+    "info": "Info",
+    "noLibraries": "No libraries yet",
+    "noLibrariesHint": "Ask the server owner to add a library.",
+    "scanning": "Scanning your libraries…",
+    "scanningHint": "New titles show up here as soon as they're found.",
+    "empty": "Nothing here yet",
+    "emptyHint": "Your libraries are empty. Add media to the library folders and run a scan."
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} season",
+    "seasons_other": "{{count, number}} seasons",
+    "episodes_one": "{{count, number}} episode",
+    "episodes_other": "{{count, number}} episodes",
+    "albums_one": "{{count, number}} album",
+    "albums_other": "{{count, number}} albums",
+    "collections_one": "{{count, number}} collection",
+    "collections_other": "{{count, number}} collections",
+    "plays_one": "{{count, number}} play",
+    "plays_other": "{{count, number}} plays"
+  },
+  "title": {
+    "watched": "Watched",
+    "bitrateUnknown": "Bitrate unknown",
+    "specials": "Specials",
+    "season": "Season {{number}}",
+    "playEpisode": "Play {{episode}}",
+    "resumeEpisode": "Resume {{episode}}",
+    "playFromStart": "Play from start",
+    "episodes": "Episodes",
+    "cantPlayKind": "Pley for Roku doesn't play this kind of title yet.",
+    "noFile": "This item has no file to play.",
+    "markWatched": "Mark as watched",
+    "markUnwatched": "Mark as unwatched",
+    "tracks": "Audio and subtitles",
+    "addToMyList": "Add to My List",
+    "removeFromMyList": "Remove from My List",
+    "trailer": "Trailer",
+    "more": "More…",
+    "rate": "Rate",
+    "yourRating": "Your rating: {{stars}}",
+    "noRating": "No rating",
+    "stars_one": "{{count}} star",
+    "stars_other": "{{count}} stars",
+    "goToShow": "Go to show",
+    "goToSeason": "Go to season",
+    "mediaInfo": "Media info",
+    "details": "Details",
+    "addToPlaylist": "Add to playlist",
+    "directedBy": "Directed by {{names}}",
+    "createdBy": "Created by {{names}}",
+    "starring": "Starring {{names}}"
+  },
+  "about": {
+    "createdBy": "Created by: {{names}}",
+    "directors_one": "Director: {{names}}",
+    "directors_other": "Directors: {{names}}",
+    "writers_one": "Writer: {{names}}",
+    "writers_other": "Writers: {{names}}",
+    "andMore_one": "{{names}} and {{count}} more",
+    "andMore_other": "{{names}} and {{count}} more",
+    "originalTitle": "Original title: {{title}}",
+    "released": "Released: {{date}}",
+    "network": "Network: {{name}}",
+    "studio": "Studio: {{name}}",
+    "plays": "Plays: {{n, number}}"
+  },
+  "subtitles": {
+    "forced": "Forced",
+    "unknown": "Unknown",
+    "namedForced": "{{name}} (Forced)"
+  },
+  "library": {
+    "tabs": {
+      "recommended": "Recommended",
+      "library": "Library",
+      "collections": "Collections"
+    },
+    "sorts": {
+      "title": "Title",
+      "year": "Year",
+      "added": "Date added",
+      "rating": "Rating",
+      "userRating": "Your rating",
+      "release": "Release date",
+      "duration": "Duration",
+      "lastPlayed": "Last played",
+      "bitrate": "Bitrate"
+    },
+    "sortOrders": {
+      "title": {
+        "asc": "Title, A to Z",
+        "desc": "Title, Z to A"
+      },
+      "year": {
+        "asc": "Year, oldest first",
+        "desc": "Year, newest first"
+      },
+      "added": {
+        "asc": "Date added, first added first",
+        "desc": "Date added, recently added first"
+      },
+      "rating": {
+        "asc": "Rating, lowest rated first",
+        "desc": "Rating, best rated first"
+      },
+      "userRating": {
+        "asc": "Your rating, lowest rated first",
+        "desc": "Your rating, best rated first"
+      },
+      "release": {
+        "asc": "Release date, earliest first",
+        "desc": "Release date, latest first"
+      },
+      "duration": {
+        "asc": "Duration, shortest first",
+        "desc": "Duration, longest first"
+      },
+      "lastPlayed": {
+        "asc": "Last played, least recent first",
+        "desc": "Last played, most recent first"
+      },
+      "bitrate": {
+        "asc": "Bitrate, lowest first",
+        "desc": "Bitrate, highest first"
+      }
+    },
+    "sortBy": "Sort by",
+    "sortHint": "OK on the one checked turns the order around.",
+    "filter": "Filter",
+    "show": "Show",
+    "genre": "Genre",
+    "year": "Year",
+    "resolution": "Resolution",
+    "dynamicRange": "Dynamic range",
+    "allTitles": "All titles",
+    "unwatched": "Unwatched",
+    "watched": "Watched",
+    "allGenres": "Any",
+    "allYears": "Any",
+    "allResolutions": "All resolutions",
+    "allDynamicRanges": "All dynamic ranges",
+    "rows": {
+      "show": "Show: {{value}}",
+      "genre": "Genre: {{value}}",
+      "year": "Year: {{value}}",
+      "resolution": "Resolution: {{value}}",
+      "dynamicRange": "Dynamic range: {{value}}",
+      "anyGenre": "Any",
+      "anyYear": "Any",
+      "anyResolution": "All resolutions",
+      "anyDynamicRange": "All dynamic ranges",
+      "clear": "Clear filters",
+      "saveAs": "Save as…"
+    },
+    "smartFilter": {
+      "genre": "Genre: {{value}}",
+      "year": "From {{value}}",
+      "sort": {
+        "titleSort": {
+          "asc": "By title",
+          "desc": "By title, Z to A"
+        },
+        "year": {
+          "asc": "Oldest first",
+          "desc": "Newest first"
+        },
+        "originallyAvailableAt": {
+          "asc": "Earliest release first",
+          "desc": "Latest release first"
+        },
+        "addedAt": {
+          "asc": "First added first",
+          "desc": "Recently added first"
+        },
+        "rating": {
+          "asc": "Lowest rated first",
+          "desc": "Best rated first"
+        },
+        "userRating": {
+          "asc": "Your lowest rated first",
+          "desc": "Your best rated first"
+        },
+        "lastViewedAt": {
+          "asc": "Least recently played first",
+          "desc": "Recently played first"
+        },
+        "duration": {
+          "asc": "Shortest first",
+          "desc": "Longest first"
+        },
+        "mediaBitrate": {
+          "asc": "Lowest bitrate first",
+          "desc": "Highest bitrate first"
+        }
+      }
+    },
+    "saveFilters": "Save these filters",
+    "saveFiltersHint": "{{filters}}. It keeps up with the library by itself.",
+    "noRecommendations": "Nothing to recommend here yet.",
+    "noCollections": "This library has no collections.",
+    "empty": "This library is empty.",
+    "noMatches": "No titles match these filters."
+  },
+  "search": {
+    "placeholder": "Type to search your libraries.",
+    "recent": "Recent searches",
+    "clear": "Clear",
+    "groups": {
+      "movie": "Movies",
+      "show": "Shows",
+      "season": "Seasons",
+      "episode": "Episodes",
+      "artist": "Artists",
+      "album": "Albums",
+      "track": "Tracks",
+      "channel": "Live TV",
+      "person": "People"
+    },
+    "noneInLibraries": "Nothing in your libraries matches.",
+    "noResults": "Nothing found for “{{query}}”.",
+    "resultsFor": "Results for “{{query}}”"
+  },
+  "playlists": {
+    "new": "New playlist",
+    "none": "No playlists yet. Make one with New playlist, or with Add to playlist, the Options key on a title.",
+    "whatFor": "What is it for?",
+    "moviesTv": "Movies & TV",
+    "music": "Music",
+    "nameHint": "Name it, then add to it with Add to playlist, the Options key on a title.",
+    "create": "Create",
+    "notMade": "The playlist wasn't made"
+  },
+  "history": {
+    "title": "Watch history",
+    "empty": "No history yet. Movies, episodes and songs you finish show up here.",
+    "remove": "Remove from history"
+  },
+  "sortLibraries": {
+    "title": "Sort libraries",
+    "serverOrder": "Use the server's order",
+    "moving": "{{name}}  (moving)",
+    "movingHint": "Up and down move it, OK puts it there, Back puts it back.",
+    "hint": "Select a library to move it. Your order applies on all your devices.",
+    "needsNewer": "Sorting libraries needs a newer Pley on the server."
+  },
+  "collections": {
+    "none": "No collections yet."
+  }
+}

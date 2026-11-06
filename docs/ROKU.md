@@ -641,8 +641,8 @@ decline, and the requests' settings (the web).
 
 ### Settings
 
-Settings has the audio and subtitle defaults, Quality, Play the next
-episode by itself (Up Next counts down only while it is on), Watch
+Settings has Language ([Language](#language)), the audio and subtitle
+defaults, Quality, Play the next episode by itself (Up Next counts down only while it is on), Watch
 history, Switch profile, Always start as, Sort libraries, Switch server
 and Sign out. It says where the account is managed on the web (the
 server's address and `/account`), and carries TMDB's notice. Right of the
@@ -662,6 +662,65 @@ profile since gone from the household (deleted, or another account's,
 signed in since) counts as Profile used last, as Settings then shows it.
 It is kept on the Roku for each server.
 
+### Language
+
+The app is in English, French and Spanish ([API.md](API.md#language)),
+as the other TVs: the account's language, else the one picked on this
+Roku, else the Roku's own (`roDeviceInfo`'s `GetCurrentLocale`, where
+`fr_CA` counts as French), else the server's (`GET /api/server`), else
+English. `packages/tv/test/fixtures/language.json` pins that order, and
+the unit tests run against it.
+
+- **The globe:** Choose your server has a small globe at the bottom
+  right, on the forget hint's line; the sign-in code has it at the top
+  right, on the logo's line. It names the language shown by its two
+  letters ("FR"), filled with the accent only while it has the focus.
+  Down reaches it on Choose your server and Up on the sign-in code; Left
+  and Right never do. OK opens a panel: Automatic, with what that is on
+  this Roku (its language, else the server's, else English), then
+  English, Français and Español, the choice in force checked. A choice
+  shows at once and is kept on the Roku (registry section `language`);
+  Automatic forgets it. Typing an address is Roku's own keyboard dialog,
+  which has no room for the globe.
+- **At a start** the app shows the language it showed last, never another
+  while it waits, which would flash. Signed in, it changes once the
+  account has been heard (`GET /api/auth/me`); on a Roku in a language
+  Pley doesn't have with none picked, once the server has said its own,
+  asked again when the event stream comes up if it didn't answer.
+- **A change** (another profile, signing out, Settings, the globe) draws
+  the sign-in screens, "Who's watching?" and Settings again in place, the
+  focus where it was. Any other screen is made again, the one on top at
+  once and those under it as they show again, so Home's and the
+  libraries' rows, whose titles the server writes, are asked for anew.
+  The players play on, and their words come in the new language as they
+  show them.
+- **Settings → Language:** Automatic, with what that is on this Roku (the
+  one picked with the globe, else its language, else the server's), then
+  English, Français and Español, each in itself. A choice is the
+  account's, on all its devices (`PUT /api/me/language`), and shows once
+  the server has it. A Pley from before languages keeps no account's
+  language (its `GET /api/server` names none, and the route answers 404
+  or 405): there the row is this Roku's, as the globe picks it, with
+  Automatic the Roku's own language, and a choice shows at once and is
+  kept on the Roku. A server that answers 404 or 405 though it names a
+  language is taken as one for as long as it is the server in use.
+- **Requests** to the server carry `Accept-Language` with the language
+  shown. What the server writes in its own words, such as an error's
+  message the app has none for, comes in English.
+- **Dates, times and numbers** are written by the app in the language
+  shown (`components/lib/I18n.brs`, `Format.brs`): "12,345", "12 345" or
+  "12.345"; "Nov 4" or "4 nov."; a 12-hour clock in English when the Roku
+  uses one. Counts take CLDR's plural forms: one and other in English,
+  one, many and other in French and Spanish.
+- **The words** are in `locales/<language>/<area>.json`, in the other
+  apps' format (i18next's: `{{name}}`, `_one`, `_many`, `_other`), read
+  with `ParseJson` an area at a time and looked up with the app's own
+  `t()`: Roku's `tr()` follows the device's language only, so it can't
+  show the account's. English stands in for a word missing elsewhere. The
+  tests check that every language has every key, with the same values in
+  it, that every key the code names is there, and that every word is
+  shown somewhere.
+
 ## Building and testing
 
 ### How it works
@@ -672,7 +731,7 @@ It is kept on the Roku for each server.
 | `components/MainScene.*` | The screen stack, the HTTP agent for pictures, sign-in when the server ends it, what the user's remotes cast here |
 | `components/MusicPlayer.*` | The music queue on the scene's Audio node |
 | `components/screens/` | One component per screen |
-| `components/shared/` | Screen helpers (`Ui.brs`), title actions (`Titles.brs`) |
+| `components/shared/` | Screen helpers (`Ui.brs`), title actions (`Titles.brs`), the language's globe and panel |
 | `components/items/` | Tiles, rows, the player's skip button, the ready-to-watch card |
 | `components/tasks/ApiTask` | The only code that talks to the server |
 | `components/tasks/DiscoveryTask` | `pley?` to UDP port 7539 (`apps/server/src/discovery.rs`) |
@@ -680,6 +739,7 @@ It is kept on the Roku for each server.
 | `components/lib/` | Plain BrightScript (no SceneGraph): the logic the unit tests cover |
 | `tests/` | Unit tests of `components/lib` |
 | `scripts/` | Test runner, smoke run, preview, bench, images |
+| `locales/` | The words, in English, French and Spanish (`<language>/<area>.json`) |
 | `licenses/` | Notices for bundled third-party code (BrighterScript's `bslib.brs`) |
 
 Rules the code keeps:
@@ -718,7 +778,7 @@ Rules the code keeps:
   Roku's sockets have no TLS.
 - Settings and views are kept in registry sections: `playback`,
   `subtitleSync`, `libraryViews`, `liveViews`, `household`, `startAs`,
-  `requests`, `searches`.
+  `requests`, `searches`, `language`.
 - Sign-in asks for `library play playlists profiles`, and `requests
   approvals` when the server's metadata lists them in `scopes_supported`
   (an older server refuses scopes it doesn't know). A sign-in from before
@@ -748,7 +808,8 @@ Rules the code keeps:
   four times a second while a notice waits; a screen changing and a
   card closing count as presses.
 - **Times** come as unix seconds, and the app writes them ("in 20 min",
-  "3 days ago", "Nov 4", "9:05 PM") in the Roku's time zone; TMDB's days
+  "3 days ago", "Nov 4", "9:05 PM") in the Roku's time zone and the
+  language shown; TMDB's days
   ("2026-11-04") are written as they are.
 - **Discover's pictures** come through the server at the size they are
   drawn (`w`), with the scene's HTTP agent like library artwork.
@@ -767,7 +828,7 @@ bun run check     # bsc's compile check, bslint, the unit tests (CI runs this)
 bun run smoke     # the whole app in brs-node, against a fake server
 bun run bench     # the list work timed in brs-node
 bun run preview   # the app in a browser, the keyboard as its remote
-bun run images    # the nine-patch focus and watched-mark images
+bun run images    # the nine-patch focus, watched-mark and globe images
 ```
 
 - **Preview** serves the app on http://127.0.0.1:8086/. Arrows, Enter
@@ -781,7 +842,8 @@ bun run images    # the nine-patch focus and watched-mark images
   requests and TMDB titles, all made up, in
   `scripts/fixture-requests.mjs`) and walks every screen, saving each in
   `out/smoke/`. It fails on a BrightScript error, a request without the
-  User-Agent, a token in an address, a token before the server proved
+  User-Agent, an API request without `Accept-Language`, a token in an
+  address, a token before the server proved
   itself (a refresh token without a proof made then), or a refresh token
   used twice. On the way it plays an episode whose PGS subtitles the app
   draws (their list asked for where it starts, then again until whole, and
@@ -796,7 +858,9 @@ bun run images    # the nine-patch focus and watched-mark images
   under an album's "Disc 2", opens the See all of Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
   opens a title from its ready-to-watch card on Home (which waited while
-  the requests showed), and checks that a server
+  the requests showed), chooses Español in Settings → Language for the
+  account (Home asked for again in it) and Automatic again, and checks
+  that a server
   without requests is asked nothing but the summary. The fake server also
   checks that a video's reports say which audio and subtitles play, and
   music's don't.

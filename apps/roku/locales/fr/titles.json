@@ -1,0 +1,203 @@
+{
+  "watched": "Vu",
+  "smart": "Intelligente",
+  "nothingToPlay": "Rien à lire",
+  "actions": {
+    "markWatched": "Marquer comme vu",
+    "markUnwatched": "Marquer comme non vu",
+    "addToMyList": "Ajouter à Ma liste",
+    "removeFromMyList": "Retirer de Ma liste",
+    "addToPlaylist": "Ajouter à une playlist",
+    "removeFromContinueWatching": "Retirer de Reprendre la lecture",
+    "goToShow": "Aller à la série",
+    "goToSeason": "Aller à la saison",
+    "goToArtist": "Aller à l’artiste",
+    "goTo": "Aller à {{title}}",
+    "playEpisode": "Lire {{episode}}",
+    "resumeEpisode": "Reprendre {{episode}}",
+    "audioAndSubtitles": "Audio et sous-titres",
+    "shuffle": "Aléatoire",
+    "nowPlaying": "Lecture en cours",
+    "rename": "Renommer",
+    "move": "Déplacer",
+    "removeFromPlaylist": "Retirer de la playlist"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} saison",
+    "seasons_many": "{{count, number}} de saisons",
+    "seasons_other": "{{count, number}} saisons",
+    "episodes_one": "{{count, number}} épisode",
+    "episodes_many": "{{count, number}} d’épisodes",
+    "episodes_other": "{{count, number}} épisodes",
+    "albums_one": "{{count, number}} album",
+    "albums_many": "{{count, number}} d’albums",
+    "albums_other": "{{count, number}} albums",
+    "tracks_one": "{{count, number}} titre",
+    "tracks_many": "{{count, number}} de titres",
+    "tracks_other": "{{count, number}} titres"
+  },
+  "seasons": {
+    "noEpisodes": "Aucun épisode trouvé."
+  },
+  "page": {
+    "rows": {
+      "seasons": "Saisons",
+      "castAndCrew": "Distribution et équipe",
+      "extras": "Bonus",
+      "moreLikeThis": "Titres similaires",
+      "collections": "Collections"
+    },
+    "mediaInfo": "Informations sur le média",
+    "about": "Détails",
+    "version": "Version",
+    "audio": "Audio",
+    "subtitles": "Sous-titres",
+    "versionIs": "Version : {{value}}",
+    "audioIs": "Audio : {{value}}",
+    "subtitlesIs": "Sous-titres : {{value}}",
+    "yourRating": "Votre note"
+  },
+  "extras": {
+    "trailer": "Bande-annonce",
+    "featurette": "Reportage",
+    "behindTheScenes": "Coulisses",
+    "deletedScene": "Scène coupée",
+    "interview": "Entretien",
+    "scene": "Scène",
+    "short": "Court métrage",
+    "other": "Bonus"
+  },
+  "roles": {
+    "actor": "Interprétation",
+    "creator": "Création",
+    "director": "Réalisation",
+    "writer": "Scénario",
+    "producer": "Production",
+    "crew": "Équipe technique",
+    "guestStar": "Apparition",
+    "as": "{{character}}",
+    "withEpisodes_one": "{{role}} ({{count, number}} épisode)",
+    "withEpisodes_many": "{{role}} ({{count, number}} d’épisodes)",
+    "withEpisodes_other": "{{role}} ({{count, number}} épisodes)"
+  },
+  "person": {
+    "rows": {
+      "acting": "Interprétation",
+      "directing": "Réalisation",
+      "creating": "Création",
+      "writing": "Scénario",
+      "producing": "Production"
+    },
+    "inLibraries": "{{counts}} dans vos bibliothèques",
+    "notFound": "Personne introuvable. Ce lien ne mène à personne dans vos bibliothèques.",
+    "nothing": "Rien à afficher ici."
+  },
+  "collection": {
+    "label": "Collection",
+    "empty": "Cette collection est encore vide.",
+    "noEpisodes": "Cette série n’a pas encore d’épisode.",
+    "order": {
+      "release": "Par date de sortie",
+      "title": "Par titre",
+      "custom": "Ordre personnalisé"
+    }
+  },
+  "smartFilter": {
+    "genre": "Genre : {{value}}",
+    "label": "Étiquette : {{value}}",
+    "studio": "Studio : {{value}}",
+    "rated": "Classification : {{value}}",
+    "watched": "Vu",
+    "unwatched": "Non vu",
+    "inProgress": "En cours",
+    "notInProgress": "Pas en cours",
+    "year": "Année : {{value}}",
+    "after": "Après {{value}}",
+    "before": "Avant {{value}}",
+    "decade": "Années {{value}}",
+    "limit": "{{value}} au maximum",
+    "other": "{{name}} : {{value}}",
+    "sortedBy": "Trié par {{name}}",
+    "sort": {
+      "titleSort": {
+        "asc": "Par titre",
+        "desc": "Par titre, de Z à A"
+      },
+      "year": {
+        "asc": "Les plus anciens d’abord",
+        "desc": "Les plus récents d’abord"
+      },
+      "originallyAvailableAt": {
+        "asc": "Sortie la plus ancienne d’abord",
+        "desc": "Sortie la plus récente d’abord"
+      },
+      "addedAt": {
+        "asc": "Ajouts les plus anciens d’abord",
+        "desc": "Ajouts les plus récents d’abord"
+      },
+      "rating": {
+        "asc": "Les moins bien notés d’abord",
+        "desc": "Les mieux notés d’abord"
+      },
+      "userRating": {
+        "asc": "Vos moins bien notés d’abord",
+        "desc": "Vos mieux notés d’abord"
+      },
+      "lastViewedAt": {
+        "asc": "Lus il y a le plus longtemps d’abord",
+        "desc": "Lus récemment d’abord"
+      },
+      "duration": {
+        "asc": "Les plus courts d’abord",
+        "desc": "Les plus longs d’abord"
+      },
+      "viewCount": {
+        "asc": "Les moins lus d’abord",
+        "desc": "Les plus lus d’abord"
+      }
+    }
+  },
+  "music": {
+    "artist": "Artiste",
+    "albums": "Albums",
+    "disc": "Disque {{number}}",
+    "noAlbums": "Aucun album trouvé.",
+    "noTracks": "Cet album n’a aucun titre.",
+    "noTracksToPlay": "Il n’y a aucun titre."
+  },
+  "playlist": {
+    "new": "Nouvelle playlist",
+    "newMenu": "Nouvelle playlist…",
+    "create": "Créer",
+    "added": "Ajouté",
+    "addedTo": "Ajouté à {{title}}.",
+    "refused": "Cette connexion ne permet pas de modifier les playlists : déconnectez-vous dans Paramètres et reconnectez-vous pour l’autoriser.",
+    "renameTitle": "Renommer la playlist",
+    "deleteTitle": "Supprimer {{title}} ?",
+    "deleteBody": "La playlist est supprimée ; ses titres restent dans vos bibliothèques.",
+    "notDeleted": "La playlist n’a pas été supprimée",
+    "empty": "Cette playlist est vide. Ajoutez-y des titres avec la touche Options sur chacun d’eux.",
+    "moving": "{{title}}  (en déplacement)",
+    "movingHint": "Haut et bas le déplacent, OK le pose ici, Retour le remet en place."
+  },
+  "playback": {
+    "method": {
+      "direct": "Lecture directe",
+      "remux": "Flux direct",
+      "remuxAudio": "Flux direct · Audio transcodé",
+      "transcode": "Transcodage"
+    },
+    "video": "Vidéo",
+    "audio": "Audio",
+    "bitrate": "Débit",
+    "shownAs": "Affiché en",
+    "subtitles": "Sous-titres",
+    "burnedIn": "Incrustés",
+    "speed": "Vitesse",
+    "toneMapped": "SDR (mappage tonal avec {{method}})",
+    "realTime": "{{speed}}× temps réel",
+    "realTimeReady": "{{speed}}× temps réel · {{seconds, number}} s d’avance",
+    "chapter": "Chapitre {{number}}",
+    "line": "{{label}} : {{value}}"
+  }
+}

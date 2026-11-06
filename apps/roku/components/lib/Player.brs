@@ -98,12 +98,12 @@ end function
 ' whether that was an administrator (by_admin); a 410 doesn't, and is
 ' taken for one.
 function playerStoppedMessage(body as dynamic) as string
-    text = "Playback was stopped by the server's administrator."
+    text = t("player.errors.stoppedByAdmin")
     data = invalid
     data = httpObject(httpJson(body))
     if GetInterface(body, "ifAssociativeArray") <> invalid then data = body
     if data <> invalid
-        if GetInterface(data.by_admin, "ifBoolean") <> invalid and not data.by_admin then text = "Playback was stopped from another device."
+        if GetInterface(data.by_admin, "ifBoolean") <> invalid and not data.by_admin then text = t("player.errors.stoppedElsewhere")
         message = httpSentence(data.message)
         if message <> "" then text = text + Chr(10) + message
     end if
@@ -174,8 +174,8 @@ function playerSkipFor(markers as object, positionMs as integer, upNextComing as
 end function
 
 function playerSkipLabel(marker as object) as string
-    if marker.kind = "credits" then return "Skip credits"
-    return "Skip intro"
+    if marker.kind = "credits" then return t("player.skip.credits")
+    return t("player.skip.intro")
 end function
 
 ' Where skipping lands, in ms: just before an intro ends, so its last

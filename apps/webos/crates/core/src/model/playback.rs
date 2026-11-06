@@ -1,6 +1,7 @@
 //! Playing: the play request and its answer, sessions, progress, tracks,
 //! qualities, the network memory and speed test, subtitles and seek previews.
 
+use pley_i18n::t;
 use serde::de::Error as _;
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -588,9 +589,6 @@ pub struct ConversionInfo {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct QualityPreset {
     pub id: &'static str,
-    pub label: &'static str,
-    /// What Settings says under it, where it says anything.
-    pub hint: Option<&'static str>,
     pub max_bitrate_kbps: Option<u32>,
     pub max_height: Option<u32>,
 }
@@ -600,62 +598,47 @@ impl QualityPreset {
     pub fn mode(&self) -> PlaybackMode {
         if self.max_bitrate_kbps.is_some() { PlaybackMode::Transcode } else { PlaybackMode::Auto }
     }
+
+    /// Its name in the language shown: "Original", "Automatic", "8 Mbps 1080p".
+    pub fn label(&self) -> String {
+        match (self.max_bitrate_kbps, self.max_height) {
+            (Some(kbps), Some(lines)) => quality_name(f64::from(kbps) / 1000.0, lines),
+            _ if self.id == "auto" => t!("player.quality.automatic").to_string(),
+            _ => t!("player.quality.original").to_string(),
+        }
+    }
+
+    /// What Settings says under it, where it says anything (the Android app's Settings).
+    pub fn hint(&self) -> Option<&'static str> {
+        match self.id {
+            "original" => Some(t!("player.quality.hints.original")),
+            "auto" => Some(t!("player.quality.hints.automatic")),
+            _ => None,
+        }
+    }
 }
 
-/// Every quality, in the menu's order (apps/server/src/playback.rs `QUALITIES`;
-/// hints from the Android app's Settings).
+/// A conversion's name in the language shown, its bitrate written as short as it is ("4.6",
+/// not "4.60") and its lines as qualities name them: "8 Mbps 1080p", "4.6 Mbps 720p", "30 Mbps
+/// 4K".
+pub fn quality_name(mbps: f64, lines: u32) -> String {
+    let written = format!("{mbps}");
+    let places = written.split_once('.').map_or(0, |(_, f)| f.len());
+    let lines = if lines >= 2160 { "4K".to_string() } else { format!("{lines}p") };
+    t!("player.quality.preset", mbps = pley_i18n::decimal(mbps, places), lines = lines)
+}
+
+/// Every quality, in the menu's order (apps/server/src/playback.rs `QUALITIES`).
 pub const QUALITY_PRESETS: &[QualityPreset] = &[
-    QualityPreset {
-        id: "original",
-        label: "Original",
-        hint: Some("Full quality. May buffer on a slow connection."),
-        max_bitrate_kbps: None,
-        max_height: None,
-    },
-    QualityPreset {
-        id: "auto",
-        label: "Automatic",
-        hint: Some("Dynamically adjust to conditions."),
-        max_bitrate_kbps: None,
-        max_height: None,
-    },
-    QualityPreset {
-        id: "30m",
-        label: "30 Mbps 4K",
-        hint: None,
-        max_bitrate_kbps: Some(30_000),
-        max_height: Some(2160),
-    },
-    QualityPreset {
-        id: "15m",
-        label: "15 Mbps 4K",
-        hint: None,
-        max_bitrate_kbps: Some(15_000),
-        max_height: Some(2160),
-    },
-    QualityPreset {
-        id: "20m",
-        label: "20 Mbps 1080p",
-        hint: None,
-        max_bitrate_kbps: Some(20_000),
-        max_height: Some(1080),
-    },
-    QualityPreset {
-        id: "12m",
-        label: "12 Mbps 1080p",
-        hint: None,
-        max_bitrate_kbps: Some(12_000),
-        max_height: Some(1080),
-    },
-    QualityPreset {
-        id: "8m",
-        label: "8 Mbps 1080p",
-        hint: None,
-        max_bitrate_kbps: Some(8_000),
-        max_height: Some(1080),
-    },
-    QualityPreset { id: "4m", label: "4 Mbps 720p", hint: None, max_bitrate_kbps: Some(4_000), max_height: Some(720) },
-    QualityPreset { id: "2m", label: "2 Mbps 480p", hint: None, max_bitrate_kbps: Some(2_000), max_height: Some(480) },
+    QualityPreset { id: "original", max_bitrate_kbps: None, max_height: None },
+    QualityPreset { id: "auto", max_bitrate_kbps: None, max_height: None },
+    QualityPreset { id: "30m", max_bitrate_kbps: Some(30_000), max_height: Some(2160) },
+    QualityPreset { id: "15m", max_bitrate_kbps: Some(15_000), max_height: Some(2160) },
+    QualityPreset { id: "20m", max_bitrate_kbps: Some(20_000), max_height: Some(1080) },
+    QualityPreset { id: "12m", max_bitrate_kbps: Some(12_000), max_height: Some(1080) },
+    QualityPreset { id: "8m", max_bitrate_kbps: Some(8_000), max_height: Some(1080) },
+    QualityPreset { id: "4m", max_bitrate_kbps: Some(4_000), max_height: Some(720) },
+    QualityPreset { id: "2m", max_bitrate_kbps: Some(2_000), max_height: Some(480) },
 ];
 
 /// The quality with `id`.

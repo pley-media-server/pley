@@ -20,7 +20,7 @@ use pley_local::LocalServer;
 use pley_local::server::ITEM_ID;
 use pley_player::Reporter;
 use pley_player::controller::{Phase, PlaybackController};
-use pley_player::details::{DRIVE_UNREADABLE, LOCAL_STUCK};
+use pley_player::details::{drive_unreadable, local_stuck};
 use pley_player::env::{CapsProbe, PlayerEnv};
 use pley_player::plan::PlayRequest;
 use pley_player::sim::{SimClock, SimEngine};
@@ -59,7 +59,7 @@ fn a_picture_that_never_starts_fails_after_12_s_with_what_to_do() {
     w.advance(11_500);
     assert_eq!(w.c.state().phase, Phase::Preparing);
     w.advance(1_000);
-    assert_eq!(w.c.state().phase, Phase::Error { message: LOCAL_STUCK.into(), can_retry: true, title: None });
+    assert_eq!(w.c.state().phase, Phase::Error { message: local_stuck().into(), can_retry: true, title: None });
     assert!(w.fake.questions().is_empty(), "{:?}", w.fake.questions());
     assert_eq!(w.fake.modes(), [PlaybackMode::Auto]);
 }
@@ -76,7 +76,7 @@ fn a_picture_that_played_then_stood_still_12_s_says_the_drive_may_be_out() {
     assert_eq!(w.c.state().phase, Phase::Buffering);
     w.advance(1_000);
     // It played: the file is one this TV plays, so not "try another copy".
-    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    let unreadable = Phase::Error { message: drive_unreadable().into(), can_retry: true, title: None };
     assert_eq!(w.c.state().phase, unreadable);
     assert!(w.fake.questions().is_empty(), "{:?}", w.fake.questions());
 }
@@ -93,7 +93,7 @@ fn a_file_that_played_and_then_never_starts_again_says_the_drive_may_be_out() {
     w.advance(100);
     assert_eq!(w.fake.modes(), [PlaybackMode::Auto, PlaybackMode::Auto]);
     w.advance(12_500);
-    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    let unreadable = Phase::Error { message: drive_unreadable().into(), can_retry: true, title: None };
     assert_eq!(w.c.state().phase, unreadable);
 }
 
@@ -158,7 +158,7 @@ fn a_drive_pulled_out_mid_play_says_so_not_that_a_server_is_away() {
         w.advance(100);
         w.open();
     }
-    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    let unreadable = Phase::Error { message: drive_unreadable().into(), can_retry: true, title: None };
     assert_eq!(w.c.state().phase, unreadable);
     assert!(w.fake.questions().is_empty(), "{:?}", w.fake.questions());
 }
@@ -169,7 +169,7 @@ fn a_drive_that_cant_be_read_at_the_start_says_so() {
     w.fake.set_down(true);
     w.start();
     w.settle();
-    let unreadable = Phase::Error { message: DRIVE_UNREADABLE.into(), can_retry: true, title: None };
+    let unreadable = Phase::Error { message: drive_unreadable().into(), can_retry: true, title: None };
     assert_eq!(w.c.state().phase, unreadable);
 }
 

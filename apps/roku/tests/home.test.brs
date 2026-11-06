@@ -71,6 +71,27 @@ sub test_home_says_why_it_is_empty()
     tkEqual(homeEmpty(invalid).title, "Nothing here yet", "the libraries not known yet")
 end sub
 
+sub test_home_in_french_and_spanish()
+    i18nUse("fr")
+    tkEqual(homeInfo({ id: 9, kind: "show", title: "A show", year: 2008, child_count: 5, user_state: {} }, "http://s", false).meta, "2008 · 5 saisons")
+    tkEqual(homeInfo({ id: 9, kind: "season", title: "Saison 1", leaf_count: 1, user_state: {} }, "http://s", false).meta, "1 épisode")
+    tkEqual(homeHeroButtons(homeInfo(homeTestEpisode(), "http://s", false)).labels, ["Reprendre", "Depuis le début", "Infos", "Marquer comme vu"])
+    tkEqual(homeEmpty([]), { title: "Aucune bibliothèque pour l’instant", text: "Demandez au propriétaire du serveur d’ajouter une bibliothèque." })
+    titles = []
+    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], true, [], true)
+        titles.Push(entry.title)
+    end for
+    tkEqual(titles, ["Recherche", "Accueil", "TV en direct", "Movies", "Playlists", "Collections", "En lecture", "Paramètres"], "a library keeps the server's name")
+    i18nUse("es")
+    titles = []
+    for each entry in homeMenu([{ id: 1, name: "Movies", kind: "movies" }], false, [], false)
+        titles.Push(entry.title)
+    end for
+    tkEqual(titles, ["Buscar", "Inicio", "Movies", "Listas", "Colecciones", "Ajustes"])
+    tkEqual(homeEmpty([{ id: 1, scanning: true }]).title, "Analizando tus bibliotecas…")
+    tkEqual(homeInfo({ id: 9, kind: "show", title: "A show", child_count: 1, user_state: {} }, "http://s", false).meta, "1 temporada")
+end sub
+
 sub test_home_menu_follows_the_other_tvs_rail()
     movies = { id: 1, name: "Movies", kind: "movies" }
     music = { id: 3, name: "Music", kind: "music" }

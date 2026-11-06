@@ -6,14 +6,14 @@
 use pley_core::format::{FactBlock, media_facts};
 use pley_core::format::{
     audio_format_label, codec_label, episode_label, format_bytes, format_runtime, format_time_left, is_in_progress,
-    language_name, pluralize, quality_badges, resolution_label, season_title, stream_label, stream_range,
-    version_label,
+    language_name, quality_badges, resolution_label, season_title, stream_label, stream_range, version_label,
 };
 use pley_core::model::{
     CollectionRef, CreditRole, ExtraType, ItemDetail, ItemKind, ItemRequest, ItemSummary, MediaFile, MediaStream,
     RequestSummary, SignInAgain, StreamKind,
 };
 use pley_core::requests::may_ask;
+use pley_i18n::t;
 
 use crate::words::{self, join, medium_date, year_range};
 
@@ -95,11 +95,11 @@ impl Primary {
     /// The pill's label: "Resume", "Play S1 · E3", "Unavailable"…
     pub fn label(&self) -> String {
         match (self.kind, &self.episode) {
-            (PrimaryKind::Unavailable, _) => "Unavailable".into(),
-            (PrimaryKind::Resume, Some(e)) => format!("Resume {e}"),
-            (PrimaryKind::Resume, None) => "Resume".into(),
-            (PrimaryKind::Play, Some(e)) => format!("Play {e}"),
-            (PrimaryKind::Play, None) => "Play".into(),
+            (PrimaryKind::Unavailable, _) => t!("item.hero.unavailable").into(),
+            (PrimaryKind::Resume, Some(e)) => t!("item.hero.resumeEpisode", episode = e),
+            (PrimaryKind::Resume, None) => t!("item.hero.resume").into(),
+            (PrimaryKind::Play, Some(e)) => t!("item.hero.playEpisode", episode = e),
+            (PrimaryKind::Play, None) => t!("item.hero.play").into(),
         }
     }
 }
@@ -217,8 +217,8 @@ pub fn track_choices(d: &ItemDetail, playing: &Playing) -> Option<TrackChoices> 
             .collect(),
         automatic_audio: playing.automatic_audio,
         automatic_label: match language {
-            Some(l) => format!("Automatic ({l})"),
-            None => "Automatic".into(),
+            Some(l) => t!("item.panels.automaticLanguage", language = l),
+            None => t!("item.panels.automatic").into(),
         },
         subtitles_off: subtitle_shown.is_none(),
         file_id: file.id,
@@ -243,13 +243,13 @@ pub fn meta(d: &ItemDetail, file: Option<&MediaFile>, seasons: &[ItemSummary]) -
             let count =
                 d.child_count.unwrap_or_else(|| seasons.iter().filter(|s| s.index.unwrap_or(1) > 0).count() as i64);
             vec![
-                if count > 0 { pluralize(count, "season", None) } else { String::new() },
+                if count > 0 { t!("item.counts.seasons", count = count) } else { String::new() },
                 year_range(d.year, seasons).unwrap_or_default(),
             ]
         }
         ItemKind::Season => vec![
             d.year.map(|y| y.to_string()).unwrap_or_default(),
-            d.leaf_count.filter(|l| *l > 0).map(|l| pluralize(l, "episode", None)).unwrap_or_default(),
+            d.leaf_count.filter(|l| *l > 0).map(|l| t!("item.counts.episodes", count = l)).unwrap_or_default(),
         ],
         ItemKind::Episode => vec![medium_date(d.release_date.as_deref()), edition, format_runtime(d.duration_ms)],
         _ => vec![d.year.map(|y| y.to_string()).unwrap_or_default(), edition, format_runtime(d.duration_ms)],
@@ -257,7 +257,7 @@ pub fn meta(d: &ItemDetail, file: Option<&MediaFile>, seasons: &[ItemSummary]) -
     Meta {
         facts: facts.into_iter().filter(|f| !f.trim().is_empty()).collect(),
         content_rating: d.content_rating.clone().filter(|r| !r.trim().is_empty()),
-        rating: d.rating.filter(|r| *r > 0.0).map(|r| format!("{r:.1}")),
+        rating: d.rating.filter(|r| *r > 0.0).map(|r| pley_i18n::decimal(r, 1)),
         badges: file.map(quality_badges).unwrap_or_default(),
     }
 }
@@ -312,7 +312,8 @@ pub fn credits(d: &ItemDetail, crew: &[CrewLine]) -> Option<Credits> {
         .find(|l| l.role == CreditRole::Director)
         .or_else(|| crew.iter().find(|l| l.role == CreditRole::Creator));
     let made = makers.map(|l| {
-        let label = if l.role == CreditRole::Director { "Directed by" } else { "Created by" };
+        let label =
+            if l.role == CreditRole::Director { t!("item.credits.directedBy") } else { t!("item.credits.createdBy") };
         (label, l.people.iter().take(2).map(|p| p.1.as_str()).collect::<Vec<_>>().join(", "))
     });
     let mut stars: Vec<&str> = Vec::new();
@@ -332,35 +333,34 @@ pub fn credits(d: &ItemDetail, crew: &[CrewLine]) -> Option<Credits> {
 pub fn facts(d: &ItemDetail, crew: &[CrewLine]) -> Vec<(String, String)> {
     let mut out = Vec::new();
     for line in crew {
-        let plural = line.people.len() + line.more > 1;
-        let label = match (line.role, plural) {
-            (CreditRole::Creator, _) => "Created by",
-            (CreditRole::Director, false) => "Director",
-            (CreditRole::Director, true) => "Directors",
-            (_, false) => "Writer",
-            (_, true) => "Writers",
+        let people = line.people.len() + line.more;
+        let label = match line.role {
+            CreditRole::Creator => t!("item.details.createdBy").to_string(),
+            CreditRole::Director => t!("item.details.directors", count = people),
+            _ => t!("item.details.writers", count = people),
         };
         let mut names = line.people.iter().map(|p| p.1.as_str()).collect::<Vec<_>>().join(", ");
         if line.more > 0 {
             names = format!("{names} {}", words::and_more(line.more));
         }
-        out.push((label.to_string(), names));
+        out.push((label, names));
     }
     if let Some(t) = d.original_title.as_ref().filter(|t| !t.trim().is_empty() && **t != d.title) {
-        out.push(("Original title".into(), t.clone()));
+        out.push((t!("item.details.originalTitle").into(), t.clone()));
     }
     if d.kind != ItemKind::Episode {
         let released = medium_date(d.release_date.as_deref());
         if !released.is_empty() {
-            out.push(("Released".into(), released));
+            out.push((t!("item.details.released").into(), released));
         }
     }
     if let Some(studio) = d.studio.as_ref().filter(|s| !s.trim().is_empty()) {
         let network = matches!(d.kind, ItemKind::Episode | ItemKind::Show);
-        out.push((if network { "Network" } else { "Studio" }.into(), studio.clone()));
+        let label = if network { t!("item.details.network") } else { t!("item.details.studio") };
+        out.push((label.into(), studio.clone()));
     }
     if d.user_state.play_count > 0 {
-        out.push(("Plays".into(), d.user_state.play_count.to_string()));
+        out.push((t!("item.details.plays").into(), pley_i18n::number(d.user_state.play_count)));
     }
     out
 }
@@ -379,7 +379,7 @@ pub fn version_long(file: &MediaFile) -> String {
         if file.size > 0 { format_bytes(Some(file.size as u64)) } else { String::new() },
     ];
     let line = parts.into_iter().filter(|p| !p.trim().is_empty()).collect::<Vec<_>>().join(" · ");
-    if line.is_empty() { "Version".into() } else { line }
+    if line.is_empty() { t!("item.details.version").into() } else { line }
 }
 
 /// One file's media info: its title ("Final Cut", "Version 2", or none with one file) and blocks.
@@ -399,7 +399,7 @@ pub fn media_info(files: &[MediaFile]) -> Vec<FileInfo> {
                 .edition
                 .clone()
                 .filter(|e| !e.trim().is_empty())
-                .or_else(|| (files.len() > 1).then(|| format!("Version {}", i + 1))),
+                .or_else(|| (files.len() > 1).then(|| t!("item.details.versionNumber", number = i + 1))),
             blocks: media_facts(f),
         })
         .collect()
@@ -484,7 +484,7 @@ pub fn genres_line(d: &ItemDetail, collections: &[CollectionRef]) -> String {
     d.genres
         .iter()
         .cloned()
-        .chain(collections.iter().map(|c| format!("Part of {}", c.title)))
+        .chain(collections.iter().map(|c| t!("item.credits.partOf", collection = c.title)))
         .collect::<Vec<_>>()
         .join(" · ")
 }
@@ -714,6 +714,36 @@ mod tests {
         let tiles = cast_and_crew(&d, &crew);
         assert_eq!(tiles.len(), 4 + 1 + 4);
         assert_eq!(tiles[4].subtitle, "Director");
+    }
+
+    #[test]
+    fn a_title_page_speaks_french() {
+        use pley_i18n::{Language, with_language};
+        with_language(Language::Fr, || {
+            let resume = Primary {
+                kind: PrimaryKind::Resume,
+                episode: Some("S1 · E3".into()),
+                time_left: String::new(),
+                target: None,
+            };
+            assert_eq!(resume.label(), "Reprendre S1 · E3");
+            let mut show = ItemDetail::default();
+            show.summary.kind = ItemKind::Show;
+            show.summary.child_count = Some(2);
+            assert_eq!(meta(&show, None, &[]).facts, vec!["2 saisons".to_string()]);
+            let mut d = movie();
+            let person = |id, name: &str, role| Credit { id, name: name.into(), role, ..Credit::default() };
+            d.crew = vec![person(1, "Denis", CreditRole::Director), person(2, "Eric", CreditRole::Writer)];
+            d.summary.user_state.play_count = 1234;
+            let f = facts(&d, &crew_lines(&d));
+            assert_eq!(f[0], ("Réalisation".to_string(), "Denis".to_string()));
+            assert_eq!(f[1].0, "Scénario");
+            assert_eq!(f.last(), Some(&("Lectures".to_string(), "1\u{a0}234".to_string())));
+            assert_eq!(meta(&d, d.files.first(), &[]).rating.as_deref(), Some("7,9"));
+            let picked = playing(&d, &Picks::default());
+            assert!(track_choices(&d, &picked).unwrap().automatic_label.starts_with("Automatique ("));
+            assert_eq!(media_info(&d.files)[0].title.as_deref(), Some("Version 1"));
+        });
     }
 
     #[test]

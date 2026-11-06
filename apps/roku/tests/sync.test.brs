@@ -12,6 +12,10 @@ sub test_sync_labels_as_android_tv()
     tkEqual(syncLabel(-1200), "-1.2 s")
     tkEqual(syncLabel(0), "0.0 s")
     tkEqual(syncLabel(10000), "+10.0 s")
+    i18nUse("fr")
+    tkEqual(syncLabel(300), "+0,3 s", "a decimal comma")
+    i18nUse("es")
+    tkEqual(syncLabel(-1200), "-1,2 s")
 end sub
 
 sub test_sync_moves_tracks_by_address()

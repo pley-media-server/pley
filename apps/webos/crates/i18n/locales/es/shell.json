@@ -1,0 +1,57 @@
+{
+  "rail": {
+    "search": "Buscar",
+    "home": "Inicio",
+    "discover": "Descubrir",
+    "liveTv": "TV en vivo",
+    "libraries": "Bibliotecas",
+    "playlists": "Listas de reproducción",
+    "collections": "Colecciones",
+    "nowPlaying": "Reproduciendo ahora",
+    "storage": "Dispositivo USB",
+    "settings": "Ajustes",
+    "profiles": "Perfiles",
+    "switchProfile": "Cambiar de perfil"
+  },
+  "exit": {
+    "title": "¿Salir de Pley?",
+    "exit": "Salir"
+  },
+  "offline": "Pley está sin conexión",
+  "cast": {
+    "playingFrom": "Reproduciendo desde {{device}}",
+    "playingFromAnother": "Reproduciendo desde otro dispositivo",
+    "nothingToPlay": "Nada que reproducir",
+    "switchFailed": "No se pudo cambiar al perfil del control remoto"
+  },
+  "placeholder": {
+    "notBuilt": "Esta página aún no está hecha.",
+    "goBack": "Volver"
+  },
+  "errors": {
+    "noServer": "no hay ningún servidor en uso"
+  },
+  "pages": {
+    "pin": "Introduce el PIN",
+    "library": "Biblioteca {{id}}",
+    "collection": "Colección {{id}}",
+    "playlist": "Lista de reproducción {{id}}",
+    "addToPlaylist": "Añadir «{{title}}» a una lista de reproducción",
+    "newPlaylist": "Nueva lista de reproducción",
+    "item": "Elemento {{id}}",
+    "itemActions": "Acciones del elemento {{id}}",
+    "person": "Persona {{id}}",
+    "artist": "Artista {{id}}",
+    "album": "Álbum {{id}}",
+    "discoverList": "Descubrir: {{list}}",
+    "discoverSearch": "En TMDB: {{query}}",
+    "title": "{{kind}} {{id}} en TMDB",
+    "requests": "Solicitudes",
+    "channel": "Canal {{id}}",
+    "player": "Reproduciendo el elemento {{id}}",
+    "settingsSection": "Ajustes: {{section}}",
+    "history": "Historial de reproducción",
+    "diagnostics": "Diagnóstico",
+    "licences": "Licencias de código abierto"
+  }
+}

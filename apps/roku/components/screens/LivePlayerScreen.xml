@@ -25,6 +25,7 @@
         <field id="playerCommand" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/LivePlayerScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -64,7 +65,7 @@
             <Label id="bannerNext" translation="[384, 948]" width="1100" color="0x8B95A5FF" font="font:SmallestSystemFont" />
             <!-- The Live chip: live is all there is. -->
             <Rectangle translation="[1648, 790]" width="176" height="52" color="0xEB6B70FF" />
-            <Label translation="[1648, 790]" width="176" height="52" horizAlign="center" vertAlign="center" text="LIVE" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
+            <Label id="liveMark" translation="[1648, 790]" width="176" height="52" horizAlign="center" vertAlign="center" color="0xEBEBEBFF" font="font:SmallBoldSystemFont" />
             <Label id="star" translation="[1648, 856]" width="176" horizAlign="center" color="0x38BDF8FF" font="font:SmallestBoldSystemFont" />
             <Label id="bannerHint" translation="[96, 1012]" width="1728" color="0x8B95A5FF" font="font:TinySystemFont" />
         </Group>

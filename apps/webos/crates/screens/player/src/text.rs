@@ -4,8 +4,9 @@
 
 use pley_base::Color;
 use pley_core::ApiError;
-use pley_core::format::{grouped, language_name};
+use pley_core::format::language_name;
 use pley_core::model::SubtitleResult;
+use pley_i18n::t;
 use pley_player::controller::ChapterMark;
 use pley_ui::theme;
 
@@ -56,21 +57,32 @@ pub fn chapter_at(chapters: &[ChapterMark], position_ms: i64) -> Option<usize> {
 }
 
 /// The chapter line under a seek preview: "Chapter 3" without a title, the title as it is when it
-/// already says "Chapter…", else "Chapter 3 · Title".
+/// already says "Chapter…" (in English or the language shown), else "Chapter 3 · Title".
 pub fn chapter_line(chapter: &ChapterMark, index: usize) -> String {
     match name_of(chapter) {
-        None => format!("Chapter {}", index + 1),
-        Some(t) if t.to_lowercase().starts_with("chapter") => t.to_string(),
-        Some(t) => format!("Chapter {} · {t}", index + 1),
+        None => numbered(index),
+        Some(name) if says_chapter(name) => name.to_string(),
+        Some(name) => t!("player.chapters.named", number = index + 1, name = name),
     }
 }
 
 /// A chapter's row in the Chapters panel: its title, else "Chapter N".
 pub fn chapter_row(chapter: &ChapterMark, index: usize) -> String {
     match name_of(chapter) {
-        Some(t) => t.to_string(),
-        None => format!("Chapter {}", index + 1),
+        Some(name) => name.to_string(),
+        None => numbered(index),
     }
+}
+
+/// "Chapter 3" for the chapter at `index`.
+fn numbered(index: usize) -> String {
+    t!("player.chapters.numbered", number = index + 1)
+}
+
+/// Whether a chapter's own name starts with the word "Chapter", as files often name them.
+fn says_chapter(name: &str) -> bool {
+    let name = name.to_lowercase();
+    name.starts_with("chapter") || name.starts_with(&t!("player.chapters.word").to_lowercase())
 }
 
 /// A chapter's own name: its title, unless it has none or the title is only where it starts
@@ -98,21 +110,23 @@ fn time_name(t: &str) -> bool {
         && parts[1..].iter().all(|p| p.len() == 2 && digits(p))
 }
 
-/// A speed as the Speed panel names it: "0.5×", "1×", "1.25×" (`PlaybackSpeeds`).
+/// A speed as the Speed panel names it: "0.5×", "1×", "1.25×" (`PlaybackSpeeds`), in the language
+/// shown ("0,5×").
 pub fn speed(rate: f32) -> String {
-    let mut s = format!("{:.2}", rate);
-    while s.ends_with('0') {
-        s.pop();
-    }
-    if s.ends_with('.') {
-        s.pop();
-    }
-    format!("{s}×")
+    format!("{}×", short_decimal(f64::from(rate), 2))
+}
+
+/// `v` with up to `most` decimals, none of them a trailing zero, in the language shown: "1.25",
+/// "1.5", "2"; "1,5" in French.
+pub fn short_decimal(v: f64, most: usize) -> String {
+    let fixed = format!("{v:.most$}");
+    let places = fixed.split_once('.').map_or(0, |(_, f)| f.trim_end_matches('0').len());
+    pley_i18n::decimal(v, places)
 }
 
 /// "1,234 downloads", "1 download".
 pub fn downloads(n: i64) -> String {
-    format!("{} download{}", grouped(n), if n == 1 { "" } else { "s" })
+    t!("player.find.downloads", count = n)
 }
 
 /// A found subtitle's name: its release, else its language, else its id.
@@ -130,13 +144,13 @@ pub fn result_hint(r: &SubtitleResult) -> String {
         parts.push(l);
     }
     if r.matched.as_deref() == Some("hash") {
-        parts.push("Made for this file".into());
+        parts.push(t!("player.find.madeForFile").into());
     }
     if r.hearing_impaired {
-        parts.push("SDH".into());
+        parts.push(t!("player.find.sdh").into());
     }
     if r.forced {
-        parts.push("Forced".into());
+        parts.push(t!("player.find.forced").into());
     }
     parts.push(downloads(r.downloads));
     parts.join(" · ")
@@ -155,17 +169,17 @@ pub fn search_problem(e: &ApiError) -> String {
     };
     let not_set_up = e.is(503) && setup == Some(false);
     if not_set_up {
-        "Subtitle search isn't set up on this server".into()
+        t!("player.find.notSetUp").into()
     } else if search_unsupported(e) {
-        "This server can't search for subtitles: it may need an update".into()
+        t!("player.find.needsUpdate").into()
     } else {
-        format!("Couldn't find subtitles: {}", reason(e))
+        t!("player.find.failed", reason = reason(e))
     }
 }
 
 /// What a failed add says.
 pub fn add_problem(e: &ApiError) -> String {
-    format!("These subtitles couldn't be added. {}", e.problem())
+    t!("player.find.addFailed", problem = e.problem())
 }
 
 /// An error's reason, without the sentence's capital and full stop it is set in elsewhere.
@@ -180,11 +194,12 @@ fn reason(e: &ApiError) -> String {
 }
 
 /// The colour of how a video plays, for the badge at the top right: a file played as it is in
-/// Success, a direct stream in Info, a transcode in the Accent (`MethodBadge`).
+/// Success, a direct stream in Info, a transcode in the Accent (`MethodBadge`). `method` is in the
+/// language shown, as the player wrote it.
 pub fn method_color(method: &str) -> Color {
-    if method.starts_with("Direct play") || method == "Downloaded" {
+    if method.starts_with(t!("player.method.direct")) {
         theme::SUCCESS
-    } else if method.starts_with("Direct stream") {
+    } else if method.starts_with(t!("player.method.remux")) {
         theme::INFO
     } else {
         theme::ACCENT
@@ -295,6 +310,27 @@ mod tests {
         assert_eq!(search_problem(&status(404, None)), "This server can't search for subtitles: it may need an update");
         assert!(search_unsupported(&status(405, None)));
         assert!(search_problem(&status(500, None)).starts_with("Couldn't find subtitles: "));
+    }
+
+    #[test]
+    fn writes_counts_speeds_and_chapters_in_french_and_spanish() {
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            assert_eq!(speed(0.5), "0,5×");
+            assert_eq!(speed(1.25), "1,25×");
+            assert_eq!(speed(2.0), "2×");
+            assert_eq!(downloads(1), "1 téléchargement");
+            assert_eq!(downloads(1234), "1\u{a0}234 téléchargements");
+            let c = [chapter(0, 60_000, None), chapter(60_000, 120_000, Some("Chapitre 2"))];
+            assert_eq!(chapter_line(&c[0], 0), "Chapitre 1");
+            assert_eq!(chapter_line(&c[1], 1), "Chapitre 2");
+            assert_eq!(method_color("Flux direct · Audio transcodé"), theme::INFO);
+        });
+        pley_i18n::with_language(pley_i18n::Language::Es, || {
+            assert_eq!(speed(0.75), "0,75×");
+            assert_eq!(downloads(1234), "1234 descargas");
+            assert_eq!(downloads(12_345), "12.345 descargas");
+            assert_eq!(chapter_line(&chapter(0, 60_000, Some("The Heist")), 0), "Capítulo 1 · The Heist");
+        });
     }
 
     #[test]

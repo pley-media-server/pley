@@ -384,7 +384,7 @@ pub async fn me(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json
     }
     // What asking from here does (an administrator's ask from other
     // publishers' apps).
-    dto.request_access = state.requests.caller(&user).await?.access;
+    dto.request_access = state.requests.caller(&user, None).await?.access;
     Ok(Json(Me { user: dto, scope }))
 }
 

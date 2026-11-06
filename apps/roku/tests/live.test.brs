@@ -206,6 +206,11 @@ sub test_live_clock_text()
     tkEqual(liveClockText(12, 0, true), "12:00 PM")
     tkEqual(liveClockText(9, 0, false), "09:00")
     tkEqual(liveClockText(20, 5, false), "20:05")
+    i18nUse("fr")
+    tkEqual(liveClockText(20, 5, fmtTwelveHour()), "20:05", "French writes 24 hours, whatever the Roku's clock")
+    i18nUse("es")
+    tkEqual(liveClockText(9, 5, fmtTwelveHour()), "9:05")
+    tkEqual(liveClockText(21, 5, true), "9:05 p. m.")
 end sub
 
 ' A page of channels with ids from first, of a list of total.
@@ -377,6 +382,66 @@ sub test_live_busy_connections()
     none = liveTrouble({ status: 409, message: "", data: { connections: [{ channel_id: 7, channel_name: "Sport 1080i", watchers: [], people: 2, yours: false, can_take_over: false }] } }, "x")
     tkEqual(none.lines, "Its one connection is watching:" + Chr(10) + "•  Sport 1080i  —  2 people" + Chr(10) + Chr(10) + "A channel already being watched can be joined, or try again once one is stopped.", "none to take over: what can be done instead")
     tkEqual(liveTroubleButtons(none)[0].action, "retry")
+end sub
+
+sub test_live_words_in_french()
+    i18nUse("fr")
+    nbsp = Chr(160)
+    groups = liveGroups(liveSampleGroups())
+    summary = liveSummary(liveSampleGroups())
+    rail = liveRail(summary, groups, "", "")
+    tkEqual(rail[0].label, "Favoris")
+    tkEqual(rail[2].label, "Toutes les chaînes")
+    tkEqual(rail[3].label, "Régions")
+    tkEqual(rail[5].label, "UK  ·  2 groupes")
+    tkEqual(rail[6].label, "Autres groupes")
+    tkEqual(liveRailItems(rail, "", "all")[2].countText, "56" + Chr(160) + "171", "a no-break space between thousands")
+    tkEqual(liveCategoryName("search:bbc", groups), "Résultats pour «" + nbsp + "bbc" + nbsp + "»")
+    tkEqual(liveSearchLabel("news"), "Rechercher" + nbsp + ": «" + nbsp + "news" + nbsp + "»")
+    tkEqual(liveRange(50, 50, 2345), "Chaînes 51–100 sur 2" + Chr(160) + "345")
+    tkEqual(liveTimeLeft({ start: 0, ends: 4000 }, 0), "Il reste 1 h 7 min")
+    tkEqual(liveTimeLeft({ start: 0, ends: 60 }, 0), "Il reste 1 min")
+    channels = liveChannels(liveSample(), "")
+    tkEqual(channels[0].after.badges, "Inédit · TV-PG")
+    tkEqual(liveCard(channels[2], 1500, false).line, "Pas de guide")
+    tkEqual(liveProgram({ start: 0, stop: 10 }).title, "Sans titre")
+    tkEqual(liveChannel({ id: 9 }, "").name, "Chaîne 9")
+    stopped = liveTrouble({ status: 410, message: "", data: invalid }, "One")
+    tkEqual(stopped.title, "La TV en direct s’est arrêtée")
+    tkEqual(stopped.lines, "Cette chaîne n’est plus regardée.")
+    tkEqual(liveTrouble({ status: 503, message: "" }, "Film Four").title, "Film Four est indisponible")
+    tkEqual(liveStoppedBy({ by_admin: false, message: "" }).lines, "La TV en direct a été arrêtée depuis un autre appareil.")
+end sub
+
+sub test_live_words_in_spanish()
+    i18nUse("es")
+    groups = liveGroups(liveSampleGroups())
+    rail = liveRail(liveSummary(liveSampleGroups()), groups, "", "")
+    tkEqual(rail[1].label, "Vistos recientemente")
+    tkEqual(rail[5].label, "UK  ·  2 grupos")
+    tkEqual(liveRailItems(rail, "", "all")[2].countText, "56.171")
+    tkEqual(liveRange(50, 50, 2345), "Canales 51–100 de 2345", "Spanish groups thousands from five digits")
+    tkEqual(liveTimeLeft({ start: 0, ends: 60 }, 0), "Queda 1 min")
+    tkEqual(liveTimeLeft({ start: 0, ends: 500 }, 0), "Quedan 8 min")
+    tkEqual(liveTimeLeft({ start: 0, ends: 7200 }, 0), "Quedan 2 h")
+    channels = liveChannels(liveSample(), "")
+    tkEqual(liveCard(channels[1], 2500, false).line, "Nada en la guía ahora")
+    tkEqual(liveTrouble({ status: 500, message: "boom" }, "Film Four").title, "Film Four no se inició")
+    data = { connections: [
+        { channel_id: 1, channel_name: "Pley News HD", watchers: [], people: 1, yours: true, can_take_over: true },
+        { channel_id: 2, channel_name: "Sport 1080i", watchers: [], people: 3, yours: false, can_take_over: true }
+    ] }
+    busy = liveTrouble({ status: 409, message: "", data: data }, "x")
+    tkEqual(busy.title, "Todas las conexiones están en uso")
+    tkEqual(busy.lines, "Sus 2 conexiones están ocupadas con:" + Chr(10) + "•  Pley News HD  —  Tú, en otro dispositivo" + Chr(10) + "•  Sport 1080i  —  3 personas")
+    labels = []
+    for each button in liveTroubleButtons(busy)
+        labels.Push(button.label)
+    end for
+    tkEqual(labels, ["Ver aquí en lugar de Pley News HD", "Ver aquí en lugar de Sport 1080i", "Volver a intentar", "Otros canales", "Atrás"])
+    one = liveTrouble({ status: 409, message: "", data: { connections: [{ channel_id: 7, channel_name: "Sport 1080i", watchers: [], people: 2, yours: false, can_take_over: false }] } }, "x")
+    tkEqual(one.lines, "Su única conexión está ocupada con:" + Chr(10) + "•  Sport 1080i  —  2 personas" + Chr(10) + Chr(10) + "Puedes unirte a un canal que ya se está viendo, o volver a intentarlo cuando se detenga alguno.")
+    tkEqual(liveTroubleButtons(liveStopped(""))[0].label, "Volver a ver")
 end sub
 
 sub test_live_view_kept()

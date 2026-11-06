@@ -20,6 +20,7 @@ use std::time::Duration;
 use pley_core::auth::{AuthError, SwitchRefusal};
 use pley_core::model::{ItemKind, ItemSummary, PlaylistKind, ServerEvent, SwitchTicket};
 use pley_core::{Api, ApiError, Promise};
+use pley_i18n::t;
 
 use crate::cx::NavCommand;
 use crate::route::{PlayQueue, PlayRequest, Route};
@@ -31,14 +32,6 @@ pub const CAST_NOTICE_SECONDS: f64 = 4.0;
 /// How long a switch for a cast waits for the last reports of what played to go out as the
 /// profile it played as; what hasn't gone out by then is dropped.
 pub const LAST_REPORTS_WAIT: Duration = Duration::from_secs(5);
-
-/// What the TV says of a cast that names nothing to play: a show without episodes, an empty album
-/// or playlist.
-pub const NOTHING_TO_PLAY: &str = "Nothing to play";
-
-/// What the TV says when it couldn't switch to the profile of the remote that cast, as every app
-/// says it.
-pub const CANT_SWITCH: &str = "Couldn't switch to the remote's profile";
 
 /// What a remote cast to this TV.
 #[derive(Clone, Debug, PartialEq)]
@@ -114,13 +107,20 @@ impl Cast {
     }
 }
 
-/// What the TV says of a switch for a cast the server refused, if anything: signed out, the
-/// shell shows signing in again.
+/// What the TV says of a switch for a cast the server refused, if anything: that it couldn't
+/// switch to the remote's profile, as every app says it; signed out, nothing, as the shell shows
+/// signing in again.
 pub fn switch_refused(e: &AuthError) -> Option<String> {
     match SwitchRefusal::of(e) {
         SwitchRefusal::SignedOut => None,
-        _ => Some(CANT_SWITCH.into()),
+        _ => Some(t!("shell.cast.switchFailed").into()),
     }
+}
+
+/// What the TV says of a cast that names nothing to play: a show without episodes, an empty album
+/// or playlist.
+pub fn nothing_to_play() -> &'static str {
+    t!("shell.cast.nothingToPlay")
 }
 
 /// Tracks a remote cast, for the app's music player ([`crate::Registry::cast_music`]).
@@ -151,8 +151,8 @@ pub enum CastPlay {
 /// "Playing from {from}", or from another device when the server couldn't name it.
 pub fn notice(from: Option<&str>) -> String {
     match from.map(str::trim).filter(|f| !f.is_empty()) {
-        Some(from) => format!("Playing from {from}"),
-        None => "Playing from another device".into(),
+        Some(from) => t!("shell.cast.playingFrom", device = from),
+        None => t!("shell.cast.playingFromAnother").into(),
     }
 }
 
@@ -453,9 +453,11 @@ mod tests {
                 reason: Some(reason.into()),
             }),
         };
-        assert_eq!(switch_refused(&refused("ticket_spent")).as_deref(), Some(CANT_SWITCH));
-        assert_eq!(switch_refused(&refused("not_allowed")).as_deref(), Some(CANT_SWITCH));
+        let cant = "Couldn't switch to the remote's profile";
+        assert_eq!(switch_refused(&refused("ticket_spent")).as_deref(), Some(cant));
+        assert_eq!(switch_refused(&refused("not_allowed")).as_deref(), Some(cant));
         assert_eq!(switch_refused(&AuthError::SignedOut(SignOutReason::Ended)), None);
+        assert_eq!(nothing_to_play(), "Nothing to play");
     }
 
     #[test]
@@ -463,6 +465,13 @@ mod tests {
         assert_eq!(notice(Some("Chrome on Windows")), "Playing from Chrome on Windows");
         assert_eq!(notice(None), "Playing from another device");
         assert_eq!(notice(Some("  ")), "Playing from another device");
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            assert_eq!(notice(Some("Chrome on Windows")), "Lecture depuis Chrome on Windows");
+            assert_eq!(notice(None), "Lecture depuis un autre appareil");
+        });
+        pley_i18n::with_language(pley_i18n::Language::Es, || {
+            assert_eq!(notice(Some("Chrome on Windows")), "Reproduciendo desde Chrome on Windows");
+        });
     }
 
     #[test]

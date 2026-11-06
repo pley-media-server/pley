@@ -11,6 +11,7 @@
 use std::path::Path;
 use std::time::Duration;
 
+use pley_i18n::t;
 use serde_json::{Value, json};
 
 use crate::luna::Luna;
@@ -79,6 +80,8 @@ pub struct WebosFacts {
     pub codecs: Option<CodecTable>,
     /// Times of day as `21:05` (the TV's clock setting, else its locale's custom).
     pub clock_24h: bool,
+    /// The language of the TV's menus (`localeInfo.locales.UI`, `fr-CA`), when it said.
+    pub languages: Vec<String>,
 }
 
 impl Default for WebosFacts {
@@ -164,6 +167,7 @@ impl WebosFacts {
             memory: text(config("tv.hw.ddrSize")),
             codecs: s.codecs.clone(),
             clock_24h: clock_24h(&s.locale),
+            languages: ui_language(&s.locale).into_iter().collect(),
         }
     }
 
@@ -291,6 +295,14 @@ pub fn clock_24h(locale_settings: &Value) -> bool {
     !(TWELVE_HOUR_REGIONS.contains(&region) || (lang == "ar" && !ui.is_empty()))
 }
 
+/// The language of the TV's menus (`localeInfo.locales.UI`: `fr-CA`), the one the app shows when
+/// Pley has it and nothing else says which.
+pub fn ui_language(locale_settings: &Value) -> Option<String> {
+    let info = locale_settings.get("localeInfo").unwrap_or(locale_settings);
+    let ui = info.pointer("/locales/UI").and_then(Value::as_str)?.trim();
+    (!ui.is_empty()).then(|| ui.to_string())
+}
+
 /// The URI player's codec table: per video codec the
 /// largest picture, frame rate and bitrate; per audio codec the channels.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -383,7 +395,7 @@ impl CodecTable {
         let video: Vec<String> =
             self.video.iter().map(|r| format!("{} {}×{}@{}", r.name, r.max_width, r.max_height, r.max_fps)).collect();
         let audio: Vec<String> = self.audio.iter().map(|r| format!("{} {} ch", r.name, r.channels)).collect();
-        format!("Pipeline decoders: {}; {}", video.join(", "), audio.join(", "))
+        t!("diagnostics.lines.pipeline", video = video.join(", "), audio = audio.join(", "))
     }
 }
 
@@ -448,6 +460,7 @@ mod tests {
         assert_eq!(f.edid.as_deref(), Some("TrueHD+dts"));
         assert_eq!(f.memory.as_deref(), Some("3G"));
         assert!(!f.clock_24h);
+        assert_eq!(f.languages, ["en-US"]);
     }
 
     #[test]
@@ -504,6 +517,9 @@ mod tests {
         assert!(!clock_24h(&json!({ "localeInfo": { "locales": { "UI": "ar-AE" } } })));
         assert!(clock_24h(&json!({ "localeInfo": { "locales": { "UI": "fr_FR" } } })));
         assert!(clock_24h(&Value::Null));
+        assert_eq!(ui_language(&json!({ "localeInfo": { "locales": { "UI": "fr-CA" } } })).as_deref(), Some("fr-CA"));
+        assert_eq!(ui_language(&json!({ "locales": { "UI": " " } })), None);
+        assert_eq!(ui_language(&Value::Null), None);
     }
 
     #[test]

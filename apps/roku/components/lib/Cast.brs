@@ -89,21 +89,21 @@ end function
 function castSwitchNotice(answer as object) as string
     error = httpString(answer.error)
     if error = "signed_out" or error = "switch_replaced" or error = "server_changed" then return ""
-    return "Couldn't switch to the remote's profile"
+    return t("player.cast.switchFailed")
 end function
 
 ' What says where a cast came from as it starts: "Playing from" and the
 ' remote's device, "another device" when it has no name.
 function castBanner(from as dynamic) as string
     name = httpClean(from, 64, false)
-    if name = "" then name = "another device"
-    return "Playing from " + name
+    if name = "" then return t("player.cast.playingFromAnother")
+    return t("player.cast.playingFrom", { device: name })
 end function
 
 ' Said when a show, an album, an artist or a playlist cast here has
 ' nothing to play.
 function castNothing() as string
-    return "Nothing to play"
+    return t("player.cast.nothingToPlay")
 end function
 
 ' What a title cast here plays, as Play on its page does, as { plays }:

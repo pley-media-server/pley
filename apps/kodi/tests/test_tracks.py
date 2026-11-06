@@ -735,7 +735,7 @@ class DefaultsTest(unittest.TestCase):
         # Subtitles → When the audio is in another language; then Subtitle
         # language → German (the languages follow "Same as the audio
         # language"); then Back.
-        german = 1 + [c for c, _ in tracks.LANGUAGES].index("ger")
+        german = 1 + tracks.LANGUAGES.index("ger")
         me, asked, said = self.edit([1, 2, 2, german, -1], client)
         self.assertEqual(asked[1][0], kodi.text("subtitles"))
         self.assertEqual(asked[1][2], 1)

@@ -72,6 +72,30 @@ sub test_tracks_settings_choices()
     tkEqual(tracksChoices("audio", { audio: "fr", subtitle: "", mode: "off" }).current, -1, "a code not offered")
 end sub
 
+' Settings' rows say their value in fewer words where the language needs
+' them to fit; the choices say it in full.
+sub test_tracks_settings_in_french_and_spanish()
+    i18nUse("fr")
+    colon = Chr(160) + ": "
+    tkEqual(tracksRows({ audio: "", subtitle: "", mode: "foreign" }, false), [
+        { kind: "audio", text: "Langue audio" + colon + "Celle du fichier" },
+        { kind: "mode", text: "Sous-titres" + colon + "Audio dans une autre langue" },
+        { kind: "subtitle", text: "Langue des sous-titres" + colon + "Celle de l’audio" }
+    ])
+    tkEqual(tracksRows({ audio: "jpn", subtitle: "", mode: "off" }, true)[0].text, "Langue audio" + colon + "Japonais · à modifier sur le web")
+    modes = tracksChoices("mode", { audio: "", subtitle: "", mode: "forced" })
+    tkEqual(modes.title, "Sous-titres")
+    tkEqual(modes.labels[1], "Seulement pour les dialogues étrangers")
+    tkEqual(tracksChoices("audio", { audio: "", subtitle: "", mode: "off" }).labels[0], "Celle du fichier par défaut")
+    i18nUse("es")
+    tkEqual(tracksRows({ audio: "", subtitle: "", mode: "forced" }, false)[1].text, "Subtítulos: Solo diálogos en otro idioma")
+    subtitles = tracksChoices("subtitle", { audio: "", subtitle: "ger", mode: "always" })
+    tkEqual(subtitles.title, "Idioma de los subtítulos")
+    tkEqual(subtitles.labels[0], "El mismo que el del audio")
+    tkEqual(subtitles.labels[subtitles.current], "Alemán")
+    tkEqual(tracksModeLabel("always"), "Siempre")
+end sub
+
 sub test_tracks_languages_are_the_other_apps()
     languages = fmtLanguages()
     tkEqual(languages.Count(), 34)
@@ -86,6 +110,29 @@ sub test_tracks_languages_are_the_other_apps()
     tkFalse(tracksAsksSubtitleLanguage("forced"))
     tkFalse(tracksAsksSubtitleLanguage("off"))
 end sub
+
+' The languages sort as their names read, accents and all: "Hébreu" before
+' "Hindi" in French, "Árabe" among the A's in Spanish.
+sub test_tracks_languages_sort_in_the_language_shown()
+    i18nUse("fr")
+    tkEqual(tracksTestNames(fmtLanguages()), ["Allemand", "Anglais", "Arabe", "Bulgare", "Catalan", "Chinois", "Coréen", "Croate",
+        "Danois", "Espagnol", "Finnois", "Français", "Grec", "Hébreu", "Hindi", "Hongrois", "Indonésien", "Italien", "Japonais",
+        "Néerlandais", "Norvégien", "Persan", "Polonais", "Portugais", "Roumain", "Russe", "Serbe", "Slovaque", "Suédois",
+        "Tchèque", "Thaï", "Turc", "Ukrainien", "Vietnamien"])
+    i18nUse("es")
+    tkEqual(tracksTestNames(fmtLanguages()), ["Alemán", "Árabe", "Búlgaro", "Catalán", "Checo", "Chino", "Coreano", "Croata",
+        "Danés", "Eslovaco", "Español", "Finés", "Francés", "Griego", "Hebreo", "Hindi", "Húngaro", "Indonesio", "Inglés",
+        "Italiano", "Japonés", "Neerlandés", "Noruego", "Persa", "Polaco", "Portugués", "Rumano", "Ruso", "Serbio", "Sueco",
+        "Tailandés", "Turco", "Ucraniano", "Vietnamita"])
+end sub
+
+function tracksTestNames(languages as object) as object
+    names = []
+    for each language in languages
+        names.Push(language[1])
+    end for
+    return names
+end function
 
 function tracksTestSubtitles() as object
     return [

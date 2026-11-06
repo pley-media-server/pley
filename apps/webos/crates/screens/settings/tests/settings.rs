@@ -214,8 +214,9 @@ fn always_start_as_is_kept_for_this_server() {
     let mut app = TestApp::open_on(Route::Settings { section: None });
     assert!(app.until(|a| a.shows("Always start as")));
     app.press(Key::Right);
-    // Switch profile, Audio language, Subtitles, Watch history, Sort libraries, Always start as.
-    app.press_n(Key::Down, 5);
+    // Switch profile, Audio language, Subtitles, Language, Watch history, Sort libraries, Always
+    // start as.
+    app.press_n(Key::Down, 6);
     app.press(Key::Ok);
     app.settle();
     assert!(app.shows("Profile used last"));
@@ -240,11 +241,114 @@ fn a_managed_profile_says_so() {
 fn watch_history_opens_from_profile() {
     let mut app = TestApp::open_on(Route::Settings { section: None });
     app.press(Key::Right);
-    // Switch profile, Audio language, Subtitles, Watch history.
-    app.press_n(Key::Down, 3);
+    // Switch profile, Audio language, Subtitles, Language, Watch history.
+    app.press_n(Key::Down, 4);
     app.press(Key::Ok);
     app.settle();
     assert_eq!(app.route(), Some(&Route::History));
+}
+
+#[test]
+fn a_language_chosen_is_the_accounts_and_shows_at_once() {
+    use pley_i18n::Language;
+    let mut app = TestApp::open_on(Route::Settings { section: None });
+    assert!(app.until(|a| a.shows("Automatic (English)")));
+    app.press(Key::Right);
+    // Switch profile, Audio language, Subtitles, Language.
+    app.press_n(Key::Down, 3);
+    app.press(Key::Ok);
+    app.settle();
+    for words in ["Automatic (English)", "English", "Français", "Español"] {
+        assert!(app.shows(words), "{words}");
+    }
+    assert_eq!(app.focused(), Some(SettingsScreen::choice_id(app.page(), 0)));
+    // Automatic, English, Français.
+    app.press_n(Key::Down, 2);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.state.language() == Language::Fr), "the account's language never showed");
+    assert_eq!(app.state.me().and_then(|m| m.language.as_deref()), Some("fr"));
+    app.settle();
+    // Settings is drawn again in French: the row is the account's language now, and keeps focus.
+    assert!(app.shows("Langue") && app.shows("Français"));
+    assert_eq!(app.focused(), Some(row(&app, SettingsSection::Profile, 4)));
+}
+
+/// Opens the Language panel from Settings, Profile, and picks choice `n` (0 Automatic, 1 English,
+/// 2 Français, 3 Español).
+fn pick_language(app: &mut TestApp, n: usize) {
+    app.press(Key::Right);
+    // Switch profile, Audio language, Subtitles, Language.
+    app.press_n(Key::Down, 3);
+    pick_on_the_row(app, n);
+}
+
+/// On the Language row, opens its panel and picks choice `n`.
+fn pick_on_the_row(app: &mut TestApp, n: usize) {
+    // The pane's items: the profile, Switch profile, Audio language, Subtitles, Language.
+    assert_eq!(app.focused(), Some(row(app, SettingsSection::Profile, 4)));
+    app.press(Key::Ok);
+    app.settle();
+    // The panel opens on the choice in use.
+    app.press_n(Key::Up, 3);
+    assert_eq!(app.focused(), Some(SettingsScreen::choice_id(app.page(), 0)));
+    app.press_n(Key::Down, n);
+    app.press(Key::Ok);
+    app.settle();
+}
+
+#[test]
+fn on_a_server_from_before_languages_the_language_is_this_tvs() {
+    use pley_i18n::Language;
+    let mut app = TestApp::start_with(ids::ALEX, None, Route::Settings { section: None }, |s| s.set_before_languages());
+    assert!(app.until(|a| !a.state.keeps_language()), "the server's GET /api/server never came");
+    app.settle();
+    assert!(app.shows("Automatic (English)"));
+    // Français shows at once, with nothing asked of the server, and is kept on the TV.
+    pick_language(&mut app, 2);
+    assert_eq!(app.state.language(), Language::Fr);
+    assert_eq!(app.state.language_choice(), Some(Language::Fr));
+    assert_eq!(app.state.me().and_then(|m| m.language.as_deref()), None);
+    assert!(app.shows("Langue") && app.shows("Français"));
+    // Automatic, the TV's own, forgets it.
+    pick_on_the_row(&mut app, 0);
+    assert_eq!(app.state.language(), Language::En);
+    assert_eq!(app.state.language_choice(), None);
+    assert!(app.shows("Automatic (English)"));
+}
+
+#[test]
+fn a_server_that_answers_a_language_405_keeps_the_choice_on_the_tv() {
+    use pley_i18n::Language;
+    let mut app = TestApp::start_with(ids::ALEX, None, Route::Settings { section: None }, |s| {
+        s.refuse_language_route(Some(405));
+    });
+    assert!(app.until(|a| a.shows("Automatic (English)")));
+    assert!(app.state.keeps_language());
+    pick_language(&mut app, 3);
+    // No word: Español shows, kept on the TV, and the row is the TV's from then on.
+    assert!(app.until(|a| a.state.language() == Language::Es), "the choice never showed");
+    assert_eq!(app.state.language_choice(), Some(Language::Es));
+    assert!(!app.state.keeps_language());
+    app.settle();
+    assert!(app.shows("Idioma") && app.shows("Español"));
+    assert!(!app.shows("Guardado"));
+    // Settings opened again: the row is still the TV's, and Automatic there forgets the choice.
+    app.open(Route::Settings { section: None });
+    app.settle();
+    assert!(app.shows("Español"));
+    pick_language(&mut app, 0);
+    assert_eq!(app.state.language_choice(), None);
+    assert_eq!(app.state.language(), Language::En);
+}
+
+#[test]
+fn a_later_pley_in_a_language_the_tv_hasnt_keeps_the_accounts() {
+    // GET /api/server names German: a language at all, so the account keeps its own.
+    let mut app =
+        TestApp::start_with(ids::ALEX, None, Route::Settings { section: None }, |s| s.set_server_language("de"));
+    app.settle();
+    assert!(app.state.keeps_language());
+    assert!(app.shows("Automatic (English)"));
 }
 
 #[test]

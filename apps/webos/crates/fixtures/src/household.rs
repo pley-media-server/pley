@@ -77,6 +77,8 @@ pub(crate) struct Profile {
     pub live_recent: Vec<i64>,
     /// The profile's own order of the libraries, when it set one.
     pub library_order: Option<Vec<i64>>,
+    /// The account's language (`PUT /api/me/language`); none: Automatic.
+    pub language: Option<String>,
 }
 
 impl Profile {
@@ -106,6 +108,7 @@ impl Profile {
             live_favorites: Vec::new(),
             live_recent: Vec::new(),
             library_order: None,
+            language: None,
         }
     }
 

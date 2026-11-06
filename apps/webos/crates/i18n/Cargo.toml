@@ -1,0 +1,14 @@
+[package]
+name = "pley-i18n"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.95"
+description = "Pley for LG TV: the app's words in English, French and Spanish, the language shown, plurals and numbers"
+license = "AGPL-3.0-only"
+publish = false
+
+[dependencies]
+# t!: the key checked against the English words as the code builds.
+pley-i18n-macros = { path = "macros" }
+# The catalogs are read when a language first shows: already here for pley-core.
+serde_json = "1.0.154"

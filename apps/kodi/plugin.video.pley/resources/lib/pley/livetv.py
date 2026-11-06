@@ -28,7 +28,7 @@ from urllib.parse import urlencode
 import xbmc
 import xbmcgui
 
-from . import api, kodi, remote, words
+from . import api, i18n, kodi, remote, words
 from .listing import image
 
 SUMMARY = "/api/live"
@@ -49,12 +49,9 @@ PLAY_ROUTE = "live_play"
 # Channels queued either side of the one played.
 QUEUED = 100
 
-# Kodi's own strings: the short names of the days (Mon…Sun) and months
-# (Jan…Dec), in Kodi's language.
-SHORT_DAYS = 41
-SHORT_MONTHS = 51
-ENGLISH_DAYS = ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
-ENGLISH_MONTHS = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+# A language's own clock where Kodi is in another: 24 hours in French and
+# Spanish, 12 in English.
+CLOCKS = {"en": "%I:%M %p", "fr": "%H:%M", "es": "%H:%M"}
 
 
 # ------------------------------------------------------------ the server
@@ -182,7 +179,14 @@ def progress(program: dict, now: float) -> float:
 
 
 def time_format() -> str:
-    """Kodi's time format, without seconds ("%H:%M", "%I:%M %p")."""
+    """Kodi's time format, without seconds ("%H:%M", "%I:%M %p"): its region
+    is the person's, unless Kodi is in another of Pley's languages than the
+    one shown, which then has its own clock. A Kodi in a language Pley
+    doesn't have keeps its region's."""
+    language = kodi.language()
+    kodi_language = i18n.supported(kodi.kodi_language())
+    if kodi_language and kodi_language != language:
+        return CLOCKS[language]
     region = getattr(xbmc, "getRegion", None)
     found = region("time") if region else ""
     return (found or "%H:%M").replace(":%S", "").strip()
@@ -200,11 +204,6 @@ def span(program: dict) -> str:
     return "%s – %s" % (clock(program["start"]), clock(program["stop"]))
 
 
-def kodi_string(number: int, english: str) -> str:
-    found = getattr(xbmc, "getLocalizedString", None)
-    return (found(number) if found else "") or english
-
-
 def day(ts: float, now: float) -> str:
     """"Today", "Tomorrow", "Yesterday", or "Fri 30 Oct"."""
     # Dates apart, not 24-hour steps: a day is 23 or 25 hours when daylight
@@ -214,9 +213,9 @@ def day(ts: float, now: float) -> str:
     if name:
         return kodi.text(name)
     when = time.localtime(ts)
-    weekday = kodi_string(SHORT_DAYS + when.tm_wday, ENGLISH_DAYS[when.tm_wday])
-    month = kodi_string(SHORT_MONTHS + when.tm_mon - 1, ENGLISH_MONTHS[when.tm_mon - 1])
-    return "%s %d %s" % (weekday, when.tm_mday, month)
+    return kodi.text("day_in_guide").format(
+        weekday=kodi.text_of(kodi.WEEKDAYS[when.tm_wday]), day=when.tm_mday, month=words.month(when.tm_mon)
+    )
 
 
 def left(program: dict, now: float) -> str:
@@ -259,7 +258,7 @@ def headline(program: dict) -> str:
     Briefing: Part 7"."""
     title = program.get("title") or ""
     subtitle = program.get("subtitle")
-    return "%s: %s" % (title, subtitle) if subtitle and subtitle != title else title
+    return kodi.text("label_value") % (title, subtitle) if subtitle and subtitle != title else title
 
 
 def plot(channel: dict, now: float) -> str:
@@ -477,7 +476,7 @@ def who(connection: dict) -> str:
     if connection.get("watchers"):
         return ", ".join(connection["watchers"])
     people = connection.get("people") or 0
-    return kodi.text("people_watching") % people if people > 1 else kodi.text("someone_else")
+    return kodi.count("people", people) if people > 1 else kodi.text("someone_else")
 
 
 def busy(message: str, connections=()) -> object:

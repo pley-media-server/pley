@@ -2,7 +2,7 @@ sub init()
     m.title = m.top.findNode("title")
     m.text = m.top.findNode("text")
     m.buttons = m.top.findNode("buttons")
-    m.buttons.buttons = ["Try again", "Switch server"]
+    m.buttons.buttons = [t("common.actions.tryAgain"), t("signin.unreachable.switchServer")]
     m.buttons.observeField("buttonSelected", "onButton")
     m.top.observeField("active", "onActive")
 end sub
@@ -10,8 +10,8 @@ end sub
 sub onActive()
     if not m.top.active then return
     session = m.global.session
-    m.title.text = "Can't reach " + session.serverName
-    m.text.text = "Pley for Roku can't reach the server at " + urlDisplayAddress(session.server) + ". Check that it's on, and that this TV is on the same network as the server."
+    m.title.text = t("signin.unreachable.title", { name: session.serverName })
+    m.text.text = t("signin.unreachable.body", { address: urlDisplayAddress(session.server) })
     m.buttons.setFocus(true)
     uiLaunched()
 end sub

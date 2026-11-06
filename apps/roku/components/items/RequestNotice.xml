@@ -20,6 +20,7 @@
         <field id="hide" type="boolean" alwaysNotify="true" onChange="onHide" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/RequestNotice.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle width="720" height="276" color="0x191D24F5" />
         <Rectangle width="720" height="2" color="0x2E3440FF" />

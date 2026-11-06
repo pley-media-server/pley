@@ -20,13 +20,13 @@ end function
 
 ' The list's first entry, which picks the language looked in.
 function ssLanguageEntry(language as string) as string
-    return "Language: " + fmtLanguageName(language, "Your subtitle language")
+    return t("player.find.languageEntry", { language: fmtLanguageName(language, t("player.find.yourLanguage")) })
 end function
 
 ' The languages to look in: Your subtitle language (the server's choice),
 ' then fmtLanguages; current, the one looked in now.
 function ssLanguageChoices(language as string) as object
-    choice = { labels: ["Your subtitle language"], values: [""], current: 0 }
+    choice = { labels: [t("player.find.yourLanguage")], values: [""], current: 0 }
     for each known in fmtLanguages()
         if known[0] = language then choice.current = choice.values.Count()
         choice.labels.Push(known[1])
@@ -37,7 +37,7 @@ end function
 
 ' What the list says when nothing was found.
 function ssNothingFound(language as string) as string
-    return "No subtitles were found for this file in " + fmtLanguageName(language, "your subtitle language") + ". Language picks another."
+    return t("player.find.nothingFound", { language: fmtLanguageName(language, t("player.find.yourLanguageInSentence")) })
 end function
 
 ' The results the list shows, in the server's order (this very file's
@@ -63,7 +63,7 @@ function ssLabel(result as object) as string
     if language <> "" then parts.Push(ssLanguageName(language))
     name = httpSentence(result.name)
     if name <> "" then parts.Push(name)
-    if parts.Count() = 0 then parts.Push("Subtitles")
+    if parts.Count() = 0 then parts.Push(t("player.find.subtitles"))
     return parts.Join(" · ")
 end function
 
@@ -86,28 +86,13 @@ function ssHint(result as object) as string
     name = httpSentence(result.name)
     if name <> "" then lines.Push(name)
     notes = []
-    if httpString(result.matched) = "hash" then notes.Push("Made for this file")
-    if httpTrue(result.hearing_impaired) then notes.Push("Hearing impaired")
-    if httpTrue(result.forced) then notes.Push("Forced")
+    if httpString(result.matched) = "hash" then notes.Push(t("player.find.madeForFile"))
+    if httpTrue(result.hearing_impaired) then notes.Push(t("player.find.hearingImpaired"))
+    if httpTrue(result.forced) then notes.Push(t("player.tracks.forced"))
     downloads = httpNumber(result.downloads, -1)
-    if downloads = 1
-        notes.Push("1 download")
-    else if downloads >= 0
-        notes.Push(ssCount(Int(downloads)) + " downloads")
-    end if
+    if downloads >= 0 then notes.Push(t("player.find.downloads", { count: Int(downloads) }))
     if notes.Count() > 0 then lines.Push(notes.Join(" · "))
     return lines.Join(Chr(10))
-end function
-
-' 1234567 as "1,234,567".
-function ssCount(n as integer) as string
-    text = n.ToStr()
-    out = ""
-    while Len(text) > 3
-        out = "," + Right(text, 3) + out
-        text = Left(text, Len(text) - 3)
-    end while
-    return text + out
 end function
 
 ' What to say when the search or adding a result failed: search not set up
@@ -116,12 +101,12 @@ end function
 function ssProblem(answer as object, searching as boolean) as string
     data = httpObject(answer.data)
     if answer.status = 503 and data <> invalid and GetInterface(data.setup, "ifBoolean") <> invalid and not data.setup
-        return "Subtitle search isn't set up on this server. An administrator sets it up on the web, in Settings → Server."
+        return t("player.find.notSetUp")
     end if
-    if searching and answer.status = 404 then return "Finding subtitles needs a newer Pley server."
-    if answer.error = "network" then return "The server can't be reached."
+    if searching and answer.status = 404 then return t("player.find.needsNewer")
+    if answer.error = "network" then return t("player.find.unreachable")
     if answer.message <> "" then return answer.message
-    return "Something went wrong. Try again."
+    return t("player.find.failed")
 end function
 
 ' The track the server added (201's SubtitleTrack), or invalid when the

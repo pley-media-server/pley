@@ -23,6 +23,7 @@ use pley_core::model::{
     ProgressState, ServerEvent,
 };
 use pley_core::task::{Cancel, Promise};
+use pley_i18n::t;
 
 use crate::env::PlayerEnv;
 use crate::remote::{Command, MUSIC_CONTROLS, RemoteAction, RemoteKind, RemotePlayer, remote_action, restarts_track};
@@ -54,10 +55,10 @@ impl MusicError {
     /// What Now Playing says (the Android app's words).
     pub fn text(self) -> &'static str {
         match self {
-            MusicError::Offline => "Can't reach the server.",
-            MusicError::SignedOut => "You were signed out: sign in again.",
-            MusicError::Stopped => "Playback was stopped by the server.",
-            MusicError::Unplayable => "This track can't be played.",
+            MusicError::Offline => t!("player.music.offline"),
+            MusicError::SignedOut => t!("player.music.signedOut"),
+            MusicError::Stopped => t!("player.music.stopped"),
+            MusicError::Unplayable => t!("player.music.unplayable"),
         }
     }
 

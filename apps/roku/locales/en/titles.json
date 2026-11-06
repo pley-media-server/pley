@@ -1,0 +1,198 @@
+{
+  "watched": "Watched",
+  "smart": "Smart",
+  "nothingToPlay": "Nothing to play",
+  "actions": {
+    "markWatched": "Mark as watched",
+    "markUnwatched": "Mark as unwatched",
+    "addToMyList": "Add to My List",
+    "removeFromMyList": "Remove from My List",
+    "addToPlaylist": "Add to playlist",
+    "removeFromContinueWatching": "Remove from Continue Watching",
+    "goToShow": "Go to show",
+    "goToSeason": "Go to season",
+    "goToArtist": "Go to artist",
+    "goTo": "Go to {{title}}",
+    "playEpisode": "Play {{episode}}",
+    "resumeEpisode": "Resume {{episode}}",
+    "audioAndSubtitles": "Audio and subtitles",
+    "shuffle": "Shuffle",
+    "nowPlaying": "Now playing",
+    "rename": "Rename",
+    "move": "Move",
+    "removeFromPlaylist": "Remove from playlist"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} season",
+    "seasons_other": "{{count, number}} seasons",
+    "episodes_one": "{{count, number}} episode",
+    "episodes_other": "{{count, number}} episodes",
+    "albums_one": "{{count, number}} album",
+    "albums_other": "{{count, number}} albums",
+    "tracks_one": "{{count, number}} track",
+    "tracks_other": "{{count, number}} tracks"
+  },
+  "seasons": {
+    "noEpisodes": "No episodes found."
+  },
+  "page": {
+    "rows": {
+      "seasons": "Seasons",
+      "castAndCrew": "Cast & crew",
+      "extras": "Extras",
+      "moreLikeThis": "More like this",
+      "collections": "Collections"
+    },
+    "mediaInfo": "Media info",
+    "about": "Details",
+    "version": "Version",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "versionIs": "Version: {{value}}",
+    "audioIs": "Audio: {{value}}",
+    "subtitlesIs": "Subtitles: {{value}}",
+    "yourRating": "Your rating"
+  },
+  "extras": {
+    "trailer": "Trailer",
+    "featurette": "Featurette",
+    "behindTheScenes": "Behind the scenes",
+    "deletedScene": "Deleted scene",
+    "interview": "Interview",
+    "scene": "Scene",
+    "short": "Short",
+    "other": "Extra"
+  },
+  "roles": {
+    "actor": "Actor",
+    "creator": "Creator",
+    "director": "Director",
+    "writer": "Writer",
+    "producer": "Producer",
+    "crew": "Crew",
+    "guestStar": "Guest star",
+    "as": "as {{character}}",
+    "withEpisodes_one": "{{role}} ({{count, number}} episode)",
+    "withEpisodes_other": "{{role}} ({{count, number}} episodes)"
+  },
+  "person": {
+    "rows": {
+      "acting": "Acting",
+      "directing": "Directing",
+      "creating": "Creating",
+      "writing": "Writing",
+      "producing": "Producing"
+    },
+    "inLibraries": "{{counts}} in your libraries",
+    "notFound": "Person not found. No one by that link has anything in your libraries.",
+    "nothing": "Nothing to show here."
+  },
+  "collection": {
+    "label": "Collection",
+    "empty": "Nothing in this collection yet.",
+    "noEpisodes": "This show has no episodes yet.",
+    "order": {
+      "release": "By release date",
+      "title": "By title",
+      "custom": "Custom order"
+    }
+  },
+  "smartFilter": {
+    "genre": "Genre: {{value}}",
+    "label": "Label: {{value}}",
+    "studio": "Studio: {{value}}",
+    "rated": "Rated {{value}}",
+    "watched": "Watched",
+    "unwatched": "Unwatched",
+    "inProgress": "In progress",
+    "notInProgress": "Not in progress",
+    "year": "From {{value}}",
+    "after": "After {{value}}",
+    "before": "Before {{value}}",
+    "decade": "The {{value}}s",
+    "limit": "At most {{value}}",
+    "other": "{{name}}: {{value}}",
+    "sortedBy": "Sorted by {{name}}",
+    "sort": {
+      "titleSort": {
+        "asc": "By title",
+        "desc": "By title, Z to A"
+      },
+      "year": {
+        "asc": "Oldest first",
+        "desc": "Newest first"
+      },
+      "originallyAvailableAt": {
+        "asc": "Earliest release first",
+        "desc": "Latest release first"
+      },
+      "addedAt": {
+        "asc": "First added first",
+        "desc": "Recently added first"
+      },
+      "rating": {
+        "asc": "Lowest rated first",
+        "desc": "Best rated first"
+      },
+      "userRating": {
+        "asc": "Your lowest rated first",
+        "desc": "Your best rated first"
+      },
+      "lastViewedAt": {
+        "asc": "Least recently played first",
+        "desc": "Recently played first"
+      },
+      "duration": {
+        "asc": "Shortest first",
+        "desc": "Longest first"
+      },
+      "viewCount": {
+        "asc": "Least played first",
+        "desc": "Most played first"
+      }
+    }
+  },
+  "music": {
+    "artist": "Artist",
+    "albums": "Albums",
+    "disc": "Disc {{number}}",
+    "noAlbums": "No albums found.",
+    "noTracks": "This album has no tracks.",
+    "noTracksToPlay": "It has no tracks."
+  },
+  "playlist": {
+    "new": "New playlist",
+    "newMenu": "New playlist…",
+    "create": "Make it",
+    "added": "Added",
+    "addedTo": "Added to {{title}}.",
+    "refused": "This sign-in can't change playlists: sign out in Settings and sign in again to allow it.",
+    "renameTitle": "Rename playlist",
+    "deleteTitle": "Delete {{title}}?",
+    "deleteBody": "The playlist goes; its titles stay in your libraries.",
+    "notDeleted": "The playlist wasn't deleted",
+    "empty": "This playlist is empty. Add titles to it with the Options key on them.",
+    "moving": "{{title}}  (moving)",
+    "movingHint": "Up and down move it, OK puts it there, Back puts it back."
+  },
+  "playback": {
+    "method": {
+      "direct": "Direct play",
+      "remux": "Direct stream",
+      "remuxAudio": "Direct stream · Audio transcoding",
+      "transcode": "Transcoding"
+    },
+    "video": "Video",
+    "audio": "Audio",
+    "bitrate": "Bitrate",
+    "shownAs": "Shown as",
+    "subtitles": "Subtitles",
+    "burnedIn": "Burned in",
+    "speed": "Speed",
+    "toneMapped": "SDR (tone-mapped with {{method}})",
+    "realTime": "{{speed}}× real time",
+    "realTimeReady": "{{speed}}× real time · {{seconds, number}} s ready",
+    "chapter": "Chapter {{number}}",
+    "line": "{{label}}: {{value}}"
+  }
+}

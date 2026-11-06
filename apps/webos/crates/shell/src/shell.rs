@@ -13,11 +13,12 @@
 use pley_base::{ImageRequest, Key};
 use pley_core::ApiError;
 use pley_core::model::{Library, LiveCategory, RequestSummary, ServerEvent};
+use pley_i18n::t;
 use pley_kit::{Dialog, DialogButton};
 use pley_ui::{Dir, Edge, Group, Id, InputEvent, PageMemory, Ui, UiState};
 
 use crate::cast::{
-    CAST_NOTICE_SECONDS, Cast, CastNews, CastPlay, Casts, NOTHING_TO_PLAY, notice, opening, switch_refused,
+    CAST_NOTICE_SECONDS, Cast, CastNews, CastPlay, Casts, nothing_to_play, notice, opening, switch_refused,
 };
 use crate::cx::{AppCx, NavCommand, Requests, ToastRequest};
 use crate::notice::Notices;
@@ -328,6 +329,10 @@ impl Shell {
         if let AppEvent::Server(e) = &event {
             self.hear_cast(e, state, ui, now);
         }
+        if event == AppEvent::Language {
+            self.relabel(state, ui, now);
+            return;
+        }
         if event == AppEvent::Changed {
             let n = self.stack.len();
             for e in self.stack.iter_mut().take(n.saturating_sub(1)) {
@@ -525,8 +530,8 @@ impl Shell {
     /// "Exit Pley?" (`AskExit` in the Samsung app's `Kit/Shell.cs`): a narrow card, its title and
     /// Cancel and Exit, Exit focused; Cancel or Back stays. Drawn every frame so it can fade out.
     fn exit_dialog(&mut self, ui: &mut Ui) {
-        let buttons = [DialogButton::new("Cancel"), DialogButton::new("Exit")];
-        let dialog = Dialog::new("Exit Pley?").buttons(&buttons).initial(1).width(360.0);
+        let buttons = [DialogButton::new(t!("common.actions.cancel")), DialogButton::new(t!("shell.exit.exit"))];
+        let dialog = Dialog::new(t!("shell.exit.title")).buttons(&buttons).initial(1).width(360.0);
         let r = dialog.show(ui, Id::new("pley.exit"), self.exit_asked);
         if r.dismissed || r.chosen == Some(0) {
             self.exit_asked = false;
@@ -640,7 +645,7 @@ impl Shell {
                 Route::NowPlaying
             }
             Ok(CastPlay::Nothing) => {
-                self.requests.toasts.push(ToastRequest { text: NOTHING_TO_PLAY.into(), error: false, seconds: None });
+                self.requests.toasts.push(ToastRequest { text: nothing_to_play().into(), error: false, seconds: None });
                 self.carry_out(state, ui, now);
                 return;
             }
@@ -700,6 +705,34 @@ impl Shell {
         for t in std::mem::take(&mut self.requests.toasts) {
             self.toasts.show(t, now);
         }
+    }
+
+    /// The language shown changed: every page is drawn in it, each where it was. A page that puts
+    /// its own words in the new language keeps what it holds; the others are made again from
+    /// their routes, with the focus they had, and ask the server again (Home's rows come in the
+    /// new language). A player keeps its words until it closes. The rail's entries are made again.
+    fn relabel(&mut self, state: &mut AppState, ui: &mut UiState, now: f64) {
+        let top = self.stack.len().checked_sub(1);
+        for (i, entry) in self.stack.iter_mut().enumerate() {
+            if entry.holds {
+                continue;
+            }
+            let mut cx = AppCx::new(state, &mut self.requests, now);
+            if entry.screen.relabel(&mut cx) {
+                continue;
+            }
+            let on_top = Some(i) == top;
+            if on_top {
+                entry.memory = ui.export_page();
+            }
+            entry.screen = self.registry.make(&entry.route, &mut cx);
+            entry.missed = false;
+            if on_top {
+                ui.import_page(std::mem::take(&mut entry.memory));
+            }
+        }
+        self.entries_from = None;
+        self.carry_out(state, ui, now);
     }
 
     fn make(&mut self, route: Route, state: &mut AppState, now: f64) -> Entry {

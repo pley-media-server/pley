@@ -10,6 +10,16 @@ describes how they are made.
 
 ### Added
 
+- Pley for Roku is in French and Spanish as well as English: your
+  account's language, else the one picked on the Roku, else the Roku's,
+  else the server's. Settings → Language picks your account's, on all
+  your devices, or Automatic; on a server from before languages, which
+  can't keep your account's, it keeps your choice on this Roku. Dates,
+  times, numbers and counts follow the language, and the app starts in
+  the one it showed last.
+- A globe at the bottom right of Choose your server, and at the top right
+  of the sign-in code, picks the Roku's language before anyone signs in:
+  Automatic (the Roku's own), English, Français or Español.
 - "Play on…" from someone else's profile in your household plays on the
   Roku as their profile: the Roku switches to it first, without asking
   its PIN (the phone or browser did). What was playing stops first, and

@@ -1,0 +1,65 @@
+{
+  "network": {
+    "cancelled": "annulé",
+    "timedOut": "pas de réponse à temps",
+    "refused": "rien ne répond à cette adresse",
+    "unknownHost": "cette adresse est inconnue sur ce réseau",
+    "secureConnection": "sa connexion sécurisée a échoué",
+    "tooBig": "la réponse du serveur est trop volumineuse",
+    "connectionFailed": "la connexion au serveur a échoué",
+    "anotherDevice": "un autre appareil répond à cette adresse",
+    "serverFailed": "le serveur n’a pas pu répondre"
+  },
+  "server": {
+    "refused": "le serveur a refusé (HTTP {{status}})",
+    "refusedCode": "le serveur a refusé ({{code}})",
+    "couldntAnswer": "le serveur n’a pas pu répondre (HTTP {{status}})",
+    "stoppedByAdmin": "La lecture a été arrêtée par l’administrateur du serveur",
+    "signedOut": "vous avez été déconnecté : reconnectez-vous",
+    "unreadable": "la réponse du serveur est illisible : est-ce bien Pley, et est-il à jour ?",
+    "check": "{{reason}} Vérifiez que le serveur est allumé et que cet appareil est sur son réseau."
+  },
+  "signIn": {
+    "tooOld": "ce serveur est trop ancien pour cette application",
+    "noCodes": "ce serveur ne sait pas encore connecter les TV avec un code : mettez-le à jour",
+    "widerScope": "le serveur a accordé plus que ce que cette application demande : déconnecté",
+    "unencrypted": "l’adresse de ce serveur n’est pas sur votre réseau et sa connexion n’est pas chiffrée : ouvrez-le par son adresse https pour vous connecter",
+    "notAddress": "ce n’est pas une adresse de serveur",
+    "unknownApp": "ce serveur ne connaît pas encore les applications TV de Pley : mettez-le à jour",
+    "busy": "trop de TV se connectent ici en ce moment : réessayez dans une minute",
+    "codeSpent": "ce code ne fonctionne plus : obtenez-en un nouveau",
+    "unreadable": "la réponse du serveur est illisible : réessayez",
+    "approveElsewhere": "ce serveur envoie vers une autre adresse pour approuver les TV : Pley ne le fait pas",
+    "signInElsewhere": "ce serveur envoie les applications vers une autre adresse pour se connecter : Pley ne le fait pas",
+    "callsItself": "ce serveur se présente comme {{address}} : ouvrez-le à cette adresse, ou vérifiez que le proxy placé devant lui transmet l’en-tête Host",
+    "unreachable": "impossible de joindre le serveur : vérifiez son adresse et qu’il est allumé",
+    "otherServer": "ces jetons appartiennent à un autre serveur"
+  },
+  "oauth": {
+    "invalidClient": "le serveur ne connaît pas cette application",
+    "unauthorizedClient": "le serveur ne permet pas à cette application de se connecter ainsi",
+    "invalidGrant": "le serveur a refusé cette connexion",
+    "accessDenied": "la connexion a été refusée",
+    "expiredToken": "le code a expiré",
+    "invalidScope": "le serveur a refusé ce que cette application demandait",
+    "invalidRequest": "le serveur n’a pas compris la demande",
+    "unsupportedGrantType": "le serveur n’accepte pas ce type de connexion"
+  },
+  "profiles": {
+    "wrongPin": "Code PIN incorrect.",
+    "throttled": "trop de codes PIN erronés : réessayez dans quelques minutes",
+    "pinLocked": "Le code PIN de ce profil est bloqué après trop d’essais erronés. Son propriétaire ou un administrateur peut le réinitialiser.",
+    "needsPassword": "Ce profil demande son mot de passe : reconnectez-vous pour l’utiliser.",
+    "notAllowed": "Vous ne pouvez pas passer à ce profil.",
+    "cantSwitch": "Cette connexion ne permet pas de changer de profil : reconnectez-vous pour l’autoriser.",
+    "ticketSpent": "Cette diffusion ne peut plus changer de profil : diffusez-la de nouveau.",
+    "unreachable": "Impossible de joindre votre serveur : {{reason}}.",
+    "signedOut": "Vous avez été déconnecté : reconnectez-vous.",
+    "refused": "Le serveur a refusé : réessayez."
+  },
+  "connect": {
+    "badAddress": "Saisissez une adresse comme nas, 192.168.1.20 ou pley.example.com.",
+    "notPley": "Quelque chose répond à {{address}}, mais ce n’est pas Pley.",
+    "unreachable": "Impossible de joindre {{address}} : {{reason}}."
+  }
+}

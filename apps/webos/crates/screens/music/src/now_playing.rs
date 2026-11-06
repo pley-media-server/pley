@@ -10,6 +10,7 @@ use std::hash::{Hash, Hasher};
 use pley_base::{Icon, ImageRequest, Key, Point, Rect, Size, TextOpts};
 use pley_core::format::format_clock;
 use pley_core::model::{ImageKind, ItemSummary};
+use pley_i18n::t;
 use pley_kit::{RoundButton, SCROLL, TrackLine, backdrop_px, look};
 use pley_player::sleep::SleepState;
 use pley_shell::{AppCx, Chrome, Screen};
@@ -169,7 +170,8 @@ impl NowPlayingScreen {
 impl Screen for NowPlayingScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         let Some(id) = player::music(cx).and_then(|m| m.now_playing()).map(|n| n.track.id) else {
-            if message(ui, "Nothing is playing", "Play an album or an artist and it shows here.", "Back").activated {
+            let (title, body) = (t!("music.nowPlaying.nothingTitle"), t!("music.nowPlaying.nothingBody"));
+            if message(ui, title, body, t!("music.actions.back")).activated {
                 cx.back();
             }
             return;
@@ -250,11 +252,11 @@ impl Screen for NowPlayingScreen {
                 *bx += b.size().w + CONTROLS_GAP;
                 r.activated
             };
-            let shuffle_label = if shuffle { "Stop shuffling" } else { "Shuffle" };
+            let shuffle_label = if shuffle { t!("music.actions.shuffleOff") } else { t!("music.actions.shuffle") };
             if round(ui, &mut bx, "shuffle", RoundButton::new(Icon::Shuffle, shuffle_label)) {
                 m.set_shuffle(!shuffle);
             }
-            if round(ui, &mut bx, "previous", RoundButton::new(Icon::SkipBack, "Previous")) {
+            if round(ui, &mut bx, "previous", RoundButton::new(Icon::SkipBack, t!("music.actions.previous"))) {
                 m.previous();
             }
             let play = ui.id("play");
@@ -263,7 +265,7 @@ impl Screen for NowPlayingScreen {
                 m.toggle();
             }
             bx += PLAY + CONTROLS_GAP;
-            let next = RoundButton::new(Icon::SkipForward, "Next").enabled(index + 1 < count);
+            let next = RoundButton::new(Icon::SkipForward, t!("music.actions.next")).enabled(index + 1 < count);
             if round(ui, &mut bx, "next", next) {
                 m.next();
             }
@@ -275,7 +277,8 @@ impl Screen for NowPlayingScreen {
 
         // The queue.
         if m.list().len() > 1 {
-            ui.text(Point::new(x + 12.0, y), "Up next", &theme::LABEL, &TextOpts::line(COLUMN_W), theme::SUBTLE);
+            let up_next = t!("music.nowPlaying.upNext");
+            ui.text(Point::new(x + 12.0, y), up_next, &theme::LABEL, &TextOpts::line(COLUMN_W), theme::SUBTLE);
             y += theme::LABEL.line_height + 4.0;
             let view = Rect::new(x, y, COLUMN_W, (theme::CANVAS_H - y).max(QUEUE_PITCH));
             if let Some(i) = self.queue(ui, view, m, index, playing) {
@@ -393,6 +396,9 @@ fn scrubber(ui: &mut Ui, rect: Rect, position: i64, duration: i64, buffered: i64
 
 /// Play/Pause: a 64 dp circle with a 32 dp glyph (`PlayPause`); true when selected.
 fn play_pause(ui: &mut Ui, id: Id, rect: Rect, pause: bool) -> bool {
+    // Audio Guidance names it by what it does, as the round buttons beside it are named by their
+    // labels.
+    ui.name(id, || if pause { t!("music.actions.pause") } else { t!("music.actions.play") }.to_string());
     let r = register(ui, id, rect, FocusOpts::default());
     let s = look::shade(ui, &PLAY_LOOK, &r);
     ui.transform(Point::ZERO, s.scale, rect.center(), |ui| {

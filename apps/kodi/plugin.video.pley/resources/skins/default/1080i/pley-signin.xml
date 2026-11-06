@@ -46,7 +46,7 @@
       <align>left</align>
       <aligny>center</aligny>
       <scroll>false</scroll>
-      <label>$ADDON[plugin.video.pley 30171]</label>
+      <label>$INFO[Window(Home).Property(pley.word.30171)]</label>
     </control>
     <control type="group" id="3113">
       <left>192</left>
@@ -82,7 +82,7 @@
         <align>left</align>
         <aligny>center</aligny>
         <scroll>false</scroll>
-        <label>$ADDON[plugin.video.pley 30172]</label>
+        <label>$INFO[Window(Home).Property(pley.word.30172)]</label>
       </control>
     </control>
     <control type="group" id="3118">
@@ -156,7 +156,7 @@
         <align>left</align>
         <aligny>center</aligny>
         <scroll>false</scroll>
-        <label>$ADDON[plugin.video.pley 30174]</label>
+        <label>$INFO[Window(Home).Property(pley.word.30174)]</label>
       </control>
     </control>
     <control type="image">
@@ -214,7 +214,7 @@
       <align>left</align>
       <aligny>center</aligny>
       <scroll>false</scroll>
-      <label>$ADDON[plugin.video.pley 30175]</label>
+      <label>$INFO[Window(Home).Property(pley.word.30175)]</label>
     </control>
     <control type="label">
       <left>192</left>
@@ -226,7 +226,7 @@
       <align>left</align>
       <aligny>center</aligny>
       <scroll>false</scroll>
-      <label>$ADDON[plugin.video.pley 30176]</label>
+      <label>$INFO[Window(Home).Property(pley.word.30176)]</label>
     </control>
     <control type="label" id="3121">
       <left>192</left>
@@ -290,7 +290,7 @@
         <align>center</align>
         <aligny>center</aligny>
         <scroll>false</scroll>
-        <label>$ADDON[plugin.video.pley 30177]</label>
+        <label>$INFO[Window(Home).Property(pley.word.30177)]</label>
       </control>
     </control>
     <control type="grouplist">
@@ -315,7 +315,7 @@
         <align>left</align>
         <aligny>center</aligny>
         <textoffsetx>40</textoffsetx>
-        <label>$ADDON[plugin.video.pley 30178]</label>
+        <label>$INFO[Window(Home).Property(pley.word.30178)]</label>
         <width min="256" max="900">auto</width>
       </control>
     </control>

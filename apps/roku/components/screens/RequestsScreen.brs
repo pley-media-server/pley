@@ -26,6 +26,8 @@ sub init()
     m.choices = m.top.findNode("choices")
     m.menu = m.top.findNode("menu")
     m.busy = m.top.findNode("busy")
+    m.message.text = t("common.states.loading")
+    m.hint.text = t("requests.page.hint")
     m.list.content = CreateObject("roSGNode", "ContentNode")
     m.started = false
     ' A manager's page or Your requests: its tabs' keys, the tab shown, and
@@ -165,7 +167,7 @@ sub showSide(summary as object)
         label = reqFilterLabel(m.kind, m.personName, m.words)
         m.sideAction = "filter"
     else if summary.signInAgain = "approvals"
-        label = "Sign in"
+        label = t("requests.buttons.signIn")
         m.sideAction = "signIn"
     end if
     if label = ""
@@ -202,9 +204,9 @@ end function
 sub showCount()
     summary = reqSummaryOf(m.top.requestSummary)
     if not m.manage and summary.signInAgain = "approvals"
-        m.count.text = "Sign in again to approve and decline here."
+        m.count.text = t("requests.page.signInToDecide")
     else if m.total > 0
-        m.count.text = reqCount(m.total, "request", "requests")
+        m.count.text = t("requests.counts.requests", { count: m.total })
     else
         m.count.text = ""
     end if
@@ -226,7 +228,7 @@ sub startListing()
     m.list.content = CreateObject("roSGNode", "ContentNode")
     m.list.visible = true
     m.hint.visible = false
-    m.message.text = "Loading…"
+    m.message.text = t("common.states.loading")
     m.message.visible = true
     showCount()
     loadMore()
@@ -249,7 +251,7 @@ sub onPage(event as object)
     if not answer.ok
         if content.getChildCount() > 0 or uiFailed(answer) then return
         problem = reqProblem(answer, m.manage)
-        if problem = invalid then problem = { title: "Couldn't load the requests", text: answer.message, retry: true, signIn: false }
+        if problem = invalid then problem = { title: t("requests.page.loadFailed"), text: answer.message, retry: true, signIn: false }
         showProblem(problem)
         return
     end if
@@ -432,7 +434,7 @@ sub rowOptions()
     row = m.list.content.getChild(m.list.itemFocused)
     if row = invalid then return
     target = { requestId: row.requestId, title: row.title, status: row.status, stage: row.stage, kind: row.tmdbKind, tmdbId: row.tmdbId, seasons: row.seasons, libraryId: row.libraryId, actions: row.actions }
-    if not uiRequestOptions(target) then uiMessage(row.title, ["Nothing can be done with this request now."])
+    if not uiRequestOptions(target) then uiMessage(row.title, [t("requests.actions.none")])
 end sub
 
 ' An action was done, or refused as the request had changed: the list as
@@ -470,16 +472,17 @@ end sub
 ' The filters, each with what it keeps; OK opens its choices.
 sub openFilters()
     m.panelKind = "filters"
-    m.panelTitle.text = "Filter"
-    kind = "Movies and shows"
-    if m.kind = "movie" then kind = "Movies"
-    if m.kind = "show" then kind = "Shows"
-    person = "Everyone"
+    m.panelTitle.text = t("requests.filters.filter")
+    kinds = kindChoices()
+    kind = kinds[0]
+    if m.kind = "movie" then kind = kinds[1]
+    if m.kind = "show" then kind = kinds[2]
+    person = t("requests.filters.everyone")
     if m.person > 0 then person = m.personName
-    words = "Any"
+    words = t("requests.filters.anyTitle")
     if m.words <> "" then words = reqQuoted(m.words)
-    items = [{ title: "Show: " + kind }, { title: "Asked for by: " + person }, { title: "Title: " + words }]
-    if hasFilters() then items.Push({ title: "Clear filters" })
+    items = [{ title: t("requests.filters.showKind", { kind: kind }) }, { title: t("requests.filters.askedByPerson", { person: person }) }, { title: t("requests.filters.titleWords", { words: words }) }]
+    if hasFilters() then items.Push({ title: t("requests.filters.clear") })
     at = m.menu.itemFocused
     m.menu.content = nodesContent(items)
     if at > 0 and at < items.Count() then m.menu.jumpToItem = at
@@ -489,15 +492,21 @@ sub openFilters()
     m.menu.setFocus(true)
 end sub
 
+' The kinds the list can keep, in the order of their values ("", "movie",
+' "show").
+function kindChoices() as object
+    return [t("requests.filters.kinds.both"), t("requests.filters.kinds.movie"), t("requests.filters.kinds.show")]
+end function
+
 sub onMenu(event as object)
     at = event.getData()
     if at = 0
         current = 0
         if m.kind = "movie" then current = 1
         if m.kind = "show" then current = 2
-        showChoices("kind", "Show", ["Movies and shows", "Movies", "Shows"], ["", "movie", "show"], current)
+        showChoices("kind", t("requests.filters.show"), kindChoices(), ["", "movie", "show"], current)
     else if at = 1
-        labels = ["Everyone"]
+        labels = [t("requests.filters.everyone")]
         values = [0]
         current = 0
         for each person in m.people
@@ -511,7 +520,7 @@ sub onMenu(event as object)
             labels.Push(m.personName)
             values.Push(m.person)
         end if
-        showChoices("person", "Asked for by", labels, values, current)
+        showChoices("person", t("requests.filters.askedBy"), labels, values, current)
     else if at = 2
         askWords()
     else
@@ -558,10 +567,10 @@ end sub
 ' Words the titles must have, on the keyboard.
 sub askWords()
     dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
-    dialog.title = "Title"
-    dialog.message = ["Requests whose title has these words."]
+    dialog.title = t("requests.filters.title")
+    dialog.message = [t("requests.filters.titleText")]
     dialog.text = m.words
-    dialog.buttons = ["OK", "Cancel"]
+    dialog.buttons = [t("common.actions.ok"), t("common.actions.cancel")]
     dialog.observeField("buttonSelected", "onWords")
     m.top.getScene().dialog = dialog
 end sub
@@ -625,8 +634,8 @@ sub showProblem(problem as object)
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
-    if problem.signIn then buttons.Push("Sign in")
-    if problem.retry then buttons.Push("Try again")
+    if problem.signIn then buttons.Push(t("requests.buttons.signIn"))
+    if problem.retry then buttons.Push(t("common.actions.tryAgain"))
     m.problemButtons.buttons = buttons
     m.problemButtons.visible = buttons.Count() > 0
     m.problem.visible = true

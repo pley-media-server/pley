@@ -13,11 +13,11 @@ function authMarginSeconds() as integer
 end function
 
 function authTooOld() as string
-    return "This server is too old for this app: update it."
+    return t("signin.problems.tooOld")
 end function
 
 function authNoCodes() as string
-    return "This server can't sign in with a code yet: update it."
+    return t("signin.problems.noCodes")
 end function
 
 ' The server's metadata (RFC 8414), kept only when it is this server's own:
@@ -32,7 +32,7 @@ function authParseMetadata(text as dynamic, server as string) as object
     issuer = httpString(data.issuer)
     if issuer = "" then return { ok: false, message: authTooOld() }
     if issuer <> server
-        return { ok: false, message: "This server calls itself " + httpSentence(Left(issuer, 100)) + ": open it by that address, or check that the proxy in front of it passes Host." }
+        return { ok: false, message: t("signin.problems.callsItself", { address: httpSentence(Left(issuer, 100)) }) }
     end if
     scopes = []
     for each name in httpArray(data.scopes_supported)
@@ -44,7 +44,7 @@ function authParseMetadata(text as dynamic, server as string) as object
         url = httpString(data[names[key]])
         if url = "" then return { ok: false, message: authNoCodes() }
         if urlOrigin(url) <> issuer or Left(url, Len(issuer) + 1) <> issuer + "/"
-            return { ok: false, message: "This server sends apps to another address to sign in: Pley doesn't." }
+            return { ok: false, message: t("signin.problems.signInElsewhere") }
         end if
         result[key] = url
     end for
@@ -77,7 +77,7 @@ end function
 ' scope }, expiresAt in seconds since the epoch. Without a scope the server
 ' issued what was asked; without expires_in, pley's hour.
 function authParseTokens(text as dynamic, askedScope as string, now as integer) as object
-    bad = { ok: false, message: "The server's answer can't be read: try again." }
+    bad = { ok: false, message: t("signin.problems.unreadable") }
     data = invalid
     data = httpObject(httpJson(text))
     if data = invalid then return bad
@@ -106,7 +106,7 @@ function authProofRenewMs() as integer
 end function
 
 function authAnotherDevice() as string
-    return "Another device answers there."
+    return t("signin.problems.anotherDevice")
 end function
 
 ' The server's id and the sign-in's proof key in a token answer (or kept
@@ -335,25 +335,25 @@ function authSwitchOutcome(status as integer, text as dynamic) as object
         reason = httpString(data.reason)
         description = httpSentence(data.error_description)
     end if
-    if status <= 0 or status = 502 or status = 504 then return { kind: "failed", reason: "network", message: "The server can't be reached." }
+    if status <= 0 or status = 502 or status = 504 then return { kind: "failed", reason: "network", message: t("common.errors.unreachable") }
     if error = "invalid_request" and reason = "" then return { kind: "through", reason: "", message: "" }
-    if error = "unauthorized_client" then return { kind: "refused", reason: error, message: "This sign-in can't switch profiles." }
+    if error = "unauthorized_client" then return { kind: "refused", reason: error, message: t("signin.problems.cantSwitch") }
     if error = "invalid_grant"
         if reason = "" then return { kind: "ended", reason: "", message: "" }
         messages = {
-            wrong_pin: "Wrong PIN.",
-            throttled: "Too many wrong PINs: try again in a few minutes.",
-            pin_locked: "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
-            browser: "This profile needs its password: sign in to it with a code, choosing it in the browser.",
-            not_allowed: "You can't switch to this profile.",
-            ticket_spent: "This cast's switch expired: cast again."
+            wrong_pin: t("signin.problems.wrongPin"),
+            throttled: t("signin.problems.throttled"),
+            pin_locked: t("signin.problems.pinLocked"),
+            browser: t("signin.problems.browser"),
+            not_allowed: t("signin.problems.notAllowed"),
+            ticket_spent: t("signin.problems.ticketSpent")
         }
         message = messages[reason]
         if reason = "throttled" and description <> "" then message = description
         if message = invalid then message = description
         return { kind: "refused", reason: reason, message: message }
     end if
-    if description = "" then description = "The server refused: try again."
+    if description = "" then description = t("signin.problems.serverRefused")
     return { kind: "failed", reason: error, message: description }
 end function
 
@@ -411,7 +411,7 @@ end function
 ' { ok, deviceCode, userCode, verificationUri, verificationUriComplete,
 ' expiresAt, interval } (interval in seconds), or { ok: false, message }.
 function authParseDeviceCode(text as dynamic, now as integer) as object
-    bad = { ok: false, message: "The server's answer can't be read: try again." }
+    bad = { ok: false, message: t("signin.problems.unreadable") }
     data = invalid
     data = httpObject(httpJson(text))
     if data = invalid then return bad
@@ -489,7 +489,7 @@ function authPollAnswer(status as integer, text as dynamic) as object
     if error = "slow_down" then return { kind: "slow_down", message: "" }
     if error = "access_denied" then return { kind: "denied", message: "" }
     if error = "expired_token" then return { kind: "expired", message: "" }
-    if error = "invalid_grant" then return { kind: "invalid", message: "This code doesn't work any more: get a new one." }
+    if error = "invalid_grant" then return { kind: "invalid", message: t("signin.problems.codeUsed") }
     if description = "" then description = httpStatusSentence(status)
     return { kind: "failed", message: description }
 end function
@@ -512,12 +512,12 @@ function authDeviceRefusal(status as integer, text as dynamic) as string
     data = httpObject(httpJson(text))
     error = ""
     if data <> invalid then error = httpString(data.error)
-    if error = "invalid_client" then return "This server doesn't know Pley for Roku yet: update it."
-    if error = "unauthorized_client" then return "This server doesn't let Pley for Roku sign in with a code."
-    if error = "invalid_scope" then return "This server doesn't offer what Pley for Roku asks for: update it."
-    if status = 429 then return "Too many sign-ins are waiting on this server: try again in a few minutes."
+    if error = "invalid_client" then return t("signin.problems.unknownApp")
+    if error = "unauthorized_client" then return t("signin.problems.unauthorizedClient")
+    if error = "invalid_scope" then return t("signin.problems.invalidScope")
+    if status = 429 then return t("signin.problems.busy")
     if status = 404 then return authNoCodes()
-    if status <= 0 then return "The server can't be reached."
+    if status <= 0 then return t("common.errors.unreachable")
     if data <> invalid
         description = httpSentence(data.error_description)
         if description <> "" then return description
@@ -534,5 +534,5 @@ function authTwoStepNote(answer as object) as string
     data = invalid
     if httpTrue(answer.ok) then data = httpObject(answer.data)
     if data = invalid or not httpTrue(data.two_step_required) then return ""
-    return "This server requires two-step sign-in: your phone sets it up if you haven't yet."
+    return t("signin.link.twoStep")
 end function

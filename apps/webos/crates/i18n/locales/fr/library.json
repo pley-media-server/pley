@@ -1,0 +1,194 @@
+{
+  "tabs": {
+    "recommended": "Recommandations",
+    "library": "Bibliothèque",
+    "collections": "Collections"
+  },
+  "sorts": {
+    "title": "Titre",
+    "year": "Année",
+    "added": "Date d’ajout",
+    "rating": "Note",
+    "userRating": "Votre note",
+    "release": "Date de sortie",
+    "duration": "Durée",
+    "lastPlayed": "Dernière lecture",
+    "bitrate": "Débit"
+  },
+  "chips": {
+    "filter": "Filtres",
+    "unwatched": "Non vu",
+    "genre": "Genre",
+    "year": "Année"
+  },
+  "panel": {
+    "sortBy": "Trier par",
+    "order": "Ordre",
+    "ascending": "Croissant",
+    "descending": "Décroissant",
+    "filter": "Filtres",
+    "show": "Afficher",
+    "all": "Tout",
+    "unwatched": "Non vu",
+    "watched": "Vu",
+    "genre": "Genre",
+    "allGenres": "Tous les genres",
+    "year": "Année",
+    "allYears": "Toutes les années",
+    "resolution": "Résolution",
+    "allResolutions": "Toutes les résolutions",
+    "dynamicRange": "Plage dynamique",
+    "allDynamicRanges": "Toutes les plages dynamiques",
+    "clearFilters": "Effacer les filtres",
+    "saveAs": "Enregistrer comme…",
+    "unchosen": {
+      "genre": "Tous",
+      "year": "Toutes",
+      "resolution": "Toutes",
+      "dynamicRange": "Toutes"
+    }
+  },
+  "anyHdr": "Tout HDR",
+  "bitrateUnknown": "Débit inconnu",
+  "count": {
+    "movies_one": "{{count, number}} film",
+    "movies_many": "{{count, number}} de films",
+    "movies_other": "{{count, number}} films",
+    "shows_one": "{{count, number}} série",
+    "shows_many": "{{count, number}} de séries",
+    "shows_other": "{{count, number}} séries",
+    "artists_one": "{{count, number}} artiste",
+    "artists_many": "{{count, number}} d’artistes",
+    "artists_other": "{{count, number}} artistes",
+    "items_one": "{{count, number}} élément",
+    "items_many": "{{count, number}} d’éléments",
+    "items_other": "{{count, number}} éléments",
+    "collections_one": "{{count, number}} collection",
+    "collections_many": "{{count, number}} de collections",
+    "collections_other": "{{count, number}} collections",
+    "titles_one": "{{count, number}} titre",
+    "titles_many": "{{count, number}} de titres",
+    "titles_other": "{{count, number}} titres"
+  },
+  "countOf": {
+    "movies_one": "{{shown, number}} sur {{count, number}} film",
+    "movies_many": "{{shown, number}} sur {{count, number}} de films",
+    "movies_other": "{{shown, number}} sur {{count, number}} films",
+    "shows_one": "{{shown, number}} sur {{count, number}} série",
+    "shows_many": "{{shown, number}} sur {{count, number}} de séries",
+    "shows_other": "{{shown, number}} sur {{count, number}} séries",
+    "artists_one": "{{shown, number}} sur {{count, number}} artiste",
+    "artists_many": "{{shown, number}} sur {{count, number}} d’artistes",
+    "artists_other": "{{shown, number}} sur {{count, number}} artistes"
+  },
+  "messages": {
+    "offline": "Impossible de joindre votre serveur",
+    "failed": "Impossible de charger cette bibliothèque",
+    "missingTitle": "Cette bibliothèque est introuvable",
+    "missingBody": "Elle a peut-être été supprimée, ou ce profil n’y a pas accès.",
+    "emptyTitle": "Cette bibliothèque est vide",
+    "emptyBody": "Rien pour l’instant. Les titres apparaissent à mesure que le serveur les ajoute.",
+    "noMatchesTitle": "Aucun résultat",
+    "noMatchesBody": "Rien dans cette bibliothèque ne correspond aux filtres actuels.",
+    "recommendedFailed": "Impossible de charger les recommandations",
+    "recommendedEmptyTitle": "Rien à recommander pour l’instant",
+    "recommendedEmptyBody": "Les recommandations apparaissent dès que la bibliothèque contient quelques éléments.",
+    "collectionsFailed": "Impossible de charger les collections",
+    "collectionsEmptyTitle": "Aucune collection pour l’instant",
+    "collectionsEmptyMovies": "Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque.",
+    "collectionsEmptyShows": "Cette bibliothèque n’a pas encore de collection."
+  },
+  "retry": "Réessayer",
+  "seeAll": "Tout voir",
+  "libraries": {
+    "title": "Bibliothèques",
+    "offline": "Impossible de joindre votre serveur",
+    "failed": "Impossible de charger vos bibliothèques",
+    "scanning": "Analyse…",
+    "sort": "Trier les bibliothèques",
+    "done": "Terminé",
+    "serverOrder": "Utiliser l’ordre du serveur",
+    "open": "Ouvrir",
+    "move": "Déplacer",
+    "sortingHint": "Sélectionnez une bibliothèque pour la déplacer. Votre ordre s’applique à tous vos appareils.",
+    "movingHint": "Flèches pour la déplacer, OK pour la déposer ici, Retour pour la remettre en place",
+    "needsNewerServer": "Trier les bibliothèques nécessite une version plus récente de Pley sur le serveur.",
+    "refused": "Ce serveur ne laisse pas l’application trier vos bibliothèques : triez-les sur le web",
+    "raced": "Vos bibliothèques ont changé entre-temps : réessayez",
+    "noneTitle": "Aucune bibliothèque pour l’instant",
+    "noneBody": "Demandez au propriétaire du serveur d’ajouter une bibliothèque.",
+    "retry": "Réessayer"
+  },
+  "collections": {
+    "title": "Collections",
+    "label": "Collection",
+    "smart": "Intelligente",
+    "failed": "Impossible de charger les collections",
+    "failedOne": "Impossible de charger cette collection",
+    "noneTitle": "Aucune collection pour l’instant",
+    "noneBody": "Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans une bibliothèque.",
+    "play": "Lire",
+    "shuffle": "Aléatoire",
+    "empty": "Cette collection est encore vide.",
+    "noEpisodes": "Rien à lire : cette série n’a pas encore d’épisode",
+    "byRelease": "Par date de sortie",
+    "byTitle": "Par titre",
+    "customOrder": "Ordre personnalisé",
+    "retry": "Réessayer"
+  },
+  "smartFilter": {
+    "genre": "Genre : {{value}}",
+    "label": "Étiquette : {{value}}",
+    "studio": "Studio : {{value}}",
+    "rated": "Classification : {{value}}",
+    "watched": "Vu",
+    "unwatched": "Non vu",
+    "inProgress": "En cours",
+    "notInProgress": "Pas en cours",
+    "from": "Année : {{value}}",
+    "after": "Après {{value}}",
+    "before": "Avant {{value}}",
+    "decade": "Années {{value}}",
+    "limit": "{{value}} au maximum",
+    "other": "{{name}} : {{value}}",
+    "sortedBy": "Trié par {{name}}",
+    "sort": {
+      "titleSort": {
+        "asc": "Par titre",
+        "desc": "Par titre, de Z à A"
+      },
+      "year": {
+        "asc": "Les plus anciens d’abord",
+        "desc": "Les plus récents d’abord"
+      },
+      "originallyAvailableAt": {
+        "asc": "Sortie la plus ancienne d’abord",
+        "desc": "Sortie la plus récente d’abord"
+      },
+      "addedAt": {
+        "asc": "Ajouts les plus anciens d’abord",
+        "desc": "Ajouts les plus récents d’abord"
+      },
+      "rating": {
+        "asc": "Les moins bien notés d’abord",
+        "desc": "Les mieux notés d’abord"
+      },
+      "userRating": {
+        "asc": "Vos moins bien notés d’abord",
+        "desc": "Vos mieux notés d’abord"
+      },
+      "lastViewedAt": {
+        "asc": "Lus il y a le plus longtemps d’abord",
+        "desc": "Lus récemment d’abord"
+      },
+      "duration": {
+        "asc": "Les plus courts d’abord",
+        "desc": "Les plus longs d’abord"
+      },
+      "viewCount": {
+        "asc": "Les moins lus d’abord",
+        "desc": "Les plus lus d’abord"
+      }
+    }
+  }
+}

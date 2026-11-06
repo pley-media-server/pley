@@ -6,6 +6,7 @@
 //! an Accent fill with OnAccent content and never scales (the panel would clip it).
 
 use pley_base::{Color, Icon, ImageRequest, Key, Point, Priority, Rect, Size, TextOpts, TextStyle};
+use pley_i18n::t;
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dirs, Edge, FocusOpts, Group, Id, ImageOpts, Motion, Response, Ui, nudge};
 
@@ -274,7 +275,7 @@ pub struct StepperResponse {
 impl<'a> Stepper<'a> {
     /// A step row titled `title` showing `value`.
     pub fn new(title: &'a str, value: &'a str) -> Stepper<'a> {
-        Stepper { title, value, hint: "OK resets", can_down: true, can_up: true }
+        Stepper { title, value, hint: t!("common.stepper.okResets"), can_down: true, can_up: true }
     }
 
     /// The line under the title.

@@ -1,0 +1,18 @@
+{
+  "title": "Périphérique USB",
+  "noDrive": {
+    "title": "Aucun périphérique USB",
+    "body": "Branchez un périphérique USB sur la TV pour lire ses vidéos ici."
+  },
+  "unreadable": {
+    "title": "Impossible de lire ce dossier",
+    "body": "Le périphérique a peut-être été débranché."
+  },
+  "empty": {
+    "title": "Rien à lire ici",
+    "body": "Ce dossier ne contient ni vidéos ni dossiers."
+  },
+  "space": "{{free}} libres sur {{total}}",
+  "up": "Dossier parent",
+  "resumesAt": "{{kind}} · Reprise à {{time}}"
+}

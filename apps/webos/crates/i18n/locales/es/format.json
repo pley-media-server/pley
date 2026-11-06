@@ -1,0 +1,103 @@
+{
+  "duration": {
+    "seconds": "{{n}} s",
+    "minutes": "{{n}} min",
+    "hours": "{{n}} h",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "runtime": "{{n}} min",
+    "left": "Quedan {{time}}"
+  },
+  "clock": {
+    "am": "a. m.",
+    "pm": "p. m."
+  },
+  "episode": {
+    "both": "T{{season}} · E{{episode}}",
+    "season": "T{{season}}",
+    "episode": "E{{episode}}"
+  },
+  "season": {
+    "specials": "Especiales",
+    "numbered": "Temporada {{number}}",
+    "plain": "Temporada"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} temporada",
+    "seasons_many": "{{count, number}} de temporadas",
+    "seasons_other": "{{count, number}} temporadas",
+    "episodes_one": "{{count, number}} episodio",
+    "episodes_many": "{{count, number}} de episodios",
+    "episodes_other": "{{count, number}} episodios",
+    "albums_one": "{{count, number}} álbum",
+    "albums_many": "{{count, number}} de álbumes",
+    "albums_other": "{{count, number}} álbumes"
+  },
+  "channels": {
+    "mono": "Mono",
+    "stereo": "Estéreo",
+    "count": "{{n}} canales"
+  },
+  "track": {
+    "unknown": "Desconocido",
+    "forced": "Forzados",
+    "external": "Externos",
+    "bitDepth": "{{n}} bits",
+    "automatic": "Automática",
+    "automaticLanguage": "Automática ({{language}})",
+    "version": "Versión {{number}}"
+  },
+  "sizes": {
+    "bytes": "{{n}} B",
+    "kilobytes": "{{n}} KB",
+    "megabytes": "{{n}} MB",
+    "gigabytes": "{{n}} GB",
+    "terabytes": "{{n}} TB"
+  },
+  "rates": {
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps",
+    "kilohertz": "{{rate}} kHz",
+    "fps": "{{rate}} fps",
+    "fpsInterlaced": "{{rate}} fps, entrelazado"
+  },
+  "media": {
+    "file": "Archivo",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitles": "Subtítulos",
+    "numbered": "{{kind}} {{n}}",
+    "name": "Nombre",
+    "container": "Contenedor",
+    "size": "Tamaño",
+    "duration": "Duración",
+    "overallBitrate": "Tasa de bits",
+    "codec": "Códec",
+    "profile": "Perfil",
+    "resolution": "Resolución",
+    "frameRate": "Fotogramas",
+    "bitDepth": "Profundidad",
+    "hdr": "HDR",
+    "dolbyVision": "Dolby Vision",
+    "primaries": "Primarios",
+    "transfer": "Transferencia",
+    "matrix": "Matriz",
+    "bitrate": "Tasa de bits",
+    "title": "Título",
+    "channels": "Canales",
+    "sampleRate": "Muestreo",
+    "language": "Idioma",
+    "flags": "Atributos",
+    "format": "Formato",
+    "default": "Por defecto",
+    "forced": "Forzado",
+    "beside": "En un archivo aparte",
+    "picture": "imagen",
+    "text": "texto",
+    "level": "Nivel {{level}}",
+    "dvProfile": "Perfil {{profile}}",
+    "noBaseLayer": "sin capa base compatible",
+    "baseLayer": "capa base compatible con {{range}}",
+    "fullLayer": "capa de mejora completa",
+    "minimalLayer": "capa de mejora mínima"
+  }
+}

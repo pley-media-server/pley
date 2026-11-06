@@ -49,6 +49,20 @@ sub test_aq_the_players_menu_names_qualities_by_the_files_lines()
     tkEqual(aqLadder(40000, 2160, "15m"), ["15m", "12m", "8m", "4m", "2m"], "never above the server's quality")
 end sub
 
+sub test_aq_the_menu_in_french_and_spanish()
+    i18nUse("fr")
+    menu = aqMenuFor({ bitrate: 12000000, width: 1280, height: 720 })
+    tkEqual([menu[0].label, menu[1].label, menu[2].label], ["Original", "Automatique", "8 Mbit/s 720p"])
+    tkEqual(aqLabel("30m"), "30 Mbit/s 4K")
+    tkEqual(aqBitrateLabel(4500, 1080), "4,5 Mbit/s 1080p")
+    tkEqual(aqBitrateLabel(3000, 0), "3 Mbit/s")
+    tkEqual(aqHint("auto"), "S’adapte aux conditions.")
+    i18nUse("es")
+    tkEqual(aqLabel("auto"), "Automática")
+    tkEqual(aqBitrateLabel(4500, 2160), "4,5 Mbps 4K")
+    tkEqual(aqMenu()[2], { id: "30m", label: "30 Mbps 4K", kbps: 30000, lines: 2160 }, "Settings' menu")
+end sub
+
 ' What the menu has picked for a file, as the reports and the user's
 ' remotes say it: the choice where the file offers it, else Original,
 ' which it plays.

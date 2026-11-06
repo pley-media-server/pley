@@ -1,0 +1,34 @@
+{
+  "actions": {
+    "ok": "OK",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "back": "Retour",
+    "tryAgain": "Réessayer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "done": "Terminé",
+    "open": "Ouvrir",
+    "play": "Lire",
+    "resume": "Reprendre",
+    "remove": "Retirer",
+    "seeAll": "Tout voir",
+    "more": "Plus"
+  },
+  "states": {
+    "loading": "Chargement…",
+    "saved": "Enregistré.",
+    "on": "Activé",
+    "off": "Désactivé",
+    "failed": "Ça n’a pas fonctionné"
+  },
+  "errors": {
+    "unreachable": "Le serveur est injoignable.",
+    "signedOut": "Vous avez été déconnecté : reconnectez-vous.",
+    "forbidden": "Pley pour Roku n’a pas le droit de faire cela : utilisez l’application web de Pley.",
+    "gone": "Ceci n’est plus sur le serveur.",
+    "stopped": "La lecture a été arrêtée par l’administrateur du serveur.",
+    "busy": "Le serveur est occupé : réessayez dans un instant.",
+    "status": "Le serveur n’a pas pu répondre (HTTP {{status}})."
+  }
+}

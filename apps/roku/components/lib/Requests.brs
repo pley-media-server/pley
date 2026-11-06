@@ -1,8 +1,9 @@
 ' Requests and Discover (docs/API.md "Requests"): what the summary lets
 ' the person do, TMDB's titles as tiles and pages, a request's stage and
-' what can be done with it, and the words of each, those of every pley
-' app. Plain fields, which the API task makes into ContentNodes
-' (lib/Nodes.brs). Times are unix seconds; zone is fmtZoneSeconds()'s.
+' what can be done with it, and the words of each, those of every Pley
+' app (locales/<language>/requests.json). Plain fields, which the API
+' task makes into ContentNodes (lib/Nodes.brs). Times are unix seconds;
+' zone is fmtZoneSeconds()'s.
 
 ' --- The summary (GET /api/requests/summary) ---
 
@@ -97,8 +98,8 @@ end function
 
 ' "Requests" for a manager, else "Your requests".
 function reqPageName(summary as object) as string
-    if summary.manage = true then return "Requests"
-    return "Your requests"
+    if summary.manage = true then return t("requests.names.manage")
+    return t("requests.names.yours")
 end function
 
 ' The number on what opens the requests: { count, danger }. A manager's
@@ -124,80 +125,81 @@ end function
 
 ' --- Words ---
 
-' "1 movie", "3 movies".
-function reqCount(n as dynamic, one as string, many as string) as string
-    value = Int(httpNumber(n, 0))
-    if value = 1 then return "1 " + one
-    return urlValue(value) + " " + many
-end function
-
 ' "Movie", "Show".
 function reqKindLabel(kind as string) as string
-    if kind = "movie" then return "Movie"
-    return "Show"
+    if kind = "movie" then return t("requests.kind.movie")
+    return t("requests.kind.show")
 end function
 
-' “title”, in curly quotes.
+' “title”, in the language's quotes.
 function reqQuoted(title as string) as string
-    return "“" + title + "”"
+    return t("requests.quoted", { text: title })
 end function
 
 ' What the account may still ask for in the last 7 days, and its limits:
 ' { text, limits }, "" for none. allowance has the summary's fields (a
-' title page's left and times, with the summary's limits).
+' title page's left and times, with the summary's limits). A number left
+' is -1 without a limit, 0 once used up, when more may be asked for at
+' moviesNextAt or seasonsNextAt (0: not known).
 function reqAllowance(allowance as object, now as integer) as object
-    more = []
-    none = []
-    if allowance.moviesLeft > 0
-        more.Push(reqCount(allowance.moviesLeft, "more movie", "more movies"))
-    else if allowance.moviesLeft = 0
-        none.Push({ what: "movies", at: allowance.moviesNextAt })
-    end if
-    if allowance.seasonsLeft > 0
-        more.Push(reqCount(allowance.seasonsLeft, "more season", "more seasons"))
-    else if allowance.seasonsLeft = 0
-        none.Push({ what: "seasons", at: allowance.seasonsNextAt })
-    end if
+    movies = allowance.moviesLeft
+    seasons = allowance.seasonsLeft
+    moviesWhen = ""
+    if allowance.moviesNextAt > 0 then moviesWhen = fmtUntil(allowance.moviesNextAt, now)
+    seasonsWhen = ""
+    if allowance.seasonsNextAt > 0 then seasonsWhen = fmtUntil(allowance.seasonsNextAt, now)
+    moreMovies = ""
+    if movies > 0 then moreMovies = t("requests.allowance.moreMovies", { count: movies })
+    moreSeasons = ""
+    if seasons > 0 then moreSeasons = t("requests.allowance.moreSeasons", { count: seasons })
     text = ""
-    if more.Count() > 0
-        text = "You can ask for " + more.Join(" and ")
-        for each used in none
-            if used.at > 0
-                text = text + ", and for more " + used.what + " " + fmtUntil(used.at, now)
-            else
-                text = text + ", but no more " + used.what + " for now"
-            end if
-        end for
-        text = text + "."
-    else if none.Count() = 1
-        text = "You've asked for all the " + none[0].what + " you can for now"
-        if none[0].at > 0 then text = text + ": you can ask for more " + fmtUntil(none[0].at, now)
-        text = text + "."
-    else if none.Count() = 2
-        when = []
-        for each used in none
-            if used.at > 0 then when.Push("more " + used.what + " " + fmtUntil(used.at, now))
-        end for
-        text = "You've asked for all you can for now"
-        if when.Count() > 0 then text = text + ": " + when.Join(", ")
-        text = text + "."
+    if movies > 0 and seasons > 0
+        text = t("requests.allowance.canAskBoth", { movies: moreMovies, seasons: moreSeasons })
+    else if movies > 0 and seasons = 0
+        text = t("requests.allowance.canAskMoviesNoSeasons", { movies: moreMovies })
+        if seasonsWhen <> "" then text = t("requests.allowance.canAskMoviesSeasonsLater", { movies: moreMovies, when: seasonsWhen })
+    else if seasons > 0 and movies = 0
+        text = t("requests.allowance.canAskSeasonsNoMovies", { seasons: moreSeasons })
+        if moviesWhen <> "" then text = t("requests.allowance.canAskSeasonsMoviesLater", { seasons: moreSeasons, when: moviesWhen })
+    else if movies > 0
+        text = t("requests.allowance.canAsk", { what: moreMovies })
+    else if seasons > 0
+        text = t("requests.allowance.canAsk", { what: moreSeasons })
+    else if movies = 0 and seasons = 0
+        text = t("requests.allowance.allUsedUp")
+        if moviesWhen <> "" and seasonsWhen <> ""
+            text = t("requests.allowance.allUsedUpUntil", { movies: moviesWhen, seasons: seasonsWhen })
+        else if moviesWhen <> ""
+            text = t("requests.allowance.allUsedUpMoviesUntil", { when: moviesWhen })
+        else if seasonsWhen <> ""
+            text = t("requests.allowance.allUsedUpSeasonsUntil", { when: seasonsWhen })
+        end if
+    else if movies = 0
+        text = t("requests.allowance.moviesUsedUp")
+        if moviesWhen <> "" then text = t("requests.allowance.moviesUsedUpUntil", { when: moviesWhen })
+    else if seasons = 0
+        text = t("requests.allowance.seasonsUsedUp")
+        if seasonsWhen <> "" then text = t("requests.allowance.seasonsUsedUpUntil", { when: seasonsWhen })
     end if
-    limits = []
-    if allowance.moviesLimit >= 0 then limits.Push(reqCount(allowance.moviesLimit, "movie", "movies"))
-    if allowance.seasonsLimit >= 0 then limits.Push(reqCount(allowance.seasonsLimit, "season", "seasons"))
     limitText = ""
-    if limits.Count() = 2
-        limitText = "Limits: " + limits.Join(" and ") + " per 7 days."
-    else if limits.Count() = 1
-        limitText = "Limit: " + limits[0] + " per 7 days."
+    moviesLimit = ""
+    if allowance.moviesLimit >= 0 then moviesLimit = t("requests.counts.movies", { count: allowance.moviesLimit })
+    seasonsLimit = ""
+    if allowance.seasonsLimit >= 0 then seasonsLimit = t("requests.counts.seasons", { count: allowance.seasonsLimit })
+    if moviesLimit <> "" and seasonsLimit <> ""
+        limitText = t("requests.allowance.limits", { movies: moviesLimit, seasons: seasonsLimit })
+    else if moviesLimit <> ""
+        limitText = t("requests.allowance.limit", { what: moviesLimit })
+    else if seasonsLimit <> ""
+        limitText = t("requests.allowance.limit", { what: seasonsLimit })
     end if
     return { text: text, limits: limitText }
 end function
 
 ' What asking from this session does, before a movie is asked for.
 function reqAskWords(access as string) as string
-    if access = "auto" then return "Approved as you ask, and sent on to download."
-    return "An administrator decides on it. You'll hear when it's ready to watch."
+    if access = "auto" then return t("requests.asking.auto")
+    return t("requests.asking.decided")
 end function
 
 ' The question before a movie is asked for (a TV's OK is pressed often):
@@ -207,26 +209,32 @@ function reqAskConfirm(title as string, access as string, allowance as object, n
     words = reqAllowance(allowance, now)
     if words.text <> "" then lines.Push(words.text)
     if words.limits <> "" then lines.Push(words.limits)
-    return { title: "Ask for " + reqQuoted(title) + "?", lines: lines }
+    return { title: t("requests.asking.confirm", { title: title }), lines: lines }
+end function
+
+' A show's seasons as the words name them: { numbers (sorted, each once),
+' specials (season 0 among them) }.
+function reqSeasonParts(seasons as dynamic) as object
+    numbers = []
+    specials = false
+    for each value in httpArray(seasons)
+        n = httpNumber(value, -1)
+        if n = 0 then specials = true
+        if n > 0 then numbers = reqWithNumber(numbers, Int(n))
+    end for
+    return { numbers: numbers, specials: specials }
 end function
 
 ' "Season 2", "Seasons 1–3, 5", "Seasons 1–2 and specials", "Specials";
 ' "" for none (movies).
 function reqSeasonsLabel(seasons as dynamic) as string
-    list = httpArray(seasons)
-    if list.Count() = 0 then return ""
-    numbers = []
-    specials = false
-    for each value in list
-        n = httpNumber(value, -1)
-        if n = 0 then specials = true
-        if n > 0 then numbers = reqWithNumber(numbers, Int(n))
-    end for
-    if numbers.Count() = 0 then return "Specials"
-    label = "Seasons "
-    if numbers.Count() = 1 then label = "Season "
-    label = label + reqRanges(numbers)
-    if specials then label = label + " and specials"
+    parts = reqSeasonParts(seasons)
+    if parts.numbers.Count() = 0
+        if parts.specials then return t("requests.seasons.specials")
+        return ""
+    end if
+    label = t("requests.seasons.list", { count: parts.numbers.Count(), list: reqRanges(parts.numbers) })
+    if parts.specials then label = t("requests.seasons.andSpecials", { seasons: label })
     return label
 end function
 
@@ -299,34 +307,33 @@ end function
 ' told where to fix TMDB's key.
 function reqProblem(answer as object, manage as boolean) as dynamic
     code = answer.error
-    if code = "unavailable" then return { title: "Requests are off", text: "This server doesn't take requests for movies and shows.", retry: false, signIn: false }
+    if code = "unavailable" then return { title: t("requests.problem.off"), text: t("requests.problem.offText"), retry: false, signIn: false }
     if code = "tmdb_key"
-        text = "An administrator needs to check it."
-        if manage then text = "Fix it in Pley's web app, in Settings → Server."
-        return { title: "TMDB refused this server's key", text: text, retry: false, signIn: false }
+        text = t("requests.problem.tmdbKeyText")
+        if manage then text = t("requests.problem.tmdbKeyManage")
+        return { title: t("requests.problem.tmdbKey"), text: text, retry: false, signIn: false }
     end if
-    if code = "tmdb_down" then return { title: "TMDB isn't answering", text: "", retry: true, signIn: false }
-    if code = "no_access" then return { title: "Requests aren't open to this account", text: "An administrator can let it ask for movies and shows.", retry: false, signIn: false }
+    if code = "tmdb_down" then return { title: t("requests.problem.tmdbDown"), text: "", retry: true, signIn: false }
+    if code = "no_access" then return { title: t("requests.problem.noAccess"), text: t("requests.problem.noAccessText"), retry: false, signIn: false }
     if code = "insufficient_scope" then return reqSignInAgain()
     return invalid
 end function
 
 ' A sign-in from before apps could ask: Discover shows only this.
 function reqSignInAgain() as object
-    return { title: "Sign in again to ask for movies and shows", text: "", retry: false, signIn: true }
+    return { title: t("requests.problem.signIn"), text: "", retry: false, signIn: true }
 end function
 
 ' What asking (POST /api/requests) did: 201 a new request, 200 following
 ' one asked for already.
 function reqAsked(status as integer, data as dynamic, title as string) as string
-    quoted = reqQuoted(title)
-    if status = 200 then return "You'll hear when " + quoted + " is ready."
+    if status = 200 then return t("requests.asking.following", { title: title })
     request = httpObject(data)
     state = ""
     if request <> invalid then state = httpString(request.status)
-    if state = "approved" or state = "available" then return quoted + " is approved and on its way."
-    if state = "failed" then return "Asked for " + quoted + ", but it couldn't be sent to download yet."
-    return "Asked for " + quoted + ": an administrator decides."
+    if state = "approved" or state = "available" then return t("requests.asking.approved", { title: title })
+    if state = "failed" then return t("requests.asking.failed", { title: title })
+    return t("requests.asking.pending", { title: title })
 end function
 
 ' Why asking didn't work, in a sentence. The days come from retry_at,
@@ -337,18 +344,16 @@ function reqAskProblem(answer as object, allowance as object, kind as string, no
     retry = 0
     if data <> invalid then retry = httpNumber(data.retry_at, 0)
     if answer.error = "declined"
-        if retry > 0 then return "You can ask again " + fmtUntil(retry, now) + "."
+        if retry > 0 then return t("requests.problem.askAgain", { when: fmtUntil(retry, now) })
         return answer.message
     end if
     if answer.error = "too_many_requests"
-        if retry > 0 then return "You can ask for more " + fmtUntil(retry, now) + "."
-        limit = allowance.seasonsLimit
-        what = reqCount(limit, "season", "seasons")
+        if retry > 0 then return t("requests.problem.askMore", { when: fmtUntil(retry, now) })
         if kind = "movie"
-            limit = allowance.moviesLimit
-            what = reqCount(limit, "movie", "movies")
+            if allowance.moviesLimit >= 0 then return t("requests.problem.atMostMovies", { count: allowance.moviesLimit })
+        else if allowance.seasonsLimit >= 0
+            return t("requests.problem.atMostSeasons", { count: allowance.seasonsLimit })
         end if
-        if limit >= 0 then return "You can ask for at most " + what + " per 7 days: pick fewer."
         return answer.message
     end if
     problem = reqProblem(answer, false)
@@ -361,13 +366,13 @@ end function
 ' allowance and kind: Request again's, as reqAskProblem takes them.
 function reqActProblem(answer as object, action as string, allowance as object, kind as string, now as integer) as string
     if action = "ask_again" then return reqAskProblem(answer, allowance, kind, now)
-    if answer.status = 404 then return "This request was deleted meanwhile."
+    if answer.status = 404 then return t("requests.problem.deleted")
     data = httpObject(answer.data)
     retry = 0
     if data <> invalid then retry = httpNumber(data.retry_at, 0)
     if answer.error = "conflict" and retry > 0
-        if action = "withdraw" then return "A declined request stays for 30 days: you can remove it " + fmtUntil(retry, now) + "."
-        return "You can do this " + fmtUntil(retry, now) + "."
+        if action = "withdraw" then return t("requests.problem.removeLater", { when: fmtUntil(retry, now) })
+        return t("requests.problem.doLater", { when: fmtUntil(retry, now) })
     end if
     return answer.message
 end function
@@ -377,11 +382,11 @@ end function
 ' Discover's rows: [{ key (GET /api/discover/{key}), title }].
 function reqLists() as object
     return [
-        { key: "trending", title: "Trending this week" },
-        { key: "movies", title: "Popular movies" },
-        { key: "shows", title: "Popular shows" },
-        { key: "upcoming", title: "Coming to cinemas" },
-        { key: "anime", title: "Popular anime" }
+        { key: "trending", title: t("requests.discover.lists.trending") },
+        { key: "movies", title: t("requests.discover.lists.movies") },
+        { key: "shows", title: t("requests.discover.lists.shows") },
+        { key: "upcoming", title: t("requests.discover.lists.upcoming") },
+        { key: "anime", title: t("requests.discover.lists.anime") }
     ]
 end function
 
@@ -410,26 +415,41 @@ end function
 ' { title, path (asked a page at a time), empty (said when it has none) }.
 function reqSeeAll(list as string, query as string) as object
     words = reqSearchWords(query)
-    if words <> "" then return { title: "Results for " + reqQuoted(words), path: urlWithQuery("/api/discover/search", { q: words }), empty: "Nothing found for " + reqQuoted(words) + "." }
-    title = "Discover"
+    if words <> "" then return { title: t("requests.discover.resultsFor", { query: words }), path: urlWithQuery("/api/discover/search", { q: words }), empty: t("requests.discover.nothingFound", { query: words }) }
+    title = t("requests.names.discover")
     for each known in reqLists()
         if known.key = list then title = known.title
     end for
-    return { title: title, path: "/api/discover/" + list, empty: "Nothing here right now." }
+    return { title: title, path: "/api/discover/" + list, empty: t("requests.discover.nothingHere") }
+end function
+
+' The words a title's tile may have, looked up once for a page of tiles:
+' its kind's and its badge's.
+function reqTitleWords() as object
+    return {
+        movie: t("requests.kind.movie"),
+        show: t("requests.kind.show"),
+        library: t("requests.badge.library"),
+        partial: t("requests.badge.partial"),
+        requested: t("requests.badge.requested"),
+        declined: t("requests.badge.declined")
+    }
 end function
 
 ' A title's badge on its poster: "In library", "Partly in library" (where
 ' the account can open it, else what was asked for: "Requested"),
-' "Requested", "Declined"; "" for none.
-function reqTitleBadge(status as string, itemId as dynamic) as string
-    if status = "library" then return "In library"
+' "Requested", "Declined"; "" for none. words: reqTitleWords(), or
+' invalid to look them up.
+function reqTitleBadge(status as string, itemId as dynamic, words = invalid as dynamic) as string
+    if status <> "library" and status <> "partial" and status <> "requested" and status <> "declined" then return ""
+    if words = invalid then words = reqTitleWords()
+    if status = "library" then return words.library
     if status = "partial"
-        if httpNumber(itemId, 0) > 0 then return "Partly in library"
-        return "Requested"
+        if httpNumber(itemId, 0) > 0 then return words.partial
+        return words.requested
     end if
-    if status = "requested" then return "Requested"
-    if status = "declined" then return "Declined"
-    return ""
+    if status = "requested" then return words.requested
+    return words.declined
 end function
 
 ' The badge's colour: green in a library, the accent asked for, red
@@ -446,7 +466,9 @@ end function
 
 ' A title as a tile: its poster, its name, year and kind, and its badge.
 ' It opens the title's page (Nav.brs); key ("movie:603") finds it again.
-function reqTitleTile(title as object, server as string) as object
+' words: reqTitleWords(), or invalid to look them up.
+function reqTitleTile(title as object, server as string, words = invalid as dynamic) as object
+    if words = invalid then words = reqTitleWords()
     kind = httpString(title.kind)
     tmdbId = httpNumber(title.tmdb_id, 0)
     status = httpString(title.status)
@@ -454,7 +476,11 @@ function reqTitleTile(title as object, server as string) as object
     parts = []
     year = httpNumber(title.year, 0)
     if year > 0 then parts.Push(urlValue(year))
-    parts.Push(reqKindLabel(kind))
+    if kind = "movie"
+        parts.Push(words.movie)
+    else
+        parts.Push(words.show)
+    end if
     return {
         title: httpSentence(title.title),
         subtitle: parts.Join(" · "),
@@ -468,7 +494,7 @@ function reqTitleTile(title as object, server as string) as object
         tmdbId: tmdbId,
         status: status,
         libraryId: libraryId,
-        badge: reqTitleBadge(status, libraryId),
+        badge: reqTitleBadge(status, libraryId, words),
         badgeColor: reqBadgeColor(status, libraryId),
         key: reqKey(kind, tmdbId)
     }
@@ -479,6 +505,7 @@ end function
 ' seen gets the new ones.
 function reqTitleTiles(results as dynamic, server as string, seen as object) as object
     tiles = []
+    words = reqTitleWords()
     for each title in httpArray(results)
         if GetInterface(title, "ifAssociativeArray") <> invalid
             kind = httpString(title.kind)
@@ -486,7 +513,7 @@ function reqTitleTiles(results as dynamic, server as string, seen as object) as 
             key = reqKey(kind, tmdbId)
             if (kind = "movie" or kind = "show") and tmdbId > 0 and not seen.DoesExist(key)
                 seen[key] = true
-                tiles.Push(reqTitleTile(title, server))
+                tiles.Push(reqTitleTile(title, server, words))
             end if
         end if
     end for
@@ -511,7 +538,7 @@ end function
 ' Request more seasons, at the end of a library's show's seasons: it
 ' opens the show's page on TMDB with its season picker.
 function reqAskMoreTile(tmdbKind as string, tmdbId as dynamic, title as string) as object
-    return { title: "Request more seasons", subtitle: "", image: "", wide: false, progress: 0.0, watched: false, itemId: 0, kind: "askMore", tmdbKind: tmdbKind, tmdbId: Int(httpNumber(tmdbId, 0)), showTitle: title, badge: "", badgeColor: "0x38BDF8FF", key: "askMore" }
+    return { title: t("requests.buttons.requestMoreSeasons"), subtitle: "", image: "", wide: false, progress: 0.0, watched: false, itemId: 0, kind: "askMore", tmdbKind: tmdbKind, tmdbId: Int(httpNumber(tmdbId, 0)), showTitle: title, badge: "", badgeColor: "0x38BDF8FF", key: "askMore" }
 end function
 
 ' A row's one tile instead of titles, its words in its frame: kind
@@ -526,7 +553,7 @@ end function
 ' Select to try again.") and else only says so ("TMDB refused this
 ' server's key.").
 function reqSearchProblemTile(answer as object, manage as boolean) as object
-    return reqProblemTile(answer, manage, "Couldn't load these.")
+    return reqProblemTile(answer, manage, t("requests.tiles.theseFailed"))
 end function
 
 ' The tile that ends a grid of TMDB's titles whose next page failed
@@ -534,15 +561,15 @@ end function
 ' again."), unless trying again can't help ("TMDB refused this server's
 ' key.").
 function reqMoreProblemTile(answer as object, manage as boolean) as object
-    return reqProblemTile(answer, manage, "Couldn't load more.")
+    return reqProblemTile(answer, manage, t("requests.tiles.moreFailed"))
 end function
 
 ' What stops TMDB's titles (answer) as a tile, which asks again where that
-' may help; failed says any other failure.
+' may help; failed says any other failure, and to select it.
 function reqProblemTile(answer as object, manage as boolean, failed as string) as object
     problem = reqProblem(answer, manage)
-    if problem = invalid then return reqNoticeTile(failed + " Select to try again.", "retry")
-    if problem.retry then return reqNoticeTile(problem.title + ". Select to try again.", "retry")
+    if problem = invalid then return reqNoticeTile(failed, "retry")
+    if problem.retry then return reqNoticeTile(t("requests.tiles.problemRetry", { problem: problem.title }), "retry")
     return reqNoticeTile(problem.title + ".", "note")
 end function
 
@@ -558,7 +585,7 @@ end function
 ' The tile that ends such a grid once five pages came with more left: it
 ' asks for the next ones.
 function reqFurtherTile() as object
-    return reqNoticeTile("More may follow. Select to look further.", "further")
+    return reqNoticeTile(t("requests.tiles.further"), "further")
 end function
 
 ' A title's badge as its page answered (GET /api/discover/{kind}/
@@ -606,21 +633,21 @@ function reqHero(title as object, summary as object, server as string, now as in
     actions = []
     note = ""
     if tile.libraryId > 0 and (tile.status = "library" or tile.status = "partial")
-        buttons.Push("Open")
+        buttons.Push(t("common.actions.open"))
         actions.Push("open")
     end if
     if reqMayAsk(summary) and (tile.status = "none" or tile.status = "partial")
         if remaining = 0
             note = reqAllowance(summary, now).text
         else if tile.status = "none"
-            buttons.Push("Request")
+            buttons.Push(t("requests.buttons.request"))
             actions.Push("request")
         else
-            buttons.Push("Request more seasons")
+            buttons.Push(t("requests.buttons.requestMoreSeasons"))
             actions.Push("request")
         end if
     end if
-    buttons.Push("Details")
+    buttons.Push(t("requests.buttons.details"))
     actions.Push("details")
     return {
         title: tile.title,
@@ -699,7 +726,7 @@ function reqDetailLine(detail as object) as string
         for each season in httpArray(detail.seasons)
             if GetInterface(season, "ifAssociativeArray") <> invalid and httpNumber(season.number, 0) > 0 then count = count + 1
         end for
-        if count > 0 then parts.Push(reqCount(count, "season", "seasons"))
+        if count > 0 then parts.Push(t("requests.counts.seasons", { count: count }))
     else
         minutes = httpNumber(detail.runtime_minutes, 0)
         if minutes > 0 then parts.Push(fmtDuration(minutes * 60000))
@@ -715,14 +742,16 @@ end function
 ' 12 days."; without a reason, "Declined. You can ask again …".
 function reqDeclinedText(declined as dynamic, now as integer) as string
     info = httpObject(declined)
-    if info = invalid then return "Declined."
-    text = "Declined"
+    if info = invalid then return t("requests.declined.plain")
     reason = httpSentence(info.reason)
-    if reason <> "" then text = text + ": " + reqQuoted(reason)
-    text = text + "."
     again = httpNumber(info.again_at, 0)
-    if again > now then text = text + " You can ask again " + fmtUntil(again, now) + "."
-    return text
+    if again > now
+        when = fmtUntil(again, now)
+        if reason <> "" then return t("requests.declined.becauseWhen", { reason: reason, when: when })
+        return t("requests.declined.when", { when: when })
+    end if
+    if reason <> "" then return t("requests.declined.because", { reason: reason })
+    return t("requests.declined.plain")
 end function
 
 ' Whether a season can be asked for: missing, partly in a library or not
@@ -774,8 +803,8 @@ function reqSeasonName(season as object) as string
     name = httpSentence(season.name)
     if name <> "" then return name
     number = httpNumber(season.number, 0)
-    if number = 0 then return "Specials"
-    return "Season " + urlValue(number)
+    if number = 0 then return t("requests.seasons.specials")
+    return t("requests.seasons.season", { number: urlValue(number) })
 end function
 
 ' How a season stands for the account, from its state (never from its
@@ -786,8 +815,8 @@ function reqSeasonState(season as object, byId as object, withStage as boolean, 
     state = httpString(season.state)
     out = { text: "", badge: "", color: "0x38BDF8FF", progress: 0.0 }
     if state = "requested"
-        out.text = "Requested"
-        out.badge = "Requested"
+        out.text = t("requests.season.requested")
+        out.badge = out.text
         key = urlValue(httpNumber(season.request_id, 0))
         if withStage and byId.DoesExist(key)
             stage = reqStage(byId[key], manage, now, zone)
@@ -795,22 +824,22 @@ function reqSeasonState(season as object, byId as object, withStage as boolean, 
             if stage.progress > 0 then out.progress = stage.progress
         end if
     else if state = "library"
-        out.text = "In library"
-        out.badge = "In library"
+        out.text = t("requests.season.library")
+        out.badge = out.text
         out.color = "0x3FB27FFF"
     else if httpTrue(season.declined)
-        out.text = "Declined"
-        out.badge = "Declined"
+        out.text = t("requests.season.declined")
+        out.badge = out.text
         out.color = "0xEB6B70FF"
     else if state = "unaired"
-        out.text = "Not aired yet"
+        out.text = t("requests.season.notAired")
         day = fmtDateText(season.air_date, now, zone)
-        if day <> "" then out.text = "Airs " + day
+        if day <> "" then out.text = t("requests.season.airs", { day: day })
     else if state = "partial"
-        out.text = urlValue(httpNumber(season.in_library, 0)) + " of " + urlValue(httpNumber(season.aired, 0)) + " episodes in library"
+        out.text = t("requests.season.partial", { count: httpNumber(season.in_library, 0), episodes: httpNumber(season.aired, 0) })
     else
         episodes = httpNumber(season.episodes, 0)
-        if episodes > 0 then out.text = reqCount(episodes, "episode", "episodes")
+        if episodes > 0 then out.text = t("requests.counts.episodes", { count: episodes })
     end if
     return out
 end function
@@ -860,9 +889,9 @@ end function
 function reqDetailRows(detail as object, server as string, manage as boolean, now as integer, zone as integer) as object
     rows = []
     seasons = reqSeasonTiles(detail, server, manage, now, zone)
-    if seasons.Count() > 0 then rows.Push({ key: "seasons", title: "Seasons", tiles: seasons })
+    if seasons.Count() > 0 then rows.Push({ key: "seasons", title: t("requests.title.seasons"), tiles: seasons })
     cast = reqCastTiles(detail, server)
-    if cast.Count() > 0 then rows.Push({ key: "cast", title: "Cast", tiles: cast })
+    if cast.Count() > 0 then rows.Push({ key: "cast", title: t("requests.title.cast"), tiles: cast })
     return rows
 end function
 
@@ -885,7 +914,7 @@ function reqTitlePage(detail as object, summary as object, server as string, now
     ' Asking needs access, and something of this kind left to ask for.
     blocked = ""
     if summary.access = "off"
-        blocked = "Requests aren't open to this account."
+        blocked = t("requests.title.notOpen")
     else if remaining = 0
         blocked = reqAllowance(allowance, now).text
     end if
@@ -895,39 +924,39 @@ function reqTitlePage(detail as object, summary as object, server as string, now
     if summary.signInAgain = "requests"
         again = reqSignInAgain()
         note = again.title + "."
-        buttons.Push("Sign in")
+        buttons.Push(t("requests.buttons.signIn"))
         actions.Push("signIn")
     else if status = "restricted"
         note = httpSentence(detail.restriction)
     else if status = "library"
         if itemId > 0
-            buttons.Push("Open")
+            buttons.Push(t("common.actions.open"))
             actions.Push("open")
         end if
     else if status = "declined"
         note = reqDeclinedText(detail.declined, now)
     else if status = "requested"
         if reqHasMine(detail)
-            note = "Requested"
+            note = t("requests.title.requested")
         else if httpTrue(detail.watching)
-            note = "Following"
+            note = t("requests.following")
         else if summary.access = "off"
             note = blocked
         else
-            buttons.Push("Tell me too")
+            buttons.Push(t("requests.buttons.tellMeToo"))
             actions.Push("follow")
-            note = "Someone asked for it already."
+            note = t("requests.title.askedAlready")
         end if
     else if status = "partial"
         if itemId > 0
-            buttons.Push("Open")
+            buttons.Push(t("common.actions.open"))
             actions.Push("open")
         end if
         if reqCanAskMore(detail.seasons, false)
             if blocked <> ""
                 note = blocked
             else
-                buttons.Push("Request more seasons")
+                buttons.Push(t("requests.buttons.requestMoreSeasons"))
                 actions.Push("pick")
             end if
         end if
@@ -935,7 +964,7 @@ function reqTitlePage(detail as object, summary as object, server as string, now
         if blocked <> ""
             note = blocked
         else
-            buttons.Push("Request")
+            buttons.Push(t("requests.buttons.request"))
             if kind = "show"
                 actions.Push("pick")
             else
@@ -1028,13 +1057,13 @@ end function
 ' season"), line shown instead of it }: "Pick a season." with none
 ' ticked, the allowance with more ticked than may be asked for.
 function reqPickerButton(ticked as integer, remaining as integer, allowance as string) as object
-    if ticked = 0 then return { label: "", line: "Pick a season." }
+    if ticked = 0 then return { label: "", line: t("requests.picker.pickOne") }
     if remaining >= 0 and ticked > remaining
         line = allowance
-        if line = "" then line = "You can ask for " + reqCount(remaining, "more season", "more seasons") + "."
+        if line = "" then line = t("requests.allowance.canAsk", { what: t("requests.allowance.moreSeasons", { count: remaining }) })
         return { label: "", line: line }
     end if
-    return { label: "Request " + reqCount(ticked, "season", "seasons"), line: "" }
+    return { label: t("requests.picker.request", { count: ticked }), line: "" }
 end function
 
 ' What a library's title page shows of requests (GET /api/items/{id}/
@@ -1065,53 +1094,57 @@ function reqStage(request as object, manage as boolean, now as integer, zone as 
     download = httpObject(request.download)
     if download <> invalid then out.progress = reqProgress(download.progress)
     if stage = "pending"
-        out.text = "Waiting for approval"
+        out.text = t("requests.stage.pending")
         out.tone = "pending"
     else if stage = "approved"
-        out.text = "Approved"
+        out.text = t("requests.stage.approved")
         out.tone = "active"
     else if stage = "waiting"
         out.text = reqWaitingText(request, now, zone)
         out.tone = "active"
     else if stage = "searching"
-        out.text = "Searching"
+        out.text = t("requests.stage.searching")
         out.tone = "active"
     else if stage = "downloading"
-        out.text = "Downloading"
         out.tone = "active"
         if download <> invalid
             out.text = reqDownloadText(download, now)
             if httpString(download.state) = "warning" then out.tone = "problem"
+        else
+            out.text = t("requests.stage.downloading")
         end if
     else if stage = "importing"
-        out.text = "Adding to the library"
+        out.text = t("requests.stage.importing")
         out.tone = "active"
     else if stage = "partial"
-        out.text = "Partly in library"
         label = reqSeasonsLabel(request.available_seasons)
-        if label <> "" then out.text = label + " ready"
+        if label <> ""
+            out.text = t("requests.stage.partial", { seasons: label })
+        else
+            out.text = t("requests.stage.partly")
+        end if
         out.tone = "ready"
     else if stage = "available"
-        out.text = "Ready to watch"
+        out.text = t("requests.stage.available")
         out.tone = "ready"
     else if stage = "gone"
-        out.text = "No longer in a library"
+        out.text = t("requests.stage.gone")
         out.tone = "gone"
     else if stage = "declined"
-        out.text = "Declined"
+        out.text = t("requests.stage.declined")
         out.tone = "problem"
     else if stage = "failed"
         out.tone = "problem"
         reason = httpSentence(request.reason)
         if manage
-            out.text = "Couldn't send"
-            if reason <> "" then out.text = out.text + ": " + reason
+            out.text = t("requests.stage.failed")
+            if reason <> "" then out.text = t("requests.stage.failedBecause", { reason: reason })
         else
-            out.text = "Not sent yet"
-            out.line = "It couldn't be sent to download yet: an administrator will look at it."
+            out.text = t("requests.stage.notSent")
+            out.line = t("requests.stage.notSentLine")
         end if
         retry = httpNumber(request.retry_at, 0)
-        if retry > 0 then out.line = "Trying again " + fmtUntil(retry, now) + "."
+        if retry > 0 then out.line = t("requests.stage.retry", { when: fmtUntil(retry, now) })
     end if
     return out
 end function
@@ -1122,14 +1155,14 @@ end function
 ' release by its day only: a movie's is never a time.
 function reqWaitingText(request as object, now as integer, zone as integer) as string
     at = httpNumber(request.stage_at, 0)
-    if at <= 0 then return "Not out yet"
-    if httpString(request.kind) = "movie" then return "Out " + fmtDay(at, now, zone)
+    if at <= 0 then return t("requests.stage.notOut")
+    if httpString(request.kind) = "movie" then return t("requests.stage.out", { day: fmtDay(at, now, zone) })
     if at > now and at - now < 86400
         clock = fmtTimeOfDay(at, zone)
-        if fmtMonthDay(at, zone, true) = fmtMonthDay(now, zone, true) then return "Airs " + clock
-        return "Airs tomorrow at " + clock
+        if fmtMonthDay(at, zone, true) = fmtMonthDay(now, zone, true) then return t("requests.stage.airsAt", { time: clock })
+        return t("requests.stage.airsTomorrow", { time: clock })
     end if
-    return "Airs " + fmtDay(at, now, zone)
+    return t("requests.stage.airs", { day: fmtDay(at, now, zone) })
 end function
 
 ' What a download does: "Downloading 42% · in 20 min", "Waiting to
@@ -1137,14 +1170,14 @@ end function
 ' the library".
 function reqDownloadText(download as object, now as integer) as string
     state = httpString(download.state)
-    if state = "queued" then return "Waiting to download"
-    if state = "paused" then return "Download paused"
-    if state = "warning" then return "The download has a problem"
-    if state = "importing" then return "Adding to the library"
-    text = "Downloading " + urlValue(Int(reqProgress(download.progress) * 100 + 0.5)) + "%"
+    if state = "queued" then return t("requests.download.queued")
+    if state = "paused" then return t("requests.download.paused")
+    if state = "warning" then return t("requests.download.warning")
+    if state = "importing" then return t("requests.stage.importing")
+    percent = Int(reqProgress(download.progress) * 100 + 0.5)
     eta = httpNumber(download.eta, 0)
-    if eta > now then text = text + " · " + fmtUntil(eta, now)
-    return text
+    if eta > now then return t("requests.download.progressUntil", { percent: percent, when: fmtUntil(eta, now) })
+    return t("requests.download.progress", { percent: percent })
 end function
 
 function reqProgress(value as dynamic) as float
@@ -1166,12 +1199,13 @@ end function
 ' Who asked, and when: "Asked for by Ann · 3 days ago", "Asked for by you
 ' · now", "Asked for by someone else · yesterday".
 function reqWho(request as object, now as integer, zone as integer) as string
-    who = "Asked for by someone else"
     by = httpObject(request.requested_by)
     if httpTrue(request.mine)
-        who = "Asked for by you"
+        who = t("requests.asked.byYou")
     else if by <> invalid and httpSentence(by.name) <> ""
-        who = "Asked for by " + httpSentence(by.name)
+        who = t("requests.asked.byName", { name: httpSentence(by.name) })
+    else
+        who = t("requests.asked.bySomeone")
     end if
     return who + " · " + fmtAgo(request.created_at, now, zone)
 end function
@@ -1190,14 +1224,14 @@ function reqRow(request as object, server as string, manage as boolean, now as i
     parts.Push(reqKindLabel(kind))
     seasons = reqSeasonsLabel(request.seasons)
     if seasons <> "" then parts.Push(seasons)
-    if httpTrue(request.watching) and not httpTrue(request.mine) then parts.Push("Following")
+    if httpTrue(request.watching) and not httpTrue(request.mine) then parts.Push(t("requests.following"))
     lines = []
     if stage.line <> "" then lines.Push(stage.line)
     status = httpString(request.status)
     reason = httpSentence(request.reason)
     if status = "declined" and reason <> "" then lines.Push(reqQuoted(reason))
     libraryId = httpNumber(request.item_id, 0)
-    if libraryId = 0 and (stage.tone = "ready") then lines.Push("Ready, in a library you can't open: ask an administrator")
+    if libraryId = 0 and (stage.tone = "ready") then lines.Push(t("requests.stage.outOfReach"))
     note = httpSentence(request.note)
     if note <> "" then lines.Push(note)
     return {
@@ -1313,27 +1347,43 @@ function reqActions(request as object, itemId as dynamic) as object
     options = []
     status = httpString(request.status)
     stage = httpString(request.stage)
-    if httpNumber(itemId, 0) > 0 and (stage = "available" or stage = "partial") then options.Push({ label: "Watch", action: "watch" })
-    labels = { withdraw: "Withdraw", unwatch: "Stop following", approve: "Approve", retry: "Try again", decline: "Decline", handled: "Mark as added by hand", delete: "Delete", ask_again: "Request again" }
+    if httpNumber(itemId, 0) > 0 and (stage = "available" or stage = "partial") then options.Push({ label: t("requests.actions.watch"), action: "watch" })
     for each action in httpArray(request.actions)
-        if GetInterface(action, "ifString") <> invalid and labels.DoesExist(action)
-            label = labels[action]
-            if action = "withdraw" and status = "declined" then label = "Remove"
+        label = ""
+        if GetInterface(action, "ifString") <> invalid then label = reqActionLabel(action, status)
+        if label <> ""
             options.Push({ label: label, action: action })
-            if action = "decline" then options.Push({ label: "Decline with a reason…", action: "declineReason" })
+            if action = "decline" then options.Push({ label: t("requests.actions.declineReason"), action: "declineReason" })
         end if
     end for
     return options
+end function
+
+' An action's words on its button (the server's names), "" for one the
+' app doesn't offer. Withdraw takes a declined request away: Remove.
+function reqActionLabel(action as string, status as string) as string
+    if action = "withdraw"
+        if status = "declined" then return t("common.actions.remove")
+        return t("requests.actions.withdraw")
+    end if
+    if action = "unwatch" then return t("requests.actions.unwatch")
+    if action = "approve" then return t("requests.actions.approve")
+    if action = "retry" then return t("common.actions.tryAgain")
+    if action = "decline" then return t("requests.actions.decline")
+    if action = "handled" then return t("requests.actions.handled")
+    if action = "delete" then return t("common.actions.delete")
+    if action = "ask_again" then return t("requests.actions.askAgain")
+    return ""
 end function
 
 ' The question an action asks first: { message, button }, or invalid for
 ' none.
 function reqConfirm(action as string, title as string, status as string) as dynamic
     if action = "withdraw"
-        if status = "declined" then return { message: "Remove " + reqQuoted(title) + " from your requests?", button: "Remove" }
-        return { message: "Withdraw your request for " + reqQuoted(title) + "?", button: "Withdraw" }
+        if status = "declined" then return { message: t("requests.confirm.remove", { title: title }), button: t("common.actions.remove") }
+        return { message: t("requests.confirm.withdraw", { title: title }), button: t("requests.actions.withdraw") }
     end if
-    if action = "delete" then return { message: "Delete this request? Radarr and Sonarr keep what they have.", button: "Delete" }
+    if action = "delete" then return { message: t("requests.confirm.delete"), button: t("common.actions.delete") }
     return invalid
 end function
 
@@ -1376,28 +1426,36 @@ end function
 ' managers' Yours, and everyone else's every tab); filtered, something
 ' is looked for.
 function reqEmptyText(view as string, mine as boolean, filtered as boolean) as string
-    if filtered then return "Nothing matches."
-    of = ""
-    if mine then of = " of yours"
-    if view = "attention" then return "Nothing needs your attention."
-    if view = "pending" then return "No requests" + of + " wait for a decision."
-    if view = "approved" then return "No requests" + of + " are on their way."
-    if view = "available" then return "No requests" + of + " are ready to watch yet."
-    if view = "declined" then return "No requests" + of + " were declined."
-    if view = "failed" then return "No requests" + of + " failed."
-    if mine then return "You haven't asked for anything yet."
-    return "No one has asked for anything yet."
+    if filtered then return t("requests.page.empty.match")
+    if view = "attention" then return t("requests.page.empty.attention")
+    if mine
+        if view = "pending" then return t("requests.page.empty.yours.pending")
+        if view = "approved" then return t("requests.page.empty.yours.approved")
+        if view = "available" then return t("requests.page.empty.yours.available")
+        if view = "declined" then return t("requests.page.empty.yours.declined")
+        if view = "failed" then return t("requests.page.empty.yours.failed")
+        return t("requests.page.empty.yours.none")
+    end if
+    if view = "pending" then return t("requests.page.empty.everyone.pending")
+    if view = "approved" then return t("requests.page.empty.everyone.approved")
+    if view = "available" then return t("requests.page.empty.everyone.available")
+    if view = "declined" then return t("requests.page.empty.everyone.declined")
+    if view = "failed" then return t("requests.page.empty.everyone.failed")
+    return t("requests.page.empty.everyone.none")
 end function
 
 ' The requests' tabs: [{ key, label }]. A manager opens on Needs
 ' attention and has Yours; everyone else sees their own.
 function reqTabs(manage as boolean) as object
     tabs = []
-    if manage then tabs.Push({ key: "attention", label: "Needs attention" })
-    for each entry in [["all", "All"], ["pending", "Pending"], ["approved", "Approved"], ["available", "Available"], ["declined", "Declined"], ["failed", "Failed"]]
-        tabs.Push({ key: entry[0], label: entry[1] })
-    end for
-    if manage then tabs.Push({ key: "mine", label: "Yours" })
+    if manage then tabs.Push({ key: "attention", label: t("requests.page.tabs.attention") })
+    tabs.Push({ key: "all", label: t("requests.page.tabs.all") })
+    tabs.Push({ key: "pending", label: t("requests.page.tabs.pending") })
+    tabs.Push({ key: "approved", label: t("requests.page.tabs.approved") })
+    tabs.Push({ key: "available", label: t("requests.page.tabs.available") })
+    tabs.Push({ key: "declined", label: t("requests.page.tabs.declined") })
+    tabs.Push({ key: "failed", label: t("requests.page.tabs.failed") })
+    if manage then tabs.Push({ key: "mine", label: t("requests.page.tabs.mine") })
     return tabs
 end function
 
@@ -1493,11 +1551,11 @@ end function
 ' "Movies · Ann · “star”".
 function reqFilterLabel(kind as string, person as string, q as string) as string
     parts = []
-    if kind = "movie" then parts.Push("Movies")
-    if kind = "show" then parts.Push("Shows")
+    if kind = "movie" then parts.Push(t("requests.filters.kinds.movie"))
+    if kind = "show" then parts.Push(t("requests.filters.kinds.show"))
     if person <> "" then parts.Push(person)
     if q <> "" then parts.Push(reqQuoted(q))
-    if parts.Count() = 0 then return "Filter"
+    if parts.Count() = 0 then return t("requests.filters.filter")
     return parts.Join(" · ")
 end function
 
@@ -1505,14 +1563,15 @@ end function
 
 ' "“X” is ready to watch.", "Season 2 of “X” is ready to watch.",
 ' "Seasons 1–2 of “X” are ready to watch.": what became ready, seasons
-' invalid once the whole request is.
+' invalid once the whole request is. The seasons and the specials count
+' as one each for the verb.
 function reqReadyText(title as string, kind as string, seasons as dynamic) as string
-    quoted = reqQuoted(title)
-    label = reqSeasonsLabel(seasons)
-    if kind <> "show" or label = "" then return quoted + " is ready to watch."
-    verb = " are"
-    if Left(label, 7) = "Season " and Instr(1, label, " and ") = 0 then verb = " is"
-    return label + " of " + quoted + verb + " ready to watch."
+    parts = reqSeasonParts(seasons)
+    count = parts.numbers.Count()
+    if parts.specials then count = count + 1
+    if kind <> "show" or count = 0 then return t("requests.news.ready", { title: title })
+    if parts.numbers.Count() = 0 then return t("requests.news.specialsReady", { title: title })
+    return t("requests.news.seasonsReady", { count: count, seasons: reqSeasonsLabel(seasons), title: title })
 end function
 
 ' One notice for what is newly ready: a title's words and poster, or "3
@@ -1524,7 +1583,7 @@ function reqNotice(announced as object, server as string) as object
         one = announced[0]
         return { text: reqReadyText(one.title, one.kind, one.seasons), itemId: one.itemId, poster: urlImage(server, one.poster, reqNoticePosterWidth()) }
     end if
-    return { text: urlValue(announced.Count()) + " of your requests have news", itemId: 0, poster: "" }
+    return { text: t("requests.news.several", { count: announced.Count() }), itemId: 0, poster: "" }
 end function
 
 ' The notice's poster, 80 pixels wide.

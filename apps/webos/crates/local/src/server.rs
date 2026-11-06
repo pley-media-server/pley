@@ -48,9 +48,10 @@ pub const EXTRACT_WAIT: Duration = Duration::from_secs(1);
 const SERVER: &str = "local";
 /// The address of a text track of the file's own: `embedded:3`.
 const EMBEDDED: &str = "embedded:";
-/// Why a conversion can't be had (409 `local_file`).
-pub const NOTHING_CONVERTS: &str =
-    "This TV can't play this file as it is, and a file on a drive has no server to convert it";
+/// Why a conversion can't be had (409 `local_file`), in the language shown: the player shows it.
+pub fn nothing_converts() -> &'static str {
+    pley_i18n::t!("player.errors.driveCantConvert")
+}
 
 /// What the file says of itself, read once.
 struct Described {
@@ -395,7 +396,7 @@ impl PlayerServer for LocalServer {
             return Err(ApiError::Status {
                 status: 409,
                 code: "local_file".into(),
-                message: NOTHING_CONVERTS.into(),
+                message: nothing_converts().into(),
                 body: None,
             });
         }

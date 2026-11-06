@@ -10,6 +10,14 @@ describes how they are made.
 
 ### Added
 
+- Pley in French and Spanish: the app shows your profile's language, else
+  the one picked on this TV, else the TV's, else the server's, and starts
+  in the last one it showed. A globe at the bottom right of Choose your
+  server and the address screen, and at the top right of the sign-in code,
+  picks the TV's language before anyone signs in: Automatic (the TV's
+  own), English, Français or Español. Settings → Profile → Language
+  chooses it for your profile on every device, or Automatic; on a server
+  from before languages, the row keeps your choice on this TV.
 - Someone on another profile of the household plays something on the TV
   from their phone or browser: the TV switches to their profile first
   (their own device asked for its PIN), then plays it. A switch that fails
@@ -21,6 +29,8 @@ describes how they are made.
 
 ### Changed
 
+- Choose your server's logo is the size of the sign-in code's, the word
+  closer to the mark, as on the other TVs.
 - The TV starts straight into Home as the profile it was left on when it
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch

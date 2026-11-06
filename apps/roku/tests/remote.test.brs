@@ -333,3 +333,16 @@ sub test_remote_notices_the_track_or_quality_picked()
     tkEqual(remoteQualityNotice({ act: "none", quality: "", report: true }, menu), "", "the one picked already")
     tkEqual(remoteQualityNotice({ act: "quality", quality: "30m", report: true }, menu), "")
 end sub
+
+sub test_remote_notices_in_french_and_spanish()
+    playing = { kind: "video", session: "s1", playing: true, positionMs: 600000, durationMs: 7200000, hasNext: true, index: 0 }
+    i18nUse("fr")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "pause" }), "En pause")
+    tkEqual(remoteTestNotice(playing, { session_id: "s1", command: "seek", position_ms: 754000 }), "Position" + Chr(160) + ": 12:34")
+    tracks = mediaTracks(mediaTestFile())
+    tkEqual(remoteTrackNotice({ act: "audio", index: 2, report: true }, tracks), "Audio" + Chr(160) + ": Français (AC3 5.1)")
+    tkEqual(remoteTrackNotice({ act: "subtitles", index: -1, report: true }, tracks), "Sous-titres désactivés")
+    i18nUse("es")
+    tkEqual(remoteTrackNotice({ act: "subtitles", index: 4, report: true }, mediaTracks(mediaTestFile())), "Subtítulos: Inglés – SDH (SRT)")
+    tkEqual(remoteQualityNotice({ act: "quality", quality: "auto", report: true }, aqMenuFor(invalid)), "Calidad: Automática")
+end sub

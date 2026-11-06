@@ -2,8 +2,8 @@
 //! sort names, counts, smart filters in Plex's syntax and in words. Ported from the TV app's
 //! `library-data.ts` and the Android app's `LibraryParams.kt` and `SmartFilter.kt`.
 
-use pley_core::format::grouped;
 use pley_core::model::{LibraryKind, LibraryQuery, LibrarySort, RangeFilter, ResolutionFilter, SortOrder};
+use pley_i18n::t;
 use pley_shell::LibraryTab;
 
 use crate::tiles::Quality;
@@ -45,15 +45,15 @@ pub fn sorts_for(kind: LibraryKind) -> &'static [LibrarySort] {
 /// A sort's name on its chip and in the Sort panel.
 pub fn sort_label(sort: LibrarySort) -> &'static str {
     match sort {
-        LibrarySort::Title => "Title",
-        LibrarySort::Year => "Year",
-        LibrarySort::Added => "Date added",
-        LibrarySort::Rating => "Rating",
-        LibrarySort::UserRating => "Your rating",
-        LibrarySort::Release => "Release date",
-        LibrarySort::Duration => "Duration",
-        LibrarySort::LastPlayed => "Last played",
-        LibrarySort::Bitrate => "Bitrate",
+        LibrarySort::Title => t!("library.sorts.title"),
+        LibrarySort::Year => t!("library.sorts.year"),
+        LibrarySort::Added => t!("library.sorts.added"),
+        LibrarySort::Rating => t!("library.sorts.rating"),
+        LibrarySort::UserRating => t!("library.sorts.userRating"),
+        LibrarySort::Release => t!("library.sorts.release"),
+        LibrarySort::Duration => t!("library.sorts.duration"),
+        LibrarySort::LastPlayed => t!("library.sorts.lastPlayed"),
+        LibrarySort::Bitrate => t!("library.sorts.bitrate"),
     }
 }
 
@@ -123,10 +123,10 @@ pub fn resolution_label(resolution: ResolutionFilter) -> &'static str {
 }
 
 /// A dynamic range as its chip and the Dynamic range panel name it: HDR10 and HDR10+ as plain
-/// "HDR" and "HDR+", as on the posters.
+/// "HDR" and "HDR+", as on the posters; only "Any HDR" is said in the language shown.
 pub fn range_label(range: RangeFilter) -> &'static str {
     match range {
-        RangeFilter::Hdr => "Any HDR",
+        RangeFilter::Hdr => t!("library.anyHdr"),
         RangeFilter::DolbyVision => "Dolby Vision",
         RangeFilter::Hdr10Plus => "HDR+",
         RangeFilter::Hdr10 => "HDR",
@@ -153,9 +153,9 @@ pub fn tabs_for(kind: LibraryKind) -> &'static [LibraryTab] {
 /// A tab's name.
 pub fn tab_label(tab: LibraryTab) -> &'static str {
     match tab {
-        LibraryTab::Recommended => "Recommended",
-        LibraryTab::Library => "Library",
-        LibraryTab::Collections => "Collections",
+        LibraryTab::Recommended => t!("library.tabs.recommended"),
+        LibraryTab::Library => t!("library.tabs.library"),
+        LibraryTab::Collections => t!("library.tabs.collections"),
     }
 }
 
@@ -183,35 +183,27 @@ pub fn see_all_sort(hub_key: &str) -> Option<LibrarySort> {
 /// The count beside the chips: "1,500 movies", "1 show", "12 artists"; filtered, "23 of 1,500
 /// movies" (the plurals of `strings_tv_library.xml`, which follow the larger number).
 pub fn count_label(n: i64, kind: LibraryKind, of: Option<i64>) -> String {
-    let m = of.unwrap_or(n);
-    let noun = match (kind, m == 1) {
-        (LibraryKind::Movies, true) => "movie",
-        (LibraryKind::Movies, false) => "movies",
-        (LibraryKind::Shows, true) => "show",
-        (LibraryKind::Shows, false) => "shows",
-        (_, true) => "artist",
-        (_, false) => "artists",
-    };
-    match of {
-        Some(of) => format!("{} of {} {noun}", grouped(n), grouped(of)),
-        None => format!("{} {noun}", grouped(n)),
+    match (kind, of) {
+        (LibraryKind::Movies, Some(of)) => t!("library.countOf.movies", shown = n, count = of),
+        (LibraryKind::Shows, Some(of)) => t!("library.countOf.shows", shown = n, count = of),
+        (_, Some(of)) => t!("library.countOf.artists", shown = n, count = of),
+        (LibraryKind::Movies, None) => t!("library.count.movies", count = n),
+        (LibraryKind::Shows, None) => t!("library.count.shows", count = n),
+        (_, None) => t!("library.count.artists", count = n),
     }
 }
 
 /// "12 collections", "1 collection".
 pub fn collections_label(n: usize) -> String {
-    format!("{} {}", grouped(n as i64), if n == 1 { "collection" } else { "collections" })
+    t!("library.count.collections", count = n)
 }
 
 /// A collection's size: "12 movies", or "3 shows" in a library of shows.
 pub fn collection_count(count: i64, kind: Option<LibraryKind>) -> String {
-    let noun = match (kind, count == 1) {
-        (Some(LibraryKind::Shows), true) => "show",
-        (Some(LibraryKind::Shows), false) => "shows",
-        (_, true) => "movie",
-        (_, false) => "movies",
-    };
-    format!("{} {noun}", grouped(count))
+    match kind {
+        Some(LibraryKind::Shows) => t!("library.count.shows", count = count),
+        _ => t!("library.count.movies", count = count),
+    }
 }
 
 /// Plex's name of each sort, as smart filters write it (docs/COMPATIBILITY.md).
@@ -302,16 +294,23 @@ fn sort_note(value: &str) -> String {
     // python-plexapi may name the kind first: `movie.year`.
     let name = field.split_once('.').map_or(field, |(_, n)| n);
     let notes = match name {
-        "titleSort" => ("By title", "By title, Z to A"),
-        "year" => ("Oldest first", "Newest first"),
-        "originallyAvailableAt" => ("Earliest release first", "Latest release first"),
-        "addedAt" => ("First added first", "Recently added first"),
-        "rating" | "audienceRating" => ("Lowest rated first", "Best rated first"),
-        "userRating" => ("Your lowest rated first", "Your best rated first"),
-        "lastViewedAt" => ("Least recently played first", "Recently played first"),
-        "duration" => ("Shortest first", "Longest first"),
-        "viewCount" => ("Least played first", "Most played first"),
-        _ => return format!("Sorted by {name}"),
+        "titleSort" => (t!("library.smartFilter.sort.titleSort.asc"), t!("library.smartFilter.sort.titleSort.desc")),
+        "year" => (t!("library.smartFilter.sort.year.asc"), t!("library.smartFilter.sort.year.desc")),
+        "originallyAvailableAt" => (
+            t!("library.smartFilter.sort.originallyAvailableAt.asc"),
+            t!("library.smartFilter.sort.originallyAvailableAt.desc"),
+        ),
+        "addedAt" => (t!("library.smartFilter.sort.addedAt.asc"), t!("library.smartFilter.sort.addedAt.desc")),
+        "rating" | "audienceRating" => {
+            (t!("library.smartFilter.sort.rating.asc"), t!("library.smartFilter.sort.rating.desc"))
+        }
+        "userRating" => (t!("library.smartFilter.sort.userRating.asc"), t!("library.smartFilter.sort.userRating.desc")),
+        "lastViewedAt" => {
+            (t!("library.smartFilter.sort.lastViewedAt.asc"), t!("library.smartFilter.sort.lastViewedAt.desc"))
+        }
+        "duration" => (t!("library.smartFilter.sort.duration.asc"), t!("library.smartFilter.sort.duration.desc")),
+        "viewCount" => (t!("library.smartFilter.sort.viewCount.asc"), t!("library.smartFilter.sort.viewCount.desc")),
+        _ => return t!("library.smartFilter.sortedBy", name = name),
     };
     if direction == Some("desc") { notes.1 } else { notes.0 }.to_string()
 }
@@ -343,24 +342,28 @@ pub fn describe_smart_filter(filter: &str) -> Vec<String> {
             None => (decode_form(part), String::new()),
         };
         let off = value == "0" || value == "false";
+        let other = || t!("library.smartFilter.other", name = key, value = value);
         match key.as_str() {
-            "genre" => out.push(format!("Genre: {value}")),
-            "label" => out.push(format!("Label: {value}")),
-            "studio" => out.push(format!("Studio: {value}")),
-            "contentRating" => out.push(format!("Rated {value}")),
-            "unwatched" => out.push(if off { "Watched" } else { "Unwatched" }.to_string()),
-            "inProgress" => out.push(if off { "Not in progress" } else { "In progress" }.to_string()),
-            "year" => out.push(format!("From {value}")),
-            "year>>" => out.push(format!("After {value}")),
-            "year<<" => out.push(format!("Before {value}")),
-            "decade" => out.push(format!("The {value}s")),
-            "resolution" => out.push(resolution_words(&value).map_or_else(|| format!("{key}: {value}"), String::from)),
-            "dynamicRange" => out.push(range_words(&value).map_or_else(|| format!("{key}: {value}"), String::from)),
+            "genre" => out.push(t!("library.smartFilter.genre", value = value)),
+            "label" => out.push(t!("library.smartFilter.label", value = value)),
+            "studio" => out.push(t!("library.smartFilter.studio", value = value)),
+            "contentRating" => out.push(t!("library.smartFilter.rated", value = value)),
+            "unwatched" => out
+                .push(if off { t!("library.smartFilter.watched") } else { t!("library.smartFilter.unwatched") }.into()),
+            "inProgress" => out.push(
+                if off { t!("library.smartFilter.notInProgress") } else { t!("library.smartFilter.inProgress") }.into(),
+            ),
+            "year" => out.push(t!("library.smartFilter.from", value = value)),
+            "year>>" => out.push(t!("library.smartFilter.after", value = value)),
+            "year<<" => out.push(t!("library.smartFilter.before", value = value)),
+            "decade" => out.push(t!("library.smartFilter.decade", value = value)),
+            "resolution" => out.push(resolution_words(&value).map_or_else(other, String::from)),
+            "dynamicRange" => out.push(range_words(&value).map_or_else(other, String::from)),
             "sort" => out.push(sort_note(&value)),
-            "limit" => out.push(format!("At most {value}")),
+            "limit" => out.push(t!("library.smartFilter.limit", value = value)),
             // Plumbing, not part of what is found.
             "type" | "includeGuids" => {}
-            _ => out.push(format!("{key}: {value}")),
+            _ => out.push(other()),
         }
     }
     out
@@ -427,6 +430,41 @@ mod tests {
         assert_eq!(collections_label(12), "12 collections");
         assert_eq!(collection_count(3, Some(LibraryKind::Shows)), "3 shows");
         assert_eq!(collection_count(1, Some(LibraryKind::Movies)), "1 movie");
+    }
+
+    #[test]
+    fn counts_read_in_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        with_language(Language::Fr, || {
+            assert_eq!(count_label(1500, LibraryKind::Movies, None), "1\u{a0}500 films");
+            assert_eq!(count_label(1, LibraryKind::Movies, Some(1500)), "1 sur 1\u{a0}500 films");
+            assert_eq!(count_label(0, LibraryKind::Shows, None), "0 série");
+            assert_eq!(collections_label(2), "2 collections");
+            assert_eq!(collection_count(1, Some(LibraryKind::Shows)), "1 série");
+        });
+        with_language(Language::Es, || {
+            assert_eq!(count_label(12, LibraryKind::Music, None), "12 artistas");
+            assert_eq!(count_label(23, LibraryKind::Movies, Some(15_000)), "23 de 15.000 películas");
+            assert_eq!(collections_label(1), "1 colección");
+            assert_eq!(sort_label(LibrarySort::Added), "Fecha de adición");
+        });
+    }
+
+    #[test]
+    fn smart_filters_read_in_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        let words = |filter: &str| describe_smart_filter(filter);
+        with_language(Language::Fr, || {
+            assert_eq!(
+                words("genre=Comedy&unwatched=1&sort=year:desc"),
+                vec!["Genre\u{a0}: Comedy", "Non vu", "Les plus récents d’abord"]
+            );
+            assert_eq!(words("decade=1990&resolution=8k"), vec!["Années 1990", "resolution\u{a0}: 8k"]);
+            assert_eq!(words("dynamicRange=hdr&sort=mediaBitrate"), vec!["Tout HDR", "Trié par mediaBitrate"]);
+        });
+        with_language(Language::Es, || {
+            assert_eq!(words("year=1999&limit=10"), vec!["Año: 1999", "10 como máximo"]);
+        });
     }
 
     #[test]

@@ -1,0 +1,65 @@
+{
+  "network": {
+    "cancelled": "cancelled",
+    "timedOut": "no answer in time",
+    "refused": "nothing answers there",
+    "unknownHost": "that address isn't known on this network",
+    "secureConnection": "its secure connection failed",
+    "tooBig": "the server's answer is too big",
+    "connectionFailed": "the connection to the server failed",
+    "anotherDevice": "another device answers there",
+    "serverFailed": "the server couldn't answer"
+  },
+  "server": {
+    "refused": "the server refused (HTTP {{status}})",
+    "refusedCode": "the server refused ({{code}})",
+    "couldntAnswer": "the server couldn't answer (HTTP {{status}})",
+    "stoppedByAdmin": "Playback was stopped by the server's administrator",
+    "signedOut": "you were signed out: sign in again",
+    "unreadable": "the server's answer can't be read: is it Pley, and up to date?",
+    "check": "{{reason}} Check that the server is on and that this device is on its network."
+  },
+  "signIn": {
+    "tooOld": "this server is too old for this app",
+    "noCodes": "this server can't sign in TVs with a code yet: update it",
+    "widerScope": "the server allowed more than this app asks for: signed out",
+    "unencrypted": "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in",
+    "notAddress": "that isn't a server address",
+    "unknownApp": "this server doesn't know Pley's TV apps yet: update it",
+    "busy": "too many TVs are signing in here right now: try again in a minute",
+    "codeSpent": "this code doesn't work anymore: get a new one",
+    "unreadable": "the server's answer can't be read: try again",
+    "approveElsewhere": "this server sends people to another address to approve TVs: Pley doesn't",
+    "signInElsewhere": "this server sends apps to another address to sign in: Pley doesn't",
+    "callsItself": "this server calls itself {{address}}: open it by that address, or check the proxy in front of it passes Host",
+    "unreachable": "the server can't be reached: check its address and that it's on",
+    "otherServer": "these tokens are another server's"
+  },
+  "oauth": {
+    "invalidClient": "the server doesn't know this app",
+    "unauthorizedClient": "the server doesn't let this app sign in this way",
+    "invalidGrant": "the server refused this sign-in",
+    "accessDenied": "the sign-in was refused",
+    "expiredToken": "the code expired",
+    "invalidScope": "the server refused what this app asked for",
+    "invalidRequest": "the server didn't understand the request",
+    "unsupportedGrantType": "the server doesn't take this kind of sign-in"
+  },
+  "profiles": {
+    "wrongPin": "Wrong PIN.",
+    "throttled": "too many wrong PINs: try again in a few minutes",
+    "pinLocked": "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it.",
+    "needsPassword": "This profile needs its password: sign in again to use it.",
+    "notAllowed": "You can't switch to this profile.",
+    "cantSwitch": "This sign-in can't switch profiles: sign in again to allow it.",
+    "ticketSpent": "This cast can't switch profiles any more: cast it again.",
+    "unreachable": "Can't reach your server: {{reason}}.",
+    "signedOut": "You were signed out: sign in again.",
+    "refused": "The server refused: try again."
+  },
+  "connect": {
+    "badAddress": "Enter an address such as nas, 192.168.1.20 or pley.example.com.",
+    "notPley": "Something answers at {{address}}, but it isn't Pley.",
+    "unreachable": "Couldn't reach {{address}}: {{reason}}."
+  }
+}

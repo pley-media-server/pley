@@ -6,7 +6,7 @@ use pley_ui::theme;
 use pley_ui::{Easing, Id, Motion, Ui};
 
 use crate::cx::ToastRequest;
-use crate::state::OFFLINE_TEXT;
+use crate::state::offline_text;
 
 /// How long a toast shows (`kit/toast.tsx`; Android's "Saved" pill).
 pub const TOAST_SECONDS: f64 = 3.5;
@@ -111,7 +111,7 @@ pub fn offline_notice(ui: &mut Ui, showing: bool, top: f32) -> f32 {
     if a <= 0.0 {
         return top;
     }
-    let text = ui.layout(OFFLINE_TEXT, &theme::LABEL, &TextOpts::line(TOAST_MAX_WIDTH));
+    let text = ui.layout(offline_text(), &theme::LABEL, &TextOpts::line(TOAST_MAX_WIDTH));
     let inner = text.size.h.max(NOTICE_ICON);
     let width = 2.0 * PAD_X + NOTICE_ICON + NOTICE_GAP + text.size.w;
     let rect = Rect::new(TOAST_RIGHT - width, top, width, inner + 2.0 * PAD_Y);

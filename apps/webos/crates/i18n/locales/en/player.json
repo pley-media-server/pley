@@ -1,0 +1,203 @@
+{
+  "controls": {
+    "chapters": "Chapters",
+    "sleep": "Sleep timer",
+    "speed": "Speed",
+    "previous": "Previous",
+    "play": "Play",
+    "pause": "Pause",
+    "next": "Next",
+    "subtitles": "Subtitles",
+    "audio": "Audio",
+    "quality": "Quality",
+    "info": "Info",
+    "endsAt": "Ends at {{time}}",
+    "intro": "Intro",
+    "credits": "Credits"
+  },
+  "skip": {
+    "intro": "Skip Intro",
+    "credits": "Skip Credits"
+  },
+  "seek": {
+    "ahead": "+{{seconds}} s",
+    "back": "−{{seconds}} s"
+  },
+  "toasts": {
+    "subtitlesOff": "Subtitles off",
+    "subtitles": "Subtitles: {{track}}",
+    "audio": "Audio: {{track}}",
+    "quality": "Quality: {{quality}}",
+    "playing": "Playing",
+    "paused": "Paused",
+    "jumpedTo": "Jumped to {{time}}",
+    "playOriginalInQuality": "{{note}} Play original is in Quality.",
+    "chooseInQuality": "{{note}} Choose one in Quality.",
+    "subtitlesAdded": "Subtitles added: {{track}}",
+    "subtitlesNotLoaded": "These subtitles couldn't be loaded.",
+    "qualityLowered": "Quality lowered to {{quality}}",
+    "lastEpisode": "This is the last episode",
+    "lastInQueue": "This is the last one"
+  },
+  "sleep": {
+    "title": "Sleep timer",
+    "off": "Off",
+    "minutes": "{{minutes}} min",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "end": {
+      "episode": "End of this episode",
+      "movie": "End of this movie",
+      "track": "End of this track",
+      "video": "End of this video"
+    },
+    "pausingIn": "Pausing in {{seconds}} s",
+    "keepWatching": "Keep watching"
+  },
+  "upNext": {
+    "title": "Up next",
+    "episode": "Up next · {{episode}}",
+    "playNow": "Play now",
+    "cancel": "Cancel",
+    "nextIn": "Next in {{seconds}}"
+  },
+  "speed": {
+    "normal": "Normal",
+    "notOffered": "Not on this TV: it plays at normal speed only."
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automatic",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "hints": {
+      "original": "Full quality. May buffer on a slow connection.",
+      "automatic": "Dynamically adjust to conditions."
+    },
+    "automaticHint": "Dynamically adjust to conditions",
+    "automaticAt": "Automatic · {{quality}}",
+    "now": "Now {{quality}}",
+    "nowBecause": "Now {{quality}} · {{why}}",
+    "playOriginal": "Play original",
+    "tryOriginal": "Try the original again",
+    "lowered": {
+      "network": "Lowered for your connection",
+      "device": "Lowered for this device"
+    }
+  },
+  "subtitles": {
+    "off": "Off",
+    "added": "Added",
+    "burnedIn": "Burned in",
+    "find": "Find subtitles…",
+    "size": "Subtitle size",
+    "background": "Subtitle background",
+    "font": "Subtitle font",
+    "position": "Subtitle position",
+    "sync": "Sync",
+    "syncHint": "OK resets"
+  },
+  "find": {
+    "searching": "Searching…",
+    "adding": "Adding…",
+    "nothing": "No subtitles found for this file",
+    "madeForFile": "Made for this file",
+    "sdh": "SDH",
+    "forced": "Forced",
+    "downloads_one": "{{count, number}} download",
+    "downloads_other": "{{count, number}} downloads",
+    "notSetUp": "Subtitle search isn't set up on this server",
+    "needsUpdate": "This server can't search for subtitles: it may need an update",
+    "failed": "Couldn't find subtitles: {{reason}}",
+    "addFailed": "These subtitles couldn't be added. {{problem}}"
+  },
+  "chapters": {
+    "word": "Chapter",
+    "numbered": "Chapter {{number}}",
+    "named": "Chapter {{number}} · {{name}}"
+  },
+  "errors": {
+    "cantPlay": "Can't play this item",
+    "stopped": "Playback stopped",
+    "tryAgain": "Try again",
+    "back": "Back",
+    "reconnecting": "Reconnecting…",
+    "offline": "Can't reach your server",
+    "reachHint": "Check that the server is on and that this device is on its network.",
+    "noFile": "This item has no file to play.",
+    "slowServer": "The server can't keep up with this video. Try a lower quality.",
+    "serverTooOld": "This server is too old to play on this TV: update it.",
+    "driveUnreadable": "This video can't be read. The drive may have been pulled out.",
+    "driveStuck": "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy.",
+    "driveCantConvert": "This TV can't play this file as it is, and a file on a drive has no server to convert it",
+    "noDrive": "Can't play this video: its USB drive was pulled out.",
+    "noServer": "Can't play this item: no server is chosen.",
+    "unplayable": "This video can't be played on this device.",
+    "sameSpot": "This video doesn't play on this device: it stops at the same spot each time.",
+    "endsEarly": "This video ends before the point it was to play from.",
+    "stalled": "Playback stopped and couldn't get going again.",
+    "playerGaveUp": "The TV's player gave up.",
+    "playerGaveUpWith": "The TV's player gave up ({{detail}}).",
+    "originalFailed": "This device couldn't play the original file.",
+    "originalNotSmooth": "The original didn't play smoothly on this device.",
+    "stoppedByAdmin": "Playback was stopped by the server's administrator.",
+    "stoppedElsewhere": "Playback was stopped from another device."
+  },
+  "method": {
+    "direct": "Direct play",
+    "remux": "Direct stream",
+    "transcode": "Transcoding",
+    "remuxAudio": "Direct stream · Audio transcoding"
+  },
+  "details": {
+    "title": "Playback details",
+    "asking": "Asking the server…",
+    "video": "Video",
+    "audio": "Audio",
+    "bitrate": "Bitrate",
+    "encoder": "Encoder",
+    "shownAs": "Shown as",
+    "subtitles": "Subtitles",
+    "speed": "Speed",
+    "toneMapped": "SDR (tone-mapped with {{method}})",
+    "realTime": "{{speed}}× real time",
+    "realTimeReady": "{{speed}}× real time · {{seconds}} s ready",
+    "channels": "{{n}}ch",
+    "pipeline": {
+      "hybrid": "GPU and CPU",
+      "copy": "copy"
+    }
+  },
+  "info": {
+    "howItPlays": "How it plays",
+    "playback": "Playback",
+    "why": "Why",
+    "quality": "Quality",
+    "network": "TV network speed",
+    "track": "Track",
+    "off": "Off",
+    "shown": "Shown",
+    "burnedIn": "Burned in by the server",
+    "drawnHere": "Drawn by this TV",
+    "thisTv": "This TV",
+    "player": "Player",
+    "decoded": "Decoded",
+    "fps": "{{fps}} fps",
+    "currentBitrate": "Current bitrate",
+    "droppedFrames": "Dropped frames",
+    "framesOf": "{{dropped}} of {{frames}}",
+    "bufferedAhead": "Buffered ahead",
+    "seconds": "{{seconds}} s",
+    "stalls": "Stalls",
+    "firstFrame": "First frame",
+    "milliseconds": "{{ms}} ms",
+    "dropped": "Dropped",
+    "buffer": "Buffer",
+    "secondsAhead": "{{seconds}} s ahead"
+  },
+  "music": {
+    "offline": "Can't reach the server.",
+    "signedOut": "You were signed out: sign in again.",
+    "stopped": "Playback was stopped by the server.",
+    "unplayable": "This track can't be played."
+  }
+}

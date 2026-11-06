@@ -1,7 +1,7 @@
 import unittest
 
 import support  # noqa: F401
-from pley import words
+from pley import kodi, words
 
 FILE = {
     "id": 7,
@@ -37,7 +37,7 @@ class WordsTest(unittest.TestCase):
         self.assertEqual(words.card_subtitle({"kind": "album", "parent_title": "Daft Punk", "year": 2001}), "Daft Punk · 2001")
         self.assertEqual(words.episode_long_label(0, 3), "Specials · Episode 3")
         self.assertEqual(words.season_title(None, 2), "Season 2")
-        self.assertEqual(words.plural(12345, "movie"), "12,345 movies")
+        self.assertEqual(kodi.count("movies", 12345), "12,345 movies")
 
     def test_progress_and_counts(self):
         playing = {"kind": "movie", "duration_ms": 100, "user_state": {"position_ms": 25, "watched": False}}

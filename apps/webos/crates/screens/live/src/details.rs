@@ -6,6 +6,7 @@
 
 use pley_base::{Icon, Point, Rect, TextOpts};
 use pley_core::model::{LiveChannel, LiveProgram};
+use pley_i18n::t;
 use pley_kit::{Badge, BadgeStyle, Button, RoundButton, bar_group};
 use pley_player::live::data::time_left;
 use pley_shell::AppCx;
@@ -46,11 +47,12 @@ pub fn show(
     // Watch and the favourite side by side at the foot. Placed first, so the description stops
     // above them.
     let airing = program.is_none_or(|p| p.airing_at(now));
-    let watch = Button::pill(if airing { "Watch now" } else { "Watch channel" }).icon(Icon::Play);
+    let watch = Button::pill(if airing { t!("livetv.program.watchNow") } else { t!("livetv.program.watchChannel") })
+        .icon(Icon::Play);
     let favourite = if channel.favorite {
-        RoundButton::new(Icon::Star, "Remove from favourites")
+        RoundButton::new(Icon::Star, t!("livetv.favorites.remove"))
     } else {
-        RoundButton::new(Icon::StarOutline, "Add to favourites")
+        RoundButton::new(Icon::StarOutline, t!("livetv.favorites.add"))
     }
     .on_art(false)
     .show_label(false);
@@ -107,7 +109,7 @@ pub fn show(
         let described = p.description.as_deref().filter(|d| !d.trim().is_empty());
         let (text, color) = match described {
             Some(d) => (d, theme::FG),
-            None => ("The guide says nothing more of it.", theme::SUBTLE),
+            None => (t!("livetv.program.noDescription"), theme::SUBTLE),
         };
         // As many lines as the room above the buttons holds, 6 at most, at least 1
         // (`LiveKit.cs`), less the line saying it has ended.
@@ -121,7 +123,8 @@ pub fn show(
         y += dh;
         if ended {
             y += 8.0;
-            ui.text(Point::new(area.x, y), "It has ended.", &theme::CAPTION, &TextOpts::line(area.w), theme::SUBTLE);
+            let ended = t!("livetv.program.ended");
+            ui.text(Point::new(area.x, y), ended, &theme::CAPTION, &TextOpts::line(area.w), theme::SUBTLE);
         }
     }
 

@@ -31,6 +31,7 @@
 //! remote's digit keys type digits.
 
 use pley_base::{Icon, Key, Point, Rect, Size, TextOpts};
+use pley_i18n::t;
 use pley_ui::theme::{self, focus, radius};
 use pley_ui::{Dir, Edge, FocusOpts, Group, Id, Response, Ui};
 
@@ -122,7 +123,7 @@ impl<'a> TextField<'a> {
         let rect = Rect::new(at.x, at.y, self.width, FIELD_HEIGHT);
         ui.name(id, || {
             let text = if self.text.is_empty() { self.placeholder } else { self.text };
-            crate::look::spoken(&[text, "text field"])
+            crate::look::spoken(&[text, t!("common.keyboard.field")])
         });
         let r = register(ui, id, rect, FocusOpts::default());
         let lit = r.focused || self.typing;
@@ -257,7 +258,7 @@ impl<'a> Keyboard<'a> {
 
     /// A keyboard whose action key says "Done".
     pub fn new() -> Keyboard<'a> {
-        Keyboard { action: "Done" }
+        Keyboard { action: t!("common.keyboard.done") }
     }
 
     /// The action key's label ("Search", "Connect").
@@ -353,12 +354,13 @@ impl<'a> Keyboard<'a> {
                 let rect = Keyboard::key_rect(4, col, span);
                 col += span;
                 let face = match special {
-                    Special::Shift => KeyFace::Text("Shift", false),
+                    Special::Shift => KeyFace::Text(t!("common.keyboard.shift"), false),
+                    // Symbols, not words: the same in every language.
                     Special::Page if state.page == KeyboardPage::Letters => KeyFace::Text("&123", false),
                     Special::Page => KeyFace::Text("abc", false),
-                    Special::Space => KeyFace::Text("Space", false),
+                    Special::Space => KeyFace::Text(t!("common.keyboard.space"), false),
                     Special::Backspace => KeyFace::Icon(Icon::Delete),
-                    Special::Clear => KeyFace::Text("Clear", false),
+                    Special::Clear => KeyFace::Text(t!("common.keyboard.clear"), false),
                     Special::Done => KeyFace::Text(self.action, false),
                 };
                 let lit = special == Special::Shift && state.shift;
@@ -408,9 +410,9 @@ enum KeyFace<'a> {
 /// One key: registered, coloured and scaled as the PIN pad's keys are.
 fn key(ui: &mut Ui, id: Id, rect: Rect, face: KeyFace) -> Response {
     ui.name(id, || match face {
-        KeyFace::Text(" ", _) => "Space".to_string(),
+        KeyFace::Text(" ", _) => t!("common.keyboard.space").to_string(),
         KeyFace::Text(t, _) => t.to_string(),
-        KeyFace::Icon(Icon::Delete) => "Delete".to_string(),
+        KeyFace::Icon(Icon::Delete) => t!("common.keyboard.delete").to_string(),
         KeyFace::Icon(_) => String::new(),
     });
     let r = register(ui, id, rect, FocusOpts::default());

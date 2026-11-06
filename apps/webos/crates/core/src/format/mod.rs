@@ -1,6 +1,7 @@
 //! Files, streams, times and sizes in words: the Android app's labels
 //! (`core/model/format`), which follow the web's, as the TV app ports them
-//! (packages/tv/src/format/format.ts).
+//! (packages/tv/src/format/format.ts), in the language shown. Technical names
+//! (H.264, Dolby Vision, 5.1, 4K) are the same in every language.
 
 mod media_info;
 
@@ -9,6 +10,8 @@ pub use media_info::{
     media_facts, profile_level_label, sample_rate_label, stream_block,
 };
 
+use pley_i18n::t;
+
 use crate::model::{DynamicRange, ItemKind, ItemSummary, MediaFile, MediaStream, MediaSummary, StreamKind};
 
 /// `v` with `digits` decimals as JavaScript's `toFixed` writes it (halves round up).
@@ -16,6 +19,12 @@ pub(crate) fn fixed(v: f64, digits: i32) -> String {
     let scale = 10f64.powi(digits);
     let rounded = (v * scale).round() / scale;
     format!("{rounded:.prec$}", prec = digits as usize)
+}
+
+/// A number [`fixed`] wrote, with the decimal separator of the language shown: "1.5" in English,
+/// "1,5" in French and Spanish.
+pub(crate) fn local_decimal(text: &str) -> String {
+    if pley_i18n::language() == pley_i18n::Language::En { text.to_string() } else { text.replace('.', ",") }
 }
 
 /// ffprobe's codec name as people know it: `h264` → "H.264", `hdmv_pgs_subtitle`
@@ -68,13 +77,13 @@ pub fn codec_label(codec: &str) -> String {
 pub fn channels_label(channels: Option<i64>, layout: Option<&str>) -> String {
     match channels.unwrap_or(0) {
         0 => layout.unwrap_or("").to_string(),
-        1 => "Mono".into(),
-        2 => "Stereo".into(),
+        1 => t!("format.channels.mono").into(),
+        2 => t!("format.channels.stereo").into(),
         3 => "2.1".into(),
         6 => "5.1".into(),
         7 => "6.1".into(),
         8 => "7.1".into(),
-        n => format!("{n}ch"),
+        n => t!("format.channels.count", n = n),
     }
 }
 
@@ -285,27 +294,35 @@ pub fn stream_label(s: &MediaStream) -> String {
     match s.kind {
         StreamKind::Audio => {
             let extra = match (title, &lang) {
-                (Some(t), Some(l)) if !t.to_lowercase().contains(&l.to_lowercase()) => format!(" – {t}"),
+                (Some(t), Some(l)) if !names_language(t, l, s.language.as_deref()) => format!(" – {t}"),
                 _ => String::new(),
             };
             let details = audio_format_label(s);
             let base = match (title, &lang) {
                 (Some(t), None) => t.to_string(),
                 (_, Some(l)) => l.clone(),
-                (None, None) => "Unknown".into(),
+                (None, None) => t!("format.track.unknown").into(),
             };
             format!("{base}{extra}{}", if details.is_empty() { String::new() } else { format!(" ({details})") })
         }
         StreamKind::Subtitle => {
-            let base = lang.clone().or(title.map(str::to_string)).unwrap_or_else(|| "Unknown".into());
+            let base = lang.clone().or(title.map(str::to_string)).unwrap_or_else(|| t!("format.track.unknown").into());
             let rest = match (title, &lang) {
-                (Some(t), Some(l)) => subtitle_title_rest(t, l),
+                (Some(t), Some(l)) => {
+                    // A title in English ("English SDH") names the language in English.
+                    let english = english_language_name(s.language.as_deref());
+                    let named = match english {
+                        Some(e) if find_ignoring_case(t, l).is_none() && find_ignoring_case(t, &e).is_some() => e,
+                        _ => l.clone(),
+                    };
+                    subtitle_title_rest(t, &named)
+                }
                 _ => String::new(),
             };
             let flags: Vec<String> = [
                 codec_label(&s.codec),
-                if is_forced_subtitle(s) { "Forced".into() } else { String::new() },
-                if s.external { "External".into() } else { String::new() },
+                if is_forced_subtitle(s) { t!("format.track.forced").into() } else { String::new() },
+                if s.external { t!("format.track.external").into() } else { String::new() },
             ]
             .into_iter()
             .filter(|f| !f.is_empty())
@@ -315,7 +332,7 @@ pub fn stream_label(s: &MediaStream) -> String {
             format!("{base}{rest}{flags}")
         }
         _ => {
-            let depth = s.bit_depth.filter(|d| *d > 8).map(|d| format!("{d}-bit"));
+            let depth = s.bit_depth.filter(|d| *d > 8).map(|d| t!("format.track.bitDepth", n = d));
             [
                 resolution_label(s.width, s.height).map(str::to_string),
                 Some(codec_label(&s.codec)),
@@ -403,8 +420,8 @@ pub fn automatic_audio_label(file: &MediaFile) -> String {
     let code = track.and_then(|t| t.language.as_deref()).unwrap_or("");
     let lang = if code.is_empty() || ["und", "zxx", "mul"].contains(&code) { None } else { language_name(Some(code)) };
     match lang {
-        Some(l) => format!("Automatic ({l})"),
-        None => "Automatic".into(),
+        Some(l) => t!("format.track.automaticLanguage", language = l),
+        None => t!("format.track.automatic").into(),
     }
 }
 
@@ -420,220 +437,222 @@ pub fn version_label(file: &MediaFile, position: usize) -> String {
     .into_iter()
     .filter(|p| !p.is_empty())
     .collect();
-    if parts.is_empty() { format!("Version {}", position + 1) } else { parts.join(" · ") }
+    if parts.is_empty() { t!("format.track.version", number = position + 1) } else { parts.join(" · ") }
 }
 
-/// ISO 639 codes (both kinds of three letters, and two) and their English names.
+/// ISO 639 codes (both kinds of three letters, and two) and the key of their name in the
+/// `languages` catalogs: the bibliographic three letters, as the Samsung app's catalogs key them.
 const LANGUAGES: &[(&str, &str)] = &[
-    ("afr", "Afrikaans"),
-    ("alb", "Albanian"),
-    ("sqi", "Albanian"),
-    ("amh", "Amharic"),
-    ("ara", "Arabic"),
-    ("arm", "Armenian"),
-    ("hye", "Armenian"),
-    ("aze", "Azerbaijani"),
-    ("baq", "Basque"),
-    ("eus", "Basque"),
-    ("bel", "Belarusian"),
-    ("ben", "Bengali"),
-    ("bos", "Bosnian"),
-    ("bre", "Breton"),
-    ("bul", "Bulgarian"),
-    ("bur", "Burmese"),
-    ("mya", "Burmese"),
-    ("cat", "Catalan"),
-    ("chi", "Chinese"),
-    ("zho", "Chinese"),
-    ("cze", "Czech"),
-    ("ces", "Czech"),
-    ("dan", "Danish"),
-    ("dut", "Dutch"),
-    ("nld", "Dutch"),
-    ("eng", "English"),
-    ("est", "Estonian"),
-    ("fao", "Faroese"),
-    ("fil", "Filipino"),
-    ("fin", "Finnish"),
-    ("fre", "French"),
-    ("fra", "French"),
-    ("geo", "Georgian"),
-    ("kat", "Georgian"),
-    ("ger", "German"),
-    ("deu", "German"),
-    ("gle", "Irish"),
-    ("glg", "Galician"),
-    ("gre", "Greek"),
-    ("ell", "Greek"),
-    ("guj", "Gujarati"),
-    ("heb", "Hebrew"),
-    ("hin", "Hindi"),
-    ("hrv", "Croatian"),
-    ("hun", "Hungarian"),
-    ("ice", "Icelandic"),
-    ("isl", "Icelandic"),
-    ("ind", "Indonesian"),
-    ("ita", "Italian"),
-    ("jpn", "Japanese"),
-    ("kan", "Kannada"),
-    ("kaz", "Kazakh"),
-    ("khm", "Khmer"),
-    ("kor", "Korean"),
-    ("kur", "Kurdish"),
-    ("lao", "Lao"),
-    ("lat", "Latin"),
-    ("lav", "Latvian"),
-    ("lit", "Lithuanian"),
-    ("ltz", "Luxembourgish"),
-    ("mac", "Macedonian"),
-    ("mkd", "Macedonian"),
-    ("mal", "Malayalam"),
-    ("mao", "Maori"),
-    ("mri", "Maori"),
-    ("mar", "Marathi"),
-    ("may", "Malay"),
-    ("msa", "Malay"),
-    ("mlt", "Maltese"),
-    ("mon", "Mongolian"),
-    ("nep", "Nepali"),
-    ("nob", "Norwegian Bokmål"),
-    ("nno", "Norwegian Nynorsk"),
-    ("nor", "Norwegian"),
-    ("per", "Persian"),
-    ("fas", "Persian"),
-    ("pol", "Polish"),
-    ("por", "Portuguese"),
-    ("pan", "Punjabi"),
-    ("rum", "Romanian"),
-    ("ron", "Romanian"),
-    ("rus", "Russian"),
-    ("slo", "Slovak"),
-    ("slk", "Slovak"),
-    ("slv", "Slovenian"),
-    ("som", "Somali"),
-    ("spa", "Spanish"),
-    ("srp", "Serbian"),
-    ("swa", "Swahili"),
-    ("swe", "Swedish"),
-    ("tam", "Tamil"),
-    ("tel", "Telugu"),
-    ("tgl", "Tagalog"),
-    ("tha", "Thai"),
-    ("tib", "Tibetan"),
-    ("bod", "Tibetan"),
-    ("tur", "Turkish"),
-    ("ukr", "Ukrainian"),
-    ("urd", "Urdu"),
-    ("uzb", "Uzbek"),
-    ("vie", "Vietnamese"),
-    ("wel", "Welsh"),
-    ("cym", "Welsh"),
-    ("yid", "Yiddish"),
-    ("zul", "Zulu"),
-    ("yue", "Cantonese"),
-    ("cmn", "Mandarin"),
-    ("nan", "Min Nan"),
-    ("hat", "Haitian Creole"),
-    ("haw", "Hawaiian"),
-    ("ibo", "Igbo"),
-    ("yor", "Yoruba"),
-    ("hau", "Hausa"),
-    ("sin", "Sinhala"),
-    ("pus", "Pashto"),
-    ("tat", "Tatar"),
-    ("kir", "Kyrgyz"),
-    ("tuk", "Turkmen"),
-    ("tgk", "Tajik"),
-    ("und", "Unknown"),
-    ("mul", "Multiple"),
-    ("zxx", "No linguistic content"),
-    ("qaa", "Original"),
-    ("af", "Afrikaans"),
-    ("sq", "Albanian"),
-    ("am", "Amharic"),
-    ("ar", "Arabic"),
-    ("hy", "Armenian"),
-    ("az", "Azerbaijani"),
-    ("eu", "Basque"),
-    ("be", "Belarusian"),
-    ("bn", "Bengali"),
-    ("bs", "Bosnian"),
-    ("bg", "Bulgarian"),
-    ("my", "Burmese"),
-    ("ca", "Catalan"),
-    ("zh", "Chinese"),
-    ("cs", "Czech"),
-    ("da", "Danish"),
-    ("nl", "Dutch"),
-    ("en", "English"),
-    ("et", "Estonian"),
-    ("fi", "Finnish"),
-    ("fr", "French"),
-    ("ka", "Georgian"),
-    ("de", "German"),
-    ("ga", "Irish"),
-    ("gl", "Galician"),
-    ("el", "Greek"),
-    ("gu", "Gujarati"),
-    ("he", "Hebrew"),
-    ("hi", "Hindi"),
-    ("hr", "Croatian"),
-    ("hu", "Hungarian"),
-    ("is", "Icelandic"),
-    ("id", "Indonesian"),
-    ("it", "Italian"),
-    ("ja", "Japanese"),
-    ("kn", "Kannada"),
-    ("kk", "Kazakh"),
-    ("km", "Khmer"),
-    ("ko", "Korean"),
-    ("ku", "Kurdish"),
-    ("lo", "Lao"),
-    ("la", "Latin"),
-    ("lv", "Latvian"),
-    ("lt", "Lithuanian"),
-    ("lb", "Luxembourgish"),
-    ("mk", "Macedonian"),
-    ("ml", "Malayalam"),
-    ("mi", "Maori"),
-    ("mr", "Marathi"),
-    ("ms", "Malay"),
-    ("mt", "Maltese"),
-    ("mn", "Mongolian"),
-    ("ne", "Nepali"),
-    ("nb", "Norwegian Bokmål"),
-    ("nn", "Norwegian Nynorsk"),
-    ("no", "Norwegian"),
-    ("fa", "Persian"),
-    ("pl", "Polish"),
-    ("pt", "Portuguese"),
-    ("pa", "Punjabi"),
-    ("ro", "Romanian"),
-    ("ru", "Russian"),
-    ("sk", "Slovak"),
-    ("sl", "Slovenian"),
-    ("so", "Somali"),
-    ("es", "Spanish"),
-    ("sr", "Serbian"),
-    ("sw", "Swahili"),
-    ("sv", "Swedish"),
-    ("ta", "Tamil"),
-    ("te", "Telugu"),
-    ("tl", "Tagalog"),
-    ("th", "Thai"),
-    ("bo", "Tibetan"),
-    ("tr", "Turkish"),
-    ("uk", "Ukrainian"),
-    ("ur", "Urdu"),
-    ("uz", "Uzbek"),
-    ("vi", "Vietnamese"),
-    ("cy", "Welsh"),
-    ("yi", "Yiddish"),
-    ("zu", "Zulu"),
+    ("afr", "afr"),
+    ("alb", "alb"),
+    ("sqi", "alb"),
+    ("amh", "amh"),
+    ("ara", "ara"),
+    ("arm", "arm"),
+    ("hye", "arm"),
+    ("aze", "aze"),
+    ("baq", "baq"),
+    ("eus", "baq"),
+    ("bel", "bel"),
+    ("ben", "ben"),
+    ("bos", "bos"),
+    ("bre", "bre"),
+    ("bul", "bul"),
+    ("bur", "bur"),
+    ("mya", "bur"),
+    ("cat", "cat"),
+    ("chi", "chi"),
+    ("zho", "chi"),
+    ("cze", "cze"),
+    ("ces", "cze"),
+    ("dan", "dan"),
+    ("dut", "dut"),
+    ("nld", "dut"),
+    ("eng", "eng"),
+    ("est", "est"),
+    ("fao", "fao"),
+    ("fil", "fil"),
+    ("fin", "fin"),
+    ("fre", "fre"),
+    ("fra", "fre"),
+    ("geo", "geo"),
+    ("kat", "geo"),
+    ("ger", "ger"),
+    ("deu", "ger"),
+    ("gle", "gle"),
+    ("glg", "glg"),
+    ("gre", "gre"),
+    ("ell", "gre"),
+    ("guj", "guj"),
+    ("heb", "heb"),
+    ("hin", "hin"),
+    ("hrv", "hrv"),
+    ("hun", "hun"),
+    ("ice", "ice"),
+    ("isl", "ice"),
+    ("ind", "ind"),
+    ("ita", "ita"),
+    ("jpn", "jpn"),
+    ("kan", "kan"),
+    ("kaz", "kaz"),
+    ("khm", "khm"),
+    ("kor", "kor"),
+    ("kur", "kur"),
+    ("lao", "lao"),
+    ("lat", "lat"),
+    ("lav", "lav"),
+    ("lit", "lit"),
+    ("ltz", "ltz"),
+    ("mac", "mac"),
+    ("mkd", "mac"),
+    ("mal", "mal"),
+    ("mao", "mao"),
+    ("mri", "mao"),
+    ("mar", "mar"),
+    ("may", "may"),
+    ("msa", "may"),
+    ("mlt", "mlt"),
+    ("mon", "mon"),
+    ("nep", "nep"),
+    ("nob", "nob"),
+    ("nno", "nno"),
+    ("nor", "nor"),
+    ("per", "per"),
+    ("fas", "per"),
+    ("pol", "pol"),
+    ("por", "por"),
+    ("pan", "pan"),
+    ("rum", "rum"),
+    ("ron", "rum"),
+    ("rus", "rus"),
+    ("slo", "slo"),
+    ("slk", "slo"),
+    ("slv", "slv"),
+    ("som", "som"),
+    ("spa", "spa"),
+    ("srp", "srp"),
+    ("swa", "swa"),
+    ("swe", "swe"),
+    ("tam", "tam"),
+    ("tel", "tel"),
+    ("tgl", "tgl"),
+    ("tha", "tha"),
+    ("tib", "tib"),
+    ("bod", "tib"),
+    ("tur", "tur"),
+    ("ukr", "ukr"),
+    ("urd", "urd"),
+    ("uzb", "uzb"),
+    ("vie", "vie"),
+    ("wel", "wel"),
+    ("cym", "wel"),
+    ("yid", "yid"),
+    ("zul", "zul"),
+    ("yue", "yue"),
+    ("cmn", "cmn"),
+    ("nan", "nan"),
+    ("hat", "hat"),
+    ("haw", "haw"),
+    ("ibo", "ibo"),
+    ("yor", "yor"),
+    ("hau", "hau"),
+    ("sin", "sin"),
+    ("pus", "pus"),
+    ("tat", "tat"),
+    ("kir", "kir"),
+    ("tuk", "tuk"),
+    ("tgk", "tgk"),
+    ("und", "und"),
+    ("mul", "mul"),
+    ("zxx", "zxx"),
+    ("qaa", "qaa"),
+    ("af", "afr"),
+    ("sq", "alb"),
+    ("am", "amh"),
+    ("ar", "ara"),
+    ("hy", "arm"),
+    ("az", "aze"),
+    ("eu", "baq"),
+    ("be", "bel"),
+    ("bn", "ben"),
+    ("bs", "bos"),
+    ("bg", "bul"),
+    ("my", "bur"),
+    ("ca", "cat"),
+    ("zh", "chi"),
+    ("cs", "cze"),
+    ("da", "dan"),
+    ("nl", "dut"),
+    ("en", "eng"),
+    ("et", "est"),
+    ("fi", "fin"),
+    ("fr", "fre"),
+    ("ka", "geo"),
+    ("de", "ger"),
+    ("ga", "gle"),
+    ("gl", "glg"),
+    ("el", "gre"),
+    ("gu", "guj"),
+    ("he", "heb"),
+    ("hi", "hin"),
+    ("hr", "hrv"),
+    ("hu", "hun"),
+    ("is", "ice"),
+    ("id", "ind"),
+    ("it", "ita"),
+    ("ja", "jpn"),
+    ("kn", "kan"),
+    ("kk", "kaz"),
+    ("km", "khm"),
+    ("ko", "kor"),
+    ("ku", "kur"),
+    ("lo", "lao"),
+    ("la", "lat"),
+    ("lv", "lav"),
+    ("lt", "lit"),
+    ("lb", "ltz"),
+    ("mk", "mac"),
+    ("ml", "mal"),
+    ("mi", "mao"),
+    ("mr", "mar"),
+    ("ms", "may"),
+    ("mt", "mlt"),
+    ("mn", "mon"),
+    ("ne", "nep"),
+    ("nb", "nob"),
+    ("nn", "nno"),
+    ("no", "nor"),
+    ("fa", "per"),
+    ("pl", "pol"),
+    ("pt", "por"),
+    ("pa", "pan"),
+    ("ro", "rum"),
+    ("ru", "rus"),
+    ("sk", "slo"),
+    ("sl", "slv"),
+    ("so", "som"),
+    ("es", "spa"),
+    ("sr", "srp"),
+    ("sw", "swa"),
+    ("sv", "swe"),
+    ("ta", "tam"),
+    ("te", "tel"),
+    ("tl", "tgl"),
+    ("th", "tha"),
+    ("bo", "tib"),
+    ("tr", "tur"),
+    ("uk", "ukr"),
+    ("ur", "urd"),
+    ("uz", "uzb"),
+    ("vi", "vie"),
+    ("cy", "wel"),
+    ("yi", "yid"),
+    ("zu", "zul"),
 ];
 
+/// The catalog key of a code's language name: "eng" and "en" → "eng".
 fn language(code: &str) -> Option<&'static str> {
-    LANGUAGES.iter().find(|(c, _)| *c == code).map(|(_, n)| *n)
+    LANGUAGES.iter().find(|(c, _)| *c == code).map(|(_, k)| *k)
 }
 
 /// A language's two-letter code, as subtitle sites name them: "eng" → "en",
@@ -643,11 +662,12 @@ pub fn two_letter_code(code: &str) -> String {
     if base.len() == 2 {
         return base;
     }
-    let Some(name) = language(&base) else { return base };
-    LANGUAGES.iter().find(|(c, n)| c.len() == 2 && *n == name).map_or(base, |(c, _)| c.to_string())
+    let Some(key) = language(&base) else { return base };
+    LANGUAGES.iter().find(|(c, k)| c.len() == 2 && *k == key).map_or(base, |(c, _)| c.to_string())
 }
 
-/// "eng" → "English", "pt-BR" → "Portuguese (BR)", unknown codes upper-cased; none without one.
+/// "eng" → "English" ("Anglais" in French), "pt-BR" → "Portuguese (BR)", unknown codes
+/// upper-cased; none without one.
 pub fn language_name(code: Option<&str>) -> Option<String> {
     let raw = code.unwrap_or("").trim();
     if raw.is_empty() {
@@ -656,7 +676,7 @@ pub fn language_name(code: Option<&str>) -> Option<String> {
     let lower = raw.to_lowercase();
     let mut parts = lower.split(['-', '_']);
     let first = parts.next().unwrap_or("");
-    let Some(name) = language(first) else {
+    let Some(name) = language(first).and_then(|key| pley_i18n::lookup(&format!("languages.{key}"))) else {
         return Some(if raw.chars().count() <= 3 { raw.to_uppercase() } else { raw.to_string() });
     };
     Some(match parts.next() {
@@ -665,42 +685,54 @@ pub fn language_name(code: Option<&str>) -> Option<String> {
     })
 }
 
-/// "S1 · E3", "E3", or "" with neither number.
+/// [`language_name`] in English, as most files' track titles name languages.
+fn english_language_name(code: Option<&str>) -> Option<String> {
+    pley_i18n::with_language(pley_i18n::Language::En, || language_name(code))
+}
+
+/// Whether a track's `title` names its language: `shown`, as the language shown names it, or its
+/// English name ("English Commentary" for French's "Anglais").
+fn names_language(title: &str, shown: &str, code: Option<&str>) -> bool {
+    let title = title.to_lowercase();
+    title.contains(&shown.to_lowercase())
+        || english_language_name(code).is_some_and(|english| title.contains(&english.to_lowercase()))
+}
+
+/// "S1 · E3", "E3", or "" with neither number ("S1 · É3" in French, "T1 · E3" in Spanish).
 pub fn episode_label(season: Option<i64>, episode: Option<i64>) -> String {
-    [season.map(|s| format!("S{s}")), episode.map(|e| format!("E{e}"))]
-        .into_iter()
-        .flatten()
-        .collect::<Vec<_>>()
-        .join(" · ")
+    match (season, episode) {
+        (Some(s), Some(e)) => t!("format.episode.both", season = s, episode = e),
+        (Some(s), None) => t!("format.episode.season", season = s),
+        (None, Some(e)) => t!("format.episode.episode", episode = e),
+        (None, None) => String::new(),
+    }
 }
 
-/// A season's own title, else "Specials" for season 0, else "Season 2".
+/// A season's own title, else "Specials" for season 0, else "Season 2", in the language shown.
 pub fn season_title(title: Option<&str>, index: Option<i64>) -> String {
-    match (title.filter(|t| !t.is_empty()), index) {
+    let own = title.filter(|t| !t.is_empty() && !generic_season_title(t, index));
+    match (own, index) {
         (Some(t), _) => t.to_string(),
-        (None, Some(0)) => "Specials".into(),
-        (None, Some(i)) => format!("Season {i}"),
-        (None, None) => "Season".into(),
+        (None, Some(0)) => t!("format.season.specials").into(),
+        (None, Some(i)) => t!("format.season.numbered", number = i),
+        (None, None) => t!("format.season.plain").into(),
     }
 }
 
-/// 12345 → "12,345".
+/// Whether `title` is the name the server gives a season it has no title for, in English
+/// ("Season 2", "Specials" for season 0, as its scanner and TMDB's lists write them): such a
+/// season is named in the language shown instead.
+pub fn generic_season_title(title: &str, index: Option<i64>) -> bool {
+    match index {
+        Some(0) => title.eq_ignore_ascii_case("Specials"),
+        Some(i) => title.strip_prefix("Season ").and_then(|n| n.trim().parse::<i64>().ok()).is_some_and(|n| n == i),
+        None => false,
+    }
+}
+
+/// 12345 → "12,345", grouped as the language shown groups thousands ("12 345" in French).
 pub fn grouped(n: i64) -> String {
-    let digits = n.unsigned_abs().to_string();
-    let mut out = String::new();
-    for (i, c) in digits.chars().enumerate() {
-        if i > 0 && (digits.len() - i).is_multiple_of(3) {
-            out.push(',');
-        }
-        out.push(c);
-    }
-    if n < 0 { format!("-{out}") } else { out }
-}
-
-/// "1 movie", "12,345 movies" (`many` defaults to `one` + "s").
-pub fn pluralize(n: i64, one: &str, many: Option<&str>) -> String {
-    let word = if n == 1 { one.to_string() } else { many.map_or_else(|| format!("{one}s"), str::to_string) };
-    format!("{} {word}", grouped(n))
+    pley_i18n::number(n)
 }
 
 /// The short line under a card, by kind: a year, "3 seasons", "S2 · E5",
@@ -710,13 +742,13 @@ pub fn card_subtitle(item: &ItemSummary) -> String {
     match item.kind {
         ItemKind::Movie => year.unwrap_or_default(),
         ItemKind::Show => match (item.child_count.filter(|c| *c > 0), item.leaf_count) {
-            (Some(c), _) => pluralize(c, "season", None),
-            (None, Some(l)) => pluralize(l, "episode", None),
+            (Some(c), _) => t!("format.counts.seasons", count = c),
+            (None, Some(l)) => t!("format.counts.episodes", count = l),
             _ => year.unwrap_or_default(),
         },
-        ItemKind::Season => item.leaf_count.map(|l| pluralize(l, "episode", None)).unwrap_or_default(),
+        ItemKind::Season => item.leaf_count.map(|l| t!("format.counts.episodes", count = l)).unwrap_or_default(),
         ItemKind::Episode => episode_label(item.parent_index, item.index),
-        ItemKind::Artist => item.child_count.map(|c| pluralize(c, "album", None)).unwrap_or_default(),
+        ItemKind::Artist => item.child_count.map(|c| t!("format.counts.albums", count = c)).unwrap_or_default(),
         ItemKind::Album => [item.parent_title.clone().filter(|t| !t.is_empty()), year]
             .into_iter()
             .flatten()
@@ -763,13 +795,13 @@ pub fn format_duration(ms: Option<i64>) -> String {
     }
     let total = whole_minutes(ms);
     if total < 1 {
-        return format!("{}s", ((ms as f64 / 1000.0).round() as i64).max(1));
+        return t!("format.duration.seconds", n = ((ms as f64 / 1000.0).round() as i64).max(1));
     }
     let (h, m) = (total / 60, total % 60);
     match (h, m) {
-        (0, m) => format!("{m}m"),
-        (h, 0) => format!("{h}h"),
-        (h, m) => format!("{h}h {m}m"),
+        (0, m) => t!("format.duration.minutes", n = m),
+        (h, 0) => t!("format.duration.hours", n = h),
+        (h, m) => t!("format.duration.hoursMinutes", hours = h, minutes = m),
     }
 }
 
@@ -777,14 +809,14 @@ pub fn format_duration(ms: Option<i64>) -> String {
 pub fn format_runtime(ms: Option<i64>) -> String {
     let Some(ms) = ms.filter(|m| *m > 0) else { return String::new() };
     let total = whole_minutes(ms);
-    if (1..=59).contains(&total) { format!("{total} min") } else { format_duration(Some(ms)) }
+    if (1..=59).contains(&total) { t!("format.duration.runtime", n = total) } else { format_duration(Some(ms)) }
 }
 
 /// "26 min left", "1h 12m left"; empty without a duration or once nothing is left.
 pub fn format_time_left(position_ms: i64, duration_ms: Option<i64>) -> String {
     let Some(d) = duration_ms.filter(|d| *d > 0) else { return String::new() };
     let left = format_runtime(Some((d - position_ms).max(0)));
-    if left.is_empty() { left } else { format!("{left} left") }
+    if left.is_empty() { left } else { t!("format.duration.left", time = left) }
 }
 
 /// Milliseconds as "1:02:03" or "2:03" ("0:00" for nothing).
@@ -795,36 +827,44 @@ pub fn format_clock(ms: Option<i64>) -> String {
     if h > 0 { format!("{h}:{m:02}:{sec:02}") } else { format!("{m}:{sec:02}") }
 }
 
-/// A time of day as the TV is set to show it: "21:05" or "9:05 PM".
+/// A time of day as the TV is set to show it: "21:05" or "9:05 PM" ("9:05 p. m." in Spanish).
 pub fn format_time_of_day(hours: u32, minutes: u32, hours24: bool) -> String {
     if hours24 {
         return format!("{hours:02}:{minutes:02}");
     }
     let h12 = if hours.is_multiple_of(12) { 12 } else { hours % 12 };
-    format!("{h12}:{minutes:02} {}", if hours < 12 { "AM" } else { "PM" })
+    format!("{h12}:{minutes:02} {}", if hours < 12 { t!("format.clock.am") } else { t!("format.clock.pm") })
 }
 
-/// 1536 → "1.5 KB", 150 MiB → "150 MB": three significant digits, in units of 1024.
+/// 1536 → "1.5 KB", 150 MiB → "150 MB": three significant digits, in units of 1024 ("1,5 Ko" in
+/// French).
 pub fn format_bytes(bytes: Option<u64>) -> String {
     let Some(bytes) = bytes else { return String::new() };
-    const UNITS: [&str; 5] = ["B", "KB", "MB", "GB", "TB"];
     let mut v = bytes as f64;
     let mut i = 0;
-    while v >= 1024.0 && i < UNITS.len() - 1 {
+    while v >= 1024.0 && i < 4 {
         v /= 1024.0;
         i += 1;
     }
-    format!("{} {}", fixed(v, if v >= 100.0 || i == 0 { 0 } else { 1 }), UNITS[i])
+    let n = local_decimal(&fixed(v, if v >= 100.0 || i == 0 { 0 } else { 1 }));
+    match i {
+        0 => t!("format.sizes.bytes", n = n),
+        1 => t!("format.sizes.kilobytes", n = n),
+        2 => t!("format.sizes.megabytes", n = n),
+        3 => t!("format.sizes.gigabytes", n = n),
+        _ => t!("format.sizes.terabytes", n = n),
+    }
 }
 
-/// Bits per second as "8.2 Mbps", "12 Mbps", "320 kbps"; empty without a rate.
+/// Bits per second as "8.2 Mbps", "12 Mbps", "320 kbps" ("8,2 Mbit/s" in French); empty without a
+/// rate.
 pub fn format_bitrate(bps: Option<i64>) -> String {
     let Some(bps) = bps.filter(|b| *b != 0) else { return String::new() };
     if bps >= 1_000_000 {
         let mbps = bps as f64 / 1_000_000.0;
-        return format!("{} Mbps", fixed(mbps, if bps >= 10_000_000 { 0 } else { 1 }));
+        return t!("format.rates.mbps", n = local_decimal(&fixed(mbps, if bps >= 10_000_000 { 0 } else { 1 })));
     }
-    format!("{} kbps", (bps as f64 / 1000.0).round() as i64)
+    t!("format.rates.kbps", n = (bps as f64 / 1000.0).round() as i64)
 }
 
 #[cfg(test)]

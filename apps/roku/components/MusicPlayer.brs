@@ -200,7 +200,7 @@ sub onState(event as object)
         if not m.played and m.mode <> "transcode" and httpString(m.info.method) <> "transcode"
             playTrack(m.queue.at, "transcode")
         else
-            passOver("This track can't be played on this Roku.")
+            passOver(t("player.nowPlaying.cantPlay"))
         end if
     end if
 end sub
@@ -327,7 +327,7 @@ end sub
 
 ' A track that can't be played: said, and the next one plays.
 sub passOver(message as string)
-    m.top.message = musicTrackAt(m.queue, m.queue.at).title + ": " + message
+    m.top.message = t("player.nowPlaying.trackProblem", { title: musicTrackAt(m.queue, m.queue.at).title, message: message })
     nextTrack()
 end sub
 

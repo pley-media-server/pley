@@ -4,7 +4,7 @@
 //! (packages/tv/src/player/quality.ts).
 
 use pley_core::format::{format_bitrate, resolution_label};
-use pley_core::model::{MediaFile, PlaybackMode, QUALITY_PRESETS, StreamKind};
+use pley_core::model::{MediaFile, PlaybackMode, QUALITY_PRESETS, StreamKind, quality_name};
 
 use crate::autoquality::Rung;
 
@@ -49,12 +49,7 @@ impl Quality {
 pub fn presets() -> Vec<Quality> {
     QUALITY_PRESETS
         .iter()
-        .map(|p| Quality {
-            id: p.id,
-            label: p.label.to_string(),
-            max_bitrate_kbps: p.max_bitrate_kbps,
-            max_height: p.max_height,
-        })
+        .map(|p| Quality { id: p.id, label: p.label(), max_bitrate_kbps: p.max_bitrate_kbps, max_height: p.max_height })
         .collect()
 }
 
@@ -99,13 +94,11 @@ pub fn lines_of(file: Option<&MediaFile>) -> Option<u32> {
 /// A copy at more than this share of a file's bitrate, at its lines, plays no better than the file.
 const LIGHTER: f64 = 0.8;
 
-fn lines_name(lines: u32) -> String {
-    if lines >= 2160 { "4K".to_string() } else { format!("{lines}p") }
-}
-
-/// A number as JavaScript prints it: `8`, `4.6`.
-pub(crate) fn js_number(v: f64) -> String {
-    if v.fract() == 0.0 && v.abs() < 1e15 { format!("{}", v as i64) } else { format!("{v}") }
+/// A number as short as JavaScript prints it (`8`, `4.6`), in the language shown (`4,6`).
+pub(crate) fn shown_number(v: f64) -> String {
+    let written = format!("{v}");
+    let places = written.split_once('.').map_or(0, |(_, f)| f.len());
+    pley_i18n::decimal(v, places)
 }
 
 /// `preset` as it is named for `file`: by the file's own lines when the
@@ -118,7 +111,7 @@ pub fn named_for(file: Option<&MediaFile>, preset: &Quality) -> Quality {
     if height <= lines {
         return preset.clone();
     }
-    Quality { label: format!("{} Mbps {}", js_number(kbps as f64 / 1000.0), lines_name(lines)), ..preset.clone() }
+    Quality { label: quality_name(kbps as f64 / 1000.0, lines), ..preset.clone() }
 }
 
 /// The qualities worth offering for `file` (docs/QUALITY.md): the original
@@ -232,7 +225,7 @@ pub fn live_floor(lines: u32) -> f64 {
 /// "4 Mbps 1080p": the stream of `file` asked for at `preset`, going on at `kbps`.
 pub fn live_label(file: Option<&MediaFile>, preset: &Quality, kbps: f64) -> String {
     let lines = stream_lines(file, preset);
-    format!("{} Mbps {}", js_number((kbps / 100.0).round() / 10.0), lines_name(lines))
+    quality_name((kbps / 100.0).round() / 10.0, lines)
 }
 
 /// "1080p · 8.2 Mbps": what a file is, for the Original row's hint.
@@ -294,5 +287,22 @@ mod tests {
         assert_eq!(live_label(Some(&f), &preset("8m").unwrap(), 3000.0), "3 Mbps 1080p");
         assert_eq!(live_label(Some(&f), &preset("8m").unwrap(), 4560.0), "4.6 Mbps 1080p");
         assert_eq!(server_quality(Some(&f)).id, "12m");
+    }
+
+    #[test]
+    fn names_qualities_in_the_language_shown() {
+        let labels = |q: Vec<Quality>| q.into_iter().map(|q| q.label).collect::<Vec<_>>();
+        assert_eq!(labels(presets())[..4], ["Original", "Automatic", "30 Mbps 4K", "15 Mbps 4K"]);
+        let f = file(1920, 1080, 10_000_000);
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            assert_eq!(labels(presets())[..3], ["Original", "Automatique", "30 Mbit/s 4K"]);
+            assert_eq!(live_label(Some(&f), &preset("8m").unwrap(), 4560.0), "4,6 Mbit/s 1080p");
+            // A 720p file names the taller copies by its own lines.
+            assert_eq!(named_for(Some(&file(1280, 720, 0)), &preset("8m").unwrap()).label, "8 Mbit/s 720p");
+        });
+        pley_i18n::with_language(pley_i18n::Language::Es, || {
+            assert_eq!(labels(presets())[1], "Automática");
+            assert_eq!(live_label(Some(&f), &preset("8m").unwrap(), 4560.0), "4,6 Mbps 1080p");
+        });
     }
 }

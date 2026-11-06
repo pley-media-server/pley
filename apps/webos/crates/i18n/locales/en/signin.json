@@ -1,0 +1,58 @@
+{
+  "language": {
+    "choose": "Choose a language"
+  },
+  "servers": {
+    "title": "Choose your server",
+    "enterAddress": "Enter an address",
+    "searchNetwork": "Search this network",
+    "forgetHint": "Hold OK on a saved server to forget it.",
+    "checkingRange": "Checking {{subnet}}1-254…",
+    "checkingNetwork": "Checking this network…",
+    "looking": "Looking for Pley on your network…",
+    "noneFound": "No servers found. Make sure this TV and the server are on the same network.",
+    "forgetTitle": "Forget {{name}}?",
+    "forgetBody": "Pley signs this TV out of it and deletes what it saved from it.",
+    "forget": "Forget",
+    "notYours": "Not your saved server",
+    "notEncrypted": "Not encrypted",
+    "onNetwork": "On this network",
+    "connecting": "Connecting to {{address}}…",
+    "unreachable": "Can't reach it"
+  },
+  "address": {
+    "title": "Enter your server's address",
+    "placeholder": "192.168.1.20 or pley.example.com",
+    "connect": "Connect",
+    "checking": "Checking…",
+    "port": "Port {{port}} is used by default."
+  },
+  "problem": {
+    "unencrypted": "{{address}} isn't encrypted: what you watch could be read on the way. Use its https address if it has one, or press Connect again to go ahead anyway."
+  },
+  "link": {
+    "title": "Sign in to Pley",
+    "changeServer": "Change server",
+    "scan": "Scan the code with your phone",
+    "goTo": "or go to",
+    "enterCode": "and enter this code",
+    "sameWifi": "Your phone must be on the same Wi-Fi as this TV.",
+    "otherDevice": "Or open Pley on a signed-in device → Link a TV",
+    "newCode": "Get a new code",
+    "scanCamera": "Scan with your phone camera",
+    "gettingCode": "Getting a code…",
+    "waiting": "Waiting for approval…",
+    "retrying": "Can't reach the server. Trying again in {{seconds}} s",
+    "declined": "Request declined",
+    "expired": "Code expired: press OK for a new one",
+    "signedInAs": "Signed in as {{name}}",
+    "signedIn": "Signed in",
+    "twoStepRequired": "This server requires two-step sign-in: your phone sets it up if you haven't yet."
+  },
+  "approve": {
+    "title": "Approve on your phone",
+    "intro": "{{name}}'s profile needs its password: approve this code on a phone signed in to Pley, and pick {{name}} there.",
+    "anyTitle": "Sign in as another profile",
+    "anyIntro": "Approve this code on a phone signed in to Pley, and pick the profile there."
+  }
+}

@@ -8,6 +8,7 @@
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/ServerRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="background" width="1000" height="104" color="0x262B35FF" />
         <Label id="name" translation="[32, 14]" width="620" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" />

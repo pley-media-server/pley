@@ -1,0 +1,18 @@
+{
+  "title": "USB drive",
+  "noDrive": {
+    "title": "No USB drive",
+    "body": "Plug a USB drive into the TV to play its videos here."
+  },
+  "unreadable": {
+    "title": "This folder can't be read",
+    "body": "The drive may have been pulled out."
+  },
+  "empty": {
+    "title": "Nothing to play here",
+    "body": "This folder has no videos or folders in it."
+  },
+  "space": "{{free}} free of {{total}}",
+  "up": "Up a folder",
+  "resumesAt": "{{kind}} · Resumes at {{time}}"
+}

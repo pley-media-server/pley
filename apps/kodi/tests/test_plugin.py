@@ -6,6 +6,7 @@ import unittest
 from unittest import mock
 
 import support
+import xbmcaddon
 import xbmcgui
 from pley import api, kodi, plugin, profiles, signin
 
@@ -139,6 +140,12 @@ class TwoStepTest(unittest.TestCase):
     screen says: the phone that approves the code sets it up."""
 
     def setUp(self):
+        # Where the add-on keeps the server's language, which it hears too.
+        profile = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, profile, True)
+        xbmcaddon.settings["_profile"] = profile
+        self.addCleanup(xbmcaddon.settings.pop, "_profile", None)
+        self.addCleanup(kodi.begin)
         self.status = support.answer(200, STATUS)
         # Cleared, the server holds its status back until it is set.
         self.answering = threading.Event()

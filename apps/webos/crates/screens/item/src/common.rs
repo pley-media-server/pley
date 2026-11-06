@@ -4,6 +4,7 @@
 use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{ItemKind, ItemSummary};
 use pley_core::{Api, ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::Button;
 use pley_shell::{AppCx, PlayRequest, Route};
 use pley_ui::theme::{self, radius};
@@ -140,7 +141,9 @@ impl TileData {
 }
 
 /// The toast when a title has nothing to play.
-pub const NOTHING_TO_PLAY: &str = "Nothing to play: this item has no media files.";
+pub fn nothing_to_play() -> &'static str {
+    t!("item.states.nothingToPlay")
+}
 
 /// Plays a video from its start, or where it was left.
 pub fn play_request(id: i64, from_start: bool) -> PlayRequest {
@@ -149,7 +152,7 @@ pub fn play_request(id: i64, from_start: bool) -> PlayRequest {
 
 /// A title shown at "Can't reach your server" when the server is out of reach, else `failed`.
 pub fn failed_title(error: &ApiError, failed: &'static str) -> &'static str {
-    if error.unreachable() { "Can't reach your server" } else { failed }
+    if error.unreachable() { t!("item.states.unreachable") } else { failed }
 }
 
 /// A page's message (`TvMessage` in `TvItemParts.kt`): vertically centred at x 96, a 40 dp icon in

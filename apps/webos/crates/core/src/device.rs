@@ -9,6 +9,8 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 
+use pley_i18n::t;
+
 use crate::media::PlayerEngine;
 use crate::model::{ClientCaps, DeviceCaps, DisplayCaps, DolbyVisionDecoder, DynamicRange, HlsCaps, VideoDecoder};
 use crate::store::{PassthroughChoice, PassthroughChoices, PassthroughFormat, Settings};
@@ -42,7 +44,8 @@ pub use pley_base::Tier;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CapsReport {
     pub caps: ClientCaps,
-    /// Diagnostics' lines: `TV: …`, `webOS 23`, `Panel: 4K OLED`, `HDR: …`…
+    /// Diagnostics' lines: `TV: …`, `webOS 23`, `Panel: 4K OLED`, `HDR: …`…, in the language shown
+    /// when the report was made.
     pub lines: Vec<String>,
     /// Containers LG's pipeline shows Dolby Vision from; a Dolby Vision file in
     /// another is asked for as a remux (all but MKV before webOS 25).
@@ -130,6 +133,11 @@ pub trait Device: Send + Sync {
     fn local_ipv4(&self) -> Option<Ipv4Addr>;
     /// Times of day as `21:05` rather than `9:05 PM`.
     fn clock_24h(&self) -> bool;
+    /// The TV's languages, its menus' first, as tags (`fr-CA`): the app shows the first Pley has
+    /// when nothing else says which (docs/LG.md, "Language"). None until the TV has said.
+    fn languages(&self) -> Vec<String> {
+        Vec::new()
+    }
     /// Whether LG's Audio Guidance is on.
     fn screen_reader(&self) -> bool;
     /// Reads `text` aloud in the TV's voice, cutting off what it was reading. Called only while
@@ -271,6 +279,7 @@ pub struct FakeDevice {
     engine: Box<EngineFactory>,
     screen_reader: AtomicBool,
     clock_24h: AtomicBool,
+    languages: Mutex<Vec<String>>,
     awake: AtomicBool,
     exited: AtomicBool,
     os_major: AtomicU32,
@@ -295,6 +304,7 @@ impl FakeDevice {
             engine: Box::new(engine),
             screen_reader: AtomicBool::new(false),
             clock_24h: AtomicBool::new(true),
+            languages: Mutex::new(vec!["en-US".into()]),
             awake: AtomicBool::new(false),
             exited: AtomicBool::new(false),
             os_major: AtomicU32::new(22),
@@ -331,6 +341,11 @@ impl FakeDevice {
     /// Times of day as `21:05` (true) or `9:05 PM`.
     pub fn set_clock_24h(&self, on: bool) {
         self.clock_24h.store(on, Ordering::SeqCst);
+    }
+
+    /// The TV's languages (`en-US` at first).
+    pub fn set_languages(&self, languages: &[&str]) {
+        *self.languages.lock().unwrap_or_else(|e| e.into_inner()) = languages.iter().map(|l| l.to_string()).collect();
     }
 
     /// Changes the TV's address, telling subscribers.
@@ -417,6 +432,10 @@ impl Device for FakeDevice {
 
     fn clock_24h(&self) -> bool {
         self.clock_24h.load(Ordering::SeqCst)
+    }
+
+    fn languages(&self) -> Vec<String> {
+        self.languages.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     fn screen_reader(&self) -> bool {
@@ -556,20 +575,22 @@ pub fn lg_2022_caps(overrides: &CapsOverrides) -> CapsReport {
         })
         .collect::<Vec<_>>()
         .join(", ");
+    let sent =
+        if passthrough.is_empty() { t!("diagnostics.lines.nothing").to_string() } else { passthrough.join(", ") };
     let lines = vec![
-        "TV: OLED65C2PUA (firmware 03.20.70)".to_string(),
+        t!("diagnostics.lines.tvFirmware", model = "OLED65C2PUA", firmware = "03.20.70"),
         "webOS 22".to_string(),
-        "Panel: 4K OLED".to_string(),
-        "HDR: HDR10, HLG, Dolby Vision".to_string(),
-        format!("Dolby Vision: profiles 5, 8, from {}", dv_containers.join(", ").to_uppercase()),
-        format!("Video: {video_line}"),
-        format!("Audio decoded: {}", decode.join(", ")),
-        format!(
-            "Sent to the receiver: {}",
-            if passthrough.is_empty() { "nothing".to_string() } else { passthrough.join(", ") }
+        t!("diagnostics.lines.panel", panel = "4K OLED"),
+        t!("diagnostics.lines.hdr", formats = "HDR10, HLG, Dolby Vision"),
+        t!("diagnostics.lines.dolbyVision", profiles = "5, 8", containers = dv_containers.join(", ").to_uppercase()),
+        t!("diagnostics.lines.video", decoders = video_line),
+        t!("diagnostics.lines.audioDecoded", formats = decode.join(", ")),
+        t!("diagnostics.lines.sent", formats = sent),
+        t!(
+            "diagnostics.lines.sound",
+            output = t!("diagnostics.lines.digital", output = "tv_speaker", digital = "auto")
         ),
-        "Sound: tv_speaker (digital auto)".to_string(),
-        "Streams: HLS ts, fmp4".to_string(),
+        t!("diagnostics.lines.streams", segments = "ts, fmp4"),
     ];
     CapsReport { caps, lines, dv_containers }
 }

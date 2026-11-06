@@ -5,6 +5,7 @@
 //! when it closes: by Close, Back, Up or Down, or after 10 s untouched.
 
 use pley_base::{Icon, ImageRequest, Key, Point, Rect, TextOpts};
+use pley_i18n::t;
 use pley_kit::Button;
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Edge, Group, Id, ImageOpts, Ui};
@@ -23,10 +24,6 @@ const W: f32 = 360.0;
 const RIGHT: f32 = 48.0;
 const BOTTOM: f32 = 51.0;
 const PAD: f32 = 16.0;
-
-/// The words of its buttons.
-pub const OPEN: &str = "Open";
-pub const CLOSE: &str = "Close";
 
 /// The notice on screen, and when the remote was last used.
 #[derive(Debug, Default)]
@@ -117,8 +114,8 @@ impl Notices {
         let buttons_y = card.y + PAD + head_h + 14.0;
         let group = Group::row().edge(Dir::Up, Edge::Stop).edge(Dir::Down, Edge::Stop).trap();
         ui.group(root, group, |ui| {
-            let close_b = Button::text(CLOSE);
-            let open_b = Button::text(OPEN);
+            let close_b = Button::text(t!("common.actions.close"));
+            let open_b = Button::text(t!("common.actions.open"));
             let close_w = close_b.size(ui).w;
             let open_w = open_b.size(ui).w;
             let right = card.right() - PAD;

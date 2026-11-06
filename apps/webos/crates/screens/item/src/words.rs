@@ -1,23 +1,12 @@
 //! The words of a title's page, its actions and a person's page, as the Android TV app writes them
-//! (`strings_tv_item.xml`, `ItemPages.kt`, `PersonViewModel.kt`; the TV app's `item.tsx`).
+//! (`strings_tv_item.xml`, `ItemPages.kt`, `PersonViewModel.kt`; the TV app's `item.tsx`), in the
+//! language shown (`locales/<language>/item.json`).
 
-use pley_core::format::{episode_label, format_duration, format_runtime, format_time_left, is_in_progress, pluralize};
+use pley_core::format::{
+    episode_label, format_duration, format_runtime, format_time_left, is_in_progress, season_title,
+};
 use pley_core::model::{CreditRole, ExtraType, ItemKind, ItemSummary, PersonCredit, PersonRole};
-
-const MONTHS: [&str; 12] = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
-];
+use pley_i18n::t;
 
 /// The year, month (1–12) and day of a server date (`2024-03-12`, or a timestamp starting so).
 fn ymd(date: &str) -> Option<(i64, usize, u32)> {
@@ -28,10 +17,46 @@ fn ymd(date: &str) -> Option<(i64, usize, u32)> {
     Some((y, m, d))
 }
 
-/// "Apr 1, 2023" (Android's medium date in English); empty when there is none.
+/// A month's short name: "Apr", "avr.", "abr".
+fn short_month(month: usize) -> &'static str {
+    match month {
+        1 => t!("item.months.short.jan"),
+        2 => t!("item.months.short.feb"),
+        3 => t!("item.months.short.mar"),
+        4 => t!("item.months.short.apr"),
+        5 => t!("item.months.short.may"),
+        6 => t!("item.months.short.jun"),
+        7 => t!("item.months.short.jul"),
+        8 => t!("item.months.short.aug"),
+        9 => t!("item.months.short.sep"),
+        10 => t!("item.months.short.oct"),
+        11 => t!("item.months.short.nov"),
+        _ => t!("item.months.short.dec"),
+    }
+}
+
+/// A month's name: "March", "mars", "marzo".
+fn long_month(month: usize) -> &'static str {
+    match month {
+        1 => t!("item.months.long.january"),
+        2 => t!("item.months.long.february"),
+        3 => t!("item.months.long.march"),
+        4 => t!("item.months.long.april"),
+        5 => t!("item.months.long.may"),
+        6 => t!("item.months.long.june"),
+        7 => t!("item.months.long.july"),
+        8 => t!("item.months.long.august"),
+        9 => t!("item.months.long.september"),
+        10 => t!("item.months.long.october"),
+        11 => t!("item.months.long.november"),
+        _ => t!("item.months.long.december"),
+    }
+}
+
+/// "Apr 1, 2023" (Android's medium date: in French "1 avr. 2023"); empty when there is none.
 pub fn medium_date(date: Option<&str>) -> String {
     match date.and_then(ymd) {
-        Some((y, m, d)) => format!("{} {d}, {y}", &MONTHS[m - 1][..3]),
+        Some((y, m, d)) => t!("item.dates.medium", month = short_month(m), day = d, year = y),
         None => String::new(),
     }
 }
@@ -39,14 +64,14 @@ pub fn medium_date(date: Option<&str>) -> String {
 /// "12 March 2024", as the info block says when an episode aired; empty when there is none.
 pub fn long_date(date: Option<&str>) -> String {
     match date.and_then(ymd) {
-        Some((y, m, d)) => format!("{d} {} {y}", MONTHS[m - 1]),
+        Some((y, m, d)) => t!("item.dates.long", month = long_month(m), day = d, year = y),
         None => String::new(),
     }
 }
 
 /// "Season 2 · Episode 5", "Episode 5", or empty.
 pub fn episode_long_label(season: Option<i64>, episode: Option<i64>) -> String {
-    [season.map(|s| format!("Season {s}")), episode.map(|e| format!("Episode {e}"))]
+    [season.map(|s| t!("item.episodes.season", number = s)), episode.map(|e| t!("item.episodes.episode", number = e))]
         .into_iter()
         .flatten()
         .collect::<Vec<_>>()
@@ -56,14 +81,14 @@ pub fn episode_long_label(season: Option<i64>, episode: Option<i64>) -> String {
 /// What an extra is ("Trailer", "Behind the Scenes"…), else "Extra" (`EXTRA_LABELS`).
 pub fn extra_label(kind: Option<ExtraType>) -> &'static str {
     match kind {
-        Some(ExtraType::Trailer) => "Trailer",
-        Some(ExtraType::BehindTheScenes) => "Behind the Scenes",
-        Some(ExtraType::DeletedScene) => "Deleted Scene",
-        Some(ExtraType::Featurette) => "Featurette",
-        Some(ExtraType::Interview) => "Interview",
-        Some(ExtraType::Scene) => "Scene",
-        Some(ExtraType::Short) => "Short",
-        _ => "Extra",
+        Some(ExtraType::Trailer) => t!("item.extras.trailer"),
+        Some(ExtraType::BehindTheScenes) => t!("item.extras.behindTheScenes"),
+        Some(ExtraType::DeletedScene) => t!("item.extras.deletedScene"),
+        Some(ExtraType::Featurette) => t!("item.extras.featurette"),
+        Some(ExtraType::Interview) => t!("item.extras.interview"),
+        Some(ExtraType::Scene) => t!("item.extras.scene"),
+        Some(ExtraType::Short) => t!("item.extras.short"),
+        _ => t!("item.extras.other"),
     }
 }
 
@@ -96,7 +121,7 @@ pub fn episode_info_line(item: &ItemSummary) -> String {
     join([
         episode_long_label(item.parent_index, item.index),
         format_runtime(item.duration_ms),
-        if aired.is_empty() { aired } else { format!("Aired {aired}") },
+        if aired.is_empty() { aired } else { t!("item.episodes.aired", date = aired) },
     ])
 }
 
@@ -110,33 +135,33 @@ pub fn year_range(year: Option<i64>, seasons: &[ItemSummary]) -> Option<String> 
 
 /// "1 star", "3 stars".
 pub fn stars_label(stars: u32) -> String {
-    if stars == 1 { "1 star".into() } else { format!("{stars} stars") }
+    t!("item.panels.stars", count = stars)
 }
 
 /// "and 3 more", after the names a details line shows.
 pub fn and_more(more: usize) -> String {
-    format!("and {more} more")
+    t!("item.details.andMore", count = more)
 }
 
 /// The cast row's header (`TvItemScreen.kt`): "Cast", "Crew", "Cast & Crew", and for an episode
 /// "Guest Stars" or "Guest Stars & Crew".
 pub fn cast_title(episode: bool, cast: bool, crew: bool) -> &'static str {
     match (cast, crew, episode) {
-        (_, false, true) => "Guest Stars",
-        (_, false, false) => "Cast",
-        (false, true, _) => "Crew",
-        (true, true, true) => "Guest Stars & Crew",
-        (true, true, false) => "Cast & Crew",
+        (_, false, true) => t!("item.rows.guestStars"),
+        (_, false, false) => t!("item.rows.cast"),
+        (false, true, _) => t!("item.rows.crew"),
+        (true, true, true) => t!("item.rows.guestStarsAndCrew"),
+        (true, true, false) => t!("item.rows.castAndCrew"),
     }
 }
 
 /// A crew member's tile caption in the cast row.
 pub fn crew_role(role: CreditRole) -> &'static str {
     match role {
-        CreditRole::Director => "Director",
-        CreditRole::Writer => "Writer",
-        CreditRole::Creator => "Creator",
-        CreditRole::Producer => "Producer",
+        CreditRole::Director => t!("item.roles.director"),
+        CreditRole::Writer => t!("item.roles.writer"),
+        CreditRole::Creator => t!("item.roles.creator"),
+        CreditRole::Producer => t!("item.roles.producer"),
         _ => "",
     }
 }
@@ -153,12 +178,13 @@ pub fn actions_subtitle(item: &ItemSummary) -> String {
     pley_core::format::card_subtitle(item)
 }
 
-/// A title as its actions name it: an episode by its show.
+/// A title as its actions name it: an episode by its show, a season as its page does.
 pub fn actions_title(item: &ItemSummary) -> String {
     match item.kind {
         ItemKind::Episode => {
             item.grandparent_title.clone().filter(|t| !t.is_empty()).unwrap_or_else(|| item.title.clone())
         }
+        ItemKind::Season => season_title(Some(&item.title), item.index),
         _ => item.title.clone(),
     }
 }
@@ -172,17 +198,17 @@ pub fn role_text(roles: &[PersonRole]) -> String {
             let episodes = r.episodes.unwrap_or(0);
             let base = if r.role == CreditRole::Actor {
                 match r.character.as_deref().filter(|c| !c.is_empty()) {
-                    Some(c) => format!("as {c}"),
-                    None if episodes > 0 => "Guest star".into(),
-                    None => "Actor".into(),
+                    Some(c) => t!("item.roles.as", character = c),
+                    None if episodes > 0 => t!("item.roles.guestStar").into(),
+                    None => t!("item.roles.actor").into(),
                 }
             } else {
                 match crew_role(r.role) {
-                    "" => "Crew".into(),
+                    "" => t!("item.roles.crew").into(),
                     name => name.into(),
                 }
             };
-            if episodes > 0 { format!("{base} ({})", pluralize(episodes, "episode", None)) } else { base }
+            if episodes > 0 { t!("item.roles.withEpisodes", count = episodes, role = base) } else { base }
         })
         .collect::<Vec<_>>()
         .join(", ")
@@ -198,19 +224,19 @@ pub fn person_counts(credits: &[&PersonCredit]) -> String {
     let count = |kind| credits.iter().filter(|c| c.item.kind == kind).count() as i64;
     let (movies, shows) = (count(ItemKind::Movie), count(ItemKind::Show));
     join([
-        if movies > 0 { pluralize(movies, "movie", None) } else { String::new() },
-        if shows > 0 { pluralize(shows, "show", None) } else { String::new() },
+        if movies > 0 { t!("item.counts.movies", count = movies) } else { String::new() },
+        if shows > 0 { t!("item.counts.shows", count = shows) } else { String::new() },
     ])
 }
 
 /// A row's header on a person's page.
 pub fn role_heading(role: CreditRole) -> &'static str {
     match role {
-        CreditRole::Director => "Directing",
-        CreditRole::Creator => "Creating",
-        CreditRole::Writer => "Writing",
-        CreditRole::Producer => "Producing",
-        _ => "Acting",
+        CreditRole::Director => t!("item.person.directing"),
+        CreditRole::Creator => t!("item.person.creating"),
+        CreditRole::Writer => t!("item.person.writing"),
+        CreditRole::Producer => t!("item.person.producing"),
+        _ => t!("item.person.acting"),
     }
 }
 
@@ -269,6 +295,15 @@ mod tests {
         );
         let started = ItemSummary { user_state: UserState { position_ms: 32 * 60_000, ..UserState::default() }, ..e };
         assert_eq!(episode_length(&started), "26 min left");
+    }
+
+    #[test]
+    fn a_season_s_actions_name_it_as_its_page_does() {
+        use pley_i18n::{Language, with_language};
+        let season =
+            ItemSummary { kind: ItemKind::Season, title: "Specials".into(), index: Some(0), ..ItemSummary::default() };
+        assert_eq!(actions_title(&season), "Specials");
+        assert_eq!(with_language(Language::Es, || actions_title(&season)), "Especiales");
     }
 
     #[test]
@@ -334,5 +369,34 @@ mod tests {
         assert_eq!(stars_label(1), "1 star");
         assert_eq!(stars_label(5), "5 stars");
         assert_eq!(and_more(3), "and 3 more");
+    }
+
+    #[test]
+    fn french_and_spanish_write_dates_counts_and_parts_their_way() {
+        use pley_i18n::{Language, with_language};
+        with_language(Language::Fr, || {
+            assert_eq!(medium_date(Some("2023-04-01")), "1 avr. 2023");
+            assert_eq!(long_date(Some("2024-03-12")), "12 mars 2024");
+            assert_eq!(episode_long_label(Some(2), Some(5)), "Saison 2 · Épisode 5");
+            assert_eq!((stars_label(1), stars_label(4)), ("1 étoile".into(), "4 étoiles".into()));
+            assert_eq!(and_more(1), "et 1 autre");
+            let guest = PersonRole { role: CreditRole::Actor, character: None, episodes: Some(1) };
+            assert_eq!(role_text(&[guest]), "Apparition (1 épisode)");
+            // A tile has room for the character's name alone, so French gives it without words.
+            let actor = PersonRole { role: CreditRole::Actor, character: Some("Neo".into()), episodes: None };
+            assert_eq!(role_text(&[actor]), "Neo");
+            let credit =
+                |kind| PersonCredit { item: ItemSummary { kind, ..ItemSummary::default() }, roles: Vec::new() };
+            let (a, b) = (credit(ItemKind::Movie), credit(ItemKind::Show));
+            assert_eq!(person_counts(&[&a, &b]), "1 film · 1 série");
+        });
+        with_language(Language::Es, || {
+            assert_eq!(long_date(Some("2024-03-12")), "12 de marzo de 2024");
+            assert_eq!(medium_date(Some("2024-09-05")), "5 sept 2024");
+            assert_eq!(cast_title(true, true, true), "Estrellas invitadas y equipo");
+            let actor = PersonRole { role: CreditRole::Actor, character: Some("Neo".into()), episodes: Some(3) };
+            assert_eq!(role_text(&[actor]), "como Neo (3 episodios)");
+            assert_eq!(extra_label(Some(ExtraType::BehindTheScenes)), "Detrás de cámaras");
+        });
     }
 }

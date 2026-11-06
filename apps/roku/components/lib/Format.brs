@@ -1,5 +1,6 @@
-' Times, progress, sizes and rates as the screens write them. Durations and
-' positions are milliseconds, as the server sends them.
+' Times, progress, sizes and rates as the screens write them, in the
+' language shown (I18n.brs; the words in locales/<language>/format.json).
+' Durations and positions are milliseconds, as the server sends them.
 
 ' "1:02:03", or "12:34" under an hour.
 function fmtClock(ms as dynamic) as string
@@ -25,16 +26,16 @@ function fmtDuration(ms as dynamic) as string
     if minutes < 1 then minutes = 1
     hours = Int(minutes / 60)
     minutes = minutes mod 60
-    if hours = 0 then return minutes.ToStr() + " min"
-    if minutes = 0 then return hours.ToStr() + " h"
-    return hours.ToStr() + " h " + minutes.ToStr() + " min"
+    if hours = 0 then return t("format.duration.minutes", { minutes: minutes })
+    if minutes = 0 then return t("format.duration.hours", { hours: hours })
+    return t("format.duration.hoursMinutes", { hours: hours, minutes: minutes })
 end function
 
 ' "42 min left"; "" without a duration.
 function fmtLeft(positionMs as dynamic, durationMs as dynamic) as string
     remaining = httpNumber(durationMs, 0) - httpNumber(positionMs, 0)
     if httpNumber(durationMs, 0) <= 0 or remaining <= 0 then return ""
-    return fmtDuration(remaining) + " left"
+    return t("format.duration.left", { time: fmtDuration(remaining) })
 end function
 
 ' How far along, from 0 to 1.
@@ -46,18 +47,19 @@ function fmtProgress(positionMs as dynamic, durationMs as dynamic) as float
     return position / duration
 end function
 
-' "S1 E2"; "E2" without a season; "" without an episode.
+' "S1 E2" ("S1 É2", "T1 E2"); "E2" without a season; "" without an
+' episode.
 function fmtEpisode(season as dynamic, episode as dynamic) as string
     s = httpNumber(season, -1)
     e = httpNumber(episode, -1)
     if e < 0 then return ""
-    if s < 0 then return "E" + Int(e).ToStr()
-    return "S" + Int(s).ToStr() + " E" + Int(e).ToStr()
+    if s < 0 then return t("format.episode.episode", { episode: Int(e) })
+    return t("format.episode.both", { season: Int(s), episode: Int(e) })
 end function
 
 ' "Resume from 12:34".
 function fmtResume(ms as dynamic) as string
-    return "Resume from " + fmtClock(ms)
+    return t("format.resume", { time: fmtClock(ms) })
 end function
 
 ' Whether a title has a place to resume from: started, not near its end.
@@ -86,28 +88,27 @@ end function
 ' "1 movie", "245 movies", "31 shows", "12 artists" for a library's kind.
 function fmtCount(count as dynamic, kind as string) as string
     n = Int(httpNumber(count, 0))
-    noun = "title"
-    if kind = "movies" then noun = "movie"
-    if kind = "shows" then noun = "show"
-    if kind = "music" then noun = "artist"
-    if n = 1 then return "1 " + noun
-    return n.ToStr() + " " + noun + "s"
+    noun = "titles"
+    if kind = "movies" then noun = "movies"
+    if kind = "shows" then noun = "shows"
+    if kind = "music" then noun = "artists"
+    return t("format.counts." + noun, { count: n })
 end function
 
-' 7.5, 8 (no ".0").
+' 7.5, 8 (no ".0"); "7,5" in French and Spanish.
 function fmtOneDecimal(value as dynamic) as string
     tenths = Int(value * 10 + 0.5)
-    if tenths mod 10 = 0 then return Int(tenths / 10).ToStr()
-    return Int(tenths / 10).ToStr() + "." + (tenths mod 10).ToStr()
+    if tenths mod 10 = 0 then return i18nNumber(Int(tenths / 10))
+    return i18nNumber(tenths / 10, 1)
 end function
 
 ' "8.2 Mbps", "24 Mbps", "640 kbps"; "" without one.
 function fmtBitrate(bps as dynamic) as string
     value = httpNumber(bps, 0)
     if value <= 0 then return ""
-    if value >= 10000000 then return urlValue(Int(value / 1000000 + 0.5)) + " Mbps"
-    if value >= 1000000 then return fmtOneDecimal(value / 1000000) + " Mbps"
-    return urlValue(Int(value / 1000 + 0.5)) + " kbps"
+    if value >= 10000000 then return t("format.bitrate.mbps", { n: i18nNumber(Int(value / 1000000 + 0.5)) })
+    if value >= 1000000 then return t("format.bitrate.mbps", { n: fmtOneDecimal(value / 1000000) })
+    return t("format.bitrate.kbps", { n: i18nNumber(Int(value / 1000 + 0.5)) })
 end function
 
 ' 1536 → "1.5 KB", 150 MiB → "150 MB", "62.0 GB": three digits, in units
@@ -122,21 +123,48 @@ function fmtBytes(bytes as dynamic) as string
         size = size / 1024
         at = at + 1
     end while
-    if size >= 100 or at = 0 then return urlValue(Int(size + 0.5)) + " " + units[at]
-    tenths = Int(size * 10 + 0.5)
-    return urlValue(Int(tenths / 10)) + "." + urlValue(tenths mod 10) + " " + units[at]
+    if size >= 100 or at = 0 then return t("format.bytes." + units[at], { n: i18nNumber(Int(size + 0.5)) })
+    return t("format.bytes." + units[at], { n: i18nNumber(size, 1) })
 end function
 
 ' The languages offered for the audio and subtitle defaults, as ISO 639-2/B
-' codes (the other apps' 34): [[code, name]].
+' codes (the other apps' 34), named in the language shown, in its
+' alphabetical order: [[code, name]].
 function fmtLanguages() as object
-    return [
-        ["ara", "Arabic"], ["bul", "Bulgarian"], ["cat", "Catalan"], ["chi", "Chinese"], ["hrv", "Croatian"], ["cze", "Czech"], ["dan", "Danish"],
-        ["dut", "Dutch"], ["eng", "English"], ["fin", "Finnish"], ["fre", "French"], ["ger", "German"], ["gre", "Greek"], ["heb", "Hebrew"],
-        ["hin", "Hindi"], ["hun", "Hungarian"], ["ind", "Indonesian"], ["ita", "Italian"], ["jpn", "Japanese"], ["kor", "Korean"], ["nor", "Norwegian"],
-        ["per", "Persian"], ["pol", "Polish"], ["por", "Portuguese"], ["rum", "Romanian"], ["rus", "Russian"], ["srp", "Serbian"], ["slo", "Slovak"],
-        ["spa", "Spanish"], ["swe", "Swedish"], ["tha", "Thai"], ["tur", "Turkish"], ["ukr", "Ukrainian"], ["vie", "Vietnamese"]
-    ]
+    codes = ["ara", "bul", "cat", "chi", "hrv", "cze", "dan", "dut", "eng", "fin", "fre", "ger", "gre", "heb", "hin", "hun", "ind",
+        "ita", "jpn", "kor", "nor", "per", "pol", "por", "rum", "rus", "srp", "slo", "spa", "swe", "tha", "tur", "ukr", "vie"]
+    named = []
+    for each code in codes
+        name = t("format.languages." + code)
+        named.Push({ code: code, name: name, order: fmtSortKey(name) })
+    end for
+    named.SortBy("order")
+    out = []
+    for each language in named
+        out.Push([language.code, language.name])
+    end for
+    return out
+end function
+
+' A name as it sorts: in lower case, its letters without their accents, as
+' the other apps' localeCompare has them (Spanish's "Árabe" among the A's,
+' French's "Hébreu" before "Hindi"). Ñ stays a letter of its own, as in
+' Spanish. Capitals are mapped too, as LCase may leave them.
+function fmtSortKey(name as string) as string
+    plain = {
+        "á": "a", "à": "a", "â": "a", "ä": "a", "Á": "a", "À": "a", "Â": "a",
+        "é": "e", "è": "e", "ê": "e", "ë": "e", "É": "e", "È": "e", "Ê": "e",
+        "í": "i", "î": "i", "ï": "i", "Í": "i", "Î": "i",
+        "ó": "o", "ô": "o", "ö": "o", "Ó": "o", "Ô": "o",
+        "ú": "u", "ù": "u", "û": "u", "ü": "u", "Ú": "u",
+        "ç": "c", "Ç": "c"
+    }
+    key = ""
+    for each letter in LCase(name).Split("")
+        if plain.DoesExist(letter) then letter = plain[letter]
+        key = key + letter
+    end for
+    return key
 end function
 
 ' A language's name, its code for one not offered, none for "". Files name
@@ -146,10 +174,10 @@ function fmtLanguageName(code as string, none as string) as string
     wanted = LCase(code)
     other = { fra: "fre", deu: "ger", zho: "chi", ces: "cze", nld: "dut", ell: "gre", fas: "per", ron: "rum", slk: "slo" }
     if other.DoesExist(wanted) then wanted = other[wanted]
-    for each language in fmtLanguages()
-        if language[0] = wanted then return language[1]
-    end for
-    return code
+    key = "format.languages." + wanted
+    name = t(key)
+    if name = key then return code
+    return name
 end function
 
 ' --- Resolutions and dynamic ranges ---
@@ -166,7 +194,7 @@ end function
 ' The dynamic ranges, best first; "hdr" is any of them but SDR. HDR10 and
 ' HDR10+ read as plain "HDR" and "HDR+", as on the posters.
 function fmtDynamicRanges() as object
-    return [["hdr", "Any HDR"], ["dolby_vision", "Dolby Vision"], ["hdr10plus", "HDR+"], ["hdr10", "HDR"], ["hlg", "HLG"], ["sdr", "SDR"]]
+    return [["hdr", t("format.ranges.anyHdr")],["dolby_vision", "Dolby Vision"], ["hdr10plus", "HDR+"], ["hdr10", "HDR"], ["hlg", "HLG"], ["sdr", "SDR"]]
 end function
 
 ' What table ([[token, label]]) calls token; "" for one it doesn't hold.
@@ -179,8 +207,9 @@ function fmtTokenLabel(table as object, token as dynamic) as string
 end function
 
 ' --- Times to come and gone (requests' words, lib/Requests.brs) ---
-' Roku has no relative-time formatter: these are the app's own, in its
-' words. Times are unix seconds; zone is what fmtZoneSeconds gives.
+' Roku has no relative-time formatter: these are the app's own, in the
+' language shown. Times are unix seconds; zone is what fmtZoneSeconds
+' gives.
 
 ' The seconds to add to a UTC time for this Roku's local time (its time
 ' zone, summer time as it is now).
@@ -195,17 +224,14 @@ end function
 ' hours", "tomorrow", "in 3 days".
 function fmtUntil(at as dynamic, now as integer) as string
     diff = httpNumber(at, 0) - now
-    if diff < 60 then return "in a moment"
+    if diff < 60 then return t("format.time.inMoment")
     minutes = Int((diff + 30) / 60)
-    if minutes < 60 then return "in " + urlValue(minutes) + " min"
+    if minutes < 60 then return t("format.time.inMinutes", { n: minutes })
     hours = Int((diff + 1800) / 3600)
-    if hours < 24
-        if hours = 1 then return "in 1 hour"
-        return "in " + urlValue(hours) + " hours"
-    end if
+    if hours < 24 then return t("format.time.inHours", { count: hours })
     days = Int((diff + 43200) / 86400)
-    if days <= 1 then return "tomorrow"
-    return "in " + urlValue(days) + " days"
+    if days <= 1 then return t("format.time.tomorrow")
+    return t("format.time.inDays", { count: days })
 end function
 
 ' How long ago at was: "now", "12 min ago", "1 hour ago", "3 hours ago",
@@ -213,21 +239,27 @@ end function
 function fmtAgo(at as dynamic, now as integer, zone as integer) as string
     seconds = httpNumber(at, 0)
     diff = now - seconds
-    if diff < 60 then return "now"
-    if diff < 3600 then return urlValue(Int(diff / 60)) + " min ago"
-    if diff < 86400
-        hours = Int(diff / 3600)
-        if hours = 1 then return "1 hour ago"
-        return urlValue(hours) + " hours ago"
-    end if
+    if diff < 60 then return t("format.time.now")
+    if diff < 3600 then return t("format.time.minutesAgo", { n: Int(diff / 60) })
+    if diff < 86400 then return t("format.time.hoursAgo", { count: Int(diff / 3600) })
     days = Int(diff / 86400)
-    if days = 1 then return "yesterday"
-    if days < 30 then return urlValue(days) + " days ago"
+    if days = 1 then return t("format.time.yesterday")
+    if days < 30 then return t("format.time.daysAgo", { count: days })
     return fmtMonthDay(seconds, zone, true)
 end function
 
-function fmtMonths() as object
-    return ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+' A month's short name (1 to 12): "Nov", "nov.", "nov".
+function fmtMonth(month as integer) as string
+    if month < 1 or month > 12 then return ""
+    keys = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+    return t("format.date.months." + keys[month - 1])
+end function
+
+' A day as the language shown writes it: "Nov 4", "4 nov."; with its
+' year, "Nov 4, 2027", "4 nov. 2027".
+function fmtDayText(year as integer, month as integer, day as integer, withYear as boolean) as string
+    if withYear then return t("format.date.monthDayYear", { month: fmtMonth(month), day: day, year: year })
+    return t("format.date.monthDay", { month: fmtMonth(month), day: day })
 end function
 
 ' at's day in local time: "Nov 4", with its year ("Nov 4, 2027") when
@@ -235,9 +267,7 @@ end function
 function fmtMonthDay(at as dynamic, zone as integer, withYear as boolean) as string
     date = CreateObject("roDateTime")
     date.FromSeconds(Int(httpNumber(at, 0) + zone))
-    text = fmtMonths()[date.GetMonth() - 1] + " " + urlValue(date.GetDayOfMonth())
-    if withYear then text = text + ", " + urlValue(date.GetYear())
-    return text
+    return fmtDayText(date.GetYear(), date.GetMonth(), date.GetDayOfMonth(), withYear)
 end function
 
 ' at's day in local time: "Nov 4" in the year now is in, else "Nov 4,
@@ -252,16 +282,34 @@ function fmtYear(at as dynamic, zone as integer) as integer
     return date.GetYear()
 end function
 
-' at's time of day in local time: "9:05 PM".
+' at's time of day in local time: "9:05 PM", "21:05".
 function fmtTimeOfDay(at as dynamic, zone as integer) as string
     date = CreateObject("roDateTime")
     date.FromSeconds(Int(httpNumber(at, 0) + zone))
-    hours = date.GetHours()
-    suffix = " AM"
-    if hours >= 12 then suffix = " PM"
-    hours = hours mod 12
-    if hours = 0 then hours = 12
-    return urlValue(hours) + ":" + fmtTwo(date.GetMinutes()) + suffix
+    return fmtClockText(date.GetHours(), date.GetMinutes(), fmtTwelveHour())
+end function
+
+' A time of day: "9:05 PM" on a 12-hour clock, else "21:05" ("9:05" in
+' Spanish, as CLDR writes it).
+function fmtClockText(hours as integer, minutes as integer, twelve as boolean) as string
+    if not twelve
+        if i18nLanguage() = "es" then return hours.ToStr() + ":" + fmtTwo(minutes)
+        return fmtTwo(hours) + ":" + fmtTwo(minutes)
+    end if
+    shown = hours mod 12
+    if shown = 0 then shown = 12
+    time = shown.ToStr() + ":" + fmtTwo(minutes)
+    if hours >= 12 then return t("format.clock.pm", { time: time })
+    return t("format.clock.am", { time: time })
+end function
+
+' Whether times show on a 12-hour clock: in English, as the Roku's clock
+' is set (Settings → System → Time); French and Spanish write 24 hours.
+function fmtTwelveHour() as boolean
+    if i18nLanguage() <> "en" then return false
+    g = GetGlobalAA()
+    if g.fmtClockFormat = invalid then g.fmtClockFormat = CreateObject("roDeviceInfo").GetClockFormat()
+    return g.fmtClockFormat <> "24h"
 end function
 
 ' A day as TMDB writes it ("2026-11-04"): "Nov 4" in the year now is in,
@@ -274,7 +322,5 @@ function fmtDateText(text as dynamic, now as integer, zone as integer) as string
     month = groups[2].ToInt()
     day = groups[3].ToInt()
     if month < 1 or month > 12 or day < 1 or day > 31 then return ""
-    out = fmtMonths()[month - 1] + " " + urlValue(day)
-    if year <> fmtYear(now, zone) then out = out + ", " + urlValue(year)
-    return out
+    return fmtDayText(year, month, day, year <> fmtYear(now, zone))
 end function

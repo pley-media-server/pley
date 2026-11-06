@@ -375,6 +375,49 @@ sub test_content_about_has_the_whole_summary_and_the_facts()
     tkEqual(contentAbout({ kind: "movie", title: "Dune", original_title: "Dune", summary: "Short." }, now, 0), "", "nothing beyond the page")
 end sub
 
+sub test_content_titles_in_french()
+    i18nUse("fr")
+    nbsp = Chr(160)
+    tkEqual(contentDetail(contentTestDetail(), contentTestServer()).buttons, ["Reprendre à 10:00", "Lire depuis le début", "Marquer comme vu", "Ajouter à Ma liste", "Plus…"])
+    tkEqual(contentRatingLabel(4), "Votre note" + nbsp + ": 4 étoiles")
+    tkEqual(contentStarsLabel(1), "1 étoile")
+    tkEqual(contentMediaLine(invalid), "Débit inconnu")
+    tkEqual(contentTiles([contentTestMovie()], contentTestServer(), true, true)[0].subtitle, "Débit inconnu", "looked up once for the page")
+    tkEqual(contentEpisodes([contentTestEpisode()], contentTestServer())[0].subtitle, "55 min · Vu")
+    seasons = contentSeasons([{ id: 98, kind: "season", title: "", index: 0 }, { id: 99, kind: "season", title: "", index: 2 }])
+    tkEqual(seasons[0].title, "Épisodes spéciaux")
+    tkEqual(seasons[1].title, "Saison 2")
+    movie = { kind: "movie", title: "Dune", crew: [{ id: 9, name: "Grace Hopper", role: "director" }], cast: [{ id: 1, name: "A" }, { id: 2, name: "B" }] }
+    tkEqual(contentCredits(movie), "Réalisation" + nbsp + ": Grace Hopper · Avec A, B")
+    writers = []
+    for i = 1 to 5
+        writers.Push({ id: i, name: Chr(64 + i), role: "writer" })
+    end for
+    lines = contentAbout({ kind: "movie", summary: "", crew: writers, user_state: { play_count: 2 } }, 0, 0).Split(Chr(10))
+    tkEqual(lines, ["Scénario" + nbsp + ": A, B, C, D et 1 autre", "Lectures" + nbsp + ": 2"])
+    tkEqual(contentSubtitleName({ title: invalid, forced: true }, "eng"), "Anglais (forcés)")
+    tkEqual(contentSubtitleName({ title: "Français (forcés)", forced: true }, "fre"), "Français (forcés)", "said once, in French too")
+    tkEqual(contentSubtitleName({ title: "" }, "und"), "Inconnu")
+end sub
+
+sub test_content_titles_in_spanish()
+    i18nUse("es")
+    show = ParseJson("{""id"":99,""kind"":""show"",""title"":""Severance"",""year"":2022,""child_count"":2,""user_state"":{""position_ms"":0,""watched"":false},""files"":[]}")
+    onDeck = contentTestEpisode()
+    onDeck.user_state.position_ms = 600000
+    detail = contentDetail(show, contentTestServer(), onDeck)
+    tkEqual(detail.line, "2022 · 2 temporadas")
+    tkEqual(detail.buttons, ["Reanudar T1 E1", "Episodios", "Marcar como visto", "Añadir a Mi lista", "Más…"])
+    tkEqual(detail.more[0].label, "Valorar")
+    artist = contentTile({ id: 3, kind: "artist", title: "Someone", child_count: 1 }, contentTestServer(), false)
+    tkEqual(artist.subtitle, "1 álbum")
+    artist = contentTile({ id: 3, kind: "artist", title: "Someone", child_count: 12345 }, contentTestServer(), false)
+    tkEqual(artist.subtitle, "12.345 álbumes", "a count is written the language's way")
+    tkEqual(contentHomeRows([{ key: "top_rated:1", title: "Mejor valoradas", library_id: 1, items: [contentTestMovie()] }], contentTestServer())[0].tiles[1].title, "Ver todo")
+    tkEqual(contentSubtitleName({ title: "Español", forced: true }, "spa"), "Español (forzados)")
+    tkEqual(contentSubtitleName({ title: "Forzados", forced: true }, "spa"), "Forzados")
+end sub
+
 sub test_content_details_offers_details_in_more()
     movie = { id: 5, kind: "movie", title: "Dune", studio: "Legendary", files: [{ id: 1 }], user_state: {} }
     actions = []

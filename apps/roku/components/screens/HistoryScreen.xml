@@ -10,14 +10,15 @@
         <field id="active" type="boolean" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/HistoryScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Nav.brs" />
     <children>
-        <Label translation="[96, 56]" text="Watch history" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[96, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="count" translation="[96, 128]" width="1124" color="0xA1A9B6FF" font="font:SmallerSystemFont" />
         <MarkupList id="entries" translation="[96, 196]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-        <Label id="message" translation="[96, 400]" width="1124" wrap="true" color="0xA1A9B6FF" text="Loading…" font="font:SmallSystemFont" />
+        <Label id="message" translation="[96, 400]" width="1124" wrap="true" color="0xA1A9B6FF" font="font:SmallSystemFont" />
     </children>
 </component>

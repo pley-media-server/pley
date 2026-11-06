@@ -1,0 +1,111 @@
+{
+  "duration": {
+    "hours": "{{hours}} h",
+    "minutes": "{{minutes}} min",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "left": "{{time}} left"
+  },
+  "episode": {
+    "both": "S{{season}} E{{episode}}",
+    "episode": "E{{episode}}"
+  },
+  "resume": "Resume from {{time}}",
+  "counts": {
+    "movies_one": "{{count, number}} movie",
+    "movies_other": "{{count, number}} movies",
+    "shows_one": "{{count, number}} show",
+    "shows_other": "{{count, number}} shows",
+    "artists_one": "{{count, number}} artist",
+    "artists_other": "{{count, number}} artists",
+    "titles_one": "{{count, number}} title",
+    "titles_other": "{{count, number}} titles"
+  },
+  "bitrate": {
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps"
+  },
+  "bytes": {
+    "B": "{{n}} B",
+    "KB": "{{n}} KB",
+    "MB": "{{n}} MB",
+    "GB": "{{n}} GB",
+    "TB": "{{n}} TB"
+  },
+  "ranges": {
+    "anyHdr": "Any HDR"
+  },
+  "time": {
+    "now": "now",
+    "minutesAgo": "{{n}} min ago",
+    "hoursAgo_one": "{{count}} hour ago",
+    "hoursAgo_other": "{{count}} hours ago",
+    "yesterday": "yesterday",
+    "daysAgo_one": "{{count}} day ago",
+    "daysAgo_other": "{{count}} days ago",
+    "inMoment": "in a moment",
+    "inMinutes": "in {{n}} min",
+    "inHours_one": "in {{count}} hour",
+    "inHours_other": "in {{count}} hours",
+    "tomorrow": "tomorrow",
+    "inDays_one": "in {{count}} day",
+    "inDays_other": "in {{count}} days"
+  },
+  "date": {
+    "monthDay": "{{month}} {{day}}",
+    "monthDayYear": "{{month}} {{day}}, {{year}}",
+    "months": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    }
+  },
+  "clock": {
+    "am": "{{time}} AM",
+    "pm": "{{time}} PM"
+  },
+  "languages": {
+    "ara": "Arabic",
+    "bul": "Bulgarian",
+    "cat": "Catalan",
+    "chi": "Chinese",
+    "hrv": "Croatian",
+    "cze": "Czech",
+    "dan": "Danish",
+    "dut": "Dutch",
+    "eng": "English",
+    "fin": "Finnish",
+    "fre": "French",
+    "ger": "German",
+    "gre": "Greek",
+    "heb": "Hebrew",
+    "hin": "Hindi",
+    "hun": "Hungarian",
+    "ind": "Indonesian",
+    "ita": "Italian",
+    "jpn": "Japanese",
+    "kor": "Korean",
+    "nor": "Norwegian",
+    "per": "Persian",
+    "pol": "Polish",
+    "por": "Portuguese",
+    "rum": "Romanian",
+    "rus": "Russian",
+    "srp": "Serbian",
+    "slo": "Slovak",
+    "spa": "Spanish",
+    "swe": "Swedish",
+    "tha": "Thai",
+    "tur": "Turkish",
+    "ukr": "Ukrainian",
+    "vie": "Vietnamese"
+  }
+}

@@ -15,6 +15,7 @@
         <field id="active" type="boolean" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/LiveTvScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -25,7 +26,7 @@
     <children>
         <!-- The categories. -->
         <Rectangle width="528" height="1080" color="0x1E222AFF" />
-        <Label translation="[48, 40]" width="440" text="Live TV" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[48, 40]" width="440" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <ChipRow id="tabs" translation="[48, 132]" />
         <!-- Search, pinned above the categories: it never scrolls away. -->
         <MarkupList id="searchRow" translation="[24, 212]" itemComponentName="LiveRailItem" itemSize="[480, 56]" numRows="1" drawFocusFeedback="false" />
@@ -50,10 +51,9 @@
             channelInfoBackgroundBitmapUri="pkg:/images/guide-cell.9.png" channelInfoTextColor="0xEBEBEBFF" channelInfoFont="font:SmallestBoldSystemFont"
             programTitleColor="0xEBEBEBFF" programTitleFocusedColor="0x16191EFF" programTitleFont="font:SmallestSystemFont"
             timeLabelColor="0xA1A9B6FF" timeLabelFont="font:SmallestSystemFont" timeBarHeight="48"
-            nowBarBlendColor="0x38BDF8FF" pastTimeScreenBitmapUri="pkg:/images/guide-past.9.png"
-            loadingDataText="Loading the guide…" channelNoDataText="No guide information" visible="false" />
+            nowBarBlendColor="0x38BDF8FF" pastTimeScreenBitmapUri="pkg:/images/guide-past.9.png" visible="false" />
         <MarkupGrid id="cards" translation="[576, 168]" itemComponentName="LiveCard" numColumns="4" numRows="3" itemSize="[296, 270]" itemSpacing="[32, 32]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
-        <Label id="message" translation="[576, 480]" width="1280" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+        <Label id="message" translation="[576, 480]" width="1280" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- Under what failed with nothing to show. -->
         <ButtonGroup id="retry" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1056, 640]" minWidth="320" visible="false" />
         <Label id="hint" translation="[576, 1036]" width="1280" horizAlign="right" color="0x8B95A5FF" font="font:TinySystemFont" />

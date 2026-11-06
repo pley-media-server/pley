@@ -17,6 +17,7 @@
         <field id="chosen" type="integer" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/LetterColumn.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <!-- Behind the letter in focus, or the grid's while the focus is
              elsewhere. -->

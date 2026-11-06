@@ -25,5 +25,15 @@
              0 and "" until then. -->
         <field id="profileId" type="integer" />
         <field id="profileName" type="string" />
+        <!-- The language Pley is in for the account (GET /api/auth/me's
+             language, "" for Automatic), once the server said for the
+             profile signed in (accountHeard); and the server's own (GET
+             /api/server's language, "" for a Pley from before languages),
+             once it answered (serverHeard). The scene picks the language
+             shown from them (I18n.brs's i18nShown). -->
+        <field id="accountLanguage" type="string" />
+        <field id="accountHeard" type="boolean" />
+        <field id="serverLanguage" type="string" />
+        <field id="serverHeard" type="boolean" />
     </interface>
 </component>

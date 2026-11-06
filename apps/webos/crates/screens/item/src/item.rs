@@ -20,6 +20,7 @@ use pley_core::model::{
 use pley_core::requests::{StageWords, stage_words};
 use pley_core::store::snapshot_keys;
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::badge::META_HEIGHT;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, Button, ColumnState, Dialog, Heading, InfoBlock, List,
@@ -31,7 +32,7 @@ use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Dirs, Edge, Group, Id, Ui};
 
 use crate::actions::{Effect, ItemAction, effect, item_actions};
-use crate::common::{self, ArtKind, Change, Elsewhere, NOTHING_TO_PLAY, TileData};
+use crate::common::{self, ArtKind, Change, Elsewhere, TileData, nothing_to_play};
 use crate::page::{
     self, Choice, Credits, FileInfo, Meta, Picks, Primary, PrimaryKind, TrackChoices, default_season, playing,
 };
@@ -369,7 +370,7 @@ impl ItemScreen {
             let (from_start, held) = (next.from_start, next.held);
             match next.promise.take() {
                 Some(Ok(Some(episode))) => cx.play(common::play_request(episode.id, from_start)),
-                Some(Ok(None)) => cx.toast(NOTHING_TO_PLAY),
+                Some(Ok(None)) => cx.toast(nothing_to_play()),
                 Some(Err(e)) => match held.filter(|_| e.unreachable()) {
                     Some(id) => cx.play(common::play_request(id, from_start)),
                     None => cx.toast_error(e.problem()),
@@ -532,8 +533,8 @@ impl ItemScreen {
                     .parent_index
                     .map(|i| season_title(None, Some(i)))
                     .or(d.parent_title.clone().filter(|t| !t.is_empty()))
-                    .unwrap_or_else(|| "Episodes".into()),
-                _ => "Episodes".into(),
+                    .unwrap_or_else(|| t!("item.rows.episodes").into()),
+                _ => t!("item.rows.episodes").into(),
             };
             let (episodes, info_lines) = match kept_episodes.take() {
                 Some((at, tiles, lines)) if at == selected => (tiles, lines),
@@ -674,7 +675,7 @@ impl ItemScreen {
         let (id, kind, no_files) = (d.id, d.kind, d.files.is_empty());
         match kind {
             ItemKind::Show | ItemKind::Season => self.play_next_of(id, from_start, cx),
-            _ if no_files => cx.toast(NOTHING_TO_PLAY),
+            _ if no_files => cx.toast(nothing_to_play()),
             _ => {
                 if let Some(r) = self.own_request(from_start) {
                     cx.play(r);
@@ -693,7 +694,7 @@ impl ItemScreen {
         {
             match next {
                 Some(e) => cx.play(common::play_request(e.id, from_start)),
-                None => cx.toast(NOTHING_TO_PLAY),
+                None => cx.toast(nothing_to_play()),
             }
             return;
         }
@@ -1032,38 +1033,43 @@ impl ItemScreen {
         };
         match panel {
             Panel::Tracks => {
-                out.push(Entry::Title("Audio and subtitles".into()));
+                out.push(Entry::Title(t!("item.hero.tracks").into()));
                 let Some(t) = &m.tracks else { return out };
                 if !t.versions.is_empty() {
-                    out.push(Entry::Heading("Version"));
+                    out.push(Entry::Heading(t!("item.panels.version")));
                     for v in &t.versions {
                         out.push(row(v.label.clone(), None, Some(v.selected), Does::Version(v.id)));
                     }
                 }
                 if !t.audio.is_empty() {
-                    out.push(Entry::Heading("Audio"));
+                    out.push(Entry::Heading(t!("item.panels.audio")));
                     out.push(row(t.automatic_label.clone(), None, Some(t.automatic_audio), Does::Audio(None)));
                     for a in &t.audio {
                         out.push(row(a.label.clone(), None, Some(a.selected), Does::Audio(Some(a.id))));
                     }
                 }
                 if !t.subtitles.is_empty() {
-                    out.push(Entry::Heading("Subtitles"));
-                    out.push(row("Off".into(), None, Some(t.subtitles_off), Does::Subtitle(None)));
+                    out.push(Entry::Heading(t!("item.panels.subtitles")));
+                    out.push(row(
+                        t!("item.panels.subtitlesOff").into(),
+                        None,
+                        Some(t.subtitles_off),
+                        Does::Subtitle(None),
+                    ));
                     for s in &t.subtitles {
                         out.push(row(s.label.clone(), None, Some(s.selected), Does::Subtitle(Some(s.id))));
                     }
                 }
             }
             Panel::More => {
-                out.push(Entry::Title("More".into()));
+                out.push(Entry::Title(t!("item.hero.more").into()));
                 if self.view.summary_cut {
-                    out.push(row("Full summary".into(), Some(Icon::Info), None, Does::Summary));
+                    out.push(row(t!("item.panels.fullSummary").into(), Some(Icon::Info), None, Does::Summary));
                 }
                 let mut given = false;
                 if m.rateable {
-                    out.push(Entry::Heading("Your rating"));
-                    out.push(row("No rating".into(), None, Some(m.rating.is_none()), Does::Rate(None)));
+                    out.push(Entry::Heading(t!("item.panels.yourRating")));
+                    out.push(row(t!("item.panels.noRating").into(), None, Some(m.rating.is_none()), Does::Rate(None)));
                     given = true;
                     for stars in 1..=5u32 {
                         let value = i64::from(stars) * 2;
@@ -1078,12 +1084,13 @@ impl ItemScreen {
                 }
                 if let Some(show) = m.show_id {
                     given = true;
-                    out.push(row("Go to show".into(), Some(Icon::Tv), None, Does::Open(Route::Item { id: show })));
+                    let label = t!("item.actions.goToShow").into();
+                    out.push(row(label, Some(Icon::Tv), None, Does::Open(Route::Item { id: show })));
                 }
                 if let Some(season) = m.season_id {
                     given = true;
                     out.push(row(
-                        "Go to season".into(),
+                        t!("item.actions.goToSeason").into(),
                         Some(Icon::Layers),
                         None,
                         Does::Open(Route::Item { id: season }),
@@ -1091,13 +1098,14 @@ impl ItemScreen {
                 }
                 for c in &m.collections {
                     given = true;
-                    let label = format!("Part of {}", c.title);
+                    let label = t!("item.credits.partOf", collection = c.title);
                     out.push(row(label, Some(Icon::Layers), None, Does::Open(Route::Collection { id: c.id })));
                 }
                 if !given {
                     let route =
                         Route::AddToPlaylist { item_ids: vec![m.item.id], title: words::actions_title(&m.item) };
-                    out.push(row("Add to playlist".into(), Some(Icon::ListPlus), None, Does::Open(route)));
+                    let label = t!("item.hero.addToPlaylist").into();
+                    out.push(row(label, Some(Icon::ListPlus), None, Does::Open(route)));
                 }
             }
             Panel::Actions { item } => {
@@ -1316,39 +1324,46 @@ fn draw_hero(
             gained |= r.gained;
             r.activated
         };
-        if m.primary.kind == PrimaryKind::Resume && round(ui, "from-start", Icon::RotateCcw, "From start") {
+        if m.primary.kind == PrimaryKind::Resume && round(ui, "from-start", Icon::RotateCcw, t!("item.hero.fromStart"))
+        {
             out.push(Intent::Play { from_start: true });
         }
         if let Some((kind, tmdb_id)) = m.ask_more
-            && round(ui, "request-more", Icon::Plus, "Request more seasons")
+            && round(ui, "request-more", Icon::Plus, t!("item.hero.requestMoreSeasons"))
         {
             out.push(Intent::Push(Route::Title { kind, tmdb_id, pick: true }));
         }
-        let (icon, label) =
-            if m.watched { (Icon::EyeOff, "Mark as unwatched") } else { (Icon::CircleCheck, "Mark as watched") };
+        let (icon, label) = if m.watched {
+            (Icon::EyeOff, t!("item.hero.markUnwatched"))
+        } else {
+            (Icon::CircleCheck, t!("item.hero.markWatched"))
+        };
         if round(ui, "watched", icon, label) {
             out.push(Intent::ToggleWatched);
         }
-        if m.tracks.is_some() && round(ui, "tracks", Icon::Captions, "Audio and subtitles") {
+        if m.tracks.is_some() && round(ui, "tracks", Icon::Captions, t!("item.hero.tracks")) {
             out.push(Intent::Open(Panel::Tracks));
         }
         if let Some(listed) = m.my_list {
-            let (icon, label) =
-                if listed { (Icon::BookmarkCheck, "In My List") } else { (Icon::BookmarkPlus, "Add to My List") };
+            let (icon, label) = if listed {
+                (Icon::BookmarkCheck, t!("item.hero.inMyList"))
+            } else {
+                (Icon::BookmarkPlus, t!("item.hero.addToMyList"))
+            };
             if round(ui, "my-list", icon, label) {
                 out.push(Intent::ToggleMyList);
             }
         }
         if let Some(trailer) = m.trailer
-            && round(ui, "trailer", Icon::Film, "Trailer")
+            && round(ui, "trailer", Icon::Film, t!("item.hero.trailer"))
         {
             out.push(Intent::PlayRequest(common::play_request(trailer, true)));
         }
-        if round(ui, "playlist", Icon::ListPlus, "Add to playlist") {
+        if round(ui, "playlist", Icon::ListPlus, t!("item.hero.addToPlaylist")) {
             let title = words::actions_title(&m.item);
             out.push(Intent::Push(Route::AddToPlaylist { item_ids: vec![m.item.id], title }));
         }
-        if round(ui, "more", Icon::Ellipsis, "More") {
+        if round(ui, "more", Icon::Ellipsis, t!("item.hero.more")) {
             out.push(Intent::Open(Panel::More));
         }
         if gained {
@@ -1369,7 +1384,7 @@ fn draw_credits(ui: &mut Ui, c: &Credits, at: Point) {
         if c.made.is_some() {
             parts.push(("·", theme::SUBTLE));
         }
-        parts.push(("Starring", theme::MUTED));
+        parts.push((t!("item.credits.starring"), theme::MUTED));
         parts.push((stars, theme::FG));
     }
     // The text engine places no trailing space, so the spaces between the parts are added here.
@@ -1434,7 +1449,7 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
     let Some(episodes) = &s.episodes else { return };
     if episodes.is_empty() {
         let at = Point::new(theme::GUTTER, tiles_y);
-        ui.text(at, "No episodes found.", &theme::BODY, &TextOpts::line(DETAILS_W), theme::MUTED);
+        ui.text(at, t!("item.rows.noEpisodes"), &theme::BODY, &TextOpts::line(DETAILS_W), theme::MUTED);
         return;
     }
     if view.episodes_for != s.selected {
@@ -1555,7 +1570,7 @@ fn block_value_opts() -> TextOpts {
 /// The row that opens and closes Media info.
 fn media_row(open: bool) -> ListRow<'static> {
     let icon = if open { Icon::ChevronUp } else { Icon::ChevronDown };
-    ListRow::new("Media info").icon(icon).supporting("Each file's video, audio and subtitle streams")
+    ListRow::new(t!("item.details.mediaInfo")).icon(icon).supporting(t!("item.details.mediaInfoHint"))
 }
 
 /// Measures the details: the facts card, Versions, Media info and, while open, its cards.
@@ -1635,7 +1650,7 @@ fn draw_details(
 ) {
     let x = theme::GUTTER;
     let w = DETAILS_W;
-    ui.text(Point::new(x, top), "Details", &theme::SECTION, &TextOpts::line(w), theme::FG);
+    ui.text(Point::new(x, top), t!("item.details.title"), &theme::SECTION, &TextOpts::line(w), theme::FG);
     let mut y = top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
     if !m.facts.is_empty() {
         let card_h = 32.0 + l.facts.iter().sum::<f32>();
@@ -1654,7 +1669,7 @@ fn draw_details(
         let mut bottoms = l.bottoms.iter().map(|b| top + b);
         if !m.versions.is_empty() {
             y += 20.0;
-            ui.text(Point::new(x, y), "Versions", &theme::TITLE, &TextOpts::line(w), theme::FG);
+            ui.text(Point::new(x, y), t!("item.details.versions"), &theme::TITLE, &TextOpts::line(w), theme::FG);
             y += theme::TITLE.line_height + 8.0;
             for v in &m.versions {
                 let row = ListRow::new(&v.label).checked(v.selected);
@@ -1715,8 +1730,8 @@ fn draw_card(ui: &mut Ui, f: &FileInfo, card: &CardLayout, at: Point, w: f32) {
 
 /// "Item not found", with Back.
 fn not_found(ui: &mut Ui, root: Id, cx: &mut AppCx) {
-    let body = "It may have been removed, or this profile can't see it.";
-    if common::message(ui, root.with("message"), Icon::CircleAlert, "Item not found", body, "Back").activated {
+    let (title, body) = (t!("item.states.notFound"), t!("item.states.notFoundBody"));
+    if common::message(ui, root.with("message"), Icon::CircleAlert, title, body, t!("item.states.back")).activated {
         cx.back();
     }
 }
@@ -1804,9 +1819,10 @@ impl Screen for ItemScreen {
             match self.detail.state() {
                 Load::Failed { error, .. } if error.is(404) => not_found(ui, root, cx),
                 Load::Failed { error, .. } => {
-                    let title = common::failed_title(error, "Couldn't load this item");
+                    let title = common::failed_title(error, t!("item.states.failed"));
                     let body = error.problem();
-                    if common::message(ui, root.with("message"), Icon::CircleAlert, title, &body, "Retry").activated {
+                    let retry = t!("item.states.retry");
+                    if common::message(ui, root.with("message"), Icon::CircleAlert, title, &body, retry).activated {
                         self.detail.invalidate();
                     }
                 }
@@ -1915,7 +1931,7 @@ impl Screen for ItemScreen {
                                 ids.extras,
                                 TileKind::Landscape,
                                 top,
-                                "Extras",
+                                t!("item.rows.extras"),
                                 &m.extras,
                                 &mut view.extras,
                             );
@@ -1937,7 +1953,7 @@ impl Screen for ItemScreen {
                                 ids.related,
                                 TileKind::Poster,
                                 top,
-                                "More Like This",
+                                t!("item.rows.moreLikeThis"),
                                 &m.related,
                                 &mut view.related,
                             );

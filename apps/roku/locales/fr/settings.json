@@ -1,0 +1,44 @@
+{
+  "title": "Paramètres",
+  "server": "Serveur",
+  "signedInAs": "Connecté en tant que",
+  "thisRoku": "Ce Roku",
+  "app": "Pley pour Roku",
+  "tmdb": "Ce produit utilise l’API de TMDB, mais n’est ni approuvé ni certifié par TMDB.",
+  "web": "Gérer votre compte sur le web",
+  "webHint": "Nom, photo, mot de passe, code PIN, connexion en deux étapes, appareils et applications, depuis un téléphone ou un ordinateur sur le même réseau.",
+  "unreachable": "Le serveur est injoignable pour le moment.",
+  "rows": {
+    "language": "Langue : {{value}}",
+    "quality": "Qualité : {{value}}",
+    "autoplay": "Épisode suivant automatique : {{value}}",
+    "history": "Historique de visionnage",
+    "switchProfile": "Changer de profil",
+    "alwaysStartAs": "Toujours démarrer avec : {{value}}",
+    "sortLibraries": "Trier les bibliothèques",
+    "switchServer": "Changer de serveur",
+    "signOut": "Se déconnecter"
+  },
+  "language": {
+    "title": "Langue",
+    "automatic": "Automatique ({{language}})"
+  },
+  "quality": "Qualité",
+  "alwaysStartAs": "Toujours démarrer avec",
+  "usedLast": "Dernier profil utilisé",
+  "signOut": {
+    "title": "Se déconnecter ?",
+    "body": "Vous serez déconnecté de {{name}}.",
+    "confirm": "Se déconnecter"
+  },
+  "loadingProfile": "Chargement de votre profil…",
+  "changeOnWeb": "Modifiez-les sur le web, à l’adresse {{address}}.",
+  "readOnly": "Ce serveur ne permet pas à l’application de les modifier : modifiez-les sur le web, à l’adresse {{address}}.",
+  "diagnostics": "Diagnostic",
+  "licences": "Licences open source",
+  "diagnosticsPage": {
+    "app": "Pley pour Roku {{version}}",
+    "plays": "Ce qu’il lit"
+  },
+  "licence": "Pley pour Roku est un logiciel libre distribué sous la licence publique générale GNU Affero, version 3 (AGPL-3.0-only)."
+}

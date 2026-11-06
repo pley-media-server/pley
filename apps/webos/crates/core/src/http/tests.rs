@@ -164,6 +164,34 @@ fn unreachable_is_never_a_cancel() {
 }
 
 #[test]
+fn errors_are_in_the_language_shown_but_the_servers_words_stay_its_own() {
+    use pley_i18n::{Language, with_language};
+    with_language(Language::Fr, || {
+        assert_eq!(
+            ApiError::Net(NetError::TimedOut).problem(),
+            "Pas de réponse à temps. Vérifiez que le serveur est allumé et que cet appareil est sur son réseau."
+        );
+        assert_eq!(ApiError::SignedOut.problem(), "Vous avez été déconnecté\u{a0}: reconnectez-vous.");
+        let plain = Response { status: 422, headers: vec![], body: Vec::new() };
+        assert_eq!(ApiError::from_response(&plain).problem(), "Le serveur a refusé (HTTP 422).");
+        let bare = Response::json(410, &serde_json::json!({"code": "session_stopped", "message": null}));
+        assert_eq!(
+            ApiError::from_response(&bare).to_string(),
+            "La lecture a été arrêtée par l’administrateur du serveur"
+        );
+        let theirs = Response::json(404, &serde_json::json!({"code": "not_found", "message": "item 42 not found"}));
+        assert_eq!(ApiError::from_response(&theirs).problem(), "Item 42 not found.");
+    });
+    with_language(Language::Es, || {
+        assert_eq!(ApiError::Net(NetError::Refused).unreachable_reason(), "Nada responde en esa dirección.");
+        assert_eq!(
+            ApiError::Unreadable(String::new()).problem(),
+            "No se puede leer la respuesta del servidor: ¿es Pley y está actualizado?"
+        );
+    });
+}
+
+#[test]
 fn queries_and_forms_encode_as_javascript_does() {
     assert_eq!(
         with_query(

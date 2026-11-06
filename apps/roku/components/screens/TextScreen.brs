@@ -13,10 +13,10 @@ sub onActive()
     if not m.top.active then return
     if m.text.text = ""
         if m.top.route = "licences"
-            m.title.text = "Open-source licences"
+            m.title.text = t("settings.licences")
             m.text.text = licences()
         else
-            m.title.text = "Diagnostics"
+            m.title.text = t("settings.diagnostics")
             m.text.text = diagnostics()
         end if
     end if
@@ -25,12 +25,12 @@ end sub
 
 function diagnostics() as string
     session = m.global.session
-    lines = ["This Roku", session.device, "Pley for Roku " + session.appVersion, "", "What it plays"]
+    lines = [t("settings.thisRoku"), session.device, t("settings.diagnosticsPage.app", { version: session.appVersion }), "", t("settings.diagnosticsPage.plays")]
     lines.Append(capsLines(capsBuild(CreateObject("roDeviceInfo"))))
     return lines.Join(Chr(10))
 end function
 
 function licences() as string
-    own = "Pley for Roku is free software under the GNU Affero General Public License, version 3 (AGPL-3.0-only)."
+    own = t("settings.licence")
     return own + Chr(10) + Chr(10) + ReadAsciiFile("pkg:/licenses/bslib.txt")
 end function

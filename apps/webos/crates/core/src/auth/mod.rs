@@ -21,6 +21,8 @@ pub use tokens::{
 
 use std::fmt;
 
+use pley_i18n::t;
+
 use crate::http::{ApiError, Http, NetError, Request, Response};
 use crate::model::OAuthError;
 
@@ -36,12 +38,21 @@ pub const LISTED_ONLY: [&str; 2] = ["requests", "approvals"];
 pub const DEVICE_CODE_GRANT: &str = "urn:ietf:params:oauth:grant-type:device_code";
 /// Pley's own apps move between the household's profiles with this grant.
 pub const SWITCH_PROFILE_GRANT: &str = "urn:pley:params:oauth:grant-type:switch-profile";
-/// What an older server answers to the metadata request.
-pub const TOO_OLD: &str = "this server is too old for this app";
-/// What a server without sign-in with a code says.
-pub const NO_CODES: &str = "this server can't sign in TVs with a code yet: update it";
-/// Why the scope guard signed the TV out.
-pub const WIDER_SCOPE: &str = "the server allowed more than this app asks for: signed out";
+/// What an older server answers to the metadata request, in the language shown.
+pub fn too_old() -> &'static str {
+    t!("errors.signIn.tooOld")
+}
+
+/// What a server without sign-in with a code says, in the language shown.
+pub fn no_codes() -> &'static str {
+    t!("errors.signIn.noCodes")
+}
+
+/// Why the scope guard signed the TV out, in the language shown.
+pub fn wider_scope() -> &'static str {
+    t!("errors.signIn.widerScope")
+}
+
 /// How long a token, device or revocation request may take.
 pub const FORM_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(15);
 
@@ -70,14 +81,14 @@ pub enum AuthError {
 /// RFC 6749's error codes in words, for a refusal without a description.
 fn oauth_words(code: &str) -> Option<&'static str> {
     Some(match code {
-        "invalid_client" => "the server doesn't know this app",
-        "unauthorized_client" => "the server doesn't let this app sign in this way",
-        "invalid_grant" => "the server refused this sign-in",
-        "access_denied" => "the sign-in was refused",
-        "expired_token" => "the code expired",
-        "invalid_scope" => "the server refused what this app asked for",
-        "invalid_request" => "the server didn't understand the request",
-        "unsupported_grant_type" => "the server doesn't take this kind of sign-in",
+        "invalid_client" => t!("errors.oauth.invalidClient"),
+        "unauthorized_client" => t!("errors.oauth.unauthorizedClient"),
+        "invalid_grant" => t!("errors.oauth.invalidGrant"),
+        "access_denied" => t!("errors.oauth.accessDenied"),
+        "expired_token" => t!("errors.oauth.expiredToken"),
+        "invalid_scope" => t!("errors.oauth.invalidScope"),
+        "invalid_request" => t!("errors.oauth.invalidRequest"),
+        "unsupported_grant_type" => t!("errors.oauth.unsupportedGrantType"),
         _ => return None,
     })
 }
@@ -116,20 +127,22 @@ impl AuthError {
 impl fmt::Display for AuthError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AuthError::Unreachable(_) => f.write_str("the server can't be reached: check its address and that it's on"),
+            AuthError::Unreachable(_) => f.write_str(t!("errors.signIn.unreachable")),
             AuthError::Refused { status, oauth } => {
                 let code = oauth.as_ref().map_or("", |o| o.error.as_str());
                 match oauth.as_ref().and_then(|o| o.error_description.as_deref()).filter(|d| !d.is_empty()) {
                     Some(d) => f.write_str(d),
                     None => match oauth_words(code) {
                         Some(w) => f.write_str(w),
-                        None if !code.is_empty() => write!(f, "the server refused ({})", code.replace('_', " ")),
-                        None => write!(f, "the server refused (HTTP {status})"),
+                        None if !code.is_empty() => {
+                            f.write_str(&t!("errors.server.refusedCode", code = code.replace('_', " ")))
+                        }
+                        None => f.write_str(&t!("errors.server.refused", status = status)),
                     },
                 }
             }
-            AuthError::SignedOut(SignOutReason::WiderScope) => f.write_str(WIDER_SCOPE),
-            AuthError::SignedOut(SignOutReason::Ended) => f.write_str("you were signed out: sign in again"),
+            AuthError::SignedOut(SignOutReason::WiderScope) => f.write_str(wider_scope()),
+            AuthError::SignedOut(SignOutReason::Ended) => f.write_str(t!("errors.server.signedOut")),
             AuthError::Failed(message) => f.write_str(message),
         }
     }

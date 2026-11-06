@@ -20,6 +20,7 @@ use pley_core::model::{
 };
 use pley_core::store::{keys, snapshot_keys};
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{
     Button, ColumnState, GridState, Heading, JumpControl, ListRow, ListState, PosterGrid, Row, RowColumn, RowState,
     Section, SidePanel, Tile, TileKind, Trailing,
@@ -208,8 +209,8 @@ impl Screen for LibraryScreen {
             // The libraries couldn't be had, with nothing saved (`TvLibraryScreen.kt`'s libraryError).
             if let Some(error) = cx.state.account_error() {
                 let problem = error.problem();
-                let title = failed_title(error, "Couldn't load this library");
-                let r = column_message(ui, ui.id("failed"), 140.0, title, &problem, Some("Retry"));
+                let title = failed_title(error, t!("library.messages.failed"));
+                let r = column_message(ui, ui.id("failed"), 140.0, title, &problem, Some(t!("library.retry")));
                 self.libraries_failed = true;
                 if r.is_some_and(|r| r.activated) {
                     cx.state.load_account();
@@ -222,8 +223,8 @@ impl Screen for LibraryScreen {
                 ui,
                 ui.id("missing"),
                 140.0,
-                "This library isn't here",
-                "It may have been removed, or this profile may not see it.",
+                t!("library.messages.missingTitle"),
+                t!("library.messages.missingBody"),
                 None,
             );
             return;
@@ -500,23 +501,25 @@ impl GridTab {
             match state {
                 State::Failed => {
                     let error = self.listing.error().cloned().unwrap_or(ApiError::SignedOut);
-                    let title = failed_title(&error, "Couldn't load this library");
-                    let r = column_message(ui, ui.id("state"), STATE_TOP, title, &error.problem(), Some("Retry"));
+                    let title = failed_title(&error, t!("library.messages.failed"));
+                    let retry = Some(t!("library.retry"));
+                    let r = column_message(ui, ui.id("state"), STATE_TOP, title, &error.problem(), retry);
                     if r.is_some_and(|r| r.activated) {
                         self.listing.refresh();
                     }
                 }
                 State::NoMatches => {
-                    let body = "Nothing in this library matches the current filters.";
-                    let r = column_message(ui, ui.id("state"), STATE_TOP, "No matches", body, Some("Clear filters"));
+                    let (title, body) = (t!("library.messages.noMatchesTitle"), t!("library.messages.noMatchesBody"));
+                    let clear = Some(t!("library.panel.clearFilters"));
+                    let r = column_message(ui, ui.id("state"), STATE_TOP, title, body, clear);
                     if r.is_some_and(|r| r.activated) {
                         let view = unfiltered(&self.view);
                         self.set_view(cx, library, view, true);
                     }
                 }
                 State::Empty => {
-                    let body = "Nothing here yet. Titles appear as the server adds them.";
-                    column_message(ui, ui.id("state"), STATE_TOP, "This library is empty", body, None);
+                    let (title, body) = (t!("library.messages.emptyTitle"), t!("library.messages.emptyBody"));
+                    column_message(ui, ui.id("state"), STATE_TOP, title, body, None);
                     if initial {
                         ui.initial_focus(tab_id);
                     }
@@ -594,16 +597,17 @@ impl GridTab {
         let sort = sort_label(self.view.sort);
         let mut chips: Vec<(&'static str, &str, Button)> = vec![("sort", sort, Button::chip(sort).icon(sort_icon))];
         if !self.music {
-            chips.push(("filter", "Filter", Button::chip("Filter").icon(Icon::SlidersHorizontal)));
-            let unwatched = Button::chip("Unwatched").selected(self.view.watched == Some(false));
-            chips.push(("unwatched", "Unwatched", unwatched));
+            let filter = t!("library.chips.filter");
+            chips.push(("filter", filter, Button::chip(filter).icon(Icon::SlidersHorizontal)));
+            let unwatched = t!("library.chips.unwatched");
+            chips.push(("unwatched", unwatched, Button::chip(unwatched).selected(self.view.watched == Some(false))));
             if genres > 0 || self.view.genre.is_some() {
-                let label = self.view.genre.as_deref().unwrap_or("Genre");
+                let label = self.view.genre.as_deref().unwrap_or(t!("library.chips.genre"));
                 let b = Button::chip(label).selected(self.view.genre.is_some()).max_label_width(CHIP_LABEL_MAX);
                 chips.push(("genre", label, b));
             }
             if years > 0 || self.view.year.is_some() {
-                let label = year_label.as_deref().unwrap_or("Year");
+                let label = year_label.as_deref().unwrap_or(t!("library.chips.year"));
                 chips.push(("year", label, Button::chip(label).selected(self.view.year.is_some())));
             }
             // The row has no room for two more choosers: Resolution and Dynamic range are chosen
@@ -802,77 +806,80 @@ impl GridTab {
         let years = filters.map_or(&[][..], |f| f.years.as_slice());
         SidePanel::new().back_closes(false).show(ui, panel_id, open, |ui, area| {
             let order = view.order.unwrap_or(default_order(view.sort));
-            let genre_value = view.genre.as_deref().unwrap_or("All genres");
-            let year_value = view.year.map_or_else(|| "All years".to_string(), |y| y.to_string());
-            let resolution_value = view.resolution.map_or("All resolutions", resolution_label);
-            let range_value = view.dynamic_range.map_or("All dynamic ranges", range_label);
+            let genre_value = view.genre.as_deref().unwrap_or(t!("library.panel.unchosen.genre"));
+            let year_value = view.year.map_or_else(|| t!("library.panel.unchosen.year").into(), |y| y.to_string());
+            let resolution_value = view.resolution.map_or(t!("library.panel.unchosen.resolution"), resolution_label);
+            let range_value = view.dynamic_range.map_or(t!("library.panel.unchosen.dynamicRange"), range_label);
             let mut lines: Vec<Line> = Vec::new();
             let title = match panel {
                 Panel::Sort => {
                     for s in sorts {
                         lines.push(Line::Row(ListRow::new(sort_label(*s)).checked(*s == view.sort)));
                     }
-                    lines.push(Line::Heading(Heading::Small, "Order"));
-                    lines.push(Line::Row(ListRow::new("Ascending").checked(order == SortOrder::Asc)));
-                    lines.push(Line::Row(ListRow::new("Descending").checked(order == SortOrder::Desc)));
-                    "Sort by"
+                    lines.push(Line::Heading(Heading::Small, t!("library.panel.order")));
+                    lines.push(Line::Row(ListRow::new(t!("library.panel.ascending")).checked(order == SortOrder::Asc)));
+                    lines.push(Line::Row(
+                        ListRow::new(t!("library.panel.descending")).checked(order == SortOrder::Desc),
+                    ));
+                    t!("library.panel.sortBy")
                 }
                 Panel::Filter => {
                     for line in &filter_lines {
                         lines.push(match line {
-                            FilterLine::Show => Line::Heading(Heading::Small, "Show"),
+                            FilterLine::Show => Line::Heading(Heading::Small, t!("library.panel.show")),
                             FilterLine::Watched(w) => {
                                 let label = match w {
-                                    None => "All",
-                                    Some(false) => "Unwatched",
-                                    Some(true) => "Watched",
+                                    None => t!("library.panel.all"),
+                                    Some(false) => t!("library.panel.unwatched"),
+                                    Some(true) => t!("library.panel.watched"),
                                 };
                                 Line::Row(ListRow::new(label).checked(view.watched == *w))
                             }
                             FilterLine::Panel(p) => {
                                 let (label, value) = match p {
-                                    Panel::Genre => ("Genre", genre_value),
-                                    Panel::Year => ("Year", year_value.as_str()),
-                                    Panel::Resolution => ("Resolution", resolution_value),
-                                    _ => ("Dynamic range", range_value),
+                                    Panel::Genre => (t!("library.panel.genre"), genre_value),
+                                    Panel::Year => (t!("library.panel.year"), year_value.as_str()),
+                                    Panel::Resolution => (t!("library.panel.resolution"), resolution_value),
+                                    _ => (t!("library.panel.dynamicRange"), range_value),
                                 };
                                 Line::Row(ListRow::new(label).trailing(Trailing::Value(value)))
                             }
-                            FilterLine::Clear => Line::Row(ListRow::new("Clear filters")),
-                            FilterLine::SaveAs => Line::Row(ListRow::new("Save as…").icon(Icon::Save)),
+                            FilterLine::Clear => Line::Row(ListRow::new(t!("library.panel.clearFilters"))),
+                            FilterLine::SaveAs => Line::Row(ListRow::new(t!("library.panel.saveAs")).icon(Icon::Save)),
                         });
                     }
-                    "Filter"
+                    t!("library.panel.filter")
                 }
                 Panel::Genre => {
-                    lines.push(Line::Row(ListRow::new("All genres").checked(view.genre.is_none())));
+                    lines.push(Line::Row(ListRow::new(t!("library.panel.allGenres")).checked(view.genre.is_none())));
                     for g in genres {
                         lines.push(Line::Row(ListRow::new(g).checked(view.genre.as_ref() == Some(g))));
                     }
-                    "Genre"
+                    t!("library.panel.genre")
                 }
                 Panel::Year => {
-                    lines.push(Line::Row(ListRow::new("All years").checked(view.year.is_none())));
+                    lines.push(Line::Row(ListRow::new(t!("library.panel.allYears")).checked(view.year.is_none())));
                     for (y, label) in years.iter().zip(labels) {
                         lines.push(Line::Row(ListRow::new(label).checked(view.year == Some(*y))));
                     }
-                    "Year"
+                    t!("library.panel.year")
                 }
                 Panel::Resolution => {
-                    lines.push(Line::Row(ListRow::new("All resolutions").checked(view.resolution.is_none())));
+                    let all = ListRow::new(t!("library.panel.allResolutions")).checked(view.resolution.is_none());
+                    lines.push(Line::Row(all));
                     for r in &resolutions {
                         let row = ListRow::new(resolution_label(*r)).checked(view.resolution == Some(*r));
                         lines.push(Line::Row(row));
                     }
-                    "Resolution"
+                    t!("library.panel.resolution")
                 }
                 Panel::DynamicRange => {
                     let none = view.dynamic_range.is_none();
-                    lines.push(Line::Row(ListRow::new("All dynamic ranges").checked(none)));
+                    lines.push(Line::Row(ListRow::new(t!("library.panel.allDynamicRanges")).checked(none)));
                     for r in &ranges {
                         lines.push(Line::Row(ListRow::new(range_label(*r)).checked(view.dynamic_range == Some(*r))));
                     }
-                    "Dynamic range"
+                    t!("library.panel.dynamicRange")
                 }
             };
             chosen = titled_panel_lines(ui, list_id, area, state, title, &lines, Some(initial));
@@ -997,7 +1004,7 @@ impl CollectionCell {
         };
         CollectionCell {
             subtitle: collection_count(collection.item_count, kind),
-            count: collection.item_count.to_string(),
+            count: pley_i18n::number(collection.item_count),
             art,
             collection,
         }
@@ -1114,9 +1121,9 @@ impl RecommendedTab {
                 return None;
             }
             Load::Failed { error, stale: None } => {
-                let title = failed_title(error, "Couldn't load recommendations");
+                let title = failed_title(error, t!("library.messages.recommendedFailed"));
                 let problem = error.problem();
-                let r = column_message(ui, ui.id("state"), CHIPS_Y, title, &problem, Some("Retry"));
+                let r = column_message(ui, ui.id("state"), CHIPS_Y, title, &problem, Some(t!("library.retry")));
                 if r.is_some_and(|r| r.activated) {
                     self.hubs.invalidate();
                     self.collections.invalidate();
@@ -1126,8 +1133,8 @@ impl RecommendedTab {
             _ => {}
         }
         if self.rows.is_empty() && self.collection_cells.is_empty() {
-            let body = "Recommendations appear once the library has some items.";
-            column_message(ui, ui.id("state"), CHIPS_Y, "Nothing to recommend yet", body, None);
+            let title = t!("library.messages.recommendedEmptyTitle");
+            column_message(ui, ui.id("state"), CHIPS_Y, title, t!("library.messages.recommendedEmptyBody"), None);
             if initial {
                 ui.initial_focus(tab_id);
             }
@@ -1178,7 +1185,7 @@ impl RecommendedTab {
                         |k| cells.get(k).map_or(u64::MAX, |c| c.item.id as u64),
                         |ui, slot| match cells.get(slot.index) {
                             Some(cell) => cell.tile(kind).paint(ui, slot),
-                            None => Tile::see_all(kind, "See all").paint(ui, slot),
+                            None => Tile::see_all(kind, t!("library.seeAll")).paint(ui, slot),
                         },
                     );
                     if let Some(k) = r.activated {
@@ -1196,7 +1203,8 @@ impl RecommendedTab {
                     }
                 } else {
                     let row_id = ui.id("collections");
-                    let r = Row::new(TileKind::Poster, top).header("Collections").long_press(false).show(
+                    let header = t!("library.collections.title");
+                    let r = Row::new(TileKind::Poster, top).header(header).long_press(false).show(
                         ui,
                         row_id,
                         cols_state,
@@ -1207,7 +1215,7 @@ impl RecommendedTab {
                                 .subtitle(&c.subtitle)
                                 .art(&c.art)
                                 .paint(ui, slot),
-                            None => Tile::see_all(TileKind::Poster, "See all").paint(ui, slot),
+                            None => Tile::see_all(TileKind::Poster, t!("library.seeAll")).paint(ui, slot),
                         },
                     );
                     if let Some(k) = r.activated {
@@ -1250,9 +1258,9 @@ impl CollectionsTab {
             self.cells = list.iter().map(|c| CollectionCell::new(cx, c.clone(), Some(library.kind), px)).collect();
         }
         if let Load::Failed { error, stale: None } = self.list.state() {
-            let title = failed_title(error, "Couldn't load collections");
+            let title = failed_title(error, t!("library.messages.collectionsFailed"));
             let problem = error.problem();
-            let r = column_message(ui, ui.id("state"), STATE_TOP, title, &problem, Some("Retry"));
+            let r = column_message(ui, ui.id("state"), STATE_TOP, title, &problem, Some(t!("library.retry")));
             if r.is_some_and(|r| r.activated) {
                 self.list.invalidate();
             }
@@ -1261,11 +1269,12 @@ impl CollectionsTab {
         let known = self.list.value().is_some();
         if known && self.cells.is_empty() {
             let body = if library.kind == LibraryKind::Shows {
-                "There are no collections in this library yet."
+                t!("library.messages.collectionsEmptyShows")
             } else {
-                "Movies of the same TMDB collection are grouped here once two of them are in this library."
+                t!("library.messages.collectionsEmptyMovies")
             };
-            column_message(ui, ui.id("state"), STATE_TOP, "No collections yet", body, None);
+            let title = t!("library.messages.collectionsEmptyTitle");
+            column_message(ui, ui.id("state"), STATE_TOP, title, body, None);
             if initial {
                 ui.initial_focus(tab_id);
             }

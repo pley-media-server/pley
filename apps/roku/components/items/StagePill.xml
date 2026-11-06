@@ -14,6 +14,7 @@
         <field id="maxWidth" type="integer" value="936" onChange="onLook" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/StagePill.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="back" height="44" />
         <Label id="label" translation="[18, 0]" height="44" vertAlign="center" color="0x16191EFF" font="font:SmallestBoldSystemFont" />

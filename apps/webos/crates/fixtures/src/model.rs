@@ -462,6 +462,7 @@ pub(crate) struct Me {
     pub has_password: bool,
     pub two_step: bool,
     pub scope: String,
+    pub language: Option<String>,
 }
 
 /// A profile of the household, for apps.

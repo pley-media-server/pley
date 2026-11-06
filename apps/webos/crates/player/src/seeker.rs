@@ -11,6 +11,8 @@
 //! Time comes in (`now`, ms of the app's clock); the screen calls
 //! [`Seeker::tick`] each frame and wakes at [`Seeker::next_due`].
 
+use pley_i18n::t;
+
 /// A press of Left or Right.
 pub const STEP_MS: i64 = 10_000;
 /// A press of fast-forward or rewind.
@@ -142,7 +144,7 @@ impl Seeker {
 /// The badge's text: "−10 s", "+30 s".
 pub fn badge_text(ms: i64) -> String {
     let s = (ms.abs() + 500) / 1000;
-    format!("{}{s} s", if ms < 0 { "−" } else { "+" })
+    if ms < 0 { t!("player.seek.back", seconds = s) } else { t!("player.seek.ahead", seconds = s) }
 }
 
 #[cfg(test)]

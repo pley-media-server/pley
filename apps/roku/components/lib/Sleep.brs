@@ -11,19 +11,17 @@
 ' Off and -1 for the end of what plays (kind: "episode", "movie", "track"
 ' or another).
 function sleepChoices(kind as string) as object
-    choices = [{ label: "Off", minutes: 0 }]
+    choices = [{ label: t("player.sleep.off"), minutes: 0 }]
     for each minutes in [15, 30, 45, 60, 90]
-        choices.Push({ label: urlValue(minutes) + " min", minutes: minutes })
+        choices.Push({ label: t("player.sleep.minutes", { minutes: minutes }), minutes: minutes })
     end for
     choices.Push({ label: sleepEndLabel(kind), minutes: -1 })
     return choices
 end function
 
 function sleepEndLabel(kind as string) as string
-    if kind = "episode" then return "End of this episode"
-    if kind = "movie" then return "End of this movie"
-    if kind = "track" then return "End of this track"
-    return "End of this video"
+    if kind = "episode" or kind = "movie" or kind = "track" then return t("player.sleep.end." + kind)
+    return t("player.sleep.end.video")
 end function
 
 ' A timer: { minutes (0 off, -1 the end of what plays), deadlineMs, spared
@@ -80,10 +78,10 @@ end function
 
 ' What the menu says of it: "Off", "23 min left", "End of this episode".
 function sleepLabel(timer as object, state as object, kind as string) as string
-    if timer.minutes = 0 then return "Off"
+    if timer.minutes = 0 then return t("player.sleep.off")
     if timer.minutes = -1 and state.secondsLeft < 0 then return sleepEndLabel(kind)
-    if state.secondsLeft >= 0 then return urlValue(state.secondsLeft) + " s left"
-    if state.minutesLeft > 0 then return urlValue(state.minutesLeft) + " min left"
+    if state.secondsLeft >= 0 then return t("player.sleep.secondsLeft", { count: state.secondsLeft })
+    if state.minutesLeft > 0 then return t("player.sleep.minutesLeft", { count: state.minutesLeft })
     return sleepEndLabel(kind)
 end function
 
@@ -101,9 +99,9 @@ end function
 ' "Keep listening" in its last 30 s, else what is left ("Sleep timer: 23
 ' min left", "Sleep timer: End of this track").
 function sleepButtonLabel(timer as object, state as object) as string
-    if timer.minutes = 0 then return "Sleep timer"
-    if state.secondsLeft >= 0 then return "Keep listening"
-    return "Sleep timer: " + sleepLabel(timer, state, "track")
+    if timer.minutes = 0 then return t("player.sleep.title")
+    if state.secondsLeft >= 0 then return t("player.sleep.keepListening")
+    return t("player.sleep.titleNow", { state: sleepLabel(timer, state, "track") })
 end function
 
 ' How long the timer's pause lasts before the player leaves.

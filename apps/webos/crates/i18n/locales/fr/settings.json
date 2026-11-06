@@ -1,0 +1,146 @@
+{
+  "language": {
+    "label": "Langue",
+    "automatic": "Automatique ({{language}})"
+  },
+  "title": "Paramètres",
+  "categories": {
+    "profile": "Profil",
+    "playback": "Lecture",
+    "audio": "Audio",
+    "display": "Sous-titres et affichage",
+    "server": "Serveur",
+    "diagnostics": "Diagnostic",
+    "about": "À propos",
+    "signOut": "Se déconnecter"
+  },
+  "saved": "Enregistré",
+  "readOnly": "Ce serveur ne permet pas à l’application de les modifier : modifiez-les sur le web",
+  "actions": {
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "back": "Retour"
+  },
+  "profile": {
+    "managed": "Profil géré",
+    "switchProfile": "Changer de profil",
+    "audioLanguage": "Langue audio",
+    "subtitles": "Sous-titres",
+    "subtitleLanguage": "Langue des sous-titres",
+    "fileDefault": "Celle du fichier par défaut",
+    "sameAsAudio": "Identique à la langue audio",
+    "onTheWeb": "{{value}} · à modifier sur le web",
+    "history": "Historique de visionnage",
+    "sortLibraries": "Trier les bibliothèques",
+    "sortLibrariesValue": "Votre ordre, sur tous vos appareils",
+    "alwaysStartAs": "Toujours démarrer en tant que",
+    "usedLast": "Dernier profil utilisé",
+    "manageWeb": "Gérer votre compte sur le web",
+    "manageWebValue": "Nom, photo, mot de passe, code PIN, connexion en deux étapes, appareils et applications"
+  },
+  "subtitleModes": {
+    "off": "Désactivés",
+    "offHint": "Les sous-titres restent désactivés jusqu’à ce que vous les activiez.",
+    "forced": "Seulement pour les dialogues étrangers",
+    "forcedHint": "Seulement les sous-titres forcés, pour les panneaux et les dialogues étrangers.",
+    "foreign": "Quand l’audio est dans une autre langue",
+    "foreignHint": "Les sous-titres complets s’affichent quand l’audio n’est pas dans votre langue de sous-titres.",
+    "always": "Toujours",
+    "alwaysHint": "Les sous-titres dans votre langue s’affichent dès qu’il y en a."
+  },
+  "playback": {
+    "quality": "Qualité",
+    "autoplay": "Lire l’épisode suivant automatiquement",
+    "autoplayHint": "Après un compte à rebours de 10 secondes",
+    "details": "Détails de lecture",
+    "detailsHint": "Afficher par-dessus la vidéo comment elle est lue (directe, remux ou transcodage)"
+  },
+  "audio": {
+    "intro": "Le Dolby Digital, le Dolby Digital Plus et l’Atmos sont toujours transmis tels quels. Activez ces options si votre ampli les prend en charge ; sinon, Pley les convertit.",
+    "trueHd": "Transmettre le Dolby TrueHD",
+    "trueHdHint": "Seulement avec un ampli qui reçoit le TrueHD de la TV",
+    "dts": "Transmettre le DTS",
+    "dtsHint": "Seulement avec un ampli qui reçoit le DTS de la TV"
+  },
+  "display": {
+    "subtitleSize": "Taille des sous-titres",
+    "subtitleBackground": "Fond des sous-titres",
+    "subtitleFont": "Police des sous-titres",
+    "subtitlePosition": "Position des sous-titres",
+    "reduceMotion": "Réduire les animations",
+    "reduceMotionHint": "Ni zoom, ni glissement, ni fondu : tout change sur place",
+    "sizes": {
+      "small": "Petite",
+      "normal": "Normale",
+      "large": "Grande",
+      "huge": "Très grande"
+    },
+    "backgrounds": {
+      "none": "Aucun",
+      "darkBox": "Encadré sombre"
+    },
+    "fonts": {
+      "sans": "Sans serif",
+      "serif": "Serif",
+      "monospace": "Chasse fixe",
+      "casual": "Informelle"
+    },
+    "positions": {
+      "bottom": "En bas",
+      "raised": "Un peu plus haut",
+      "higher": "Plus haut",
+      "highest": "Encore plus haut"
+    }
+  },
+  "server": {
+    "value": "Le serveur qu’utilise cette TV",
+    "unknown": "Aucun serveur",
+    "switch": "Changer de serveur"
+  },
+  "diagnostics": {
+    "open": "Ouvrir le diagnostic",
+    "openValue": "Ce que cette TV décode et affiche, et pourquoi",
+    "thisTv": "Cette TV",
+    "app": "Application",
+    "plays": "Ce qu’elle lit",
+    "checking": "Vérification de ce que cette TV lit…",
+    "failed": "La vérification de cette TV a échoué.",
+    "again": "Vérifier de nouveau",
+    "network": "Réseau",
+    "address": "Adresse",
+    "noNetwork": "Aucun réseau",
+    "server": "Serveur",
+    "none": "Aucun",
+    "connection": "Connexion",
+    "noServer": "Aucun serveur",
+    "unreachable": "Impossible de joindre le serveur",
+    "connected": "Connecté",
+    "log": "Journal",
+    "readingLog": "Lecture du journal…",
+    "noLog": "Cette TV ne tient aucun journal."
+  },
+  "about": {
+    "version": "Version",
+    "licences": "Licences open source",
+    "credits": "Crédits",
+    "noLicences": "Aucun texte de licence",
+    "noNotices": "Cette copie de Pley ne contient pas le fichier NOTICES.txt, qui liste les composants open source avec leurs licences."
+  },
+  "signOut": {
+    "intro": "Déconnectez cette TV de {{server}}. Il vous faudra un nouveau code d’association pour vous reconnecter.",
+    "introNoServer": "Déconnectez cette TV du serveur. Il vous faudra un nouveau code d’association pour vous reconnecter.",
+    "button": "Se déconnecter",
+    "title": "Se déconnecter ?",
+    "body": "Cette TV sera déconnectée de {{server}}.",
+    "bodyNoServer": "Cette TV sera déconnectée du serveur.",
+    "deleteData": "Supprimer toutes les données locales",
+    "deleteDataValue": "Tous les serveurs, connexions, paramètres et images enregistrés sur cette TV",
+    "deleteTitle": "Supprimer toutes les données locales ?",
+    "deleteBody": "Pley oublie tous les serveurs, connexions, paramètres et images enregistrés sur cette TV, comme s’il venait d’être installé.",
+    "delete": "Supprimer"
+  },
+  "web": {
+    "title": "Gérer votre compte sur le web",
+    "body": "Scannez le code avec votre téléphone, ou allez à cette adresse sur un téléphone ou un ordinateur du même réseau :"
+  }
+}

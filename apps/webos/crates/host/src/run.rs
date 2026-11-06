@@ -192,6 +192,8 @@ pub fn run(
 ) -> Result<(), String> {
     let waker = platform.waker();
     let tier = args.tier.unwrap_or_else(|| device.tier());
+    // This thread draws: the language it shows is the app's, on every thread.
+    pley_i18n::share_from_this_thread();
     let mut state = AppState::new(device.clone(), store, http, Tasks::new(waker.clone()));
     let mut ui_state = UiState::new();
     ui_state.set_tier(tier);

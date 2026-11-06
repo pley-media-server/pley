@@ -12,12 +12,13 @@ use pley_core::model::{
     MediaRequest, NewRequest, RequestAction, RequestList, RequestUser, SignInAgain as Scope, TitleKind,
 };
 use pley_core::requests::{
-    ActionId, ActionRow, RequestFilters, RequestsProblem, RequestsTab, SIGN_IN_APPROVALS, TvTime, action_done,
-    action_rows, ask_refusal, asked_line, has_requests, in_requests_tab, may_ask, moving, problem_words, request_note,
-    requests_empty, requests_problem, requests_query, requests_tabs, requests_title, seasons_label, stage_words,
+    ActionId, ActionRow, RequestFilters, RequestsProblem, RequestsTab, TvTime, action_done, action_rows, ask_refusal,
+    asked_line, has_requests, in_requests_tab, kind_word, may_ask, moving, problem_words, request_note, requests_empty,
+    requests_problem, requests_query, requests_tabs, requests_title, seasons_label, sign_in_approvals, stage_words,
     tab_count, title_key,
 };
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::look::focus_progress;
 use pley_kit::{
     Button, Heading, Keyboard, KeyboardState, List, ListRow, ListState, Message, MessageStyle, SidePanel, TextEdit,
@@ -54,7 +55,6 @@ const LIST_PAD_TOP: f32 = 8.0;
 const LIST_PAD_BOTTOM: f32 = theme::SAFE_Y;
 /// The line after the newest 200, under the last card.
 const MORE_LINE: f32 = 21.0;
-const MORE_TEXT: &str = "The newest 200 show here: filter to find the others.";
 /// Answers kept for the tabs and filters seen, so going back to one draws it at once.
 const LISTS_KEPT: usize = 8;
 
@@ -78,9 +78,9 @@ pub fn request_what(r: &MediaRequest) -> String {
     match r.kind {
         TitleKind::Show => {
             let label = seasons_label(r.seasons.as_deref().unwrap_or_default());
-            if label.is_empty() { "Show".into() } else { label }
+            if label.is_empty() { kind_word(TitleKind::Show).into() } else { label }
         }
-        _ => "Movie".into(),
+        _ => kind_word(TitleKind::Movie).into(),
     }
 }
 
@@ -95,9 +95,9 @@ fn next_kind(kind: Option<TitleKind>) -> Option<TitleKind> {
 
 fn kind_label(kind: Option<TitleKind>) -> &'static str {
     match kind {
-        Some(TitleKind::Movie) => "Movies",
-        Some(TitleKind::Show) => "Shows",
-        _ => "Movies and shows",
+        Some(TitleKind::Movie) => t!("requests.page.kinds.movie"),
+        Some(TitleKind::Show) => t!("requests.page.kinds.show"),
+        _ => t!("requests.page.kinds.all"),
     }
 }
 
@@ -399,7 +399,7 @@ impl RequestsScreen {
                     }
                     if why == RequestsProblem::Missing {
                         self.changed.insert(r.id, None);
-                        cx.toast_error("This request was deleted meanwhile.");
+                        cx.toast_error(t!("requests.page.deletedMeanwhile"));
                     } else {
                         cx.toast_error(ask_refusal(&why, r.kind, None, time));
                     }
@@ -441,7 +441,8 @@ impl Screen for RequestsScreen {
         if s.is_some() && !has_requests(s.as_ref()) {
             self.settled = true;
             let problem = summary_problem(s.as_ref()).unwrap_or(RequestsProblem::Off);
-            let (pressed, focusable) = problem_page(ui, cx, page.with("gate"), &problem, "Couldn't load the requests");
+            let (pressed, focusable) =
+                problem_page(ui, cx, page.with("gate"), &problem, t!("requests.page.loadFailed"));
             self.rail_if(cx, !focusable);
             match pressed {
                 Some(ProblemAction::Retry) => cx.state.load_requests(false),
@@ -492,7 +493,7 @@ impl Screen for RequestsScreen {
             if problem_words(&why, manage).is_some() {
                 self.settled = true;
                 let (pressed, focusable) =
-                    problem_page(ui, cx, page.with("problem"), &why, "Couldn't load the requests");
+                    problem_page(ui, cx, page.with("problem"), &why, t!("requests.page.loadFailed"));
                 self.rail_if(cx, !focusable);
                 match pressed {
                     Some(ProblemAction::Retry) => self.stale = true,
@@ -524,10 +525,10 @@ impl Screen for RequestsScreen {
                         let body = e.problem();
                         let r = Message::new(
                             MessageStyle::Column { top: list_top + 24.0 },
-                            failed_title(Some(e), "Couldn't load the requests"),
+                            failed_title(Some(e), t!("requests.page.loadFailed")),
                         )
                         .body(&body)
-                        .action("Retry", Icon::RefreshCw)
+                        .action(t!("requests.buttons.retry"), Icon::RefreshCw)
                         .show(ui, page.with("note"));
                         retry |= r.action.is_some_and(|a| a.activated);
                     }
@@ -542,7 +543,7 @@ impl Screen for RequestsScreen {
                     let (title, body) = requests_empty(tab, filtered, may_ask(s.as_ref()));
                     let mut message = Message::new(MessageStyle::Column { top: list_top + 24.0 }, title).body(body);
                     if find_some {
-                        message = message.action("Find something to ask for", Icon::Compass);
+                        message = message.action(t!("requests.page.findSomething"), Icon::Compass);
                     }
                     let r = message.show(ui, page.with("note"));
                     find |= r.action.is_some_and(|a| a.activated);
@@ -567,7 +568,8 @@ impl Screen for RequestsScreen {
                             let y = slot.rect.y + if slot.index == 0 { LIST_PAD_TOP } else { 0.0 };
                             let Some(r) = shown.get(slot.index) else {
                                 let at = Point::new(theme::GUTTER, y + 4.0);
-                                ui.text(at, MORE_TEXT, &theme::CAPTION, &TextOpts::line(title_w), theme::MUTED);
+                                let more = t!("requests.page.newest", number = pley_i18n::number(REQUESTS_MAX));
+                                ui.text(at, &more, &theme::CAPTION, &TextOpts::line(title_w), theme::MUTED);
                                 return;
                             };
                             let rect = Rect::new(theme::GUTTER, y, CARD_W, CARD_H);
@@ -674,12 +676,12 @@ impl Screen for RequestsScreen {
                     let y = FILTERS_Y + 2.0;
                     ui.icon(Rect::new(theme::GUTTER, y + 10.0, 20.0, 20.0), Icon::UserRound, theme::MUTED);
                     let x = theme::GUTTER + 30.0;
-                    let pill = Button::pill("Sign in");
+                    let pill = Button::pill(t!("requests.buttons.signIn"));
                     let w = theme::CANVAS_W - theme::SAFE_X - x - pill.size(ui).w - 16.0;
                     let used = ui
                         .text(
                             Point::new(x, y + 10.0),
-                            SIGN_IN_APPROVALS,
+                            sign_in_approvals(),
                             &theme::BODY,
                             &TextOpts::line(w),
                             theme::MUTED,
@@ -724,7 +726,7 @@ impl Screen for RequestsScreen {
 
         // The title filter's keyboard.
         if self.typing {
-            let r = Keyboard::new().action_label("Search").show(
+            let r = Keyboard::new().action_label(t!("requests.page.search")).show(
                 ui,
                 page.with("keyboard"),
                 &mut self.keyboard,
@@ -801,7 +803,7 @@ impl RequestsScreen {
                 self.start_over();
             }
             x += kind.size(ui).w + 10.0;
-            let name = person.clone().unwrap_or_else(|| "Everyone".into());
+            let name = person.clone().unwrap_or_else(|| t!("requests.page.everyone").into());
             let who =
                 Button::chip(&name).icon(Icon::Users).selected(self.filters.user_id.is_some()).max_label_width(140.0);
             if who.show(ui, ui.id("person"), Point::new(x, y)).activated {
@@ -809,8 +811,10 @@ impl RequestsScreen {
                 self.focus_panel = true;
             }
             x += who.size(ui).w + 10.0;
-            let field =
-                TextField::new(&self.text.text, 240.0).placeholder("Title").icon(Icon::Search).typing(self.typing);
+            let field = TextField::new(&self.text.text, 240.0)
+                .placeholder(t!("requests.page.titleFilter"))
+                .icon(Icon::Search)
+                .typing(self.typing);
             if field.show(ui, ui.id("q"), Point::new(x, FILTERS_Y)).activated {
                 self.typing = true;
                 self.keyboard = KeyboardState::default();
@@ -874,12 +878,12 @@ impl RequestsScreen {
                 };
                 match (&panel, &request) {
                     (Some(Panel::People), _) => {
-                        y += Heading::PanelTitle.show(ui, "Asked by", Point::new(area.x, y), w);
+                        y += Heading::PanelTitle.show(ui, t!("requests.page.askedBy"), Point::new(area.x, y), w);
                         let (rid, hit) = row(
                             ui,
                             &mut y,
                             "person/all",
-                            ListRow::new("Everyone").icon(Icon::Users).checked(picked.is_none()),
+                            ListRow::new(t!("requests.page.everyone")).icon(Icon::Users).checked(picked.is_none()),
                         );
                         if picked.is_none() && focus {
                             focus_to = Some(rid);
@@ -909,7 +913,8 @@ impl RequestsScreen {
                             y += Heading::Note.show(ui, body, Point::new(area.x, y), w);
                         }
                         // Cancel first, as the app's other questions: OK pressed twice undoes nothing.
-                        let (rid, hit) = row(ui, &mut y, "cancel", ListRow::new("Cancel").icon(Icon::ArrowLeft));
+                        let cancel = ListRow::new(t!("requests.buttons.cancel")).icon(Icon::ArrowLeft);
+                        let (rid, hit) = row(ui, &mut y, "cancel", cancel);
                         if focus {
                             focus_to = Some(rid);
                         }
@@ -923,17 +928,20 @@ impl RequestsScreen {
                         }
                     }
                     (Some(Panel::Request { step: Step::Reason, .. }), Some(r)) => {
-                        let title = format!("Decline “{}”?", r.title);
+                        let title = t!("requests.decline.title", title = r.title);
                         y += Heading::PanelTitle.show(ui, &title, Point::new(area.x, y), w);
                         if !r.mine {
-                            let who = r.requested_by.as_ref().map_or("Whoever asked", |u| u.name.as_str());
-                            let text = format!("{who} sees that it was declined, and your reason if you give one.");
+                            let text = match &r.requested_by {
+                                Some(u) => t!("requests.decline.nameSees", name = u.name),
+                                None => t!("requests.decline.someoneSees").to_string(),
+                            };
                             y += Heading::Note.show(ui, &text, Point::new(area.x, y), w);
                         }
                         y += 4.0;
                         let fid = id.with("reason");
-                        let field =
-                            TextField::new(&reason_text, w).placeholder("Reason (optional)").typing(reason_typing);
+                        let field = TextField::new(&reason_text, w)
+                            .placeholder(t!("requests.decline.reason"))
+                            .typing(reason_typing);
                         if field.show(ui, fid, Point::new(area.x, y)).activated {
                             pressed = Some("reason");
                         }
@@ -941,11 +949,13 @@ impl RequestsScreen {
                             focus_to = Some(fid);
                         }
                         y += pley_kit::keyboard::FIELD_HEIGHT + 12.0;
-                        let (_, hit) = row(ui, &mut y, "decline", ListRow::new("Decline").icon(Icon::Ban));
+                        let decline = ListRow::new(t!("requests.actions.decline")).icon(Icon::Ban);
+                        let (_, hit) = row(ui, &mut y, "decline", decline);
                         if hit {
                             pressed = Some("decline");
                         }
-                        let (_, hit) = row(ui, &mut y, "cancel", ListRow::new("Cancel").icon(Icon::ArrowLeft));
+                        let cancel = ListRow::new(t!("requests.buttons.cancel")).icon(Icon::ArrowLeft);
+                        let (_, hit) = row(ui, &mut y, "cancel", cancel);
                         if hit {
                             pressed = Some("cancel");
                         }
@@ -1011,7 +1021,8 @@ impl RequestsScreen {
                             }
                         };
                         if r.item_id.is_some() {
-                            let (rid, hit) = row(ui, &mut y, "open", ListRow::new("Open").icon(Icon::Play));
+                            let open = ListRow::new(t!("requests.buttons.open")).icon(Icon::Play);
+                            let (rid, hit) = row(ui, &mut y, "open", open);
                             wants("open", rid, None);
                             if hit {
                                 pressed = Some("open");
@@ -1030,7 +1041,7 @@ impl RequestsScreen {
                             ui,
                             &mut y,
                             "details",
-                            ListRow::new("Details").icon(Icon::Info).trailing(Trailing::None),
+                            ListRow::new(t!("requests.buttons.details")).icon(Icon::Info).trailing(Trailing::None),
                         );
                         wants("details", rid, None);
                         if hit {
@@ -1098,7 +1109,7 @@ impl RequestsScreen {
         }
         // The reason's keyboard: Done, and Decline is next.
         if self.reason_typing {
-            let k = Keyboard::new().action_label("Done").show(
+            let k = Keyboard::new().action_label(t!("requests.decline.done")).show(
                 ui,
                 page.with("reason-keyboard"),
                 &mut self.reason_keyboard,

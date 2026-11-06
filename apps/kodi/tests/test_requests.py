@@ -2,7 +2,6 @@ import json
 import unittest
 
 import support  # noqa: F401
-import xbmcaddon
 from pley import api, kodi, requests
 
 T = kodi.text
@@ -30,13 +29,6 @@ def request(**more):
 
 ON = {"enabled": True, "access": "ask", "manage": False, "pending": 0, "failed": 0, "unseen": 0, "own": 0,
       "sign_in_again": None, "movies_limit": 3, "seasons_limit": 10}
-
-
-class StringsTest(unittest.TestCase):
-    def test_every_name_has_its_words(self):
-        for name, number in kodi.TEXT.items():
-            self.assertTrue(xbmcaddon.localized(number), "no string #%d for %s" % (number, name))
-        self.assertEqual(len(set(kodi.TEXT.values())), len(kodi.TEXT))
 
 
 class SummaryTest(unittest.TestCase):

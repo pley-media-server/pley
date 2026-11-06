@@ -4,6 +4,7 @@ sub init()
     m.message = m.top.findNode("message")
     m.messageTitle = m.top.findNode("messageTitle")
     m.messageText = m.top.findNode("messageText")
+    m.messageText.text = t("common.states.loading")
     m.backdrop = m.top.findNode("backdrop")
     m.hero = m.top.findNode("hero")
     m.heroTitle = m.top.findNode("heroTitle")
@@ -124,7 +125,7 @@ sub load()
     ' What is known of the titles may have moved on (watched, played):
     ' it shows until their details come again.
     m.loads = m.loads + 1
-    if m.rowKeys.Count() = 0 then showMessage("", "Loading…")
+    if m.rowKeys.Count() = 0 then showMessage("", t("common.states.loading"), true)
     uiGet("/api/libraries", "onLibraries")
     uiGet("/api/live", "onLive")
     if not m.householdAsked and authAllows(m.global.session.scope, "profiles")
@@ -246,7 +247,7 @@ end sub
 function requestEntries() as object
     summary = reqSummaryOf(m.top.requestSummary)
     entries = []
-    if reqShowsDiscover(summary) then entries.Push({ title: "Discover", action: "discover" })
+    if reqShowsDiscover(summary) then entries.Push({ title: t("browse.menu.discover"), action: "discover" })
     if reqShowsRequests(summary)
         badge = reqBadge(summary)
         entries.Push({ title: reqPageName(summary), action: "requests", count: badge.count, danger: badge.danger })
@@ -260,7 +261,9 @@ sub onRequestSummary()
     if FormatJson(requestEntries()) <> FormatJson(m.requestEntries) then buildMenu()
 end sub
 
-sub showMessage(title as string, text as string)
+' loading: the message only says Home is on its way; any other means the
+' screen can be used (Roku's launch beacon).
+sub showMessage(title as string, text as string, loading = false as boolean)
     m.emptyShown = false
     m.inRows = false
     if m.rows.isInFocusChain() or m.heroButtons.isInFocusChain() then m.menu.setFocus(true)
@@ -274,7 +277,7 @@ sub showMessage(title as string, text as string)
     if title <> "" then m.message.appendChild(m.messageTitle)
     m.message.appendChild(m.messageText)
     m.message.visible = true
-    if text <> "Loading…" then uiLaunched()
+    if not loading then uiLaunched()
 end sub
 
 ' Puts rows ([{ key, wide, sig, built }]) on the screen: the
@@ -593,7 +596,7 @@ sub onMenu(event as object)
     else if action = "library"
         uiNavigate({ to: "library", params: { library: m.menuLibraries[index] } })
     else if action = "playlists"
-        uiNavigate({ to: "grid", params: { kind: "playlists", id: 0, title: "Playlists" } })
+        uiNavigate({ to: "grid", params: { kind: "playlists", id: 0, title: t("browse.menu.playlists") } })
     else if action = "collections"
         uiNavigate({ to: "collections", params: { libraries: m.libraries } })
     else if action = "search"

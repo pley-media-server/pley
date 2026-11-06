@@ -1,0 +1,236 @@
+{
+  "reconnecting": "Reconnecting…",
+  "skip": {
+    "intro": "Skip intro",
+    "credits": "Skip credits"
+  },
+  "upNext": {
+    "title": "Up next",
+    "playNow": "Play now",
+    "nextIn": "Next in {{seconds}} s"
+  },
+  "sync": {
+    "hint": "Left: earlier · Right: later",
+    "reset": "Reset"
+  },
+  "menu": {
+    "title": "Playback",
+    "subtitles": "Subtitles",
+    "subtitlesNow": "Subtitles: {{track}}",
+    "audio": "Audio",
+    "audioNow": "Audio: {{track}}",
+    "quality": "Quality",
+    "qualityNow": "Quality: {{quality}}",
+    "sync": "Subtitle sync",
+    "syncNow": "Subtitle sync: {{offset}}",
+    "chapters": "Chapters",
+    "find": "Find subtitles…",
+    "details": "Playback details",
+    "backCloses": "Back closes this.",
+    "backGoesBack": "Back goes back."
+  },
+  "details": {
+    "picturesDrawn": "Subtitles: Drawn by Pley",
+    "qualityLowered": "Quality: {{quality}} · Lowered for your connection"
+  },
+  "toasts": {
+    "paused": "Paused",
+    "playing": "Playing",
+    "jumpedTo": "Jumped to {{time}}",
+    "audio": "Audio: {{track}}",
+    "subtitles": "Subtitles: {{track}}",
+    "subtitlesOff": "Subtitles off",
+    "quality": "Quality: {{quality}}",
+    "qualityLowered": "Quality lowered to {{quality}}",
+    "slowServer": "The server can't keep up with this video. Try a lower quality: Down, then Quality.",
+    "notSaved": "Couldn't save that choice for next time.",
+    "subtitlesAdded": "Subtitles added: {{track}}"
+  },
+  "errors": {
+    "cantPlay": "Can't play this item",
+    "unplayable": "This video can't be played on this Roku.",
+    "endsEarly": "This video ends before the point it was to play from.",
+    "stalled": "Playback stopped and couldn't get going again.",
+    "cantReach": "Can't reach {{server}}",
+    "cantReachText": "Pley for Roku can't reach the server at {{address}}. Check that it's on, and that this TV is on the same network as the server.",
+    "stoppedByAdmin": "Playback was stopped by the server's administrator.",
+    "stoppedElsewhere": "Playback was stopped from another device."
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automatic",
+    "automaticAt": "Automatic · {{quality}}",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "originalHint": "Full quality. May buffer on a slow connection.",
+    "automaticHint": "Dynamically adjust to conditions."
+  },
+  "sleep": {
+    "title": "Sleep timer",
+    "titleNow": "Sleep timer: {{state}}",
+    "off": "Off",
+    "minutes": "{{minutes}} min",
+    "minutesLeft_one": "{{count}} min left",
+    "minutesLeft_other": "{{count}} min left",
+    "secondsLeft_one": "{{count}} s left",
+    "secondsLeft_other": "{{count}} s left",
+    "end": {
+      "episode": "End of this episode",
+      "movie": "End of this movie",
+      "track": "End of this track",
+      "video": "End of this video"
+    },
+    "pausingIn": "Pausing in {{seconds}} s",
+    "keepWatching": "Keep watching",
+    "keepListening": "Keep listening"
+  },
+  "find": {
+    "title": "Find subtitles",
+    "language": "Subtitle language",
+    "searching": "Looking for subtitles…",
+    "languageEntry": "Language: {{language}}",
+    "yourLanguage": "Your subtitle language",
+    "yourLanguageInSentence": "your subtitle language",
+    "languageHint": "The language the search looks in.",
+    "nothingFound": "No subtitles were found for this file in {{language}}. Language picks another.",
+    "subtitles": "Subtitles",
+    "madeForFile": "Made for this file",
+    "hearingImpaired": "Hearing impaired",
+    "downloads_one": "{{count, number}} download",
+    "downloads_other": "{{count, number}} downloads",
+    "adding": "Adding {{name}}…",
+    "noTrack": "The server didn't send the subtitles back.",
+    "notSetUp": "Subtitle search isn't set up on this server. An administrator sets it up on the web, in Settings → Server.",
+    "needsNewer": "Finding subtitles needs a newer Pley server.",
+    "unreachable": "The server can't be reached.",
+    "failed": "Something went wrong. Try again."
+  },
+  "tracks": {
+    "off": "Off",
+    "automatic": "Automatic",
+    "automaticLanguage": "Automatic ({{language}})",
+    "unknown": "Unknown",
+    "forced": "Forced",
+    "external": "External",
+    "version": "Version {{number}}"
+  },
+  "media": {
+    "languages": {
+      "und": "Unknown",
+      "mul": "Multiple",
+      "zxx": "No linguistic content"
+    },
+    "mono": "Mono",
+    "stereo": "Stereo",
+    "channelCount": "{{n}}ch",
+    "fact": "{{label}}: {{value}}",
+    "file": "File",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "numbered": "{{kind}} {{n}}",
+    "name": "Name",
+    "container": "Container",
+    "size": "Size",
+    "duration": "Duration",
+    "overallBitrate": "Overall bitrate",
+    "codec": "Codec",
+    "profile": "Profile",
+    "resolution": "Resolution",
+    "frameRate": "Frame rate",
+    "bitDepth": "Bit depth",
+    "primaries": "Primaries",
+    "transfer": "Transfer",
+    "matrix": "Matrix",
+    "bitrate": "Bitrate",
+    "title": "Title",
+    "channels": "Channels",
+    "sampleRate": "Sample rate",
+    "language": "Language",
+    "flags": "Flags",
+    "format": "Format",
+    "formatPicture": "{{codec}}, picture",
+    "formatText": "{{codec}}, text",
+    "level": "Level {{level}}",
+    "fps": "{{fps}} fps",
+    "fpsInterlaced": "{{fps}} fps, interlaced",
+    "bits": "{{n}}-bit",
+    "default": "Default",
+    "beside": "Beside the media",
+    "dvProfile": "Profile {{profile}}",
+    "noBaseLayer": "no compatible base layer",
+    "baseLayer": "{{range}}-compatible base layer",
+    "fullLayer": "full enhancement layer",
+    "minimalLayer": "minimal enhancement layer"
+  },
+  "caps": {
+    "display": "Display: {{size}}",
+    "displayRate": "Display: {{size}} at {{rate}} Hz",
+    "hdr": "HDR: {{list}}",
+    "none": "none",
+    "dolbyVision": "Dolby Vision: profiles {{list}}",
+    "video": "Video: {{list}}",
+    "audioDecoded": "Audio decoded: {{list}}",
+    "sent": "Sent to the receiver: {{list}}",
+    "nothing": "nothing",
+    "sound": "Sound: {{sound}}",
+    "surround": "Surround (5.1)",
+    "pictures": "Picture subtitles: PGS drawn here, VobSub and DVB burned in",
+    "containers": "Containers: {{list}}",
+    "streams": "Streams: HLS, in several sizes"
+  },
+  "nowPlaying": {
+    "title": "Now playing",
+    "position": "Track {{at, number}} of {{total, number}}",
+    "shuffle": "Shuffle",
+    "stopShuffling": "Stop shuffling",
+    "previous": "Previous",
+    "pause": "Pause",
+    "next": "Next",
+    "stop": "Stop",
+    "cantPlay": "This track can't be played on this Roku.",
+    "trackProblem": "{{title}}: {{message}}"
+  },
+  "cast": {
+    "playingFrom": "Playing from {{device}}",
+    "playingFromAnother": "Playing from another device",
+    "nothingToPlay": "Nothing to play",
+    "switchFailed": "Couldn't switch to the remote's profile"
+  },
+  "settings": {
+    "audioLanguage": "Audio language",
+    "subtitles": "Subtitles",
+    "subtitleLanguage": "Subtitle language",
+    "fileDefault": "The file's default",
+    "sameAsAudio": "Same as the audio language",
+    "rows": {
+      "audio": "Audio language: {{language}}",
+      "mode": "Subtitles: {{mode}}",
+      "subtitle": "Subtitle language: {{language}}",
+      "fileDefault": "The file's default",
+      "sameAsAudio": "Same as the audio language",
+      "readOnly": "{{row}} · change on the web"
+    },
+    "modes": {
+      "off": {
+        "label": "Off",
+        "row": "Off",
+        "hint": "Subtitles stay off until you turn them on."
+      },
+      "forced": {
+        "label": "Only for foreign dialogue",
+        "row": "Only for foreign dialogue",
+        "hint": "Only forced subtitles, for signs and foreign dialogue."
+      },
+      "foreign": {
+        "label": "When the audio is in another language",
+        "row": "When the audio is in another language",
+        "hint": "Full subtitles come on when the audio isn't in your subtitle language."
+      },
+      "always": {
+        "label": "Always",
+        "row": "Always",
+        "hint": "Subtitles in your language come on whenever there are some."
+      }
+    }
+  }
+}

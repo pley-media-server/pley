@@ -1,0 +1,2188 @@
+# Pley for Kodi
+# Addon id: plugin.video.pley
+msgid ""
+msgstr ""
+"Project-Id-Version: plugin.video.pley\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: es_ES\n"
+"Plural-Forms: nplurals=3; plural=(n == 1) ? 0 : (n != 0 && n % 1000000 == 0) ? 1 : 2;\n"
+
+msgctxt "#30000"
+msgid "Choose a server"
+msgstr "Elegir un servidor"
+
+msgctxt "#30001"
+msgid "Sign in to %s"
+msgstr "Iniciar sesión en %s"
+
+msgctxt "#30002"
+msgid "Sign out"
+msgstr "Cerrar sesión"
+
+msgctxt "#30003"
+msgid "Search"
+msgstr "Buscar"
+
+msgctxt "#30004"
+msgid "Playlists"
+msgstr "Listas de reproducción"
+
+msgctxt "#30005"
+msgid "Collections"
+msgstr "Colecciones"
+
+msgctxt "#30006"
+msgid "Next page"
+msgstr "Página siguiente"
+
+msgctxt "#30007"
+msgid "Enter an address"
+msgstr "Introducir una dirección"
+
+msgctxt "#30009"
+msgid "Looking for Pley servers on this network"
+msgstr "Buscando servidores Pley en esta red"
+
+msgctxt "#30010"
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+msgctxt "#30012"
+msgid "Signed in as %s"
+msgstr "Sesión iniciada como %s"
+
+msgctxt "#30013"
+msgid "Signed out of Pley"
+msgstr "Sesión cerrada en Pley"
+
+msgctxt "#30014"
+msgid "The code expired. Sign in again for a new one."
+msgstr "El código caducó. Vuelve a iniciar sesión para obtener uno nuevo."
+
+msgctxt "#30015"
+msgid "Signing in was refused on the server's page."
+msgstr "Se rechazó el inicio de sesión en la página del servidor."
+
+msgctxt "#30016"
+msgid "%s doesn't answer. Check the address, and that the server is running."
+msgstr "%s no responde. Comprueba la dirección y que el servidor esté en marcha."
+
+msgctxt "#30017"
+msgid "%s isn't a Pley server, or isn't one Kodi can sign in to."
+msgstr "%s no es un servidor Pley, o Kodi no puede iniciar sesión en él."
+
+msgctxt "#30018"
+msgid "Pley's service isn't running: restart Kodi."
+msgstr "El servicio de Pley no está en marcha: reinicia Kodi."
+
+msgctxt "#30019"
+msgid "Mark as watched"
+msgstr "Marcar como visto"
+
+msgctxt "#30020"
+msgid "Mark as unwatched"
+msgstr "Marcar como no visto"
+
+msgctxt "#30021"
+msgid "Add to My List"
+msgstr "Añadir a Mi lista"
+
+msgctxt "#30022"
+msgid "Remove from My List"
+msgstr "Quitar de Mi lista"
+
+msgctxt "#30024"
+msgid "The server stopped this stream."
+msgstr "El servidor detuvo esta reproducción."
+
+msgctxt "#30026"
+msgid "The server answered: %s"
+msgstr "El servidor respondió: %s"
+
+msgctxt "#30027"
+msgid "Settings"
+msgstr "Ajustes"
+
+msgctxt "#30030"
+msgid "Nothing found"
+msgstr "No se encontró nada"
+
+msgctxt "#30060"
+msgid "Skip intro"
+msgstr "Saltar intro"
+
+msgctxt "#30061"
+msgid "Skip credits"
+msgstr "Saltar créditos"
+
+msgctxt "#30062"
+msgid "Up next: %s"
+msgstr "A continuación: %s"
+
+msgctxt "#30063"
+msgid "Play now (%d)"
+msgstr "Ver ahora (%d)"
+
+msgctxt "#30064"
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgctxt "#30065"
+msgid "Can't reach %s"
+msgstr "No se puede conectar con %s"
+
+msgctxt "#30066"
+msgid "Try again"
+msgstr "Volver a intentar"
+
+msgctxt "#30067"
+msgid "Check that the server is on and that this device is on its network. Pley doesn't need the internet."
+msgstr "Comprueba que el servidor esté encendido y que este dispositivo esté en su red. Pley no necesita internet."
+
+msgctxt "#30074"
+msgid "Waiting for approval. The code works for less than a minute more."
+msgstr "Esperando la aprobación. El código vale menos de un minuto más."
+
+msgctxt "#30076"
+msgid "Signed in"
+msgstr "Sesión iniciada"
+
+msgctxt "#30077"
+msgid "Can't reach the server: trying again."
+msgstr "No se puede conectar con el servidor: se vuelve a intentar."
+
+msgctxt "#30078"
+msgid "Playback was stopped by the server's administrator."
+msgstr "El administrador del servidor detuvo la reproducción."
+
+msgctxt "#30079"
+msgid "Playback was stopped from another of your devices."
+msgstr "La reproducción se detuvo desde otro de tus dispositivos."
+
+msgctxt "#30040"
+msgid "Server"
+msgstr "Servidor"
+
+msgctxt "#30041"
+msgid "Server address"
+msgstr "Dirección del servidor"
+
+msgctxt "#30042"
+msgid "Server name"
+msgstr "Nombre del servidor"
+
+msgctxt "#30043"
+msgid "Playback"
+msgstr "Reproducción"
+
+msgctxt "#30044"
+msgid "Quality"
+msgstr "Calidad"
+
+msgctxt "#30045"
+msgid "Original"
+msgstr "Original"
+
+msgctxt "#30046"
+msgid "30 Mbps 4K"
+msgstr "30 Mbps 4K"
+
+msgctxt "#30047"
+msgid "20 Mbps 1080p"
+msgstr "20 Mbps 1080p"
+
+msgctxt "#30048"
+msgid "15 Mbps 4K"
+msgstr "15 Mbps 4K"
+
+msgctxt "#30049"
+msgid "12 Mbps 1080p"
+msgstr "12 Mbps 1080p"
+
+msgctxt "#30050"
+msgid "8 Mbps 1080p"
+msgstr "8 Mbps 1080p"
+
+msgctxt "#30051"
+msgid "4 Mbps 720p"
+msgstr "4 Mbps 720p"
+
+msgctxt "#30052"
+msgid "2 Mbps 480p"
+msgstr "2 Mbps 480p"
+
+msgctxt "#30100"
+msgid "Home"
+msgstr "Inicio"
+
+msgctxt "#30101"
+msgid "From start"
+msgstr "Desde el principio"
+
+msgctxt "#30102"
+msgid "Info"
+msgstr "Información"
+
+msgctxt "#30103"
+msgid "In My List"
+msgstr "En Mi lista"
+
+msgctxt "#30104"
+msgid "Trailer"
+msgstr "Tráiler"
+
+msgctxt "#30105"
+msgid "More"
+msgstr "Más"
+
+msgctxt "#30106"
+msgid "Recommended"
+msgstr "Recomendado"
+
+msgctxt "#30107"
+msgid "Library"
+msgstr "Biblioteca"
+
+msgctxt "#30108"
+msgid "Filter"
+msgstr "Filtrar"
+
+msgctxt "#30109"
+msgid "Unwatched"
+msgstr "No visto"
+
+msgctxt "#30110"
+msgid "Genre"
+msgstr "Género"
+
+msgctxt "#30111"
+msgid "Year"
+msgstr "Año"
+
+msgctxt "#30112"
+msgid "Resume"
+msgstr "Reanudar"
+
+msgctxt "#30113"
+msgid "Play"
+msgstr "Reproducir"
+
+msgctxt "#30114"
+msgid "Resume %s"
+msgstr "Reanudar %s"
+
+msgctxt "#30115"
+msgid "Play %s"
+msgstr "Reproducir %s"
+
+msgctxt "#30116"
+msgid "See all"
+msgstr "Ver todo"
+
+msgctxt "#30117"
+msgid "Unavailable"
+msgstr "No disponible"
+
+msgctxt "#30118"
+msgid "Search movies, shows, people…"
+msgstr "Busca películas, series, personas…"
+
+msgctxt "#30119"
+msgid "Search your libraries"
+msgstr "Busca en tus bibliotecas"
+
+msgctxt "#30120"
+msgid "Find movies, shows, episodes, people, artists, albums and tracks. Press OK on the field to type."
+msgstr "Encuentra películas, series, episodios, personas, artistas, álbumes y pistas. Pulsa OK en el campo para escribir."
+
+msgctxt "#30121"
+msgid "Nothing found for “%s”"
+msgstr "No hay resultados para «%s»"
+
+msgctxt "#30122"
+msgid "Movies"
+msgstr "Películas"
+
+msgctxt "#30123"
+msgid "Shows"
+msgstr "Series"
+
+msgctxt "#30124"
+msgid "Episodes"
+msgstr "Episodios"
+
+msgctxt "#30125"
+msgid "People"
+msgstr "Personas"
+
+msgctxt "#30126"
+msgid "Music"
+msgstr "Música"
+
+msgctxt "#30127"
+msgid "Cast"
+msgstr "Reparto"
+
+msgctxt "#30128"
+msgid "Cast & crew"
+msgstr "Reparto y equipo"
+
+msgctxt "#30129"
+msgid "Crew"
+msgstr "Equipo"
+
+msgctxt "#30130"
+msgid "Guest stars"
+msgstr "Estrellas invitadas"
+
+msgctxt "#30131"
+msgid "More like this"
+msgstr "Títulos similares"
+
+msgctxt "#30132"
+msgid "Extras"
+msgstr "Extras"
+
+msgctxt "#30133"
+msgid "Couldn't load your home screen"
+msgstr "No se pudo cargar tu pantalla de inicio"
+
+msgctxt "#30134"
+msgid "Couldn't load this page"
+msgstr "No se pudo cargar esta página"
+
+msgctxt "#30135"
+msgid "No libraries yet"
+msgstr "Aún no hay bibliotecas"
+
+msgctxt "#30136"
+msgid "Ask whoever runs this Pley server to share a library with you."
+msgstr "Pide a quien gestiona este servidor Pley que comparta una biblioteca contigo."
+
+msgctxt "#30137"
+msgid "Nothing here yet"
+msgstr "Aún no hay nada"
+
+msgctxt "#30138"
+msgid "Add movies, shows or music to a library on the server, and they show here."
+msgstr "Añade películas, series o música a una biblioteca del servidor y aparecerán aquí."
+
+msgctxt "#30139"
+msgid "Scanning your libraries…"
+msgstr "Analizando tus bibliotecas…"
+
+msgctxt "#30140"
+msgid "Directed by"
+msgstr "Dirección:"
+
+msgctxt "#30141"
+msgid "Created by"
+msgstr "Creación:"
+
+msgctxt "#30142"
+msgid "Starring"
+msgstr "Reparto:"
+
+msgctxt "#30143"
+msgid "Sort by"
+msgstr "Ordenar por"
+
+msgctxt "#30144"
+msgid "Title"
+msgstr "Título"
+
+msgctxt "#30145"
+msgid "Year"
+msgstr "Año"
+
+msgctxt "#30146"
+msgid "Date added"
+msgstr "Fecha de adición"
+
+msgctxt "#30147"
+msgid "Rating"
+msgstr "Valoración"
+
+msgctxt "#30148"
+msgid "Release date"
+msgstr "Fecha de estreno"
+
+msgctxt "#30149"
+msgid "Duration"
+msgstr "Duración"
+
+msgctxt "#30150"
+msgid "Last played"
+msgstr "Última reproducción"
+
+msgctxt "#30151"
+msgid "All genres"
+msgstr "Todos los géneros"
+
+msgctxt "#30152"
+msgid "All years"
+msgstr "Todos los años"
+
+msgctxt "#30153"
+msgid "Clear filters"
+msgstr "Borrar filtros"
+
+msgctxt "#30154"
+msgid "Remove from Continue Watching"
+msgstr "Quitar de Seguir viendo"
+
+msgctxt "#30155"
+msgid "Go to show"
+msgstr "Ir a la serie"
+
+msgctxt "#30156"
+msgid "Go to season"
+msgstr "Ir a la temporada"
+
+msgctxt "#30157"
+msgid "Full summary"
+msgstr "Sinopsis completa"
+
+msgctxt "#30158"
+msgid "No playlists yet. Use “Add to playlist” on a movie, show or episode, or press Menu on a poster."
+msgstr "Aún no hay listas de reproducción. Usa «Añadir a una lista» en una película, serie o episodio, o pulsa Menú en un póster."
+
+msgctxt "#30159"
+msgid "No collections yet."
+msgstr "Aún no hay colecciones."
+
+msgctxt "#30160"
+msgid "Nothing matches these filters."
+msgstr "Nada coincide con estos filtros."
+
+msgctxt "#30161"
+msgid "Screens"
+msgstr "Pantallas"
+
+msgctxt "#30162"
+msgid "Pley's look, as on its TV apps"
+msgstr "El aspecto de Pley, como en sus aplicaciones de TV"
+
+msgctxt "#30163"
+msgid "Kodi's lists, in this skin's views"
+msgstr "Las listas de Kodi, en las vistas de este skin"
+
+msgctxt "#30166"
+msgid "This library is empty."
+msgstr "Esta biblioteca está vacía."
+
+msgctxt "#30167"
+msgid "Watched"
+msgstr "Visto"
+
+msgctxt "#30168"
+msgid "Known for"
+msgstr "Conocido por"
+
+msgctxt "#30171"
+msgid "Sign in to Pley"
+msgstr "Iniciar sesión en Pley"
+
+msgctxt "#30172"
+msgid "Scan the code with your phone"
+msgstr "Escanea el código con tu teléfono"
+
+msgctxt "#30173"
+msgid "or go to [B]%s[/B]"
+msgstr "o ve a [B]%s[/B]"
+
+msgctxt "#30174"
+msgid "and enter this code"
+msgstr "e introduce este código"
+
+msgctxt "#30175"
+msgid "Your phone must be on the same Wi-Fi as this TV."
+msgstr "Tu teléfono debe estar en la misma red Wi-Fi que esta TV."
+
+msgctxt "#30176"
+msgid "Or open Pley on a signed-in device: Link a device."
+msgstr "O abre Pley en un dispositivo conectado: Vincular un dispositivo."
+
+msgctxt "#30177"
+msgid "Scan with your phone camera"
+msgstr "Escanea con la cámara de tu teléfono"
+
+msgctxt "#30178"
+msgid "Change server"
+msgstr "Cambiar de servidor"
+
+msgctxt "#30179"
+msgid "Go to [B]%s[/B]"
+msgstr "Ve a [B]%s[/B]"
+
+msgctxt "#30180"
+msgid "Add to playlist"
+msgstr "Añadir a una lista"
+
+msgctxt "#30181"
+msgid "New video playlist"
+msgstr "Nueva lista de video"
+
+msgctxt "#30182"
+msgid "New music playlist"
+msgstr "Nueva lista de música"
+
+msgctxt "#30183"
+msgid "Added to %s"
+msgstr "Añadido a %s"
+
+msgctxt "#30184"
+msgid "All"
+msgstr "Todo"
+
+msgctxt "#30185"
+msgid "Save as…"
+msgstr "Guardar como…"
+
+msgctxt "#30186"
+msgid "Save these filters"
+msgstr "Guardar estos filtros"
+
+msgctxt "#30188"
+msgid "Sort libraries"
+msgstr "Ordenar bibliotecas"
+
+msgctxt "#30189"
+msgid "Use the server's order"
+msgstr "Usar el orden del servidor"
+
+msgctxt "#30190"
+msgid "Move up"
+msgstr "Subir"
+
+msgctxt "#30191"
+msgid "Move down"
+msgstr "Bajar"
+
+msgctxt "#30192"
+msgid "First"
+msgstr "Primero"
+
+msgctxt "#30193"
+msgid "After %s"
+msgstr "Después de %s"
+
+msgctxt "#30194"
+msgid "Sorting libraries needs a newer Pley on the server."
+msgstr "Para ordenar las bibliotecas, el servidor necesita una versión más reciente de Pley."
+
+msgctxt "#30195"
+msgid "Audio and subtitles"
+msgstr "Audio y subtítulos"
+
+msgctxt "#30196"
+msgid "Audio language"
+msgstr "Idioma del audio"
+
+msgctxt "#30197"
+msgid "Subtitles"
+msgstr "Subtítulos"
+
+msgctxt "#30198"
+msgid "Subtitle language"
+msgstr "Idioma de los subtítulos"
+
+msgctxt "#30199"
+msgid "The file's default"
+msgstr "El predeterminado del archivo"
+
+msgctxt "#30200"
+msgid "Same as the audio language"
+msgstr "El mismo que el del audio"
+
+msgctxt "#30201"
+msgid "Off"
+msgstr "Desactivados"
+
+msgctxt "#30202"
+msgid "Only for foreign dialogue"
+msgstr "Solo para diálogos en otro idioma"
+
+msgctxt "#30203"
+msgid "When the audio is in another language"
+msgstr "Cuando el audio está en otro idioma"
+
+msgctxt "#30204"
+msgid "Always"
+msgstr "Siempre"
+
+msgctxt "#30205"
+msgid "This server doesn't let the app change these: change them on the web"
+msgstr "Este servidor no permite que la aplicación los cambie: cámbialos en la web"
+
+msgctxt "#30206"
+msgid "Saved"
+msgstr "Guardado"
+
+msgctxt "#30207"
+msgid "Libraries"
+msgstr "Bibliotecas"
+
+msgctxt "#30208"
+msgid "Open"
+msgstr "Abrir"
+
+msgctxt "#30209"
+msgid "Scanning…"
+msgstr "Analizando…"
+
+msgctxt "#30210"
+msgid "Sign out?"
+msgstr "¿Cerrar sesión?"
+
+msgctxt "#30211"
+msgid "You'll be signed out of %s."
+msgstr "Se cerrará tu sesión en %s."
+
+msgctxt "#30212"
+msgid "Automatic"
+msgstr "Automática"
+
+msgctxt "#30213"
+msgid "Quality lowered to %s"
+msgstr "Calidad reducida a %s"
+
+msgctxt "#30214"
+msgid "Shuffle"
+msgstr "Aleatorio"
+
+msgctxt "#30215"
+msgid "Albums"
+msgstr "Álbumes"
+
+msgctxt "#30216"
+msgid "Tracks"
+msgstr "Pistas"
+
+msgctxt "#30217"
+msgid "Go to artist"
+msgstr "Ir al artista"
+
+msgctxt "#30218"
+msgid "No tracks found"
+msgstr "No se encontraron pistas"
+
+msgctxt "#30219"
+msgid "Who's watching?"
+msgstr "¿Quién está viendo?"
+
+msgctxt "#30220"
+msgid "Switch profile"
+msgstr "Cambiar de perfil"
+
+msgctxt "#30221"
+msgid "Enter %s's PIN"
+msgstr "Introduce el PIN de %s"
+
+msgctxt "#30222"
+msgid "Wrong PIN."
+msgstr "PIN incorrecto."
+
+msgctxt "#30223"
+msgid "Too many wrong PINs: try again in a few minutes."
+msgstr "Demasiados PIN incorrectos: vuelve a intentarlo en unos minutos."
+
+msgctxt "#30224"
+msgid "This profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it."
+msgstr "El PIN de este perfil está bloqueado tras demasiados intentos fallidos. Su propietario o un administrador puede restablecerlo."
+
+msgctxt "#30225"
+msgid "You can't switch to this profile."
+msgstr "No puedes cambiar a este perfil."
+
+msgctxt "#30226"
+msgid "This profile can't be used from the app."
+msgstr "Este perfil no se puede usar desde la aplicación."
+
+msgctxt "#30227"
+msgid "This sign-in can't switch profiles: sign in again to allow it."
+msgstr "Esta sesión no permite cambiar de perfil: vuelve a iniciar sesión para permitirlo."
+
+msgctxt "#30228"
+msgid "%s needs a password. Sign in again with a code and choose %s on your phone or computer."
+msgstr "%s necesita una contraseña. Vuelve a iniciar sesión con un código y elige %s en tu teléfono o tu computadora."
+
+msgctxt "#30229"
+msgid "A PIN has 4 to 8 digits."
+msgstr "Un PIN tiene de 4 a 8 dígitos."
+
+msgctxt "#30230"
+msgid "Watching as %s"
+msgstr "Viendo como %s"
+
+msgctxt "#30231"
+msgid "There's no other profile to switch to."
+msgstr "No hay otro perfil al que cambiar."
+
+msgctxt "#30232"
+msgid "PIN"
+msgstr "PIN"
+
+msgctxt "#30233"
+msgid "Remove from playlist"
+msgstr "Quitar de la lista"
+
+msgctxt "#30234"
+msgid "Rename playlist"
+msgstr "Cambiar nombre de la lista"
+
+msgctxt "#30235"
+msgid "Delete playlist"
+msgstr "Eliminar la lista"
+
+msgctxt "#30236"
+msgid "Delete playlist?"
+msgstr "¿Eliminar la lista de reproducción?"
+
+msgctxt "#30237"
+msgid "“%s” will be deleted. What's in it stays in your libraries."
+msgstr "Se eliminará «%s». Su contenido seguirá en tus bibliotecas."
+
+msgctxt "#30238"
+msgid "Delete"
+msgstr "Eliminar"
+
+msgctxt "#30239"
+msgid "Playlist deleted"
+msgstr "Lista eliminada"
+
+msgctxt "#30240"
+msgid "This playlist is empty. Use “Add to playlist” on a title, or press Menu on a poster."
+msgstr "Esta lista está vacía. Usa «Añadir a una lista» en un título o pulsa Menú en un póster."
+
+msgctxt "#30241"
+msgid "Nothing matches this playlist's filter yet."
+msgstr "Todavía nada coincide con el filtro de esta lista."
+
+msgctxt "#30242"
+msgid "Your rating"
+msgstr "Tu valoración"
+
+msgctxt "#30243"
+msgid "Not rated"
+msgstr "Sin valoración"
+
+msgctxt "#30244"
+msgid "Subtitle search isn't set up on this server. An administrator sets it up on the web, in Settings → Server."
+msgstr "La búsqueda de subtítulos no está configurada en este servidor. Un administrador la configura en la web, en Ajustes → Servidor."
+
+msgctxt "#30245"
+msgid "Finding subtitles needs a newer Pley server."
+msgstr "Para buscar subtítulos, el servidor necesita una versión más reciente de Pley."
+
+msgctxt "#30246"
+msgid "%s isn't on your network and its connection isn't encrypted. Open it by its https address."
+msgstr "%s no está en tu red y su conexión no está cifrada. Ábrelo con su dirección https."
+
+msgctxt "#30247"
+msgid "Live TV"
+msgstr "TV en vivo"
+
+msgctxt "#30249"
+msgid "Favourites"
+msgstr "Favoritos"
+
+msgctxt "#30250"
+msgid "Recently watched"
+msgstr "Vistos recientemente"
+
+msgctxt "#30253"
+msgid "Add to favourites"
+msgstr "Añadir a favoritos"
+
+msgctxt "#30254"
+msgid "Remove from favourites"
+msgstr "Quitar de favoritos"
+
+msgctxt "#30255"
+msgid "Schedule"
+msgstr "Programación"
+
+msgctxt "#30256"
+msgid "Watch"
+msgstr "Ver"
+
+msgctxt "#30257"
+msgid "Next"
+msgstr "A continuación"
+
+msgctxt "#30258"
+msgid "All connections are in use"
+msgstr "Todas las conexiones están en uso"
+
+msgctxt "#30259"
+msgid "No channels yet"
+msgstr "Aún no hay canales"
+
+msgctxt "#30260"
+msgid "Channels appear here once an administrator adds an IPTV provider."
+msgstr "Los canales aparecen aquí cuando un administrador añade un proveedor de IPTV."
+
+msgctxt "#30261"
+msgid "Add your IPTV provider's playlist or Xtream Codes account on the web, in Settings → Live TV."
+msgstr "Añade la lista de reproducción o la cuenta Xtream Codes de tu proveedor de IPTV en la web, en Ajustes → TV en vivo."
+
+msgctxt "#30262"
+msgid "Today"
+msgstr "Hoy"
+
+msgctxt "#30263"
+msgid "Tomorrow"
+msgstr "Mañana"
+
+msgctxt "#30264"
+msgid "Yesterday"
+msgstr "Ayer"
+
+msgctxt "#30265"
+msgid "Nothing in the guide now"
+msgstr "Nada en la guía ahora"
+
+msgctxt "#30266"
+msgid "No guide"
+msgstr "Sin guía"
+
+msgctxt "#30267"
+msgid "Later"
+msgstr "Más tarde"
+
+msgctxt "#30268"
+msgid "Live"
+msgstr "En vivo"
+
+msgctxt "#30269"
+msgid "New"
+msgstr "Estreno"
+
+msgctxt "#30270"
+msgid "No channel %s"
+msgstr "No hay canal %s"
+
+msgctxt "#30271"
+msgid "On now"
+msgstr "Ahora"
+
+msgctxt "#30272"
+msgid "The guide has nothing more for %s."
+msgstr "La guía no tiene nada más para %s."
+
+msgctxt "#30273"
+msgid "All channels"
+msgstr "Todos los canales"
+
+msgctxt "#30274"
+msgid "Search channels"
+msgstr "Buscar canales"
+
+msgctxt "#30275"
+msgid "You, on another device"
+msgstr "Tú, en otro dispositivo"
+
+msgctxt "#30276"
+msgid "Someone else"
+msgstr "Otra persona"
+
+msgctxt "#30278"
+msgid "Watch here instead"
+msgstr "Ver aquí en su lugar"
+
+msgctxt "#30447"
+msgid "Discover"
+msgstr "Descubrir"
+
+msgctxt "#30448"
+msgid "Your requests"
+msgstr "Tus solicitudes"
+
+msgctxt "#30449"
+msgid "Requests"
+msgstr "Solicitudes"
+
+msgctxt "#30450"
+msgid "Trending this week"
+msgstr "Tendencias de la semana"
+
+msgctxt "#30451"
+msgid "Popular movies"
+msgstr "Películas populares"
+
+msgctxt "#30452"
+msgid "Popular shows"
+msgstr "Series populares"
+
+msgctxt "#30453"
+msgid "Coming to cinemas"
+msgstr "Próximamente en cines"
+
+msgctxt "#30454"
+msgid "Popular anime"
+msgstr "Anime popular"
+
+msgctxt "#30455"
+msgid "Find movies and shows to ask for"
+msgstr "Busca películas y series que solicitar"
+
+msgctxt "#30456"
+msgid "Nothing on TMDB for “%s”"
+msgstr "No hay nada en TMDB para «%s»"
+
+msgctxt "#30457"
+msgid "Details and pictures from TMDB."
+msgstr "Información e imágenes de TMDB."
+
+msgctxt "#30458"
+msgid "In library"
+msgstr "En la biblioteca"
+
+msgctxt "#30459"
+msgid "Partly in library"
+msgstr "En parte en la biblioteca"
+
+msgctxt "#30460"
+msgid "Requested"
+msgstr "Solicitado"
+
+msgctxt "#30461"
+msgid "Declined"
+msgstr "Rechazado"
+
+msgctxt "#30462"
+msgid "Request"
+msgstr "Solicitar"
+
+msgctxt "#30463"
+msgid "Request more seasons"
+msgstr "Solicitar más temporadas"
+
+msgctxt "#30464"
+msgid "Following"
+msgstr "Siguiendo"
+
+msgctxt "#30465"
+msgid "Stop following"
+msgstr "Dejar de seguir"
+
+msgctxt "#30466"
+msgid "Tell me too"
+msgstr "Avisarme también"
+
+msgctxt "#30467"
+msgid "Someone asked for it already."
+msgstr "Alguien ya lo solicitó."
+
+msgctxt "#30468"
+msgid "Declined: “%s”."
+msgstr "Rechazado: «%s»."
+
+msgctxt "#30469"
+msgid "You can ask again %s."
+msgstr "Podrás volver a solicitarlo %s."
+
+msgctxt "#30470"
+msgid "Waiting for approval"
+msgstr "Esperando aprobación"
+
+msgctxt "#30471"
+msgid "Approved"
+msgstr "Aprobada"
+
+msgctxt "#30472"
+msgid "Out %s"
+msgstr "Estreno: %s"
+
+msgctxt "#30473"
+msgid "Airs %s"
+msgstr "Emisión: %s"
+
+msgctxt "#30474"
+msgid "Not out yet"
+msgstr "Aún no se ha estrenado"
+
+msgctxt "#30475"
+msgid "Searching"
+msgstr "Buscando"
+
+msgctxt "#30476"
+msgid "Downloading"
+msgstr "Descargando"
+
+msgctxt "#30477"
+msgid "Adding to the library"
+msgstr "Añadiendo a la biblioteca"
+
+msgctxt "#30478"
+msgid "%s ready"
+msgstr "Listo: %s"
+
+msgctxt "#30479"
+msgid "Ready to watch"
+msgstr "Listo para ver"
+
+msgctxt "#30480"
+msgid "No longer in a library"
+msgstr "Ya no está en una biblioteca"
+
+msgctxt "#30481"
+msgid "Couldn't send: %s"
+msgstr "No se pudo enviar: %s"
+
+msgctxt "#30482"
+msgid "Not sent yet"
+msgstr "Aún no enviada"
+
+msgctxt "#30483"
+msgid "It couldn't be sent to download yet: an administrator will look at it."
+msgstr "Aún no se pudo enviar a descargar: un administrador la revisará."
+
+msgctxt "#30484"
+msgid "Trying again %s."
+msgstr "Se volverá a intentar %s."
+
+msgctxt "#30485"
+msgid "Waiting to download"
+msgstr "Esperando para descargar"
+
+msgctxt "#30486"
+msgid "Download paused"
+msgstr "Descarga en pausa"
+
+msgctxt "#30487"
+msgid "The download has a problem"
+msgstr "La descarga tiene un problema"
+
+msgctxt "#30488"
+msgid "Asked for by someone else"
+msgstr "Lo solicitó otra persona"
+
+msgctxt "#30489"
+msgid "Ready, in a library you can't open: ask an administrator"
+msgstr "Lista, en una biblioteca que no puedes abrir: pregunta a un administrador"
+
+msgctxt "#30490"
+msgid "You can ask for %s."
+msgstr "Puedes solicitar %s."
+
+msgctxt "#30491"
+msgid "Limits: %s per 7 days."
+msgstr "Límites: %s cada 7 días."
+
+msgctxt "#30492"
+msgid "You've asked for all the movies you can for now: you can ask for more %s."
+msgstr "Ya solicitaste todas las películas que puedes por ahora: podrás solicitar más %s."
+
+msgctxt "#30493"
+msgid "You've asked for all the seasons you can for now: you can ask for more %s."
+msgstr "Ya solicitaste todas las temporadas que puedes por ahora: podrás solicitar más %s."
+
+msgctxt "#30494"
+msgid "You've asked for all you can for now: more movies %s, more seasons %s."
+msgstr "Ya solicitaste todo lo que puedes por ahora: más películas %s, más temporadas %s."
+
+msgctxt "#30495"
+msgid "later"
+msgstr "más adelante"
+
+msgctxt "#30496"
+msgid "Asked for “%s”: an administrator decides."
+msgstr "Solicitaste «%s»: un administrador decidirá."
+
+msgctxt "#30497"
+msgid "“%s” is approved and on its way."
+msgstr "«%s» está aprobado y en camino."
+
+msgctxt "#30498"
+msgid "Asked for “%s”, but it couldn't be sent to download yet."
+msgstr "Solicitaste «%s», pero aún no se pudo enviar a descargar."
+
+msgctxt "#30499"
+msgid "You'll hear when “%s” is ready."
+msgstr "Te avisaremos cuando «%s» esté listo."
+
+msgctxt "#30500"
+msgid "Which seasons?"
+msgstr "¿Qué temporadas?"
+
+msgctxt "#30501"
+msgid "Pick a season."
+msgstr "Elige una temporada."
+
+msgctxt "#30502"
+msgid "Withdraw"
+msgstr "Retirar"
+
+msgctxt "#30503"
+msgid "Withdraw your request for “%s”?"
+msgstr "¿Retirar tu solicitud de «%s»?"
+
+msgctxt "#30504"
+msgid "Remove"
+msgstr "Quitar"
+
+msgctxt "#30505"
+msgid "Remove “%s” from your requests?"
+msgstr "¿Quitar «%s» de tus solicitudes?"
+
+msgctxt "#30506"
+msgid "Approve"
+msgstr "Aprobar"
+
+msgctxt "#30507"
+msgid "Decline"
+msgstr "Rechazar"
+
+msgctxt "#30508"
+msgid "Decline with a reason…"
+msgstr "Rechazar con un motivo…"
+
+msgctxt "#30509"
+msgid "Mark as added by hand"
+msgstr "Marcar como añadido a mano"
+
+msgctxt "#30510"
+msgid "Delete this request? Radarr and Sonarr keep what they have."
+msgstr "¿Eliminar esta solicitud? Radarr y Sonarr conservan lo que tienen."
+
+msgctxt "#30511"
+msgid "Request again"
+msgstr "Volver a solicitar"
+
+msgctxt "#30512"
+msgid "“%s” is ready to watch."
+msgstr "«%s» está listo para ver."
+
+msgctxt "#30513"
+msgid "%s of “%s” is ready to watch."
+msgstr "%s de «%s» ya está lista para ver."
+
+msgctxt "#30514"
+msgid "%s of “%s” are ready to watch."
+msgstr "%s de «%s» ya están listas para ver."
+
+msgctxt "#30516"
+msgid "Requests are off"
+msgstr "Las solicitudes están desactivadas"
+
+msgctxt "#30517"
+msgid "This server doesn't take requests for movies and shows."
+msgstr "Este servidor no acepta solicitudes de películas y series."
+
+msgctxt "#30518"
+msgid "Requests aren't open to this account"
+msgstr "Las solicitudes no están abiertas para esta cuenta"
+
+msgctxt "#30519"
+msgid "An administrator can let it ask for movies and shows."
+msgstr "Un administrador puede permitirle solicitar películas y series."
+
+msgctxt "#30520"
+msgid "TMDB isn't answering"
+msgstr "TMDB no responde"
+
+msgctxt "#30521"
+msgid "TMDB refused this server's key"
+msgstr "TMDB rechazó la clave de este servidor"
+
+msgctxt "#30522"
+msgid "Check it on the web, in Settings → Server."
+msgstr "Revísala en la web, en Ajustes → Servidor."
+
+msgctxt "#30523"
+msgid "An administrator needs to check it."
+msgstr "Un administrador tiene que revisarla."
+
+msgctxt "#30524"
+msgid "You can ask for more %s."
+msgstr "Podrás solicitar más %s."
+
+msgctxt "#30525"
+msgid "You can ask for at most %s per 7 days: pick fewer."
+msgstr "Puedes solicitar como máximo %s cada 7 días: elige menos."
+
+msgctxt "#30526"
+msgid "Sign in again to ask for movies and shows"
+msgstr "Vuelve a iniciar sesión para solicitar películas y series"
+
+msgctxt "#30528"
+msgid "Sign in"
+msgstr "Iniciar sesión"
+
+msgctxt "#30529"
+msgid "Sign in again to approve and decline here."
+msgstr "Vuelve a iniciar sesión para aprobar y rechazar aquí."
+
+msgctxt "#30532"
+msgid "Nothing in your libraries matches"
+msgstr "Nada en tus bibliotecas coincide"
+
+msgctxt "#30533"
+msgid "Needs attention"
+msgstr "Por revisar"
+
+msgctxt "#30534"
+msgid "Pending"
+msgstr "En espera"
+
+msgctxt "#30535"
+msgid "Available"
+msgstr "Listas"
+
+msgctxt "#30536"
+msgid "Failed"
+msgstr "Fallidas"
+
+msgctxt "#30537"
+msgid "Movies and shows"
+msgstr "Películas y series"
+
+msgctxt "#30538"
+msgid "Everyone"
+msgstr "Todos"
+
+msgctxt "#30539"
+msgid "You haven't asked for anything yet."
+msgstr "Todavía no has solicitado nada."
+
+msgctxt "#30540"
+msgid "Nothing needs attention."
+msgstr "Nada por revisar."
+
+msgctxt "#30541"
+msgid "Asked for %s"
+msgstr "Solicitado %s"
+
+msgctxt "#30542"
+msgid "%s asked for it %s"
+msgstr "%s lo solicitó %s"
+
+msgctxt "#30543"
+msgid "Seasons"
+msgstr "Temporadas"
+
+msgctxt "#30545"
+msgid "There's nothing more of “%s” to ask for."
+msgstr "No queda nada más que solicitar de «%s»."
+
+msgctxt "#30546"
+msgid "Movie"
+msgstr "Película"
+
+msgctxt "#30547"
+msgid "Show"
+msgstr "Serie"
+
+msgctxt "#30548"
+msgid "Yours"
+msgstr "Las tuyas"
+
+msgctxt "#30549"
+msgid "Results for “%s”"
+msgstr "Resultados de «%s»"
+
+msgctxt "#30279"
+msgid "This server requires two-step sign-in: your phone sets it up if you haven't yet."
+msgstr "Este servidor exige el inicio de sesión en dos pasos: tu teléfono lo configura si aún no lo has hecho."
+
+msgctxt "#30550"
+msgid "Another device answers at %s's address"
+msgstr "Otro dispositivo responde en la dirección de %s"
+
+msgctxt "#30551"
+msgid "Your rating"
+msgstr "Tu valoración"
+
+msgctxt "#30552"
+msgid "Bitrate"
+msgstr "Tasa de bits"
+
+msgctxt "#30553"
+msgid "Resolution"
+msgstr "Resolución"
+
+msgctxt "#30554"
+msgid "Dynamic range"
+msgstr "Rango dinámico"
+
+msgctxt "#30555"
+msgid "All resolutions"
+msgstr "Todas las resoluciones"
+
+msgctxt "#30556"
+msgid "All dynamic ranges"
+msgstr "Todos los rangos dinámicos"
+
+msgctxt "#30557"
+msgid "Live TV stopped"
+msgstr "La TV en vivo se detuvo"
+
+msgctxt "#30558"
+msgid "This channel isn't being watched any more."
+msgstr "Este canal ya no se está viendo."
+
+msgctxt "#30559"
+msgid "Watch again"
+msgstr "Volver a ver"
+
+msgctxt "#30560"
+msgid "OK"
+msgstr "Aceptar"
+
+msgctxt "#30561"
+msgid "Live TV was stopped from another device."
+msgstr "La TV en vivo se detuvo desde otro dispositivo."
+
+msgctxt "#30562"
+msgid "Live TV was stopped by the server's administrator."
+msgstr "El administrador del servidor detuvo la TV en vivo."
+
+msgctxt "#30563"
+msgid "Playing from %s"
+msgstr "Reproduciendo desde %s"
+
+msgctxt "#30564"
+msgid "Playing from another device"
+msgstr "Reproduciendo desde otro dispositivo"
+
+msgctxt "#30565"
+msgid "Nothing to play"
+msgstr "Nada que reproducir"
+
+msgctxt "#30566"
+msgid "Paused"
+msgstr "En pausa"
+
+msgctxt "#30567"
+msgid "Playing"
+msgstr "Reproduciendo"
+
+msgctxt "#30568"
+msgid "+%d s"
+msgstr "+%d s"
+
+msgctxt "#30569"
+msgid "−%d s"
+msgstr "−%d s"
+
+msgctxt "#30570"
+msgid "Jumped to %s"
+msgstr "Posición: %s"
+
+msgctxt "#30571"
+msgid "Audio: %s"
+msgstr "Audio: %s"
+
+msgctxt "#30572"
+msgid "Subtitles: %s"
+msgstr "Subtítulos: %s"
+
+msgctxt "#30573"
+msgid "Subtitles off"
+msgstr "Subtítulos desactivados"
+
+msgctxt "#30574"
+msgid "Quality: %s"
+msgstr "Calidad: %s"
+
+msgctxt "#30575"
+msgid "Couldn't switch to the remote's profile"
+msgstr "No se pudo cambiar al perfil del control remoto"
+
+msgctxt "#30600"
+msgid "Language"
+msgstr "Idioma"
+
+msgctxt "#30601"
+msgid "Profile language"
+msgstr "Idioma del perfil"
+
+#. Named in itself, the same in every language
+msgctxt "#30602"
+msgid "English"
+msgstr "English"
+
+#. Named in itself, the same in every language
+msgctxt "#30603"
+msgid "Français"
+msgstr "Français"
+
+#. Named in itself, the same in every language
+msgctxt "#30604"
+msgid "Español"
+msgstr "Español"
+
+#. %s: the language Automatic is here, named in itself
+msgctxt "#30605"
+msgid "Automatic (%s)"
+msgstr "Automático (%s)"
+
+#. The language setting's Automatic
+msgctxt "#30607"
+msgid "Automatic"
+msgstr "Automático"
+
+#. A month's short name
+msgctxt "#30610"
+msgid "Jan"
+msgstr "ene"
+
+msgctxt "#30611"
+msgid "Feb"
+msgstr "feb"
+
+msgctxt "#30612"
+msgid "Mar"
+msgstr "mar"
+
+msgctxt "#30613"
+msgid "Apr"
+msgstr "abr"
+
+msgctxt "#30614"
+msgid "May"
+msgstr "may"
+
+msgctxt "#30615"
+msgid "Jun"
+msgstr "jun"
+
+msgctxt "#30616"
+msgid "Jul"
+msgstr "jul"
+
+msgctxt "#30617"
+msgid "Aug"
+msgstr "ago"
+
+msgctxt "#30618"
+msgid "Sep"
+msgstr "sept"
+
+msgctxt "#30619"
+msgid "Oct"
+msgstr "oct"
+
+msgctxt "#30620"
+msgid "Nov"
+msgstr "nov"
+
+msgctxt "#30621"
+msgid "Dec"
+msgstr "dic"
+
+#. A day's short name
+msgctxt "#30622"
+msgid "Mon"
+msgstr "lun"
+
+msgctxt "#30623"
+msgid "Tue"
+msgstr "mar"
+
+msgctxt "#30624"
+msgid "Wed"
+msgstr "mié"
+
+msgctxt "#30625"
+msgid "Thu"
+msgstr "jue"
+
+msgctxt "#30626"
+msgid "Fri"
+msgstr "vie"
+
+msgctxt "#30627"
+msgid "Sat"
+msgstr "sáb"
+
+msgctxt "#30628"
+msgid "Sun"
+msgstr "dom"
+
+#. A date: {month} is a month's short name
+msgctxt "#30629"
+msgid "{month} {day}, {year}"
+msgstr "{day} {month} {year}"
+
+#. A date of this year
+msgctxt "#30630"
+msgid "{month} {day}"
+msgstr "{day} {month}"
+
+#. A day in the Live TV guide
+msgctxt "#30631"
+msgid "{weekday} {day} {month}"
+msgstr "{weekday} {day} {month}"
+
+#. A length
+msgctxt "#30632"
+msgid "{hours}h {minutes}m"
+msgstr "{hours} h {minutes} min"
+
+#. Minutes
+msgctxt "#30633"
+msgid "%sm"
+msgstr "%s min"
+
+#. Hours
+msgctxt "#30634"
+msgid "%sh"
+msgstr "%s h"
+
+#. Seconds
+msgctxt "#30635"
+msgid "%ss"
+msgstr "%s s"
+
+#. A runtime under an hour
+msgctxt "#30636"
+msgid "%s min"
+msgstr "%s min"
+
+#. %s: a length
+msgctxt "#30637"
+msgid "%s left"
+msgstr "Quedan %s"
+
+#. Within a sentence
+msgctxt "#30638"
+msgid "just now"
+msgstr "ahora mismo"
+
+#. Within a sentence
+msgctxt "#30639"
+msgid "in %s min"
+msgstr "en %s min"
+
+#. Within a sentence
+msgctxt "#30640"
+msgid "%s min ago"
+msgstr "hace %s min"
+
+#. Within a sentence
+msgctxt "#30641"
+msgid "tomorrow"
+msgstr "mañana"
+
+#. Within a sentence
+msgctxt "#30642"
+msgid "yesterday"
+msgstr "ayer"
+
+msgctxt "#30643"
+msgid "Specials"
+msgstr "Especiales"
+
+msgctxt "#30644"
+msgid "Season %s"
+msgstr "Temporada %s"
+
+msgctxt "#30645"
+msgid "Season"
+msgstr "Temporada"
+
+msgctxt "#30646"
+msgid "Episode %s"
+msgstr "Episodio %s"
+
+#. A season's number, short
+msgctxt "#30647"
+msgid "S%s"
+msgstr "T%s"
+
+#. An episode's number, short
+msgctxt "#30648"
+msgid "E%s"
+msgstr "E%s"
+
+#. %s: their numbers, 1–3, 5
+msgctxt "#30649"
+msgid "Seasons %s"
+msgstr "Temporadas %s"
+
+#. %s: Seasons 1–3
+msgctxt "#30650"
+msgid "%s and specials"
+msgstr "%s y especiales"
+
+msgctxt "#30651"
+msgid "Bitrate unknown"
+msgstr "Tasa de bits desconocida"
+
+#. Bytes
+msgctxt "#30652"
+msgid "B"
+msgstr "B"
+
+msgctxt "#30653"
+msgid "KB"
+msgstr "KB"
+
+msgctxt "#30654"
+msgid "MB"
+msgstr "MB"
+
+msgctxt "#30655"
+msgid "GB"
+msgstr "GB"
+
+msgctxt "#30656"
+msgid "TB"
+msgstr "TB"
+
+msgctxt "#30657"
+msgid "Any HDR"
+msgstr "Cualquier HDR"
+
+msgctxt "#30658"
+msgid "%s and %s"
+msgstr "%s y %s"
+
+#. %s: a percentage
+msgctxt "#30659"
+msgid "Downloading %s%%"
+msgstr "Descargando %s %%"
+
+msgctxt "#30660"
+msgid "Director"
+msgstr "Dirección"
+
+msgctxt "#30661"
+msgid "Creator"
+msgstr "Creación"
+
+msgctxt "#30662"
+msgid "Writer"
+msgstr "Guion"
+
+#. A track's language
+msgctxt "#30663"
+msgid "Unknown"
+msgstr "Desconocido"
+
+#. A label and its value
+msgctxt "#30664"
+msgid "%s: %s"
+msgstr "%s: %s"
+
+#. Words quoted
+msgctxt "#30665"
+msgid "“%s”"
+msgstr "«%s»"
+
+#. A track's language
+msgctxt "#30670"
+msgid "Arabic"
+msgstr "Árabe"
+
+msgctxt "#30671"
+msgid "Bulgarian"
+msgstr "Búlgaro"
+
+msgctxt "#30672"
+msgid "Catalan"
+msgstr "Catalán"
+
+msgctxt "#30673"
+msgid "Chinese"
+msgstr "Chino"
+
+msgctxt "#30674"
+msgid "Croatian"
+msgstr "Croata"
+
+msgctxt "#30675"
+msgid "Czech"
+msgstr "Checo"
+
+msgctxt "#30676"
+msgid "Danish"
+msgstr "Danés"
+
+msgctxt "#30677"
+msgid "Dutch"
+msgstr "Neerlandés"
+
+msgctxt "#30678"
+msgid "English"
+msgstr "Inglés"
+
+msgctxt "#30679"
+msgid "Finnish"
+msgstr "Finés"
+
+msgctxt "#30680"
+msgid "French"
+msgstr "Francés"
+
+msgctxt "#30681"
+msgid "German"
+msgstr "Alemán"
+
+msgctxt "#30682"
+msgid "Greek"
+msgstr "Griego"
+
+msgctxt "#30683"
+msgid "Hebrew"
+msgstr "Hebreo"
+
+msgctxt "#30684"
+msgid "Hindi"
+msgstr "Hindi"
+
+msgctxt "#30685"
+msgid "Hungarian"
+msgstr "Húngaro"
+
+msgctxt "#30686"
+msgid "Indonesian"
+msgstr "Indonesio"
+
+msgctxt "#30687"
+msgid "Italian"
+msgstr "Italiano"
+
+msgctxt "#30688"
+msgid "Japanese"
+msgstr "Japonés"
+
+msgctxt "#30689"
+msgid "Korean"
+msgstr "Coreano"
+
+msgctxt "#30690"
+msgid "Norwegian"
+msgstr "Noruego"
+
+msgctxt "#30691"
+msgid "Persian"
+msgstr "Persa"
+
+msgctxt "#30692"
+msgid "Polish"
+msgstr "Polaco"
+
+msgctxt "#30693"
+msgid "Portuguese"
+msgstr "Portugués"
+
+msgctxt "#30694"
+msgid "Romanian"
+msgstr "Rumano"
+
+msgctxt "#30695"
+msgid "Russian"
+msgstr "Ruso"
+
+msgctxt "#30696"
+msgid "Serbian"
+msgstr "Serbio"
+
+msgctxt "#30697"
+msgid "Slovak"
+msgstr "Eslovaco"
+
+msgctxt "#30698"
+msgid "Spanish"
+msgstr "Español"
+
+msgctxt "#30699"
+msgid "Swedish"
+msgstr "Sueco"
+
+msgctxt "#30700"
+msgid "Thai"
+msgstr "Tailandés"
+
+msgctxt "#30701"
+msgid "Turkish"
+msgstr "Turco"
+
+msgctxt "#30702"
+msgid "Ukrainian"
+msgstr "Ucraniano"
+
+msgctxt "#30703"
+msgid "Vietnamese"
+msgstr "Vietnamita"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30710"
+msgid "%s season"
+msgstr "%s temporada"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30711"
+msgid "%s seasons"
+msgstr "%s de temporadas"
+
+#. Counted, other
+msgctxt "#30712"
+msgid "%s seasons"
+msgstr "%s temporadas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30713"
+msgid "%s episode"
+msgstr "%s episodio"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30714"
+msgid "%s episodes"
+msgstr "%s de episodios"
+
+#. Counted, other
+msgctxt "#30715"
+msgid "%s episodes"
+msgstr "%s episodios"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30716"
+msgid "%s album"
+msgstr "%s álbum"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30717"
+msgid "%s albums"
+msgstr "%s de álbumes"
+
+#. Counted, other
+msgctxt "#30718"
+msgid "%s albums"
+msgstr "%s álbumes"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30719"
+msgid "%s track"
+msgstr "%s pista"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30720"
+msgid "%s tracks"
+msgstr "%s de pistas"
+
+#. Counted, other
+msgctxt "#30721"
+msgid "%s tracks"
+msgstr "%s pistas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30722"
+msgid "%s movie"
+msgstr "%s película"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30723"
+msgid "%s movies"
+msgstr "%s de películas"
+
+#. Counted, other
+msgctxt "#30724"
+msgid "%s movies"
+msgstr "%s películas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30725"
+msgid "%s show"
+msgstr "%s serie"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30726"
+msgid "%s shows"
+msgstr "%s de series"
+
+#. Counted, other
+msgctxt "#30727"
+msgid "%s shows"
+msgstr "%s series"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30728"
+msgid "%s artist"
+msgstr "%s artista"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30729"
+msgid "%s artists"
+msgstr "%s de artistas"
+
+#. Counted, other
+msgctxt "#30730"
+msgid "%s artists"
+msgstr "%s artistas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30731"
+msgid "%s item"
+msgstr "%s elemento"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30732"
+msgid "%s items"
+msgstr "%s de elementos"
+
+#. Counted, other
+msgctxt "#30733"
+msgid "%s items"
+msgstr "%s elementos"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30734"
+msgid "%s title"
+msgstr "%s título"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30735"
+msgid "%s titles"
+msgstr "%s de títulos"
+
+#. Counted, other
+msgctxt "#30736"
+msgid "%s titles"
+msgstr "%s títulos"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30737"
+msgid "%s channel"
+msgstr "%s canal"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30738"
+msgid "%s channels"
+msgstr "%s de canales"
+
+#. Counted, other
+msgctxt "#30739"
+msgid "%s channels"
+msgstr "%s canales"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30740"
+msgid "%s person"
+msgstr "%s persona"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30741"
+msgid "%s people"
+msgstr "%s de personas"
+
+#. Counted, other
+msgctxt "#30742"
+msgid "%s people"
+msgstr "%s personas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30743"
+msgid "in %s hour"
+msgstr "en %s hora"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30744"
+msgid "in %s hours"
+msgstr "en %s de horas"
+
+#. Counted, other
+msgctxt "#30745"
+msgid "in %s hours"
+msgstr "en %s horas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30746"
+msgid "%s hour ago"
+msgstr "hace %s hora"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30747"
+msgid "%s hours ago"
+msgstr "hace %s de horas"
+
+#. Counted, other
+msgctxt "#30748"
+msgid "%s hours ago"
+msgstr "hace %s horas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30749"
+msgid "in %s day"
+msgstr "en %s día"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30750"
+msgid "in %s days"
+msgstr "en %s de días"
+
+#. Counted, other
+msgctxt "#30751"
+msgid "in %s days"
+msgstr "en %s días"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30752"
+msgid "%s day ago"
+msgstr "hace %s día"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30753"
+msgid "%s days ago"
+msgstr "hace %s de días"
+
+#. Counted, other
+msgctxt "#30754"
+msgid "%s days ago"
+msgstr "hace %s días"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30755"
+msgid "%s more movie"
+msgstr "%s película más"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30756"
+msgid "%s more movies"
+msgstr "%s de películas más"
+
+#. Counted, other
+msgctxt "#30757"
+msgid "%s more movies"
+msgstr "%s películas más"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30758"
+msgid "%s more season"
+msgstr "%s temporada más"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30759"
+msgid "%s more seasons"
+msgstr "%s de temporadas más"
+
+#. Counted, other
+msgctxt "#30760"
+msgid "%s more seasons"
+msgstr "%s temporadas más"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30761"
+msgid "%s of %s movie"
+msgstr "%s de %s película"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30762"
+msgid "%s of %s movies"
+msgstr "%s de %s de películas"
+
+#. Counted, other
+msgctxt "#30763"
+msgid "%s of %s movies"
+msgstr "%s de %s películas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30764"
+msgid "%s of %s show"
+msgstr "%s de %s serie"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30765"
+msgid "%s of %s shows"
+msgstr "%s de %s de series"
+
+#. Counted, other
+msgctxt "#30766"
+msgid "%s of %s shows"
+msgstr "%s de %s series"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30767"
+msgid "%s of %s artist"
+msgstr "%s de %s artista"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30768"
+msgid "%s of %s artists"
+msgstr "%s de %s de artistas"
+
+#. Counted, other
+msgctxt "#30769"
+msgid "%s of %s artists"
+msgstr "%s de %s artistas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30770"
+msgid "%s of %s item"
+msgstr "%s de %s elemento"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30771"
+msgid "%s of %s items"
+msgstr "%s de %s de elementos"
+
+#. Counted, other
+msgctxt "#30772"
+msgid "%s of %s items"
+msgstr "%s de %s elementos"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30773"
+msgid "Waiting for approval. The code works for %s more minute."
+msgstr "Esperando la aprobación. El código vale %s minuto más."
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30774"
+msgid "Waiting for approval. The code works for %s more minutes."
+msgstr "Esperando la aprobación. El código vale %s de minutos más."
+
+#. Counted, other
+msgctxt "#30775"
+msgid "Waiting for approval. The code works for %s more minutes."
+msgstr "Esperando la aprobación. El código vale %s minutos más."
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30776"
+msgid "%s of your requests has news"
+msgstr "%s de tus solicitudes tiene novedades"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30777"
+msgid "%s of your requests have news"
+msgstr "%s de tus solicitudes tienen novedades"
+
+#. Counted, other
+msgctxt "#30778"
+msgid "%s of your requests have news"
+msgstr "%s de tus solicitudes tienen novedades"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30779"
+msgid "%s star"
+msgstr "%s estrella"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30780"
+msgid "%s stars"
+msgstr "%s de estrellas"
+
+#. Counted, other
+msgctxt "#30781"
+msgid "%s stars"
+msgstr "%s estrellas"
+
+#. Counted, one: 1 in English and Spanish, 0 and 1 in French
+msgctxt "#30782"
+msgid "%s of %s episode in library"
+msgstr "%s de %s episodio en la biblioteca"
+
+#. Counted, many: a whole number of millions, in French and Spanish (1 000 000 de films); English writes it as other
+msgctxt "#30783"
+msgid "%s of %s episodes in library"
+msgstr "%s de %s de episodios en la biblioteca"
+
+#. Counted, other
+msgctxt "#30784"
+msgid "%s of %s episodes in library"
+msgstr "%s de %s episodios en la biblioteca"

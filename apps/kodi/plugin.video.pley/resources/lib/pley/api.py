@@ -14,6 +14,9 @@ CONNECT_TIMEOUT = 4
 # What GET /api/search is asked for: the most it gives of titles, of people
 # and of Live TV's channels each, so a row holds every one found.
 SEARCH_LIMIT = 200
+# The language the add-on shows ("fr"), which requests carry as
+# Accept-Language: kodi.language, set by kodi.py.
+LANGUAGE = None
 
 
 class ApiError(Exception):
@@ -197,6 +200,8 @@ class Client:
             pairs = [(k, v) for k, v in query.items() if v is not None]
             target += ("&" if "?" in target else "?") + urllib.parse.urlencode(pairs)
         sent = {"User-Agent": self.user_agent, "Accept": "application/json"}
+        if LANGUAGE is not None:
+            sent["Accept-Language"] = LANGUAGE()
         if self.token:
             sent["Authorization"] = "Bearer " + self.token
         body = None

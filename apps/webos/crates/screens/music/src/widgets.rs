@@ -141,5 +141,5 @@ pub fn list_state(list: &Resource<ItemList>) -> ListState<'_> {
 /// most), and Retry 12 below.
 pub fn list_failure(ui: &mut Ui, at: Point, width: f32, body: &str) -> Response {
     let h = ui.text(at, clipped(body), &theme::BODY, &TextOpts::wrap(width, 3), theme::MUTED).h;
-    Button::pill("Retry").show(ui, ui.id("retry"), Point::new(at.x, at.y + h + 12.0))
+    Button::pill(pley_i18n::t!("music.actions.retry")).show(ui, ui.id("retry"), Point::new(at.x, at.y + h + 12.0))
 }

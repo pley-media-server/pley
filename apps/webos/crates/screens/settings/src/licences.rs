@@ -9,6 +9,7 @@
 use std::sync::Arc;
 
 use pley_base::{Key, Point, Rect, TextOpts};
+use pley_i18n::t;
 use pley_kit::look::{focus_progress, mix};
 use pley_kit::{List, ListRow, ListState, PAGE_SCROLL};
 use pley_shell::{AppCx, Chrome, Screen};
@@ -34,7 +35,9 @@ const STEP: f32 = 3.0 * 20.0;
 const MEASURE_CHARS: usize = 1600;
 
 /// What the page says when the app carries no NOTICES.txt.
-pub const NO_NOTICES: &str = "This copy of Pley carries no NOTICES.txt, which lists them with their texts.";
+pub fn no_notices() -> &'static str {
+    t!("settings.about.noNotices")
+}
 
 /// A part's row in the list.
 fn part_row(part: &Notice) -> ListRow<'_> {
@@ -194,7 +197,7 @@ impl Screen for LicencesScreen {
         }
         ui.text(
             Point::new(theme::GUTTER, theme::SAFE_Y),
-            "Open-source licences",
+            t!("settings.about.licences"),
             &theme::PAGE_TITLE,
             &TextOpts::line(LIST_W + PANE_W),
             theme::FG,
@@ -202,7 +205,8 @@ impl Screen for LicencesScreen {
         let Some(read) = notices::shared(cx.tasks()) else { return };
         let Some(notices) = read.filter(|n| !n.parts.is_empty()) else {
             // About lists no parts then, so only a direct way here meets this: say so, with Back.
-            if crate::history::message(ui, root.with("message"), "No licence texts", NO_NOTICES, "Back") {
+            let (title, back) = (t!("settings.about.noLicences"), t!("settings.actions.back"));
+            if crate::history::message(ui, root.with("message"), title, no_notices(), back) {
                 cx.back();
             }
             return;

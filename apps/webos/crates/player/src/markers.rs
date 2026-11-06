@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 
 use pley_core::model::{ItemDetail, Marker, MarkerKind};
+use pley_i18n::t;
 
 /// The intro and credits of the file playing.
 pub fn markers_of(item: &ItemDetail, file_id: i64) -> Vec<Marker> {
@@ -25,7 +26,7 @@ pub fn skip_target(m: &Marker) -> i64 {
 
 /// "Skip Intro" or "Skip Credits".
 pub fn skip_label(m: &Marker) -> &'static str {
-    if m.kind == MarkerKind::Intro { "Skip Intro" } else { "Skip Credits" }
+    if m.kind == MarkerKind::Intro { t!("player.skip.intro") } else { t!("player.skip.credits") }
 }
 
 /// Credits start Up Next once each: seeking back into the same credits

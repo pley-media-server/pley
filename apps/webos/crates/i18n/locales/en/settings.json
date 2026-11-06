@@ -1,0 +1,146 @@
+{
+  "language": {
+    "label": "Language",
+    "automatic": "Automatic ({{language}})"
+  },
+  "title": "Settings",
+  "categories": {
+    "profile": "Profile",
+    "playback": "Playback",
+    "audio": "Audio",
+    "display": "Subtitles and display",
+    "server": "Server",
+    "diagnostics": "Diagnostics",
+    "about": "About",
+    "signOut": "Sign out"
+  },
+  "saved": "Saved",
+  "readOnly": "This server doesn't let the app change these: change them on the web",
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back"
+  },
+  "profile": {
+    "managed": "Managed profile",
+    "switchProfile": "Switch profile",
+    "audioLanguage": "Audio language",
+    "subtitles": "Subtitles",
+    "subtitleLanguage": "Subtitle language",
+    "fileDefault": "The file's default",
+    "sameAsAudio": "Same as the audio language",
+    "onTheWeb": "{{value}} · change on the web",
+    "history": "Watch history",
+    "sortLibraries": "Sort libraries",
+    "sortLibrariesValue": "Your order, on all your devices",
+    "alwaysStartAs": "Always start as",
+    "usedLast": "Profile used last",
+    "manageWeb": "Manage your account on the web",
+    "manageWebValue": "Name, picture, password, PIN, two-step, devices and apps"
+  },
+  "subtitleModes": {
+    "off": "Off",
+    "offHint": "Subtitles stay off until you turn them on.",
+    "forced": "Only for foreign dialogue",
+    "forcedHint": "Only forced subtitles, for signs and foreign dialogue.",
+    "foreign": "When the audio is in another language",
+    "foreignHint": "Full subtitles come on when the audio isn't in your subtitle language.",
+    "always": "Always",
+    "alwaysHint": "Subtitles in your language come on whenever there are some."
+  },
+  "playback": {
+    "quality": "Quality",
+    "autoplay": "Play the next episode by itself",
+    "autoplayHint": "After a 10 second countdown",
+    "details": "Playback details",
+    "detailsHint": "Show how a video plays (direct, remux or transcode) over it"
+  },
+  "audio": {
+    "intro": "Dolby Digital, Dolby Digital Plus and Atmos are always passed through. Turn these on if your receiver supports them; otherwise Pley converts them.",
+    "trueHd": "Pass through Dolby TrueHD",
+    "trueHdHint": "Only with a receiver that takes TrueHD from the TV",
+    "dts": "Pass through DTS",
+    "dtsHint": "Only with a receiver that takes DTS from the TV"
+  },
+  "display": {
+    "subtitleSize": "Subtitle size",
+    "subtitleBackground": "Subtitle background",
+    "subtitleFont": "Subtitle font",
+    "subtitlePosition": "Subtitle position",
+    "reduceMotion": "Reduce motion",
+    "reduceMotionHint": "No zooming, sliding or fading: things change in place",
+    "sizes": {
+      "small": "Small",
+      "normal": "Normal",
+      "large": "Large",
+      "huge": "Huge"
+    },
+    "backgrounds": {
+      "none": "None",
+      "darkBox": "Dark box"
+    },
+    "fonts": {
+      "sans": "Sans serif",
+      "serif": "Serif",
+      "monospace": "Monospace",
+      "casual": "Casual"
+    },
+    "positions": {
+      "bottom": "Bottom",
+      "raised": "Raised",
+      "higher": "Higher",
+      "highest": "Highest"
+    }
+  },
+  "server": {
+    "value": "The server this TV uses",
+    "unknown": "No server",
+    "switch": "Switch server"
+  },
+  "diagnostics": {
+    "open": "Open diagnostics",
+    "openValue": "What this TV decodes and shows, and why",
+    "thisTv": "This TV",
+    "app": "App",
+    "plays": "What it plays",
+    "checking": "Checking what this TV plays…",
+    "failed": "The check of this TV failed.",
+    "again": "Check again",
+    "network": "Network",
+    "address": "Address",
+    "noNetwork": "No network",
+    "server": "Server",
+    "none": "None",
+    "connection": "Connection",
+    "noServer": "No server",
+    "unreachable": "Can't reach the server",
+    "connected": "Connected",
+    "log": "Log",
+    "readingLog": "Reading the log…",
+    "noLog": "This TV keeps no log."
+  },
+  "about": {
+    "version": "Version",
+    "licences": "Open-source licences",
+    "credits": "Credits",
+    "noLicences": "No licence texts",
+    "noNotices": "This copy of Pley carries no NOTICES.txt, which lists them with their texts."
+  },
+  "signOut": {
+    "intro": "Sign this TV out of {{server}}. You'll need a new link code to sign in again.",
+    "introNoServer": "Sign this TV out of the server. You'll need a new link code to sign in again.",
+    "button": "Sign out",
+    "title": "Sign out?",
+    "body": "You'll be signed out of {{server}}.",
+    "bodyNoServer": "You'll be signed out of the server.",
+    "deleteData": "Delete all local data",
+    "deleteDataValue": "Every server, sign-in, setting and saved picture on this TV",
+    "deleteTitle": "Delete all local data?",
+    "deleteBody": "Pley forgets every server, sign-in, setting and saved picture on this TV, as if it were just installed.",
+    "delete": "Delete"
+  },
+  "web": {
+    "title": "Manage your account on the web",
+    "body": "Scan the code with your phone, or go to this address on a phone or computer on the same network:"
+  }
+}

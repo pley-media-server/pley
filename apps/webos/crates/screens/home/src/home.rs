@@ -19,6 +19,7 @@ use pley_base::{Color, Icon, ImageRequest, Point, Rect, Size, TextOpts, TextStyl
 use pley_core::http::sentence;
 use pley_core::model::{Hub, ItemSummary, Library, LibraryKind, LibrarySort};
 use pley_core::{ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, BarItem, Button, ColumnState, InfoBlock, Message,
     MessageStyle, MetaLine, RoundButton, Row, RowColumn, RowState, Section, Tile, TileKind, TileSlot, backdrop_px,
@@ -48,10 +49,6 @@ const TEXT_COLUMN: f32 = 464.0;
 const INFO_TITLE_BOX: f32 = 52.0;
 /// The metadata line's height.
 const META_LINE: f32 = 18.0;
-/// The words of a row's last tile when it lists more.
-const SEE_ALL: &str = "See all";
-/// What Play says of a show with nothing left to play (`tv_home_nothing_to_play`).
-const NOTHING_TO_PLAY: &str = "Nothing to play";
 /// The hero's section among the rows.
 const HERO_SECTION: u64 = 0;
 /// A row's See all tile, among its items' ids.
@@ -338,7 +335,7 @@ impl HomeScreen {
                 Ok(Some(next)) => {
                     cx.play(PlayRequest { from_start, pressed_at: pressed, ..PlayRequest::item(next.id) })
                 }
-                Ok(None) => self.toast.show(NOTHING_TO_PLAY, false, cx.now),
+                Ok(None) => self.toast.show(t!("home.nothingToPlay"), false, cx.now),
                 Err(e) if e.cancelled() => {}
                 Err(e) => self.toast.show(sentence(&e.to_string()), true, cx.now),
             }
@@ -639,24 +636,18 @@ impl HomeScreen {
             HomeLook::Failed => {
                 let error = cx.state.home_error();
                 let title = match error {
-                    Some(e) if e.unreachable() => "Can't reach your server",
-                    _ => "Couldn't load your home screen",
+                    Some(e) if e.unreachable() => t!("home.states.offline"),
+                    _ => t!("home.states.failed"),
                 };
                 (title, error.map(ApiError::problem).unwrap_or_default(), true)
             }
-            HomeLook::NoLibraries => ("No libraries yet", "Ask the server owner to add a library.".to_string(), false),
-            HomeLook::Scanning => {
-                ("Scanning your libraries…", "New items will show up here as soon as they're found.".to_string(), false)
-            }
-            _ => (
-                "Nothing here yet",
-                "Your libraries are empty. Add media to the library folders and run a scan.".to_string(),
-                false,
-            ),
+            HomeLook::NoLibraries => (t!("home.states.noLibraries"), t!("home.states.noLibrariesBody").into(), false),
+            HomeLook::Scanning => (t!("home.states.scanning"), t!("home.states.scanningBody").into(), false),
+            _ => (t!("home.states.empty"), t!("home.states.emptyBody").into(), false),
         };
         let mut message = Message::new(MessageStyle::Page, title).body(&body);
         if retry {
-            message = message.action("Retry", Icon::RefreshCw);
+            message = message.action(t!("home.states.retry"), Icon::RefreshCw);
         }
         let r = message.show(ui, ui.id("message"));
         if r.action.is_some_and(|a| a.activated) {
@@ -753,7 +744,7 @@ fn paint_tile(ui: &mut Ui, row: &RowModel, slot: &TileSlot) {
             .unwatched(t.text.unwatched)
             .watched(t.text.watched)
             .paint(ui, slot),
-        None => Tile::see_all(row.kind, SEE_ALL).paint(ui, slot),
+        None => Tile::see_all(row.kind, t!("home.seeAll")).paint(ui, slot),
     }
 }
 
@@ -801,14 +792,14 @@ fn draw_hero(ui: &mut Ui, hero: &TileModel, info: &HomeInfo, fade: f32, top: f32
     } else {
         hero_column(ui, info, top + HERO_TOP, false)
     };
-    let play = if info.in_progress { "Resume" } else { "Play" };
-    let watched = if info.watched { "Mark as unwatched" } else { "Mark as watched" };
+    let play = if info.in_progress { t!("home.hero.resume") } else { t!("home.hero.play") };
+    let watched = if info.watched { t!("home.hero.markUnwatched") } else { t!("home.hero.markWatched") };
     let mut items: Vec<(&str, BarItem)> = Vec::with_capacity(4);
     items.push(("play", BarItem::Button(Button::pill(play).icon(Icon::Play))));
     if info.in_progress {
-        items.push(("start", BarItem::Round(RoundButton::new(Icon::RotateCcw, "From start"))));
+        items.push(("start", BarItem::Round(RoundButton::new(Icon::RotateCcw, t!("home.hero.fromStart")))));
     }
-    items.push(("info", BarItem::Round(RoundButton::new(Icon::Info, "Info"))));
+    items.push(("info", BarItem::Round(RoundButton::new(Icon::Info, t!("home.hero.info")))));
     items.push(("watched", BarItem::Round(RoundButton::new(Icon::CircleCheck, watched))));
     let responses: Vec<Response> = ui.opacity(fade.max(0.0), |ui| button_bar(ui, id, Point::new(x, y), &items));
     for ((key, _), r) in items.iter().zip(&responses) {

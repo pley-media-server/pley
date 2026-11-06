@@ -92,6 +92,9 @@ mod desktop {
             None => None,
         };
         let device = Arc::new(SimDevice::new(root, args.tier, app.version));
+        if let Some(locale) = &args.locale {
+            device.set_languages(&[locale.as_str()]);
+        }
         if let Some(dir) = drive {
             log::info!("the drive is {}", dir.display());
             device.set_drive_folder(dir);

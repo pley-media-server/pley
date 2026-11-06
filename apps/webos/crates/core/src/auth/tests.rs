@@ -171,7 +171,7 @@ fn the_scope_is_what_the_server_offers_of_pleys_own() {
 fn plain_http_beyond_home_is_refused_before_asking() {
     let (fake, _) = device_server(vec![]);
     let e = sign_in(&fake, &FakeClock::new()).start("http://pley.example.com:7539").unwrap_err();
-    assert_eq!(e.to_string(), crate::addresses::UNENCRYPTED);
+    assert_eq!(e.to_string(), crate::addresses::unencrypted_refusal());
     assert!(fake.requests().is_empty());
 }
 
@@ -417,7 +417,7 @@ fn the_scope_guard_signs_out_when_a_refresh_widens_the_scope() {
     let clock = FakeClock::new();
     let (tokens, _) = tokens_with(&server, &clock, Some(stored(0, "library play")));
     assert_eq!(tokens.access_token(), Err(AuthError::SignedOut(SignOutReason::WiderScope)));
-    assert_eq!(AuthError::SignedOut(SignOutReason::WiderScope).to_string(), WIDER_SCOPE);
+    assert_eq!(AuthError::SignedOut(SignOutReason::WiderScope).to_string(), wider_scope());
     assert!(!tokens.signed_in());
     let revoked = server.fake.requests().into_iter().find(|r| path_of(r) == "/api/oauth/revoke").unwrap();
     assert_eq!(field(&revoked, "token").as_deref(), Some("pley_rt_1"), "the wider grant is ended");
@@ -531,6 +531,42 @@ fn a_spent_refresh_token_in_a_switch_signs_out_and_reasons_are_worded() {
         refusal("invalid_grant", Some("throttled")).message(),
         "Too many wrong PINs: try again in a few minutes."
     );
+}
+
+#[test]
+fn refusals_are_worded_in_french_and_spanish() {
+    use pley_i18n::{Language, with_language};
+    let refused = |error: &str, description: Option<&str>| AuthError::Refused {
+        status: 400,
+        oauth: Some(crate::model::OAuthError {
+            error: error.into(),
+            error_description: description.map(Into::into),
+            reason: None,
+        }),
+    };
+    with_language(Language::Fr, || {
+        assert_eq!(SwitchRefusal::WrongPin.message(), "Code PIN incorrect.");
+        assert_eq!(
+            SwitchRefusal::of(&AuthError::Unreachable(crate::http::NetError::Refused)).message(),
+            "Impossible de joindre votre serveur\u{a0}: rien ne répond à cette adresse."
+        );
+        assert_eq!(refused("access_denied", None).to_string(), "la connexion a été refusée");
+        assert_eq!(refused("slow_down", None).to_string(), "le serveur a refusé (slow down)");
+        // What the server writes stays as it writes it.
+        assert_eq!(refused("invalid_grant", Some("wrong PIN")).to_string(), "wrong PIN");
+        assert_eq!(
+            AuthError::Failed(too_old().into()).to_string(),
+            "ce serveur est trop ancien pour cette application"
+        );
+    });
+    with_language(Language::Es, || {
+        assert_eq!(SwitchRefusal::NotAllowed.message(), "No puedes cambiar a este perfil.");
+        assert_eq!(AuthError::SignedOut(SignOutReason::Ended).to_string(), "se cerró tu sesión: vuelve a iniciarla");
+        assert_eq!(
+            SwitchRefusal::of(&refused("invalid_grant", None)).message(),
+            "El servidor rechazó este inicio de sesión."
+        );
+    });
 }
 
 #[test]

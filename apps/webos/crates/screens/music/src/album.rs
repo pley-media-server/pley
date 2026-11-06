@@ -8,12 +8,13 @@
 use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{ItemDetail, ItemList, ItemSummary};
 use pley_core::store::snapshot_keys;
+use pley_i18n::t;
 use pley_kit::{Button, RoundButton, SCROLL, TrackLine, backdrop_px, skeleton_block};
 use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Route, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Edge, Group, Ui, nudge};
 
-use crate::pages::{self, AlbumRow, NOT_FOUND_BODY, NOTHING_TO_PLAY, UNREACHABLE_TITLE};
+use crate::pages::{self, AlbumRow};
 use crate::player;
 use crate::widgets::{FAINT_ART_PX, ListState, art_well, faint_art, list_failure, list_state, message, stars};
 
@@ -156,7 +157,7 @@ impl AlbumScreen {
     /// Playing.
     fn play(&mut self, cx: &mut AppCx, at: usize, shuffle: bool) {
         if self.tracks.is_empty() {
-            self.problem = Some(NOTHING_TO_PLAY.into());
+            self.problem = Some(t!("music.pages.nothingToPlay").into());
             return;
         }
         self.problem = None;
@@ -267,7 +268,9 @@ impl AlbumScreen {
                 let row = ui.id("buttons");
                 ui.group(row, Group::row().edge(Dir::Left, Edge::Out), |ui| {
                     let mut bx = x;
-                    let play = Button::pill("Play").icon(Icon::Play).enabled(tracks_loading || !self.tracks.is_empty());
+                    let play = Button::pill(t!("music.actions.play"))
+                        .icon(Icon::Play)
+                        .enabled(tracks_loading || !self.tracks.is_empty());
                     let play_id = ui.id("play");
                     if !awaiting {
                         ui.initial_focus(play_id);
@@ -276,14 +279,15 @@ impl AlbumScreen {
                         start = Some(false);
                     }
                     bx += play.size(ui).w + theme::BUTTON_GAP;
-                    let shuffle =
-                        RoundButton::new(Icon::Shuffle, "Shuffle").on_art(false).enabled(!self.tracks.is_empty());
+                    let shuffle = RoundButton::new(Icon::Shuffle, t!("music.actions.shuffle"))
+                        .on_art(false)
+                        .enabled(!self.tracks.is_empty());
                     if shuffle.show(ui, ui.id("shuffle"), Point::new(bx, y)).activated {
                         start = Some(true);
                     }
                     bx += shuffle.size().w + theme::BUTTON_GAP;
                     if current.is_some() {
-                        let now = RoundButton::new(Icon::AudioLines, "Now playing").on_art(false);
+                        let now = RoundButton::new(Icon::AudioLines, t!("music.actions.nowPlaying")).on_art(false);
                         if now.show(ui, ui.id("now"), Point::new(bx, y)).activated {
                             go = Some(Go::NowPlaying);
                         }
@@ -324,7 +328,7 @@ impl AlbumScreen {
             return None;
         }
         if self.tracks.is_empty() {
-            ui.text(LIST.origin(), "No tracks found", &theme::BODY, &TextOpts::line(LIST.w), theme::MUTED);
+            ui.text(LIST.origin(), t!("music.pages.noTracks"), &theme::BODY, &TextOpts::line(LIST.w), theme::MUTED);
             return None;
         }
         let id = ui.id("tracks");
@@ -388,7 +392,8 @@ impl AlbumScreen {
                     match *row {
                         AlbumRow::Disc(d) => {
                             let at = Point::new(rect.x + 12.0, rect.y + 14.0);
-                            ui.text(at, &format!("Disc {d}"), &theme::LABEL, &TextOpts::line(LIST.w), theme::SUBTLE);
+                            let disc = t!("music.pages.disc", number = d);
+                            ui.text(at, &disc, &theme::LABEL, &TextOpts::line(LIST.w), theme::SUBTLE);
                         }
                         AlbumRow::Track(i) => {
                             let line = self.line(i, current, true);
@@ -418,15 +423,16 @@ impl Screen for AlbumScreen {
         let asking = self.detail.asking();
         match self.detail.state() {
             Load::Failed { error, stale: None } if !asking => {
-                let (title, body, action) = if error.is(404) {
-                    ("Album not found".to_string(), NOT_FOUND_BODY.to_string(), "Back")
+                let (title, body, back) = if error.is(404) {
+                    (t!("music.pages.albumNotFound"), t!("music.pages.notFoundBody").to_string(), true)
                 } else if error.unreachable() {
-                    (UNREACHABLE_TITLE.to_string(), error.problem(), "Retry")
+                    (t!("music.pages.offline"), error.problem(), false)
                 } else {
-                    ("Couldn't load this album".to_string(), error.problem(), "Retry")
+                    (t!("music.pages.albumFailed"), error.problem(), false)
                 };
-                if message(ui, &title, &body, action).activated {
-                    if action == "Back" {
+                let action = if back { t!("music.actions.back") } else { t!("music.actions.retry") };
+                if message(ui, title, &body, action).activated {
+                    if back {
                         cx.back();
                     } else {
                         self.detail.invalidate();

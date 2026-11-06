@@ -12,6 +12,9 @@ import xbmcaddon
 import xbmcgui
 import xbmcvfs
 
+from . import api, i18n
+from . import layout as L
+
 ADDON_ID = "plugin.video.pley"
 # Window 10000 (Home) lives as long as Kodi: properties set there are how the
 # service tells the plugin where its proxy is, and the plugin tells the
@@ -60,9 +63,7 @@ TEXT = {
     "cant_reach": 30065,
     "try_again": 30066,
     "cant_reach_hint": 30067,
-    "waiting": 30073,
     "waiting_last_minute": 30074,
-    "waiting_one_minute": 30075,
     "signed_in": 30076,
     "retrying": 30077,
     "stopped_by_admin": 30078,
@@ -134,7 +135,6 @@ TEXT = {
     "library_empty": 30166,
     "mark_watched_short": 30167,
     "known_for": 30168,
-    "playlist_items": 30170,
     "or_go_to": 30173,
     "go_to": 30179,
     "add_to_playlist": 30180,
@@ -144,7 +144,6 @@ TEXT = {
     "all": 30184,
     "save_as": 30185,
     "save_filters": 30186,
-    "count_of": 30187,
     "sort_libraries": 30188,
     "server_order": 30189,
     "move_up": 30190,
@@ -230,7 +229,6 @@ TEXT = {
     "search_channels": 30274,
     "you_elsewhere": 30275,
     "someone_else": 30276,
-    "people_watching": 30277,
     "watch_here": 30278,
     "live_stopped": 30557,
     "live_stopped_body": 30558,
@@ -312,7 +310,6 @@ TEXT = {
     "ready": 30512,
     "season_ready": 30513,
     "seasons_ready": 30514,
-    "news": 30515,
     "requests_off": 30516,
     "requests_off_body": 30517,
     "no_access": 30518,
@@ -338,7 +335,6 @@ TEXT = {
     "asked_for": 30541,
     "asked_by": 30542,
     "seasons": 30543,
-    "episodes_in_library": 30544,
     "nothing_more": 30545,
     "movie": 30546,
     "show": 30547,
@@ -361,7 +357,142 @@ TEXT = {
     "remote_subtitles_off": 30573,
     "remote_quality": 30574,
     "cast_switch_failed": 30575,
+    "original": 30045,
+    "automatic": 30212,
+    # The language (i18n.py).
+    "language": 30600,
+    "profile_language": 30601,
+    "automatic_language": 30605,
+    # Dates and times (words.py, livetv.py): {month}, {day}, {year} and
+    # {weekday} filled in.
+    "date": 30629,
+    "day_of_year": 30630,
+    "day_in_guide": 30631,
+    "hours_minutes": 30632,
+    "minutes_short": 30633,
+    "hours_short": 30634,
+    "seconds_short": 30635,
+    "runtime_minutes": 30636,
+    "time_left": 30637,
+    "just_now": 30638,
+    "in_minutes": 30639,
+    "minutes_ago": 30640,
+    "tomorrow_in_text": 30641,
+    "yesterday_in_text": 30642,
+    # Seasons, episodes and files (words.py).
+    "specials": 30643,
+    "season_number": 30644,
+    "season": 30645,
+    "episode_number": 30646,
+    "season_short": 30647,
+    "episode_short": 30648,
+    "seasons_numbered": 30649,
+    "and_specials": 30650,
+    "bitrate_unknown": 30651,
+    "any_hdr": 30657,
+    "and": 30658,
+    "downloading_percent": 30659,
+    "director": 30660,
+    "creator": 30661,
+    "writer": 30662,
+    "unknown": 30663,
+    "label_value": 30664,
+    "quoted": 30665,
+    # The track languages the profile picks its defaults from (tracks.py).
+    "language_ara": 30670,
+    "language_bul": 30671,
+    "language_cat": 30672,
+    "language_chi": 30673,
+    "language_hrv": 30674,
+    "language_cze": 30675,
+    "language_dan": 30676,
+    "language_dut": 30677,
+    "language_eng": 30678,
+    "language_fin": 30679,
+    "language_fre": 30680,
+    "language_ger": 30681,
+    "language_gre": 30682,
+    "language_heb": 30683,
+    "language_hin": 30684,
+    "language_hun": 30685,
+    "language_ind": 30686,
+    "language_ita": 30687,
+    "language_jpn": 30688,
+    "language_kor": 30689,
+    "language_nor": 30690,
+    "language_per": 30691,
+    "language_pol": 30692,
+    "language_por": 30693,
+    "language_rum": 30694,
+    "language_rus": 30695,
+    "language_srp": 30696,
+    "language_slo": 30697,
+    "language_spa": 30698,
+    "language_swe": 30699,
+    "language_tha": 30700,
+    "language_tur": 30701,
+    "language_ukr": 30702,
+    "language_vie": 30703,
 }
+
+# Words that count, by name: their first id, the form "one", then "many"
+# and "other" (i18n.py).
+COUNTS = {
+    "seasons": 30710,
+    "episodes": 30713,
+    "albums": 30716,
+    "tracks": 30719,
+    "movies": 30722,
+    "shows": 30725,
+    "artists": 30728,
+    "items": 30731,
+    "titles": 30734,
+    "channels": 30737,
+    "people": 30740,
+    "in_hours": 30743,
+    "hours_ago": 30746,
+    "in_days": 30749,
+    "days_ago": 30752,
+    "more_movies": 30755,
+    "more_seasons": 30758,
+    "count_of_movies": 30761,
+    "count_of_shows": 30764,
+    "count_of_artists": 30767,
+    "count_of_items": 30770,
+    "waiting_minutes": 30773,
+    "news": 30776,
+    "stars": 30779,
+    "episodes_in_library": 30782,
+}
+
+# The months' and the days' short names, January and Monday first.
+MONTHS = tuple(range(30610, 30622))
+WEEKDAYS = tuple(range(30622, 30629))
+# The byte units: B, KB, MB, GB, TB.
+BYTES = tuple(range(30652, 30657))
+# Each language as it names itself, the same in every language: ids.
+LANGUAGE_NAMES = {"en": 30602, "fr": 30603, "es": 30604}
+
+# What the add-on keeps of the language (remembered.json): the account's
+# own and the server's, as last heard ("" for none); the device's choice is
+# the `language` setting.
+ACCOUNT_LANGUAGE = "language.account"
+SERVER_LANGUAGE = "language.server"
+# "none" where the server is a Pley from before languages, which keeps no
+# account's language: its GET /api/server names none (every Pley with
+# languages names its own, one Pley has or not).
+ACCOUNT_LANGUAGES = "language.accounts"
+NO_ACCOUNT_LANGUAGES = "none"
+# The server as GET /api/server last named it ("id version"), and the one
+# that answered a choice of the account's language 404 or 405: it keeps
+# none either, until another server, or this one updated, answers.
+LANGUAGE_SERVER = "language.server_named"
+LANGUAGE_REFUSED_BY = "language.refused_by"
+# A Home property: the language the windows' words (layout.WORDS) are in.
+SHOWN_LANGUAGE = "pley.language"
+# What the add-on tells its other parts (NotifyAll) when the language shown
+# changed: they draw their words again.
+LANGUAGE_CHANGED = "pley.new_language"
 
 
 # One Addon and its strings for each call of the plugin (begin()): a listing
@@ -374,17 +505,188 @@ def begin() -> None:
     _call.clear()
 
 
+# Each lookup keeps what it found in a local: the service's threads forget
+# the language (forget_language) while others ask for it, and every request
+# does.
+
+
 def addon() -> xbmcaddon.Addon:
-    if "addon" not in _call:
-        _call["addon"] = xbmcaddon.Addon(ADDON_ID)
-    return _call["addon"]
+    found = _call.get("addon")
+    if found is None:
+        found = _call["addon"] = xbmcaddon.Addon(ADDON_ID)
+    return found
+
+
+# ------------------------------------------------------------ the language
+
+
+def kodi_language() -> str:
+    """Kodi's own language, as a two-letter code ("" when it doesn't say)."""
+    found = getattr(xbmc, "getLanguage", None)
+    try:
+        return (found(getattr(xbmc, "ISO_639_1", 0)) or "") if found else ""
+    except (RuntimeError, TypeError):
+        return ""
+
+
+def device_choice() -> str:
+    """The language chosen in the add-on's settings ("" for Automatic)."""
+    return i18n.supported(setting("language")) or ""
+
+
+def language() -> str:
+    """The language the add-on is in (docs/KODI.md, Language): the
+    account's own, else the one chosen in the add-on's settings, else
+    Kodi's where Pley has it, else the server's, else English."""
+    found = _call.get("language")
+    if found is None:
+        found = _call["language"] = i18n.pick(
+            remembered(ACCOUNT_LANGUAGE), remembered(SERVER_LANGUAGE), [kodi_language()], device_choice()
+        )
+    return found
+
+
+def automatic_language() -> str:
+    """What the account's Automatic is here: this device's language, as the
+    account without its own sees it."""
+    return i18n.pick(None, remembered(SERVER_LANGUAGE), [kodi_language()], device_choice())
+
+
+def device_automatic() -> str:
+    """What this device's Automatic is: Kodi's language where Pley has it,
+    else the server's, else English."""
+    return i18n.automatic(remembered(SERVER_LANGUAGE), [kodi_language()])
+
+
+def words() -> i18n.Words:
+    found = _call.get("words")
+    if found is None:
+        found = _call["words"] = i18n.Words(language())
+    return found
 
 
 def text(name: str) -> str:
-    strings = _call.setdefault("strings", {})
-    if name not in strings:
-        strings[name] = addon().getLocalizedString(TEXT[name])
-    return strings[name]
+    return words().text(TEXT[name])
+
+
+def text_of(id_: int) -> str:
+    """The words of a strings.po id the code names by number (MONTHS…)."""
+    return words().text(id_)
+
+
+def counted(name: str, n) -> str:
+    """The words for `n` of something (COUNTS), in the plural form `n` takes,
+    to be filled in."""
+    return words().counted(COUNTS[name], n)
+
+
+def count(name: str, n) -> str:
+    """"12 movies", "12 films": the words for `n`, with `n` in them."""
+    return counted(name, n) % number(n)
+
+
+def number(n) -> str:
+    """A whole number as the language shown writes it: "12,345", "12 345"."""
+    return words().number(n)
+
+
+def decimal(value, digits: int = 1) -> str:
+    """A number with `digits` decimals as the language shown writes it."""
+    return words().decimal(value, digits)
+
+
+def forget_language() -> None:
+    """The language is worked out again when next asked, the settings read
+    again (another part of the add-on changed it)."""
+    for name in ("addon", "language", "words"):
+        _call.pop(name, None)
+
+
+def heard_account(me) -> None:
+    """The profile's own language, as GET /api/auth/me (or the answer to
+    changing it) says it; None when signed out. follow_language() shows it."""
+    found = i18n.supported((me or {}).get("language")) or ""
+    if remembered(ACCOUNT_LANGUAGE) != found:
+        remember(ACCOUNT_LANGUAGE, found)
+
+
+def heard_server(info) -> None:
+    """The server's language, as GET /api/server says it."""
+    if not isinstance(info, dict):
+        return
+    found = i18n.supported(info.get("language")) or ""
+    if remembered(SERVER_LANGUAGE) != found:
+        remember(SERVER_LANGUAGE, found)
+    # Whether it names one at all: a later Pley in a language the add-on
+    # hasn't still keeps an account's.
+    keeps = "" if "language" in info else NO_ACCOUNT_LANGUAGES
+    if remembered(ACCOUNT_LANGUAGES) != keeps:
+        remember(ACCOUNT_LANGUAGES, keeps)
+    named = "%s %s" % (info.get("id") or "", info.get("version") or "")
+    remember(LANGUAGE_SERVER, named)
+    if remembered(LANGUAGE_REFUSED_BY) not in ("", named):
+        remember(LANGUAGE_REFUSED_BY, "")
+
+
+def keeps_account_language() -> bool:
+    """Whether the server keeps an account's own language: not a Pley from
+    before languages, as far as the add-on has heard."""
+    if remembered(ACCOUNT_LANGUAGES) == NO_ACCOUNT_LANGUAGES:
+        return False
+    refused = remembered(LANGUAGE_REFUSED_BY)
+    return not refused or refused != remembered(LANGUAGE_SERVER)
+
+
+def keep_no_account_language() -> None:
+    """The server answered a choice of the account's language with 404 or
+    405: it keeps none, though it names its own, until another server (or
+    this one updated) answers GET /api/server."""
+    remember(LANGUAGE_REFUSED_BY, remembered(LANGUAGE_SERVER) or " ")
+
+
+def choose_device_language(choice) -> None:
+    """This device's language (the `language` setting); None: Automatic."""
+    set_setting("language", i18n.supported(choice) or "auto")
+
+
+def show_words() -> None:
+    """The windows' words (layout.WORDS), in the language shown."""
+    found = words()
+    window = xbmcgui.Window(HOME)
+    for id_ in L.WORDS:
+        window.setProperty("pley.word.%d" % id_, found.text(id_))
+    window.setProperty(SHOWN_LANGUAGE, language())
+
+
+def follow_language() -> bool:
+    """Works the language out again, from what was last heard and the
+    settings as they are now: when it is another, the windows' words change
+    and the add-on's other parts draw theirs again. Whether it changed."""
+    forget_language()
+    now = language()
+    shown = get_property(SHOWN_LANGUAGE)
+    if shown == now:
+        return False
+    show_words()
+    if shown:
+        xbmc.executebuiltin("NotifyAll(%s,%s)" % (ADDON_ID, LANGUAGE_CHANGED))
+        if xbmc.getInfoLabel("Container.FolderPath").startswith("plugin://%s/" % ADDON_ID):
+            xbmc.executebuiltin("Container.Refresh")
+    return True
+
+
+def show_language_at_start() -> None:
+    """The language as the service starts. Home's properties outlive the
+    service, which Kodi starts again when the add-on is updated: the
+    windows' words are drawn again even in the language they're in, else
+    they would keep the version before's."""
+    if not follow_language():
+        show_words()
+
+
+# Requests to the server say which language is shown: what the server
+# writes itself (Home's rows) comes in it.
+api.LANGUAGE = language
 
 
 def setting(name: str) -> str:

@@ -33,6 +33,9 @@ pub struct ServerInfo {
     /// it up for whoever hasn't. False from servers before it.
     #[serde(default, deserialize_with = "nd")]
     pub two_step_required: bool,
+    /// The server language (`en`, `fr`, `es`): what the app shows on a TV in a language Pley
+    /// doesn't have. None from servers before it.
+    pub language: Option<String>,
 }
 
 /// `GET /api/health`: `{ "status": "ok" }` while the server runs.
@@ -111,6 +114,8 @@ pub struct Me {
     pub two_step: bool,
     /// What the app was allowed, separated by spaces (`library play playlists profiles`).
     pub scope: Option<String>,
+    /// The language Pley is in for the account (`en`, `fr`, `es`); none: Automatic, this TV's.
+    pub language: Option<String>,
 }
 
 impl Me {

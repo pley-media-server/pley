@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Settings: the server and the profile this TV uses; the profile's audio
+<!-- Settings: the server and the profile this TV uses; the language, the
+     profile's audio
      and subtitle defaults and this Roku's quality, chosen in a panel at
      the right, and whether the next episode plays by itself; the watch
      history, switch profile, the profile to always start as, sort the
@@ -12,8 +13,11 @@
         <field id="params" type="assocarray" />
         <field id="navigate" type="assocarray" alwaysNotify="true" />
         <field id="active" type="boolean" alwaysNotify="true" />
+        <!-- The language shown changed: the screen draws its words again. -->
+        <field id="language" type="string" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/SettingsScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />
@@ -27,23 +31,26 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Auth.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Profiles.brs" />
     <children>
-        <Label translation="[96, 56]" text="Settings" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
-        <Label translation="[96, 170]" text="Server" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="server" translation="[96, 206]" width="840" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label translation="[96, 280]" text="Signed in as" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="profile" translation="[96, 316]" width="840" color="0xEBEBEBFF" text="…" font="font:MediumSystemFont" />
-        <Label translation="[1000, 170]" text="This Roku" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="device" translation="[1000, 206]" width="824" color="0xEBEBEBFF" font="font:MediumSystemFont" />
-        <Label translation="[1000, 280]" text="Pley for Roku" color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <Label id="version" translation="[1000, 316]" width="824" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+        <Label id="title" translation="[96, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="serverLabel" translation="[96, 150]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="server" translation="[96, 186]" width="840" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+        <Label id="profileLabel" translation="[96, 250]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="profile" translation="[96, 286]" width="840" color="0xEBEBEBFF" text="…" font="font:MediumSystemFont" />
+        <Label id="deviceLabel" translation="[1000, 150]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="device" translation="[1000, 186]" width="824" color="0xEBEBEBFF" font="font:MediumSystemFont" />
+        <Label id="appLabel" translation="[1000, 250]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="version" translation="[1000, 286]" width="824" color="0xEBEBEBFF" font="font:MediumSystemFont" />
         <!-- Discover's titles and pictures come from TMDB. -->
-        <Label translation="[1000, 372]" width="824" wrap="true" maxLines="2" text="This product uses the TMDB API but is not endorsed or certified by TMDB." color="0x8B95A5FF" font="font:SmallestSystemFont" />
-        <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 400]" minWidth="840" maxWidth="840" />
+        <Label id="tmdb" translation="[1000, 342]" width="824" wrap="true" maxLines="2" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <!-- Twelve rows at most (Subtitle language and Always start as
+             among them): high enough that the last stays clear of the
+             screen's edge. -->
+        <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 340]" minWidth="840" maxWidth="840" />
         <!-- What the other TVs' "Manage your account on the web" says: Roku
              has no QR code of its own, so the address alone. -->
-        <Label translation="[1000, 460]" text="Manage your account on the web" color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="webLabel" translation="[1000, 460]" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <Label id="web" translation="[1000, 496]" width="824" color="0x7DD3FCFF" font="font:MediumSystemFont" />
-        <Label translation="[1000, 552]" width="824" wrap="true" maxLines="2" text="Name, picture, password, PIN, two-step, devices and apps, from a phone or computer on the same network." color="0x8B95A5FF" font="font:SmallestSystemFont" />
+        <Label id="webHint" translation="[1000, 552]" width="824" wrap="true" maxLines="3" color="0x8B95A5FF" font="font:SmallestSystemFont" />
         <Label id="message" translation="[1000, 650]" width="824" wrap="true" maxLines="4" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <ButtonGroup id="about" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[1000, 850]" minWidth="600" maxWidth="824" />
         <!-- The choices of one row, over the right half. -->
