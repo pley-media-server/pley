@@ -230,6 +230,29 @@ describe("the language the app is in", () => {
     expect(currentLanguage()).toBe("fr");
   });
 
+  it("keeps a choice made on this TV over a late 404 for the one before it", async () => {
+    const server = later<HttpResponse>();
+    const put = later<User>();
+    const { app, store } = setup({ device: ["en-US"], server: () => server.promise, signedIn: true, account: null });
+    (app.api.value as unknown as { setLanguage: () => Promise<User> }).setLanguage = () => put.promise;
+    await app.loadAccount();
+    // Settings before the server has said: Français goes to it.
+    expect(app.languageOnDevice.value).toBe(false);
+    const first = app.chooseLanguage("fr");
+    // It names no language, a Pley from before languages: the row is this TV's, and Español shows at once.
+    server.resolve(answer({ name: "Den", version: "0.1.0" }));
+    await settle();
+    expect(app.languageOnDevice.value).toBe(true);
+    await app.chooseLanguage("es");
+    expect(currentLanguage()).toBe("es");
+    // Français's 404 comes after it: Español stays.
+    put.reject(new ApiError(404, "not_found", "not found"));
+    await first;
+    expect(currentLanguage()).toBe("es");
+    expect(app.deviceChoice.value).toBe("es");
+    expect(store.get("pley.deviceLanguage")).toBe("es");
+  });
+
   it("on a current server, is still the account's, whatever the server answers", async () => {
     const { app } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ version: "1.0.0", language: "en" })), signedIn: true, account: null });
     await app.loadAccount();
