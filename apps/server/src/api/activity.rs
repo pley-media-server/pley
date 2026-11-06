@@ -21,6 +21,7 @@ use crate::auth::scopes::Scope;
 use crate::auth::{AuthUser, CurrentToken};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
+use crate::i18n;
 use crate::library::scanner::ScanStatus;
 use crate::markers::AnalysisStatus;
 use crate::playback::{DeviceKind, Method, TranscodeInfo};
@@ -188,6 +189,11 @@ pub async fn events(
     // playback (administrators, whose dashboard lists them, and pley's own
     // apps allowed `activity` on their accounts), while they do.
     let admin = Arc::new(AtomicBool::new(user.oversees_playback()));
+    // Events with Pley's own words in them go once for each language: the
+    // stream gets those in the language its account sees, as it changes.
+    let language = Arc::new(parking_lot::RwLock::new(
+        i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await?,
+    ));
     // A stream that names its device as a receiver makes it one the user's
     // remotes cast to, until the stream ends: its device's, beside any other
     // device that names the same id (`Receivers::open`). A query that
@@ -213,8 +219,8 @@ pub async fn events(
     // expires or its user is disabled, and follows changes of access.
     let ended = tokio_util::sync::CancellationToken::new();
     {
-        let (state, libraries, manager, admin, ended) =
-            (state.clone(), libraries.clone(), manager.clone(), admin.clone(), ended.clone());
+        let (state, libraries, manager, admin, language, ended) =
+            (state.clone(), libraries.clone(), manager.clone(), admin.clone(), language.clone(), ended.clone());
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(state.config.event_recheck);
             tick.tick().await;
@@ -236,6 +242,9 @@ pub async fn events(
                 // An account made an administrator, or no longer one.
                 manager.store(user.manages_requests(), Ordering::Relaxed);
                 admin.store(user.oversees_playback(), Ordering::Relaxed);
+                if let Ok(now) = i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await {
+                    *language.write() = now;
+                }
             }
         });
     }
@@ -249,7 +258,7 @@ pub async fn events(
         // that user's streams only, and their sessions' changes to
         // administrators' too; requests' to those they name.
         .filter(move |event| match event.audience() {
-            Some(to) => asks && to.reaches(me, manager.load(Ordering::Relaxed), &key),
+            Some(to) => asks && to.reaches(me, manager.load(Ordering::Relaxed), &key, *language.read()),
             None => {
                 event.user_id().is_none_or(|id| id == me)
                     || (event.to_administrators() && admin.load(Ordering::Relaxed))

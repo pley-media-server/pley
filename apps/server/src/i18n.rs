@@ -1,5 +1,5 @@
-//! The words Pley's server writes for people (Home's rows, the tray), in
-//! the languages its apps are in.
+//! The words Pley's server writes for people (Home's rows, the tray, why a
+//! request couldn't be sent), in the languages its apps are in.
 //!
 //! The catalogs are `locales/<language>.json`, in the format of the web
 //! app's (i18next's): nested keys, `{{name}}` for what goes in, and
@@ -97,6 +97,12 @@ pub fn fallback(server: &str, headers: Option<&HeaderMap>) -> &'static str {
         .unwrap_or_else(|| server_language(server))
 }
 
+/// The language of an account whose own choice is `own` (`users.language`),
+/// asking from a device that sends `headers` (see the module's doc).
+pub fn of_account(own: Option<&str>, server: &str, headers: Option<&HeaderMap>) -> &'static str {
+    own.and_then(supported).unwrap_or_else(|| fallback(server, headers))
+}
+
 /// The language to answer `user_id`'s request in (see the module's doc).
 pub async fn for_user(db: &Db, user_id: i64, server: &str, headers: &HeaderMap) -> Result<&'static str, AppError> {
     let own: Option<String> = sqlx::query_scalar("SELECT language FROM users WHERE id = ?")
@@ -104,7 +110,7 @@ pub async fn for_user(db: &Db, user_id: i64, server: &str, headers: &HeaderMap) 
         .fetch_optional(&db.read)
         .await?
         .flatten();
-    Ok(own.as_deref().and_then(supported).unwrap_or_else(|| fallback(server, Some(headers))))
+    Ok(of_account(own.as_deref(), server, Some(headers)))
 }
 
 /// The words for `key` in `language`, English's where it has none, or the

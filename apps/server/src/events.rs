@@ -21,6 +21,9 @@ pub struct Audience {
     /// Left out: the streams of this token (its hash), the session that
     /// caused the event.
     pub except_token: Option<String>,
+    /// Only the streams whose account sees this language: an event with
+    /// Pley's own words in it goes once for each language, worded in it.
+    pub language: Option<&'static str>,
 }
 
 impl Audience {
@@ -35,9 +38,13 @@ impl Audience {
     }
 
     /// Whether a stream of account `user_id`, opened with the token hashed
-    /// `token`, gets the event: `manager` while it manages requests.
-    pub fn reaches(&self, user_id: i64, manager: bool, token: &str) -> bool {
-        if self.except_token.as_deref() == Some(token) || self.except_user == Some(user_id) {
+    /// `token` and seeing `language`, gets the event: `manager` while it
+    /// manages requests.
+    pub fn reaches(&self, user_id: i64, manager: bool, token: &str, language: &str) -> bool {
+        if self.except_token.as_deref() == Some(token)
+            || self.except_user == Some(user_id)
+            || self.language.is_some_and(|l| l != language)
+        {
             return false;
         }
         self.users.contains(&user_id) || (self.managers && manager)
@@ -252,6 +259,7 @@ pub enum ServerEvent {
         request_id: i64,
         title: String,
         kind: TitleKind,
+        /// In the language of the streams it goes to (`to.language`).
         reason: String,
         retry_at: Option<i64>,
     },
@@ -556,14 +564,16 @@ mod tests {
     #[test]
     fn an_audience_names_accounts_and_managers() {
         let to = Audience::of(vec![4]);
-        assert!(to.reaches(4, false, "a"), "named");
-        assert!(to.reaches(7, true, "b"), "a manager");
-        assert!(!to.reaches(7, false, "b"), "neither");
+        assert!(to.reaches(4, false, "a", "en"), "named");
+        assert!(to.reaches(7, true, "b", "fr"), "a manager");
+        assert!(!to.reaches(7, false, "b", "en"), "neither");
         let only = Audience::only(vec![4]);
-        assert!(!only.reaches(7, true, "b"), "not for managers");
+        assert!(!only.reaches(7, true, "b", "en"), "not for managers");
         let created = Audience { except_user: Some(4), ..Audience::of(Vec::new()) };
-        assert!(!created.reaches(4, true, "a") && created.reaches(7, true, "b"), "its maker is left out");
+        assert!(!created.reaches(4, true, "a", "en") && created.reaches(7, true, "b", "en"), "its maker is left out");
         let seen = Audience { except_token: Some("a".into()), ..Audience::only(vec![4]) };
-        assert!(!seen.reaches(4, false, "a") && seen.reaches(4, false, "c"), "the account's other streams");
+        assert!(!seen.reaches(4, false, "a", "en") && seen.reaches(4, false, "c", "en"), "the account's other streams");
+        let french = Audience { language: Some("fr"), ..Audience::of(Vec::new()) };
+        assert!(french.reaches(7, true, "b", "fr") && !french.reaches(7, true, "b", "es"), "worded in its language");
     }
 }
