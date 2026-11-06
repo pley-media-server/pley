@@ -8,6 +8,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The remote offers Skip Intro and Skip Credits while what a device plays
+  is in an intro or the credits, and its back button goes 30 seconds, as far
+  as forward.
 - Finds Pley servers on your network, keeps the ones you opened, and adds
   one by its address.
 - Sign in with your browser on iPhone, iPad and Mac, or with a code and its

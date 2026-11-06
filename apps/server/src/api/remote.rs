@@ -33,6 +33,7 @@ use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::events::{EventBus, ServerEvent, SwitchTicket};
 use crate::livetv::tuner::RemoteViewer;
+use crate::markers::Marker;
 use crate::oauth::clients::{self, clean_name};
 use crate::playback::{
     COMMANDS_PER_SECOND, CommandWindow, Control, Controls, DeviceKind, QualityOption, Session, TrackOptions,
@@ -168,6 +169,9 @@ pub struct PlayingSession {
     /// The qualities its player's menu offers for the file, which `quality`
     /// picks from; none for music and on Live TV.
     qualities: Vec<QualityOption>,
+    /// The intro and credits of the file it plays, for a remote's Skip
+    /// intro and Skip credits; none on Live TV.
+    markers: Vec<Marker>,
     /// For the order they are listed in.
     #[serde(skip)]
     started_at: i64,
@@ -229,6 +233,7 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             tracks: TrackOptions::default(),
             quality: None,
             qualities: Vec::new(),
+            markers: Vec::new(),
             started_at: viewer.started_at,
             reported_at_ms: viewer.seen_at_ms,
         });
@@ -245,6 +250,9 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
         let file = catalog::file(&state.db, session.file_id).await?;
         let tracks = track_options(&file.as_ref().map(|f| f.streams()).unwrap_or_default());
         let qualities = file_qualities(file.as_ref());
+        // Markers belong to a file: another version of the title can be another cut.
+        let mut markers = crate::markers::for_item(&state.db, row.id).await?;
+        markers.retain(|m| m.file_id == session.file_id);
         let play = session.play.lock().clone();
         let reported_at_ms = play.reported_at_ms.unwrap_or(play.updated_at.saturating_mul(1000));
         out.push(PlayingSession {
@@ -268,6 +276,7 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
             tracks,
             quality: play.quality,
             qualities,
+            markers,
             started_at: session.started_at,
             reported_at_ms,
         });

@@ -154,6 +154,27 @@ struct RemoteDecodingTests {
         #expect(PlayingChannel(id: 3, name: "News", now: "Evening news").progress(at: 1_761_301_800) == nil)
     }
 
+    @Test func aSessionSaysTheIntroAndCreditsOfItsFile() throws {
+        let session = try decode(PlayingSession.self, #"""
+        {"session_id":"a1","kind":"item","controls":["play","pause","seek","skip"],
+         "markers":[{"file_id":70,"kind":"intro","start_ms":10000,"end_ms":70000,"source":"fingerprint"},
+                    {"file_id":70,"kind":"credits","start_ms":1250000,"end_ms":1300000,"source":"chapter"}]}
+        """#)
+        #expect(session.markers == [
+            Marker(fileId: 70, kind: .intro, startMs: 10_000, endMs: 70_000, source: "fingerprint"),
+            Marker(fileId: 70, kind: .credits, startMs: 1_250_000, endMs: 1_300_000, source: "chapter"),
+        ])
+        // Live TV has none, and an older server says nothing of them.
+        let live = try decode(PlayingSession.self, #"{"session_id":"b2","kind":"live","markers":[]}"#)
+        #expect(live.markers.isEmpty)
+        let older = try decode(PlayingSession.self, #"{"session_id":"c3","kind":"item","qualities":[]}"#)
+        #expect(older.markers.isEmpty)
+        #expect(older == PlayingSession(sessionId: "c3"))
+        // Markers that can't be read leave it listed, with nothing to skip.
+        let odd = try decode(PlayingSession.self, #"{"session_id":"d4","markers":[{"kind":7}]}"#)
+        #expect(odd.id == "d4" && odd.markers.isEmpty)
+    }
+
     @Test func aQualityCommandAsABodyAndAnEvent() throws {
         #expect(try object(PlayerCommand.quality("8m")) as? [String: String] == ["command": "quality", "quality": "8m"])
         func event(_ json: String) -> ServerEvent? { ServerEvent.parse(Data(json.utf8)) }

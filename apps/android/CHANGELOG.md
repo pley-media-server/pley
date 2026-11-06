@@ -10,6 +10,8 @@ describes how they are made.
 
 ### Added
 
+- The phone's remote offers Skip Intro and Skip Credits while what a TV
+  plays is in an intro or the credits, as the TV's own player does.
 - The phone's remote and Play on… list the devices of everyone in your
   household too, each saying whose profile it is on ("On Sam's
   profile"), never what it plays. Sending something there ends what
@@ -21,6 +23,10 @@ describes how they are made.
 
 ### Changed
 
+- After Play on…, one bar above the tabs says it is starting on the
+  device, then what plays there, where a toast and the remote's sheet came
+  and went over each other. The remote's back button goes 30 seconds, as
+  far as forward.
 - The phone's remote opens from a button in Home's top bar, beside your
   picture, while another of your devices is on. The bar above the tabs
   shows only while the phone controls what one plays (it sent it a

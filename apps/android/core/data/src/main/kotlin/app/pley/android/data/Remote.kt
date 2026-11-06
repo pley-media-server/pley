@@ -173,7 +173,7 @@ interface RemoteRepository {
         const val ANSWER_WAIT_MS = 5_000L
 
         /** How far the remote's skip buttons go back and forward. */
-        const val SKIP_BACK_MS = 10_000L
+        const val SKIP_BACK_MS = 30_000L
         const val SKIP_FORWARD_MS = 30_000L
 
         /** Farther than this from where it should be, a report has moved (the server's rule for a seek). */

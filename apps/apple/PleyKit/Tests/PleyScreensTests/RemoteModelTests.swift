@@ -262,6 +262,96 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(RemoteModel.position(paused, at: received.addingTimeInterval(10)) == 60_000)
     }
 
+    @Test func skipIntroAndSkipCreditsWhileThePlaceShownIsInOne() {
+        let received = Date(timeIntervalSince1970: 1_000)
+        let intro = Marker(fileId: 70, kind: .intro, startMs: 10_000, endMs: 70_000, source: "fingerprint")
+        let credits = Marker(fileId: 70, kind: .credits, startMs: 1_250_000, endMs: 1_300_000, source: "chapter")
+        func offer(at positionMs: Int, after seconds: TimeInterval = 0, state: PlayingState = .paused,
+                   kind: SessionKind = .item, controls: [Control] = [.play, .pause, .seek, .skip],
+                   markers: [Marker]? = nil) -> RemoteModel.SkipOffer? {
+            let session = PlayingSession(sessionId: "a", kind: kind, state: state, positionMs: positionMs,
+                                         durationMs: 1_300_000, controls: controls,
+                                         markers: markers ?? [intro, credits])
+            return RemoteModel.skipOffer(RemoteModel.Entry(session, received: received),
+                                         at: received.addingTimeInterval(seconds))
+        }
+        // From the intro's start until a second before its end.
+        #expect(offer(at: 9_999) == nil)
+        #expect(offer(at: 10_000)?.marker == intro)
+        #expect(offer(at: 68_999)?.marker == intro)
+        #expect(offer(at: 69_000) == nil)
+        // The credits the same way; nothing between them.
+        #expect(offer(at: 600_000) == nil)
+        #expect(offer(at: 1_250_000)?.marker == credits)
+        #expect(offer(at: 1_298_999)?.marker == credits)
+        #expect(offer(at: 1_299_000) == nil)
+        // Where the progress shows it: the place moves on while it plays, not while it is paused.
+        #expect(offer(at: 9_500, after: 0.4, state: .playing) == nil)
+        #expect(offer(at: 9_500, after: 0.6, state: .playing)?.marker == intro)
+        #expect(offer(at: 68_500, after: 0.6, state: .playing) == nil)
+        #expect(offer(at: 9_500, after: 10) == nil)
+        // Never on Live TV, nor where its player doesn't seek, nor for a kind this app doesn't know.
+        #expect(offer(at: 20_000, kind: .live) == nil)
+        #expect(offer(at: 20_000, controls: [.play, .pause, .skip]) == nil)
+        #expect(offer(at: 20_000, markers: [Marker(fileId: 70, kind: MarkerKind(rawValue: "recap"), startMs: 0,
+                                                   endMs: 60_000)]) == nil)
+        #expect(offer(at: 20_000, markers: []) == nil)
+    }
+
+    @Test func aSkipSeeksWhereThePlayersOwnSkipLands() {
+        let intro = RemoteModel.SkipOffer(Marker(fileId: 70, kind: .intro, startMs: 10_000, endMs: 70_000))
+        #expect(intro.kind == .intro && intro.label == "Skip Intro")
+        // Just before an intro ends, so its last moment plays.
+        #expect(intro.targetMs == 69_250)
+        #expect(intro.command == .seek(toMs: 69_250))
+        // Never more than half a short intro before its end.
+        #expect(RemoteModel.SkipOffer(Marker(fileId: 70, kind: .intro, startMs: 0, endMs: 1_000)).targetMs == 500)
+        // The credits, to their end.
+        let credits = RemoteModel.SkipOffer(Marker(fileId: 70, kind: .credits, startMs: 1_250_000,
+                                                   endMs: 1_300_000))
+        #expect(credits.kind == .credits && credits.label == "Skip Credits")
+        #expect(credits.command == .seek(toMs: 1_300_000))
+        // Credits said to run past the title's end go to its end: the server refuses a seek past it.
+        let past = RemoteModel.SkipOffer(Marker(fileId: 70, kind: .credits, startMs: 1_250_000, endMs: 1_300_000),
+                                         durationMs: 1_290_000)
+        #expect(past.command == .seek(toMs: 1_290_000))
+        // VoiceOver reads it with its device.
+        #expect(Words.remoteSkip(.intro, device: "Living room TV") == "Skip intro on Living room TV")
+        #expect(Words.remoteSkip(.credits, device: "Living room TV") == "Skip credits on Living room TV")
+    }
+
+    @Test func backAndForwardGoThirtySeconds() {
+        #expect(RemoteModel.back == .skip(byMs: -30_000))
+        #expect(RemoteModel.forward == .skip(byMs: 30_000))
+        #expect(Words.remoteBack("Living room TV") == "Back 30 seconds on Living room TV")
+        #expect(Words.remoteForward("Living room TV") == "Forward 30 seconds on Living room TV")
+    }
+
+    @Test func skipIntroSendsTheSeekToTheDeviceThatPlaysIt() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        var episode = FixtureServer.Playable(itemId: 7, fileId: 70, durationMs: 1_300_000)
+        let intro = Marker(fileId: 70, kind: .intro, startMs: 10_000, endMs: 70_000, source: "fingerprint")
+        // Another file's, another cut's, isn't the session's.
+        episode.markers = [intro, Marker(fileId: 71, kind: .credits, startMs: 1_000_000, endMs: 1_100_000,
+                                         source: "chapter")]
+        server.addPlayable(episode)
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        let tv = server.playElsewhere(7, deviceId: "app-90", device: "Bedroom TV", positionMs: 20_000)
+        await model.reload()
+        let entry = try #require(model.others.first)
+        #expect(entry.session.markers == [intro])
+        let offer = try #require(RemoteModel.skipOffer(entry, at: Date()))
+        #expect(offer.marker == intro)
+
+        await model.send(offer.command, to: entry)
+        let sent = try #require(server.sessionCommands.last)
+        #expect(sent.sessionId == tv)
+        #expect(try PleyJSON.decoder.decode(PlayerCommand.self, from: sent.body) == .seek(toMs: 69_250))
+        #expect(model.errors[tv] == nil)
+    }
+
     @Test func aCommandIsAnsweredByTheReportThatFollows() async throws {
         let server = try await fixture()
         defer { server.stop() }
