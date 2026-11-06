@@ -146,13 +146,24 @@ function fmtLanguages() as object
     return out
 end function
 
-' A name as it sorts: in lower case, its first letter without its accent
-' (Spanish's "Árabe" among the A's).
+' A name as it sorts: in lower case, its letters without their accents, as
+' the other apps' localeCompare has them (Spanish's "Árabe" among the A's,
+' French's "Hébreu" before "Hindi"). Ñ stays a letter of its own, as in
+' Spanish. Capitals are mapped too, as LCase may leave them.
 function fmtSortKey(name as string) as string
-    key = LCase(name)
-    plain = { "á": "a", "â": "a", "é": "e", "è": "e", "í": "i", "ó": "o", "ú": "u" }
-    first = Left(key, 1)
-    if plain.DoesExist(first) then key = plain[first] + Mid(key, 2)
+    plain = {
+        "á": "a", "à": "a", "â": "a", "ä": "a", "Á": "a", "À": "a", "Â": "a",
+        "é": "e", "è": "e", "ê": "e", "ë": "e", "É": "e", "È": "e", "Ê": "e",
+        "í": "i", "î": "i", "ï": "i", "Í": "i", "Î": "i",
+        "ó": "o", "ô": "o", "ö": "o", "Ó": "o", "Ô": "o",
+        "ú": "u", "ù": "u", "û": "u", "ü": "u", "Ú": "u",
+        "ç": "c", "Ç": "c"
+    }
+    key = ""
+    for each letter in LCase(name).Split("")
+        if plain.DoesExist(letter) then letter = plain[letter]
+        key = key + letter
+    end for
     return key
 end function
 

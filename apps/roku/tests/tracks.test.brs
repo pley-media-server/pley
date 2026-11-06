@@ -111,6 +111,29 @@ sub test_tracks_languages_are_the_other_apps()
     tkFalse(tracksAsksSubtitleLanguage("off"))
 end sub
 
+' The languages sort as their names read, accents and all: "Hébreu" before
+' "Hindi" in French, "Árabe" among the A's in Spanish.
+sub test_tracks_languages_sort_in_the_language_shown()
+    i18nUse("fr")
+    tkEqual(tracksTestNames(fmtLanguages()), ["Allemand", "Anglais", "Arabe", "Bulgare", "Catalan", "Chinois", "Coréen", "Croate",
+        "Danois", "Espagnol", "Finnois", "Français", "Grec", "Hébreu", "Hindi", "Hongrois", "Indonésien", "Italien", "Japonais",
+        "Néerlandais", "Norvégien", "Persan", "Polonais", "Portugais", "Roumain", "Russe", "Serbe", "Slovaque", "Suédois",
+        "Tchèque", "Thaï", "Turc", "Ukrainien", "Vietnamien"])
+    i18nUse("es")
+    tkEqual(tracksTestNames(fmtLanguages()), ["Alemán", "Árabe", "Búlgaro", "Catalán", "Checo", "Chino", "Coreano", "Croata",
+        "Danés", "Eslovaco", "Español", "Finés", "Francés", "Griego", "Hebreo", "Hindi", "Húngaro", "Indonesio", "Inglés",
+        "Italiano", "Japonés", "Neerlandés", "Noruego", "Persa", "Polaco", "Portugués", "Rumano", "Ruso", "Serbio", "Sueco",
+        "Tailandés", "Turco", "Ucraniano", "Vietnamita"])
+end sub
+
+function tracksTestNames(languages as object) as object
+    names = []
+    for each language in languages
+        names.Push(language[1])
+    end for
+    return names
+end function
+
 function tracksTestSubtitles() as object
     return [
         { index: 3, language: "eng", url: "/api/files/7/subtitles/3.vtt" },
