@@ -63,7 +63,7 @@ export function TestProviders({
 /** Shows where the router is: `screen.getByTestId("location")` has the path and query. */
 export function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname + location.search}</div>;
+  return <div data-testid="location">{location.pathname + location.search + location.hash}</div>;
 }
 
 /** Render with {@link TestProviders}. */

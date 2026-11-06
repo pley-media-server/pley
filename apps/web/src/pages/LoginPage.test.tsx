@@ -107,6 +107,15 @@ describe("LoginPage", () => {
     expect(await screen.findByTestId("location")).toHaveTextContent("/link?code=BCDFGHJK");
   });
 
+  it("says so for a Jellyfin app's Quick Connect code too, and goes back to it", async () => {
+    serve();
+    renderLogin(`/login?next=${encodeURIComponent("/link#/quickconnect?code=123456")}`);
+
+    expect(await screen.findByText("to let your TV use Living Room")).toBeInTheDocument();
+    await signIn("open-sesame");
+    expect(await screen.findByTestId("location")).toHaveTextContent("/link#/quickconnect?code=123456");
+  });
+
   it("lets a household pick a profile first", async () => {
     serve({ profiles: [testUser, { ...testUser, id: 2, name: "Kid" }] });
     renderLogin();

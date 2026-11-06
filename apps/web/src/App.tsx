@@ -266,9 +266,9 @@ const router = createBrowserRouter([
 
 // Any authenticated request that comes back 401 (expired/revoked session) sends the user to the login screen.
 setUnauthorizedHandler(() => {
-  const { pathname, search } = window.location;
+  const { pathname, search, hash } = window.location;
   if (pathname.startsWith("/login") || pathname.startsWith("/setup") || pathname.startsWith("/invite/")) return;
-  const next = pathname + search;
+  const next = pathname + search + hash;
   void router
     .navigate(next && next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login", { replace: true })
     .then(() => queryClient.clear());

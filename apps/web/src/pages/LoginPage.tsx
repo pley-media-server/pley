@@ -31,8 +31,8 @@ export function LoginPage() {
   const next = safeNext(params.get("next"));
   /** Signing in to allow an app (the OAuth authorize page). */
   const forApp = next === "/oauth/authorize" || next.startsWith("/oauth/authorize?");
-  /** Signing in to allow a TV (the page for the code it shows). */
-  const forTv = next === "/link" || next.startsWith("/link?");
+  /** Signing in to allow a TV or a Jellyfin app (the page for the code it shows). */
+  const forTv = /^\/link([?#]|$)/.test(next);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const server = useServer();

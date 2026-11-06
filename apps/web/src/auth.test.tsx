@@ -54,6 +54,14 @@ describe("RequireAuth", () => {
     expect(await screen.findByTestId("location")).toHaveTextContent("/login?next=%2Flibrary%2F2%3Fsort%3Dyear");
   });
 
+  it("keeps what follows # in the address, where a Jellyfin app's Quick Connect code comes", async () => {
+    mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => apiError(401, "unauthorized", "not signed in") });
+    renderApp("/library/2#/quickconnect?code=123456");
+    expect(await screen.findByTestId("location")).toHaveTextContent(
+      `/login?next=${encodeURIComponent("/library/2#/quickconnect?code=123456")}`,
+    );
+  });
+
   it("doesn't bother with the home page as a destination", async () => {
     mockApi({ "GET /api/server": () => server, "GET /api/auth/me": () => apiError(401, "unauthorized", "not signed in") });
     renderApp("/");

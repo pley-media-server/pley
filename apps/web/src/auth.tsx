@@ -82,7 +82,9 @@ export function RequireAuth() {
   if (me.isPending) return <Splash />;
   if (me.isError) {
     if (isApiError(me.error, 401)) {
-      const next = location.pathname + location.search;
+      // What follows `#` too: a Jellyfin app's Quick Connect code comes in it
+      // (`/link#/quickconnect?code=`).
+      const next = location.pathname + location.search + location.hash;
       return <Navigate to={next && next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login"} replace />;
     }
     return <ErrorScreen message={errorMessage(me.error)} onRetry={() => void me.refetch()} />;
