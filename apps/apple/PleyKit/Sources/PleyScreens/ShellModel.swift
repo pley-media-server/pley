@@ -121,7 +121,7 @@ public struct ToastAction {
     }
 
     public static func undo(_ run: @escaping @MainActor () -> Void) -> ToastAction {
-        ToastAction("Undo", identifier: "toast.undo", run: run)
+        ToastAction(localized("Undo"), identifier: "toast.undo", run: run)
     }
 }
 
@@ -266,13 +266,13 @@ public final class ShellModel: ObservableObject {
     static func tabWidth(_ section: ShellSection, libraries: [Library], requests: RequestsEntry = .none) -> Int {
         if symbolTabs.contains(section) { return tabPadding }
         let title = switch section {
-        case .home: "Home"
-        case .libraries: "Libraries"
-        case .playlists: "Playlists"
-        case .liveTv: "Live TV"
+        case .home: localized("Home")
+        case .libraries: localized("Libraries")
+        case .playlists: localized("Playlists")
+        case .liveTv: localized("Live TV")
         case .requests: requestsTitle(requests)
-        case .library(let id): libraries.first { $0.id == id }?.name ?? "Library"
-        default: "Settings"
+        case .library(let id): libraries.first { $0.id == id }?.name ?? localized("Library")
+        default: localized("Settings")
         }
         return title.count + tabPadding
     }
@@ -370,7 +370,7 @@ public final class ShellModel: ObservableObject {
 
     /// A library's name, for its tab or row.
     public func libraryName(_ id: Int) -> String {
-        libraries.first { $0.id == id }?.name ?? "Library"
+        libraries.first { $0.id == id }?.name ?? localized("Library")
     }
 
     /// The pages on top of `section`'s start.
@@ -468,9 +468,9 @@ public final class ShellModel: ObservableObject {
     /// TV ⌘L when it shows, Playlists ⌘2, then the libraries in the
     /// profile's order, the first seven ⌘3 to ⌘9. Search has ⌘F of its own.
     public var viewMenu: [MenuEntry] {
-        let fixed = [MenuEntry(title: "Home", section: .home, key: "1")]
-            + (showsLiveTv ? [MenuEntry(title: "Live TV", section: .liveTv, key: "l")] : [])
-            + [MenuEntry(title: "Playlists", section: .playlists, key: "2")]
+        let fixed = [MenuEntry(title: localized("Home"), section: .home, key: "1")]
+            + (showsLiveTv ? [MenuEntry(title: localized("Live TV"), section: .liveTv, key: "l")] : [])
+            + [MenuEntry(title: localized("Playlists"), section: .playlists, key: "2")]
         let libraries = libraries.enumerated().map { index, library in
             MenuEntry(title: library.name, section: .library(library.id),
                       key: index < 7 ? Character(String(index + 3)) : nil)

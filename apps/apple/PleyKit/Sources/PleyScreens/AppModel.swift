@@ -425,7 +425,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             if LateReports.unreachable(error), await startOffline(last) { return }
             downloads.signedIn(nil)
             root = .servers
-            notice = "\(last.name): \(describe(error))"
+            notice = localized("\(last.name): \(describe(error))")
         }
     }
 
@@ -938,7 +938,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     private func liveInfo(_ model: LivePlayerModel) -> NowPlayingInfo {
         let channel = model.channel
-        return NowPlayingInfo(title: channel?.numberedName ?? "Live TV", album: channel?.now?.title, rate: 1,
+        return NowPlayingInfo(title: channel?.numberedName ?? localized("Live TV"), album: channel?.now?.title, rate: 1,
                               kind: .video, isLive: true, artwork: picture(channel?.logo), artworkPath: channel?.logo)
     }
 
@@ -1103,7 +1103,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         var error = false
         if case .failed = news { error = true }
         let screen = Self.opens(news)
-        shell.show(RequestWords.notice(news), action: ToastAction("Open") { [weak self] in
+        shell.show(RequestWords.notice(news), action: ToastAction(localized("Open")) { [weak self] in
             self?.shell.open(screen)
         }, error: error)
     }
@@ -1728,7 +1728,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
 /// `error` in words for people.
 public func describe(_ error: any Error) -> String {
     if let error = error as? any LocalizedError, let text = error.errorDescription, !text.isEmpty { return text }
-    return "something went wrong: try again"
+    return localized("something went wrong: try again")
 }
 
 /// `text` as a sentence: a capital first, a full stop last. The app's own

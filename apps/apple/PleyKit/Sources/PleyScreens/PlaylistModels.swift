@@ -13,8 +13,8 @@ public enum Playlists {
     /// What is wrong with `title` as a playlist's title; `nil` when it will do.
     public static func check(_ title: String) -> String? {
         let trimmed = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return "Give it a title" }
-        if trimmed.count > titleMax { return "At most \(titleMax) characters" }
+        if trimmed.isEmpty { return localized("Give it a title") }
+        if trimmed.count > titleMax { return localized("At most \(titleMax) characters") }
         return nil
     }
 
@@ -53,16 +53,16 @@ public enum Playlists {
         switch items.count {
         case 0: ""
         case 1: Words.fullTitle(items[0])
-        default: Words.pluralize(items.count, "item")
+        default: localized("\(items.count) items")
         }
     }
 
     /// The toast after adding `added` entries to `playlist`.
     public static func added(_ added: Int, to playlist: String) -> String {
         switch added {
-        case 0: "Nothing to add"
-        case 1: "Added to \(playlist)"
-        default: "Added \(added) items to \(playlist)"
+        case 0: localized("Nothing to add")
+        case 1: localized("Added to \(playlist)")
+        default: localized("Added \(added) items to \(playlist)")
         }
     }
 }
@@ -87,7 +87,8 @@ public struct PlaylistCard: Identifiable, Hashable, Sendable {
         video = playlist.kind != .audio
         smart = playlist.smart
         artwork = Array(playlist.artwork.prefix(4))
-        spokenLabel = [title, smart ? "smart playlist" : video ? "playlist" : "music playlist", meta]
+        let kind = smart ? localized("smart playlist") : video ? localized("playlist") : localized("music playlist")
+        spokenLabel = [title, kind, meta]
             .filter { !$0.isEmpty }.joined(separator: ", ")
     }
 }
@@ -100,8 +101,8 @@ public final class PlaylistsModel: ObservableObject {
         case failed(String)
     }
 
-    public static let failedTitle = "Couldn't load your playlists"
-    public static let emptyTitle = "No playlists yet"
+    public static var failedTitle: String { localized("Couldn't load your playlists") }
+    public static var emptyTitle: String { localized("No playlists yet") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var cards: [PlaylistCard] = []
@@ -175,9 +176,9 @@ public final class PlaylistModel: ObservableObject {
         case notFound
     }
 
-    public static let failedTitle = "Couldn't load this playlist"
-    public static let notFoundTitle = "This playlist isn't available"
-    public static let emptyTitle = "Nothing in this playlist yet"
+    public static var failedTitle: String { localized("Couldn't load this playlist") }
+    public static var notFoundTitle: String { localized("This playlist isn't available") }
+    public static var emptyTitle: String { localized("Nothing in this playlist yet") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var detail: PlaylistDetail?
@@ -357,7 +358,7 @@ public final class PlaylistModel: ObservableObject {
             guard !Task.isCancelled else { return }
             await sendRemoval(entryId)
         }
-        app.shell.show("Removed \(row.title)") { [self] in undo(entryId) }
+        app.shell.show(localized("Removed \(row.title)")) { [self] in undo(entryId) }
     }
 
     /// Puts back an entry `remove`d, while it hasn't been sent.
@@ -391,7 +392,7 @@ public final class PlaylistModel: ObservableObject {
             app.note(ServerChange(playlists: true))
             return true
         } catch {
-            app.shell.show("Couldn't rename it: \(describe(error))")
+            app.shell.show(localized("Couldn't rename it: \(describe(error))"))
             return false
         }
     }
@@ -405,11 +406,11 @@ public final class PlaylistModel: ObservableObject {
             for task in pending.values { task.cancel() }
             pending = [:]
             if app.shell.path(for: app.shell.section).last == .playlist(playlistId) { app.shell.back() }
-            app.shell.show("Deleted \(title)")
+            app.shell.show(localized("Deleted \(title)"))
             app.note(ServerChange(playlists: true))
             return true
         } catch {
-            app.shell.show("Couldn't delete it: \(describe(error))")
+            app.shell.show(localized("Couldn't delete it: \(describe(error))"))
             return false
         }
     }
@@ -460,7 +461,7 @@ public final class PlaylistModel: ObservableObject {
                     // The server's order comes back; moves made meanwhile go with it.
                     queued = nil
                     order = nil
-                    app.shell.show("Couldn't move it: \(describe(error))")
+                    app.shell.show(localized("Couldn't move it: \(describe(error))"))
                 }
             }
             sending = false
@@ -484,7 +485,7 @@ public final class PlaylistModel: ObservableObject {
             app.note(ServerChange(playlists: true))
         } catch {
             hidden.remove(entryId)
-            app.shell.show("Couldn't remove it: \(describe(error))")
+            app.shell.show(localized("Couldn't remove it: \(describe(error))"))
         }
     }
 }
@@ -550,7 +551,7 @@ public final class AddToPlaylistModel: ObservableObject {
             app.note(ServerChange(playlists: true))
             return true
         } catch {
-            app.shell.show("Couldn't add it: \(describe(error))")
+            app.shell.show(localized("Couldn't add it: \(describe(error))"))
             return false
         }
     }
@@ -569,7 +570,7 @@ public final class AddToPlaylistModel: ObservableObject {
             app.note(ServerChange(playlists: true))
             return true
         } catch {
-            app.shell.show("Couldn't make the playlist: \(describe(error))")
+            app.shell.show(localized("Couldn't make the playlist: \(describe(error))"))
             return false
         }
     }
@@ -624,7 +625,7 @@ public final class NewPlaylistModel: ObservableObject {
             app.note(ServerChange(playlists: true))
             return made.id
         } catch {
-            app.shell.show("Couldn't make the playlist: \(describe(error))")
+            app.shell.show(localized("Couldn't make the playlist: \(describe(error))"))
             return nil
         }
     }

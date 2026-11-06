@@ -26,15 +26,15 @@ public final class SearchModel: ObservableObject {
 
         public var title: String {
             switch self {
-            case .people: "People"
-            case .movies: "Movies"
-            case .shows: "Shows"
-            case .seasons: "Seasons"
-            case .episodes: "Episodes"
-            case .artists: "Artists"
-            case .albums: "Albums"
-            case .tracks: "Tracks"
-            case .channels: "Live TV"
+            case .people: localized("People")
+            case .movies: localized("Movies")
+            case .shows: localized("Shows")
+            case .seasons: localized("Seasons")
+            case .episodes: localized("Episodes")
+            case .artists: localized("Artists")
+            case .albums: localized("Albums")
+            case .tracks: localized("Tracks")
+            case .channels: localized("Live TV")
             }
         }
 
@@ -78,7 +78,7 @@ public final class SearchModel: ObservableObject {
             }
         }
         /// "Movies, 3 results", for VoiceOver.
-        public var spoken: String { "\(kind.title), \(Words.pluralize(count, "result"))" }
+        public var spoken: String { "\(kind.title), " + localized("\(count) results") }
     }
 
     public enum State: Equatable, Sendable {
@@ -184,7 +184,7 @@ public final class SearchModel: ObservableObject {
     }
 
     /// `No results for "north"`.
-    public static func noResults(_ query: String) -> String { "No results for \u{201C}\(query)\u{201D}" }
+    public static func noResults(_ query: String) -> String { localized("No results for “\(query)”") }
 
     /// The recent searches, read again (another profile, or on showing).
     public func loadRecent() {

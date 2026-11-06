@@ -37,7 +37,7 @@ public final class ItemModel: ObservableObject {
     }
 
     /// What the page says when the item isn't there.
-    public static let notFoundTitle = "This title isn't available"
+    public static var notFoundTitle: String { localized("This title isn't available") }
 
     @Published public private(set) var state: State = .loading
     /// The item the page is of.
@@ -62,7 +62,7 @@ public final class ItemModel: ObservableObject {
     public let app: AppModel
     public let itemId: Int
     /// The locale dates are written in.
-    public var locale: Locale = .current
+    public var locale: Locale = ShownLanguage.locale
 
     private var onDeck: ItemSummary?
     private var onDeckKnown = false
@@ -310,7 +310,7 @@ public final class ItemModel: ObservableObject {
     }
 
     /// "Resume from 12:34".
-    public var resumeLabel: String? { resumeMs.map { "Resume from \(Words.clock(ms: $0))" } }
+    public var resumeLabel: String? { resumeMs.map { localized("Resume from \(Words.clock(ms: $0))") } }
 
     /// The file shown and played: the one picked, else the one this device plays best.
     public var file: MediaFile? {
@@ -488,7 +488,7 @@ public final class ItemModel: ObservableObject {
         } catch {
             item?.summary.userState.rating = before
             rebuild()
-            app.shell.show("Couldn't save your rating: \(describe(error))")
+            app.shell.show(localized("Couldn't save your rating: \(describe(error))"))
         }
     }
 
@@ -622,7 +622,7 @@ public final class ItemModel: ObservableObject {
             if item?.id == before.id { item = before }
             rebuild()
             notice = asSentence(describe(error))
-            app.shell.show("Couldn't save that choice: \(describe(error))")
+            app.shell.show(localized("Couldn't save that choice: \(describe(error))"))
         }
     }
 }

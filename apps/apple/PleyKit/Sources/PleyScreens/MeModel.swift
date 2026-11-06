@@ -11,9 +11,11 @@ import PleyNetwork
 @MainActor
 public final class MeModel: ObservableObject {
     /// Says where a profile's name, picture and PIN are changed.
-    public static let webNote = "A profile's name, picture and PIN are changed in Pley on the web."
+    public static var webNote: String { localized("A profile's name, picture and PIN are changed in Pley on the web.") }
     /// Under track defaults that can't be changed here.
-    public static let readOnlyNote = "This sign-in can't change them: change them in Pley on the web."
+    public static var readOnlyNote: String {
+        localized("This sign-in can't change them: change them in Pley on the web.")
+    }
 
     /// Whether Switch profile shows: the app may switch (`profiles`) and
     /// the household has another profile.
@@ -42,7 +44,7 @@ public final class MeModel: ObservableObject {
 
     /// "Managed profile" for a profile without a password of its own; `nil` otherwise.
     public var kind: String? {
-        app.user?.managed == true ? "Managed profile" : nil
+        app.user?.managed == true ? localized("Managed profile") : nil
     }
 
     /// The server's name, and its address as people type it.
@@ -81,22 +83,27 @@ public final class MeModel: ObservableObject {
     // MARK: Track defaults
 
     /// The languages offered, as the web offers them: ISO 639-2/B codes
-    /// (the form ffprobe reports), by their English names.
-    public static let languages: [(code: String, name: String)] = [
-        "ara", "bul", "cat", "chi", "cze", "dan", "dut", "eng", "fin", "fre", "ger", "gre", "heb", "hin", "hrv", "hun",
-        "ind", "ita", "jpn", "kor", "nor", "per", "pol", "por", "rum", "rus", "slo", "spa", "srp", "swe", "tha", "tur",
-        "ukr", "vie",
-    ].map { ($0, Words.language($0) ?? $0) }.sorted { $0.name < $1.name }
+    /// (the form ffprobe reports), by their names in the language shown.
+    public static var languages: [(code: String, name: String)] {
+        let locale = ShownLanguage.locale
+        let codes = [
+            "ara", "bul", "cat", "chi", "cze", "dan", "dut", "eng", "fin", "fre", "ger", "gre", "heb", "hin", "hrv",
+            "hun", "ind", "ita", "jpn", "kor", "nor", "per", "pol", "por", "rum", "rus", "slo", "spa", "srp", "swe",
+            "tha", "tur", "ukr", "vie",
+        ]
+        return codes.map { ($0, Words.language($0) ?? $0) }
+            .sorted { $0.name.compare($1.name, locale: locale) == .orderedAscending }
+    }
 
     /// The modes, in the web's order.
     public static let modes: [SubtitleMode] = [.off, .forced, .foreign, .always]
 
     /// What the audio language row says: "English", or "The file's default".
-    public var audioLabel: String { Self.languageName(trackDefaults.audioLanguage) ?? "The file's default" }
+    public var audioLabel: String { Self.languageName(trackDefaults.audioLanguage) ?? localized("The file's default") }
 
     /// What the subtitle language row says: "English", or "Same as the audio language".
     public var subtitleLanguageLabel: String {
-        Self.languageName(trackDefaults.subtitleLanguage) ?? "Same as the audio language"
+        Self.languageName(trackDefaults.subtitleLanguage) ?? localized("Same as the audio language")
     }
 
     /// Whether the subtitle language is asked for: only modes that show subtitles of their own language.
@@ -105,20 +112,20 @@ public final class MeModel: ObservableObject {
     /// The web's name of a mode.
     public static func modeLabel(_ mode: SubtitleMode) -> String {
         switch mode {
-        case .off: "Off"
-        case .forced: "Only for foreign dialogue"
-        case .foreign: "When the audio is in another language"
-        case .always: "Always"
+        case .off: localized("Off")
+        case .forced: localized("Only for foreign dialogue")
+        case .foreign: localized("When the audio is in another language")
+        case .always: localized("Always")
         }
     }
 
     /// What a mode does, under the row.
     public static func modeHint(_ mode: SubtitleMode) -> String {
         switch mode {
-        case .off: "Subtitles stay off until you turn them on."
-        case .forced: "Only forced subtitles, for signs and foreign dialogue."
-        case .foreign: "Full subtitles come on when the audio isn't in your subtitle language."
-        case .always: "Subtitles in your language come on whenever there are some."
+        case .off: localized("Subtitles stay off until you turn them on.")
+        case .forced: localized("Only forced subtitles, for signs and foreign dialogue.")
+        case .foreign: localized("Full subtitles come on when the audio isn't in your subtitle language.")
+        case .always: localized("Subtitles in your language come on whenever there are some.")
         }
     }
 
@@ -131,19 +138,19 @@ public final class MeModel: ObservableObject {
     public func setAudioLanguage(_ code: String?) async {
         var next = trackDefaults
         next.audioLanguage = code
-        await save(next, saved: "Audio language saved")
+        await save(next, saved: localized("Audio language saved"))
     }
 
     public func setSubtitleMode(_ mode: SubtitleMode) async {
         var next = trackDefaults
         next.subtitleMode = mode
-        await save(next, saved: "Subtitles saved")
+        await save(next, saved: localized("Subtitles saved"))
     }
 
     public func setSubtitleLanguage(_ code: String?) async {
         var next = trackDefaults
         next.subtitleLanguage = code
-        await save(next, saved: "Subtitle language saved")
+        await save(next, saved: localized("Subtitle language saved"))
     }
 
     /// Sends `next`, shown at once; the one before comes back, with a toast
@@ -164,7 +171,7 @@ public final class MeModel: ObservableObject {
         } catch {
             trackDefaults = before
             if case PleyError.insufficientScope = error { editable = false }
-            app.shell.show(asSentence("Couldn't save: \(describe(error))"))
+            app.shell.show(asSentence(localized("Couldn't save: \(describe(error))")))
         }
     }
 

@@ -23,10 +23,10 @@ public final class LibraryModel: ObservableObject {
     }
 
     /// What a failed load says.
-    public static let failedTitle = "Couldn't load this library"
-    public static let notFoundTitle = "This library isn't available"
-    public static let emptyTitle = "Nothing here yet"
-    public static let noMatchTitle = "Nothing matches these filters"
+    public static var failedTitle: String { localized("Couldn't load this library") }
+    public static var notFoundTitle: String { localized("This library isn't available") }
+    public static var emptyTitle: String { localized("Nothing here yet") }
+    public static var noMatchTitle: String { localized("Nothing matches these filters") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var library: Library?
@@ -177,7 +177,8 @@ public final class LibraryModel: ObservableObject {
 
     /// The filters in words, for the button that shows them: "Unwatched · Comedy · 2021".
     public var filterSummary: String {
-        [params.watched.map { $0 ? "Watched" : "Unwatched" }, params.genre, params.year.map(String.init)]
+        [params.watched.map { $0 ? localized("Watched") : localized("Unwatched") }, params.genre,
+         params.year.map(String.init)]
             .compactMap { $0 }.joined(separator: " · ")
     }
 

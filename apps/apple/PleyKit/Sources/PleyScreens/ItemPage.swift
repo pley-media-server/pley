@@ -55,8 +55,8 @@ public enum MetaPart: Hashable, Sendable {
     public var spoken: String {
         switch self {
         case .text(let text): text
-        case .contentRating(let rating): "rated \(rating)"
-        case .rating(let rating): "\(rating) out of 10"
+        case .contentRating(let rating): localized("rated \(rating)")
+        case .rating(let rating): localized("\(rating) out of 10")
         case .badges(let badges): badges.joined(separator: ", ")
         }
     }
@@ -84,9 +84,9 @@ public struct PrimaryAction: Hashable, Sendable {
     /// "Play", "Resume", "Play S1 · E3", "Resume S2 · E5", "Nothing to play".
     public var label: String {
         switch kind {
-        case .unavailable: "Nothing to play"
-        case .play: episode.map { "Play \($0)" } ?? "Play"
-        case .resume: episode.map { "Resume \($0)" } ?? "Resume"
+        case .unavailable: localized("Nothing to play")
+        case .play: episode.map { localized("Play \($0)") } ?? localized("Play")
+        case .resume: episode.map { localized("Resume \($0)") } ?? localized("Resume")
         }
     }
 }
@@ -135,7 +135,7 @@ public struct TrackChoices: Hashable, Sendable {
     public var audioLabel: String? {
         automaticAudio ? automaticLabel : audio.first(where: \.selected)?.label
     }
-    public var subtitleLabel: String { subtitles.first(where: \.selected)?.label ?? "Off" }
+    public var subtitleLabel: String { subtitles.first(where: \.selected)?.label ?? localized("Off") }
 }
 
 /// "Directors: A, B, C, D and 2 more".
@@ -150,7 +150,8 @@ public struct CrewLine: Hashable, Sendable {
 
     /// "A, B, C, D and 2 more".
     public var names: String {
-        people.map(\.name).joined(separator: ", ") + (more > 0 ? " and \(more) more" : "")
+        let names = people.map(\.name).joined(separator: ", ")
+        return more > 0 ? names + " " + localized("and \(more) more") : names
     }
 }
 
@@ -173,12 +174,12 @@ public struct ItemDetails: Hashable, Sendable {
     /// or network, plays, and the versions when there are several.
     public var rows: [InfoRow] {
         var rows: [InfoRow] = []
-        if let originalTitle { rows.append(InfoRow(label: "Original title", value: originalTitle)) }
-        if let released { rows.append(InfoRow(label: "Released", value: released)) }
+        if let originalTitle { rows.append(InfoRow(label: localized("Original title"), value: originalTitle)) }
+        if let released { rows.append(InfoRow(label: localized("Released"), value: released)) }
         if let studio { rows.append(InfoRow(label: studioLabel, value: studio)) }
-        if let plays { rows.append(InfoRow(label: "Plays", value: String(plays))) }
+        if let plays { rows.append(InfoRow(label: localized("Plays"), value: String(plays))) }
         if versions.count > 1 {
-            rows.append(InfoRow(label: "Versions", value: versions.map(\.label).joined(separator: ", ")))
+            rows.append(InfoRow(label: localized("Versions"), value: versions.map(\.label).joined(separator: ", ")))
         }
         return rows
     }
@@ -356,7 +357,7 @@ public struct ItemPage: Hashable, Sendable {
         details = Self.details(d, file: input.file)
         mediaInfo = Self.mediaInfo(d.files)
         extras = Self.distinct(d.extras)
-        castTitle = kind == .episode ? "Guest Stars" : "Cast"
+        castTitle = kind == .episode ? localized("Guest Stars") : localized("Cast")
         var seenCast = Set<Int>()
         cast = d.cast.filter { seenCast.insert($0.id).inserted }
         related = kind == .movie || kind == .show ? Self.distinct(input.related).filter { $0.id != d.id } : []
@@ -426,11 +427,11 @@ public struct ItemPage: Hashable, Sendable {
         switch d.kind {
         case .show:
             let count = s.childCount ?? seasons?.filter { ($0.index ?? 1) > 0 }.count
-            if let count, count > 0 { text(Words.pluralize(count, "season")) }
+            if let count, count > 0 { text(localized("\(count) seasons")) }
             text(yearRange(d.year, seasons))
         case .season:
             text(d.year.map(String.init))
-            if let leaves = s.leafCount, leaves > 0 { text(Words.pluralize(leaves, "episode")) }
+            if let leaves = s.leafCount, leaves > 0 { text(localized("\(leaves) episodes")) }
         case .episode:
             text(Words.date(s.releaseDate, locale: locale))
             text(file?.edition)
@@ -479,7 +480,9 @@ public struct ItemPage: Hashable, Sendable {
             subtitles: subtitles.map { TrackChoice(id: $0.index, label: Words.stream($0), selected: $0.index == subtitle) },
             versionId: file.id,
             automaticAudio: automatic,
-            automaticLabel: language.map { "Automatic (\($0))" } ?? "Automatic",
+            automaticLabel: language.map { localized("Automatic (\($0))") }
+                ?? localized(keyed: LocalizedStringResource("audio.automaticPlain", defaultValue: "Automatic",
+                                                            bundle: .atURL(Bundle.module.bundleURL))),
             audioIndex: shown,
             subtitleIndex: subtitle)
     }
@@ -501,7 +504,7 @@ public struct ItemPage: Hashable, Sendable {
         return ItemDetails(
             crew: crew, originalTitle: original, released: released,
             studio: d.studio.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 },
-            studioLabel: d.kind == .episode || d.kind == .show ? "Network" : "Studio",
+            studioLabel: d.kind == .episode || d.kind == .show ? localized("Network") : localized("Studio"),
             plays: d.userState.playCount > 0 ? d.userState.playCount : nil,
             versions: d.files.map { TrackChoice(id: $0.id, label: Words.versionDescription($0), selected: $0.id == file?.id) })
     }
@@ -510,26 +513,33 @@ public struct ItemPage: Hashable, Sendable {
     private static func mediaInfo(_ files: [MediaFile]) -> [FileInfo] {
         files.enumerated().map { n, f in
             let video = f.streams(.video).first
-            var rows = [InfoRow(label: "File", value: Words.fileName(f.path)),
-                        InfoRow(label: "Container", value: f.container?.uppercased() ?? "—")]
-            if f.size > 0 { rows.append(InfoRow(label: "Size", value: Words.bytes(f.size))) }
-            if let ms = f.durationMs, ms > 0 { rows.append(InfoRow(label: "Duration", value: Words.duration(ms: ms))) }
-            if let bitrate = f.bitrate, bitrate > 0 { rows.append(InfoRow(label: "Bitrate", value: Words.bitrate(bitrate))) }
+            var rows = [InfoRow(label: localized("File"), value: Words.fileName(f.path)),
+                        InfoRow(label: localized("Container"), value: f.container?.uppercased() ?? "—")]
+            if f.size > 0 { rows.append(InfoRow(label: localized("Size"), value: Words.bytes(f.size))) }
+            if let ms = f.durationMs, ms > 0 {
+                rows.append(InfoRow(label: localized("Duration"), value: Words.duration(ms: ms)))
+            }
+            if let bitrate = f.bitrate, bitrate > 0 {
+                rows.append(InfoRow(label: localized("Bitrate"), value: Words.bitrate(bitrate)))
+            }
             if let codec = f.videoCodec, !codec.isEmpty {
                 let value = [Words.codec(codec), Words.resolution(width: f.width, height: f.height) ?? "",
                              Words.dynamicRange(video) ?? ""].filter { !$0.isEmpty }.joined(separator: " · ")
-                rows.append(InfoRow(label: "Video", value: value))
+                rows.append(InfoRow(label: localized("Video"), value: value))
             }
-            if let codec = f.audioCodec, !codec.isEmpty { rows.append(InfoRow(label: "Audio", value: Words.codec(codec))) }
+            if let codec = f.audioCodec, !codec.isEmpty {
+                rows.append(InfoRow(label: localized("Audio"), value: Words.codec(codec)))
+            }
             let order: [StreamKind: Int] = [.video: 0, .audio: 1, .subtitle: 2]
             let streams = f.streams.filter { order[$0.kind] != nil }
                 .sorted { (order[$0.kind]!, $0.index) < (order[$1.kind]!, $1.index) }
                 .map { s in
-                    StreamInfo(kind: s.kind == .video ? "Video" : s.kind == .audio ? "Audio" : "Subtitles",
-                               codec: Words.codec(s.codec), language: Words.language(s.language),
-                               title: nonEmpty(s.title), details: streamDetails(s))
+                    let kind = s.kind == .video ? localized("Video")
+                        : s.kind == .audio ? localized("Audio") : localized("Subtitles")
+                    return StreamInfo(kind: kind, codec: Words.codec(s.codec), language: Words.language(s.language),
+                                      title: nonEmpty(s.title), details: streamDetails(s))
                 }
-            let title = nonEmpty(f.edition) ?? (files.count > 1 ? "Version \(n + 1)" : nil)
+            let title = nonEmpty(f.edition) ?? (files.count > 1 ? localized("Version \(n + 1)") : nil)
             return FileInfo(id: f.id, title: title, rows: rows, streams: streams)
         }
     }
@@ -555,13 +565,13 @@ public struct ItemPage: Hashable, Sendable {
                 parts.append(String(format: "%.1f kHz", locale: Locale(identifier: "en_US_POSIX"), Double(rate) / 1000))
             }
         default:
-            parts.append(s.textBased == false ? "Image-based" : "Text")
-            if s.external { parts.append("External") }
+            parts.append(s.textBased == false ? localized("Image-based") : localized("Text"))
+            if s.external { parts.append(localized("External")) }
         }
         let bitrate = Words.bitrate(s.bitrate)
         if !bitrate.isEmpty { parts.append(bitrate) }
-        if s.forced { parts.append("Forced") }
-        if s.default { parts.append("Default") }
+        if s.forced { parts.append(localized("Forced")) }
+        if s.default { parts.append(localized("Default")) }
         return parts.joined(separator: " · ")
     }
 
@@ -572,7 +582,7 @@ public struct ItemPage: Hashable, Sendable {
         case .show, .season:
             tabs = (input.seasons ?? []).map { season in
                 SeasonTab(id: season.id, title: Words.seasonTitle(season.title, index: season.index),
-                          episodes: season.leafCount.map { Words.pluralize($0, "episode") })
+                          episodes: season.leafCount.map { localized("\($0) episodes") })
             }
         case .episode:
             tabs = []
@@ -588,14 +598,14 @@ public struct ItemPage: Hashable, Sendable {
     }
 
     /// An episode's words for lists and rows.
-    public static func episodeLine(_ e: ItemSummary, locale: Locale = .current) -> EpisodeLine {
+    public static func episodeLine(_ e: ItemSummary, locale: Locale = ShownLanguage.locale) -> EpisodeLine {
         let inProgress = Words.isInProgress(e)
         let runtime = Words.runtime(ms: e.durationMs)
         let length = inProgress ? Words.timeLeft(positionMs: e.userState.positionMs, durationMs: e.durationMs) : runtime
         let spokenLength = inProgress
             ? Words.spokenTimeLeft(positionMs: e.userState.positionMs, durationMs: e.durationMs)
             : Words.spokenDuration(ms: e.durationMs)
-        let number = e.index.map { "Episode \($0)" }
+        let number = e.index.map { localized("Episode \($0)") }
         return EpisodeLine(
             item: e,
             title: e.index.map { "\($0). \(e.title)" } ?? e.title,
@@ -608,7 +618,7 @@ public struct ItemPage: Hashable, Sendable {
             watched: e.userState.watched,
             pictures: Tile.stills(e),
             spokenLabel: [number, e.title].compactMap { $0 }.joined(separator: ", "),
-            spokenValue: [spokenLength, e.userState.watched ? "watched" : ""].filter { !$0.isEmpty }
+            spokenValue: [spokenLength, e.userState.watched ? localized("watched") : ""].filter { !$0.isEmpty }
                 .joined(separator: ", "))
     }
 

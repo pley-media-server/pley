@@ -1,5 +1,3969 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "%@ out of 10" : {
+      "comment" : "VoiceOver: the critics' rating, \"7.6 out of 10\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ de 10"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ sur 10"
+          }
+        }
+      }
+    },
+    "%@: %@" : {
+      "comment" : "A name or what failed, then why: \"Living room: the server can't be reached\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ : %@"
+          }
+        }
+      }
+    },
+    "%lld albums" : {
+      "comment" : "An artist's count of albums.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld album"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld albums"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de álbumes"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld álbum"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld álbumes"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld d’albums"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld album"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld albums"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld episodes" : {
+      "comment" : "A season's count of episodes.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld episode"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld episodes"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de episodios"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld episodio"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld episodios"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld d’épisodes"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld épisode"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld épisodes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld items" : {
+      "comment" : "How many titles are added to a playlist.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld item"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld items"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de elementos"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld elemento"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld elementos"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld d’éléments"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld élément"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld éléments"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld movies" : {
+      "comment" : "A count of movies: a collection's or a person's.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld movie"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld movies"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de películas"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld película"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld películas"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de films"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld film"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld films"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld results" : {
+      "comment" : "VoiceOver, after a search group's name: \"Movies, 3 results\".",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld result"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld results"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de resultados"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld resultado"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld resultados"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de résultats"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld résultat"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld résultats"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld seasons" : {
+      "comment" : "A show's count of seasons, in the line under its title.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld season"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld seasons"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de temporadas"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld temporada"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld temporadas"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de saisons"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld saison"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld saisons"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld shows" : {
+      "comment" : "A count of shows: a collection's or a person's.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld show"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld shows"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de series"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld serie"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld series"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de séries"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld série"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld séries"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld tracks" : {
+      "comment" : "A count of tracks: an artist's or an album's.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld track"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld tracks"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de pistas"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pista"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pistas"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de titres"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld titre"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld titres"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "A profile's name, picture and PIN are changed in Pley on the web." : {
+      "comment" : "The account page, under the profile.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El nombre, la foto y el PIN de un perfil se cambian en Pley en la web."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le nom, la photo et le code PIN d’un profil se modifient dans Pley sur le web."
+          }
+        }
+      }
+    },
+    "Acting" : {
+      "comment" : "A person's page: titles they acted in.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interpretación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Interprétation"
+          }
+        }
+      }
+    },
+    "Add to My List" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a Mi lista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter à Ma liste"
+          }
+        }
+      }
+    },
+    "Add to playlist…" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a una lista de reproducción…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter à une playlist…"
+          }
+        }
+      }
+    },
+    "Added %lld items to %@" : {
+      "comment" : "Toast after adding two or more titles to a playlist.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se añadieron %lld elementos a %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld éléments ajoutés à %@"
+          }
+        }
+      }
+    },
+    "Added to %@" : {
+      "comment" : "Toast after adding one title to a playlist.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadido a %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouté à %@"
+          }
+        }
+      }
+    },
+    "After %@" : {
+      "comment" : "A smart filter's words: after a year.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Después de %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Après %@"
+          }
+        }
+      }
+    },
+    "Albums" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Álbumes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Albums"
+          }
+        }
+      }
+    },
+    "Always" : {
+      "comment" : "A subtitle mode.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siempre"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toujours"
+          }
+        }
+      }
+    },
+    "Artists" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artistas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Artistes"
+          }
+        }
+      }
+    },
+    "Ask who's watching" : {
+      "comment" : "Always start as: ask each time.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preguntar quién está viendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demander qui regarde"
+          }
+        }
+      }
+    },
+    "At most %@" : {
+      "comment" : "A smart filter's words: a limit.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ como máximo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ au maximum"
+          }
+        }
+      }
+    },
+    "At most %lld characters" : {
+      "comment" : "A playlist title that is too long.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "At most %lld character"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "At most %lld characters"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de caracteres como máximo"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld carácter como máximo"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld caracteres como máximo"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de caractères au maximum"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld caractère au maximum"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld caractères au maximum"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Audio" : {
+      "comment" : "Media info: an audio stream.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Audio"
+          }
+        }
+      }
+    },
+    "Audio language saved" : {
+      "comment" : "Toast.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma del audio guardado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langue audio enregistrée"
+          }
+        }
+      }
+    },
+    "Automatic" : {
+      "comment" : "The quality setting's Automatic.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automático"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique"
+          }
+        }
+      }
+    },
+    "Automatic (%@)" : {
+      "comment" : "The audio picker: Automatic, and the language it plays (Spanish: la pista, feminine).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automática (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique (%@)"
+          }
+        }
+      }
+    },
+    "Before %@" : {
+      "comment" : "A smart filter's words: before a year.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Antes de %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avant %@"
+          }
+        }
+      }
+    },
+    "Best rated first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mejor valorados primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les mieux notés d’abord"
+          }
+        }
+      }
+    },
+    "Bitrate" : {
+      "comment" : "Media info, and a library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tasa de bits"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Débit"
+          }
+        }
+      }
+    },
+    "By release date" : {
+      "comment" : "A collection's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por fecha de estreno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par date de sortie"
+          }
+        }
+      }
+    },
+    "By title" : {
+      "comment" : "A smart filter's or a collection's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por título"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par titre"
+          }
+        }
+      }
+    },
+    "By title, Z to A" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Por título, de la Z a la A"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par titre, de Z à A"
+          }
+        }
+      }
+    },
+    "Cast" : {
+      "comment" : "A title's cast row.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reparto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Distribution"
+          }
+        }
+      }
+    },
+    "Collections" : {
+      "comment" : "A library tab.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Colecciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collections"
+          }
+        }
+      }
+    },
+    "Container" : {
+      "comment" : "Media info: the file format.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contenedor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conteneur"
+          }
+        }
+      }
+    },
+    "Couldn't add it: %@" : {
+      "comment" : "Toast: adding to a playlist failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo añadir: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de l’ajouter : %@"
+          }
+        }
+      }
+    },
+    "Couldn't change My List" : {
+      "comment" : "Toast when adding to or removing from My List failed; the reason follows after a colon.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cambiar Mi lista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de modifier Ma liste"
+          }
+        }
+      }
+    },
+    "Couldn't change the order: %@" : {
+      "comment" : "Toast: changing the libraries' order failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cambiar el orden: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de modifier l’ordre : %@"
+          }
+        }
+      }
+    },
+    "Couldn't delete it: %@" : {
+      "comment" : "Toast: deleting a playlist failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo eliminar: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de la supprimer : %@"
+          }
+        }
+      }
+    },
+    "Couldn't load more: %@" : {
+      "comment" : "Toast: the next page of history didn't load, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar más: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger la suite : %@"
+          }
+        }
+      }
+    },
+    "Couldn't load the collections" : {
+      "comment" : "A library's Collections tab when it didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar las colecciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger les collections"
+          }
+        }
+      }
+    },
+    "Couldn't load this collection" : {
+      "comment" : "A collection's page when it didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar esta colección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger cette collection"
+          }
+        }
+      }
+    },
+    "Couldn't load this library" : {
+      "comment" : "A library's page when it didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar esta biblioteca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger cette bibliothèque"
+          }
+        }
+      }
+    },
+    "Couldn't load this playlist" : {
+      "comment" : "A playlist's page when it didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar esta lista de reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger cette playlist"
+          }
+        }
+      }
+    },
+    "Couldn't load your history: %@" : {
+      "comment" : "Toast: watch history didn't load, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar tu historial: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger votre historique : %@"
+          }
+        }
+      }
+    },
+    "Couldn't load your home screen" : {
+      "comment" : "Home when it didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar tu pantalla de inicio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger votre accueil"
+          }
+        }
+      }
+    },
+    "Couldn't load your libraries" : {
+      "comment" : "Libraries when they didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar tus bibliotecas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger vos bibliothèques"
+          }
+        }
+      }
+    },
+    "Couldn't load your playlists" : {
+      "comment" : "Playlists when they didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar tus listas de reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger vos playlists"
+          }
+        }
+      }
+    },
+    "Couldn't make the playlist: %@" : {
+      "comment" : "Toast: making a playlist failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo crear la lista de reproducción: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de créer la playlist : %@"
+          }
+        }
+      }
+    },
+    "Couldn't mark it" : {
+      "comment" : "Toast when marking watched or unwatched failed; the reason follows after a colon.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo marcar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de le marquer"
+          }
+        }
+      }
+    },
+    "Couldn't move it: %@" : {
+      "comment" : "Toast: moving a playlist entry failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo mover: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de le déplacer : %@"
+          }
+        }
+      }
+    },
+    "Couldn't remove it" : {
+      "comment" : "Toast when removing from Continue Watching failed; the reason follows after a colon.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo quitar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de le retirer"
+          }
+        }
+      }
+    },
+    "Couldn't remove it: %@" : {
+      "comment" : "Toast: removing from history or a playlist failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo quitar: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de le retirer : %@"
+          }
+        }
+      }
+    },
+    "Couldn't rename it: %@" : {
+      "comment" : "Toast: renaming a playlist failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cambiar el nombre: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de la renommer : %@"
+          }
+        }
+      }
+    },
+    "Couldn't save that choice: %@" : {
+      "comment" : "Toast: picking a version or track on an item's page failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo guardar esa elección: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer ce choix : %@"
+          }
+        }
+      }
+    },
+    "Couldn't save the order: %@" : {
+      "comment" : "Toast: saving the libraries' order failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo guardar el orden: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer l’ordre : %@"
+          }
+        }
+      }
+    },
+    "Couldn't save your rating: %@" : {
+      "comment" : "Toast: rating a title failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo guardar tu valoración: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible d’enregistrer votre note : %@"
+          }
+        }
+      }
+    },
+    "Couldn't save: %@" : {
+      "comment" : "Toast: saving an audio or subtitle default failed, and why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo guardar: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enregistrement impossible : %@"
+          }
+        }
+      }
+    },
+    "Creating" : {
+      "comment" : "A person's page: titles they created.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Creación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Création"
+          }
+        }
+      }
+    },
+    "Custom order" : {
+      "comment" : "A collection's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Orden personalizado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordre personnalisé"
+          }
+        }
+      }
+    },
+    "Date added" : {
+      "comment" : "A library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de adición"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date d’ajout"
+          }
+        }
+      }
+    },
+    "Default" : {
+      "comment" : "Media info: the default stream.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Predeterminado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Par défaut"
+          }
+        }
+      }
+    },
+    "Deleted %@" : {
+      "comment" : "Toast after deleting a playlist: its title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "«%@» eliminada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "« %@ » supprimée"
+          }
+        }
+      }
+    },
+    "Directing" : {
+      "comment" : "A person's page: titles they directed.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dirección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réalisation"
+          }
+        }
+      }
+    },
+    "Duration" : {
+      "comment" : "Media info, and a library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Duración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durée"
+          }
+        }
+      }
+    },
+    "Earliest release first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estreno más antiguo primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortie la plus ancienne d’abord"
+          }
+        }
+      }
+    },
+    "Episode %lld" : {
+      "comment" : "VoiceOver: an episode's number.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episodio %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Épisode %lld"
+          }
+        }
+      }
+    },
+    "Episodes" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Episodios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Épisodes"
+          }
+        }
+      }
+    },
+    "External" : {
+      "comment" : "Media info: subtitles in a file of their own (French, Spanish: les sous-titres, plural).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Externos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Externes"
+          }
+        }
+      }
+    },
+    "File" : {
+      "comment" : "Media info: the file name.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fichier"
+          }
+        }
+      }
+    },
+    "First added first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadidos hace más tiempo primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouts les plus anciens d’abord"
+          }
+        }
+      }
+    },
+    "Forced" : {
+      "comment" : "Media info and Find Subtitles…: forced subtitles (French, Spanish: les sous-titres, plural).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forzados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forcés"
+          }
+        }
+      }
+    },
+    "From %@" : {
+      "comment" : "A smart filter's words: a year.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Año: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Année : %@"
+          }
+        }
+      }
+    },
+    "Full subtitles come on when the audio isn't in your subtitle language." : {
+      "comment" : "Under the subtitle mode When the audio is in another language.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los subtítulos completos aparecen cuando el audio no está en tu idioma de subtítulos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sous-titres complets s’affichent quand l’audio n’est pas dans votre langue de sous-titres."
+          }
+        }
+      }
+    },
+    "Genre: %@" : {
+      "comment" : "A smart filter's words.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Género: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genre : %@"
+          }
+        }
+      }
+    },
+    "Give it a title" : {
+      "comment" : "Under a playlist's title field when it is empty.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ponle un título"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Donnez-lui un titre"
+          }
+        }
+      }
+    },
+    "Go to season" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a la temporada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aller à la saison"
+          }
+        }
+      }
+    },
+    "Go to show" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ir a la serie"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aller à la série"
+          }
+        }
+      }
+    },
+    "Guest Stars" : {
+      "comment" : "An episode's cast row.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estrellas invitadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Invités"
+          }
+        }
+      }
+    },
+    "Home" : {
+      "comment" : "A section: tab, sidebar row, View menu.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inicio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accueil"
+          }
+        }
+      }
+    },
+    "Image-based" : {
+      "comment" : "Media info: a subtitle drawn as pictures.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Imagen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Image"
+          }
+        }
+      }
+    },
+    "In progress" : {
+      "comment" : "A smart filter's words.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En curso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cours"
+          }
+        }
+      }
+    },
+    "Label: %@" : {
+      "comment" : "A smart filter's words.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Etiqueta: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Étiquette : %@"
+          }
+        }
+      }
+    },
+    "Last played" : {
+      "comment" : "A library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Última reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dernière lecture"
+          }
+        }
+      }
+    },
+    "Latest release first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estreno más reciente primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sortie la plus récente d’abord"
+          }
+        }
+      }
+    },
+    "Least played first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Menos reproducidos primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les moins lus d’abord"
+          }
+        }
+      }
+    },
+    "Least recently played first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducidos hace más tiempo primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lus il y a le plus longtemps d’abord"
+          }
+        }
+      }
+    },
+    "Libraries" : {
+      "comment" : "A section.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliotecas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothèques"
+          }
+        }
+      }
+    },
+    "Libraries are in the server's order" : {
+      "comment" : "Toast after Use the server's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Las bibliotecas están en el orden del servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les bibliothèques sont dans l’ordre du serveur"
+          }
+        }
+      }
+    },
+    "Library" : {
+      "comment" : "A library tab, and a library without a name.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Biblioteca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bibliothèque"
+          }
+        }
+      }
+    },
+    "Live TV" : {
+      "comment" : "A section, a search group, and Now Playing's title for a channel without a name.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TV en vivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TV en direct"
+          }
+        }
+      }
+    },
+    "Longest first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más largos primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les plus longs d’abord"
+          }
+        }
+      }
+    },
+    "Lowest rated first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Peor valorados primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les moins bien notés d’abord"
+          }
+        }
+      }
+    },
+    "Managed profile" : {
+      "comment" : "The account page: a profile without a password of its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfil administrado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profil géré"
+          }
+        }
+      }
+    },
+    "Mark as unwatched" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marcar como no visto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marquer comme non vu"
+          }
+        }
+      }
+    },
+    "Mark as watched" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marcar como visto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Marquer comme vu"
+          }
+        }
+      }
+    },
+    "Most played first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más reproducidos primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les plus lus d’abord"
+          }
+        }
+      }
+    },
+    "Movies" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Películas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Films"
+          }
+        }
+      }
+    },
+    "Network" : {
+      "comment" : "Details: a show's TV network.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cadena"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaîne"
+          }
+        }
+      }
+    },
+    "Newest first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más recientes primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les plus récents d’abord"
+          }
+        }
+      }
+    },
+    "No collections in this library" : {
+      "comment" : "A library's Collections tab when empty.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay colecciones en esta biblioteca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune collection dans cette bibliothèque"
+          }
+        }
+      }
+    },
+    "No libraries yet" : {
+      "comment" : "Home and Libraries when the profile sees no library.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay bibliotecas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune bibliothèque pour l’instant"
+          }
+        }
+      }
+    },
+    "No playlists yet" : {
+      "comment" : "Playlists when there are none.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay listas de reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune playlist pour l’instant"
+          }
+        }
+      }
+    },
+    "No results for “%@”" : {
+      "comment" : "Search with no results: the query in quotes.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay resultados para «%@»"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun résultat pour « %@ »"
+          }
+        }
+      }
+    },
+    "Not in progress" : {
+      "comment" : "A smart filter's words.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No en curso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas en cours"
+          }
+        }
+      }
+    },
+    "Nothing here yet" : {
+      "comment" : "Home or a library with nothing in it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay nada aquí"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien ici pour l’instant"
+          }
+        }
+      }
+    },
+    "Nothing in this playlist yet" : {
+      "comment" : "A playlist with no entries.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay nada en esta lista de reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien dans cette playlist pour l’instant"
+          }
+        }
+      }
+    },
+    "Nothing matches these filters" : {
+      "comment" : "A library's grid when the filters leave nothing.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada coincide con estos filtros"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien ne correspond à ces filtres"
+          }
+        }
+      }
+    },
+    "Nothing played yet. Titles you watch to the end show here." : {
+      "comment" : "Watch history when it is empty.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no se ha reproducido nada. Los títulos que veas hasta el final aparecen aquí."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien n’a encore été lu. Les titres que vous regardez jusqu’au bout s’affichent ici."
+          }
+        }
+      }
+    },
+    "Nothing to add" : {
+      "comment" : "Toast: nothing was added to the playlist.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay nada que añadir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien à ajouter"
+          }
+        }
+      }
+    },
+    "Nothing to play" : {
+      "comment" : "Toast, and the main button when there is nothing to play.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay nada que reproducir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien à lire"
+          }
+        }
+      }
+    },
+    "Nothing to play yet" : {
+      "comment" : "Toast: music with no tracks yet.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay nada que reproducir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rien à lire pour l’instant"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "comment" : "The subtitles picker or row when no subtitles are on.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivés"
+          }
+        }
+      }
+    },
+    "Oldest first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más antiguos primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les plus anciens d’abord"
+          }
+        }
+      }
+    },
+    "Only for foreign dialogue" : {
+      "comment" : "A subtitle mode.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo para diálogos en otro idioma"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seulement pour les dialogues étrangers"
+          }
+        }
+      }
+    },
+    "Only forced subtitles, for signs and foreign dialogue." : {
+      "comment" : "Under the subtitle mode Only for foreign dialogue.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo subtítulos forzados, para carteles y diálogos en otro idioma."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seulement les sous-titres forcés, pour les panneaux et les dialogues étrangers."
+          }
+        }
+      }
+    },
+    "Open" : {
+      "comment" : "A toast's button, and the action that opens a music page.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir"
+          }
+        }
+      }
+    },
+    "Open-source licences: none. Pley for Apple is built only with Apple's frameworks and contains no third-party code." : {
+      "comment" : "About.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licencias de código abierto: ninguna. Pley para Apple se compila solo con los frameworks de Apple y no contiene código de terceros."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Licences open source : aucune. Pley pour Apple est construit uniquement avec les frameworks d’Apple et ne contient aucun code tiers."
+          }
+        }
+      }
+    },
+    "Original" : {
+      "comment" : "The quality setting's Original.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original"
+          }
+        }
+      }
+    },
+    "Original title" : {
+      "comment" : "Details: the original title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Título original"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre original"
+          }
+        }
+      }
+    },
+    "People" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personnes"
+          }
+        }
+      }
+    },
+    "Person not found" : {
+      "comment" : "A person's page when they're gone.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Persona no encontrada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Personne introuvable"
+          }
+        }
+      }
+    },
+    "Play" : {
+      "comment" : "The main button and the Play action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire"
+          }
+        }
+      }
+    },
+    "Play %@" : {
+      "comment" : "The main button of a show: the episode it plays, \"Play S1 · E3\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire %@"
+          }
+        }
+      }
+    },
+    "Play from start" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir desde el principio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire depuis le début"
+          }
+        }
+      }
+    },
+    "Playlists" : {
+      "comment" : "A section.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Listas de reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Playlists"
+          }
+        }
+      }
+    },
+    "Plays" : {
+      "comment" : "Details: how many times it was played.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lectures"
+          }
+        }
+      }
+    },
+    "Pley %@ (build %@) for %@" : {
+      "comment" : "About: the version, build and device.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley %@ (compilación %@) para %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley %@ (build %@) pour %@"
+          }
+        }
+      }
+    },
+    "Pley is licensed under the terms in its LICENSE file." : {
+      "comment" : "About.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley se distribuye según los términos de su archivo LICENSE."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley est distribué selon les conditions de son fichier LICENSE."
+          }
+        }
+      }
+    },
+    "Producing" : {
+      "comment" : "A person's page: titles they produced.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Producción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Production"
+          }
+        }
+      }
+    },
+    "Quality" : {
+      "comment" : "The quality setting's title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calidad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité"
+          }
+        }
+      }
+    },
+    "Quality on Wi-Fi" : {
+      "comment" : "The quality setting's title on a device with mobile data.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calidad con Wi-Fi"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité en Wi-Fi"
+          }
+        }
+      }
+    },
+    "Quality on mobile data" : {
+      "comment" : "The quality setting's title on a device with mobile data.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calidad con datos móviles"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité en données mobiles"
+          }
+        }
+      }
+    },
+    "Rated %@" : {
+      "comment" : "A smart filter's words: a content rating.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clasificación: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Classification : %@"
+          }
+        }
+      }
+    },
+    "Rating" : {
+      "comment" : "A library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Valoración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        }
+      }
+    },
+    "Recently added first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadidos recientemente primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouts les plus récents d’abord"
+          }
+        }
+      }
+    },
+    "Recently played first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducidos recientemente primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lus récemment d’abord"
+          }
+        }
+      }
+    },
+    "Recommended" : {
+      "comment" : "A library tab.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recomendado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recommandations"
+          }
+        }
+      }
+    },
+    "Release date" : {
+      "comment" : "A library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de estreno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date de sortie"
+          }
+        }
+      }
+    },
+    "Released" : {
+      "comment" : "Details: the release date.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fecha de estreno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date de sortie"
+          }
+        }
+      }
+    },
+    "Remove from Continue Watching" : {
+      "comment" : "An item action on a Continue Watching tile.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de Seguir viendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer de Reprendre la lecture"
+          }
+        }
+      }
+    },
+    "Remove from My List" : {
+      "comment" : "An item action.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de Mi lista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer de Ma liste"
+          }
+        }
+      }
+    },
+    "Removed %@" : {
+      "comment" : "Toast after removing an entry from a playlist, with Undo.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se quitó «%@»"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retiré de la playlist : « %@ »"
+          }
+        }
+      }
+    },
+    "Resume" : {
+      "comment" : "The main button when part-way.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reanudar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprendre"
+          }
+        }
+      }
+    },
+    "Resume %@" : {
+      "comment" : "The main button of a show: the episode it resumes, \"Resume S2 · E5\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reanudar %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprendre %@"
+          }
+        }
+      }
+    },
+    "Resume from %@" : {
+      "comment" : "Resume with where it starts: \"Resume from 12:34\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reanudar desde %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprendre à %@"
+          }
+        }
+      }
+    },
+    "Same as the audio language" : {
+      "comment" : "The subtitle language row with no language set.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El mismo que el del audio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Identique à la langue audio"
+          }
+        }
+      }
+    },
+    "Scanning your libraries…" : {
+      "comment" : "Home while the server scans and nothing shows yet.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analizando tus bibliotecas…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Analyse de vos bibliothèques…"
+          }
+        }
+      }
+    },
+    "Seasons" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporadas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisons"
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "comment" : "A section.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajustes"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paramètres"
+          }
+        }
+      }
+    },
+    "Shortest first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Más cortos primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les plus courts d’abord"
+          }
+        }
+      }
+    },
+    "Shows" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Series"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Séries"
+          }
+        }
+      }
+    },
+    "Signing in in a private window keeps no Pley cookie on this device, so you type your password each time." : {
+      "comment" : "Under Sign in privately.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciar sesión en una ventana privada no guarda ninguna cookie de Pley en este dispositivo, así que escribes tu contraseña cada vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se connecter dans une fenêtre privée ne garde aucun cookie Pley sur cet appareil : vous saisissez votre mot de passe à chaque fois."
+          }
+        }
+      }
+    },
+    "Size" : {
+      "comment" : "Media info: the file size.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tamaño"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taille"
+          }
+        }
+      }
+    },
+    "Sorted by %@" : {
+      "comment" : "A smart filter's order the app doesn't know: its field.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ordenado por %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trié par %@"
+          }
+        }
+      }
+    },
+    "Studio" : {
+      "comment" : "Details: a movie's studio.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estudio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Studio"
+          }
+        }
+      }
+    },
+    "Studio: %@" : {
+      "comment" : "A smart filter's words.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estudio: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Studio : %@"
+          }
+        }
+      }
+    },
+    "Subtitle language saved" : {
+      "comment" : "Toast.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma de los subtítulos guardado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langue des sous-titres enregistrée"
+          }
+        }
+      }
+    },
+    "Subtitles" : {
+      "comment" : "Media info: a subtitle stream.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtítulos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sous-titres"
+          }
+        }
+      }
+    },
+    "Subtitles in your language come on whenever there are some." : {
+      "comment" : "Under the subtitle mode Always.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los subtítulos en tu idioma aparecen siempre que los haya."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sous-titres dans votre langue s’affichent dès qu’il y en a."
+          }
+        }
+      }
+    },
+    "Subtitles saved" : {
+      "comment" : "Toast.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtítulos guardados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sous-titres enregistrés"
+          }
+        }
+      }
+    },
+    "Subtitles stay off until you turn them on." : {
+      "comment" : "Under the subtitle mode Off.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Los subtítulos siguen desactivados hasta que los actives."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Les sous-titres restent désactivés jusqu’à ce que vous les activiez."
+          }
+        }
+      }
+    },
+    "System uses your caption style from Settings → Accessibility → Subtitles & Captioning." : {
+      "comment" : "Under the subtitle style settings: what System means.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sistema usa tu estilo de subtítulos de Ajustes → Accesibilidad → Subtítulos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Système utilise votre style de sous-titres de Réglages → Accessibilité → Sous-titres."
+          }
+        }
+      }
+    },
+    "Text" : {
+      "comment" : "Media info: a subtitle in text.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Texte"
+          }
+        }
+      }
+    },
+    "The %@s" : {
+      "comment" : "A smart filter's words: a decade, \"The 1990s\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Años %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Années %@"
+          }
+        }
+      }
+    },
+    "The file's default" : {
+      "comment" : "The audio language row with no language set.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El predeterminado del archivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celle du fichier par défaut"
+          }
+        }
+      }
+    },
+    "This collection isn't available" : {
+      "comment" : "A collection's page when it's gone.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta colección no está disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette collection n’est pas disponible"
+          }
+        }
+      }
+    },
+    "This is how subtitles look." : {
+      "comment" : "The subtitle style's preview line.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Así se ven los subtítulos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Voici à quoi ressemblent les sous-titres."
+          }
+        }
+      }
+    },
+    "This library isn't available" : {
+      "comment" : "A library's page when it's gone.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta biblioteca no está disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette bibliothèque n’est pas disponible"
+          }
+        }
+      }
+    },
+    "This playlist isn't available" : {
+      "comment" : "A playlist's page when it's gone.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta lista de reproducción no está disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette playlist n’est pas disponible"
+          }
+        }
+      }
+    },
+    "This sign-in can't change them: change them in Pley on the web." : {
+      "comment" : "The account page, when this sign-in can't change the track defaults.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta sesión no puede cambiarlos: cámbialos en Pley en la web."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette connexion ne peut pas les modifier : modifiez-les dans Pley sur le web."
+          }
+        }
+      }
+    },
+    "This title isn't available" : {
+      "comment" : "An item's page when it's gone.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este título no está disponible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce titre n’est pas disponible"
+          }
+        }
+      }
+    },
+    "Title" : {
+      "comment" : "A library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Título"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titre"
+          }
+        }
+      }
+    },
+    "Track %lld" : {
+      "comment" : "VoiceOver: a track's number on its album.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pista %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Piste %lld"
+          }
+        }
+      }
+    },
+    "Tracks" : {
+      "comment" : "A search group.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pistas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Titres"
+          }
+        }
+      }
+    },
+    "Undo" : {
+      "comment" : "A toast's button.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deshacer"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annuler"
+          }
+        }
+      }
+    },
+    "Unwatched" : {
+      "comment" : "A library filter, and a smart filter's words.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No visto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Non vu"
+          }
+        }
+      }
+    },
+    "Version %lld" : {
+      "comment" : "Media info: a file without an edition name, when there are several.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versión %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %lld"
+          }
+        }
+      }
+    },
+    "Versions" : {
+      "comment" : "Details: the versions (files).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versiones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Versions"
+          }
+        }
+      }
+    },
+    "Video" : {
+      "comment" : "Media info: a video stream.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Video"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vidéo"
+          }
+        }
+      }
+    },
+    "Watched" : {
+      "comment" : "A library filter, and a smart filter's words.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vu"
+          }
+        }
+      }
+    },
+    "When the audio is in another language" : {
+      "comment" : "A subtitle mode.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuando el audio está en otro idioma"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quand l’audio est dans une autre langue"
+          }
+        }
+      }
+    },
+    "Writing" : {
+      "comment" : "A person's page: titles they wrote.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Guion"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scénario"
+          }
+        }
+      }
+    },
+    "Year" : {
+      "comment" : "A library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Año"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Année"
+          }
+        }
+      }
+    },
+    "Your best rated first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus mejor valorados primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos mieux notés d’abord"
+          }
+        }
+      }
+    },
+    "Your lowest rated first" : {
+      "comment" : "A smart filter's order.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tus peor valorados primero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vos moins bien notés d’abord"
+          }
+        }
+      }
+    },
+    "Your rating" : {
+      "comment" : "A library sort.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tu valoración"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Votre note"
+          }
+        }
+      }
+    },
+    "and %lld more" : {
+      "comment" : "After the first names of a crew line: \"A, B, C, D and 2 more\".",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "and %lld more"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "and %lld more"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "y %lld más"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "y %lld más"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "y %lld más"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "et %lld d’autres"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "et %lld autre"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "et %lld autres"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "audio.automaticPlain" : {
+      "comment" : "The audio picker's Automatic when the tracks don't say their language (Spanish: la pista, feminine).",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automática"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique"
+          }
+        }
+      }
+    },
+    "collection" : {
+      "comment" : "VoiceOver: what a collection card is.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "colección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "collection"
+          }
+        }
+      }
+    },
+    "iPhone and iPad" : {
+      "comment" : "About: the devices this app is for, \"Pley 1.0 (build 12) for iPhone and iPad\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone y iPad"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "iPhone et iPad"
+          }
+        }
+      }
+    },
+    "music playlist" : {
+      "comment" : "VoiceOver: what a music playlist card is.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lista de reproducción de música"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "playlist musicale"
+          }
+        }
+      }
+    },
+    "on %@" : {
+      "comment" : "VoiceOver: the device a history entry played on, \"on Pixel 9\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sur %@"
+          }
+        }
+      }
+    },
+    "playlist" : {
+      "comment" : "VoiceOver: what a playlist card is.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lista de reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "playlist"
+          }
+        }
+      }
+    },
+    "rated %@" : {
+      "comment" : "VoiceOver: the content rating, \"rated PG-13\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "clasificación %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "classification %@"
+          }
+        }
+      }
+    },
+    "scanning" : {
+      "comment" : "VoiceOver: a library being scanned.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "analizando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "analyse en cours"
+          }
+        }
+      }
+    },
+    "smart collection" : {
+      "comment" : "VoiceOver: what a smart collection card is.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "colección inteligente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "collection intelligente"
+          }
+        }
+      }
+    },
+    "smart playlist" : {
+      "comment" : "VoiceOver: what a smart playlist card is.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "lista de reproducción inteligente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "playlist intelligente"
+          }
+        }
+      }
+    },
+    "something went wrong: try again" : {
+      "comment" : "An error without words of its own, in lower case: it follows \"Couldn't …: \".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "algo salió mal: vuelve a intentarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "une erreur s’est produite : réessayez"
+          }
+        }
+      }
+    },
+    "watched" : {
+      "comment" : "VoiceOver, after an episode's length.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "visto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vu"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

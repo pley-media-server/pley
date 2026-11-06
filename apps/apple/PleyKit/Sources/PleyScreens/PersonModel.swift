@@ -38,13 +38,14 @@ public struct PersonPage: Hashable, Sendable {
         id = person.id
         name = person.name
         photo = person.photoUrl.flatMap { $0.isEmpty ? nil : $0 }
-        counts = [movies.isEmpty ? nil : Words.pluralize(movies.count, "movie"),
-                  shows.isEmpty ? nil : Words.pluralize(shows.count, "show")].compactMap { $0 }
+        counts = [movies.isEmpty ? nil : localized("\(movies.count) movies"),
+                  shows.isEmpty ? nil : localized("\(shows.count) shows")].compactMap { $0 }
             .joined(separator: " · ")
         self.movies = movies.map { Self.tile($0.item, $0.roles) }
         self.shows = shows.map { Self.tile($0.item, $0.roles) }
-        let order: [(CreditRole, String)] = [(.actor, "Acting"), (.director, "Directing"), (.creator, "Creating"),
-                                             (.writer, "Writing"), (.producer, "Producing")]
+        let order: [(CreditRole, String)] = [(.actor, localized("Acting")), (.director, localized("Directing")),
+                                             (.creator, localized("Creating")), (.writer, localized("Writing")),
+                                             (.producer, localized("Producing"))]
         roles = order.compactMap { role, title in
             let titles = credits.filter { $0.roles.contains { $0.role == role } }
             guard !titles.isEmpty else { return nil }
@@ -72,7 +73,7 @@ public final class PersonModel: ObservableObject {
         case failed(String)
     }
 
-    public static let notFoundTitle = "Person not found"
+    public static var notFoundTitle: String { localized("Person not found") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var page: PersonPage?

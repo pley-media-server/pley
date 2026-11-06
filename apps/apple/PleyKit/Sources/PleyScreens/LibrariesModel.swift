@@ -27,7 +27,9 @@ public struct LibraryEntry: Identifiable, Hashable, Sendable {
     }
 
     /// What VoiceOver says: "Movies, 412 movies, scanning".
-    public var spoken: String { [name, count, scanning ? "scanning" : ""].filter { !$0.isEmpty }.joined(separator: ", ") }
+    public var spoken: String {
+        [name, count, scanning ? localized("scanning") : ""].filter { !$0.isEmpty }.joined(separator: ", ")
+    }
 }
 
 /// The libraries this profile may open, in its order, each with what it
@@ -43,8 +45,8 @@ public final class LibrariesModel: ObservableObject {
         case failed(String)
     }
 
-    public static let failedTitle = "Couldn't load your libraries"
-    public static let emptyTitle = "No libraries yet"
+    public static var failedTitle: String { localized("Couldn't load your libraries") }
+    public static var emptyTitle: String { localized("No libraries yet") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var entries: [LibraryEntry] = []
@@ -111,7 +113,7 @@ public final class LibrariesModel: ObservableObject {
             show(try await api.resetLibraryOrder())
             app.note(ServerChange(home: true, libraries: true))
         } catch {
-            app.shell.show("Couldn't change the order: \(describe(error))")
+            app.shell.show(localized("Couldn't change the order: \(describe(error))"))
         }
     }
 
@@ -145,7 +147,7 @@ public final class LibrariesModel: ObservableObject {
             await reload()
         } catch is CancellationError {
         } catch {
-            app.shell.show("Couldn't save the order: \(describe(error))")
+            app.shell.show(localized("Couldn't save the order: \(describe(error))"))
             await reload()
         }
     }

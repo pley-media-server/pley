@@ -49,7 +49,7 @@ public struct HistoryRow: Identifiable, Hashable, Sendable {
         pictures = Tile.posters(item)
         square = [.album, .artist, .track].contains(item.kind)
         opens = Screen.page(of: item)
-        spoken = [title, subtitle, time, device.map { "on \($0)" }].compactMap { $0 }.filter { !$0.isEmpty }
+        spoken = [title, subtitle, time, device.map { localized("on \($0)") }].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
 }
@@ -69,7 +69,7 @@ public final class HistoryModel: ObservableObject {
     /// How many plays a page holds.
     public static let pageSize = 15
     /// When there are none.
-    public static let emptyText = "Nothing played yet. Titles you watch to the end show here."
+    public static var emptyText: String { localized("Nothing played yet. Titles you watch to the end show here.") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var rows: [HistoryRow] = []
@@ -105,7 +105,7 @@ public final class HistoryModel: ObservableObject {
             if rows.isEmpty {
                 state = .failed(asSentence(describe(error)))
             } else {
-                app.shell.show(asSentence("Couldn't load your history: \(describe(error))"))
+                app.shell.show(asSentence(localized("Couldn't load your history: \(describe(error))")))
             }
         }
     }
@@ -123,7 +123,7 @@ public final class HistoryModel: ObservableObject {
             remake()
         } catch is CancellationError {
         } catch {
-            app.shell.show(asSentence("Couldn't load more: \(describe(error))"))
+            app.shell.show(asSentence(localized("Couldn't load more: \(describe(error))")))
         }
     }
 
@@ -143,7 +143,7 @@ public final class HistoryModel: ObservableObject {
             total += 1
             remake()
             if !(error is CancellationError) {
-                app.shell.show(asSentence("Couldn't remove it: \(describe(error))"))
+                app.shell.show(asSentence(localized("Couldn't remove it: \(describe(error))")))
             }
         }
     }
