@@ -6,12 +6,12 @@ import {
   ageBadge,
   ageIn,
   ageLevels,
-  ageToSelect,
   birthdayLimit,
   birthdayLimitEnd,
   librariesLabel,
   limitLabel,
-  selectToAge,
+  limitMode,
+  ratingSystem,
   shownSystem,
   systemChoices,
   toggleId,
@@ -100,8 +100,8 @@ describe("age limits", () => {
     expect(ageIn(systems, "US", null)).toBeNull();
   });
 
-  it("lists the systems by name, then Age", () => {
-    expect(systemChoices(systems).map((c) => c.value)).toEqual(["CA", "US", AGE_SYSTEM]);
+  it("lists the countries by name", () => {
+    expect(systemChoices(systems).map((c) => c.value)).toEqual(["CA", "US"]);
   });
 
   it("follows a birthday as the server does", () => {
@@ -117,8 +117,20 @@ describe("age limits", () => {
     expect(ageBadge(systems, null, 9, "2017-01")).toBe("Up to age 9 (by birthday)");
   });
 
-  it("round-trips through the select", () => {
-    for (const age of [null, 0, 7, 17]) expect(selectToAge(ageToSelect(age))).toBe(age);
+  it("tells how a limit is set", () => {
+    expect(limitMode(systems, { max_age: null, max_age_system: null })).toBe("none");
+    expect(limitMode(systems, { max_age: 13, max_age_system: null })).toBe("rating");
+    expect(limitMode(systems, { max_age: 8, max_age_system: null })).toBe("age"); // no US rating is for 8
+    expect(limitMode(systems, { max_age: 13, max_age_system: AGE_SYSTEM })).toBe("age");
+    expect(limitMode(systems, { max_age: 9, max_age_system: null, birth_month: "2017-01" })).toBe("birthday");
+    expect(limitMode(systems, { max_age: null, max_age_system: null, birth_month: "1990-01" })).toBe("birthday");
+  });
+
+  it("picks ratings in the stored country, else the region's, else the first", () => {
+    expect(ratingSystem(systems, "CA")).toBe("CA");
+    expect(ratingSystem(systems, AGE_SYSTEM)).toBe("US");
+    expect(ratingSystem({ ...systems, region: "ZZ" }, null)).toBe("US");
+    expect(ratingSystem(undefined, null)).toBeNull();
   });
 });
 

@@ -47,13 +47,33 @@ export function systemName(system: RatingSystem | string): string {
   return typeof system === "string" ? code : system.name;
 }
 
-/** The systems to choose from, by name in the language shown, then Age. */
+/** The countries whose ratings a limit can be picked in, by name in the language shown. */
 export function systemChoices(systems: RatingSystems | undefined): { value: string; label: string }[] {
   const collator = new Intl.Collator(currentLocale());
-  const countries = (systems?.systems ?? [])
+  return (systems?.systems ?? [])
     .map((s) => ({ value: s.country, label: systemName(s) }))
     .sort((a, b) => collator.compare(a.label, b.label));
-  return [...countries, { value: AGE_SYSTEM, label: systemName(AGE_SYSTEM) }];
+}
+
+/** How an age limit is set: what the age limit select shows. */
+export type LimitMode = "none" | "rating" | "age" | "birthday";
+
+export function limitMode(
+  systems: RatingSystems | undefined,
+  value: { max_age: number | null; max_age_system: string | null; birth_month?: string | null },
+): LimitMode {
+  if (value.birth_month) return "birthday";
+  if (value.max_age == null) return "none";
+  return shownSystem(systems, value.max_age_system, value.max_age) === AGE_SYSTEM ? "age" : "rating";
+}
+
+/** The country to pick a rating in: the one stored, else the metadata region, else the first. */
+export function ratingSystem(systems: RatingSystems | undefined, stored: string | null): string | null {
+  const countries = systems?.systems ?? [];
+  const has = (code: string | null) => !!code && countries.some((s) => s.country === code);
+  if (has(stored)) return stored;
+  if (systems && has(systems.region)) return systems.region;
+  return countries[0]?.country ?? null;
 }
 
 /**
@@ -156,15 +176,6 @@ export function librariesLabel(
     if (name) return name;
   }
   return t("access.libraries", { count: ids.length });
-}
-
-/** Encode the age select's value (`""` = no limit). */
-export function ageToSelect(age: number | null): string {
-  return age == null ? "" : String(age);
-}
-
-export function selectToAge(value: string): number | null {
-  return value === "" ? null : Number(value);
 }
 
 export function toggleId(ids: Id[], id: Id): Id[] {

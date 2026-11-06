@@ -239,21 +239,23 @@ describe("UsersSettings", () => {
     expect(requests.find((r) => r.method === "POST")?.body).not.toHaveProperty("password");
   });
 
-  it("picks the age limit as a rating of a rating system", async () => {
+  it("sets the age limit by rating or by age, showing only that way's fields", async () => {
     const user = userEvent.setup();
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
-    const system = within(dialog).getByLabelText("Rating system");
-    const rating = within(dialog).getByLabelText("Rating");
-    // The region's system, with the limit as its rating.
-    await waitFor(() => expect(system).toHaveValue("US"));
-    expect(rating).toHaveValue("7");
+    const limit = within(dialog).getByLabelText("Age limit");
+    // By rating, in the region's ratings, with the limit as its rating.
+    await waitFor(() => expect(limit).toHaveValue("rating"));
+    expect(within(dialog).getByLabelText("Rating system")).toHaveValue("US");
+    expect(within(dialog).getByLabelText("Rating")).toHaveValue("7");
     expect(within(dialog).getByText(/TV-Y7 and below/)).toBeInTheDocument();
-    // Plain ages keep the limit.
-    await user.selectOptions(system, "age");
-    expect(rating).toHaveValue("7");
-    expect(within(dialog).getByRole("option", { name: "Age 8" })).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Age")).not.toBeInTheDocument();
+    // By age keeps the limit, and offers every age.
+    await user.selectOptions(limit, "By age");
+    expect(within(dialog).queryByLabelText("Rating system")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Age")).toHaveValue("7");
+    expect(within(dialog).getByRole("option", { name: "8" })).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ max_age_system: "age" }));
   });
@@ -263,8 +265,9 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
-    await waitFor(() => expect(within(dialog).getByLabelText("Rating system")).toHaveValue("US"));
-    await user.selectOptions(within(dialog).getByLabelText("Rating"), "Their age");
+    await waitFor(() => expect(within(dialog).getByLabelText("Age limit")).toHaveValue("rating"));
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By birthday");
+    expect(within(dialog).queryByLabelText("Rating")).not.toBeInTheDocument();
     // Born this month seven years ago: the limit stays 7.
     const now = new Date();
     const year = now.getFullYear() - 7;
@@ -426,6 +429,7 @@ describe("UsersSettings: requests", () => {
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
     const select = within(dialog).getByLabelText("Requests");
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By rating");
     await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (7 and up)");
     expect(select).toHaveValue("off");
     await user.selectOptions(select, "ask");
@@ -455,10 +459,12 @@ describe("UsersSettings: requests", () => {
     const { user, dialog } = await openAddDialog();
     const select = within(dialog).getByLabelText("Requests");
     expect(select).toHaveValue("ask");
+    await waitFor(() => expect(within(dialog).getByRole("option", { name: "By rating" })).toBeEnabled());
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By rating");
     await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (7 and up)");
     expect(select).toHaveValue("off");
     expect(within(dialog).getByText(/leaves out titles above the age limit/)).toBeInTheDocument();
-    await user.selectOptions(within(dialog).getByLabelText("Rating"), "No limit");
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");
     await user.click(within(dialog).getByRole("button", { name: /Managed profile/ }));
     expect(select).toHaveValue("off");
 

@@ -3,20 +3,23 @@ import { useTranslation } from "react-i18next";
 import { useLibraries, useRatingSystems } from "@/api/hooks";
 import type { Id, LibraryKind } from "@/api/types";
 import {
+  AGE_SYSTEM,
   ageIn,
   ageLevels,
-  ageToSelect,
   BIRTHDAY_LIMIT_ENDS,
   birthdayLimit,
   birthdayLimitEnd,
   birthMonthOf,
   monthNames,
+  type LimitMode,
+  limitMode,
   parseBirthMonth,
-  selectToAge,
+  ratingSystem,
   shownSystem,
   systemChoices,
   toggleId,
 } from "@/lib/access";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { Field, Select } from "./ui";
 
@@ -30,8 +33,8 @@ export interface AccessValue {
   birth_month?: string | null;
 }
 
-/** The rating select's value for "Their age". */
-const THEIR_AGE = "birthday";
+/** Ages a limit can be set to: 21 is the oldest any rating is for. */
+const AGES = Array.from({ length: BIRTHDAY_LIMIT_ENDS + 1 }, (_, age) => age);
 
 const KIND_ICON: Record<LibraryKind, typeof Tv> = { movies: Clapperboard, shows: Tv, music: Music };
 
@@ -45,15 +48,18 @@ export function AccessFields({
   value: AccessValue;
   onChange: (v: AccessValue) => void;
   idPrefix: string;
-  /** Offer "Their age", a limit that follows a birthday. */
+  /** Offer "By birthday", a limit that follows their age. */
   birthday?: boolean;
 }) {
   const { t } = useTranslation(["components", "common"]);
   const libs = useLibraries();
   const systems = useRatingSystems().data;
-  const system = shownSystem(systems, value.max_age_system, value.max_age);
-  const levels = ageLevels(systems, system);
-  const shown = levels.find((l) => l.age === value.max_age);
+  const mode = limitMode(systems, value);
+  const country = ratingSystem(systems, value.max_age_system);
+  const levels = country ? ageLevels(systems, country) : [];
+  const shown = ageLevels(systems, shownSystem(systems, value.max_age_system, value.max_age)).find(
+    (l) => l.age === value.max_age,
+  );
   const born = value.birth_month ? parseBirthMonth(value.birth_month) : null;
   const limitHint =
     value.max_age == null
@@ -70,8 +76,25 @@ export function AccessFields({
   const thisYear = new Date().getFullYear();
   const years = Array.from({ length: BIRTHDAY_LIMIT_ENDS + 1 }, (_, i) => thisYear - i);
   if (born && !years.includes(born.year)) years.push(born.year);
-  const setBirthMonth = (birthMonth: string) => set({ birth_month: birthMonth, max_age: birthdayLimit(birthMonth) });
   const set = (patch: Partial<AccessValue>) => onChange({ ...value, ...patch });
+  const setBirthMonth = (birthMonth: string) => set({ birth_month: birthMonth, max_age: birthdayLimit(birthMonth) });
+  // A limit that isn't a birthday's clears it (for accounts; invitations have none).
+  const fixed = birthday ? { birth_month: null } : {};
+  /** Each way keeps the limit as near as it can, and starts strict when there was none. */
+  const setMode = (next: LimitMode) => {
+    const now = new Date();
+    if (next === "none") return set({ ...fixed, max_age: null });
+    if (next === "age") return set({ ...fixed, max_age_system: AGE_SYSTEM, max_age: value.max_age ?? 0 });
+    if (next === "birthday") {
+      // Born this month, as many years ago as the limit was: the limit stays.
+      return setBirthMonth(birthMonthOf(now.getFullYear() - (value.max_age ?? 10), now.getMonth() + 1));
+    }
+    if (!country) return;
+    // The region's ratings stay "the region's" (null) unless another country is picked.
+    const system = value.max_age_system == null && country === systems?.region ? null : country;
+    set({ ...fixed, max_age_system: system, max_age: ageIn(systems, country, value.max_age ?? 0) });
+  };
+  const formatAge = (age: number) => age.toLocaleString(currentLocale());
 
   return (
     <div className="space-y-4">
@@ -134,52 +157,74 @@ export function AccessFields({
         )}
       </fieldset>
 
-      <fieldset className="space-y-2">
-        <legend className="mb-1.5 text-sm font-medium">{t("accessFields.ageLimit")}</legend>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label={t("accessFields.ratingSystem")} htmlFor={`${idPrefix}-age-system`}>
-            <Select
-              id={`${idPrefix}-age-system`}
-              className="h-10 w-full"
-              value={system}
-              disabled={!systems}
-              onChange={(e) => {
-                const next = e.target.value;
-                // A limit that follows a birthday stays their age.
-                if (value.birth_month) set({ max_age_system: next });
-                else set({ max_age_system: next, max_age: ageIn(systems, next, value.max_age) });
-              }}
-            >
-              {systemChoices(systems).map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label={t("accessFields.rating")} htmlFor={`${idPrefix}-age`}>
+      <div className="space-y-2">
+        <Field label={t("accessFields.ageLimit")} htmlFor={`${idPrefix}-age-limit`}>
+          <Select
+            id={`${idPrefix}-age-limit`}
+            className="h-10 w-full"
+            value={mode}
+            onChange={(e) => setMode(e.target.value as LimitMode)}
+          >
+            <option value="none">{t("accessFields.mode.none")}</option>
+            <option value="rating" disabled={!country}>
+              {t("accessFields.mode.rating")}
+            </option>
+            <option value="age">{t("accessFields.mode.age")}</option>
+            {birthday ? <option value="birthday">{t("accessFields.mode.birthday")}</option> : null}
+          </Select>
+        </Field>
+        {mode === "rating" && country ? (
+          <div className="grid grid-cols-2 gap-2">
+            <Field label={t("accessFields.ratingSystem")} htmlFor={`${idPrefix}-age-system`}>
+              <Select
+                id={`${idPrefix}-age-system`}
+                className="h-10 w-full"
+                value={country}
+                onChange={(e) => {
+                  const next = e.target.value;
+                  set({ max_age_system: next, max_age: ageIn(systems, next, value.max_age) });
+                }}
+              >
+                {systemChoices(systems).map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+            <Field label={t("accessFields.rating")} htmlFor={`${idPrefix}-age`}>
+              <Select
+                id={`${idPrefix}-age`}
+                className="h-10 w-full"
+                value={value.max_age ?? ""}
+                onChange={(e) => set({ max_age: Number(e.target.value) })}
+              >
+                {levels.map((l) => (
+                  <option key={l.age} value={l.age}>
+                    {t("accessFields.ratingOption", { rating: l.rating, age: formatAge(l.age) })}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
+        ) : null}
+        {mode === "age" ? (
+          <Field label={t("accessFields.age")} htmlFor={`${idPrefix}-age`}>
             <Select
               id={`${idPrefix}-age`}
               className="h-10 w-full"
-              value={value.birth_month ? THEIR_AGE : ageToSelect(value.max_age)}
-              onChange={(e) => {
-                if (e.target.value !== THEIR_AGE) return set({ max_age: selectToAge(e.target.value), birth_month: birthday ? null : undefined });
-                // Born this month, as many years ago as the limit was: the limit stays.
-                const now = new Date();
-                setBirthMonth(birthMonthOf(now.getFullYear() - (value.max_age ?? 10), now.getMonth() + 1));
-              }}
+              value={value.max_age ?? ""}
+              onChange={(e) => set({ max_age: Number(e.target.value) })}
             >
-              <option value="">{t("common:access.noLimit")}</option>
-              {birthday ? <option value={THEIR_AGE}>{t("accessFields.theirAge")}</option> : null}
-              {levels.map((l) => (
-                <option key={l.age} value={ageToSelect(l.age)}>
-                  {l.rating ? t("accessFields.ratingOption", { rating: l.rating, age: l.age }) : t("common:access.age", { age: l.age })}
+              {AGES.map((age) => (
+                <option key={age} value={age}>
+                  {formatAge(age)}
                 </option>
               ))}
             </Select>
           </Field>
-        </div>
-        {born && value.birth_month ? (
+        ) : null}
+        {mode === "birthday" && born ? (
           <div className="grid grid-cols-2 gap-2">
             <Field label={t("accessFields.birthMonth")} htmlFor={`${idPrefix}-birth-month`}>
               <Select
@@ -212,7 +257,7 @@ export function AccessFields({
           </div>
         ) : null}
         <p className="text-xs text-subtle">{hint}</p>
-      </fieldset>
+      </div>
     </div>
   );
 }
