@@ -230,8 +230,6 @@ fn items() {
     assert_eq!(season_title(None, Some(0)), "Specials");
     assert_eq!(season_title(Some("Book One"), Some(1)), "Book One");
     assert_eq!(season_title(None, Some(2)), "Season 2");
-    assert_eq!(pluralize(1, "movie", None), "1 movie");
-    assert_eq!(pluralize(12_345, "movie", None), "12,345 movies");
     let show = ItemSummary { kind: ItemKind::Show, child_count: Some(3), year: Some(2008), ..ItemSummary::default() };
     assert_eq!(card_subtitle(&show), "3 seasons");
     let album = ItemSummary {

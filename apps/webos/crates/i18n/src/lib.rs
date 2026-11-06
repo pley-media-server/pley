@@ -233,10 +233,17 @@ pub fn catalog(language: Language) -> &'static HashMap<String, String> {
     words(language)
 }
 
-/// Runs `f` with `language` shown on this thread, then puts back what was: for tests.
+/// Runs `f` with `language` shown on this thread, then puts back what was, even when `f` panics.
+/// The app uses it for words in a language other than the one shown (track titles name their
+/// language in English, so the formats look for the English name too); tests, to check words in
+/// French or Spanish.
 pub fn with_language<T>(language: Language, f: impl FnOnce() -> T) -> T {
-    let before = OWN.with(|own| own.replace(Some(language)));
-    let out = f();
-    OWN.with(|own| own.set(before));
-    out
+    struct Restore(Option<Language>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            OWN.with(|own| own.set(self.0));
+        }
+    }
+    let _restore = Restore(OWN.with(|own| own.replace(Some(language))));
+    f()
 }

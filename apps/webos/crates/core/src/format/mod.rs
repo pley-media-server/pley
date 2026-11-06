@@ -723,14 +723,6 @@ pub fn grouped(n: i64) -> String {
     pley_i18n::number(n)
 }
 
-/// "1 movie", "12,345 movies" (`many` defaults to `one` + "s"): for words the caller already has in
-/// the language shown and that take an "s", English's. A count a person reads goes through a
-/// counted key instead (`t!("format.counts.seasons", count = n)`).
-pub fn pluralize(n: i64, one: &str, many: Option<&str>) -> String {
-    let word = if n == 1 { one.to_string() } else { many.map_or_else(|| format!("{one}s"), str::to_string) };
-    format!("{} {word}", grouped(n))
-}
-
 /// The short line under a card, by kind: a year, "3 seasons", "S2 · E5",
 /// "Daft Punk · 2001"…
 pub fn card_subtitle(item: &ItemSummary) -> String {
