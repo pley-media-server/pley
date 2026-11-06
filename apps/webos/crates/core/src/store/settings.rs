@@ -207,24 +207,6 @@ pub enum PassthroughChoice {
 impl PassthroughChoice {
     /// In Settings' order.
     pub const ALL: [PassthroughChoice; 3] = [PassthroughChoice::Auto, PassthroughChoice::On, PassthroughChoice::Off];
-
-    /// The name Settings shows.
-    pub fn label(self) -> &'static str {
-        match self {
-            PassthroughChoice::Auto => "Auto",
-            PassthroughChoice::On => "On",
-            PassthroughChoice::Off => "Off",
-        }
-    }
-
-    /// What Settings says under it.
-    pub fn hint(self) -> &'static str {
-        match self {
-            PassthroughChoice::Auto => "As the TV or receiver says it plays",
-            PassthroughChoice::On => "Always pass it through",
-            PassthroughChoice::Off => "Never: Pley converts it",
-        }
-    }
 }
 
 /// The passthrough choice of every format.

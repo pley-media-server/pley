@@ -75,16 +75,6 @@ impl SubtitleSize {
     pub fn from_id(id: &str) -> Option<SubtitleSize> {
         SubtitleSize::ALL.into_iter().find(|s| s.id() == id)
     }
-
-    /// What Settings calls it.
-    pub fn label(self) -> &'static str {
-        match self {
-            SubtitleSize::Small => "Small",
-            SubtitleSize::Normal => "Medium",
-            SubtitleSize::Large => "Large",
-            SubtitleSize::Largest => "Largest",
-        }
-    }
 }
 
 /// Subtitle typeface (Settings → Subtitles → Font): offered only where the
@@ -116,16 +106,6 @@ impl SubtitleFont {
     /// The font saved as `id`.
     pub fn from_id(id: &str) -> Option<SubtitleFont> {
         SubtitleFont::ALL.into_iter().find(|f| f.id() == id)
-    }
-
-    /// What Settings calls it.
-    pub fn label(self) -> &'static str {
-        match self {
-            SubtitleFont::Default => "Default",
-            SubtitleFont::Serif => "Serif",
-            SubtitleFont::Monospace => "Monospace",
-            SubtitleFont::Casual => "Casual",
-        }
     }
 
     /// The family text is shaped in. Serif and casual go by the generic
@@ -180,16 +160,6 @@ impl SubtitlePosition {
     /// The position saved as `id`.
     pub fn from_id(id: &str) -> Option<SubtitlePosition> {
         SubtitlePosition::ALL.into_iter().find(|p| p.id() == id)
-    }
-
-    /// What Settings calls it.
-    pub fn label(self) -> &'static str {
-        match self {
-            SubtitlePosition::Bottom => "Bottom",
-            SubtitlePosition::Raised => "A little higher",
-            SubtitlePosition::Higher => "Higher",
-            SubtitlePosition::Highest => "Highest",
-        }
     }
 
     /// The raise as a share of the height: Android's `SUBTITLE_RAISES`
@@ -381,11 +351,12 @@ mod tests {
     const SCREEN: Rect = Rect::new(0.0, 0.0, 960.0, 540.0);
 
     #[test]
-    fn offers_the_fonts_and_positions_with_their_names() {
-        let fonts: Vec<&str> = SubtitleFont::ALL.iter().map(|f| f.label()).collect();
-        assert_eq!(fonts, ["Default", "Serif", "Monospace", "Casual"]);
-        let positions: Vec<&str> = SubtitlePosition::ALL.iter().map(|p| p.label()).collect();
-        assert_eq!(positions, ["Bottom", "A little higher", "Higher", "Highest"]);
+    fn offers_the_fonts_and_positions_in_settings_order() {
+        // Settings names them (pley_core's store, in the language shown); these are their ids.
+        let fonts: Vec<&str> = SubtitleFont::ALL.iter().map(|f| f.id()).collect();
+        assert_eq!(fonts, ["default", "serif", "mono", "casual"]);
+        let positions: Vec<&str> = SubtitlePosition::ALL.iter().map(|p| p.id()).collect();
+        assert_eq!(positions, ["bottom", "raised", "higher", "highest"]);
         // Android's raises: the TypeScript test's last one is 86 (16 %).
         let lifts: Vec<f32> = SubtitlePosition::ALL.iter().map(|p| p.lift_dp()).collect();
         assert_eq!(lifts, [0.0, 27.0, 54.0, 81.0]);
