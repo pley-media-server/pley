@@ -268,8 +268,9 @@ fn a_language_chosen_is_the_accounts_and_shows_at_once() {
     assert!(app.until(|a| a.state.language() == Language::Fr), "the account's language never showed");
     assert_eq!(app.state.me().and_then(|m| m.language.as_deref()), Some("fr"));
     app.settle();
-    // Settings is drawn again in French: the row is the account's language now.
+    // Settings is drawn again in French: the row is the account's language now, and keeps focus.
     assert!(app.shows("Langue") && app.shows("Français"));
+    assert_eq!(app.focused(), Some(row(&app, SettingsSection::Profile, 4)));
 }
 
 #[test]

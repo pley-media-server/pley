@@ -702,6 +702,18 @@ impl Screen for SettingsScreen {
     fn modal(&self) -> bool {
         self.panel.is_some() || self.confirm.is_some() || self.web.is_open()
     }
+
+    /// Every word comes from the facts and the panes made from them, so they are made again in
+    /// the new language and the page keeps its place: a language picked in Settings leaves focus
+    /// on the Language row, and a change being kept is still heard.
+    fn relabel(&mut self, cx: &mut AppCx) -> bool {
+        if let Some(fixed) = self.fixed.as_mut() {
+            fixed.device = device_facts(&cx.device().info(), cx.device().tier());
+        }
+        self.dirty = true;
+        self.panel_cache = None;
+        true
+    }
 }
 
 /// A pane row as the kit draws it.
