@@ -1,4 +1,5 @@
 import Foundation
+import PleyModel
 
 /// Subtitles moved in time (the Subtitle sync control), as the Android app
 /// does it: in 0.1 s steps from −10 s to +10 s; positive shows them later.
@@ -22,11 +23,13 @@ public enum SubtitleSync {
         return track.nextChangeAfter(at).map { $0 - at }
     }
 
-    /// "+0.5 s", "−1.2 s", "0.0 s".
+    /// "+0.5 s", "−1.2 s", "0.0 s" ("+0,5 s" in French).
     public static func label(_ offsetMs: Int) -> String {
         let sign = offsetMs > 0 ? "+" : offsetMs < 0 ? "\u{2212}" : ""
         let tenths = (abs(offsetMs) + 50) / 100
-        return "\(sign)\(tenths / 10).\(tenths % 10) s"
+        let point = ShownLanguage.locale.decimalSeparator ?? "."
+        let seconds = "\(sign)\(tenths / 10)\(point)\(tenths % 10)"
+        return localized("\(seconds) s")
     }
 
     /// Where a file's offset is kept: the file's own address on its

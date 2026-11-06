@@ -25,12 +25,17 @@ public enum SleepChoice: Hashable, Sendable, Identifiable {
         self = choice
     }
 
-    /// The menu's words: "Off", "15 minutes", "End of this track" (`item`: "track", "episode").
+    /// The menu's words: "Off", "15 minutes", "End of this track" (`item`: "track", "episode", "movie").
     public func label(item: String) -> String {
         switch self {
-        case .off: "Off"
-        case .minutes(let n): "\(n) minutes"
-        case .endOfItem: "End of this \(item)"
+        case .off: localized("Off")
+        case .minutes(let n): localized("\(n) minutes")
+        case .endOfItem:
+            switch item {
+            case "track": localized("End of this track")
+            case "episode": localized("End of this episode")
+            default: localized("End of this movie")
+            }
         }
     }
 }
@@ -53,7 +58,7 @@ public struct SleepState: Equatable, Sendable {
     }
 
     /// The notice's words in its last 30 s: "Pausing in 30 s"; `nil` before.
-    public var notice: String? { secondsLeft.map { "Pausing in \($0) s" } }
+    public var notice: String? { secondsLeft.map { localized("Pausing in \($0) s") } }
 
     /// What the menu says beside "Sleep Timer": "15 min left", "End of this
     /// track", "Pausing in 12 s"; `nil` when off.
@@ -62,7 +67,7 @@ public struct SleepState: Equatable, Sendable {
         switch choice {
         case .off: return nil
         case .endOfItem: return choice.label(item: item)
-        case .minutes: return minutesLeft.map { "\($0) min left" }
+        case .minutes: return minutesLeft.map { localized("\($0) min left") }
         }
     }
 }

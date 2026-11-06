@@ -103,7 +103,7 @@ extension PleyAPI {
         guard path.hasPrefix("/api/media/"), parts.count >= 5, !parts[3].isEmpty,
               !parts.contains(where: { $0 == ".." || $0 == "." }), !bare.contains("%"),
               let url = client.url(path)
-        else { throw PleyError.unreachable("the server gave an address that isn't its media's") }
+        else { throw PleyError.unreachable(PleyError.notItsMedia) }
         try await client.checkPlayerURL(url)
         return url
     }

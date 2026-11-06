@@ -80,7 +80,7 @@ public struct HomeInfo: Hashable, Sendable {
         if let rating = detail?.contentRating, !rating.isEmpty { meta.append(rating) }
         if !(item.kind == .show && runtime == year) { meta.append(runtime) }
         if let critics = item.rating ?? detail?.summary.rating, critics > 0 {
-            meta.append("★ " + String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), critics))
+            meta.append("★ " + Words.rating(critics))
         }
         if let file = detail?.files.first {
             if let resolution = Words.resolution(width: file.width ?? file.video?.width,
@@ -118,11 +118,11 @@ public final class HomeModel: ObservableObject {
     }
 
     /// What Home says when it couldn't load and has nothing to show.
-    public static let failedTitle = "Couldn't load your home screen"
+    public static var failedTitle: String { localized("Couldn't load your home screen") }
     /// What it says with no rows.
-    public static let emptyTitle = "Nothing here yet"
-    public static let noLibrariesTitle = "No libraries yet"
-    public static let scanningTitle = "Scanning your libraries…"
+    public static var emptyTitle: String { localized("Nothing here yet") }
+    public static var noLibrariesTitle: String { localized("No libraries yet") }
+    public static var scanningTitle: String { localized("Scanning your libraries…") }
     /// How long the focus rests on a tile before its details are read.
     public static let infoDelay: Double = 0.3
 

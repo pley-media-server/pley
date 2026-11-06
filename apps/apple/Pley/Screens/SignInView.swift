@@ -73,7 +73,10 @@ struct SignInView: View {
                     Button {
                         model.signInWithCode()
                     } label: {
-                        Text(model.usingCode ? "Get a new code" : "Sign in with a code").frame(maxWidth: .infinity)
+                        Group {
+                            if model.usingCode { Text("Get a new code") } else { Text("Sign in with a code") }
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.bordered)
                     .accessibilityIdentifier("signIn.code")

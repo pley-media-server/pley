@@ -57,51 +57,56 @@ public enum PleyError: Error, Sendable, Equatable {
     public var userMessage: String {
         switch self {
         case .offline:
-            "this device isn't connected to a network"
+            localized("this device isn't connected to a network")
         case .timedOut:
-            "no answer in time"
+            localized("no answer in time")
         case .unreachable(let why):
             why
         case .localNetworkBlocked:
-            "Pley isn't allowed to reach your local network: allow it in Settings → Privacy & Security → Local Network"
+            localized("Pley isn't allowed to reach your local network: allow it in Settings → Privacy & Security → Local Network")
         case .insecureRefused:
-            "this device opens plain http addresses on your network only: open this server by its https address, "
-                + "its IP address or a name without dots"
+            localized("this device opens plain http addresses on your network only: open this server by its https address, its IP address or a name without dots")
         case .unencrypted:
             Self.unencryptedMessage
         case .redirected:
-            "this server answers at another address: open it by that one"
+            localized("this server answers at another address: open it by that one")
         case .notPley:
-            "that isn't a Pley server"
+            localized("that isn't a Pley server")
         case .tooOld:
-            "this server is too old for this app"
+            localized("this server is too old for this app")
         case .unreadable(let status):
-            "the server's answer couldn't be read (HTTP \(status))"
+            localized("the server's answer couldn't be read (HTTP \(String(status)))")
         case .tooLarge:
-            "the server's answer is too large"
+            localized("the server's answer is too large")
         case .api(let status, let code, let message):
-            message.flatMap { $0.isEmpty ? nil : $0 } ?? "the server refused (\(code), HTTP \(status))"
+            message.flatMap { $0.isEmpty ? nil : $0 } ?? Self.refusedMessage(code: code, status: status)
         case .busy(let message, _):
-            message.flatMap { $0.isEmpty ? nil : $0 } ?? "every connection of this channel's provider is in use"
+            message.flatMap { $0.isEmpty ? nil : $0 } ?? localized("every connection of this channel's provider is in use")
         case .insufficientScope:
-            "this app wasn't allowed to do that: sign in to it again to allow it"
+            localized("this app wasn't allowed to do that: sign in to it again to allow it")
         case .sessionStopped(let message):
-            message.flatMap { $0.isEmpty ? nil : "playback was stopped: \($0)" } ?? "playback was stopped"
+            message.flatMap { $0.isEmpty ? nil : localized("playback was stopped: \($0)") } ?? localized("playback was stopped")
         case .notAvailable(_, let message, let setup):
-            setup ? message.flatMap { $0.isEmpty ? nil : $0 } ?? "subtitle search isn't working on this server"
-                : "subtitle search isn't set up on this server"
+            setup ? message.flatMap { $0.isEmpty ? nil : $0 } ?? localized("subtitle search isn't working on this server")
+                : localized("subtitle search isn't set up on this server")
         case .refused(let status, let code, let message, _, _):
-            message.flatMap { $0.isEmpty ? nil : $0 } ?? "the server refused (\(code), HTTP \(status))"
+            message.flatMap { $0.isEmpty ? nil : $0 } ?? Self.refusedMessage(code: code, status: status)
         case .signedOut:
-            "you were signed out: sign in again"
+            localized("you were signed out: sign in again")
         case .oauth(_, let body):
             plain(body.errorDescription ?? body.error)
         }
     }
 
+    /// "the server refused (not_found, HTTP 404)": a refusal with no words of the server's.
+    private static func refusedMessage(code: String, status: Int) -> String {
+        localized("the server refused (\(code), HTTP \(String(status)))")
+    }
+
     /// The Android app's `UNENCRYPTED`, word for word.
-    public static let unencryptedMessage =
-        "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in"
+    public static var unencryptedMessage: String {
+        localized("this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in")
+    }
 }
 
 extension PleyError: LocalizedError {
@@ -131,24 +136,32 @@ extension PleyError {
         case .cannotFindHost, .dnsLookupFailed:
             return PleyError.unreachable(unknownHost)
         case .cannotConnectToHost:
-            return PleyError.unreachable("nothing answers there")
+            return PleyError.unreachable(nothingAnswers)
         case .appTransportSecurityRequiresSecureConnection:
             return PleyError.insecureRefused
         case .secureConnectionFailed, .serverCertificateHasBadDate, .serverCertificateUntrusted,
              .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid, .clientCertificateRejected,
              .clientCertificateRequired:
-            return PleyError.unreachable("its secure connection failed")
+            return PleyError.unreachable(localized("its secure connection failed"))
         default:
             return PleyError.unreachable(connectionFailed)
         }
     }
 
-    static let unknownHost = "that address isn't known on this network"
+    static var unknownHost: String { localized("that address isn't known on this network") }
+    static var nothingAnswers: String { localized("nothing answers there") }
+    /// "that isn't a server address": what was typed can't be one.
+    static var notAnAddress: String { localized("that isn't a server address") }
+    /// A path or address on the server that can't be one.
+    static var notOnServer: String { localized("that isn't an address on the server") }
+    /// The server gave a media address that isn't its own.
+    static var notItsMedia: String { localized("the server gave an address that isn't its media's") }
+    static var notSaved: String { localized("the download couldn't be saved") }
 
     /// What answers at the server's address can't prove it is the server
     /// signed in to (docs/API.md, "Telling servers apart"): as out of reach
     /// as a server that doesn't answer, said in its own words.
-    public static let anotherDevice = "another device answers there"
+    public static var anotherDevice: String { localized("another device answers there") }
 
     /// Whether this is `anotherDevice`'s error.
     public var isAnotherDevice: Bool {
@@ -165,7 +178,7 @@ extension PleyError {
         default: false
         }
     }
-    static let connectionFailed = "the connection to the server failed"
+    static var connectionFailed: String { localized("the connection to the server failed") }
 
     /// Whether the system refused the connection because the app may not
     /// use the local network. URLSession says so only in its error's

@@ -111,18 +111,19 @@ struct ShellView: View {
         return Self.symbol(section)
     }
 
+    /// In the language shown.
     static func title(_ section: ShellSection) -> String {
         switch section {
-        case .home: "Home"
-        case .libraries: "Libraries"
-        case .search: "Search"
-        case .playlists: "Playlists"
-        case .me: "Me"
-        case .settings: "Settings"
-        case .liveTv: "Live TV"
-        case .nowPlaying: "Now Playing"
-        case .requests: "Requests"
-        case .library: "Library"
+        case .home: localized("Home")
+        case .libraries: localized("Libraries")
+        case .search: localized("Search")
+        case .playlists: localized("Playlists")
+        case .me: localized("Me")
+        case .settings: localized("Settings")
+        case .liveTv: localized("Live TV")
+        case .nowPlaying: localized("Now Playing")
+        case .requests: localized("Requests")
+        case .library: localized("Library")
         }
     }
 

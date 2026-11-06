@@ -48,7 +48,7 @@ public struct LiveTrouble: Equatable, Sendable {
         case .sessionStopped(let message)?:
             return stopped(message)
         case .api(let status, _, let message)?:
-            return LiveTrouble(kind: kind(of: status), message: sentence(message ?? "the server answered \(status)"))
+            return LiveTrouble(kind: kind(of: status), message: sentence(message ?? localized("the server answered \(String(status))")))
         case let offline? where [.offline, .timedOut, .localNetworkBlocked].contains(offline) || offline.isUnreachable:
             return LiveTrouble(kind: .offline, message: sentence(offline.userMessage))
         case let other?:
@@ -64,7 +64,7 @@ public struct LiveTrouble: Equatable, Sendable {
     public static func stopped(_ message: String?, who: String? = nil) -> LiveTrouble {
         let why = sentence(message ?? "")
         let text = [who, why].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "\n")
-        return LiveTrouble(kind: .stopped, message: text.isEmpty ? "Watching was stopped." : text)
+        return LiveTrouble(kind: .stopped, message: text.isEmpty ? localized("Watching was stopped.") : text)
     }
 
     /// The kind of an HTTP status the server answered with.
@@ -82,13 +82,13 @@ public struct LiveTrouble: Equatable, Sendable {
     /// The title the player shows for it, Android's: "All connections are in use"…
     public func title(channel: String) -> String {
         switch kind {
-        case .busy: "All connections are in use"
-        case .stopped: "Watching stopped"
-        case .missing: "This channel isn't here any more"
-        case .notAllowed: "Live TV isn't open to this profile"
-        case .unavailable: "\(channel) isn't playing"
-        case .offline: "Can't reach your server"
-        case .other: "\(channel) didn't start"
+        case .busy: localized("All connections are in use")
+        case .stopped: localized("Watching stopped")
+        case .missing: localized("This channel isn't here any more")
+        case .notAllowed: localized("Live TV isn't open to this profile")
+        case .unavailable: localized("\(channel) isn't playing")
+        case .offline: localized("Can't reach your server")
+        case .other: localized("\(channel) didn't start")
         }
     }
 
@@ -218,7 +218,8 @@ public final class LivePlayback: ObservableObject {
     /// the one watching or tuning, it stops now and says who stopped it, in
     /// Android's words.
     public func stoppedElsewhere(_ sessionId: String, message: String?, byAdmin: Bool) {
-        let who = byAdmin ? "Live TV was stopped by the server's administrator." : "Live TV was stopped from another device."
+        let who = byAdmin ? localized("Live TV was stopped by the server's administrator.")
+            : localized("Live TV was stopped from another device.")
         endedAtServer(sessionId, .stopped(message, who: who))
     }
 

@@ -48,29 +48,34 @@ public enum AuthError: Error, Sendable, Equatable {
 
     public var message: String {
         switch self {
-        case .notAnAddress: "that isn't a server address"
+        case .notAnAddress: localized("that isn't a server address")
         case .tooOld: PleyError.tooOld.userMessage
         case .otherAddress: PleyError.redirected(location: nil).userMessage
         case .otherIssuer(let issuer):
-            "this server calls itself \(String(plain(issuer).prefix(100))): open it by that address, "
-                + "or check the proxy in front of it passes Host"
-        case .endpointElsewhere: "this server sends apps to another address to sign in: Pley doesn't"
-        case .noCodes: "this server can't sign in with a code yet: update it, or sign in with your browser"
-        case .unreadable: "the server's answer can't be read: try again"
+            Self.otherIssuer(String(plain(issuer).prefix(100)))
+        case .endpointElsewhere: localized("this server sends apps to another address to sign in: Pley doesn't")
+        case .noCodes: localized("this server can't sign in with a code yet: update it, or sign in with your browser")
+        case .unreadable: localized("the server's answer can't be read: try again")
         case .unencrypted: PleyError.unencryptedMessage
-        case .cancelled: "the sign-in was cancelled"
-        case .noBrowser: "the sign-in page couldn't be opened"
-        case .stateMismatch: "the answer wasn't for this sign-in: try again"
-        case .otherServer: "the answer came from another server than the one you signed in to: try again"
-        case .refused: "you didn't allow the app"
-        case .serverRefused(let why): "the server refused: \(why)"
-        case .noCode: "the server sent no code: try again"
-        case .tookTooLong: "the sign-in took too long: try again"
-        case .expired: "the code ran out: get a new one"
-        case .codeEnded: "this code doesn't work anymore: get a new one"
-        case .linkElsewhere: "this server sends you to another address to allow the app: Pley doesn't"
-        case .widerScope: "the server allowed more than this app asks for: signed out"
+        case .cancelled: localized("the sign-in was cancelled")
+        case .noBrowser: localized("the sign-in page couldn't be opened")
+        case .stateMismatch: localized("the answer wasn't for this sign-in: try again")
+        case .otherServer: localized("the answer came from another server than the one you signed in to: try again")
+        case .refused: localized("you didn't allow the app")
+        case .serverRefused(let why): localized("the server refused: \(why)")
+        case .noCode: localized("the server sent no code: try again")
+        case .tookTooLong: localized("the sign-in took too long: try again")
+        case .expired: localized("the code ran out: get a new one")
+        case .codeEnded: localized("this code doesn't work anymore: get a new one")
+        case .linkElsewhere: localized("this server sends you to another address to allow the app: Pley doesn't")
+        case .widerScope: localized("the server allowed more than this app asks for: signed out")
         }
+    }
+}
+
+extension AuthError {
+    private static func otherIssuer(_ name: String) -> String {
+        localized("this server calls itself \(name): open it by that address, or check the proxy in front of it passes Host")
     }
 }
 

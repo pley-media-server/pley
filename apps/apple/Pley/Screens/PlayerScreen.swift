@@ -262,7 +262,9 @@ private struct PlayerWindowContent: View {
 /// player window that is key. Its Music section (Play/Pause Music, Next
 /// Track ⌘→, Previous Track ⌘←) acts on music while no player window is key.
 struct PlaybackCommands: Commands {
-    let app: AppModel
+    /// Observed so the menu's words follow the language shown: Commands have
+    /// no environment, so they take their words from `localized`.
+    @ObservedObject private var app: AppModel
     @ObservedObject private var music: MusicPlayback
     @FocusedObject private var player: PlaybackController?
     @FocusedObject private var live: LivePlayerModel?
@@ -271,13 +273,13 @@ struct PlaybackCommands: Commands {
     @Environment(\.openWindow) private var openWindow
 
     init(app: AppModel) {
-        self.app = app
+        _app = ObservedObject(wrappedValue: app)
         music = app.music
     }
 
     var body: some Commands {
-        CommandMenu("Playback") {
-            Button(target?.menuTitle ?? "Play Title") {
+        CommandMenu(localized("Playback")) {
+            Button(target?.menuTitle ?? localized("Play Title")) {
                 guard let target else { return }
                 Task {
                     if let request = await target.request() { openWindow(id: PlayerWindow.id, value: request) }
@@ -286,36 +288,36 @@ struct PlaybackCommands: Commands {
             .keyboardShortcut(.return, modifiers: .command)
             .disabled(target == nil)
             Divider()
-            Button(isPlaying ? "Pause" : "Play") {
+            Button(isPlaying ? localized("Pause") : localized("Play")) {
                 guard let player else { return }
                 if isPlaying { player.pause() } else { player.play() }
             }
             .disabled(player == nil)
             // Live TV's window: channel up and down.
-            Button("Channel Up") { live?.zap(by: 1) }
+            Button(localized("Channel Up")) { live?.zap(by: 1) }
                 .keyboardShortcut(.upArrow, modifiers: .command)
                 .disabled(live == nil)
-            Button("Channel Down") { live?.zap(by: -1) }
+            Button(localized("Channel Down")) { live?.zap(by: -1) }
                 .keyboardShortcut(.downArrow, modifiers: .command)
                 .disabled(live == nil)
-            Button("Back 10 Seconds") { player?.seek(byMs: -PlayerKeys.seekMs) }
+            Button(localized("Back 10 Seconds")) { player?.seek(byMs: -PlayerKeys.seekMs) }
                 .disabled(player == nil)
-            Button("Forward 10 Seconds") { player?.seek(byMs: PlayerKeys.seekMs) }
+            Button(localized("Forward 10 Seconds")) { player?.seek(byMs: PlayerKeys.seekMs) }
                 .disabled(player == nil)
             Divider()
-            Button(player?.state.skipLabel ?? "Skip Intro") { player?.skip() }
+            Button(player?.state.skipLabel ?? localized("Skip Intro")) { player?.skip() }
                 .disabled(player?.state.skipLabel == nil)
-            Button("Play Next") { player?.playNext() }
+            Button(localized("Play Next")) { player?.playNext() }
                 .disabled(player?.state.upNext == nil)
             Divider()
-            Menu("Quality") {
+            Menu(localized("Quality")) {
                 ForEach(player?.state.qualities ?? []) { choice in
                     Toggle(choice.label, isOn: Binding(get: { choice.selected },
                                                        set: { _ in player?.selectQuality(choice.id) }))
                 }
             }
             .disabled(player == nil)
-            Menu("Audio") {
+            Menu(localized("Audio")) {
                 ForEach(player?.state.audio ?? []) { choice in
                     Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
                         if let index = Int(choice.id) { player?.selectAudio(index) }
@@ -323,7 +325,7 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled((player?.state.audio.count ?? 0) < 2)
-            Menu("Subtitles") {
+            Menu(localized("Subtitles")) {
                 ForEach(player?.state.subtitles ?? []) { choice in
                     Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
                         player?.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
@@ -331,16 +333,16 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled(player?.state.subtitles.isEmpty ?? true)
-            Button("Find Subtitles…") { findSubtitles?.run() }
+            Button(localized("Find Subtitles…")) { findSubtitles?.run() }
                 .disabled(findSubtitles == nil)
-            Menu("Subtitle Sync (\(player?.state.subtitleOffsetLabel ?? "0.0 s"))") {
-                Button("Earlier (−0.1 s)") { player?.moveSubtitles(steps: -1) }
-                Button("Later (+0.1 s)") { player?.moveSubtitles(steps: 1) }
-                Button("Reset") { player?.setSubtitleOffset(0) }
+            Menu(localized("Subtitle Sync (\(player?.state.subtitleOffsetLabel ?? "0.0 s"))")) {
+                Button(localized("Earlier (−0.1 s)")) { player?.moveSubtitles(steps: -1) }
+                Button(localized("Later (+0.1 s)")) { player?.moveSubtitles(steps: 1) }
+                Button(localized("Reset")) { player?.setSubtitleOffset(0) }
                     .disabled(player?.state.subtitleOffsetMs == 0)
             }
             .disabled(!(player?.state.canSyncSubtitles ?? false))
-            Menu("Subtitle Style") {
+            Menu(localized("Subtitle Style")) {
                 ForEach(player?.state.subtitleStyleMenus ?? []) { menu in
                     Menu(menu.summary.map { "\(menu.title) (\($0))" } ?? menu.title) {
                         ForEach(menu.choices) { choice in
@@ -352,7 +354,7 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled(player?.state.subtitleStyleMenus.isEmpty ?? true)
-            Menu("Speed (\(player?.state.speedLabel ?? "1×"))") {
+            Menu(localized("Speed (\(player?.state.speedLabel ?? "1×"))")) {
                 ForEach(player?.state.speeds ?? []) { choice in
                     Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
                         if let speed = PlaybackSpeeds.speed(id: choice.id) { player?.setSpeed(speed) }
@@ -360,7 +362,7 @@ struct PlaybackCommands: Commands {
                 }
             }
             .disabled(player == nil)
-            Menu(player?.state.sleepSummary.map { "Sleep Timer (\($0))" } ?? "Sleep Timer") {
+            Menu(player?.state.sleepSummary.map { localized("Sleep Timer (\($0))") } ?? localized("Sleep Timer")) {
                 ForEach(player?.state.sleepChoices ?? []) { choice in
                     Toggle(choice.label, isOn: Binding(get: { choice.selected }, set: { _ in
                         if let sleep = SleepChoice(id: choice.id) { player?.setSleep(sleep) }
@@ -368,11 +370,11 @@ struct PlaybackCommands: Commands {
                 }
                 if player?.state.sleep.secondsLeft != nil {
                     Divider()
-                    Button("Keep Watching") { player?.keepWatching() }
+                    Button(localized("Keep Watching")) { player?.keepWatching() }
                 }
             }
             .disabled(player == nil)
-            Menu("Chapters") {
+            Menu(localized("Chapters")) {
                 ForEach(player?.state.chapters ?? []) { chapter in
                     Toggle(chapter.label, isOn: Binding(get: { chapter.current },
                                                         set: { _ in player?.jumpToChapter(chapter.index) }))
@@ -380,16 +382,16 @@ struct PlaybackCommands: Commands {
             }
             .disabled(player?.state.chapters.isEmpty ?? true)
             Divider()
-            Section("Music") {
-                Button(music.state.playing ? "Pause Music" : "Play Music") { music.toggle() }
+            Section(localized("Music")) {
+                Button(music.state.playing ? localized("Pause Music") : localized("Play Music")) { music.toggle() }
                     .disabled(!musicKeys)
-                Button("Next Track") { music.next() }
+                Button(localized("Next Track")) { music.next() }
                     .keyboardShortcut(.rightArrow, modifiers: .command)
                     .disabled(!musicKeys || !music.state.hasNext)
-                Button("Previous Track") { music.previous() }
+                Button(localized("Previous Track")) { music.previous() }
                     .keyboardShortcut(.leftArrow, modifiers: .command)
                     .disabled(!musicKeys)
-                Button("Now Playing") { openWindow(id: NowPlayingWindow.id) }
+                Button(localized("Now Playing")) { openWindow(id: NowPlayingWindow.id) }
                     .disabled(!music.state.active)
             }
         }

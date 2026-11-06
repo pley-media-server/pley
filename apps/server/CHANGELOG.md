@@ -86,6 +86,12 @@ describes how they are made.
   and Dolby Vision kept where the app shows them, and 5.1 sound (E-AC-3 or
   AC-3) where it takes it. They were H.264 or copied HEVC, in SDR, with
   stereo AAC.
+- Why a request couldn't be sent to Radarr or Sonarr ("Radarr isn't
+  answering", "Radarr refused: …") is in the language each administrator
+  sees Pley in, on Requests and in the notice that it failed, as is "Added
+  by hand". What Radarr and Sonarr say themselves stays as they said it.
+  A send that can't reach them says it isn't answering, as approving
+  does, where it gave the network's error.
 
 ## [0.1.7] - 2026-11-05
 

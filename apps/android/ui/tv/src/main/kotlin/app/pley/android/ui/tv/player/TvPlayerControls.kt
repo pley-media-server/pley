@@ -396,9 +396,11 @@ internal fun BoxScope.TvSeekPreview(state: State<PlayerUiState>, seeker: TvSeeke
         BasicText(TvPlayerText.time(target), style = PleyType.Tv.Label.copy(color = PleyColors.Fg))
         if (chapterIndex != null) {
             val name = chapter?.name
+            // A name that says it is a chapter, in English as files often do or in the language shown, stands alone.
+            val word = stringResource(R.string.tv_player_chapter_word)
             val text = when {
                 name == null -> stringResource(R.string.tv_player_chapter, chapterIndex + 1)
-                name.startsWith("Chapter", ignoreCase = true) -> name
+                name.startsWith("Chapter", ignoreCase = true) || name.startsWith(word, ignoreCase = true) -> name
                 else -> stringResource(R.string.tv_player_chapter_named, chapterIndex + 1, name)
             }
             BasicText(text, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis)

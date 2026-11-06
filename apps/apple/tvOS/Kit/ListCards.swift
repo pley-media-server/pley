@@ -27,7 +27,7 @@ struct CollectionTile: View {
                     }
                     .overlay(alignment: .topLeading) {
                         if card.smart || card.automatic {
-                            ListBadge(text: card.smart ? "Smart" : "TMDB").padding(10)
+                            ListBadge(text: card.smart ? localized("Smart") : "TMDB").padding(10)
                         }
                     }
                     .clipShape(RoundedRectangle(cornerRadius: Metrics.corner))
@@ -46,6 +46,7 @@ struct CollectionTile: View {
 }
 
 /// A small word over a picture: "Smart", "TMDB". White on a dark fill.
+/// Callers pass words in the language shown.
 struct ListBadge: View {
     let text: String
 
@@ -106,7 +107,7 @@ struct PlaylistTile: View {
             Button(action: open) {
                 PlaylistMosaic(app: app, artwork: card.artwork, video: card.video, size: width)
                     .overlay(alignment: .topLeading) {
-                        if card.smart { ListBadge(text: "Smart").padding(10) }
+                        if card.smart { ListBadge(text: localized("Smart")).padding(10) }
                     }
             }
             .buttonStyle(.card)

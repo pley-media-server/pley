@@ -26,13 +26,15 @@ public struct SettingChoice<Value: Hashable & Sendable>: Hashable, Sendable, Ide
 @MainActor
 public final class SettingsModel: ObservableObject {
     /// Under the subtitle settings: what System means.
-    public static let systemStyleNote =
-        "System uses your caption style from Settings → Accessibility → Subtitles & Captioning."
+    public static var systemStyleNote: String {
+        localized("System uses your caption style from Settings → Accessibility → Subtitles & Captioning.")
+    }
     /// The preview line.
-    public static let previewText = "This is how subtitles look."
+    public static var previewText: String { localized("This is how subtitles look.") }
     /// Under Sign in privately.
-    public static let privateSignInNote =
-        "Signing in in a private window keeps no Pley cookie on this device, so you type your password each time."
+    public static var privateSignInNote: String {
+        localized("Signing in in a private window keeps no Pley cookie on this device, so you type your password each time.")
+    }
 
     @Published public private(set) var qualityOther: String?
     @Published public private(set) var qualityCellular: String?
@@ -74,19 +76,21 @@ public final class SettingsModel: ObservableObject {
     // MARK: Playback
 
     /// The qualities offered: Automatic (`nil`), Original, then the transcodes.
-    public static let qualities: [SettingChoice<String?>] =
-        [SettingChoice<String?>(nil, "Automatic"), SettingChoice<String?>(QualityPreset.originalId, "Original")]
-        + Qualities.transcodes.map { SettingChoice<String?>($0.id, Qualities.label($0)) }
+    public static var qualities: [SettingChoice<String?>] {
+        [SettingChoice<String?>(nil, localized("Automatic")),
+         SettingChoice<String?>(QualityPreset.originalId, localized("Original"))]
+            + Qualities.transcodes.map { SettingChoice<String?>($0.id, Qualities.label($0)) }
+    }
 
     /// A quality's name: "Automatic", "Original", "4 Mbps 720p".
     public static func qualityLabel(_ id: String?) -> String {
-        qualities.first { $0.value == id }?.label ?? "Automatic"
+        qualities.first { $0.value == id }?.label ?? localized("Automatic")
     }
 
     /// The quality title of a row: "Quality" alone, or "on Wi-Fi" and "on mobile data".
     public func qualityTitle(cellular: Bool) -> String {
-        guard offersCellular else { return "Quality" }
-        return cellular ? "Quality on mobile data" : "Quality on Wi-Fi"
+        guard offersCellular else { return localized("Quality") }
+        return cellular ? localized("Quality on mobile data") : localized("Quality on Wi-Fi")
     }
 
     public func setQuality(_ id: String?, cellular: Bool) {
@@ -135,9 +139,9 @@ public final class SettingsModel: ObservableObject {
             let libraries = try await api.resetLibraryOrder()
             app.shell.setLibraries(libraries)
             app.note(ServerChange(home: true, libraries: true))
-            app.shell.show("Libraries are in the server's order")
+            app.shell.show(localized("Libraries are in the server's order"))
         } catch {
-            app.shell.show(asSentence("Couldn't change the order: \(describe(error))"))
+            app.shell.show(asSentence(localized("Couldn't change the order: \(describe(error))")))
         }
     }
 
@@ -153,14 +157,14 @@ public final class SettingsModel: ObservableObject {
     /// "Always start as"'s choices: Ask, then the household as last seen.
     public var startChoices: [SettingChoice<Int?>] {
         let household = app.server.map { settings.household(origin: $0.origin) } ?? []
-        return [SettingChoice(nil, "Ask who's watching")] + household.map { SettingChoice($0.id, $0.name) }
+        return [SettingChoice(nil, localized("Ask who's watching"))] + household.map { SettingChoice($0.id, $0.name) }
     }
 
     /// Whether "Always start as" is offered: a household of several profiles.
     public var offersStartAs: Bool { startChoices.count > 2 }
 
     public var startAsLabel: String {
-        startChoices.first { $0.value == alwaysStartAs }?.label ?? "Ask who's watching"
+        startChoices.first { $0.value == alwaysStartAs }?.label ?? localized("Ask who's watching")
     }
 
     public func setAlwaysStartAs(_ profileId: Int?) {
@@ -238,14 +242,15 @@ public struct AboutModel: Sendable {
         #elseif os(macOS)
         "Mac"
         #else
-        "iPhone and iPad"
+        localized("iPhone and iPad")
         #endif
     }
 
     /// "Pley 0.1.0 (build 12) for iPhone and iPad".
-    public var title: String { "Pley \(version) (build \(build)) for \(device)" }
+    public var title: String { localized("Pley \(version) (build \(build)) for \(device)") }
 
-    public static let licences =
-        "Open-source licences: none. Pley for Apple is built only with Apple's frameworks and contains no third-party code."
-    public static let licence = "Pley is licensed under the terms in its LICENSE file."
+    public static var licences: String {
+        localized("Open-source licences: none. Pley for Apple is built only with Apple's frameworks and contains no third-party code.")
+    }
+    public static var licence: String { localized("Pley is licensed under the terms in its LICENSE file.") }
 }

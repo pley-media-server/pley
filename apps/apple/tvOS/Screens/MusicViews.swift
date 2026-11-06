@@ -26,7 +26,9 @@ struct ArtistView: View {
         case .notFound:
             StateView(kind: .empty(symbol: "music.mic", text: ItemModel.notFoundTitle, action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load this artist", why: why) { Task { await model.load() } })
+            StateView(kind: .failed(title: localized("Couldn't load this artist"), why: why) {
+                Task { await model.load() }
+            })
         case .loaded:
             if let page = model.page {
                 loaded(page)
@@ -71,7 +73,7 @@ struct ArtistView: View {
                 } else if page.albums.isEmpty {
                     Text("No albums yet.").foregroundStyle(.secondary).padding(.horizontal, Metrics.gutter)
                 } else {
-                    TileRow(app: app, key: "albums", title: "Albums", shape: .square, tiles: page.albums,
+                    TileRow(app: app, key: "albums", title: localized("Albums"), shape: .square, tiles: page.albums,
                             prefix: "artist.row") { tile in
                         app.shell.open(Screen.page(of: tile.item))
                     }
@@ -115,7 +117,9 @@ struct AlbumView: View {
         case .notFound:
             StateView(kind: .empty(symbol: "music.note", text: ItemModel.notFoundTitle, action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load this album", why: why) { Task { await model.load() } })
+            StateView(kind: .failed(title: localized("Couldn't load this album"), why: why) {
+                Task { await model.load() }
+            })
         case .loaded:
             if let page = model.page {
                 loaded(page)
@@ -189,9 +193,10 @@ struct AlbumView: View {
 
     /// The profile's rating, picked from a list of half stars.
     private func rating(_ rating: Int?) -> some View {
-        ChoiceButton(title: "Your rating", value: rating.map(StarWords.stars) ?? "Not rated",
-                     symbol: rating == nil ? "star" : "star.fill", text: rating.map(StarWords.stars) ?? "Rate",
-                     choices: [Choice(label: "Not rated", tag: nil)]
+        ChoiceButton(title: localized("Your rating"), value: rating.map(StarWords.stars) ?? localized("Not rated"),
+                     symbol: rating == nil ? "star" : "star.fill",
+                     text: rating.map(StarWords.stars) ?? localized("Rate"),
+                     choices: [Choice(label: localized("Not rated"), tag: nil)]
                          + (1...10).reversed().map { Choice(label: StarWords.stars($0), tag: $0) },
                      selected: rating) { value in Task { await model.rate(value) } }
             .accessibilityIdentifier("item.rating")
@@ -244,7 +249,9 @@ private struct TrackLine: View {
         }
         .buttonStyle(.plain)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(track.spoken + (playing.map { $0 ? ", playing" : ", paused" } ?? ""))
+        .accessibilityLabel(playing.map {
+            $0 ? localized("\(track.spoken), playing") : localized("\(track.spoken), paused")
+        } ?? track.spoken)
         .accessibilityHint(playing.map { $0 ? "Pauses" : "Plays on" } ?? "Plays the album from this track")
         .accessibilityAddTraits(highlighted ? [.isButton, .isSelected] : .isButton)
         .accessibilityIdentifier("album.track.\(track.id)")

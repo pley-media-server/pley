@@ -15,6 +15,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use crate::i18n;
 use crate::settings::{MinimumAvailability, Settings};
 use crate::util::utc_secs;
 
@@ -98,20 +99,73 @@ pub struct Connection {
     pub key: String,
 }
 
-#[derive(Debug, thiserror::Error)]
+/// What went wrong with Radarr or Sonarr: what happened, and what came
+/// from elsewhere (its own message, the network's or the parser's words) as
+/// it came. [`ArrError::words`] says it in a language, `Display` in English
+/// (logs, the settings' errors). A failed request keeps it, as JSON
+/// (`requests::Failure`), so its codes and fields stay as they are.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "code", rename_all = "snake_case")]
 pub enum ArrError {
-    #[error("{0} rejected the API key")]
-    Unauthorized(&'static str),
-    #[error("{0} couldn't be reached: {1}")]
-    Unreachable(&'static str, String),
-    #[error("{0} refused: {1}")]
-    Refused(&'static str, String),
-    #[error("{0} answered something unexpected: {1}")]
-    Unexpected(&'static str, String),
-    /// Something to choose in the settings first, or to do by hand.
-    #[error("{0}")]
-    Needs(String),
+    /// It rejected the API key.
+    Unauthorized { service: Service },
+    /// It couldn't be reached: why, in the network's words.
+    Unreachable { service: Service, why: String },
+    /// It said no: its own message, or the HTTP status where it gave none.
+    Refused { service: Service, message: String },
+    /// Sonarr found no show with this TheTVDB id.
+    NoShow { tvdb: i64 },
+    /// It answered with a redirect: its address lacks its base URL.
+    Redirected { service: Service },
+    /// Its answer was larger than this many MB.
+    TooLarge { service: Service, mb: usize },
+    /// Radarr's lookup found no movie.
+    NoMovie,
+    /// Its answer had no id.
+    NoId { service: Service },
+    /// It answered something else unexpected: why, in the network's or the
+    /// parser's words.
+    Unexpected { service: Service, why: String },
+    /// TMDB knows no TheTVDB id for the show, which Sonarr needs.
+    NoTvdbId,
+    /// The settings choose no quality profile for it.
+    NoQualityProfile { service: Service },
+    /// The settings choose no root folder for it.
+    NoRootFolder { service: Service },
 }
+
+impl ArrError {
+    /// What went wrong, in `language`.
+    pub fn words(&self, language: &str) -> String {
+        let t = |key: &str, values: &[(&str, &str)]| i18n::t_with(language, &format!("requests.arr.{key}"), values);
+        let unexpected = |service: Service, why: &str| t("unexpected", &[("service", service.name()), ("why", why)]);
+        match self {
+            ArrError::Unauthorized { service } => t("unauthorized", &[("service", service.name())]),
+            ArrError::Unreachable { service, why } => t("unreachable", &[("service", service.name()), ("why", why)]),
+            ArrError::Refused { service, message } => t("refused", &[("service", service.name()), ("why", message)]),
+            ArrError::NoShow { tvdb } => {
+                let why = t("noShow", &[("tvdb", &tvdb.to_string())]);
+                t("refused", &[("service", Service::Sonarr.name()), ("why", &why)])
+            }
+            ArrError::Redirected { service } => unexpected(*service, &t("redirected", &[])),
+            ArrError::TooLarge { service, mb } => unexpected(*service, &t("tooLarge", &[("size", &mb.to_string())])),
+            ArrError::NoMovie => unexpected(Service::Radarr, &t("noMovie", &[])),
+            ArrError::NoId { service } => unexpected(*service, &t("noId", &[])),
+            ArrError::Unexpected { service, why } => unexpected(*service, why),
+            ArrError::NoTvdbId => t("noTvdbId", &[]),
+            ArrError::NoQualityProfile { service } => t("qualityProfile", &[("service", service.name())]),
+            ArrError::NoRootFolder { service } => t("rootFolder", &[("service", service.name())]),
+        }
+    }
+}
+
+impl std::fmt::Display for ArrError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.words("en"))
+    }
+}
+
+impl std::error::Error for ArrError {}
 
 /// What Radarr or Sonarr offers requests.
 #[derive(Debug, Clone, Serialize)]
@@ -344,7 +398,6 @@ impl Arr {
         query: &[(&str, String)],
         body: Option<&Value>,
     ) -> Result<T, ArrError> {
-        let name = service.name();
         let mut req = self.http.request(method, format!("{}/api/v3{path}", to.url)).header("X-Api-Key", &to.key);
         if !query.is_empty() {
             req = req.query(query);
@@ -352,23 +405,22 @@ impl Arr {
         if let Some(body) = body {
             req = req.json(body);
         }
-        let resp = req.send().await.map_err(|e| ArrError::Unreachable(name, reason(&e.without_url())))?;
+        let resp = req.send().await.map_err(|e| ArrError::Unreachable { service, why: reason(&e.without_url()) })?;
         let status = resp.status();
         if matches!(status.as_u16(), 401 | 403) {
-            return Err(ArrError::Unauthorized(name));
+            return Err(ArrError::Unauthorized { service });
         }
         if status.is_redirection() {
-            let message = "it answered with a redirect: give its address with its base URL, as its own settings show";
-            return Err(ArrError::Unexpected(name, message.to_owned()));
+            return Err(ArrError::Redirected { service });
         }
         if !status.is_success() {
-            let text = read_answer(resp, ERROR_MAX).await.unwrap_or_default();
+            let text = read_answer(resp, ERROR_MAX, service).await.unwrap_or_default();
             let message =
                 message_of(&String::from_utf8_lossy(&text)).unwrap_or_else(|| format!("HTTP {}", status.as_u16()));
-            return Err(ArrError::Refused(name, message));
+            return Err(ArrError::Refused { service, message });
         }
-        let bytes = read_answer(resp, ANSWER_MAX).await.map_err(|why| ArrError::Unexpected(name, why))?;
-        serde_json::from_slice(&bytes).map_err(|e| ArrError::Unexpected(name, quote(&e.to_string())))
+        let bytes = read_answer(resp, ANSWER_MAX, service).await?;
+        serde_json::from_slice(&bytes).map_err(|e| ArrError::Unexpected { service, why: quote(&e.to_string()) })
     }
 
     async fn get<T: DeserializeOwned>(
@@ -448,7 +500,7 @@ impl Arr {
         )?;
         let mut movie: Value = self.get(radarr, to, "/movie/lookup/tmdb", &tmdb).await?;
         if !movie.is_object() {
-            return Err(ArrError::Unexpected(radarr.name(), "its lookup found no movie".to_owned()));
+            return Err(ArrError::NoMovie);
         }
         movie["qualityProfileId"] = json!(profile);
         movie["rootFolderPath"] = json!(folder);
@@ -470,11 +522,7 @@ impl Arr {
     /// searches for them; one there already gets them monitored too.
     pub async fn add_series(&self, to: &Connection, settings: &Settings, title: &Title<'_>) -> Result<Added, ArrError> {
         let sonarr = Service::Sonarr;
-        let tvdb = title.tvdb_id.ok_or_else(|| {
-            ArrError::Needs(
-                "TMDB knows no TheTVDB id for this show, which Sonarr needs: add it to Sonarr by hand".into(),
-            )
-        })?;
+        let tvdb = title.tvdb_id.ok_or(ArrError::NoTvdbId)?;
         let wanted = |season: &Value| season["seasonNumber"].as_i64().is_some_and(|n| title.seasons.contains(&n));
         let found: Vec<Value> = self.get(sonarr, to, "/series", &[("tvdbId", tvdb.to_string())]).await?;
         if let Some(mut series) = found.into_iter().next() {
@@ -503,7 +551,7 @@ impl Arr {
         )?;
         let found: Vec<Value> = self.get(sonarr, to, "/series/lookup", &[("term", format!("tvdb:{tvdb}"))]).await?;
         let Some(mut series) = found.into_iter().next().filter(Value::is_object) else {
-            return Err(ArrError::Refused(sonarr.name(), format!("it found no show with TheTVDB id {tvdb}")));
+            return Err(ArrError::NoShow { tvdb });
         };
         series["qualityProfileId"] = json!(profile);
         series["rootFolderPath"] = json!(folder);
@@ -629,29 +677,29 @@ fn choice<'a>(
     } else {
         usual.1
     });
-    let name = service.name();
     if profile <= 0 {
-        return Err(ArrError::Needs(format!("choose {name}'s quality profile in Settings → Requests")));
+        return Err(ArrError::NoQualityProfile { service });
     }
     if folder.is_empty() {
-        return Err(ArrError::Needs(format!("choose {name}'s root folder in Settings → Requests")));
+        return Err(ArrError::NoRootFolder { service });
     }
     Ok((profile, folder))
 }
 
 fn id_of(service: Service, value: &Value) -> Result<i64, ArrError> {
-    value["id"].as_i64().ok_or_else(|| ArrError::Unexpected(service.name(), "no id in its answer".to_owned()))
+    value["id"].as_i64().ok_or(ArrError::NoId { service })
 }
 
-/// An answer's body, `max` bytes at most whatever its length says; why
-/// not, when it is larger or breaks off.
-async fn read_answer(mut resp: reqwest::Response, max: usize) -> Result<Vec<u8>, String> {
-    let too_large = || format!("its answer is larger than {} MB", max.div_ceil(1 << 20));
+/// An answer of `service`'s body, `max` bytes at most whatever its length
+/// says; why not, when it is larger or breaks off.
+async fn read_answer(mut resp: reqwest::Response, max: usize, service: Service) -> Result<Vec<u8>, ArrError> {
+    let too_large = || ArrError::TooLarge { service, mb: max.div_ceil(1 << 20) };
     if resp.content_length().is_some_and(|n| n > max as u64) {
         return Err(too_large());
     }
     let mut body = Vec::new();
-    while let Some(chunk) = resp.chunk().await.map_err(|e| reason(&e.without_url()))? {
+    let broke_off = |e: reqwest::Error| ArrError::Unexpected { service, why: reason(&e.without_url()) };
+    while let Some(chunk) = resp.chunk().await.map_err(broke_off)? {
         if body.len() + chunk.len() > max {
             return Err(too_large());
         }
@@ -751,12 +799,54 @@ mod tests {
     #[tokio::test]
     async fn answers_are_read_up_to_a_limit() {
         let answer = |len: usize| reqwest::Response::from(axum::http::Response::new(vec![b'x'; len]));
-        assert_eq!(read_answer(answer(10), 10).await.unwrap().len(), 10);
-        assert!(read_answer(answer(11), 10).await.is_err());
+        let radarr = Service::Radarr;
+        assert_eq!(read_answer(answer(10), 10, radarr).await.unwrap().len(), 10);
+        assert!(read_answer(answer(11), 10, radarr).await.is_err());
         assert_eq!(
-            read_answer(answer(ANSWER_MAX + 1), ANSWER_MAX).await.unwrap_err(),
-            "its answer is larger than 32 MB"
+            read_answer(answer(ANSWER_MAX + 1), ANSWER_MAX, radarr).await.unwrap_err().to_string(),
+            "Radarr answered something unexpected: its answer is larger than 32 MB"
         );
+    }
+
+    #[test]
+    fn errors_are_kept_as_what_happened_and_worded_in_each_language() {
+        let (radarr, sonarr) = (Service::Radarr, Service::Sonarr);
+        let refused = ArrError::Refused { service: radarr, message: "Root folder is not writable".into() };
+        // Failed requests keep them: their codes and fields stay as they are.
+        assert_eq!(
+            serde_json::to_value(&refused).unwrap(),
+            json!({"code": "refused", "service": "radarr", "message": "Root folder is not writable"})
+        );
+        assert_eq!(serde_json::to_value(ArrError::NoMovie).unwrap(), json!({"code": "no_movie"}));
+        // Pley's words in the language, Radarr's as they came.
+        assert_eq!(refused.to_string(), "Radarr refused: Root folder is not writable");
+        assert_eq!(refused.words("fr"), "Radarr a refusé\u{a0}: Root folder is not writable");
+        assert_eq!(refused.words("es"), "Radarr lo rechazó: Root folder is not writable");
+        assert_eq!(
+            ArrError::NoShow { tvdb: 81189 }.words("es"),
+            "Sonarr lo rechazó: no encontró ninguna serie con el id de TheTVDB 81189"
+        );
+        let every = [
+            ArrError::Unauthorized { service: radarr },
+            ArrError::Unreachable { service: sonarr, why: "connection refused".into() },
+            refused,
+            ArrError::NoShow { tvdb: 81189 },
+            ArrError::Redirected { service: radarr },
+            ArrError::TooLarge { service: sonarr, mb: 32 },
+            ArrError::NoMovie,
+            ArrError::NoId { service: sonarr },
+            ArrError::Unexpected { service: radarr, why: "EOF while parsing".into() },
+            ArrError::NoTvdbId,
+            ArrError::NoQualityProfile { service: sonarr },
+            ArrError::NoRootFolder { service: radarr },
+        ];
+        for err in every {
+            assert_eq!(serde_json::from_value::<ArrError>(serde_json::to_value(&err).unwrap()).unwrap(), err);
+            for language in i18n::LANGUAGES {
+                let words = err.words(language);
+                assert!(!words.contains("{{") && !words.contains("requests."), "{language}: {words}");
+            }
+        }
     }
 
     #[test]
@@ -776,7 +866,13 @@ mod tests {
         assert_eq!(choice(radarr, &title(true, None, None), usual, anime).unwrap(), (9, "/anime"));
         assert_eq!(choice(radarr, &title(true, None, None), usual, (0, "")).unwrap(), (4, "/movies"));
         assert_eq!(choice(radarr, &title(true, Some(2), Some("/x")), usual, anime).unwrap(), (2, "/x"));
-        assert!(matches!(choice(radarr, &title(false, None, None), (0, "/m"), anime), Err(ArrError::Needs(_))));
-        assert!(matches!(choice(radarr, &title(false, None, None), (3, ""), anime), Err(ArrError::Needs(_))));
+        assert_eq!(
+            choice(radarr, &title(false, None, None), (0, "/m"), anime),
+            Err(ArrError::NoQualityProfile { service: radarr })
+        );
+        assert_eq!(
+            choice(radarr, &title(false, None, None), (3, ""), anime),
+            Err(ArrError::NoRootFolder { service: radarr })
+        );
     }
 }

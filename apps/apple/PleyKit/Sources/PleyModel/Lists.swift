@@ -209,7 +209,7 @@ public struct PlaylistAdded: Codable, Hashable, Sendable {
 extension Words {
     /// "12 items · 3h 12m", "1 item"; the length left out without one.
     public static func playlistMeta(count: Int, durationMs: Int) -> String {
-        [pluralize(count, "item"), duration(ms: durationMs)].filter { !$0.isEmpty }.joined(separator: " · ")
+        [localized("\(count) items"), duration(ms: durationMs)].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     /// A title in full, as Add to playlist names it: "The Office — S2 · E3 —

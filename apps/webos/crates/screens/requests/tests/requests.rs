@@ -4,11 +4,12 @@
 mod common;
 
 use common::TestApp;
-use pley_base::Key;
+use pley_base::{Cmd, Key, Rect};
 use pley_core::requests::RequestsTab;
 use pley_fixtures::ids;
 use pley_requests::RequestsScreen;
 use pley_shell::Route;
+use pley_ui::theme;
 
 /// The app on the requests, its first card focused once `card` shows.
 fn requests(profile: i64, card: &str) -> TestApp {
@@ -17,6 +18,68 @@ fn requests(profile: i64, card: &str) -> TestApp {
     assert!(app.until_shows(card), "no {card}");
     assert!(app.until(|a| a.focused() == Some(RequestsScreen::card_id(a.page(), 0))), "the first card hasn't focus");
     app
+}
+
+/// The cards drawn, top to bottom, as they are before focus lifts one.
+fn cards(app: &TestApp) -> Vec<Rect> {
+    let card_w = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
+    let mut cards: Vec<Rect> = app
+        .list
+        .cmds
+        .iter()
+        .filter_map(|c| match c {
+            Cmd::Fill { rect, .. } if rect.w == card_w && rect.h == 88.0 => Some(*rect),
+            _ => None,
+        })
+        .collect();
+    cards.sort_by(|a, b| a.y.total_cmp(&b.y));
+    cards
+}
+
+/// The focus ring around a card, to the outside of its line.
+fn ring(app: &TestApp) -> Rect {
+    let card_w = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
+    app.list
+        .cmds
+        .iter()
+        .find_map(|c| match c {
+            Cmd::Stroke { rect, width, .. } if rect.w > card_w => Some(rect.expand(width / 2.0)),
+            _ => None,
+        })
+        .expect("no ring")
+}
+
+#[test]
+fn the_first_card_is_as_far_from_the_second_as_the_others_and_its_ring_shows_whole() {
+    let mut app = requests(ids::ALEX, "Paper Moons");
+    app.advance(0.5);
+    let cards = cards(&app);
+    assert_eq!(cards.len(), 2);
+    assert_eq!(cards[1].y - cards[0].bottom(), 10.0, "the cards are 10 apart");
+    assert!(ring(&app).bottom() < cards[1].y, "the second card covers the first's ring");
+}
+
+#[test]
+fn the_last_card_scrolls_up_clear_of_the_screens_foot() {
+    let mut app = requests(ids::ALEX, "Quiet Fields");
+    // The All tab, past the filters: six requests, more than the screen holds.
+    app.press(Key::Up);
+    app.press(Key::Up);
+    app.press(Key::Right);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Silver Line")), "the tab didn't change");
+    let last = |a: &TestApp| a.focused() == Some(RequestsScreen::card_id(a.page(), 5));
+    for _ in 0..10 {
+        if last(&app) {
+            break;
+        }
+        app.press(Key::Down);
+    }
+    assert!(last(&app), "the last card hasn't focus");
+    app.advance(0.5);
+    let card = *cards(&app).last().unwrap();
+    assert!(card.bottom() <= theme::CANVAS_H - theme::SAFE_Y, "the last card ends at {}", card.bottom());
+    assert!(ring(&app).bottom() <= theme::CANVAS_H, "its ring is cut at {}", ring(&app).bottom());
 }
 
 #[test]

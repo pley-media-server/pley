@@ -1,3 +1,4 @@
+import PleyModel
 import SwiftUI
 
 /// The profile's own rating: five stars in half steps (1 to 10, two points
@@ -64,9 +65,11 @@ struct StarRating: View {
 
     /// "3.5 stars", "Not rated".
     private var spoken: String {
-        guard let rating else { return "Not rated" }
-        let stars = Double(rating) / 2
-        let number = stars == stars.rounded() ? String(Int(stars)) : String(stars)
-        return "\(number) \(stars == 1 ? "star" : "stars")"
+        guard let rating else { return localized("Not rated") }
+        // Whole stars are counted (one, other); a half star has its number in
+        // the locale's own decimals ("3,5 étoiles").
+        if rating.isMultiple(of: 2) { return localized("\(rating / 2) stars") }
+        let stars = (Double(rating) / 2).formatted(.number.locale(ShownLanguage.locale))
+        return localized("\(stars) stars")
     }
 }

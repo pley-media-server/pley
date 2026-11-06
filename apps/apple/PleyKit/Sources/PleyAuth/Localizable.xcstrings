@@ -1,0 +1,550 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "a PIN is 4 to 8 digits" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "un PIN tiene de 4 a 8 dígitos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "un code PIN compte 4 à 8 chiffres"
+          }
+        }
+      }
+    },
+    "that isn't a server address" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no es una dirección de servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce n’est pas une adresse de serveur"
+          }
+        }
+      }
+    },
+    "the Keychain can't be read until this device is unlocked (error %@)" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el llavero no se puede leer hasta que se desbloquee este dispositivo (error %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le trousseau ne peut pas être lu tant que cet appareil n’est pas déverrouillé (erreur %@)"
+          }
+        }
+      }
+    },
+    "the answer came from another server than the one you signed in to: try again" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la respuesta vino de un servidor distinto de aquel en el que iniciaste sesión: vuelve a intentarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la réponse vient d’un autre serveur que celui auquel vous vous connectez : réessayez"
+          }
+        }
+      }
+    },
+    "the answer wasn't for this sign-in: try again" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la respuesta no era para este inicio de sesión: vuelve a intentarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la réponse ne concernait pas cette connexion : réessayez"
+          }
+        }
+      }
+    },
+    "the code ran out: get a new one" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el código caducó: pide uno nuevo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le code a expiré : demandez-en un nouveau"
+          }
+        }
+      }
+    },
+    "the server allowed more than this app asks for: signed out" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor concedió más de lo que pide esta aplicación: sesión cerrada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur a accordé plus que ce que demande cette application : session fermée"
+          }
+        }
+      }
+    },
+    "the server couldn't answer (HTTP %@)" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor no pudo responder (HTTP %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur n’a pas pu répondre (HTTP %@)"
+          }
+        }
+      }
+    },
+    "the server refused: %@" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor lo rechazó: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur a refusé : %@"
+          }
+        }
+      }
+    },
+    "the server refused: try again" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor lo rechazó: vuelve a intentarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur a refusé : réessayez"
+          }
+        }
+      }
+    },
+    "the server sent no code: try again" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor no envió ningún código: vuelve a intentarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur n’a envoyé aucun code : réessayez"
+          }
+        }
+      }
+    },
+    "the server's answer can't be read: try again" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no se puede leer la respuesta del servidor: vuelve a intentarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la réponse du serveur est illisible : réessayez"
+          }
+        }
+      }
+    },
+    "the sign-in page couldn't be opened" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no se pudo abrir la página de inicio de sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la page de connexion n’a pas pu s’ouvrir"
+          }
+        }
+      }
+    },
+    "the sign-in took too long: try again" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el inicio de sesión tardó demasiado: vuelve a intentarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la connexion a pris trop de temps : réessayez"
+          }
+        }
+      }
+    },
+    "the sign-in was cancelled" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "se canceló el inicio de sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la connexion a été annulée"
+          }
+        }
+      }
+    },
+    "this build of Pley can't use the Keychain: it isn't signed (error %@)" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "esta compilación de Pley no puede usar el llavero: no está firmada (error %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cette version de Pley ne peut pas utiliser le trousseau : elle n’est pas signée (erreur %@)"
+          }
+        }
+      }
+    },
+    "this code doesn't work anymore: get a new one" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este código ya no funciona: pide uno nuevo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce code ne fonctionne plus : demandez-en un nouveau"
+          }
+        }
+      }
+    },
+    "this device's Keychain can't be used (error %@)" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no se puede usar el llavero de este dispositivo (error %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le trousseau de cet appareil ne peut pas être utilisé (erreur %@)"
+          }
+        }
+      }
+    },
+    "this profile needs its password: sign in again to use it" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este perfil necesita su contraseña: vuelve a iniciar sesión para usarlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce profil demande son mot de passe : reconnectez-vous pour l’utiliser"
+          }
+        }
+      }
+    },
+    "this profile needs its password: sign in again with a code and choose it there" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este perfil necesita su contraseña: vuelve a iniciar sesión con un código y elígelo ahí"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce profil demande son mot de passe : reconnectez-vous avec un code et choisissez-le à ce moment-là"
+          }
+        }
+      }
+    },
+    "this profile's PIN is locked after too many wrong tries. Its owner or an administrator can reset it" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el PIN de este perfil está bloqueado tras demasiados intentos incorrectos. Su propietario o un administrador puede restablecerlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le code PIN de ce profil est bloqué après trop d’essais incorrects. Son propriétaire ou un administrateur peut le réinitialiser"
+          }
+        }
+      }
+    },
+    "this server answered from an address that isn't on your network, without encryption: you were signed out to keep your sign-in safe" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor respondió desde una dirección que no está en tu red, sin cifrado: se cerró tu sesión para proteger tu inicio de sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur a répondu depuis une adresse qui n’est pas sur votre réseau, sans chiffrement : votre session a été fermée pour protéger votre connexion"
+          }
+        }
+      }
+    },
+    "this server calls itself %@: open it by that address, or check the proxy in front of it passes Host" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor se presenta como %@: ábrelo con esa dirección o comprueba que el proxy que tiene delante transmite Host"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur se présente comme %@ : ouvrez-le par cette adresse, ou vérifiez que le proxy placé devant lui transmet Host"
+          }
+        }
+      }
+    },
+    "this server can't check PINs" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor no puede comprobar los PIN"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur ne peut pas vérifier les codes PIN"
+          }
+        }
+      }
+    },
+    "this server can't sign in with a code yet: update it, or sign in with your browser" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor aún no permite iniciar sesión con un código: actualízalo o inicia sesión con tu navegador"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur ne permet pas encore de se connecter avec un code : mettez-le à jour, ou connectez-vous avec votre navigateur"
+          }
+        }
+      }
+    },
+    "this server sends apps to another address to sign in: Pley doesn't" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor envía las aplicaciones a otra dirección para iniciar sesión: Pley no lo hace"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur envoie les applications à une autre adresse pour se connecter : Pley ne le fait pas"
+          }
+        }
+      }
+    },
+    "this server sends you to another address to allow the app: Pley doesn't" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor te envía a otra dirección para autorizar la aplicación: Pley no lo hace"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur vous envoie à une autre adresse pour autoriser l’application : Pley ne le fait pas"
+          }
+        }
+      }
+    },
+    "this sign-in can't switch profiles: sign in again to allow it" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este inicio de sesión no permite cambiar de perfil: vuelve a iniciar sesión para permitirlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cette connexion ne permet pas de changer de profil : reconnectez-vous pour l’autoriser"
+          }
+        }
+      }
+    },
+    "too many wrong PINs: try again in a few minutes" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "demasiados PIN incorrectos: vuelve a intentarlo en unos minutos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "trop de codes PIN incorrects : réessayez dans quelques minutes"
+          }
+        }
+      }
+    },
+    "wrong PIN" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PIN incorrecto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "code PIN incorrect"
+          }
+        }
+      }
+    },
+    "you can't switch to this profile" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no puedes cambiar a este perfil"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vous ne pouvez pas passer à ce profil"
+          }
+        }
+      }
+    },
+    "you didn't allow the app" : {
+      "comment" : "A sign-in or profile error, shown after \"Couldn't sign in:\" or on its own.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no autorizaste la aplicación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "vous n’avez pas autorisé l’application"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

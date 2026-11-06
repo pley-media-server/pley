@@ -63,7 +63,7 @@ private struct AddToPlaylistSheet: View {
             Section("Playlists") {
                 if let playlists = model.playlists {
                     if playlists.isEmpty {
-                        Text(model.kind == .audio ? "No music playlists yet" : "No playlists yet")
+                        Text(model.kind == .audio ? localized("No music playlists yet") : localized("No playlists yet"))
                             .foregroundStyle(.secondary)
                     }
                     ForEach(playlists) { card in
@@ -169,7 +169,7 @@ private struct NewPlaylistSheet: View {
         #if os(macOS)
         .formStyle(.grouped)
         #endif
-        .navigationTitle(smart ? "Save as Smart Playlist" : "New Playlist")
+        .navigationTitle(smart ? localized("Save as Smart Playlist") : localized("New Playlist"))
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -179,7 +179,7 @@ private struct NewPlaylistSheet: View {
                     .accessibilityIdentifier("newPlaylist.cancel")
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(smart ? "Save" : "Create", action: create)
+                Button(smart ? localized("Save") : localized("Create"), action: create)
                     .disabled(model.busy)
                     .accessibilityIdentifier("newPlaylist.create")
             }

@@ -80,7 +80,7 @@ public enum CapsBuilder {
                 tier: DeviceClasses.tier(deviceClass.tier, memoryBytes: input.memoryBytes),
                 fireTv: false,
                 model: input.model))
-        return CapsSnapshot(report: report, deviceClass: deviceClass.id, lines: CapsLines.lines(report, input))
+        return CapsSnapshot(report: report, deviceClass: deviceClass.id, input: input)
     }
 
     /// The class's entries VideoToolbox agrees with: H.264 always, HEVC and

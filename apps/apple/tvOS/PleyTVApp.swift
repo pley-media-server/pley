@@ -33,6 +33,9 @@ struct RootView: View {
         root
             // Another root starts again.
             .id(app.root)
+            // Another language too, so the words made in code change with
+            // it (docs/APPLE.md, "Languages"); the player and its covers stay.
+            .id(app.language)
         #if DEBUG
             .overlay(alignment: .bottomTrailing) { ShelfLinksForTests(app: app) }
         #endif
@@ -59,6 +62,8 @@ struct RootView: View {
             default: break
             }
         }
+        // SwiftUI looks the words up in the language shown.
+        .environment(\.locale, app.locale)
     }
 
     /// Going to the background pauses, and the system gives the pause's
@@ -128,7 +133,7 @@ private struct ShelfLinksForTests: View {
                 }?.absoluteString ?? ""
             }
             VStack(alignment: .trailing) {
-                Text("\(shelf.shown?.entries.count ?? 0)").accessibilityIdentifier("test.shelf.count")
+                Text(verbatim: "\(shelf.shown?.entries.count ?? 0)").accessibilityIdentifier("test.shelf.count")
                 Text(link(.open)).accessibilityIdentifier("test.shelf.open")
                 Text(link(.play)).accessibilityIdentifier("test.shelf.play")
             }

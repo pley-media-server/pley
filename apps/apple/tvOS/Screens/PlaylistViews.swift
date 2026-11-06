@@ -146,7 +146,7 @@ struct PlaylistView: View {
         HStack(alignment: .top, spacing: 48) {
             PlaylistMosaic(app: app, artwork: model.artwork, video: model.video, size: 300)
             VStack(alignment: .leading, spacing: 14) {
-                if model.smart { ListBadge(text: "Smart") }
+                if model.smart { ListBadge(text: localized("Smart")) }
                 Text(model.title)
                     .font(.title2.bold())
                     .accessibilityAddTraits(.isHeader)
@@ -181,7 +181,9 @@ struct PlaylistView: View {
                         }
                         .accessibilityIdentifier("playlist.rename")
                         Button(role: .destructive) { deleting = true } label: {
-                            Label("Delete", systemImage: "trash")
+                            // A key of its own: the PIN pad's Delete erases a digit.
+                            Label(localized(keyed: LocalizedStringResource("playlist.delete", defaultValue: "Delete")),
+                                  systemImage: "trash")
                         }
                         .accessibilityIdentifier("playlist.delete")
                     }
@@ -240,7 +242,7 @@ struct PlaylistView: View {
             }
         }
         .accessibilityLabel(row.spokenLabel)
-        .accessibilityHint(isMoving ? "Move up or down, then press Select" : "")
+        .accessibilityHint(isMoving ? localized("Move up or down, then press Select") : "")
         .accessibilityActions {
             if model.editable, row.number > 1 {
                 Button("Move up") { model.move(row.entryId, by: -1) }
@@ -267,7 +269,7 @@ private struct EntryRow: View {
 
     var body: some View {
         HStack(spacing: 28) {
-            Text("\(row.number)")
+            Text(verbatim: "\(row.number)")
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .frame(minWidth: 44, alignment: .trailing)
@@ -280,7 +282,7 @@ private struct EntryRow: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.title).font(.headline).lineLimit(1)
-                Text(moving ? "Move up or down, then press Select" : row.subtitle)
+                Text(moving ? localized("Move up or down, then press Select") : row.subtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)

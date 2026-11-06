@@ -51,6 +51,12 @@ struct SignInView: View {
             .frame(maxWidth: 900, alignment: .leading)
         }
         .padding(80)
+        // The globe at the top right, on the title's line, while no account is signed in.
+        .overlay(alignment: .topTrailing) {
+            LanguageGlobe(app: app)
+                .padding(.top, 40)
+                .padding(.trailing, 80)
+        }
         .defaultFocus($focus, .cancel)
         .onExitCommand(perform: again ? { cancel() } : nil)
         .onAppear { model.signInWithCode() }
@@ -86,8 +92,10 @@ struct SignInView: View {
             Text(code.userCode)
                 .font(.system(size: 88, weight: .bold, design: .monospaced))
                 .accessibilityIdentifier("signIn.userCode")
-            Text("Go to \(code.verificationURL.absoluteString) on your phone or computer and type this code, "
-                + "or scan the QR code.")
+            Text("""
+                Go to \(code.verificationURL.absoluteString) on your phone or computer and type this code, \
+                or scan the QR code.
+                """)
             HStack(spacing: 16) {
                 ProgressView()
                 Text("Waiting for you to allow it…")

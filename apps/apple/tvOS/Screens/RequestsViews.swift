@@ -154,7 +154,7 @@ struct RequestsView: View {
                 if model.manage {
                     if !model.people.isEmpty || model.filter?.userId != nil {
                         let someone = model.filter?.userId != nil
-                        chipButton("\(RequestWords.askedBy): \(model.personTitle)", selected: someone,
+                        chipButton(localized("Asked by: \(model.personTitle)"), selected: someone,
                                    identifier: "requests.person") {
                             people = true
                         }

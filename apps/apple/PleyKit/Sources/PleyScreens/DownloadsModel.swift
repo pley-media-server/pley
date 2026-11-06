@@ -43,36 +43,42 @@ public struct DownloadRow: Identifiable, Hashable, Sendable {
 
 /// The downloads' words, the Android app's.
 public enum DownloadWords {
-    public static let emptyTitle = "Nothing downloaded yet"
-    public static let emptyMessage = "Download a movie or episode from its page to watch it offline."
-    public static let started = "Downloading. It's in Downloads, under Me."
-    public static let download = "Download"
-    public static let downloaded = "Downloaded"
-    public static let downloadSeason = "Download season"
-    public static let play = "Play"
-    public static let tryAgain = "Try again"
-    public static let delete = "Delete download"
-    public static let cancel = "Cancel download"
-    public static let goToPage = "Go to the page"
-    public static let meEntry = "Downloads"
-    public static let meHint = "Watch without your server"
-    public static let qualityHint = "Original downloads the file unchanged when this device can play it. "
-        + "Lower qualities take less space; the server converts them first."
-    public static let mobileData = "Download on mobile data"
-    public static let mobileDataHint = "Otherwise downloads wait for Wi-Fi"
-    public static let deleteAll = "Delete all downloads"
-    public static let deleteAllTitle = "Delete all downloads?"
-    public static let deleteAllMessage = "This deletes every download on this device, for all servers and profiles."
-    public static let deleteAllConfirm = "Delete all"
-    public static let keep = "Keep them"
+    public static var emptyTitle: String { localized("Nothing downloaded yet") }
+    public static var emptyMessage: String {
+        localized("Download a movie or episode from its page to watch it offline.")
+    }
+    public static var started: String { localized("Downloading. It's in Downloads, under Me.") }
+    public static var download: String { localized("Download") }
+    public static var downloaded: String { localized("Downloaded") }
+    public static var downloadSeason: String { localized("Download season") }
+    public static var play: String { localized("Play") }
+    public static var tryAgain: String { localized("Try again") }
+    public static var delete: String { localized("Delete download") }
+    public static var cancel: String { localized("Cancel download") }
+    public static var goToPage: String { localized("Go to the page") }
+    public static var meEntry: String { localized("Downloads") }
+    public static var meHint: String { localized("Watch without your server") }
+    public static var qualityHint: String {
+        localized("Original downloads the file unchanged when this device can play it. Lower qualities take less space; the server converts them first.")
+    }
+    public static var mobileData: String { localized("Download on mobile data") }
+    public static var mobileDataHint: String { localized("Otherwise downloads wait for Wi-Fi") }
+    public static var deleteAll: String { localized("Delete all downloads") }
+    public static var deleteAllTitle: String { localized("Delete all downloads?") }
+    public static var deleteAllMessage: String {
+        localized("This deletes every download on this device, for all servers and profiles.")
+    }
+    public static var deleteAllConfirm: String { localized("Delete all") }
+    public static var keep: String { localized("Keep them") }
     /// The offline banner.
-    public static let offline = "Pley is offline"
+    public static var offline: String { localized("Pley is offline") }
     /// The offline banner's way to the downloads, which play without the server.
-    public static let offlineAction = "Downloads"
+    public static var offlineAction: String { localized("Downloads") }
 
     /// "1.2 GB on this device · 20 GB free".
     public static func storage(_ storage: DownloadStorage) -> String {
-        "\(Words.bytes(Int(storage.usedBytes))) on this device · \(Words.bytes(Int(storage.freeBytes))) free"
+        let used = Words.bytes(Int(storage.usedBytes)), free = Words.bytes(Int(storage.freeBytes))
+        return localized("\(used) on this device · \(free) free")
     }
 
     /// Where `entry` is, in words.
@@ -81,15 +87,18 @@ public enum DownloadWords {
         case .done:
             return Words.bytes(Int(entry.sizeBytes))
         case .failed:
-            return "Didn't download: \(entry.error ?? "something went wrong")"
+            let error = entry.error ?? localized("something went wrong")
+            return localized("Didn't download: \(error)")
         case .waiting:
-            return entry.serverAway ? "Waiting for your server" : "Waiting for Wi-Fi"
+            return entry.serverAway ? localized("Waiting for your server") : localized("Waiting for Wi-Fi")
         case .queued, .downloading:
             if let converting = entry.converting {
-                return "Preparing on the server · \(Int((converting * 100).rounded(.down)))%"
+                let percent = Int((converting * 100).rounded(.down))
+                return localized("Preparing on the server · \(percent)%")
             }
-            guard entry.state == .downloading, entry.sizeBytes > 0 else { return "Waiting to download" }
-            return "Downloading · \(Int((entry.fraction * 100).rounded(.down)))% of \(Words.bytes(Int(entry.sizeBytes)))"
+            guard entry.state == .downloading, entry.sizeBytes > 0 else { return localized("Waiting to download") }
+            let percent = Int((entry.fraction * 100).rounded(.down)), size = Words.bytes(Int(entry.sizeBytes))
+            return localized("Downloading · \(percent)% of \(size)")
         }
     }
 }

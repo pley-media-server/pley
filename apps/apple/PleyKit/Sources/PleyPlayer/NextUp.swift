@@ -40,6 +40,6 @@ public enum NextUp {
     /// The card's heading: "Up next · S1 E2" for an episode, else "Up next".
     public static func heading(_ next: ItemSummary) -> String {
         let label = next.kind == .episode ? Words.episode(season: next.parentIndex, episode: next.index) : ""
-        return label.isEmpty ? "Up next" : "Up next · \(label)"
+        return label.isEmpty ? localized("Up next") : localized("Up next · \(label)")
     }
 }

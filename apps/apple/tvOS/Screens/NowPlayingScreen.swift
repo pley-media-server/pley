@@ -77,7 +77,7 @@ struct NowPlayingScreen: View {
                 Image(systemName: page.playing ? "pause.fill" : "play.fill")
                     .frame(width: 60)
             }
-            .accessibilityLabel(page.playing ? "Pause" : "Play")
+            .accessibilityLabel(page.playing ? localized("Pause") : localized("Play"))
             .accessibilityIdentifier("music.toggle")
             Button { music.next() } label: {
                 Image(systemName: "forward.fill")
@@ -97,14 +97,14 @@ struct NowPlayingScreen: View {
                 Button { music.setShuffle(!page.shuffle) } label: {
                     Label("Shuffle", systemImage: "shuffle")
                 }
-                .accessibilityValue(page.shuffle ? "On" : "Off")
+                .accessibilityValue(page.shuffle ? localized("On") : localized("Off"))
                 .accessibilityAddTraits(page.shuffle ? .isSelected : [])
                 .accessibilityIdentifier("music.shuffle")
                 .background(page.shuffle ? Color.white.opacity(0.18) : .clear, in: Capsule())
                 let choices = SleepChoice.all
-                ChoiceButton(title: "Sleep Timer", value: page.sleepSummary ?? "Off",
+                ChoiceButton(title: localized("Sleep Timer"), value: page.sleepSummary ?? localized("Off"),
                              symbol: page.sleep == .off ? "moon" : "moon.fill",
-                             text: page.sleepSummary ?? "Sleep Timer",
+                             text: page.sleepSummary ?? localized("Sleep Timer"),
                              choices: choices.indices.map { Choice(label: choices[$0].label(item: "track"), tag: $0) },
                              selected: choices.firstIndex(of: page.sleep)) { picked in
                     music.setSleep(picked.map { choices[$0] } ?? .off)

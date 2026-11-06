@@ -140,7 +140,7 @@ struct ShellView: View {
         NavigationSplitView {
             Sidebar(app: app)
                 .safeAreaInset(edge: .bottom) { meRow }
-                .navigationTitle("Pley")
+                .navigationTitle(Text(verbatim: "Pley"))
                 #if os(macOS)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 220, max: 300)
                 #else
@@ -174,7 +174,7 @@ struct ShellView: View {
                                color: user.avatarColor, size: 32)
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(app.user.map { $0.displayName ?? $0.name } ?? "Me")
+                    Text(app.user.map { $0.displayName ?? $0.name } ?? localized("Me"))
                         .lineLimit(1)
                     Text(app.server?.name ?? "")
                         .font(.caption)
@@ -235,18 +235,19 @@ struct ShellView: View {
         }
     }
 
+    /// The section's name, in the language shown.
     static func title(_ section: ShellSection) -> String {
         switch section {
-        case .home: "Home"
-        case .libraries: "Libraries"
-        case .search: "Search"
-        case .playlists: "Playlists"
-        case .me: "Me"
-        case .settings: "Settings"
-        case .liveTv: "Live TV"
-        case .nowPlaying: "Now Playing"
-        case .requests: "Requests"
-        case .library: "Library"
+        case .home: localized("Home")
+        case .libraries: localized("Libraries")
+        case .search: localized("Search")
+        case .playlists: localized("Playlists")
+        case .me: localized("Me")
+        case .settings: localized("Settings")
+        case .liveTv: localized("Live TV")
+        case .nowPlaying: localized("Now Playing")
+        case .requests: localized("Requests")
+        case .library: localized("Library")
         }
     }
 

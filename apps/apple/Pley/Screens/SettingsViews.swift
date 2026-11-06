@@ -9,8 +9,8 @@ import UIKit
 import AppKit
 #endif
 
-/// Settings on iPhone and iPad, from Me: Playback, Subtitles, Browsing,
-/// Sign-in, then Diagnostics and About. Each change is kept at once.
+/// Settings on iPhone and iPad, from Me: Language, Playback, Subtitles,
+/// Browsing, Sign-in, then Diagnostics and About. Each change is kept at once.
 struct SettingsView: View {
     @StateObject private var model: SettingsModel
 
@@ -20,6 +20,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            SettingsSections.LanguageRow(app: model.app)
             SettingsSections.Playback(model: model)
             SettingsSections.Subtitles(model: model)
             SettingsSections.Browsing(model: model)
@@ -43,7 +44,8 @@ struct SettingsView: View {
 }
 
 #if os(macOS)
-/// The Mac's Settings window (⌘,): Playback, Subtitles, Browsing and Downloads tabs.
+/// The Mac's Settings window (⌘,): General (the account's language), Playback, Subtitles, Browsing and
+/// Downloads tabs.
 struct MacSettingsView: View {
     @StateObject private var model: SettingsModel
     @StateObject private var downloads: DownloadsModel
@@ -55,6 +57,9 @@ struct MacSettingsView: View {
 
     var body: some View {
         TabView {
+            Form { SettingsSections.LanguageRow(app: model.app) }
+                .formStyle(.grouped)
+                .tabItem { Label("General", systemImage: "gearshape") }
             Form { SettingsSections.Playback(model: model) }
                 .formStyle(.grouped)
                 .tabItem { Label("Playback", systemImage: "play.rectangle") }
@@ -87,6 +92,35 @@ enum SettingsSections {
         #endif
     }
 
+    /// The account's language: Automatic (each device's), or one of its own,
+    /// for every device it signs in on, saved on the server at once; on a
+    /// Pley from before languages, this device's, as the globe picks it.
+    struct LanguageRow: View {
+        @ObservedObject var app: AppModel
+
+        var body: some View {
+            Section {
+                Picker("Language", selection: Binding(get: { app.languageRowChoice },
+                                                      set: { choice in Task { await app.setAccountLanguage(choice) } })) {
+                    ForEach(AppModel.languageChoices(automatic: app.languageRowAutomatic)) { choice in
+                        Text(verbatim: choice.label).tag(choice.value)
+                    }
+                }
+                .disabled(app.user == nil)
+                .accessibilityIdentifier("settings.language")
+            } footer: {
+                if app.keepsAccountLanguage {
+                    Text("""
+                         What Pley is in for you, on every device you sign in on. \
+                         Automatic follows each device's language.
+                         """)
+                } else {
+                    Text("What Pley is in on this device.")
+                }
+            }
+        }
+    }
+
     struct Playback: View {
         @ObservedObject var model: SettingsModel
 
@@ -102,8 +136,11 @@ enum SettingsSections {
             } header: {
                 Text("Playback")
             } footer: {
-                Text(model.autoplayNext ? "Up Next counts down, then plays the next episode."
-                     : "Up Next waits for you to choose Play Next.")
+                if model.autoplayNext {
+                    Text("Up Next counts down, then plays the next episode.")
+                } else {
+                    Text("Up Next waits for you to choose Play Next.")
+                }
             }
         }
 
@@ -146,7 +183,7 @@ enum SettingsSections {
             } header: {
                 Text("Subtitles")
             } footer: {
-                Text(SettingsModel.systemStyleNote + " Position moves text subtitles only.")
+                Text(SettingsModel.systemStyleNote + " " + localized("Position moves text subtitles only."))
             }
         }
     }
@@ -244,7 +281,7 @@ struct HistoryView: View {
         case .loading:
             StateView(kind: .loading)
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load your history", why: why,
+            StateView(kind: .failed(title: localized("Couldn't load your history"), why: why,
                                     retry: { Task { await model.load() } }))
         case .loaded where model.rows.isEmpty:
             StateView(kind: .empty(symbol: "clock", text: HistoryModel.emptyText, action: nil))
@@ -376,7 +413,7 @@ struct AboutView: View {
         List {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Pley").font(.title.bold())
+                    Text(verbatim: "Pley").font(.title.bold())
                     Text(model.title)
                         .foregroundStyle(.secondary)
                         .accessibilityIdentifier("about.version")

@@ -87,7 +87,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
         }
     }
 
-    @Published public private(set) var root: Root = .starting
+    @Published public private(set) var root: Root = .starting {
+        didSet { followLanguage() }
+    }
     /// The servers' navigation: a server's sign-in on top of the list.
     /// Bound to its `NavigationStack`, so Back pops it.
     @Published public var signingIn: [ServerEntry] = []
@@ -98,7 +100,21 @@ public final class AppModel: ObservableObject, SnapshotCache {
     /// in use asks for its PIN when it has one, as on Android TV.
     @Published public private(set) var profilesAtStart = false
     /// Who the app acts as on the open server, when signed in.
-    @Published public private(set) var user: User?
+    @Published public private(set) var user: User? {
+        didSet { followLanguage() }
+    }
+    /// The language the app is shown in (docs/APPLE.md, "Languages"): the
+    /// account's, else this device's, else the server's, else English. The
+    /// apps put `locale` in their root's environment and remake their
+    /// views when it changes.
+    @Published public private(set) var language: Language = .english
+    /// The locale the language is shown in: the device's own where the
+    /// device is in that language (en-GB keeps its 24-hour clock), else
+    /// the language alone.
+    @Published public private(set) var locale = Locale(identifier: "en")
+    /// The language picked on this device with the globe before signing
+    /// in; `nil`: Automatic, the device's own.
+    @Published public private(set) var pickedLanguage: Language?
     /// The server open, by the name it gave.
     @Published public private(set) var server: ServerEntry?
     /// Why the servers or sign-in show by themselves (a sign-in that ended,
@@ -189,6 +205,14 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private var reconnectTask: Task<Void, Never>?
     /// The sign-in read for the downloads after a wake in the background.
     private var wake: Task<Void, Never>?
+    /// The device's languages, the one it prefers first, and where the language shown goes (`ShownLanguage`).
+    private let deviceLanguages: () -> [String]
+    private let applyLanguage: (Language, Locale) -> Void
+    /// The open server's language, once `GET /api/server` answered (`known`); `code` is `nil` before one was chosen.
+    private var serverLanguage: (known: Bool, code: String?) = (false, nil)
+    /// The server answered the account's language with `404` or `405`: a
+    /// Pley from before languages, whose Language row picks on this device.
+    @Published private var languageRouteMissing = false
     private var started = false
     /// Wakes the reconnect loop when the network changes.
     private var paths: NWPathMonitor?
@@ -251,8 +275,12 @@ public final class AppModel: ObservableObject, SnapshotCache {
                 shelf: ((@escaping @Sendable (String, Int) async throws -> Data) -> TopShelfWriter?)? = nil,
                 eventSignals: @escaping @Sendable (PleyAPI, EventReceiver?) -> AsyncStream<EventSignal> = {
                     EventStream(api: $0, receiver: $1).signals()
-                }) {
+                },
+                deviceLanguages: @escaping () -> [String] = { ["en-US"] },
+                applyLanguage: @escaping (Language, Locale) -> Void = { _, _ in }) {
         self.session = session
+        self.deviceLanguages = deviceLanguages
+        self.applyLanguage = applyLanguage
         self.downloads = downloads ?? NoDownloads()
         self.snapshots = snapshots
         // The shelf reads the open server's pictures as they are.
@@ -340,6 +368,10 @@ public final class AppModel: ObservableObject, SnapshotCache {
         }
         audio.onResumeMusic = { [weak self] in self?.music.play() }
         #endif
+
+        // The language shown last, before the server says which: nothing shows in another first.
+        pickedLanguage = settings.pickedLanguage
+        showLanguage(settings.lastLanguage ?? settings.pickedLanguage ?? Language.ofDevice(deviceLanguages()) ?? .english)
     }
 
     /// The app as it runs: the Keychain, the system's sign-in sheet and
@@ -365,7 +397,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
         #endif
         return AppModel(session: session, servers: servers, transport: transport, authenticator: authenticator,
                         discover: { discovery.browse() }, settings: settings,
-                        downloads: downloads?(settings, transport.gate), snapshots: SnapshotStore(), shelf: shelf)
+                        downloads: downloads?(settings, transport.gate), snapshots: SnapshotStore(), shelf: shelf,
+                        deviceLanguages: { ShownLanguage.deviceLanguages },
+                        applyLanguage: { ShownLanguage.show($0, locale: $1) })
     }
 
     /// At start: opens the server used last when the app is signed in to
@@ -394,7 +428,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
             if LateReports.unreachable(error), await startOffline(last) { return }
             downloads.signedIn(nil)
             root = .servers
-            notice = "\(last.name): \(describe(error))"
+            notice = localized("\(last.name): \(describe(error))")
         }
     }
 
@@ -907,7 +941,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
 
     private func liveInfo(_ model: LivePlayerModel) -> NowPlayingInfo {
         let channel = model.channel
-        return NowPlayingInfo(title: channel?.numberedName ?? "Live TV", album: channel?.now?.title, rate: 1,
+        return NowPlayingInfo(title: channel?.numberedName ?? localized("Live TV"), album: channel?.now?.title, rate: 1,
                               kind: .video, isLive: true, artwork: picture(channel?.logo), artworkPath: channel?.logo)
     }
 
@@ -1072,7 +1106,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         var error = false
         if case .failed = news { error = true }
         let screen = Self.opens(news)
-        shell.show(RequestWords.notice(news), action: ToastAction("Open") { [weak self] in
+        shell.show(RequestWords.notice(news), action: ToastAction(localized("Open")) { [weak self] in
             self?.shell.open(screen)
         }, error: error)
     }
@@ -1360,7 +1394,11 @@ public final class AppModel: ObservableObject, SnapshotCache {
         stopReconnecting()
         offline = false
         if let api = await session.api, let fresh = try? await api.me() { self.user = fresh }
-        if let server, let name = await session.serverInfo?.name {
+        let info = await session.serverInfo
+        serverLanguage = (info != nil, info?.language)
+        if info?.language != nil { languageRouteMissing = false }
+        followLanguage()
+        if let server, let name = info?.name {
             self.server = ServerEntry(origin: server.origin, name: BonjourTXT.cleanName(name).isEmpty ? server.name
                                         : BonjourTXT.cleanName(name), id: server.id, saved: server.saved,
                                       found: server.found)
@@ -1398,6 +1436,120 @@ public final class AppModel: ObservableObject, SnapshotCache {
         let caps = caps
         downloads.signedIn(DownloadScope(origin: origin, profileId: user.id, api: api, tokens: tokens,
                                          caps: { await caps.warmUp().report }))
+    }
+
+    // MARK: Language
+
+    /// The language the app should show now (docs/APPLE.md, "Languages"),
+    /// shown at once: signed in, the account's own, else this device's (the
+    /// one picked with the globe, else the first of the device's that Pley
+    /// has), else the server's, else English; without an account, this
+    /// device's, else English. While the app is starting, or signed in on a
+    /// device in a language Pley doesn't have before the server has said
+    /// its own, the language shown stays.
+    private func followLanguage() {
+        let here = pickedLanguage ?? Language.ofDevice(deviceLanguages())
+        let wanted: Language?
+        if let user {
+            wanted = Language.of(user.language) ?? here
+                ?? (serverLanguage.known ? Language.of(serverLanguage.code) ?? .english : nil)
+        } else if root == .starting {
+            wanted = nil
+        } else {
+            wanted = here ?? .english
+        }
+        if let wanted { showLanguage(wanted) }
+    }
+
+    private func showLanguage(_ language: Language) {
+        let locale = Language.locale(of: language, device: deviceLanguages())
+        settings.lastLanguage = language
+        guard language != self.language || locale != self.locale else { return }
+        applyLanguage(language, locale)
+        self.language = language
+        self.locale = locale
+        // The server writes Home's and the libraries' row titles in the language asked for.
+        if user != nil { homeVersion += 1 }
+    }
+
+    /// What the account's Automatic stands for here: this device's language
+    /// (the globe's, else the device's own), else the server's, else English.
+    public var automaticLanguage: Language {
+        pickedLanguage ?? Language.ofDevice(deviceLanguages()) ?? Language.of(serverLanguage.code) ?? .english
+    }
+
+    /// The first of the device's languages that Pley has: what the globe's Automatic stands for.
+    public var deviceLanguage: Language? { Language.ofDevice(deviceLanguages()) }
+
+    /// The Language row's and the globe's choices: Automatic (`nil`),
+    /// standing for `automatic`, then each language named in itself.
+    public static func languageChoices(automatic: Language) -> [SettingChoice<Language?>] {
+        [SettingChoice<Language?>(nil, Language.label(nil, automatic: automatic))]
+            + Language.allCases.map { SettingChoice<Language?>($0, $0.autonym) }
+    }
+
+    /// Whether the server keeps an account's language. Every Pley with
+    /// languages names its own in `GET /api/server` and answers
+    /// `PUT /api/me/language`; on one from before them, the Language row
+    /// is this device's, as the globe is before signing in.
+    public var keepsAccountLanguage: Bool {
+        !(serverLanguage.known && serverLanguage.code == nil) && !languageRouteMissing
+    }
+
+    /// The Language row's choice: the account's, or this device's where the server keeps none.
+    public var languageRowChoice: Language? {
+        keepsAccountLanguage ? Language.of(user?.language) : pickedLanguage
+    }
+
+    /// What the Language row's Automatic stands for: the account's
+    /// Automatic, or, where the server keeps none, the device's own.
+    public var languageRowAutomatic: Language {
+        keepsAccountLanguage ? automaticLanguage : deviceLanguage ?? Language.of(serverLanguage.code) ?? .english
+    }
+
+    /// From the Language row: the account's language (`chooseLanguage`, a
+    /// refusal said in a toast), or this device's where the server keeps
+    /// none, as a `404` or `405` shows on a Pley from before languages.
+    public func setAccountLanguage(_ language: Language?) async {
+        guard keepsAccountLanguage else { return pickLanguage(language) }
+        do {
+            try await chooseLanguage(language)
+        } catch PleyError.api(404, _, _), PleyError.api(405, _, _), PleyError.unreadable(404),
+                PleyError.unreadable(405) {
+            languageRouteMissing = true
+            pickLanguage(language)
+        } catch {
+            shell.show(Toast(describe(error), style: .error))
+        }
+    }
+
+    /// Picks this device's language (`nil`: Automatic, the device's own):
+    /// the globe of the screens before signing in. It shows at once, and an
+    /// account's Automatic means it.
+    public func pickLanguage(_ language: Language?) {
+        settings.pickedLanguage = language
+        pickedLanguage = language
+        followLanguage()
+    }
+
+    /// Makes `language` the account's (`PUT /api/me/language`; `nil`:
+    /// Automatic), shown at once and put back if the server refuses.
+    public func chooseLanguage(_ language: Language?) async throws {
+        guard let before = user, let api = await session.api else { throw PleyError.signedOut }
+        var chosen = before
+        chosen.language = language?.code
+        user = chosen
+        do {
+            let fresh = try await api.setLanguage(language?.code)
+            guard user?.id == fresh.id else { return }
+            user = fresh
+            if let origin = server?.origin, let snapshots, let data = try? PleyJSON.encoder.encode(fresh) {
+                await snapshots.write(origin: origin, profileId: fresh.id, key: SnapshotKeys.me, data: data)
+            }
+        } catch {
+            if user?.id == before.id { user = before }
+            throw error
+        }
     }
 
     // MARK: Top Shelf
@@ -1563,7 +1715,11 @@ public final class AppModel: ObservableObject, SnapshotCache {
             // Another server's pictures can share these paths.
             await images.empty()
         }
-        let given = await session.serverInfo?.name
+        let info = await session.serverInfo
+        serverLanguage = (info != nil, info?.language)
+        if info?.language != nil { languageRouteMissing = false }
+        followLanguage()
+        let given = info?.name
         let shown = given.map { BonjourTXT.cleanName($0) }.flatMap { $0.isEmpty ? nil : $0 } ?? name
         server = ServerEntry(origin: home, name: shown, id: id, saved: saved, found: found)
     }
@@ -1603,7 +1759,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
 /// `error` in words for people.
 public func describe(_ error: any Error) -> String {
     if let error = error as? any LocalizedError, let text = error.errorDescription, !text.isEmpty { return text }
-    return "something went wrong: try again"
+    return localized("something went wrong: try again")
 }
 
 /// `text` as a sentence: a capital first, a full stop last. The app's own

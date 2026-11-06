@@ -142,7 +142,8 @@ behind it.
   signs out of the server too), and "Add a server" by its address. A found
   server with the name of a saved one at another address says so. When the
   system refuses local network access, the screen explains how to allow it
-  (on iPhone and iPad with a link to Settings).
+  (on iPhone and iPad with a link to Settings). Its globe picks this
+  device's language ([Languages](#languages)).
 - **Sign in**: the server's name and address, with a warning when it is
   reached over plain http outside the home network. iPhone, iPad and Mac
   offer "Sign in with your browser"; iPhone and iPad also "Sign in with a
@@ -268,9 +269,14 @@ behind it.
   toast when the server refuses.
 - **Settings**: this device's settings, kept on it (`UserDefaults`), the
   same for every server and profile. On iPhone and iPad a page from Me;
-  on the Mac the Settings window with Playback, Subtitles, Browsing and
-  Downloads tabs; on Apple TV under the profile's in the Settings tab, each row
-  opening its choices.
+  on the Mac the Settings window with General, Playback, Subtitles,
+  Browsing and Downloads tabs; on Apple TV under the profile's in the
+  Settings tab, each row opening its choices.
+  - **Language** (first on iPhone and iPad, the General tab on the Mac,
+    under the profile on Apple TV): the account's language, Automatic
+    ("Automatic (Français)": the language it stands for here, named in
+    itself) or English, Français, Español, saved on the server for every
+    device it signs in on ([Languages](#languages)).
   - **Playback**: Quality ("Quality on Wi-Fi" and "Quality on mobile
     data" on a device with mobile data): Automatic, Original or a quality,
     the one each playback starts with ([Quality](#quality)); and Play the
@@ -1770,7 +1776,8 @@ Watching), and back in front. It keeps it in the app group's container
 800 pixels as the server sent them, and the key the links are signed
 with. Another profile or server replaces the row at once; signing out,
 or forgetting the server, empties it, and the shelf goes back to the
-app's own picture.
+app's own picture. The row's title is in the language the app showed
+when it wrote the row, which it saves with it.
 
 The Top Shelf extension (`PleyTopShelf`) only reads that: it holds no
 sign-in and asks the server nothing. Refresh tokens change at every use,
@@ -1787,6 +1794,81 @@ signature and the server and profile open match it, so another app can't
 make one that plays something in Pley. Opened while "Who's watching?"
 shows, a link waits, and acts once the same profile is chosen; choosing
 another drops it.
+
+## Languages
+
+Pley for Apple is in English, French and Spanish, as the web app and the
+Android app are, and says a thing the way they do. The language it shows
+follows [docs/API.md](API.md#language), as the other apps decide it:
+
+1. the account's own (`User.language` from `GET /api/auth/me`), set with
+   Settings → Language (`PUT /api/me/language`; Automatic is `null`);
+2. else this device's: one picked with the globe of the screens before
+   signing in, else the first of the device's preferred languages that
+   Pley has;
+3. else the server language (`language` in `GET /api/server`);
+4. else English.
+
+The app starts in the language it showed last, before the server has
+said anything, and changes once it knows the account's; it changes at
+once, without starting again, when a language is chosen. Every request
+carries `Accept-Language` with the language shown, so Home's and the
+libraries' row titles, which the server writes, come back in it, and they
+are read again when it changes. Dates, times and numbers are written in
+the device's own locale where the device is in that language, so en-GB
+keeps its 24-hour clock, else in the language alone.
+
+The globe, before signing in, shows the language by its two letters,
+small and out of the way: at the top left of the servers and the sign-in
+on iPhone and iPad, in the toolbar on the Mac; on Apple TV at the bottom
+right of the servers, on Add a server's line, and at the top right of the
+code screen, on its title's line. Its menu offers Automatic (the device's
+own) and each language; the choice is kept on the device, and an
+account's Automatic means it. A Pley from before languages keeps no
+account's language: it names none in `GET /api/server` and answers
+`PUT /api/me/language` with `404` or `405`. Signed in to one, the Language
+row is this device's choice, as the globe is, shown at once and kept on
+the device. The system's own words (the player's
+controls, the share sheet, the Mac's standard menus) are in the system's
+language.
+
+How it works:
+
+- **Words** are in String Catalogs (`Localizable.xcstrings`), English the
+  source and the key, with French and Spanish: one for each app target
+  (`Pley/`, `tvOS/`, `TopShelf/`) and one for each PleyKit module with
+  words, which `Package.swift` processes and its code finds in
+  `Bundle.module`. Counts use the catalogs' plural variations: French and
+  Spanish have `one`, `many` and `other`.
+- **The language shown** is decided by `AppModel` (`language`, `locale`)
+  with `Language.pick`'s order, tested against the Samsung apps' and the
+  Android app's fixture (`packages/tv/test/fixtures/language.json`), and
+  kept for the whole process in `ShownLanguage` (PleyModel). The picked
+  language and the one shown last are `AppSettings.pickedLanguage` and
+  `lastLanguage`.
+- **SwiftUI's own lookups** (`Text("Servers")`, titles, tabs, alerts,
+  toolbars) follow the locale each scene's root puts in the environment.
+  The root views are made again when the language changes, so words made
+  in code change too; the player and its covers aren't, and take the new
+  language the next time they open.
+- **Words made in code** go through each target's and module's
+  `localized(_:)`, which reads its catalog's `.lproj` for the language
+  shown, whatever the system's language is.
+- **One English, two meanings**, where French or Spanish word them
+  differently (the sleep timer's "Off" against the subtitles', an audio
+  track's "Automatic" against the quality's), get a key of their own with
+  the English as its default value:
+  `localized(keyed: LocalizedStringResource("sleepTimer.off", defaultValue: "Off"))`.
+- **What stays as it is**: what the server sends (titles, names, error
+  messages), what people type, codec and format names (HEVC, Dolby Vision,
+  4K, 5.1), and Pley. Words with none of these in them, such as a number
+  and a separator, are `Text(verbatim:)`, so they aren't catalog keys.
+- **Top Shelf** reads the language the app saved with its row.
+- **The check**, `scripts/check-strings.py`, fails on a catalog entry
+  without its French or Spanish, a missing plural form, placeholders that
+  differ from the English, or a stale entry; given the three app builds,
+  also on a word in the code that no catalog has, or a catalog key no code
+  uses ([Building and testing](#building-and-testing)).
 
 ## Building and testing
 
@@ -1857,6 +1939,19 @@ xcrun simctl boot "$IOS_SIM"; open -a Simulator
 xcodebuild -project apps/apple/Pley.xcodeproj -scheme Pley -destination "platform=iOS Simulator,name=$IOS_SIM" -derivedDataPath /tmp/pley-dd build
 xcrun simctl install booted /tmp/pley-dd/Build/Products/Debug-iphonesimulator/Pley.app
 xcrun simctl launch booted com.formandelement.pley
+```
+
+The String Catalogs are checked by `scripts/check-strings.py`: every key
+has a French and a Spanish translation, every plural form French and
+Spanish need (`one`, `many`, `other`) and the same placeholders as the
+English, and no entry is stale. Given the derived data of the three app
+builds, it also compares the catalogs with the strings the compiler found
+in the code, so a word without its translation, or one left behind,
+fails:
+
+```sh
+python3 apps/apple/scripts/check-strings.py
+python3 apps/apple/scripts/check-strings.py --derived-data /tmp/pley-dd-ios /tmp/pley-dd-tv /tmp/pley-dd-mac
 ```
 
 The package's tests read the Android app's JSON fixtures
@@ -2144,7 +2239,7 @@ apps/apple/scripts/check-screens.sh` stops them. A full run, without
 | `tvOS/` | The Apple TV app, laid out the same way: `Shell/` (the tabs, Settings, and requests' news in `RequestNotice`), `Kit/` (the same views, built for the focus engine, with the request screens' posters, request tiles, rows, stage pills, problem states, side panel and grid in `RequestsKit`), `Screens/` (requests' in `DiscoverViews`, `DiscoverTitleView` and `RequestsViews`), and `Assets.xcassets` with the icon and the Top Shelf's picture ([Icons](#icons)) |
 | `TopShelf/` | The Top Shelf extension: `ContentProvider`, which reads the row the app saved ([Top Shelf](#top-shelf)) |
 | `UITests/`, `TVUITests/` | The UI tests ([UI tests](#ui-tests)): `ScreensTests.swift` (the tests), `Admin.swift` (the administrator's side), and the steps by accessibility identifier: `Walk.swift`, `AccountWalk.swift`, `BrowseWalk.swift`, `ItemWalk.swift`, `ListsWalk.swift`, `LiveWalk.swift`, `MusicWalk.swift` and `PlayerWalk.swift` on both; `DownloadsWalk.swift`, `LargeTextWalk.swift` (the largest text size) and `RemoteWalk.swift` (the remote) on iPhone and iPad; `RemoteWalk.swift` (Play/Pause and a row's focus), `ShelfWalk.swift` (the Top Shelf's links) and `RequestsWalk.swift` (requests, against the fixture server) on Apple TV |
-| `scripts/` | The checks against a real server ([A server to test against](#a-server-to-test-against)): `check-server.sh`, `check-playback.sh` and `check-screens.sh`; the test media (`make-test-media.sh`, `make-pgs.py`) and the made-up Live TV provider (`live-source.sh`) |
+| `scripts/` | The checks against a real server ([A server to test against](#a-server-to-test-against)): `check-server.sh`, `check-playback.sh` and `check-screens.sh`; the String Catalogs' check (`check-strings.py`, [Languages](#languages)); the test media (`make-test-media.sh`, `make-pgs.py`) and the made-up Live TV provider (`live-source.sh`) |
 | `PleyKit/` | One Swift package with everything else, a module per target |
 
 PleyKit's modules, each depending only on those before it:
@@ -2152,11 +2247,11 @@ PleyKit's modules, each depending only on those before it:
 | Module | What |
 |---|---|
 | `PleyShelf` | Apple TV's Top Shelf, for the app and its extension, on Foundation and CryptoKit only: the row (`ShelfSnapshot`), its files in the app group's container (`ShelfStore`) and the signed links (`ShelfLink`) |
-| `PleyModel` | The server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's); requests' answers, events and stages (`Requests`) and their words (`RequestWords` in `Words+Requests`, the Android app's); the remote's words (`Words+Remote`, the web's) |
+| `PleyModel` | The languages and the one shown (`Language`, `ShownLanguage`, [Languages](#languages)); the server's answers as `Codable` values: unknown fields are skipped, missing ones read as defaults, and unknown kinds and states still read; the caps report the apps send; the words shown for codecs, tracks, versions and times (`Words`, the Android app's); requests' answers, events and stages (`Requests`) and their words (`RequestWords` in `Words+Requests`, the Android app's); the remote's words (`Words+Remote`, the web's) |
 | `PleyCommon` | Server addresses and the server list (the Android app's rules), private addresses, host lookups, the User-Agent, Bonjour (browsing, TXT records, resolving), logging |
 | `PleyNetwork` | The HTTP client: one ephemeral URLSession, the plain http rule, redirects, size limits, tokens on the server's own origin with a refresh on `invalid_token`, the API's errors, the sign-in endpoints' client, the server check behind "Add a server", servers found on the network and confirmed (`LocalServers`), downloads to a file resumed with `Range`, the typed API calls (browsing in `PleyAPI+Browse`, with ETags; collections and playlists in `PleyAPI+Lists`; search, history and track defaults in `PleyAPI+Account`; Live TV in `PleyAPI+Live`; downloads in `PleyAPI+Downloads`; subtitle search in `PleyAPI+Subtitles`; requests and Discover in `PleyAPI+Requests`), and the server's events (`EventStream`, `EventParser`), and the network's changes that ask for new proofs (`NetworkChanges`) |
 | `PleyAuth` | Signing in: the server's metadata, PKCE, the sign-in sheet, sign-in with a code, the tokens (refreshes, sign-out, the Keychain), the server's proofs before a token goes (`ServerProof`), the scope guard and profile switching |
-| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favourites (`LiveTvRepository`), requests' summary, its polling and the news told once (`RequestsRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
+| `PleyData` | The server list, the open server and its sign-in (`SessionManager`), Home's rows, Live TV's lists, guide and favourites (`LiveTvRepository`), requests' summary, its polling and the news told once (`RequestsRepository`), the server's events gathered into changes and scans (`ServerEvents`), the app's settings (`AppSettings`, under `pley.settings.` in UserDefaults: quality, Up Next, subtitle style, grid size, private sign-in, Always start as, the household last seen, the profile used last, recent searches, the downloads' quality and mobile data, the language picked on the device and the one shown last), the screens saved for offline (`SnapshotStore`), what the screens and the player take from downloads (`DownloadsService`, `LocalMedia`), and pictures (`ImageLoader`) |
 | `PleyCaps` | What this device plays: the probe (VideoToolbox, AVFoundation, the audio route, the screen; a file per platform), the table of Apple's devices, the caps report built from them, and `DeviceCaps`, which reads it again when the screen or audio route changes |
 | `PleySubtitles` | Subtitles the app draws: the WebVTT reader, text cues by time, the subtitle sync and its offsets, the server's tracks read with `X-Pley-Complete`, and a port of `packages/picture-subtitles` (the Matroska reader, the PGS, VobSub and DVB decoders, and the pictures by time) |
 | `PleyPlayer` | Playing: the play request's rules, sessions on the server and their reports (in order, on the app's queue), the reports kept for later, the recovery rules, the Quality menu and Automatic (`Qualities`, `AutoQuality`, `StruggleMeter`, `NetworkStart`, the remembered choices and ceilings, `StreamWarmer`), skips, Up Next and the queues of collections and playlists, and the audio tracks (`Markers`, `CreditsGate`, `NextUp`, `PlayQueue`, `TrackChoices`), the subtitles' choice and schedule, the playback controller, the AVPlayer engine behind a protocol the tests replace, the Mac player's keys, Live TV (`LivePlayback`, with the `AVLiveEngine` behind a protocol), music (`MusicPlayback`, `MusicQueue`, the `AVMusicOutput` behind a protocol), the sleep timer (`SleepTimer`), the system's Now Playing and remote commands (`NowPlayingCenter`, `SystemNowPlaying`) and the audio session (`AudioSessionController`) |

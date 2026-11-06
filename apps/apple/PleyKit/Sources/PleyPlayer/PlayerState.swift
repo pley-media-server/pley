@@ -44,7 +44,7 @@ public struct PlayerState: Equatable, Sendable {
     /// the file's qualities (docs/QUALITY.md, "The menu").
     public var qualities: [MenuChoice] = []
     /// What plays, by the menu's words: "Automatic · 8 Mbps 1080p", "Original".
-    public var quality = "Automatic"
+    public var quality = localized("Automatic")
     /// Why it plays lower than the original when the player chose it
     /// ("Lowered for your connection"); `nil` otherwise.
     public var qualityNote: String?
@@ -123,12 +123,12 @@ public struct PlayerState: Equatable, Sendable {
         if downloaded { return PlayerTexts.downloaded }
         guard let method else { return nil }
         let base = switch method {
-        case .direct: "Direct play"
-        case .remux: "Direct stream"
-        case .transcode: "Transcoding"
+        case .direct: localized("Direct play")
+        case .remux: localized("Direct stream")
+        case .transcode: localized("Transcoding")
         default: method.rawValue.capitalized
         }
-        return audioConverted && method != .transcode ? "\(base) · Audio transcoding" : base
+        return audioConverted && method != .transcode ? localized("\(base) · Audio transcoding") : base
     }
 
     /// Whether the player is past preparing and hasn't failed.
@@ -179,7 +179,7 @@ public struct UpNextCard: Equatable, Sendable {
     }
 
     /// "Play Next (8)" while counting down, else "Play Next".
-    public var playLabel: String { secondsLeft.map { "Play Next (\($0))" } ?? "Play Next" }
+    public var playLabel: String { secondsLeft.map { localized("Play Next (\($0))") } ?? localized("Play Next") }
 }
 
 /// A chapter in the player's Chapters menu.
@@ -228,70 +228,81 @@ public struct MenuChoice: Equatable, Hashable, Sendable, Identifiable {
 
 /// The player's words for people.
 enum PlayerTexts {
-    static let stoppedByServer = "Playback was stopped by the server's administrator."
-    static let nothingToPlay = "This item has no file to play."
-    static let slowServer = "The server can't convert this video fast enough; a lower quality would play smoothly."
-    static let automaticHint = "Dynamically adjust to conditions"
-    static let lastEpisode = "This is the last episode"
-    static let nothingNext = "Nothing plays next"
-    static let subtitlesOff = "Off"
-    static let subtitlesFailed = "The subtitles couldn't be loaded."
-    static let burnedIn = "Burned into the video"
-    static let subtitleAdded = "Subtitles added"
-    static let downloaded = "Downloaded"
-    static let reconnecting = "Reconnecting…"
+    static var stoppedByServer: String { localized("Playback was stopped by the server's administrator.") }
+    static var nothingToPlay: String { localized("This item has no file to play.") }
+    static var slowServer: String {
+        localized("The server can't convert this video fast enough; a lower quality would play smoothly.")
+    }
+    static var automaticHint: String { localized("Dynamically adjust to conditions") }
+    static var lastEpisode: String { localized("This is the last episode") }
+    static var nothingNext: String { localized("Nothing plays next") }
+    /// The Subtitles menu's Off (Spanish "Desactivados": los subtítulos), not the sleep timer's.
+    static var subtitlesOff: String {
+        localized(keyed: LocalizedStringResource("subtitles.off", defaultValue: "Off",
+                                                 bundle: .atURL(Bundle.module.bundleURL)))
+    }
+    static var subtitlesFailed: String { localized("The subtitles couldn't be loaded.") }
+    static var burnedIn: String { localized("Burned into the video") }
+    static var subtitleAdded: String { localized("Subtitles added") }
+    static var downloaded: String { localized("Downloaded") }
+    static var reconnecting: String { localized("Reconnecting…") }
 
     /// The menu's Automatic while it plays `playing`: "Automatic · 8 Mbps 1080p".
-    static func automatic(_ playing: String) -> String { "Automatic · \(playing)" }
+    static func automatic(_ playing: String) -> String { localized("Automatic · \(playing)") }
 
     /// Automatic's second line while it plays below the original: "Now 8 Mbps 1080p".
-    static func now(_ playing: String) -> String { "Now \(playing)" }
+    static func now(_ playing: String) -> String { localized("Now \(playing)") }
 
     /// Said once when Automatic goes down to `label`.
-    static func lowered(to label: String) -> String { "Quality lowered to \(label)" }
+    static func lowered(to label: String) -> String { localized("Quality lowered to \(label)") }
 
     /// Why Automatic plays lower.
     static func lowered(_ reason: LoweredFor) -> String {
         switch reason {
-        case .network: "Lowered for your connection"
-        case .device: "Lowered for this device"
+        case .network: localized("Lowered for your connection")
+        case .device: localized("Lowered for this device")
         }
     }
 
     /// Why a fallback plays something else than the original.
     static func fallback(_ reason: FallbackReason) -> String {
         switch reason {
-        case .unplayable: "This device couldn't play the original file."
-        case .notSmooth: "The original didn't play smoothly on this device."
+        case .unplayable: localized("This device couldn't play the original file.")
+        case .notSmooth: localized("The original didn't play smoothly on this device.")
         }
     }
 
     static func stopped(_ message: String?) -> String {
         guard let message, !message.isEmpty else { return stoppedByServer }
-        return "\(stoppedByServer) \(message)"
+        return localized("Playback was stopped by the server's administrator. \(message)")
     }
 
     /// The event stream's `session_stopped`: "Playback was stopped by the
     /// server's administrator: <message>", or "Playback was stopped from
     /// another device" when the profile stopped it itself.
     static func stoppedFromElsewhere(_ message: String?, byAdmin: Bool) -> String {
-        guard byAdmin else { return "Playback was stopped from another device" }
+        guard byAdmin else { return localized("Playback was stopped from another device") }
         guard let message, !message.isEmpty else { return stoppedByServer }
-        return "Playback was stopped by the server's administrator: \(message)"
+        return localized("Playback was stopped by the server's administrator: \(message)")
     }
 
     static func failure(_ failure: Failure, detail: String?) -> String {
         switch failure {
-        case .unplayable: "This video can't be played on this device."
-        case .stuck: "The video stops at the same place each time."
-        case .stopped: "Playback stopped and couldn't start again."
-        case .network: "The server couldn't be reached."
-        case .engine: "The player stopped unexpectedly."
+        case .unplayable: localized("This video can't be played on this device.")
+        case .stuck: localized("The video stops at the same place each time.")
+        case .stopped: localized("Playback stopped and couldn't start again.")
+        case .network: localized("The server couldn't be reached.")
+        case .engine: localized("The player stopped unexpectedly.")
         }
     }
 
     /// An episode's "S1 E2".
     static func episodeLabel(season: Int?, episode: Int?) -> String {
-        [season.map { "S\($0)" }, episode.map { "E\($0)" }].compactMap { $0 }.joined(separator: " ")
+        switch (season, episode) {
+        case let (season?, episode?): localized("S\(season) E\(episode)")
+        case let (season?, nil): localized("S\(season)")
+        case let (nil, episode?): localized("E\(episode)")
+        case (nil, nil): ""
+        }
     }
 }

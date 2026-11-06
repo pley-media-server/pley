@@ -18,10 +18,10 @@ public enum MusicError: Equatable, Sendable {
 
     public var text: String {
         switch self {
-        case .signedOut: "Sign in again to play."
-        case .offline: "Can't reach the server."
-        case .unplayable: "This track can't be played."
-        case .stopped: "Playback was stopped by the server."
+        case .signedOut: localized("Sign in again to play.")
+        case .offline: localized("Can't reach the server.")
+        case .unplayable: localized("This track can't be played.")
+        case .stopped: localized("Playback was stopped by the server.")
         }
     }
 }

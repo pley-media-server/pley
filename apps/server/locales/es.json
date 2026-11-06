@@ -29,5 +29,24 @@
       "scanning": "analizando {{library}}",
       "scanningLibraries": "analizando bibliotecas"
     }
+  },
+  "requests": {
+    "addedByHand": "Añadido a mano",
+    "notAnswering": "{{service}} no responde",
+    "unsaved": "Pley no pudo guardar cómo fue el envío: {{why}}",
+    "arr": {
+      "unauthorized": "{{service}} rechazó la clave de API",
+      "unreachable": "No se puede conectar con {{service}}: {{why}}",
+      "refused": "{{service}} lo rechazó: {{why}}",
+      "unexpected": "{{service}} respondió algo inesperado: {{why}}",
+      "redirected": "respondió con una redirección: indica su dirección con su URL base, como la muestran sus propios ajustes",
+      "tooLarge": "su respuesta supera los {{size}} MB",
+      "noMovie": "su búsqueda no encontró ninguna película",
+      "noId": "no hay ningún id en su respuesta",
+      "noShow": "no encontró ninguna serie con el id de TheTVDB {{tvdb}}",
+      "noTvdbId": "TMDB no conoce ningún id de TheTVDB para esta serie, y Sonarr lo necesita: añádela a Sonarr a mano",
+      "qualityProfile": "elige el perfil de calidad de {{service}} en Ajustes → Solicitudes",
+      "rootFolder": "elige la carpeta raíz de {{service}} en Ajustes → Solicitudes"
+    }
   }
 }

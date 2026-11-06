@@ -145,7 +145,7 @@ public struct RoutePicker: View {
     public var body: some View {
         RoutePickerView(video: video)
             .frame(width: 44, height: 44)
-            .accessibilityLabel("AirPlay")
+            .accessibilityLabel(Text("AirPlay", bundle: .module))
             .accessibilityIdentifier(id)
     }
 }

@@ -18,8 +18,7 @@ public enum SignOutReason: Sendable, Equatable {
         switch self {
         case .ended: PleyError.signedOut.userMessage
         case .unencrypted:
-            "this server answered from an address that isn't on your network, without encryption: "
-                + "you were signed out to keep your sign-in safe"
+            localized("this server answered from an address that isn't on your network, without encryption: you were signed out to keep your sign-in safe")
         case .widerScope: AuthError.widerScope.message
         }
     }

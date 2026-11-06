@@ -10,14 +10,18 @@ public struct ServerInfo: Codable, Hashable, Sendable {
     public var setupRequired: Bool
     /// Setting up takes the code from the server's log.
     public var setupCodeRequired: Bool
+    /// The server language, an administrator's choice ("en", "fr", "es");
+    /// `nil` before one was made, English then (docs/API.md, "Language").
+    public var language: String?
 
     public init(name: String, version: String, commit: String? = nil, setupRequired: Bool = false,
-                setupCodeRequired: Bool = false) {
+                setupCodeRequired: Bool = false, language: String? = nil) {
         self.name = name
         self.version = version
         self.commit = commit
         self.setupRequired = setupRequired
         self.setupCodeRequired = setupCodeRequired
+        self.language = language
     }
 
     public init(from decoder: any Decoder) throws {
@@ -27,5 +31,6 @@ public struct ServerInfo: Codable, Hashable, Sendable {
         commit = try c.decodeIfPresent(String.self, forKey: .commit)
         setupRequired = try c.value(.setupRequired, or: false)
         setupCodeRequired = try c.value(.setupCodeRequired, or: false)
+        language = try c.decodeIfPresent(String.self, forKey: .language)
     }
 }

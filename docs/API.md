@@ -695,14 +695,18 @@ an account sees is, in order:
    Settings → General; English until there is one), which
    `GET /api/server` shows as `language`.
 
-Any other code is `400`. The server writes Home's and the libraries' hub
-titles (`Hub.title`) in that language; apps send `Accept-Language` with the
-language they show, and write the rest themselves. Error messages are in
-English. The web app loads a language's words when it is first shown, and
-remembers the last one on the device so the next visit starts in it. The
-tray of a server on a desktop is in the server language once an
-administrator has chosen one, else the desktop's; its menu takes a new one
-when Pley starts again (on Linux, the next time it opens).
+Any other code is `400`. The server writes its own words in that language:
+Home's and the libraries' hub titles (`Hub.title`), and on requests why one
+couldn't be sent (`MediaRequest.reason` of a failed one, `request_failed`'s
+`reason`, an approval option's `error`) and `MediaRequest.note`. What
+Radarr, Sonarr or the network said goes in those as it came. Apps send
+`Accept-Language` with the language they show, and write the rest
+themselves. Error messages (`message`) are in English. The web app loads
+a language's words when it is first shown, and remembers the last one on
+the device so the next visit starts in it. The tray of a server on a
+desktop is in the server language once an administrator has chosen one,
+else the desktop's; its menu takes a new one when Pley starts again (on
+Linux, the next time it opens).
 
 ## Compatibility tokens
 
@@ -3067,7 +3071,8 @@ An app's token without the route's scope is refused before all of it
   folder (anime's own where set) or those given, and searched for unless
   `radarr_search` / `sonarr_search` is off. A title already there is
   monitored again, the seasons asked for too, and searched for. Should that
-  fail, the request is `failed`, `reason` says why and managers hear it
+  fail, the request is `failed`, `reason` says why (in the language each
+  manager reads, [Language](#language)) and managers hear it
   (`request_failed`); approving it again (`retry`) tries again. The request
   keeps what its approval chose while it is being sent: a send a restart
   cut short is made again when the server starts, and should how it went
@@ -3101,8 +3106,8 @@ An app's token without the route's scope is refused before all of it
   an approval preselects (anime's for anime). The lists are kept 5 minutes,
   then asked for again (one question at a time) and waited for 3 seconds at
   most: a service that hasn't answered by then has the lists it gave last
-  (none, if it never did), and `error` says why ("Radarr isn't answering",
-  or what went wrong).
+  (none, if it never did), and `error` says why in the manager's language
+  ("Radarr isn't answering", or what went wrong).
 - **Actions** (`MediaRequest.actions`): what this session may do to the
   request now, in the order clients list them. Clients offer exactly these
   and work out none themselves; one refused anyway, after a race, answers
@@ -3312,8 +3317,10 @@ interface MediaRequest {
   stage: RequestStage;              // where it is: draw a request from this
   stage_at: null;                   // always null: no stage says when it ends
   reason: string | null;            // declined: the administrator's (or null), for its maker and managers;
-                                    // failed: what went wrong, for managers; null for others
-  note: string | null;              // managers: what to know of it ("Added by hand")
+                                    // failed: what went wrong, for managers, in their language ("Radarr
+                                    // isn't answering", "Radarr refused: …" with Radarr's words as it
+                                    // said them); null for others
+  note: string | null;              // managers: what to know of it, in their language ("Added by hand")
   mine: boolean;                    // this account made it
   watching: boolean;                // this account follows it
   watchers: number;                 // managers: how many follow it; 0 for others
@@ -3379,7 +3386,8 @@ interface ApprovalOptions {
   root_folder: string | null;
   anime_quality_profile: number | null; // for anime requests; null: as above
   anime_root_folder: string | null;
-  error: string | null;             // it didn't answer: "Radarr isn't answering"; the lists are its last
+  error: string | null;             // it didn't answer, in the manager's language: "Radarr isn't answering";
+                                    // the lists are its last
 }
 ```
 
@@ -3767,7 +3775,10 @@ too. Whether a stream is a manager's is checked again as its session is
 - `request_created`: a new request, `pending` or approved as made: to
   managers but its maker.
 - `request_failed`: a request couldn't be sent to Radarr or Sonarr and
-  waits for a manager: to managers (`retry_at` is always `null`).
+  waits for a manager: to managers (`retry_at` is always `null`), with
+  `reason` in the language the stream's account sees (its own, else the
+  language of the device that opened the stream, else the server
+  language), as `GET /api/requests/{id}` words it.
 - `requests_settings_changed` has no audience: see the union below.
 
 Clients fetch the request summary again on each, and what shows that

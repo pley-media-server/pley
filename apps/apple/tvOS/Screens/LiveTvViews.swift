@@ -39,14 +39,14 @@ struct LiveTvView: View {
             StateView(kind: .loading)
         case .notAllowed:
             StateView(kind: .empty(symbol: "tv",
-                                   text: "Live TV isn't open to this profile. An administrator can open it in "
-                                       + "Pley's web app, under Settings → Live TV.", action: nil))
+                                   text: localized("Live TV isn't open to this profile. An administrator can open it in Pley's web app, under Settings → Live TV."),
+                                   action: nil))
         case .noChannels:
             StateView(kind: .empty(symbol: "tv",
-                                   text: "No channels yet. Channels appear here once an administrator adds an "
-                                       + "IPTV provider in Pley's web app.", action: nil))
+                                   text: localized("No channels yet. Channels appear here once an administrator adds an IPTV provider in Pley's web app."),
+                                   action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Live TV didn't load", why: why) { model.reload() })
+            StateView(kind: .failed(title: localized("Live TV didn't load"), why: why) { model.reload() })
         case .ready:
             HStack(alignment: .top, spacing: 40) {
                 TVCategories(model: model)
@@ -74,7 +74,7 @@ struct LiveTvView: View {
 
     @ViewBuilder private var channels: some View {
         if let error = model.paging.pages.error {
-            StateView(kind: .failed(title: "Live TV didn't load", why: error) { model.paging.reload() })
+            StateView(kind: .failed(title: localized("Live TV didn't load"), why: error) { model.paging.reload() })
         } else if model.paging.pages.total == 0 {
             StateView(kind: .empty(symbol: "tv", text: "\(model.empty.title). \(model.empty.detail)", action: nil))
         } else if model.paging.pages.total == nil {
@@ -109,16 +109,16 @@ private struct TVCategories: View {
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-                row(.favorites, "Favourites", model.groups.favorites)
-                row(.recent, "Recently watched", model.groups.recent)
-                row(.all, "All channels", model.groups.total)
+                row(.favorites, localized("Favourites"), model.groups.favorites)
+                row(.recent, localized("Recently watched"), model.groups.recent)
+                row(.all, localized("All channels"), model.groups.total)
                 let sections = model.sections
                 ForEach(sections.regions) { region in
                     Text(region.region).font(.headline).foregroundStyle(.secondary).padding(.top, 16)
                     ForEach(region.groups) { row(.group($0.name), $0.label, $0.count) }
                 }
                 if !sections.others.isEmpty {
-                    Text(sections.regions.isEmpty ? "Groups" : "More groups")
+                    Text(sections.regions.isEmpty ? localized("Groups") : localized("More groups"))
                         .font(.headline).foregroundStyle(.secondary).padding(.top, 16)
                     ForEach(sections.others) { row(.group($0.name), LiveTvRules.groupName($0, name: $0.name), $0.count) }
                 }
@@ -135,7 +135,7 @@ private struct TVCategories: View {
             HStack {
                 Text(title).lineLimit(1)
                 Spacer(minLength: 12)
-                Text("\(count)").foregroundStyle(.secondary).monospacedDigit()
+                Text(count, format: .number).foregroundStyle(.secondary).monospacedDigit()
             }
             .font(.callout)
         }
@@ -216,10 +216,10 @@ private struct TVGuide: View {
                     }
                     .frame(width: channelWidth - 40, height: rowHeight - 30)
                 }
-                .accessibilityLabel("\(channel.name)\(channel.number.map { ", \($0)" } ?? ""), watch")
+                .accessibilityLabel(localized("\([channel.name, channel.number].compactMap { $0 }.joined(separator: ", ")), watch"))
                 .accessibilityIdentifier("live.guide.channel.\(channel.id)")
                 if programs.isEmpty {
-                    Text(channel.hasGuide ? "Nothing in the guide now" : "No guide for this channel")
+                    Text(channel.hasGuide ? localized("Nothing in the guide now") : localized("No guide for this channel"))
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .frame(width: CGFloat(layout.width(LiveTvModel.windowSpan)), alignment: .leading)
@@ -250,7 +250,7 @@ private struct TVGuide: View {
             choose(channel, program)
         } label: {
             VStack(alignment: .leading, spacing: 4) {
-                Text(program.title.isEmpty ? "No information for this time" : program.title)
+                Text(program.title.isEmpty ? localized("No information for this time") : program.title)
                     .font(.callout)
                     .lineLimit(1)
                 Text(LiveTvRules.span(program, now: model.now)).font(.caption2).foregroundStyle(.secondary)
@@ -322,7 +322,7 @@ private struct TVChannelCards: View {
                         Text(on.title).font(.callout).foregroundStyle(.secondary).lineLimit(1)
                         ProgressView(value: on.progress(at: model.now)).accessibilityHidden(true)
                     } else {
-                        Text(channel.hasGuide ? "Nothing in the guide now" : "No guide for this channel")
+                        Text(channel.hasGuide ? localized("Nothing in the guide now") : localized("No guide for this channel"))
                             .font(.callout).foregroundStyle(.secondary)
                     }
                 }
@@ -331,7 +331,7 @@ private struct TVChannelCards: View {
             .frame(height: 140)
         }
         .contextMenu {
-            Button(channel.favorite ? "Remove from favourites" : "Add to favourites") { model.toggleFavorite(channel) }
+            Button(channel.favorite ? localized("Remove from favourites") : localized("Add to favourites")) { model.toggleFavorite(channel) }
                 .accessibilityIdentifier("live.channel.\(channel.id).favorite")
         }
         .accessibilityIdentifier("live.channel.\(channel.id)")
@@ -376,16 +376,16 @@ private struct TVProgramView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             }
             VStack(alignment: .leading, spacing: 20) {
-                Text(program.title.isEmpty ? "No information for this time" : program.title).font(.title2.bold())
+                Text(program.title.isEmpty ? localized("No information for this time") : program.title).font(.title2.bold())
                 if let label = program.episodeLabel { Text(label).foregroundStyle(.secondary) }
                 HStack(spacing: 16) {
-                    Text("\(channel.numberedName) · \(LiveTvRules.span(program, now: model.now))")
+                    Text(verbatim: "\(channel.numberedName) · \(LiveTvRules.span(program, now: model.now))")
                         .foregroundStyle(.secondary)
-                    if program.isLive { badge("Live") }
-                    if program.isNew { badge("New") }
+                    if program.isLive { badge(localized("Live")) }
+                    if program.isNew { badge(localized("New")) }
                 }
                 .font(.callout)
-                Text(program.description ?? "The guide says nothing more of it.")
+                Text(program.description ?? localized("The guide says nothing more of it."))
                     .foregroundStyle(program.description == nil ? .secondary : .primary)
                 if program.airing(at: model.now) {
                     Button(action: watch) { Label("Watch now", systemImage: "play.fill") }

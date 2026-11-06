@@ -117,7 +117,7 @@ struct ArtworkTile: View {
 
     @ViewBuilder private var badge: some View {
         if tile.unwatched > 0 {
-            Text("\(tile.unwatched)")
+            Text(verbatim: "\(tile.unwatched)")
                 .font(.caption2.bold().monospacedDigit())
                 .foregroundStyle(.white)
                 .padding(.horizontal, 6)

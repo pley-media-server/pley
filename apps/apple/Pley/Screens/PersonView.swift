@@ -34,7 +34,9 @@ struct PersonView: View {
             StateView(kind: .empty(symbol: "person.crop.circle.badge.questionmark", text: PersonModel.notFoundTitle,
                                    action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load this person", why: why) { Task { await model.load() } })
+            StateView(kind: .failed(title: localized("Couldn't load this person"), why: why) {
+                Task { await model.load() }
+            })
         case .loaded:
             if let page = model.page {
                 loaded(page)

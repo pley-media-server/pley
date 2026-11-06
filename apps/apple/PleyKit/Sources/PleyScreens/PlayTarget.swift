@@ -17,7 +17,7 @@ public struct PlayTarget {
     }
 
     /// The menu item's words.
-    public var menuTitle: String { "Play “\(title)”" }
+    public var menuTitle: String { localized("Play “\(title)”") }
 
     /// `item`'s Play, through the item actions; `nil` for what doesn't play here.
     public static func item(_ item: ItemSummary, actions: ItemActionsModel) -> PlayTarget? {

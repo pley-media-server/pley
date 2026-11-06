@@ -12,18 +12,18 @@ public enum SmartFilter {
     ]
 
     /// Each Plex sort's words, oldest-first order then newest-first.
-    private static let sortNotes: [String: (String, String)] = [
-        "titleSort": ("By title", "By title, Z to A"),
-        "year": ("Oldest first", "Newest first"),
-        "originallyAvailableAt": ("Earliest release first", "Latest release first"),
-        "addedAt": ("First added first", "Recently added first"),
-        "rating": ("Lowest rated first", "Best rated first"),
-        "audienceRating": ("Lowest rated first", "Best rated first"),
-        "userRating": ("Your lowest rated first", "Your best rated first"),
-        "lastViewedAt": ("Least recently played first", "Recently played first"),
-        "duration": ("Shortest first", "Longest first"),
-        "viewCount": ("Least played first", "Most played first"),
-    ]
+    private static var sortNotes: [String: (String, String)] { [
+        "titleSort": (localized("By title"), localized("By title, Z to A")),
+        "year": (localized("Oldest first"), localized("Newest first")),
+        "originallyAvailableAt": (localized("Earliest release first"), localized("Latest release first")),
+        "addedAt": (localized("First added first"), localized("Recently added first")),
+        "rating": (localized("Lowest rated first"), localized("Best rated first")),
+        "audienceRating": (localized("Lowest rated first"), localized("Best rated first")),
+        "userRating": (localized("Your lowest rated first"), localized("Your best rated first")),
+        "lastViewedAt": (localized("Least recently played first"), localized("Recently played first")),
+        "duration": (localized("Shortest first"), localized("Longest first")),
+        "viewCount": (localized("Least played first"), localized("Most played first")),
+    ] }
 
     /// The library page's filters and order as a smart filter: what Save as… saves.
     public static func of(_ params: LibraryParams) -> String {
@@ -45,18 +45,18 @@ public enum SmartFilter {
             let value = pieces.count > 1 ? LibraryParams.decode(String(pieces[1])) : ""
             let off = value == "0" || value == "false"
             switch key {
-            case "genre": out.append("Genre: \(value)")
-            case "label": out.append("Label: \(value)")
-            case "studio": out.append("Studio: \(value)")
-            case "contentRating": out.append("Rated \(value)")
-            case "unwatched": out.append(off ? "Watched" : "Unwatched")
-            case "inProgress": out.append(off ? "Not in progress" : "In progress")
-            case "year": out.append("From \(value)")
-            case "year>>": out.append("After \(value)")
-            case "year<<": out.append("Before \(value)")
-            case "decade": out.append("The \(value)s")
+            case "genre": out.append(localized("Genre: \(value)"))
+            case "label": out.append(localized("Label: \(value)"))
+            case "studio": out.append(localized("Studio: \(value)"))
+            case "contentRating": out.append(localized("Rated \(value)"))
+            case "unwatched": out.append(off ? localized("Watched") : localized("Unwatched"))
+            case "inProgress": out.append(off ? localized("Not in progress") : localized("In progress"))
+            case "year": out.append(localized("From \(value)"))
+            case "year>>": out.append(localized("After \(value)"))
+            case "year<<": out.append(localized("Before \(value)"))
+            case "decade": out.append(localized("The \(value)s"))
             case "sort": out.append(sortNote(value))
-            case "limit": out.append("At most \(value)")
+            case "limit": out.append(localized("At most \(value)"))
             // Plumbing, not part of what is found.
             case "type", "includeGuids": break
             default: out.append("\(key): \(value)")
@@ -68,9 +68,9 @@ public enum SmartFilter {
     /// A collection's order in words when it has no filter: "By release date".
     public static func sortNote(_ sort: CollectionSort) -> String? {
         switch sort {
-        case .release: "By release date"
-        case .title: "By title"
-        case .custom: "Custom order"
+        case .release: localized("By release date")
+        case .title: localized("By title")
+        case .custom: localized("Custom order")
         default: nil
         }
     }
@@ -83,7 +83,7 @@ public enum SmartFilter {
         // python-plexapi may name the kind first: `movie.year`.
         let name = field.split(separator: ".", maxSplits: 1).count > 1
             ? String(field[field.index(after: field.firstIndex(of: ".")!)...]) : field
-        guard let notes = sortNotes[name] else { return "Sorted by \(name)" }
+        guard let notes = sortNotes[name] else { return localized("Sorted by \(name)") }
         return direction == "desc" ? notes.1 : notes.0
     }
 }

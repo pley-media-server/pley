@@ -3,6 +3,11 @@ import Foundation
 /// Files, tracks and times in words, as the web and the Android app say
 /// them (apps/android `model/format`: Media.kt, Languages.kt, Durations.kt,
 /// Sizes.kt), so every app labels a track or a version the same way.
+///
+/// The words are in the language shown (`ShownLanguage`), as Android's
+/// `FormatWords` has them: codec, format and resolution names stay as they
+/// are; units, counts and track words are translated, and numbers are
+/// written in the shown locale.
 public enum Words {
     private static let codecs: [String: String] = [
         "h264": "H.264", "hevc": "HEVC", "h265": "HEVC", "av1": "AV1", "vp9": "VP9", "vp8": "VP8",
@@ -27,12 +32,12 @@ public enum Words {
         guard let channels, channels != 0 else { return layout ?? "" }
         switch channels {
         case 1: return "Mono"
-        case 2: return "Stereo"
+        case 2: return localized("Stereo")
         case 3: return "2.1"
         case 6: return "5.1"
         case 7: return "6.1"
         case 8: return "7.1"
-        default: return "\(channels)ch"
+        default: return localized("\(channels)ch")
         }
     }
 
@@ -109,16 +114,16 @@ public enum Words {
         switch s.kind {
         case .audio:
             let details = audioFormat(s)
-            let base = title != nil && lang == nil ? title! : lang ?? title ?? "Unknown"
+            let base = title != nil && lang == nil ? title! : lang ?? title ?? localized("Unknown")
             return base + extra + (details.isEmpty ? "" : " (\(details))")
         case .subtitle:
-            let base = lang ?? title ?? "Unknown"
-            let flags = [codec(s.codec).isEmpty ? nil : codec(s.codec), isForced(s) ? "Forced" : nil,
-                         s.external ? "External" : nil].compactMap { $0 }.joined(separator: ", ")
+            let base = lang ?? title ?? localized("Unknown")
+            let flags = [codec(s.codec).isEmpty ? nil : codec(s.codec), isForced(s) ? localized("Forced") : nil,
+                         s.external ? localized("External") : nil].compactMap { $0 }.joined(separator: ", ")
             return base + extra + (flags.isEmpty ? "" : " (\(flags))")
         default:
             return [resolution(width: s.width, height: s.height), codec(s.codec).isEmpty ? nil : codec(s.codec),
-                    dynamicRange(s), (s.bitDepth ?? 0) > 8 ? "\(s.bitDepth!)-bit" : nil]
+                    dynamicRange(s), (s.bitDepth ?? 0) > 8 ? localized("\(s.bitDepth!)-bit") : nil]
                 .compactMap { $0 }.joined(separator: " ")
         }
     }
@@ -134,18 +139,27 @@ public enum Words {
         let parts = [file.edition ?? "", resolution(width: file.width, height: file.height) ?? "",
                      codec(file.videoCodec), file.container?.uppercased() ?? "",
                      file.size > 0 ? bytes(file.size) : ""].filter { !$0.isEmpty }
-        return parts.isEmpty ? "Version \(position + 1)" : parts.joined(separator: " · ")
+        return parts.isEmpty ? localized("Version \(position + 1)") : parts.joined(separator: " · ")
     }
 
     /// A bitrate in bits a second: "8.2 Mbps", "12 Mbps", "640 kbps"; empty when unknown.
     public static func bitrate(_ bps: Int?) -> String {
         guard let bps, bps > 0 else { return "" }
         if bps >= 1_000_000 {
-            let mbps = Double(bps) / 1_000_000
-            return String(format: bps >= 10_000_000 ? "%.0f Mbps" : "%.1f Mbps", locale: Locale(identifier: "en_US_POSIX"),
-                          mbps)
+            let mbps = fixed(Double(bps) / 1_000_000, digits: bps >= 10_000_000 ? 0 : 1)
+            return localized("\(mbps) Mbps")
         }
-        return "\(Int((Double(bps) / 1000).rounded())) kbps"
+        let kbps = String(Int((Double(bps) / 1000).rounded()))
+        return localized("\(kbps) kbps")
+    }
+
+    /// `value` with `digits` decimals, rounded as `%f` does, its decimal
+    /// separator the shown locale's ("1.5" in English, "1,5" in French),
+    /// without grouping, as Android's `fixed` writes it.
+    public static func fixed(_ value: Double, digits: Int) -> String {
+        let text = String(format: "%.\(digits)f", locale: Locale(identifier: "en_US_POSIX"), value)
+        guard digits > 0, let separator = ShownLanguage.locale.decimalSeparator, separator != "." else { return text }
+        return text.replacingOccurrences(of: ".", with: separator)
     }
 
     /// A file's video and sound in one line: "4K · HEVC · Dolby Vision P8.1 · TrueHD Atmos 7.1".
@@ -205,28 +219,74 @@ public enum Words {
         "yi": "Yiddish", "zu": "Zulu",
     ]
 
-    /// "eng" → "English", "pt-BR" → "Portuguese (BR)"; an unknown code comes back upper-cased; `nil` without one.
+    /// "eng" → "English", "pt-BR" → "Portuguese (BR)", in the language
+    /// shown ("Anglais" in French); an unknown code comes back
+    /// upper-cased; `nil` without one.
     public static func language(_ code: String?) -> String? {
         let raw = (code ?? "").trimmingCharacters(in: .whitespaces)
         guard !raw.isEmpty else { return nil }
         let parts = raw.lowercased().split(whereSeparator: { $0 == "-" || $0 == "_" }).map(String.init)
-        guard let name = names[parts[0]] else { return raw.count <= 3 ? raw.uppercased() : raw }
+        guard let english = names[parts[0]] else { return raw.count <= 3 ? raw.uppercased() : raw }
+        let name = languageName(parts[0], english: english)
         return parts.count > 1 ? "\(name) (\(parts[1].uppercased()))" : name
+    }
+
+    /// What the language shown calls the language of `base` (a code of the
+    /// table), `english` in English, as Android's `Languages.kt`: Pley's
+    /// own words for the codes that name no one language (and Mandarin,
+    /// which Foundation calls Chinese), Foundation's names for the others.
+    private static func languageName(_ base: String, english: String) -> String {
+        if ShownLanguage.language == .english { return english }
+        switch base {
+        case "und": return localized(keyed: LocalizedStringResource("language.und", defaultValue: "Unknown",
+                                                                     bundle: .atURL(Bundle.module.bundleURL)))
+        case "mul": return localized(keyed: LocalizedStringResource("language.mul", defaultValue: "Multiple",
+                                                                     bundle: .atURL(Bundle.module.bundleURL)))
+        case "zxx": return localized(keyed: LocalizedStringResource("language.zxx", defaultValue: "No linguistic content",
+                                                                     bundle: .atURL(Bundle.module.bundleURL)))
+        case "qaa": return localized(keyed: LocalizedStringResource("language.qaa", defaultValue: "Original",
+                                                                     bundle: .atURL(Bundle.module.bundleURL)))
+        case "cmn": return localized(keyed: LocalizedStringResource("language.cmn", defaultValue: "Mandarin",
+                                                                     bundle: .atURL(Bundle.module.bundleURL)))
+        default: break
+        }
+        let locale = ShownLanguage.locale
+        let code = twoLetterCode(base)
+        // Foundation gives nothing, or the code back, for a language it can't name: the English name stands in.
+        guard let found = locale.localizedString(forLanguageCode: code), !found.isEmpty,
+              found.lowercased() != code, found.lowercased() != base
+        else { return english }
+        // French and Spanish write languages in lower case ("allemand"); a name on its own starts with a capital.
+        return found.prefix(1).uppercased(with: locale) + found.dropFirst()
+    }
+
+    /// A language's two-letter code (ISO 639-1), which Foundation names:
+    /// "eng" → "en", "chi" → "zh"; a code without one as it is.
+    private static func twoLetterCode(_ base: String) -> String {
+        if base.count == 2 { return base }
+        guard let name = names[base] else { return base }
+        return names.first { $0.key.count == 2 && $0.value == name }?.key ?? base
     }
 
     // MARK: Times and sizes
 
-    /// 1536 → "1.5 KB", 150 MiB → "150 MB": three significant digits, in units of 1024, up to TB.
+    /// 1536 → "1.5 KB", 150 MiB → "150 MB": three significant digits, in
+    /// units of 1024, up to TB; "1,5 Ko" in French, as Android writes them.
     public static func bytes(_ bytes: Int) -> String {
-        let units = ["B", "KB", "MB", "GB", "TB"]
         var value = Double(bytes)
         var i = 0
-        while value >= 1024 && i < units.count - 1 {
+        while value >= 1024 && i < 4 {
             value /= 1024
             i += 1
         }
-        let digits = value >= 100 || i == 0 ? 0 : 1
-        return String(format: "%.\(digits)f", locale: Locale(identifier: "en_US_POSIX"), value) + " " + units[i]
+        let number = fixed(value, digits: value >= 100 || i == 0 ? 0 : 1)
+        switch i {
+        case 0: return localized("\(number) B")
+        case 1: return localized("\(number) KB")
+        case 2: return localized("\(number) MB")
+        case 3: return localized("\(number) GB")
+        default: return localized("\(number) TB")
+        }
     }
 
     /// Milliseconds → "1:02:03" or "2:03".
@@ -242,46 +302,65 @@ public enum Words {
     public static func runtime(ms: Int?) -> String {
         guard let ms, ms > 0 else { return "" }
         let minutes = Int((Double(ms) / 60_000).rounded(.toNearestOrAwayFromZero))
-        if minutes < 1 { return "\(max(1, Int((Double(ms) / 1000).rounded())))s" }
-        if minutes < 60 { return "\(minutes) min" }
+        if minutes < 1 { return seconds(max(1, Int((Double(ms) / 1000).rounded()))) }
+        if minutes < 60 { return localized("\(minutes) min") }
+        return hoursMinutes(minutes)
+    }
+
+    /// "29s": a duration under a minute, short.
+    static func seconds(_ n: Int) -> String { localized("\(n)s") }
+
+    /// "1h 52m", "2h": a duration of an hour or more, short, from its minutes.
+    static func hoursMinutes(_ minutes: Int) -> String {
         let h = minutes / 60, m = minutes % 60
-        return m != 0 ? "\(h)h \(m)m" : "\(h)h"
+        return m != 0 ? localized("\(h)h \(m)m") : localized("\(h)h")
     }
 
     /// An episode's "S1 E2"; empty without numbers.
     public static func episode(season: Int?, episode: Int?) -> String {
-        [season.map { "S\($0)" }, episode.map { "E\($0)" }].compactMap { $0 }.joined(separator: " ")
+        switch (season, episode) {
+        case (let s?, let e?): localized("S\(s) E\(e)")
+        case (let s?, nil): localized("S\(s)")
+        case (nil, let e?): localized("E\(e)")
+        default: ""
+        }
     }
 
     /// "26 min left", "1h 12m left"; empty without a duration or once nothing is left.
     public static func timeLeft(positionMs: Int, durationMs: Int?) -> String {
         guard let durationMs, durationMs > 0 else { return "" }
         let left = runtime(ms: max(0, durationMs - positionMs))
-        return left.isEmpty ? "" : "\(left) left"
+        return left.isEmpty ? "" : localized("\(left) left")
     }
 
     /// A duration for VoiceOver, in words: "34 minutes", "1 hour 12 minutes", "45 seconds".
     public static func spokenDuration(ms: Int?) -> String {
         guard let ms, ms > 0 else { return "" }
         let minutes = Int((Double(ms) / 60_000).rounded(.toNearestOrAwayFromZero))
-        if minutes < 1 { return pluralize(max(1, Int((Double(ms) / 1000).rounded())), "second") }
+        if minutes < 1 { return localized("\(max(1, Int((Double(ms) / 1000).rounded()))) seconds") }
         let h = minutes / 60, m = minutes % 60
-        return [h > 0 ? pluralize(h, "hour") : nil, m > 0 ? pluralize(m, "minute") : nil]
-            .compactMap { $0 }.joined(separator: " ")
+        if h > 0 && m > 0 {
+            let hours = localized("\(h) hours"), minutes = localized("\(m) minutes")
+            // "1 hour 12 minutes"; Spanish puts "y" between them.
+            return localized("\(hours) \(minutes)")
+        }
+        return h > 0 ? localized("\(h) hours") : localized("\(m) minutes")
     }
 
     /// "34 minutes left", for VoiceOver; empty once nothing is left.
     public static func spokenTimeLeft(positionMs: Int, durationMs: Int?) -> String {
         guard let durationMs, durationMs > 0 else { return "" }
         let left = spokenDuration(ms: max(0, durationMs - positionMs))
-        return left.isEmpty ? "" : "\(left) left"
+        return left.isEmpty ? "" : localized("\(left) left")
     }
 
     // MARK: Titles and counts
 
-    /// "1 movie", "0 movies", "12,345 movies": the count with its noun.
+    /// "1 movie", "0 movies", "12,345 movies": the count with its noun, in
+    /// English only (the nouns are the caller's). Words in the language
+    /// shown count with `localized("\(n) movies")`, a plural of the catalog.
     public static func pluralize(_ n: Int, _ one: String, _ many: String? = nil) -> String {
-        let number = NumberFormatter.localizedString(from: NSNumber(value: n), number: .decimal)
+        let number = n.formatted(.number.locale(ShownLanguage.locale))
         return "\(number) \(n == 1 ? one : many ?? one + "s")"
     }
 
@@ -294,22 +373,29 @@ public enum Words {
 
     /// "412 movies", "38 shows", "120 artists": what a library holds, by its kind.
     public static func libraryCount(_ library: Library) -> String {
-        switch library.kind {
-        case .movies: pluralize(library.itemCount, "movie")
-        case .shows: pluralize(library.itemCount, "show")
-        case .music: pluralize(library.itemCount, "artist")
-        default: pluralize(library.itemCount, "item")
+        let n = library.itemCount
+        return switch library.kind {
+        case .movies: localized("\(n) movies")
+        case .shows: localized("\(n) shows")
+        case .music: localized("\(n) artists")
+        default: localized("\(n) items")
         }
     }
 
     /// "S1 · E3", "E3", or "" with neither number: the screens' episode label.
     public static func episodeLabel(season: Int?, episode: Int?) -> String {
-        [season.map { "S\($0)" }, episode.map { "E\($0)" }].compactMap { $0 }.joined(separator: " · ")
+        switch (season, episode) {
+        case (let s?, let e?): localized("S\(s) · E\(e)")
+        case (let s?, nil): localized("S\(s)")
+        case (nil, let e?): localized("E\(e)")
+        default: ""
+        }
     }
 
     /// "Season 2 Episode 5", for VoiceOver; the parts that are known.
     public static func spokenEpisode(season: Int?, episode: Int?) -> String {
-        [season.map { $0 == 0 ? "Specials" : "Season \($0)" }, episode.map { "Episode \($0)" }]
+        [season.map { $0 == 0 ? localized("Specials") : localized("Season \($0)") },
+         episode.map { localized("Episode \($0)") }]
             .compactMap { $0 }.joined(separator: " ")
     }
 
@@ -319,15 +405,15 @@ public enum Words {
         case .movie:
             return item.year.map(String.init) ?? ""
         case .show:
-            if let seasons = item.childCount, seasons > 0 { return pluralize(seasons, "season") }
-            if let episodes = item.leafCount { return pluralize(episodes, "episode") }
+            if let seasons = item.childCount, seasons > 0 { return localized("\(seasons) seasons") }
+            if let episodes = item.leafCount { return localized("\(episodes) episodes") }
             return item.year.map(String.init) ?? ""
         case .season:
-            return item.leafCount.map { pluralize($0, "episode") } ?? ""
+            return item.leafCount.map { localized("\($0) episodes") } ?? ""
         case .episode:
             return episodeLabel(season: item.parentIndex, episode: item.index)
         case .artist:
-            return item.childCount.map { pluralize($0, "album") } ?? ""
+            return item.childCount.map { localized("\($0) albums") } ?? ""
         case .album:
             return [nonEmpty(item.parentTitle), item.year.map(String.init)].compactMap { $0 }.joined(separator: " · ")
         case .track:
@@ -374,9 +460,9 @@ public enum Words {
         if isInProgress(item) {
             state = spokenTimeLeft(positionMs: item.userState.positionMs, durationMs: item.durationMs)
         } else if item.userState.watched {
-            state = "watched"
+            state = localized("watched")
         } else if item.kind == .show || item.kind == .season, unwatched > 0 {
-            state = pluralize(unwatched, "unwatched episode")
+            state = localized("\(unwatched) unwatched episodes")
         } else {
             state = ""
         }

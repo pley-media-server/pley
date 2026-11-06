@@ -39,7 +39,14 @@ final class ContentProvider: TVTopShelfContentProvider {
             return item
         }
         let section = TVTopShelfItemCollection(items: items)
-        section.title = String(localized: "Continue Watching")
+        section.title = localized("Continue Watching", in: snapshot.language)
         return TVTopShelfSectionedContent(sections: [section])
+    }
+
+    /// `key` in `language`, the one the app showed when it saved the row
+    /// (docs/APPLE.md, "Languages"); the system's without one.
+    private static func localized(_ key: String.LocalizationValue, in language: String?) -> String {
+        let bundle = language.flatMap { Bundle.main.path(forResource: $0, ofType: "lproj") }.flatMap(Bundle.init(path:))
+        return String(localized: key, bundle: bundle ?? .main, locale: language.map(Locale.init(identifier:)) ?? .current)
     }
 }

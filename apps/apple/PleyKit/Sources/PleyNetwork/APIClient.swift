@@ -129,7 +129,7 @@ public actor APIClient {
         let fm = FileManager.default
         try? fm.removeItem(at: part)
         guard fm.createFile(atPath: part.path, contents: nil), let handle = try? FileHandle(forWritingTo: part) else {
-            throw PleyError.unreachable("the download couldn't be saved")
+            throw PleyError.unreachable(PleyError.notSaved)
         }
         let writer = PartWriter(handle: handle, limit: maxBytes - max(offset, 0))
         defer {
@@ -146,7 +146,7 @@ public actor APIClient {
         guard let type, accept.contains(type) else { throw PleyError.unreadable(status: response.status) }
         let (written, over, failed) = writer.result
         if over { throw PleyError.tooLarge }
-        if failed { throw PleyError.unreachable("the download couldn't be saved") }
+        if failed { throw PleyError.unreachable(PleyError.notSaved) }
         writer.close()
         if response.status == 206 && offset > 0, fm.fileExists(atPath: file.path) {
             let out = try FileHandle(forWritingTo: file)
@@ -165,7 +165,7 @@ public actor APIClient {
     private func streamed(_ path: String, query: [URLQueryItem], headers: [String: String],
                           opened: (@Sendable (Int) -> Void)? = nil,
                           read: @escaping @Sendable (Data) -> Bool) async throws -> StreamedResponse {
-        guard let url = url(path, query: query) else { throw PleyError.unreachable("that isn't an address on the server") }
+        guard let url = url(path, query: query) else { throw PleyError.unreachable(PleyError.notOnServer) }
         var request = URLRequest(url: url)
         for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
         let tokens = self.tokens.flatMap { t in
@@ -209,7 +209,7 @@ public actor APIClient {
     /// asked ahead of the player.
     public func playerData(_ url: URL, maxBytes: Int) async throws -> Data {
         guard Addresses.origin(url) == Addresses.origin(origin) else {
-            throw PleyError.unreachable("that isn't an address on the server")
+            throw PleyError.unreachable(PleyError.notOnServer)
         }
         var request = URLRequest(url: url)
         request.setValue("*/*", forHTTPHeaderField: "Accept")
@@ -222,7 +222,7 @@ public actor APIClient {
     /// `playerData`, read as it arrives and thrown away (a stream's segment, asked ahead of the player).
     public func playerBytes(_ url: URL, read: @escaping @Sendable (Int) -> Bool) async throws {
         guard Addresses.origin(url) == Addresses.origin(origin) else {
-            throw PleyError.unreachable("that isn't an address on the server")
+            throw PleyError.unreachable(PleyError.notOnServer)
         }
         try check(try await doubted {
             try await transport.stream(URLRequest(url: url), redirects: .api(issuer: origin), read: read)
@@ -262,7 +262,7 @@ public actor APIClient {
     public nonisolated func checkPlayerURL(_ url: URL) async throws {
         guard Addresses.origin(url) == Addresses.origin(origin), let host = url.host(percentEncoded: false),
               !host.isEmpty
-        else { throw PleyError.unreachable("that isn't an address on the server") }
+        else { throw PleyError.unreachable(PleyError.notOnServer) }
         if url.scheme?.lowercased() == "http" { try await transport.gate.check(host: host) }
     }
 
@@ -270,7 +270,7 @@ public actor APIClient {
     private func request(_ method: String, _ path: String, query: [URLQueryItem], body: Data?, maxBytes: Int,
                          accept: String, headers: [String: String] = [:],
                          notModified: Bool = false) async throws -> HTTPResponse {
-        guard let url = url(path, query: query) else { throw PleyError.unreachable("that isn't an address on the server") }
+        guard let url = url(path, query: query) else { throw PleyError.unreachable(PleyError.notOnServer) }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.setValue(accept, forHTTPHeaderField: "Accept")

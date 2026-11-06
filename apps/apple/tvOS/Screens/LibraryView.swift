@@ -163,7 +163,9 @@ struct LibraryView: View {
             Button {
                 model.saveAs()
             } label: {
-                Label("Save as Smart Playlist", systemImage: "text.badge.plus")
+                // A word of its own: the panel's full title doesn't fit beside Sort and Filter in French or Spanish.
+                let title = LocalizedStringResource("library.saveAs", defaultValue: "Save as Smart Playlist")
+                Label(localized(keyed: title), systemImage: "text.badge.plus")
             }
             .accessibilityIdentifier("library.saveAs")
         }
@@ -183,7 +185,7 @@ private struct GridPage: View {
             if total == 0 {
                 if model.params.filtered {
                     StateView(kind: .empty(symbol: "line.3.horizontal.decrease.circle", text: LibraryModel.noMatchTitle,
-                                           action: ("Clear filters", { model.clearFilters() })))
+                                           action: (localized("Clear filters"), { model.clearFilters() })))
                 } else {
                     StateView(kind: .empty(symbol: "film.stack", text: LibraryModel.emptyTitle, action: nil))
                 }

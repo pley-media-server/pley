@@ -18,6 +18,7 @@
     <string name="tv_player_position">%1$s sur %2$s</string>
     <string name="tv_player_chapter">Chapitre %1$d</string>
     <string name="tv_player_chapter_named">Chapitre %1$d · %2$s</string>
+    <string name="tv_player_chapter_word">Chapitre</string>
     <string name="tv_player_chapter_card">%1$s, à partir de %2$s</string>
     <plurals name="tv_player_spoken_hours">
         <item quantity="one">%1$d heure</item>

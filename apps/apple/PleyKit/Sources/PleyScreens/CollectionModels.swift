@@ -24,12 +24,14 @@ public struct CollectionCard: Identifiable, Hashable, Sendable {
     public init(_ collection: CollectionSummary, kind: LibraryKind?) {
         id = collection.id
         title = collection.title
-        count = NumberFormatter.localizedString(from: NSNumber(value: collection.itemCount), number: .decimal)
-        subtitle = Words.pluralize(collection.itemCount, kind == .shows ? "show" : "movie")
+        count = collection.itemCount.formatted(.number.locale(ShownLanguage.locale))
+        let items = collection.itemCount
+        subtitle = kind == .shows ? localized("\(items) shows") : localized("\(items) movies")
         smart = collection.smart
         automatic = collection.automatic
         pictures = collection.posterUrl.flatMap { $0.isEmpty ? nil : [$0] } ?? ["/api/collections/\(id)/images/poster"]
-        spokenLabel = [title, smart ? "smart collection" : "collection", subtitle].joined(separator: ", ")
+        spokenLabel = [title, smart ? localized("smart collection") : localized("collection"), subtitle]
+            .joined(separator: ", ")
     }
 }
 
@@ -42,8 +44,8 @@ public final class CollectionsModel: ObservableObject {
         case failed(String)
     }
 
-    public static let failedTitle = "Couldn't load the collections"
-    public static let emptyTitle = "No collections in this library"
+    public static var failedTitle: String { localized("Couldn't load the collections") }
+    public static var emptyTitle: String { localized("No collections in this library") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var cards: [CollectionCard] = []
@@ -94,9 +96,9 @@ public final class CollectionModel: ObservableObject {
         case notFound
     }
 
-    public static let failedTitle = "Couldn't load this collection"
-    public static let notFoundTitle = "This collection isn't available"
-    public static let nothingToPlay = "Nothing to play"
+    public static var failedTitle: String { localized("Couldn't load this collection") }
+    public static var notFoundTitle: String { localized("This collection isn't available") }
+    public static var nothingToPlay: String { localized("Nothing to play") }
 
     @Published public private(set) var state: State = .loading
     @Published public private(set) var detail: CollectionDetail?
@@ -143,7 +145,8 @@ public final class CollectionModel: ObservableObject {
 
     /// "2 movies", "3 shows".
     public var count: String {
-        Words.pluralize(detail?.collection.itemCount ?? 0, movies ? "movie" : "show")
+        let count = detail?.collection.itemCount ?? 0
+        return movies ? localized("\(count) movies") : localized("\(count) shows")
     }
 
     public var canPlay: Bool { !(detail?.items.isEmpty ?? true) }

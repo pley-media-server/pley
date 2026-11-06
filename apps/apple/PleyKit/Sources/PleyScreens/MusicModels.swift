@@ -33,7 +33,7 @@ public struct ArtistPage: Hashable, Sendable {
         backdrops = ItemPage.backdrops(detail.summary)
         summary = detail.summary.summary.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
         genres = detail.genres
-        counts = [count.map { Words.pluralize($0, "album") }, detail.summary.leafCount.map { Words.pluralize($0, "track") }]
+        counts = [count.map { localized("\($0) albums") }, detail.summary.leafCount.map { localized("\($0) tracks") }]
             .compactMap { $0 }.joined(separator: " · ")
         self.albums = sorted.map { Tile($0, shape: .square, line: $0.year.map(String.init) ?? "") }
         albumsLoading = albums == nil
@@ -102,7 +102,7 @@ public struct AlbumPage: Hashable, Sendable {
         artist = detail.summary.parentTitle.flatMap { $0.isEmpty ? nil : $0 }
         artistId = detail.summary.parentId
         year = detail.year
-        meta = [list.isEmpty ? nil : Words.pluralize(list.count, "track"),
+        meta = [list.isEmpty ? nil : localized("\(list.count) tracks"),
                 total > 0 ? Words.duration(ms: total) : nil].compactMap { $0 }.joined(separator: " · ")
         userRating = detail.userState.rating.map { Int($0.rounded()) }.flatMap { $0 > 0 ? min($0, 10) : nil }
         summary = detail.summary.summary.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
@@ -123,7 +123,8 @@ public struct AlbumPage: Hashable, Sendable {
             disc = d
             let artist = t.grandparentTitle.flatMap { $0.isEmpty || $0 == albumArtist ? nil : $0 }
             let duration = (t.durationMs ?? 0) > 0 ? Words.clock(ms: t.durationMs!) : ""
-            let spoken = [t.index.map { "Track \($0)" }, t.title, artist, Words.spokenDuration(ms: t.durationMs)]
+            let spoken = [t.index.map { localized("Track \($0)") }, t.title, artist,
+                          Words.spokenDuration(ms: t.durationMs)]
                 .compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: ", ")
             out.append(.track(TrackRow(id: t.id, position: n, number: t.index.map(String.init) ?? "", title: t.title,
                                        artist: artist, duration: duration, spoken: spoken)))
@@ -185,7 +186,7 @@ public final class ArtistModel: ObservableObject {
         }
         let all = Array(order.flatMap { tracks[$0] ?? [] }.filter { $0.kind == .track }.prefix(Self.maxTracks))
         guard !all.isEmpty else {
-            app.shell.show("Nothing to play yet")
+            app.shell.show(localized("Nothing to play yet"))
             return
         }
         await app.playMusic(all, shuffle: shuffle)
@@ -303,7 +304,7 @@ public final class AlbumModel: ObservableObject {
         } catch {
             detail?.summary.userState.rating = before
             rebuild()
-            app.shell.show("Couldn't save your rating: \(describe(error))")
+            app.shell.show(localized("Couldn't save your rating: \(describe(error))"))
         }
     }
 

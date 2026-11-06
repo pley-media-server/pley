@@ -94,7 +94,7 @@ public struct RequestCard: Hashable, Sendable, Identifiable {
             elsewhere: request.readyElsewhere ? RequestWords.readyElsewhere : nil,
             asked: [RequestWords.asked(request, manage: manage, now: now), watchers].compactMap { $0 }
                 .joined(separator: " · "),
-            reason: request.status == .declined && reason?.isEmpty == false ? "\u{201C}\(reason!)\u{201D}" : nil,
+            reason: request.status == .declined && reason?.isEmpty == false ? localized("“\(reason!)”") : nil,
             note: manage ? request.note.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 } : nil,
             sentTo: manage ? RequestWords.sentTo(request) : nil,
             buttons: actions.buttons, menu: actions.menu,

@@ -103,7 +103,7 @@ struct SearchDiscoverRow: View {
                     Spacer()
                     if let all = model.discoverAll {
                         Button(RequestWords.seeAll) { app.shell.open(all) }
-                            .accessibilityLabel("\(RequestWords.seeAll), \(RequestWords.discover)")
+                            .accessibilityLabel(Text(verbatim: "\(RequestWords.seeAll), \(RequestWords.discover)"))
                             .accessibilityIdentifier("search.discover.seeAll")
                     }
                 }

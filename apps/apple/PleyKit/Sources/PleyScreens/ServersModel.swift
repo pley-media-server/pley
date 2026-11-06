@@ -85,7 +85,7 @@ public final class ServersModel: ObservableObject {
         } catch is CancellationError {
             return false
         } catch {
-            self.error = "\(entry.name): \(describe(error))"
+            self.error = localized("\(entry.name): \(describe(error))")
             return false
         }
     }

@@ -48,6 +48,11 @@ const FILTERS_Y: f32 = 124.0;
 const CARD_H: f32 = 88.0;
 const CARD_GAP: f32 = 10.0;
 const CARD_W: f32 = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
+/// Room over the first card for its focus ring, and under the list the screen's safe area, so the
+/// last card scrolls up clear of the screen's foot. Both are in the rows' heights: the list then
+/// keeps every card `CARD_GAP` apart and knows how far it goes.
+const LIST_PAD_TOP: f32 = 8.0;
+const LIST_PAD_BOTTOM: f32 = theme::SAFE_Y;
 /// The line after the newest 200, under the last card.
 const MORE_LINE: f32 = 21.0;
 /// Answers kept for the tabs and filters seen, so going back to one draws it at once.
@@ -529,7 +534,7 @@ impl Screen for RequestsScreen {
                     }
                     None => {
                         for i in 0..4 {
-                            let y = list_top + 8.0 + i as f32 * (CARD_H + CARD_GAP);
+                            let y = list_top + LIST_PAD_TOP + i as f32 * (CARD_H + CARD_GAP);
                             skeleton_block(ui, Rect::new(theme::GUTTER, y, CARD_W, CARD_H), radius::CARD);
                         }
                     }
@@ -554,9 +559,13 @@ impl Screen for RequestsScreen {
                         list_id,
                         &mut this.list,
                         len,
-                        |_, i| if i < shown.len() { CARD_H } else { MORE_LINE },
+                        |_, i| {
+                            let top = if i == 0 { LIST_PAD_TOP } else { 0.0 };
+                            let bottom = if i + 1 == len { LIST_PAD_BOTTOM } else { 0.0 };
+                            top + if i < shown.len() { CARD_H } else { MORE_LINE } + bottom
+                        },
                         |ui, slot| {
-                            let y = slot.rect.y + if slot.index == 0 { 8.0 } else { 0.0 };
+                            let y = slot.rect.y + if slot.index == 0 { LIST_PAD_TOP } else { 0.0 };
                             let Some(r) = shown.get(slot.index) else {
                                 let at = Point::new(theme::GUTTER, y + 4.0);
                                 let more = t!("requests.page.newest", number = pley_i18n::number(REQUESTS_MAX));
@@ -582,8 +591,9 @@ impl Screen for RequestsScreen {
                         }
                     }
                     ui.initial_focus(RequestsScreen::card_id(page, 0));
-                    // More below: the list fades out over its last 40.
-                    let end = list_top + 8.0 + (CARD_H + CARD_GAP) * shown.len() as f32 - CARD_GAP;
+                    // More below (a card, or the line after the last, cut at the screen's foot): the
+                    // list fades out over its last 40.
+                    let end = list_top + r.content - LIST_PAD_BOTTOM;
                     if end - r.scroll > theme::CANVAS_H {
                         let fade = Rect::new(0.0, theme::CANVAS_H - 40.0, theme::CANVAS_W, 40.0);
                         ui.gradient(

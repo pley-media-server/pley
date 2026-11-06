@@ -2,7 +2,7 @@ import Foundation
 import PleyModel
 
 /// Search, the profile's history and its track defaults (docs/API.md,
-/// "Home & search", "History", "Your account").
+/// "Home & search", "History", "Your account", "Language").
 extension PleyAPI {
     /// `GET /api/search?q=&limit=`: up to `limit` items, and people and
     /// channels besides.
@@ -29,6 +29,25 @@ extension PleyAPI {
     public func setTrackDefaults(_ defaults: TrackDefaults) async throws -> User {
         try await client.send("PUT", "/api/me/track-defaults", body: defaults, as: User.self)
     }
+
+    /// `PUT /api/me/language`: the language the profile sees Pley in
+    /// ("en", "fr", "es"; `nil`: Automatic, each device's); the profile as it is now.
+    @discardableResult
+    public func setLanguage(_ language: String?) async throws -> User {
+        try await client.send("PUT", "/api/me/language", body: LanguageBody(language: language), as: User.self)
+    }
+}
+
+/// `{ "language": "fr" }`, or `{ "language": null }` for Automatic: the key is always there.
+private struct LanguageBody: Encodable, Sendable {
+    var language: String?
+
+    func encode(to encoder: any Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(language, forKey: .language)
+    }
+
+    private enum CodingKeys: String, CodingKey { case language }
 }
 
 /// A request without a body.

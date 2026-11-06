@@ -67,6 +67,13 @@ describes how they are made.
   again: since 0.1.7 the top row sat a status bar's height down the screen
   and the buttons along the bottom a navigation bar's height up it, though
   the player hides both bars.
+- On Android TV and Fire TV, a seek's preview in French or Spanish shows
+  a chapter called "Chapitre 3" or "Capítulo 3" once, not as "Chapitre 3 ·
+  Chapitre 3".
+- On Android TV and Fire TV, letting go of Left or Right held to scrub
+  while the player was busy (starting, or switching the TV's mode) no
+  longer leaves the seek waiting for OK for good: it goes by itself, as
+  after any scrub.
 
 ## [0.1.7] - 2026-11-05
 

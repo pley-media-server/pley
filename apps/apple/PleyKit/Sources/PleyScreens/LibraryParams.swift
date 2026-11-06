@@ -13,9 +13,9 @@ public enum LibraryTab: String, CaseIterable, Hashable, Sendable {
 
     public var title: String {
         switch self {
-        case .recommended: "Recommended"
-        case .library: "Library"
-        case .collections: "Collections"
+        case .recommended: localized("Recommended")
+        case .library: localized("Library")
+        case .collections: localized("Collections")
         }
     }
 }
@@ -31,15 +31,15 @@ public enum LibrarySort: String, CaseIterable, Hashable, Sendable {
 
     public var title: String {
         switch self {
-        case .title: "Title"
-        case .year: "Year"
-        case .added: "Date added"
-        case .rating: "Rating"
-        case .userRating: "Your rating"
-        case .release: "Release date"
-        case .duration: "Duration"
-        case .lastPlayed: "Last played"
-        case .bitrate: "Bitrate"
+        case .title: localized("Title")
+        case .year: localized("Year")
+        case .added: localized("Date added")
+        case .rating: localized("Rating")
+        case .userRating: localized("Your rating")
+        case .release: localized("Release date")
+        case .duration: localized("Duration")
+        case .lastPlayed: localized("Last played")
+        case .bitrate: localized("Bitrate")
         }
     }
 }

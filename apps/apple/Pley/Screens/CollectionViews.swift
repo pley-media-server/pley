@@ -163,7 +163,7 @@ struct CollectionView: View {
                 if model.automatic || model.smart {
                     HStack(spacing: 6) {
                         if model.automatic { ListBadge(text: "TMDB") }
-                        if model.smart { ListBadge(text: "Smart") }
+                        if model.smart { ListBadge(text: localized("Smart")) }
                     }
                 }
                 Text(model.title)

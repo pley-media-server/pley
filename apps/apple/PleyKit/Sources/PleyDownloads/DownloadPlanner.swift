@@ -24,12 +24,18 @@ enum DownloadPlanner {
     /// A share of the duration past which a download played here counts as watched, as on the server.
     static let watchedShare = 0.9
 
-    static let noSpace = "Not enough space on this device"
-    static let conversionFailed = "The server couldn't make it for this device"
-    static let conversionStalled = "The server stopped making it for this device"
-    static let noConversions = "The server can't make smaller downloads: choose Original in Settings → Downloads"
-    static let notPrivate = "The server's address isn't https or on your home network, so the download was stopped"
-    static let nothingToDownload = "This title has no file to download"
+    // What a failed download says: worded when it fails, in the language shown then.
+    static var noSpace: String { localized("Not enough space on this device") }
+    static var conversionFailed: String { localized("The server couldn't make it for this device") }
+    static var conversionStalled: String { localized("The server stopped making it for this device") }
+    static var noConversions: String {
+        localized("The server can't make smaller downloads: choose Original in Settings → Downloads")
+    }
+    static var notPrivate: String {
+        localized("The server's address isn't https or on your home network, so the download was stopped")
+    }
+    static var nothingToDownload: String { localized("This title has no file to download") }
+    static var notNow: String { localized("The server can't make it now: try again later") }
 
     /// The file of `files` a download fetches: of those this device plays
     /// as they are (all when none does), the sharpest up to 1080p, else
@@ -126,9 +132,9 @@ enum DownloadPlanner {
     /// What a failed download says, from the server's answer.
     static func message(status: Int) -> String {
         switch status {
-        case 401, 403: "Sign in to the server again to download this"
-        case 404, 410: "This file is no longer on the server"
-        default: "The server couldn't send this file (\(status))"
+        case 401, 403: localized("Sign in to the server again to download this")
+        case 404, 410: localized("This file is no longer on the server")
+        default: localized("The server couldn't send this file (\(String(status)))")
         }
     }
 

@@ -573,7 +573,7 @@ final class DownloadRunner {
         case let failure as Failure: failure.message
         case PleyError.api(let status, _, _): DownloadPlanner.message(status: status)
         case PleyError.signedOut: DownloadPlanner.message(status: 401)
-        case PleyError.notAvailable: "The server can't make it now: try again later"
+        case PleyError.notAvailable: DownloadPlanner.notNow
         default: DownloadPlanner.message(status: 0)
         }
         if case PleyError.notAvailable = error { return lost(key) }

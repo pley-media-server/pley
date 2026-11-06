@@ -13,10 +13,14 @@ public struct ShelfSnapshot: Codable, Hashable, Sendable {
     public var owner: String
     /// The row, in the server's order, `maxEntries` at most.
     public var entries: [ShelfEntry]
+    /// The language the app showed ("fr"), which the shelf's own words are
+    /// in: the extension can't ask; `nil` in a row saved before, the system's then.
+    public var language: String?
 
-    public init(owner: String, entries: [ShelfEntry]) {
+    public init(owner: String, entries: [ShelfEntry], language: String? = nil) {
         self.owner = owner
         self.entries = Array(entries.prefix(Self.maxEntries))
+        self.language = language
     }
 
     /// The owner key of `profileId` on the server at `origin`: the first 16

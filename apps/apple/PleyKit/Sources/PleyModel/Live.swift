@@ -96,8 +96,8 @@ public struct LiveProgram: Codable, Hashable, Sendable {
     /// "S2 E14", or "E14", when the guide numbers the episode.
     public var episodeLabel: String? {
         switch (season, episode) {
-        case (let s?, let e?): "S\(s) E\(e)"
-        case (nil, let e?): "E\(e)"
+        case (let s?, let e?): localized("S\(s) E\(e)")
+        case (nil, let e?): localized("E\(e)")
         default: nil
         }
     }

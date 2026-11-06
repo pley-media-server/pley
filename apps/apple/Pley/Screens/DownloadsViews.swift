@@ -124,7 +124,7 @@ private struct DownloadRowView: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(row.accessibilityLabel)
         .accessibilityAddTraits(row.canPlay ? .isButton : [])
-        .accessibilityHint(row.canPlay ? "Plays it" : "")
+        .accessibilityHint(row.canPlay ? Text("Plays it") : Text(verbatim: ""))
         .accessibilityIdentifier("downloads.row.\(row.id)")
     }
 }
@@ -269,7 +269,7 @@ struct DownloadButton: View {
                     Label(DownloadWords.tryAgain, systemImage: "exclamationmark.arrow.circlepath")
                 }
                 .menuStyle(.button)
-                .accessibilityLabel("\(why). \(DownloadWords.tryAgain)")
+                .accessibilityLabel(Text(verbatim: "\(why). \(DownloadWords.tryAgain)"))
                 .accessibilityIdentifier("item.downloadFailed")
             }
         }

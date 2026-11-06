@@ -117,7 +117,7 @@ struct LivePlayerScreen: View {
             .onTapGesture { overlay = true }
             .onPlayPauseCommand { showBanner() }
             .onExitCommand { app.closeLivePlayer() }
-            .accessibilityLabel(model.channel?.numberedName ?? "Live TV")
+            .accessibilityLabel(model.channel?.numberedName ?? localized("Live TV"))
             .accessibilityHint("Up and down change channel. Select shows more.")
             .accessibilityIdentifier("live.player")
     }
@@ -137,13 +137,13 @@ struct LivePlayerScreen: View {
                                 .background(Color.red, in: Capsule())
                         }
                         if let on = channel.on(at: model.now) {
-                            Text(on.title.isEmpty ? "On now" : on.title).font(.headline)
+                            Text(on.title.isEmpty ? localized("On now") : on.title).font(.headline)
                             HStack(spacing: 16) {
                                 ProgressView(value: on.progress(at: model.now)).frame(width: 500)
                                 Text(LiveTvRules.leftText(on, now: model.now)).font(.caption)
                             }
                         } else {
-                            Text(channel.hasGuide ? "Nothing in the guide now" : "No guide for this channel")
+                            Text(channel.hasGuide ? localized("Nothing in the guide now") : localized("No guide for this channel"))
                         }
                         if let next = channel.after(at: model.now) {
                             Text("Next \(LiveTvRules.time(next.start)) · \(next.title)").font(.callout)
@@ -175,7 +175,7 @@ struct LivePlayerScreen: View {
                 }
                 .accessibilityIdentifier("live.numberPad")
                 Button { model.toggleFavorite() } label: {
-                    Label(model.channel?.favorite == true ? "Remove from favourites" : "Add to favourites",
+                    Label(model.channel?.favorite == true ? localized("Remove from favourites") : localized("Add to favourites"),
                           systemImage: model.channel?.favorite == true ? "star.fill" : "star")
                 }
                 .accessibilityIdentifier("live.favorite")
@@ -202,11 +202,15 @@ struct LivePlayerScreen: View {
 private struct NumberPad: View {
     @ObservedObject var model: LivePlayerModel
     let done: () -> Void
-    private static let words = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine"]
+    /// The digits as VoiceOver says them, in the language shown.
+    private static var words: [String] {
+        [localized("Zero"), localized("One"), localized("Two"), localized("Three"), localized("Four"),
+         localized("Five"), localized("Six"), localized("Seven"), localized("Eight"), localized("Nine")]
+    }
 
     var body: some View {
         VStack(spacing: 24) {
-            Text(model.digits.isEmpty ? "Channel number" : model.digits)
+            Text(model.digits.isEmpty ? localized("Channel number") : model.digits)
                 .font(.title2.monospacedDigit())
             Grid(horizontalSpacing: 24, verticalSpacing: 24) {
                 ForEach(0..<3, id: \.self) { row in
@@ -241,7 +245,7 @@ private struct NumberPad: View {
 
     private func digit(_ value: Int) -> some View {
         Button { model.type(value, waits: false) } label: {
-            Text("\(value)").font(.title2.monospacedDigit()).frame(width: 120, height: 80)
+            Text(verbatim: "\(value)").font(.title2.monospacedDigit()).frame(width: 120, height: 80)
         }
         .accessibilityLabel(Self.words[value])
         .accessibilityIdentifier("live.pad.\(value)")
@@ -256,12 +260,11 @@ private struct TVTrouble: View {
 
     var body: some View {
         VStack(spacing: 30) {
-            Text(trouble.title(channel: model.channel?.name ?? "The channel")).font(.title3.bold())
+            Text(trouble.title(channel: model.channel?.name ?? localized("The channel"))).font(.title3.bold())
                 .accessibilityIdentifier("live.trouble.title")
             Text(trouble.message).multilineTextAlignment(.center)
             if trouble.kind == .busy {
-                Text(trouble.connections.count == 1 ? "Its one connection is watching:"
-                     : "Its \(trouble.connections.count) connections are watching:")
+                Text("Its \(trouble.connections.count) connections are watching:")
                 ForEach(trouble.connections, id: \.channelId) { connection in
                     HStack(spacing: 30) {
                         Text(connection.channelName)
@@ -289,7 +292,7 @@ private struct TVTrouble: View {
 
     /// What VoiceOver reads out as the trouble shows.
     private var spoken: String {
-        "\(trouble.title(channel: model.channel?.name ?? "The channel")). \(trouble.message)"
+        "\(trouble.title(channel: model.channel?.name ?? localized("The channel"))). \(trouble.message)"
     }
 }
 
@@ -313,9 +316,9 @@ private struct TVChannelsList: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {
                     Text("Other channels").font(.headline).foregroundStyle(.secondary)
-                    category(.favorites, "Favourites")
-                    category(.recent, "Recently watched")
-                    category(.all, "All channels")
+                    category(.favorites, localized("Favourites"))
+                    category(.recent, localized("Recently watched"))
+                    category(.all, localized("All channels"))
                     ForEach(groups) { category(.group($0.name), LiveTvRules.groupName($0, name: $0.name)) }
                 }
             }

@@ -74,7 +74,7 @@ struct ArtworkTile: View {
     /// White on a dark fill: the accent colour is white on Apple TV.
     @ViewBuilder private var badge: some View {
         if tile.unwatched > 0 {
-            Text("\(tile.unwatched)")
+            Text(verbatim: "\(tile.unwatched)")
                 .font(.caption.bold().monospacedDigit())
                 .foregroundStyle(.white)
                 .padding(.horizontal, 10)

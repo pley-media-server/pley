@@ -185,12 +185,14 @@ public final class LiveTvModel: ObservableObject {
     /// What an empty list says: a title and a line.
     public var empty: (title: String, detail: String) {
         if !query.isEmpty {
-            return ("No channels match", "No channel's name, number or programme on now has “\(query)” in it.")
+            return (localized("No channels match"),
+                    localized("No channel's name, number or programme on now has “\(query)” in it."))
         }
         switch category {
-        case .favorites: return ("No favourites yet", "Star a channel to find it here.")
-        case .recent: return ("Nothing watched yet", "The channels you watch show here, the last first.")
-        default: return ("No channels", "No channels in this group.")
+        case .favorites: return (localized("No favourites yet"), localized("Star a channel to find it here."))
+        case .recent:
+            return (localized("Nothing watched yet"), localized("The channels you watch show here, the last first."))
+        default: return (localized("No channels"), localized("No channels in this group."))
         }
     }
 
@@ -208,7 +210,8 @@ public final class LiveTvModel: ObservableObject {
                 try await self.live.setFavorite(channel.id, favorite)
                 if let groups = try? await self.live.groups() { self.groups = groups }
             } catch {
-                self.toast("The favourite wasn't saved: \(describe(error))")
+                let reason = describe(error)
+                self.toast(localized("The favourite wasn't saved: \(reason)"))
             }
         }
     }

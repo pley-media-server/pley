@@ -261,7 +261,7 @@ struct RequestCardView: View {
                 .disabled(card.opens == nil)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(card.spoken)
-                .accessibilityHint(card.opens == nil ? "" : "Opens its page")
+                .accessibilityHint(card.opens == nil ? Text(verbatim: "") : Text("Opens its page"))
                 .accessibilityAddTraits(card.opens == nil ? .isStaticText : .isButton)
                 StagePillView(pill: card.pill)
                 if let elsewhere = card.elsewhere {

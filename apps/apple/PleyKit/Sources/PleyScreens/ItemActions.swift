@@ -21,18 +21,18 @@ public enum ItemAction: String, Hashable, Sendable, CaseIterable {
 
     public var title: String {
         switch self {
-        case .play: "Play"
-        case .resume: "Resume"
-        case .fromStart: "Play from start"
-        case .markWatched: "Mark as watched"
-        case .markUnwatched: "Mark as unwatched"
-        case .removeFromContinueWatching: "Remove from Continue Watching"
-        case .addToMyList: "Add to My List"
-        case .removeFromMyList: "Remove from My List"
-        case .addToPlaylist: "Add to playlist…"
-        case .goToShow: "Go to show"
-        case .goToSeason: "Go to season"
-        case .open: "Open"
+        case .play: localized("Play")
+        case .resume: localized("Resume")
+        case .fromStart: localized("Play from start")
+        case .markWatched: localized("Mark as watched")
+        case .markUnwatched: localized("Mark as unwatched")
+        case .removeFromContinueWatching: localized("Remove from Continue Watching")
+        case .addToMyList: localized("Add to My List")
+        case .removeFromMyList: localized("Remove from My List")
+        case .addToPlaylist: localized("Add to playlist…")
+        case .goToShow: localized("Go to show")
+        case .goToSeason: localized("Go to season")
+        case .open: localized("Open")
         }
     }
 
@@ -183,7 +183,7 @@ public final class ItemActionsModel: ObservableObject {
         switch action {
         case .play, .resume, .fromStart:
             guard let request = await playRequest(item, fromStart: action == .fromStart) else {
-                app.shell.show("Nothing to play")
+                app.shell.show(localized("Nothing to play"))
                 return .done
             }
             return .play(request)
@@ -218,7 +218,7 @@ public final class ItemActionsModel: ObservableObject {
     public func setWatched(_ item: ItemSummary, _ mark: Bool) async {
         let before = watched[item.id]
         watched[item.id] = mark
-        await write(item.id, undo: { $0.watched[item.id] = before }, why: "Couldn't mark it") { api in
+        await write(item.id, undo: { $0.watched[item.id] = before }, why: localized("Couldn't mark it")) { api in
             try await api.setWatched(item.id, mark)
         }
         var change = ServerChange(home: true, itemIds: [item.id])
@@ -234,7 +234,7 @@ public final class ItemActionsModel: ObservableObject {
         var after = listed ?? []
         if add { after.insert(item.id) } else { after.remove(item.id) }
         listed = after
-        await write(item.id, undo: { $0.listed = before }, why: "Couldn't change My List") { api in
+        await write(item.id, undo: { $0.listed = before }, why: localized("Couldn't change My List")) { api in
             try await api.setInWatchlist(item.id, add)
         }
         app.note(ServerChange(home: true, watchlist: true))
@@ -243,7 +243,7 @@ public final class ItemActionsModel: ObservableObject {
     /// Takes `item` out of Continue Watching; false when the server refused (a toast says why).
     public func removeFromContinueWatching(_ item: ItemSummary) async -> Bool {
         var ok = true
-        await write(item.id, undo: { _ in ok = false }, why: "Couldn't remove it") { api in
+        await write(item.id, undo: { _ in ok = false }, why: localized("Couldn't remove it")) { api in
             try await api.removeFromContinueWatching(item.id)
         }
         if ok { app.note(ServerChange(home: true, itemIds: [item.id])) }
@@ -296,7 +296,7 @@ public final class ItemActionsModel: ObservableObject {
             undo(self)
         } catch {
             undo(self)
-            app.shell.show("\(why): \(describe(error))")
+            app.shell.show(localized("\(why): \(describe(error))"))
         }
     }
 }

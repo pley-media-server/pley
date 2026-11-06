@@ -43,7 +43,9 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
          nowPlaying: @escaping @MainActor () -> any NowPlayingSystem = { QuietNowPlaying() },
          settings: AppSettings = freshSettings(), tv: Bool = ShellModel.isTV,
          downloads: (any DownloadsService)? = nil, snapshots: SnapshotStore? = nil,
-         shelf: ((@escaping @Sendable (String, Int) async throws -> Data) -> TopShelfWriter?)? = nil)
+         shelf: ((@escaping @Sendable (String, Int) async throws -> Data) -> TopShelfWriter?)? = nil,
+         deviceLanguages: @escaping () -> [String] = { ["en-US"] },
+         applyLanguage: @escaping (Language, Locale) -> Void = { _, _ in })
     -> AppModel {
     let transport = HTTPTransport(userAgent: testAgent)
     let repository = ServerRepository(store: MemoryServerListStore(servers))
@@ -57,7 +59,8 @@ func app(_ store: any TokenStore = MemoryTokenStore(), servers: [SavedServer] = 
                                        ceilings: { _ in MemoryCeiling() }, engines: engines,
                                        liveEngines: { QuietLiveEngine() }, musicOutputs: music,
                                        nowPlaying: nowPlaying, deviceName: { "Living room" }),
-                    settings: settings, tv: tv, downloads: downloads, snapshots: snapshots, shelf: shelf)
+                    settings: settings, tv: tv, downloads: downloads, snapshots: snapshots, shelf: shelf,
+                    deviceLanguages: deviceLanguages, applyLanguage: applyLanguage)
 }
 
 /// Settings of their own, gone with the test.

@@ -269,6 +269,24 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    fun `a hold let go while the player is busy still ends, and its seek goes by itself`() {
+        val controller = playing()
+        show(controller)
+        val start = SystemClock.uptimeMillis()
+        send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start)
+        for (i in 1..10) send(AndroidKeyEvent.ACTION_DOWN, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, i, start + 400 + i * 50L)
+        // The player turns busy under the hold (a display-mode switch, say), and the key is let go then.
+        controller.update { it.copy(phase = PlayerPhase.Preparing) }
+        compose.waitForIdle()
+        send(AndroidKeyEvent.ACTION_UP, AndroidKeyEvent.KEYCODE_DPAD_RIGHT, 0, start + 1_000)
+        controller.update { it.copy(phase = PlayerPhase.Playing) }
+        compose.waitForIdle()
+        compose.mainClock.advanceTimeBy(TvSeeker.WAIT_MS + 100)
+        compose.waitForIdle()
+        assertEquals(1, controller.calls("seekTo").size)
+    }
+
+    @Test
     fun `Back lets a seek waiting go, and the controls stay`() {
         val controller = playing()
         show(controller)
@@ -546,6 +564,25 @@ class TvPlayerScreenTest {
         compose.waitForIdle()
         compose.onNodeWithText("Chapter 2").assertExists()
         compose.onNodeWithText("00:05:00.000", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
+    fun `in French, a chapter that names itself, in French or in English, isn't named twice`() {
+        val controller = playing { s ->
+            s.copy(chapters = s.chapters.map { if (it.startMs == 300_000L) it.copy(title = "Chapitre 2") else it })
+        }
+        show(controller)
+        press(Key.DirectionUp)
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Chapitre 2").assertExists()
+        compose.onNodeWithText("Chapitre 2 · Chapitre 2").assertDoesNotExist()
+        controller.update { s -> s.copy(chapters = s.chapters.map { if (it.startMs == 300_000L) it.copy(title = "Chapter Two") else it }) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Chapter Two").assertExists()
+        controller.update { s -> s.copy(chapters = s.chapters.map { if (it.startMs == 300_000L) it.copy(title = "Les Archives") else it }) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Chapitre 2 · Les Archives").assertExists()
     }
 
     @Test

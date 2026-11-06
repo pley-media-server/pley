@@ -141,8 +141,7 @@ struct LibraryView: View {
                     Label("Sort", systemImage: "arrow.up.arrow.down")
                 }
                 .accessibilityLabel("Sort")
-                .accessibilityValue("\(model.params.sort.title), "
-                    + (model.params.effectiveOrder == .ascending ? "ascending" : "descending"))
+                .accessibilityValue(sorting)
                 .accessibilityIdentifier("library.sort")
 
                 if model.filterable {
@@ -183,11 +182,16 @@ struct LibraryView: View {
         }
     }
 
+    /// How the titles are sorted: "Year, descending".
+    private var sorting: String {
+        let sort = model.params.sort.title
+        return model.params.effectiveOrder == .ascending ? localized("\(sort), ascending")
+            : localized("\(sort), descending")
+    }
+
     /// How the titles are listed: "Year, descending · Unwatched".
     private var listing: String {
-        let order = model.params.effectiveOrder == .ascending ? "ascending" : "descending"
-        return (["\(model.params.sort.title), \(order)", model.filterSummary]).filter { !$0.isEmpty }
-            .joined(separator: " · ")
+        [sorting, model.filterSummary].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
     private var filterLabel: some View {
@@ -208,7 +212,7 @@ private struct LibraryGridView: View {
             if total == 0 {
                 if model.params.filtered {
                     StateView(kind: .empty(symbol: "line.3.horizontal.decrease.circle", text: LibraryModel.noMatchTitle,
-                                           action: ("Clear filters", { model.clearFilters() })))
+                                           action: (localized("Clear filters"), { model.clearFilters() })))
                 } else {
                     StateView(kind: .empty(symbol: "film.stack", text: LibraryModel.emptyTitle, action: nil))
                 }

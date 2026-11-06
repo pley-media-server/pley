@@ -6,14 +6,15 @@ extension Words {
     /// A season's own title, else "Specials" for season 0, else "Season 2".
     public static func seasonTitle(_ title: String?, index: Int?) -> String {
         if let title, !title.isEmpty { return title }
-        if index == 0 { return "Specials" }
-        if let index { return "Season \(index)" }
-        return "Season"
+        if index == 0 { return localized("Specials") }
+        if let index { return localized("Season \(index)") }
+        return localized("Season")
     }
 
     /// "Season 2 · Episode 5": the parts that are known.
     public static func episodeLongLabel(season: Int?, episode: Int?) -> String {
-        [season.map { $0 == 0 ? "Specials" : "Season \($0)" }, episode.map { "Episode \($0)" }]
+        [season.map { $0 == 0 ? localized("Specials") : localized("Season \($0)") },
+         episode.map { localized("Episode \($0)") }]
             .compactMap { $0 }.joined(separator: " · ")
     }
 
@@ -21,20 +22,19 @@ extension Words {
     public static func duration(ms: Int?) -> String {
         guard let ms, ms > 0 else { return "" }
         let minutes = Int((Double(ms) / 60_000).rounded(.toNearestOrAwayFromZero))
-        if minutes < 1 { return "\(max(1, Int((Double(ms) / 1000).rounded())))s" }
-        let h = minutes / 60, m = minutes % 60
-        if h == 0 { return "\(m)m" }
-        return m != 0 ? "\(h)h \(m)m" : "\(h)h"
+        if minutes < 1 { return seconds(max(1, Int((Double(ms) / 1000).rounded()))) }
+        if minutes < 60 { return localized("\(minutes)m") }
+        return hoursMinutes(minutes)
     }
 
-    /// "2016-11-11" → "Nov 11, 2016" in `locale`'s medium style; what
-    /// doesn't parse comes back as it is.
-    public static func date(_ date: String?, locale: Locale = .current) -> String {
+    /// "2016-11-11" → "Nov 11, 2016" in `locale`'s medium style (the
+    /// locale shown by default); what doesn't parse comes back as it is.
+    public static func date(_ date: String?, locale: Locale = ShownLanguage.locale) -> String {
         formatted(date, style: .medium, locale: locale)
     }
 
     /// "2024-03-12" → "March 12, 2024" (en-US) or "12 March 2024" (en-GB): air dates.
-    public static func longDate(_ date: String?, locale: Locale = .current) -> String {
+    public static func longDate(_ date: String?, locale: Locale = ShownLanguage.locale) -> String {
         formatted(date, style: .long, locale: locale)
     }
 
@@ -54,9 +54,9 @@ extension Words {
         return out.string(from: day)
     }
 
-    /// The critics' rating, "7.6".
+    /// The critics' rating, "7.6" ("7,6" in French).
     public static func rating(_ value: Double) -> String {
-        String(format: "%.1f", locale: Locale(identifier: "en_US_POSIX"), value)
+        fixed(value, digits: 1)
     }
 
     /// "4K", "1080p", "720p" or "SD", for badges; `nil` without a size.
@@ -120,45 +120,52 @@ extension Words {
             let base: String
             if r.role == .actor {
                 if let character = r.character, !character.isEmpty {
-                    base = "as \(character)"
+                    base = localized("as \(character)")
                 } else {
-                    base = episodes > 0 ? "Guest star" : "Actor"
+                    base = episodes > 0 ? localized("Guest star") : localized("Actor")
                 }
             } else {
                 base = roleName(r.role)
             }
-            return episodes > 0 ? "\(base) (\(pluralize(episodes, "episode")))" : base
+            return episodes > 0 ? "\(base) (\(localized("\(episodes) episodes")))" : base
         }.joined(separator: ", ")
     }
 
     /// "Director", "Writer"…; "Crew" for a role this app doesn't know.
     public static func roleName(_ role: CreditRole) -> String {
         switch role {
-        case .actor: "Actor"
-        case .creator: "Creator"
-        case .director: "Director"
-        case .writer: "Writer"
-        case .producer: "Producer"
-        default: "Crew"
+        case .actor: localized("Actor")
+        case .creator: localized("Creator")
+        case .director: localized("Director")
+        case .writer: localized("Writer")
+        case .producer: localized("Producer")
+        default: localized("Crew")
         }
     }
 
     /// A crew line's label: "Director", "Directors", "Created by"…
     public static func crewLabel(_ role: CreditRole, plural: Bool) -> String {
         switch role {
-        case .creator: "Created by"
-        case .director: plural ? "Directors" : "Director"
-        case .writer: plural ? "Writers" : "Writer"
-        case .producer: plural ? "Producers" : "Producer"
-        default: plural ? "Crew" : "Crew"
+        case .creator: localized("Created by")
+        case .director: plural ? localized("Directors") : localized("Director")
+        case .writer: plural ? localized("Writers") : localized("Writer")
+        case .producer: plural ? localized("Producers") : localized("Producer")
+        default: localized("Crew")
         }
     }
 
     /// The kind of an extra: "Trailer · 2m", as the web's Extras row says it.
     public static func extraSubtitle(_ item: ItemSummary) -> String {
-        let names = ["trailer": "Trailer", "behind_the_scenes": "Behind the Scenes", "deleted_scene": "Deleted Scene",
-                     "featurette": "Featurette", "interview": "Interview", "scene": "Scene", "short": "Short"]
-        return [names[item.extraType ?? ""] ?? "Extra", duration(ms: item.durationMs)]
-            .filter { !$0.isEmpty }.joined(separator: " · ")
+        let kind = switch item.extraType ?? "" {
+        case "trailer": localized("Trailer")
+        case "behind_the_scenes": localized("Behind the Scenes")
+        case "deleted_scene": localized("Deleted Scene")
+        case "featurette": localized("Featurette")
+        case "interview": localized("Interview")
+        case "scene": localized("Scene")
+        case "short": localized("Short")
+        default: localized("Extra")
+        }
+        return [kind, duration(ms: item.durationMs)].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
