@@ -47,6 +47,9 @@ pub enum AppEvent {
     SignedOut,
     /// News from the TV: its screen reader, its network.
     Device(DeviceEvent),
+    /// The language shown changed. The shell makes again every page but a player's
+    /// ([`Screen::relabel`]), so it draws in the new language.
+    Language,
 }
 
 /// A page of the app. Screens are kept on the back stack while pages above them
@@ -93,6 +96,14 @@ pub trait Screen {
     /// name), before what has focus.
     fn title(&self) -> Option<String> {
         None
+    }
+
+    /// The language shown changed: a page that draws all its words as it goes, and wants to keep
+    /// what it holds (a server list, a sign-in code, an address being typed), says so with
+    /// `true`. Otherwise the shell makes it again from its route, keeping its focus, and it asks
+    /// the server for what it shows again in the new language.
+    fn relabel(&mut self, _cx: &mut AppCx) -> bool {
+        false
     }
 }
 

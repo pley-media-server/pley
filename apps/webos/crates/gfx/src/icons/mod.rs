@@ -50,6 +50,7 @@ pub const ALL: &[Icon] = &[
     Icon::FolderOpen,
     Icon::Funnel,
     Icon::Gauge,
+    Icon::Globe,
     Icon::GripVertical,
     Icon::History,
     Icon::House,
@@ -383,7 +384,7 @@ mod tests {
         for icon in ALL {
             assert!(seen.insert(*icon), "{icon:?} twice");
         }
-        assert_eq!(ALL.len(), 92);
+        assert_eq!(ALL.len(), 93);
     }
 
     #[test]

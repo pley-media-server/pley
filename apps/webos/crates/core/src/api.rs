@@ -156,6 +156,12 @@ impl Api {
         self.json(Method::Put, "/api/me/track-defaults", defaults)
     }
 
+    /// The account's language (`en`, `fr`, `es`, or none for Automatic) on all its devices (scope
+    /// `play`); the profile as it is now. A server before it answers 404 or 405.
+    pub fn set_language(&self, language: Option<&str>) -> Result<Me, ApiError> {
+        self.json(Method::Put, "/api/me/language", &serde_json::json!({ "language": language }))
+    }
+
     // Browsing.
 
     /// Home's rows.

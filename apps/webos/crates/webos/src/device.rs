@@ -444,6 +444,12 @@ impl Device for WebosDevice {
         self.facts().clock_24h
     }
 
+    /// Never waits for the facts: the app asks again until they have come.
+    fn languages(&self) -> Vec<String> {
+        let facts = self.inner.facts.lock().unwrap_or_else(|e| e.into_inner());
+        facts.as_ref().map(|f| f.languages.clone()).unwrap_or_default()
+    }
+
     fn screen_reader(&self) -> bool {
         self.inner.screen_reader.load(Ordering::SeqCst)
     }

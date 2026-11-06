@@ -20,12 +20,16 @@ use pley_core::{ApiError, Cancel, Device, Promise};
 use pley_kit::{Button, Qr};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme::{self, radius};
-use pley_ui::{Group, Ui};
+use pley_ui::{Dir, Edge, Group, Ui};
 
+use crate::globe::{Globe, Place};
 use crate::kit::{Logo, brand_glow, free_line, space, status_line};
 
 /// How long "Signed in as …" shows before Home (`SIGNED_IN_MS`).
 pub const SIGNED_IN_FOR: f64 = 0.5;
+/// The logo's top and height: the globe is centred on its line.
+const LOGO_Y: f32 = 56.0;
+const LOGO_H: f32 = 40.0;
 /// How long the name may take to come (`NAME_WAIT_MS`).
 pub const NAME_WAIT: f64 = 3.0;
 /// Between two asks for the name.
@@ -424,9 +428,9 @@ impl LinkView {
         let needs_new = status.needs_new_code();
         let x = theme::GUTTER;
         let width = 440.0;
-        let mut y = 56.0;
-        self.logo.show(ui, Point::new(x, y), 40.0);
-        y += 40.0 + 28.0;
+        let mut y = LOGO_Y;
+        self.logo.show(ui, Point::new(x, y), LOGO_H);
+        y += LOGO_H + 28.0;
         ui.text(Point::new(x, y), labels.title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::FG);
         y += theme::PAGE_TITLE.line_height;
         if let Some(intro) = labels.intro {
@@ -522,7 +526,8 @@ impl LinkView {
         let by = tile.bottom() + 12.0 + theme::CAPTION.line_height + 18.0;
         let back = Button::text(labels.back);
         let bw = back.size(ui).w;
-        ui.group(ui.id("back-row"), Group::row(), |ui| {
+        // Nothing is right of the way back: Right never reaches the globe.
+        ui.group(ui.id("back-row"), Group::row().edge(Dir::Right, Edge::Stop), |ui| {
             choice.back = back.show(ui, back_id, Point::new(qx + (268.0 - bw) / 2.0, by)).activated;
         });
 
@@ -593,6 +598,7 @@ pub struct LinkScreen {
     /// Whether the server requires two-step sign-in (`GET /api/server`), once it answers.
     two_step: Option<Promise<Result<ServerInfo, ApiError>>>,
     two_step_required: bool,
+    globe: Globe,
 }
 
 impl LinkScreen {
@@ -606,6 +612,7 @@ impl LinkScreen {
             device: cx.device().clone(),
             two_step: None,
             two_step_required: false,
+            globe: Globe::default(),
         }
     }
 
@@ -645,6 +652,9 @@ impl Screen for LinkScreen {
         let intro = self.two_step_required.then_some(TWO_STEP_REQUIRED);
         let labels = LinkLabels { title: TITLE, intro, back: CHANGE_SERVER };
         let choice = self.view.show(ui, flow, &labels);
+        if !matches!(flow.status(), LinkStatus::SignedIn { .. }) {
+            self.globe.show(ui, cx, Place::TopRight { centre: LOGO_Y + LOGO_H / 2.0 });
+        }
         if choice.new_code {
             flow.new_code(cx);
         }
@@ -660,8 +670,25 @@ impl Screen for LinkScreen {
         }
     }
 
+    fn back(&mut self, _cx: &mut AppCx) -> bool {
+        if self.globe.open() {
+            self.globe.close();
+            return true;
+        }
+        false
+    }
+
     fn chrome(&self) -> Chrome {
         Chrome::Bare
+    }
+
+    fn modal(&self) -> bool {
+        self.globe.open()
+    }
+
+    /// Every word is drawn as it goes: the code stays.
+    fn relabel(&mut self, _cx: &mut AppCx) -> bool {
+        true
     }
 }
 

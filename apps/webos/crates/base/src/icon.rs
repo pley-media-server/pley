@@ -46,6 +46,7 @@ pub enum Icon {
     FolderOpen,
     Funnel,
     Gauge,
+    Globe,
     GripVertical,
     History,
     House,

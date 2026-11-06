@@ -8,6 +8,7 @@ use pley_core::requests::TMDB_NOTICE;
 use pley_core::store::{
     PassthroughChoice, PassthroughFormat, Settings, SubtitleBackground, SubtitleFont, SubtitlePosition, SubtitleSize,
 };
+use pley_i18n::{Language, t};
 use pley_shell::SettingsSection;
 
 /// The languages a profile's defaults offer (ISO 639-2/B, `MeViewModel.kt:213-225`), by English
@@ -152,6 +153,11 @@ pub struct Facts {
     /// The open-source parts the app is built from (name, licence), once read; `None` while
     /// reading, an empty list when the app carries no NOTICES.txt.
     pub licences: Option<Vec<(String, String)>>,
+    /// The account's own language; none: Automatic.
+    pub language: Option<Language>,
+    /// What the account's Automatic is on this TV: the language picked with the globe, else the
+    /// TV's, else the server's.
+    pub automatic_language: Language,
 }
 
 /// Who the Profile category's header shows.
@@ -437,6 +443,10 @@ fn profile(f: &Facts) -> Vec<Item> {
             d.and_then(|d| d.subtitle_language.as_deref()).map_or("Same as the audio language".into(), language_label);
         row(Row::new(Some(Icon::Captions), "Subtitle language", value(language), pick(Picking::SubtitleLanguage)));
     }
+    if f.profile.is_some() {
+        let action = if f.can_play { RowAction::Choose(Picking::Language) } else { RowAction::Web };
+        row(Row::new(Some(Icon::Languages), t!("settings.language.label"), language_value(f), action));
+    }
     row(Row::new(Some(Icon::History), "Watch history", "", RowAction::Open(pley_shell::Route::History)).chevron());
     // The Libraries page sorts them; with three or fewer the rail lists them and has no way there.
     row(Row::new(
@@ -462,6 +472,15 @@ fn profile(f: &Facts) -> Vec<Item> {
     out
 }
 
+/// The Language row's value: the account's language, named in itself ("Français"), else
+/// Automatic with what that is on this TV.
+fn language_value(f: &Facts) -> String {
+    match f.language {
+        Some(l) => l.name().to_string(),
+        None => t!("settings.language.automatic", language = f.automatic_language.name()),
+    }
+}
+
 /// The index of the first row that takes focus: where Right or OK on a category goes.
 pub fn first_row(items: &[Item]) -> Option<usize> {
     items.iter().position(Item::focusable)
@@ -474,6 +493,8 @@ pub enum Picking {
     SubtitleMode,
     SubtitleLanguage,
     AlwaysStartAs,
+    /// The language Pley is in for the account.
+    Language,
     Quality,
     Size,
     Background,
@@ -489,6 +510,8 @@ pub enum Value {
     Mode(SubtitleMode),
     /// "Always start as"; `None` asks who's watching.
     Profile(Option<i64>),
+    /// The account's language; `None` is Automatic.
+    AppLanguage(Option<Language>),
     Quality(&'static str),
     Size(SubtitleSize),
     Background(SubtitleBackground),
@@ -515,7 +538,7 @@ impl Choice {
 /// A side panel: its title, its choices, and the one in force.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Panel {
-    pub title: &'static str,
+    pub title: String,
     pub choices: Vec<Choice>,
     /// The index of the choice in force: checked, and focused when the panel opens.
     pub current: usize,
@@ -552,6 +575,16 @@ pub fn panel(p: Picking, f: &Facts, fonts: &[SubtitleFont]) -> Panel {
                 .collect(),
             Value::Profile(f.always_start_as),
         ),
+        Picking::Language => (
+            t!("settings.language.label"),
+            std::iter::once(Choice::new(
+                t!("settings.language.automatic", language = f.automatic_language.name()),
+                Value::AppLanguage(None),
+            ))
+            .chain(Language::ALL.into_iter().map(|l| Choice::new(l.name(), Value::AppLanguage(Some(l)))))
+            .collect(),
+            Value::AppLanguage(f.language),
+        ),
         Picking::Quality => (
             "Quality",
             QUALITY_PRESETS
@@ -587,7 +620,7 @@ pub fn panel(p: Picking, f: &Facts, fonts: &[SubtitleFont]) -> Panel {
         ),
     };
     let current = choices.iter().position(|c| c.value == current).unwrap_or(0);
-    Panel { title, choices, current }
+    Panel { title: title.into(), choices, current }
 }
 
 /// The defaults after `picking` chose `value`, or `None` when nothing changes.
@@ -661,6 +694,7 @@ mod tests {
                 "Switch profile",
                 "Audio language",
                 "Subtitles",
+                "Language",
                 "Watch history",
                 "Sort libraries",
                 "Always start as",
@@ -671,11 +705,43 @@ mod tests {
         assert_eq!(r[1].value, "English");
         assert_eq!(r[1].action, RowAction::Choose(Picking::AudioLanguage));
         assert_eq!(r[2].value, "Only for foreign dialogue");
-        assert_eq!(r[3].action, RowAction::Open(Route::History));
-        assert_eq!(r[4].action, RowAction::Open(Route::Libraries { sort: true }));
-        assert_eq!(r[5].value, "Profile used last");
-        assert_eq!(r[6].value, "Name, picture, password, PIN, two-step, devices and apps");
+        assert_eq!(r[3].value, "Automatic (English)");
+        assert_eq!(r[3].action, RowAction::Choose(Picking::Language));
+        assert_eq!(r[4].action, RowAction::Open(Route::History));
+        assert_eq!(r[5].action, RowAction::Open(Route::Libraries { sort: true }));
+        assert_eq!(r[6].value, "Profile used last");
+        assert_eq!(r[7].value, "Name, picture, password, PIN, two-step, devices and apps");
         assert_eq!(first_row(&items), Some(1));
+    }
+
+    #[test]
+    fn the_language_is_the_accounts_or_automatic_with_what_that_is_here() {
+        let f = Facts { automatic_language: Language::Fr, ..alex() };
+        let language = |f: &Facts| {
+            let items = items(SettingsSection::Profile, f);
+            rows(&items).into_iter().find(|r| r.label == "Language").map(|r| r.value.clone())
+        };
+        assert_eq!(language(&f).as_deref(), Some("Automatic (Français)"));
+        let own = Facts { language: Some(Language::Es), ..f.clone() };
+        assert_eq!(language(&own).as_deref(), Some("Español"));
+        // Its panel: Automatic, then each language in itself, the account's checked.
+        let p = panel(Picking::Language, &own, &[]);
+        let labels: Vec<&str> = p.choices.iter().map(|c| c.label.as_str()).collect();
+        assert_eq!(labels, ["Automatic (Français)", "English", "Français", "Español"]);
+        assert_eq!(p.current, 3);
+        assert_eq!(panel(Picking::Language, &f, &[]).current, 0);
+        // In French, Automatic is too; the languages keep their own names.
+        pley_i18n::with_language(Language::Fr, || {
+            let p = panel(Picking::Language, &f, &[]);
+            assert_eq!(p.title, "Langue");
+            assert_eq!(p.choices[0].label, "Automatique (Français)");
+            assert_eq!(p.choices[3].label, "Español");
+        });
+        // Not before who is watching is known; without play, on the web.
+        assert_eq!(language(&Facts { profile: None, ..f.clone() }), None);
+        let items = items(SettingsSection::Profile, &Facts { can_play: false, ..f });
+        let row = rows(&items).into_iter().find(|r| r.label == "Language").unwrap();
+        assert_eq!(row.action, RowAction::Web);
     }
 
     #[test]

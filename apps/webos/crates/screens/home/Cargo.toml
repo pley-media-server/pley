@@ -13,6 +13,7 @@ pley-core = { path = "../../core" }
 pley-ui = { path = "../../ui" }
 pley-kit = { path = "../../kit" }
 pley-shell = { path = "../../shell" }
+pley-i18n = { path = "../../i18n" }
 log = "0.4.29"
 
 [dev-dependencies]

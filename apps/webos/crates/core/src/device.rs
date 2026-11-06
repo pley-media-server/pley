@@ -130,6 +130,11 @@ pub trait Device: Send + Sync {
     fn local_ipv4(&self) -> Option<Ipv4Addr>;
     /// Times of day as `21:05` rather than `9:05 PM`.
     fn clock_24h(&self) -> bool;
+    /// The TV's languages, its menus' first, as tags (`fr-CA`): the app shows the first Pley has
+    /// when nothing else says which (docs/LG.md, "Language"). None until the TV has said.
+    fn languages(&self) -> Vec<String> {
+        Vec::new()
+    }
     /// Whether LG's Audio Guidance is on.
     fn screen_reader(&self) -> bool;
     /// Reads `text` aloud in the TV's voice, cutting off what it was reading. Called only while
@@ -271,6 +276,7 @@ pub struct FakeDevice {
     engine: Box<EngineFactory>,
     screen_reader: AtomicBool,
     clock_24h: AtomicBool,
+    languages: Mutex<Vec<String>>,
     awake: AtomicBool,
     exited: AtomicBool,
     os_major: AtomicU32,
@@ -295,6 +301,7 @@ impl FakeDevice {
             engine: Box::new(engine),
             screen_reader: AtomicBool::new(false),
             clock_24h: AtomicBool::new(true),
+            languages: Mutex::new(vec!["en-US".into()]),
             awake: AtomicBool::new(false),
             exited: AtomicBool::new(false),
             os_major: AtomicU32::new(22),
@@ -331,6 +338,11 @@ impl FakeDevice {
     /// Times of day as `21:05` (true) or `9:05 PM`.
     pub fn set_clock_24h(&self, on: bool) {
         self.clock_24h.store(on, Ordering::SeqCst);
+    }
+
+    /// The TV's languages (`en-US` at first).
+    pub fn set_languages(&self, languages: &[&str]) {
+        *self.languages.lock().unwrap_or_else(|e| e.into_inner()) = languages.iter().map(|l| l.to_string()).collect();
     }
 
     /// Changes the TV's address, telling subscribers.
@@ -417,6 +429,10 @@ impl Device for FakeDevice {
 
     fn clock_24h(&self) -> bool {
         self.clock_24h.load(Ordering::SeqCst)
+    }
+
+    fn languages(&self) -> Vec<String> {
+        self.languages.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
     fn screen_reader(&self) -> bool {

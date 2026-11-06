@@ -69,6 +69,11 @@ impl SimDevice {
         }
     }
 
+    /// The language of the TV's menus (`--locale`).
+    pub fn set_languages(&self, languages: &[&str]) {
+        self.inner.set_languages(languages);
+    }
+
     /// Set once the app leaves.
     pub fn left(&self) -> Arc<AtomicBool> {
         self.left.clone()
@@ -106,6 +111,10 @@ impl Device for SimDevice {
 
     fn clock_24h(&self) -> bool {
         self.inner.clock_24h()
+    }
+
+    fn languages(&self) -> Vec<String> {
+        self.inner.languages()
     }
 
     fn screen_reader(&self) -> bool {

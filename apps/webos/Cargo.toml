@@ -10,6 +10,8 @@
 resolver = "3"
 members = [
     "crates/base",
+    "crates/i18n",
+    "crates/i18n/macros",
     "crates/text",
     "crates/gfx",
     "crates/platform",

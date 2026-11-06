@@ -284,6 +284,7 @@ impl FixtureServer {
             requests: requests::Requests::new(now_ms.div_euclid(1_000)),
             subtitle_search: true,
             two_step_required: false,
+            server_language: "en".into(),
             subtitle_asks: Default::default(),
             added_subtitles: Default::default(),
             casts_sent: Default::default(),
@@ -421,6 +422,19 @@ impl FixtureServer {
     /// The server requires two-step sign-in (`two_step_required` in `GET /api/server`).
     pub fn set_two_step_required(&self, on: bool) {
         lock(&self.shared.state).two_step_required = on;
+    }
+
+    /// The server language (`language` in `GET /api/server`).
+    pub fn set_server_language(&self, language: &str) {
+        lock(&self.shared.state).server_language = language.to_string();
+    }
+
+    /// Sets a profile's own language, as `PUT /api/me/language` does; none: Automatic.
+    pub fn set_account_language(&self, profile: i64, language: Option<&str>) {
+        let mut state = lock(&self.shared.state);
+        let p = state.profile_mut(profile);
+        p.language = language.map(str::to_string);
+        p.version += 1;
     }
 
     /// The apps play from another network than the server's: a speed test is

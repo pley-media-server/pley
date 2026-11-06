@@ -10,6 +10,7 @@ publish = false
 [dependencies]
 pley-base = { path = "../base" }
 pley-core = { path = "../core" }
+pley-i18n = { path = "../i18n" }
 # The trait and glow only: the TV's window comes from the firmware's SDL, not winit.
 pley-platform = { path = "../platform", default-features = false }
 # Every firmware library (SDL2, luna-service2, GLib, wayland-client, LG's ACB) is

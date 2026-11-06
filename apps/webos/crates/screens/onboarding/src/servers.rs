@@ -22,6 +22,7 @@ use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Edge, FocusOpts, Group, Id, Ui, nudge};
 
+use crate::globe::{Globe, Place};
 use crate::kit::{Logo, brand_glow, status_line, sweep_bar};
 
 /// A server row's height and the gap between rows.
@@ -29,6 +30,11 @@ const ROW_H: f32 = 64.0;
 const ROW_GAP: f32 = 4.0;
 /// A row's width.
 const ROW_W: f32 = 520.0;
+/// The logo's height, as on the sign-in code.
+const LOGO_H: f32 = 40.0;
+/// The title row's top and height.
+const TITLE_Y: f32 = 27.0;
+const TITLE_H: f32 = 38.0;
 /// The list's greatest height.
 const LIST_MAX: f32 = 300.0;
 /// The list's top: 27 + the 38 dp title row + 25.
@@ -311,6 +317,7 @@ pub struct ServersScreen {
     refocus: Option<Id>,
     pad: Option<Pad>,
     logo: Logo,
+    globe: Globe,
     opened: bool,
 }
 
@@ -345,6 +352,7 @@ impl ServersScreen {
             refocus: None,
             pad,
             logo: Logo::default(),
+            globe: Globe::default(),
             opened: false,
         }
     }
@@ -531,9 +539,9 @@ impl ServersScreen {
         let x = theme::GUTTER;
         let right = theme::CANVAS_W - theme::SAFE_X;
         let title_opts = TextOpts::line(right - x - 200.0);
-        ui.text(Point::new(x, 27.0 + (38.0 - 34.0) / 2.0), TITLE, &theme::PAGE_TITLE, &title_opts, theme::FG);
-        let logo_w = Logo::width(ui, 32.0);
-        self.logo.show(ui, Point::new(right - logo_w, 27.0 + 3.0), 32.0);
+        ui.text(Point::new(x, TITLE_Y + (TITLE_H - 34.0) / 2.0), TITLE, &theme::PAGE_TITLE, &title_opts, theme::FG);
+        let logo_w = Logo::width(ui, LOGO_H);
+        self.logo.show(ui, Point::new(right - logo_w, TITLE_Y + (TITLE_H - LOGO_H) / 2.0), LOGO_H);
 
         let list_h = content_height(rows.len()).min(LIST_MAX);
         let list_rect = Rect::new(x, LIST_Y, ROW_W + 16.0, list_h);
@@ -545,7 +553,8 @@ impl ServersScreen {
         let shift = ui.animate(ui.id("shift"), self.shift, pley_kit::SCROLL);
         let connecting = self.choosing.as_ref().map(|(url, _, _)| url.clone());
         ui.clip(list_rect, |ui| {
-            ui.group(list_id, Group::column().edge(Dir::Up, Edge::Stop), |ui| {
+            // Right stops in the list and the buttons: only Down or Up reach the globe.
+            ui.group(list_id, Group::column().edge(Dir::Up, Edge::Stop).edge(Dir::Right, Edge::Stop), |ui| {
                 for (i, row) in rows.iter().enumerate() {
                     let id = ui.id(("row", row.url.as_str()));
                     row_ids.push(id);
@@ -579,7 +588,7 @@ impl ServersScreen {
 
         let mut y = LIST_Y + list_h + if rows.is_empty() { 0.0 } else { 16.0 };
         let buttons_id = ui.id("buttons");
-        let (enter_id, enter, search) = ui.group(buttons_id, Group::row(), |ui| {
+        let (enter_id, enter, search) = ui.group(buttons_id, Group::row().edge(Dir::Right, Edge::Stop), |ui| {
             let enter_id = ui.id("enter");
             let enter = Button::text(ENTER_ADDRESS).show(ui, enter_id, Point::new(x, y));
             let w = Button::text(ENTER_ADDRESS).size(ui).w;
@@ -657,6 +666,7 @@ impl ServersScreen {
 
         self.dialog_ui(ui, cx, &row_ids, &rows);
         self.rows = rows;
+        self.globe.show(ui, cx, Place::BottomRight);
     }
 
     fn dialog_ui(&mut self, ui: &mut Ui, cx: &mut AppCx, row_ids: &[Id], rows: &[ServerRow]) {
@@ -698,7 +708,7 @@ impl ServersScreen {
         let typing = pad.typing;
         let column = ui.id("pad");
         let mut draw = |ui: &mut Ui, pad: &mut Pad| {
-            ui.group(column, Group::column(), |ui| {
+            ui.group(column, Group::column().edge(Dir::Right, Edge::Stop), |ui| {
                 let field = TextField::new(&pad.edit.text, FIELD_W).placeholder(ADDRESS_PLACEHOLDER).typing(typing);
                 let f = field.show(ui, ui.id("field"), Point::new(centre - FIELD_W / 2.0, field_y));
                 start_typing |= f.activated;
@@ -754,6 +764,9 @@ impl ServersScreen {
         if connect {
             self.connect(cx);
             ui.request_repaint();
+        }
+        if !typing {
+            self.globe.show(ui, cx, Place::BottomRight);
         }
     }
 }
@@ -837,6 +850,10 @@ impl Screen for ServersScreen {
     }
 
     fn back(&mut self, _cx: &mut AppCx) -> bool {
+        if self.globe.open() {
+            self.globe.close();
+            return true;
+        }
         if let Some(pad) = self.pad.as_mut() {
             if pad.typing {
                 pad.typing = false;
@@ -863,7 +880,12 @@ impl Screen for ServersScreen {
     }
 
     fn modal(&self) -> bool {
-        self.dialog_open || self.pad.as_ref().is_some_and(|p| p.typing)
+        self.dialog_open || self.globe.open() || self.pad.as_ref().is_some_and(|p| p.typing)
+    }
+
+    /// Every word is drawn as it goes: the servers found and an address being typed stay.
+    fn relabel(&mut self, _cx: &mut AppCx) -> bool {
+        true
     }
 }
 
@@ -995,6 +1017,57 @@ mod tests {
         rig.advance(&mut s, 0.1);
         assert_eq!(rig.focused(), Some(enter_id()));
         assert!(rig.says("Attic") && rig.says(ON_NETWORK));
+    }
+
+    #[test]
+    fn down_reaches_the_globe_and_a_language_picked_shows_at_once() {
+        use crate::globe::Globe;
+        use pley_i18n::Language;
+        let mut rig = Rig::new();
+        let mut s = screen(&mut rig, &[]);
+        rig.frame(&mut s, Vec::new());
+        assert!(rig.says("EN"));
+        // Right never reaches it; Down does, and Left and Right don't leave it.
+        rig.press(&mut s, Key::Right);
+        rig.press(&mut s, Key::Right);
+        assert_eq!(rig.focused(), Some(Id::ROOT.with("buttons").with("search")));
+        rig.press(&mut s, Key::Down);
+        assert_eq!(rig.focused(), Some(Globe::id()));
+        rig.press(&mut s, Key::Left);
+        rig.press(&mut s, Key::Right);
+        assert_eq!(rig.focused(), Some(Globe::id()));
+        // OK lists Automatic, with what that is here, then each language in itself.
+        rig.press(&mut s, Key::Ok);
+        rig.advance(&mut s, 0.5);
+        assert!(s.modal());
+        for words in ["Choose a language", "Automatic (English)", "English", "Français", "Español"] {
+            assert!(rig.says(words), "{words}");
+        }
+        // Français shows at once and is kept; the globe keeps focus.
+        rig.press(&mut s, Key::Down);
+        rig.press(&mut s, Key::Down);
+        rig.press(&mut s, Key::Ok);
+        rig.advance(&mut s, 0.5);
+        assert_eq!(rig.state.language(), Language::Fr);
+        assert_eq!(rig.state.language_choice(), Some(Language::Fr));
+        assert!(!s.modal() && rig.says("FR"));
+        assert_eq!(rig.focused(), Some(Globe::id()));
+        // Its Automatic is the TV's English; picking it forgets the choice.
+        rig.press(&mut s, Key::Ok);
+        rig.advance(&mut s, 0.5);
+        assert!(rig.says("Automatique (English)"));
+        rig.press(&mut s, Key::Up);
+        rig.press(&mut s, Key::Up);
+        rig.press(&mut s, Key::Ok);
+        rig.advance(&mut s, 0.5);
+        assert_eq!(rig.state.language(), Language::En);
+        assert_eq!(rig.state.language_choice(), None);
+        // Back closes the panel before anything else.
+        rig.press(&mut s, Key::Ok);
+        assert!(s.modal());
+        assert!(rig.cx(|cx| s.back(cx)));
+        rig.advance(&mut s, 0.5);
+        assert!(!s.modal());
     }
 
     #[test]

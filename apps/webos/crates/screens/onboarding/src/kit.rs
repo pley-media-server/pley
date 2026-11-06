@@ -28,12 +28,15 @@ pub(crate) fn space(ui: &Ui, style: &TextStyle) -> f32 {
 }
 
 /// The logo (`PleyLogo`): the mark on its tile, `height` square, then "Pley" in `Tv.PageTitle` at
-/// three quarters of the height, 0.4 × the height after the mark. The mark is drawn once as a
+/// three quarters of the height, 0.15 × the height after the mark, as the other TV apps draw it. The mark is drawn once as a
 /// picture at the screen's pixels and kept.
 #[derive(Clone, Debug, Default)]
 pub struct Logo {
     picture: Option<(u32, Arc<RgbaImage>, u64)>,
 }
+
+/// The gap between the mark and the word, as a share of the logo's height.
+const WORD_GAP: f32 = 0.15;
 
 /// The marks drawn so far, by size in pixels, for the whole run: each screen and approval that
 /// shows the logo would otherwise draw it again (a hundred thousand samples at 80 px).
@@ -58,7 +61,7 @@ impl Logo {
 
     /// How wide the logo is at `height`.
     pub fn width(ui: &Ui, height: f32) -> f32 {
-        height * 1.4 + ui.measure("Pley", &Logo::wordmark(height), &free_line()).w
+        height * (1.0 + WORD_GAP) + ui.measure("Pley", &Logo::wordmark(height), &free_line()).w
     }
 
     /// Draws the logo `height` tall with its top-left corner at `at`.
@@ -74,7 +77,8 @@ impl Logo {
             }
         };
         ui.cmd(Cmd::Raw { rect: Rect::new(at.x, at.y, height, height), image, key, radius: 0.0, opacity: 1.0 });
-        ui.text(Point::new(at.x + height * 1.4, at.y), "Pley", &Logo::wordmark(height), &free_line(), theme::FG);
+        let word = Point::new(at.x + height * (1.0 + WORD_GAP), at.y);
+        ui.text(word, "Pley", &Logo::wordmark(height), &free_line(), theme::FG);
     }
 }
 

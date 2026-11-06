@@ -1,0 +1,7 @@
+{
+  "language": {
+    "label": "Langue",
+    "automatic": "Automatique ({{language}})",
+    "needsNewer": "Choisir une langue demande une version plus récente de Pley sur le serveur"
+  }
+}

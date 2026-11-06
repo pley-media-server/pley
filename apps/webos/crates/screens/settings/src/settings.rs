@@ -16,6 +16,7 @@ use pley_core::http::sentence;
 use pley_core::model::{AppProfile, Me, TrackDefaults};
 use pley_core::store::SubtitleFont;
 use pley_core::{ApiError, Promise};
+use pley_i18n::{Language, t};
 use pley_kit::{Dialog, DialogButton, Heading, List, ListRow, ListState, ProfileTile, SidePanel, Trailing, is_inert};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen, SettingsSection, avatar_color};
 use pley_ui::theme;
@@ -94,6 +95,8 @@ pub struct SettingsScreen {
     web: WebDialog,
     /// The change of the defaults the server is keeping.
     saving: Option<Promise<Result<Me, ApiError>>>,
+    /// The account's language the server is keeping.
+    saving_language: Option<Promise<Result<Me, ApiError>>>,
     /// A change made while another was being kept: sent once that one is (`MeViewModel.save`
     /// keeps one request at a time).
     queued: Option<TrackDefaults>,
@@ -137,6 +140,7 @@ impl SettingsScreen {
             to_sign_out: false,
             web: WebDialog::default(),
             saving: None,
+            saving_language: None,
             queued: None,
             defaults: None,
             refused: false,
@@ -240,6 +244,7 @@ impl SettingsScreen {
             stale = true;
         }
         stale |= self.facts.settings != *state.settings();
+        stale |= self.facts.automatic_language != state.account_automatic_language();
         if !stale {
             return;
         }
@@ -268,8 +273,32 @@ impl SettingsScreen {
             device: fixed.map(|f| f.device.clone()).unwrap_or_default(),
             version: fixed.map(|f| f.version.clone()).unwrap_or_default(),
             licences: self.licences.clone(),
+            language: pley_i18n::supported(me.and_then(|m| m.language.as_deref())),
+            automatic_language: state.account_automatic_language(),
         });
         self.revision += 1;
+    }
+
+    /// Collects the server's answer to a change of the account's language: the app shows it at
+    /// once. A server before the route says it needs a newer Pley.
+    fn collect_language(&mut self, cx: &mut AppCx) {
+        let Some(p) = self.saving_language.as_mut() else { return };
+        let answer = match p.take() {
+            Some(a) => a,
+            None if p.failed() => Err(ApiError::Unreadable("the request stopped".into())),
+            None => return,
+        };
+        self.saving_language = None;
+        match answer {
+            Ok(me) => {
+                cx.state.account_changed(me);
+                cx.toast(SAVED);
+            }
+            Err(e) if e.is(404) || e.is(405) => cx.toast(t!("settings.language.needsNewer")),
+            Err(e) if e.is(403) => cx.toast(READ_ONLY),
+            Err(e) if !e.cancelled() => cx.toast(sentence(&e.to_string())),
+            Err(_) => {}
+        }
     }
 
     /// Collects the server's answer to a change of the defaults.
@@ -317,6 +346,12 @@ impl SettingsScreen {
     fn pick(&mut self, picking: Picking, value: &Value, cx: &mut AppCx) {
         match value {
             Value::Profile(p) => cx.state.set_always_start_as(*p),
+            Value::AppLanguage(language) => {
+                if self.saving_language.is_none() && *language != self.facts.language {
+                    let code = language.map(Language::code);
+                    self.saving_language = Some(cx.spawn(move |api| api.set_language(code)));
+                }
+            }
             Value::Language(_) | Value::Mode(_) => {
                 // Nothing to change before who is watching is known.
                 let Some(before) = self.facts.defaults.clone() else { return };
@@ -511,7 +546,7 @@ impl SettingsScreen {
             let h = ui
                 .text(
                     Point::new(area.x + 16.0, area.y + 8.0),
-                    panel.title,
+                    &panel.title,
                     &theme::TITLE,
                     &TextOpts::wrap(title_w, 2),
                     theme::FG,
@@ -604,6 +639,7 @@ impl SettingsScreen {
 impl Screen for SettingsScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
         self.collect(cx);
+        self.collect_language(cx);
         self.gather(ui, cx);
         let root = ui.scope_id();
         let avatar: Vec<ImageRequest> = match (&self.facts.profile, self.shown) {

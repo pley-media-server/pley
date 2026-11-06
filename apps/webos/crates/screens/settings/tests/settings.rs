@@ -214,8 +214,9 @@ fn always_start_as_is_kept_for_this_server() {
     let mut app = TestApp::open_on(Route::Settings { section: None });
     assert!(app.until(|a| a.shows("Always start as")));
     app.press(Key::Right);
-    // Switch profile, Audio language, Subtitles, Watch history, Sort libraries, Always start as.
-    app.press_n(Key::Down, 5);
+    // Switch profile, Audio language, Subtitles, Language, Watch history, Sort libraries, Always
+    // start as.
+    app.press_n(Key::Down, 6);
     app.press(Key::Ok);
     app.settle();
     assert!(app.shows("Profile used last"));
@@ -240,11 +241,35 @@ fn a_managed_profile_says_so() {
 fn watch_history_opens_from_profile() {
     let mut app = TestApp::open_on(Route::Settings { section: None });
     app.press(Key::Right);
-    // Switch profile, Audio language, Subtitles, Watch history.
-    app.press_n(Key::Down, 3);
+    // Switch profile, Audio language, Subtitles, Language, Watch history.
+    app.press_n(Key::Down, 4);
     app.press(Key::Ok);
     app.settle();
     assert_eq!(app.route(), Some(&Route::History));
+}
+
+#[test]
+fn a_language_chosen_is_the_accounts_and_shows_at_once() {
+    use pley_i18n::Language;
+    let mut app = TestApp::open_on(Route::Settings { section: None });
+    assert!(app.until(|a| a.shows("Automatic (English)")));
+    app.press(Key::Right);
+    // Switch profile, Audio language, Subtitles, Language.
+    app.press_n(Key::Down, 3);
+    app.press(Key::Ok);
+    app.settle();
+    for words in ["Automatic (English)", "English", "Français", "Español"] {
+        assert!(app.shows(words), "{words}");
+    }
+    assert_eq!(app.focused(), Some(SettingsScreen::choice_id(app.page(), 0)));
+    // Automatic, English, Français.
+    app.press_n(Key::Down, 2);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.state.language() == Language::Fr), "the account's language never showed");
+    assert_eq!(app.state.me().and_then(|m| m.language.as_deref()), Some("fr"));
+    app.settle();
+    // Settings is drawn again in French: the row is the account's language now.
+    assert!(app.shows("Langue") && app.shows("Français"));
 }
 
 #[test]

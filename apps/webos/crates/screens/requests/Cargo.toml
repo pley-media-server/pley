@@ -13,6 +13,7 @@ pley-core = { path = "../../core" }
 pley-ui = { path = "../../ui" }
 pley-kit = { path = "../../kit" }
 pley-shell = { path = "../../shell" }
+pley-i18n = { path = "../../i18n" }
 # The TV's offset from UTC, as Live TV reads it, for words about days.
 pley-live = { path = "../live" }
 log = "0.4.29"

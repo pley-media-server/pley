@@ -15,6 +15,7 @@ pley-kit = { path = "../../kit" }
 pley-shell = { path = "../../shell" }
 pley-player = { path = "../../player" }
 pley-subs = { path = "../../subs" }
+pley-i18n = { path = "../../i18n" }
 # Seek-preview sheets are decoded on the task pool and cut into their previews (src/previews.rs).
 pley-gfx = { path = "../../gfx" }
 log = "0.4.29"

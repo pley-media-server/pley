@@ -40,6 +40,8 @@ pub struct Args {
     pub reduced_motion: bool,
     /// `--tier low|mid|high`: act as a TV of that tier.
     pub tier: Option<Tier>,
+    /// `--locale fr-FR`: the language of the TV's menus (`en-US` by default).
+    pub locale: Option<String>,
     /// `--stats`: print the time to the first frame and the frame times on leaving.
     pub stats: bool,
     /// `--verbose`: log debug lines too.
@@ -67,6 +69,7 @@ pley: Pley for LG TV (the simulator on a computer)
                          storage[:<folder>]…
   --reduced-motion       as Settings' Reduce motion
   --tier low|mid|high    act as a TV of that tier
+  --locale <tag>         the language of the TV's menus (en-US): fr-FR, es-MX…
   --stats                print the time to the first frame and the frame times on leaving
   --verbose              log debug lines too
 
@@ -98,6 +101,7 @@ pub fn parse(args: impl IntoIterator<Item = String>) -> Result<Option<Args>, Str
             "--route" => out.route = Some(value("--route")?),
             "--reduced-motion" => out.reduced_motion = true,
             "--tier" => out.tier = Some(tier(&value("--tier")?)?),
+            "--locale" => out.locale = Some(value("--locale")?),
             "--stats" => out.stats = true,
             "--verbose" | "-v" => out.verbose = true,
             // webOS's launch parameters: a JSON object as the only argument.
@@ -161,6 +165,8 @@ mod tests {
             "--stats",
             "--drive",
             "fixtures",
+            "--locale",
+            "fr-CA",
         ])
         .unwrap()
         .unwrap();
@@ -172,6 +178,7 @@ mod tests {
         assert_eq!(a.tier, Some(Tier::Low));
         assert_eq!(a.route.as_deref(), Some("item:12"));
         assert_eq!(a.drive, Some(DriveArg::Fixtures));
+        assert_eq!(a.locale.as_deref(), Some("fr-CA"));
         let folder = parse_all(&["--drive", "D:/Films"]).unwrap().unwrap();
         assert_eq!(folder.drive, Some(DriveArg::Folder(PathBuf::from("D:/Films"))));
     }
