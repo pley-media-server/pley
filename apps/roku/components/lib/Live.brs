@@ -96,15 +96,9 @@ function liveShortName(name as string, group as string, category as string) as s
     return ofName[1]
 end function
 
-' "57,176".
+' A count as the language shown writes it: "57,176", "57 176".
 function liveThousands(n as dynamic) as string
-    text = Int(httpNumber(n, 0)).ToStr()
-    out = ""
-    while Len(text) > 3
-        out = "," + Right(text, 3) + out
-        text = Left(text, Len(text) - 3)
-    end while
-    return text + out
+    return i18nNumber(Int(httpNumber(n, 0)))
 end function
 
 ' The groups of GET /api/live/groups: [{ name, region, label, count }].
@@ -126,10 +120,10 @@ end function
 
 ' What a category is called: "Favourites", "UK · Sport".
 function liveCategoryName(category as string, groups as object) as string
-    if Left(category, 7) = "search:" then return "Results for “" + Mid(category, 8) + "”"
-    if category = "favorites" then return "Favourites"
-    if category = "recent" then return "Recently watched"
-    if Left(category, 6) <> "group:" then return "All channels"
+    if Left(category, 7) = "search:" then return t("livetv.categories.resultsFor", { search: Mid(category, 8) })
+    if category = "favorites" then return t("livetv.categories.favourites")
+    if category = "recent" then return t("livetv.categories.recent")
+    if Left(category, 6) <> "group:" then return t("livetv.categories.all")
     name = Mid(category, 7)
     for each g in groups
         if g.name = name
@@ -244,8 +238,8 @@ end function
 ' The Search entry pinned above the categories: "Search", or the words
 ' searched for.
 function liveSearchLabel(query as string) as string
-    if query = "" then return "Search"
-    return "Search: “" + query + "”"
+    if query = "" then return t("livetv.search.rail")
+    return t("livetv.search.railWith", { search: query })
 end function
 
 ' The category a search goes back to, on Back or Clear: the one shown as
@@ -270,14 +264,14 @@ function liveRail(summary as object, groups as object, open as string, query as 
     for each g in liveGroupsMatching(groups, query)
         rail.Push({ kind: "category", key: "group:" + g.name, label: liveGroupLabel(g), count: g.count, inner: true })
     end for
-    rail.Push({ kind: "category", key: "favorites", label: "Favourites", count: summary.favorites, inner: false })
-    rail.Push({ kind: "category", key: "recent", label: "Recently watched", count: summary.recent, inner: false })
-    rail.Push({ kind: "category", key: "all", label: "All channels", count: summary.total, inner: false })
+    rail.Push({ kind: "category", key: "favorites", label: t("livetv.categories.favourites"), count: summary.favorites, inner: false })
+    rail.Push({ kind: "category", key: "recent", label: t("livetv.categories.recent"), count: summary.recent, inner: false })
+    rail.Push({ kind: "category", key: "all", label: t("livetv.categories.all"), count: summary.total, inner: false })
     sections = liveGroupSections(groups)
     if sections.regions.Count() > 0
-        rail.Push({ kind: "heading", key: "", label: "Regions", count: -1, inner: false })
+        rail.Push({ kind: "heading", key: "", label: t("livetv.categories.regions"), count: -1, inner: false })
         for each r in sections.regions
-            rail.Push({ kind: "region", key: r.region, label: r.region + "  ·  " + r.groups.Count().ToStr() + " groups", count: r.count, inner: false })
+            rail.Push({ kind: "region", key: r.region, label: t("livetv.categories.region", { region: r.region, count: r.groups.Count() }), count: r.count, inner: false })
             if r.region = open
                 for each g in r.groups
                     rail.Push({ kind: "category", key: "group:" + g.name, label: g.label, count: g.count, inner: true })
@@ -287,12 +281,12 @@ function liveRail(summary as object, groups as object, open as string, query as 
     end if
     others = sections.others
     if others.Count() > 1 or (others.Count() = 1 and sections.regions.Count() > 0)
-        heading = "Groups"
-        if sections.regions.Count() > 0 then heading = "More groups"
+        heading = t("livetv.categories.groups")
+        if sections.regions.Count() > 0 then heading = t("livetv.categories.moreGroups")
         rail.Push({ kind: "heading", key: "", label: heading, count: -1, inner: false })
         for each g in others
             label = g.name
-            if label = "" then label = "No group"
+            if label = "" then label = t("livetv.categories.noGroup")
             rail.Push({ kind: "category", key: "group:" + g.name, label: label, count: g.count, inner: false })
         end for
     end if
@@ -351,25 +345,33 @@ end function
 
 ' --- Channels ---
 
+' The words a programme may take: its badges, and its title when it has
+' none. A list of programmes looks them up once, before it.
+function liveProgramWords() as object
+    return { untitled: t("livetv.program.untitled"), live: t("livetv.program.live"), fresh: t("livetv.program.new") }
+end function
+
 ' A programme as the screens keep it: { start, ends, title, line,
 ' description, badges, live, isNew }, or invalid for none (or one that
-' ends before it starts).
-function liveProgram(raw as dynamic) as dynamic
+' ends before it starts). words: liveProgramWords', invalid to look them
+' up.
+function liveProgram(raw as dynamic, words = invalid as dynamic) as dynamic
     p = httpObject(raw)
     if p = invalid then return invalid
     start = Int(httpNumber(p.start, 0))
     ends = Int(httpNumber(p["stop"], 0))
     if ends <= start then return invalid
+    if words = invalid then words = liveProgramWords()
     title = httpSentence(p.title)
-    if title = "" then title = "Untitled"
+    if title = "" then title = words.untitled
     line = []
     episode = fmtEpisode(p.season, p.episode)
     if episode <> "" then line.Push(episode)
     subtitle = httpSentence(p.subtitle)
     if subtitle <> "" and subtitle <> title then line.Push(subtitle)
     badges = []
-    if httpTrue(p.is_live) then badges.Push("Live")
-    if httpTrue(p.is_new) then badges.Push("New")
+    if httpTrue(p.is_live) then badges.Push(words.live)
+    if httpTrue(p.is_new) then badges.Push(words.fresh)
     rating = httpSentence(p.rating)
     if rating <> "" then badges.Push(rating)
     return {
@@ -388,13 +390,14 @@ end function
 ' favorite, hasGuide, now, after }, its logo's address on server at
 ' width (now and after left out for none); invalid without an id. In a
 ' group's category, its name leaves out the region the group says.
-function liveChannel(raw as dynamic, server as string, width = 240 as integer, category = "all" as string) as dynamic
+' words: liveProgramWords', for a list.
+function liveChannel(raw as dynamic, server as string, width = 240 as integer, category = "all" as string, words = invalid as dynamic) as dynamic
     c = httpObject(raw)
     if c = invalid then return invalid
     id = Int(httpNumber(c.id, 0))
     if id <= 0 then return invalid
     name = httpSentence(c.name)
-    if name = "" then name = "Channel " + id.ToStr()
+    if name = "" then name = t("livetv.unnamedChannel", { id: id })
     group = httpSentence(c.group)
     channel = {
         id: id,
@@ -407,9 +410,9 @@ function liveChannel(raw as dynamic, server as string, width = 240 as integer, c
     }
     ' Left out when there are none: a node's field doesn't keep invalid,
     ' and channels go from the API task to the screens in one.
-    on = liveProgram(c.now)
+    on = liveProgram(c.now, words)
     if on <> invalid then channel.now = on
-    coming = liveProgram(c["next"])
+    coming = liveProgram(c["next"], words)
     if coming <> invalid then channel.after = coming
     return channel
 end function
@@ -417,8 +420,9 @@ end function
 ' The channels of a list, in its order.
 function liveChannels(list as dynamic, server as string, category = "all" as string) as object
     out = []
+    words = liveProgramWords()
     for each raw in httpArray(list)
-        channel = liveChannel(raw, server, liveLogoWidth(), category)
+        channel = liveChannel(raw, server, liveLogoWidth(), category, words)
         if channel <> invalid then out.Push(channel)
     end for
     return out
@@ -488,21 +492,18 @@ end function
 function liveTimeLeft(p as object, now as integer) as string
     minutes = Int((p.ends - now + 30) / 60)
     if minutes < 1 then minutes = 1
-    if minutes < 60 then return minutes.ToStr() + " min left"
+    if minutes < 60 then return t("livetv.time.minutesLeft", { count: minutes })
     hours = Int(minutes / 60)
     minutes = minutes mod 60
-    if minutes = 0 then return hours.ToStr() + " h left"
-    return hours.ToStr() + " h " + minutes.ToStr() + " min left"
+    if minutes = 0 then return t("livetv.time.hoursLeft", { count: hours })
+    return t("livetv.time.hoursMinutesLeft", { hours: hours, minutes: minutes })
 end function
 
-' "8:05 PM" on a Roku set to a 12-hour clock, "20:05" on a 24-hour one.
+' "8:05 PM" on a 12-hour clock, "20:05" on a 24-hour one: twelve is
+' fmtTwelveHour's, the Roku's clock in English, 24 hours in French and
+' Spanish.
 function liveClockText(hours as integer, minutes as integer, twelve as boolean) as string
-    if not twelve then return fmtTwo(hours) + ":" + fmtTwo(minutes)
-    suffix = " AM"
-    if hours >= 12 then suffix = " PM"
-    shown = hours mod 12
-    if shown = 0 then shown = 12
-    return shown.ToStr() + ":" + fmtTwo(minutes) + suffix
+    return fmtClockText(hours, minutes, twelve)
 end function
 
 ' A time in the Roku's own time zone.
@@ -570,7 +571,7 @@ end function
 ' "Channels 51–100 of 2,345", or "" for a list on one page.
 function liveRange(offset as integer, shown as integer, total as integer) as string
     if total <= shown or shown = 0 then return ""
-    return "Channels " + liveThousands(offset + 1) + "–" + liveThousands(offset + shown) + " of " + liveThousands(total)
+    return t("livetv.channelRange", { from: offset + 1, to: offset + shown, total: total })
 end function
 
 ' A channel's card (components/items/LiveCard): its logo and number, the
@@ -578,12 +579,14 @@ end function
 function liveCard(channel as object, now as integer, twelve as boolean) as object
     on = liveOnNow(channel, now)
     coming = liveComingUp(channel, now)
-    line = "No guide"
-    if channel.hasGuide then line = "Nothing in the guide now"
     progress = 0.0
     if on <> invalid
         line = on.title
         progress = liveProgress(on, now)
+    else if channel.hasGuide
+        line = t("livetv.nothingNow")
+    else
+        line = t("livetv.noGuide")
     end if
     nextLine = ""
     if coming <> invalid then nextLine = liveClock(coming.start, twelve) + " · " + coming.title
@@ -622,13 +625,14 @@ end function
 sub liveGuideKeep(kept as object, programs as dynamic)
     byChannel = httpObject(programs)
     if byChannel = invalid then return
+    words = liveProgramWords()
     for each id in byChannel
         list = httpArray(byChannel[id])
         key = "c" + id
         if not kept.DoesExist(key) then kept[key] = {}
         known = kept[key]
         for each raw in list
-            p = liveProgram(raw)
+            p = liveProgram(raw, words)
             if p <> invalid then known["s" + p.start.ToStr()] = p
         end for
     end for
@@ -672,8 +676,9 @@ end function
 ' channel without a guide, its name.
 function liveGuideRows(channels as object, kept as object, from as integer, upto as integer) as object
     out = []
+    noInformation = t("livetv.guide.noInformation")
     for each channel in channels
-        gapTitle = "No guide information"
+        gapTitle = noInformation
         if not channel.hasGuide then gapTitle = channel.name
         programs = []
         at = from
@@ -751,7 +756,7 @@ function liveTrouble(answer as object, channelName as string) as object
     message = httpSentence(answer.message)
     if status = 409
         connections = liveBusyConnections(answer.data)
-        return { kind: "busy", title: "All connections are in use", message: message, retry: true, connections: connections, lines: liveBusyLines(message, connections) }
+        return { kind: "busy", title: t("livetv.trouble.busy"), message: message, retry: true, connections: connections, lines: liveBusyLines(message, connections) }
     end if
     if status = 410
         ' The server's own words, not a status's.
@@ -760,10 +765,15 @@ function liveTrouble(answer as object, channelName as string) as object
         if body <> invalid then words = httpString(body.message)
         return liveStopped(words)
     end if
-    problem = { kind: "other", title: channelName + " didn't start", message: message, retry: true, connections: [] }
-    if status = 404 then problem = { kind: "missing", title: "This channel isn't here any more", message: "It may have been hidden, or its source removed.", retry: false, connections: [] }
-    if status = 403 then problem = { kind: "closed", title: "Live TV isn't open to this account", message: "An administrator can open it in Settings → Live TV, on the web.", retry: false, connections: [] }
-    if status = 503 then problem = { kind: "unavailable", title: channelName + " isn't playing", message: message, retry: true, connections: [] }
+    if status = 404
+        problem = { kind: "missing", title: t("livetv.trouble.gone"), message: t("livetv.trouble.goneHint"), retry: false, connections: [] }
+    else if status = 403
+        problem = { kind: "closed", title: t("livetv.trouble.notOpen"), message: t("livetv.trouble.notOpenHint"), retry: false, connections: [] }
+    else if status = 503
+        problem = { kind: "unavailable", title: t("livetv.trouble.notPlaying", { channel: channelName }), message: message, retry: true, connections: [] }
+    else
+        problem = { kind: "other", title: t("livetv.trouble.didntStart", { channel: channelName }), message: message, retry: true, connections: [] }
+    end if
     problem.lines = problem.message
     return problem
 end function
@@ -774,8 +784,8 @@ end function
 ' any more."; Watch again tunes the channel as any watch does.
 function liveStopped(message as dynamic) as object
     words = httpSentence(message)
-    if words = "" then words = "This channel isn't being watched any more."
-    return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
+    if words = "" then words = t("livetv.trouble.notWatched")
+    return { kind: "stopped", title: t("livetv.trouble.stopped"), message: words, lines: words, retry: true, connections: [] }
 end function
 
 ' Watching stopped from another device or by the server's administrator
@@ -785,13 +795,13 @@ end function
 ' playerStoppedMessage takes it.
 function liveStoppedBy(event as dynamic) as object
     data = httpObject(event)
-    words = "Live TV was stopped by the server's administrator."
+    words = t("livetv.trouble.stoppedByAdmin")
     if data <> invalid
-        if GetInterface(data.by_admin, "ifBoolean") <> invalid and not data.by_admin then words = "Live TV was stopped from another device."
+        if GetInterface(data.by_admin, "ifBoolean") <> invalid and not data.by_admin then words = t("livetv.trouble.stoppedElsewhere")
         message = httpSentence(data.message)
         if message <> "" then words = words + Chr(10) + message
     end if
-    return { kind: "stopped", title: "Live TV stopped", message: words, lines: words, retry: true, connections: [] }
+    return { kind: "stopped", title: t("livetv.trouble.stopped"), message: words, lines: words, retry: true, connections: [] }
 end function
 
 ' Whether tuning the channel again may help after problem (liveTrouble's):
@@ -832,7 +842,7 @@ end function
 ' Who holds a connection: "You, on another device", their names (to
 ' administrators), or "Someone else" / "3 people".
 function liveHolders(c as object) as string
-    if httpTrue(c.yours) then return "You, on another device"
+    if httpTrue(c.yours) then return t("livetv.trouble.you")
     names = []
     for each name in httpArray(c.watchers)
         text = httpSentence(name)
@@ -840,8 +850,8 @@ function liveHolders(c as object) as string
     end for
     if names.Count() > 0 then return names.Join(", ")
     people = Int(httpNumber(c.people, 0))
-    if people <= 1 then return "Someone else"
-    return people.ToStr() + " people"
+    if people <= 1 then return t("livetv.trouble.someoneElse")
+    return t("livetv.trouble.people", { count: people })
 end function
 
 ' The busy notice's text: the server's message, then what each connection
@@ -852,11 +862,7 @@ function liveBusyLines(message as string, connections as object) as string
     if message <> "" then lines.Push(message)
     if connections.Count() > 0
         if lines.Count() > 0 then lines.Push("")
-        if connections.Count() = 1
-            lines.Push("Its one connection is watching:")
-        else
-            lines.Push("Its " + connections.Count().ToStr() + " connections are watching:")
-        end if
+        lines.Push(t("livetv.trouble.connectionsWatching", { count: connections.Count() }))
         takeable = false
         for each c in connections
             lines.Push("•  " + c.channelName + "  —  " + c.holders)
@@ -864,7 +870,7 @@ function liveBusyLines(message as string, connections as object) as string
         end for
         if not takeable
             lines.Push("")
-            lines.Push("A channel already being watched can be joined, or try again once one is stopped.")
+            lines.Push(t("livetv.trouble.joinHint"))
         end if
     end if
     return lines.Join(Chr(10))
@@ -881,17 +887,23 @@ function liveTroubleButtons(problem as object) as object
         if c.canTakeOver then takeable.Push(c)
     end for
     for each c in takeable
-        label = "Watch here instead"
-        if takeable.Count() > 1 then label = "Watch here instead of " + c.channelName
+        if takeable.Count() > 1
+            label = t("livetv.player.watchHereFor", { channel: c.channelName })
+        else
+            label = t("livetv.player.watchHere")
+        end if
         out.Push({ label: label, action: "takeOver", channelId: c.channelId })
     end for
     if problem.retry
-        label = "Try again"
-        if problem.kind = "stopped" then label = "Watch again"
+        if problem.kind = "stopped"
+            label = t("livetv.player.watchAgain")
+        else
+            label = t("common.actions.tryAgain")
+        end if
         out.Push({ label: label, action: "retry", channelId: 0 })
     end if
-    out.Push({ label: "Other channels", action: "list", channelId: 0 })
-    out.Push({ label: "Back", action: "back", channelId: 0 })
+    out.Push({ label: t("livetv.player.otherChannels"), action: "list", channelId: 0 })
+    out.Push({ label: t("common.actions.back"), action: "back", channelId: 0 })
     return out
 end function
 

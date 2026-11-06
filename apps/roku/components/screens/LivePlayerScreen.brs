@@ -63,7 +63,9 @@ sub init()
         spinner.poster.width = 64
         spinner.poster.height = 64
     end for
-    m.twelve = CreateObject("roDeviceInfo").GetClockFormat() <> "24h"
+    ' The Live chip: the badge's word, in capitals.
+    m.top.findNode("liveMark").text = UCase(t("livetv.program.live"))
+    m.twelve = fmtTwelveHour()
     m.started = false
     ' The channel shown (Live.brs's liveChannel), and the one up and down
     ' lead to before it is tuned.
@@ -78,7 +80,7 @@ sub init()
     ' page of it held ({ total, offset, channels }) and its rows, and the
     ' asking an answer must be for.
     m.category = "all"
-    m.categoryName = "All channels"
+    m.categoryName = t("livetv.categories.all")
     m.page = invalid
     m.pageContent = invalid
     m.pageAsked = 0
@@ -87,7 +89,7 @@ sub init()
     ' or a search made there, with its page, the asking it waits for, and
     ' whether it shows a search made there, with the category before it.
     m.listCategory = "all"
-    m.listName = "All channels"
+    m.listName = m.categoryName
     m.listPage = invalid
     m.listAsked = 0
     m.listSearched = false
@@ -384,7 +386,7 @@ sub showListCategory(category as string)
         showListPage(m.page, m.pageContent, "")
         return
     end if
-    m.listRange.text = "Loading…"
+    m.listRange.text = t("common.states.loading")
     ' Chosen: asked for at once, whatever failed before.
     m.failedAt = -1
     m.failedCategory = ""
@@ -396,12 +398,12 @@ end sub
 sub openCategories()
     m.channelList.visible = false
     m.categoryList.visible = true
-    m.listTitle.text = "Categories"
+    m.listTitle.text = t("livetv.categories.title")
     m.listRange.text = ""
-    m.listHint.text = "OK: its channels   ·   Back: the channels"
+    m.listHint.text = t("livetv.player.categoriesHint")
     m.categoryList.setFocus(true)
     if m.summary = invalid
-        m.listRange.text = "Loading…"
+        m.listRange.text = t("common.states.loading")
         uiRequest({ method: "GET", path: "/api/live/groups" }, "onGroups")
         return
     end if
@@ -477,32 +479,28 @@ sub closeCategories()
 end sub
 
 function listHintText() as string
-    return "OK: watch   ·   Options (*): favourite   ·   Back: close" + Chr(10) + "Left: categories   ·   Replay: search"
+    return t("livetv.player.listHint") + Chr(10) + t("livetv.player.listMoreHint")
 end function
 
 ' Replay in the list: Roku's keyboard, every channel whose name, number or
 ' programme on now has the words in it.
 sub askListSearch()
     dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
-    dialog.title = "Search channels"
-    dialog.message = ["Channels and what's on"]
+    dialog.title = t("livetv.search.channelsTitle")
+    dialog.message = [t("livetv.search.channelsPrompt")]
     if Left(m.listCategory, 7) = "search:" then dialog.text = Mid(m.listCategory, 8)
-    dialog.buttons = ["Search", "Cancel"]
+    dialog.buttons = [t("livetv.search.search"), t("common.actions.cancel")]
     dialog.observeField("buttonSelected", "onListSearch")
     m.top.getScene().dialog = dialog
 end sub
 
+' The first button searches, the other cancels.
 sub onListSearch(event as object)
     dialog = m.top.getScene().dialog
     text = ""
-    labels = []
-    if dialog <> invalid
-        text = dialog.text.Trim()
-        labels = dialog.buttons
-    end if
+    if dialog <> invalid then text = dialog.text.Trim()
     uiCloseDialog()
-    chosen = event.getData()
-    if chosen < 0 or chosen >= labels.Count() or labels[chosen] <> "Search" then return
+    if event.getData() <> 0 then return
     query = httpSentence(text)
     if query = "" then return
     ' The category shown as the first of the searches made here began.
@@ -560,9 +558,9 @@ sub onFavorite(event as object)
         return
     end if
     if spec.favorite
-        showToast(spec.name + " is in your favourites")
+        showToast(t("livetv.favourites.added", { name: spec.name }))
     else
-        showToast(spec.name + " is out of your favourites")
+        showToast(t("livetv.favourites.removed", { name: spec.name }))
     end if
 end sub
 
@@ -853,8 +851,8 @@ sub onChecked(event as object)
         return
     end if
     ' Its playlist is there: the stream itself broke off.
-    message = "It stopped and couldn't get going again."
-    failed({ kind: "other", title: m.channel.name + " stopped", message: message, lines: message, retry: true, connections: [] })
+    message = t("livetv.player.stalled")
+    failed({ kind: "other", title: t("livetv.player.channelStopped", { channel: m.channel.name }), message: message, lines: message, retry: true, connections: [] })
 end sub
 
 ' Watching failed: the channel is tuned again where that may help (the
@@ -891,14 +889,13 @@ end sub
 sub showCard(channel as object, kind as string)
     m.cardTitle.text = liveTitle(channel)
     on = liveOnNow(channel, nowSeconds())
-    line = "Tuning…"
-    if kind = "radio"
-        line = "Radio"
-        if on <> invalid then line = on.title
-    else if on <> invalid
-        line = on.title
+    if on <> invalid
+        m.cardLine.text = on.title
+    else if kind = "radio"
+        m.cardLine.text = t("livetv.player.radio")
+    else
+        m.cardLine.text = t("livetv.player.tuning")
     end if
-    m.cardLine.text = line
     m.cardInitials.text = channel.name
     ' The scene's agent carries the token; it changes with each refresh.
     m.cardLogo.setHttpAgent(m.top.getScene().getHttpAgent())
@@ -945,16 +942,19 @@ sub showBanner(hides as boolean)
         m.bannerFill.visible = true
     else
         m.bannerTitle.text = channel.name
-        m.bannerMeta.text = "Nothing in the guide now"
-        if not channel.hasGuide then m.bannerMeta.text = "No guide for this channel"
+        if channel.hasGuide
+            m.bannerMeta.text = t("livetv.nothingNow")
+        else
+            m.bannerMeta.text = t("livetv.noGuideHere")
+        end if
         m.bannerTrack.visible = false
         m.bannerFill.visible = false
     end if
     m.bannerNext.text = ""
-    if coming <> invalid then m.bannerNext.text = "Next   " + liveClock(coming.start, m.twelve) + "   " + coming.title
+    if coming <> invalid then m.bannerNext.text = t("livetv.player.next", { time: liveClock(coming.start, m.twelve), title: coming.title })
     m.star.text = ""
-    if channel.favorite then m.star.text = "★ Favourite"
-    m.bannerHint.text = "Up and down: channels   ·   Left: " + m.categoryName + "   ·   Options (*): favourite   ·   OK: close"
+    if channel.favorite then m.star.text = "★ " + t("livetv.favourites.mark")
+    m.bannerHint.text = t("livetv.player.bannerHint", { category: m.categoryName })
     if m.list.visible or m.notice.visible then return
     m.banner.visible = true
     m.bannerTimer.control = "stop"

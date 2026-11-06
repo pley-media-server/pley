@@ -27,8 +27,12 @@ sub init()
     m.retry = m.top.findNode("retry")
     m.clock = m.top.findNode("clock")
     m.hint = m.top.findNode("hint")
+    m.top.findNode("title").text = t("livetv.title")
+    m.message.text = t("common.states.loading")
+    m.guide.loadingDataText = t("livetv.page.loadingGuide")
+    m.guide.channelNoDataText = t("livetv.guide.noInformation")
     m.started = false
-    m.twelve = CreateObject("roDeviceInfo").GetClockFormat() <> "24h"
+    m.twelve = fmtTwelveHour()
     m.view = { tab: "guide", category: "all" }
     m.viewKey = ""
     ' The groups ({ total, favorites, recent } and [{ name, region, label,
@@ -73,9 +77,9 @@ sub init()
     m.span = CreateObject("roTimespan")
     ' When what's on in the cards was last asked for again (m.span's ms).
     m.refreshedAt = -1
-    m.retry.buttons = ["Try again"]
+    m.retry.buttons = [t("common.actions.tryAgain")]
     m.retry.observeField("buttonSelected", "onRetry")
-    m.tabs.chips = [{ label: "Guide", width: 208 }, { label: "Channels", width: 208 }]
+    m.tabs.chips = [{ label: t("livetv.tabs.guide"), width: 208 }, { label: t("livetv.tabs.channels"), width: 208 }]
     m.tabs.observeField("chosen", "onTabChosen")
     m.rail.observeField("itemSelected", "onRailSelected")
     m.rail.observeField("itemFocused", "onRailFocused")
@@ -114,7 +118,7 @@ sub onActive()
         if m.view.tab = "channels" then m.tabs.current = 1
         m.tabs.focusIndex = m.tabs.current
         m.rail.setFocus(true)
-        showMessage("Loading…")
+        showMessage(t("common.states.loading"))
         loadGroups(true)
         return
     end if
@@ -152,7 +156,7 @@ sub onGroups(event as object)
     if not answer.ok
         if not first or uiFailed(answer) then return
         if answer.status = 403
-            showMessage("Live TV isn't open to this account." + Chr(10) + "An administrator can open it on the web, in Settings → Live TV.")
+            showMessage(t("livetv.page.notOpen") + Chr(10) + t("livetv.page.notOpenHint"))
         else
             showFailed(answer.message, "groups", 0)
         end if
@@ -161,7 +165,7 @@ sub onGroups(event as object)
     m.summary = liveSummary(answer.data)
     m.groups = liveGroups(answer.data)
     if m.summary.total = 0
-        showMessage("No channels yet." + Chr(10) + "Channels appear here once an administrator adds an IPTV provider on the web, in Settings → Live TV.")
+        showMessage(t("livetv.page.noChannels") + Chr(10) + t("livetv.page.noChannelsHint"))
         return
     end if
     category = liveCategoryValid(m.view.category, m.summary, m.groups)
@@ -312,12 +316,18 @@ end sub
 ' has the words in it, and the groups whose names do.
 sub askSearch()
     dialog = CreateObject("roSGNode", "StandardKeyboardDialog")
-    dialog.title = "Search Live TV"
-    dialog.message = ["Channels, groups and what's on"]
+    dialog.title = t("livetv.search.title")
+    dialog.message = [t("livetv.search.prompt")]
     dialog.text = m.query
-    buttons = ["Search"]
-    if m.query <> "" then buttons.Push("Clear")
-    buttons.Push("Cancel")
+    ' What each button does, in their order: Clear only with words.
+    buttons = [t("livetv.search.search")]
+    m.searchActions = ["search"]
+    if m.query <> ""
+        buttons.Push(t("livetv.search.clear"))
+        m.searchActions.Push("clear")
+    end if
+    buttons.Push(t("common.actions.cancel"))
+    m.searchActions.Push("cancel")
     dialog.buttons = buttons
     dialog.observeField("buttonSelected", "onSearchAnswered")
     m.top.getScene().dialog = dialog
@@ -326,17 +336,14 @@ end sub
 sub onSearchAnswered(event as object)
     dialog = m.top.getScene().dialog
     text = ""
-    labels = []
-    if dialog <> invalid
-        text = dialog.text.Trim()
-        labels = dialog.buttons
-    end if
+    if dialog <> invalid then text = dialog.text.Trim()
     uiCloseDialog()
     chosen = event.getData()
-    if chosen < 0 or chosen >= labels.Count() then return
-    label = labels[chosen]
-    if label = "Cancel" then return
-    if label = "Clear" or text = ""
+    actions = m.searchActions
+    if actions = invalid or chosen < 0 or chosen >= actions.Count() then return
+    action = actions[chosen]
+    if action = "cancel" then return
+    if action = "clear" or text = ""
         if searching()
             leaveSearch()
         else
@@ -437,7 +444,7 @@ end sub
 sub onRetry()
     m.toContent = m.retry.isInFocusChain()
     if m.retryWhat = "groups"
-        showMessage("Loading…")
+        showMessage(t("common.states.loading"))
         loadGroups(true)
     else
         showCategory(m.retryAround)
@@ -500,7 +507,7 @@ sub loadGuidePage(offset as integer, around as integer, focus as string)
     end if
     m.asked = m.asked + 1
     m.loading = true
-    if m.guide.content = invalid then showMessage("Loading the guide…")
+    if m.guide.content = invalid then showMessage(t("livetv.page.loadingGuide"))
     uiRequest({ op: "livePage", kind: "guide", category: m.view.category, offset: offset, limit: livePageSize(), around: around, start: m.guideStart, upto: m.loadedTo, asked: m.asked, focus: focus, focusId: around }, "onGuide")
 end sub
 
@@ -565,16 +572,16 @@ sub onGuide(event as object)
     m.guide.visible = true
     m.info.visible = true
     showCount()
-    m.hint.text = "OK: watch   ·   Options (*): favourite   ·   Rewind and fast forward: earlier and later   ·   Play: now   ·   Replay: search"
+    m.hint.text = t("livetv.page.guideHint")
     showProgram()
     if m.toContent then focusContent()
 end sub
 
 function emptyText() as string
-    if searching() then return "No channel's name, number or programme on now has “" + m.query + "” in it."
-    if m.view.category = "favorites" then return "No favourites yet: the Options key (*) on a channel adds it."
-    if m.view.category = "recent" then return "Nothing watched yet."
-    return "No channels here."
+    if searching() then return t("livetv.page.noMatch", { search: m.query })
+    if m.view.category = "favorites" then return t("livetv.page.noFavourites")
+    if m.view.category = "recent" then return t("livetv.page.nothingWatched")
+    return t("livetv.page.empty")
 end function
 
 ' "2,345 channels   ·   Channels 51–100 of 2,345".
@@ -593,8 +600,7 @@ sub showCount()
         m.count.text = ""
         return
     end if
-    text = liveThousands(total) + " channels"
-    if total = 1 then text = "1 channel"
+    text = t("livetv.page.channelCount", { count: total })
     range = liveRange(offset, shown, total)
     if range <> "" then text = text + "   ·   " + range
     m.count.text = text
@@ -673,8 +679,11 @@ sub showProgram()
     m.infoLogo.uri = channel.logo
     if program = invalid or program.id = "gap"
         m.infoTitle.text = channel.name
-        m.infoMeta.text = "No guide information"
-        if not channel.hasGuide then m.infoMeta.text = "This channel has no guide"
+        if channel.hasGuide
+            m.infoMeta.text = t("livetv.guide.noInformation")
+        else
+            m.infoMeta.text = t("livetv.guide.noGuide")
+        end if
         m.infoText.text = ""
         return
     end if
@@ -682,7 +691,7 @@ sub showProgram()
     p = programTimes(program)
     meta = []
     if p.start <= now and p.ends > now
-        meta.Push("On now")
+        meta.Push(t("livetv.guide.onNow"))
         meta.Push(liveSpan(p, m.twelve))
         meta.Push(liveTimeLeft(p, now))
     else
@@ -704,8 +713,8 @@ end function
 function daySpan(p as object, now as integer) as string
     span = liveSpan(p, m.twelve)
     day = dayLabel(p.start, now)
-    if day <> "" then span = day + " " + span
-    return span
+    if day = "" then return span
+    return t("livetv.time.dayAndTime", { day: day, time: span })
 end function
 
 ' "Tomorrow", "Yesterday", a weekday, or "" for today, in the Roku's
@@ -714,12 +723,14 @@ function dayLabel(seconds as integer, now as integer) as string
     at = localDay(seconds)
     today = localDay(now)
     if at = today then return ""
-    if at = today + 1 then return "Tomorrow"
-    if at = today - 1 then return "Yesterday"
+    if at = today + 1 then return t("livetv.time.tomorrow")
+    if at = today - 1 then return t("livetv.time.yesterday")
     when = CreateObject("roDateTime")
     when.FromSeconds(seconds)
     when.ToLocalTime()
-    return when.GetWeekday()
+    ' GetWeekday() names it in English: its number (0 for Sunday) instead.
+    days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+    return t("livetv.time.days." + days[when.GetDayOfWeek()])
 end function
 
 function localDay(seconds as integer) as integer
@@ -753,7 +764,7 @@ end sub
 sub loadCards(offset as integer, around as integer, before as boolean, replace as boolean)
     if m.cardsLoading and not replace then return
     m.cardsLoading = true
-    if m.cardChannels.Count() = 0 then showMessage("Loading…")
+    if m.cardChannels.Count() = 0 then showMessage(t("common.states.loading"))
     m.cardsRequest = uiRequest({ op: "livePage", kind: "cards", category: m.view.category, offset: offset, limit: livePageSize(), around: around, before: before, replace: replace, focusId: around }, "onCards")
 end sub
 
@@ -816,7 +827,7 @@ sub onCards(event as object)
     m.cards.visible = true
     m.guide.visible = false
     m.info.visible = false
-    m.hint.text = "OK: watch   ·   Options (*): favourite   ·   Replay: search"
+    m.hint.text = t("livetv.page.cardsHint")
     showCount()
     if m.toContent then focusContent()
 end sub
@@ -925,13 +936,14 @@ end function
 ' one, or invalid), Watch, and Add to or Remove from favourites.
 sub channelOptions(channel as object, p as dynamic)
     m.optionsChannel = channel
-    buttons = ["Watch " + channel.name]
+    ' onOptionChosen goes by their order.
+    buttons = [t("livetv.options.watch", { name: channel.name })]
     if channel.favorite
-        buttons.Push("Remove from favourites")
+        buttons.Push(t("livetv.favourites.remove"))
     else
-        buttons.Push("Add to favourites")
+        buttons.Push(t("livetv.favourites.add"))
     end if
-    buttons.Push("Cancel")
+    buttons.Push(t("common.actions.cancel"))
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
     dialog.title = liveTitle(channel)
     if p <> invalid
@@ -964,7 +976,7 @@ end sub
 sub onFavorite(event as object)
     answer = event.getData()
     if not answer.ok
-        if not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+        if not uiFailed(answer) then uiMessage(t("livetv.favourites.failed"), [answer.message])
         return
     end if
     loadGroups(false)

@@ -1,0 +1,131 @@
+{
+  "title": "TV en direct",
+  "tabs": {
+    "guide": "Guide",
+    "channels": "Chaînes"
+  },
+  "categories": {
+    "title": "Catégories",
+    "all": "Toutes les chaînes",
+    "favourites": "Favoris",
+    "recent": "Regardées récemment",
+    "regions": "Régions",
+    "groups": "Groupes",
+    "moreGroups": "Autres groupes",
+    "noGroup": "Sans groupe",
+    "region_one": "{{region}}  ·  {{count, number}} groupe",
+    "region_many": "{{region}}  ·  {{count, number}} de groupes",
+    "region_other": "{{region}}  ·  {{count, number}} groupes",
+    "resultsFor": "Résultats pour « {{search}} »"
+  },
+  "search": {
+    "rail": "Rechercher",
+    "railWith": "Rechercher : « {{search}} »",
+    "title": "Rechercher dans la TV en direct",
+    "prompt": "Chaînes, groupes et programmes en cours",
+    "search": "Rechercher",
+    "clear": "Effacer",
+    "channelsTitle": "Rechercher des chaînes",
+    "channelsPrompt": "Chaînes et programmes en cours"
+  },
+  "page": {
+    "notOpen": "La TV en direct n’est pas ouverte à ce compte.",
+    "notOpenHint": "Un administrateur peut l’ouvrir sur le web, dans Paramètres → TV en direct.",
+    "noChannels": "Aucune chaîne pour l’instant.",
+    "noChannelsHint": "Les chaînes apparaissent ici dès qu’un administrateur ajoute un fournisseur IPTV sur le web, dans Paramètres → TV en direct.",
+    "loadingGuide": "Chargement du guide…",
+    "channelCount_one": "{{count, number}} chaîne",
+    "channelCount_many": "{{count, number}} de chaînes",
+    "channelCount_other": "{{count, number}} chaînes",
+    "noMatch": "Aucune chaîne n’a « {{search}} » dans son nom, son numéro ou le programme en cours.",
+    "noFavourites": "Aucun favori pour l’instant : ajoutez une chaîne avec la touche Options (*).",
+    "nothingWatched": "Rien de regardé pour l’instant.",
+    "empty": "Aucune chaîne ici.",
+    "guideHint": "OK : regarder   ·   Options (*) : favori   ·   Retour/Avance rapide : avant, après   ·   Lecture : direct   ·   Relecture : chercher",
+    "cardsHint": "OK : regarder   ·   Options (*) : favori   ·   Relecture : chercher"
+  },
+  "channelRange": "Chaînes {{from, number}}–{{to, number}} sur {{total, number}}",
+  "unnamedChannel": "Chaîne {{id}}",
+  "nothingNow": "Aucun programme en ce moment",
+  "noGuide": "Pas de guide",
+  "noGuideHere": "Pas de guide pour cette chaîne",
+  "guide": {
+    "noInformation": "Aucune information dans le guide",
+    "noGuide": "Cette chaîne n’a pas de guide",
+    "onNow": "En cours"
+  },
+  "program": {
+    "untitled": "Sans titre",
+    "live": "Direct",
+    "new": "Inédit"
+  },
+  "time": {
+    "tomorrow": "Demain",
+    "yesterday": "Hier",
+    "days": {
+      "sunday": "Dimanche",
+      "monday": "Lundi",
+      "tuesday": "Mardi",
+      "wednesday": "Mercredi",
+      "thursday": "Jeudi",
+      "friday": "Vendredi",
+      "saturday": "Samedi"
+    },
+    "dayAndTime": "{{day}} {{time}}",
+    "minutesLeft_one": "Il reste {{count}} min",
+    "minutesLeft_many": "Il reste {{count}} min",
+    "minutesLeft_other": "Il reste {{count}} min",
+    "hoursLeft_one": "Il reste {{count}} h",
+    "hoursLeft_many": "Il reste {{count}} h",
+    "hoursLeft_other": "Il reste {{count}} h",
+    "hoursMinutesLeft": "Il reste {{hours}} h {{minutes}} min"
+  },
+  "options": {
+    "watch": "Regarder {{name}}"
+  },
+  "favourites": {
+    "add": "Ajouter aux favoris",
+    "remove": "Retirer des favoris",
+    "added": "{{name}} est dans vos favoris",
+    "removed": "{{name}} n’est plus dans vos favoris",
+    "failed": "Ça n’a pas fonctionné",
+    "mark": "Favori"
+  },
+  "player": {
+    "tuning": "Chargement de la chaîne…",
+    "radio": "Radio",
+    "next": "À suivre   {{time}}   {{title}}",
+    "bannerHint": "Haut et bas : chaînes   ·   Gauche : {{category}}   ·   Options (*) : favori   ·   OK : fermer",
+    "listHint": "OK : regarder   ·   Options (*) : favori   ·   Retour : fermer",
+    "listMoreHint": "Gauche : catégories   ·   Relecture : chercher",
+    "categoriesHint": "OK : ses chaînes   ·   Retour : les chaînes",
+    "stalled": "Elle s’est arrêtée et n’a pas pu reprendre.",
+    "channelStopped": "La lecture de {{channel}} s’est arrêtée",
+    "watchAgain": "Regarder à nouveau",
+    "otherChannels": "Autres chaînes",
+    "watchHere": "Regarder ici à la place",
+    "watchHereFor": "Regarder ici au lieu de {{channel}}"
+  },
+  "trouble": {
+    "busy": "Toutes les connexions sont utilisées",
+    "didntStart": "{{channel}} n’a pas démarré",
+    "notPlaying": "{{channel}} est indisponible",
+    "gone": "Cette chaîne n’existe plus",
+    "goneHint": "Elle a peut-être été masquée, ou sa source supprimée.",
+    "notOpen": "La TV en direct n’est pas ouverte à ce compte",
+    "notOpenHint": "Un administrateur peut l’ouvrir dans Paramètres → TV en direct, sur le web.",
+    "stopped": "La TV en direct s’est arrêtée",
+    "notWatched": "Cette chaîne n’est plus regardée.",
+    "stoppedByAdmin": "La TV en direct a été arrêtée par l’administrateur du serveur.",
+    "stoppedElsewhere": "La TV en direct a été arrêtée depuis un autre appareil.",
+    "you": "Vous, sur un autre appareil",
+    "someoneElse": "Quelqu’un d’autre",
+    "people_one": "{{count, number}} personne",
+    "people_many": "{{count, number}} de personnes",
+    "people_other": "{{count, number}} personnes",
+    "connectionsWatching_one": "Sa seule connexion diffuse :",
+    "connectionsWatching_many": "Ses {{count, number}} de connexions diffusent :",
+    "connectionsWatching_other": "Ses {{count, number}} connexions diffusent :",
+    "joinHint": "Vous pouvez rejoindre une chaîne déjà regardée, ou réessayer quand l’une d’elles est arrêtée."
+  }
+}
