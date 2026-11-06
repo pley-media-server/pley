@@ -11,14 +11,15 @@ describes how they are made.
 
 ### Added
 
-- Moving from Plex, on the server: an administrator signs in to Plex on
-  Plex's own page, picks the Plex server, and Pley pairs each Plex library
-  with its own (or makes one), makes a profile for each Plex Home user with
-  their restrictions as an age limit and label rules, and brings over the
-  titles' labels and dates added, and each person's watched titles,
-  resume points, ratings and plays. Running it again adds what's new and
-  never takes anything away. The web app doesn't offer it yet; its routes
-  are in docs/API.md.
+- Moving from Plex: a new server asks "Coming from Plex?" once the
+  administrator account is made, and Settings › Libraries has Import from
+  Plex. Sign in on Plex's own page and pick the server; Pley pairs each
+  Plex library with its own (or makes one), makes a profile for each Plex
+  Home user with their restrictions as an age limit and label rules, and
+  brings over the titles' labels and dates added, and each person's
+  watched titles, resume points, ratings and plays, then shows what came
+  over. Running it again adds what's new and never takes anything away
+  (docs/MOVING_FROM_PLEX.md).
 
 ## [0.1.9] - 2026-11-08
 

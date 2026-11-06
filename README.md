@@ -53,7 +53,8 @@ such as Kometa and Tautulli, through the
 - [Windows](deploy/windows/README.md)
 - [Linux and macOS](deploy/README.md)
 
-Then [first start](docs/CONFIGURATION.md#first-start).
+Then [first start](docs/CONFIGURATION.md#first-start), and
+[moving from Plex](docs/MOVING_FROM_PLEX.md) if you're coming from it.
 
 ## Architecture
 
@@ -63,6 +64,7 @@ Then [first start](docs/CONFIGURATION.md#first-start).
 
 [Features](docs/FEATURES.md) ·
 [Configuration](docs/CONFIGURATION.md) ·
+[Moving from Plex](docs/MOVING_FROM_PLEX.md) ·
 [Quality](docs/QUALITY.md) ·
 [Storage](docs/STORAGE.md) ·
 [API](docs/API.md) ·

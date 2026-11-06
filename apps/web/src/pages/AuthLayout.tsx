@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { cn } from "@/lib/cn";
 import { useOptionalAuth } from "@/auth";
 import { Logo } from "@/components/Logo";
 import { LanguagePicker } from "@/i18n/LanguagePicker";
@@ -8,7 +9,18 @@ import { LanguagePicker } from "@/i18n/LanguagePicker";
  * signed in, a small globe under the card picks this device's
  * language: once signed in, the account's comes first, and Account changes it.
  */
-export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children: ReactNode }) {
+export function AuthLayout({
+  title,
+  subtitle,
+  children,
+  wide,
+}: {
+  title: string;
+  subtitle?: ReactNode;
+  children: ReactNode;
+  /** For a page with more to it than a form (moving from Plex). */
+  wide?: boolean;
+}) {
   const signedIn = useOptionalAuth() !== null;
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
@@ -20,7 +32,7 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
             "radial-gradient(900px 500px at 15% -10%, color-mix(in oklab, var(--color-accent) 18%, transparent), transparent 60%), radial-gradient(700px 500px at 110% 110%, color-mix(in oklab, var(--color-info) 12%, transparent), transparent 60%)",
         }}
       />
-      <div className="relative w-full max-w-sm animate-pop-in">
+      <div className={cn("relative w-full animate-pop-in", wide ? "max-w-2xl" : "max-w-sm")}>
         <div className="mb-8 flex justify-center">
           <Logo className="h-10" />
         </div>

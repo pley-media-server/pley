@@ -43,6 +43,14 @@
     "setupCodeHint": "Ouvrez Pley depuis son icône dans la zone de notification : le code est rempli pour vous. Sur un serveur qui n’en a pas, il se trouve dans le journal de Pley (avec Docker, lancez docker logs pley).",
     "createAccount": "Créer le compte"
   },
+  "setupStart": {
+    "title": "Vous venez de Plex ?",
+    "subtitle": "Pley peut importer vos bibliothèques Plex, les profils de votre Home et ce que chacun a regardé.",
+    "fromPlex": "Importer mes bibliothèques Plex",
+    "fromPlexHint": "Connectez-vous avec Plex et choisissez ce qui vient.",
+    "fresh": "Partir de zéro",
+    "freshHint": "Ajoutez les dossiers de votre première bibliothèque."
+  },
   "invite": {
     "documentTitle": "Invitation",
     "codesSubtitle": "Votre compte est prêt et la connexion en deux étapes est activée.",

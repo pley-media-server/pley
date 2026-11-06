@@ -43,6 +43,14 @@
     "setupCodeHint": "Abre Pley desde su icono en la bandeja del sistema y se rellena solo. En un servidor sin icono, está en el registro de Pley (con Docker, ejecuta docker logs pley).",
     "createAccount": "Crear cuenta"
   },
+  "setupStart": {
+    "title": "¿Vienes de Plex?",
+    "subtitle": "Pley puede traer tus bibliotecas de Plex, los perfiles de tu Home y lo que vio cada uno.",
+    "fromPlex": "Traer mis bibliotecas de Plex",
+    "fromPlexHint": "Inicia sesión con Plex y elige qué viene.",
+    "fresh": "Empezar de cero",
+    "freshHint": "Añade las carpetas de tu primera biblioteca."
+  },
   "invite": {
     "documentTitle": "Invitación",
     "codesSubtitle": "Tu cuenta está lista y el inicio de sesión en dos pasos está activado.",

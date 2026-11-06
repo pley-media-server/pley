@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Pencil, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Import, Pencil, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { keys, useActivity, useDeleteLibrary, useReorderLibraries, useScanAll, useScanLibrary, useSharedLibraries } from "@/api/hooks";
 import type { Id, Library, ScanStatus } from "@/api/types";
@@ -16,6 +16,7 @@ import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
+import { PlexImportModal } from "@/pages/plexImport/PlexImportModal";
 import { LibraryFormModal } from "./LibraryFormModal";
 import { libraryUrl } from "@/lib/urls";
 
@@ -202,6 +203,7 @@ export function LibrariesSettings() {
   const reorder = useReorderLibraries();
   const [params, setParams] = useSearchParams();
   const adding = params.get("add") === "1";
+  const [importing, setImporting] = useState(false);
   const [editing, setEditing] = useState<Library | null>(null);
   const [deleting, setDeleting] = useState<Library | null>(null);
   // Read out to screen readers after each move.
@@ -286,7 +288,7 @@ export function LibrariesSettings() {
             {reorderable ? ` ${t("libraries.sharedOrder")}` : null}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {libs.data && libs.data.length > 0 ? (
             <Button
               icon={<RefreshCw className="size-4" />}
@@ -301,6 +303,9 @@ export function LibrariesSettings() {
               {t("libraries.scanAll")}
             </Button>
           ) : null}
+          <Button icon={<Import className="size-4" />} onClick={() => setImporting(true)}>
+            {t("plexImport.title")}
+          </Button>
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={openAdd}>
             {t("libraries.add")}
           </Button>
@@ -368,6 +373,7 @@ export function LibrariesSettings() {
       )}
 
       <LibraryFormModal open={adding} onClose={closeAdd} />
+      <PlexImportModal open={importing} onClose={() => setImporting(false)} />
       <LibraryFormModal open={!!editing} onClose={() => setEditing(null)} library={editing} />
       <ConfirmModal
         open={!!deleting}

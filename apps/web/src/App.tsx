@@ -24,6 +24,7 @@ import { PersonPage } from "@/pages/PersonPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
 import { SearchPage } from "@/pages/SearchPage";
 import { SetupPage } from "@/pages/SetupPage";
+import { SetupStartPage } from "@/pages/SetupStartPage";
 import { loadPlayerPage, playerData } from "@/player/preload";
 
 export const queryClient = new QueryClient({
@@ -99,6 +100,17 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { path: "/profiles", element: <ProfilesPage /> },
+      // The first run goes on here once the administrator's account is made.
+      { path: "/setup/start", element: <SetupStartPage /> },
+      {
+        path: "/setup/plex",
+        ...onDemand(
+          withWords(["settings"], () => import("@/pages/plexImport/PlexSetupPage")),
+          (m) => m.PlexSetupPage,
+          () => [],
+          <Splash />,
+        ),
+      },
       // The OAuth authorization endpoint: an app asks to use the account.
       {
         path: "/oauth/authorize",

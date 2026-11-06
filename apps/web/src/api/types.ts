@@ -866,6 +866,8 @@ export type ServerEvent =
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean }
   /** A playback session was ended on the server (`DELETE /api/sessions/{id}`): the device playing it stops. */
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean }
+  /** The Plex import moved on or ended (administrators): `GET /api/import/plex` says where. */
+  | { type: "import_changed" }
   /**
    * The user's remote sent their player of `session_id` a command: `seek`
    * has `position_ms`, `skip` has `offset_ms` (back when negative), `audio`

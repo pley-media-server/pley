@@ -800,5 +800,139 @@
     "backUpNow": "Back up now",
     "backedUp": "Backed up ({{size}})",
     "noBackups": "No backups yet."
+  },
+  "plexImport": {
+    "title": "Import from Plex",
+    "setupTitle": "Moving from Plex",
+    "startFresh": "Start fresh instead",
+    "stepOf": "Step {{step}} of {{total}}",
+    "signIn": {
+      "title": "Sign in with Plex",
+      "description": "Pley reads your Plex server through Plex's own sign-in. It sees what you allow and keeps nothing once the import is over.",
+      "button": "Sign in with Plex",
+      "waiting": "Waiting for Plex…",
+      "noWindow": "No window opened?",
+      "openPage": "Open Plex's sign-in page",
+      "expired": "Plex's sign-in page has expired. Sign in again.",
+      "again": "Sign in again",
+      "withToken": "Use a Plex token instead",
+      "token": "Plex token",
+      "tokenHint": "For a server you sign in to another way. Pley forgets it with the rest of the sign-in.",
+      "useToken": "Use this token"
+    },
+    "server": {
+      "title": "Which server?",
+      "description": "The Plex servers your account owns.",
+      "none": "Your Plex account doesn't own a server Plex can tell Pley about. Enter its address instead.",
+      "finding": "Finding your Plex servers…",
+      "connecting": "Connecting to {{name}}…",
+      "version": "Version {{version}}",
+      "address": "Or its address",
+      "addressHint": "For a server Plex doesn't list, or Pley can't reach through it."
+    },
+    "plan": {
+      "reading": "Reading your Plex libraries…",
+      "couldntRead": "Pley couldn't read your Plex server"
+    },
+    "libraries": {
+      "title": "Libraries on {{server}}",
+      "description": "Pley looked for your Plex files among its own. Choose where each library goes; its titles are matched by file, then by their TMDB, IMDb or TheTVDB id.",
+      "none": "This server has no movie, show or music libraries.",
+      "status": {
+        "matched": "In Pley",
+        "unsure": "Check this",
+        "not_in_pley": "Not in Pley"
+      },
+      "goesTo": "Where {{name}} goes",
+      "pleyLibraries": "Pley's libraries",
+      "newLibrary": "A new library",
+      "leaveOut": "Leave it out",
+      "name": "New library's name",
+      "folders_one": "{{count, number}} folder",
+      "folders_other": "{{count, number}} folders",
+      "foldersHint": "Where each of Plex's folders is for Pley, when the server sees it under another path (a Docker volume, a network share).",
+      "whereFor": "Where Pley finds {{folder}}",
+      "browseFor": "Browse for where Pley finds {{folder}}",
+      "notFound": "Not found: its path for Pley",
+      "unsureHint": "Some of its files are in this library, or they're in more than one. Check it's the right one.",
+      "unreachableHint": "Pley can't open its folders. To bring it, choose A new library and say where they are for Pley.",
+      "problem": {
+        "no_folders": "Say where at least one of its folders is for Pley."
+      },
+      "pickOne": "Choose at least one library to bring."
+    },
+    "people": {
+      "title": "Who comes over",
+      "description": "Each person in your Plex Home becomes a profile, with what they watched and the limits Plex set for them.",
+      "you": "Your account: comes as you",
+      "found": "Their profile from an earlier import",
+      "newProfile": "A new profile",
+      "bring": "Bring {{name}}",
+      "hasPin": "Has a Plex PIN",
+      "noLimits": "No limits: sees everything.",
+      "anyAge": "Any age",
+      "showLabel": "Always: {{label}}",
+      "hideLabel": "Never: {{label}}",
+      "leftOver_one": "A profile keeps 50 labels; this one is left out: {{labels}}",
+      "leftOver_other": "A profile keeps 50 labels; these are left out: {{labels}}",
+      "notKept": "Pley can't keep these rules of Plex's:",
+      "pin": "Plex PIN",
+      "pinHint": "If Plex asks for it. Pley doesn't keep it.",
+      "start": "Start the import"
+    },
+    "progress": {
+      "title": "Importing from Plex",
+      "description": "This can take a while on a big server. You can close this and come back: it goes on.",
+      "starting": "Starting…",
+      "steps": {
+        "scanning": "Scanning the new libraries",
+        "profiles": "Making profiles",
+        "matching": "Finding Plex's titles in Pley",
+        "labels": "Bringing labels and dates added",
+        "watch_state": "Bringing what everyone watched",
+        "history": "Bringing everyone's plays"
+      },
+      "stop": "Stop the import",
+      "stopTitle": "Stop the import?",
+      "stopMessage": "What's already come over stays. Pley also forgets your Plex sign-in, so importing again starts by signing in."
+    },
+    "report": {
+      "done": "Your Plex library is in Pley",
+      "failed": "The import stopped",
+      "cancelled": "The import was stopped",
+      "lost": "The import was interrupted",
+      "lostHint": "Pley restarted while it ran, so there's no report. What came over before stays; importing again brings the rest and nothing twice.",
+      "doneHint": "Here's what came over. Importing again later brings what's new and nothing twice.",
+      "partHint": "What came over before it stopped stays. Importing again brings the rest and nothing twice.",
+      "again": "Import again",
+      "labelsAdded_one": "{{count, number}} label added",
+      "labelsAdded_other": "{{count, number}} labels added",
+      "datesMoved_one": "{{count, number}} date added moved earlier",
+      "datesMoved_other": "{{count, number}} dates added moved earlier",
+      "libraries": "Libraries",
+      "created": "New",
+      "matched_one": "{{count, number}} title found",
+      "matched_other": "{{count, number}} titles found",
+      "missed_one": "{{count, number}} not found",
+      "missed_other": "{{count, number}} not found",
+      "missedTitles": "Some it didn't find",
+      "people": "People",
+      "profileCreated": "New profile",
+      "watched_one": "{{count, number}} watched",
+      "watched_other": "{{count, number}} watched",
+      "resumed_one": "{{count, number}} to resume",
+      "resumed_other": "{{count, number}} to resume",
+      "rated_one": "{{count, number}} rated",
+      "rated_other": "{{count, number}} rated",
+      "plays_one": "{{count, number}} play",
+      "plays_other": "{{count, number}} plays",
+      "skipped": {
+        "pin_needed": "Not brought: Plex asked for their PIN.",
+        "refused": "Not brought: Plex didn't let Pley in as them.",
+        "no_access": "Not brought: they can't open this Plex server."
+      },
+      "incomplete": "Plex refused some of their lists, so some of what they watched didn't come over.",
+      "notKept": "Rules Pley couldn't keep:"
+    }
   }
 }

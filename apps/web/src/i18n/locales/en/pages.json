@@ -43,6 +43,14 @@
     "setupCodeHint": "Open Pley from its tray icon and it's filled in for you. On a server without one, it's in Pley's log (with Docker, run docker logs pley).",
     "createAccount": "Create account"
   },
+  "setupStart": {
+    "title": "Coming from Plex?",
+    "subtitle": "Pley can bring over your Plex libraries, your Home's profiles and what everyone watched.",
+    "fromPlex": "Bring over my Plex libraries",
+    "fromPlexHint": "Sign in with Plex and choose what comes.",
+    "fresh": "Start fresh",
+    "freshHint": "Add your first library's folders."
+  },
   "invite": {
     "documentTitle": "Invitation",
     "codesSubtitle": "Your account is ready, and two-step sign-in is on.",
