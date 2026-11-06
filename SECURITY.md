@@ -343,7 +343,15 @@ other apps (`pley_ct_…`), never with a session's
   network can still answer for a `.local` name, so the apps confirm a
   server by its id and public endpoint, never by the name.
 - The UDP answer goes only to addresses on the local network, at most 100
-  a second. The Bonjour announcement goes out only from adapters with
+  a second.
+- While the Jellyfin-compatible API is on, Pley answers Jellyfin's
+  broadcast too (UDP 7359) with the API's address on the network asking,
+  its Jellyfin id and the server's name, as a Jellyfin server does. Only
+  the question itself gets an answer, only on the local network, at most
+  10 in 10 seconds to one address and 100 a second in all, and the answer
+  is small (the name cut to 64 characters), so a forged source address
+  can't make it flood another device.
+- The Bonjour announcement goes out only from adapters with
   addresses on the local network, never to the internet nor, unless
   chosen, to 100.64.0.0/10 (Tailscale's, or a carrier's shared
   addresses), and from only those an administrator chooses when some

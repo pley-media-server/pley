@@ -15,6 +15,10 @@ describes how they are made.
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays
   as you, after your PIN when your profile has one.
+- Jellyfin's apps find Pley on the local network by themselves while the
+  Jellyfin-compatible API is on: Pley answers their broadcast on UDP 7359
+  with the API's address, as a Jellyfin server does. The Synology package
+  registers the port, and Windows' firewall rule already lets it in.
 - The web app's Play on… lists your household's devices too, and asks for
   your PIN in its menu's place when your profile has one. The desktop app
   switches to the profile of the remote that sends it something, as a TV

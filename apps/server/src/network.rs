@@ -1,8 +1,9 @@
 //! Where pley listens, which an administrator can change while it runs
 //! (Settings → Network): the web app and its API on each address chosen, the
 //! Plex- and Jellyfin-compatible APIs on their own, and discovery (UDP, on the web port) on
-//! the web addresses other devices can reach, and the Bonjour announcement
-//! (see [`crate::bonjour`]). An address no longer chosen
+//! the web addresses other devices can reach, Jellyfin's discovery (UDP 7359)
+//! on the Jellyfin-compatible API's while it is on, and the Bonjour
+//! announcement (see [`crate::bonjour`]). An address no longer chosen
 //! closes and a new one opens; one pley can't listen on yet (an adapter that
 //! comes later: Wi-Fi, a VPN) is tried again until it can. The choice is
 //! saved in the config file, but what the command line or the environment
@@ -52,7 +53,8 @@ pub struct Listen {
     /// requests told apart from the web app's (see [`crate::jellyfin::on_web_port`]).
     #[serde(default)]
     pub jellyfin_on_web: bool,
-    /// Answer the pley apps looking for servers on the local network (UDP).
+    /// Answer the pley apps looking for servers on the local network (UDP),
+    /// and Jellyfin's while its API is on.
     pub discovery: bool,
     /// Announce pley on the local network by Bonjour (see [`crate::bonjour`]).
     /// Off when a change leaves it out.
@@ -96,7 +98,33 @@ impl Listen {
             .iter()
             .filter(|addr| self.discovery && !addr.ip().is_loopback())
             .map(|&addr| (Kind::Discovery, addr));
-        web.chain(plex).chain(jellyfin).chain(discovery).collect()
+        let jellyfin_discovery = self.jellyfin_discovery().into_iter().map(|addr| (Kind::JellyfinDiscovery, addr));
+        web.chain(plex).chain(jellyfin).chain(discovery).chain(jellyfin_discovery).collect()
+    }
+
+    /// Where Jellyfin's discovery answers: on UDP 7359 of the IPv4
+    /// addresses of networks the Jellyfin-compatible API listens on, while
+    /// it is on and discovery too (Jellyfin's apps broadcast over IPv4). One
+    /// port for all, so when the API listens on every address (`0.0.0.0`,
+    /// or `[::]`, which takes IPv4 too where the system lets it), so does
+    /// discovery, alone.
+    fn jellyfin_discovery(&self) -> Vec<SocketAddr> {
+        let api = if self.jellyfin_on_web { &self.web } else { &self.jellyfin };
+        if !self.discovery || api.is_empty() {
+            return Vec::new();
+        }
+        let port = crate::jellyfin::discovery::PORT;
+        if api.iter().any(|addr| addr.ip().is_unspecified()) {
+            return vec![SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), port)];
+        }
+        let mut found: Vec<SocketAddr> = Vec::new();
+        for ip in api.iter().map(SocketAddr::ip).filter(|ip| ip.is_ipv4() && !ip.is_loopback()) {
+            let addr = SocketAddr::new(ip, port);
+            if !found.contains(&addr) {
+                found.push(addr);
+            }
+        }
+        found
     }
 
     /// Why pley can't listen as this says, if it can't.
@@ -169,6 +197,9 @@ pub enum Kind {
     Plex,
     Jellyfin,
     Discovery,
+    /// Jellyfin's discovery ([`crate::jellyfin::discovery`]).
+    #[serde(rename = "jellyfin_discovery")]
+    JellyfinDiscovery,
 }
 
 impl Kind {
@@ -178,6 +209,7 @@ impl Kind {
             Kind::Plex => "the Plex-compatible API",
             Kind::Jellyfin => "the Jellyfin-compatible API",
             Kind::Discovery => "discovery",
+            Kind::JellyfinDiscovery => "Jellyfin's discovery",
         }
     }
 }
@@ -185,7 +217,7 @@ impl Kind {
 /// How `kind` at `addr` reads in the log.
 fn shown(kind: Kind, addr: SocketAddr) -> String {
     match kind {
-        Kind::Discovery => format!("UDP {addr}"),
+        Kind::Discovery | Kind::JellyfinDiscovery => format!("UDP {addr}"),
         Kind::Web | Kind::Plex | Kind::Jellyfin => format!("http://{addr}"),
     }
 }
@@ -339,7 +371,7 @@ enum Socket {
 async fn bind(kind: Kind, addr: SocketAddr) -> io::Result<Socket> {
     Ok(match kind {
         Kind::Web | Kind::Plex | Kind::Jellyfin => Socket::Tcp(TcpListener::bind(addr).await?),
-        Kind::Discovery => Socket::Udp(UdpSocket::bind(addr).await?),
+        Kind::Discovery | Kind::JellyfinDiscovery => Socket::Udp(UdpSocket::bind(addr).await?),
     })
 }
 
@@ -417,6 +449,9 @@ async fn listen_on(
             crate::plex::serve(state.clone(), listener, stop.cancelled_owned()).await
         }
         Socket::Tcp(listener) => crate::jellyfin::serve(state.clone(), listener, stop.cancelled_owned()).await,
+        Socket::Udp(socket) if kind == Kind::JellyfinDiscovery => {
+            crate::jellyfin::discovery::serve(state.clone(), socket, stop).await
+        }
         Socket::Udp(socket) => crate::discovery::serve(state.clone(), socket, addr.port(), stop).await,
     }
 }
@@ -768,6 +803,26 @@ mod tests {
         );
         assert!(!listen(&["127.0.0.1:7539"], &[], true).listeners().iter().any(|(kind, _)| *kind == Kind::Discovery));
         assert_eq!(listen(&["0.0.0.0:7539"], &[], false).listeners().len(), 1, "discovery off");
+    }
+
+    #[test]
+    fn jellyfins_discovery_answers_where_its_api_is() {
+        let jellyfin_discovery = |listen: &Listen| -> Vec<String> {
+            let listeners = listen.listeners().into_iter();
+            listeners.filter(|(kind, _)| *kind == Kind::JellyfinDiscovery).map(|(_, a)| a.to_string()).collect()
+        };
+        assert!(jellyfin_discovery(&listen(&["0.0.0.0:7539"], &[], true)).is_empty(), "the API is off");
+        let own = listen(
+            &["0.0.0.0:7539"],
+            &["127.0.0.1:8096", "192.168.1.10:8096", "10.0.0.5:8097", "[fd00::5]:8096"],
+            true,
+        );
+        assert_eq!(jellyfin_discovery(&own), ["192.168.1.10:7359", "10.0.0.5:7359"], "IPv4 networks, one port");
+        let mut on_web = listen(&["192.168.1.10:7540", "[::]:7539"], &[], true);
+        on_web.jellyfin_on_web = true;
+        assert_eq!(jellyfin_discovery(&on_web), ["0.0.0.0:7359"], "every address");
+        on_web.discovery = false;
+        assert!(jellyfin_discovery(&on_web).is_empty(), "discovery off");
     }
 
     #[test]

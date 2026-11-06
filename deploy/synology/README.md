@@ -95,8 +95,10 @@ helps a NAS that serves several streams at once.
 
 The package registers its ports with DSM, so with DSM's firewall on you can
 allow **Pley** (TCP 7539 for the web app and the apps, UDP 7539 for the
-apps to find the server) and **Pley (Bonjour)** (UDP 5353, for Apple's
-apps to find it once Bonjour is on in **Settings → Network**) under
+apps to find the server), **Pley (Jellyfin discovery)** (UDP 7359, for
+Jellyfin's apps to find it while the Jellyfin-compatible API is on) and
+**Pley (Bonjour)** (UDP 5353, for Apple's apps to find it once Bonjour is
+on in **Settings → Network**) under
 **Control Panel → Security → Firewall → Edit Rules → Select from a list
 of built-in applications**. The Plex- or Jellyfin-compatible API on a
 port of its own (32400, 8096) needs a rule of its own: **Ports: Custom**,

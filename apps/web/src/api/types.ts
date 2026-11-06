@@ -1157,7 +1157,7 @@ export interface ListenChoice {
   bonjour_host_name: string;
 }
 
-export type ListenerKind = "web" | "jellyfin" | "plex" | "discovery";
+export type ListenerKind = "web" | "jellyfin" | "plex" | "discovery" | "jellyfin_discovery";
 
 export interface NetworkListener {
   kind: ListenerKind;

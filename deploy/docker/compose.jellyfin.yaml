@@ -2,7 +2,9 @@
 # own port, 8096, for apps that look for a server there. Without it the API
 # is off until it is turned on in Settings → Network, where it can answer on
 # Pley's port instead. Published like the web port: on this computer only
-# unless PLEY_JELLYFIN_LISTEN says otherwise.
+# unless PLEY_JELLYFIN_LISTEN says otherwise. Jellyfin's apps find a server
+# by a broadcast to UDP 7359, which reaches Pley on the host's network only
+# (README.md, Security): give apps on Docker's network the address.
 services:
   pley:
     environment:

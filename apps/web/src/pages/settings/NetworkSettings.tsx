@@ -36,6 +36,7 @@ const LISTENER: Record<ListenerKind, string> = {
   jellyfin: "Jellyfin-compatible API",
   plex: "Plex-compatible API",
   discovery: "Discovery (UDP)",
+  jellyfin_discovery: "Jellyfin's discovery (UDP)",
 };
 
 const DEFAULT_PORT = 7539;
@@ -578,7 +579,9 @@ export function NetworkSettings() {
               ? "Turned off by --no-discovery or PLEY_NO_DISCOVERY."
               : form.mode === "local"
                 ? "On networks only: devices can't reach this computer's own address."
-                : "The Pley apps on these networks find this server by themselves."
+                : form.jellyfin.on
+                  ? "The Pley apps and Jellyfin's apps on these networks find this server by themselves."
+                  : "The Pley apps on these networks find this server by themselves."
           }
         >
           <Toggle

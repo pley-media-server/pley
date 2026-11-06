@@ -41,3 +41,40 @@ async fn servers_tell_apps_on_the_network_where_they_are() {
     stopping.cancel();
     tokio::time::timeout(Duration::from_secs(5), served).await.unwrap().unwrap();
 }
+
+#[tokio::test]
+async fn jellyfins_apps_are_told_where_its_api_is() {
+    let app = TestApp::with_config(|config| {
+        config.bind = "127.0.0.1:7539".parse().unwrap();
+        config.jellyfin_on_web = true;
+    })
+    .await;
+    let admin = app.setup_admin().await;
+    app.put("/api/settings", &admin, serde_json::json!({"server_name": "Living room"})).await;
+    let socket = UdpSocket::bind("127.0.0.1:0").await.unwrap();
+    let addr = socket.local_addr().unwrap();
+    let stopping = CancellationToken::new();
+    let served = tokio::spawn(pley::jellyfin::discovery::serve(app.state.clone(), socket, stopping.clone()));
+
+    // Jellyfin's apps read Address, Id and Name, Id as the API gives it.
+    let answer = ask(addr, b"who is JellyfinServer?").await.expect("an answer");
+    assert_eq!(answer["Address"], "http://127.0.0.1:7539");
+    assert_eq!(answer["Name"], "Living room");
+    let info = app.jf_json("/System/Info/Public", "").await;
+    assert_eq!(answer["Id"], info["Id"]);
+    assert_eq!(answer["EndpointAddress"], serde_json::Value::Null);
+    assert!(ask(addr, b"Who is JellyfinServer?").await.is_some(), "in any case");
+    for other in [&b"who is JellyfinServer? please"[..], b"who is EmbyServer?", b"pley?"] {
+        assert_eq!(ask(addr, other).await, None, "{other:?} goes unanswered");
+    }
+    // One address gets so many answers, then waits.
+    let mut answered = 2;
+    while ask(addr, b"who is JellyfinServer?").await.is_some() {
+        answered += 1;
+        assert!(answered <= 10, "too many answers");
+    }
+    assert_eq!(answered, 10);
+
+    stopping.cancel();
+    tokio::time::timeout(Duration::from_secs(5), served).await.unwrap().unwrap();
+}

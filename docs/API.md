@@ -768,6 +768,10 @@ datagram:
 `pley` is the protocol version, `id` stays the same across restarts and
 renames, and `port` is the web port on the address the answer came from.
 Only senders on the local network get an answer, at most 100 a second.
+While the Jellyfin-compatible API is on, the server answers Jellyfin's
+apps' broadcast too, on UDP 7359
+([COMPATIBILITY.md](COMPATIBILITY.md#finding-the-server)); the
+`discovery` setting turns both on and off.
 
 Servers can also announce themselves by Bonjour (mDNS and DNS-SD), for
 apps that browse rather than broadcast (Apple's), once an administrator
@@ -4221,7 +4225,8 @@ interface Network {
                           // [] = on Pley's port (jellyfin_on_web) or off (the default)
   jellyfin_on_web: boolean; // the Jellyfin-compatible API answers its apps on Pley's port;
                           // never with addresses in `jellyfin`
-  discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses)
+  discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses),
+                          // and Jellyfin's while its API is on
   bonjour: boolean;       // announce Pley by Bonjour (off when a change leaves it out)
   bonjour_adapters: string[]; // the adapters it is announced on, by name: [] = every one
                           // Pley listens on but 100.64.0.0/10's; 32 at most
@@ -4234,7 +4239,7 @@ interface Network {
                           // --bind/PLEY_BIND, --plex-bind/PLEY_PLEX_BIND,
                           // --jellyfin-bind/PLEY_JELLYFIN_BIND, --no-discovery,
                           // --no-bonjour (or --no-discovery)
-  listeners: { kind: "web" | "plex" | "jellyfin" | "discovery"; address: string; error: string | null }[];
+  listeners: { kind: "web" | "plex" | "jellyfin" | "discovery" | "jellyfin_discovery"; address: string; error: string | null }[];
                           // error: why not (yet); tried again every 30 s
   adapters: { name: string; description: string | null; up: boolean; addresses: string[]; // IPv4, no loopback
               network: { name: string; kind: "public" | "private" | "domain" } | null }[]; // as Windows knows it

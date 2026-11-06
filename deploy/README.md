@@ -150,10 +150,11 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   8096; `--jellyfin-bind 0.0.0.0:8096` on the command line). A port of its
   own needs letting in too: [Ports and firewalls](../docs/COMPATIBILITY.md#ports-and-firewalls)
   says how for Docker, Unraid, Synology and the rest.
-- **UDP 7539** lets the apps find servers on the local network, and
-  **UDP 5353** (mDNS) lets Apple's find them by Bonjour, once it's turned
-  on in **Settings → Network**, which also chooses the networks it
-  announces Pley on. Allow them, or type the server's address in the app.
+- **UDP 7539** lets the apps find servers on the local network,
+  **UDP 7359** lets Jellyfin's apps find the Jellyfin-compatible API while
+  it is on, and **UDP 5353** (mDNS) lets Apple's find them by Bonjour, once
+  it's turned on in **Settings → Network**, which also chooses the networks
+  it announces Pley on. Allow them, or type the server's address in the app.
   A container is found only on the host's network (`--network host`, or
   Unraid's `br0`).
 - **From outside your network**, put Pley behind a reverse proxy with TLS

@@ -106,9 +106,11 @@ you pick one; *Automatic* takes the GPU's.
   [Ports and firewalls](../../docs/COMPATIBILITY.md#ports-and-firewalls)
   says; on **br0** or **Host**, choose it in **Settings → Network**. On
   Pley's port, the default for Plex's, nothing needs adding.
-- **Apps finding Pley by themselves** needs the container on your network:
+- **Apps finding Pley by themselves** (Pley's apps, and Jellyfin's while
+  the Jellyfin-compatible API is on) needs the container on your network:
   set *Network Type* to **br0** (Pley gets an address of its own) or
-  **Host**. On the default *Bridge*, type the server's address in the apps.
+  **Host**; no port needs adding. On the default *Bridge*, broadcasts don't
+  reach the container: type the server's address in the apps.
 
 ## Troubleshooting
 

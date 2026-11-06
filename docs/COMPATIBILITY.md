@@ -64,10 +64,14 @@ rest is told apart as each API's section says. `/api/…` and
 | TCP 7539, Pley's port | The Plex-compatible API (its default), and the Jellyfin-compatible API when it is on Pley's port |
 | TCP 32400 | The Plex-compatible API, only when given a port of its own |
 | TCP 8096 | The Jellyfin-compatible API, only when given a port of its own |
+| UDP 7359 | Jellyfin's network discovery, while the Jellyfin-compatible API is on ([Finding the server](#finding-the-server)) |
 
-Neither API uses another port. Pley doesn't answer Plex's or Jellyfin's
-network discovery (UDP 32410 to 32414, and 7359): apps and tools are given
-the server's address.
+Neither API uses another port. Pley doesn't answer Plex's network
+discovery (UDP 32410 to 32414): its apps and tools are given the server's
+address. Jellyfin's apps on the local network find the Jellyfin-compatible
+API by themselves, where the firewall lets UDP 7359 in (on Windows, the
+installer's rule does) and broadcasts reach Pley: not a container on
+Docker's own network, nor on Unraid's *Bridge*.
 
 An API answers on Pley's port or on a port of its own, not both. On
 Pley's port it needs nothing more than the web app does, reverse proxy
@@ -618,6 +622,26 @@ caller alone and `/Users/Public` no one, so no names are shown before
 signing in; a user id in a path (`/Users/{id}/Items`) must be the caller's
 (`404` otherwise).
 
+### Finding the server
+
+Jellyfin's apps look for servers on the local network by broadcasting
+`who is JellyfinServer?` to UDP port 7359. While the Jellyfin-compatible API
+is on, and discovery is (Settings → Network, `--no-discovery`), Pley
+answers from the IPv4 addresses the API listens on, as Jellyfin does:
+
+```json
+{ "Address": "http://192.168.1.20:7539", "Id": "3f2a…", "Name": "Living room", "EndpointAddress": null }
+```
+
+- `Address` is the API's on the network the question came from: Pley's
+  port, or the API's own.
+- `Id` is the server's id as `/System/Info/Public` gives it, and `Name` the
+  server's name, cut to 64 characters.
+- Only that question gets an answer, in any case, and only from addresses
+  on the local network: at most 10 in 10 seconds to one address and 100 a
+  second in all, so a forged source address can't turn the port on another
+  device.
+
 ### Ids, streams and pictures
 
 Ids are 32 lowercase hexadecimal characters, as Jellyfin writes them, and
@@ -743,9 +767,8 @@ Run against Pley with the API on Pley's port and on a port of its own:
   two-step sign-in.
 - Administration: the dashboard, users, libraries, plugins, scheduled
   tasks, logs and activity.
-- Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
-  none), and finding the server on the network (UDP 7359): apps are given
-  its address.
+- Live TV, SyncPlay, and remote control of other sessions (`/Sessions`
+  lists none).
 - Making or changing playlists and collections, and editing metadata.
 - Lyrics, seek previews (trickplay), instant mixes, theme songs and
   videos, and intros before a title.

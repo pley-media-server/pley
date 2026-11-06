@@ -10,6 +10,7 @@
 //! on this API only, and Pley's own tokens never on it. Paths are
 //! case-insensitive, as Jellyfin's are, and ids are [`ids`].
 
+pub mod discovery;
 pub mod ids;
 
 mod dto;
