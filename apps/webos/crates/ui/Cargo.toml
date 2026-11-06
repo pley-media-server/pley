@@ -9,4 +9,3 @@ publish = false
 
 [dependencies]
 pley-base = { path = "../base" }
-pley-i18n = { path = "../i18n" }

@@ -28,8 +28,8 @@ pub(crate) fn space(ui: &Ui, style: &TextStyle) -> f32 {
 }
 
 /// The logo (`PleyLogo`): the mark on its tile, `height` square, then "Pley" in `Tv.PageTitle` at
-/// three quarters of the height, 0.15 × the height after the mark, as the other TV apps draw it. The mark is drawn once as a
-/// picture at the screen's pixels and kept.
+/// three quarters of the height, 0.15 × the height after the mark, as the other TV apps draw it.
+/// The mark is drawn once as a picture at the screen's pixels and kept.
 #[derive(Clone, Debug, Default)]
 pub struct Logo {
     picture: Option<(u32, Arc<RgbaImage>, u64)>,
