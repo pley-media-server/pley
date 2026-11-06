@@ -1,10 +1,13 @@
 //! A file's facts in blocks of "label: value" lines, for the title page's
 //! media info and Playback details, as the Android app's `MediaFacts` words
-//! them (packages/tv/src/format/media-info.ts).
+//! them (packages/tv/src/format/media-info.ts), in the language shown. Colour
+//! standards (BT.709, PQ) are named the same in every language.
+
+use pley_i18n::t;
 
 use super::{
     channels_label, codec_label, fixed, format_bitrate, format_bytes, format_duration, is_atmos, language_name,
-    resolution_label, stream_range,
+    local_decimal, resolution_label, stream_range,
 };
 use crate::model::{MediaFile, MediaStream, StreamKind};
 
@@ -45,7 +48,7 @@ pub fn level_label(codec: &str, level: Option<i64>) -> Option<String> {
 pub fn profile_level_label(s: &MediaStream) -> Option<String> {
     let parts: Vec<String> = [
         s.profile.clone().unwrap_or_default(),
-        level_label(&s.codec, s.level).map_or(String::new(), |l| format!("Level {l}")),
+        level_label(&s.codec, s.level).map_or(String::new(), |l| t!("format.media.level", level = l)),
     ]
     .into_iter()
     .filter(|p| !p.is_empty())
@@ -53,26 +56,26 @@ pub fn profile_level_label(s: &MediaStream) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
-/// "23.976 fps": up to three decimals, trailing zeros left out.
+/// "23.976 fps": up to three decimals, trailing zeros left out ("23,976 i/s" in French).
 pub fn frame_rate_label(fps: Option<f64>, interlaced: bool) -> Option<String> {
     let fps = fps.filter(|f| *f > 0.0)?;
     let text = fixed(fps, 3);
-    let text = text.trim_end_matches('0').trim_end_matches('.');
-    Some(format!("{text} fps{}", if interlaced { ", interlaced" } else { "" }))
+    let rate = local_decimal(text.trim_end_matches('0').trim_end_matches('.'));
+    Some(if interlaced { t!("format.rates.fpsInterlaced", rate = rate) } else { t!("format.rates.fps", rate = rate) })
 }
 
-/// "48 kHz", "44.1 kHz".
+/// "48 kHz", "44.1 kHz" ("44,1 kHz" in French and Spanish).
 pub fn sample_rate_label(hz: Option<i64>) -> Option<String> {
     let hz = hz.filter(|h| *h > 0)?;
     let text = fixed(hz as f64 / 1000.0, 1);
-    Some(format!("{} kHz", text.strip_suffix(".0").unwrap_or(&text)))
+    Some(t!("format.rates.kilohertz", rate = local_decimal(text.strip_suffix(".0").unwrap_or(&text))))
 }
 
 /// "10-bit · 4:2:0".
 pub fn bit_depth_label(depth: Option<i64>, pix_fmt: Option<&str>) -> Option<String> {
     let mut parts = Vec::new();
     if let Some(d) = depth.filter(|d| *d > 0) {
-        parts.push(format!("{d}-bit"));
+        parts.push(t!("format.track.bitDepth", n = d));
     }
     let f = pix_fmt.unwrap_or("").to_ascii_lowercase();
     let chroma = if ["yuv420", "nv12", "p010"].iter().any(|p| f.starts_with(p)) {
@@ -147,26 +150,25 @@ fn colour(table: fn(&str) -> Option<&'static str>, name: Option<&str>) -> Option
 pub fn dolby_vision_details(s: &MediaStream) -> Option<String> {
     let profile = s.dv_profile?;
     let compat = s.dv_bl_compat.unwrap_or(0);
-    let mut parts = vec![format!(
-        "Profile {profile}{}",
-        if profile >= 8 && matches!(compat, 1 | 2 | 4) { format!(".{compat}") } else { String::new() }
-    )];
+    let named =
+        if profile >= 8 && matches!(compat, 1 | 2 | 4) { format!("{profile}.{compat}") } else { profile.to_string() };
+    let mut parts = vec![t!("format.media.dvProfile", profile = named)];
     if let Some(level) = s.dv_level {
-        parts.push(format!("Level {level}"));
+        parts.push(t!("format.media.level", level = level));
     }
     let base = match compat {
-        0 => Some("no compatible base layer".to_string()),
-        1 => Some("HDR10-compatible base layer".into()),
-        2 => Some("SDR-compatible base layer".into()),
-        4 => Some("HLG-compatible base layer".into()),
-        6 => Some("Blu-ray HDR10-compatible base layer".into()),
+        0 => Some(t!("format.media.noBaseLayer").to_string()),
+        1 => Some(t!("format.media.baseLayer", range = "HDR10")),
+        2 => Some(t!("format.media.baseLayer", range = "SDR")),
+        4 => Some(t!("format.media.baseLayer", range = "HLG")),
+        6 => Some(t!("format.media.baseLayer", range = "Blu-ray HDR10")),
         _ => None,
     };
     parts.extend(base);
     if profile == 7 {
         match s.dv_el.as_deref() {
-            Some("fel") => parts.push("full enhancement layer".into()),
-            Some("mel") => parts.push("minimal enhancement layer".into()),
+            Some("fel") => parts.push(t!("format.media.fullLayer").into()),
+            Some("mel") => parts.push(t!("format.media.minimalLayer").into()),
             _ => {}
         }
     }
@@ -183,10 +185,14 @@ pub fn dimensions_label(w: Option<i64>, h: Option<i64>) -> Option<String> {
 }
 
 fn flags(s: &MediaStream) -> Option<String> {
-    let f: Vec<&str> = [(s.default, "Default"), (s.forced, "Forced"), (s.external, "Beside the media")]
-        .into_iter()
-        .filter_map(|(on, name)| on.then_some(name))
-        .collect();
+    let f: Vec<&str> = [
+        (s.default, t!("format.media.default")),
+        (s.forced, t!("format.media.forced")),
+        (s.external, t!("format.media.beside")),
+    ]
+    .into_iter()
+    .filter_map(|(on, name)| on.then_some(name))
+    .collect();
     (!f.is_empty()).then(|| f.join(", "))
 }
 
@@ -204,12 +210,13 @@ pub fn file_name(path: &str) -> &str {
 /// A file's blocks: the file, then each stream, video first.
 pub fn media_facts(file: &MediaFile) -> Vec<FactBlock> {
     let mut f = Vec::new();
-    push(&mut f, "Name", Some(file_name(&file.path).to_string()));
-    push(&mut f, "Container", file.container.as_ref().map(|c| c.to_uppercase()));
-    push(&mut f, "Size", (file.size > 0).then(|| format_bytes(Some(file.size as u64))));
-    push(&mut f, "Duration", file.duration_ms.filter(|d| *d > 0).map(|d| format_duration(Some(d))));
-    push(&mut f, "Overall bitrate", file.bitrate.filter(|b| *b > 0).map(|b| format_bitrate(Some(b))));
-    let mut blocks = vec![FactBlock { title: "File".into(), facts: f }];
+    push(&mut f, t!("format.media.name"), Some(file_name(&file.path).to_string()));
+    push(&mut f, t!("format.media.container"), file.container.as_ref().map(|c| c.to_uppercase()));
+    push(&mut f, t!("format.media.size"), (file.size > 0).then(|| format_bytes(Some(file.size as u64))));
+    push(&mut f, t!("format.media.duration"), file.duration_ms.filter(|d| *d > 0).map(|d| format_duration(Some(d))));
+    let overall = file.bitrate.filter(|b| *b > 0).map(|b| format_bitrate(Some(b)));
+    push(&mut f, t!("format.media.overallBitrate"), overall);
+    let mut blocks = vec![FactBlock { title: t!("format.media.file").into(), facts: f }];
     let order = |k: StreamKind| match k {
         StreamKind::Video => 0,
         StreamKind::Audio => 1,
@@ -222,8 +229,9 @@ pub fn media_facts(file: &MediaFile) -> Vec<FactBlock> {
     for s in &streams {
         let o = order(s.kind);
         seen[o] += 1;
-        let name = ["Video", "Audio", "Subtitles"][o];
-        let title = if count(s.kind) > 1 { format!("{name} {}", seen[o]) } else { name.to_string() };
+        let name = [t!("format.media.video"), t!("format.media.audio"), t!("format.media.subtitles")][o];
+        let title =
+            if count(s.kind) > 1 { t!("format.media.numbered", kind = name, n = seen[o]) } else { name.to_string() };
         blocks.push(stream_block(s, &title));
     }
     blocks
@@ -234,45 +242,47 @@ pub fn stream_block(s: &MediaStream, title: &str) -> FactBlock {
     let mut facts = Vec::new();
     match s.kind {
         StreamKind::Video => {
-            push(&mut facts, "Codec", Some(codec_label(&s.codec)));
-            push(&mut facts, "Profile", profile_level_label(s));
-            push(&mut facts, "Resolution", dimensions_label(s.width, s.height));
+            push(&mut facts, t!("format.media.codec"), Some(codec_label(&s.codec)));
+            push(&mut facts, t!("format.media.profile"), profile_level_label(s));
+            push(&mut facts, t!("format.media.resolution"), dimensions_label(s.width, s.height));
             let interlaced = s.field_order.as_deref().is_some_and(|f| !f.is_empty() && f != "progressive");
-            push(&mut facts, "Frame rate", frame_rate_label(s.frame_rate, interlaced));
-            push(&mut facts, "Bit depth", bit_depth_label(s.bit_depth, s.pix_fmt.as_deref()));
-            push(&mut facts, "HDR", Some(stream_range(s).unwrap_or_else(|| "SDR".into())));
-            push(&mut facts, "Dolby Vision", dolby_vision_details(s));
-            push(&mut facts, "Primaries", colour(primaries, s.color_primaries.as_deref()));
-            push(&mut facts, "Transfer", colour(transfer, s.color_transfer.as_deref()));
-            push(&mut facts, "Matrix", colour(matrix, s.color_space.as_deref()));
-            push(&mut facts, "Bitrate", s.bitrate.filter(|b| *b > 0).map(|b| format_bitrate(Some(b))));
-            push(&mut facts, "Title", s.title.clone());
+            push(&mut facts, t!("format.media.frameRate"), frame_rate_label(s.frame_rate, interlaced));
+            push(&mut facts, t!("format.media.bitDepth"), bit_depth_label(s.bit_depth, s.pix_fmt.as_deref()));
+            push(&mut facts, t!("format.media.hdr"), Some(stream_range(s).unwrap_or_else(|| "SDR".into())));
+            push(&mut facts, t!("format.media.dolbyVision"), dolby_vision_details(s));
+            push(&mut facts, t!("format.media.primaries"), colour(primaries, s.color_primaries.as_deref()));
+            push(&mut facts, t!("format.media.transfer"), colour(transfer, s.color_transfer.as_deref()));
+            push(&mut facts, t!("format.media.matrix"), colour(matrix, s.color_space.as_deref()));
+            push(&mut facts, t!("format.media.bitrate"), s.bitrate.filter(|b| *b > 0).map(|b| format_bitrate(Some(b))));
+            push(&mut facts, t!("format.media.title"), s.title.clone());
         }
         StreamKind::Audio => {
             push(
                 &mut facts,
-                "Codec",
+                t!("format.media.codec"),
                 Some(format!("{}{}", codec_label(&s.codec), if is_atmos(s) { " Atmos" } else { "" })),
             );
-            push(&mut facts, "Profile", s.profile.clone());
+            push(&mut facts, t!("format.media.profile"), s.profile.clone());
             let ch = channels_label(s.channels, s.channel_layout.as_deref());
             let channels = match s.channel_layout.as_deref() {
                 Some(layout) if !ch.is_empty() && layout != ch => format!("{ch} ({layout})"),
                 _ => ch,
             };
-            push(&mut facts, "Channels", Some(channels));
-            push(&mut facts, "Sample rate", sample_rate_label(s.sample_rate));
-            push(&mut facts, "Language", language_name(s.language.as_deref()).or(s.language.clone()));
-            push(&mut facts, "Title", s.title.clone());
-            push(&mut facts, "Bitrate", s.bitrate.filter(|b| *b > 0).map(|b| format_bitrate(Some(b))));
-            push(&mut facts, "Flags", flags(s));
+            push(&mut facts, t!("format.media.channels"), Some(channels));
+            push(&mut facts, t!("format.media.sampleRate"), sample_rate_label(s.sample_rate));
+            let language = language_name(s.language.as_deref()).or(s.language.clone());
+            push(&mut facts, t!("format.media.language"), language);
+            push(&mut facts, t!("format.media.title"), s.title.clone());
+            push(&mut facts, t!("format.media.bitrate"), s.bitrate.filter(|b| *b > 0).map(|b| format_bitrate(Some(b))));
+            push(&mut facts, t!("format.media.flags"), flags(s));
         }
         _ => {
-            let kind = if s.text_based == Some(false) { "picture" } else { "text" };
-            push(&mut facts, "Format", Some(format!("{}, {kind}", codec_label(&s.codec))));
-            push(&mut facts, "Language", language_name(s.language.as_deref()).or(s.language.clone()));
-            push(&mut facts, "Title", s.title.clone());
-            push(&mut facts, "Flags", flags(s));
+            let kind = if s.text_based == Some(false) { t!("format.media.picture") } else { t!("format.media.text") };
+            push(&mut facts, t!("format.media.format"), Some(format!("{}, {kind}", codec_label(&s.codec))));
+            let language = language_name(s.language.as_deref()).or(s.language.clone());
+            push(&mut facts, t!("format.media.language"), language);
+            push(&mut facts, t!("format.media.title"), s.title.clone());
+            push(&mut facts, t!("format.media.flags"), flags(s));
         }
     }
     FactBlock { title: title.into(), facts }

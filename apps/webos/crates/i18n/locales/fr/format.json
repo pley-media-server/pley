@@ -1,1 +1,103 @@
-{}
+{
+  "duration": {
+    "seconds": "{{n}} s",
+    "minutes": "{{n}} min",
+    "hours": "{{n}} h",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "runtime": "{{n}} min",
+    "left": "Il reste {{time}}"
+  },
+  "clock": {
+    "am": "AM",
+    "pm": "PM"
+  },
+  "episode": {
+    "both": "S{{season}} · É{{episode}}",
+    "season": "S{{season}}",
+    "episode": "É{{episode}}"
+  },
+  "season": {
+    "specials": "Épisodes spéciaux",
+    "numbered": "Saison {{number}}",
+    "plain": "Saison"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} saison",
+    "seasons_many": "{{count, number}} de saisons",
+    "seasons_other": "{{count, number}} saisons",
+    "episodes_one": "{{count, number}} épisode",
+    "episodes_many": "{{count, number}} d’épisodes",
+    "episodes_other": "{{count, number}} épisodes",
+    "albums_one": "{{count, number}} album",
+    "albums_many": "{{count, number}} d’albums",
+    "albums_other": "{{count, number}} albums"
+  },
+  "channels": {
+    "mono": "Mono",
+    "stereo": "Stéréo",
+    "count": "{{n}} canaux"
+  },
+  "track": {
+    "unknown": "Inconnu",
+    "forced": "Forcés",
+    "external": "Externes",
+    "bitDepth": "{{n}} bits",
+    "automatic": "Automatique",
+    "automaticLanguage": "Automatique ({{language}})",
+    "version": "Version {{number}}"
+  },
+  "sizes": {
+    "bytes": "{{n}} o",
+    "kilobytes": "{{n}} Ko",
+    "megabytes": "{{n}} Mo",
+    "gigabytes": "{{n}} Go",
+    "terabytes": "{{n}} To"
+  },
+  "rates": {
+    "mbps": "{{n}} Mbit/s",
+    "kbps": "{{n}} kbit/s",
+    "kilohertz": "{{rate}} kHz",
+    "fps": "{{rate}} i/s",
+    "fpsInterlaced": "{{rate}} i/s, entrelacé"
+  },
+  "media": {
+    "file": "Fichier",
+    "video": "Vidéo",
+    "audio": "Audio",
+    "subtitles": "Sous-titres",
+    "numbered": "{{kind}} {{n}}",
+    "name": "Nom",
+    "container": "Conteneur",
+    "size": "Taille",
+    "duration": "Durée",
+    "overallBitrate": "Débit global",
+    "codec": "Codec",
+    "profile": "Profil",
+    "resolution": "Résolution",
+    "frameRate": "Débit d’images",
+    "bitDepth": "Profondeur",
+    "hdr": "HDR",
+    "dolbyVision": "Dolby Vision",
+    "primaries": "Primaires",
+    "transfer": "Transfert",
+    "matrix": "Matrice",
+    "bitrate": "Débit",
+    "title": "Titre",
+    "channels": "Canaux",
+    "sampleRate": "Échantillonnage",
+    "language": "Langue",
+    "flags": "Attributs",
+    "format": "Format",
+    "default": "Par défaut",
+    "forced": "Forcé",
+    "beside": "Dans un fichier à part",
+    "picture": "image",
+    "text": "texte",
+    "level": "Niveau {{level}}",
+    "dvProfile": "Profil {{profile}}",
+    "noBaseLayer": "aucune couche de base compatible",
+    "baseLayer": "couche de base compatible {{range}}",
+    "fullLayer": "couche d’amélioration complète",
+    "minimalLayer": "couche d’amélioration minimale"
+  }
+}

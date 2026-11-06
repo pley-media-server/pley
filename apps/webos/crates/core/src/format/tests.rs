@@ -1,4 +1,7 @@
-//! packages/tv/test/format.test.ts, ported, and the rest of the labels.
+//! packages/tv/test/format.test.ts, ported, and the rest of the labels, in English, French and
+//! Spanish.
+
+use pley_i18n::{Language, with_language};
 
 use super::*;
 
@@ -284,9 +287,8 @@ fn sizes_and_rates() {
     assert_eq!(format_bitrate(None), "");
 }
 
-#[test]
-fn versions_and_media_facts() {
-    let f = MediaFile {
+fn final_cut() -> MediaFile {
+    MediaFile {
         id: 1,
         path: "/media/Movies/Blade Runner {edition-Final Cut}.mkv".into(),
         size: 62_491_000_000,
@@ -310,7 +312,12 @@ fn versions_and_media_facts() {
             audio(2, "ac3", 6, false, "fre"),
         ],
         ..MediaFile::default()
-    };
+    }
+}
+
+#[test]
+fn versions_and_media_facts() {
+    let f = final_cut();
     assert_eq!(version_label(&f, 0), "Final Cut · 4K · HEVC · MKV · 58.2 GB");
     assert_eq!(version_label(&MediaFile::default(), 1), "Version 2");
     let blocks = media_facts(&f);
@@ -331,4 +338,157 @@ fn versions_and_media_facts() {
     assert_eq!(sample_rate_label(Some(48_000)).as_deref(), Some("48 kHz"));
     assert_eq!(frame_rate_label(Some(25.0), true).as_deref(), Some("25 fps, interlaced"));
     assert_eq!(file_name("C:\\media\\a.mkv"), "a.mkv");
+}
+
+#[test]
+fn times_in_french_and_spanish() {
+    with_language(Language::Fr, || {
+        assert_eq!(format_duration(Some(6_720_000)), "1 h 52 min");
+        assert_eq!(format_duration(Some(7_200_000)), "2 h");
+        assert_eq!(format_duration(Some(29_000)), "29 s");
+        assert_eq!(format_runtime(Some(3_480_000)), "58 min");
+        assert_eq!(format_time_left(1_000_000, Some(2_560_000)), "Il reste 26 min");
+        assert_eq!(format_time_left(2_560_000, Some(2_560_000)), "");
+        assert_eq!(format_time_of_day(21, 5, true), "21:05");
+    });
+    with_language(Language::Es, || {
+        assert_eq!(format_duration(Some(2_700_000)), "45 min");
+        assert_eq!(format_time_left(0, Some(6_720_000)), "Quedan 1 h 52 min");
+        assert_eq!(format_time_of_day(21, 5, false), "9:05 p.\u{a0}m.");
+        assert_eq!(format_time_of_day(0, 30, false), "12:30 a.\u{a0}m.");
+    });
+}
+
+#[test]
+fn sizes_and_rates_take_a_decimal_comma_and_the_language_s_units() {
+    with_language(Language::Fr, || {
+        assert_eq!(format_bytes(Some(1536)), "1,5 Ko");
+        assert_eq!(format_bytes(Some(512)), "512 o");
+        assert_eq!(format_bitrate(Some(7_800_000)), "7,8 Mbit/s");
+        assert_eq!(format_bitrate(Some(12_000_000)), "12 Mbit/s");
+        assert_eq!(format_bitrate(Some(320_000)), "320 kbit/s");
+        assert_eq!(sample_rate_label(Some(44_100)).as_deref(), Some("44,1 kHz"));
+        assert_eq!(frame_rate_label(Some(23.976), false).as_deref(), Some("23,976 i/s"));
+        assert_eq!(frame_rate_label(Some(25.0), true).as_deref(), Some("25 i/s, entrelacé"));
+    });
+    with_language(Language::Es, || {
+        assert_eq!(format_bytes(Some(150 * 1024 * 1024)), "150 MB");
+        assert_eq!(format_bytes(Some(1280)), "1,3 KB");
+        assert_eq!(format_bitrate(Some(7_800_000)), "7,8 Mbps");
+        assert_eq!(channels_label(Some(2), None), "Estéreo");
+        assert_eq!(channels_label(Some(5), None), "5 canales");
+    });
+}
+
+#[test]
+fn counts_and_episodes_in_french_and_spanish() {
+    let show =
+        |seasons: i64| ItemSummary { kind: ItemKind::Show, child_count: Some(seasons), ..ItemSummary::default() };
+    let season =
+        |episodes: i64| ItemSummary { kind: ItemKind::Season, leaf_count: Some(episodes), ..ItemSummary::default() };
+    let episode =
+        ItemSummary { kind: ItemKind::Episode, parent_index: Some(2), index: Some(5), ..ItemSummary::default() };
+    with_language(Language::Fr, || {
+        assert_eq!(card_subtitle(&show(1)), "1 saison");
+        assert_eq!(card_subtitle(&show(3)), "3 saisons");
+        assert_eq!(card_subtitle(&season(12_345)), "12\u{a0}345 épisodes");
+        assert_eq!(card_subtitle(&episode), "S2 · É5");
+        assert_eq!(episode_label(None, Some(3)), "É3");
+        assert_eq!(season_title(None, Some(0)), "Épisodes spéciaux");
+        assert_eq!(season_title(None, Some(2)), "Saison 2");
+        assert_eq!(grouped(12_345), "12\u{a0}345");
+    });
+    with_language(Language::Es, || {
+        assert_eq!(card_subtitle(&show(1)), "1 temporada");
+        assert_eq!(card_subtitle(&season(12_345)), "12.345 episodios");
+        assert_eq!(card_subtitle(&episode), "T2 · E5");
+        assert_eq!(season_title(None, Some(2)), "Temporada 2");
+        let artist = ItemSummary { kind: ItemKind::Artist, child_count: Some(2), ..ItemSummary::default() };
+        assert_eq!(card_subtitle(&artist), "2 álbumes");
+    });
+}
+
+#[test]
+fn languages_are_named_in_the_language_shown() {
+    with_language(Language::Fr, || {
+        assert_eq!(language_name(Some("eng")).as_deref(), Some("Anglais"));
+        assert_eq!(language_name(Some("fr")).as_deref(), Some("Français"));
+        assert_eq!(language_name(Some("pt-BR")).as_deref(), Some("Portugais (BR)"));
+        assert_eq!(language_name(Some("nob")).as_deref(), Some("Norvégien bokmål"));
+        assert_eq!(language_name(Some("xyz")).as_deref(), Some("XYZ"));
+        // Codes are the same in every language.
+        assert_eq!(two_letter_code("ger"), "de");
+    });
+    with_language(Language::Es, || {
+        assert_eq!(language_name(Some("eng")).as_deref(), Some("Inglés"));
+        assert_eq!(language_name(Some("spa")).as_deref(), Some("Español"));
+        assert_eq!(language_name(Some("und")).as_deref(), Some("Idioma desconocido"));
+    });
+}
+
+#[test]
+fn tracks_are_labelled_in_french_and_spanish() {
+    with_language(Language::Fr, || {
+        assert_eq!(stream_label(&audio(1, "eac3", 6, true, "eng")), "Anglais (EAC3 5.1)");
+        let commentary = MediaStream { title: Some("Commentary".into()), ..audio(2, "aac", 2, false, "eng") };
+        assert_eq!(stream_label(&commentary), "Anglais – Commentary (AAC Stéréo)");
+        // A title naming the language in English says nothing more.
+        let english = MediaStream { title: Some("English".into()), ..audio(3, "aac", 2, false, "eng") };
+        assert_eq!(stream_label(&english), "Anglais (AAC Stéréo)");
+        assert_eq!(subtitle(Some("English SDH"), |_| {}), "Anglais – SDH (SRT)");
+        assert_eq!(subtitle(Some("English (Forced)"), |_| {}), "Anglais (SRT, Forcés)");
+        let french = subtitle(None, |s| {
+            s.language = Some("fre".into());
+            s.forced = true;
+            s.external = true;
+        });
+        assert_eq!(french, "Français (SRT, Forcés, Externes)");
+        assert_eq!(subtitle(None, |s| s.language = None), "Inconnu (SRT)");
+        let v = with(p81(), |s| s.bit_depth = Some(10));
+        assert_eq!(stream_label(&v), "4K HEVC Dolby Vision P8.1 10 bits");
+        assert_eq!(automatic_audio_label(&file(Some(false), 3)), "Automatique (Français)");
+    });
+    with_language(Language::Es, || {
+        assert_eq!(stream_label(&audio(1, "eac3", 6, true, "eng")), "Inglés (EAC3 5.1)");
+        assert_eq!(subtitle(Some("English SDH"), |_| {}), "Inglés – SDH (SRT)");
+        let und = MediaFile { streams: vec![audio(1, "aac", 2, true, "und")], ..file(Some(false), 1) };
+        assert_eq!(automatic_audio_label(&und), "Automática");
+        assert_eq!(automatic_audio_label(&file(Some(false), 2)), "Automática (Inglés)");
+    });
+}
+
+#[test]
+fn media_facts_in_french_and_spanish() {
+    let f = final_cut();
+    with_language(Language::Fr, || {
+        assert_eq!(version_label(&f, 0), "Final Cut · 4K · HEVC · MKV · 58,2 Go");
+        assert_eq!(version_label(&MediaFile::default(), 1), "Version 2");
+        let blocks = media_facts(&f);
+        let titles: Vec<&str> = blocks.iter().map(|b| b.title.as_str()).collect();
+        assert_eq!(titles, ["Fichier", "Vidéo", "Audio 1", "Audio 2"]);
+        assert_eq!(blocks[0].value("Nom"), Some("Blade Runner {edition-Final Cut}.mkv"));
+        assert_eq!(blocks[0].value("Débit global"), Some("71 Mbit/s"));
+        assert_eq!(blocks[0].value("Durée"), Some("1 h 57 min"));
+        assert_eq!(blocks[1].value("Profil"), Some("Main 10 · Niveau 5.1"));
+        assert_eq!(blocks[1].value("Débit d’images"), Some("23,976 i/s"));
+        assert_eq!(blocks[1].value("Profondeur"), Some("10 bits · 4:2:0"));
+        assert_eq!(blocks[2].value("Langue"), Some("Anglais"));
+        assert_eq!(blocks[2].value("Attributs"), Some("Par défaut"));
+        assert_eq!(
+            dolby_vision_details(&with(p7(), |s| s.dv_el = Some("fel".into()))).as_deref(),
+            Some("Profil 7 · Niveau 6 · couche de base compatible Blu-ray HDR10 · couche d’amélioration complète")
+        );
+    });
+    with_language(Language::Es, || {
+        assert_eq!(version_label(&MediaFile::default(), 1), "Versión 2");
+        let blocks = media_facts(&f);
+        assert_eq!(blocks[0].title, "Archivo");
+        assert_eq!(blocks[0].value("Tamaño"), Some("58,2 GB"));
+        assert_eq!(blocks[2].value("Canales"), Some("7.1"));
+        assert_eq!(blocks[3].value("Idioma"), Some("Francés"));
+        assert_eq!(
+            dolby_vision_details(&with(p81(), |s| s.dv_bl_compat = Some(2))).as_deref(),
+            Some("Perfil 8.2 · Nivel 6 · capa base compatible con SDR")
+        );
+    });
 }
