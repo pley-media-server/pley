@@ -16,11 +16,11 @@
     "region_one": "{{region}}  ·  {{count, number}} grupo",
     "region_many": "{{region}}  ·  {{count, number}} de grupos",
     "region_other": "{{region}}  ·  {{count, number}} grupos",
-    "resultsFor": "Resultados para “{{search}}”"
+    "resultsFor": "Resultados de «{{search}}»"
   },
   "search": {
     "rail": "Buscar",
-    "railWith": "Buscar: “{{search}}”",
+    "railWith": "Buscar: «{{search}}»",
     "title": "Buscar en TV en vivo",
     "prompt": "Canales, grupos y programas en emisión",
     "search": "Buscar",
@@ -37,7 +37,7 @@
     "channelCount_one": "{{count, number}} canal",
     "channelCount_many": "{{count, number}} de canales",
     "channelCount_other": "{{count, number}} canales",
-    "noMatch": "Ningún canal tiene “{{search}}” en su nombre, su número o el programa en emisión.",
+    "noMatch": "Ningún canal tiene «{{search}}» en su nombre, su número o el programa en emisión.",
     "noFavourites": "Aún no hay favoritos: añade un canal con el botón Opciones (*).",
     "nothingWatched": "Aún no has visto nada.",
     "empty": "No hay canales aquí.",
