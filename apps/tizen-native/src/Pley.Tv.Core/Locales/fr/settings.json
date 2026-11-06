@@ -20,7 +20,7 @@
     "audioLanguage": "Langue audio",
     "subtitles": "Sous-titres",
     "subtitleLanguage": "Langue des sous-titres",
-    "fileDefault": "Celle par défaut du fichier",
+    "fileDefault": "Celle du fichier par défaut",
     "sameAsAudio": "Identique à la langue audio",
     "changeOnWeb": "à modifier sur le web",
     "readOnly": "Ce serveur ne permet pas à l’application de les modifier : modifiez-les sur le web",
