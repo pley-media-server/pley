@@ -7,11 +7,15 @@ use std::path::{Path, PathBuf};
 use pley_base::Icon;
 use pley_core::format::{format_bytes, format_clock};
 use pley_core::{Device, Store};
+use pley_i18n::t;
 use pley_kit::TrackLine;
 use pley_local::{folder, resume};
 
-/// The rail entry's label, and the page's title when the drive doesn't say its make and model.
-pub const TITLE: &str = "USB drive";
+/// The page's title when the drive doesn't say its make and model.
+pub fn usb_drive() -> &'static str {
+    t!("storage.title")
+}
+
 /// The line that goes up a folder.
 pub const UP: &str = "..";
 /// Between the parts of the folder's place on the drive, and before them: "/Films/2019".
@@ -36,9 +40,9 @@ impl Problem {
     /// The message's title and its sentence.
     pub fn words(self) -> (&'static str, &'static str) {
         match self {
-            Problem::NoDrive => ("No USB drive", "Plug a USB drive into the TV to play its videos here."),
-            Problem::Unreadable => ("This folder can't be read", "The drive may have been pulled out."),
-            Problem::Empty => ("Nothing to play here", "This folder has no videos or folders in it."),
+            Problem::NoDrive => (t!("storage.noDrive.title"), t!("storage.noDrive.body")),
+            Problem::Unreadable => (t!("storage.unreadable.title"), t!("storage.unreadable.body")),
+            Problem::Empty => (t!("storage.empty.title"), t!("storage.empty.body")),
         }
     }
 
@@ -93,7 +97,8 @@ impl Line {
 /// A folder as the page shows it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Listing {
-    /// The drive's make and model as it says them ("Kingston DataTraveler 3.0"), else [`TITLE`].
+    /// The drive's make and model as it says them ("Kingston DataTraveler 3.0"), else
+    /// [`usb_drive`].
     pub title: String,
     /// Under the title, where the folder is on the drive: "/Films/2019"; at its top "/" and how
     /// full it is. Empty without a drive.
@@ -114,20 +119,19 @@ impl Listing {
 /// main thread.
 pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing {
     let drive = device.drive().filter(|d| d.readable());
-    let no_drive = || problem(TITLE.into(), String::new(), Vec::new(), Problem::NoDrive);
+    let no_drive = || problem(usb_drive().into(), String::new(), Vec::new(), Problem::NoDrive);
     let Some(root) = drive.map(|d| d.root) else { return no_drive() };
     let dir = asked.unwrap_or(&root);
     // On the drive once `..` and links are followed; a folder gone with the drive is unreadable.
     if !dir.starts_with(&root) || (dir.exists() && !folder::within(&root, dir)) {
         return no_drive();
     }
-    let title = device.drive_name(&root).unwrap_or_else(|| TITLE.into());
+    let title = device.drive_name(&root).unwrap_or_else(|| usb_drive().into());
     let under = dir.strip_prefix(&root).unwrap_or(Path::new(""));
     let mut lines = Vec::new();
     let caption = if under.as_os_str().is_empty() {
-        let space = device
-            .drive_space(&root)
-            .map(|s| format!("{} free of {}", format_bytes(Some(s.free)), format_bytes(Some(s.total))));
+        let space =
+            device.drive_space(&root).map(|s| free_of(&format_bytes(Some(s.free)), &format_bytes(Some(s.total))));
         space.map_or_else(|| SLASH.to_string(), |s| format!("{SLASH}{DOT}{s}"))
     } else {
         lines.push(up_line());
@@ -156,7 +160,7 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
         let at = kept.get(&resume::file_id(relative, e.size)).copied().unwrap_or_default();
         let kind = e.path.extension().map(|x| x.to_string_lossy().to_uppercase()).unwrap_or_default();
         let subtitle = if at.position_ms > 0 {
-            format!("{kind} · Resumes at {}", format_clock(Some(at.position_ms)))
+            t!("storage.resumesAt", kind = kind, time = format_clock(Some(at.position_ms)))
         } else {
             kind
         };
@@ -181,14 +185,14 @@ pub fn list(device: &dyn Device, store: &Store, asked: Option<&Path>) -> Listing
 /// stopped): that it can't be read, with the line that goes up from a folder under the top.
 pub fn unreadable(asked: Option<&Path>) -> Listing {
     let lines = if asked.is_some() { vec![up_line()] } else { Vec::new() };
-    problem(TITLE.into(), String::new(), lines, Problem::Unreadable)
+    problem(usb_drive().into(), String::new(), lines, Problem::Unreadable)
 }
 
 fn up_line() -> Line {
     Line {
         pick: Pick::Up,
         title: UP.into(),
-        subtitle: Some("Up a folder".into()),
+        subtitle: Some(t!("storage.up").into()),
         size: String::new(),
         icon: Icon::CornerLeftUp,
         progress: 0.0,
@@ -197,4 +201,24 @@ fn up_line() -> Line {
 
 fn problem(title: String, caption: String, lines: Vec<Line>, problem: Problem) -> Listing {
     Listing { title, caption, lines, problem: Some(problem) }
+}
+
+/// How full the drive is, its sizes written: "437 GB free of 1.0 TB".
+fn free_of(free: &str, total: &str) -> String {
+    t!("storage.space", free = free, total = total)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pley_i18n::{Language, with_language};
+
+    #[test]
+    fn the_drive_says_why_and_how_full_it_is_in_the_language_shown() {
+        assert_eq!(free_of("437 GB", "1.0 TB"), "437 GB free of 1.0 TB");
+        assert_eq!(with_language(Language::Fr, || free_of("437 Go", "1,0 To")), "437 Go libres sur 1,0 To");
+        assert_eq!(with_language(Language::Es, || free_of("437 GB", "1,0 TB")), "437 GB libres de 1,0 TB");
+        assert_eq!(with_language(Language::Fr, || Problem::NoDrive.words().0), "Aucun périphérique USB");
+        assert_eq!(with_language(Language::Es, usb_drive), "Dispositivo USB");
+    }
 }

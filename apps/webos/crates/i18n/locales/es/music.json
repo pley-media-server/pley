@@ -1,1 +1,58 @@
-{}
+{
+  "actions": {
+    "play": "Reproducir",
+    "pause": "Pausar",
+    "shuffle": "Aleatorio",
+    "shuffleOff": "Desactivar aleatorio",
+    "nowPlaying": "Reproduciendo ahora",
+    "next": "Siguiente",
+    "previous": "Anterior",
+    "retry": "Reintentar",
+    "back": "Atrás"
+  },
+  "pages": {
+    "artist": "Artista",
+    "albums": "Álbumes",
+    "loading": "Cargando…",
+    "noAlbums": "No se encontraron álbumes.",
+    "noTracks": "No se encontraron pistas",
+    "nothingToPlay": "No hay nada que reproducir: no tiene pistas.",
+    "artistNotFound": "Artista no encontrado",
+    "albumNotFound": "Álbum no encontrado",
+    "notFoundBody": "Puede que se haya eliminado o que este perfil no tenga acceso.",
+    "offline": "No se puede conectar con tu servidor",
+    "artistFailed": "No se pudo cargar este artista",
+    "albumFailed": "No se pudo cargar este álbum",
+    "disc": "Disco {{number}}"
+  },
+  "count": {
+    "albums_one": "{{count, number}} álbum",
+    "albums_many": "{{count, number}} álbumes",
+    "albums_other": "{{count, number}} álbumes",
+    "tracks_one": "{{count, number}} pista",
+    "tracks_many": "{{count, number}} pistas",
+    "tracks_other": "{{count, number}} pistas"
+  },
+  "nowPlaying": {
+    "upNext": "A continuación",
+    "loading": "Cargando…",
+    "nothingTitle": "No se está reproduciendo nada",
+    "nothingBody": "Reproduce un álbum o un artista y aparecerá aquí."
+  },
+  "errors": {
+    "offline": "No se puede conectar con el servidor.",
+    "signedOut": "Vuelve a iniciar sesión para reproducir.",
+    "stopped": "El servidor detuvo la reproducción.",
+    "unplayable": "Esta pista no se puede reproducir."
+  },
+  "sleep": {
+    "timer": "Temporizador",
+    "pausingIn": "Se pausará en {{seconds}} s",
+    "keepListening": "Seguir escuchando",
+    "minutesLeft_one": "Temporizador: queda {{count}} min",
+    "minutesLeft_many": "Temporizador: quedan {{count}} min",
+    "minutesLeft_other": "Temporizador: quedan {{count}} min",
+    "minutes": "Temporizador: {{minutes}} min",
+    "endOfTrack": "Temporizador: final de esta pista"
+  }
+}

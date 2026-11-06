@@ -1,1 +1,18 @@
-{}
+{
+  "title": "Dispositivo USB",
+  "noDrive": {
+    "title": "No hay ningún dispositivo USB",
+    "body": "Conecta un dispositivo USB a la TV para reproducir aquí sus videos."
+  },
+  "unreadable": {
+    "title": "No se puede leer esta carpeta",
+    "body": "Puede que se haya desconectado el dispositivo."
+  },
+  "empty": {
+    "title": "Nada que reproducir aquí",
+    "body": "Esta carpeta no contiene videos ni carpetas."
+  },
+  "space": "{{free}} libres de {{total}}",
+  "up": "Carpeta superior",
+  "resumesAt": "{{kind}} · Se reanuda en {{time}}"
+}

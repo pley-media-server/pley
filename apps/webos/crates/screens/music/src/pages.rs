@@ -2,18 +2,12 @@
 //! an album's facts and rows, a track's lines, and Now Playing's status and sleep timer words
 //! (the Android app's `MusicPages.kt` and `strings_tv_music.xml`, the TV app's `music.tsx`).
 
-use pley_core::format::{format_clock, format_duration, pluralize};
+use pley_core::format::{format_clock, format_duration};
 use pley_core::model::{ItemDetail, ItemKind, ItemSummary};
+use pley_i18n::t;
 use pley_player::music::{MusicError, NowPlaying};
 use pley_player::sleep::{SleepChoice, SleepState};
 use pley_ui::theme;
-
-/// Under a page that couldn't find its item.
-pub const NOT_FOUND_BODY: &str = "It may have been removed, or this profile can't see it.";
-/// Play or Shuffle on an artist or album without a track.
-pub const NOTHING_TO_PLAY: &str = "Nothing to play: it has no tracks.";
-/// The title of a failed page when the server answered nothing (the TV app's `failedTitle`).
-pub const UNREACHABLE_TITLE: &str = "Can't reach your server";
 
 /// An artist's albums, newest first, then by title (`artistPage`).
 pub fn sorted_albums(albums: &[ItemSummary]) -> Vec<ItemSummary> {
@@ -34,11 +28,13 @@ pub fn tracks_of(children: &[ItemSummary]) -> Vec<ItemSummary> {
 /// `albums` is how many the listing has, used until the artist says how many it has.
 pub fn artist_meta(artist: &ItemDetail, albums: Option<usize>) -> String {
     let album_count = artist.child_count.or(albums.map(|n| n as i64));
-    let counts: Vec<String> =
-        [album_count.map(|n| pluralize(n, "album", None)), artist.leaf_count.map(|n| pluralize(n, "track", None))]
-            .into_iter()
-            .flatten()
-            .collect();
+    let counts: Vec<String> = [
+        album_count.map(|n| t!("music.count.albums", count = n)),
+        artist.leaf_count.map(|n| t!("music.count.tracks", count = n)),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
     let genres = artist.genres.iter().take(3).map(String::as_str).collect::<Vec<_>>().join(" · ");
     [counts.join(" · "), genres].into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("  ·  ")
 }
@@ -48,7 +44,7 @@ pub fn album_meta(year: Option<i64>, tracks: &[ItemSummary]) -> String {
     let total: i64 = tracks.iter().filter_map(|t| t.duration_ms).sum();
     [
         year.map(|y| y.to_string()),
-        (!tracks.is_empty()).then(|| pluralize(tracks.len() as i64, "track", None)),
+        (!tracks.is_empty()).then(|| t!("music.count.tracks", count = tracks.len())),
         Some(format_duration(Some(total))).filter(|d| !d.is_empty()),
     ]
     .into_iter()
@@ -119,18 +115,18 @@ pub fn track_length(track: &ItemSummary) -> String {
 pub fn status(error: Option<MusicError>, loading: bool, sleep: &SleepState) -> (String, bool) {
     if let Some(e) = error {
         let text = match e {
-            MusicError::Offline => "Can't reach the server.",
-            MusicError::SignedOut => "Sign in again to play.",
-            MusicError::Stopped => "Playback was stopped by the server.",
-            MusicError::Unplayable => "This track can't be played.",
+            MusicError::Offline => t!("music.errors.offline"),
+            MusicError::SignedOut => t!("music.errors.signedOut"),
+            MusicError::Stopped => t!("music.errors.stopped"),
+            MusicError::Unplayable => t!("music.errors.unplayable"),
         };
         return (text.into(), true);
     }
     if loading {
-        return ("Loading…".into(), false);
+        return (t!("music.nowPlaying.loading").into(), false);
     }
     match sleep.seconds_left {
-        Some(s) => (format!("Pausing in {s} s"), false),
+        Some(s) => (t!("music.sleep.pausingIn", seconds = s), false),
         None => (String::new(), false),
     }
 }
@@ -139,13 +135,13 @@ pub fn status(error: Option<MusicError>, loading: bool, sleep: &SleepState) -> (
 /// this track", and "Keep listening" during its last 30 s.
 pub fn sleep_label(sleep: &SleepState) -> String {
     if sleep.seconds_left.is_some() {
-        return "Keep listening".into();
+        return t!("music.sleep.keepListening").into();
     }
     match (sleep.choice, sleep.minutes_left) {
-        (SleepChoice::Off, _) => "Sleep timer".into(),
-        (SleepChoice::Minutes(_), Some(m)) => format!("Sleep timer: {m} min left"),
-        (SleepChoice::Minutes(m), None) => format!("Sleep timer: {m} min"),
-        (SleepChoice::EndOfItem, _) => "Sleep timer: End of this track".into(),
+        (SleepChoice::Off, _) => t!("music.sleep.timer").into(),
+        (SleepChoice::Minutes(_), Some(m)) => t!("music.sleep.minutesLeft", count = m),
+        (SleepChoice::Minutes(m), None) => t!("music.sleep.minutes", minutes = m),
+        (SleepChoice::EndOfItem, _) => t!("music.sleep.endOfTrack").into(),
     }
 }
 
@@ -333,6 +329,34 @@ mod tests {
         assert_eq!(sleep_label(&s), "Sleep timer: End of this track");
         s.seconds_left = Some(20);
         assert_eq!(sleep_label(&s), "Keep listening");
+    }
+
+    #[test]
+    fn the_pages_count_in_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        let mut artist = ItemDetail::default();
+        artist.summary.child_count = Some(1);
+        artist.summary.leaf_count = Some(1200);
+        artist.genres = vec!["Jazz".into()];
+        let line = with_language(Language::Fr, || artist_meta(&artist, None));
+        assert_eq!(line, "1 album · 1\u{a0}200 titres  ·  Jazz");
+        assert_eq!(with_language(Language::Es, || artist_meta(&artist, None)), "1 álbum · 1200 pistas  ·  Jazz");
+        assert_eq!(with_language(Language::Es, || album_meta(Some(1999), &[])), "1999");
+    }
+
+    #[test]
+    fn the_sleep_timer_and_status_speak_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        let mut s = SleepState { choice: SleepChoice::Minutes(45), minutes_left: Some(1), ..SleepState::default() };
+        assert_eq!(with_language(Language::Es, || sleep_label(&s)), "Temporizador: queda 1 min");
+        s.minutes_left = Some(42);
+        assert_eq!(with_language(Language::Es, || sleep_label(&s)), "Temporizador: quedan 42 min");
+        assert_eq!(with_language(Language::Fr, || sleep_label(&s)), "Minuteur de veille\u{a0}: il reste 42 min");
+        s.minutes_left = None;
+        assert_eq!(with_language(Language::Fr, || sleep_label(&s)), "Minuteur de veille\u{a0}: 45 min");
+        let counting = SleepState { seconds_left: Some(12), ..SleepState::default() };
+        let status = with_language(Language::Fr, || status(None, false, &counting));
+        assert_eq!(status, ("Mise en pause dans 12 s".into(), false));
     }
 
     #[test]

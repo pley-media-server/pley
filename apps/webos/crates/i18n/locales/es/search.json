@@ -1,1 +1,39 @@
-{}
+{
+  "field": "Buscar películas, series, personas…",
+  "searching": "Buscando…",
+  "recent": {
+    "title": "Búsquedas recientes",
+    "clear": "Borrar"
+  },
+  "empty": {
+    "title": "Busca en tus bibliotecas",
+    "body": "Encuentra películas, series, episodios, personas, artistas, álbumes, pistas y canales de TV en vivo. Pulsa OK en el campo para escribir."
+  },
+  "none": {
+    "title": "No hay resultados para «{{query}}»",
+    "body": "Prueba con otra ortografía o con menos palabras."
+  },
+  "failed": "La búsqueda falló",
+  "offline": "No se puede conectar con tu servidor",
+  "retry": "Reintentar",
+  "keyboardAction": "Buscar",
+  "discover": "Descubrir",
+  "seeAll": "Ver todo",
+  "nothingInLibraries": "Nada en tus bibliotecas coincide",
+  "tmdbFailed": "No se pudo buscar en TMDB",
+  "groups": {
+    "people": "Personas",
+    "liveTv": "TV en vivo",
+    "movies": "Películas",
+    "shows": "Series",
+    "seasons": "Temporadas",
+    "episodes": "Episodios",
+    "artists": "Artistas",
+    "albums": "Álbumes",
+    "tracks": "Pistas"
+  },
+  "channel": {
+    "nothingNow": "Nada en la guía ahora",
+    "noGuide": "Sin guía para este canal"
+  }
+}

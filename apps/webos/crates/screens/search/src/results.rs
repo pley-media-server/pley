@@ -13,6 +13,7 @@ use pley_core::model::{
     TitleKind,
 };
 use pley_core::requests::{Tone, add_titles, library_item, title_badge, title_subtitle, title_tone};
+use pley_i18n::t;
 use pley_kit::TileKind;
 use pley_shell::Route;
 
@@ -49,15 +50,15 @@ impl Group {
     /// The row's header (`strings_tv_search.xml`).
     pub fn title(self) -> &'static str {
         match self {
-            Group::People => "People",
-            Group::Live => "Live TV",
-            Group::Movies => "Movies",
-            Group::Shows => "Shows",
-            Group::Seasons => "Seasons",
-            Group::Episodes => "Episodes",
-            Group::Artists => "Artists",
-            Group::Albums => "Albums",
-            Group::Tracks => "Tracks",
+            Group::People => t!("search.groups.people"),
+            Group::Live => t!("search.groups.liveTv"),
+            Group::Movies => t!("search.groups.movies"),
+            Group::Shows => t!("search.groups.shows"),
+            Group::Seasons => t!("search.groups.seasons"),
+            Group::Episodes => t!("search.groups.episodes"),
+            Group::Artists => t!("search.groups.artists"),
+            Group::Albums => t!("search.groups.albums"),
+            Group::Tracks => t!("search.groups.tracks"),
         }
     }
 
@@ -327,12 +328,12 @@ pub fn opens(item: &ItemSummary) -> Route {
 }
 
 /// What a channel tile's caption says under its name: what's on at `now` (unix seconds), or why
-/// nothing is (`strings_tv_livetv.xml`).
+/// nothing is (`strings_tv_livetv.xml`): nothing in the guide now, or no guide for the channel.
 pub fn channel_caption(channel: &LiveChannel, now: i64) -> &str {
     match channel.on_at(now) {
         Some(on) => &on.title,
-        None if channel.has_guide => NOTHING_NOW,
-        None => NO_GUIDE,
+        None if channel.has_guide => t!("search.channel.nothingNow"),
+        None => t!("search.channel.noGuide"),
     }
 }
 
@@ -340,11 +341,6 @@ pub fn channel_caption(channel: &LiveChannel, now: i64) -> &str {
 pub fn channel_progress(channel: &LiveChannel, now: i64) -> Option<f32> {
     channel.on_at(now).map(|p: &LiveProgram| p.progress_at(now))
 }
-
-/// A channel with a guide that lists nothing now.
-pub const NOTHING_NOW: &str = "Nothing in the guide now";
-/// A channel without a guide.
-pub const NO_GUIDE: &str = "No guide for this channel";
 
 /// The Discover row shows up to 20 titles, from at most 3 of TMDB's pages (an age limit can leave
 /// a page empty), as the web's does.
@@ -663,9 +659,13 @@ mod tests {
     fn a_channel_says_whats_on_or_why_nothing_is() {
         let program = |start, stop| LiveProgram { start, stop, title: "News at Ten".into(), ..LiveProgram::default() };
         let mut c = LiveChannel { id: 1, name: "North News".into(), has_guide: true, ..LiveChannel::default() };
-        assert_eq!(channel_caption(&c, 1_000), NOTHING_NOW);
+        assert_eq!(channel_caption(&c, 1_000), "Nothing in the guide now");
         c.has_guide = false;
-        assert_eq!(channel_caption(&c, 1_000), NO_GUIDE);
+        assert_eq!(channel_caption(&c, 1_000), "No guide for this channel");
+        assert_eq!(
+            pley_i18n::with_language(pley_i18n::Language::Es, || channel_caption(&c, 1_000)),
+            "Sin guía para este canal"
+        );
         c.now = Some(program(900, 1_100));
         assert_eq!(channel_caption(&c, 1_000), "News at Ten");
         assert!(channel_progress(&c, 1_000).is_some_and(|p| (p - 0.5).abs() < 1e-3));

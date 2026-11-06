@@ -17,6 +17,7 @@ use pley_core::model::{LiveCategory, LiveChannel, SignInAgain};
 use pley_core::requests::{may_ask, problem_words, requests_problem, search_text};
 use pley_core::store::keys;
 use pley_core::{ApiError, Promise, Store};
+use pley_i18n::t;
 use pley_kit::{
     Badge, BadgeStyle, Button, ColumnState, Keyboard, KeyboardState, ProgressBar, Row, RowColumn, RowState, SCROLL,
     Section, SlotMode, TextEdit, TextField, Tile, TileKind, TileSlot, bar_group, first_art, inert, placeholder,
@@ -72,38 +73,53 @@ pub const MAX_QUERY: usize = 120;
 const PROBLEM_LINES: u16 = 3;
 const PROBLEM_CHARS: usize = 300;
 
-/// The field's placeholder.
-pub const PLACEHOLDER: &str = "Search movies, shows, people…";
 /// "Searching…" beside the field while an answer is on its way.
-pub const SEARCHING: &str = "Searching…";
-/// The recent searches' header.
-pub const RECENT: &str = "Recent searches";
-/// The text button after the recent searches, which forgets them.
-pub const CLEAR: &str = "Clear";
-/// What search finds, with nothing typed and no recent searches. Android's sentence ends with "or
-/// use your keyboard's microphone": the keyboard drawn here has none.
-pub const EMPTY_TITLE: &str = "Search your libraries";
-/// The sentence under [`EMPTY_TITLE`].
-pub const EMPTY_BODY: &str = "Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels. Press OK on the field to type.";
-/// Under `No results for “north”`.
-pub const NONE_BODY: &str = "Try a different spelling or fewer words.";
-/// A failure's title (`failedTitle`).
-pub const FAILED: &str = "Search failed";
-/// The failure's title when the server didn't answer.
-pub const CANT_REACH: &str = "Can't reach your server";
-/// The button under a failure, which asks again.
-pub const RETRY: &str = "Retry";
-/// The keyboard's action key (`ImeAction.Search`).
-pub const KEYBOARD_ACTION: &str = "Search";
+pub fn searching() -> &'static str {
+    t!("search.searching")
+}
 
-/// The header of the row of what TMDB has that the libraries lack.
-pub const DISCOVER: &str = "Discover";
-/// The tile after Discover's titles, which opens everything TMDB has for the words.
-pub const SEE_ALL: &str = "See all";
+/// The recent searches' header.
+pub fn recent_title() -> &'static str {
+    t!("search.recent.title")
+}
+
+/// What search finds, with nothing typed and no recent searches (its sentence under it: Android's
+/// ends with "or use your keyboard's microphone", and the keyboard drawn here has none).
+pub fn empty_title() -> &'static str {
+    t!("search.empty.title")
+}
+
+/// Under `No results for “north”`.
+pub fn none_body() -> &'static str {
+    t!("search.none.body")
+}
+
+/// The failure's title when the server didn't answer (else "Search failed", `failedTitle`).
+pub fn cant_reach() -> &'static str {
+    t!("search.offline")
+}
+
+/// The button under a failure, which asks again.
+pub fn retry_label() -> &'static str {
+    t!("search.retry")
+}
+
+/// The keyboard's action key (`ImeAction.Search`).
+pub fn keyboard_action() -> &'static str {
+    t!("search.keyboardAction")
+}
+
+/// The header of the row of what TMDB has that the libraries lack, whose last tile, See all,
+/// opens everything TMDB has for the words.
+pub fn discover_title() -> &'static str {
+    t!("search.discover")
+}
+
 /// The line over the Discover row when the libraries have nothing.
-pub const NONE_IN_LIBRARIES: &str = "Nothing in your libraries matches";
-/// Why the Discover row is empty when TMDB's search failed for a reason that isn't requests'.
-pub const TMDB_FAILED: &str = "Couldn't search TMDB";
+pub fn none_in_libraries() -> &'static str {
+    t!("search.nothingInLibraries")
+}
+
 /// The sections after the libraries' rows: the line, the Discover row.
 const NONE_KEY: u64 = 100;
 const TMDB_KEY: u64 = 101;
@@ -125,7 +141,7 @@ const TMDB_SKELETONS: usize = 7;
 
 /// `No results for “north”`.
 pub fn none_title(query: &str) -> String {
-    format!("No results for \u{201c}{query}\u{201d}")
+    t!("search.none.title", query = query)
 }
 
 /// What was chosen on the page this frame, carried out once it is drawn.
@@ -419,14 +435,14 @@ impl SearchScreen {
             .edge(Dir::Right, Edge::Stop)
             .edge(Dir::Down, below.map_or(Edge::Pass, Edge::To));
         let field = TextField::new(&self.edit.text, FIELD_WIDTH)
-            .placeholder(PLACEHOLDER)
+            .placeholder(t!("search.field"))
             .icon(Icon::Search)
             .typing(self.typing);
         let r = ui.group(ids.field_row, group, |ui| field.show(ui, ids.field, FIELD_AT));
         if self.query.searching() {
             let y = FIELD_AT.y + (pley_kit::keyboard::FIELD_HEIGHT - theme::CAPTION.line_height) / 2.0;
             let x = FIELD_AT.x + FIELD_WIDTH + SEARCHING_GAP;
-            ui.text(Point::new(x, y), SEARCHING, &theme::CAPTION, &TextOpts::default(), theme::MUTED);
+            ui.text(Point::new(x, y), searching(), &theme::CAPTION, &TextOpts::default(), theme::MUTED);
         }
         if self.typing {
             return;
@@ -463,7 +479,7 @@ impl SearchScreen {
         if shown <= 0.0 {
             return;
         }
-        let keyboard = Keyboard::new().action_label(KEYBOARD_ACTION);
+        let keyboard = Keyboard::new().action_label(keyboard_action());
         let dy = (1.0 - shown) * Keyboard::HEIGHT;
         let (state, edit, typing) = (&mut self.keyboard, &mut self.edit, self.typing);
         let out = ui.translate(Point::new(0.0, dy), |ui| {
@@ -548,7 +564,7 @@ impl Screen for SearchScreen {
         let mut act = None;
         let below = match self.query.shown() {
             Shown::Idle if self.recents.list().is_empty() => {
-                notice(ui, EMPTY_TITLE, EMPTY_BODY, 0);
+                notice(ui, empty_title(), t!("search.empty.body"), 0);
                 None
             }
             Shown::Idle => recents(ui, &ids, self.recents.list(), &mut self.view.chips, &mut act),
@@ -564,7 +580,7 @@ impl Screen for SearchScreen {
                 // Nothing in the libraries: the line saying so, over what TMDB has.
                 Some(discover) => results(ui, &ids, None, Some(&discover), &mut self.view, &mut act),
                 None => {
-                    notice(ui, &none_title(query), NONE_BODY, 0);
+                    notice(ui, &none_title(query), none_body(), 0);
                     None
                 }
             },
@@ -663,11 +679,11 @@ fn notice(ui: &mut Ui, title: &str, body: &str, lines: u16) -> f32 {
 /// short), and Retry under it: 8, a 12 dp spacer, 8 (the notice's column spacing), then the pill.
 /// Down from the field goes to it.
 fn failed(ui: &mut Ui, ids: &Ids, error: &ApiError, act: &mut Option<Act>) -> Option<Id> {
-    let title = if error.unreachable() { CANT_REACH } else { FAILED };
+    let title = if error.unreachable() { cant_reach() } else { t!("search.failed") };
     let problem: String = error.problem().chars().take(PROBLEM_CHARS).collect();
     let bottom = notice(ui, title, &problem, PROBLEM_LINES);
     let at = Point::new(theme::GUTTER, bottom + 2.0 * theme::space::S + theme::space::M);
-    let retry = Button::pill(RETRY).icon(Icon::RotateCcw);
+    let retry = Button::pill(retry_label()).icon(Icon::RotateCcw);
     let r = ui.group(ids.retry_row, bar_group(), |ui| retry.show(ui, ids.retry, at));
     if r.activated {
         *act = Some(Act::Retry);
@@ -692,11 +708,11 @@ fn skeletons(ui: &mut Ui) {
 /// goes to: the chip focused last while it is still there, else the first.
 fn recents(ui: &mut Ui, ids: &Ids, recents: &[String], offset: &mut f32, act: &mut Option<Act>) -> Option<Id> {
     let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
-    ui.text(Point::new(theme::GUTTER, ROWS_TOP), RECENT, &theme::SECTION, &TextOpts::line(width), theme::FG);
+    ui.text(Point::new(theme::GUTTER, ROWS_TOP), recent_title(), &theme::SECTION, &TextOpts::line(width), theme::FG);
     let y = ROWS_TOP + theme::SECTION.line_height + RECENT_GAP + CHIP_ROOM;
     let chips: Vec<Button> =
         recents.iter().map(|q| Button::chip(q).icon(Icon::History).max_label_width(CHIP_LABEL_WIDTH)).collect();
-    let clear = Button::text(CLEAR);
+    let clear = Button::text(t!("search.recent.clear"));
     let mut spans = Vec::with_capacity(chips.len() + 1);
     let mut x = theme::GUTTER;
     for w in chips.iter().map(|c| c.size(ui).w).chain([clear.size(ui).w]) {
@@ -776,7 +792,7 @@ fn results(
             (NONE_KEY, ..) => {
                 let width = theme::CANVAS_W - theme::GUTTER - theme::SAFE_X;
                 let at = Point::new(theme::GUTTER, top);
-                ui.text(at, NONE_IN_LIBRARIES, &theme::BODY, &TextOpts::line(width), theme::MUTED);
+                ui.text(at, none_in_libraries(), &theme::BODY, &TextOpts::line(width), theme::MUTED);
             }
             (TMDB_KEY, _, Some(d)) => discover_row(ui, ids, tmdb_row, top, d, act),
             (_, Some(found), _) => {
@@ -867,7 +883,7 @@ fn tmdb_problem(e: &ApiError, manage: bool) -> (String, String, bool) {
     match problem_words(&requests_problem(e), manage) {
         Some(w) => (w.title.into(), w.body.into(), w.retry),
         None => {
-            let title = if e.unreachable() { CANT_REACH } else { TMDB_FAILED };
+            let title = if e.unreachable() { cant_reach() } else { t!("search.tmdbFailed") };
             (title.into(), e.problem().chars().take(PROBLEM_CHARS).collect(), true)
         }
     }
@@ -880,7 +896,7 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
     match d.state {
         Some(TmdbState::Ready(tiles)) => {
             let kind = TileKind::Poster;
-            let r = Row::new(kind, top).header(DISCOVER).long_press(false).show(
+            let r = Row::new(kind, top).header(discover_title()).long_press(false).show(
                 ui,
                 ids.tmdb_row,
                 state,
@@ -888,7 +904,7 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
                 |i| tiles.get(i).map_or(u64::MAX, TmdbTile::key),
                 |ui, slot| match tiles.get(slot.index) {
                     Some(t) => paint_tmdb_tile(ui, slot, t),
-                    None => Tile::see_all(kind, SEE_ALL).paint(ui, slot),
+                    None => Tile::see_all(kind, t!("search.seeAll")).paint(ui, slot),
                 },
             );
             if let Some(i) = r.activated {
@@ -900,7 +916,13 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
             }
         }
         Some(TmdbState::Failed(e)) => {
-            ui.text(Point::new(theme::GUTTER, top), DISCOVER, &theme::SECTION, &TextOpts::line(width), theme::FG);
+            ui.text(
+                Point::new(theme::GUTTER, top),
+                discover_title(),
+                &theme::SECTION,
+                &TextOpts::line(width),
+                theme::FG,
+            );
             let (title, body, retry) = tmdb_problem(e, d.manage);
             let mut y = top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
             ui.text(Point::new(theme::GUTTER, y), &title, &theme::TITLE, &TextOpts::line(width), theme::FG);
@@ -908,7 +930,7 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
             ui.text(Point::new(theme::GUTTER, y), &body, &theme::BODY, &TextOpts::wrap(width, 2), theme::MUTED);
             y += 2.0 * theme::BODY.line_height + 16.0;
             if retry {
-                let pill = Button::pill(RETRY).icon(Icon::RefreshCw);
+                let pill = Button::pill(retry_label()).icon(Icon::RefreshCw);
                 let at = Point::new(theme::GUTTER, y);
                 let r = ui.group(ids.tmdb_retry_row, bar_group(), |ui| pill.show(ui, ids.tmdb_retry, at));
                 if r.activated {
@@ -917,7 +939,13 @@ fn discover_row(ui: &mut Ui, ids: &Ids, state: &mut RowState, top: f32, d: &Disc
             }
         }
         _ => {
-            ui.text(Point::new(theme::GUTTER, top), DISCOVER, &theme::SECTION, &TextOpts::line(width), theme::FG);
+            ui.text(
+                Point::new(theme::GUTTER, top),
+                discover_title(),
+                &theme::SECTION,
+                &TextOpts::line(width),
+                theme::FG,
+            );
             let y = top + theme::ROW_HEADER_HEIGHT;
             skeleton_row(ui, y, Size::new(0.0, 0.0), theme::HEADER_TO_TILES, TileKind::Poster, TMDB_SKELETONS);
         }

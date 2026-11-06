@@ -1,1 +1,55 @@
-{}
+{
+  "actions": {
+    "play": "Play",
+    "pause": "Pause",
+    "shuffle": "Shuffle",
+    "shuffleOff": "Stop shuffling",
+    "nowPlaying": "Now playing",
+    "next": "Next",
+    "previous": "Previous",
+    "retry": "Retry",
+    "back": "Back"
+  },
+  "pages": {
+    "artist": "Artist",
+    "albums": "Albums",
+    "loading": "Loading…",
+    "noAlbums": "No albums found.",
+    "noTracks": "No tracks found",
+    "nothingToPlay": "Nothing to play: it has no tracks.",
+    "artistNotFound": "Artist not found",
+    "albumNotFound": "Album not found",
+    "notFoundBody": "It may have been removed, or this profile can't see it.",
+    "offline": "Can't reach your server",
+    "artistFailed": "Couldn't load this artist",
+    "albumFailed": "Couldn't load this album",
+    "disc": "Disc {{number}}"
+  },
+  "count": {
+    "albums_one": "{{count, number}} album",
+    "albums_other": "{{count, number}} albums",
+    "tracks_one": "{{count, number}} track",
+    "tracks_other": "{{count, number}} tracks"
+  },
+  "nowPlaying": {
+    "upNext": "Up next",
+    "loading": "Loading…",
+    "nothingTitle": "Nothing is playing",
+    "nothingBody": "Play an album or an artist and it shows here."
+  },
+  "errors": {
+    "offline": "Can't reach the server.",
+    "signedOut": "Sign in again to play.",
+    "stopped": "Playback was stopped by the server.",
+    "unplayable": "This track can't be played."
+  },
+  "sleep": {
+    "timer": "Sleep timer",
+    "pausingIn": "Pausing in {{seconds}} s",
+    "keepListening": "Keep listening",
+    "minutesLeft_one": "Sleep timer: {{count}} min left",
+    "minutesLeft_other": "Sleep timer: {{count}} min left",
+    "minutes": "Sleep timer: {{minutes}} min",
+    "endOfTrack": "Sleep timer: End of this track"
+  }
+}

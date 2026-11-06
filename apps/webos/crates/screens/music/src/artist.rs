@@ -11,6 +11,7 @@ use std::sync::Arc;
 use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{ItemDetail, ItemList, ItemSummary};
 use pley_core::store::snapshot_keys;
+use pley_i18n::t;
 use pley_kit::{
     BackdropArt, BackdropScrim, BackdropState, Button, RoundButton, Row, RowState, Tile, TileKind, backdrop_px,
     bar_group, skeleton_block,
@@ -19,7 +20,7 @@ use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Route, Screen};
 use pley_ui::Ui;
 use pley_ui::theme::{self, radius};
 
-use crate::pages::{self, NOT_FOUND_BODY, NOTHING_TO_PLAY, UNREACHABLE_TITLE};
+use crate::pages;
 use crate::player::{self, Gathered};
 use crate::widgets::{ListState, art_well, list_failure, list_state, message};
 
@@ -102,7 +103,7 @@ impl ArtistScreen {
             self.starting = None;
             match outcome {
                 Gathered::Played => cx.push(Route::NowPlaying),
-                Gathered::Nothing => self.problem = Some(NOTHING_TO_PLAY.into()),
+                Gathered::Nothing => self.problem = Some(t!("music.pages.nothingToPlay").into()),
                 Gathered::Failed(why) => self.problem = Some(why),
                 Gathered::Dropped => {}
             }
@@ -178,7 +179,9 @@ impl ArtistScreen {
         let picture = Rect::new(theme::GUTTER, TOP + (header - PICTURE) / 2.0, PICTURE, PICTURE);
         art_well(ui, picture, &art.picture, &detail.title, PICTURE / 2.0);
         let mut y = TOP + (header - column) / 2.0;
-        y += ui.text(Point::new(x, y), "Artist", &theme::CAPTION, &TextOpts::line(width), theme::MUTED).h;
+        y += ui
+            .text(Point::new(x, y), t!("music.pages.artist"), &theme::CAPTION, &TextOpts::line(width), theme::MUTED)
+            .h;
         let h = name.size.h;
         ui.draw_text(Point::new(x, y), name, theme::FG);
         y += h;
@@ -203,15 +206,15 @@ impl ArtistScreen {
             // are, but keep focus where it is, so Back from Now Playing finds it on Play; presses
             // wait meanwhile. Now playing still works, at full strength.
             ui.opacity(if busy { theme::DISABLED_ALPHA } else { 1.0 }, |ui| {
-                let b = Button::pill("Play").icon(Icon::Play);
+                let b = Button::pill(t!("music.actions.play")).icon(Icon::Play);
                 play = b.show(ui, ui.id("play"), Point::new(x, buttons_y)).activated;
                 x += b.size(ui).w + theme::BUTTON_GAP;
-                let r = RoundButton::new(Icon::Shuffle, "Shuffle");
+                let r = RoundButton::new(Icon::Shuffle, t!("music.actions.shuffle"));
                 shuffle = r.show(ui, ui.id("shuffle"), Point::new(x, buttons_y)).activated;
                 x += r.size().w + theme::BUTTON_GAP;
             });
             if playing {
-                let r = RoundButton::new(Icon::AudioLines, "Now playing");
+                let r = RoundButton::new(Icon::AudioLines, t!("music.actions.nowPlaying"));
                 now = r.show(ui, ui.id("now"), Point::new(x, buttons_y)).activated;
                 x += r.size().w + theme::BUTTON_GAP;
             }
@@ -231,13 +234,17 @@ impl ArtistScreen {
         if let ListState::Failed(e) = state {
             retry = list_failure(ui, Point::new(theme::GUTTER, row_y + 12.0), width, &e.problem()).activated;
         } else if self.albums.is_empty() {
-            let text = if matches!(state, ListState::Loading) { "Loading…" } else { "No albums found." };
+            let text = if matches!(state, ListState::Loading) {
+                t!("music.pages.loading")
+            } else {
+                t!("music.pages.noAlbums")
+            };
             let at = Point::new(theme::GUTTER, row_y + 12.0);
             ui.text(at, text, &theme::BODY, &TextOpts::line(width), theme::MUTED);
         } else {
             let (albums, years) = (&self.albums, &self.years);
             let art_of = |i: usize| art.albums.get(i).map_or(&[][..], Vec::as_slice);
-            let r = Row::new(TileKind::Square, row_y).header("Albums").show(
+            let r = Row::new(TileKind::Square, row_y).header(t!("music.pages.albums")).show(
                 ui,
                 ui.id("albums"),
                 &mut self.row,
@@ -282,15 +289,16 @@ impl Screen for ArtistScreen {
         let asking = self.detail.asking();
         match self.detail.state() {
             Load::Failed { error, stale: None } if !asking => {
-                let (title, body, action) = if error.is(404) {
-                    ("Artist not found".to_string(), NOT_FOUND_BODY.to_string(), "Back")
+                let (title, body, back) = if error.is(404) {
+                    (t!("music.pages.artistNotFound"), t!("music.pages.notFoundBody").to_string(), true)
                 } else if error.unreachable() {
-                    (UNREACHABLE_TITLE.to_string(), error.problem(), "Retry")
+                    (t!("music.pages.offline"), error.problem(), false)
                 } else {
-                    ("Couldn't load this artist".to_string(), error.problem(), "Retry")
+                    (t!("music.pages.artistFailed"), error.problem(), false)
                 };
-                if message(ui, &title, &body, action).activated {
-                    if action == "Back" {
+                let action = if back { t!("music.actions.back") } else { t!("music.actions.retry") };
+                if message(ui, title, &body, action).activated {
+                    if back {
                         cx.back();
                     } else {
                         self.detail.invalidate();
