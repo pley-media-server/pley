@@ -12,12 +12,13 @@ use std::thread::JoinHandle;
 use std::time::Duration;
 
 use pley_base::Waker;
+use pley_i18n::t;
 
 use super::tokens::{StoredTokens, parse_token_answer};
 use super::{
-    AuthError, CLIENT_ID, DEVICE_CODE_GRANT, LISTED_ONLY, NO_CODES, SCOPES, ServerMetadata, fetch_metadata, post_form,
+    AuthError, CLIENT_ID, DEVICE_CODE_GRANT, LISTED_ONLY, SCOPES, ServerMetadata, fetch_metadata, no_codes, post_form,
 };
-use crate::addresses::{UNENCRYPTED, Url, origin, unencrypted};
+use crate::addresses::{Url, origin, unencrypted, unencrypted_refusal};
 use crate::http::{Http, NetError};
 use crate::model::DeviceAuthorization;
 use crate::task::{Cancel, Clock, SystemClock};
@@ -185,25 +186,23 @@ impl DeviceSignIn {
 
     /// A new code from `server`.
     pub fn start(&self, server: &str) -> Result<DeviceCode, AuthError> {
-        let home = origin(server).ok_or_else(|| AuthError::Failed("that isn't a server address".into()))?;
+        let home = origin(server).ok_or_else(|| AuthError::Failed(t!("errors.signIn.notAddress").into()))?;
         if unencrypted(&home) {
-            return Err(AuthError::Failed(UNENCRYPTED.into()));
+            return Err(AuthError::Failed(unencrypted_refusal().into()));
         }
         let metadata = fetch_metadata(&self.http, &home)?;
         let Some(endpoint) = metadata.device_authorization_endpoint.clone().filter(|_| metadata.signs_in_with_codes())
         else {
-            return Err(AuthError::Failed(NO_CODES.into()));
+            return Err(AuthError::Failed(no_codes().into()));
         };
         let scope = scope_for(&metadata);
         let answer = match post_form(&self.http, &endpoint, &[("client_id", &self.client_id), ("scope", &scope)]) {
             Err(e) if matches!(e.code(), Some("invalid_client" | "unauthorized_client")) => {
                 // A server from before Pley's TV apps were built in.
-                return Err(AuthError::Failed("this server doesn't know Pley's TV apps yet: update it".into()));
+                return Err(AuthError::Failed(t!("errors.signIn.unknownApp").into()));
             }
             Err(e) if e.status() == Some(429) => {
-                return Err(AuthError::Failed(
-                    "too many TVs are signing in here right now: try again in a minute".into(),
-                ));
+                return Err(AuthError::Failed(t!("errors.signIn.busy").into()));
             }
             Err(e) => return Err(e),
             Ok(a) => a,
@@ -263,9 +262,7 @@ impl DeviceSignIn {
                             }
                             Some("access_denied") => Some(DevicePoll::Denied),
                             Some("expired_token") => Some(DevicePoll::Expired),
-                            Some("invalid_grant") => {
-                                Some(DevicePoll::Failed("this code doesn't work anymore: get a new one".into()))
-                            }
+                            Some("invalid_grant") => Some(DevicePoll::Failed(t!("errors.signIn.codeSpent").into())),
                             _ => Some(DevicePoll::Failed(e.to_string())),
                         }
                     }
@@ -414,16 +411,14 @@ fn parse_device_code(
     scope: &str,
     now_ms: u64,
 ) -> Result<DeviceCode, AuthError> {
-    let bad = || AuthError::Failed("the server's answer can't be read: try again".into());
+    let bad = || AuthError::Failed(t!("errors.signIn.unreadable").into());
     let a: DeviceAuthorization = serde_json::from_slice(body).map_err(|_| bad())?;
     if a.device_code.is_empty() || a.user_code.is_empty() || a.verification_uri.is_empty() {
         return Err(bad());
     }
     // The page to open must be the server's own: a code typed elsewhere would sign someone else's TV in.
     if origin(&a.verification_uri).as_deref() != Some(metadata.issuer.as_str()) {
-        return Err(AuthError::Failed(
-            "this server sends people to another address to approve TVs: Pley doesn't".into(),
-        ));
+        return Err(AuthError::Failed(t!("errors.signIn.approveElsewhere").into()));
     }
     let complete = a.verification_uri_complete.filter(|u| origin(u).as_deref() == Some(metadata.issuer.as_str()));
     let expires_in = a.expires_in.filter(|e| *e > 0.0).unwrap_or(600.0);

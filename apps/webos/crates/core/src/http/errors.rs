@@ -1,8 +1,11 @@
 //! What can go wrong with a request, and the words for it (the Android app's
-//! `describe()`, the TV app's `unreachable` and `problem`).
+//! `describe()`, the TV app's `unreachable` and `problem`), in the language
+//! shown. What the server writes in an error stays as it writes it.
 
 use std::fmt;
 use std::io;
+
+use pley_i18n::t;
 
 use crate::model::{ErrorBody, LiveBusy};
 
@@ -53,18 +56,18 @@ impl NetError {
         }
     }
 
-    /// Why there was no answer, in the Android app's words, lower case.
+    /// Why there was no answer, in the Android app's words, lower case, in the language shown.
     pub fn reason(&self) -> &'static str {
         match self {
-            NetError::Cancelled => "cancelled",
-            NetError::TimedOut => "no answer in time",
-            NetError::Refused => "nothing answers there",
-            NetError::UnknownHost => "that address isn't known on this network",
-            NetError::Tls(_) => "its secure connection failed",
-            NetError::TooBig => "the server's answer is too big",
-            NetError::Failed(_) => "the connection to the server failed",
-            NetError::AnotherDevice => "another device answers there",
-            NetError::ServerFailed => "the server couldn't answer",
+            NetError::Cancelled => t!("errors.network.cancelled"),
+            NetError::TimedOut => t!("errors.network.timedOut"),
+            NetError::Refused => t!("errors.network.refused"),
+            NetError::UnknownHost => t!("errors.network.unknownHost"),
+            NetError::Tls(_) => t!("errors.network.secureConnection"),
+            NetError::TooBig => t!("errors.network.tooBig"),
+            NetError::Failed(_) => t!("errors.network.connectionFailed"),
+            NetError::AnotherDevice => t!("errors.network.anotherDevice"),
+            NetError::ServerFailed => t!("errors.network.serverFailed"),
         }
     }
 }
@@ -118,7 +121,9 @@ fn status_code(status: u16) -> &'static str {
 }
 
 /// What the TV app shows for a session stopped from elsewhere without a note.
-pub const STOPPED_BY_ADMIN: &str = "Playback was stopped by the server's administrator";
+pub fn stopped_by_admin() -> &'static str {
+    t!("errors.server.stoppedByAdmin")
+}
 
 impl ApiError {
     /// The error a non-2xx answer stands for.
@@ -134,8 +139,9 @@ impl ApiError {
                 .map(str::to_string);
             return ApiError::SessionStopped { message };
         }
+        // The server's own words stay as it writes them.
         let message =
-            if body.message.is_empty() { format!("the server refused (HTTP {})", r.status) } else { body.message };
+            if body.message.is_empty() { t!("errors.server.refused", status = r.status) } else { body.message };
         ApiError::Status { status: r.status, code, message, body: json }
     }
 
@@ -202,7 +208,7 @@ impl ApiError {
     /// server, the reason and what to check; otherwise the error as a sentence.
     pub fn problem(&self) -> String {
         if self.unreachable() {
-            format!("{} Check that the server is on and that this device is on its network.", self.unreachable_reason())
+            t!("errors.server.check", reason = self.unreachable_reason())
         } else {
             sentence(&self.to_string())
         }
@@ -230,9 +236,9 @@ impl fmt::Display for ApiError {
         match self {
             ApiError::Net(e) => f.write_str(e.reason()),
             ApiError::Status { message, .. } => f.write_str(message),
-            ApiError::SessionStopped { message } => f.write_str(message.as_deref().unwrap_or(STOPPED_BY_ADMIN)),
-            ApiError::SignedOut => f.write_str("you were signed out: sign in again"),
-            ApiError::Unreadable(_) => f.write_str("the server's answer can't be read: is it Pley, and up to date?"),
+            ApiError::SessionStopped { message } => f.write_str(message.as_deref().unwrap_or(stopped_by_admin())),
+            ApiError::SignedOut => f.write_str(t!("errors.server.signedOut")),
+            ApiError::Unreadable(_) => f.write_str(t!("errors.server.unreadable")),
         }
     }
 }

@@ -5,7 +5,9 @@
 
 use std::time::Duration;
 
-use super::{AuthError, DEVICE_CODE_GRANT, TOO_OLD};
+use pley_i18n::t;
+
+use super::{AuthError, DEVICE_CODE_GRANT};
 use crate::addresses::origin;
 use crate::http::{Http, Request};
 use crate::model::AuthorizationMetadata;
@@ -35,28 +37,28 @@ impl ServerMetadata {
 
 /// Asks `server` for its metadata (8 s) and checks it.
 pub fn fetch_metadata(http: &Http, server: &str) -> Result<ServerMetadata, AuthError> {
-    let home = origin(server).ok_or_else(|| AuthError::Failed("that isn't a server address".into()))?;
+    let home = origin(server).ok_or_else(|| AuthError::Failed(t!("errors.signIn.notAddress").into()))?;
     let req = Request::get(format!("{home}{METADATA_PATH}"))
         .header("Accept", "application/json")
         .timeout(Duration::from_secs(8));
     let answer = http.send(req).map_err(AuthError::Unreachable)?;
     if answer.status == 404 {
-        return Err(AuthError::Failed(TOO_OLD.into()));
+        return Err(AuthError::Failed(super::too_old().into()));
     }
     if !answer.ok() {
-        return Err(AuthError::Failed(format!("the server couldn't answer (HTTP {})", answer.status)));
+        return Err(AuthError::Failed(t!("errors.server.couldntAnswer", status = answer.status)));
     }
     // Older servers answer their web app's page here.
     if !answer.header("Content-Type").unwrap_or("").to_ascii_lowercase().contains("json") {
-        return Err(AuthError::Failed(TOO_OLD.into()));
+        return Err(AuthError::Failed(super::too_old().into()));
     }
     parse_metadata(&answer.body, &home)
 }
 
 /// The checks of [`fetch_metadata`] on the answer `body` of the server at `server`.
 pub fn parse_metadata(body: &[u8], server: &str) -> Result<ServerMetadata, AuthError> {
-    let home = origin(server).ok_or_else(|| AuthError::Failed("that isn't a server address".into()))?;
-    let too_old = || AuthError::Failed(TOO_OLD.into());
+    let home = origin(server).ok_or_else(|| AuthError::Failed(t!("errors.signIn.notAddress").into()))?;
+    let too_old = || AuthError::Failed(super::too_old().into());
     let m: AuthorizationMetadata = serde_json::from_slice(body).map_err(|_| too_old())?;
     if m.issuer.is_empty() {
         return Err(too_old());
@@ -64,14 +66,12 @@ pub fn parse_metadata(body: &[u8], server: &str) -> Result<ServerMetadata, AuthE
     // RFC 8414 §3.3: the issuer is exactly the address asked at.
     if m.issuer != home {
         let shown: String = m.issuer.chars().take(100).collect();
-        return Err(AuthError::Failed(format!(
-            "this server calls itself {shown}: open it by that address, or check the proxy in front of it passes Host"
-        )));
+        return Err(AuthError::Failed(t!("errors.signIn.callsItself", address = shown)));
     }
     let endpoint = |url: Option<String>| -> Result<String, AuthError> {
         let url = url.filter(|u| !u.is_empty()).ok_or_else(too_old)?;
         if origin(&url).as_deref() != Some(m.issuer.as_str()) || !url.starts_with(&format!("{}/", m.issuer)) {
-            return Err(AuthError::Failed("this server sends apps to another address to sign in: Pley doesn't".into()));
+            return Err(AuthError::Failed(t!("errors.signIn.signInElsewhere").into()));
         }
         Ok(url)
     };
@@ -131,7 +131,7 @@ mod tests {
 
     #[test]
     fn anything_else_is_too_old() {
-        assert_eq!(parse_metadata(b"<html>", "http://nas:7539").unwrap_err().to_string(), TOO_OLD);
-        assert_eq!(parse_metadata(b"{}", "http://nas:7539").unwrap_err().to_string(), TOO_OLD);
+        assert_eq!(parse_metadata(b"<html>", "http://nas:7539").unwrap_err().to_string(), crate::auth::too_old());
+        assert_eq!(parse_metadata(b"{}", "http://nas:7539").unwrap_err().to_string(), crate::auth::too_old());
     }
 }

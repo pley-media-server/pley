@@ -6,11 +6,16 @@
 //! `https://pley.example.com`): its issuer, the key of its tokens and of
 //! everything kept for it, and the only address the bearer token goes to.
 
+use pley_i18n::t;
+
 /// Pley's web port, for addresses typed without one.
 pub const DEFAULT_PORT: u16 = 7539;
 
-/// Why a TV won't sign in over plain http beyond the home network (the Android app's words).
-pub const UNENCRYPTED: &str = "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in";
+/// Why a TV won't sign in over plain http beyond the home network (the Android app's words), in
+/// the language shown.
+pub fn unencrypted_refusal() -> &'static str {
+    t!("errors.signIn.unencrypted")
+}
 
 /// An absolute http(s) address taken apart.
 #[derive(Clone, Debug, PartialEq, Eq)]

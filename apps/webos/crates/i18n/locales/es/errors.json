@@ -1,1 +1,65 @@
-{}
+{
+  "network": {
+    "cancelled": "cancelado",
+    "timedOut": "no hubo respuesta a tiempo",
+    "refused": "nada responde en esa dirección",
+    "unknownHost": "esa dirección no se conoce en esta red",
+    "secureConnection": "falló su conexión segura",
+    "tooBig": "la respuesta del servidor es demasiado grande",
+    "connectionFailed": "falló la conexión con el servidor",
+    "anotherDevice": "otro dispositivo responde en esa dirección",
+    "serverFailed": "el servidor no pudo responder"
+  },
+  "server": {
+    "refused": "el servidor rechazó la solicitud (HTTP {{status}})",
+    "refusedCode": "el servidor rechazó la solicitud ({{code}})",
+    "couldntAnswer": "el servidor no pudo responder (HTTP {{status}})",
+    "stoppedByAdmin": "El administrador del servidor detuvo la reproducción",
+    "signedOut": "se cerró tu sesión: vuelve a iniciarla",
+    "unreadable": "no se puede leer la respuesta del servidor: ¿es Pley y está actualizado?",
+    "check": "{{reason}} Comprueba que el servidor esté encendido y que este dispositivo esté en su red."
+  },
+  "signIn": {
+    "tooOld": "este servidor es demasiado antiguo para esta aplicación",
+    "noCodes": "este servidor aún no puede iniciar sesión en TV con un código: actualízalo",
+    "widerScope": "el servidor concedió más de lo que pide esta aplicación: se cerró la sesión",
+    "unencrypted": "la dirección de este servidor no está en tu red y su conexión no está cifrada: ábrelo con su dirección https para iniciar sesión",
+    "notAddress": "esa no es una dirección de servidor",
+    "unknownApp": "este servidor aún no conoce las aplicaciones de TV de Pley: actualízalo",
+    "busy": "hay demasiadas TV iniciando sesión aquí ahora mismo: vuelve a intentarlo en un minuto",
+    "codeSpent": "este código ya no funciona: obtén uno nuevo",
+    "unreadable": "no se puede leer la respuesta del servidor: vuelve a intentarlo",
+    "approveElsewhere": "este servidor envía a otra dirección para aprobar las TV: Pley no lo hace",
+    "signInElsewhere": "este servidor envía las aplicaciones a otra dirección para iniciar sesión: Pley no lo hace",
+    "callsItself": "este servidor se identifica como {{address}}: ábrelo con esa dirección o comprueba que el proxy que tiene delante transmita Host",
+    "unreachable": "no se puede conectar con el servidor: comprueba su dirección y que esté encendido",
+    "otherServer": "estos tokens son de otro servidor"
+  },
+  "oauth": {
+    "invalidClient": "el servidor no conoce esta aplicación",
+    "unauthorizedClient": "el servidor no permite que esta aplicación inicie sesión así",
+    "invalidGrant": "el servidor rechazó este inicio de sesión",
+    "accessDenied": "se rechazó el inicio de sesión",
+    "expiredToken": "el código caducó",
+    "invalidScope": "el servidor rechazó lo que pidió esta aplicación",
+    "invalidRequest": "el servidor no entendió la solicitud",
+    "unsupportedGrantType": "el servidor no acepta este tipo de inicio de sesión"
+  },
+  "profiles": {
+    "wrongPin": "PIN incorrecto.",
+    "throttled": "demasiados PIN incorrectos: vuelve a intentarlo en unos minutos",
+    "pinLocked": "El PIN de este perfil está bloqueado tras demasiados intentos fallidos. Su propietario o un administrador puede restablecerlo.",
+    "needsPassword": "Este perfil necesita su contraseña: vuelve a iniciar sesión para usarlo.",
+    "notAllowed": "No puedes cambiar a este perfil.",
+    "cantSwitch": "Este inicio de sesión no puede cambiar de perfil: vuelve a iniciar sesión para permitirlo.",
+    "ticketSpent": "Esta transmisión ya no puede cambiar de perfil: vuelve a transmitirla.",
+    "unreachable": "No se puede conectar con tu servidor: {{reason}}.",
+    "signedOut": "Se cerró tu sesión: vuelve a iniciarla.",
+    "refused": "El servidor rechazó la solicitud: vuelve a intentarlo."
+  },
+  "connect": {
+    "badAddress": "Introduce una dirección como nas, 192.168.1.20 o pley.example.com.",
+    "notPley": "Algo responde en {{address}}, pero no es Pley.",
+    "unreachable": "No se pudo conectar con {{address}}: {{reason}}."
+  }
+}
