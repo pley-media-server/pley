@@ -1,1 +1,23 @@
-{}
+{
+  "hero": {
+    "play": "Lire",
+    "resume": "Reprendre",
+    "fromStart": "Depuis le début",
+    "info": "Infos",
+    "markWatched": "Marquer comme vu",
+    "markUnwatched": "Marquer comme non vu"
+  },
+  "seeAll": "Tout voir",
+  "nothingToPlay": "Rien à lire",
+  "states": {
+    "offline": "Impossible de joindre votre serveur",
+    "failed": "Impossible de charger votre accueil",
+    "noLibraries": "Aucune bibliothèque pour l’instant",
+    "noLibrariesBody": "Demandez au propriétaire du serveur d’ajouter une bibliothèque.",
+    "scanning": "Analyse de vos bibliothèques…",
+    "scanningBody": "Les nouveaux éléments apparaîtront ici dès qu’ils seront trouvés.",
+    "empty": "Rien pour l’instant",
+    "emptyBody": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse.",
+    "retry": "Réessayer"
+  }
+}

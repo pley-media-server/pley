@@ -18,6 +18,7 @@ use pley_base::{Icon, Key, Point, Rect, Size, TextOpts};
 use pley_core::ApiError;
 use pley_core::http::sentence;
 use pley_core::model::Library;
+use pley_i18n::t;
 use pley_kit::look::{shade, spoken};
 use pley_kit::{Button, Heading, ListRow, Message, MessageStyle, SCROLL, SidePanel, bar_group};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
@@ -43,13 +44,6 @@ const GRID_TOP: f32 = 8.0;
 const HINT_ROOM: f32 = 80.0;
 /// Cards sliding to their new places.
 const SLIDE: Motion = Motion::new(0.200, pley_ui::Easing::FAST_OUT_SLOW_IN);
-
-/// What a server said about sorting.
-pub const SORT_NEEDS_NEWER: &str = "Sorting libraries needs a newer Pley on the server.";
-const SORT_REFUSED: &str = "This server doesn't let the app sort your libraries: sort them on the web";
-const SORT_RACED: &str = "Your libraries changed meanwhile: try again";
-const HINT_SORTING: &str = "Select a library to move it. Your order applies on all your devices.";
-const HINT_MOVING: &str = "Arrows to move it, OK to drop it here, Back to put it back";
 
 /// Whether the libraries can be put in another order here.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -200,14 +194,14 @@ fn refused(e: &ApiError, cx: &mut AppCx) {
     let server = cx.state.server().unwrap_or_default().to_string();
     if e.is(404) || e.is(405) {
         refuse_sorting(&server, Sorting::Older);
-        cx.toast_error(SORT_NEEDS_NEWER);
+        cx.toast_error(t!("library.libraries.needsNewerServer"));
     } else if e.is(403) {
         refuse_sorting(&server, Sorting::Refused);
-        cx.toast_error(SORT_REFUSED);
+        cx.toast_error(t!("library.libraries.refused"));
     } else if e.is(409) {
         // A library came or went since they were listed.
         cx.state.load_account();
-        cx.toast_error(SORT_RACED);
+        cx.toast_error(t!("library.libraries.raced"));
     } else if !e.cancelled() {
         cx.toast_error(sentence(&e.to_string()));
     }
@@ -432,18 +426,19 @@ impl LibrariesScreen {
 
         // The header: the title, and the pills while the profile may sort.
         let header_h = if sortable { theme::BUTTON_HEIGHT } else { theme::PAGE_TITLE.line_height };
-        let title = if in_sort { "Sort libraries" } else { "Libraries" };
+        let title = if in_sort { t!("library.libraries.sort") } else { t!("library.libraries.title") };
         let mut right = theme::CANVAS_W - theme::SAFE_X;
         let mut pressed_sort = false;
         let mut pressed_server = false;
         if sortable {
             let free = lifted.is_none();
             let sort = if in_sort {
-                Button::pill("Done").icon(Icon::Check).enabled(free)
+                Button::pill(t!("library.libraries.done")).icon(Icon::Check).enabled(free)
             } else {
-                Button::pill("Sort libraries").icon(Icon::ArrowUpDown)
+                Button::pill(t!("library.libraries.sort")).icon(Icon::ArrowUpDown)
             };
-            let server = in_sort.then(|| Button::pill("Use the server's order").icon(Icon::RotateCcw).enabled(free));
+            let server_order = t!("library.libraries.serverOrder");
+            let server = in_sort.then(|| Button::pill(server_order).icon(Icon::RotateCcw).enabled(free));
             let sort_w = sort.size(ui).w;
             let server_w = server.map_or(0.0, |b| b.size(ui).w);
             ui.group(page.with("header"), bar_group(), |ui| {
@@ -610,7 +605,8 @@ impl LibrariesScreen {
         }
 
         if in_sort {
-            let hint = if lifted.is_some() { HINT_MOVING } else { HINT_SORTING };
+            let hint =
+                if lifted.is_some() { t!("library.libraries.movingHint") } else { t!("library.libraries.sortingHint") };
             draw_hint(ui, hint);
         }
 
@@ -634,10 +630,10 @@ impl LibrariesScreen {
                 theme::MUTED,
             );
             y += caption.h + 12.0;
-            let mut rows: Vec<(&str, Icon)> = vec![("Open", Icon::ArrowRight)];
+            let mut rows: Vec<(&str, Icon)> = vec![(t!("library.libraries.open"), Icon::ArrowRight)];
             if sortable {
-                rows.push(("Move", Icon::ArrowUpDown));
-                rows.push(("Use the server's order", Icon::RotateCcw));
+                rows.push((t!("library.libraries.move"), Icon::ArrowUpDown));
+                rows.push((t!("library.libraries.serverOrder"), Icon::RotateCcw));
             }
             for (k, (label, icon)) in rows.iter().enumerate() {
                 let rid = ui.id(k);
@@ -754,8 +750,8 @@ impl Screen for LibrariesScreen {
         self.poll(cx);
         match cx.state.libraries() {
             Some([]) => {
-                Message::new(MessageStyle::Page, "No libraries yet")
-                    .body("Ask the server owner to add a library.")
+                Message::new(MessageStyle::Page, t!("library.libraries.noneTitle"))
+                    .body(t!("library.libraries.noneBody"))
                     .show(ui, ui.id("message"));
                 if !std::mem::replace(&mut self.rail_sent, true) {
                     cx.to_rail();
@@ -773,13 +769,13 @@ impl Screen for LibrariesScreen {
                 }
                 let error = cx.state.account_error();
                 let title = match error {
-                    Some(e) if e.unreachable() => "Can't reach your server",
-                    _ => "Couldn't load your libraries",
+                    Some(e) if e.unreachable() => t!("library.libraries.offline"),
+                    _ => t!("library.libraries.failed"),
                 };
                 let body = error.map(ApiError::problem).unwrap_or_default();
                 let r = Message::new(MessageStyle::Page, title)
                     .body(&body)
-                    .action("Retry", Icon::RefreshCw)
+                    .action(t!("library.libraries.retry"), Icon::RefreshCw)
                     .show(ui, ui.id("message"));
                 if r.action.is_some_and(|a| a.activated) {
                     cx.state.load_account();

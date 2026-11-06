@@ -1,1 +1,23 @@
-{}
+{
+  "hero": {
+    "play": "Play",
+    "resume": "Resume",
+    "fromStart": "From start",
+    "info": "Info",
+    "markWatched": "Mark as watched",
+    "markUnwatched": "Mark as unwatched"
+  },
+  "seeAll": "See all",
+  "nothingToPlay": "Nothing to play",
+  "states": {
+    "offline": "Can't reach your server",
+    "failed": "Couldn't load your home screen",
+    "noLibraries": "No libraries yet",
+    "noLibrariesBody": "Ask the server owner to add a library.",
+    "scanning": "Scanning your libraries…",
+    "scanningBody": "New items will show up here as soon as they're found.",
+    "empty": "Nothing here yet",
+    "emptyBody": "Your libraries are empty. Add media to the library folders and run a scan.",
+    "retry": "Retry"
+  }
+}
