@@ -444,7 +444,7 @@ private func decode<T: Decodable>(_ type: T.Type, _ path: String) throws -> T {
     @Test func problemsSayWhatToDo() {
         let now = 1_761_825_600
         let signIn = RequestProblem.signInAgain(.requests).words(manage: false, summary: summary)
-        #expect(signIn.signInAgain && signIn.body != nil && !signIn.retry)
+        #expect(signIn.signInAgain && signIn.body == nil && !signIn.retry)
         #expect(RequestProblem.signInAgain(.approvals).words(manage: true, summary: manager).signInAgain)
         #expect(RequestProblem.tmdbKey.words(manage: true, summary: manager).body
             != RequestProblem.tmdbKey.words(manage: false, summary: summary).body)
