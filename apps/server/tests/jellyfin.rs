@@ -573,6 +573,8 @@ async fn collections_change_with_a_token_that_may_manage_libraries() {
     let collection = made.body["Id"].as_str().unwrap().to_owned();
     let added = as_manager(Method::POST, format!("/Collections/{collection}/Items?ids={bravo}")).await;
     assert_eq!(added.status, StatusCode::NO_CONTENT, "{}", added.text());
+    let again = as_manager(Method::POST, format!("/Collections/{collection}/Items?ids={bravo}")).await;
+    assert_eq!(again.status, StatusCode::NO_CONTENT, "a title in it already: {}", again.text());
     let items = app.jf_json(&format!("/Items?ParentId={collection}"), admin).await;
     assert_eq!(jf_names(&items), ["Alpha", "Bravo"]);
     let pilot = app.jf_item(w.pilot);

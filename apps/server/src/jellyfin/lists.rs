@@ -402,9 +402,12 @@ async fn add_to_collection(
     not_smart_collection(&state, id).await?;
     let none = Body(serde_json::Value::Null);
     let items = ids_of(&jellyfin, Kind::Item, &none, &q, "ids")?;
-    if !items.is_empty() && collections::add_items(&state.db, id, library_id, &items).await? == 0 {
+    // Asked before adding, as Pley's own API does: titles already in the
+    // collection add nothing, and aren't refused for it.
+    if !items.is_empty() && collections::eligible(&state.db, library_id, &items).await? == 0 {
         return Err(JfError::BadRequest(ONLY_MOVIES_AND_SHOWS.into()));
     }
+    collections::add_items(&state.db, id, library_id, &items).await?;
     state.events.send(ServerEvent::LibraryChanged { library_id });
     Ok(StatusCode::NO_CONTENT)
 }
