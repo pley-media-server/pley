@@ -37,6 +37,28 @@ function renderMenu(onRefresh = vi.fn()) {
 }
 
 describe("Menu", () => {
+  it("opens above its trigger where the window has no room below, and below again where it has", async () => {
+    const user = userEvent.setup();
+    renderMenu();
+    const trigger = screen.getByRole("button", { name: "More" });
+    const box = (top: number, height: number) => ({ top, bottom: top + height, height, left: 0, right: 100, width: 100, x: 0, y: top, toJSON: () => ({}) }) as DOMRect;
+    const rect = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return this.getAttribute("role") === "menu" ? box(0, 120) : box(window.innerHeight - 60, 40);
+    });
+    try {
+      await user.click(trigger);
+      expect(screen.getByRole("menu")).toHaveClass("bottom-full");
+      await user.click(trigger);
+      rect.mockImplementation(function (this: HTMLElement) {
+        return this.getAttribute("role") === "menu" ? box(0, 120) : box(20, 40);
+      });
+      await user.click(trigger);
+      expect(screen.getByRole("menu")).toHaveClass("top-full");
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
   it("opens from its trigger and closes after a choice", async () => {
     const user = userEvent.setup();
     const onRefresh = renderMenu();

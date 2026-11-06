@@ -60,6 +60,8 @@ describes how they are made.
   channel shows only the channel's tuning screen.
 - With TMDB as the TV source, a show with an IMDb or TheTVDB id but no
   TMDB id is found by that id before it is searched for by name.
+- The web and desktop apps' menus open above their button where the
+  window has no room for them below, as in a short window.
 
 ## [0.1.7] - 2026-11-05
 

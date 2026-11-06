@@ -23,6 +23,7 @@ export function LanguagePicker() {
   return (
     <Menu
       label={t("language.choose")}
+      align="center"
       trigger={({ toggle, open }) => (
         <button
           type="button"

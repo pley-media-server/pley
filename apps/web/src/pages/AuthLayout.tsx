@@ -5,7 +5,7 @@ import { LanguagePicker } from "@/i18n/LanguagePicker";
 
 /**
  * Centered card used by the login and setup screens. Without an account
- * signed in, a small globe at the page's top right picks this device's
+ * signed in, a small globe under the card picks this device's
  * language: once signed in, the account's comes first, and Account changes it.
  */
 export function AuthLayout({ title, subtitle, children }: { title: string; subtitle?: ReactNode; children: ReactNode }) {
@@ -20,11 +20,6 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
             "radial-gradient(900px 500px at 15% -10%, color-mix(in oklab, var(--color-accent) 18%, transparent), transparent 60%), radial-gradient(700px 500px at 110% 110%, color-mix(in oklab, var(--color-info) 12%, transparent), transparent 60%)",
         }}
       />
-      {signedIn ? null : (
-        <div className="absolute top-4 right-4 z-10">
-          <LanguagePicker />
-        </div>
-      )}
       <div className="relative w-full max-w-sm animate-pop-in">
         <div className="mb-8 flex justify-center">
           <Logo className="h-10" />
@@ -34,6 +29,11 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
           {subtitle ? <p className="mt-1.5 text-sm text-muted">{subtitle}</p> : null}
           <div className="mt-6">{children}</div>
         </div>
+        {signedIn ? null : (
+          <div className="mt-4 flex justify-center">
+            <LanguagePicker />
+          </div>
+        )}
       </div>
     </div>
   );
