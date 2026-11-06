@@ -47,8 +47,8 @@
   },
   "profiles": {
     "wrongPin": "Code PIN incorrect.",
-    "throttled": "trop de codes PIN incorrects : réessayez dans quelques minutes",
-    "pinLocked": "Le code PIN de ce profil est bloqué après trop d’essais incorrects. Son propriétaire ou un administrateur peut le réinitialiser.",
+    "throttled": "trop de codes PIN erronés : réessayez dans quelques minutes",
+    "pinLocked": "Le code PIN de ce profil est bloqué après trop d’essais erronés. Son propriétaire ou un administrateur peut le réinitialiser.",
     "needsPassword": "Ce profil demande son mot de passe : reconnectez-vous pour l’utiliser.",
     "notAllowed": "Vous ne pouvez pas passer à ce profil.",
     "cantSwitch": "Cette connexion ne permet pas de changer de profil : reconnectez-vous pour l’autoriser.",

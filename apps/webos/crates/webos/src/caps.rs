@@ -447,7 +447,7 @@ mod tests {
         let lines = with_language(Language::Fr, || webos_caps(&tv, &CapsOverrides::default()).lines);
         assert_eq!(lines[0], "TV\u{a0}: OLED65C5PUA (firmware 33.20.65)");
         assert_eq!(lines[1], "webOS 25 · version 10.2.0");
-        assert_eq!(lines[2], "Écran\u{a0}: 4K OLED");
+        assert_eq!(lines[2], "Dalle\u{a0}: 4K OLED");
         assert_eq!(lines[6], "Envoyé à l’ampli\u{a0}: rien");
         assert_eq!(lines[7], "Son\u{a0}: tv_speaker (numérique auto)");
         let lines = with_language(Language::Es, || webos_caps(&tv, &CapsOverrides::default()).lines);

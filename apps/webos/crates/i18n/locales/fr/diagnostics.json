@@ -10,13 +10,13 @@
   "tiers": {
     "low": "bas",
     "mid": "moyen",
-    "high": "élevé"
+    "high": "haut"
   },
   "lines": {
     "tv": "TV : {{model}}",
     "tvFirmware": "TV : {{model}} (firmware {{firmware}})",
     "webosRelease": "webOS {{version}} · version {{release}}",
-    "panel": "Écran : {{panel}}",
+    "panel": "Dalle : {{panel}}",
     "hdr": "HDR : {{formats}}",
     "none": "aucun",
     "dolbyVision": "Dolby Vision : profils {{profiles}}, en {{containers}}",
