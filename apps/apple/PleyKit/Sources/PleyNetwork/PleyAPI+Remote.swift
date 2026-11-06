@@ -49,7 +49,7 @@ extension PleyAPI {
     /// `429` past 10 a second.
     public func cast(_ target: CastTarget, to receiverId: String) async throws {
         guard let receiver = Self.receiverSegment(receiverId) else {
-            throw PleyError.api(status: 404, code: "not_found", message: "no such device")
+            throw PleyError.api(status: 404, code: "not_found", message: localized("no such device"))
         }
         _ = try await client.send("POST", "/api/remote/devices/\(receiver)/cast", body: target, as: NoContent.self)
     }

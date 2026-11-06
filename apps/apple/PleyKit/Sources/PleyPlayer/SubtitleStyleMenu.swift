@@ -27,10 +27,10 @@ public struct SubtitleStyleMenu: Equatable, Hashable, Sendable, Identifiable {
 
         public var title: String {
             switch self {
-            case .size: "Size"
-            case .background: "Background"
-            case .font: "Font"
-            case .position: "Position"
+            case .size: localized("Size")
+            case .background: localized("Background")
+            case .font: localized("Font")
+            case .position: localized("Position")
             }
         }
     }

@@ -43,7 +43,7 @@ public struct PleyAPI: Sendable {
     /// The bytes of a picture the server named, of one of `imageTypes` and
     /// at most 10 MiB.
     public func image(path: String, width: Int?) async throws -> Data {
-        guard Self.isImagePath(path) else { throw PleyError.unreachable("that isn't an address on the server") }
+        guard Self.isImagePath(path) else { throw PleyError.unreachable(PleyError.notOnServer) }
         let (data, _) = try await client.data(path, query: Self.widthQuery(width), maxBytes: BodyLimit.image,
                                                accept: Self.imageTypes)
         return data

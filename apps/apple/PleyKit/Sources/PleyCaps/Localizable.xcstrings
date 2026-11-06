@@ -1,5 +1,607 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "%@ (level %@)" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (nivel %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (niveau %@)"
+          }
+        }
+      }
+    },
+    "%@ no" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ non"
+          }
+        }
+      }
+    },
+    "%@ yes" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ sí"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ oui"
+          }
+        }
+      }
+    },
+    "%@-bit" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bits"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ bits"
+          }
+        }
+      }
+    },
+    "%@: %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ : %@"
+          }
+        }
+      }
+    },
+    "Audio decoders: %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificadores de audio: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décodeurs audio : %@"
+          }
+        }
+      }
+    },
+    "Audio output: %@, %lld channels" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Audio output: %@, %lld channel"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Audio output: %@, %lld channels"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Salida de audio: %@, %lld de canales"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Salida de audio: %@, %lld canal"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Salida de audio: %@, %lld canales"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sortie audio : %@, %lld de canaux"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sortie audio : %@, %lld canal"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sortie audio : %@, %lld canaux"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Audio output: %@, %lld channels, spatial audio" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Audio output: %@, %lld channel, spatial audio"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Audio output: %@, %lld channels, spatial audio"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Salida de audio: %@, %lld de canales, audio espacial"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Salida de audio: %@, %lld canal, audio espacial"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Salida de audio: %@, %lld canales, audio espacial"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sortie audio : %@, %lld de canaux, audio spatial"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sortie audio : %@, %lld canal, audio spatial"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sortie audio : %@, %lld canaux, audio spatial"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Device: %@, %@ (simulator), tier %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo: %@, %@ (simulador), nivel %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appareil : %@, %@ (simulateur), niveau %@"
+          }
+        }
+      }
+    },
+    "Device: %@, %@, tier %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dispositivo: %@, %@, nivel %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Appareil : %@, %@, niveau %@"
+          }
+        }
+      }
+    },
+    "Dolby Vision profiles: %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Perfiles de Dolby Vision: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Profils Dolby Vision : %@"
+          }
+        }
+      }
+    },
+    "HDR played as it is: %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR reproducido tal cual: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR lu tel quel : %@"
+          }
+        }
+      }
+    },
+    "HDR: %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HDR : %@"
+          }
+        }
+      }
+    },
+    "Hardware decoding: %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decodificación por hardware: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Décodage matériel : %@"
+          }
+        }
+      }
+    },
+    "No video decoder" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ningún decodificador de video"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun décodeur vidéo"
+          }
+        }
+      }
+    },
+    "Screen: %@, %@ Hz" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pantalla: %@, %@ Hz"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écran : %@, %@ Hz"
+          }
+        }
+      }
+    },
+    "Screen: %@, %@ Hz, Match Content on" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pantalla: %@, %@ Hz, Ajustar contenido activado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écran : %@, %@ Hz, Faire correspondre le contenu activé"
+          }
+        }
+      }
+    },
+    "Screen: unknown" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pantalla: desconocida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Écran : inconnu"
+          }
+        }
+      }
+    },
+    "any profile" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cualquier perfil"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tout profil"
+          }
+        }
+      }
+    },
+    "eligible" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "compatible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "compatible"
+          }
+        }
+      }
+    },
+    "headroom %@×" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "margen %@×"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "marge %@×"
+          }
+        }
+      }
+    },
+    "level %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nivel %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "niveau %@"
+          }
+        }
+      }
+    },
+    "modes %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "modos %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "modes %@"
+          }
+        }
+      }
+    },
+    "none" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ninguno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aucun"
+          }
+        }
+      }
+    },
+    "none said" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no indicado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non indiqué"
+          }
+        }
+      }
+    },
+    "not eligible" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no compatible"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "non compatible"
+          }
+        }
+      }
+    },
+    "unknown" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "desconocido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "inconnu"
+          }
+        }
+      }
+    },
+    "up to %@" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hasta %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "jusqu’à %@"
+          }
+        }
+      }
+    },
+    "up to %@ at %@ fps" : {
+      "comment" : "Diagnostics: what this device plays, a line each.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hasta %@ a %@ fps"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "jusqu’à %@ à %@ i/s"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

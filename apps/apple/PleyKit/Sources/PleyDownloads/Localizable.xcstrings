@@ -1,5 +1,193 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "Not enough space on this device" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay suficiente espacio en este dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas assez d’espace sur cet appareil"
+          }
+        }
+      }
+    },
+    "Sign in to the server again to download this" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve a iniciar sesión en el servidor para descargar esto"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnectez-vous au serveur pour télécharger ceci"
+          }
+        }
+      }
+    },
+    "The downloaded file is gone" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El archivo descargado ya no está"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le fichier téléchargé a disparu"
+          }
+        }
+      }
+    },
+    "The server can't make it now: try again later" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor no puede prepararlo ahora: vuelve a intentarlo más tarde"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur ne peut pas le préparer maintenant : réessayez plus tard"
+          }
+        }
+      }
+    },
+    "The server can't make smaller downloads: choose Original in Settings → Downloads" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor no puede preparar descargas más pequeñas: elige Original en Ajustes → Descargas"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur ne peut pas préparer de téléchargements plus légers : choisissez Original dans Réglages → Téléchargements"
+          }
+        }
+      }
+    },
+    "The server couldn't make it for this device" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor no pudo prepararlo para este dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur n’a pas pu le préparer pour cet appareil"
+          }
+        }
+      }
+    },
+    "The server couldn't send this file (%@)" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor no pudo enviar este archivo (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur n’a pas pu envoyer ce fichier (%@)"
+          }
+        }
+      }
+    },
+    "The server stopped making it for this device" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor dejó de prepararlo para este dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur a cessé de le préparer pour cet appareil"
+          }
+        }
+      }
+    },
+    "The server's address isn't https or on your home network, so the download was stopped" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La dirección del servidor no es https ni está en la red de tu casa, así que se detuvo la descarga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’adresse du serveur n’est ni en https ni sur le réseau de votre domicile, le téléchargement a donc été arrêté"
+          }
+        }
+      }
+    },
+    "This file is no longer on the server" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este archivo ya no está en el servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce fichier n’est plus sur le serveur"
+          }
+        }
+      }
+    },
+    "This title has no file to download" : {
+      "comment" : "Why a download failed, under its title in Downloads.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este título no tiene ningún archivo para descargar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce titre n’a aucun fichier à télécharger"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

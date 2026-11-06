@@ -17,11 +17,13 @@ public struct KeychainError: Error, Sendable, Equatable, CustomStringConvertible
 
 extension KeychainError: LocalizedError {
     public var errorDescription: String? {
-        switch status {
+        // A code, not a number: never grouped as one ("-34 018").
+        let code = String(status)
+        return switch status {
         // A build that isn't signed has no Keychain of its own.
-        case errSecMissingEntitlement: "this build of Pley can't use the Keychain: it isn't signed (error \(status))"
-        case errSecInteractionNotAllowed: "the Keychain can't be read until this device is unlocked (error \(status))"
-        default: "this device's Keychain can't be used (error \(status))"
+        case errSecMissingEntitlement: localized("this build of Pley can't use the Keychain: it isn't signed (error \(code))")
+        case errSecInteractionNotAllowed: localized("the Keychain can't be read until this device is unlocked (error \(code))")
+        default: localized("this device's Keychain can't be used (error \(code))")
         }
     }
 }

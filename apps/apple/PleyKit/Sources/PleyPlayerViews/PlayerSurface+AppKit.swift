@@ -131,7 +131,7 @@ public final class PleyPlayerView: AVPlayerView, AVPlayerViewPictureInPictureDel
 
     /// The action menu, set once: its delegate fills it as it opens.
     func addActionMenu() {
-        let menu = NSMenu(title: "Player")
+        let menu = NSMenu(title: localized("Player"))
         menu.delegate = actionMenuSource
         actionPopUpButtonMenu = menu
     }
@@ -268,8 +268,8 @@ public enum PlayerMenus {
     static func actionItems(_ state: PlayerState, controller: PlaybackController?,
                             findSubtitles: (@MainActor () -> Void)? = nil) -> [NSMenuItem] {
         let menu = NSMenu()
-        let quality = NSMenuItem(title: "Quality", action: nil, keyEquivalent: "")
-        quality.submenu = NSMenu(title: "Quality")
+        let quality = NSMenuItem(title: localized("Quality"), action: nil, keyEquivalent: "")
+        quality.submenu = NSMenu(title: localized("Quality"))
         for choice in state.qualities {
             let item = ClosureMenuItem(title: choice.label) { [weak controller] in
                 controller?.selectQuality(choice.id)
@@ -280,7 +280,7 @@ public enum PlayerMenus {
         }
         menu.addItem(quality)
         if state.audio.count > 1 {
-            menu.addItem(submenu("Audio", state.audio.map { choice in
+            menu.addItem(submenu(localized("Audio"), state.audio.map { choice in
                 let item = ClosureMenuItem(title: choice.label) { [weak controller] in
                     if let index = Int(choice.id) { controller?.selectAudio(index) }
                 }
@@ -293,7 +293,7 @@ public enum PlayerMenus {
             let subtitles = subtitlesMenu(state, controller: controller)
             if let find {
                 if !state.subtitles.isEmpty { subtitles.submenu?.addItem(.separator()) }
-                subtitles.submenu?.addItem(ClosureMenuItem(title: "Find Subtitles…", run: find))
+                subtitles.submenu?.addItem(ClosureMenuItem(title: localized("Find Subtitles…"), run: find))
             }
             menu.addItem(subtitles)
             if state.canSyncSubtitles { menu.addItem(syncMenu(state, controller: controller)) }
@@ -302,7 +302,7 @@ public enum PlayerMenus {
         menu.addItem(speedMenu(state, controller: controller))
         menu.addItem(sleepMenu(state, controller: controller))
         if !state.chapters.isEmpty {
-            menu.addItem(submenu("Chapters", state.chapters.map { chapter in
+            menu.addItem(submenu(localized("Chapters"), state.chapters.map { chapter in
                 let item = ClosureMenuItem(title: chapter.label) { [weak controller] in
                     controller?.jumpToChapter(chapter.index)
                 }
@@ -310,10 +310,10 @@ public enum PlayerMenus {
                 return item
             }))
         }
-        let details = NSMenuItem(title: "Details", action: nil, keyEquivalent: "")
-        details.submenu = NSMenu(title: "Details")
+        let details = NSMenuItem(title: localized("Details"), action: nil, keyEquivalent: "")
+        details.submenu = NSMenu(title: localized("Details"))
         for line in PlayerDetails.lines(state) {
-            let item = NSMenuItem(title: "\(line.title): \(line.text)", action: nil, keyEquivalent: "")
+            let item = NSMenuItem(title: localized("\(line.title): \(line.text)"), action: nil, keyEquivalent: "")
             item.isEnabled = false
             details.submenu?.addItem(item)
         }
@@ -326,7 +326,7 @@ public enum PlayerMenus {
     /// Subtitles: Off and each track, the one shown checked.
     @MainActor
     public static func subtitlesMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
-        submenu("Subtitles", state.subtitles.map { choice in
+        submenu(localized("Subtitles"), state.subtitles.map { choice in
             let item = ClosureMenuItem(title: choice.label) { [weak controller] in
                 controller?.selectSubtitle(choice.id == MenuChoice.off ? nil : Int(choice.id))
             }
@@ -340,16 +340,16 @@ public enum PlayerMenus {
     @MainActor
     public static func syncMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
         let offset = state.subtitleOffsetMs
-        let now = NSMenuItem(title: "Offset: \(state.subtitleOffsetLabel)", action: nil, keyEquivalent: "")
+        let now = NSMenuItem(title: localized("Offset: \(state.subtitleOffsetLabel)"), action: nil, keyEquivalent: "")
         now.isEnabled = false
-        let reset = ClosureMenuItem(title: "Reset") { [weak controller] in controller?.setSubtitleOffset(0) }
+        let reset = ClosureMenuItem(title: localized("Reset")) { [weak controller] in controller?.setSubtitleOffset(0) }
         reset.isEnabled = offset != 0
-        return submenu("Subtitle Sync", [
+        return submenu(localized("Subtitle Sync"), [
             now,
-            ClosureMenuItem(title: "Earlier (−0.1 s)") { [weak controller] in
+            ClosureMenuItem(title: localized("Earlier (\(SubtitleSync.label(-SubtitleSync.stepMs)))")) { [weak controller] in
                 controller?.moveSubtitles(steps: -1)
             },
-            ClosureMenuItem(title: "Later (+0.1 s)") { [weak controller] in
+            ClosureMenuItem(title: localized("Later (\(SubtitleSync.label(SubtitleSync.stepMs)))")) { [weak controller] in
                 controller?.moveSubtitles(steps: 1)
             },
             reset,
@@ -362,7 +362,7 @@ public enum PlayerMenus {
     public static func styleMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem? {
         let menus = state.subtitleStyleMenus
         guard !menus.isEmpty else { return nil }
-        return submenu("Subtitle Style", menus.map { menu in
+        return submenu(localized("Subtitle Style"), menus.map { menu in
             let item = submenu(menu.title, menu.choices.map { choice in
                 let item = ClosureMenuItem(title: choice.label) { [weak controller] in
                     controller?.setSubtitleStyle(menu.kind, choice.id)
@@ -378,7 +378,7 @@ public enum PlayerMenus {
     /// Speed, 0.5× to 2×, the one playing checked.
     @MainActor
     public static func speedMenu(_ state: PlayerState, controller: PlaybackController?) -> NSMenuItem {
-        let item = submenu("Speed", state.speeds.map { choice in
+        let item = submenu(localized("Speed"), state.speeds.map { choice in
             let item = ClosureMenuItem(title: choice.label) { [weak controller] in
                 if let speed = PlaybackSpeeds.speed(id: choice.id) { controller?.setSpeed(speed) }
             }
@@ -402,11 +402,11 @@ public enum PlayerMenus {
             return item
         }
         if state.sleep.secondsLeft != nil {
-            items += [.separator(), ClosureMenuItem(title: "Keep Watching") { [weak controller] in
+            items += [.separator(), ClosureMenuItem(title: localized("Keep Watching")) { [weak controller] in
                 controller?.keepWatching()
             }]
         }
-        let item = submenu("Sleep Timer", items)
+        let item = submenu(localized("Sleep Timer"), items)
         item.subtitle = state.sleepSummary
         return item
     }

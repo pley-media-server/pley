@@ -1,5 +1,6 @@
 #if os(iOS) || os(tvOS)
 import PleyPlayer
+import PleySubtitles
 import UIKit
 
 /// The player's menus as UIKit makes them: on iPhone and iPad behind the
@@ -50,7 +51,7 @@ public enum PlayerMenus {
                               attributes: keepsMenu ? .keepsMenuPresented : []) { _ in handler() }
         action.subtitle = choice.detail
         if choice.selected {
-            action.accessibilityLabel = [choice.label, choice.detail, "selected"].compactMap { $0 }
+            action.accessibilityLabel = [choice.label, choice.detail, localized("selected")].compactMap { $0 }
                 .joined(separator: ", ")
         }
         return action
@@ -58,13 +59,13 @@ public enum PlayerMenus {
 
     /// Quality: each choice with its second line, the one playing checked.
     public static func quality(_ choices: [MenuChoice], _ actions: Actions) -> UIMenu {
-        UIMenu(title: "Quality", image: UIImage(systemName: "slider.horizontal.3"),
+        UIMenu(title: localized("Quality"), image: UIImage(systemName: "slider.horizontal.3"),
                children: choices.map { choice in row(choice) { actions.quality(choice.id) } })
     }
 
     /// Audio, the track playing checked.
     public static func audio(_ choices: [MenuChoice], _ actions: Actions) -> UIMenu {
-        UIMenu(title: "Audio", image: UIImage(systemName: "speaker.wave.2"), children: choices.map { choice in
+        UIMenu(title: localized("Audio"), image: UIImage(systemName: "speaker.wave.2"), children: choices.map { choice in
             row(choice) { if let index = Int(choice.id) { actions.audio(index) } }
         })
     }
@@ -84,18 +85,18 @@ public enum PlayerMenus {
         }
         if let style = subtitleStyle(state, actions) { children.append(style) }
         if let find = findSubtitles(state, actions) { children.append(find) }
-        return UIMenu(title: "Subtitles", image: UIImage(systemName: "captions.bubble"), children: children)
+        return UIMenu(title: localized("Subtitles"), image: UIImage(systemName: "captions.bubble"), children: children)
     }
 
     /// Find Subtitles…, while the file streams from the server and the screen can open the search.
     public static func findSubtitles(_ state: PlayerState, _ actions: Actions) -> UIAction? {
         guard state.canFindSubtitles, let find = actions.findSubtitles else { return nil }
-        return UIAction(title: "Find Subtitles…", image: UIImage(systemName: "magnifyingglass")) { _ in find() }
+        return UIAction(title: localized("Find Subtitles…"), image: UIImage(systemName: "magnifyingglass")) { _ in find() }
     }
 
     /// Speed, 0.5× to 2×, the one playing checked, with it as the menu's second line.
     public static func speed(_ state: PlayerState, _ actions: Actions) -> UIMenu {
-        UIMenu(title: "Speed", subtitle: state.speedLabel, image: UIImage(systemName: "gauge.with.dots.needle.67percent"),
+        UIMenu(title: localized("Speed"), subtitle: state.speedLabel, image: UIImage(systemName: "gauge.with.dots.needle.67percent"),
                children: state.speeds.map { choice in
                    row(choice) { if let speed = PlaybackSpeeds.speed(id: choice.id) { actions.speed(speed) } }
                })
@@ -104,7 +105,7 @@ public enum PlayerMenus {
     /// Sleep Timer: Off, the minutes and the end of this episode, the one
     /// running checked, with what is left as the menu's second line.
     public static func sleepTimer(_ state: PlayerState, _ actions: Actions) -> UIMenu {
-        UIMenu(title: "Sleep Timer", subtitle: state.sleepSummary, image: UIImage(systemName: "moon.zzz"),
+        UIMenu(title: localized("Sleep Timer"), subtitle: state.sleepSummary, image: UIImage(systemName: "moon.zzz"),
                children: state.sleepChoices.map { choice in
                    row(choice) { if let sleep = SleepChoice(id: choice.id) { actions.sleep(sleep) } }
                })
@@ -112,15 +113,15 @@ public enum PlayerMenus {
 
     /// The subtitle sync, with the offset as its second line.
     public static func subtitleSync(_ state: PlayerState, _ actions: Actions) -> UIMenu {
-        UIMenu(title: "Subtitle sync", subtitle: state.subtitleOffsetLabel, image: UIImage(systemName: "timer"),
+        UIMenu(title: localized("Subtitle sync"), subtitle: state.subtitleOffsetLabel, image: UIImage(systemName: "timer"),
                children: [
-                   UIAction(title: "Earlier", subtitle: "−0.1 s", attributes: .keepsMenuPresented) { _ in
+                   UIAction(title: localized("Earlier"), subtitle: SubtitleSync.label(-SubtitleSync.stepMs), attributes: .keepsMenuPresented) { _ in
                        actions.moveSubtitles(-1)
                    },
-                   UIAction(title: "Later", subtitle: "+0.1 s", attributes: .keepsMenuPresented) { _ in
+                   UIAction(title: localized("Later"), subtitle: SubtitleSync.label(SubtitleSync.stepMs), attributes: .keepsMenuPresented) { _ in
                        actions.moveSubtitles(1)
                    },
-                   UIAction(title: "Reset", attributes: state.subtitleOffsetMs == 0 ? .disabled : []) { _ in
+                   UIAction(title: localized("Reset"), attributes: state.subtitleOffsetMs == 0 ? .disabled : []) { _ in
                        actions.resetSubtitleSync()
                    },
                ])
@@ -132,7 +133,7 @@ public enum PlayerMenus {
     public static func subtitleStyle(_ state: PlayerState, _ actions: Actions) -> UIMenu? {
         let menus = state.subtitleStyleMenus
         guard !menus.isEmpty else { return nil }
-        return UIMenu(title: "Subtitle style", image: UIImage(systemName: "textformat.size"),
+        return UIMenu(title: localized("Subtitle style"), image: UIImage(systemName: "textformat.size"),
                       children: menus.map { menu in
                           UIMenu(title: menu.title, subtitle: menu.summary, children: menu.choices.map { choice in
                               row(choice) { actions.subtitleStyle(menu.kind, choice.id) }
@@ -142,7 +143,7 @@ public enum PlayerMenus {
 
     /// The chapters, the one playing checked.
     public static func chapters(_ chapters: [ChapterChoice], _ actions: Actions) -> UIMenu {
-        UIMenu(title: "Chapters", image: UIImage(systemName: "list.bullet"), children: chapters.map { chapter in
+        UIMenu(title: localized("Chapters"), image: UIImage(systemName: "list.bullet"), children: chapters.map { chapter in
             row(MenuChoice(id: String(chapter.index), label: chapter.label, selected: chapter.current)) {
                 actions.chapter(chapter.index)
             }
@@ -161,7 +162,7 @@ public enum PlayerMenus {
             let tracks: [UIMenuElement] = state.subtitles.map { choice in
                 row(choice) { actions.subtitle(choice.id == MenuChoice.off ? nil : Int(choice.id)) }
             } + [find].compactMap { $0 }
-            children.append(UIMenu(title: "Subtitles", options: .displayInline, children: tracks))
+            children.append(UIMenu(title: localized("Subtitles"), options: .displayInline, children: tracks))
             if state.canSyncSubtitles { children.append(subtitleSync(state, actions)) }
             if let style = subtitleStyle(state, actions) { children.append(style) }
         }
@@ -171,7 +172,7 @@ public enum PlayerMenus {
         let details = PlayerDetails.lines(state).map { line in
             UIAction(title: line.title, subtitle: line.text, attributes: .disabled) { _ in }
         }
-        children.append(UIMenu(title: "Details", options: .displayInline, children: details))
+        children.append(UIMenu(title: localized("Details"), options: .displayInline, children: details))
         return UIMenu(title: "", children: children)
     }
 
@@ -210,7 +211,7 @@ public struct PlayerOptionsButton: UIViewRepresentable {
         look.cornerStyle = .capsule
         let button = UIButton(configuration: look)
         button.showsMenuAsPrimaryAction = true
-        button.accessibilityLabel = "Options"
+        button.accessibilityLabel = localized("Options")
         button.accessibilityIdentifier = "player.options"
         button.addAction(UIAction { [weak coordinator = context.coordinator] _ in coordinator?.onTap() },
                          for: .menuActionTriggered)

@@ -32,7 +32,7 @@ public struct ServerProbe: Sendable {
 
     public func probe(_ input: String) async -> ProbeResult {
         let candidates = Servers.candidates(input)
-        if candidates.isEmpty { return .unreachable("that isn't a server address") }
+        if candidates.isEmpty { return .unreachable(PleyError.notAnAddress) }
         return await probe(candidates: candidates)
     }
 
@@ -83,7 +83,7 @@ public struct ServerProbe: Sendable {
         }
         if let notPley { return notPley }
         // Cancelled, or every address failed.
-        return .unreachable(failure?.userMessage ?? "nothing answers there")
+        return .unreachable(failure?.userMessage ?? PleyError.nothingAnswers)
     }
 
     /// A redirect from http to https on the same host (a proxy that wants

@@ -35,23 +35,24 @@ public enum PlayerDetails {
 
     public static func lines(_ state: PlayerState) -> [Line] {
         var lines: [Line] = []
-        lines.append(Line(title: "Playing", text: state.methodLabel ?? "Starting…"))
-        lines.append(Line(title: "Quality", text: state.quality))
+        lines.append(Line(title: localized("Playing"), text: state.methodLabel ?? localized("Starting…")))
+        lines.append(Line(title: localized("Quality"), text: state.quality))
         if let note = state.qualityNote {
-            lines.append(Line(title: "Lowered", text: note))
+            lines.append(Line(title: localized("Lowered"), text: note))
         }
         if !state.reasons.isEmpty {
-            lines.append(Line(title: "Why", text: state.reasons.joined(separator: " ")))
+            lines.append(Line(title: localized("Why"), text: state.reasons.joined(separator: " ")))
         }
         if let range = state.videoRange, !range.isEmpty {
-            lines.append(Line(title: "Video", text: range))
+            lines.append(Line(title: localized("Video"), text: range))
         }
         if let out = state.videoOut, !out.isEmpty {
-            lines.append(Line(title: "Video out", text: out))
+            lines.append(Line(title: localized("Video out"), text: out))
         }
         if state.subtitles.contains(where: { $0.selected && $0.id != MenuChoice.off }) {
-            let burned = state.subtitlesBurnedIn ? " · burned into the video" : ""
-            lines.append(Line(title: "Subtitles", text: state.subtitleLabel + burned))
+            let label = state.subtitleLabel
+            let text = state.subtitlesBurnedIn ? localized("\(label) · burned into the video") : label
+            lines.append(Line(title: localized("Subtitles"), text: text))
         }
         return lines
     }

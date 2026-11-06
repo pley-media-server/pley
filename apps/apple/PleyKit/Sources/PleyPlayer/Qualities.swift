@@ -157,9 +157,9 @@ public enum Qualities {
 
     /// A quality by the menu's name: "Original", "Automatic", "8 Mbps 1080p".
     public static func label(_ preset: QualityPreset) -> String {
-        if preset.original { return "Original" }
-        if preset.automatic { return "Automatic" }
-        guard let kbps = preset.maxBitrateKbps, let lines = preset.maxHeight else { return "Original" }
+        if preset.original { return localized("Original") }
+        if preset.automatic { return localized("Automatic") }
+        guard let kbps = preset.maxBitrateKbps, let lines = preset.maxHeight else { return localized("Original") }
         return "\(kbps / 1000) Mbps \(linesLabel(lines))"
     }
 

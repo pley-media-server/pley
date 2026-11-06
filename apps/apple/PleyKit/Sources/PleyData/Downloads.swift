@@ -134,7 +134,7 @@ public enum DownloadQuality: String, CaseIterable, Hashable, Sendable {
 
     public var label: String {
         switch self {
-        case .original: "Original"
+        case .original: localized("Original")
         case .hd1080: "1080p · 8 Mbps"
         case .hd720: "720p · 4 Mbps"
         case .sd480: "480p · 1.5 Mbps"

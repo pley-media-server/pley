@@ -72,7 +72,7 @@ public struct PlayerSurface: UIViewControllerRepresentable {
         #else
         controller.appliesPreferredDisplayCriteriaAutomatically = true
         let details = UIHostingController(rootView: AnyView(PlayerDetailsView(state: state).padding(40)))
-        details.title = "Details"
+        details.title = localized("Details")
         details.preferredContentSize = CGSize(width: 0, height: 320)
         context.coordinator.details = details
         controller.customInfoViewControllers = [details]
@@ -188,14 +188,14 @@ public struct PlayerSurface: UIViewControllerRepresentable {
     static func contextualActions(_ state: PlayerState,
                                   _ playback: PlaybackController?) -> (key: String, list: [UIAction]) {
         if state.sleep.secondsLeft != nil {
-            return ("sleep", [UIAction(title: "Keep Watching", image: UIImage(systemName: "moon.zzz")) { _ in
+            return ("sleep", [UIAction(title: localized("Keep Watching"), image: UIImage(systemName: "moon.zzz")) { _ in
                 playback?.keepWatching()
             }])
         }
         if let card = state.upNext {
             return ("next \(card.itemId) \(card.playLabel)", [
                 UIAction(title: card.playLabel, image: UIImage(systemName: "forward.end")) { _ in playback?.playNext() },
-                UIAction(title: "Cancel") { _ in playback?.cancelUpNext() },
+                UIAction(title: localized("Cancel")) { _ in playback?.cancelUpNext() },
             ])
         }
         if let label = state.skipLabel {

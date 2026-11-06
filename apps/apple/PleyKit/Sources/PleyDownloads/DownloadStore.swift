@@ -83,7 +83,7 @@ struct DownloadRecord: Codable, Hashable, Sendable {
 final class DownloadStore {
     static let index = "index.json"
     /// Why a download marked whole has no file: its folder went.
-    static let missing = "The downloaded file is gone"
+    static var missing: String { localized("The downloaded file is gone") }
 
     let root: URL
     /// Every download of every server and profile, oldest first.

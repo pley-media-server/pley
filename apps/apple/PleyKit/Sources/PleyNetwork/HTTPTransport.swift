@@ -88,7 +88,7 @@ public final class HTTPTransport: Sendable {
                          onLeak: (@Sendable () async -> Void)? = nil) async throws -> HTTPResponse {
         guard let url = request.url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
               let host = url.host(percentEncoded: false), !host.isEmpty
-        else { throw PleyError.unreachable("that isn't a server address") }
+        else { throw PleyError.unreachable(PleyError.notAnAddress) }
         let plainHTTP = scheme == "http"
         if gated && plainHTTP { try await gate.check(host: host) }
         try Task.checkCancellation()
@@ -162,7 +162,7 @@ extension HTTPTransport {
                             read: @escaping @Sendable (Data) -> Bool) async throws -> StreamedResponse {
         guard let url = request.url, let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https",
               let host = url.host(percentEncoded: false), !host.isEmpty
-        else { throw PleyError.unreachable("that isn't a server address") }
+        else { throw PleyError.unreachable(PleyError.notAnAddress) }
         let plainHTTP = scheme == "http"
         if plainHTTP { try await gate.check(host: host) }
         try Task.checkCancellation()

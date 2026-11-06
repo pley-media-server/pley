@@ -110,7 +110,7 @@ public enum ServerProofs {
                                  URLQueryItem(name: "proof_id", value: proof.proofId)]
         guard let url = components.url else { throw notIt }
         let answer = try await endpoints.answer(url)
-        if answer.status >= 500 { throw PleyError.unreachable("the server couldn't answer (HTTP \(answer.status))") }
+        if answer.status >= 500 { throw PleyError.unreachable(localized("the server couldn't answer (HTTP \(String(answer.status)))")) }
         guard answer.status == 200,
               let body = try? PleyJSON.decoder.decode(ProofAnswer.self, from: answer.body),
               body.id == proof.serverId, let given = body.proof

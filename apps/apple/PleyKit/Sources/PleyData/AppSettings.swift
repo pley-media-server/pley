@@ -308,9 +308,9 @@ public enum GridDensity: String, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .small: "Small"
-        case .medium: "Medium"
-        case .large: "Large"
+        case .small: localized("Small")
+        case .medium: localized("Medium")
+        case .large: localized("Large")
         }
     }
 
@@ -383,8 +383,8 @@ public enum SubtitleSize: String, CaseIterable, Sendable {
     }
 
     public var label: String {
-        guard let scale else { return "System" }
-        return "\(Int((scale * 100).rounded())) %"
+        guard let scale else { return localized("System") }
+        return localized("\(Int((scale * 100).rounded())) %")
     }
 }
 
@@ -393,9 +393,9 @@ public enum SubtitleBackground: String, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .system: "System"
-        case .none: "None"
-        case .darkBox: "Dark box"
+        case .system: localized("System")
+        case .none: localized("None")
+        case .darkBox: localized("Dark box")
         }
     }
 }
@@ -405,11 +405,11 @@ public enum SubtitleFont: String, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .system: "System"
-        case .sansSerif: "Sans serif"
-        case .serif: "Serif"
-        case .monospace: "Monospace"
-        case .casual: "Casual"
+        case .system: localized("System")
+        case .sansSerif: localized("Sans serif")
+        case .serif: localized("Serif")
+        case .monospace: localized("Monospace")
+        case .casual: localized("Casual")
         }
     }
 
@@ -436,6 +436,6 @@ public enum SubtitleRaise: Int, CaseIterable, Sendable {
     public var share: Double { Double(rawValue) / 100 }
 
     public var label: String {
-        self == .bottom ? "Bottom" : "Raised \(rawValue) %"
+        self == .bottom ? localized("Bottom") : localized("Raised \(rawValue) %")
     }
 }

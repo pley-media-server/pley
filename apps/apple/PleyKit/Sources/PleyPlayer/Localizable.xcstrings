@@ -1,5 +1,1310 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "%@ didn't start" : {
+      "comment" : "Live TV player's title: the channel didn't start.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no se inició"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ n’a pas démarré"
+          }
+        }
+      }
+    },
+    "%@ isn't playing" : {
+      "comment" : "Live TV player's title: the channel isn't playing.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no está emitiendo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ est indisponible"
+          }
+        }
+      }
+    },
+    "%@ · Audio transcoding" : {
+      "comment" : "Details: how it plays, with the audio converted: \"Direct stream · Audio transcoding\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · Audio transcodificado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · Audio transcodé"
+          }
+        }
+      }
+    },
+    "%lld min left" : {
+      "comment" : "The Sleep Timer menu's second line: minutes before it pauses.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld min left"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld min left"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Quedan %lld min"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Queda %lld min"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Quedan %lld min"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld min restantes"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld min restante"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld min restantes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "%lld minutes" : {
+      "comment" : "The Sleep Timer menu: a number of minutes.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de minutos"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minuto"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutos"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld de minutes"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minute"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld minutes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "All connections are in use" : {
+      "comment" : "Live TV player's title: every tuner connection is in use.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todas las conexiones están en uso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les connexions sont utilisées"
+          }
+        }
+      }
+    },
+    "Automatic" : {
+      "comment" : "The Quality menu's Automatic (Spanish: la calidad, feminine).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automática"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique"
+          }
+        }
+      }
+    },
+    "Automatic · %@" : {
+      "comment" : "The Quality menu's Automatic while it plays a quality: \"Automatic · 8 Mbps 1080p\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automática · %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique · %@"
+          }
+        }
+      }
+    },
+    "Background" : {
+      "comment" : "A Subtitle style menu: the subtitles' background.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fondo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fond"
+          }
+        }
+      }
+    },
+    "Burned into the video" : {
+      "comment" : "A subtitle track's second line: the server burns it into the picture.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incrustados en el video"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Incrustés dans la vidéo"
+          }
+        }
+      }
+    },
+    "Can't reach the server." : {
+      "comment" : "Now Playing: music stopped because the server can't be reached.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede conectar con el servidor."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de joindre le serveur."
+          }
+        }
+      }
+    },
+    "Can't reach your server" : {
+      "comment" : "Live TV player's title: the server can't be reached.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se puede conectar con tu servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de joindre votre serveur"
+          }
+        }
+      }
+    },
+    "Chapter %lld" : {
+      "comment" : "A chapter with no title of its own in the Chapters menu.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capítulo %lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapitre %lld"
+          }
+        }
+      }
+    },
+    "Direct play" : {
+      "comment" : "Details: the file plays as it is.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducción directa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture directe"
+          }
+        }
+      }
+    },
+    "Direct stream" : {
+      "comment" : "Details: the server repackages the file.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transmisión directa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flux direct"
+          }
+        }
+      }
+    },
+    "Downloaded" : {
+      "comment" : "Details and the Quality menu: a download plays from this device.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descargado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargé"
+          }
+        }
+      }
+    },
+    "Dynamically adjust to conditions" : {
+      "comment" : "The Quality menu: Automatic's second line.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se adapta a las condiciones"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S’adapte aux conditions"
+          }
+        }
+      }
+    },
+    "E%lld" : {
+      "comment" : "An episode's number with no season: \"E2\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "E%lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "É%lld"
+          }
+        }
+      }
+    },
+    "End of this episode" : {
+      "comment" : "The sleep timer: pause at the end of this episode.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final de este episodio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fin de cet épisode"
+          }
+        }
+      }
+    },
+    "End of this movie" : {
+      "comment" : "The sleep timer: pause at the end of this movie.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final de esta película"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fin de ce film"
+          }
+        }
+      }
+    },
+    "End of this track" : {
+      "comment" : "The sleep timer: pause at the end of this track.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Final de esta pista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fin de ce titre"
+          }
+        }
+      }
+    },
+    "Font" : {
+      "comment" : "A Subtitle style menu: the subtitles' font.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fuente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Police"
+          }
+        }
+      }
+    },
+    "Live TV isn't open to this profile" : {
+      "comment" : "Live TV player's title: this profile may not watch Live TV.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en vivo no está abierta a este perfil"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en direct n’est pas ouverte à ce profil"
+          }
+        }
+      }
+    },
+    "Live TV was stopped by the server's administrator." : {
+      "comment" : "Live TV player: who stopped watching.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El administrador del servidor detuvo la TV en vivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en direct a été arrêtée par l’administrateur du serveur."
+          }
+        }
+      }
+    },
+    "Live TV was stopped from another device." : {
+      "comment" : "Live TV player: who stopped watching.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en vivo se detuvo desde otro dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en direct a été arrêtée depuis un autre appareil."
+          }
+        }
+      }
+    },
+    "Lowered for this device" : {
+      "comment" : "Details: why Automatic plays lower.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reducida para este dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réduite pour cet appareil"
+          }
+        }
+      }
+    },
+    "Lowered for your connection" : {
+      "comment" : "Details: why Automatic plays lower.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reducida para tu conexión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réduite pour votre connexion"
+          }
+        }
+      }
+    },
+    "Nothing plays next" : {
+      "comment" : "A notice at the end: nothing plays after this.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No hay nada a continuación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Il n’y a rien à suivre"
+          }
+        }
+      }
+    },
+    "Now %@" : {
+      "comment" : "The Quality menu: Automatic's second line while it plays lower: \"Now 8 Mbps 1080p\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ahora %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Actuellement %@"
+          }
+        }
+      }
+    },
+    "Off" : {
+      "comment" : "The Sleep Timer menu: off.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivado"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivé"
+          }
+        }
+      }
+    },
+    "Original" : {
+      "comment" : "The Quality menu: the file as it is.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Original"
+          }
+        }
+      }
+    },
+    "Pausing in %lld s" : {
+      "comment" : "The sleep timer's notice in its last 30 seconds.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se pausará en %lld s"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mise en pause dans %lld s"
+          }
+        }
+      }
+    },
+    "Play Next" : {
+      "comment" : "Up Next's button.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire le suivant"
+          }
+        }
+      }
+    },
+    "Play Next (%lld)" : {
+      "comment" : "Up Next's button while it counts down the seconds.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducir siguiente (%lld)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lire le suivant (%lld)"
+          }
+        }
+      }
+    },
+    "Playback stopped and couldn't start again." : {
+      "comment" : "The player's error.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La reproducción se detuvo y no pudo volver a empezar."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lecture s’est arrêtée et n’a pas pu reprendre."
+          }
+        }
+      }
+    },
+    "Playback was stopped by the server's administrator." : {
+      "comment" : "The player's error: an administrator stopped it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El administrador del servidor detuvo la reproducción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lecture a été arrêtée par l’administrateur du serveur."
+          }
+        }
+      }
+    },
+    "Playback was stopped by the server's administrator. %@" : {
+      "comment" : "The player's error, with what the administrator wrote.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El administrador del servidor detuvo la reproducción. %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lecture a été arrêtée par l’administrateur du serveur. %@"
+          }
+        }
+      }
+    },
+    "Playback was stopped by the server's administrator: %@" : {
+      "comment" : "The player's notice, with what the administrator wrote.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El administrador del servidor detuvo la reproducción: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lecture a été arrêtée par l’administrateur du serveur : %@"
+          }
+        }
+      }
+    },
+    "Playback was stopped by the server." : {
+      "comment" : "Now Playing: music stopped by the server.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor detuvo la reproducción."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur a arrêté la lecture."
+          }
+        }
+      }
+    },
+    "Playback was stopped from another device" : {
+      "comment" : "The player's notice: the profile stopped it elsewhere.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La reproducción se detuvo desde otro dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La lecture a été arrêtée depuis un autre appareil"
+          }
+        }
+      }
+    },
+    "Position" : {
+      "comment" : "A Subtitle style menu: where the subtitles sit.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Posición"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Position"
+          }
+        }
+      }
+    },
+    "Quality lowered to %@" : {
+      "comment" : "A notice when Automatic goes down: \"Quality lowered to 4 Mbps 720p\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calidad reducida a %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualité réduite à %@"
+          }
+        }
+      }
+    },
+    "Reconnecting…" : {
+      "comment" : "A notice while the server is out of reach.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconectando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnexion…"
+          }
+        }
+      }
+    },
+    "S%lld" : {
+      "comment" : "A season's number with no episode: \"S1\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "T%lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S%lld"
+          }
+        }
+      }
+    },
+    "S%lld E%lld" : {
+      "comment" : "An episode's season and number: \"S1 E2\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "T%lld E%lld"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "S%lld É%lld"
+          }
+        }
+      }
+    },
+    "Sign in again to play." : {
+      "comment" : "Now Playing: music stopped because nobody is signed in.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vuelve a iniciar sesión para reproducir."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reconnectez-vous pour lire."
+          }
+        }
+      }
+    },
+    "Size" : {
+      "comment" : "A Subtitle style menu: the subtitles' size.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tamaño"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Taille"
+          }
+        }
+      }
+    },
+    "Skip Credits" : {
+      "comment" : "The player's button during the credits.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar créditos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer le générique"
+          }
+        }
+      }
+    },
+    "Skip Intro" : {
+      "comment" : "The player's button during the intro.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saltar intro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Passer l’intro"
+          }
+        }
+      }
+    },
+    "Subtitles added" : {
+      "comment" : "A notice: subtitles found were added.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Subtítulos añadidos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sous-titres ajoutés"
+          }
+        }
+      }
+    },
+    "The original didn't play smoothly on this device." : {
+      "comment" : "Details: why a lower quality plays.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El original no se reproducía con fluidez en este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "L’original n’était pas fluide sur cet appareil."
+          }
+        }
+      }
+    },
+    "The player stopped unexpectedly." : {
+      "comment" : "The player's error.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El reproductor se detuvo inesperadamente."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le lecteur s’est arrêté de façon inattendue."
+          }
+        }
+      }
+    },
+    "The server can't convert this video fast enough; a lower quality would play smoothly." : {
+      "comment" : "A notice: the server's conversion is too slow.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El servidor no puede convertir este video lo bastante rápido; una calidad más baja se reproduciría con fluidez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le serveur ne parvient pas à convertir cette vidéo assez vite ; une qualité inférieure serait fluide."
+          }
+        }
+      }
+    },
+    "The server couldn't be reached." : {
+      "comment" : "The player's error.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo conectar con el servidor."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de joindre le serveur."
+          }
+        }
+      }
+    },
+    "The subtitles couldn't be loaded." : {
+      "comment" : "A notice: the subtitles chosen didn't load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudieron cargar los subtítulos."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger les sous-titres."
+          }
+        }
+      }
+    },
+    "The video stops at the same place each time." : {
+      "comment" : "The player's error.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El video se detiene en el mismo punto cada vez."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La vidéo s’arrête chaque fois au même endroit."
+          }
+        }
+      }
+    },
+    "This channel isn't here any more" : {
+      "comment" : "Live TV player's title: the channel is gone.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este canal ya no existe"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette chaîne n’existe plus"
+          }
+        }
+      }
+    },
+    "This device couldn't play the original file." : {
+      "comment" : "Details: why a lower quality plays.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este dispositivo no pudo reproducir el archivo original."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet appareil n’a pas pu lire le fichier original."
+          }
+        }
+      }
+    },
+    "This is the last episode" : {
+      "comment" : "A notice at the end of the show's last episode.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es el último episodio"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "C’est le dernier épisode"
+          }
+        }
+      }
+    },
+    "This item has no file to play." : {
+      "comment" : "The player's error.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este elemento no tiene ningún archivo para reproducir."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cet élément n’a aucun fichier à lire."
+          }
+        }
+      }
+    },
+    "This track can't be played." : {
+      "comment" : "Now Playing: the track can't be played.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esta pista no se puede reproducir."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de lire ce titre."
+          }
+        }
+      }
+    },
+    "This video can't be played on this device." : {
+      "comment" : "The player's error.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Este video no se puede reproducir en este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cette vidéo ne peut pas être lue sur cet appareil."
+          }
+        }
+      }
+    },
+    "Transcoding" : {
+      "comment" : "Details: the server converts the file.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcodificación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Transcodage"
+          }
+        }
+      }
+    },
+    "Up next" : {
+      "comment" : "Up Next's heading.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A continuación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À suivre"
+          }
+        }
+      }
+    },
+    "Up next · %@" : {
+      "comment" : "Up Next's heading for an episode: \"Up next · S1 E2\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A continuación · %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À suivre · %@"
+          }
+        }
+      }
+    },
+    "Watching stopped" : {
+      "comment" : "Live TV player's title: watching was stopped at the server.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visualización detenida"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Visionnage arrêté"
+          }
+        }
+      }
+    },
+    "Watching was stopped." : {
+      "comment" : "Live TV player: watching was stopped, nobody said why.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Se detuvo la visualización."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le visionnage a été arrêté."
+          }
+        }
+      }
+    },
+    "something went wrong" : {
+      "comment" : "The player's error when nothing more is known (made a sentence).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "algo salió mal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "une erreur s’est produite"
+          }
+        }
+      }
+    },
+    "subtitles.off" : {
+      "comment" : "The Subtitles menu's Off (Spanish: los subtítulos, plural).",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Desactivados"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Désactivés"
+          }
+        }
+      }
+    },
+    "the server answered %@" : {
+      "comment" : "Live TV player: the server's HTTP status, when it said nothing more (made a sentence).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor respondió con el código %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur a répondu avec le code %@"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

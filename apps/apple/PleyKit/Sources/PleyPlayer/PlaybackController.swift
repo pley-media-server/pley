@@ -886,7 +886,7 @@ public final class PlaybackController: ObservableObject {
         state.subtitleOffsetMs = subtitleOffset
         publishSubtitles()
         state.chapters = file.chapters.enumerated().map { n, chapter in
-            ChapterChoice(index: n, title: chapter.title.flatMap { $0.isEmpty ? nil : $0 } ?? "Chapter \(n + 1)",
+            ChapterChoice(index: n, title: chapter.title.flatMap { $0.isEmpty ? nil : $0 } ?? localized("Chapter \(n + 1)"),
                           startMs: chapter.startMs)
         }
         followChapters(lastPositionMs)
@@ -2039,7 +2039,7 @@ public final class PlaybackController: ObservableObject {
             stopByServer(message)
             return
         }
-        let words = (error as? any LocalizedError)?.errorDescription ?? "something went wrong"
+        let words = (error as? any LocalizedError)?.errorDescription ?? localized("something went wrong")
         let canRetry: Bool = switch error as? PleyError {
         case .api(let status, _, _): !(status == 403 || status == 404)
         case .signedOut, .insufficientScope: false

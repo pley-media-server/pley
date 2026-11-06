@@ -1,5 +1,482 @@
 {
   "sourceLanguage" : "en",
-  "strings" : {},
+  "strings" : {
+    "Pley isn't allowed to reach your local network: allow it in Settings → Privacy & Security → Local Network" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley no tiene permiso para acceder a tu red local: permítelo en Ajustes → Privacidad y seguridad → Red local"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pley n’est pas autorisé à accéder à votre réseau local : autorisez-le dans Réglages → Confidentialité et sécurité → Réseau local"
+          }
+        }
+      }
+    },
+    "another device answers there" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "otro dispositivo responde en esa dirección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "un autre appareil répond à cette adresse"
+          }
+        }
+      }
+    },
+    "every connection of this channel's provider is in use" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "todas las conexiones del proveedor de este canal están en uso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "toutes les connexions du fournisseur de cette chaîne sont utilisées"
+          }
+        }
+      }
+    },
+    "its secure connection failed" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "falló su conexión segura"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "sa connexion sécurisée a échoué"
+          }
+        }
+      }
+    },
+    "no answer in time" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no hubo respuesta a tiempo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "aucune réponse à temps"
+          }
+        }
+      }
+    },
+    "no such device" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no existe ese dispositivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cet appareil n’existe pas"
+          }
+        }
+      }
+    },
+    "nothing answers there" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "nada responde en esa dirección"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "rien ne répond à cette adresse"
+          }
+        }
+      }
+    },
+    "playback was stopped" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "se detuvo la reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la lecture a été arrêtée"
+          }
+        }
+      }
+    },
+    "playback was stopped: %@" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "se detuvo la reproducción: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la lecture a été arrêtée : %@"
+          }
+        }
+      }
+    },
+    "subtitle search isn't set up on this server" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la búsqueda de subtítulos no está configurada en este servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la recherche de sous-titres n’est pas configurée sur ce serveur"
+          }
+        }
+      }
+    },
+    "subtitle search isn't working on this server" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la búsqueda de subtítulos no funciona en este servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la recherche de sous-titres ne fonctionne pas sur ce serveur"
+          }
+        }
+      }
+    },
+    "that address isn't known on this network" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "esa dirección no se conoce en esta red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cette adresse est inconnue sur ce réseau"
+          }
+        }
+      }
+    },
+    "that isn't a Pley server" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no es un servidor Pley"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce n’est pas un serveur Pley"
+          }
+        }
+      }
+    },
+    "that isn't a server address" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no es una dirección de servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce n’est pas une adresse de serveur"
+          }
+        }
+      }
+    },
+    "that isn't an address on the server" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no es una dirección del servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce n’est pas une adresse sur le serveur"
+          }
+        }
+      }
+    },
+    "the connection to the server failed" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "falló la conexión con el servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la connexion au serveur a échoué"
+          }
+        }
+      }
+    },
+    "the download couldn't be saved" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no se pudo guardar la descarga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le téléchargement n’a pas pu être enregistré"
+          }
+        }
+      }
+    },
+    "the server gave an address that isn't its media's" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor dio una dirección que no es la de sus medios"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur a donné une adresse qui n’est pas celle de ses médias"
+          }
+        }
+      }
+    },
+    "the server refused (%@, HTTP %@)" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor lo rechazó (%@, HTTP %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur a refusé (%@, HTTP %@)"
+          }
+        }
+      }
+    },
+    "the server's answer couldn't be read (HTTP %@)" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "no se pudo leer la respuesta del servidor (HTTP %@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la réponse du serveur est illisible (HTTP %@)"
+          }
+        }
+      }
+    },
+    "the server's answer is too large" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la respuesta del servidor es demasiado grande"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la réponse du serveur est trop volumineuse"
+          }
+        }
+      }
+    },
+    "this app wasn't allowed to do that: sign in to it again to allow it" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "esta aplicación no tenía permiso para hacer eso: vuelve a iniciar sesión para permitirlo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cette application n’a pas été autorisée à faire cela : reconnectez-vous pour l’autoriser"
+          }
+        }
+      }
+    },
+    "this device isn't connected to a network" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este dispositivo no está conectado a ninguna red"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cet appareil n’est connecté à aucun réseau"
+          }
+        }
+      }
+    },
+    "this device opens plain http addresses on your network only: open this server by its https address, its IP address or a name without dots" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este dispositivo solo abre direcciones http sin cifrar en tu red: abre este servidor con su dirección https, su dirección IP o un nombre sin puntos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cet appareil n’ouvre les adresses http non chiffrées que sur votre réseau : ouvrez ce serveur par son adresse https, son adresse IP ou un nom sans points"
+          }
+        }
+      }
+    },
+    "this server answers at another address: open it by that one" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor responde en otra dirección: ábrelo con esa"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur répond à une autre adresse : ouvrez-le par celle-ci"
+          }
+        }
+      }
+    },
+    "this server is too old for this app" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "este servidor es demasiado antiguo para esta aplicación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ce serveur est trop ancien pour cette application"
+          }
+        }
+      }
+    },
+    "this server's address isn't on your network and its connection isn't encrypted: open it by its https address to sign in" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "la dirección de este servidor no está en tu red y su conexión no está cifrada: ábrelo con su dirección https para iniciar sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "l’adresse de ce serveur n’est pas sur votre réseau et sa connexion n’est pas chiffrée : ouvrez-le par son adresse https pour vous connecter"
+          }
+        }
+      }
+    },
+    "you were signed out: sign in again" : {
+      "comment" : "A connection or server error, lower case: shown after \"Couldn't …:\" or made a sentence.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "se cerró tu sesión: vuelve a iniciar sesión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "votre session a pris fin : reconnectez-vous"
+          }
+        }
+      }
+    }
+  },
   "version" : "1.0"
 }

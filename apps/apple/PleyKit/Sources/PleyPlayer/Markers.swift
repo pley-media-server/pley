@@ -33,7 +33,7 @@ public enum Markers {
 
     /// The button's words for `marker`.
     public static func label(_ marker: Marker) -> String {
-        marker.kind == .intro ? "Skip Intro" : "Skip Credits"
+        marker.kind == .intro ? localized("Skip Intro") : localized("Skip Credits")
     }
 }
 
