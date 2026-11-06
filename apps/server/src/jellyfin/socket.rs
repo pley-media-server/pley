@@ -4,7 +4,8 @@
 //! library refresh), `UserDataChanged` for their watch state, `Playstate`
 //! `Stop` when someone else stops their playback, and the commands of the
 //! user's remotes as `Playstate`, or `GeneralCommand` for a change of
-//! track, for a device that takes them ([`Remotes`]).
+//! track, for a device that takes them ([`Remotes`]), and of its SyncPlay
+//! group (`SyncPlayGroupUpdate`, `SyncPlayCommand`, [`super::syncplay`]).
 //! The token is checked again every 30 s, and the socket closes once it is
 //! revoked.
 
@@ -168,6 +169,15 @@ async fn run(
     let mut events = state.events.subscribe();
     // Remotes control this device while its socket is open, and no longer.
     let _open = state.jellyfin_remotes.open(user.id, device.as_deref());
+    // Its SyncPlay group reaches it here; once it has no socket left, it
+    // leaves the group unless one opens again soon.
+    let (mut syncplay, _member) = match device.as_deref() {
+        Some(device) => {
+            let (messages, slot) = state.jellyfin_syncplay.connect((user.id, device.to_owned()));
+            (Some(messages), Some(slot))
+        }
+        None => (None, None),
+    };
     if socket.send(message("ForceKeepAlive", json!(KEEP_ALIVE_SECS))).await.is_err() {
         return;
     }
@@ -191,6 +201,11 @@ async fn run(
                 Some(Ok(_)) => {}
                 Some(Err(_)) | None => return,
             },
+            Some((kind, data)) = next_syncplay(&mut syncplay) => {
+                if socket.send(message(kind, data)).await.is_err() {
+                    return;
+                }
+            }
             event = events.recv() => match event {
                 Ok(event) => {
                     if let Some(out) = translate(&state, &jellyfin, &user, device.as_deref(), &event).await
@@ -209,6 +224,17 @@ async fn run(
                 }
             }
         }
+    }
+}
+
+/// The next message of the device's SyncPlay group, for a device that has
+/// one; never, for one that doesn't.
+async fn next_syncplay(
+    messages: &mut Option<tokio::sync::mpsc::Receiver<super::syncplay::Outgoing>>,
+) -> Option<super::syncplay::Outgoing> {
+    match messages {
+        Some(messages) => messages.recv().await,
+        None => std::future::pending().await,
     }
 }
 

@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- Jellyfin's apps watch together on the Jellyfin-compatible API, with
+  Jellyfin's SyncPlay: a group plays one queue on everyone's device, and a
+  pause, a seek or someone buffering pauses all. A group is shown only to
+  accounts that may see everything it plays.
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays

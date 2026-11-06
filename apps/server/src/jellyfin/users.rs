@@ -35,7 +35,13 @@ pub fn routes() -> Router<AppState> {
 /// A time as Jellyfin writes them: ISO 8601 in UTC, seven digits of
 /// fractions and `Z` (Kotlin clients read a date without its zone as none).
 pub fn iso(secs: i64) -> String {
-    let (days, rest) = (secs.div_euclid(86_400), secs.rem_euclid(86_400));
+    iso_ms(secs.saturating_mul(1000))
+}
+
+/// [`iso`] of a time in milliseconds, which SyncPlay's commands carry:
+/// members start and pause by them.
+pub fn iso_ms(ms: i64) -> String {
+    let (days, rest) = (ms.div_euclid(86_400_000), ms.rem_euclid(86_400_000));
     // Days since 1970-01-01 as a date (Howard Hinnant's civil_from_days).
     let z = days + 719_468;
     let era = z.div_euclid(146_097);
@@ -46,7 +52,59 @@ pub fn iso(secs: i64) -> String {
     let day = doy - (153 * mp + 2) / 5 + 1;
     let month = if mp < 10 { mp + 3 } else { mp - 9 };
     let year = yoe + era * 400 + i64::from(month <= 2);
-    format!("{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.0000000Z", rest / 3600, rest % 3600 / 60, rest % 60)
+    let secs = rest / 1000;
+    let (hours, minutes, seconds, millis) = (secs / 3600, secs % 3600 / 60, secs % 60, rest % 1000);
+    format!("{year:04}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{seconds:02}.{millis:03}0000Z")
+}
+
+/// A time an app sends (`2026-11-05T12:34:56.789Z`, with any digits of
+/// fractions, `Z`, an offset such as `+01:00`, or none, which is UTC), in
+/// unix milliseconds.
+pub fn parse_iso(text: &str) -> Option<i64> {
+    let text = text.trim();
+    let (date, time) = text.split_once(['T', 't', ' '])?;
+    let mut parts = date.splitn(3, '-');
+    let (year, month, day): (i64, i64, i64) =
+        (parts.next()?.parse().ok()?, parts.next()?.parse().ok()?, parts.next()?.parse().ok()?);
+    if !(1..=12).contains(&month) || !(1..=31).contains(&day) || !(1..=9999).contains(&year) {
+        return None;
+    }
+    // The zone: `Z`, `±HH:MM` (or `±HHMM`), or none.
+    let (clock, offset_ms) = match time.find(['Z', 'z', '+', '-']) {
+        Some(at) => {
+            let zone = &time[at..];
+            let offset = if zone.eq_ignore_ascii_case("z") {
+                0
+            } else {
+                let sign = if zone.starts_with('-') { -1 } else { 1 };
+                let digits: String = zone[1..].chars().filter(|c| *c != ':').collect();
+                if digits.len() != 4 {
+                    return None;
+                }
+                let (hours, minutes): (i64, i64) = (digits[..2].parse().ok()?, digits[2..].parse().ok()?);
+                sign * (hours * 60 + minutes) * 60_000
+            };
+            (&time[..at], offset)
+        }
+        None => (time, 0),
+    };
+    let (whole, fraction) = clock.split_once('.').unwrap_or((clock, ""));
+    let mut hms = whole.splitn(3, ':');
+    let (hours, minutes, seconds): (i64, i64, i64) =
+        (hms.next()?.parse().ok()?, hms.next()?.parse().ok()?, hms.next().unwrap_or("0").parse().ok()?);
+    if hours > 23 || minutes > 59 || seconds > 60 || !fraction.chars().all(|c| c.is_ascii_digit()) {
+        return None;
+    }
+    let millis: i64 = format!("{fraction:0<3}")[..3].parse().ok()?;
+    // Days since 1970-01-01 of the date (Howard Hinnant's days_from_civil).
+    let y = if month <= 2 { year - 1 } else { year };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (month + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + day - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    let days = era * 146_097 + doe - 719_468;
+    Some(((days * 24 + hours) * 60 + minutes) * 60_000 + seconds * 1000 + millis - offset_ms)
 }
 
 #[derive(Serialize)]
@@ -199,7 +257,9 @@ pub async fn user_dto(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser) ->
             remote_client_bitrate_limit: 0,
             authentication_provider_id: "Jellyfin.Server.Implementations.Users.DefaultAuthenticationProvider",
             password_reset_provider_id: "Jellyfin.Server.Implementations.Users.DefaultPasswordResetProvider",
-            sync_play_access: "None",
+            // Every account may watch with the others (SyncPlay): a group shows
+            // to those who may see all it plays.
+            sync_play_access: "CreateAndJoinGroups",
         },
     })
 }
@@ -462,4 +522,26 @@ async fn display_preferences(
         show_sidebar: false,
         client: client.unwrap_or_else(|| "emby".into()).chars().take(64).collect(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn times_are_written_and_read_to_the_millisecond() {
+        assert_eq!(iso(0), "1970-01-01T00:00:00.0000000Z");
+        let ms = 1_793_960_096_789;
+        assert_eq!(iso_ms(ms), "2026-11-06T10:14:56.7890000Z");
+        assert_eq!(parse_iso(&iso_ms(ms)), Some(ms));
+        assert_eq!(parse_iso("2026-11-06T10:14:56.789Z"), Some(ms), "as JavaScript writes it");
+        assert_eq!(parse_iso("2026-11-06T11:14:56.789+01:00"), Some(ms), "with an offset");
+        assert_eq!(parse_iso("2026-11-06T10:14:56.7890000"), Some(ms), "without a zone, UTC");
+        assert_eq!(parse_iso("2026-11-06T10:14:56Z"), Some(ms - 789));
+        assert_eq!(parse_iso("1999-12-31T23:59:59.5-05:00"), Some(946_702_799_500));
+        for wrong in ["", "2026-11-06", "2026-13-06T10:14:56Z", "2026-11-06T25:00:00Z", "2026-11-06T10:14:56.x", "now"]
+        {
+            assert_eq!(parse_iso(wrong), None, "{wrong}");
+        }
+    }
 }

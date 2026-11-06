@@ -16,10 +16,12 @@ mod dto;
 mod items;
 mod playback;
 mod socket;
+mod syncplay;
 mod system;
 mod users;
 
 pub(crate) use socket::Remotes;
+pub(crate) use syncplay::SyncPlay;
 
 use std::future::Future;
 use std::net::SocketAddr;
@@ -444,6 +446,7 @@ fn router(state: AppState, jellyfin: Arc<Jellyfin>) -> Router {
         .merge(items::routes())
         .merge(playback::routes())
         .merge(socket::routes())
+        .merge(syncplay::routes())
         .fallback(|| async { JfError::NotFound })
         .layer(axum::middleware::from_fn(headers))
         // Requests' JSON bodies are small: sign-ins, reports, device profiles.

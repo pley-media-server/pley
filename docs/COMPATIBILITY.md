@@ -692,10 +692,67 @@ stopped.
 
 The socket (`/socket`) asks to be kept alive every 60 seconds, and tells of
 changes to the libraries the user may open (`LibraryChanged`), to the
-user's watch state (`UserDataChanged`), playback stopped from Pley and the
-commands of the user's remotes (`Playstate`, `GeneralCommand`). It checks
-the token again every 30 seconds, from where the socket was opened, and
-closes once it ends.
+user's watch state (`UserDataChanged`), playback stopped from Pley, the
+commands of the user's remotes (`Playstate`, `GeneralCommand`) and what the
+device's SyncPlay group does ([Watching together](#watching-together)). It
+checks the token again every 30 seconds, from where the socket was opened,
+and closes once it ends.
+
+### Watching together
+
+Jellyfin's apps with SyncPlay, Jellyfin's watching together, play one
+queue together, each on its own device:
+
+- **Who.** Every account may make a group (`POST /SyncPlay/New`, named
+  `GroupName`, or after its maker without one) and join one
+  (`/SyncPlay/Join`), from each of its devices, which the app's `DeviceId`
+  tells apart (a request without one answers `400`): `SyncPlayAccess` is
+  `CreateAndJoinGroups` in every user's `Policy`. A device is in one group
+  at a time: making or joining another leaves the first. A group is listed
+  (`GET /SyncPlay/List`, `/SyncPlay/{id}`) to whoever may see everything its
+  queue holds, by Pley's [access rules](API.md#access-rules) (libraries and
+  age limits), by its name (or its maker's, when it was given none). Its
+  members, by the names their profiles go by (`Participants`), are shown to
+  its members alone: this API shows no one another account's name, and
+  others' `Participants` is empty. Only members hear of who joins and
+  leaves (`UserJoined`, `UserLeft`). Someone
+  who may not see what a group plays is refused it on joining
+  (`LibraryAccessDenied`), and a title one of its members may not see is
+  never queued: whoever asked hears `LibraryAccessDenied`, and the queue
+  stays as it was.
+- **The queue.** `SetNewQueue` (titles that play: movies, episodes,
+  tracks), `Queue` (at the end, or after the one playing with
+  `QueueNext`), `SetPlaylistItem`, `RemoveFromPlaylist`,
+  `MovePlaylistItem`, `NextItem` and `PreviousItem` (from the entry
+  playing, so that two asking at once move it on once), `SetRepeatMode`
+  and `SetShuffleMode`. Every member is sent the queue as it changes
+  (`PlayQueue`). An idle group whose queue has no entry playing waits for
+  one to be picked (`SetPlaylistItem`).
+- **Playing.** `Unpause`, `Pause`, `Stop` and `Seek`, and each member's
+  `Buffering` and `Ready` (with where its player is, and when, by the
+  server's clock), move the group as Jellyfin's server does: idle, waiting
+  for its members to be ready, paused, or playing. A new queue, a seek, or
+  a member that buffers or joins makes the group wait, the others paused
+  meanwhile; once everyone is ready it plays, or stays paused, from where
+  it was. A member that isn't where the group is is sent there (`Seek`).
+  `Unpause` while it waits to play starts it for everyone at once.
+  `SetIgnoreWait` takes a device out of the waiting. Commands
+  (`SyncPlayCommand`: `Unpause`, `Pause`, `Seek`, `Stop`) say when to act,
+  by the server's clock (`GET /GetUtcTime`, answered without a token), a
+  start set ahead of now by twice the highest ping its members report
+  (`Ping`, in milliseconds), half a second at least; `StateUpdate` says
+  what the group does and why.
+- **The socket.** Members hear their group on their socket:
+  `SyncPlayGroupUpdate` (`GroupJoined`, `UserJoined`, `UserLeft`,
+  `GroupLeft`, `StateUpdate`, `PlayQueue`, and `NotInGroup`,
+  `GroupDoesNotExist` and `LibraryAccessDenied` for what was refused) and
+  `SyncPlayCommand`. A request to the group from a device in none answers
+  `403`, and the device hears `NotInGroup`. A device whose socket stays
+  closed for 30 seconds leaves its group.
+- **Bounds.** Groups are kept in memory, until their last member leaves or
+  the server restarts: 64 at most (`503` past them), 32 members each
+  (`503`), 500 titles in a queue (`400` past them), and ten requests a
+  second from each member (`503` past them).
 
 ### Jellyfin's names for Pley's things
 
@@ -724,6 +781,7 @@ closes once it ends.
 | Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
 | Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
 | Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping`; `GET /Sessions` (none listed) |
+| SyncPlay | `GET /SyncPlay/List`, `/SyncPlay/{id}`, `/GetUtcTime`; `POST /SyncPlay/New`, `/Join`, `/Leave`, `/SetNewQueue`, `/Queue`, `/SetPlaylistItem`, `/RemoveFromPlaylist`, `/MovePlaylistItem`, `/NextItem`, `/PreviousItem`, `/SetRepeatMode`, `/SetShuffleMode`, `/Unpause`, `/Pause`, `/Stop`, `/Seek`, `/Buffering`, `/Ready`, `/SetIgnoreWait`, `/Ping` |
 | Socket | `GET /socket` |
 
 ### Jellyfin apps tested
@@ -743,9 +801,10 @@ Run against Pley with the API on Pley's port and on a port of its own:
   two-step sign-in.
 - Administration: the dashboard, users, libraries, plugins, scheduled
   tasks, logs and activity.
-- Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
-  none), and finding the server on the network (UDP 7359): apps are given
-  its address.
+- Live TV, remote control of other sessions (`/Sessions` lists none), and
+  finding the server on the network (UDP 7359): apps are given its address.
+- SyncPlay groups across a restart of the server, and a group started from
+  what a device plays already: a group's queue is the one its members set.
 - Making or changing playlists and collections, and editing metadata.
 - Lyrics, seek previews (trickplay), instant mixes, theme songs and
   videos, and intros before a title.

@@ -159,8 +159,9 @@ The Jellyfin-compatible API, off until it is turned on, on Pley's own port
 or one of its own (8096):
 Jellyfin's apps and others built on its API browse the libraries, play as
 they are or as HLS from Pley's transcoder, with subtitles, skip intro and
-credits, and keep watch state, favorites (My List) and ratings with Pley's
-accounts ([COMPATIBILITY.md](COMPATIBILITY.md)).
+credits, keep watch state, favorites (My List) and ratings with Pley's
+accounts, and watch together with Jellyfin's SyncPlay, a group shown to
+those who may see all it plays ([COMPATIBILITY.md](COMPATIBILITY.md)).
 
 ## Offline
 

@@ -615,6 +615,8 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         "/Years".to_owned(),
         "/Tags".to_owned(),
         "/Playback/BitrateTest".to_owned(),
+        "/SyncPlay/List".to_owned(),
+        "/GetUtcTime".to_owned(),
     ] {
         let reply = app.call(Method::GET, &path, None, None, &[]).await;
         assert!(theirs(&reply), "{path}: {} {}", reply.status, reply.text());
@@ -626,4 +628,183 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         let reply = app.call(Method::GET, &path, None, None, &[("x-emby-token", token.as_str())]).await;
         assert!(theirs(&reply), "{path}: {} {}", reply.status, reply.text());
     }
+}
+
+// ------------------------------------------------------------------ SyncPlay
+
+type Socket = tokio_tungstenite::WebSocketStream<tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>>;
+
+/// What `token`'s user's Jellyfin app (device `bench-1`) asks of SyncPlay.
+async fn syncplay(app: &TestApp, token: &str, what: &str, body: Value) -> Reply {
+    app.jf(Method::POST, &format!("/SyncPlay/{what}"), token, Some(body)).await
+}
+
+/// The socket of `token`'s user's Jellyfin app (device `bench-1`), once
+/// it has said hello.
+async fn app_socket(app: &TestApp, token: &str) -> Socket {
+    let mut ws = socket(app, &app.jellyfin_token(token).await).await;
+    next_of(&mut ws, &["ForceKeepAlive"]).await;
+    ws
+}
+
+/// The next SyncPlay message on `ws`: the type of its group update or its
+/// command, and its data.
+async fn next_syncplay(ws: &mut Socket) -> (String, Value) {
+    let message = next_of(ws, &["SyncPlayGroupUpdate", "SyncPlayCommand"]).await;
+    let data = message["Data"].clone();
+    let kind = if message["MessageType"] == "SyncPlayCommand" { &data["Command"] } else { &data["Type"] };
+    (kind.as_str().unwrap().to_owned(), data)
+}
+
+/// A member's readiness at the server's time now, on queue entry `entry`.
+async fn readiness(app: &TestApp, entry: &str, position_ticks: i64) -> Value {
+    let now = app.jf_json("/GetUtcTime", "").await["ResponseTransmissionTime"].clone();
+    json!({"When": now, "PositionTicks": position_ticks, "IsPlaying": false, "PlaylistItemId": entry})
+}
+
+#[tokio::test]
+async fn jellyfin_apps_watch_together() {
+    let w = world().await;
+    let app = &w.app;
+    let (viewer, _) = app.user(&w.admin, "viewer", json!({})).await;
+    let (mut host, mut guest) = (app_socket(app, &w.admin).await, app_socket(app, &viewer).await);
+    let policy = app.jf_json("/Users/Me", &viewer).await["Policy"]["SyncPlayAccess"].clone();
+    assert_eq!(policy, json!("CreateAndJoinGroups"), "everyone may");
+    let time = app.jf_json("/GetUtcTime", "").await;
+    assert!(time["RequestReceptionTime"].as_str().unwrap().ends_with('Z'), "{time}");
+
+    // A group, with its maker in it.
+    let made = syncplay(app, &w.admin, "New", json!({"GroupName": " Movie night "})).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.text());
+    let group = made.body["GroupId"].as_str().unwrap().to_owned();
+    assert!(is_hex(&group, 32), "{group}");
+    assert_eq!((&made.body["GroupName"], &made.body["State"]), (&json!("Movie night"), &json!("Idle")));
+    assert_eq!(made.body["Participants"], json!(["admin"]));
+    assert_eq!(next_syncplay(&mut host).await.0, "GroupJoined");
+    assert_eq!(next_syncplay(&mut host).await.0, "Stop", "nothing plays");
+
+    // Shown to another account, without who is in it, until it joins.
+    let (bystander, _) = app.user(&w.admin, "bystander", json!({})).await;
+    let mut watcher = app_socket(app, &bystander).await;
+    let listed = app.jf_json("/SyncPlay/List", &viewer).await;
+    assert_eq!((&listed[0]["GroupId"], &listed[0]["Participants"]), (&json!(group), &json!([])));
+    let one = app.jf_json(&format!("/SyncPlay/{group}"), &viewer).await;
+    assert_eq!((&one["GroupName"], &one["Participants"]), (&json!("Movie night"), &json!([])));
+    assert_eq!(syncplay(app, &viewer, "Join", json!({"GroupId": group})).await.status, StatusCode::NO_CONTENT);
+    let (joined, update) = next_syncplay(&mut guest).await;
+    assert_eq!((joined.as_str(), &update["Data"]["Participants"]), ("GroupJoined", &json!(["admin", "viewer"])));
+    let (joined, update) = next_syncplay(&mut host).await;
+    assert_eq!((joined.as_str(), &update["Data"]), ("UserJoined", &json!("viewer")));
+    let members = json!(["admin", "viewer"]);
+    assert_eq!(app.jf_json("/SyncPlay/List", &viewer).await[0]["Participants"], members, "to a member");
+    assert_eq!(app.jf_json("/SyncPlay/List", &bystander).await[0]["Participants"], json!([]));
+
+    // A queue for both, which plays once both are ready.
+    let film = app.jf_item(w.film);
+    let queue = json!({"PlayingQueue": [film], "PlayingItemPosition": 0, "StartPositionTicks": 0});
+    assert_eq!(syncplay(app, &w.admin, "SetNewQueue", queue).await.status, StatusCode::NO_CONTENT);
+    let mut entry = String::new();
+    for ws in [&mut host, &mut guest] {
+        let (kind, update) = loop {
+            let (kind, update) = next_syncplay(ws).await;
+            if kind != "Stop" {
+                break (kind, update);
+            }
+        };
+        assert_eq!((kind.as_str(), &update["Data"]["Reason"]), ("PlayQueue", &json!("NewPlaylist")));
+        assert_eq!(update["Data"]["Playlist"][0]["ItemId"], json!(film));
+        entry = update["Data"]["Playlist"][0]["PlaylistItemId"].as_str().unwrap().to_owned();
+    }
+    let ready = readiness(app, &entry, 0).await;
+    assert_eq!(syncplay(app, &w.admin, "Ready", ready.clone()).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(next_syncplay(&mut host).await.0, "Pause", "the other isn't ready");
+    assert_eq!(syncplay(app, &viewer, "Ready", ready).await.status, StatusCode::NO_CONTENT);
+    for ws in [&mut host, &mut guest] {
+        let (kind, command) = next_syncplay(ws).await;
+        assert_eq!((kind.as_str(), &command["PlaylistItemId"]), ("Unpause", &json!(entry)));
+        assert!(command["When"].as_str().unwrap() > command["EmittedAt"].as_str().unwrap(), "a little ahead");
+        let (kind, update) = next_syncplay(ws).await;
+        assert_eq!((kind.as_str(), &update["Data"]["State"]), ("StateUpdate", &json!("Playing")));
+    }
+
+    // Anyone's pause pauses everyone.
+    assert_eq!(syncplay(app, &viewer, "Pause", json!({})).await.status, StatusCode::NO_CONTENT);
+    for ws in [&mut host, &mut guest] {
+        assert_eq!(next_syncplay(ws).await.0, "Pause");
+        assert_eq!(next_syncplay(ws).await.1["Data"]["State"], json!("Paused"));
+    }
+
+    // Leaving: told so, the other told too. Outside a group, nothing goes.
+    assert_eq!(syncplay(app, &viewer, "Leave", json!({})).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(next_syncplay(&mut guest).await.0, "GroupLeft");
+    assert_eq!(next_syncplay(&mut host).await.0, "UserLeft");
+    // An account outside the group heard none of it, who joined or left.
+    let heard = tokio::time::timeout(std::time::Duration::from_secs(1), next_syncplay(&mut watcher)).await;
+    assert!(heard.is_err(), "nothing reaches a non-member: {heard:?}");
+    assert_eq!(syncplay(app, &viewer, "Unpause", json!({})).await.status, StatusCode::FORBIDDEN);
+    assert_eq!(next_syncplay(&mut guest).await.0, "NotInGroup");
+    let missing = json!({"GroupId": "0".repeat(32)});
+    assert_eq!(syncplay(app, &viewer, "Join", missing).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(next_syncplay(&mut guest).await.0, "GroupDoesNotExist");
+}
+
+#[tokio::test]
+async fn a_group_is_for_those_who_may_see_what_it_plays() {
+    let w = world().await;
+    let app = &w.app;
+    let (kid, _) = app.user(&w.admin, "kid", json!({"all_libraries": false, "library_ids": [w.tv]})).await;
+    let mut kids = app_socket(app, &kid).await;
+    let film = app.jf_item(w.film);
+    let made = syncplay(app, &w.admin, "New", json!({"GroupName": "Films"})).await;
+    let group = made.body["GroupId"].as_str().unwrap().to_owned();
+    let queue = json!({"PlayingQueue": [film], "PlayingItemPosition": 0, "StartPositionTicks": 0});
+    assert_eq!(syncplay(app, &w.admin, "SetNewQueue", queue).await.status, StatusCode::NO_CONTENT);
+
+    // A film the kid may not see: the group isn't shown, nor joined.
+    assert_eq!(app.jf_json("/SyncPlay/List", &kid).await, json!([]));
+    assert_eq!(app.jf(Method::GET, &format!("/SyncPlay/{group}"), &kid, None).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(syncplay(app, &kid, "Join", json!({"GroupId": group})).await.status, StatusCode::NO_CONTENT);
+    let (denied, update) = next_syncplay(&mut kids).await;
+    assert_eq!((denied.as_str(), &update["GroupId"]), ("LibraryAccessDenied", &json!(group)));
+
+    // In the kid's own group, nothing is queued that the kid may not see.
+    let own = syncplay(app, &kid, "New", json!({})).await;
+    assert_eq!(own.body["GroupName"], json!("kid"), "named after its maker");
+    let own = own.body["GroupId"].as_str().unwrap().to_owned();
+    let mut admins = app_socket(app, &w.admin).await;
+    assert_eq!(syncplay(app, &w.admin, "Join", json!({"GroupId": own})).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(next_syncplay(&mut admins).await.0, "GroupLeft", "out of the group it was in");
+    assert_eq!(next_syncplay(&mut admins).await.0, "GroupJoined");
+    let queue = json!({"PlayingQueue": [film], "PlayingItemPosition": 0, "StartPositionTicks": 0});
+    assert_eq!(syncplay(app, &w.admin, "SetNewQueue", queue).await.status, StatusCode::NO_CONTENT);
+    loop {
+        let (kind, update) = next_syncplay(&mut admins).await;
+        if kind == "LibraryAccessDenied" {
+            assert_eq!(update["GroupId"], json!(own));
+            break;
+        }
+        assert_ne!(kind, "PlayQueue", "nothing queued");
+    }
+    let pilot = app.jf_item(w.pilot);
+    let queue = json!({"PlayingQueue": [pilot], "PlayingItemPosition": 0, "StartPositionTicks": 0});
+    assert_eq!(syncplay(app, &w.admin, "SetNewQueue", queue).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(next_syncplay(&mut kids).await.0, "GroupJoined", "the kid's own group");
+    loop {
+        if next_syncplay(&mut kids).await.0 == "PlayQueue" {
+            break;
+        }
+    }
+
+    // Titles that play, and a queue of bounded length.
+    let show = app.jf_item(w.show);
+    for (body, what) in [
+        (json!({"ItemIds": [show], "Mode": "Queue"}), "a show"),
+        (json!({"ItemIds": [pilot], "Mode": "Later"}), "an unknown mode"),
+        (json!({"ItemIds": vec![pilot.clone(); 501], "Mode": "Queue"}), "too many"),
+        (json!({"ItemIds": ["x"], "Mode": "Queue"}), "not an id"),
+    ] {
+        assert_eq!(syncplay(app, &w.admin, "Queue", body).await.status, StatusCode::BAD_REQUEST, "{what}");
+    }
+    let bad = json!({"PlayingQueue": [pilot], "PlayingItemPosition": 3, "StartPositionTicks": 0});
+    assert_eq!(syncplay(app, &w.admin, "SetNewQueue", bad).await.status, StatusCode::BAD_REQUEST);
 }
