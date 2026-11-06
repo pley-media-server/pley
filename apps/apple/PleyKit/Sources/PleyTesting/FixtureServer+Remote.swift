@@ -4,7 +4,7 @@ import PleyModel
 /// Remote control and casting, as the server does them (docs/API.md,
 /// "Remote control" and "Casting"): the profile's sessions whose players
 /// are there (`GET /api/sessions`), each with its device and its file's
-/// tracks and qualities; commands to them, checked and passed on as `player_command` on
+/// tracks, qualities and markers; commands to them, checked and passed on as `player_command` on
 /// the event streams; a stop from another device (`DELETE /api/sessions/{id}`);
 /// the devices that take casts (`GET /api/remote/devices`), which event
 /// streams name as receivers or a test adds, and casts to them, passed on
@@ -302,6 +302,8 @@ extension FixtureServer {
             json["tracks"] = tracks
             json["quality"] = session.quality.map { $0 as Any } ?? NSNull()
             json["qualities"] = qualities(playable).map { ["id": $0.id, "label": $0.label] }
+            // The intro and credits of the file it plays: another file's can be another cut.
+            json["markers"] = playable.markers.filter { $0.fileId == playable.fileId }.map(marker)
             out.append((session.order, json))
         }
         for (id, session) in s.live.sessions where !session.deleted && session.stopped == nil {
@@ -326,9 +328,16 @@ extension FixtureServer {
             json["tracks"] = tracks
             json["quality"] = NSNull()
             json["qualities"] = [Any]()
+            json["markers"] = [Any]()
             out.append((session.order, json))
         }
         return out.sorted { $0.order < $1.order }.map(\.json)
+    }
+
+    /// An intro or the credits as a session lists them for the remotes.
+    private static func marker(_ marker: Marker) -> [String: Any] {
+        ["file_id": marker.fileId, "kind": marker.kind.rawValue, "start_ms": marker.startMs, "end_ms": marker.endMs,
+         "source": marker.source ?? "chapter"]
     }
 
     /// A stream of the file as a session lists it for the remotes.

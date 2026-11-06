@@ -264,6 +264,9 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
     public var quality: String?
     /// What that menu offers for the file, which `quality` picks from; none for music and on Live TV.
     public var qualities: [QualityOption]
+    /// The intro and credits of the file it plays, for the remote's Skip Intro and Skip Credits; none on
+    /// Live TV, and from an older server.
+    public var markers: [Marker]
 
     public var id: String { sessionId }
 
@@ -271,7 +274,8 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
                 deviceKind: DeviceKind = .other, item: ItemSummary? = nil, channel: PlayingChannel? = nil,
                 state: PlayingState = .playing, positionMs: Int = 0, durationMs: Int? = nil, updatedAt: Int = 0,
                 ageMs: Int = 0, controls: [Control] = [], audioIndex: Int? = nil, subtitleIndex: Int? = nil,
-                tracks: SessionTracks = SessionTracks(), quality: String? = nil, qualities: [QualityOption] = []) {
+                tracks: SessionTracks = SessionTracks(), quality: String? = nil, qualities: [QualityOption] = [],
+                markers: [Marker] = []) {
         self.sessionId = sessionId
         self.kind = kind
         self.device = device
@@ -290,6 +294,7 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
         self.tracks = tracks
         self.quality = quality
         self.qualities = qualities
+        self.markers = markers
     }
 
     public init(from decoder: any Decoder) throws {
@@ -315,6 +320,8 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
         quality = try c.decodeIfPresent(String.self, forKey: .quality)
         // Qualities that can't be read leave it listed, with nothing to pick.
         qualities = (try? c.decodeIfPresent([QualityOption].self, forKey: .qualities)) ?? []
+        // Markers that can't be read leave it listed, with nothing to skip.
+        markers = (try? c.decodeIfPresent([Marker].self, forKey: .markers)) ?? []
     }
 
     /// Whether its player obeys `control`.

@@ -170,7 +170,8 @@ pub async fn user_dto(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser) ->
             // sign-in included: clients then offer no dashboard that fails.
             is_administrator: false,
             is_hidden: true,
-            enable_collection_management: false,
+            // As Pley lets the token: with `manage`, collections change here.
+            enable_collection_management: user.compatibility_allows(crate::auth::compatibility::Scope::Manage),
             enable_subtitle_management: false,
             enable_lyric_management: false,
             is_disabled: account.disabled,

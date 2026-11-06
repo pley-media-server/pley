@@ -400,9 +400,10 @@ struct RemoteDeviceControls: View {
 }
 
 /// A playing device's controls, top to bottom: the poster (or the
-/// channel's logo) with what plays; how far it is (a seek slider when its
+/// channel's logo) with what plays, and Skip Intro or Skip Credits at the
+/// row's end while it is in one; how far it is (a seek slider when its
 /// player seeks; on Live TV, how far along the programme on is by the
-/// clock, its times and what's next); Previous, Back 10 seconds, Play or
+/// clock, its times and what's next); Previous, Back 30 seconds, Play or
 /// Pause, Forward 30 seconds and Next, each where its player obeys it (Next
 /// shows, dimmed, for whatever has one), or a channel's rocker; then
 /// Audio, Subtitles and Quality as symbols, each where it has something to
@@ -454,28 +455,84 @@ private struct RemotePlayingControls: View {
 
     // MARK: What plays
 
-    private var heading: some View {
+    /// The poster and what plays. A title with an intro or credits follows
+    /// the clock, as its progress does: Skip Intro or Skip Credits comes and
+    /// goes with the place shown.
+    @ViewBuilder private var heading: some View {
+        if entry.live || session.markers.isEmpty {
+            headingRow(skip: nil)
+        } else {
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                headingRow(skip: RemoteModel.skipOffer(entry, at: context.date))
+            }
+        }
+    }
+
+    /// What plays, with `skip` at the row's end, where the player's own
+    /// shows over the picture: the title gives way to it.
+    private func headingRow(skip: RemoteModel.SkipOffer?) -> some View {
         let shown = Words.remoteHeading(session)
         return HStack(spacing: 12) {
-            art
-            VStack(alignment: .leading, spacing: 2) {
-                Text(device)
-                    .font(.footnote.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
-                Text(shown.title)
-                    .font(.subheadline.weight(.semibold))
-                    .lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
-                if let subtitle = shown.subtitle {
-                    Text(subtitle)
-                        .font(.footnote)
+            HStack(spacing: 12) {
+                art
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(device)
+                        .font(.footnote.weight(.medium))
                         .foregroundStyle(.secondary)
                         .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    Text(shown.title)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
+                    if let subtitle = shown.subtitle {
+                        Text(subtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(typeSize.isAccessibilitySize ? 3 : 1)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityElement(children: .combine)
+            if let skip {
+                skipButton(skip)
+                    .transition(.opacity)
+            }
         }
-        .accessibilityElement(children: .combine)
+        .animation(.easeInOut(duration: 0.2), value: skip)
+    }
+
+    /// Skip Intro or Skip Credits: the player's own words and its double
+    /// chevron, in a small capsule kept to one line, in a 44-point target.
+    private func skipButton(_ offer: RemoteModel.SkipOffer) -> some View {
+        let label = Words.remoteSkip(offer.kind, device: device)
+        return Button {
+            send(offer.command)
+        } label: {
+            HStack(spacing: 4) {
+                Text(offer.label)
+                Image(systemName: "chevron.forward.2")
+                    .imageScale(.small)
+            }
+            .font(.footnote.weight(.semibold))
+            .lineLimit(1)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color.secondary.opacity(0.12)))
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.primary)
+        .fixedSize()
+        // Larger, it would leave the title no room; Large Content shows its words.
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
+        .opacity(waiting ? 0.5 : 1)
+        .help(label)
+        .accessibilityLabel(label)
+        .accessibilityShowsLargeContentViewer {
+            Label(offer.label, systemImage: "chevron.forward.2")
+        }
+        .accessibilityIdentifier("remote.skip.\(entry.id)")
     }
 
     @ViewBuilder private var art: some View {
@@ -575,7 +632,7 @@ private struct RemotePlayingControls: View {
 
     // MARK: Controls
 
-    /// A title's buttons: Previous, Back 10 seconds, Play or Pause, Forward
+    /// A title's buttons: Previous, Back 30 seconds, Play or Pause, Forward
     /// 30 seconds and Next. On Live TV, the channel rocker (down, "Channel",
     /// up), as a TV remote has it, with Play or Pause beside it where the
     /// player takes it.
@@ -597,15 +654,11 @@ private struct RemotePlayingControls: View {
                     }
                 }
                 if session.obeys(.skip) {
-                    icon("gobackward.10", Words.remoteBack(device), "back") {
-                        send(.skip(byMs: -Words.remoteSkipBackMs))
-                    }
+                    icon("gobackward.30", Words.remoteBack(device), "back") { send(RemoteModel.back) }
                 }
                 if let toggle { toggleButton(toggle) }
                 if session.obeys(.skip) {
-                    icon("goforward.30", Words.remoteForward(device), "forward") {
-                        send(.skip(byMs: Words.remoteSkipForwardMs))
-                    }
+                    icon("goforward.30", Words.remoteForward(device), "forward") { send(RemoteModel.forward) }
                 }
                 if next {
                     icon("forward.end.fill", Words.remoteNext(device, live: false), "next") { send(.next) }
