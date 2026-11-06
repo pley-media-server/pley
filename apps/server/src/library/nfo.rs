@@ -68,6 +68,14 @@ impl NfoIds {
     }
 }
 
+/// A content rating and the country an NFO file names for it (`GB:15`).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct NfoRating {
+    /// ISO 3166-1 alpha-2, as the file writes it ("USA" is "US").
+    pub country: Option<String>,
+    pub rating: String,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct NfoFields {
     pub title: Option<String>,
@@ -78,7 +86,12 @@ pub struct NfoFields {
     pub release_date: Option<String>,
     pub summary: Option<String>,
     pub tagline: Option<String>,
+    /// The United States' rating, else the first (see [`content_rating`]).
     pub content_rating: Option<String>,
+    /// Every country's rating, as the file gives them, for the metadata
+    /// region's to be taken ([`NfoFields::rating_in`]).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub content_ratings: Vec<NfoRating>,
     pub genres: Vec<String>,
     pub studio: Option<String>,
     /// From 0 to 10.
@@ -450,8 +463,12 @@ impl Entry {
             .as_deref()
             .and_then(year_of)
             .or_else(|| release_date.as_deref().and_then(|date| date[..4].parse().ok()));
-        let content_rating =
-            [&self.mpaa, &self.certification].into_iter().find_map(|rating| rating.as_deref().and_then(content_rating));
+        let content_ratings = [&self.mpaa, &self.certification]
+            .into_iter()
+            .map(|rating| rating.as_deref().map(content_ratings).unwrap_or_default())
+            .find(|ratings| !ratings.is_empty())
+            .unwrap_or_default();
+        let content_rating = content_rating(&content_ratings);
         let rating = self
             .ratings
             .iter()
@@ -468,6 +485,7 @@ impl Entry {
             summary: self.plot.as_deref().and_then(summary).or_else(|| self.outline.as_deref().and_then(summary)),
             tagline: self.tagline.as_deref().and_then(short),
             content_rating,
+            content_ratings,
             genres: genres(&self.genres),
             studio: self.studio.as_deref().and_then(|studio| studio.split('/').find_map(short)),
             rating,
@@ -667,10 +685,9 @@ fn genres(raw: &[String]) -> Vec<String> {
     genres
 }
 
-/// A content rating as an NFO writes it: `PG-13`, Kodi's `Rated PG-13`,
-/// `US:PG-13`, or several countries' (`GB:15 / US:R`), of which the United
-/// States' is taken, else the first.
-fn content_rating(text: &str) -> Option<String> {
+/// Content ratings as an NFO writes them: `PG-13`, Kodi's `Rated PG-13`,
+/// `US:PG-13`, or several countries' (`GB:15 / US:R`).
+fn content_ratings(text: &str) -> Vec<NfoRating> {
     fn without_rated(text: &str) -> &str {
         let text = text.trim();
         match text.get(..6) {
@@ -678,20 +695,38 @@ fn content_rating(text: &str) -> Option<String> {
             _ => text,
         }
     }
-    let entries: Vec<(Option<&str>, &str)> = text
-        .split('/')
-        .map(|entry| match without_rated(entry).split_once(':') {
-            Some((country, rating)) => (Some(country.trim()), without_rated(rating)),
-            None => (None, without_rated(entry)),
+    text.split('/')
+        .filter_map(|entry| {
+            let (country, rating) = match without_rated(entry).split_once(':') {
+                Some((country, rating)) => (Some(country.trim()), without_rated(rating)),
+                None => (None, without_rated(entry)),
+            };
+            let country = country.filter(|c| !c.is_empty()).map(|c| match c.to_ascii_uppercase().as_str() {
+                "USA" => "US".to_owned(),
+                upper => upper.to_owned(),
+            });
+            Some(NfoRating { country: country.and_then(|c| short(&c)), rating: short(rating)? })
         })
-        .filter(|(_, rating)| !rating.is_empty())
-        .collect();
-    let us = |country: &str| ["us", "usa"].contains(&country.to_ascii_lowercase().as_str());
-    entries
-        .iter()
-        .find(|(country, _)| country.is_some_and(us))
-        .or(entries.first())
-        .and_then(|(_, rating)| short(rating))
+        .collect()
+}
+
+/// The United States' rating of `ratings`, else the first: what an NFO
+/// file's rating is shown as.
+fn content_rating(ratings: &[NfoRating]) -> Option<String> {
+    ratings.iter().find(|r| r.country.as_deref() == Some("US")).or(ratings.first()).map(|r| r.rating.clone())
+}
+
+impl NfoFields {
+    /// The rating to use where the metadata region is `region`, with its
+    /// country: the region's, else the United States', else the first. A
+    /// file read before ratings had countries has only `content_rating`.
+    pub fn rating_in(&self, region: &str) -> Option<(Option<&str>, &str)> {
+        let of = |country: &str| self.content_ratings.iter().find(|r| r.country.as_deref() == Some(country));
+        match of(region).or_else(|| of("US")).or(self.content_ratings.first()) {
+            Some(r) => Some((r.country.as_deref(), r.rating.as_str())),
+            None => self.content_rating.as_deref().map(|r| (None, r)),
+        }
+    }
 }
 
 /// A date as `YYYY-MM-DD`, from one starting so (`2020-01-31 00:00:00`,
@@ -1161,15 +1196,31 @@ mod tests {
 
     #[test]
     fn content_ratings() {
-        assert_eq!(content_rating("US:PG-13").as_deref(), Some("PG-13"));
-        assert_eq!(content_rating("Rated R").as_deref(), Some("R"));
-        assert_eq!(content_rating("GB:15 / US:R / DE:16").as_deref(), Some("R"));
-        assert_eq!(content_rating("GB:15 / DE:16").as_deref(), Some("15"));
-        assert_eq!(content_rating("US:Rated PG").as_deref(), Some("PG"));
-        assert_eq!(content_rating("TV-14").as_deref(), Some("TV-14"));
-        assert_eq!(content_rating(" / ").as_deref(), None);
+        let shown = |text: &str| content_rating(&super::content_ratings(text));
+        assert_eq!(shown("US:PG-13").as_deref(), Some("PG-13"));
+        assert_eq!(shown("Rated R").as_deref(), Some("R"));
+        assert_eq!(shown("GB:15 / US:R / DE:16").as_deref(), Some("R"));
+        assert_eq!(shown("GB:15 / DE:16").as_deref(), Some("15"));
+        assert_eq!(shown("US:Rated PG").as_deref(), Some("PG"));
+        assert_eq!(shown("USA:R").as_deref(), Some("R"));
+        assert_eq!(shown("TV-14").as_deref(), Some("TV-14"));
+        assert_eq!(shown(" / ").as_deref(), None);
         let nfo = one("<movie><mpaa></mpaa><certification>US:PG-13</certification></movie>");
         assert_eq!(nfo.fields.content_rating.as_deref(), Some("PG-13"));
+    }
+
+    /// The metadata region's rating is used, with its country; the United
+    /// States' when the file has none of the region's.
+    #[test]
+    fn the_regions_rating_is_used() {
+        let nfo = one("<movie><mpaa>GB:15 / US:R / dk:A</mpaa></movie>");
+        assert_eq!(nfo.fields.rating_in("GB"), Some((Some("GB"), "15")));
+        assert_eq!(nfo.fields.rating_in("DK"), Some((Some("DK"), "A")));
+        assert_eq!(nfo.fields.rating_in("FR"), Some((Some("US"), "R")));
+        let bare = one("<movie><mpaa>Rated PG-13</mpaa></movie>");
+        assert_eq!(bare.fields.rating_in("GB"), Some((None, "PG-13")));
+        let old = NfoFields { content_rating: Some("R".into()), ..NfoFields::default() };
+        assert_eq!(old.rating_in("US"), Some((None, "R")), "fields stored before ratings had countries");
     }
 
     #[test]

@@ -34,7 +34,6 @@ use crate::error::AppError;
 use crate::events::{Audience, EventBus, ServerEvent};
 use crate::i18n;
 use crate::metadata::{MetadataAgent, TmdbError};
-use crate::ratings::rating_age;
 use crate::settings::{Settings, SettingsStore};
 use crate::store::like_escape;
 use crate::util::{now, utc};
@@ -1123,10 +1122,11 @@ fn default_seasons(details: &Details, counts: &HashMap<i64, (i64, i64)>, decline
     }
 }
 
-/// Whether a title rated `certification` is above `user`'s age limit:
-/// unrated ones are, for an account with one, as in the libraries.
-fn restricted(user: &AuthUser, certification: Option<&str>) -> bool {
-    user.max_age.is_some_and(|max| certification.and_then(rating_age).is_none_or(|age| age > max))
+/// Whether a title for ages from `age` up (see [`Details::age`]) is above
+/// `user`'s age limit: unrated ones are, for an account with one, as in the
+/// libraries.
+fn restricted(user: &AuthUser, age: Option<i64>) -> bool {
+    user.max_age.is_some_and(|max| age.is_none_or(|age| age > max))
 }
 
 /// Why an account with an age limit can't ask for a title rated
@@ -1695,9 +1695,7 @@ impl Requests {
         for title in &found.results {
             let key = (title.kind, title.tmdb_id);
             let known = details.get(&key);
-            if known.is_some_and(|d| d.adult)
-                || (limited && known.is_none_or(|d| restricted(user, d.certification.as_deref())))
-            {
+            if known.is_some_and(|d| d.adult) || (limited && known.is_none_or(|d| restricted(user, d.age()))) {
                 continue;
             }
             let mark = marks.get(&key).cloned().unwrap_or_default();
@@ -1935,7 +1933,7 @@ impl Requests {
         let details = self.title(caller, kind, tmdb_id).await?;
         let mark = self.marks(caller, kind, &[Known::of(&details)]).await?.remove(&tmdb_id).unwrap_or_default();
         let counts = self.season_counts(&mark.shows).await?;
-        let restricted = restricted(user, details.certification.as_deref());
+        let restricted = restricted(user, details.age());
         let lacking = (kind == TitleKind::Show).then(|| lacking(&details, &counts));
         let status = status_of(kind, &mark, lacking.as_deref(), restricted);
         let asked = mark.asked();
@@ -2064,7 +2062,7 @@ impl Requests {
         };
         let mark = self.marks(caller, kind, &[known]).await?.remove(&tmdb_id).unwrap_or_default();
         let counts = self.season_counts(&mark.shows).await?;
-        let restricted = details.as_ref().is_some_and(|d| restricted(user, d.certification.as_deref()));
+        let restricted = details.as_ref().is_some_and(|d| restricted(user, d.age()));
         let lacking = details.as_ref().filter(|_| kind == TitleKind::Show).map(|d| lacking(d, &counts));
         let status = status_of(kind, &mark, lacking.as_deref(), restricted);
         let askable = match kind {
@@ -2432,7 +2430,7 @@ impl Requests {
             _ => {}
         }
         let details = self.title(caller, new.kind, new.tmdb_id).await?;
-        if restricted(user, details.certification.as_deref()) {
+        if restricted(user, details.age()) {
             return Err(RequestError::Restricted(restriction(details.certification.as_deref())));
         }
         if let Some(n) = new.seasons.iter().flatten().find(|n| !details.seasons.iter().any(|s| s.number == **n)) {
@@ -3534,8 +3532,8 @@ mod tests {
         };
         assert!(!restricted(&user(None), None));
         assert!(restricted(&user(Some(13)), None), "unrated");
-        assert!(restricted(&user(Some(13)), Some("R")));
-        assert!(!restricted(&user(Some(13)), Some("PG-13")));
+        assert!(restricted(&user(Some(13)), Some(17)));
+        assert!(!restricted(&user(Some(13)), Some(13)));
         assert_eq!(restriction(Some("R")), "Rated R: above this account's age limit");
         assert_eq!(restriction(Some(" ")), "Not rated: with an age limit, this account may ask for rated titles only");
     }

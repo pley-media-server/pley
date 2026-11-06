@@ -675,7 +675,7 @@ async fn subtitle_choice_carries_over_to_the_next_episode() {
 }
 
 async fn set_rating(app: &TestApp, title: &str, rating: Option<&str>) {
-    let age = rating.and_then(pley::ratings::rating_age);
+    let age = rating.and_then(|r| pley::ratings::age(Some("US"), pley::ratings::Kind::Film, r));
     sqlx::query("UPDATE items SET content_rating = ?, rating_age = ? WHERE title = ?")
         .bind(rating)
         .bind(age)

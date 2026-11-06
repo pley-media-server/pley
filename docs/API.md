@@ -1502,7 +1502,13 @@ Administrators see everything. Other users see every library, or only those
 in `library_ids`. With `max_age` they see only movies and shows whose
 content rating allows that age:
 
-- US, UK, DE, FR, AU, CA and numeric certifications are understood;
+- a rating is read with its country's ratings, since some mean different
+  ages in different countries ("A" is for all ages in Denmark and for
+  adults in India): the country TMDB or TheTVDB gave it under, or that an
+  NFO file wrote before it (`GB:15`), else the metadata region's (a rating
+  typed by hand, a bare one from an NFO file). 29 countries' ratings are
+  known, films' and TV's apart where they differ (Canada's PG is 10 for a
+  film and 8 on TV); others go by US ratings and the number in them;
 - seasons and episodes go by their show;
 - unrated titles are hidden;
 - music is exempt.

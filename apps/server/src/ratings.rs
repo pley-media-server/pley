@@ -2,12 +2,133 @@
 //!
 //! TMDB delivers certifications of many countries ("PG-13", "TV-MA", "FSK 16",
 //! "12A", "MA15+"); they are mapped to the youngest age they allow so one
-//! number per user ("up to 12") works for all of them.
+//! number per user ("up to 12") works for all of them. Some ratings mean
+//! different ages in different countries ("A" is for all ages in Denmark and
+//! for adults in India), so a rating is read with its country's ratings
+//! ([`SYSTEMS`]) when its country is known, else the metadata region's, and
+//! only then with the table below, which knows the US's names and numbers.
+
+mod systems;
 
 use crate::db::Db;
 
-/// Minimum viewer age for a certification, `None` when unknown or unrated.
-pub fn rating_age(rating: &str) -> Option<i64> {
+pub use systems::SYSTEMS;
+
+/// Bump with any change to [`SYSTEMS`] or [`rating_age`]: [`backfill`] then
+/// works out every item's age again.
+pub const VERSION: i64 = 1;
+
+/// Films or TV: some countries rate them on different scales (Canada's PG
+/// is 10 for a film and 8 on TV).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Film,
+    Tv,
+}
+
+impl Kind {
+    /// The kind of ratings an item of `kind` carries: shows' and their
+    /// seasons' and episodes' are TV's.
+    pub fn of(kind: &str) -> Kind {
+        match kind {
+            "show" | "season" | "episode" => Kind::Tv,
+            _ => Kind::Film,
+        }
+    }
+}
+
+/// One rating of a country: its names (the board's, then other spellings,
+/// TMDB's among them) and the youngest age it allows.
+#[derive(Debug)]
+pub struct Rating {
+    pub names: &'static [&'static str],
+    pub age: i64,
+    /// `None`: for films and TV alike.
+    pub kind: Option<Kind>,
+}
+
+/// A country's ratings, youngest first.
+#[derive(Debug)]
+pub struct System {
+    /// ISO 3166-1 alpha-2.
+    pub country: &'static str,
+    pub name: &'static str,
+    pub ratings: &'static [Rating],
+}
+
+impl System {
+    /// The age of `rating` in this country: a rating of the kind first, then
+    /// one of the other kind (TMDB gives some TV shows a film rating).
+    fn age(&self, kind: Kind, rating: &str) -> Option<i64> {
+        let named = |r: &&Rating| r.names.iter().any(|n| same(n, rating));
+        let found = self.ratings.iter().filter(named).find(|r| r.kind.is_none_or(|k| k == kind));
+        found.or_else(|| self.ratings.iter().find(named)).map(|r| r.age)
+    }
+}
+
+/// The ratings of `country` (ISO 3166-1 alpha-2, any case).
+pub fn system(country: &str) -> Option<&'static System> {
+    SYSTEMS.iter().find(|s| s.country.eq_ignore_ascii_case(country))
+}
+
+/// The age `rating` stands for, `None` when unknown or unrated. `country`
+/// is the rating's, or else the metadata region's; a rating written with
+/// its country (an NFO file's "GB:15", Plex's "gb/12A") is read as that
+/// country's whatever `country` says.
+pub fn age(country: Option<&str>, kind: Kind, rating: &str) -> Option<i64> {
+    let rating = without_rated(rating);
+    let (written, rating) = with_country(rating);
+    written.or(country).and_then(system).and_then(|s| s.age(kind, rating)).or_else(|| rating_age(rating))
+}
+
+/// The country (ISO 3166-1 alpha-2) of a metadata language: "GB" for
+/// "en-GB", the US's for a language with no country.
+pub fn region_of(language: &str) -> String {
+    language.split(['-', '_']).nth(1).unwrap_or("US").to_ascii_uppercase()
+}
+
+/// The metadata region, read from the settings as they're stored.
+pub async fn region(db: &Db) -> sqlx::Result<String> {
+    let language: Option<String> = sqlx::query_scalar(
+        "SELECT CASE WHEN json_valid(value) THEN json_extract(value, '$.metadata_language') END
+             FROM settings WHERE key = 'server'",
+    )
+    .fetch_optional(&db.read)
+    .await?
+    .flatten();
+    Ok(region_of(language.as_deref().unwrap_or("en-US")))
+}
+
+/// Names compare without regard to case or the spaces around them.
+fn same(name: &str, rating: &str) -> bool {
+    name.trim().to_lowercase() == rating.trim().to_lowercase()
+}
+
+/// Kodi's "Rated PG-13" is "PG-13".
+fn without_rated(rating: &str) -> &str {
+    let rating = rating.trim();
+    match rating.get(..6) {
+        Some(prefix) if prefix.eq_ignore_ascii_case("rated ") => rating[6..].trim(),
+        _ => rating,
+    }
+}
+
+/// "GB:15", "gb/12A" and "USA:R": the country written before a rating, when
+/// it's one with ratings here (Portugal's "M/12" and Belgium's "KT/EA" are
+/// ratings, not countries).
+fn with_country(rating: &str) -> (Option<&'static str>, &str) {
+    let Some((before, after)) = rating.split_once([':', '/']) else { return (None, rating) };
+    let before = before.trim();
+    let country = if before.eq_ignore_ascii_case("usa") { Some("US") } else { system(before).map(|s| s.country) };
+    match country {
+        Some(country) if !after.trim().is_empty() => (Some(country), without_rated(after)),
+        _ => (None, rating),
+    }
+}
+
+/// The age of a rating read without its country's ratings: US names, then
+/// the first number in it. `None` when unknown or unrated.
+fn rating_age(rating: &str) -> Option<i64> {
     let r = rating.trim().to_ascii_uppercase();
     let r = r.strip_prefix("RATED ").unwrap_or(&r).trim();
     let known = match r {
@@ -33,24 +154,46 @@ pub fn rating_age(rating: &str) -> Option<i64> {
     digits.parse::<i64>().ok().filter(|age| (0..=21).contains(age))
 }
 
-/// Fill `rating_age` for items whose rating was stored before ages existed
-/// (or whose certification is new). Cheap: only rated items without an age.
+/// Work out the items' ages: those without one (stored before ages
+/// existed), and all of them when the ratings tables ([`VERSION`]) or the
+/// metadata region (the country of ratings with none of their own) changed
+/// since the last time.
 pub async fn backfill(db: &Db) -> sqlx::Result<()> {
-    let rows: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT id, content_rating FROM items WHERE content_rating IS NOT NULL AND content_rating != '' AND rating_age IS NULL",
+    let region = region(db).await?;
+    let stamp = format!("{VERSION}:{region}");
+    let done: Option<String> =
+        sqlx::query_scalar("SELECT value FROM settings WHERE key = 'rating_ages'").fetch_optional(&db.read).await?;
+    let all = done.as_deref() != Some(stamp.as_str());
+    /// An item's id, kind, rating, rating's country and age.
+    type Rated = (i64, String, String, Option<String>, Option<i64>);
+    let rows: Vec<Rated> = sqlx::query_as(
+        "SELECT id, kind, content_rating, content_rating_country, rating_age FROM items
+         WHERE content_rating IS NOT NULL AND content_rating != '' AND (? OR rating_age IS NULL)",
     )
+    .bind(all)
     .fetch_all(&db.read)
     .await?;
-    let ages: Vec<(i64, i64)> = rows.iter().filter_map(|(id, r)| rating_age(r).map(|age| (*id, age))).collect();
-    if ages.is_empty() {
-        return Ok(());
-    }
+    let ages: Vec<(i64, Option<i64>)> = rows
+        .iter()
+        .filter_map(|(id, kind, rating, country, old)| {
+            let age = age(Some(country.as_deref().unwrap_or(&region)), Kind::of(kind), rating);
+            (age != *old).then_some((*id, age))
+        })
+        .collect();
     let mut tx = db.write.begin().await?;
     for (id, age) in &ages {
         sqlx::query("UPDATE items SET rating_age = ? WHERE id = ?").bind(age).bind(id).execute(&mut *tx).await?;
     }
+    sqlx::query(
+        "INSERT INTO settings (key, value) VALUES ('rating_ages', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+    )
+    .bind(&stamp)
+    .execute(&mut *tx)
+    .await?;
     tx.commit().await?;
-    tracing::debug!("computed age ratings for {} items", ages.len());
+    if !ages.is_empty() {
+        tracing::debug!("worked out the age ratings of {} items", ages.len());
+    }
     Ok(())
 }
 
@@ -124,8 +267,89 @@ mod tests {
         }
     }
 
-    #[tokio::test]
-    async fn backfill_fills_missing_ages_only() {
+    /// The ratings of the same name in several countries.
+    #[test]
+    fn ratings_are_read_with_their_country() {
+        for (country, kind, rating, expected) in [
+            ("DK", Kind::Film, "A", Some(0)),
+            ("ES", Kind::Film, "A", Some(0)),
+            ("MX", Kind::Film, "A", Some(0)),
+            ("IN", Kind::Film, "A", Some(18)),
+            ("GB", Kind::Film, "PG", Some(8)),
+            ("US", Kind::Film, "PG", Some(10)),
+            ("CA", Kind::Film, "PG", Some(10)),
+            ("CA", Kind::Tv, "PG", Some(8)),
+            ("AU", Kind::Film, "PG", Some(10)),
+            ("AU", Kind::Film, "M", Some(15)),
+            ("gb", Kind::Film, "12a", Some(12)),
+            // Not one of the country's: the shared table.
+            ("GB", Kind::Film, "PG-13", Some(13)),
+            ("DK", Kind::Film, "Unrated", None),
+        ] {
+            assert_eq!(age(Some(country), kind, rating), expected, "{country} {rating} {kind:?}");
+        }
+        // No country known: the shared table.
+        assert_eq!(age(None, Kind::Film, "PG"), Some(10));
+        assert_eq!(age(Some("ZZ"), Kind::Film, "PG"), Some(10));
+    }
+
+    /// A country written before the rating wins over the one given.
+    #[test]
+    fn ratings_written_with_their_country() {
+        assert_eq!(age(Some("US"), Kind::Film, "GB:15"), Some(15));
+        assert_eq!(age(Some("US"), Kind::Film, "gb/12A"), Some(12));
+        assert_eq!(age(Some("IN"), Kind::Film, "dk:A"), Some(0));
+        assert_eq!(age(Some("DK"), Kind::Film, "USA:R"), Some(17));
+        assert_eq!(age(Some("DK"), Kind::Film, "Rated USA:R"), Some(17));
+        // Ratings with a colon or slash in them aren't countries.
+        assert_eq!(with_country("M/12"), (None, "M/12"));
+        assert_eq!(with_country("KT/EA"), (None, "KT/EA"));
+        assert_eq!(with_country("GB:"), (None, "GB:"));
+    }
+
+    #[test]
+    fn regions_of_metadata_languages() {
+        assert_eq!(region_of("en-GB"), "GB");
+        assert_eq!(region_of("pt_br"), "BR");
+        assert_eq!(region_of("fr"), "US");
+    }
+
+    /// Within a country, a name means one age for a kind, ages are ages,
+    /// and each system's ratings go from the youngest up.
+    #[test]
+    fn systems_are_consistent() {
+        let mut countries = Vec::new();
+        for system in SYSTEMS {
+            assert_eq!(system.country.len(), 2, "{}", system.country);
+            assert_eq!(system.country, system.country.to_ascii_uppercase());
+            assert!(!countries.contains(&system.country), "{} twice", system.country);
+            countries.push(system.country);
+            for kind in [Kind::Film, Kind::Tv] {
+                let of_kind: Vec<&Rating> =
+                    system.ratings.iter().filter(|r| r.kind.is_none_or(|k| k == kind)).collect();
+                for (i, rating) in of_kind.iter().enumerate() {
+                    assert!((0..=21).contains(&rating.age), "{} {:?}", system.country, rating.names);
+                    assert!(!rating.names.is_empty());
+                    for other in &of_kind[i + 1..] {
+                        for name in rating.names {
+                            assert!(
+                                !other.names.iter().any(|n| same(n, name)),
+                                "{}: {name} twice for {kind:?}",
+                                system.country
+                            );
+                        }
+                    }
+                }
+                assert!(
+                    of_kind.windows(2).all(|w| w[0].age <= w[1].age),
+                    "{} {kind:?}: youngest first",
+                    system.country
+                );
+            }
+        }
+    }
+
+    async fn database() -> (tempfile::TempDir, Db) {
         let dir = crate::testing::tempdir();
         let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
         sqlx::query(
@@ -134,24 +358,74 @@ mod tests {
         .execute(&db.write)
         .await
         .unwrap();
+        (dir, db)
+    }
+
+    async fn insert(db: &Db, id: i64, rating: Option<&str>, country: Option<&str>, age: Option<i64>) {
+        sqlx::query(
+            "INSERT INTO items (id, library_id, kind, key, title, sort_title, content_rating, content_rating_country,
+                                rating_age, added_at, updated_at)
+             VALUES (?, 1, 'movie', ?, 't', 't', ?, ?, ?, 0, 0)",
+        )
+        .bind(id)
+        .bind(id.to_string())
+        .bind(rating)
+        .bind(country)
+        .bind(age)
+        .execute(&db.write)
+        .await
+        .unwrap();
+    }
+
+    async fn ages(db: &Db) -> Vec<Option<i64>> {
+        sqlx::query_scalar("SELECT rating_age FROM items ORDER BY id").fetch_all(&db.read).await.unwrap()
+    }
+
+    async fn set_language(db: &Db, language: &str) {
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES ('server', json_object('metadata_language', ?))
+             ON CONFLICT(key) DO UPDATE SET value = json_set(value, '$.metadata_language', ?)",
+        )
+        .bind(language)
+        .bind(language)
+        .execute(&db.write)
+        .await
+        .unwrap();
+    }
+
+    /// Once the ages are worked out with these tables and region, only
+    /// missing ones are filled.
+    #[tokio::test]
+    async fn backfill_fills_missing_ages_only() {
+        let (_dir, db) = database().await;
+        backfill(&db).await.unwrap();
         for (id, rating, age) in
             [(1, Some("PG-13"), None), (2, Some("R"), Some(3)), (3, Some("Unrated"), None), (4, None, None)]
         {
-            sqlx::query(
-                "INSERT INTO items (id, library_id, kind, key, title, sort_title, content_rating, rating_age, added_at, updated_at)
-                 VALUES (?, 1, 'movie', ?, 't', 't', ?, ?, 0, 0)",
-            )
-            .bind(id)
-            .bind(id.to_string())
-            .bind(rating)
-            .bind(age)
-            .execute(&db.write)
-            .await
-            .unwrap();
+            insert(&db, id, rating, None, age).await;
         }
         backfill(&db).await.unwrap();
-        let ages: Vec<Option<i64>> =
-            sqlx::query_scalar("SELECT rating_age FROM items ORDER BY id").fetch_all(&db.read).await.unwrap();
-        assert_eq!(ages, [Some(13), Some(3), None, None], "existing ages are kept, unknown ratings stay unrated");
+        assert_eq!(
+            ages(&db).await,
+            [Some(13), Some(3), None, None],
+            "existing ages are kept, unknown ratings stay unrated"
+        );
+    }
+
+    /// New tables, or another region, work every age out again, each with
+    /// its rating's country, else the region's.
+    #[tokio::test]
+    async fn backfill_reads_ratings_with_their_country() {
+        let (_dir, db) = database().await;
+        backfill(&db).await.unwrap();
+        insert(&db, 1, Some("A"), Some("DK"), Some(18)).await;
+        insert(&db, 2, Some("A"), Some("IN"), None).await;
+        insert(&db, 3, Some("PG"), None, Some(10)).await;
+        sqlx::query("UPDATE settings SET value = '0:US' WHERE key = 'rating_ages'").execute(&db.write).await.unwrap();
+        backfill(&db).await.unwrap();
+        assert_eq!(ages(&db).await, [Some(0), Some(18), Some(10)], "new tables: every age again");
+        set_language(&db, "en-GB").await;
+        backfill(&db).await.unwrap();
+        assert_eq!(ages(&db).await, [Some(0), Some(18), Some(8)], "a British server: PG is 8");
     }
 }

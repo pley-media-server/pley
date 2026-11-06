@@ -9,6 +9,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- Age limits read a rating with its country's ratings, so that one of the
+  same name in another country isn't misread: "A" is for all ages in
+  Denmark, Spain and Mexico and for adults in India, and the UK's PG is
+  8. Ratings from TMDB, TheTVDB and NFO files keep their country; NFO
+  files with several countries' give the metadata region's. Changing the
+  region in Settings works every age out again.
+
 ## [0.1.8] - 2026-11-06
 
 ### Added
