@@ -302,6 +302,18 @@ class LanguageTest(Shown):
         self.assertEqual(xbmcgui.Window.properties["pley.word.30003"], "Buscar")
         self.assertIn(told, xbmc.builtins[before:])
 
+    def test_the_service_draws_the_windows_words_again_as_it_starts(self):
+        # Kodi still running, the add-on updated: Home's properties hold the
+        # version before's words, in the language shown now.
+        self.addCleanup(xbmcgui.Window.properties.clear)
+        xbmcgui.Window.properties.clear()
+        self.show()
+        xbmcgui.Window.properties[kodi.SHOWN_LANGUAGE] = "en"
+        xbmcgui.Window.properties["pley.word.30003"] = "Look for"
+        kodi.show_language_at_start()
+        self.assertEqual(xbmcgui.Window.properties["pley.word.30003"], "Search")
+        self.assertEqual(set(k for k in xbmcgui.Window.properties if k.startswith("pley.word.")), {"pley.word.%d" % i for i in L.WORDS})
+
     def test_requests_say_the_language_shown(self):
         self.show(account="fr")
         server = support.FakeServer(lambda request: support.answer(200, {}))

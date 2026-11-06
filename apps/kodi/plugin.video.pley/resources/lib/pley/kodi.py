@@ -652,6 +652,15 @@ def follow_language() -> bool:
     return True
 
 
+def show_language_at_start() -> None:
+    """The language as the service starts. Home's properties outlive the
+    service, which Kodi starts again when the add-on is updated: the
+    windows' words are drawn again even in the language they're in, else
+    they would keep the version before's."""
+    if not follow_language():
+        show_words()
+
+
 # Requests to the server say which language is shown: what the server
 # writes itself (Home's rows) comes in it.
 api.LANGUAGE = language

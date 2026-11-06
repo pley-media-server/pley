@@ -1376,7 +1376,7 @@ def run() -> None:
         news_worker.put(lambda: language.hear(player.call))
 
     # The windows' words, in the language last shown, before anything asks.
-    kodi.follow_language()
+    kodi.show_language_at_start()
     events = Events(tokens, user_agent, heard, opened=opened, query=receiver_query(user_agent))
     events.start()
     # A quality chosen before Automatic, shown in the settings as it was.
