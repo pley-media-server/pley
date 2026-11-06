@@ -17,7 +17,7 @@ export function LanguagePicker() {
   const shown = currentLanguage();
   // What Automatic is: the browser's language, else the server's.
   const browser = browserLanguage(server?.language);
-  const mark = (on: boolean) => (on ? <Check className="size-4 text-accent" /> : <span className="size-4" />);
+  const mark = (on: boolean) => (on ? <Check className="size-4 text-accent" /> : <span className="inline-block size-4" />);
 
   return (
     <Menu
