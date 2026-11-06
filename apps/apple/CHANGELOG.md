@@ -136,3 +136,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
+- A title's page on iPhone keeps From start on one line, with the time left
+  under Resume when they don't fit across; the quality badges sit on a line
+  of their own under the facts; and Audio and Subtitles show their choice
+  on one line.
