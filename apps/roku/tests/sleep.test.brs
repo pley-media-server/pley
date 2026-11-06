@@ -77,6 +77,20 @@ sub test_sleep_button_says_what_is_left()
     tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, 9000#, "a")), "Keep listening")
 end sub
 
+sub test_sleep_words_in_french_and_spanish()
+    i18nUse("fr")
+    tkEqual(sleepChoices("episode")[0].label, "Désactivé")
+    tkEqual(sleepChoices("movie").Peek().label, "Fin de ce film")
+    timer = sleepNew(15, 0#)
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 0#, 1000#, "a")), "Minuteur" + Chr(160) + ": Il reste 15 min")
+    tkEqual(sleepButtonLabel(timer, sleepState(timer, 14.5 * 60000#, 1000#, "a")), "Continuer à écouter")
+    i18nUse("es")
+    tkEqual(sleepLabel(timer, sleepState(timer, 14 * 60000#, 1000#, "a"), "movie"), "Queda 1 min", "one")
+    tkEqual(sleepLabel(timer, sleepState(timer, 0#, 1000#, "a"), "movie"), "Quedan 15 min")
+    tkEqual(sleepLabel(timer, sleepState(timer, 14.5 * 60000#, 1000#, "a"), "movie"), "Quedan 30 s")
+    tkEqual(sleepButtonLabel(sleepNew(0, 0#), sleepState(sleepNew(0, 0#), 0#, 1000#, "a")), "Temporizador")
+end sub
+
 sub test_sleep_off_says_nothing()
     timer = sleepNew(0, 0#)
     state = sleepState(timer, 99999#, 1000#, "a")

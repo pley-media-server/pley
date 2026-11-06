@@ -28,7 +28,7 @@
         <!-- The track's lines, each under the one before, so a title of
              one line or two leaves no gap. -->
         <LayoutGroup translation="[560, 104]" layoutDirection="vert" itemSpacings="[8, 20, 8, 20]">
-            <Label text="Now playing" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
+            <Label id="heading" color="0x38BDF8FF" font="font:SmallerBoldSystemFont" />
             <Label id="title" width="1264" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
             <Label id="artist" width="1264" color="0xEBEBEBFF" font="font:MediumSystemFont" />
             <Label id="album" width="1264" color="0xA1A9B6FF" font="font:SmallSystemFont" />
@@ -46,7 +46,7 @@
         <Label id="left" translation="[1524, 476]" width="300" horizAlign="right" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <ChipRow id="buttons" translation="[96, 560]" />
         <!-- Up next: the queue, the track playing marked, OK playing one. -->
-        <Label id="upNextTitle" translation="[96, 652]" text="Up next" color="0xA1A9B6FF" font="font:SmallerBoldSystemFont" visible="false" />
+        <Label id="upNextTitle" translation="[96, 652]" color="0xA1A9B6FF" font="font:SmallerBoldSystemFont" visible="false" />
         <MarkupList id="upNext" translation="[96, 700]" itemComponentName="QueueRow" itemSize="[1728, 56]" itemSpacing="[0, 8]" numRows="5" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" visible="false" />
     </children>
 </component>

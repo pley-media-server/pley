@@ -59,6 +59,18 @@ sub test_caps_lines_say_what_diagnostics_shows()
     tkEqual(plain[3], "Sent to the receiver: nothing")
     tkEqual(plain[4], "Sound: Stereo")
     tkEqual(plain[5], "Containers: mp4", "no picture subtitles drawn: no line for them")
+
+    i18nUse("fr")
+    colon = Chr(160) + ": "
+    lines = capsLines(report)
+    tkEqual(lines[0], "Écran" + colon + "3840×2160 à 60 Hz")
+    tkEqual(lines[3], "Vidéo" + colon + "H.264 3840×2160, HEVC 3840×2160 10 bits")
+    tkEqual(lines[6], "Son" + colon + "Surround (5.1)")
+    tkEqual(capsLines({ hdr_types: [], video: [], audio_decode: ["aac"], audio_passthrough: [], audio_channels: 2, containers: ["mp4"] })[0], "HDR" + colon + "aucun")
+    i18nUse("es")
+    plain = capsLines({ hdr_types: [], video: [], audio_decode: ["aac"], audio_passthrough: [], audio_channels: 2, containers: ["mp4"] })
+    tkEqual(plain[3], "Enviado al receptor: nada")
+    tkEqual(plain[4], "Sonido: Estéreo")
 end sub
 
 sub test_caps_of_a_1080p_stick_on_tv_speakers()

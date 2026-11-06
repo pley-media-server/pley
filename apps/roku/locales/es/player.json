@@ -1,0 +1,240 @@
+{
+  "reconnecting": "Reconectando…",
+  "skip": {
+    "intro": "Saltar intro",
+    "credits": "Saltar créditos"
+  },
+  "upNext": {
+    "title": "A continuación",
+    "playNow": "Reproducir ahora",
+    "nextIn": "Siguiente en {{seconds}} s"
+  },
+  "sync": {
+    "hint": "Izquierda: antes · Derecha: después",
+    "reset": "Restablecer"
+  },
+  "menu": {
+    "title": "Reproducción",
+    "subtitles": "Subtítulos",
+    "subtitlesNow": "Subtítulos: {{track}}",
+    "audio": "Audio",
+    "audioNow": "Audio: {{track}}",
+    "quality": "Calidad",
+    "qualityNow": "Calidad: {{quality}}",
+    "sync": "Desfase de subtítulos",
+    "syncNow": "Desfase de subtítulos: {{offset}}",
+    "chapters": "Capítulos",
+    "find": "Buscar subtítulos…",
+    "details": "Detalles de reproducción",
+    "backCloses": "Atrás para cerrar.",
+    "backGoesBack": "Atrás para volver."
+  },
+  "details": {
+    "row": "{{label}}: {{value}}",
+    "picturesDrawn": "Subtítulos: Dibujados por Pley",
+    "qualityLowered": "Calidad: {{quality}} · Reducida para tu conexión"
+  },
+  "toasts": {
+    "paused": "En pausa",
+    "playing": "Reproduciendo",
+    "jumpedTo": "Posición: {{time}}",
+    "audio": "Audio: {{track}}",
+    "subtitles": "Subtítulos: {{track}}",
+    "subtitlesOff": "Subtítulos desactivados",
+    "quality": "Calidad: {{quality}}",
+    "qualityLowered": "Calidad reducida a {{quality}}",
+    "slowServer": "El servidor no da abasto con este video. Prueba una calidad más baja: Abajo y luego Calidad.",
+    "notSaved": "No se pudo guardar esta elección para la próxima vez.",
+    "subtitlesAdded": "Subtítulos añadidos: {{track}}"
+  },
+  "errors": {
+    "cantPlay": "No se puede reproducir este elemento",
+    "unplayable": "Este video no se puede reproducir en este Roku.",
+    "endsEarly": "Este video termina antes del punto desde el que debía reproducirse.",
+    "stalled": "La reproducción se detuvo y no pudo continuar.",
+    "cantReach": "No se puede conectar con {{server}}",
+    "cantReachText": "Pley para Roku no puede conectar con el servidor en {{address}}. Comprueba que esté encendido y que esta TV esté en la misma red que el servidor.",
+    "stoppedByAdmin": "El administrador del servidor detuvo la reproducción.",
+    "stoppedElsewhere": "La reproducción se detuvo desde otro dispositivo."
+  },
+  "quality": {
+    "original": "Original",
+    "automatic": "Automática",
+    "automaticAt": "Automática · {{quality}}",
+    "preset": "{{mbps}} Mbps {{lines}}",
+    "originalHint": "Calidad máxima. Puede detenerse a cargar con una conexión lenta.",
+    "automaticHint": "Se adapta a las condiciones."
+  },
+  "sleep": {
+    "title": "Temporizador",
+    "titleNow": "Temporizador: {{state}}",
+    "off": "Desactivado",
+    "minutes": "{{minutes}} min",
+    "minutesLeft_one": "Queda {{count}} min",
+    "minutesLeft_many": "Quedan {{count}} min",
+    "minutesLeft_other": "Quedan {{count}} min",
+    "secondsLeft_one": "Queda {{count}} s",
+    "secondsLeft_many": "Quedan {{count}} s",
+    "secondsLeft_other": "Quedan {{count}} s",
+    "end": {
+      "episode": "Fin del episodio",
+      "movie": "Fin de la película",
+      "track": "Fin de la pista",
+      "video": "Fin del video"
+    },
+    "pausingIn": "Se pausará en {{seconds}} s",
+    "keepWatching": "Seguir viendo",
+    "keepListening": "Seguir escuchando"
+  },
+  "find": {
+    "title": "Buscar subtítulos",
+    "language": "Idioma de los subtítulos",
+    "searching": "Buscando subtítulos…",
+    "languageEntry": "Idioma: {{language}}",
+    "yourLanguage": "Tu idioma de subtítulos",
+    "yourLanguageInSentence": "tu idioma de subtítulos",
+    "languageHint": "El idioma en el que se busca.",
+    "nothingFound": "No se encontraron subtítulos para este archivo ({{language}}). Elige otro idioma en «Idioma».",
+    "subtitles": "Subtítulos",
+    "madeForFile": "Hechos para este archivo",
+    "hearingImpaired": "Para personas sordas",
+    "downloads_one": "{{count, number}} descarga",
+    "downloads_many": "{{count, number}} descargas",
+    "downloads_other": "{{count, number}} descargas",
+    "adding": "Añadiendo {{name}}…",
+    "noTrack": "El servidor no devolvió los subtítulos.",
+    "notSetUp": "La búsqueda de subtítulos no está configurada en este servidor. Un administrador la configura en la web, en Ajustes → Servidor.",
+    "needsNewer": "Buscar subtítulos requiere un servidor Pley más reciente.",
+    "unreachable": "No se puede conectar con el servidor.",
+    "failed": "Algo salió mal. Vuelve a intentarlo."
+  },
+  "tracks": {
+    "off": "Desactivados",
+    "automatic": "Automática",
+    "automaticLanguage": "Automática ({{language}})",
+    "unknown": "Desconocido",
+    "forced": "Forzados",
+    "external": "Externos",
+    "version": "Versión {{number}}"
+  },
+  "media": {
+    "languages": {
+      "und": "Idioma desconocido",
+      "mul": "Varios idiomas",
+      "zxx": "Sin contenido lingüístico"
+    },
+    "mono": "Mono",
+    "stereo": "Estéreo",
+    "channelCount": "{{n}} canales",
+    "fact": "{{label}}: {{value}}",
+    "file": "Archivo",
+    "video": "Video",
+    "audio": "Audio",
+    "subtitles": "Subtítulos",
+    "numbered": "{{kind}} {{n}}",
+    "name": "Nombre",
+    "container": "Contenedor",
+    "size": "Tamaño",
+    "duration": "Duración",
+    "overallBitrate": "Tasa de bits",
+    "codec": "Códec",
+    "profile": "Perfil",
+    "resolution": "Resolución",
+    "frameRate": "Fotogramas/s",
+    "bitDepth": "Profundidad",
+    "primaries": "Primarios",
+    "transfer": "Transferencia",
+    "matrix": "Matriz",
+    "bitrate": "Tasa de bits",
+    "title": "Título",
+    "channels": "Canales",
+    "sampleRate": "Muestreo",
+    "language": "Idioma",
+    "flags": "Marcas",
+    "format": "Formato",
+    "formatPicture": "{{codec}}, imagen",
+    "formatText": "{{codec}}, texto",
+    "level": "Nivel {{level}}",
+    "fps": "{{fps}} fps",
+    "fpsInterlaced": "{{fps}} fps, entrelazado",
+    "bits": "{{n}} bits",
+    "default": "Por defecto",
+    "beside": "Junto al archivo",
+    "dvProfile": "Perfil {{profile}}",
+    "noBaseLayer": "sin capa base compatible",
+    "baseLayer": "capa base compatible con {{range}}",
+    "fullLayer": "capa de mejora completa",
+    "minimalLayer": "capa de mejora mínima"
+  },
+  "caps": {
+    "display": "Pantalla: {{size}}",
+    "displayRate": "Pantalla: {{size}} a {{rate}} Hz",
+    "hdr": "HDR: {{list}}",
+    "none": "ninguno",
+    "dolbyVision": "Dolby Vision: perfiles {{list}}",
+    "video": "Video: {{list}}",
+    "audioDecoded": "Audio decodificado: {{list}}",
+    "sent": "Enviado al receptor: {{list}}",
+    "nothing": "nada",
+    "sound": "Sonido: {{sound}}",
+    "surround": "Envolvente (5.1)",
+    "pictures": "Subtítulos de imagen: PGS dibujados aquí, VobSub y DVB incrustados",
+    "containers": "Contenedores: {{list}}",
+    "streams": "Flujos: HLS, en varios tamaños"
+  },
+  "nowPlaying": {
+    "title": "Reproduciendo ahora",
+    "position": "Pista {{at, number}} de {{total, number}}",
+    "shuffle": "Aleatorio",
+    "stopShuffling": "Quitar aleatorio",
+    "previous": "Anterior",
+    "pause": "Pausar",
+    "next": "Siguiente",
+    "stop": "Detener",
+    "cantPlay": "Esta pista no se puede reproducir en este Roku.",
+    "trackProblem": "{{title}}: {{message}}"
+  },
+  "cast": {
+    "playingFrom": "Reproduciendo desde {{device}}",
+    "playingFromAnother": "Reproduciendo desde otro dispositivo",
+    "nothingToPlay": "Nada que reproducir",
+    "switchFailed": "No se pudo cambiar al perfil del control remoto"
+  },
+  "settings": {
+    "audioLanguage": "Idioma del audio",
+    "subtitles": "Subtítulos",
+    "subtitleLanguage": "Idioma de los subtítulos",
+    "fileDefault": "El predeterminado del archivo",
+    "sameAsAudio": "El mismo que el del audio",
+    "rows": {
+      "audio": "Idioma del audio: {{language}}",
+      "mode": "Subtítulos: {{mode}}",
+      "subtitle": "Idioma de los subtítulos: {{language}}",
+      "fileDefault": "El del archivo",
+      "sameAsAudio": "El del audio",
+      "readOnly": "{{row}} · cámbialo en la web"
+    },
+    "modes": {
+      "off": {
+        "label": "Desactivados",
+        "row": "Desactivados",
+        "hint": "Los subtítulos siguen desactivados hasta que los actives."
+      },
+      "forced": {
+        "label": "Solo para diálogos en otro idioma",
+        "row": "Solo diálogos en otro idioma",
+        "hint": "Solo subtítulos forzados, para carteles y diálogos en otro idioma."
+      },
+      "foreign": {
+        "label": "Cuando el audio está en otro idioma",
+        "row": "Audio en otro idioma",
+        "hint": "Los subtítulos completos aparecen cuando el audio no está en tu idioma de subtítulos."
+      },
+      "always": {
+        "label": "Siempre",
+        "row": "Siempre",
+        "hint": "Los subtítulos en tu idioma aparecen siempre que los haya."
+      }
+    }
+  }
+}

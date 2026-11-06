@@ -88,6 +88,10 @@ sub test_player_says_who_stopped_the_stream()
     tkEqual(playerStoppedMessage({ message: "Disk full" }), "Playback was stopped by the server's administrator." + Chr(10) + "Disk full")
     tkEqual(playerStoppedMessage("<html>"), "Playback was stopped by the server's administrator.")
     tkEqual(playerStoppedMessage({ session_id: "s1", message: invalid, by_admin: false }), "Playback was stopped from another device.", "the event stream says who")
+    i18nUse("fr")
+    tkEqual(playerStoppedMessage({ message: "Disk full" }), "La lecture a été arrêtée par l’administrateur du serveur." + Chr(10) + "Disk full", "the server's words as it wrote them")
+    i18nUse("es")
+    tkEqual(playerStoppedMessage({ by_admin: false }), "La reproducción se detuvo desde otro dispositivo.")
 end sub
 
 sub test_player_up_next_at_the_credits()
@@ -143,6 +147,10 @@ sub test_player_shows_a_skip_button_until_a_second_before_the_end()
     tkEqual(playerActiveMarker(markers, 1250000).key, "credits:1200000")
     tkEqual(playerSkipLabel(markers[0]), "Skip intro")
     tkEqual(playerSkipLabel(markers[1]), "Skip credits")
+    i18nUse("fr")
+    tkEqual(playerSkipLabel(markers[1]), "Passer le générique")
+    i18nUse("es")
+    tkEqual(playerSkipLabel(markers[0]), "Saltar intro")
 end sub
 
 sub test_player_leaves_an_episodes_credits_to_up_next()

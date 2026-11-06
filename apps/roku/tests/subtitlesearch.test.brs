@@ -36,6 +36,23 @@ sub test_ss_results_are_named_for_the_list()
     tkEqual(ssLabel({}), "Subtitles")
 end sub
 
+sub test_ss_words_in_french_and_spanish()
+    data = { results: [{ id: "a", language: "en", name: "Movie.WEB", hearing_impaired: true, forced: true, downloads: 1234567, matched: "hash" }, { id: "b", language: "pt-BR", name: "Movie.HDTV", downloads: 0 }] }
+    i18nUse("fr")
+    found = ssResults(data)
+    tkEqual(found[0].label, "Anglais · Movie.WEB")
+    tkEqual(found[0].hint, "Movie.WEB" + Chr(10) + "Conçus pour ce fichier · Pour malentendants · Forcés · 1" + Chr(8239) + "234" + Chr(8239) + "567 téléchargements")
+    tkEqual(found[1].hint, "Movie.HDTV" + Chr(10) + "0 téléchargement", "French counts 0 as one")
+    tkEqual(ssLanguageEntry(""), "Langue" + Chr(160) + ": Celle de vos sous-titres")
+    tkEqual(ssNothingFound("ger"), "Aucun sous-titre trouvé pour ce fichier (Allemand). Changez de langue avec «" + Chr(160) + "Langue" + Chr(160) + "».")
+    i18nUse("es")
+    found = ssResults(data)
+    tkEqual(found[0].hint, "Movie.WEB" + Chr(10) + "Hechos para este archivo · Para personas sordas · Forzados · 1.234.567 descargas")
+    tkEqual(found[1].label, "Portugués · Movie.HDTV", "the language before its country")
+    tkEqual(ssNothingFound(""), "No se encontraron subtítulos para este archivo (tu idioma de subtítulos). Elige otro idioma en «Idioma».")
+    tkEqual(ssProblem({ ok: false, status: 0, data: invalid, error: "network", message: "x" }, true), "No se puede conectar con el servidor.")
+end sub
+
 sub test_ss_what_is_said_when_it_cant_look()
     notSetUp = { ok: false, status: 503, data: { code: "unavailable", message: "No OpenSubtitles key", setup: false }, error: "unavailable", message: "No OpenSubtitles key" }
     tkEqual(ssProblem(notSetUp, true), "Subtitle search isn't set up on this server. An administrator sets it up on the web, in Settings → Server.")

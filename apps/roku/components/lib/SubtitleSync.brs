@@ -28,10 +28,10 @@ function syncClamp(offsetMs as dynamic) as integer
     return rounded
 end function
 
-' "+0.3 s", "-1.2 s", "0.0 s".
+' "+0.3 s", "-1.2 s", "0.0 s" ("+0,3 s" in French and Spanish).
 function syncLabel(offsetMs as integer) as string
     tenths = Int(Abs(offsetMs) / 100 + 0.5)
-    text = Int(tenths / 10).ToStr() + "." + (tenths MOD 10).ToStr() + " s"
+    text = i18nNumber(tenths / 10, 1) + " s"
     if offsetMs > 0 then return "+" + text
     if offsetMs < 0 then return "-" + text
     return text

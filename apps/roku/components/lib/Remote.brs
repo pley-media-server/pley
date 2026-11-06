@@ -126,12 +126,12 @@ end function
 ' player's controls, so this is all that shows of it. "" for the rest: a
 ' command that changes nothing, and next, whose title shows as it begins.
 function remoteNotice(command as dynamic, action as object) as string
-    if action.act = "pause" then return "Paused"
-    if action.act = "play" then return "Playing"
+    if action.act = "pause" then return t("player.toasts.paused")
+    if action.act = "play" then return t("player.toasts.playing")
     data = httpObject(command)
     if action.act <> "seek" or data = invalid then return ""
     what = httpString(data.command)
-    if what = "seek" then return "Jumped to " + fmtClock(action.positionMs)
+    if what = "seek" then return t("player.toasts.jumpedTo", { time: fmtClock(action.positionMs) })
     if what <> "skip" then return ""
     offset = httpNumber(data.offset_ms, 0)
     if offset = 0 then return ""
@@ -149,18 +149,18 @@ end function
 function remoteTrackNotice(action as object, tracks as object) as string
     if action.act = "audio"
         list = tracks.audio
-        heading = "Audio: "
+        key = "player.toasts.audio"
     else if action.act = "subtitles"
-        if action.index = -1 then return "Subtitles off"
+        if action.index = -1 then return t("player.toasts.subtitlesOff")
         list = tracks.subtitles
-        heading = "Subtitles: "
+        key = "player.toasts.subtitles"
     else
         return ""
     end if
     values = httpArray(list.values)
     labels = httpArray(list.labels)
     for at = 0 to values.Count() - 1
-        if httpNumber(values[at], -9) = action.index and at < labels.Count() then return heading + httpString(labels[at])
+        if httpNumber(values[at], -9) = action.index and at < labels.Count() then return t(key, { track: httpString(labels[at]) })
     end for
     return ""
 end function
@@ -172,7 +172,7 @@ end function
 function remoteQualityNotice(action as object, menu as dynamic) as string
     if action.act <> "quality" then return ""
     for each quality in httpArray(menu)
-        if httpString(quality.id) = action.quality then return "Quality: " + httpString(quality.label)
+        if httpString(quality.id) = action.quality then return t("player.toasts.quality", { quality: httpString(quality.label) })
     end for
     return ""
 end function

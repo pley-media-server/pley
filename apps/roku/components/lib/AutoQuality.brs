@@ -13,38 +13,60 @@
 ' the frames it drops; what it can't decode, the server converts (the
 ' player's fallback for an error).
 
-function aqMenu() as object
+' The qualities, in the menu's order: { id, kbps, lines }.
+function aqQualities() as object
     return [
-        { id: "original", label: "Original", kbps: 0, lines: 0 },
-        { id: "auto", label: "Automatic", kbps: 0, lines: 0 },
-        { id: "30m", label: "30 Mbps 4K", kbps: 30000, lines: 2160 },
-        { id: "15m", label: "15 Mbps 4K", kbps: 15000, lines: 2160 },
-        { id: "20m", label: "20 Mbps 1080p", kbps: 20000, lines: 1080 },
-        { id: "12m", label: "12 Mbps 1080p", kbps: 12000, lines: 1080 },
-        { id: "8m", label: "8 Mbps 1080p", kbps: 8000, lines: 1080 },
-        { id: "4m", label: "4 Mbps 720p", kbps: 4000, lines: 720 },
-        { id: "2m", label: "2 Mbps 480p", kbps: 2000, lines: 480 }
+        { id: "original", kbps: 0, lines: 0 },
+        { id: "auto", kbps: 0, lines: 0 },
+        { id: "30m", kbps: 30000, lines: 2160 },
+        { id: "15m", kbps: 15000, lines: 2160 },
+        { id: "20m", kbps: 20000, lines: 1080 },
+        { id: "12m", kbps: 12000, lines: 1080 },
+        { id: "8m", kbps: 8000, lines: 1080 },
+        { id: "4m", kbps: 4000, lines: 720 },
+        { id: "2m", kbps: 2000, lines: 480 }
     ]
+end function
+
+' The Quality menu as Settings lists it: { id, label, kbps, lines }.
+function aqMenu() as object
+    menu = []
+    for each quality in aqQualities()
+        quality.label = aqLabel(quality.id)
+        menu.Push(quality)
+    end for
+    return menu
 end function
 
 ' Each quality's hint in Settings and the player's menu; the others need none.
 function aqHint(id as string) as string
-    if id = "original" then return "Full quality. May buffer on a slow connection."
-    if id = "auto" then return "Dynamically adjust to conditions."
+    if id = "original" then return t("player.quality.originalHint")
+    if id = "auto" then return t("player.quality.automaticHint")
     return ""
 end function
 
 function aqFind(id as dynamic) as dynamic
-    for each quality in aqMenu()
+    for each quality in aqQualities()
         if quality.id = httpString(id) then return quality
     end for
     return invalid
 end function
 
+' A quality's name: "Original", "Automatic", "8 Mbps 1080p" ("8 Mbit/s
+' 1080p" in French); Original for an id not in the menu.
 function aqLabel(id as dynamic) as string
     quality = aqFind(id)
-    if quality = invalid then return "Original"
-    return quality.label
+    if quality = invalid or quality.id = "original" then return t("player.quality.original")
+    if quality.id = "auto" then return t("player.quality.automatic")
+    return aqPresetLabel(i18nNumber(quality.kbps \ 1000), quality.lines)
+end function
+
+' A bitrate (mbps, its words) and the lines it is named by: "8 Mbps
+' 1080p", "15 Mbps 4K".
+function aqPresetLabel(mbps as string, lines as integer) as string
+    named = urlValue(lines) + "p"
+    if lines >= 2160 then named = "4K"
+    return t("player.quality.preset", { mbps: mbps, lines: named })
 end function
 
 ' A quality's bitrate in kbps; 0 for Original and Automatic.
@@ -118,25 +140,20 @@ end function
 ' file named by the file's own lines ("8 Mbps 720p" for a 720p file).
 function aqMenuFor(file as dynamic) as object
     named = aqNamedLines(aqFileWidth(file), aqFileLines(file))
-    menu = [{ id: "original", label: "Original" }, { id: "auto", label: "Automatic" }]
+    menu = [{ id: "original", label: aqLabel("original") }, { id: "auto", label: aqLabel("auto") }]
     for each id in aqOffered(aqFileKbps(file), aqFileLines(file))
-        label = aqLabel(id)
-        if named > 0 and aqLines(id) > named
-            lines = urlValue(named) + "p"
-            if named >= 2160 then lines = "4K"
-            label = urlValue(aqKbps(id) \ 1000) + " Mbps " + lines
-        end if
-        menu.Push({ id: id, label: label })
+        lines = aqLines(id)
+        if named > 0 and lines > named then lines = named
+        menu.Push({ id: id, label: aqPresetLabel(i18nNumber(aqKbps(id) \ 1000), lines) })
     end for
     return menu
 end function
 
-' The ids of the player's Quality menu for a file (aqMenuFor), in its order.
+' The ids of the player's Quality menu for a file (aqMenuFor), in its
+' order: asked with each progress report, so without their words.
 function aqMenuIds(file as dynamic) as object
-    ids = []
-    for each quality in aqMenuFor(file)
-        ids.Push(quality.id)
-    end for
+    ids = ["original", "auto"]
+    ids.Append(aqOffered(aqFileKbps(file), aqFileLines(file)))
     return ids
 end function
 
@@ -324,12 +341,10 @@ end function
 ' 1080p", "8 Mbps 4K" (lines 0: the bitrate alone).
 function aqBitrateLabel(kbps as float, lines as integer) as string
     tenths = Int(kbps / 100)
-    words = (tenths \ 10).ToStr()
-    if tenths MOD 10 <> 0 then words = words + "." + (tenths MOD 10).ToStr()
-    words = words + " Mbps"
-    if lines >= 2160 then return words + " 4K"
-    if lines > 0 then return words + " " + lines.ToStr() + "p"
-    return words
+    mbps = i18nNumber(tenths \ 10)
+    if tenths MOD 10 <> 0 then mbps = i18nNumber(tenths / 10, 1)
+    if lines > 0 then return aqPresetLabel(mbps, lines)
+    return t("format.bitrate.mbps", { n: mbps })
 end function
 
 ' The lines a stream is named by: a conversion's quality's (the server's
