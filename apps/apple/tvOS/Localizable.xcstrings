@@ -35,6 +35,77 @@
         }
       }
     },
+    "%@, %lld channels" : {
+      "comment" : "VoiceOver, a Live TV category and how many channels it has (\"News, 12 channels\").",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld channel"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld channels"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld de canales"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld canal"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld canales"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld de chaînes"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld chaîne"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%@, %lld chaînes"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "%@, loading" : {
       "comment" : "Search: Discover's row while it loads, as VoiceOver reads it.",
       "localizations" : {
@@ -86,6 +157,23 @@
         }
       }
     },
+    "%@, watch" : {
+      "comment" : "VoiceOver, a channel in Live TV's guide: its name and number, then that Select watches it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, ver"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@, regarder"
+          }
+        }
+      }
+    },
     "%@. Add a library on the server, or ask its owner for one." : {
       "comment" : "Home, Libraries: no libraries; the first part is \"No libraries yet\".",
       "localizations" : {
@@ -116,6 +204,77 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@. Les titres s’affichent ici dès que vos bibliothèques en ont."
+          }
+        }
+      }
+    },
+    "%lld percent" : {
+      "comment" : "VoiceOver value of a request's download progress bar: \"42 percent\".",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld percent"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld percent"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld por ciento"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld por ciento"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld por ciento"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pour cent"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pour cent"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld pour cent"
+                }
+              }
+            }
           }
         }
       }
@@ -259,6 +418,23 @@
         }
       }
     },
+    "Add to favourites" : {
+      "comment" : "Live TV: stars a channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Añadir a favoritos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ajouter aux favoris"
+          }
+        }
+      }
+    },
     "Address, like 192.168.1.20" : {
       "comment" : "Add a server: the address field's placeholder.",
       "localizations" : {
@@ -306,6 +482,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Tous"
+          }
+        }
+      }
+    },
+    "All channels" : {
+      "comment" : "Live TV's categories: every channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todos los canales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Toutes les chaînes"
           }
         }
       }
@@ -361,6 +554,23 @@
         }
       }
     },
+    "Asked by: %@" : {
+      "comment" : "Requests filter on Apple TV, for managers: whose requests show (\"Asked by: Everyone\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solicitado por: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Demandé par : %@"
+          }
+        }
+      }
+    },
     "Audio" : {
       "comment" : "A title's audio button.",
       "localizations" : {
@@ -412,6 +622,23 @@
         }
       }
     },
+    "Back to the guide" : {
+      "comment" : "Live player on Apple TV: closes it. Short for the overlay's row of four buttons.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a la guía"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retour au guide"
+          }
+        }
+      }
+    },
     "Background" : {
       "comment" : "Settings: the subtitles' background.",
       "localizations" : {
@@ -459,6 +686,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Annuler"
+          }
+        }
+      }
+    },
+    "Channel number" : {
+      "comment" : "Live player on Apple TV: opens the number pad, and its title before a digit is typed.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Número de canal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Numéro de chaîne"
+          }
+        }
+      }
+    },
+    "Channels" : {
+      "comment" : "Live player's overlay on Apple TV: opens the channel list.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Canales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaînes"
           }
         }
       }
@@ -527,6 +788,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Effacer les recherches récentes"
+          }
+        }
+      }
+    },
+    "Close" : {
+      "comment" : "The player, after a failure: closes it.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cerrar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fermer"
           }
         }
       }
@@ -701,6 +979,23 @@
         }
       }
     },
+    "Delete" : {
+      "comment" : "VoiceOver label of the number pad's delete key (the last digit typed).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Borrar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Effacer"
+          }
+        }
+      }
+    },
     "Delete %@?" : {
       "comment" : "A playlist: asks before deleting it, by its title.",
       "localizations" : {
@@ -820,6 +1115,40 @@
         }
       }
     },
+    "Download" : {
+      "comment" : "VoiceOver label of a request's download progress bar (a noun).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Descarga"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Téléchargement"
+          }
+        }
+      }
+    },
+    "Eight" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ocho"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Huit"
+          }
+        }
+      }
+    },
     "Episodes" : {
       "comment" : "A season's page: the row of its episodes.",
       "localizations" : {
@@ -850,6 +1179,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Bonus"
+          }
+        }
+      }
+    },
+    "Favourites" : {
+      "comment" : "Live TV's categories: the starred channels.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favoritos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favoris"
           }
         }
       }
@@ -905,6 +1251,40 @@
         }
       }
     },
+    "Find Subtitles" : {
+      "comment" : "Find Subtitles on Apple TV: its title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscar subtítulos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trouver des sous-titres"
+          }
+        }
+      }
+    },
+    "Five" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cinco"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cinq"
+          }
+        }
+      }
+    },
     "Font" : {
       "comment" : "Settings: the subtitles' font.",
       "localizations" : {
@@ -935,6 +1315,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Oublier"
+          }
+        }
+      }
+    },
+    "Four" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cuatro"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quatre"
           }
         }
       }
@@ -1058,6 +1455,23 @@
         }
       }
     },
+    "Groups" : {
+      "comment" : "Live TV's categories: the heading over the provider's groups.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grupos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groupes"
+          }
+        }
+      }
+    },
     "Has the name of one of your servers at another address: open it only if it's yours." : {
       "comment" : "Servers: under a found server that looks like a saved one.",
       "localizations" : {
@@ -1143,6 +1557,23 @@
         }
       }
     },
+    "It has ended." : {
+      "comment" : "Live TV: a programme's page once it is over.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ya terminó."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce programme est terminé."
+          }
+        }
+      }
+    },
     "It plays what these filters find, as the library changes." : {
       "comment" : "Save as smart playlist: under the filters.",
       "localizations" : {
@@ -1160,6 +1591,77 @@
         }
       }
     },
+    "Its %lld connections are watching:" : {
+      "comment" : "Live player, every connection of the IPTV provider in use: above the channels they are watching.",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Its one connection is watching:"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Its %lld connections are watching:"
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sus %lld de conexiones están ocupadas con:"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Su única conexión está ocupada con:"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sus %lld conexiones están ocupadas con:"
+                }
+              }
+            }
+          }
+        },
+        "fr" : {
+          "variations" : {
+            "plural" : {
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ses %lld de connexions diffusent :"
+                }
+              },
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Sa seule connexion diffuse :"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Ses %lld connexions diffusent :"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "Jump to %@" : {
       "comment" : "A library's letters, as VoiceOver reads one: \"Jump to B\".",
       "localizations" : {
@@ -1173,6 +1675,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aller à %@"
+          }
+        }
+      }
+    },
+    "Keep listening" : {
+      "comment" : "Now Playing, the sleep timer's last seconds: keeps the music playing.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seguir escuchando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuer à écouter"
           }
         }
       }
@@ -1228,6 +1747,23 @@
         }
       }
     },
+    "Live" : {
+      "comment" : "Live TV: the red badge on what's on live.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En vivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Direct"
+          }
+        }
+      }
+    },
     "Live TV" : {
       "comment" : "An Apple TV tab: Live TV.",
       "localizations" : {
@@ -1241,6 +1777,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "TV en direct"
+          }
+        }
+      }
+    },
+    "Live TV didn't load" : {
+      "comment" : "Live TV on Apple TV: the channels or the guide failed to load.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se pudo cargar la TV en vivo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Impossible de charger la TV en direct"
+          }
+        }
+      }
+    },
+    "Live TV isn't open to this profile. An administrator can open it in Pley's web app, under Settings → Live TV." : {
+      "comment" : "Live TV on Apple TV, for a profile Live TV isn't open to.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en vivo no está abierta a este perfil. Un administrador puede abrirla en la aplicación web de Pley, en Ajustes → TV en vivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La TV en direct n’est pas ouverte à ce profil. Un administrateur peut l’ouvrir dans l’application web de Pley, sous Paramètres → TV en direct."
           }
         }
       }
@@ -1360,6 +1930,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Titres similaires"
+          }
+        }
+      }
+    },
+    "More groups" : {
+      "comment" : "Live TV's categories: the heading over the groups after the regions'.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otros grupos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres groupes"
           }
         }
       }
@@ -1500,6 +2087,23 @@
         }
       }
     },
+    "New" : {
+      "comment" : "Live TV: the badge on a programme shown for the first time.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estreno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inédit"
+          }
+        }
+      }
+    },
     "New Playlist" : {
       "comment" : "Playlists: the button; the new playlist panel's title.",
       "localizations" : {
@@ -1534,6 +2138,57 @@
         }
       }
     },
+    "Next" : {
+      "comment" : "VoiceOver, Now Playing: the next track.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siguiente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Suivant"
+          }
+        }
+      }
+    },
+    "Next %@ · %@" : {
+      "comment" : "Live player's banner: the next programme, its time and title (\"Next 21:00 · The News\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A continuación %@ · %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À suivre %@ · %@"
+          }
+        }
+      }
+    },
+    "Nine" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nueve"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neuf"
+          }
+        }
+      }
+    },
     "No albums yet." : {
       "comment" : "An artist with no albums.",
       "localizations" : {
@@ -1551,6 +2206,23 @@
         }
       }
     },
+    "No channels yet. Channels appear here once an administrator adds an IPTV provider in Pley's web app." : {
+      "comment" : "Live TV on Apple TV, before any channel is set up.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aún no hay canales. Los canales aparecen aquí cuando un administrador añade un proveedor de IPTV en la aplicación web de Pley."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune chaîne pour l’instant. Les chaînes apparaissent ici dès qu’un administrateur ajoute un fournisseur IPTV dans l’application web de Pley."
+          }
+        }
+      }
+    },
     "No episodes yet." : {
       "comment" : "A season with no episodes.",
       "localizations" : {
@@ -1564,6 +2236,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Aucun épisode pour l’instant."
+          }
+        }
+      }
+    },
+    "No guide for this channel" : {
+      "comment" : "Live TV: a channel without a guide.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin guía para este canal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pas de guide pour cette chaîne"
+          }
+        }
+      }
+    },
+    "No information for this time" : {
+      "comment" : "Live TV's guide: a programme without a title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sin información para esta hora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune information pour ce créneau"
           }
         }
       }
@@ -1636,6 +2342,40 @@
         }
       }
     },
+    "Nothing in the guide now" : {
+      "comment" : "Live TV: a channel with a guide but nothing on now.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nada en la guía ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun programme en ce moment"
+          }
+        }
+      }
+    },
+    "Nothing is playing" : {
+      "comment" : "Apple TV's Now Playing tab with no music.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No se está reproduciendo nada"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucune lecture en cours"
+          }
+        }
+      }
+    },
     "Nothing of theirs is in your libraries." : {
       "comment" : "A person's page with no titles.",
       "localizations" : {
@@ -1687,6 +2427,23 @@
         }
       }
     },
+    "OK" : {
+      "comment" : "The number pad's key that tunes the channel typed.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
     "Off" : {
       "comment" : "Settings: a setting that is off.",
       "localizations" : {
@@ -1721,6 +2478,23 @@
         }
       }
     },
+    "On now" : {
+      "comment" : "Live player's banner: what's on, when it has no title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En emisión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "En cours"
+          }
+        }
+      }
+    },
     "On this network" : {
       "comment" : "Servers: the servers found on this network; a saved server found here, for VoiceOver.",
       "localizations" : {
@@ -1738,6 +2512,40 @@
         }
       }
     },
+    "One" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uno"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Un"
+          }
+        }
+      }
+    },
+    "Open" : {
+      "comment" : "Apple TV's request notice (\"Dune is ready to watch\"): opens the title.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abrir"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvrir"
+          }
+        }
+      }
+    },
     "Open %@" : {
       "comment" : "A show's page: opens the season chosen (\"Open Season 2\").",
       "localizations" : {
@@ -1751,6 +2559,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvrir %@"
+          }
+        }
+      }
+    },
+    "Opens its page" : {
+      "comment" : "VoiceOver hint on a Discover poster and the Discover hero's Details: opens the title's page.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre su página"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre sa page"
           }
         }
       }
@@ -1823,6 +2648,23 @@
         }
       }
     },
+    "Other channels" : {
+      "comment" : "Live player's channel list: the heading over the categories.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Otros canales"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Autres chaînes"
+          }
+        }
+      }
+    },
     "PIN" : {
       "comment" : "A profile's lock, as VoiceOver reads it; the PIN field.",
       "localizations" : {
@@ -1870,6 +2712,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fait partie de %@"
+          }
+        }
+      }
+    },
+    "Pause" : {
+      "comment" : "VoiceOver, Now Playing: pauses the music.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pausar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pause"
           }
         }
       }
@@ -1976,6 +2835,23 @@
         }
       }
     },
+    "Playing" : {
+      "comment" : "VoiceOver, the live player's channel list: the channel playing now.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reproducción"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lecture"
+          }
+        }
+      }
+    },
     "Playlists" : {
       "comment" : "The Playlists tab and page's title; Add to Playlist's list.",
       "localizations" : {
@@ -2006,6 +2882,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Contenu"
+          }
+        }
+      }
+    },
+    "Plays it" : {
+      "comment" : "VoiceOver hint on a track in Now Playing's Up next.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lo reproduce"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le lit"
           }
         }
       }
@@ -2112,6 +3005,23 @@
         }
       }
     },
+    "Previous" : {
+      "comment" : "VoiceOver, Now Playing: the previous track.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anterior"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Précédent"
+          }
+        }
+      }
+    },
     "QR code to allow Pley" : {
       "comment" : "Sign in: the QR code, as VoiceOver reads it.",
       "localizations" : {
@@ -2180,6 +3090,23 @@
         }
       }
     },
+    "Recently watched" : {
+      "comment" : "Live TV's categories: the channels watched last.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vistos recientemente"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regardées récemment"
+          }
+        }
+      }
+    },
     "Reload" : {
       "comment" : "Home: reads the rows again.",
       "localizations" : {
@@ -2244,6 +3171,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retirer de Ma liste"
+          }
+        }
+      }
+    },
+    "Remove from favourites" : {
+      "comment" : "Live TV: unstars a channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quitar de favoritos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retirer des favoris"
           }
         }
       }
@@ -2435,6 +3379,23 @@
         }
       }
     },
+    "Searching…" : {
+      "comment" : "Find Subtitles on Apple TV while the server searches.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Buscando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recherche…"
+          }
+        }
+      }
+    },
     "See all" : {
       "comment" : "A button at the end of a row of tiles.",
       "localizations" : {
@@ -2503,6 +3464,23 @@
         }
       }
     },
+    "Seven" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Siete"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sept"
+          }
+        }
+      }
+    },
     "Show" : {
       "comment" : "A library's Filter menu: watched or not.",
       "localizations" : {
@@ -2550,6 +3528,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Affichées"
+          }
+        }
+      }
+    },
+    "Shows what can be done with it" : {
+      "comment" : "VoiceOver hint on a request's card: opens its panel of actions.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Muestra lo que se puede hacer con ella"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affiche ce qu’on peut en faire"
           }
         }
       }
@@ -2622,6 +3617,23 @@
         }
       }
     },
+    "Six" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seis"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Six"
+          }
+        }
+      }
+    },
     "Size" : {
       "comment" : "Settings: the subtitles' size.",
       "localizations" : {
@@ -2635,6 +3647,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Taille"
+          }
+        }
+      }
+    },
+    "Sleep Timer" : {
+      "comment" : "Now Playing: the sleep timer's button.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Temporizador de suspensión"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minuteur de veille"
           }
         }
       }
@@ -2707,6 +3736,23 @@
         }
       }
     },
+    "Sound only" : {
+      "comment" : "Live player: a channel with no picture (radio).",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Solo sonido"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Son uniquement"
+          }
+        }
+      }
+    },
     "Subtitle language" : {
       "comment" : "Settings: the profile's subtitle language.",
       "localizations" : {
@@ -2775,6 +3821,23 @@
         }
       }
     },
+    "The channel" : {
+      "comment" : "Live player's trouble, in place of the channel's name when it isn't known (\"The channel didn't start\").",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El canal"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La chaîne"
+          }
+        }
+      }
+    },
     "The code runs out in %@." : {
       "comment" : "Sign in: how long the code lasts (\"4:59\").",
       "localizations" : {
@@ -2809,6 +3872,23 @@
         }
       }
     },
+    "The guide says nothing more of it." : {
+      "comment" : "Live TV: a programme without a description.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La guía no dice nada más."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Le guide n’en dit pas plus."
+          }
+        }
+      }
+    },
     "The titles in it stay in your libraries." : {
       "comment" : "A playlist: under the delete question.",
       "localizations" : {
@@ -2822,6 +3902,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ses titres restent dans vos bibliothèques."
+          }
+        }
+      }
+    },
+    "Three" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tres"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trois"
           }
         }
       }
@@ -2877,6 +3974,23 @@
         }
       }
     },
+    "Try Again" : {
+      "comment" : "Find Subtitles on Apple TV: searches again after a failure.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volver a intentar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Réessayer"
+          }
+        }
+      }
+    },
     "Try again" : {
       "comment" : "A button under what went wrong.",
       "localizations" : {
@@ -2890,6 +4004,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Réessayer"
+          }
+        }
+      }
+    },
+    "Tune" : {
+      "comment" : "VoiceOver label of the number pad's OK key: tunes the channel typed.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aller à la chaîne"
+          }
+        }
+      }
+    },
+    "Tuning" : {
+      "comment" : "VoiceOver label of the live player's spinner while a channel starts.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizando"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement de la chaîne"
+          }
+        }
+      }
+    },
+    "Tuning…" : {
+      "comment" : "Live player's banner while the channel isn't known yet.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sintonizando…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chargement de la chaîne…"
+          }
+        }
+      }
+    },
+    "Two" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dos"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deux"
           }
         }
       }
@@ -2945,6 +4127,40 @@
         }
       }
     },
+    "Up and down change channel. Select shows more." : {
+      "comment" : "VoiceOver hint on Apple TV's live player.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Arriba y abajo cambian de canal. Seleccionar muestra más opciones."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Haut et bas changent de chaîne. Sélectionner affiche plus d’options."
+          }
+        }
+      }
+    },
+    "Up next" : {
+      "comment" : "Now Playing: the row of the queue's next tracks.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A continuación"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "À suivre"
+          }
+        }
+      }
+    },
     "Use the Server's Order" : {
       "comment" : "A library's menu: drops the profile's own order.",
       "localizations" : {
@@ -2996,6 +4212,23 @@
         }
       }
     },
+    "View" : {
+      "comment" : "Live TV on Apple TV: the picker between the guide and the cards.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vista"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Affichage"
+          }
+        }
+      }
+    },
     "Waiting for you to allow it…" : {
       "comment" : "Sign in: while the code waits to be allowed.",
       "localizations" : {
@@ -3009,6 +4242,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "En attente de votre autorisation…"
+          }
+        }
+      }
+    },
+    "Watch here instead" : {
+      "comment" : "Live player, every connection in use: takes a connection over for this TV.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver aquí en su lugar"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarder ici à la place"
+          }
+        }
+      }
+    },
+    "Watch now" : {
+      "comment" : "Live TV: a programme's page while it is on: watches its channel.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ver ahora"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regarder maintenant"
           }
         }
       }
@@ -3132,6 +4399,23 @@
         }
       }
     },
+    "Zero" : {
+      "comment" : "VoiceOver label of a digit key on the live player's number pad.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cero"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zéro"
+          }
+        }
+      }
+    },
     "as %@" : {
       "comment" : "A cast member, as VoiceOver reads it: \"Amy Adams, as Louise Banks\".",
       "localizations" : {
@@ -3214,6 +4498,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Désactivés"
+          }
+        }
+      }
+    },
+    "the server" : {
+      "comment" : "Sign in again's question, in place of the server's name when it has none.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "el servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "le serveur"
           }
         }
       }

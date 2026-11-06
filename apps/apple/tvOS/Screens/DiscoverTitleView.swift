@@ -144,11 +144,11 @@ struct DiscoverTitleView: View {
     private func meta(_ page: DiscoverTitlePage) -> some View {
         HStack(spacing: 16) {
             ForEach(Array(page.meta.enumerated()), id: \.offset) { index, part in
-                if index > 0 { Text("·") }
+                if index > 0 { Text(verbatim: "·") }
                 Text(part)
             }
             if let certification = page.certification {
-                Text("·")
+                Text(verbatim: "·")
                 Text(certification)
                     .padding(.horizontal, 8)
                     .overlay(RoundedRectangle(cornerRadius: 4).stroke(.secondary, lineWidth: 2))
@@ -538,7 +538,7 @@ private struct CastPhoto: View {
             }
             .buttonStyle(.borderless)
             .clipShape(Circle())
-            .accessibilityLabel([person.name, person.character.map { "as \($0)" }].compactMap { $0 }
+            .accessibilityLabel([person.name, person.character.map { localized("as \($0)") }].compactMap { $0 }
                 .joined(separator: ", "))
             .accessibilityIdentifier("discoverTitle.cast.\(person.index)")
             VStack(spacing: 2) {

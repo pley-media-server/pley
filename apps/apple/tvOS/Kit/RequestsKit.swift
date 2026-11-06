@@ -215,7 +215,7 @@ struct CardRow<Item: Identifiable, Cell: View>: View where Item.ID: Hashable {
                     }
                     if let seeAll {
                         Button(RequestWords.seeAll, action: seeAll)
-                            .accessibilityLabel("\(RequestWords.seeAll), \(title)")
+                            .accessibilityLabel(Text(verbatim: "\(RequestWords.seeAll), \(title)"))
                             .accessibilityIdentifier("\(identifier).seeAll")
                     }
                 }
@@ -333,7 +333,7 @@ struct SignInAgainButton: View {
                     .accessibilityIdentifier("\(identifier).confirm")
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text(RequestWords.signInAskBody(app.server?.name ?? "the server"))
+                Text(RequestWords.signInAskBody(app.server?.name ?? localized("the server")))
             }
     }
 }
