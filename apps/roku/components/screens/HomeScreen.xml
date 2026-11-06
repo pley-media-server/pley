@@ -64,7 +64,7 @@
         <RowList id="rows" translation="[440, 620]" itemComponentName="Tile" itemSize="[1480, 470]" numRows="3" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" visible="false" rowLabelFont="font:MediumBoldSystemFont" />
         <LayoutGroup id="message" translation="[440, 440]" layoutDirection="vert" itemSpacings="[16]">
             <Label id="messageTitle" width="1380" wrap="true" horizAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
-            <Label id="messageText" width="1380" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+            <Label id="messageText" width="1380" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         </LayoutGroup>
         <!-- Focus resting on a tile: the info block and the backdrop follow. -->
         <Timer id="rest" duration="0.4" />

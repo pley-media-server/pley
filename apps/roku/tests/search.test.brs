@@ -34,6 +34,20 @@ sub test_search_rows_by_kind_in_order()
     tkEqual(searchRows(invalid, contentTestServer(), 0, true), [])
 end sub
 
+sub test_search_rows_in_french_and_spanish()
+    i18nUse("fr")
+    titles = []
+    for each group in searchGroups()
+        titles.Push(group.title)
+    end for
+    tkEqual(titles, ["Films", "Séries", "Saisons", "Épisodes", "Artistes", "Albums", "Titres", "TV en direct", "Personnes"])
+    i18nUse("es")
+    rows = searchRows({ items: [contentTestMovie(), contentTestEpisode()], people: [], channels: [] }, contentTestServer(), 0, false)
+    tkEqual(rows[0].title, "Películas")
+    tkEqual(rows[1].title, "Episodios")
+    tkEqual(rows[1].tiles[0].subtitle, "T1 E1 · Good News About Hell")
+end sub
+
 sub test_search_asks_for_and_keeps_every_result()
     tkEqual(searchPath("star wars"), "/api/search?limit=200&q=star%20wars", "the most the server gives of each kind")
     items = []

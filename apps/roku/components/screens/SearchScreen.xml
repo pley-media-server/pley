@@ -33,14 +33,14 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Search.brs" />
     <children>
-        <Label id="title" translation="[96, 56]" text="Search" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="title" translation="[96, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <DynamicMiniKeyboard id="keyboard" translation="[96, 170]" />
         <!-- Each row's tiles are sized for its kind (lib/Search.brs's
              searchRowSize). -->
         <RowList id="rows" translation="[780, 170]" itemComponentName="ResultTile" itemSize="[1044, 430]" rowItemSize="[[196, 370]]" numRows="2" itemSpacing="[0, 20]" rowItemSpacing="[[24, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
-        <Label id="message" translation="[780, 200]" width="1040" wrap="true" color="0xA1A9B6FF" text="Type to search your libraries." font="font:MediumSystemFont" />
+        <Label id="message" translation="[780, 200]" width="1040" wrap="true" color="0xA1A9B6FF" font="font:MediumSystemFont" />
         <!-- Before anything is typed: the recent searches, then Clear. -->
-        <Label id="recentTitle" translation="[780, 170]" text="Recent searches" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" visible="false" />
+        <Label id="recentTitle" translation="[780, 170]" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" visible="false" />
         <LabelList id="recent" translation="[780, 236]" itemSize="[640, 64]" numRows="11" color="0xEBEBEBFF" focusedColor="0x16191EFF" focusBitmapBlendColor="0x38BDF8FF" vertFocusAnimationStyle="floatingFocus" font="font:MediumSystemFont" focusedFont="font:MediumBoldSystemFont" visible="false" />
         <Timer id="debounce" duration="0.5" />
     </children>

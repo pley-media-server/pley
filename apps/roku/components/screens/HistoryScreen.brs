@@ -6,6 +6,8 @@ sub init()
     m.count = m.top.findNode("count")
     m.entries = m.top.findNode("entries")
     m.message = m.top.findNode("message")
+    m.message.text = t("common.states.loading")
+    m.top.findNode("title").text = t("browse.history.title")
     m.started = false
     m.content = CreateObject("roSGNode", "ContentNode")
     m.entries.content = m.content
@@ -58,7 +60,7 @@ sub onPage(event as object)
     if rows <> invalid and rows.getChildCount() > 0 then m.content.appendChildren(rows.getChildren(-1, 0))
     showCount()
     if m.content.getChildCount() = 0
-        m.message.text = "No history yet. Movies, episodes and songs you finish show up here."
+        m.message.text = t("browse.history.empty")
         return
     end if
     m.message.visible = false
@@ -66,11 +68,7 @@ sub onPage(event as object)
 end sub
 
 sub showCount()
-    if m.total = 1
-        m.count.text = "1 play"
-    else if m.total >= 0
-        m.count.text = urlValue(m.total) + " plays"
-    end if
+    if m.total >= 0 then m.count.text = t("browse.counts.plays", { count: m.total })
 end sub
 
 sub onFocused(event as object)
@@ -87,7 +85,7 @@ sub entryOptions()
     if entry = invalid then return
     dialog = CreateObject("roSGNode", "StandardMessageDialog")
     dialog.title = entry.title
-    dialog.buttons = ["Remove from history", "Cancel"]
+    dialog.buttons = [t("browse.history.remove"), t("common.actions.cancel")]
     dialog.observeField("buttonSelected", "onEntryOption")
     m.removing = m.entries.itemFocused
     m.dialog = dialog
@@ -106,7 +104,7 @@ end sub
 sub onRemoved(event as object)
     answer = event.getData()
     if not answer.ok
-        if not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+        if not uiFailed(answer) then uiMessage(t("browse.failed"), [answer.message])
         return
     end if
     ' By its id: rows taken out meanwhile moved the others.
@@ -118,7 +116,7 @@ sub onRemoved(event as object)
     m.offset = m.offset - 1
     showCount()
     if m.content.getChildCount() = 0
-        m.message.text = "No history yet. Movies, episodes and songs you finish show up here."
+        m.message.text = t("browse.history.empty")
         m.message.visible = true
         m.top.setFocus(true)
     end if

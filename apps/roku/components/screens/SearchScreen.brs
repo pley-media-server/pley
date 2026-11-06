@@ -17,9 +17,12 @@ sub init()
     ' The Live TV channels found, for the player.
     m.channels = []
     m.message = m.top.findNode("message")
+    m.message.text = placeholder()
     m.debounce = m.top.findNode("debounce")
     m.recentTitle = m.top.findNode("recentTitle")
+    m.recentTitle.text = t("browse.search.recent")
     m.recentList = m.top.findNode("recent")
+    m.top.findNode("title").text = t("browse.menu.search")
     ' The recent searches, newest first, and where they are kept.
     m.recent = []
     m.recentKey = ""
@@ -80,7 +83,7 @@ end sub
 
 ' What the screen says before anything is typed.
 function placeholder() as string
-    return "Type to search your libraries."
+    return t("browse.search.placeholder")
 end function
 
 ' --- Recent searches ---
@@ -100,7 +103,7 @@ sub showIdle()
     for each query in m.recent
         items.Push({ title: query })
     end for
-    items.Push({ title: "Clear" })
+    items.Push({ title: t("browse.search.clear") })
     m.recentList.content = nodesContent(items)
     m.message.visible = false
     m.recentTitle.visible = true
@@ -227,7 +230,7 @@ end sub
 sub watch(channelId as dynamic)
     remember()
     for each channel in m.channels
-        if channel.id = channelId then uiNavigate({ to: "livePlayer", params: { channel: channel, category: "search:" + m.query, categoryName: "Results for “" + m.query + "”" } })
+        if channel.id = channelId then uiNavigate({ to: "livePlayer", params: { channel: channel, category: "search:" + m.query, categoryName: t("browse.search.resultsFor", { query: m.query }) } })
     end for
 end sub
 
@@ -291,7 +294,7 @@ sub showTmdb(failed as dynamic)
         if tiles.Count() < reqSearchShown() then tiles.Push(node)
     end for
     if tiles.Count() > 0
-        tiles.Push(nodesContent([reqMoreTile("See all", "", m.query)]).getChild(0))
+        tiles.Push(nodesContent([reqMoreTile(t("common.actions.seeAll"), "", m.query)]).getChild(0))
     else if failed <> invalid and failed.error <> "network" and failed.error <> "signed_out"
         tiles.Push(nodesContent([reqSearchProblemTile(failed, reqSummaryOf(m.top.requestSummary).manage)]).getChild(0))
     end if
@@ -308,17 +311,17 @@ sub showRows()
     if m.libraryRows <> invalid then shown.Append(m.libraryRows)
     if m.mayAsk and m.tmdbTiles <> invalid and m.tmdbTiles.Count() > 0
         row = CreateObject("roSGNode", "ContentNode")
-        row.title = "Discover"
+        row.title = t("browse.menu.discover")
         row.appendChildren(m.tmdbTiles)
         shown.Push({ key: "tmdb", node: row })
     end if
-    line = "Nothing in your libraries matches."
+    line = t("browse.search.noneInLibraries")
     if m.libraryMessage <> "" then line = m.libraryMessage
     if shown.Count() = 0
         ' TMDB's answer alone, empty: the libraries' is waited for.
         if not noneHere then return
         hideResults()
-        if m.libraryMessage = "" and (not m.mayAsk or m.tmdbTiles <> invalid) then line = "Nothing found for “" + m.query + "”."
+        if m.libraryMessage = "" and (not m.mayAsk or m.tmdbTiles <> invalid) then line = t("browse.search.noResults", { query: m.query })
         showMessage(line)
         return
     end if

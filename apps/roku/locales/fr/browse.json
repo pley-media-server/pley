@@ -1,0 +1,272 @@
+{
+  "failed": "Ça n’a pas fonctionné",
+  "menu": {
+    "search": "Recherche",
+    "home": "Accueil",
+    "discover": "Découvrir",
+    "liveTv": "TV en direct",
+    "playlists": "Playlists",
+    "collections": "Collections",
+    "nowPlaying": "En lecture",
+    "settings": "Paramètres"
+  },
+  "home": {
+    "fromStart": "Depuis le début",
+    "info": "Infos",
+    "noLibraries": "Aucune bibliothèque pour l’instant",
+    "noLibrariesHint": "Demandez au propriétaire du serveur d’ajouter une bibliothèque.",
+    "scanning": "Analyse de vos bibliothèques…",
+    "scanningHint": "Les nouveaux titres apparaissent ici dès qu’ils sont trouvés.",
+    "empty": "Rien pour l’instant",
+    "emptyHint": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse."
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} saison",
+    "seasons_many": "{{count, number}} de saisons",
+    "seasons_other": "{{count, number}} saisons",
+    "episodes_one": "{{count, number}} épisode",
+    "episodes_many": "{{count, number}} d’épisodes",
+    "episodes_other": "{{count, number}} épisodes",
+    "albums_one": "{{count, number}} album",
+    "albums_many": "{{count, number}} d’albums",
+    "albums_other": "{{count, number}} albums",
+    "collections_one": "{{count, number}} collection",
+    "collections_many": "{{count, number}} de collections",
+    "collections_other": "{{count, number}} collections",
+    "plays_one": "{{count, number}} lecture",
+    "plays_many": "{{count, number}} de lectures",
+    "plays_other": "{{count, number}} lectures"
+  },
+  "title": {
+    "watched": "Vu",
+    "bitrateUnknown": "Débit inconnu",
+    "specials": "Épisodes spéciaux",
+    "season": "Saison {{number}}",
+    "playEpisode": "Lire {{episode}}",
+    "resumeEpisode": "Reprendre {{episode}}",
+    "playFromStart": "Lire depuis le début",
+    "episodes": "Épisodes",
+    "cantPlayKind": "Pley pour Roku ne lit pas encore ce type de titre.",
+    "noFile": "Cet élément n’a aucun fichier à lire.",
+    "markWatched": "Marquer comme vu",
+    "markUnwatched": "Marquer comme non vu",
+    "tracks": "Audio et sous-titres",
+    "addToMyList": "Ajouter à Ma liste",
+    "removeFromMyList": "Retirer de Ma liste",
+    "trailer": "Bande-annonce",
+    "more": "Plus…",
+    "rate": "Noter",
+    "yourRating": "Votre note : {{stars}}",
+    "noRating": "Aucune note",
+    "stars_one": "{{count}} étoile",
+    "stars_many": "{{count}} d’étoiles",
+    "stars_other": "{{count}} étoiles",
+    "goToShow": "Aller à la série",
+    "goToSeason": "Aller à la saison",
+    "mediaInfo": "Informations sur le média",
+    "details": "Détails",
+    "addToPlaylist": "Ajouter à une playlist",
+    "directedBy": "Réalisation : {{names}}",
+    "createdBy": "Création : {{names}}",
+    "starring": "Avec {{names}}"
+  },
+  "about": {
+    "createdBy": "Création : {{names}}",
+    "directors_one": "Réalisation : {{names}}",
+    "directors_many": "Réalisation : {{names}}",
+    "directors_other": "Réalisation : {{names}}",
+    "writers_one": "Scénario : {{names}}",
+    "writers_many": "Scénario : {{names}}",
+    "writers_other": "Scénario : {{names}}",
+    "andMore_one": "{{names}} et {{count}} autre",
+    "andMore_many": "{{names}} et {{count}} autres",
+    "andMore_other": "{{names}} et {{count}} autres",
+    "originalTitle": "Titre original : {{title}}",
+    "released": "Date de sortie : {{date}}",
+    "network": "Chaîne : {{name}}",
+    "studio": "Studio : {{name}}",
+    "plays": "Lectures : {{n, number}}"
+  },
+  "subtitles": {
+    "forced": "Forcés",
+    "unknown": "Inconnu",
+    "namedForced": "{{name}} (forcés)"
+  },
+  "library": {
+    "tabs": {
+      "recommended": "Recommandés",
+      "library": "Bibliothèque",
+      "collections": "Collections"
+    },
+    "sorts": {
+      "title": "Titre",
+      "year": "Année",
+      "added": "Date d’ajout",
+      "rating": "Note",
+      "userRating": "Votre note",
+      "release": "Date de sortie",
+      "duration": "Durée",
+      "lastPlayed": "Dernière lecture",
+      "bitrate": "Débit"
+    },
+    "sortOrders": {
+      "title": {
+        "asc": "Titre, de A à Z",
+        "desc": "Titre, de Z à A"
+      },
+      "year": {
+        "asc": "Année, plus anciens d’abord",
+        "desc": "Année, plus récents d’abord"
+      },
+      "added": {
+        "asc": "Ajouts anciens d’abord",
+        "desc": "Ajouts récents d’abord"
+      },
+      "rating": {
+        "asc": "Les moins bien notés d’abord",
+        "desc": "Les mieux notés d’abord"
+      },
+      "userRating": {
+        "asc": "Vos moins bien notés d’abord",
+        "desc": "Vos mieux notés d’abord"
+      },
+      "release": {
+        "asc": "Sorties anciennes d’abord",
+        "desc": "Sorties récentes d’abord"
+      },
+      "duration": {
+        "asc": "Les plus courts d’abord",
+        "desc": "Les plus longs d’abord"
+      },
+      "lastPlayed": {
+        "asc": "Lus il y a longtemps d’abord",
+        "desc": "Lus récemment d’abord"
+      },
+      "bitrate": {
+        "asc": "Débit le plus faible d’abord",
+        "desc": "Débit le plus élevé d’abord"
+      }
+    },
+    "sortBy": "Trier par",
+    "sortHint": "Appuyez sur OK sur le tri coché pour inverser l’ordre.",
+    "filter": "Filtres",
+    "show": "Afficher",
+    "genre": "Genre",
+    "year": "Année",
+    "resolution": "Résolution",
+    "dynamicRange": "Plage dynamique",
+    "allTitles": "Tous les titres",
+    "unwatched": "Non vu",
+    "watched": "Vu",
+    "allGenres": "Tous les genres",
+    "allYears": "Toutes les années",
+    "allResolutions": "Toutes les résolutions",
+    "allDynamicRanges": "Toutes les plages dynamiques",
+    "rows": {
+      "show": "Afficher : {{value}}",
+      "genre": "Genre : {{value}}",
+      "year": "Année : {{value}}",
+      "resolution": "Résolution : {{value}}",
+      "dynamicRange": "Plage dynamique : {{value}}",
+      "anyGenre": "Tous",
+      "anyYear": "Toutes",
+      "anyResolution": "Toutes",
+      "anyDynamicRange": "Toutes",
+      "clear": "Effacer les filtres",
+      "saveAs": "Enregistrer comme…"
+    },
+    "smartFilter": {
+      "genre": "Genre : {{value}}",
+      "year": "Année : {{value}}",
+      "sort": {
+        "titleSort": {
+          "asc": "Par titre",
+          "desc": "Par titre, de Z à A"
+        },
+        "year": {
+          "asc": "Les plus anciens d’abord",
+          "desc": "Les plus récents d’abord"
+        },
+        "originallyAvailableAt": {
+          "asc": "Sortie la plus ancienne d’abord",
+          "desc": "Sortie la plus récente d’abord"
+        },
+        "addedAt": {
+          "asc": "Ajouts les plus anciens d’abord",
+          "desc": "Ajouts les plus récents d’abord"
+        },
+        "rating": {
+          "asc": "Les moins bien notés d’abord",
+          "desc": "Les mieux notés d’abord"
+        },
+        "userRating": {
+          "asc": "Vos moins bien notés d’abord",
+          "desc": "Vos mieux notés d’abord"
+        },
+        "lastViewedAt": {
+          "asc": "Lus il y a le plus longtemps d’abord",
+          "desc": "Lus récemment d’abord"
+        },
+        "duration": {
+          "asc": "Les plus courts d’abord",
+          "desc": "Les plus longs d’abord"
+        },
+        "mediaBitrate": {
+          "asc": "Débit le plus faible d’abord",
+          "desc": "Débit le plus élevé d’abord"
+        }
+      }
+    },
+    "saveFilters": "Enregistrer ces filtres",
+    "saveFiltersHint": "{{filters}}. La playlist se met à jour toute seule avec la bibliothèque.",
+    "noRecommendations": "Rien à recommander ici pour l’instant.",
+    "noCollections": "Cette bibliothèque n’a aucune collection.",
+    "empty": "Cette bibliothèque est vide.",
+    "noMatches": "Aucun titre ne correspond à ces filtres."
+  },
+  "search": {
+    "placeholder": "Tapez pour rechercher dans vos bibliothèques.",
+    "recent": "Recherches récentes",
+    "clear": "Effacer",
+    "groups": {
+      "movie": "Films",
+      "show": "Séries",
+      "season": "Saisons",
+      "episode": "Épisodes",
+      "artist": "Artistes",
+      "album": "Albums",
+      "track": "Titres",
+      "channel": "TV en direct",
+      "person": "Personnes"
+    },
+    "noneInLibraries": "Rien dans vos bibliothèques ne correspond.",
+    "noResults": "Aucun résultat pour « {{query}} ».",
+    "resultsFor": "Résultats pour « {{query}} »"
+  },
+  "playlists": {
+    "new": "Nouvelle playlist",
+    "none": "Aucune playlist pour l’instant. Créez-en une avec Nouvelle playlist, ou avec Ajouter à une playlist, sous la touche Options d’un titre.",
+    "whatFor": "Que contiendra-t-elle ?",
+    "moviesTv": "Films et séries",
+    "music": "Musique",
+    "nameHint": "Donnez-lui un nom, puis ajoutez-y des titres avec Ajouter à une playlist, sous la touche Options d’un titre.",
+    "create": "Créer",
+    "notMade": "La playlist n’a pas été créée"
+  },
+  "history": {
+    "title": "Historique de visionnage",
+    "empty": "Aucun historique pour l’instant. Les films, épisodes et morceaux que vous terminez apparaissent ici.",
+    "remove": "Retirer de l’historique"
+  },
+  "sortLibraries": {
+    "title": "Trier les bibliothèques",
+    "serverOrder": "Utiliser l’ordre du serveur",
+    "moving": "{{name}}  (en déplacement)",
+    "movingHint": "Haut et bas la déplacent, OK la pose ici, Retour la remet en place.",
+    "hint": "Sélectionnez une bibliothèque pour la déplacer. Votre ordre s’applique à tous vos appareils.",
+    "needsNewer": "Trier les bibliothèques nécessite une version plus récente de Pley sur le serveur."
+  },
+  "collections": {
+    "none": "Aucune collection pour l’instant."
+  }
+}

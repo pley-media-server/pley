@@ -6,6 +6,8 @@
 sub init()
     m.rows = m.top.findNode("rows")
     m.message = m.top.findNode("message")
+    m.message.text = t("common.states.loading")
+    m.top.findNode("title").text = t("browse.menu.collections")
     m.started = false
     m.rows.observeField("rowItemSelected", "onTile")
     m.top.observeField("active", "onActive")
@@ -32,7 +34,7 @@ sub onActive()
     m.found = {}
     m.waiting = m.libraries.Count()
     if m.waiting = 0
-        m.message.text = "No collections yet."
+        m.message.text = t("browse.collections.none")
         return
     end if
     for each library in m.libraries
@@ -62,7 +64,7 @@ sub onCollections(event as object)
         end if
     end for
     if content.getChildCount() = 0
-        m.message.text = "No collections yet."
+        m.message.text = t("browse.collections.none")
         if m.failed <> invalid then m.message.text = m.failed
         return
     end if
