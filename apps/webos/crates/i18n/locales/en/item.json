@@ -1,1 +1,169 @@
-{}
+{
+  "hero": {
+    "play": "Play",
+    "resume": "Resume",
+    "playEpisode": "Play {{episode}}",
+    "resumeEpisode": "Resume {{episode}}",
+    "unavailable": "Unavailable",
+    "fromStart": "From start",
+    "requestMoreSeasons": "Request more seasons",
+    "markWatched": "Mark as watched",
+    "markUnwatched": "Mark as unwatched",
+    "tracks": "Audio and subtitles",
+    "inMyList": "In My List",
+    "addToMyList": "Add to My List",
+    "trailer": "Trailer",
+    "addToPlaylist": "Add to playlist",
+    "more": "More"
+  },
+  "credits": {
+    "directedBy": "Directed by",
+    "createdBy": "Created by",
+    "starring": "Starring",
+    "partOf": "Part of {{collection}}"
+  },
+  "rows": {
+    "episodes": "Episodes",
+    "noEpisodes": "No episodes found.",
+    "extras": "Extras",
+    "moreLikeThis": "More Like This",
+    "cast": "Cast",
+    "guestStars": "Guest Stars",
+    "crew": "Crew",
+    "castAndCrew": "Cast & Crew",
+    "guestStarsAndCrew": "Guest Stars & Crew"
+  },
+  "episodes": {
+    "season": "Season {{number}}",
+    "episode": "Episode {{number}}",
+    "aired": "Aired {{date}}"
+  },
+  "roles": {
+    "actor": "Actor",
+    "creator": "Creator",
+    "director": "Director",
+    "writer": "Writer",
+    "producer": "Producer",
+    "crew": "Crew",
+    "guestStar": "Guest star",
+    "as": "as {{character}}",
+    "withEpisodes_one": "{{role}} ({{count, number}} episode)",
+    "withEpisodes_other": "{{role}} ({{count, number}} episodes)"
+  },
+  "details": {
+    "title": "Details",
+    "versions": "Versions",
+    "version": "Version",
+    "versionNumber": "Version {{number}}",
+    "mediaInfo": "Media info",
+    "mediaInfoHint": "Each file's video, audio and subtitle streams",
+    "createdBy": "Created by",
+    "directors_one": "Director",
+    "directors_other": "Directors",
+    "writers_one": "Writer",
+    "writers_other": "Writers",
+    "andMore_one": "and {{count}} more",
+    "andMore_other": "and {{count}} more",
+    "originalTitle": "Original title",
+    "released": "Released",
+    "network": "Network",
+    "studio": "Studio",
+    "plays": "Plays"
+  },
+  "panels": {
+    "version": "Version",
+    "audio": "Audio",
+    "subtitles": "Subtitles",
+    "subtitlesOff": "Off",
+    "automatic": "Automatic",
+    "automaticLanguage": "Automatic ({{language}})",
+    "yourRating": "Your rating",
+    "noRating": "No rating",
+    "fullSummary": "Full summary",
+    "stars_one": "{{count}} star",
+    "stars_other": "{{count}} stars"
+  },
+  "actions": {
+    "open": "Open",
+    "playFromStart": "Play from start",
+    "removeFromContinueWatching": "Remove from Continue Watching",
+    "removeFromMyList": "Remove from My List",
+    "goToShow": "Go to show",
+    "goToSeason": "Go to season"
+  },
+  "states": {
+    "failed": "Couldn't load this item",
+    "notFound": "Item not found",
+    "notFoundBody": "It may have been removed, or this profile can't see it.",
+    "nothingToPlay": "Nothing to play: this item has no media files.",
+    "back": "Back",
+    "retry": "Retry",
+    "unreachable": "Can't reach your server",
+    "requestStopped": "The request stopped."
+  },
+  "extras": {
+    "trailer": "Trailer",
+    "behindTheScenes": "Behind the Scenes",
+    "deletedScene": "Deleted Scene",
+    "featurette": "Featurette",
+    "interview": "Interview",
+    "scene": "Scene",
+    "short": "Short",
+    "other": "Extra"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} season",
+    "seasons_other": "{{count, number}} seasons",
+    "episodes_one": "{{count, number}} episode",
+    "episodes_other": "{{count, number}} episodes",
+    "movies_one": "{{count, number}} movie",
+    "movies_other": "{{count, number}} movies",
+    "shows_one": "{{count, number}} show",
+    "shows_other": "{{count, number}} shows"
+  },
+  "person": {
+    "acting": "Acting",
+    "directing": "Directing",
+    "creating": "Creating",
+    "writing": "Writing",
+    "producing": "Producing",
+    "inLibraries": "{{counts}} in your libraries",
+    "notFound": "Person not found",
+    "notFoundBody": "No one by that link has anything in your libraries.",
+    "failed": "Couldn't load this person"
+  },
+  "dates": {
+    "medium": "{{month}} {{day}}, {{year}}",
+    "long": "{{day}} {{month}} {{year}}"
+  },
+  "months": {
+    "short": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "long": {
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December"
+    }
+  }
+}

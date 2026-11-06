@@ -8,6 +8,7 @@ use std::collections::HashSet;
 use pley_base::{Icon, ImageRequest, Point, Rect, TextOpts};
 use pley_core::model::{CreditRole, PersonDetail, PersonRole};
 use pley_core::store::snapshot_keys;
+use pley_i18n::t;
 use pley_kit::{ColumnState, Row, RowColumn, RowState, Section, TileKind};
 use pley_shell::{AppCx, AppEvent, Chrome, Load, Resource, Screen};
 use pley_ui::theme::{self, radius};
@@ -143,7 +144,8 @@ impl PersonScreen {
         }
         let name_opts = TextOpts::wrap(width, 2).balanced();
         let name_h = ui.measure(&page.name, &theme::PAGE_TITLE, &name_opts).h;
-        let counts = if page.counts.is_empty() { String::new() } else { format!("{} in your libraries", page.counts) };
+        let counts =
+            if page.counts.is_empty() { String::new() } else { t!("item.person.inLibraries", counts = page.counts) };
         let counts_h = if counts.is_empty() { 0.0 } else { 8.0 + theme::BODY.line_height };
         let mut y = photo.center().y - (name_h + counts_h) / 2.0;
         ui.text(Point::new(x, y), &page.name, &theme::PAGE_TITLE, &name_opts, theme::FG);
@@ -205,23 +207,24 @@ impl Screen for PersonScreen {
         let root = ui.scope_id();
         match self.person.state() {
             Load::Failed { error, stale: None } => {
-                let (icon, title, body, action) = if error.is(404) {
+                let missing = error.is(404);
+                let (icon, title, body, action) = if missing {
                     (
                         Icon::UserRound,
-                        "Person not found",
-                        "No one by that link has anything in your libraries.".to_string(),
-                        "Back",
+                        t!("item.person.notFound"),
+                        t!("item.person.notFoundBody").to_string(),
+                        t!("item.states.back"),
                     )
                 } else {
                     (
                         Icon::CircleAlert,
-                        common::failed_title(error, "Couldn't load this person"),
+                        common::failed_title(error, t!("item.person.failed")),
                         error.problem(),
-                        "Retry",
+                        t!("item.states.retry"),
                     )
                 };
                 if common::message(ui, root.with("message"), icon, title, &body, action).activated {
-                    if action == "Back" {
+                    if missing {
                         cx.back();
                     } else {
                         self.person.invalidate();

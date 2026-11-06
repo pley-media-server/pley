@@ -1,1 +1,178 @@
-{}
+{
+  "hero": {
+    "play": "Reproducir",
+    "resume": "Reanudar",
+    "playEpisode": "Reproducir {{episode}}",
+    "resumeEpisode": "Reanudar {{episode}}",
+    "unavailable": "No disponible",
+    "fromStart": "Desde el principio",
+    "requestMoreSeasons": "Solicitar más temporadas",
+    "markWatched": "Marcar como visto",
+    "markUnwatched": "Marcar como no visto",
+    "tracks": "Audio y subtítulos",
+    "inMyList": "En Mi lista",
+    "addToMyList": "Añadir a Mi lista",
+    "trailer": "Tráiler",
+    "addToPlaylist": "Añadir a una lista de reproducción",
+    "more": "Más"
+  },
+  "credits": {
+    "directedBy": "Dirección:",
+    "createdBy": "Creación:",
+    "starring": "Reparto:",
+    "partOf": "Forma parte de {{collection}}"
+  },
+  "rows": {
+    "episodes": "Episodios",
+    "noEpisodes": "No se encontraron episodios.",
+    "extras": "Extras",
+    "moreLikeThis": "Títulos similares",
+    "cast": "Reparto",
+    "guestStars": "Estrellas invitadas",
+    "crew": "Equipo técnico",
+    "castAndCrew": "Reparto y equipo",
+    "guestStarsAndCrew": "Estrellas invitadas y equipo"
+  },
+  "episodes": {
+    "season": "Temporada {{number}}",
+    "episode": "Episodio {{number}}",
+    "aired": "Emitido el {{date}}"
+  },
+  "roles": {
+    "actor": "Interpretación",
+    "creator": "Creación",
+    "director": "Dirección",
+    "writer": "Guion",
+    "producer": "Producción",
+    "crew": "Equipo técnico",
+    "guestStar": "Aparición especial",
+    "as": "como {{character}}",
+    "withEpisodes_one": "{{role}} ({{count, number}} episodio)",
+    "withEpisodes_many": "{{role}} ({{count, number}} episodios)",
+    "withEpisodes_other": "{{role}} ({{count, number}} episodios)"
+  },
+  "details": {
+    "title": "Detalles",
+    "versions": "Versiones",
+    "version": "Versión",
+    "versionNumber": "Versión {{number}}",
+    "mediaInfo": "Información multimedia",
+    "mediaInfoHint": "Las pistas de video, audio y subtítulos de cada archivo",
+    "createdBy": "Creación",
+    "directors_one": "Dirección",
+    "directors_many": "Dirección",
+    "directors_other": "Dirección",
+    "writers_one": "Guion",
+    "writers_many": "Guion",
+    "writers_other": "Guion",
+    "andMore_one": "y {{count}} más",
+    "andMore_many": "y {{count}} más",
+    "andMore_other": "y {{count}} más",
+    "originalTitle": "Título original",
+    "released": "Fecha de estreno",
+    "network": "Cadena",
+    "studio": "Estudio",
+    "plays": "Reproducciones"
+  },
+  "panels": {
+    "version": "Versión",
+    "audio": "Audio",
+    "subtitles": "Subtítulos",
+    "subtitlesOff": "Desactivados",
+    "automatic": "Automática",
+    "automaticLanguage": "Automática ({{language}})",
+    "yourRating": "Tu valoración",
+    "noRating": "Sin valoración",
+    "fullSummary": "Sinopsis completa",
+    "stars_one": "{{count}} estrella",
+    "stars_many": "{{count}} estrellas",
+    "stars_other": "{{count}} estrellas"
+  },
+  "actions": {
+    "open": "Abrir",
+    "playFromStart": "Reproducir desde el principio",
+    "removeFromContinueWatching": "Quitar de Seguir viendo",
+    "removeFromMyList": "Quitar de Mi lista",
+    "goToShow": "Ir a la serie",
+    "goToSeason": "Ir a la temporada"
+  },
+  "states": {
+    "failed": "No se pudo cargar este elemento",
+    "notFound": "Elemento no encontrado",
+    "notFoundBody": "Puede que se haya eliminado o que este perfil no tenga acceso.",
+    "nothingToPlay": "Nada que reproducir: este elemento no tiene archivos multimedia.",
+    "back": "Atrás",
+    "retry": "Reintentar",
+    "unreachable": "No se puede conectar con tu servidor",
+    "requestStopped": "La petición se interrumpió."
+  },
+  "extras": {
+    "trailer": "Tráiler",
+    "behindTheScenes": "Detrás de cámaras",
+    "deletedScene": "Escena eliminada",
+    "featurette": "Reportaje",
+    "interview": "Entrevista",
+    "scene": "Escena",
+    "short": "Cortometraje",
+    "other": "Extra"
+  },
+  "counts": {
+    "seasons_one": "{{count, number}} temporada",
+    "seasons_many": "{{count, number}} temporadas",
+    "seasons_other": "{{count, number}} temporadas",
+    "episodes_one": "{{count, number}} episodio",
+    "episodes_many": "{{count, number}} episodios",
+    "episodes_other": "{{count, number}} episodios",
+    "movies_one": "{{count, number}} película",
+    "movies_many": "{{count, number}} películas",
+    "movies_other": "{{count, number}} películas",
+    "shows_one": "{{count, number}} serie",
+    "shows_many": "{{count, number}} series",
+    "shows_other": "{{count, number}} series"
+  },
+  "person": {
+    "acting": "Interpretación",
+    "directing": "Dirección",
+    "creating": "Creación",
+    "writing": "Guion",
+    "producing": "Producción",
+    "inLibraries": "{{counts}} en tus bibliotecas",
+    "notFound": "Persona no encontrada",
+    "notFoundBody": "Este enlace no lleva a nadie que esté en tus bibliotecas.",
+    "failed": "No se pudo cargar esta persona"
+  },
+  "dates": {
+    "medium": "{{day}} {{month}} {{year}}",
+    "long": "{{day}} de {{month}} de {{year}}"
+  },
+  "months": {
+    "short": {
+      "jan": "ene",
+      "feb": "feb",
+      "mar": "mar",
+      "apr": "abr",
+      "may": "may",
+      "jun": "jun",
+      "jul": "jul",
+      "aug": "ago",
+      "sep": "sept",
+      "oct": "oct",
+      "nov": "nov",
+      "dec": "dic"
+    },
+    "long": {
+      "january": "enero",
+      "february": "febrero",
+      "march": "marzo",
+      "april": "abril",
+      "may": "mayo",
+      "june": "junio",
+      "july": "julio",
+      "august": "agosto",
+      "september": "septiembre",
+      "october": "octubre",
+      "november": "noviembre",
+      "december": "diciembre"
+    }
+  }
+}
