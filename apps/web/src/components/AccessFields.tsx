@@ -1,8 +1,8 @@
 import { Check, Clapperboard, Music, Tv } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLibraries } from "@/api/hooks";
+import { useLibraries, useRatingSystems } from "@/api/hooks";
 import type { Id, LibraryKind } from "@/api/types";
-import { AGE_OPTIONS, ageToSelect, selectToAge, toggleId } from "@/lib/access";
+import { ageIn, ageLevels, ageToSelect, selectToAge, shownSystem, systemChoices, toggleId } from "@/lib/access";
 import { cn } from "@/lib/cn";
 import { Field, Select } from "./ui";
 
@@ -10,11 +10,13 @@ export interface AccessValue {
   all_libraries: boolean;
   library_ids: Id[];
   max_age: number | null;
+  /** The rating system the limit is picked in; `null`: the metadata region's. */
+  max_age_system: string | null;
 }
 
 const KIND_ICON: Record<LibraryKind, typeof Tv> = { movies: Clapperboard, shows: Tv, music: Music };
 
-/** Library access (all, or a chosen set) and an age limit. */
+/** Library access (all, or a chosen set) and an age limit, picked as a rating of a rating system. */
 export function AccessFields({
   value,
   onChange,
@@ -24,8 +26,18 @@ export function AccessFields({
   onChange: (v: AccessValue) => void;
   idPrefix: string;
 }) {
-  const { t } = useTranslation("components");
+  const { t } = useTranslation(["components", "common"]);
   const libs = useLibraries();
+  const systems = useRatingSystems().data;
+  const system = shownSystem(systems, value.max_age_system, value.max_age);
+  const levels = ageLevels(systems, system);
+  const shown = levels.find((l) => l.age === value.max_age);
+  const hint =
+    value.max_age == null
+      ? t("accessFields.noLimitHint")
+      : shown?.rating
+        ? t("accessFields.ratingHint", { rating: shown.rating, age: value.max_age })
+        : t("accessFields.ageHint", { age: value.max_age });
   const set = (patch: Partial<AccessValue>) => onChange({ ...value, ...patch });
 
   return (
@@ -89,24 +101,45 @@ export function AccessFields({
         )}
       </fieldset>
 
-      <Field
-        label={t("accessFields.ageLimit")}
-        htmlFor={`${idPrefix}-age`}
-        hint={t("accessFields.ageLimitHint")}
-      >
-        <Select
-          id={`${idPrefix}-age`}
-          className="h-10 w-full"
-          value={ageToSelect(value.max_age)}
-          onChange={(e) => set({ max_age: selectToAge(e.target.value) })}
-        >
-          {AGE_OPTIONS.map((o) => (
-            <option key={o.label} value={ageToSelect(o.value)}>
-              {o.label}
-            </option>
-          ))}
-        </Select>
-      </Field>
+      <fieldset className="space-y-2">
+        <legend className="mb-1.5 text-sm font-medium">{t("accessFields.ageLimit")}</legend>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label={t("accessFields.ratingSystem")} htmlFor={`${idPrefix}-age-system`}>
+            <Select
+              id={`${idPrefix}-age-system`}
+              className="h-10 w-full"
+              value={system}
+              disabled={!systems}
+              onChange={(e) => {
+                const next = e.target.value;
+                set({ max_age_system: next, max_age: ageIn(systems, next, value.max_age) });
+              }}
+            >
+              {systemChoices(systems).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field label={t("accessFields.rating")} htmlFor={`${idPrefix}-age`}>
+            <Select
+              id={`${idPrefix}-age`}
+              className="h-10 w-full"
+              value={ageToSelect(value.max_age)}
+              onChange={(e) => set({ max_age: selectToAge(e.target.value) })}
+            >
+              <option value="">{t("common:access.noLimit")}</option>
+              {levels.map((l) => (
+                <option key={l.age} value={ageToSelect(l.age)}>
+                  {l.rating ? t("accessFields.ratingOption", { rating: l.rating, age: l.age }) : t("common:access.age", { age: l.age })}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <p className="text-xs text-subtle">{hint}</p>
+      </fieldset>
     </div>
   );
 }

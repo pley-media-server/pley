@@ -24,6 +24,8 @@ export interface User {
   library_ids: Id[];
   /** Age limit for movies and shows; `null` = none. */
   max_age: number | null;
+  /** The rating system the limit is shown in (`GB`, or `age`); `null`: the metadata region's. Only in administrators' lists. */
+  max_age_system?: string | null;
   disabled: boolean;
   created_at: Timestamp;
   /** Default tracks for titles without a remembered choice. ISO 639 code; `null`: the file's default track. */
@@ -81,7 +83,24 @@ export interface Invite {
   all_libraries: boolean;
   library_ids: Id[];
   max_age: number | null;
+  max_age_system: string | null;
   note: string | null;
+}
+
+/** `GET /api/ratings/systems`: what an age limit is picked and shown in. */
+export interface RatingSystems {
+  /** The metadata region (`GB`): its system is offered first. */
+  region: string;
+  systems: RatingSystem[];
+}
+
+export interface RatingSystem {
+  /** ISO 3166-1 alpha-2. */
+  country: string;
+  /** In English; shown in the language shown through the country code instead. */
+  name: string;
+  /** Youngest first. */
+  ratings: { name: string; age: number; kind: "film" | "tv" | null }[];
 }
 
 export interface InviteCheck {

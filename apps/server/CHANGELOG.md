@@ -9,6 +9,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- In Settings → Users and Invitations, an age limit is picked as a rating
+  of one of 29 countries' ratings, the metadata region's first, or as a
+  plain age, and lists show it that way ("Up to PG-13"). A limit the old
+  list didn't offer shows as its age, no longer as "No limit".
+  `GET /api/ratings/systems` gives the ratings, and users and invitations
+  keep the system in `max_age_system`.
+
 ### Changed
 
 - Age limits read a rating with its country's ratings, so that one of the

@@ -940,3 +940,42 @@ async fn titles_start_with_the_users_default_tracks() {
     let detail = app.get(&format!("/api/items/{film}"), &token).await.body;
     assert_eq!(selected(&detail), Value::Null);
 }
+
+/// An age limit keeps the rating system it was chosen in, from the
+/// systems the server serves; an invitation passes its system on.
+#[tokio::test]
+async fn age_limits_keep_their_rating_system() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (bob, bob_id) = app.user(&admin, "bob", json!({"max_age": 12, "max_age_system": "gb"})).await;
+
+    let systems = app.get("/api/ratings/systems", &bob).await;
+    assert_eq!(systems.status, StatusCode::OK, "any signed-in account");
+    assert_eq!(systems.body["region"], json!("US"));
+    let gb = systems.body["systems"].as_array().unwrap().iter().find(|s| s["country"] == "GB").unwrap();
+    assert_eq!(gb["name"], json!("United Kingdom"));
+    assert!(gb["ratings"].as_array().unwrap().iter().any(|r| r["name"] == "12A" && r["age"] == 12));
+    let dk = systems.body["systems"].as_array().unwrap().iter().find(|s| s["country"] == "DK").unwrap();
+    assert_eq!(dk["ratings"][0]["name"], json!("A"), "a board's sentence is shown by its short name");
+    let anonymous = app.call(Method::GET, "/api/ratings/systems", None, None, &[]).await;
+    assert_eq!(anonymous.status, StatusCode::UNAUTHORIZED);
+
+    assert_eq!(user_named(&app, &admin, "bob").await["max_age_system"], json!("GB"));
+    let unknown = app.patch(&format!("/api/users/{bob_id}"), &admin, json!({"max_age_system": "XX"})).await;
+    assert_eq!(unknown.status, StatusCode::BAD_REQUEST);
+    let age = app.patch(&format!("/api/users/{bob_id}"), &admin, json!({"max_age": 8, "max_age_system": "AGE"})).await;
+    assert_eq!(age.status, StatusCode::OK, "{:?}", age.body);
+    assert_eq!((age.body["max_age"].clone(), age.body["max_age_system"].clone()), (json!(8), json!("age")));
+    let region = app.patch(&format!("/api/users/{bob_id}"), &admin, json!({"max_age_system": null})).await;
+    assert_eq!(region.body["max_age_system"], Value::Null, "null: the region's");
+
+    let bad = app.post("/api/invites", &admin, json!({"max_age": 12, "max_age_system": "Narnia"})).await;
+    assert_eq!(bad.status, StatusCode::BAD_REQUEST);
+    let invite = app.post("/api/invites", &admin, json!({"max_age": 15, "max_age_system": "de"})).await;
+    assert_eq!(invite.body["max_age_system"], json!("DE"));
+    let code = invite.body["code"].as_str().unwrap();
+    let joined = accept(&app, code, json!({"username": "ann", "password": "test-pass-1"})).await;
+    assert_eq!(joined.status, StatusCode::OK, "{:?}", joined.body);
+    let ann = user_named(&app, &admin, "ann").await;
+    assert_eq!((ann["max_age"].clone(), ann["max_age_system"].clone()), (json!(15), json!("DE")));
+}

@@ -6,7 +6,12 @@
     "includesLater": "Includes libraries you add later.",
     "noLibraries": "No libraries yet.",
     "ageLimit": "Age limit",
-    "ageLimitHint": "Movies and shows above this rating, and unrated ones, are hidden. Music is not affected."
+    "ratingSystem": "Rating system",
+    "rating": "Rating",
+    "ratingOption": "{{rating}} ({{age}} and up)",
+    "noLimitHint": "Every movie and show, rated or not.",
+    "ratingHint": "{{rating}} and below, titles rated for {{age}} and younger in other countries, and no unrated titles. Music isn't limited.",
+    "ageHint": "Titles rated for {{age}} and younger, and no unrated titles. Music isn't limited."
   },
   "addToCollection": {
     "title": "Add to collection",

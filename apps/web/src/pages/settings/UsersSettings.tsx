@@ -8,6 +8,7 @@ import {
   useCreateUser,
   useDeleteUser,
   useLibraries,
+  useRatingSystems,
   useResetUserTwoStep,
   useServer,
   useSignOutEverywhere,
@@ -273,7 +274,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
   const [isAdmin, setIsAdmin] = useState(false);
   const [home, setHome] = useState(true);
   const [disabled, setDisabled] = useState(false);
-  const [access, setAccess] = useState<AccessValue>({ all_libraries: true, library_ids: [], max_age: null });
+  const [access, setAccess] = useState<AccessValue>({ all_libraries: true, library_ids: [], max_age: null, max_age_system: null });
   const [pin, setPin] = useState("");
   const [clearPin, setClearPin] = useState(false);
   // What the Requests select was set to; `null` until then (a new account, or an administrator).
@@ -300,6 +301,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
       all_libraries: user?.all_libraries ?? true,
       library_ids: user?.library_ids ?? [],
       max_age: user?.max_age ?? null,
+      max_age_system: user?.max_age_system ?? null,
     });
     setPin("");
     setClearPin(false);
@@ -378,6 +380,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
       access.library_ids.length === user.library_ids.length && access.library_ids.every((id) => user.library_ids.includes(id));
     if (!access.all_libraries && !sameLibraries) patch.library_ids = access.library_ids;
     if (access.max_age !== user.max_age) patch.max_age = access.max_age;
+    if (access.max_age_system !== (user.max_age_system ?? null)) patch.max_age_system = access.max_age_system;
     if (pin) patch.pin = pin;
     else if (clearPin) patch.pin = null;
     // One no longer an administrator keeps what the dialog shows, not what was kept from before.
@@ -608,7 +611,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
 
 function UserRow({ user, self, libraries, onOpen }: { user: User; self: boolean; libraries: ReturnType<typeof useLibraries>["data"]; onOpen: () => void }) {
   const { t } = useTranslation("settings");
-  const age = ageBadge(user.max_age);
+  const age = ageBadge(useRatingSystems().data, user.max_age_system, user.max_age);
   const server = useServer();
   return (
     <li>

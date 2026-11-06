@@ -119,12 +119,14 @@
   },
   "access": {
     "noLimit": "Aucune limite",
-    "littleKids": "Jeunes enfants (G, TV-Y)",
-    "kids": "Enfants (TV-Y7)",
-    "olderKids": "Grands enfants (PG, TV-PG)",
-    "teens": "Adolescents (PG-13)",
-    "adults": "Adultes (R, TV-MA)",
-    "upTo": "Jusqu’à {{age}} ans",
+    "ageSystem": "Âge",
+    "age": "{{age}} ans",
+    "upTo": "Jusqu’à {{rating}}",
+    "upToAge": "Jusqu’à {{age}} ans",
+    "ratingFor": {
+      "film": "{{rating}} (film)",
+      "tv": "{{rating}} (TV)"
+    },
     "allLibraries": "Toutes les bibliothèques",
     "noLibraries": "Aucune bibliothèque",
     "libraries_one": "{{count, number}} bibliothèque",

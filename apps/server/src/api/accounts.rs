@@ -17,6 +17,7 @@ use crate::auth::{
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::i18n;
+use crate::ratings;
 use crate::requests::{self, RequestAccess};
 use crate::state::AppState;
 use crate::streams::{self, SubtitleMode};
@@ -27,6 +28,71 @@ fn check_age(max_age: Option<i64>) -> ApiResult<()> {
         Some(age) if !(0..=21).contains(&age) => Err(AppError::bad_request("the age limit must be between 0 and 21")),
         _ => Ok(()),
     }
+}
+
+/// The rating system an age limit is shown in, as stored: a country with
+/// ratings ("GB"), or "age".
+fn check_system(system: Option<&str>) -> ApiResult<Option<String>> {
+    match system.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(None),
+        Some(s) if s.eq_ignore_ascii_case(AGE_SYSTEM) => Ok(Some(AGE_SYSTEM.to_owned())),
+        Some(s) => match ratings::system(s) {
+            Some(system) => Ok(Some(system.country.to_owned())),
+            None => Err(AppError::bad_request("unknown rating system")),
+        },
+    }
+}
+
+/// The rating system of plain ages.
+const AGE_SYSTEM: &str = "age";
+
+#[derive(Serialize)]
+pub struct RatingSystems {
+    /// The metadata region (ISO 3166-1 alpha-2): its system, when it has
+    /// one, is where an age limit is picked first.
+    region: String,
+    systems: Vec<RatingSystem>,
+}
+
+#[derive(Serialize)]
+struct RatingSystem {
+    country: &'static str,
+    name: &'static str,
+    ratings: Vec<SystemRating>,
+}
+
+#[derive(Serialize)]
+struct SystemRating {
+    name: &'static str,
+    age: i64,
+    /// "film" or "tv"; `None`: both.
+    kind: Option<&'static str>,
+}
+
+/// The rating systems an age limit is picked and shown in, each country's
+/// ratings youngest first. Names are as short as the boards' own allow:
+/// Denmark's "Tilladt for alle" is "A".
+pub async fn rating_systems(State(state): State<AppState>, _user: AuthUser) -> ApiResult<Json<RatingSystems>> {
+    let systems = ratings::SYSTEMS
+        .iter()
+        .map(|s| RatingSystem {
+            country: s.country,
+            name: s.name,
+            ratings: s
+                .ratings
+                .iter()
+                .map(|r| SystemRating {
+                    name: r.short_name(),
+                    age: r.age,
+                    kind: r.kind.map(|k| match k {
+                        ratings::Kind::Film => "film",
+                        ratings::Kind::Tv => "tv",
+                    }),
+                })
+                .collect(),
+        })
+        .collect();
+    Ok(Json(RatingSystems { region: ratings::region(&state.db).await?, systems }))
 }
 
 async fn admins_left_after(state: &AppState, without: i64) -> ApiResult<i64> {
@@ -63,6 +129,8 @@ pub struct NewUser {
     #[serde(default)]
     max_age: Option<i64>,
     #[serde(default)]
+    max_age_system: Option<String>,
+    #[serde(default)]
     pin: Option<String>,
     /// Left out: profiles without a password and accounts with an age limit
     /// may not ask for titles, others ask an administrator.
@@ -82,6 +150,7 @@ pub async fn create_user(
     let username = body.username.trim().to_owned();
     validate_username(&username)?;
     check_age(body.max_age)?;
+    let max_age_system = check_system(body.max_age_system.as_deref())?;
     if body.managed && body.is_admin {
         return Err(AppError::bad_request("a managed profile can't be an administrator"));
     }
@@ -114,8 +183,8 @@ pub async fn create_user(
     });
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (id, username, password_hash, display_name, is_admin, managed, home, all_libraries, max_age,
-                            pin_hash, request_access, created_at)
-         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                            max_age_system, pin_hash, request_access, created_at)
+         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&username)
     .bind(password_hash)
@@ -125,6 +194,7 @@ pub async fn create_user(
     .bind(body.home)
     .bind(body.all_libraries)
     .bind(body.max_age)
+    .bind(max_age_system)
     .bind(pin_hash)
     .bind(request_access.as_str())
     .bind(now())
@@ -155,6 +225,9 @@ pub struct UserPatch {
     library_ids: Option<Vec<i64>>,
     #[serde(default, deserialize_with = "nullable")]
     max_age: Option<Option<i64>>,
+    /// `null`: the metadata region's.
+    #[serde(default, deserialize_with = "nullable")]
+    max_age_system: Option<Option<String>>,
     /// `null` removes the PIN.
     #[serde(default, deserialize_with = "nullable")]
     pin: Option<Option<String>>,
@@ -197,6 +270,10 @@ pub async fn update_user(
     if let Some(max_age) = body.max_age {
         check_age(max_age)?;
     }
+    let max_age_system = match &body.max_age_system {
+        Some(system) => Some(check_system(system.as_deref())?),
+        None => None,
+    };
     if body.pin.is_some() && id == admin.id {
         // As the password: from Account, which asks for the password. A PIN
         // switches a profile to this one without its two-step code.
@@ -272,6 +349,13 @@ pub async fn update_user(
     if let Some(max_age) = body.max_age {
         sqlx::query("UPDATE users SET max_age = ? WHERE id = ?")
             .bind(max_age)
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
+    }
+    if let Some(system) = max_age_system {
+        sqlx::query("UPDATE users SET max_age_system = ? WHERE id = ?")
+            .bind(system)
             .bind(id)
             .execute(&state.db.write)
             .await?;
@@ -701,6 +785,7 @@ struct InviteRow {
     all_libraries: bool,
     library_ids: String,
     max_age: Option<i64>,
+    max_age_system: Option<String>,
     note: Option<String>,
 }
 
@@ -713,6 +798,7 @@ pub struct InviteDto {
     all_libraries: bool,
     library_ids: Vec<i64>,
     max_age: Option<i64>,
+    max_age_system: Option<String>,
     note: Option<String>,
 }
 
@@ -726,12 +812,14 @@ impl From<InviteRow> for InviteDto {
             uses_left: r.uses_left,
             all_libraries: r.all_libraries,
             max_age: r.max_age,
+            max_age_system: r.max_age_system,
             note: r.note,
         }
     }
 }
 
-const INVITE_COLUMNS: &str = "code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, note";
+const INVITE_COLUMNS: &str =
+    "code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, max_age_system, note";
 
 pub async fn list_invites(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<InviteDto>>> {
     let rows: Vec<InviteRow> =
@@ -755,6 +843,8 @@ pub struct NewInvite {
     #[serde(default)]
     max_age: Option<i64>,
     #[serde(default)]
+    max_age_system: Option<String>,
+    #[serde(default)]
     note: Option<String>,
 }
 
@@ -764,6 +854,7 @@ pub async fn create_invite(
     Json(body): Json<NewInvite>,
 ) -> ApiResult<(StatusCode, Json<InviteDto>)> {
     check_age(body.max_age)?;
+    let max_age_system = check_system(body.max_age_system.as_deref())?;
     let days = body.expires_in_days.unwrap_or(7);
     let uses = body.uses.unwrap_or(1).clamp(1, 1000);
     let code = accounts::invite_code();
@@ -771,8 +862,9 @@ pub async fn create_invite(
     let expires_at = (days > 0).then(|| created_at + days * 86_400);
     let note = body.note.map(|n| n.trim().chars().take(200).collect::<String>()).filter(|n| !n.is_empty());
     sqlx::query(
-        "INSERT INTO invites (code, created_by, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO invites (code, created_by, created_at, expires_at, uses_left, all_libraries, library_ids, max_age,
+                              max_age_system, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&code)
     .bind(admin.id)
@@ -782,6 +874,7 @@ pub async fn create_invite(
     .bind(body.all_libraries)
     .bind(serde_json::to_string(&body.library_ids).unwrap_or_else(|_| "[]".into()))
     .bind(body.max_age)
+    .bind(&max_age_system)
     .bind(&note)
     .execute(&state.db.write)
     .await?;
@@ -793,6 +886,7 @@ pub async fn create_invite(
         all_libraries: body.all_libraries,
         library_ids: body.library_ids,
         max_age: body.max_age,
+        max_age_system,
         note,
     };
     Ok((StatusCode::CREATED, Json(invite)))
@@ -878,15 +972,16 @@ pub async fn accept_invite(
     // lets them (as accounts made with one).
     let request_access = if invite.max_age.is_some() { RequestAccess::Off } else { RequestAccess::Ask };
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO users (id, username, password_hash, display_name, home, all_libraries, max_age, request_access,
-                            created_at)
-         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, 0, ?, ?, ?, ?) RETURNING id",
+        "INSERT INTO users (id, username, password_hash, display_name, home, all_libraries, max_age, max_age_system,
+                            request_access, created_at)
+         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, 0, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&username)
     .bind(hash)
     .bind(body.display_name.map(|n| n.trim().to_owned()).filter(|n| !n.is_empty()))
     .bind(invite.all_libraries)
     .bind(invite.max_age)
+    .bind(&invite.max_age_system)
     .bind(request_access.as_str())
     .bind(now())
     .fetch_one(&mut *tx)

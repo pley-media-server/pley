@@ -30,6 +30,7 @@ import type {
   NetworkSettings,
   PersonDetail,
   PlayingSession,
+  RatingSystems,
   RecoveryCodes,
   RemoteDevice,
   RequestAccess,
@@ -79,6 +80,7 @@ export const keys = {
   profiles: ["profiles"] as const,
   devices: ["devices"] as const,
   invites: ["invites"] as const,
+  ratingSystems: ["ratings", "systems"] as const,
   invite: (code: string) => ["invite", code] as const,
   settings: ["settings"] as const,
   network: ["network"] as const,
@@ -1065,6 +1067,7 @@ export interface NewUserInput {
   all_libraries?: boolean;
   library_ids?: Id[];
   max_age?: number | null;
+  max_age_system?: string | null;
   pin?: string;
   request_access?: RequestAccess;
 }
@@ -1090,6 +1093,7 @@ export interface UserPatch {
   all_libraries?: boolean;
   library_ids?: Id[];
   max_age?: number | null;
+  max_age_system?: string | null;
   pin?: string | null;
   request_access?: RequestAccess;
 }
@@ -1137,6 +1141,15 @@ export function useSignOutEverywhere() {
 // Invitations
 // ---------------------------------------------------------------------------
 
+/** The rating systems age limits are picked and shown in. */
+export function useRatingSystems() {
+  return useQuery({
+    queryKey: keys.ratingSystems,
+    queryFn: () => api.get<RatingSystems>("/api/ratings/systems"),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useInvites() {
   return useQuery(queries.invites());
 }
@@ -1147,6 +1160,7 @@ export interface NewInviteInput {
   all_libraries?: boolean;
   library_ids?: Id[];
   max_age?: number | null;
+  max_age_system?: string | null;
   note?: string;
 }
 

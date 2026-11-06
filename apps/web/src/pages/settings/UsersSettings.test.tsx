@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { AppGrant } from "@/api/apps";
-import type { Library, User } from "@/api/types";
+import type { Library, RatingSystems, User } from "@/api/types";
 import { mockApi, renderWithProviders, testUser } from "@/test/render";
 import { UsersSettings } from "./UsersSettings";
 
@@ -44,6 +44,21 @@ const kidsApp: AppGrant = {
   last_used_at: 0,
 };
 
+const ratingSystems: RatingSystems = {
+  region: "US",
+  systems: [
+    {
+      country: "US",
+      name: "United States",
+      ratings: [
+        { name: "G", age: 0, kind: "film" },
+        { name: "TV-Y7", age: 7, kind: "tv" },
+        { name: "PG-13", age: 13, kind: "film" },
+      ],
+    },
+  ],
+};
+
 function serve() {
   let kidsApps = [kidsApp];
   let annsApps = [{ ...kidsApp, id: 10, profile: { id: 3, name: "Ann" } }];
@@ -66,6 +81,7 @@ function serve() {
     },
     "GET /api/users/4/apps": () => [],
     "GET /api/users": () => [admin, kid, ann, lee],
+    "GET /api/ratings/systems": () => ratingSystems,
     "GET /api/libraries": () => libraries,
     "GET /api/users/1/devices": () => [],
     "GET /api/users/2/devices": () => [{ id: "d1", name: "Safari on iPhone", user_agent: null, ip: "192.0.2.4", created_at: 0, last_seen_at: 0, current: false }],
@@ -94,11 +110,13 @@ async function openAddDialog() {
 describe("UsersSettings", () => {
   it("lists users with what sets them apart", async () => {
     renderUsers();
-    const rows = await screen.findAllByRole("listitem");
+    // The limit shows as its rating once the rating systems are in.
+    expect(await screen.findByText("Up to TV-Y7")).toBeInTheDocument();
+    const rows = screen.getAllByRole("listitem");
     expect(rows[0]).toHaveTextContent("Admin");
     expect(rows[0]).toHaveTextContent("(you)");
     expect(rows[1]).toHaveTextContent("@kid");
-    for (const badge of ["Managed", "Home", "Cartoons", "Up to 7", "PIN"]) expect(rows[1]).toHaveTextContent(badge);
+    for (const badge of ["Managed", "Home", "Cartoons", "Up to TV-Y7", "PIN"]) expect(rows[1]).toHaveTextContent(badge);
   });
 
   it("turns two-step sign-in off for someone who lost their phone", async () => {
@@ -190,6 +208,7 @@ describe("UsersSettings", () => {
       all_libraries: true,
       library_ids: [],
       max_age: null,
+      max_age_system: null,
       pin: "1234",
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -218,6 +237,25 @@ describe("UsersSettings", () => {
       library_ids: [2],
     });
     expect(requests.find((r) => r.method === "POST")?.body).not.toHaveProperty("password");
+  });
+
+  it("picks the age limit as a rating of a rating system", async () => {
+    const user = userEvent.setup();
+    const requests = renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    const system = within(dialog).getByLabelText("Rating system");
+    const rating = within(dialog).getByLabelText("Rating");
+    // The region's system, with the limit as its rating.
+    await waitFor(() => expect(system).toHaveValue("US"));
+    expect(rating).toHaveValue("7");
+    expect(within(dialog).getByText(/TV-Y7 and below/)).toBeInTheDocument();
+    // Plain ages keep the limit.
+    await user.selectOptions(system, "age");
+    expect(rating).toHaveValue("7");
+    expect(within(dialog).getByRole("option", { name: "Age 8" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ max_age_system: "age" }));
   });
 
   it("saves only what changed", async () => {
@@ -335,6 +373,7 @@ describe("UsersSettings: requests", () => {
   function serveRequests() {
     const requests = mockApi({
       "GET /api/users": () => [boss, annAsks, bo],
+      "GET /api/ratings/systems": () => ratingSystems,
       "GET /api/libraries": () => libraries,
       "GET /api/users/1/apps": () => [],
       "GET /api/users/1/devices": () => [],
@@ -368,7 +407,7 @@ describe("UsersSettings: requests", () => {
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
     const select = within(dialog).getByLabelText("Requests");
-    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "Kids (TV-Y7)");
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (7 and up)");
     expect(select).toHaveValue("off");
     await user.selectOptions(select, "ask");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -397,10 +436,10 @@ describe("UsersSettings: requests", () => {
     const { user, dialog } = await openAddDialog();
     const select = within(dialog).getByLabelText("Requests");
     expect(select).toHaveValue("ask");
-    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "Kids (TV-Y7)");
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (7 and up)");
     expect(select).toHaveValue("off");
     expect(within(dialog).getByText(/leaves out titles above the age limit/)).toBeInTheDocument();
-    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "No limit");
     await user.click(within(dialog).getByRole("button", { name: /Managed profile/ }));
     expect(select).toHaveValue("off");
 

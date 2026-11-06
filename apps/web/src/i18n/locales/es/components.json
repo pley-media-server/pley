@@ -6,7 +6,12 @@
     "includesLater": "Incluye también las bibliotecas que añadas más adelante.",
     "noLibraries": "Aún no hay bibliotecas.",
     "ageLimit": "Límite de edad",
-    "ageLimitHint": "Las películas y series por encima de esta clasificación, y las que no tienen ninguna, se ocultan. La música no se ve afectada."
+    "ratingSystem": "Sistema de clasificación",
+    "rating": "Clasificación",
+    "ratingOption": "{{rating}} (desde {{age}} años)",
+    "noLimitHint": "Todas las películas y series, clasificadas o no.",
+    "ratingHint": "{{rating}} o menos, los títulos clasificados hasta {{age}} años en otros países, y ningún título sin clasificar. La música no tiene límite.",
+    "ageHint": "Los títulos clasificados hasta {{age}} años, y ningún título sin clasificar. La música no tiene límite."
   },
   "addToCollection": {
     "title": "Añadir a una colección",

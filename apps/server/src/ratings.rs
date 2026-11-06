@@ -56,6 +56,18 @@ pub struct System {
     pub ratings: &'static [Rating],
 }
 
+impl Rating {
+    /// The name to show: the board's own, or the shortest when that's a
+    /// sentence (Denmark's "Tilladt for alle" is "A").
+    pub fn short_name(&self) -> &'static str {
+        let first = self.names[0];
+        if first.chars().count() <= 12 {
+            return first;
+        }
+        self.names.iter().copied().min_by_key(|n| n.chars().count()).unwrap_or(first)
+    }
+}
+
 impl System {
     /// The age of `rating` in this country: a rating of the kind first, then
     /// one of the other kind (TMDB gives some TV shows a film rating).
@@ -305,6 +317,23 @@ mod tests {
         assert_eq!(with_country("M/12"), (None, "M/12"));
         assert_eq!(with_country("KT/EA"), (None, "KT/EA"));
         assert_eq!(with_country("GB:"), (None, "GB:"));
+    }
+
+    /// A board's sentence is shown by its short name.
+    #[test]
+    fn ratings_have_short_names() {
+        let named = |country: &str, age: i64| {
+            system(country).unwrap().ratings.iter().find(|r| r.age == age).unwrap().short_name()
+        };
+        assert_eq!(named("DK", 0), "A");
+        assert_eq!(named("DK", 7), "7");
+        assert_eq!(named("GB", 12), "12");
+        assert_eq!(named("FR", 0), "Tous publics");
+        for system in SYSTEMS {
+            for rating in system.ratings {
+                assert!(rating.short_name().chars().count() <= 16, "{}: {}", system.country, rating.short_name());
+            }
+        }
     }
 
     #[test]

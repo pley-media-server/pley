@@ -32,6 +32,7 @@ struct UserRow {
     avatar_color: Option<String>,
     all_libraries: bool,
     max_age: Option<i64>,
+    max_age_system: Option<String>,
     disabled: bool,
     created_at: i64,
     audio_language: Option<String>,
@@ -62,6 +63,10 @@ pub struct UserDto {
     pub all_libraries: bool,
     pub library_ids: Vec<i64>,
     pub max_age: Option<i64>,
+    /// The rating system `max_age` was chosen in and is shown in (see
+    /// `GET /api/ratings/systems`): a country, or "age"; `None`: the
+    /// metadata region's.
+    pub max_age_system: Option<String>,
     pub disabled: bool,
     pub created_at: i64,
     /// Default tracks for titles without a choice (see `crate::streams`).
@@ -83,7 +88,7 @@ pub struct UserDto {
 }
 
 const USER_COLUMNS: &str = "id, username, display_name, is_admin, managed, home, pin_hash IS NOT NULL AS has_pin,
-    avatar, avatar_color, all_libraries, max_age, disabled, created_at, audio_language, subtitle_language,
+    avatar, avatar_color, all_libraries, max_age, max_age_system, disabled, created_at, audio_language, subtitle_language,
     subtitle_mode, language, password_hash NOT LIKE '!%' AS has_password,
     EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id) AS two_step, request_access";
 
@@ -103,6 +108,7 @@ impl UserRow {
             all_libraries: self.all_libraries || self.is_admin,
             library_ids,
             max_age: if self.is_admin { None } else { self.max_age },
+            max_age_system: if self.is_admin { None } else { self.max_age_system },
             disabled: self.disabled,
             created_at: self.created_at,
             audio_language: self.audio_language,
@@ -737,6 +743,7 @@ mod tests {
             avatar_color: None,
             all_libraries: false,
             max_age: Some(12),
+            max_age_system: Some("GB".into()),
             disabled: false,
             created_at: 0,
             audio_language: None,
@@ -759,7 +766,7 @@ mod tests {
         assert_eq!(dto.request_access, RequestAccess::Off);
         // Administrators are never restricted, whatever is stored.
         let admin = user_row(true, None).into_dto(vec![]);
-        assert_eq!((admin.all_libraries, admin.max_age), (true, None));
+        assert_eq!((admin.all_libraries, admin.max_age, admin.max_age_system), (true, None, None));
         assert_eq!(admin.request_access, RequestAccess::Auto, "administrators' requests are approved as made");
         assert_eq!(avatar_url(1, None), None);
     }
