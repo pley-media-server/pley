@@ -261,12 +261,11 @@ private fun AfterFirstFrame(shell: PhoneShellState, graph: () -> ScreensGraph) {
             casts.music.collect { shell.toasts.show(it.from.notice(resources)) }
         }
         launch {
-            // Sent from the live player, which closed: said here, and the remote opens on the device.
+            // Sent from the live player, which closed: the remote's bar follows it here.
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 CastsSent.pending.filterNotNull().collect { sent ->
                     CastsSent.said(sent)
-                    shell.toasts.show(resources.getString(R.string.play_on_sent, sent.name))
-                    shell.openRemote(sent.deviceId)
+                    shell.castSent(sent.deviceId)
                 }
             }
         }
@@ -414,22 +413,20 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
 }
 
 /**
- * Play on…'s chooser while a page asked for it: sent, it closes, says
- * "Playing on" the device, and opens the remote on that device.
+ * Play on…'s chooser while a page asked for it: sent, it closes, and the
+ * remote's bar says it starts on the device, then what plays there.
  */
 @Composable
 private fun PlayOnSlot(shell: PhoneShellState) {
     val target = shell.playingOn ?: return
     val remote = shell.remote ?: return
-    val resources = LocalResources.current
     PlayOnSheet(
         target,
         shell.remoteDevices,
         remote,
-        onCast = { device, name ->
+        onCast = { device, _ ->
             shell.playingOn = null
-            shell.toasts.show(resources.getString(R.string.play_on_sent, name))
-            shell.openRemote(device.deviceId)
+            shell.castSent(device.deviceId)
         },
         onDismiss = { shell.playingOn = null },
     )

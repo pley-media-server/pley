@@ -171,11 +171,12 @@ protect your server.
   device switches with a ticket the cast carries: random, stored hashed,
   good once for 60 seconds for that device, from the profile it is on to
   the caster's. A copy shown by anything else spends it. Such a cast goes
-  to the device the remote listed or to none, reaches that device's
-  stream alone, not the profile's other devices, and a receiver's id stays
-  its device's while it is open: another sign-in of the profile that names
-  it isn't that receiver. A progress report of another profile's session
-  is kept for neither profile. Another
+  to the device the remote listed or to none, and reaches that device's
+  stream alone, not the profile's other devices. A receiver is its
+  device's: another sign-in of the profile that names a TV's receiver id
+  is listed beside the TV, never in its place, whether the TV is there or
+  comes back later, and never gets what is cast to the TV. A progress
+  report of another profile's session is kept for neither profile. Another
   profile's devices are listed by name and profile, never with what they
   play, and only to home members of the same household, from a person's
   own sign-in or Pley's own apps allowed to switch profiles (another app
@@ -268,8 +269,11 @@ other apps (`pley_ct_…`), never with a session's
   taken away takes them at once. Each is checked by name where it applies:
   no token is ever an administrator. No scope administers accounts, sign-in
   or the server's settings, and the Jellyfin-compatible API takes every token
-  for what `play` allows: it lists no one but the caller, and a user id in
-  a path must be its own.
+  for what `play` allows, and one with `manage` for collections and editing
+  metadata: it lists no one but the caller, a user id in a path must be its
+  own, and a playlist is its owner's alone. A picture it is sent to fetch
+  must be on one of the hosts Pley takes pictures from, as on the
+  Plex-compatible API.
 - A token may be limited to addresses and networks (or the home network).
   From elsewhere it is refused as if it didn't exist; the address is the
   connection's, or the one a proxy on this computer or its network names

@@ -226,6 +226,9 @@ pub struct Item {
     pub is_folder: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub parent_id: Option<String>,
+    /// The entry of a playlist the item is listed as.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub playlist_item_id: Option<String>,
     #[serde(rename = "Type")]
     pub kind: &'static str,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -304,6 +307,17 @@ pub struct Item {
     /// Seek-bar previews by media source, then by width.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub trickplay: Option<BTreeMap<String, BTreeMap<String, Trickplay>>>,
+    /// An item's details: its labels, which Pley's editor keeps.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    /// The sort title, while an edit keeps it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forced_sort_name: Option<String>,
+    /// The fields edits keep, as Jellyfin names them ([`super::editing`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locked_fields: Option<Vec<&'static str>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lock_data: Option<bool>,
 }
 
 /// A media source's seek-bar previews at one width, as Jellyfin 10.9's
@@ -1020,21 +1034,8 @@ pub fn stream(jellyfin: &Jellyfin, row: &ItemRow, source: &str, s: &Probed) -> S
     let text = s.kind == StreamKind::Subtitle
         && s.text_based
             .unwrap_or(matches!(s.codec.as_str(), "subrip" | "ass" | "ssa" | "webvtt" | "mov_text" | "text"));
-    let (range, range_type) = match s.dynamic_range() {
-        DynamicRange::Sdr => ("SDR", "SDR"),
-        DynamicRange::Hdr10 => ("HDR", "HDR10"),
-        DynamicRange::Hdr10plus => ("HDR", "HDR10Plus"),
-        DynamicRange::Hlg => ("HDR", "HLG"),
-        DynamicRange::DolbyVision => (
-            "HDR",
-            match s.dv_bl_compat {
-                Some(1) => "DOVIWithHDR10",
-                Some(2) => "DOVIWithSDR",
-                Some(4) => "DOVIWithHLG",
-                _ => "DOVI",
-            },
-        ),
-    };
+    let range = if s.dynamic_range() == DynamicRange::Sdr { "SDR" } else { "HDR" };
+    let range_type = super::profile::range_type(s);
     let kind = match s.kind {
         StreamKind::Video => "Video",
         StreamKind::Audio => "Audio",

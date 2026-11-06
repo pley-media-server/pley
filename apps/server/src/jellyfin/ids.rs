@@ -27,6 +27,8 @@ pub enum Kind {
     Studio = 9,
     /// A year, by its number.
     Year = 10,
+    /// An entry of a playlist, which may hold an item more than once.
+    PlaylistEntry = 11,
 }
 
 impl Kind {
@@ -42,6 +44,7 @@ impl Kind {
             8 => Kind::Playlist,
             9 => Kind::Studio,
             10 => Kind::Year,
+            11 => Kind::PlaylistEntry,
             _ => return None,
         })
     }

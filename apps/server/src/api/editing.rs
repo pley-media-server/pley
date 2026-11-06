@@ -75,7 +75,9 @@ pub async fn edit(
     Ok(Json(detail(&state, user.id, id).await?))
 }
 
-fn refresh_later(state: &AppState, id: i64, library_id: i64) {
+/// Fetches item `id`'s metadata again after the answer, as an unlocked field
+/// is filled again.
+pub(crate) fn refresh_later(state: &AppState, id: i64, library_id: i64) {
     let metadata = state.metadata.clone();
     let events = state.events.clone();
     tokio::spawn(async move {
@@ -236,6 +238,21 @@ pub async fn reset_artwork(
 ) -> ApiResult<StatusCode> {
     let row = item_or_404(&state, user.id, id).await?;
     let kind = artwork_kind(&kind)?;
+    reset_picture(&state, id, &row.kind, row.library_id, kind).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Picture `kind` (poster, backdrop or thumb) of item `id`, of `item_kind`
+/// in library `library_id`, goes back to the automatic one: the file's own
+/// or the metadata source's, found again after the answer.
+pub(crate) async fn reset_picture(
+    state: &AppState,
+    id: i64,
+    item_kind: &str,
+    library_id: i64,
+    kind: &str,
+) -> ApiResult<()> {
+    let kind = artwork_kind(kind)?;
     overrides::set(&state.db, id, &[(kind.to_owned(), None)]).await?;
     // `kind` is one of three column names.
     sqlx::query(sqlx::AssertSqlSafe(format!("UPDATE items SET {kind} = NULL, updated_at = ? WHERE id = ?")))
@@ -243,10 +260,10 @@ pub async fn reset_artwork(
         .bind(id)
         .execute(&state.db.write)
         .await?;
-    if state.metadata.can_refresh(&row.kind) {
-        refresh_later(&state, id, row.library_id);
+    if state.metadata.can_refresh(item_kind) {
+        refresh_later(state, id, library_id);
     } else {
-        state.scanner.enqueue(row.library_id, false);
+        state.scanner.enqueue(library_id, false);
     }
-    Ok(StatusCode::NO_CONTENT)
+    Ok(())
 }

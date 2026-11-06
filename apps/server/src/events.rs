@@ -151,11 +151,14 @@ pub enum ServerEvent {
     /// remote's device. Cast from another profile of the household, it goes
     /// to the streams of the profile the receiver is on, with the remote's
     /// profile (`profile_id`) and a ticket (`switch_ticket`) the receiver
-    /// switches to it with first; both are left out otherwise.
+    /// switches to it with first; both are left out otherwise. `device_id`
+    /// is the receiver's device, which such a cast goes to alone.
     Cast {
         #[serde(skip)]
         user_id: i64,
         receiver_id: String,
+        #[serde(skip)]
+        device_id: String,
         item_id: Option<i64>,
         playlist_id: Option<i64>,
         channel_id: Option<i64>,
@@ -320,12 +323,13 @@ impl ServerEvent {
         }
     }
 
-    /// The one receiver whose streams alone get the event: a cast from
-    /// another profile of the household, whose title and switch ticket are
-    /// the receiver's to see, not every device of the profile it is on.
-    pub fn receiver_only(&self) -> Option<&str> {
+    /// The one receiver whose streams alone get the event, by its id and
+    /// its device: a cast from another profile of the household, whose
+    /// title and switch ticket are the receiver's to see, not every device
+    /// of the profile it is on, nor another that names the same id.
+    pub fn receiver_only(&self) -> Option<(&str, &str)> {
         match self {
-            ServerEvent::Cast { receiver_id, switch_ticket: Some(_), .. } => Some(receiver_id),
+            ServerEvent::Cast { receiver_id, device_id, switch_ticket: Some(_), .. } => Some((receiver_id, device_id)),
             _ => None,
         }
     }
@@ -448,6 +452,7 @@ mod tests {
         let event = ServerEvent::Cast {
             user_id: 4,
             receiver_id: "tv-1".into(),
+            device_id: "app-7".into(),
             item_id: Some(12),
             playlist_id: None,
             channel_id: None,
@@ -460,6 +465,7 @@ mod tests {
             switch_ticket: None,
         };
         assert_eq!((event.user_id(), event.to_administrators()), (Some(4), false), "to the receiver's user only");
+        assert_eq!(event.receiver_only(), None, "a cast of their own reaches all their streams");
         assert_eq!(
             serde_json::to_string(&event).unwrap(),
             r#"{"type":"cast","receiver_id":"tv-1","item_id":12,"playlist_id":null,"channel_id":null,"start_ms":null,"shuffle":false,"audio_index":2,"subtitle_index":-1,"from":"Chrome on Windows"}"#
@@ -467,6 +473,7 @@ mod tests {
         let event = ServerEvent::Cast {
             user_id: 5,
             receiver_id: "tv-1".into(),
+            device_id: "app-7".into(),
             item_id: Some(12),
             playlist_id: None,
             channel_id: None,
@@ -479,7 +486,7 @@ mod tests {
             switch_ticket: Some(SwitchTicket("t1".into())),
         };
         assert_eq!(event.user_id(), Some(5), "to the profile the receiver is on");
-        assert_eq!(event.receiver_only(), Some("tv-1"), "and only to that receiver's streams");
+        assert_eq!(event.receiver_only(), Some(("tv-1", "app-7")), "and only to that receiver's streams");
         assert!(!format!("{event:?}").contains("t1"), "a ticket is never in Debug output");
         assert!(
             serde_json::to_string(&event).unwrap().ends_with(r#""from":null,"profile_id":4,"switch_ticket":"t1"}"#)
