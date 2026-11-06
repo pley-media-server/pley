@@ -43,6 +43,9 @@ sub init()
     m.defaults = invalid
     m.refused = false
     m.saving = 0
+    ' Each language picked counts: an answer to one before the last
+    ' changes nothing the last did.
+    m.languagePicks = 0
     ' What the message under the address says ({ key, values, text }),
     ' drawn again in a new language.
     m.words = { key: "", values: invalid, text: "" }
@@ -410,6 +413,7 @@ end sub
 ' keeps one, shown once the server has it (the API task hears it in the
 ' answer); else this Roku's, shown at once.
 sub chooseLanguage(language as string)
+    m.languagePicks = m.languagePicks + 1
     if i18nRow(uiLanguageFacts()).onDevice
         m.top.getScene().languageChoice = language
         showRows()
@@ -417,12 +421,13 @@ sub chooseLanguage(language as string)
     end if
     body = "{""language"":null}"
     if language <> "" then body = FormatJson({ language: language })
-    uiRequest({ method: "PUT", path: "/api/me/language", jsonText: body, profile: true, language: language }, "onLanguageSaved")
+    spec = { method: "PUT", path: "/api/me/language", jsonText: body, profile: true, language: language, pick: m.languagePicks }
+    uiRequest(spec, "onLanguageSaved")
 end sub
 
 ' A Pley from before languages has no such route (404, or 405): the
-' choice is this Roku's while the server is the one in use. Any other
-' refusal says why.
+' choice is this Roku's while the server is the one in use, unless one
+' was picked since. Any other refusal says why.
 sub onLanguageSaved(event as object)
     answer = event.getData()
     if answer.ok
@@ -430,9 +435,10 @@ sub onLanguageSaved(event as object)
         return
     end if
     if answer.status = 404 or answer.status = 405
+        spec = event.getRoSGNode().spec
         scene = m.top.getScene()
         scene.languageRefused = m.global.session.server
-        scene.languageChoice = event.getRoSGNode().spec.language
+        if spec.pick = m.languagePicks then scene.languageChoice = spec.language
         showRows()
         return
     end if
