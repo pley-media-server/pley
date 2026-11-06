@@ -49,7 +49,10 @@ pub fn routes() -> Router<AppState> {
             "/items/{id}/images/{kind}",
             post(upload_image).delete(delete_image).layer(DefaultBodyLimit::max(UPLOAD_BODY_MAX)),
         )
-        .route("/items/{id}/images/{kind}/{index}", post(upload_image_at).delete(delete_image_at))
+        .route(
+            "/items/{id}/images/{kind}/{index}",
+            post(upload_image_at).delete(delete_image_at).layer(DefaultBodyLimit::max(UPLOAD_BODY_MAX)),
+        )
         .route("/items/remotesearch/movie", post(search_movies))
         .route("/items/remotesearch/series", post(search_shows))
         .route("/items/remotesearch/apply/{id}", post(apply_match))

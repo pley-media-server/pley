@@ -478,6 +478,21 @@ async fn pictures_and_matches_through_the_editing_endpoints() {
     assert_eq!(jf_upload(app, &uri, &manager, "image/png", b"not a picture".to_vec()).await, StatusCode::BAD_REQUEST);
     assert_eq!(as_manager(Method::DELETE, uri.clone(), None).await.status, StatusCode::NO_CONTENT);
     assert!(!locked(app, admin, w.film).await.contains(&"poster".to_owned()));
+    // A real-sized picture, past the API's usual body limit, by index as
+    // Jellyfin's Kotlin SDK sends it.
+    let mut seed = 1u32;
+    let noise = image::RgbImage::from_fn(320, 320, |_, _| {
+        seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+        let [r, g, b, _] = seed.to_le_bytes();
+        image::Rgb([r, g, b])
+    });
+    let mut big = Vec::new();
+    noise.write_to(&mut std::io::Cursor::new(&mut big), image::ImageFormat::Png).unwrap();
+    let big = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &big);
+    assert!(big.len() > 256 * 1024);
+    let indexed = format!("{uri}/0");
+    assert_eq!(jf_upload(app, &indexed, &manager, "image/png", big.into_bytes()).await, StatusCode::NO_CONTENT);
+    assert_eq!(as_manager(Method::DELETE, indexed, None).await.status, StatusCode::NO_CONTENT);
 
     // Without a TMDB key: no pictures to choose from, nor matches.
     let remote = as_manager(Method::GET, format!("/Items/{film}/RemoteImages?type=Primary"), None).await;
