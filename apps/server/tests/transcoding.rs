@@ -21,11 +21,11 @@ use parking_lot::Mutex;
 use pley::disks::{Disk, Source};
 use pley::trickplay::Pace;
 use pley_transcoder_api::{
-    API_VERSION, AudioMode, AudioPlan, BitrateChanged, BitrateRequest, Capabilities, ConversionState, ConversionStatus,
-    EncoderInfo, ErrorBody, FileContainer, HoldRequest, HwAccel, JobCreated, JobRequest, JobStatus, Limits, Load,
-    MediaInfo, MediaStream, PrefetchRequest, Prefetched, ProbeRequest, SUBTITLES_COMPLETE_HEADER, SegmentFormat,
-    StreamKind, SubtitleRequest, TranscoderInfo, TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec,
-    VideoMode, VideoPlan,
+    API_VERSION, AudioCodec, AudioMode, AudioPlan, BitrateChanged, BitrateRequest, Capabilities, ConversionState,
+    ConversionStatus, DynamicRange, EncoderInfo, ErrorBody, FileContainer, HoldRequest, HwAccel, JobCreated,
+    JobRequest, JobStatus, Limits, Load, MediaInfo, MediaStream, OutputRange, PrefetchRequest, Prefetched,
+    ProbeRequest, SUBTITLES_COMPLETE_HEADER, SegmentFormat, StreamKind, SubtitleRequest, TranscoderInfo,
+    TranscoderStatus, TrickplayInfo, TrickplayRequest, VideoCodec, VideoMode, VideoPlan,
 };
 use serde_json::{Value, json};
 
@@ -102,6 +102,10 @@ struct Fake {
     holds: Arc<Mutex<Vec<u64>>>,
     /// FFmpeg transcodes running, as `/v1/status` says.
     transcoding: Arc<AtomicU32>,
+    /// It writes jobs' multivariant playlists (`hls_master_playlist`).
+    master_playlists: Arc<AtomicBool>,
+    /// It keeps HDR in transcodes (`hdr_transcode`).
+    hdr_transcodes: Arc<AtomicBool>,
 }
 
 /// The stand-in's one conversion: running when asked for, done when looked at again.
@@ -178,7 +182,22 @@ fn probe_result(path: &str) -> Option<MediaInfo> {
         title: Some(title.into()),
         ..audio(index, codec, "eng", default)
     };
-    let streams = if path.contains("Lossless") {
+    let streams = if path.contains("Peak") {
+        // 4K HEVC Main 10 in HDR10, with TrueHD 7.1 and a stereo AAC track.
+        let hdr = MediaStream {
+            codec: "hevc".into(),
+            profile: Some("Main 10".into()),
+            level: Some(153),
+            width: Some(3840),
+            height: Some(2160),
+            bit_depth: Some(10),
+            frame_rate: Some(23.976),
+            dynamic_range: Some(DynamicRange::Hdr10),
+            ..video("hevc")
+        };
+        let truehd = MediaStream { channels: Some(8), ..audio(1, "truehd", "eng", true) };
+        vec![hdr, truehd, audio(2, "aac", "eng", false)]
+    } else if path.contains("Lossless") {
         // A film with its English sound three ways: TrueHD (the default), Dolby Digital 5.1, stereo.
         vec![
             video("h264"),
@@ -322,6 +341,8 @@ async fn start_fake() -> (Fake, String) {
                         conversions_mp4: true,
                         live_bitrate: true,
                         fmp4_segments: true,
+                        hls_master_playlist: fake.master_playlists.load(Ordering::SeqCst),
+                        hdr_transcode: fake.hdr_transcodes.load(Ordering::SeqCst),
                         trickplay_version: 1,
                         trickplay_runs: fake.trickplay_runs.load(Ordering::SeqCst),
                         ..Default::default()
@@ -439,6 +460,13 @@ async fn start_fake() -> (Fake, String) {
                 };
                 if file == "init.mp4" && format == SegmentFormat::Fmp4 {
                     return ([(header::CONTENT_TYPE, "video/mp4")], format!("{id}:init")).into_response();
+                }
+                if file == "master.m3u8" && fake.master_playlists.load(Ordering::SeqCst) {
+                    let version = if format == SegmentFormat::Fmp4 { 7 } else { 3 };
+                    let playlist = format!(
+                        "#EXTM3U\n#EXT-X-VERSION:{version}\n#EXT-X-STREAM-INF:BANDWIDTH=8000000,CODECS=\"{id}\"\nindex.m3u8\n"
+                    );
+                    return ([(header::CONTENT_TYPE, "application/vnd.apple.mpegurl")], playlist).into_response();
                 }
                 if file == "index.m3u8" {
                     let mut playlist = String::from("#EXTM3U\n#EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-TARGETDURATION:4\n");
@@ -690,7 +718,14 @@ struct World {
 /// "Feature" (MKV, with an English sidecar subtitle), "Clip" (MP4) and
 /// "Broken" (ffprobe can't read it).
 async fn world() -> World {
+    world_with(|_| {}).await
+}
+
+/// [`world`] with a stand-in that `adjust` set up before Pley first asks
+/// what it can do.
+async fn world_with(adjust: impl FnOnce(&Fake)) -> World {
     let (fake, base) = start_fake().await;
+    adjust(&fake);
     let url = base.clone();
     let app = TestApp::with_config(|c| {
         c.transcoder_url = Some(url);
@@ -1932,6 +1967,90 @@ async fn jellyfin_clients_stream_hls_from_the_transcoder() {
     assert_eq!(stop.status, StatusCode::NO_CONTENT);
     eventually(|| w.fake.deleted.lock().contains(&"job1".to_owned())).await;
     assert_eq!(app.jf(Method::GET, &format!("{base}index.m3u8"), "", None).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn jellyfin_apps_stream_hevc_hdr_and_surround_as_their_profiles_allow() {
+    let w = world_with(|fake| {
+        fake.master_playlists.store(true, Ordering::SeqCst);
+        fake.hdr_transcodes.store(true, Ordering::SeqCst);
+    })
+    .await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.media_file("uhd/Peak (2022)/Peak (2022).mkv", 5120);
+    let library = app.library(admin, "UHD", "movies", "uhd").await;
+    let peak = app.jf_item(app.ids(library, admin).await["Peak"]);
+
+    // A TV app's profile: MP4 played as it is, HLS in fMP4 with HEVC up to
+    // level 5.1, and Dolby Digital (Plus) on six channels.
+    let profile = json!({
+        "DirectPlayProfiles": [{"Container": "mp4", "VideoCodec": "h264", "AudioCodec": "aac", "Type": "Video"}],
+        "TranscodingProfiles": [{"Type": "Video", "Container": "mp4", "Protocol": "hls",
+            "VideoCodec": "hevc,h264", "AudioCodec": "aac,ac3,eac3", "MaxAudioChannels": "6"}],
+        "CodecProfiles": [{"Type": "Video", "Codec": "hevc",
+            "Conditions": [{"Condition": "LessThanEqual", "Property": "VideoLevel", "Value": "153"}]}]
+    });
+    let asked = json!({"DeviceProfile": profile, "AudioStreamIndex": 1});
+    let info = app.jf(Method::POST, &format!("/Items/{peak}/PlaybackInfo"), admin, Some(asked)).await;
+    assert_eq!(info.status, StatusCode::OK, "{}", info.text());
+    let source = &info.body["MediaSources"][0];
+    assert_eq!((&source["SupportsDirectPlay"], &source["TranscodingContainer"]), (&json!(false), &json!("mp4")));
+    let url = source["TranscodingUrl"].as_str().unwrap().to_owned();
+    for asked in ["VideoCodec=hevc%2Ch264", "AudioCodec=aac%2Cac3%2Ceac3", "SegmentContainer=mp4", "hevc-level=153"] {
+        assert!(url.contains(asked), "{asked}: {url}");
+    }
+    assert!(url.contains("TranscodingMaxAudioChannels=6"), "{url}");
+
+    // The HDR10 video copied into fMP4, TrueHD made E-AC-3 5.1.
+    let master = app.jf(Method::GET, &url, admin, None).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    let job = w.fake.last_request();
+    assert_eq!(job.segment_format, SegmentFormat::Fmp4);
+    assert_eq!(job.video.unwrap().mode, VideoMode::Copy);
+    let audio = job.audio.unwrap();
+    assert_eq!((audio.mode, audio.codec, audio.channels), (AudioMode::Transcode, AudioCodec::Eac3, Some(6)));
+    // The session's own multivariant playlist, which names what it carries,
+    // with its playlists beside this one; their files need no token.
+    let text = master.text();
+    assert!(text.starts_with("#EXTM3U\n#EXT-X-VERSION:7\n") && text.contains("CODECS=\"job"), "{text}");
+    let variant = text.lines().find(|l| l.starts_with("hls1/")).unwrap().to_owned();
+    let base = format!("/Videos/{peak}/{}", variant.trim_end_matches("index.m3u8"));
+    let init = app.jf(Method::GET, &format!("{base}init.mp4"), "", None).await;
+    assert_eq!(init.status, StatusCode::OK);
+    assert!(init.text().ends_with(":init"), "{}", init.text());
+    let segment = app.jf(Method::GET, &format!("{base}3.m4s"), "", None).await;
+    assert_eq!(segment.status, StatusCode::OK);
+    assert_eq!(segment.headers[header::CONTENT_TYPE], "video/mp4");
+
+    // A lower quality picked: converted, staying HDR10 in HEVC.
+    let lower = app.jf(Method::GET, &format!("{url}&MaxStreamingBitrate=2000000"), admin, None).await;
+    assert_eq!(lower.status, StatusCode::OK, "{}", lower.text());
+    let video = w.fake.last_request().video.unwrap();
+    assert_eq!(
+        (video.mode, video.codec, video.dynamic_range),
+        (VideoMode::Transcode, VideoCodec::Hevc, OutputRange::Hdr10)
+    );
+
+    // An app that asks for H.264 and AAC alone (JellyCon writes its own
+    // address): converted to SDR H.264, with stereo AAC, in MPEG-TS.
+    let source = source["Id"].as_str().unwrap();
+    let plain = format!("/Videos/{peak}/master.m3u8?MediaSourceId={source}&VideoCodec=h264&AudioCodec=aac");
+    assert_eq!(app.jf(Method::GET, &plain, admin, None).await.status, StatusCode::OK);
+    let job = w.fake.last_request();
+    let (video, audio) = (job.video.unwrap(), job.audio.unwrap());
+    assert_eq!(
+        (job.segment_format, video.mode, video.codec),
+        (SegmentFormat::Ts, VideoMode::Transcode, VideoCodec::H264)
+    );
+    assert_eq!(video.dynamic_range, OutputRange::Sdr);
+    assert_eq!((audio.codec, audio.channels), (AudioCodec::Aac, Some(2)));
+    // HEVC in MPEG-TS, the video copied, unless the app turns copies off.
+    let ts = format!("/Videos/{peak}/master.m3u8?MediaSourceId={source}&VideoCodec=hevc,h264&AudioCodec=aac");
+    app.jf(Method::GET, &ts, admin, None).await;
+    let job = w.fake.last_request();
+    assert_eq!((job.segment_format, job.video.unwrap().mode), (SegmentFormat::Ts, VideoMode::Copy));
+    app.jf(Method::GET, &format!("{ts}&AllowVideoStreamCopy=false"), admin, None).await;
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Transcode);
 }
 
 #[tokio::test]

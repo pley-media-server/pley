@@ -935,21 +935,8 @@ pub fn stream(jellyfin: &Jellyfin, row: &ItemRow, source: &str, s: &Probed) -> S
     let text = s.kind == StreamKind::Subtitle
         && s.text_based
             .unwrap_or(matches!(s.codec.as_str(), "subrip" | "ass" | "ssa" | "webvtt" | "mov_text" | "text"));
-    let (range, range_type) = match s.dynamic_range() {
-        DynamicRange::Sdr => ("SDR", "SDR"),
-        DynamicRange::Hdr10 => ("HDR", "HDR10"),
-        DynamicRange::Hdr10plus => ("HDR", "HDR10Plus"),
-        DynamicRange::Hlg => ("HDR", "HLG"),
-        DynamicRange::DolbyVision => (
-            "HDR",
-            match s.dv_bl_compat {
-                Some(1) => "DOVIWithHDR10",
-                Some(2) => "DOVIWithSDR",
-                Some(4) => "DOVIWithHLG",
-                _ => "DOVI",
-            },
-        ),
-    };
+    let range = if s.dynamic_range() == DynamicRange::Sdr { "SDR" } else { "HDR" };
+    let range_type = super::profile::range_type(s);
     let kind = match s.kind {
         StreamKind::Video => "Video",
         StreamKind::Audio => "Audio",

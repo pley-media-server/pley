@@ -653,13 +653,47 @@ where the server keeps them.
 read as the device's capabilities; an app that sends none (players built on
 mpv or ExoPlayer) plays the files as they are. What plays as it is gets
 `SupportsDirectPlay`; the rest gets a `TranscodingUrl`, an HLS stream from
-Pley's transcoder (`/Videos/{id}/master.m3u8`): the video copied when its
-codec is one the request names (`VideoCodec`, H.264 or HEVC), converted to
-H.264 otherwise, and the sound made AAC. `MaxStreamingBitrate`,
-`MaxHeight`/`MaxWidth`, `StartTimeTicks`, `AudioStreamIndex` and a picture
-subtitle (`SubtitleStreamIndex` with `SubtitleMethod=Encode`), burned in,
-apply. Opened again with the same settings, as players do to probe it, it is
-the same stream. `DELETE /Videos/ActiveEncodings?DeviceId=…` ends a device's
+Pley's transcoder (`/Videos/{id}/master.m3u8`).
+
+The stream is decided as a Pley app's is ([API.md](API.md#version-2)), for
+what its address asks. `PlaybackInfo` writes there what the device profile
+says, in the names Jellyfin's server uses. From its first HLS transcoding
+profile for video: the video codecs (`VideoCodec`), the sound's
+(`AudioCodec`) and its channels (`TranscodingMaxAudioChannels`, the fewest
+that profile and the `VideoAudio` codec profiles say), and the segments
+(`SegmentContainer`: `mp4` for fMP4, else MPEG-TS). From its video codec
+profiles, each codec's profiles, level, bit depth, size and dynamic ranges
+(`hevc-profile`, `hevc-level`, `hevc-videobitdepth`, `hevc-maxwidth`,
+`hevc-maxheight`, `hevc-rangetype`), those that apply to some videos only
+(`ApplyConditions`) as they apply to the file's. An app that writes its own
+address is read the same way: without codecs, H.264 and AAC; without
+dynamic ranges, HDR10, HDR10+ and HLG as they are, and no Dolby Vision
+without a base layer.
+
+- The video is copied when its codec is listed and within its limits:
+  H.264 and HEVC in either kind of segment, VP9 and AV1 in fMP4 only.
+  Otherwise it is converted, to HEVC Main 10 where HDR stays HDR (the app
+  lists HEVC Main 10 and shows the range, [API.md](API.md#hdr-transcodes)),
+  else to H.264, tone-mapped. `AllowVideoStreamCopy=false` converts it
+  whatever it is.
+- Dolby Vision is kept and named where the app shows `DOVI` (profiles 5
+  and 8, 7 too with `DOVIWithEL`, 10 for AV1), and otherwise plays as its
+  base layer, or is converted, as for Pley's apps
+  ([API.md](API.md#dolby-vision-remuxes)).
+- The sound is copied when its codec is listed (AAC, MP3, AC-3, E-AC-3),
+  else converted: to E-AC-3 or AC-3 5.1 where the app lists them and takes
+  six channels, else to AAC on as many channels as it takes, up to 5.1
+  (stereo when it doesn't say).
+- The answer is the stream's own multivariant playlist, which names what
+  it carries (`CODECS`, `SUPPLEMENTAL-CODECS` for Dolby Vision,
+  `VIDEO-RANGE`), in one size; `TranscodingContainer` says `mp4` for fMP4.
+  A transcoder too old to make fMP4 makes MPEG-TS.
+
+`MaxStreamingBitrate`, `MaxHeight`/`MaxWidth`, `MaxVideoBitDepth`,
+`StartTimeTicks`, `AudioStreamIndex` and a picture subtitle
+(`SubtitleStreamIndex` with `SubtitleMethod=Encode`), burned in, apply.
+Opened again with the same settings, as players do to probe it, it is the
+same stream. `DELETE /Videos/ActiveEncodings?DeviceId=…` ends a device's
 streams.
 
 Files play with ranges at `/Videos/{id}/stream`, `/Audio/{id}/stream` or

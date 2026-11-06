@@ -15,6 +15,7 @@ pub mod ids;
 mod dto;
 mod items;
 mod playback;
+mod profile;
 mod socket;
 mod system;
 mod users;

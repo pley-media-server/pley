@@ -54,6 +54,12 @@ describes how they are made.
   channel shows only the channel's tuning screen.
 - With TMDB as the TV source, a show with an IMDb or TheTVDB id but no
   TMDB id is found by that id before it is searched for by name.
+- Jellyfin apps' streams go as far as Pley's own apps' do, by what their
+  device profile says: HEVC copied, or made in HEVC to stay HDR, in fMP4
+  segments where the app asks for them, VP9 and AV1 copied into fMP4, HDR
+  and Dolby Vision kept where the app shows them, and 5.1 sound (E-AC-3 or
+  AC-3) where it takes it. They were H.264 or copied HEVC, in SDR, with
+  stereo AAC.
 
 ## [0.1.7] - 2026-11-05
 

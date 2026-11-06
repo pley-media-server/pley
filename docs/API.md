@@ -2365,7 +2365,9 @@ pseudo-random data, made as it is sent, with `Content-Length`,
 ### Version 2
 
 `caps_version: 2` turns on these rules. A report without it (the web app,
-the Android app's web view, the compatibility APIs' clients) decides as version 1,
+the Android app's web view, the Plex-compatible API's clients, and the
+Jellyfin-compatible API's as it decides whether a file plays as it is)
+decides as version 1,
 whatever else it sends: the web app's `subtitle_codecs` and
 `picture_subtitles_sideload` only tell the server it draws picture
 subtitles from their `.mks` (it asks for no `subtitle_index` of a track it
@@ -2440,7 +2442,9 @@ fragmented MP4 (fMP4) segments, not from MPEG-TS. A version 2 player whose
 HLS session in fMP4, when the server's transcoder makes it
 (`fmp4_segments` in its capabilities). A player that lists `"ts"` first
 (the Android app sends `["ts", "fmp4"]`), every version 1 player,
-downloads, Live TV and the compatibility API get MPEG-TS, as before.
+downloads, Live TV and the Plex-compatible API get MPEG-TS, as before; a
+Jellyfin app gets fMP4 when its device profile asks
+([COMPATIBILITY.md](COMPATIBILITY.md#playing)).
 
 - The playlists say `#EXT-X-VERSION:7` and name the init segment first,
   `#EXT-X-MAP:URI="init.mp4"` (a smaller size's `v{k}-init.mp4`); segments
@@ -2562,7 +2566,7 @@ index.m3u8
   `dby1` brand. A remux that doesn't keep Dolby Vision carries no record.
   Profile 8.1 converted from 7 and HDR10+ left out work as in MPEG-TS.
 - Without `master_playlist` (and for every version 1 player, the web player
-  and the compatibility APIs' clients) the session starts at `index.m3u8`, and
+  and the Plex-compatible API's clients) the session starts at `index.m3u8`, and
   remuxes name nothing.
 
 For players with master playlists, the Dolby Vision rules of version 2
