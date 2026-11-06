@@ -13,6 +13,7 @@
 pub mod ids;
 
 mod dto;
+mod editing;
 mod items;
 mod lists;
 mod playback;
@@ -466,6 +467,7 @@ fn router(state: AppState, jellyfin: Arc<Jellyfin>) -> Router {
     Router::new()
         .merge(system::routes())
         .merge(users::routes())
+        .merge(editing::routes())
         .merge(items::routes())
         .merge(lists::routes())
         .merge(playback::routes())

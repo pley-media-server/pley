@@ -135,9 +135,10 @@ without `manage` gets `403` for a change only administrators make, and one
 without `activity` sees what a viewer would: its account's own sessions and
 history, and files' names rather than where they are. The
 Jellyfin-compatible API takes every token for what `play` allows, and one
-with `manage` for changing collections too
-([Playlists and collections](#playlists-and-collections)); it never acts as
-an administrator otherwise.
+with `manage` for changing collections and editing metadata too
+([Playlists and collections](#playlists-and-collections),
+[Editing metadata](#editing-metadata)); it never acts as an administrator
+otherwise.
 
 ### Origins
 
@@ -616,7 +617,7 @@ A token sees what Pley's [access rules](API.md#access-rules) let its
 account see, with the account's own watch state, and never acts as an
 administrator, whatever its scopes: `Policy.IsAdministrator` is `false` for
 everyone, and nothing administers through this API. A token with `manage`
-changes collections, as administrators do in Pley, and
+changes collections and edits metadata, as administrators do in Pley, and
 `Policy.EnableCollectionManagement` says so. `/Users` lists the
 caller alone and `/Users/Public` no one, so no names are shown before
 signing in; a user id in a path (`/Users/{id}/Items`) must be the caller's
@@ -744,6 +745,47 @@ apps do, by Pley's rules ([API.md](API.md#playlists)):
 - `DELETE /Items/{id}` deletes the caller's playlist, or with `manage` a
   collection; `CanDelete` says which. A title is never deleted (`403`).
 
+### Editing metadata
+
+A token with `manage` (an administrator's, made in Account) edits titles'
+metadata and pictures as Pley's own editor does
+([API.md](API.md#items)); other tokens get `403`. Jellyfin's apps that
+have an editor show it only to administrators, which no token is here, so
+this is for scripts and tools.
+
+- `POST /Items/{id}` takes a `BaseItemDto`, as apps send back the one they
+  were given with their changes. The fields Pley keeps that differ from
+  what it has are edited: `Name`, `ForcedSortName`, `OriginalTitle`,
+  `ProductionYear`, `PremiereDate`, `Overview`, `Taglines` (the first),
+  `Studios` (the first), `OfficialRating`, `Genres`, and `Tags` (Pley's
+  labels). Each edit is locked, as in Pley, so refreshes keep it.
+  Collections take `Name`, `Overview`, `ForcedSortName` and `Tags`.
+- `LockedFields` lists `Name`, `Overview`, `Genres`, `Studios` and
+  `OfficialRating` while Pley keeps them; sent without one of them, that
+  field goes back to the metadata source. `LockData` is `true` while every
+  field that holds something is kept, and sent `true` keeps them all.
+  Pley's labels are never refreshed, so `Tags` needs no lock.
+- A change to what Pley doesn't keep (`People`, `CommunityRating`,
+  `CriticRating`, `ProductionLocations`, or a lock of `Cast`, `Runtime` or
+  `ProductionLocations`) answers `400` naming it, and nothing of that
+  request is applied. Ids change by Fix Match. Other fields, read-only in
+  Jellyfin too, are left as they are.
+- Titles' pictures (`Primary`, `Backdrop`, `Thumb`; an episode's
+  `Primary` is its still; collections' are set through the
+  Plex-compatible API): `GET /Items/{id}/RemoteImages?type=` lists TMDB's
+  (none without a TMDB key), `POST /Items/{id}/RemoteImages/Download?type=&imageUrl=`
+  takes one of them, or a picture on another host Pley takes pictures from
+  ([Editing](#editing); others answer `400`), and
+  `POST /Items/{id}/Images/{type}` one uploaded in base64, as Jellyfin
+  takes it (25 MB at most, re-encoded). Each is kept through refreshes;
+  `DELETE /Items/{id}/Images/{type}` goes back to the automatic one.
+- Identify: `POST /Items/RemoteSearch/Movie` and `/Series` list TMDB's
+  candidates for `SearchInfo.Name` and `Year` (`400` without a TMDB key),
+  and `POST /Items/RemoteSearch/Apply/{id}` fixes the match to one, by its
+  `ProviderIds.Tmdb`.
+- `POST /Items/{id}/Refresh` fetches a title's metadata again, or scans a
+  library.
+
 ### Jellyfin endpoints
 
 | Area | Endpoints |
@@ -753,6 +795,7 @@ apps do, by Pley's rules ([API.md](API.md#playlists)):
 | Browsing | `GET /UserViews`, `/Items` (by `ParentId`, `Ids`, `SearchTerm`, `PersonIds`, `ArtistIds`; `IncludeItemTypes`, `Recursive`, `Filters`, `Genres`, `Years`, `OfficialRatings`, `Tags`, `Studios`, `NameStartsWith`, `SortBy`, `SortOrder`, `StartIndex`, `Limit`), `/Items/{id}`, `/Items/Latest`, `/Items/Suggestions`, `/UserItems/Resume`, `/Shows/NextUp`, `/Shows/Upcoming` (none), `/Shows/{id}/Seasons`, `/Shows/{id}/Episodes`, `/Items/{id}/Similar`, `/LocalTrailers`, `/SpecialFeatures`, `/Ancestors`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/MusicGenres`, `/Artists`, `/Artists/AlbumArtists`, `/Studios`, `/Years`, `/Tags` (none), `/Persons?SearchTerm=`, `/Search/Hints`, `/Playlists/{id}/Items`, and the `/Users/{id}/…` forms of these |
 | Playlists | `POST /Playlists` (a `CreatePlaylistDto` body, or `Name`, `Ids`, `MediaType` in the query), `GET|POST /Playlists/{id}`, `POST|DELETE /Playlists/{id}/Items` (`ids`, `position`; `entryIds`), `POST /Playlists/{id}/Items/{entry}/Move/{index}`, `GET /Playlists/{id}/Users[/{user}]`, `DELETE /Items/{id}` |
 | Collections | `POST /Collections?name=&ids=&parentId=`, `POST|DELETE /Collections/{id}/Items?ids=`, `DELETE /Items/{id}` (`manage`) |
+| Editing | `POST /Items/{id}`, `GET /Items/{id}/MetadataEditor`, `/Items/{id}/ExternalIdInfos` (none), `POST /Items/{id}/Refresh`, `GET /Items/{id}/RemoteImages`, `/Items/{id}/RemoteImages/Providers`, `POST /Items/{id}/RemoteImages/Download`, `POST|DELETE /Items/{id}/Images/{type}[/0]`, `POST /Items/RemoteSearch/Movie`, `/Items/RemoteSearch/Series`, `/Items/RemoteSearch/Apply/{id}` (`manage`) |
 | Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
 | Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
 | Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
@@ -779,8 +822,9 @@ Run against Pley with the API on Pley's port and on a port of its own:
 - Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
   none), and finding the server on the network (UDP 7359): apps are given
   its address.
-- Editing metadata.
 - Shared and public playlists: Pley's are their owner's alone.
+- Editing cast and crew, ratings and countries, which Pley takes from the
+  metadata source, and searching other sources than TMDB.
 - Lyrics, seek previews (trickplay), instant mixes, theme songs and
   videos, and intros before a title.
 - Downloads converted for a device: `/Items/{id}/Download` hands over the

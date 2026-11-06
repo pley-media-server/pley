@@ -220,6 +220,8 @@ data class PlayingSession(
     val quality: String? = null,
     /** What its Quality menu offers for the file, which [Control.Quality] picks from; none on live and music. */
     val qualities: List<QualityOption> = emptyList(),
+    /** The intro and credits of the file it plays, for the remote's Skip intro and Skip credits; none on live. */
+    val markers: List<Marker> = emptyList(),
 ) {
     companion object {
         /** The subtitle index of none, in sessions, commands and progress reports. */

@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- The remote of the profile's other devices: Home's button, its sheet, and the bar above the tabs while this phone controls one (apps/web/src/components/Remote.tsx). -->
+    <!-- What this phone sent there with Play on… hasn't played yet. -->
+    <string name="remote_starting_on">Starting on %1$s…</string>
     <string name="remote_playing_on">Playing on %1$s</string>
     <string name="remote_paused_on">Paused on %1$s</string>
     <!-- What TalkBack says of Home's button. -->
@@ -35,7 +37,7 @@
     <string name="remote_channel">Channel</string>
     <string name="remote_previous_channel">Previous channel on %1$s</string>
     <string name="remote_next_channel">Next channel on %1$s</string>
-    <string name="remote_back">Back 10 seconds on %1$s</string>
+    <string name="remote_back">Back 30 seconds on %1$s</string>
     <string name="remote_forward">Forward 30 seconds on %1$s</string>
     <string name="remote_seek">Seek on %1$s</string>
     <string name="remote_progress">Progress on %1$s</string>
@@ -44,6 +46,11 @@
     <!-- Stop asks first. -->
     <string name="remote_stop_confirm">Stop playing on %1$s?</string>
     <string name="remote_position">%1$s of %2$s</string>
+    <!-- In an intro or the credits there, as its player offers: the button, and what TalkBack says of it. -->
+    <string name="remote_skip_intro">Skip Intro</string>
+    <string name="remote_skip_credits">Skip Credits</string>
+    <string name="remote_skip_intro_on">Skip intro on %1$s</string>
+    <string name="remote_skip_credits_on">Skip credits on %1$s</string>
 
     <!-- The tracks and the quality a device plays, each an icon that opens a menu: its hint on a long press, and what TalkBack says. -->
     <string name="remote_audio">Audio</string>
@@ -70,8 +77,6 @@
     <string name="play_on_shuffle">Shuffle on…</string>
     <!-- The chooser's switch: what is sent plays shuffled. -->
     <string name="play_on_shuffle_switch">Shuffle</string>
-    <!-- Sent: the toast, with the device's name. -->
-    <string name="play_on_sent">Playing on %1$s</string>
     <!-- Refused, said under the chooser's devices. -->
     <string name="play_on_gone">%1$s isn\'t on any more.</string>
     <string name="play_on_cant">%1$s can\'t play that.</string>

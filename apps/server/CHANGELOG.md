@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- The web and desktop apps' remote offers Skip Intro and Skip Credits while
+  what a device plays is in an intro or the credits, as its player would;
+  `GET /api/sessions` gives each session's intro and credits. Its back
+  button goes 30 seconds, as far as forward.
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays
@@ -38,6 +42,9 @@ describes how they are made.
   with NFO files get their metadata from them. Jellyfin's lockdata keeps an
   item from being fetched online. Settings → Server has a switch for it, on
   by default.
+- Scripts and tools edit metadata through the Jellyfin-compatible API with
+  a token that may manage libraries: titles' fields, locks, pictures and
+  Fix Match, as Pley's own editor does them.
 - In the web and desktop apps, an item's Edit details says which fields
   come from its NFO file, and Fix match says when a title was matched by
   hand, with Undo Fix Match to let its NFO file decide again.

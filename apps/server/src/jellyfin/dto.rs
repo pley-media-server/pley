@@ -300,6 +300,17 @@ pub struct Item {
     pub media_streams: Option<Vec<Stream>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub chapters: Option<Vec<Chapter>>,
+    /// An item's details: its labels, which Pley's editor keeps.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tags: Option<Vec<String>>,
+    /// The sort title, while an edit keeps it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub forced_sort_name: Option<String>,
+    /// The fields edits keep, as Jellyfin names them ([`super::editing`]).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locked_fields: Option<Vec<&'static str>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lock_data: Option<bool>,
 }
 
 impl Item {

@@ -799,8 +799,15 @@ async fn details(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, id: &st
     match jellyfin.ids.read(id) {
         Some((Kind::Item, _)) => {
             let row = visible_item(state, jellyfin, user, id).await?;
-            let mut items = dtos(state, jellyfin, user, &[row], Fields::all()).await?;
-            Ok(Json(items.remove(0)).into_response())
+            let mut items = dtos(state, jellyfin, user, std::slice::from_ref(&row), Fields::all()).await?;
+            let mut item = items.remove(0);
+            // What an editor sends back: the locks and the labels.
+            let (locked, all, sort) = super::editing::locks(state, row.id).await?;
+            item.locked_fields = Some(locked);
+            item.lock_data = Some(all);
+            item.forced_sort_name = sort;
+            item.tags = Some(crate::labels::for_items(&state.db, &[row.id]).await?.remove(&row.id).unwrap_or_default());
+            Ok(Json(item).into_response())
         }
         Some((kind, number)) => Ok(Json(other(state, jellyfin, user, kind, number).await?).into_response()),
         None => Err(JfError::NotFound),
@@ -1280,7 +1287,7 @@ async fn playlist_entries(
 
 /// Pley's artwork kind and Jellyfin's image type: a poster is Primary (an
 /// episode's still), a backdrop Backdrop, a frame of the video Thumb.
-fn artwork_kind(row_kind: &str, image: &str) -> Option<&'static str> {
+pub(super) fn artwork_kind(row_kind: &str, image: &str) -> Option<&'static str> {
     Some(match image {
         "primary" if matches!(row_kind, "episode" | "extra") => "thumb",
         "primary" => "poster",
