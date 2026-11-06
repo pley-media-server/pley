@@ -262,10 +262,17 @@ other apps (`pley_ct_…`), never with a session's
   it is on and from which address, or in a Jellyfin app already signed in
   to their account. The app then trades a 256-bit secret for its token,
   once, while whoever allowed it is still signed in there, and only from
-  where the allowing token may be used. Codes last 10 minutes; at most 10
+  where the allowing token may be used. Codes last 10 minutes, 5 more once
+  typed on the page and 2 more once allowed, never past 30; at most 10
   wait from one address (an IPv6 /64), 25 from one /56 and 250 in all, so
   a code typed at random finds one in 4,000 at most; after 10 wrong codes
   from one person, or 300 from everyone, in 10 minutes, none is looked up.
+- Only a Jellyfin app's own sign-in (a password, or Quick Connect allowed
+  on the page) allows another app. A tool's token from the account page
+  never does: such tokens sit in tools' settings and travel in addresses.
+  Neither does the token of an app another app allowed. That token ends
+  with the token that allowed it, checked in the same write that makes it,
+  so revoking one token ends everything it let in.
 - They work on the compatibility APIs only, from those APIs' token headers
   or query parameters, `Authorization: Bearer`, `X-Pley-Token` or
   `?token=`, never from the cookie. Pley's own API refuses them wherever

@@ -2,7 +2,11 @@
 //! (docs/COMPATIBILITY.md): players such as Jellyfin's apps or Infuse,
 //! library tools such as Kometa, activity monitors such as Tautulli,
 //! scripts. An app gets one by signing in to the Jellyfin-compatible API
-//! (`/Users/AuthenticateByName`), or a person makes one on the account page.
+//! (`/Users/AuthenticateByName`, or Quick Connect), or a person makes one on
+//! the account page. How it was made is kept ([`Made`]): a Jellyfin app's
+//! own sign-in may allow another app with Quick Connect, a tool's token
+//! never, and the token of an app allowed that way ends with the token that
+//! allowed it.
 //! They work on the compatibility APIs only, never on Pley's own, and do
 //! only what their [`Scopes`] allow, from where their [`Origins`] allow.
 //! No token administers accounts: no scope lets one make, change or delete
@@ -250,6 +254,42 @@ pub struct Asked {
     pub name: String,
     pub scopes: Scopes,
     pub origins: Origins,
+    pub made: Made,
+}
+
+/// How a token was made, which decides whether it may allow another
+/// Jellyfin app with Quick Connect, and what ends it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Made {
+    /// On the account page, for a tool: it never allows an app. Such tokens
+    /// sit in tools' settings and travel in addresses, and none of them was
+    /// meant to sign anything in.
+    Account,
+    /// By a Jellyfin app signing in with the account's password.
+    Password,
+    /// By a Jellyfin app allowed with Quick Connect on Pley's `/link` page.
+    Link,
+    /// By a Jellyfin app allowed with Quick Connect in another app, signed in
+    /// with token `id` ([`allowing_origins`]): it ends with that token, and
+    /// never allows an app itself, so revoking one token ends everything it
+    /// let in.
+    AllowedBy(i64),
+}
+
+impl Made {
+    /// The `signed_in_with` of the tokens that may allow another app: a
+    /// Jellyfin app's own sign-in.
+    const MAY_ALLOW: &str = "('password', 'link')";
+
+    /// The `signed_in_with` and `approved_by` columns.
+    fn stored(self) -> (Option<&'static str>, Option<i64>) {
+        match self {
+            Made::Account => (None, None),
+            Made::Password => (Some("password"), None),
+            Made::Link => (Some("link"), None),
+            Made::AllowedBy(id) => (Some("app"), Some(id)),
+        }
+    }
 }
 
 /// What a person or an app asked for, as the account page and sign-ins send
@@ -273,7 +313,7 @@ pub fn asked(name: &str, scope: Option<&str>, origins: &[String]) -> Result<Aske
             "'{bad}' isn't an address, a network (192.168.1.0/24) or local (this computer and the home network)"
         ))
     })?;
-    Ok(Asked { name: name.to_owned(), scopes, origins })
+    Ok(Asked { name: name.to_owned(), scopes, origins, made: Made::Account })
 }
 
 /// Refuses scopes only administrators' tokens may have to an account that
@@ -319,13 +359,26 @@ const COLUMNS: &str = "id, name, scope, allowed_from, created_at, last_used_at, 
 /// Stores a new token for `user_id` and hands it out, with its row. The
 /// account's tokens past [`MAX_PER_USER`] end (the least recently used):
 /// their ids come third.
+///
+/// A token allowed by another ([`Made::AllowedBy`]) is made only while that
+/// one still works and may allow apps, checked in the same write as the new
+/// row: a revocation is either before it, and nothing is made (`404`), or
+/// after it, and ends the new token too ([`delete`]).
 pub async fn create(db: &Db, user_id: i64, asked: &Asked) -> Result<(String, TokenRow, Vec<i64>), AppError> {
     let token = format!("{PREFIX}{}", new_token());
     let now = now();
+    let (signed_in_with, approved_by) = asked.made.stored();
     let mut tx = db.write.begin().await?;
-    let row: TokenRow = sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "INSERT INTO compatibility_tokens (user_id, name, scope, allowed_from, token_hash, created_at, expires_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING {COLUMNS}"
+    let row: Option<TokenRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "INSERT INTO compatibility_tokens
+           (user_id, name, scope, allowed_from, token_hash, created_at, expires_at, signed_in_with, approved_by)
+         SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?
+         WHERE ? IS NULL OR EXISTS (
+           SELECT 1 FROM compatibility_tokens p
+           WHERE p.id = ? AND p.user_id = ? AND p.expires_at > ? AND p.signed_in_with IN {}
+         )
+         RETURNING {COLUMNS}",
+        Made::MAY_ALLOW
     )))
     .bind(user_id)
     .bind(&asked.name)
@@ -334,8 +387,17 @@ pub async fn create(db: &Db, user_id: i64, asked: &Asked) -> Result<(String, Tok
     .bind(hash_token(&token))
     .bind(now)
     .bind(now + IDLE_SECS)
-    .fetch_one(&mut *tx)
+    .bind(signed_in_with)
+    .bind(approved_by)
+    .bind(approved_by)
+    .bind(approved_by)
+    .bind(user_id)
+    .bind(now)
+    .fetch_optional(&mut *tx)
     .await?;
+    let Some(row) = row else {
+        return Err(AppError::not_found("the app that allowed this one has signed out"));
+    };
     let dropped: Vec<i64> = sqlx::query_scalar(
         "DELETE FROM compatibility_tokens WHERE user_id = ? AND id NOT IN
            (SELECT id FROM compatibility_tokens WHERE user_id = ?
@@ -363,12 +425,16 @@ pub async fn list(db: &Db, user_id: i64) -> Result<Vec<TokenRow>, AppError> {
     .await?)
 }
 
-/// Where token `id` of `user_id` may be used from, while it works: `None`
-/// once it was revoked or ended.
-pub async fn origins_of(db: &Db, user_id: i64, id: i64) -> Result<Option<Origins>, AppError> {
-    let found: Option<Option<String>> = sqlx::query_scalar(
-        "SELECT allowed_from FROM compatibility_tokens WHERE id = ? AND user_id = ? AND expires_at > ?",
-    )
+/// Where token `id` of `user_id` may be used from, while it works and may
+/// allow another app with Quick Connect ([`Made`]): `None` once
+/// it was revoked or ended, and for a tool's token or an app's allowed by
+/// another.
+pub async fn allowing_origins(db: &Db, user_id: i64, id: i64) -> Result<Option<Origins>, AppError> {
+    let found: Option<Option<String>> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
+        "SELECT allowed_from FROM compatibility_tokens
+         WHERE id = ? AND user_id = ? AND expires_at > ? AND signed_in_with IN {}",
+        Made::MAY_ALLOW
+    )))
     .bind(id)
     .bind(user_id)
     .bind(now())
@@ -377,25 +443,55 @@ pub async fn origins_of(db: &Db, user_id: i64, id: i64) -> Result<Option<Origins
     Ok(found.map(|stored| Origins::from_stored(stored.as_deref())))
 }
 
-/// Ends token `id` of `user_id`; whether there was one.
-pub async fn delete(db: &Db, user_id: i64, id: i64) -> Result<bool, AppError> {
-    let deleted = sqlx::query("DELETE FROM compatibility_tokens WHERE id = ? AND user_id = ?")
-        .bind(id)
-        .bind(user_id)
-        .execute(&db.write)
-        .await?;
-    Ok(deleted.rows_affected() > 0)
+/// Ends token `id` of `user_id`, and the tokens of the apps it allowed
+/// ([`Made::AllowedBy`]): their ids, `id` first; none when there was no
+/// such token.
+pub async fn delete(db: &Db, user_id: i64, id: i64) -> Result<Vec<i64>, AppError> {
+    let mut tx = db.write.begin().await?;
+    let found: Option<i64> =
+        sqlx::query_scalar("DELETE FROM compatibility_tokens WHERE id = ? AND user_id = ? RETURNING id")
+            .bind(id)
+            .bind(user_id)
+            .fetch_optional(&mut *tx)
+            .await?;
+    let ended = match found {
+        Some(id) => with_allowed(&mut tx, user_id, id).await?,
+        None => Vec::new(),
+    };
+    tx.commit().await?;
+    Ok(ended)
 }
 
-/// Ends the token `token`, if it is one; its id.
-pub async fn delete_token(db: &Db, token: &str) -> Result<Option<i64>, AppError> {
+/// Ends the token `token`, if it is one, and the tokens of the apps it
+/// allowed: their ids, its own first.
+pub async fn delete_token(db: &Db, token: &str) -> Result<Vec<i64>, AppError> {
     if !token.starts_with(PREFIX) {
-        return Ok(None);
+        return Ok(Vec::new());
     }
-    Ok(sqlx::query_scalar("DELETE FROM compatibility_tokens WHERE token_hash = ? RETURNING id")
-        .bind(hash_token(token))
-        .fetch_optional(&db.write)
-        .await?)
+    let mut tx = db.write.begin().await?;
+    let found: Option<(i64, i64)> =
+        sqlx::query_as("DELETE FROM compatibility_tokens WHERE token_hash = ? RETURNING id, user_id")
+            .bind(hash_token(token))
+            .fetch_optional(&mut *tx)
+            .await?;
+    let ended = match found {
+        Some((id, user_id)) => with_allowed(&mut tx, user_id, id).await?,
+        None => Vec::new(),
+    };
+    tx.commit().await?;
+    Ok(ended)
+}
+
+/// `id`, just ended, and the tokens of `user_id` it allowed, which end with
+/// it (in the same write, so none is made after the check that it works).
+async fn with_allowed(tx: &mut sqlx::SqliteConnection, user_id: i64, id: i64) -> Result<Vec<i64>, AppError> {
+    let allowed: Vec<i64> =
+        sqlx::query_scalar("DELETE FROM compatibility_tokens WHERE approved_by = ? AND user_id = ? RETURNING id")
+            .bind(id)
+            .bind(user_id)
+            .fetch_all(&mut *tx)
+            .await?;
+    Ok(std::iter::once(id).chain(allowed).collect())
 }
 
 /// Ends every token of `user_id`; their ids.
@@ -482,7 +578,10 @@ mod tests {
     #[test]
     fn names_scopes_and_origins_are_checked() {
         let plain = asked("  Kometa ", None, &[]).unwrap();
-        assert_eq!(plain, Asked { name: "Kometa".into(), scopes: Scopes::play(), origins: Origins::default() });
+        assert_eq!(
+            plain,
+            Asked { name: "Kometa".into(), scopes: Scopes::play(), origins: Origins::default(), made: Made::Account }
+        );
         assert_eq!(asked(&"é".repeat(MAX_NAME_CHARS), None, &[]).unwrap().name.chars().count(), MAX_NAME_CHARS);
         for bad in ["", "   ", "tab\there", "new\nline"] {
             assert!(matches!(asked(bad, None, &[]), Err(AppError::BadRequest(_))), "{bad:?}");
@@ -547,10 +646,10 @@ mod tests {
         assert_eq!(anns.len() as i64, MAX_PER_USER);
         assert_eq!(anns[0].id, used_row.id, "most recently used first");
 
-        assert!(!delete(&db, 2, used_row.id).await.unwrap(), "only one's own");
-        assert!(delete(&db, 1, used_row.id).await.unwrap());
-        assert!(!delete(&db, 1, used_row.id).await.unwrap());
-        assert_eq!(delete_token(&db, &used).await.unwrap(), None, "gone already");
+        assert!(delete(&db, 2, used_row.id).await.unwrap().is_empty(), "only one's own");
+        assert_eq!(delete(&db, 1, used_row.id).await.unwrap(), [used_row.id]);
+        assert!(delete(&db, 1, used_row.id).await.unwrap().is_empty());
+        assert!(delete_token(&db, &used).await.unwrap().is_empty(), "gone already");
         assert_eq!(delete_for(&db, 2).await.unwrap(), [bobs.id]);
         assert_eq!(delete_for(&db, 1).await.unwrap().len() as i64, MAX_PER_USER - 1);
 
@@ -564,13 +663,61 @@ mod tests {
             .unwrap();
         assert!(list(&db, 2).await.unwrap().is_empty());
         purge(&db).await.unwrap();
-        assert_eq!(delete_token(&db, &token).await.unwrap(), None);
+        assert!(delete_token(&db, &token).await.unwrap().is_empty());
         let left: i64 =
             sqlx::query_scalar("SELECT COUNT(*) FROM compatibility_tokens").fetch_one(&db.read).await.unwrap();
         assert_eq!(left, 0);
 
         let (token, row, _) = create(&db, 2, &tool("play")).await.unwrap();
-        assert_eq!(delete_token(&db, "pley_at_x").await.unwrap(), None);
-        assert_eq!(delete_token(&db, &token).await.unwrap(), Some(row.id));
+        assert!(delete_token(&db, "pley_at_x").await.unwrap().is_empty());
+        assert_eq!(delete_token(&db, &token).await.unwrap(), [row.id]);
+    }
+
+    fn made(made: Made) -> Asked {
+        Asked { made, ..tool("play") }
+    }
+
+    #[tokio::test]
+    async fn only_apps_own_sign_ins_allow_apps_and_what_they_allow_ends_with_them() {
+        let dir = crate::testing::tempdir();
+        let db = database(dir.path()).await;
+        let (_, tool_row, _) = create(&db, 1, &made(Made::Account)).await.unwrap();
+        let (phone, phone_row, _) = create(&db, 1, &made(Made::Password)).await.unwrap();
+        let (_, linked, _) = create(&db, 1, &made(Made::Link)).await.unwrap();
+        let may = |id: i64| {
+            let db = &db;
+            async move { allowing_origins(db, 1, id).await.unwrap().is_some() }
+        };
+        assert!(!may(tool_row.id).await, "a tool's token allows nothing");
+        assert!(may(phone_row.id).await && may(linked.id).await);
+        assert!(allowing_origins(&db, 2, phone_row.id).await.unwrap().is_none(), "another account's");
+
+        // Made only while what allows it may: never from a tool's token, nor
+        // another account's, nor one an app allowed.
+        let (_, tv, _) = create(&db, 1, &made(Made::AllowedBy(phone_row.id))).await.unwrap();
+        assert!(!may(tv.id).await, "an app allowed by another allows nothing");
+        for (user, by) in [(1, tool_row.id), (2, phone_row.id), (1, tv.id)] {
+            let refused = create(&db, user, &made(Made::AllowedBy(by))).await;
+            assert!(matches!(refused, Err(AppError::NotFound(_))), "{user} by {by}");
+        }
+        let (_, tablet, _) = create(&db, 1, &made(Made::AllowedBy(phone_row.id))).await.unwrap();
+
+        // Revoking the phone's token ends the apps it allowed, by id or by token.
+        assert_eq!(delete_token(&db, &phone).await.unwrap(), [phone_row.id, tv.id, tablet.id]);
+        assert!(matches!(create(&db, 1, &made(Made::AllowedBy(phone_row.id))).await, Err(AppError::NotFound(_))));
+        let (_, other, _) = create(&db, 1, &made(Made::AllowedBy(linked.id))).await.unwrap();
+        assert_eq!(delete(&db, 1, linked.id).await.unwrap(), [linked.id, other.id]);
+        assert_eq!(list(&db, 1).await.unwrap().iter().map(|row| row.id).collect::<Vec<_>>(), [tool_row.id]);
+
+        // An expired token allows nothing.
+        let (_, old, _) = create(&db, 1, &made(Made::Password)).await.unwrap();
+        sqlx::query("UPDATE compatibility_tokens SET expires_at = ? WHERE id = ?")
+            .bind(now() - 1)
+            .bind(old.id)
+            .execute(&db.write)
+            .await
+            .unwrap();
+        assert!(!may(old.id).await);
+        assert!(matches!(create(&db, 1, &made(Made::AllowedBy(old.id))).await, Err(AppError::NotFound(_))));
     }
 }

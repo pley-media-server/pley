@@ -35,6 +35,18 @@ export function isQuickConnectCode(code: string): boolean {
   return code.length === QUICK_CONNECT_LENGTH && /^\d+$/.test(code);
 }
 
+/**
+ * The Quick Connect code in the address of Jellyfin's web app that apps open
+ * to approve theirs (`/web/#/quickconnect?code=123456`, also as a QR code):
+ * the server sends such an address to `/link`, and browsers keep what
+ * follows `#`. A whole code or "".
+ */
+export function quickConnectCodeInHash(hash: string): string {
+  const query = /^#\/quickconnect\?(.*)$/i.exec(hash)?.[1];
+  const code = query === undefined ? "" : (new URLSearchParams(query).get("code") ?? "");
+  return isQuickConnectCode(code) ? code : "";
+}
+
 /** Letters as a TV shows them, as far as they go: "BCDF", "BCDF-G", "BCDF-GHJK". Digits stay as they are. */
 export function showCode(letters: string): string {
   return letters.length > 4 && !/^\d/.test(letters) ? `${letters.slice(0, 4)}-${letters.slice(4)}` : letters;

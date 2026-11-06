@@ -1,5 +1,34 @@
 import { describe, expect, it } from "vitest";
-import { CODE_LETTERS, codeLetters, hasStrayLetter, isQuickConnectCode, isWholeCode, showCode, typedCode } from "./userCode";
+import {
+  CODE_LETTERS,
+  codeLetters,
+  hasStrayLetter,
+  isQuickConnectCode,
+  isWholeCode,
+  quickConnectCodeInHash,
+  showCode,
+  typedCode,
+} from "./userCode";
+
+describe("the address of Jellyfin's web app that apps open", () => {
+  it("gives its Quick Connect code, whole, and nothing else", () => {
+    expect(quickConnectCodeInHash("#/quickconnect?code=123456&serverId=abc")).toBe("123456");
+    expect(quickConnectCodeInHash("#/QuickConnect?serverId=abc&code=000042")).toBe("000042");
+    for (const hash of [
+      "",
+      "#",
+      "#/quickconnect",
+      "#/quickconnect?code=12345",
+      "#/quickconnect?code=1234567",
+      "#/quickconnect?code=12a456",
+      "#/quickconnect?code=%3Cscript%3E",
+      "#/home?code=123456",
+      "#/x/quickconnect?code=123456",
+    ]) {
+      expect(quickConnectCodeInHash(hash), hash).toBe("");
+    }
+  });
+});
 
 describe("the codes TVs show", () => {
   it("are 20 consonants: no vowels, no Y, no digits", () => {

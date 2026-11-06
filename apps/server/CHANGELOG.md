@@ -16,7 +16,11 @@ describes how they are made.
   TV in the Android app) or in a Jellyfin app already signed in. Accounts
   with two-step sign-in, which can't sign in to these apps with a password,
   sign in this way. The page says which app and device asks before you
-  allow it, and its token is listed in Account with the others.
+  allow it, and its token is listed in Account with the others. A QR code
+  or button that opens Jellyfin's web page for the code opens Pley's Link
+  page with the code filled in. An app allowed from another app is signed
+  out when that app is; a token made in Account for a tool can't allow
+  apps.
 - Jellyfin apps that show seek-bar previews, such as Findroid and
   Streamyfin, show Pley's as you scrub: the same previews Pley's own players
   use. Jellyfin for Android TV doesn't show them.

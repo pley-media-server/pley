@@ -1479,14 +1479,17 @@ here, and one of letters to `/api/oauth/device/verify`. It answers
   what it calls itself only as something Pley can't check.
 - `scopes`: what its token for other apps may do, `["play"]`
   ([Compatibility tokens](#compatibility-tokens)).
+- `expires_at`: when the request ends. Typed here, it lasts 5 minutes more
+  at least, never past 30 minutes from when the app asked.
 - `400` for something that isn't such a code, `404` for one no app shows
   (it counts as a wrong one, as a TV's do, on a count of its own), `409` for
   one shown on another session's page or answered already, `429` past the
   wrong codes' limit.
 
 **`POST /api/oauth/quick-connect/{id}`**: allowed, the app gets a token
-for the account when it next asks, from anywhere, while this browser
-session is signed in; refused, its code is unknown to it from then on.
+for the account when it next asks (within 2 minutes at least), from
+anywhere, while this browser session is signed in; refused, its code is
+unknown to it from then on.
 `404` when the request is over, or not this person's and session's. The
 token is listed in Account like the others, named after the app and its
 device.

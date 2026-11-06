@@ -14,11 +14,15 @@
 //!   the same address with the same device id, replaces its request that
 //!   no one has typed the code of yet: some apps ask each time their
 //!   sign-in screen opens.
-//! * A request lasts 10 minutes, as Jellyfin's do. Its secret carries 256
-//!   random bits, and only its SHA-256 is kept; its code is 6 digits, as
-//!   Jellyfin's are, which apps that approve codes take and nothing else.
-//!   The person compares it with their screen, and the consent page says
-//!   which app, device and address asked.
+//! * A request lasts 10 minutes, as Jellyfin's do. Once its code is typed on
+//!   the page it lasts 5 minutes more at least, for the person to decide,
+//!   and once allowed 2 minutes more at least, for the app, which may ask
+//!   only every few seconds, to get its token; never past 30 minutes from
+//!   when it was made. Its secret carries 256 random bits, and only its
+//!   SHA-256 is kept; its code is 6 digits, as Jellyfin's are, which apps
+//!   that approve codes take and nothing else. The person compares it with
+//!   their screen, and the consent page says which app, device and address
+//!   asked.
 //! * Only signed-in people try codes, and wrong ones count: past 10 by one
 //!   person or 300 by everyone in 10 minutes, no code is looked up.
 //! * Allowed, the app gets its token once. When the account's sign-ins end
@@ -37,6 +41,12 @@ use crate::auth::hash_token;
 
 /// How long a request lasts.
 pub const LIFETIME: Duration = Duration::from_secs(600);
+/// How long a request lasts at least once its code was typed on the page.
+pub const TO_DECIDE: Duration = Duration::from_secs(300);
+/// How long an allowed request lasts at least, for its app to ask.
+pub const TO_COLLECT: Duration = Duration::from_secs(120);
+/// The longest a request lasts, from when it was made.
+pub const MAX_LIFETIME: Duration = Duration::from_secs(1800);
 /// Requests in progress from one address.
 pub const MAX_PER_ADDRESS: usize = 10;
 /// Requests in progress from one IPv6 site (a /56).
@@ -156,6 +166,9 @@ struct Entry {
     /// The [`network`] it came from, when known.
     network: Option<IpAddr>,
     created: Instant,
+    /// When it is over: [`LIFETIME`] after it was made, later once typed or
+    /// allowed ([`Entry::last`]).
+    expires: Instant,
     /// When it was made, in seconds since 1970, for the app's `DateAdded`.
     added_at: i64,
     status: Status,
@@ -163,7 +176,14 @@ struct Entry {
 
 impl Entry {
     fn alive(&self, now: Instant) -> bool {
-        now.duration_since(self.created) < LIFETIME
+        now < self.expires
+    }
+
+    /// Lasts `at_least` from `now`, never past [`MAX_LIFETIME`] from when it
+    /// was made.
+    fn last(&mut self, now: Instant, at_least: Duration) {
+        let until = (now + at_least).min(self.created + MAX_LIFETIME);
+        self.expires = self.expires.max(until);
     }
 }
 
@@ -326,7 +346,15 @@ impl QuickConnect {
         let secret = new_secret();
         let key = hash_token(&secret);
         state.by_code.insert(code.clone(), key.clone());
-        let entry = Entry { code: code.clone(), asker, network, created: now, added_at, status: Status::Pending };
+        let entry = Entry {
+            code: code.clone(),
+            asker,
+            network,
+            created: now,
+            expires: now + LIFETIME,
+            added_at,
+            status: Status::Pending,
+        };
         state.requests.insert(key, entry);
         Ok(Started { secret, code, added_at })
     }
@@ -347,14 +375,16 @@ impl QuickConnect {
     /// The request whose code `code` (as [`normalize`] gives it) `user_id`
     /// typed on Pley's page. A code that leads to no request in progress is
     /// a wrong one, and counts: past 10 by the person or 300 by everyone in
-    /// 10 minutes, no code is looked up.
+    /// 10 minutes, no code is looked up. A request found lasts [`TO_DECIDE`]
+    /// more at least.
     pub fn find(&self, code: &str, user_id: i64) -> Result<Found, Refused> {
         let now = self.now();
-        let mut state = self.state.lock();
+        let mut guard = self.state.lock();
+        let state = &mut *guard;
         if state.throttled(user_id, now) {
             return Err(Refused::Throttled);
         }
-        let found = state.by_code.get(code).and_then(|key| Some((key, state.requests.get(key)?)));
+        let found = state.by_code.get(code).and_then(|key| Some((key, state.requests.get_mut(key)?)));
         match found {
             Some((key, entry)) if entry.alive(now) => {
                 let deciding = match &entry.status {
@@ -364,12 +394,8 @@ impl QuickConnect {
                     }
                     Status::Allowed(_) | Status::Issuing { .. } => return Err(Refused::Used),
                 };
-                Ok(Found {
-                    key: key.clone(),
-                    asker: entry.asker.clone(),
-                    left: LIFETIME.saturating_sub(now.duration_since(entry.created)),
-                    deciding,
-                })
+                entry.last(now, TO_DECIDE);
+                Ok(Found { key: key.clone(), asker: entry.asker.clone(), left: entry.expires - now, deciding })
             }
             _ => {
                 state.count_wrong(user_id, now);
@@ -423,6 +449,7 @@ impl QuickConnect {
                     approver: Approver::Session(session_hash.to_owned()),
                     origins: Origins::default(),
                 });
+                entry.last(now, TO_COLLECT);
             }
         } else {
             state.remove(&key);
@@ -455,6 +482,7 @@ impl QuickConnect {
             _ => return Err(Refused::Used),
         }
         entry.status = Status::Allowed(Allowed { user_id, approver: Approver::Token(token_id), origins });
+        entry.last(now, TO_COLLECT);
         Ok(entry.asker.clone())
     }
 
@@ -602,6 +630,39 @@ mod tests {
         assert!(store.show(&found.key, None, "page", 1, "session"));
         store.decide("page", 1, "session", false).unwrap();
         assert_eq!(store.take(&started.secret), Take::Unknown);
+        assert!(store.seen(&started.secret).is_none());
+    }
+
+    #[test]
+    fn typed_and_allowed_requests_last_longer_but_never_past_half_an_hour() {
+        let store = QuickConnect::default();
+        let started = store.start(asker("192.168.1.20", "a"), 0).unwrap();
+        store.wait(LIFETIME - Duration::from_secs(10));
+        let found = store.find(&started.code, 1).unwrap();
+        assert_eq!(found.left, TO_DECIDE, "typed at the last moment: time to decide");
+        assert!(store.show(&found.key, None, "page", 1, "s"));
+        store.wait(TO_DECIDE - Duration::from_secs(1));
+        store.decide("page", 1, "s", true).unwrap();
+        store.wait(TO_COLLECT - Duration::from_secs(1));
+        assert!(matches!(store.take(&started.secret), Take::Allowed(_)), "allowed at the last moment: time to ask");
+
+        let started = store.start(asker("192.168.1.20", "b"), 0).unwrap();
+        store.authorize(&started.code, 1, 7, Origins::default()).unwrap();
+        store.wait(LIFETIME - Duration::from_secs(1));
+        assert!(matches!(store.take(&started.secret), Take::Allowed(_)), "allowed in an app");
+
+        // Typed again and again, it still ends half an hour after it was made.
+        let started = store.start(asker("192.168.1.20", "c"), 0).unwrap();
+        let step = Duration::from_secs(240);
+        for _ in 0..7 {
+            store.find(&started.code, 1).unwrap();
+            store.wait(step);
+        }
+        // The real clock runs on too, between making it and now.
+        let left = store.find(&started.code, 1).unwrap().left;
+        assert!(left <= MAX_LIFETIME - step * 7 && left > MAX_LIFETIME - step * 7 - Duration::from_secs(1), "{left:?}");
+        store.wait(MAX_LIFETIME - step * 7);
+        assert_eq!(store.find(&started.code, 1).map(|_| ()), Err(Refused::Unknown));
         assert!(store.seen(&started.secret).is_none());
     }
 

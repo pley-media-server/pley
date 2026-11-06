@@ -1,5 +1,5 @@
-import { useState, type FormEvent } from "react";
-import { useSearchParams } from "react-router";
+import { useEffect, useState, type FormEvent } from "react";
+import { useLocation, useNavigate, useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { errorMessage } from "@/api/client";
 import {
@@ -12,7 +12,14 @@ import {
 } from "@/api/oauth";
 import { Button, Field, TextInput } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
-import { hasStrayLetter, isQuickConnectCode, isWholeCode, showCode, typedCode } from "@/lib/userCode";
+import {
+  hasStrayLetter,
+  isQuickConnectCode,
+  isWholeCode,
+  quickConnectCodeInHash,
+  showCode,
+  typedCode,
+} from "@/lib/userCode";
 import { AppConsent, appName } from "./AppConsent";
 import { AuthLayout } from "./AuthLayout";
 
@@ -34,7 +41,15 @@ function lookUp(code: string): Promise<ConsentRequest> {
 export function LinkPage() {
   useDocumentTitle("Sign in on your TV");
   const [params] = useSearchParams();
-  const linked = typedCode(params.get("code") ?? "");
+  const { hash } = useLocation();
+  const navigate = useNavigate();
+  /** A Jellyfin app's code, from the address of Jellyfin's web app it opened. */
+  const fromApp = params.has("code") ? "" : quickConnectCodeInHash(hash);
+  const linked = typedCode(params.get("code") ?? fromApp);
+  // Kept as `?code=`, like a TV's, so that it is still there after signing in.
+  useEffect(() => {
+    if (fromApp) void navigate(`/link?code=${fromApp}`, { replace: true });
+  }, [fromApp, navigate]);
   /** The code's letters (without the dash) or digits. */
   const [code, setCode] = useState(linked);
   const verify = useMutation({ mutationFn: lookUp });

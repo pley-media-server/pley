@@ -277,6 +277,7 @@ async fn authenticate(
         name: client.token_name(),
         scopes: compatibility::Scopes::play(),
         origins: compatibility::Origins::default(),
+        made: compatibility::Made::Password,
     };
     let account = crate::api::auth::check_password(&state, &username, password, source).await?;
     crate::api::auth::second_step(&state, account.id, &account.username, None, None).await?;

@@ -182,6 +182,8 @@ A token ends when:
 
 - it is revoked in Account, or its app signs out (`POST /api/auth/logout`
   with the token, or Jellyfin's `POST /Sessions/Logout`);
+- the Jellyfin app that allowed it with Quick Connect has its token ended
+  in one of these ways ([Signing in](#signing-in));
 - it goes 90 days unused;
 - the account's password changes (its owner's change, an administrator's
   or `pley reset-password`), it is signed out everywhere, or it is deleted.
@@ -610,11 +612,23 @@ sign-in included), on a phone or a computer: the page says which app asks,
 what it says its device is, the address it asked from and what its token
 may do, and asks them to allow it. The code may also be typed in a
 Jellyfin app already signed in to the account that approves codes
-(Streamyfin's Quick Connect setting): its token says who allows it. Then
-the app has a token of its own that may play, named after the app and its
-device as above, and listed in Account → Tokens for other apps. Allowed on
-the page, it may be used from anywhere; allowed in an app, from where that
-app's token may be used.
+(Streamyfin's Quick Connect setting, Fladder's): its token says who allows
+it. Then the app has a token of its own that may play, named after the app
+and its device as above, and listed in Account → Tokens for other apps.
+Allowed on the page, it may be used from anywhere; allowed in an app, from
+where that app's token may be used, and it ends with that app's token.
+
+Only a Jellyfin app's own sign-in, with a password or with Quick Connect
+allowed on the page, allows other apps. A token made in Account for a tool
+never does, nor the token of an app another app allowed (`403`): tools'
+tokens sit in their settings and travel in addresses, and none was meant to
+sign anything in.
+
+Apps that open Jellyfin's web app to approve a code
+(`/web/#/quickconnect?code=`, also as a QR code, which Streamyfin's TV app
+shows) are sent to the `/link` page with the code filled in, to compare
+with the app's before continuing. On a port of its own, the API sends them
+to Pley's port of the same host.
 
 - `GET /QuickConnect/Enabled` is `true`. `POST /QuickConnect/Initiate`
   (also `GET`, which some apps try first) answers Jellyfin's
@@ -623,11 +637,18 @@ app's token may be used.
 - The app asks `GET /QuickConnect/Connect?secret=` every few seconds until
   `Authenticated` is `true`, then trades the secret at
   `POST /Users/AuthenticateWithQuickConnect` (`{"Secret"}`), which answers
-  as `AuthenticateByName` does, once: `401` while no one has allowed it,
-  `404` for a secret that isn't waiting.
+  as `AuthenticateByName` does, once. Otherwise it answers `404`, as
+  Jellyfin does: while no one has allowed it, for a secret that isn't
+  waiting, and when the app may no longer have its token. Apps take a `401`
+  there to mean that Quick Connect is off.
 - `POST /QuickConnect/Authorize?code=` answers `true`, or `404` for a code
-  no app shows; a `userId` must be the caller's own (`403` otherwise).
-- A code lasts 10 minutes. At most 10 are waiting from one address (an
+  no app shows; a `userId` must be the caller's own, and the caller's
+  token one that allows apps (`403` otherwise). `GET /System/Configuration`
+  says `QuickConnectAvailable` to apps signed in, and nothing else.
+- A code lasts 10 minutes. Typed on the page, it lasts 5 minutes more at
+  least, for the person to decide; allowed, 2 minutes more at least, for
+  the app, which asks only every few seconds, to get its token; never more
+  than 30 minutes in all. At most 10 are waiting from one address (an
   IPv6 /64), 25 from one IPv6 /56 and 250 in all (`429` past them); an app
   that asks again from the same address, with the same `DeviceId`, gets a
   new code in place of its old one, until someone has typed it. Refused,
@@ -871,7 +892,7 @@ this is for scripts and tools.
 | Area | Endpoints |
 |---|---|
 | Server | `GET /System/Info/Public`, `/System/Info`, `/System/Ping`, `/System/Endpoint`, `/Branding/Configuration`, `/Branding/Css`, `/Playback/BitrateTest` (`size` random bytes for a speed test, at most 100 MB) |
-| Quick Connect | `GET /QuickConnect/Enabled`, `GET|POST /QuickConnect/Initiate`, `GET /QuickConnect/Connect?secret=`, `POST /QuickConnect/Authorize?code=`, `POST /Users/AuthenticateWithQuickConnect` ([Signing in](#signing-in)) |
+| Quick Connect | `GET /QuickConnect/Enabled`, `GET|POST /QuickConnect/Initiate`, `GET /QuickConnect/Connect?secret=`, `POST /QuickConnect/Authorize?code=`, `POST /Users/AuthenticateWithQuickConnect`, `GET /System/Configuration` (`QuickConnectAvailable` only), `GET /web/…` (sent to `/link`) ([Signing in](#signing-in)) |
 | Users | `POST /Users/AuthenticateByName`, `GET /Users/Me`, `/Users`, `/Users/Public`, `/Users/{id}`, `/Users/{id}/Images/Primary`, `/UserImage?userId=`, `POST /Sessions/Logout`, `/Sessions/Capabilities[/Full]`, `GET|POST /DisplayPreferences/{id}` |
 | Browsing | `GET /UserViews`, `/Items` (by `ParentId`, `Ids`, `SearchTerm`, `PersonIds`, `ArtistIds`; `IncludeItemTypes`, `Recursive`, `Filters`, `Genres`, `Years`, `OfficialRatings`, `Tags`, `Studios`, `NameStartsWith`, `SortBy`, `SortOrder`, `StartIndex`, `Limit`), `/Items/{id}`, `/Items/Latest`, `/Items/Suggestions`, `/UserItems/Resume`, `/Shows/NextUp`, `/Shows/Upcoming` (none), `/Shows/{id}/Seasons`, `/Shows/{id}/Episodes`, `/Items/{id}/Similar`, `/LocalTrailers`, `/SpecialFeatures`, `/Ancestors`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/MusicGenres`, `/Artists`, `/Artists/AlbumArtists`, `/Studios`, `/Years`, `/Tags` (none), `/Persons?SearchTerm=`, `/Search/Hints`, `/Playlists/{id}/Items`, and the `/Users/{id}/…` forms of these |
 | Playlists | `POST /Playlists` (a `CreatePlaylistDto` body, or `Name`, `Ids`, `MediaType` in the query), `GET|POST /Playlists/{id}`, `POST|DELETE /Playlists/{id}/Items` (`ids`, `position`; `entryIds`), `POST /Playlists/{id}/Items/{entry}/Move/{index}`, `GET /Playlists/{id}/Users[/{user}]`, `DELETE /Items/{id}` |

@@ -1001,21 +1001,24 @@ impl AuthService {
         Ok((token, row))
     }
 
-    /// Revokes compatibility token `id` of `user_id`; whether there was one.
-    /// The row goes first, then the cache forgets it, as [`AuthService::revoke`].
+    /// Revokes compatibility token `id` of `user_id`, with the tokens of the
+    /// apps it allowed with Quick Connect; whether there was one. The rows go
+    /// first, then the cache forgets them, as [`AuthService::revoke`].
     pub async fn end_compatibility_token(&self, user_id: i64, id: i64) -> Result<bool, AppError> {
         let ended = compatibility::delete(&self.db, user_id, id).await?;
-        self.forget_compatibility_tokens(&[id]);
-        Ok(ended)
+        // Forgotten even when its row was gone already.
+        self.forget_compatibility_tokens(if ended.is_empty() { std::slice::from_ref(&id) } else { &ended });
+        Ok(!ended.is_empty())
     }
 
-    /// Revokes the compatibility token `token`; whether there was one.
+    /// Revokes the compatibility token `token`, with the tokens of the apps
+    /// it allowed; whether there was one.
     pub async fn end_compatibility_token_of(&self, token: &str) -> Result<bool, AppError> {
         let ended = compatibility::delete_token(&self.db, token).await?;
-        if let Some(id) = ended {
-            self.forget_compatibility_tokens(&[id]);
+        if !ended.is_empty() {
+            self.forget_compatibility_tokens(&ended);
         }
-        Ok(ended.is_some())
+        Ok(!ended.is_empty())
     }
 
     /// Revokes every compatibility token of `user_id`.

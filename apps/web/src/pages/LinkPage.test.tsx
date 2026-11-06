@@ -388,6 +388,26 @@ describe("LinkPage with a Jellyfin app's Quick Connect code", () => {
     expect(posts(requests, "/api/oauth/device/verify")).toHaveLength(0);
   });
 
+  it("fills in the code from the address of Jellyfin's web app, but never sends it by itself", async () => {
+    const requests = serveQuickConnect();
+    renderPage("/link#/quickconnect?code=123456&serverId=abc", { strict: true });
+    const input = await screen.findByLabelText("Code");
+    expect(input).toHaveValue("123456");
+    expect(screen.getByText("Check that your TV or app shows this code, then continue.")).toBeInTheDocument();
+    await act(() => new Promise((resolve) => setTimeout(resolve, 50)));
+    expect(input).toHaveValue("123456");
+    expect(posts(requests, "/api/oauth/quick-connect")).toHaveLength(0);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Continue" }));
+    await screen.findByRole("heading", { name: JELLYFIN_HEADING });
+    expect(posts(requests, "/api/oauth/quick-connect").map((r) => r.body)).toEqual([{ code: "123456" }]);
+  });
+
+  it("takes nothing but a whole code from such an address", async () => {
+    serveQuickConnect();
+    renderPage("/link#/quickconnect?code=12a45%3C");
+    expect(await screen.findByLabelText("Code")).toHaveValue("");
+  });
+
   it("says what the app says it is, where it asked from, and what its token may do", async () => {
     serveQuickConnect();
     renderPage("/link?code=123456");

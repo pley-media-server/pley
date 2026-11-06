@@ -164,18 +164,6 @@ async fn with_quick_connect(app: &TestApp, secret: &str) -> Reply {
     app.jf_raw(Method::POST, "/Users/AuthenticateWithQuickConnect", &headers, Some(json!({"Secret": secret}))).await
 }
 
-/// A request to the API from `peer`, with a token.
-async fn jf_from(app: &TestApp, peer: &str, method: Method, uri: &str, token: &str) -> StatusCode {
-    let req = axum::http::Request::builder()
-        .method(method)
-        .uri(uri)
-        .header("x-emby-token", token)
-        .extension(axum::extract::ConnectInfo(peer.parse::<std::net::SocketAddr>().unwrap()))
-        .body(axum::body::Body::empty())
-        .unwrap();
-    tower::ServiceExt::oneshot(app.jellyfin.clone(), req).await.unwrap().status()
-}
-
 #[tokio::test]
 async fn quick_connect_signs_in_an_account_a_password_cant() {
     let app = TestApp::new().await;
@@ -200,8 +188,10 @@ async fn quick_connect_signs_in_an_account_a_password_cant() {
     let (secret, code) = (started["Secret"].as_str().unwrap(), started["Code"].as_str().unwrap());
     assert!(is_hex(secret, 64), "{secret}");
     assert!(code.len() == 6 && code.bytes().all(|b| b.is_ascii_digit()), "{code}");
+    // Nobody allowed it yet: 404, as Jellyfin answers (apps read a 401 as
+    // Quick Connect being off, and stop).
     let waiting = with_quick_connect(&app, secret).await;
-    assert_eq!(waiting.status, StatusCode::UNAUTHORIZED, "nobody allowed it yet");
+    assert_eq!(waiting.status, StatusCode::NOT_FOUND, "nobody allowed it yet");
 
     // Pley's page says which app asks, and what it may do.
     let shown = typed(&app, &bob, &format!("{} {}", &code[..3], &code[3..])).await;
@@ -278,21 +268,30 @@ async fn a_quick_connect_code_answers_only_whoever_typed_it() {
     assert_eq!(connect(&app, started["Secret"].as_str().unwrap()).await.status, StatusCode::NOT_FOUND);
 }
 
+/// A Jellyfin app's token from signing in with `username`'s password.
+async fn app_token(app: &TestApp, username: &str) -> String {
+    let signed_in = sign_in(app, json!({"Username": username, "Pw": "test-pass-1"})).await;
+    assert_eq!(signed_in.status, StatusCode::OK, "{}", signed_in.text());
+    signed_in.body["AccessToken"].as_str().unwrap().to_owned()
+}
+
+/// `/QuickConnect/Authorize?{query}` with `token`.
+async fn authorize_with(app: &TestApp, token: &str, query: &str) -> Reply {
+    app.jf_raw(Method::POST, &format!("/QuickConnect/Authorize?{query}"), &[("x-emby-token", token)], None).await
+}
+
 #[tokio::test]
 async fn a_jellyfin_app_signed_in_already_allows_a_code() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let (ann, ann_id) = app.user(&admin, "ann", json!({})).await;
-    let phone = app.jellyfin_token(&ann).await;
+    let phone = app_token(&app, "ann").await;
     let started = initiate(&app, Method::POST).await;
     let (secret, code) = (started["Secret"].as_str().unwrap(), started["Code"].as_str().unwrap());
     let authorize = |query: String| {
         let phone = phone.clone();
         let app = &app;
-        async move {
-            app.jf_raw(Method::POST, &format!("/QuickConnect/Authorize?{query}"), &[("x-emby-token", &phone)], None)
-                .await
-        }
+        async move { authorize_with(app, &phone, &query).await }
     };
     let admins = app.jf_user(&admin).await;
     let for_another = authorize(format!("code={code}&userId={admins}")).await;
@@ -306,19 +305,78 @@ async fn a_jellyfin_app_signed_in_already_allows_a_code() {
     assert_eq!(signed_in.body["User"]["Id"], json!(app.jf_ids().of(pley::jellyfin::ids::Kind::User, ann_id)));
     let wrong = if code == "000000" { "000001" } else { "000000" };
     assert_eq!(authorize(format!("code={wrong}")).await.status, StatusCode::NOT_FOUND);
+    let tv = signed_in.body["AccessToken"].as_str().unwrap().to_owned();
+    assert_eq!(app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &tv)], None).await.status, StatusCode::OK);
 
-    // A token limited to where it is used gives the new one its limits: from
-    // an address they don't cover, the app gets nothing.
-    let made = app
-        .post("/api/me/compatibility-tokens", &ann, json!({"name": "Home only", "allowed_from": ["10.0.0.0/8"]}))
-        .await;
-    assert_eq!(made.status, StatusCode::CREATED, "{}", made.text());
-    let limited = made.body["token"].as_str().unwrap().to_owned();
+    // Only an app's own sign-in allows apps: never a tool's token from the
+    // account page, nor the token of an app another app allowed. Their codes
+    // stay as they were, and no wrong code counts.
     let started = initiate(&app, Method::POST).await;
-    let uri = format!("/QuickConnect/Authorize?code={}", started["Code"].as_str().unwrap());
-    assert_eq!(jf_from(&app, "10.1.2.3:5000", Method::POST, &uri, &limited).await, StatusCode::OK);
-    let elsewhere = with_quick_connect(&app, started["Secret"].as_str().unwrap()).await;
-    assert_eq!(elsewhere.status, StatusCode::UNAUTHORIZED, "not from where the token may be used");
+    let query = format!("code={}", started["Code"].as_str().unwrap());
+    let tool = app.jellyfin_token(&ann).await;
+    assert_eq!(authorize_with(&app, &tool, &query).await.status, StatusCode::FORBIDDEN, "a tool's token");
+    assert_eq!(authorize_with(&app, &tv, &query).await.status, StatusCode::FORBIDDEN, "allowed by another");
+    assert_eq!(connect(&app, started["Secret"].as_str().unwrap()).await.body["Authenticated"], json!(false));
+    assert_eq!(typed(&app, &ann, started["Code"].as_str().unwrap()).await.status, StatusCode::OK);
+
+    // Revoking the phone's token ends the TV's it allowed (cached as it is).
+    let out = app.jf_raw(Method::POST, "/Sessions/Logout", &[("x-emby-token", &phone)], None).await;
+    assert!(out.status.is_success(), "{}", out.text());
+    for token in [&phone, &tv] {
+        let me = app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", token)], None).await;
+        assert_eq!(me.status, StatusCode::UNAUTHORIZED);
+    }
+
+    // Allowed, then the allowing token revoked in Account before the app
+    // asks: the app gets nothing.
+    let phone = app_token(&app, "ann").await;
+    let started = initiate(&app, Method::POST).await;
+    let query = format!("code={}", started["Code"].as_str().unwrap());
+    assert_eq!(authorize_with(&app, &phone, &query).await.status, StatusCode::OK);
+    let listed = app.get("/api/me/compatibility-tokens", &ann).await.body;
+    let ids: Vec<i64> = listed.as_array().unwrap().iter().map(|t| t["id"].as_i64().unwrap()).collect();
+    for id in ids {
+        app.delete(&format!("/api/me/compatibility-tokens/{id}"), &ann).await;
+    }
+    let late = with_quick_connect(&app, started["Secret"].as_str().unwrap()).await;
+    assert_eq!(late.status, StatusCode::NOT_FOUND);
+    let tokens: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM compatibility_tokens WHERE user_id = ?")
+        .bind(ann_id)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(tokens, 0, "no token was made");
+}
+
+#[tokio::test]
+async fn jellyfins_web_app_sends_its_quick_connect_address_to_the_link_page() {
+    // On Pley's port: its own /link, the code after `#` kept by the browser.
+    let app = TestApp::with_config(|config| config.jellyfin_on_web = true).await;
+    app.setup_admin().await;
+    for path in ["/web/", "/web/index.html", "/Web"] {
+        let reply = app.call(Method::GET, path, None, None, &[]).await;
+        assert_eq!(reply.status, StatusCode::FOUND, "{path}");
+        assert_eq!(reply.headers.get(header::LOCATION).unwrap(), "/link", "{path}");
+    }
+
+    // On a port of its own: the same host, on Pley's port.
+    let app = TestApp::with_config(|config| config.bind = "0.0.0.0:7539".parse().unwrap()).await;
+    let reply = app.jf_raw(Method::GET, "/web/index.html", &[("host", "192.168.1.5:8096")], None).await;
+    assert_eq!(reply.status, StatusCode::FOUND, "{}", reply.text());
+    assert_eq!(reply.headers.get(header::LOCATION).unwrap(), "http://192.168.1.5:7539/link");
+    for host in ["evil.example/x", "a@b.example", ""] {
+        let reply = app.jf_raw(Method::GET, "/web/", &[("host", host)], None).await;
+        assert_eq!(reply.status, StatusCode::NOT_FOUND, "{host:?}");
+    }
+
+    // Whether Quick Connect is on, for apps signed in, and nothing more.
+    let admin = app.setup_admin().await;
+    app.user(&admin, "ann", json!({})).await;
+    let token = app_token(&app, "ann").await;
+    let anonymous = app.jf_raw(Method::GET, "/System/Configuration", &[], None).await;
+    assert_eq!(anonymous.status, StatusCode::UNAUTHORIZED);
+    let configuration = app.jf_raw(Method::GET, "/System/Configuration", &[("x-emby-token", &token)], None).await;
+    assert_eq!(configuration.body, json!({"QuickConnectAvailable": true}));
 }
 
 #[tokio::test]
@@ -343,7 +401,7 @@ async fn quick_connect_ends_with_the_accounts_sign_ins() {
     let out = app.browser_call(Method::POST, "/api/auth/logout", &ann, None, &[]).await;
     assert!(out.status.is_success(), "{}", out.text());
     let late = with_quick_connect(&app, started["Secret"].as_str().unwrap()).await;
-    assert_eq!(late.status, StatusCode::UNAUTHORIZED);
+    assert_eq!(late.status, StatusCode::NOT_FOUND);
     let tokens: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM compatibility_tokens WHERE user_id = ?")
         .bind(ann_id)
         .fetch_one(&app.state.db.read)
