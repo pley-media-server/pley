@@ -6,7 +6,8 @@ import { Menu, MenuItem, MenuSeparator } from "@/components/Menu";
 import { browserLanguage, currentLanguage, deviceChoiceLanguage, LANGUAGES, onDeviceLanguage, setDeviceLanguage } from ".";
 
 /**
- * The globe of the pages shown before signing in: this device's language,
+ * The globe of the pages shown before signing in, a small pill with the
+ * language shown by its two letters ("FR"): this device's language,
  * Automatic (the browser's) or one picked. Once signed in, an account's own
  * language comes before it; Automatic there means this choice.
  */
@@ -28,10 +29,11 @@ export function LanguagePicker() {
           onClick={toggle}
           aria-label={t("language.choose")}
           aria-expanded={open}
-          className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-muted transition-colors hover:bg-white/5 hover:text-fg"
+          title={t(`language.names.${shown}`)}
+          className="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-white/5 hover:text-fg"
         >
-          <Globe className="size-4" />
-          <span lang={shown}>{t(`language.names.${shown}`)}</span>
+          <Globe className="size-3.5" />
+          <span lang={shown}>{shown.toUpperCase()}</span>
         </button>
       )}
     >
