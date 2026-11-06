@@ -30,7 +30,7 @@ import kotlinx.serialization.SerializationException
 /** A value and whether the server just gave it (else it was saved). */
 internal data class Fresh<T>(val value: T, val fresh: Boolean)
 
-/** The language of the server at [issuer] (GET /api/server): "fr", or `null` when each device's own is used. */
+/** The language of the server at [issuer] (GET /api/server): "fr"; `null`: a Pley from before languages. */
 internal data class ServerLanguage(val issuer: String, val language: String?)
 
 /**

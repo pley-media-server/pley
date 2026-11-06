@@ -32,9 +32,10 @@ data class ServerInfo(
     @Serializable(with = LenientFlagSerializer::class)
     val twoStepRequired: Boolean = false,
     /**
-     * The server's language for accounts that haven't chosen one ("en",
-     * "fr", "es"); `null` when each device's own is used, and from servers
-     * before it.
+     * The server's language for accounts that haven't chosen one, on
+     * devices in a language Pley doesn't have ("en", "fr", "es"). Every
+     * Pley with languages names one: `null` means a Pley from before them,
+     * which keeps no account's language.
      */
     val language: String? = null,
 )
