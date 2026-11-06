@@ -10,6 +10,7 @@ import re
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 import xml.etree.ElementTree as ET
 
 import support
@@ -253,6 +254,20 @@ class LanguageTest(Shown):
         self.assertEqual(self.show(account="fr", choice="es"), "fr", "the account's before all")
         self.assertEqual(self.show(account="de", choice="es"), "es", "an account's Pley isn't in counts as none")
         self.assertEqual(kodi.remembered(kodi.ACCOUNT_LANGUAGE), "")
+
+    def test_forgotten_on_another_thread_as_it_is_found(self):
+        class Forgetful(dict):
+            # Another thread's forget_language() right after each lookup keeps
+            # what it found.
+            def __setitem__(self, key, value):
+                dict.__setitem__(self, key, value)
+                self.pop(key, None)
+
+        self.show(account="fr")
+        with mock.patch.object(kodi, "_call", Forgetful()):
+            self.assertEqual(kodi.language(), "fr")
+            self.assertEqual(kodi.text("search"), kodi.text("search"))
+            self.assertIsNotNone(kodi.addon())
 
     def test_signed_out_the_device_chooses(self):
         self.show(account="fr")

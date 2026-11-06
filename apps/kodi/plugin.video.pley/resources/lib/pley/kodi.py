@@ -500,10 +500,16 @@ def begin() -> None:
     _call.clear()
 
 
+# Each lookup keeps what it found in a local: the service's threads forget
+# the language (forget_language) while others ask for it, and every request
+# does.
+
+
 def addon() -> xbmcaddon.Addon:
-    if "addon" not in _call:
-        _call["addon"] = xbmcaddon.Addon(ADDON_ID)
-    return _call["addon"]
+    found = _call.get("addon")
+    if found is None:
+        found = _call["addon"] = xbmcaddon.Addon(ADDON_ID)
+    return found
 
 
 # ------------------------------------------------------------ the language
@@ -527,11 +533,12 @@ def language() -> str:
     """The language the add-on is in (docs/KODI.md, Language): the
     account's own, else the one chosen in the add-on's settings, else
     Kodi's where Pley has it, else the server's, else English."""
-    if "language" not in _call:
-        _call["language"] = i18n.pick(
+    found = _call.get("language")
+    if found is None:
+        found = _call["language"] = i18n.pick(
             remembered(ACCOUNT_LANGUAGE), remembered(SERVER_LANGUAGE), [kodi_language()], device_choice()
         )
-    return _call["language"]
+    return found
 
 
 def automatic_language() -> str:
@@ -547,9 +554,10 @@ def device_automatic() -> str:
 
 
 def words() -> i18n.Words:
-    if "words" not in _call:
-        _call["words"] = i18n.Words(language())
-    return _call["words"]
+    found = _call.get("words")
+    if found is None:
+        found = _call["words"] = i18n.Words(language())
+    return found
 
 
 def text(name: str) -> str:
