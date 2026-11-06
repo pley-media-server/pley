@@ -61,6 +61,12 @@ describes how they are made.
   first, and Switch profile still shows every profile. Settings' Always
   start as calls this Profile used last, where it said Ask who's watching.
 
+### Fixed
+
+- On Android TV and Fire TV, a seek's preview in French or Spanish shows
+  a chapter called "Chapitre 3" or "Capítulo 3" once, not as "Chapitre 3 ·
+  Chapitre 3".
+
 ## [0.1.7] - 2026-11-05
 
 ### Added

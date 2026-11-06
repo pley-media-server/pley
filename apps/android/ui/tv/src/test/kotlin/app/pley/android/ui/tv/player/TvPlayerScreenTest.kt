@@ -549,6 +549,25 @@ class TvPlayerScreenTest {
     }
 
     @Test
+    @Config(qualifiers = "fr-w960dp-h540dp-xhdpi")
+    fun `in French, a chapter that names itself, in French or in English, isn't named twice`() {
+        val controller = playing { s ->
+            s.copy(chapters = s.chapters.map { if (it.startMs == 300_000L) it.copy(title = "Chapitre 2") else it })
+        }
+        show(controller)
+        press(Key.DirectionUp)
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Chapitre 2").assertExists()
+        compose.onNodeWithText("Chapitre 2 · Chapitre 2").assertDoesNotExist()
+        controller.update { s -> s.copy(chapters = s.chapters.map { if (it.startMs == 300_000L) it.copy(title = "Chapter Two") else it }) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Chapter Two").assertExists()
+        controller.update { s -> s.copy(chapters = s.chapters.map { if (it.startMs == 300_000L) it.copy(title = "Les Archives") else it }) }
+        compose.waitForIdle()
+        compose.onNodeWithText("Chapitre 2 · Les Archives").assertExists()
+    }
+
+    @Test
     fun `Up shows the controls on the scrubber, Down on Play-Pause`() {
         val controller = playing()
         show(controller)

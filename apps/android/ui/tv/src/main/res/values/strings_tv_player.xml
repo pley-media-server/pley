@@ -20,6 +20,8 @@
     <string name="tv_player_position">%1$s of %2$s</string>
     <string name="tv_player_chapter">Chapter %1$d</string>
     <string name="tv_player_chapter_named">Chapter %1$d · %2$s</string>
+    <!-- How a chapter's own name starts when it names itself ("Chapter 3"): the seek preview shows such a name as it is. -->
+    <string name="tv_player_chapter_word">Chapter</string>
     <!-- The chapters' cards over the scrubber, as a screen reader says the one focused: its name, and when it starts. -->
     <string name="tv_player_chapter_card">%1$s, from %2$s</string>
     <!-- A time as a screen reader says it, in these parts: "1 hour 2 minutes", "32 minutes 40 seconds". -->
