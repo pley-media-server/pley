@@ -141,10 +141,12 @@ export function SettingsScreen(p: { entry: Entry }) {
   const modeLabel = (mode: SubtitleMode) => t(`settings.modes.${mode}.label`);
 
   // The language Pley is in for the profile: Automatic (this TV's, picked with the globe or its own, else the
-  // server's) until it picks one, each named in itself.
-  const shownIn = supportedLanguage(me?.language) ?? null;
+  // server's) until it picks one, each named in itself. A server that keeps no account's language (a Pley from
+  // before languages) leaves the row to this TV, as the globe has it: the one picked, Automatic the TV's own.
+  const onDevice = app.languageOnDevice.value;
+  const shownIn = onDevice ? app.deviceChoice.value : (supportedLanguage(me?.language) ?? null);
   const automatic = t("settings.language.automatic", {
-    language: t(`settings.language.names.${pickLanguage(null, app.serverLanguage.value, app.deviceLanguages(), app.deviceChoice.value)}`),
+    language: t(`settings.language.names.${pickLanguage(null, app.serverLanguage.value, app.deviceLanguages(), onDevice ? null : app.deviceChoice.value)}`),
   });
   const languageChoices: Choice<Language | null>[] = [
     { value: null, label: automatic },
@@ -152,9 +154,7 @@ export function SettingsScreen(p: { entry: Entry }) {
   ];
   const saveLanguage = (next: Language | null) => {
     if (!me || next === shownIn) return;
-    app.setAccountLanguage(next).catch((e: unknown) => {
-      ui.toast(isApiError(e, 404) || isApiError(e, 405) ? t("settings.language.needsNewer") : sentence(errorMessage(e)), true);
-    });
+    app.chooseLanguage(next).catch((e: unknown) => ui.toast(sentence(errorMessage(e)), true));
   };
 
   const rows: ComponentChildren[] = [];

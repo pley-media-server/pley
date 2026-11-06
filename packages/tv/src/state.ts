@@ -1,4 +1,4 @@
-import { signal } from "@preact/signals";
+import { computed, signal } from "@preact/signals";
 import { Api, ApiError, isApiError, unreachable } from "./api/client";
 import { EventStream } from "./api/events";
 import type { Hub, HouseholdProfile, ItemDetail, Library, LiveChannel, LiveSummary, MediaRequest, RequestSummary, ServerEvent, TitleKind, TitleStatus, User } from "./api/types";
@@ -221,7 +221,8 @@ export class AppState {
   readonly eventsDown = signal(false);
   /**
    * The server's language for accounts without their own (`GET /api/server`):
-   * `undefined` until it answers, `null` when it leaves it to each device.
+   * `undefined` until it answers, `null` from a Pley from before languages,
+   * which names none.
    */
   readonly serverLanguage = signal<string | null | undefined>(undefined);
   /**
@@ -230,6 +231,13 @@ export class AppState {
    * an account's Automatic is ({@link setDeviceLanguage}).
    */
   readonly deviceChoice = signal<Language | null>(null);
+  /**
+   * The server keeps no account's language: a Pley from before languages,
+   * whose `GET /api/server` names none, or one that answered a choice 404.
+   * Settings' Language row is then this TV's, as the globe picks it
+   * ({@link chooseLanguage}).
+   */
+  readonly languageOnDevice = computed(() => this.serverLanguage.value === null || this.languageMissing.value);
   /**
    * "Who's watching?" was answered in this launch (a profile picked, a PIN
    * checked, or a sign-in approved on a phone): the current profile's PIN
@@ -281,6 +289,8 @@ export class AppState {
   private noticeOnScreen: number | null = null;
   /** Who is watching was heard from the server since the profile, sign-in or server last changed: its language counts. */
   private accountHeard = false;
+  /** The server in use answered a choice of language 404 (or 405): it has no route for it. */
+  private readonly languageMissing = signal(false);
 
   constructor(platform: Platform, http: Transport = xhrTransport) {
     this.platform = platform;
@@ -351,6 +361,7 @@ export class AppState {
     this.api.value = new Api(home, this.tokens, this.http);
     this.signedOut.value = false;
     this.serverLanguage.value = undefined;
+    this.languageMissing.value = false;
     void this.loadServerLanguage();
   }
 
@@ -512,6 +523,7 @@ export class AppState {
     this.api.value = null;
     this.tokens = null;
     this.serverLanguage.value = undefined;
+    this.languageMissing.value = false;
   }
 
   /** What was shown from the server in use goes: another one comes, or none. */
@@ -593,16 +605,41 @@ export class AppState {
 
   /**
    * Picks this TV's language (`null`: Automatic, the TV's own again), kept
-   * on the TV. Signed out (the globe of the screens before signing in), it
-   * shows at once, Automatic as what it says it is; signed in, unless the
-   * account has its own.
+   * on the TV. Signed out (the globe of the screens before signing in), or
+   * on a server that keeps no account's language, it shows at once,
+   * Automatic as what it says it is; signed in, unless the account has its
+   * own.
    */
   setDeviceLanguage(next: Language | null): void {
     this.deviceChoice.value = next;
     if (next) this.store.set(DEVICE_LANGUAGE_KEY, next);
     else this.store.remove(DEVICE_LANGUAGE_KEY);
-    if (this.signedIn) this.followLanguage();
+    if (this.signedIn && !this.languageOnDevice.peek()) this.followLanguage();
     else this.showLanguage(pickLanguage(null, this.serverLanguage.value, this.deviceLanguages(), next));
+  }
+
+  /**
+   * A choice on Settings' Language row (`null`: Automatic): the profile's
+   * language on all its devices ({@link setAccountLanguage}), or where the
+   * server keeps none ({@link languageOnDevice}) this TV's, as the globe
+   * picks it ({@link setDeviceLanguage}). A server that answers it 404 (or
+   * 405) has no route for it: the choice is this TV's, and so are the next.
+   */
+  async chooseLanguage(next: Language | null): Promise<void> {
+    if (this.languageOnDevice.peek()) {
+      this.setDeviceLanguage(next);
+      return;
+    }
+    const api = this.api.value;
+    try {
+      await this.setAccountLanguage(next);
+    } catch (e) {
+      if (!isApiError(e, 404) && !isApiError(e, 405)) throw e;
+      // Another server since: the answer was the one before's.
+      if (this.api.value !== api) return;
+      this.languageMissing.value = true;
+      this.setDeviceLanguage(next);
+    }
   }
 
   /** The app in `next` from now on, and at the next start. */

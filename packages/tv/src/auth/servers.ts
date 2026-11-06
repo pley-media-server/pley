@@ -12,7 +12,7 @@ export interface ServerInfo {
    * in on a phone sets it up for whoever hasn't. False from servers before it.
    */
   twoStepRequired: boolean;
-  /** The server's language for accounts without their own ("fr"); `null` when it leaves it to each device, and from servers before it. */
+  /** The server's language for accounts without their own ("fr"); `null` from servers before languages, which name none. */
   language: string | null;
 }
 

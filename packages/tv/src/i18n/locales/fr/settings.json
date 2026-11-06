@@ -6,8 +6,7 @@
       "fr": "Français",
       "es": "Español"
     },
-    "automatic": "Automatique ({{language}})",
-    "needsNewer": "Choisir une langue demande une version plus récente de Pley sur le serveur"
+    "automatic": "Automatique ({{language}})"
   },
   "title": "Paramètres",
   "categories": {

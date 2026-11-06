@@ -66,9 +66,19 @@ const settle = () => act(() => new Promise<void>((resolve) => setTimeout(resolve
 
 /**
  * The app with SERVER chosen, its `GET /api/server` answered by `server`;
- * signed in, with an account whose language `account` says.
+ * signed in, with an account whose language `account` says. With
+ * `languageRoute: false`, the server answers a choice of language 404, as a
+ * Pley from before languages does.
  */
-function setup(o: { remembered?: Language; device?: string[]; choice?: Language; server: () => Promise<HttpResponse>; signedIn?: boolean; account?: string | null }) {
+function setup(o: {
+  remembered?: Language;
+  device?: string[];
+  choice?: Language;
+  server: () => Promise<HttpResponse>;
+  signedIn?: boolean;
+  account?: string | null;
+  languageRoute?: boolean;
+}) {
   const store = memoryStore();
   store.set("pley.server", SERVER);
   if (o.remembered) store.set("pley.language", o.remembered);
@@ -91,6 +101,7 @@ function setup(o: { remembered?: Language; device?: string[]; choice?: Language;
     },
     setLanguage: (language: Language | null) => {
       asked.push(`PUT language ${language}`);
+      if (o.languageRoute === false) return missing();
       account = user(language);
       return Promise.resolve(account);
     },
@@ -175,6 +186,48 @@ describe("the language the app is in", () => {
     await settle();
     expect(currentLanguage()).toBe("fr");
   });
+
+  it("on a server from before languages, which names none, is chosen on this TV: nothing goes to the server", async () => {
+    const { app, asked, store } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ name: "Den", version: "0.1.0" })), signedIn: true });
+    await app.loadAccount();
+    await settle();
+    expect(app.languageOnDevice.value).toBe(true);
+    await app.chooseLanguage("fr");
+    expect(asked).not.toContain("PUT language fr");
+    expect(currentLanguage()).toBe("fr");
+    expect(app.deviceChoice.value).toBe("fr");
+    expect(store.get("pley.deviceLanguage")).toBe("fr");
+    // Automatic forgets the pick: the TV's own again.
+    await app.chooseLanguage(null);
+    expect(currentLanguage()).toBe("en");
+    expect(store.get("pley.deviceLanguage")).toBeNull();
+  });
+
+  it("on a server that answers the choice 404, is this TV's from then on", async () => {
+    const { app, asked } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ version: "1.0.0", language: "en" })), signedIn: true, account: null, languageRoute: false });
+    await app.loadAccount();
+    await settle();
+    expect(app.languageOnDevice.value).toBe(false);
+    await app.chooseLanguage("es");
+    expect(asked.filter((a) => a.startsWith("PUT"))).toEqual(["PUT language es"]);
+    expect(currentLanguage()).toBe("es");
+    expect(app.deviceChoice.value).toBe("es");
+    expect(app.languageOnDevice.value).toBe(true);
+    await app.chooseLanguage("fr");
+    expect(asked.filter((a) => a.startsWith("PUT"))).toEqual(["PUT language es"]);
+    expect(currentLanguage()).toBe("fr");
+  });
+
+  it("on a current server, is still the account's, whatever the server answers", async () => {
+    const { app } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ version: "1.0.0", language: "en" })), signedIn: true, account: null });
+    await app.loadAccount();
+    await settle();
+    (app.api.value as unknown as { setLanguage: () => Promise<never> }).setLanguage = () => Promise.reject(new ApiError(400, "bad_request", "language is one of en, fr, es, or null"));
+    await expect(app.chooseLanguage("fr")).rejects.toThrow("language is one of en, fr, es, or null");
+    expect(currentLanguage()).toBe("en");
+    expect(app.deviceChoice.value).toBeNull();
+    expect(app.languageOnDevice.value).toBe(false);
+  });
 });
 
 describe("the API's requests", () => {
@@ -203,8 +256,10 @@ describe("Settings' Language row", () => {
     root = null;
   });
 
-  async function show(serverLanguage: string | null, account: string | null, device = ["en-US"], choice?: Language) {
-    const { app, asked } = setup({ device, choice, server: () => Promise.resolve(answer({ version: "1.0.0", language: serverLanguage })), signedIn: true, account });
+  /** Settings on its Profile; `serverLanguage` left out is a Pley from before languages, which names none, and its accounts have none. */
+  async function show(serverLanguage: string | null | undefined, account: string | null | undefined, device = ["en-US"], choice?: Language, languageRoute?: boolean) {
+    const said = serverLanguage === undefined ? { version: "0.1.0" } : { version: "1.0.0", language: serverLanguage };
+    const { app, asked } = setup({ device, choice, server: () => Promise.resolve(answer(said)), signedIn: true, account, languageRoute });
     await app.loadAccount();
     await settle();
     document.body.innerHTML = "";
@@ -265,7 +320,7 @@ describe("Settings' Language row", () => {
   });
 
   it("offers each language named in itself, and shows the one picked at once", async () => {
-    const { asked, focus, row, press } = await show(null, null);
+    const { asked, focus, row, press } = await show("en", null);
     act(() => {
       focus.focus(row());
     });
@@ -281,6 +336,46 @@ describe("Settings' Language row", () => {
     expect(currentLanguage()).toBe("es");
     expect(row().querySelector(".row-label")!.textContent).toBe("Idioma");
     expect(row().querySelector(".row-value")!.textContent).toBe("Español");
+  });
+
+  it("on a server from before languages, is this TV's: the one picked with the globe, Automatic the TV's own", async () => {
+    const { asked, focus, row, press, toasts } = await show(undefined, undefined, ["en-US"], "es");
+    expect(row().querySelector(".row-label")!.textContent).toBe("Idioma");
+    expect(row().querySelector(".row-value")!.textContent).toBe("Español");
+    act(() => {
+      focus.focus(row());
+    });
+    press("ok");
+    const panel = () => Array.from(document.querySelectorAll(".side-panel [data-f]")).map((el) => el.textContent);
+    // Automatic names the TV's own language, not the one picked.
+    expect(panel()).toEqual(["Automático (English)", "English", "Français", "Español"]);
+    press("up");
+    press("up");
+    press("up");
+    press("ok");
+    await settle();
+    // Automatic forgets the pick, at once and with no word; nothing goes to the server.
+    expect(currentLanguage()).toBe("en");
+    expect(row().querySelector(".row-value")!.textContent).toBe("Automatic (English)");
+    expect(asked.filter((a) => a.startsWith("PUT"))).toEqual([]);
+    expect(toasts).toEqual([]);
+  });
+
+  it("on a server that answers the choice 404, keeps it on this TV, with no word", async () => {
+    const { app, asked, focus, row, press, toasts } = await show("en", null, ["en-US"], undefined, false);
+    act(() => {
+      focus.focus(row());
+    });
+    press("ok");
+    press("down");
+    press("down");
+    press("ok");
+    await settle();
+    expect(asked.filter((a) => a.startsWith("PUT"))).toEqual(["PUT language fr"]);
+    expect(currentLanguage()).toBe("fr");
+    expect(app.deviceChoice.value).toBe("fr");
+    expect(row().querySelector(".row-value")!.textContent).toBe("Français");
+    expect(toasts).toEqual([]);
   });
 
   it("draws the rest of Settings again in the new language", async () => {
