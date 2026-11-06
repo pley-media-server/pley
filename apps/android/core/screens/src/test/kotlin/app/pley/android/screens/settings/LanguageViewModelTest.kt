@@ -4,6 +4,7 @@ import app.pley.android.common.Language
 import app.pley.android.common.UiText
 import app.pley.android.data.LanguageRepository
 import app.pley.android.data.LanguageSources
+import app.pley.android.data.isNoLanguageRoute
 import app.pley.android.network.ApiException
 import app.pley.android.screens.R
 import app.pley.android.screens.inEnglish
@@ -43,13 +44,19 @@ class LanguageViewModelTest {
         override suspend fun choose(language: String?) {
             chosen += language
             answer?.await()
-            refusal?.let { throw it }
             val now = sources.value as LanguageSources.SignedIn
+            refusal?.let {
+                // As the data side does, a server without the route is remembered as one that keeps no account's language.
+                if (isNoLanguageRoute(it)) sources.value = now.copy(keepsLanguage = false)
+                throw it
+            }
             sources.value = now.copy(account = language)
         }
     }
 
-    private fun signedIn(account: String? = null, server: String? = null) = LanguageSources.SignedIn(account, true, server, true)
+    /** As the data side says it: a server that names no language is from before languages, and keeps no account's. */
+    private fun signedIn(account: String? = null, server: String? = null) =
+        LanguageSources.SignedIn(account, true, server, true, keepsLanguage = server != null)
 
     @Before
     fun main() = Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -71,7 +78,7 @@ class LanguageViewModelTest {
         assertEquals(listOf(null, Language.English, Language.French, Language.Spanish), state.choices)
         assertEquals(listOf("Automatic (Français)", "English", "Français", "Español"), state.choices.map { state.label(it).inEnglish() })
 
-        // No server language either: English.
+        // No server language either (a Pley from before languages): English.
         account.sources.value = signedIn(server = null)
         assertEquals("Automatic (English)", vm.state.first { it.server == null }.value.inEnglish())
         account.sources.value = signedIn(account = "es", server = "de")
@@ -154,12 +161,23 @@ class LanguageViewModelTest {
         vm.choose(Language.French)
         assertEquals(listOf<String?>("es"), account.chosen)
         assertEquals(Language.French, picked.value)
+
+        // Settings opened again: the data side remembers the server, so the row is still this device's.
+        val again = LanguageViewModel(account, picked, { picked.value = it }) { Language.English }
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { again.state.collect {} }
+        val shown = again.shown()
+        assertTrue(shown.onDevice)
+        assertEquals("Français", shown.value.inEnglish())
+        // And Automatic forgets the pick, there too.
+        again.choose(null)
+        assertEquals(null, picked.value)
+        assertEquals(listOf<String?>("es"), account.chosen)
     }
 
     @Test
     fun aRefusalIsSaid() = runTest {
         val refusal = ApiException(400, "bad_request", "language is one of en, fr, es, or null")
-        val account = Account(signedIn()).apply { this.refusal = refusal }
+        val account = Account(signedIn(server = "en")).apply { this.refusal = refusal }
         val vm = LanguageViewModel(account) { Language.English }
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.state.collect {} }
         vm.shown()

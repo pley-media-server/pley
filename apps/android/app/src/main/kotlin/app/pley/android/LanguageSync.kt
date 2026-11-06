@@ -11,7 +11,7 @@ import app.pley.android.common.AppLanguage
 import app.pley.android.common.Language
 import app.pley.android.data.LanguageRepository
 import app.pley.android.data.LanguageSources
-import app.pley.android.network.ApiException
+import app.pley.android.data.isNoLanguageRoute
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -94,11 +94,9 @@ internal class LanguageSync(private val app: Application) : Application.Activity
                 checkNotNull(repository) { "no server" }.choose(picked?.code)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: ApiException) {
-                // A Pley from before languages has no route for it: this device's, then.
-                if (e.status == 404 || e.status == 405) pickHere(picked, device, repository) else if (AppLanguage.show(app, before)) repository?.shown()
-            } catch (_: Exception) {
-                if (AppLanguage.show(app, before)) repository?.shown()
+            } catch (e: Exception) {
+                // A Pley from before languages has no route for it, which the data side now remembers: this device's, then.
+                if (isNoLanguageRoute(e)) pickHere(picked, device, repository) else if (AppLanguage.show(app, before)) repository?.shown()
             }
         }
     }

@@ -10,6 +10,7 @@ import app.pley.android.testing.network.FakePleyApi
 import java.util.Locale
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -30,8 +31,14 @@ class LanguageTest {
     private val french = listOf(Locale.CANADA_FRENCH)
     private val german = listOf(Locale.GERMANY)
 
-    private fun signedIn(account: String?, accountKnown: Boolean = true, server: String? = null, serverKnown: Boolean = true) =
-        LanguageSources.SignedIn(account, accountKnown, server, serverKnown)
+    /** As the data side says it: a server that answered without a language is from before languages. */
+    private fun signedIn(
+        account: String?,
+        accountKnown: Boolean = true,
+        server: String? = null,
+        serverKnown: Boolean = true,
+        keepsLanguage: Boolean = !serverKnown || server != null,
+    ) = LanguageSources.SignedIn(account, accountKnown, server, serverKnown, keepsLanguage)
 
     @Test
     fun theAccountsThenTheDevicesThenTheServersThenEnglish() {
@@ -158,6 +165,48 @@ class LanguageTest {
         assertEquals(false, now.keepsLanguage)
         // What shows is decided as on any server: the device's, its account having none.
         assertEquals(Language.French, now.wanted(french))
+    }
+
+    @Test
+    fun aServerWithoutTheRouteIsRememberedWhileItIsInUse() = runTest {
+        // It names a language, but answers a choice 404 (the route doesn't reach it).
+        val data = signedIn(folder.newFolder()) {
+            api.answer("server", ServerInfo("Home", "1.0", language = "en"))
+        }
+        val sources = collect(data.graph.language.sources)
+        testScheduler.runCurrent()
+        assertEquals(signedIn(null, server = "en"), sources.last())
+        data.api.fail("setLanguage", ApiException(404, "not_found", "not found"))
+        val refused = runCatching { data.graph.language.choose("fr") }.exceptionOrNull()
+        assertTrue(refused is ApiException)
+        // The account's is put back, and the server keeps none from now on.
+        assertEquals(signedIn(null, server = "en", keepsLanguage = false), sources.last())
+        // Asked again, as Settings opened again, and after the server's answers again.
+        data.graph.session.refresh()
+        testScheduler.runCurrent()
+        assertEquals(signedIn(null, server = "en", keepsLanguage = false), data.graph.language.sources.first())
+
+        // Another server may have the route; back on this one, it is tried again.
+        val other = "http://192.168.1.30:7539"
+        data.signIn(other)
+        data.useServer(other)
+        testScheduler.runCurrent()
+        assertEquals(signedIn(null, server = "en"), sources.last())
+        data.useServer()
+        testScheduler.runCurrent()
+        assertEquals(signedIn(null, server = "en"), sources.last())
+    }
+
+    @Test
+    fun a405IsAServerWithoutTheRouteToo() = runTest {
+        val data = signedIn(folder.newFolder()) {
+            api.answer("server", ServerInfo("Home", "1.0", language = "en"))
+        }
+        val sources = collect(data.graph.language.sources)
+        testScheduler.runCurrent()
+        data.api.fail("setLanguage", ApiException(405, null, "method not allowed"))
+        runCatching { data.graph.language.choose("es") }
+        assertEquals(false, (sources.last() as LanguageSources.SignedIn).keepsLanguage)
     }
 
     private val alex: Me = Fixtures.decode("me/app_token.json")

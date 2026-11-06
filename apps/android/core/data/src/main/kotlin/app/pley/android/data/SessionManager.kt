@@ -75,6 +75,13 @@ internal class SessionManager(
     /** The server's language, once it said it while signed in, since the app started. */
     val serverLanguage = MutableStateFlow<ServerLanguage?>(null)
 
+    /**
+     * The server in use (its issuer) when it answered PUT /api/me/language
+     * with 404 or 405: it keeps no account's language, whatever its
+     * GET /api/server says. Forgotten when another server is in use.
+     */
+    val noLanguageRoute = MutableStateFlow<String?>(null)
+
     /** Told when the profile in use changes (`null`: none): memory caches go. */
     var onScopeChange: (ProfileScope?) -> Unit = {}
 
@@ -97,6 +104,7 @@ internal class SessionManager(
                     origin = null
                     meState.value = null
                     serverLanguage.value = null
+                    noLanguageRoute.value = null
                     setScope(null)
                     _state.value = SessionState.NoServer
                 } else {
@@ -119,6 +127,8 @@ internal class SessionManager(
 
     private suspend fun follow(active: String) {
         origin = active
+        // Another server may have the route.
+        if (noLanguageRoute.value != active) noLanguageRoute.value = null
         val tokens = withContext(compute) { auth.tokens(active) }
         tokens.signedIn.collectLatest { signedIn ->
             if (!signedIn) {
@@ -226,7 +236,9 @@ internal class SessionManager(
 
     /**
      * Makes [language] the profile's (PUT /api/me/language), shown at once
-     * and put back if the server refuses.
+     * and put back if the server refuses. A server without the route is
+     * remembered ([noLanguageRoute]) while it is in use: what asks next,
+     * as Settings opened again, hears it keeps no account's language.
      */
     suspend fun setLanguage(language: String?) {
         val issuer = issuer() ?: throw IllegalStateException("not signed in")
@@ -234,6 +246,7 @@ internal class SessionManager(
         val me = try {
             meApi(issuer).setLanguage(language)
         } catch (e: Throwable) {
+            if (isNoLanguageRoute(e) && origin == issuer) noLanguageRoute.value = issuer
             undo()
             throw e
         }

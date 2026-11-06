@@ -10,7 +10,7 @@ import app.pley.android.common.Language
 import app.pley.android.common.UiText
 import app.pley.android.data.LanguageRepository
 import app.pley.android.data.LanguageSources
-import app.pley.android.network.ApiException
+import app.pley.android.data.isNoLanguageRoute
 import app.pley.android.screens.R
 import app.pley.android.screens.screensGraph
 import kotlinx.coroutines.CancellationException
@@ -72,8 +72,9 @@ data class LanguageUiState(
  * then English, Français and Español. A choice goes to the server
  * (PUT /api/me/language) and shows at once; one the server refuses is put
  * back, and said ([errors]). A Pley from before languages keeps none (its
- * GET /api/server names no language, and the route answers 404 or 405): there a
- * choice is this device's, as the globe picks it, and shows all the same.
+ * GET /api/server names no language, and the route answers 404 or 405,
+ * which the data side remembers for the server): there a choice is this
+ * device's, as the globe picks it, and shows all the same.
  */
 class LanguageViewModel(
     private val language: LanguageRepository,
@@ -85,17 +86,14 @@ class LanguageViewModel(
     private val system: () -> Language?,
 ) : ViewModel() {
     private val saving = MutableStateFlow(false)
-
-    /** This server answered a choice with 404 or 405: it keeps no account's language, though it named one. */
-    private val refused = MutableStateFlow(false)
     private val channel = Channel<Throwable>(Channel.BUFFERED)
 
     /** Choices that couldn't be saved. */
     val errors: Flow<Throwable> = channel.receiveAsFlow()
 
-    val state: StateFlow<LanguageUiState> = combine(language.sources, saving, picked, refused) { sources, busy, here, older ->
+    val state: StateFlow<LanguageUiState> = combine(language.sources, saving, picked) { sources, busy, here ->
         val signedIn = sources as? LanguageSources.SignedIn
-        val onDevice = signedIn != null && (!signedIn.keepsLanguage || older)
+        val onDevice = signedIn?.keepsLanguage == false
         LanguageUiState(
             available = signedIn != null,
             chosen = if (onDevice) here else Language.of(signedIn?.account),
@@ -121,15 +119,9 @@ class LanguageViewModel(
                 language.choose(choice?.code)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: ApiException) {
-                if (e.status == 404 || e.status == 405) {
-                    refused.value = true
-                    pick(choice)
-                } else {
-                    channel.send(e)
-                }
             } catch (e: Exception) {
-                channel.send(e)
+                // Without the route, the server keeps no account's language, which the data side now remembers: this device's, then.
+                if (isNoLanguageRoute(e)) pick(choice) else channel.send(e)
             } finally {
                 saving.update { false }
             }

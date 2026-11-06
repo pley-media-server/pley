@@ -1,6 +1,7 @@
 package app.pley.android.data
 
 import app.pley.android.common.Language
+import app.pley.android.network.ApiException
 import java.util.Locale
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
@@ -26,7 +27,8 @@ sealed interface LanguageSources {
      * language Pley doesn't have, once GET /api/server answered
      * ([serverKnown]). [keepsLanguage] is false for a Pley from before
      * languages, which keeps no account's language (its GET /api/server
-     * names none): there the Language row is this device's.
+     * names none, or it answered a choice with 404 or 405): there the
+     * Language row is this device's.
      */
     data class SignedIn(
         val account: String?,
@@ -63,7 +65,9 @@ interface LanguageRepository {
     /**
      * Makes [language] ("en", "fr", "es"; `null`: Automatic) the
      * account's (PUT /api/me/language), shown at once and put back if the
-     * server refuses.
+     * server refuses. A server without the route ([isNoLanguageRoute]) keeps
+     * no account's language: [sources] say so from then on, while it is in
+     * use.
      */
     suspend fun choose(language: String?)
 
@@ -78,13 +82,24 @@ interface LanguageRepository {
     }
 }
 
+/**
+ * Whether [error] is the answer of a server without PUT /api/me/language
+ * (404, or 405): a Pley from before languages, which keeps no account's.
+ */
+fun isNoLanguageRoute(error: Throwable): Boolean = error is ApiException && (error.status == 404 || error.status == 405)
+
 /** The account's language from the session (GET /api/auth/me) and the server's (GET /api/server). */
 internal class SessionLanguage(
     private val session: SessionManager,
     /** Home's and the libraries' rows, whose titles the server writes in the language asked for. */
     private val cache: () -> ResourceCache?,
 ) : LanguageRepository {
-    override val sources: Flow<LanguageSources> = combine(session.state, session.meState, session.serverLanguage) { state, me, server ->
+    override val sources: Flow<LanguageSources> = combine(
+        session.state,
+        session.meState,
+        session.serverLanguage,
+        session.noLanguageRoute,
+    ) { state, me, server, noRoute ->
         when (state) {
             SessionState.Starting -> LanguageSources.Unknown
             SessionState.NoServer, is SessionState.SignedOut -> LanguageSources.NoAccount
@@ -96,8 +111,8 @@ internal class SessionLanguage(
                     accountKnown = me?.fresh == true,
                     server = said?.language,
                     serverKnown = said != null,
-                    // Every Pley with languages names its own; one that answered without is from before them.
-                    keepsLanguage = said == null || said.language != null,
+                    // Every Pley with languages names its own and has the route; one without either is from before them.
+                    keepsLanguage = (said == null || said.language != null) && noRoute != state.session.issuer,
                 )
             }
         }
