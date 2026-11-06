@@ -9,6 +9,7 @@
 ' ticked alone; -1 for the usual ones) }.
 
 sub init()
+    m.top.findNode("heading").text = t("requests.picker.title")
     m.subtitle = m.top.findNode("subtitle")
     m.seasons = m.top.findNode("seasons")
     m.words = m.top.findNode("words")
@@ -81,7 +82,7 @@ sub onSeason(event as object)
     row = m.rows[index]
     if not row.askable
         m.line.color = "0xA1A9B6FF"
-        m.line.text = row.title + ": " + row.line + "."
+        m.line.text = t("requests.season.why", { season: row.title, state: row.line })
         return
     end if
     row.ticked = not row.ticked
@@ -97,10 +98,11 @@ sub showButton()
         if row.ticked then ticked = ticked + 1
     end for
     button = reqPickerButton(ticked, m.remaining, m.allowanceText)
-    labels = ["Cancel"]
+    cancel = t("common.actions.cancel")
+    labels = [cancel]
     m.buttonActions = ["cancel"]
     if button.label <> ""
-        labels = [button.label, "Cancel"]
+        labels = [button.label, cancel]
         m.buttonActions = ["send", "cancel"]
     end if
     if FormatJson(m.buttons.buttons) <> FormatJson(labels) then m.buttons.buttons = labels

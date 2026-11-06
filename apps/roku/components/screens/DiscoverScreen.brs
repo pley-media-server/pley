@@ -23,6 +23,8 @@ sub init()
     m.problemText = m.top.findNode("problemText")
     m.problemButtons = m.top.findNode("problemButtons")
     m.busy = m.top.findNode("busy")
+    m.top.findNode("heading").text = t("requests.names.discover")
+    m.credit.text = t("requests.credit")
     m.started = false
     ' The rows in order: { key (a list's, or "requests"), title, state
     ' ("waiting", "asked", "shown"), page (the last one asked for), seen
@@ -105,7 +107,7 @@ sub showPage()
     for each list in reqLists()
         m.lists.Push({ key: list.key, title: list.title, state: "waiting", page: 0, seen: {}, first: invalid })
     end for
-    if reqShowsRequests(summary) and summary.own > 0 then m.lists.Push({ key: "requests", title: "Your requests", state: "waiting", page: 0, seen: {}, first: invalid })
+    if reqShowsRequests(summary) and summary.own > 0 then m.lists.Push({ key: "requests", title: t("requests.names.yours"), state: "waiting", page: 0, seen: {}, first: invalid })
     content = CreateObject("roSGNode", "ContentNode")
     for each list in m.lists
         row = content.createChild("ContentNode")
@@ -199,9 +201,9 @@ sub onListRow(event as object)
         end if
         ' What came before stays, See all going on from it.
         if shown.Count() > 0
-            setRow(spec.row, shown, reqMoreTile("See all", list.key, ""))
+            setRow(spec.row, shown, reqMoreTile(t("common.actions.seeAll"), list.key, ""))
         else
-            setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
+            setRow(spec.row, [], reqNoticeTile(t("requests.tiles.theseFailed"), "retry"))
         end if
         ' Without trending, the hero comes from the other lists: every one
         ' at once, as when trending has nothing to ask for.
@@ -226,8 +228,8 @@ sub onListRow(event as object)
     askNext = shown.Count() < 7 and more and page.page < 5
     extra = invalid
     if not askNext
-        if more then extra = reqMoreTile("See all", list.key, "")
-        if shown.Count() = 0 and extra = invalid then extra = reqNoticeTile("Nothing here right now.", "note")
+        if more then extra = reqMoreTile(t("common.actions.seeAll"), list.key, "")
+        if shown.Count() = 0 and extra = invalid then extra = reqNoticeTile(t("requests.discover.nothingHere"), "note")
     end if
     if shown.Count() > 0 or extra <> invalid then setRow(spec.row, shown, extra)
     if askNext
@@ -255,14 +257,14 @@ sub onRequestsRow(event as object)
         if m.requestsShown
             restartPoll(false)
         else
-            setRow(spec.row, [], reqNoticeTile("Couldn't load these. Select to try again.", "retry"))
+            setRow(spec.row, [], reqNoticeTile(t("requests.tiles.theseFailed"), "retry"))
         end if
         return
     end if
     m.requestsShown = true
     tiles = []
     if request.content <> invalid then tiles = request.content.getChildren(-1, 0)
-    extra = reqMoreTile("See all", "requests", "")
+    extra = reqMoreTile(t("common.actions.seeAll"), "requests", "")
     if tiles.Count() = 0 then extra = reqNoticeTile(reqEmptyText("all", true, false), "note")
     setRow(spec.row, tiles, extra)
     restartPoll(answer.data.busy)
@@ -408,8 +410,8 @@ sub showProblem(problem as object)
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
-    if problem.signIn then buttons.Push("Sign in")
-    if problem.retry then buttons.Push("Try again")
+    if problem.signIn then buttons.Push(t("requests.buttons.signIn"))
+    if problem.retry then buttons.Push(t("common.actions.tryAgain"))
     m.problemButtons.buttons = buttons
     m.problemButtons.visible = buttons.Count() > 0
     m.problem.visible = true
@@ -453,9 +455,10 @@ sub addRequestsRow(summary as object)
     for each list in m.lists
         if list.key = "requests" then return
     end for
-    m.lists.Push({ key: "requests", title: "Your requests", state: "waiting", page: 0, seen: {} })
+    title = t("requests.names.yours")
+    m.lists.Push({ key: "requests", title: title, state: "waiting", page: 0, seen: {} })
     row = m.rows.content.createChild("ContentNode")
-    row.title = "Your requests"
+    row.title = title
     nodesAppend(row, reqSkeletonTiles())
     position = m.rows.rowItemFocused
     if m.rows.isInFocusChain() and position <> invalid and position.Count() = 2 then ensureRows(position[0] + 1)

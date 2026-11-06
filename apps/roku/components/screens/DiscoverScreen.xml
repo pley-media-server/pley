@@ -38,9 +38,9 @@
         <Poster id="backdrop" width="1920" height="1080" loadWidth="640" loadHeight="360" loadDisplayMode="scaleToZoom" opacity="0.4" />
         <Rectangle id="shade" width="1260" height="1080" color="0x16191ED9" />
         <Group id="page">
-            <Label id="heading" translation="[96, 48]" text="Discover" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+            <Label id="heading" translation="[96, 48]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
             <ChipRow id="chips" translation="[460, 62]" />
-            <Label id="credit" translation="[1124, 78]" width="700" horizAlign="right" text="Details and pictures from TMDB." color="0x8B95A5FF" font="font:SmallestSystemFont" />
+            <Label id="credit" translation="[1124, 78]" width="700" horizAlign="right" color="0x8B95A5FF" font="font:SmallestSystemFont" />
             <LayoutGroup id="hero" translation="[96, 196]" layoutDirection="vert" itemSpacings="[16, 20, 36, 20]" visible="false">
                 <Label id="heroName" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
                 <Label id="heroLine" width="1100" color="0xA1A9B6FF" font="font:SmallSystemFont" />

@@ -16,6 +16,7 @@ sub init()
     m.problemTitle = m.top.findNode("problemTitle")
     m.problemText = m.top.findNode("problemText")
     m.problemButtons = m.top.findNode("problemButtons")
+    m.top.findNode("credit").text = t("requests.credit")
     m.started = false
     ' What the grid shows: { title, path, empty } (reqSeeAll).
     m.shown = invalid
@@ -83,7 +84,7 @@ sub onPage(event as object)
         end if
         if uiFailed(answer) then return
         problem = reqProblem(answer, reqSummaryOf(m.top.requestSummary).manage)
-        if problem = invalid then problem = { title: "Couldn't load these", text: answer.message, retry: true, signIn: false }
+        if problem = invalid then problem = { title: t("requests.discover.loadFailed"), text: answer.message, retry: true, signIn: false }
         showProblem(problem)
         return
     end if
@@ -175,8 +176,8 @@ sub showProblem(problem as object)
     m.problemTitle.text = problem.title
     m.problemText.text = problem.text
     buttons = []
-    if problem.signIn then buttons.Push("Sign in")
-    if problem.retry then buttons.Push("Try again")
+    if problem.signIn then buttons.Push(t("requests.buttons.signIn"))
+    if problem.retry then buttons.Push(t("common.actions.tryAgain"))
     m.problemButtons.buttons = buttons
     m.problemButtons.visible = buttons.Count() > 0
     m.problem.visible = true

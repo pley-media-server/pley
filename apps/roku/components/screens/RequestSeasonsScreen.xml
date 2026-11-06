@@ -23,7 +23,7 @@
     <script type="text/brightscript" uri="pkg:/components/lib/Content.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Requests.brs" />
     <children>
-        <Label translation="[96, 56]" text="Which seasons?" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
+        <Label id="heading" translation="[96, 56]" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="subtitle" translation="[96, 132]" width="1000" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <MarkupList id="seasons" translation="[96, 210]" itemComponentName="SeasonPickRow" itemSize="[1000, 88]" itemSpacing="[0, 10]" numRows="8" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
         <LayoutGroup id="side" translation="[1200, 210]" layoutDirection="vert" itemSpacings="[24, 40, 24]">

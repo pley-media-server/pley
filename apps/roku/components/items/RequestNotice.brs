@@ -5,7 +5,6 @@ sub init()
     m.text = m.top.findNode("text")
     m.buttons = m.top.findNode("buttons")
     m.untouched = m.top.findNode("untouched")
-    m.buttons.buttons = ["Open", "Close"]
     ' On screen, and under a dialog; how long it has been up.
     m.shown = false
     m.covered = false
@@ -22,6 +21,10 @@ sub onNotice()
     poster = ""
     if GetInterface(notice.poster, "ifString") <> invalid then poster = notice.poster
     m.text.text = notice.text
+    ' The scene keeps the card for the whole session: its buttons are in
+    ' the language shown when it shows.
+    labels = [t("common.actions.open"), t("common.actions.close")]
+    if FormatJson(m.buttons.buttons) <> FormatJson(labels) then m.buttons.buttons = labels
     withPoster = poster <> ""
     m.frame.visible = withPoster
     m.poster.visible = withPoster
