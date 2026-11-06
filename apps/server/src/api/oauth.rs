@@ -1091,10 +1091,10 @@ pub async fn verify_quick_connect(
     }
     let id = crate::auth::new_token();
     let seen = found.deciding.as_ref().map(|(id, ..)| id.as_str());
-    if !state.oauth.quick_connect.show(&found.key, seen, &id, web.user.id, &web.session_hash) {
+    let Some(left) = state.oauth.quick_connect.show(&found.key, seen, &id, web.user.id, &web.session_hash) else {
         // Someone was quicker.
         return Err(AppError::conflict(QUICK_CONNECT_CODE_USED));
-    }
+    };
     // What the app says it is, unchecked: shown as text, without control
     // and direction characters.
     let said = |value: &Option<String>| value.as_deref().and_then(clients::clean_name);
@@ -1102,7 +1102,7 @@ pub async fn verify_quick_connect(
     Ok(Json(json!({
         "status": "consent",
         "id": id,
-        "expires_at": now() + found.left.as_secs() as i64,
+        "expires_at": now() + left.as_secs() as i64,
         "app": said(&asker.app),
         "version": said(&asker.version),
         "device": said(&asker.device),

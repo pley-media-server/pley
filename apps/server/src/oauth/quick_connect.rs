@@ -253,8 +253,6 @@ pub struct Found {
     /// The request, for [`QuickConnect::show`].
     pub key: String,
     pub asker: Asker,
-    /// How long it has left.
-    pub left: Duration,
     /// The page that shows it already, if any: its request id, person and
     /// session (the SHA-256 of its token).
     pub deciding: Option<(String, i64, String)>,
@@ -375,16 +373,14 @@ impl QuickConnect {
     /// The request whose code `code` (as [`normalize`] gives it) `user_id`
     /// typed on Pley's page. A code that leads to no request in progress is
     /// a wrong one, and counts: past 10 by the person or 300 by everyone in
-    /// 10 minutes, no code is looked up. A request found lasts [`TO_DECIDE`]
-    /// more at least.
+    /// 10 minutes, no code is looked up.
     pub fn find(&self, code: &str, user_id: i64) -> Result<Found, Refused> {
         let now = self.now();
-        let mut guard = self.state.lock();
-        let state = &mut *guard;
+        let mut state = self.state.lock();
         if state.throttled(user_id, now) {
             return Err(Refused::Throttled);
         }
-        let found = state.by_code.get(code).and_then(|key| Some((key, state.requests.get_mut(key)?)));
+        let found = state.by_code.get(code).and_then(|key| Some((key, state.requests.get(key)?)));
         match found {
             Some((key, entry)) if entry.alive(now) => {
                 let deciding = match &entry.status {
@@ -394,8 +390,7 @@ impl QuickConnect {
                     }
                     Status::Allowed(_) | Status::Issuing { .. } => return Err(Refused::Used),
                 };
-                entry.last(now, TO_DECIDE);
-                Ok(Found { key: key.clone(), asker: entry.asker.clone(), left: entry.expires - now, deciding })
+                Ok(Found { key: key.clone(), asker: entry.asker.clone(), deciding })
             }
             _ => {
                 state.count_wrong(user_id, now);
@@ -407,21 +402,26 @@ impl QuickConnect {
     /// Shows request `key` on the consent page of `user_id`, in the browser
     /// session whose token has the SHA-256 `session_hash`, as request `id`:
     /// when it is still as it was found, waiting for its code (`seen` is
-    /// `None`) or on the page of request `seen`. False when someone was
-    /// quicker, or when it is over.
-    pub fn show(&self, key: &str, seen: Option<&str>, id: &str, user_id: i64, session_hash: &str) -> bool {
+    /// `None`) or on the page of request `seen`. Shown, it lasts
+    /// [`TO_DECIDE`] more at least, and the answer is how long it has left;
+    /// `None` when someone was quicker, or when it is over. Only the page
+    /// that shows it keeps it going: looking up a code shown elsewhere
+    /// doesn't.
+    pub fn show(&self, key: &str, seen: Option<&str>, id: &str, user_id: i64, session_hash: &str) -> Option<Duration> {
         let now = self.now();
         let mut state = self.state.lock();
-        let Some(entry) = state.requests.get_mut(key).filter(|entry| entry.alive(now)) else { return false };
+        let entry = state.requests.get_mut(key).filter(|entry| entry.alive(now))?;
         let as_found = match (&entry.status, seen) {
             (Status::Pending, None) => true,
             (Status::Deciding { id: shown, .. }, Some(seen)) => shown == seen,
             _ => false,
         };
-        if as_found {
-            entry.status = Status::Deciding { id: id.to_owned(), user_id, session_hash: session_hash.to_owned() };
+        if !as_found {
+            return None;
         }
-        as_found
+        entry.status = Status::Deciding { id: id.to_owned(), user_id, session_hash: session_hash.to_owned() };
+        entry.last(now, TO_DECIDE);
+        Some(entry.expires - now)
     }
 
     /// The answer of the consent page showing request `id`, which only its
@@ -605,7 +605,7 @@ mod tests {
         assert_eq!(store.take(&started.secret), Take::Pending);
         let found = store.find(&started.code, 1).unwrap();
         assert_eq!(found.asker.app.as_deref(), Some("Findroid"));
-        assert!(store.show(&found.key, None, "page", 1, "session"));
+        assert!(store.show(&found.key, None, "page", 1, "session").is_some());
         assert!(!store.seen(&started.secret).unwrap().authenticated);
         assert_eq!(store.decide("page", 2, "session", true), Err(Over), "someone else's page");
         assert_eq!(store.decide("page", 1, "other", true), Err(Over), "another session's");
@@ -627,7 +627,7 @@ mod tests {
         let store = QuickConnect::default();
         let started = store.start(asker("192.168.1.20", "a"), 0).unwrap();
         let found = store.find(&started.code, 1).unwrap();
-        assert!(store.show(&found.key, None, "page", 1, "session"));
+        assert!(store.show(&found.key, None, "page", 1, "session").is_some());
         store.decide("page", 1, "session", false).unwrap();
         assert_eq!(store.take(&started.secret), Take::Unknown);
         assert!(store.seen(&started.secret).is_none());
@@ -639,8 +639,7 @@ mod tests {
         let started = store.start(asker("192.168.1.20", "a"), 0).unwrap();
         store.wait(LIFETIME - Duration::from_secs(10));
         let found = store.find(&started.code, 1).unwrap();
-        assert_eq!(found.left, TO_DECIDE, "typed at the last moment: time to decide");
-        assert!(store.show(&found.key, None, "page", 1, "s"));
+        assert_eq!(store.show(&found.key, None, "page", 1, "s"), Some(TO_DECIDE), "typed at the last moment");
         store.wait(TO_DECIDE - Duration::from_secs(1));
         store.decide("page", 1, "s", true).unwrap();
         store.wait(TO_COLLECT - Duration::from_secs(1));
@@ -651,18 +650,32 @@ mod tests {
         store.wait(LIFETIME - Duration::from_secs(1));
         assert!(matches!(store.take(&started.secret), Take::Allowed(_)), "allowed in an app");
 
-        // Typed again and again, it still ends half an hour after it was made.
+        // Looked up but shown on another page: no longer for that.
         let started = store.start(asker("192.168.1.20", "c"), 0).unwrap();
+        store.wait(LIFETIME - Duration::from_secs(10));
+        let found = store.find(&started.code, 1).unwrap();
+        store.show(&found.key, None, "first", 1, "s").unwrap();
+        store.wait(TO_DECIDE - Duration::from_secs(1));
+        assert!(store.find(&started.code, 2).unwrap().deciding.is_some());
+        store.wait(Duration::from_secs(1));
+        assert_eq!(store.find(&started.code, 2).map(|_| ()), Err(Refused::Unknown), "over");
+
+        // Shown again and again, it still ends half an hour after it was made.
+        let started = store.start(asker("192.168.1.20", "d"), 0).unwrap();
+        let key = store.find(&started.code, 1).unwrap().key;
         let step = Duration::from_secs(240);
-        for _ in 0..7 {
-            store.find(&started.code, 1).unwrap();
+        let mut seen = None;
+        for n in 0..7 {
+            let id = format!("page {n}");
+            store.show(&key, seen.as_deref(), &id, 1, "s").unwrap();
+            seen = Some(id);
             store.wait(step);
         }
         // The real clock runs on too, between making it and now.
-        let left = store.find(&started.code, 1).unwrap().left;
+        let left = store.show(&key, seen.as_deref(), "last", 1, "s").unwrap();
         assert!(left <= MAX_LIFETIME - step * 7 && left > MAX_LIFETIME - step * 7 - Duration::from_secs(1), "{left:?}");
         store.wait(MAX_LIFETIME - step * 7);
-        assert_eq!(store.find(&started.code, 1).map(|_| ()), Err(Refused::Unknown));
+        assert_eq!(store.find(&started.code, 1).map(|_| ()), Err(Refused::Unknown), "over");
         assert!(store.seen(&started.secret).is_none());
     }
 
@@ -703,7 +716,7 @@ mod tests {
         assert!(store.seen(&again.secret).is_some());
         // Someone is deciding on it: it stays.
         let found = store.find(&again.code, 1).unwrap();
-        assert!(store.show(&found.key, None, "page", 1, "s"));
+        assert!(store.show(&found.key, None, "page", 1, "s").is_some());
         store.start(asker("192.168.1.20", "tv"), 0).unwrap();
         assert!(store.seen(&again.secret).is_some());
 
