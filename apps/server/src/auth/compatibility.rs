@@ -398,7 +398,7 @@ pub async fn create(db: &Db, user_id: i64, asked: &Asked) -> Result<(String, Tok
     let Some(row) = row else {
         return Err(AppError::not_found("the app that allowed this one has signed out"));
     };
-    let dropped: Vec<i64> = sqlx::query_scalar(
+    let mut dropped: Vec<i64> = sqlx::query_scalar(
         "DELETE FROM compatibility_tokens WHERE user_id = ? AND id NOT IN
            (SELECT id FROM compatibility_tokens WHERE user_id = ?
             ORDER BY COALESCE(last_used_at, created_at) DESC, id DESC LIMIT ?)
@@ -409,6 +409,11 @@ pub async fn create(db: &Db, user_id: i64, asked: &Asked) -> Result<(String, Tok
     .bind(MAX_PER_USER)
     .fetch_all(&mut *tx)
     .await?;
+    // What they allowed ends with them: making many tokens can't push the
+    // one that allowed them out and leave them behind.
+    for id in dropped.clone() {
+        dropped.extend(allowed_by(&mut tx, user_id, id).await?);
+    }
     tx.commit().await?;
     Ok((token, row, dropped))
 }
@@ -416,7 +421,7 @@ pub async fn create(db: &Db, user_id: i64, asked: &Asked) -> Result<(String, Tok
 /// The tokens of `user_id` that still work, most recently used first.
 pub async fn list(db: &Db, user_id: i64) -> Result<Vec<TokenRow>, AppError> {
     Ok(sqlx::query_as(sqlx::AssertSqlSafe(format!(
-        "SELECT {COLUMNS} FROM compatibility_tokens WHERE user_id = ? AND expires_at > ?
+        "SELECT {COLUMNS} FROM compatibility_tokens t WHERE user_id = ? AND expires_at > ? AND {ALLOWER_WORKS}
          ORDER BY COALESCE(last_used_at, created_at) DESC, id DESC"
     )))
     .bind(user_id)
@@ -444,8 +449,8 @@ pub async fn allowing_origins(db: &Db, user_id: i64, id: i64) -> Result<Option<O
 }
 
 /// Ends token `id` of `user_id`, and the tokens of the apps it allowed
-/// ([`Made::AllowedBy`]): their ids, `id` first; none when there was no
-/// such token.
+/// ([`Made::AllowedBy`]), even when it was gone already: their ids, `id`
+/// first when it was there; none when there was nothing to end.
 pub async fn delete(db: &Db, user_id: i64, id: i64) -> Result<Vec<i64>, AppError> {
     let mut tx = db.write.begin().await?;
     let found: Option<i64> =
@@ -454,10 +459,8 @@ pub async fn delete(db: &Db, user_id: i64, id: i64) -> Result<Vec<i64>, AppError
             .bind(user_id)
             .fetch_optional(&mut *tx)
             .await?;
-    let ended = match found {
-        Some(id) => with_allowed(&mut tx, user_id, id).await?,
-        None => Vec::new(),
-    };
+    let mut ended: Vec<i64> = found.into_iter().collect();
+    ended.extend(allowed_by(&mut tx, user_id, id).await?);
     tx.commit().await?;
     Ok(ended)
 }
@@ -474,24 +477,24 @@ pub async fn delete_token(db: &Db, token: &str) -> Result<Vec<i64>, AppError> {
             .bind(hash_token(token))
             .fetch_optional(&mut *tx)
             .await?;
-    let ended = match found {
-        Some((id, user_id)) => with_allowed(&mut tx, user_id, id).await?,
-        None => Vec::new(),
-    };
+    let mut ended = Vec::new();
+    if let Some((id, user_id)) = found {
+        ended.push(id);
+        ended.extend(allowed_by(&mut tx, user_id, id).await?);
+    }
     tx.commit().await?;
     Ok(ended)
 }
 
-/// `id`, just ended, and the tokens of `user_id` it allowed, which end with
-/// it (in the same write, so none is made after the check that it works).
-async fn with_allowed(tx: &mut sqlx::SqliteConnection, user_id: i64, id: i64) -> Result<Vec<i64>, AppError> {
-    let allowed: Vec<i64> =
-        sqlx::query_scalar("DELETE FROM compatibility_tokens WHERE approved_by = ? AND user_id = ? RETURNING id")
-            .bind(id)
-            .bind(user_id)
-            .fetch_all(&mut *tx)
-            .await?;
-    Ok(std::iter::once(id).chain(allowed).collect())
+/// Ends the tokens of `user_id` that token `id`, ending, allowed: their ids.
+/// In the same write as its end, so none is made after the check that it
+/// works ([`create`]).
+async fn allowed_by(tx: &mut sqlx::SqliteConnection, user_id: i64, id: i64) -> Result<Vec<i64>, AppError> {
+    Ok(sqlx::query_scalar("DELETE FROM compatibility_tokens WHERE approved_by = ? AND user_id = ? RETURNING id")
+        .bind(id)
+        .bind(user_id)
+        .fetch_all(&mut *tx)
+        .await?)
 }
 
 /// Ends every token of `user_id`; their ids.
@@ -502,11 +505,31 @@ pub async fn delete_for(db: &Db, user_id: i64) -> Result<Vec<i64>, AppError> {
         .await?)
 }
 
-/// Forgets tokens unused for [`IDLE_SECS`].
-pub async fn purge(db: &Db) -> Result<(), AppError> {
-    sqlx::query("DELETE FROM compatibility_tokens WHERE expires_at <= ?").bind(now()).execute(&db.write).await?;
-    Ok(())
+/// Forgets tokens unused for [`IDLE_SECS`], and the tokens of the apps they
+/// allowed (which stopped working with them, [`ALLOWER_WORKS`]): the ids of
+/// those.
+pub async fn purge(db: &Db) -> Result<Vec<i64>, AppError> {
+    let mut tx = db.write.begin().await?;
+    sqlx::query("DELETE FROM compatibility_tokens WHERE expires_at <= ?").bind(now()).execute(&mut *tx).await?;
+    let allowed = sqlx::query_scalar(
+        "DELETE FROM compatibility_tokens
+         WHERE approved_by IS NOT NULL AND approved_by NOT IN (SELECT id FROM compatibility_tokens)
+         RETURNING id",
+    )
+    .fetch_all(&mut *tx)
+    .await?;
+    tx.commit().await?;
+    Ok(allowed)
 }
+
+/// Whether the token that allowed token `t` ([`Made::AllowedBy`]), if one
+/// did, still works, as an SQL expression of `t`'s row: a token allowed by
+/// another works only while that one does, whatever ended it (revoked,
+/// unused for [`IDLE_SECS`], pushed out past [`MAX_PER_USER`]).
+pub const ALLOWER_WORKS: &str = "(t.approved_by IS NULL OR EXISTS (
+    SELECT 1 FROM compatibility_tokens p
+    WHERE p.id = t.approved_by AND p.user_id = t.user_id AND p.expires_at > CAST(strftime('%s', 'now') AS INTEGER)
+))";
 
 #[cfg(test)]
 mod tests {
@@ -719,5 +742,51 @@ mod tests {
             .unwrap();
         assert!(!may(old.id).await);
         assert!(matches!(create(&db, 1, &made(Made::AllowedBy(old.id))).await, Err(AppError::NotFound(_))));
+    }
+
+    #[tokio::test]
+    async fn what_a_token_allowed_never_outlives_it() {
+        let dir = crate::testing::tempdir();
+        let db = database(dir.path()).await;
+        let ids = |rows: Vec<TokenRow>| rows.iter().map(|row| row.id).collect::<Vec<_>>();
+
+        // Pushed out past the most an account keeps, by the tokens it allowed
+        // itself: they go with it.
+        let (_, phone, _) = create(&db, 1, &made(Made::Password)).await.unwrap();
+        let mut allowed = Vec::new();
+        for _ in 1..MAX_PER_USER {
+            let (_, row, dropped) = create(&db, 1, &made(Made::AllowedBy(phone.id))).await.unwrap();
+            assert!(dropped.is_empty());
+            allowed.push(row.id);
+        }
+        let (_, last, dropped) = create(&db, 1, &made(Made::AllowedBy(phone.id))).await.unwrap();
+        allowed.push(last.id);
+        assert_eq!(dropped[0], phone.id, "the least recently used one");
+        let mut went = dropped[1..].to_vec();
+        went.sort_unstable();
+        assert_eq!(went, allowed, "and every token it allowed, the newest too");
+        assert!(list(&db, 1).await.unwrap().is_empty());
+
+        // Revoked after its row went another way: what it allowed goes too.
+        let (_, phone, _) = create(&db, 1, &made(Made::Password)).await.unwrap();
+        let (_, tv, _) = create(&db, 1, &made(Made::AllowedBy(phone.id))).await.unwrap();
+        sqlx::query("DELETE FROM compatibility_tokens WHERE id = ?").bind(phone.id).execute(&db.write).await.unwrap();
+        assert!(list(&db, 1).await.unwrap().is_empty(), "not listed: it doesn't work");
+        assert_eq!(delete(&db, 1, phone.id).await.unwrap(), [tv.id]);
+
+        // Unused for 90 days: what it allowed stops with it, and is purged.
+        let (_, phone, _) = create(&db, 1, &made(Made::Password)).await.unwrap();
+        let (_, tv, _) = create(&db, 1, &made(Made::AllowedBy(phone.id))).await.unwrap();
+        let (_, tool_row, _) = create(&db, 1, &tool("play")).await.unwrap();
+        assert_eq!(ids(list(&db, 1).await.unwrap()), [tool_row.id, tv.id, phone.id]);
+        sqlx::query("UPDATE compatibility_tokens SET expires_at = ? WHERE id = ?")
+            .bind(now() - 1)
+            .bind(phone.id)
+            .execute(&db.write)
+            .await
+            .unwrap();
+        assert_eq!(ids(list(&db, 1).await.unwrap()), [tool_row.id]);
+        assert_eq!(purge(&db).await.unwrap(), [tv.id]);
+        assert_eq!(ids(list(&db, 1).await.unwrap()), [tool_row.id]);
     }
 }

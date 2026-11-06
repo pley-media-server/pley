@@ -734,8 +734,10 @@ impl AuthService {
         if let Err(err) = grants::purge(&self.db).await {
             tracing::warn!("could not forget apps' expired tokens: {err}");
         }
-        if let Err(err) = compatibility::purge(&self.db).await {
-            tracing::warn!("could not forget expired tokens for other apps: {err}");
+        match compatibility::purge(&self.db).await {
+            Ok(allowed) if !allowed.is_empty() => self.forget_compatibility_tokens(&allowed),
+            Ok(_) => {}
+            Err(err) => tracing::warn!("could not forget expired tokens for other apps: {err}"),
         }
         let now = now();
         self.cache.retain(|_, s| s.expires_at > now && s.touched_at > 0);
@@ -931,10 +933,15 @@ impl AuthService {
     }
 
     /// The user `row` stands for and where it may be used from, unless the
-    /// token has expired, the account is disabled, or it signs in with a
-    /// password alone while the server requires two-step sign-in.
+    /// token has expired, the account is disabled, it signs in with a
+    /// password alone while the server requires two-step sign-in, or the
+    /// token that allowed it with Quick Connect no longer works.
     fn compatibility_user_of(&self, row: &CompatibilityRow) -> Option<(AuthUser, compatibility::Origins)> {
-        if row.expires_at <= now() || row.disabled || (row.without_two_step && self.two_step_required()) {
+        if row.expires_at <= now()
+            || row.disabled
+            || (row.without_two_step && self.two_step_required())
+            || !row.allower_works
+        {
             return None;
         }
         let scopes = compatibility::Scopes::from_stored(&row.scope);
@@ -1158,8 +1165,10 @@ struct AppRow {
 fn compatibility_columns() -> String {
     format!(
         "t.id, t.scope, t.allowed_from, t.expires_at, t.last_used_at, u.id AS user_id, u.username,
-         u.is_admin AS role_admin, u.all_libraries, u.max_age, u.disabled, {} AS without_two_step",
-        without_two_step("u")
+         u.is_admin AS role_admin, u.all_libraries, u.max_age, u.disabled, {} AS without_two_step,
+         {} AS allower_works",
+        without_two_step("u"),
+        compatibility::ALLOWER_WORKS
     )
 }
 
@@ -1179,6 +1188,9 @@ struct CompatibilityRow {
     disabled: bool,
     /// The account signs in with a password alone ([`without_two_step`]).
     without_two_step: bool,
+    /// The token that allowed it, if one did, still works
+    /// ([`compatibility::ALLOWER_WORKS`]).
+    allower_works: bool,
 }
 
 /// Token from `Authorization: Bearer`, `X-Pley-Token`, the session cookie, or `?token=`.
@@ -2124,6 +2136,38 @@ mod tests {
         assert!(auth.validate_compatibility(&token, None).await.is_none());
         auth.require_two_step(false);
         assert!(auth.validate_compatibility(&token, None).await.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_token_another_allowed_works_only_while_that_one_does() {
+        let dir = crate::testing::tempdir();
+        let (db, auth) = service_with_user(dir.path()).await;
+        let made = |made: compatibility::Made| compatibility::Asked {
+            made,
+            ..compatibility::asked("An app", None, &[]).unwrap()
+        };
+        let (phone, phone_row) =
+            auth.create_compatibility_token(1, &made(compatibility::Made::Password)).await.unwrap();
+        let allowed = made(compatibility::Made::AllowedBy(phone_row.id));
+        let (tv, _) = auth.create_compatibility_token(1, &allowed).await.unwrap();
+        let (tablet, _) = auth.create_compatibility_token(1, &allowed).await.unwrap();
+        assert!(auth.validate_compatibility(&phone, None).await.is_some());
+        assert!(auth.validate_compatibility(&tv, None).await.is_some());
+
+        // The phone's token unused for 90 days: the TV's and the tablet's stop
+        // working with it, and go when it does.
+        sqlx::query("UPDATE compatibility_tokens SET expires_at = ? WHERE id = ?")
+            .bind(now() - 1)
+            .bind(phone_row.id)
+            .execute(&db.write)
+            .await
+            .unwrap();
+        assert!(auth.validate_compatibility(&tablet, None).await.is_none(), "read from the database");
+        auth.purge_expired().await;
+        assert!(auth.validate_compatibility(&tv, None).await.is_none(), "forgotten from the cache");
+        let left: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM compatibility_tokens").fetch_one(&db.read).await.unwrap();
+        assert_eq!(left, 0);
     }
 
     #[tokio::test]

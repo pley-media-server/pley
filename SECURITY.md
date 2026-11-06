@@ -270,9 +270,11 @@ other apps (`pley_ct_…`), never with a session's
 - Only a Jellyfin app's own sign-in (a password, or Quick Connect allowed
   on the page) allows another app. A tool's token from the account page
   never does: such tokens sit in tools' settings and travel in addresses.
-  Neither does the token of an app another app allowed. That token ends
-  with the token that allowed it, checked in the same write that makes it,
-  so revoking one token ends everything it let in.
+  Neither does the token of an app another app allowed. That token works
+  only while the token that allowed it does, however that one ends
+  (revoked, unused, pushed out past the most an account keeps), and goes
+  with it; the allowing token is checked in the same write that makes it.
+  Revoking one token ends everything it let in.
 - They work on the compatibility APIs only, from those APIs' token headers
   or query parameters, `Authorization: Bearer`, `X-Pley-Token` or
   `?token=`, never from the cookie. Pley's own API refuses them wherever
