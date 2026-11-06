@@ -32,6 +32,7 @@ pub mod library;
 pub mod listing;
 pub mod livetv;
 pub mod logging;
+pub mod lyrics;
 pub mod markers;
 pub mod mdns;
 pub mod metadata;

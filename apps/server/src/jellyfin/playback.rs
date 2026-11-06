@@ -40,6 +40,7 @@ pub fn routes() -> Router<AppState> {
         .route("/audio/{id}/master.m3u8", get(master))
         .route("/videos/{id}/hls1/{session}/{file}", get(session_file))
         .route("/audio/{id}/hls1/{session}/{file}", get(session_file))
+        .route("/audio/{id}/lyrics", get(lyrics))
         .route("/videos/{id}/{file}", get(video_file).head(video_file))
         .route("/audio/{id}/{file}", get(audio_file).head(audio_file))
         .route("/items/{id}/download", get(download).head(download))
@@ -876,6 +877,81 @@ async fn bitrate_test(_user: JfUser, q: Q) -> Response {
         axum::body::Body::from_stream(pieces),
     )
         .into_response()
+}
+
+// ------------------------------------------------------------------ lyrics
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct LyricDto {
+    metadata: LyricMetadata,
+    lyrics: Vec<LyricLine>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct LyricMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    artist: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    album: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    title: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    author: Option<String>,
+    /// The track's length, in ticks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    length: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    by: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    creator: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    version: Option<String>,
+    is_synced: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct LyricLine {
+    text: String,
+    /// When it is sung, in ticks; left out for lyrics that aren't synced.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    start: Option<i64>,
+}
+
+/// `/Audio/{id}/Lyrics`: a track's lyrics ([`crate::lyrics`]), as Jellyfin's
+/// `LyricDto`, synced lines with their `Start`; `404` without any.
+async fn lyrics(
+    State(state): State<AppState>,
+    Extension(jellyfin): Extension<Arc<Jellyfin>>,
+    JfUser { user, .. }: JfUser,
+    Path(id): Path<String>,
+) -> JfResult<Response> {
+    let row = visible_item(&state, &jellyfin, &user, &id).await?;
+    if row.kind != "track" {
+        return Err(JfError::NotFound);
+    }
+    let file = catalog::files_for_item(&state.db, row.id).await?.into_iter().next().ok_or(JfError::NotFound)?;
+    let found = crate::lyrics::of_file(&state.db, &file).await?.ok_or(JfError::NotFound)?;
+    let tag = |name: &str| found.tags.get(name).cloned();
+    let metadata = LyricMetadata {
+        artist: tag("artist").or_else(|| row.grandparent_title.clone()),
+        album: tag("album").or_else(|| row.parent_title.clone()),
+        title: tag("title").or_else(|| Some(row.title.clone())),
+        author: tag("author"),
+        length: found.length_ms.or(file.duration_ms).or(row.duration_ms).map(|ms| ms * TICKS_PER_MS),
+        by: tag("by"),
+        creator: tag("creator"),
+        version: tag("version"),
+        is_synced: found.synced,
+    };
+    let lyrics = found
+        .lines
+        .into_iter()
+        .map(|line| LyricLine { text: line.text, start: line.start_ms.map(|ms| ms * TICKS_PER_MS) })
+        .collect();
+    Ok(Json(LyricDto { metadata, lyrics }).into_response())
 }
 
 // ------------------------------------------------------------------ media segments

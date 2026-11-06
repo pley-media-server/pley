@@ -1555,6 +1555,7 @@ user's watch state and their access are unchanged.
 | GET | `/api/items/{id}/next` | `library` | `{ item: ItemSummary \| null }`: the episode or track after this one (autoplay) |
 | GET | `/api/items/{id}/related?limit=` | `library` | `{ items: ItemSummary[] }`: "More Like This" (default 20, max 60) |
 | GET | `/api/items/{id}/images/{poster\|backdrop\|thumb}` | `library` | `image/jpeg`; query `w=<px>` (optional resize, bucketed), `v=` (cache buster, ignored) |
+| GET | `/api/items/{id}/lyrics` | `play` | a track's lyrics: `{ synced, source: "file" \| "tags", lines: { start_ms?, text }[] }`; `404` without any |
 | POST | `/api/items/{id}/prefetch` | `play` | `202` at once: read ahead what *Play* reads first |
 | POST | `/api/items/{id}/progress` | `play` | `{ position_ms, duration_ms?, state, session_id?, age_ms?, audio_index?, subtitle_index?, quality? }` → `204` |
 | POST | `/api/items/{id}/watched` | `play` | `204`; containers: every leaf |
@@ -1584,6 +1585,15 @@ user's watch state and their access are unchanged.
   seconds for files on a network share. Movies, episodes and extras; a show
   or season: its on-deck episode; other kinds: nothing. At most once every
   two minutes per file.
+- **`lyrics`**: from a file beside the track named after it (`.lrc`,
+  synced, before `.txt`), which scans read and keep
+  ([STORAGE.md](STORAGE.md#the-data-folder)); else from the track's tags as
+  its probe read them (ID3's `USLT`, FLAC's `LYRICS` and `UNSYNCEDLYRICS`,
+  MP4's `©lyr`; `source: "tags"`); else, for an MP3, from
+  its ID3 `SYLT` frame, read when asked for. Lyrics whose lines carry LRC
+  times (`[mm:ss.xx]`, several to a line, `[offset:]` applied, word times
+  left out) are `synced`: each line has its `start_ms`, in order; other
+  lyrics are their lines. At most 256 KiB, 5000 lines of 1000 characters.
 - **`on-deck`**: the episode in progress, else next up (as in
   [Continue Watching](#continue-watching)), else the first unwatched, else
   the first.

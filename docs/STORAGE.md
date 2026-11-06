@@ -35,6 +35,9 @@ are only read, never moved or changed.
   refresh that finds the same URL reuses the stored copy. Local artwork
   (`poster.jpg`, `fanart.jpg`, `cover.jpg`, …) is referenced by its path and
   always wins.
+- **Lyrics** in a file beside a track (`.lrc`, `.txt`) are kept in the
+  database, read again by a scan when the file changes; lyrics in a
+  track's tags are kept with what its probe read.
 - **Generated files** are named by the media file's fingerprint (its
   OpenSubtitles hash: size plus a checksum of its first and last 64 KiB), so
   they follow a file that is moved or renamed. A changed file gets a new one.

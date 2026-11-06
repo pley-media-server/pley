@@ -291,6 +291,9 @@ pub struct Item {
     pub height: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub has_subtitles: Option<bool>,
+    /// A track's: whether it has lyrics (`/Audio/{id}/Lyrics`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub has_lyrics: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media_sources: Option<Vec<MediaSource>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -362,6 +365,8 @@ pub struct Batch {
     people: HashMap<i64, Vec<Credit>>,
     favorites: std::collections::HashSet<i64>,
     extras_count: HashMap<i64, (i64, i64)>,
+    /// The tracks' files that have lyrics ([`crate::lyrics::files_with`]).
+    lyrics: std::collections::HashSet<i64>,
     fields: Fields,
     /// The token for other apps the list is for, which its media sources'
     /// ids stand for ([`super::ids::Ids::source`]).
@@ -383,7 +388,10 @@ impl Batch {
         let titles: Vec<i64> =
             rows.iter().filter(|r| matches!(r.kind.as_str(), "movie" | "show")).map(|r| r.id).collect();
         let extras_count = if fields.media_sources { count_extras(db, &titles).await? } else { HashMap::new() };
-        Ok(Batch { extras, files, people, favorites, extras_count, fields, token_id })
+        let tracks: Vec<&FileRow> =
+            rows.iter().filter(|r| r.kind == "track").flat_map(|r| files.get(&r.id).into_iter().flatten()).collect();
+        let lyrics = crate::lyrics::files_with(db, &tracks).await?;
+        Ok(Batch { extras, files, people, favorites, extras_count, lyrics, fields, token_id })
     }
 
     /// The first file of an item, which plays unless a client picks another.
@@ -643,6 +651,9 @@ pub fn build(jellyfin: &Jellyfin, row: &ItemRow, batch: &Batch) -> Item {
         item.height = file.height;
         let streams = file.streams();
         item.has_subtitles = Some(streams.iter().any(|s| s.kind == StreamKind::Subtitle));
+        if kind == "track" {
+            item.has_lyrics = Some(files.iter().any(|f| batch.lyrics.contains(&f.id)));
+        }
         if fields.media_sources {
             let sources: Vec<MediaSource> =
                 files.iter().map(|f| media_source(jellyfin, row, f, batch.token_id)).collect();

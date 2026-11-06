@@ -1,9 +1,10 @@
 //! Sidecar files next to videos: local artwork (`poster.jpg`,
 //! `Movie (2020)-fanart.jpg`, `season01-poster.jpg`, …), external subtitles
 //! (`Movie.srt`, `Movie.en.srt`, `Movie.eng.forced.srt`,
-//! `Movie.English.sdh.srt`, `Subs/2_English.srt`, `Subs/<video>/3_French.srt`)
-//! and NFO files (`Movie (2020).nfo`, `movie.nfo`, `tvshow.nfo`,
-//! `season.nfo`).
+//! `Movie.English.sdh.srt`, `Subs/2_English.srt`, `Subs/<video>/3_French.srt`),
+//! NFO files (`Movie (2020).nfo`, `movie.nfo`, `tvshow.nfo`,
+//! `season.nfo`), and the lyrics beside music tracks (`01 Song.lrc`,
+//! `01 Song.txt`).
 //!
 //! A scan collects the sidecar files of the whole library and indexes them
 //! once ([`Sidecars`]): finding the artwork, the subtitles or the NFO file of
@@ -15,7 +16,7 @@ use std::path::{Path, PathBuf};
 use pley_transcoder_api::{MediaStream, StreamKind, is_text_subtitle_codec};
 use serde::{Deserialize, Serialize};
 
-use super::walk::{IMAGE_EXTENSIONS, NFO_EXTENSIONS, SUBTITLE_EXTENSIONS};
+use super::walk::{IMAGE_EXTENSIONS, LYRICS_EXTENSIONS, NFO_EXTENSIONS, SUBTITLE_EXTENSIONS};
 
 /// External subtitle streams get indexes from this value up, below
 /// [`crate::subtitles::ADDED_INDEX_BASE`].
@@ -80,6 +81,10 @@ pub struct Sidecars {
     /// NFO files by folder: lowercase name without extension → file name
     /// (the first one found when names differ only by case).
     nfos: HashMap<PathBuf, HashMap<String, String>>,
+    /// Lyrics files by folder: lowercase name without extension → file
+    /// name, an LRC file before a text file of the same name. The walk lists
+    /// them in music libraries only.
+    lyrics: HashMap<PathBuf, HashMap<String, String>>,
     /// Subtitle files by folder, sorted by lowercase name without extension,
     /// so that the ones named after a video (`<stem>.srt`,
     /// `<stem>.<tags>.srt`) are next to each other.
@@ -124,6 +129,17 @@ impl Sidecars {
                 if NFO_EXTENSIONS.contains(&ext) {
                     let nfos = index.nfos.entry(dir.clone()).or_default();
                     nfos.entry(base.to_owned()).or_insert_with(|| name.clone());
+                    continue;
+                }
+                if LYRICS_EXTENSIONS.contains(&ext) {
+                    let lyrics = index.lyrics.entry(dir.clone()).or_default();
+                    let lrc = |name: &String| name.to_lowercase().ends_with(".lrc");
+                    match lyrics.get(base) {
+                        Some(kept) if lrc(kept) || !lrc(&name) => {}
+                        _ => {
+                            lyrics.insert(base.to_owned(), name.clone());
+                        }
+                    }
                     continue;
                 }
                 if !SUBTITLE_EXTENSIONS.contains(&ext) {
@@ -172,6 +188,14 @@ impl Sidecars {
     pub fn folder_nfo(&self, dir: &Path, names: &[&str]) -> Option<PathBuf> {
         let nfos = self.nfos.get(dir)?;
         names.iter().find_map(|name| nfos.get(&name.to_lowercase())).map(|file| dir.join(file))
+    }
+
+    /// The lyrics file named after `track`, next to it (`01 Song.flac` finds
+    /// `01 Song.lrc`, else `01 Song.txt`).
+    pub fn lyrics(&self, track: &Path) -> Option<PathBuf> {
+        let dir = track.parent()?;
+        let stem = track.file_stem()?.to_string_lossy().to_lowercase();
+        self.lyrics.get(dir)?.get(&stem).map(|name| dir.join(name))
     }
 
     /// Subtitle files belonging to `video`.
@@ -409,6 +433,20 @@ mod tests {
         assert_eq!(index.folder_nfo(Path::new("/m/other"), &["movie"]), None);
         assert_eq!(index.image(movie, &["movie".to_owned()]), None, "NFO files are not pictures");
         assert_eq!(index.subtitles(&movie.join("Movie (2020).mkv")).len(), 1, "nor subtitles");
+    }
+
+    #[test]
+    fn finds_lyrics_named_after_their_track() {
+        let album = Path::new("/music/Artist/Album");
+        let index = sidecars(&[(
+            album,
+            &["01 Song.TXT", "01 Song.lrc", "02 Other.txt", "03 Last.LRC", "notes.txt", "cover.jpg"],
+        )]);
+        assert_eq!(index.lyrics(&album.join("01 Song.flac")), Some(album.join("01 Song.lrc")), "LRC first");
+        assert_eq!(index.lyrics(&album.join("02 Other.mp3")), Some(album.join("02 Other.txt")));
+        assert_eq!(index.lyrics(&album.join("03 last.m4a")), Some(album.join("03 Last.LRC")), "in any case");
+        assert_eq!(index.lyrics(&album.join("04 None.flac")), None);
+        assert_eq!(index.lyrics(Path::new("/elsewhere/01 Song.flac")), None);
     }
 
     #[test]

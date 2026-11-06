@@ -470,6 +470,94 @@ async fn a_user_id_in_a_path_is_the_callers_own() {
     }
 }
 
+/// An MP3 whose ID3 tag has synced lyrics in a `SYLT` frame, times in ms.
+fn mp3_with_synced_lyrics() -> Vec<u8> {
+    let mut sylt = b"\x03eng\x02\x01\x00".to_vec();
+    for (text, ms) in [("Tagged first", 2_000u32), ("Tagged second", 4_000)] {
+        sylt.extend_from_slice(text.as_bytes());
+        sylt.push(0);
+        sylt.extend_from_slice(&ms.to_be_bytes());
+    }
+    let mut frames = b"SYLT".to_vec();
+    frames.extend_from_slice(&[0, 0, 0, sylt.len() as u8, 0, 0]);
+    frames.extend(sylt);
+    let mut file = b"ID3\x04\x00\x00\x00\x00\x00".to_vec();
+    file.push(frames.len() as u8);
+    file.extend(frames);
+    file.extend_from_slice(&[0xff, 0xfb, 0x90, 0x00]);
+    file.extend(vec![7u8; 4096]);
+    file
+}
+
+#[tokio::test]
+async fn lyrics_come_from_beside_the_track_and_from_its_tags() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let album = app.media.path().join("music/Band/Record (2001)");
+    app.media_file("music/Band/Record (2001)/01 - Opening.flac", 1024);
+    std::fs::write(album.join("01 - Opening.lrc"), "[ar:Band]\n[00:01.00]First words\n[00:03.50]Second words\n")
+        .unwrap();
+    app.media_file("music/Band/Record (2001)/02 - Middle.flac", 2048);
+    std::fs::write(album.join("02 - Middle.TXT"), "Plain words\nMore plain words\n").unwrap();
+    app.media_file("music/Band/Record (2001)/03 - Quiet.flac", 3072);
+    std::fs::write(album.join("04 - Tagged.mp3"), mp3_with_synced_lyrics()).unwrap();
+    let music = app.library(&admin, "Music", "music", "music").await;
+    let band = app.ids(music, &admin).await["Band"];
+    let record = app.children(band, &admin).await.into_values().next().unwrap();
+    let tracks = app.children(record, &admin).await;
+    let track = |name: &str| tracks.iter().find(|(t, _)| t.contains(name)).map(|(_, id)| *id).unwrap();
+    let (opening, middle, quiet, tagged) = (track("Opening"), track("Middle"), track("Quiet"), track("Tagged"));
+
+    // Pley's API: synced lines from the LRC file, plain ones from the text
+    // file, synced ones from the MP3's tag; none for a track without any.
+    let lyrics = async |id: i64| app.get(&format!("/api/items/{id}/lyrics"), &admin).await;
+    assert_eq!(
+        lyrics(opening).await.body,
+        json!({"synced": true, "source": "file", "lines": [
+            {"start_ms": 1000, "text": "First words"}, {"start_ms": 3500, "text": "Second words"}]})
+    );
+    let plain = lyrics(middle).await.body;
+    assert_eq!((&plain["synced"], &plain["lines"][1]), (&json!(false), &json!({"text": "More plain words"})));
+    let tags = lyrics(tagged).await.body;
+    assert_eq!((&tags["source"], &tags["lines"][0]["start_ms"]), (&json!("tags"), &json!(2000)));
+    assert_eq!(lyrics(quiet).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(lyrics(record).await.status, StatusCode::NOT_FOUND, "an album has none");
+
+    // Jellyfin's: a LyricDto, its times in ticks, and HasLyrics on tracks
+    // (those of a file beside them or tags; an MP3's SYLT is read when asked).
+    let dto = app.jf_json(&format!("/Audio/{}/Lyrics", app.jf_item(opening)), &admin).await;
+    assert_eq!((&dto["Metadata"]["IsSynced"], &dto["Metadata"]["Artist"]), (&json!(true), &json!("Band")));
+    assert_eq!(dto["Lyrics"][1], json!({"Text": "Second words", "Start": 35_000_000}));
+    let dto = app.jf_json(&format!("/Audio/{}/Lyrics", app.jf_item(middle)), &admin).await;
+    assert!(dto["Lyrics"][0].get("Start").is_none() && dto["Metadata"]["IsSynced"] == json!(false), "{dto}");
+    let none = app.jf(Method::GET, &format!("/Audio/{}/Lyrics", app.jf_item(quiet)), &admin, None).await;
+    assert_eq!(none.status, StatusCode::NOT_FOUND);
+    let listed = app.jf_json(&format!("/Items?ParentId={}", app.jf_item(record)), &admin).await;
+    let has: HashSet<String> = listed["Items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|i| i["HasLyrics"] == json!(true))
+        .map(|i| i["Name"].as_str().unwrap().to_owned())
+        .collect();
+    assert!(has.len() == 2 && has.iter().any(|n| n.contains("Opening")) && has.iter().any(|n| n.contains("Middle")));
+    assert!(listed["Items"].as_array().unwrap().iter().all(|i| i["HasLyrics"].is_boolean()), "{listed}");
+
+    // Someone who may not open the library: none.
+    let (bob, _) = app.user(&admin, "bob", json!({"all_libraries": false, "library_ids": []})).await;
+    assert_eq!(app.get(&format!("/api/items/{opening}/lyrics"), &bob).await.status, StatusCode::NOT_FOUND);
+    let theirs = app.jf(Method::GET, &format!("/Audio/{}/Lyrics", app.jf_item(opening)), &bob, None).await;
+    assert_eq!(theirs.status, StatusCode::NOT_FOUND);
+
+    // A scan reads a changed file again, and lets go of one that went.
+    std::fs::write(album.join("01 - Opening.lrc"), "[00:02.00]New words, longer than before\n").unwrap();
+    std::fs::remove_file(album.join("02 - Middle.TXT")).unwrap();
+    app.post(&format!("/api/libraries/{music}/scan"), &admin, json!({"force": false})).await;
+    app.wait_for_scans().await;
+    assert_eq!(lyrics(opening).await.body["lines"][0]["text"], json!("New words, longer than before"));
+    assert_eq!(lyrics(middle).await.status, StatusCode::NOT_FOUND);
+}
+
 /// Jellyfin's socket on a real port, for `token`.
 async fn socket(
     app: &TestApp,

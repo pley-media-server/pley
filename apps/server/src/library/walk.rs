@@ -32,6 +32,9 @@ pub const SUBTITLE_EXTENSIONS: &[&str] = &["srt", "ass", "ssa", "vtt", "sub", "s
 /// Metadata files that Kodi, Jellyfin, Radarr, Sonarr and others write next
 /// to a title.
 pub const NFO_EXTENSIONS: &[&str] = &["nfo"];
+/// Lyrics beside music tracks: LRC (synced) and plain text. Sidecars in
+/// music libraries only, where a `.txt` named after a track is its lyrics.
+pub const LYRICS_EXTENSIONS: &[&str] = &["lrc", "txt"];
 
 const SKIP_DIRS: &[&str] = &[
     "@eadir",
@@ -169,11 +172,14 @@ pub fn extra_of(path: &Path, root: &Path) -> Option<Extra> {
 pub struct Walked {
     /// Media files by library folder (in the order given), then by path.
     pub media: Vec<FoundFile>,
-    /// Sidecar file names (images, subtitles, NFO files) per directory, sorted.
+    /// Sidecar file names (images, subtitles, NFO files, lyrics) per
+    /// directory, sorted.
     pub sidecars: HashMap<PathBuf, Vec<String>>,
     /// The size and modification time of NFO files, by path: a scan reads
     /// one again when they change, without asking the drive once more.
     pub nfo_files: HashMap<PathBuf, (i64, i64)>,
+    /// The same of lyrics files, in music libraries.
+    pub lyrics_files: HashMap<PathBuf, (i64, i64)>,
     /// Library roots that could not be read (unmounted drive?): files below
     /// them must not be treated as deleted.
     pub offline_roots: Vec<PathBuf>,
@@ -205,16 +211,20 @@ pub fn is_media_file(path: &Path, kind: LibraryKind) -> bool {
     }
 }
 
-/// Whether a file with this extension is a sidecar file: a picture,
-/// subtitles or an NFO file, kept by name rather than as media.
-fn is_sidecar(ext: &str) -> bool {
-    IMAGE_EXTENSIONS.contains(&ext) || SUBTITLE_EXTENSIONS.contains(&ext) || NFO_EXTENSIONS.contains(&ext)
+/// Whether a file with this extension is a sidecar file of a `kind`
+/// library: a picture, subtitles, an NFO file or (in music libraries)
+/// lyrics, kept by name rather than as media.
+fn is_sidecar(ext: &str, kind: LibraryKind) -> bool {
+    IMAGE_EXTENSIONS.contains(&ext)
+        || SUBTITLE_EXTENSIONS.contains(&ext)
+        || NFO_EXTENSIONS.contains(&ext)
+        || (kind == LibraryKind::Music && LYRICS_EXTENSIONS.contains(&ext))
 }
 
-/// What kind of file an extension names: video, audio, picture, subtitles
-/// or NFO file (`None`: something else).
+/// What kind of file an extension names: video, audio, picture, subtitles,
+/// NFO file or lyrics (`None`: something else).
 fn file_kind(ext: &str) -> Option<u8> {
-    [VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS, NFO_EXTENSIONS]
+    [VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS, NFO_EXTENSIONS, LYRICS_EXTENSIONS]
         .iter()
         .position(|list| list.contains(&ext))
         .map(|kind| kind as u8)
@@ -441,6 +451,8 @@ struct Found {
     sidecars: Vec<(PathBuf, Vec<String>)>,
     /// NFO files, with their size and modification time.
     nfo_files: Vec<(PathBuf, i64, i64)>,
+    /// Lyrics files, with theirs.
+    lyrics_files: Vec<(PathBuf, i64, i64)>,
     offline: Vec<usize>,
     unreadable: Vec<PathBuf>,
     not_utf8_folders: Vec<PathBuf>,
@@ -593,7 +605,7 @@ impl<'a> Walker<'a> {
             return;
         }
         let ext = extension(&path);
-        let sidecar = is_sidecar(&ext);
+        let sidecar = is_sidecar(&ext, self.kind);
         if !sidecar && !is_media_file(&path, self.kind) {
             return;
         }
@@ -609,11 +621,13 @@ impl<'a> Walker<'a> {
             // An NFO file's size and time, which say whether it changed, come
             // with the listing on Windows; a link's are those of what it
             // leads to. Without them it is looked at again when read.
-            if NFO_EXTENSIONS.contains(&ext.as_str())
+            let lyrics = self.kind == LibraryKind::Music && LYRICS_EXTENSIONS.contains(&ext.as_str());
+            if (lyrics || NFO_EXTENSIONS.contains(&ext.as_str()))
                 && let Ok(meta) = target.map_or_else(|| entry.metadata(), Ok)
             {
                 let mtime = meta.modified().map(system_time_secs).unwrap_or(0);
-                found.nfo_files.push((path, meta.len() as i64, mtime));
+                let listed = if lyrics { &mut found.lyrics_files } else { &mut found.nfo_files };
+                listed.push((path, meta.len() as i64, mtime));
             }
             sidecars.push(name.to_owned());
             return;
@@ -650,6 +664,7 @@ impl<'a> Walker<'a> {
                 out.sidecars.entry(dir).or_default().extend(names);
             }
             out.nfo_files.extend(part.nfo_files.into_iter().map(|(path, size, mtime)| (path, (size, mtime))));
+            out.lyrics_files.extend(part.lyrics_files.into_iter().map(|(path, size, mtime)| (path, (size, mtime))));
             offline.extend(part.offline);
             out.unreadable.extend(part.unreadable);
             not_utf8_folders.extend(part.not_utf8_folders);
@@ -764,7 +779,7 @@ mod tests {
                 }
                 let path = entry.path();
                 let ext = extension(path);
-                let sidecar = is_sidecar(&ext);
+                let sidecar = is_sidecar(&ext, kind);
                 if !sidecar && !is_media_file(path, kind) {
                     continue;
                 }
@@ -931,7 +946,13 @@ mod tests {
         // none is found in a skipped folder.
         for kind in [LibraryKind::Movies, LibraryKind::Shows, LibraryKind::Music] {
             let walked = walk(&roots, kind);
-            assert_eq!(walked.sidecars[&a], ["Cover.JPG", "Loose (2004).nfo"], "{kind:?}");
+            // A text file is a sidecar of music libraries alone, where it may
+            // be a track's lyrics.
+            let mut loose = vec!["Cover.JPG", "Loose (2004).nfo"];
+            if kind == LibraryKind::Music {
+                loose.push("notes.txt");
+            }
+            assert_eq!(walked.sidecars[&a], loose, "{kind:?}");
             assert_eq!(walked.sidecars[&a.join("Film 01 (1981)")], ["movie.NFO"], "{kind:?}");
             assert!(walked.sidecars[&a.join("Film 02 (1982)")].contains(&"Film 02 (1982).nfo".to_owned()));
             assert_eq!(
@@ -1017,6 +1038,25 @@ mod tests {
             assert_eq!(walked.nfo_files.len(), 5, "{kind:?}");
             assert_eq!(walked.nfo_files[&root.join("Show (2010)/tvshow.nfo")].0, 1, "{kind:?}");
         }
+    }
+
+    #[test]
+    fn lyrics_files_are_sidecars_of_music_libraries_alone() {
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        file(root, "Band/Record (2001)/01 - Song.flac", 1);
+        file(root, "Band/Record (2001)/01 - Song.lrc", 3);
+        file(root, "Band/Record (2001)/02 - Other.txt", 2);
+        file(root, "Film (2001)/Film (2001).mkv", 1);
+        file(root, "Film (2001)/notes.txt", 1);
+        let roots = [root.to_path_buf()];
+        let music = walk(&roots, LibraryKind::Music);
+        let record = root.join("Band/Record (2001)");
+        assert_eq!(music.sidecars[&record], ["01 - Song.lrc", "02 - Other.txt"]);
+        assert_eq!(music.lyrics_files.len(), 3, "the film's folder's too, which no track is named after");
+        assert_eq!(music.lyrics_files[&record.join("01 - Song.lrc")].0, 3);
+        let movies = walk(&roots, LibraryKind::Movies);
+        assert!(movies.sidecars.is_empty() && movies.lyrics_files.is_empty(), "{:?}", movies.sidecars);
     }
 
     #[test]

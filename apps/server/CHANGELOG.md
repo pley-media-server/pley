@@ -11,6 +11,12 @@ describes how they are made.
 
 ### Added
 
+- Pley reads songs' lyrics: an `.lrc` file (synced to the music) or a
+  `.txt` file named after the track beside it, or the lyrics in the
+  track's own tags, synced ones in an MP3's too. Jellyfin apps that show
+  lyrics (Feishin, Jellyfin for Android TV, Plezy) show them, scrolling
+  with the song when they are synced, and apps can fetch them from
+  `/api/items/{id}/lyrics`.
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays

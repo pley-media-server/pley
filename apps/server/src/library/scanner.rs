@@ -480,9 +480,12 @@ impl Scanner {
                 artwork.len()
             );
         }
-        // NFO files too, before what they set is applied below.
+        // NFO files too, before what they set is applied below; the lyrics
+        // beside music tracks.
         if kind != LibraryKind::Music {
             self.read_nfos(&lib, &sidecars, &mut walked).await?;
+        } else {
+            self.read_lyrics(&lib, &sidecars, &mut walked).await?;
         }
         phases.sidecars = phase.elapsed();
 
@@ -569,6 +572,31 @@ impl Scanner {
         let read = changes.iter().filter(|c| c.after.is_some()).count();
         if !changes.is_empty() {
             tracing::info!("library {}: {read} NFO files read, {} gone", lib.id, changes.len() - read);
+        }
+        Ok(())
+    }
+
+    /// Reads the lyrics files beside the library's tracks that appeared or
+    /// changed, and lets go of those that went, as NFO files are read.
+    async fn read_lyrics(&self, lib: &LibraryRow, sidecars: &Arc<Sidecars>, walked: &mut Walked) -> anyhow::Result<()> {
+        let rows: Vec<crate::lyrics::Row> =
+            sqlx::query_as(crate::lyrics::ROWS).bind(lib.id).fetch_all(&self.db.read).await?;
+        let listed = std::mem::take(&mut walked.lyrics_files);
+        let unavailable: Vec<PathBuf> = walked.offline_roots.iter().chain(&walked.unreadable).cloned().collect();
+        let changes = {
+            let sidecars = sidecars.clone();
+            crate::util::blocking(move || Ok(crate::lyrics::changes(rows, &sidecars, &listed, &unavailable))).await?
+        };
+        for chunk in changes.chunks(CHANGE_BATCH) {
+            let mut tx = self.db.write.begin().await?;
+            for change in chunk {
+                change.save(&mut tx).await?;
+            }
+            tx.commit().await?;
+        }
+        if !changes.is_empty() {
+            let read = changes.iter().filter(|c| c.after.is_some()).count();
+            tracing::info!("library {}: {read} lyrics files read, {} gone", lib.id, changes.len() - read);
         }
         Ok(())
     }

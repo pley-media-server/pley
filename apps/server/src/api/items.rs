@@ -186,6 +186,23 @@ pub async fn related(
     Ok(Json(ItemList { items: rows.iter().map(ItemRow::to_summary).collect() }))
 }
 
+/// A track's lyrics, from the file beside it or its tags
+/// ([`crate::lyrics`]); `404` for a track without any, or another item.
+pub async fn lyrics(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<i64>,
+) -> ApiResult<Json<crate::lyrics::Lyrics>> {
+    let row = item_or_404(&state, user.id, id).await?;
+    let file = match row.kind.as_str() {
+        "track" => catalog::files_for_item(&state.db, row.id).await?.into_iter().next(),
+        _ => None,
+    };
+    let Some(file) = file else { return Err(AppError::not_found("this item has no lyrics")) };
+    let lyrics = crate::lyrics::of_file(&state.db, &file).await.map_err(AppError::Internal)?;
+    lyrics.map(Json).ok_or_else(|| AppError::not_found("this track has no lyrics"))
+}
+
 #[derive(Serialize)]
 pub struct MaybeItem {
     item: Option<ItemSummary>,

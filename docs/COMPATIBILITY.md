@@ -674,6 +674,13 @@ tells the device's socket (`Playstate` `Stop`), and its reports don't start
 it again until it stops. `/MediaSegments/{id}` gives the intro and credits
 Pley found as `Intro` and `Outro`, for Skip buttons.
 
+A track's lyrics are Pley's ([API.md](API.md#items)): `/Audio/{id}/Lyrics`
+gives them as a `LyricDto`, synced lines with their `Start` (in ticks) and
+`Metadata.IsSynced`, the artist, album, title and length the LRC file or
+the track says; `404` for a track without any. Tracks say `HasLyrics`, for
+lyrics beside them or in their tags: an MP3's `SYLT` frame is read when
+the lyrics are asked for, so it doesn't make `HasLyrics` true.
+
 The user's Pley apps list a Jellyfin app's playback among their sessions,
 and control it as their own ([API.md](API.md#remote-control)) once the device
 has said it takes media control (`SupportsMediaControl` in the query of
@@ -722,7 +729,7 @@ closes once it ends.
 | Browsing | `GET /UserViews`, `/Items` (by `ParentId`, `Ids`, `SearchTerm`, `PersonIds`, `ArtistIds`; `IncludeItemTypes`, `Recursive`, `Filters`, `Genres`, `Years`, `OfficialRatings`, `Tags`, `Studios`, `NameStartsWith`, `SortBy`, `SortOrder`, `StartIndex`, `Limit`), `/Items/{id}`, `/Items/Latest`, `/Items/Suggestions`, `/UserItems/Resume`, `/Shows/NextUp`, `/Shows/Upcoming` (none), `/Shows/{id}/Seasons`, `/Shows/{id}/Episodes`, `/Items/{id}/Similar`, `/LocalTrailers`, `/SpecialFeatures`, `/Ancestors`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/MusicGenres`, `/Artists`, `/Artists/AlbumArtists`, `/Studios`, `/Years`, `/Tags` (none), `/Persons?SearchTerm=`, `/Search/Hints`, `/Playlists/{id}/Items`, and the `/Users/{id}/…` forms of these |
 | Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
 | Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
-| Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
+| Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Audio/{id}/Lyrics`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
 | Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping`; `GET /Sessions` (none listed) |
 | Socket | `GET /socket` |
 
@@ -747,7 +754,9 @@ Run against Pley with the API on Pley's port and on a port of its own:
   none), and finding the server on the network (UDP 7359): apps are given
   its address.
 - Making or changing playlists and collections, and editing metadata.
-- Lyrics, seek previews (trickplay), instant mixes, theme songs and
-  videos, and intros before a title.
+- Seek previews (trickplay), instant mixes, theme songs and videos, and
+  intros before a title.
+- Lyrics from online providers, and uploading or deleting them
+  (`/Audio/{id}/RemoteSearch/Lyrics`, `POST|DELETE /Audio/{id}/Lyrics`).
 - Downloads converted for a device: `/Items/{id}/Download` hands over the
   file as it is.
