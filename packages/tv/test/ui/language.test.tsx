@@ -166,7 +166,7 @@ describe("the language the app is in", () => {
   });
 
   it("is the profile's choice at once, and the TV's again without one", async () => {
-    const { app, asked } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ version: "1.0.0", language: null })), signedIn: true, account: null });
+    const { app, asked } = setup({ device: ["en-US"], server: () => Promise.resolve(answer({ version: "1.0.0", language: "en" })), signedIn: true, account: null });
     await app.loadAccount();
     await app.setAccountLanguage("fr");
     expect(asked).toContain("PUT language fr");
@@ -183,7 +183,7 @@ describe("the language the app is in", () => {
   });
 
   it("signed in, is the account's own before the one picked on the TV", async () => {
-    const { app } = setup({ device: ["en-US"], choice: "es", server: () => Promise.resolve(answer({ version: "1.0.0", language: null })), signedIn: true, account: "fr" });
+    const { app } = setup({ device: ["en-US"], choice: "es", server: () => Promise.resolve(answer({ version: "1.0.0", language: "en" })), signedIn: true, account: "fr" });
     await app.loadAccount();
     await settle();
     expect(currentLanguage()).toBe("fr");
@@ -291,8 +291,11 @@ describe("Settings' Language row", () => {
     root = null;
   });
 
-  /** Settings on its Profile; `serverLanguage` left out is a Pley from before languages, which names none, and its accounts have none. */
-  async function show(serverLanguage: string | null | undefined, account: string | null | undefined, device = ["en-US"], choice?: Language, languageRoute?: boolean) {
+  /**
+   * Settings on its Profile. A current server names a language (`serverLanguage`); left out, it is a Pley from
+   * before languages, which names none, and its accounts have none.
+   */
+  async function show(serverLanguage: string | undefined, account: string | null | undefined, device = ["en-US"], choice?: Language, languageRoute?: boolean) {
     const said = serverLanguage === undefined ? { version: "0.1.0" } : { version: "1.0.0", language: serverLanguage };
     const { app, asked } = setup({ device, choice, server: () => Promise.resolve(answer(said)), signedIn: true, account, languageRoute });
     await app.loadAccount();
@@ -414,7 +417,7 @@ describe("Settings' Language row", () => {
   });
 
   it("draws the rest of Settings again in the new language", async () => {
-    await show(null, null);
+    await show("en", null);
     const categories = () => Array.from(root!.querySelectorAll(".settings-categories .row-label")).map((el) => el.textContent);
     const audio = () => root!.querySelector('[data-fid="row-audio"]')!;
     expect(categories()).toEqual(["Profile", "Playback", "Audio", "Subtitles and display", "Server", "Diagnostics", "About", "Sign out"]);
