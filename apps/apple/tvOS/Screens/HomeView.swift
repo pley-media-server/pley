@@ -29,14 +29,18 @@ struct HomeView: View {
             StateView(kind: .failed(title: HomeModel.failedTitle, why: why) { Task { await model.reload() } })
         case .noLibraries:
             StateView(kind: .empty(symbol: "square.stack",
-                                   text: "\(HomeModel.noLibrariesTitle). Add a library on the server, "
-                                       + "or ask its owner for one.",
+                                   text: localized("""
+                                       \(HomeModel.noLibrariesTitle). Add a library on the server, \
+                                       or ask its owner for one.
+                                       """),
                                    action: nil))
         case .empty(let scanning):
             StateView(kind: .empty(symbol: scanning ? "arrow.triangle.2.circlepath" : "film.stack",
                                    text: scanning ? HomeModel.scanningTitle
-                                       : "\(HomeModel.emptyTitle). Titles show here once your libraries have some.",
-                                   action: ("Reload", { Task { await model.reload() } })))
+                                       : localized("""
+                                           \(HomeModel.emptyTitle). Titles show here once your libraries have some.
+                                           """),
+                                   action: (localized("Reload"), { Task { await model.reload() } })))
         case .loaded(let rows):
             VStack(alignment: .leading, spacing: 0) {
                 InfoBlock(info: model.info)

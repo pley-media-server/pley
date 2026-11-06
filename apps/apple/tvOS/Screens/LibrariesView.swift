@@ -30,8 +30,10 @@ struct LibrariesView: View {
             StateView(kind: .failed(title: LibrariesModel.failedTitle, why: why) { Task { await model.reload() } })
         case .loaded where model.entries.isEmpty:
             StateView(kind: .empty(symbol: "square.stack",
-                                   text: "\(LibrariesModel.emptyTitle). Add a library on the server, "
-                                       + "or ask its owner for one.",
+                                   text: localized("""
+                                       \(LibrariesModel.emptyTitle). Add a library on the server, \
+                                       or ask its owner for one.
+                                       """),
                                    action: nil))
         case .loaded:
             ScrollView {
@@ -63,7 +65,7 @@ struct LibrariesView: View {
                     .frame(width: 60)
                 VStack(alignment: .leading, spacing: 4) {
                     Text(entry.name).font(.headline)
-                    Text(isMoving ? "Move up or down, then press Select" : entry.count)
+                    Text(isMoving ? localized("Move up or down, then press Select") : entry.count)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 }

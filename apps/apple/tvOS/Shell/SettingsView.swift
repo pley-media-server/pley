@@ -67,7 +67,7 @@ struct SettingsView: View {
             await me.load()
             await settings.load()
         }
-        .alert("Sign out of \(app.server?.name ?? "this server")?", isPresented: $confirmSignOut) {
+        .alert("Sign out of \(app.server?.name ?? localized("this server"))?", isPresented: $confirmSignOut) {
             Button("Sign out", role: .destructive) { Task { await me.signOut() } }
             Button("Cancel", role: .cancel) {}
         }
@@ -108,19 +108,20 @@ struct SettingsView: View {
     }
 
     private var trackDefaults: some View {
-        SettingsGroup(title: "Audio and subtitles",
+        SettingsGroup(title: localized("Audio and subtitles"),
                       note: me.editable ? MeModel.modeHint(me.trackDefaults.subtitleMode) : MeModel.readOnlyNote) {
-            SettingRow(title: "Audio language", value: me.audioLabel, id: "me.audioLanguage",
-                       choices: [SettingChoice<String?>(nil, "The file's default")]
+            SettingRow(title: localized("Audio language"), value: me.audioLabel, id: "me.audioLanguage",
+                       choices: [SettingChoice<String?>(nil, localized("The file's default"))]
                            + MeModel.languages.map { SettingChoice<String?>($0.code, $0.name) },
                        selected: me.trackDefaults.audioLanguage) { code in Task { await me.setAudioLanguage(code) } }
-            SettingRow(title: "Subtitles", value: MeModel.modeLabel(me.trackDefaults.subtitleMode),
+            SettingRow(title: localized("Subtitles"), value: MeModel.modeLabel(me.trackDefaults.subtitleMode),
                        id: "me.subtitleMode",
                        choices: MeModel.modes.map { SettingChoice($0, MeModel.modeLabel($0)) },
                        selected: me.trackDefaults.subtitleMode) { mode in Task { await me.setSubtitleMode(mode) } }
             if me.showsSubtitleLanguage {
-                SettingRow(title: "Subtitle language", value: me.subtitleLanguageLabel, id: "me.subtitleLanguage",
-                           choices: [SettingChoice<String?>(nil, "Same as the audio language")]
+                SettingRow(title: localized("Subtitle language"), value: me.subtitleLanguageLabel,
+                           id: "me.subtitleLanguage",
+                           choices: [SettingChoice<String?>(nil, localized("Same as the audio language"))]
                                + MeModel.languages.map { SettingChoice<String?>($0.code, $0.name) },
                            selected: me.trackDefaults.subtitleLanguage) { code in
                     Task { await me.setSubtitleLanguage(code) }
@@ -131,43 +132,47 @@ struct SettingsView: View {
     }
 
     private var playback: some View {
-        SettingsGroup(title: "Playback", note: nil) {
-            SettingRow(title: "Quality", value: SettingsModel.qualityLabel(settings.qualityOther),
+        SettingsGroup(title: localized("Playback"), note: nil) {
+            SettingRow(title: localized("Quality"), value: SettingsModel.qualityLabel(settings.qualityOther),
                        id: "settings.quality", choices: SettingsModel.qualities, selected: settings.qualityOther) {
                 settings.setQuality($0, cellular: false)
             }
-            SettingRow(title: "Play the next episode automatically", value: settings.autoplayNext ? "On" : "Off",
+            SettingRow(title: localized("Play the next episode automatically"),
+                       value: settings.autoplayNext ? localized("On") : localized("Off"),
                        id: "settings.autoplay",
-                       choices: [SettingChoice(true, "On"), SettingChoice(false, "Off")],
+                       choices: [SettingChoice(true, localized("On")), SettingChoice(false, localized("Off"))],
                        selected: settings.autoplayNext) { settings.setAutoplayNext($0) }
         }
     }
 
     private var subtitles: some View {
-        SettingsGroup(title: "Subtitles", note: "System uses your caption style from the Apple TV's Settings → "
-                      + "Accessibility → Subtitles and Captioning. Position moves text subtitles only.") {
-            SettingRow(title: "Size", value: settings.subtitles.size.label, id: "settings.subtitleSize",
+        SettingsGroup(title: localized("Subtitles"), note: localized("""
+                          System uses your caption style from the Apple TV's Settings → \
+                          Accessibility → Subtitles and Captioning. Position moves text subtitles only.
+                          """)) {
+            SettingRow(title: localized("Size"), value: settings.subtitles.size.label, id: "settings.subtitleSize",
                        choices: SettingsModel.sizes, selected: settings.subtitles.size) { settings.setSubtitleSize($0) }
-            SettingRow(title: "Background", value: settings.subtitles.background.label,
+            SettingRow(title: localized("Background"), value: settings.subtitles.background.label,
                        id: "settings.subtitleBackground", choices: SettingsModel.backgrounds,
                        selected: settings.subtitles.background) { settings.setSubtitleBackground($0) }
-            SettingRow(title: "Font", value: settings.subtitles.font.label, id: "settings.subtitleFont",
+            SettingRow(title: localized("Font"), value: settings.subtitles.font.label, id: "settings.subtitleFont",
                        choices: SettingsModel.fonts, selected: settings.subtitles.font) { settings.setSubtitleFont($0) }
-            SettingRow(title: "Position", value: settings.subtitles.raise.label, id: "settings.subtitlePosition",
-                       choices: SettingsModel.raises, selected: settings.subtitles.raise) {
+            SettingRow(title: localized("Position"), value: settings.subtitles.raise.label,
+                       id: "settings.subtitlePosition", choices: SettingsModel.raises,
+                       selected: settings.subtitles.raise) {
                 settings.setSubtitleRaise($0)
             }
         }
     }
 
     private var browsing: some View {
-        SettingsGroup(title: "Browsing", note: nil) {
-            SettingRow(title: "Grid size", value: settings.gridDensity.label, id: "settings.gridSize",
+        SettingsGroup(title: localized("Browsing"), note: nil) {
+            SettingRow(title: localized("Grid size"), value: settings.gridDensity.label, id: "settings.gridSize",
                        choices: SettingsModel.densities, selected: settings.gridDensity) { settings.setGridDensity($0) }
             Button("Use the server's library order") { Task { await settings.useServerOrder() } }
                 .accessibilityIdentifier("settings.serverOrder")
             if settings.offersStartAs {
-                SettingRow(title: "Always start as", value: settings.startAsLabel, id: "settings.startAs",
+                SettingRow(title: localized("Always start as"), value: settings.startAsLabel, id: "settings.startAs",
                            choices: settings.startChoices, selected: settings.alwaysStartAs) {
                     settings.setAlwaysStartAs($0)
                 }
@@ -186,7 +191,8 @@ struct SettingsView: View {
     }
 }
 
-/// A group of rows under its heading, with a note under it.
+/// A group of rows under its heading, with a note under it: words in the
+/// language shown (`localized`).
 private struct SettingsGroup<Content: View>: View {
     let title: String
     let note: String?

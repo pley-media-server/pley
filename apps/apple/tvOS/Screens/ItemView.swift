@@ -54,7 +54,9 @@ struct ItemView: View {
         case .notFound:
             StateView(kind: .empty(symbol: "questionmark.square.dashed", text: ItemModel.notFoundTitle, action: nil))
         case .failed(let why):
-            StateView(kind: .failed(title: "Couldn't load this title", why: why) { Task { await model.load() } })
+            StateView(kind: .failed(title: localized("Couldn't load this title"), why: why) {
+                Task { await model.load() }
+            })
         case .loaded:
             if let page = model.page {
                 loaded(page)
@@ -143,7 +145,7 @@ struct ItemView: View {
         if !page.meta.isEmpty {
             HStack(spacing: 16) {
                 ForEach(Array(page.meta.enumerated()), id: \.offset) { index, part in
-                    if index > 0 { Text("·") }
+                    if index > 0 { Text(verbatim: "·") }
                     switch part {
                     case .text(let text):
                         Text(text)
@@ -250,9 +252,10 @@ struct ItemView: View {
 
     /// The profile's rating, picked from a list of half stars.
     private func rating(_ rating: Int?) -> some View {
-        ChoiceButton(title: "Your rating", value: rating.map(StarWords.stars) ?? "Not rated",
-                     symbol: rating == nil ? "star" : "star.fill", text: rating.map(StarWords.stars) ?? "Rate",
-                     choices: [Choice(label: "Not rated", tag: nil)]
+        ChoiceButton(title: localized("Your rating"), value: rating.map(StarWords.stars) ?? localized("Not rated"),
+                     symbol: rating == nil ? "star" : "star.fill",
+                     text: rating.map(StarWords.stars) ?? localized("Rate"),
+                     choices: [Choice(label: localized("Not rated"), tag: nil)]
                          + (1...10).reversed().map { Choice(label: StarWords.stars($0), tag: $0) },
                      selected: rating) { value in Task { await model.rate(value) } }
             .accessibilityIdentifier("item.rating")
@@ -260,13 +263,13 @@ struct ItemView: View {
 
     @ViewBuilder private func pickers(_ tracks: PleyScreens.TrackChoices) -> some View {
         if tracks.versions.count > 1 {
-            ChoiceButton(title: "Version", value: tracks.versionLabel ?? "", symbol: "square.stack",
+            ChoiceButton(title: localized("Version"), value: tracks.versionLabel ?? "", symbol: "square.stack",
                          text: tracks.versionLabel, choices: tracks.versions.map { Choice(label: $0.label, tag: $0.id) },
                          selected: tracks.versionId) { id in if let id { model.chooseVersion(id) } }
                 .accessibilityIdentifier("item.version")
         }
         if !tracks.audio.isEmpty {
-            ChoiceButton(title: "Audio", value: tracks.audioLabel ?? "", symbol: "speaker.wave.2",
+            ChoiceButton(title: localized("Audio"), value: tracks.audioLabel ?? "", symbol: "speaker.wave.2",
                          choices: [Choice(label: tracks.automaticLabel, tag: nil)]
                              + tracks.audio.map { Choice(label: $0.label, tag: $0.id) },
                          selected: tracks.automaticAudio ? nil : tracks.audioIndex) { index in
@@ -275,8 +278,11 @@ struct ItemView: View {
             .accessibilityIdentifier("item.audio")
         }
         if !tracks.subtitles.isEmpty {
-            ChoiceButton(title: "Subtitles", value: tracks.subtitleLabel, symbol: "captions.bubble",
-                         choices: [Choice(label: "Off", tag: nil)]
+            ChoiceButton(title: localized("Subtitles"), value: tracks.subtitleLabel, symbol: "captions.bubble",
+                         // Plural in French and Spanish (the subtitles), unlike a setting's Off.
+                         choices: [Choice(label: localized(keyed: LocalizedStringResource("subtitles.off",
+                                                                                         defaultValue: "Off")),
+                                          tag: nil)]
                              + tracks.subtitles.map { Choice(label: $0.label, tag: $0.id) },
                          selected: tracks.subtitleIndex) { index in Task { await model.chooseSubtitle(index) } }
                 .accessibilityIdentifier("item.subtitles")
@@ -313,7 +319,7 @@ struct ItemView: View {
                 seasonsSection(seasons, onShow: page.kind == .show)
             }
             if !page.extras.isEmpty {
-                TileRow(app: app, key: "extras", title: "Extras", shape: .landscape,
+                TileRow(app: app, key: "extras", title: localized("Extras"), shape: .landscape,
                         tiles: page.extras.map { Tile($0, shape: .landscape, line: Words.extraSubtitle($0)) },
                         prefix: "item.row") { tile in play(model.request(for: tile.item)) }
             }
@@ -321,7 +327,7 @@ struct ItemView: View {
                 cast(page)
             }
             if !page.related.isEmpty {
-                TileRow(app: app, key: "related", title: "More Like This", shape: .poster,
+                TileRow(app: app, key: "related", title: localized("More Like This"), shape: .poster,
                         tiles: page.related.map { Tile($0, shape: .poster) }, prefix: "item.row") { tile in
                     app.shell.open(Screen.page(of: tile.item))
                 }
@@ -361,7 +367,7 @@ struct ItemView: View {
                 .scrollClipDisabled()
                 .focusSection()
             } else {
-                Text(section.selectedTab?.title ?? "Episodes")
+                Text(section.selectedTab?.title ?? localized("Episodes"))
                     .font(.headline)
                     .accessibilityAddTraits(.isHeader)
                     .padding(.horizontal, Metrics.gutter)
@@ -509,7 +515,7 @@ struct Choice: Hashable {
 
 /// A button of the row that offers a list to choose from (audio,
 /// subtitles, a version, a rating), the current one ticked, in the
-/// system's full-screen list.
+/// system's full-screen list. Its words come in the language shown.
 struct ChoiceButton: View {
     let title: String
     /// The current choice, as VoiceOver reads it.
@@ -544,11 +550,12 @@ struct ChoiceButton: View {
 
 /// A rating in words.
 enum StarWords {
-    /// "3.5 stars", from 1 to 10.
+    /// "3.5 stars", from 1 to 10, in the language shown: a whole number
+    /// counts its stars, a half is written in the shown locale ("3,5 étoiles").
     static func stars(_ rating: Int) -> String {
-        let stars = Double(rating) / 2
-        let number = stars == stars.rounded() ? String(Int(stars)) : String(stars)
-        return "\(number) \(stars == 1 ? "star" : "stars")"
+        if rating % 2 == 0 { return localized("\(rating / 2) stars") }
+        let number = (Double(rating) / 2).formatted(.number.locale(ShownLanguage.locale))
+        return localized("\(number) stars")
     }
 }
 
@@ -642,7 +649,7 @@ private struct CastCard: View {
             }
             .buttonStyle(.borderless)
             .clipShape(Circle())
-            .accessibilityLabel([person.name, person.character.map { "as \($0)" }].compactMap { $0 }
+            .accessibilityLabel([person.name, person.character.map { localized("as \($0)") }].compactMap { $0 }
                 .joined(separator: ", "))
             .accessibilityHint("Opens their page")
             .accessibilityIdentifier("item.cast.\(person.id)")

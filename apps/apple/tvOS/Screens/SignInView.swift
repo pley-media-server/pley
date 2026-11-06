@@ -92,8 +92,10 @@ struct SignInView: View {
             Text(code.userCode)
                 .font(.system(size: 88, weight: .bold, design: .monospaced))
                 .accessibilityIdentifier("signIn.userCode")
-            Text("Go to \(code.verificationURL.absoluteString) on your phone or computer and type this code, "
-                + "or scan the QR code.")
+            Text("""
+                Go to \(code.verificationURL.absoluteString) on your phone or computer and type this code, \
+                or scan the QR code.
+                """)
             HStack(spacing: 16) {
                 ProgressView()
                 Text("Waiting for you to allow it…")

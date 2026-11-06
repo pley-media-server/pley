@@ -67,7 +67,7 @@ struct SearchView: View {
             }
         case .failed(_, let why):
             VStack(spacing: 24) {
-                message("Search failed. \(asSentence(why))")
+                message(localized("Search failed. \(asSentence(why))"))
                 Button("Try again") { model.retry() }
                     .accessibilityIdentifier("state.retry")
             }
@@ -79,7 +79,7 @@ struct SearchView: View {
     /// The recent searches, newest first, then Clear.
     @ViewBuilder private var recent: some View {
         if model.recent.isEmpty {
-            message("Search for movies, shows, people and music.")
+            message(localized("Search for movies, shows, people and music."))
         } else {
             VStack(alignment: .leading, spacing: 20) {
                 Text("Recent searches")
@@ -109,6 +109,7 @@ struct SearchView: View {
         }
     }
 
+    /// `text`, in the language shown.
     private func message(_ text: String) -> some View {
         Text(text)
             .font(.title3)
@@ -121,7 +122,7 @@ struct SearchView: View {
     /// People found: round photos (or initials) with their names.
     private func peopleRow(_ group: SearchModel.Group) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("\(group.kind.title) (\(group.count))")
+            Text(verbatim: "\(group.kind.title) (\(group.count))")
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
                 .padding(.horizontal, Metrics.gutter)
@@ -234,7 +235,7 @@ private struct TVSearchChannels: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
-            Text("\(group.kind.title) (\(group.count))")
+            Text(verbatim: "\(group.kind.title) (\(group.count))")
                 .font(.title3.bold())
                 .accessibilityAddTraits(.isHeader)
                 .padding(.horizontal, Metrics.gutter)

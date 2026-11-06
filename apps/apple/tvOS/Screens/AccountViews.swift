@@ -142,7 +142,7 @@ struct AboutView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 32) {
-            Text("Pley").font(.title.bold())
+            Text(verbatim: "Pley").font(.title.bold())
             Text(model.title)
                 .foregroundStyle(.secondary)
                 .accessibilityIdentifier("about.version")

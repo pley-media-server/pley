@@ -133,7 +133,7 @@ private struct ShelfLinksForTests: View {
                 }?.absoluteString ?? ""
             }
             VStack(alignment: .trailing) {
-                Text("\(shelf.shown?.entries.count ?? 0)").accessibilityIdentifier("test.shelf.count")
+                Text(verbatim: "\(shelf.shown?.entries.count ?? 0)").accessibilityIdentifier("test.shelf.count")
                 Text(link(.open)).accessibilityIdentifier("test.shelf.open")
                 Text(link(.play)).accessibilityIdentifier("test.shelf.play")
             }
