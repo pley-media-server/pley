@@ -22,7 +22,17 @@ const kid: User = {
 };
 const ann: User = { ...testUser, id: 3, username: "ann", name: "Ann", is_admin: false, two_step: true };
 /** An account without a password: it can't sign in until it gets one. */
-const lee: User = { ...testUser, id: 4, username: "lee", name: "Lee", is_admin: false, has_password: false };
+const lee: User = {
+  ...testUser,
+  id: 4,
+  username: "lee",
+  name: "Lee",
+  is_admin: false,
+  has_password: false,
+  // Without an age limit, labels always shown don't count.
+  show_labels: ["Kids OK"],
+  hide_labels: ["Scary", "Loud"],
+};
 const libraries: Library[] = [
   { id: 1, name: "Movies", kind: "movies", paths: [], item_count: 0, created_at: 0, scanned_at: null, scanning: false },
   { id: 2, name: "Cartoons", kind: "shows", paths: [], item_count: 0, created_at: 0, scanned_at: null, scanning: false },
@@ -100,6 +110,12 @@ function renderUsers() {
   const requests = serve();
   renderWithProviders(<UsersSettings />, { user: admin });
   return requests;
+}
+
+/** Opens the dialog's tab `name`. */
+async function openTab(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement, name: string) {
+  // A tab that needs a look says so in its name too.
+  await user.click(within(dialog).getByRole("tab", { name: new RegExp(`^${name}`) }));
 }
 
 async function openAddDialog() {
@@ -225,6 +241,7 @@ describe("UsersSettings", () => {
     expect(within(dialog).queryByLabelText("Password")).not.toBeInTheDocument();
     expect(within(dialog).getByRole("switch", { name: "Administrator" })).toBeDisabled();
     await user.type(within(dialog).getByLabelText("Username"), "little");
+    await openTab(user, dialog, "Access");
     await user.click(within(dialog).getByRole("button", { name: "Only some" }));
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
     expect(within(dialog).getByText("Pick at least one library, or allow all of them.")).toBeInTheDocument();
@@ -247,6 +264,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
     const limit = within(dialog).getByLabelText("Age limit");
     // By rating, in the region's ratings, with the limit as its rating.
     await waitFor(() => expect(limit).toHaveValue("rating"));
@@ -268,6 +286,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
     await waitFor(() => expect(within(dialog).getByLabelText("Age limit")).toHaveValue("rating"));
     await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By birthday");
     expect(within(dialog).queryByLabelText("Rating")).not.toBeInTheDocument();
@@ -288,7 +307,9 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Devices");
     expect(await within(dialog).findByText("Safari on iPhone")).toBeInTheDocument();
+    await openTab(user, dialog, "Profile");
 
     const name = within(dialog).getByLabelText("Display name");
     await user.clear(name);
@@ -305,11 +326,20 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    // Folded away while there are none.
+    expect(within(dialog).getByText("None")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Never show")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Add" }));
 
     await user.type(within(dialog).getByLabelText("Always show"), "Override: Kids{Enter}");
     await user.type(within(dialog).getByLabelText("Never show"), "Scary{Enter}");
     await user.type(within(dialog).getByLabelText("Always show"), " scary {Enter}");
     expect(within(dialog).getByText("A label can't be both always and never shown: scary.")).toBeInTheDocument();
+    // The Access tab says so from the others too.
+    await openTab(user, dialog, "Profile");
+    expect(within(dialog).getByLabelText("Something here needs a look")).toBeInTheDocument();
+    await openTab(user, dialog, "Access");
     await user.click(within(dialog).getByRole("button", { name: "Remove scary" }));
     expect(within(dialog).queryByText(/both always and never/)).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -321,9 +351,23 @@ describe("UsersSettings", () => {
 
   it("offers Always show only with an age limit, and Never show always", async () => {
     renderUsers();
-    const { dialog } = await openAddDialog();
+    const { user, dialog } = await openAddDialog();
+    expect(within(dialog).queryByRole("tab", { name: "Devices" })).not.toBeInTheDocument();
+    await openTab(user, dialog, "Access");
+    await user.click(within(dialog).getByRole("button", { name: "Add" }));
     expect(within(dialog).queryByLabelText("Always show")).not.toBeInTheDocument();
     expect(within(dialog).getByLabelText("Never show")).toBeInTheDocument();
+  });
+
+  it("sums up a profile's exceptions until they're opened", async () => {
+    const user = userEvent.setup();
+    renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Lee/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Lee" });
+    await openTab(user, dialog, "Access");
+    expect(within(dialog).getByText("Never show 2 labels")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Change" }));
+    expect(within(dialog).getByRole("button", { name: "Remove Loud" })).toBeInTheDocument();
   });
 
   it("closes without a request when nothing changed", async () => {
@@ -369,6 +413,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Devices");
 
     const app = (await within(dialog).findByText("Pley for Android")).closest("li");
     if (!app) throw new Error("no row for the app");
@@ -388,6 +433,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    await openTab(user, dialog, "Devices");
     await within(dialog).findByText("Pley for Android");
     expect(within(dialog).getByText("No signed-in devices.")).toBeInTheDocument();
 
@@ -403,6 +449,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Devices");
     await within(dialog).findByText("Pley for Android");
 
     await user.click(within(dialog).getByRole("button", { name: "Sign out everywhere" }));
@@ -445,6 +492,7 @@ describe("UsersSettings: requests", () => {
     const requests = serveRequests();
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    await openTab(user, dialog, "Access");
     expect(within(dialog).getByLabelText("Requests")).toHaveValue("ask");
     await user.selectOptions(within(dialog).getByLabelText("Requests"), "auto");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -457,6 +505,7 @@ describe("UsersSettings: requests", () => {
     const requests = serveRequests();
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    await openTab(user, dialog, "Access");
     const select = within(dialog).getByLabelText("Requests");
     await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By rating");
     await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (age 7)");
@@ -472,12 +521,14 @@ describe("UsersSettings: requests", () => {
     const requests = serveRequests();
     await user.click(await screen.findByRole("button", { name: /Bo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Bo" });
-    const select = within(dialog).getByLabelText("Requests");
-    expect(select).toBeDisabled();
-    expect(select).toHaveValue("auto");
+    await openTab(user, dialog, "Access");
+    expect(within(dialog).getByLabelText("Requests")).toBeDisabled();
+    expect(within(dialog).getByLabelText("Requests")).toHaveValue("auto");
+    await openTab(user, dialog, "Profile");
     await user.click(within(dialog).getByRole("switch", { name: "Administrator" }));
-    expect(select).toBeEnabled();
-    expect(select).toHaveValue("ask");
+    await openTab(user, dialog, "Access");
+    expect(within(dialog).getByLabelText("Requests")).toBeEnabled();
+    expect(within(dialog).getByLabelText("Requests")).toHaveValue("ask");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Saved Bo")).toBeInTheDocument();
     expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ is_admin: false, request_access: "ask" });
@@ -486,6 +537,7 @@ describe("UsersSettings: requests", () => {
   it("starts new accounts asking, but not managed profiles or those with an age limit", async () => {
     const requests = serveRequests();
     const { user, dialog } = await openAddDialog();
+    await openTab(user, dialog, "Access");
     const select = within(dialog).getByLabelText("Requests");
     expect(select).toHaveValue("ask");
     await waitFor(() => expect(within(dialog).getByRole("option", { name: "By rating" })).toBeEnabled());
@@ -499,6 +551,7 @@ describe("UsersSettings: requests", () => {
 
     // Chosen, it stays.
     await user.selectOptions(select, "ask");
+    await openTab(user, dialog, "Profile");
     await user.type(within(dialog).getByLabelText("Username"), "little");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
     expect(await screen.findByText("Added little")).toBeInTheDocument();

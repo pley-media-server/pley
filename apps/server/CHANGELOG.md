@@ -36,6 +36,9 @@ describes how they are made.
   8. Ratings from TMDB, TheTVDB and NFO files keep their country; NFO
   files with several countries' give the metadata region's. Changing the
   region in Settings works every age out again.
+- A user's settings are in three tabs, Profile, Access and Devices, and
+  label exceptions fold into one line, such as "Never show 2 labels",
+  until they're opened.
 
 ## [0.1.8] - 2026-11-06
 

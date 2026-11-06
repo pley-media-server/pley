@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Check, Clapperboard, Music, Tv } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLibraries, useRatingSystems } from "@/api/hooks";
@@ -23,7 +24,7 @@ import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { inBoth } from "@/lib/labels";
 import { LabelPicker } from "./LabelPicker";
-import { Field, Select } from "./ui";
+import { Button, Field, Select } from "./ui";
 
 export interface AccessValue {
   all_libraries: boolean;
@@ -91,6 +92,10 @@ export function AccessFields({
   if (born && !years.includes(born.year)) years.push(born.year);
   const set = (patch: Partial<AccessValue>) => onChange({ ...value, ...patch });
   const both = inBoth(value.show_labels, value.hide_labels);
+  // Folded away until asked for: most profiles have none.
+  const [exceptionsOpen, setExceptionsOpen] = useState(false);
+  const showExceptions = exceptionsOpen || both.length > 0;
+  const ruleCount = (mode !== "none" ? value.show_labels.length : 0) + value.hide_labels.length;
   const setBirthMonth = (birthMonth: string) => set({ birth_month: birthMonth, max_age: birthdayLimit(birthMonth) });
   // A limit that isn't a birthday's clears it (for accounts; invitations have none).
   const fixed = birthday ? { birth_month: null } : {};
@@ -274,31 +279,54 @@ export function AccessFields({
 
       <fieldset className="space-y-3">
         <legend className="mb-1.5 text-sm font-medium">{t("accessFields.exceptions")}</legend>
-        <p className="-mt-1 text-xs text-subtle">{t("accessFields.exceptionsHint")}</p>
-        {/* Only an age limit hides what these would show; kept as they are while there's none. */}
-        {mode !== "none" ? (
-          <Field label={t("accessFields.showLabels")} htmlFor={`${idPrefix}-show-labels`} hint={t("accessFields.showLabelsHint")}>
-            <LabelPicker
-              id={`${idPrefix}-show-labels`}
-              value={value.show_labels}
-              onChange={(show_labels) => set({ show_labels })}
-              removeLabel={(label) => t("accessFields.removeLabel", { label })}
-            />
-          </Field>
+        {showExceptions ? null : (
+          <div className="flex items-center justify-between gap-3 rounded-md border border-border bg-surface-2 px-3 py-2">
+            <span className="text-sm text-muted">
+              {ruleCount === 0
+                ? t("accessFields.exceptionsNone")
+                : [
+                    mode !== "none" && value.show_labels.length > 0
+                      ? t("accessFields.exceptionsShown", { count: value.show_labels.length })
+                      : null,
+                    value.hide_labels.length > 0 ? t("accessFields.exceptionsHidden", { count: value.hide_labels.length }) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+            </span>
+            <Button variant="outline" size="sm" onClick={() => setExceptionsOpen(true)}>
+              {ruleCount === 0 ? t("accessFields.exceptionsAdd") : t("accessFields.exceptionsChange")}
+            </Button>
+          </div>
+        )}
+        {showExceptions ? (
+          <>
+            <p className="-mt-1 text-xs text-subtle">{t("accessFields.exceptionsHint")}</p>
+            {/* Only an age limit hides what these would show; kept as they are while there's none. */}
+            {mode !== "none" ? (
+              <Field label={t("accessFields.showLabels")} htmlFor={`${idPrefix}-show-labels`} hint={t("accessFields.showLabelsHint")}>
+                <LabelPicker
+                  id={`${idPrefix}-show-labels`}
+                  value={value.show_labels}
+                  onChange={(show_labels) => set({ show_labels })}
+                  removeLabel={(label) => t("accessFields.removeLabel", { label })}
+                />
+              </Field>
+            ) : null}
+            <Field
+              label={t("accessFields.hideLabels")}
+              htmlFor={`${idPrefix}-hide-labels`}
+              hint={t("accessFields.hideLabelsHint")}
+              error={both.length > 0 ? t("accessFields.inBoth", { labels: both.join(", ") }) : null}
+            >
+              <LabelPicker
+                id={`${idPrefix}-hide-labels`}
+                value={value.hide_labels}
+                onChange={(hide_labels) => set({ hide_labels })}
+                removeLabel={(label) => t("accessFields.removeLabel", { label })}
+              />
+            </Field>
+          </>
         ) : null}
-        <Field
-          label={t("accessFields.hideLabels")}
-          htmlFor={`${idPrefix}-hide-labels`}
-          hint={t("accessFields.hideLabelsHint")}
-          error={both.length > 0 ? t("accessFields.inBoth", { labels: both.join(", ") }) : null}
-        >
-          <LabelPicker
-            id={`${idPrefix}-hide-labels`}
-            value={value.hide_labels}
-            onChange={(hide_labels) => set({ hide_labels })}
-            removeLabel={(label) => t("accessFields.removeLabel", { label })}
-          />
-        </Field>
       </fieldset>
     </div>
   );

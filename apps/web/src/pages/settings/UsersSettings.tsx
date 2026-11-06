@@ -25,7 +25,7 @@ import { ConfirmModal, Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Badge, Button, EmptyState, Field, PageSpinner, Select, TextInput, Toggle } from "@/components/ui";
 import { ageBadge, librariesLabel } from "@/lib/access";
-import { sameLabels } from "@/lib/labels";
+import { inBoth, sameLabels } from "@/lib/labels";
 import { cn } from "@/lib/cn";
 import { passwordProblem } from "@/lib/passwords";
 import { formatAgo } from "@/lib/format";
@@ -33,6 +33,9 @@ import { useDocumentTitle, useOnChange } from "@/lib/hooks";
 import { mustSetUpTwoStep } from "@/lib/twoStep";
 
 const PIN_RE = /^\d{4,8}$/;
+
+/** The edit dialog's tabs: who the account is, what it may see, where it's signed in. */
+type UserTab = "profile" | "access" | "devices";
 
 function SwitchRow({
   label,
@@ -291,6 +294,7 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
   // Whether it was set in this dialog, not kept from the account.
   const [requestPicked, setRequestPicked] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<UserTab>("profile");
 
   // Reset the form whenever the dialog opens (for someone else); background
   // refetches don't touch what is being edited.
@@ -318,7 +322,11 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
     setPin("");
     setClearPin(false);
     setError(null);
+    setTab("profile");
   });
+  // Devices and apps act at once, not on Save: a new account has none.
+  const tabs: UserTab[] = isNew ? ["profile", "access"] : ["profile", "access", "devices"];
+  const accessProblem = inBoth(access.show_labels, access.hide_labels).length > 0;
 
   const managed = isNew ? kind === "managed" : (user?.managed ?? false) && !password;
   const otherAdmins = (users.data ?? []).filter((u) => u.is_admin && !u.disabled && u.id !== user?.id).length;
@@ -489,140 +497,173 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
           </div>
         ) : null}
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {isNew ? (
-            <Field label={t("users.dialog.username")} htmlFor="user-username" hint={kind === "managed" ? t("users.dialog.usernameManagedHint") : undefined}>
-              <TextInput id="user-username" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
-            </Field>
-          ) : null}
-          <Field label={t("users.dialog.displayName")} htmlFor="user-display" hint={t("users.dialog.displayNameHint")}>
-            <TextInput
-              id="user-display"
-              autoComplete="off"
-              placeholder={username || user?.username}
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-            />
-          </Field>
-          {isNew && kind === "regular" ? (
-            <Field label={t("users.dialog.password")} htmlFor="user-password">
-              <TextInput id="user-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </Field>
-          ) : null}
-          {!isNew && self ? (
-            <p className="text-xs text-subtle">{t("users.dialog.ownPassword")}</p>
-          ) : null}
-          {!isNew && !self ? (
-            <Field
-              label={user?.managed ? t("users.dialog.password") : t("users.dialog.newPassword")}
-              htmlFor="user-password"
-              hint={
-                user?.managed
-                  ? t("users.dialog.managedPasswordHint")
-                  : user?.has_password === false
-                    ? t("users.dialog.noPasswordHint")
-                    : t("users.dialog.keepPasswordHint")
-              }
+        <div role="tablist" aria-label={t("users.dialog.tabsLabel")} className="flex gap-1 border-b border-border">
+          {tabs.map((key) => (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              id={`user-tab-${key}`}
+              aria-selected={tab === key}
+              aria-controls={`user-panel-${key}`}
+              onClick={() => setTab(key)}
+              className={cn(
+                "-mb-px flex h-10 items-center gap-2 border-b-2 px-3 text-sm font-medium transition-colors",
+                tab === key ? "border-accent text-fg" : "border-transparent text-muted hover:text-fg",
+              )}
             >
-              <TextInput id="user-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
-            </Field>
-          ) : null}
+              {t(`users.dialog.tabs.${key}`)}
+              {key === "access" && accessProblem ? (
+                <span className="size-1.5 rounded-full bg-danger" aria-label={t("users.dialog.tabNeedsLook")} />
+              ) : null}
+            </button>
+          ))}
         </div>
 
-        <div className="space-y-2">
-          <SwitchRow
-            label={t("users.dialog.administrator")}
-            description={managed ? t("users.dialog.managedNotAdmin") : t("users.dialog.adminHint")}
-            checked={isAdmin && !managed}
-            onChange={setIsAdmin}
-            disabled={managed || (self && isAdmin) || (lastAdmin && isAdmin)}
-          />
-          <SwitchRow
-            label={t("users.dialog.home")}
-            description={t("users.dialog.homeHint")}
-            checked={home}
-            onChange={setHome}
-          />
-          {!isNew ? (
-            <SwitchRow
-              label={t("users.dialog.disabled")}
-              description={t("users.dialog.disabledHint")}
-              checked={disabled}
-              onChange={setDisabled}
-              disabled={self || (lastAdmin && !disabled)}
-            />
-          ) : null}
-        </div>
-
-        {requestsKnown ? (
-          <Field
-            label={t("users.dialog.requests")}
-            htmlFor="user-requests"
-            hint={
-              asAdmin
-                ? t("users.dialog.requestsAdmin")
-                : access.max_age !== null
-                  ? t("users.dialog.requestsAgeLimit")
-                  : t("users.dialog.requestsHint")
-            }
-          >
-            <Select
-              id="user-requests"
-              className="h-10 w-full"
-              value={asAdmin ? "auto" : requestAccess}
-              disabled={asAdmin}
-              onChange={(e) => {
-                setRequestChoice(e.target.value as RequestAccess);
-                setRequestPicked(true);
-              }}
-            >
-              <option value="ask">{t("users.dialog.requestAsk")}</option>
-              <option value="auto">{t("users.dialog.requestAuto")}</option>
-              <option value="off">{t("users.dialog.requestOff")}</option>
-            </Select>
-          </Field>
-        ) : null}
-
-        <AccessFields value={access} onChange={setAccess} idPrefix="user" birthday />
-
-        {self ? null : (
-          <Field
-            label={t("users.dialog.pin")}
-            htmlFor="user-pin"
-            hint={user?.has_pin && !clearPin ? t("users.dialog.pinSet") : t("users.dialog.pinHint")}
-          >
-            <div className="flex gap-2">
-              <TextInput
-                id="user-pin"
-                inputMode="numeric"
-                autoComplete="off"
-                maxLength={8}
-                placeholder={user?.has_pin && !clearPin ? "••••" : ""}
-                value={pin}
-                onChange={(e) => {
-                  setPin(e.target.value.replace(/\D/g, ""));
-                  setClearPin(false);
-                }}
-              />
-              {user?.has_pin ? (
-                <Button
-                  variant="outline"
-                  icon={<Lock className="size-4" />}
-                  onClick={() => {
-                    setPin("");
-                    setClearPin(!clearPin);
-                  }}
+        {tab === "profile" ? (
+          <div role="tabpanel" id="user-panel-profile" aria-labelledby="user-tab-profile" className="space-y-5">
+            <div className="grid gap-4 sm:grid-cols-2">
+              {isNew ? (
+                <Field label={t("users.dialog.username")} htmlFor="user-username" hint={kind === "managed" ? t("users.dialog.usernameManagedHint") : undefined}>
+                  <TextInput id="user-username" autoComplete="off" value={username} onChange={(e) => setUsername(e.target.value)} />
+                </Field>
+              ) : null}
+              <Field label={t("users.dialog.displayName")} htmlFor="user-display" hint={t("users.dialog.displayNameHint")}>
+                <TextInput
+                  id="user-display"
+                  autoComplete="off"
+                  placeholder={username || user?.username}
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                />
+              </Field>
+              {isNew && kind === "regular" ? (
+                <Field label={t("users.dialog.password")} htmlFor="user-password">
+                  <TextInput id="user-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </Field>
+              ) : null}
+              {!isNew && self ? (
+                <p className="text-xs text-subtle">{t("users.dialog.ownPassword")}</p>
+              ) : null}
+              {!isNew && !self ? (
+                <Field
+                  label={user?.managed ? t("users.dialog.password") : t("users.dialog.newPassword")}
+                  htmlFor="user-password"
+                  hint={
+                    user?.managed
+                      ? t("users.dialog.managedPasswordHint")
+                      : user?.has_password === false
+                        ? t("users.dialog.noPasswordHint")
+                        : t("users.dialog.keepPasswordHint")
+                  }
                 >
-                  {clearPin ? t("users.dialog.keepPin") : t("users.dialog.removePin")}
-                </Button>
+                  <TextInput id="user-password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} />
+                </Field>
               ) : null}
             </div>
-          </Field>
-        )}
 
-        {!isNew && user?.two_step && !self ? <TwoStepReset user={user} /> : null}
-        {!isNew && user ? <UserDevices key={user.id} user={user} self={self} /> : null}
-        {!isNew && user ? <UserApps user={user} /> : null}
+            <div className="space-y-2">
+              <SwitchRow
+                label={t("users.dialog.administrator")}
+                description={managed ? t("users.dialog.managedNotAdmin") : t("users.dialog.adminHint")}
+                checked={isAdmin && !managed}
+                onChange={setIsAdmin}
+                disabled={managed || (self && isAdmin) || (lastAdmin && isAdmin)}
+              />
+              <SwitchRow
+                label={t("users.dialog.home")}
+                description={t("users.dialog.homeHint")}
+                checked={home}
+                onChange={setHome}
+              />
+              {!isNew ? (
+                <SwitchRow
+                  label={t("users.dialog.disabled")}
+                  description={t("users.dialog.disabledHint")}
+                  checked={disabled}
+                  onChange={setDisabled}
+                  disabled={self || (lastAdmin && !disabled)}
+                />
+              ) : null}
+            </div>
+
+            {self ? null : (
+              <Field
+                label={t("users.dialog.pin")}
+                htmlFor="user-pin"
+                hint={user?.has_pin && !clearPin ? t("users.dialog.pinSet") : t("users.dialog.pinHint")}
+              >
+                <div className="flex gap-2">
+                  <TextInput
+                    id="user-pin"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={8}
+                    placeholder={user?.has_pin && !clearPin ? "••••" : ""}
+                    value={pin}
+                    onChange={(e) => {
+                      setPin(e.target.value.replace(/\D/g, ""));
+                      setClearPin(false);
+                    }}
+                  />
+                  {user?.has_pin ? (
+                    <Button
+                      variant="outline"
+                      icon={<Lock className="size-4" />}
+                      onClick={() => {
+                        setPin("");
+                        setClearPin(!clearPin);
+                      }}
+                    >
+                      {clearPin ? t("users.dialog.keepPin") : t("users.dialog.removePin")}
+                    </Button>
+                  ) : null}
+                </div>
+              </Field>
+            )}
+            {!isNew && user?.two_step && !self ? <TwoStepReset user={user} /> : null}
+          </div>
+        ) : null}
+        {tab === "access" ? (
+          <div role="tabpanel" id="user-panel-access" aria-labelledby="user-tab-access" className="space-y-5">
+            <AccessFields value={access} onChange={setAccess} idPrefix="user" birthday />
+
+            {requestsKnown ? (
+              <Field
+                label={t("users.dialog.requests")}
+                htmlFor="user-requests"
+                hint={
+                  asAdmin
+                    ? t("users.dialog.requestsAdmin")
+                    : access.max_age !== null
+                      ? t("users.dialog.requestsAgeLimit")
+                      : t("users.dialog.requestsHint")
+                }
+              >
+                <Select
+                  id="user-requests"
+                  className="h-10 w-full"
+                  value={asAdmin ? "auto" : requestAccess}
+                  disabled={asAdmin}
+                  onChange={(e) => {
+                    setRequestChoice(e.target.value as RequestAccess);
+                    setRequestPicked(true);
+                  }}
+                >
+                  <option value="ask">{t("users.dialog.requestAsk")}</option>
+                  <option value="auto">{t("users.dialog.requestAuto")}</option>
+                  <option value="off">{t("users.dialog.requestOff")}</option>
+                </Select>
+              </Field>
+            ) : null}
+          </div>
+        ) : null}
+        {tab === "devices" && !isNew && user ? (
+          <div role="tabpanel" id="user-panel-devices" aria-labelledby="user-tab-devices" className="space-y-5">
+            <UserDevices key={user.id} user={user} self={self} />
+            <UserApps user={user} />
+          </div>
+        ) : null}
 
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         <button type="submit" className="hidden" />
