@@ -12,7 +12,7 @@ mod history;
 pub(crate) mod items;
 mod libraries;
 mod livetv;
-mod oauth;
+pub(crate) mod oauth;
 pub(crate) mod people;
 pub(crate) mod playback;
 mod playlists;
@@ -74,6 +74,8 @@ pub fn router(state: AppState) -> Router {
         .route("/oauth/device", post(oauth::device_authorization).layer(DefaultBodyLimit::max(FORM_MAX)))
         .route("/oauth/device/verify", post(oauth::verify_user_code).layer(DefaultBodyLimit::max(FORM_MAX)))
         .route("/oauth/device/qr", get(oauth::device_qr))
+        .route("/oauth/quick-connect", post(oauth::verify_quick_connect).layer(DefaultBodyLimit::max(FORM_MAX)))
+        .route("/oauth/quick-connect/{id}", post(oauth::decide_quick_connect))
         .route("/oauth/profiles", get(oauth::profiles))
         .route("/libraries", get(libraries::list).post(libraries::create))
         .route("/libraries/scan", post(libraries::scan_all))
@@ -330,7 +332,10 @@ fn cors_path(path: &str) -> bool {
     if path == "/.well-known/oauth-authorization-server" {
         return true;
     }
-    path.starts_with("/api/") && !path.starts_with("/api/oauth/requests") && path != "/api/oauth/device/verify"
+    path.starts_with("/api/")
+        && !path.starts_with("/api/oauth/requests")
+        && !path.starts_with("/api/oauth/quick-connect")
+        && path != "/api/oauth/device/verify"
 }
 
 /// CORS for pley's packaged TV apps (docs/API.md, "CORS for TV apps"). Their web
@@ -400,7 +405,8 @@ pub(crate) fn wants_summaries(query: &HashMap<String, String>) -> bool {
 /// The request URI for logs, with credentials in the query left out:
 /// `token`, `X-Plex-Token` and `api_key`, and what apps and TVs send while
 /// signing in (`code`, `state`, `code_verifier`, `access_token`,
-/// `refresh_token`, `device_code`, `user_code`). Bodies and the
+/// `refresh_token`, `device_code`, `user_code`, and Quick Connect's
+/// `secret`). Bodies and the
 /// Authorization header are never logged.
 pub(crate) fn loggable_uri(uri: &axum::http::Uri) -> String {
     // A keyed media address carries its session's key in the path.
@@ -439,6 +445,7 @@ pub(crate) fn loggable_uri(uri: &axum::http::Uri) -> String {
                         | "refresh_token"
                         | "device_code"
                         | "user_code"
+                        | "secret"
                 ) =>
             {
                 format!("{key}=…")
@@ -502,6 +509,9 @@ mod tests {
         assert_eq!(loggable_uri(&uri), "/link?code=…");
         let uri: axum::http::Uri = "/link?user_code=BCDF-GHJK&device_code=d&client_id=c".parse().unwrap();
         assert_eq!(loggable_uri(&uri), "/link?user_code=…&device_code=…&client_id=c");
+        // A Jellyfin app asking whether its Quick Connect code was allowed.
+        let uri: axum::http::Uri = "/quickconnect/connect?Secret=abc".parse().unwrap();
+        assert_eq!(loggable_uri(&uri), "/quickconnect/connect?Secret=…");
         assert_eq!(loggable_uri(&"/api/items/1".parse().unwrap()), "/api/items/1");
         // A keyed media address's key is in its path.
         assert_eq!(loggable_uri(&"/api/media/pley_mk_abc/12.ts".parse().unwrap()), "/api/media/…/12.ts");
@@ -517,5 +527,6 @@ mod tests {
         assert!(cors_path("/.well-known/oauth-authorization-server"));
         assert!(!cors_path("/api/oauth/requests") && !cors_path("/api/oauth/requests/7/continue"));
         assert!(!cors_path("/api/oauth/device/verify") && !cors_path("/link") && !cors_path("/"));
+        assert!(!cors_path("/api/oauth/quick-connect") && !cors_path("/api/oauth/quick-connect/7"));
     }
 }

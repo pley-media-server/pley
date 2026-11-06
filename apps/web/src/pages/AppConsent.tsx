@@ -25,6 +25,11 @@ const SCOPE_WORDS: Record<string, (profile: string, own: boolean) => string> = {
       : `See what's playing and stop it: ${p}'s streams.`,
 };
 
+/** What a Jellyfin app's token for other apps may do (Quick Connect). */
+const JELLYFIN_SCOPE_WORDS: Record<string, (profile: string) => string> = {
+  play: (p) => `Browse and play what ${p} may open, and keep ${p}'s watch state, ratings and playlists.`,
+};
+
 /** How long the page must have been seen before Allow can be pressed. */
 const STEADY_MS = 1000;
 /** How long after the question shows before a key can answer it. */
@@ -94,17 +99,18 @@ export function whereItGoes(redirect: AppRedirect): string {
 
 /** Where the answer goes, and what to be sure of before allowing. */
 function Destination({ redirect }: { redirect: ConsentRequest["redirect"] }) {
-  if (redirect.kind === "device") {
+  if (redirect.kind === "device" || redirect.kind === "quick-connect") {
+    const app = redirect.kind === "quick-connect";
     return (
       <div>
         <p className="font-medium">It goes to:</p>
         <p className="mt-1">
-          the TV or device showing{" "}
+          {app ? "the Jellyfin app showing" : "the TV or device showing"}{" "}
           <span className="font-mono font-semibold tracking-wider">{redirect.to}</span>
         </p>
         {redirect.device || redirect.address ? (
           <p className="mt-1 text-muted">
-            It says it is {redirect.device ?? "a device"}
+            {app ? `It says it is on ${redirect.device ?? "a device"}` : `It says it is ${redirect.device ?? "a device"}`}
             {redirect.address ? `, at ${redirect.address}` : ""}.
           </p>
         ) : null}
@@ -127,7 +133,8 @@ function Destination({ redirect }: { redirect: ConsentRequest["redirect"] }) {
 
 /**
  * Asks whether an app may use the account: an app that sent the browser to
- * the authorize page, or a TV that showed a code. It shows only what the
+ * the authorize page, a TV that showed a code, or a Jellyfin app that showed
+ * a Quick Connect code. It shows only what the
  * server answered, as text. Deny has the focus, and Allow waits until the
  * page has been seen for a whole second. A key held down, or pressed right
  * as the question shows, answers nothing: a refusal can't be taken back.
@@ -158,6 +165,10 @@ export function AppConsent({
 
   const { client, redirect } = request;
   const app = appName(client);
+  const words = (scope: string) =>
+    redirect.kind === "quick-connect"
+      ? JELLYFIN_SCOPE_WORDS[scope]?.(user.name)
+      : SCOPE_WORDS[scope]?.(user.name, client.first_party);
 
   const answer = (allow: boolean) => {
     if (sent.current || (allow && !ready)) return;
@@ -236,7 +247,7 @@ export function AppConsent({
             {request.scopes.map((scope) => (
               <li key={scope} className="flex gap-2">
                 <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
-                <span>{SCOPE_WORDS[scope]?.(user.name, client.first_party) ?? scope}</span>
+                <span>{words(scope) ?? scope}</span>
               </li>
             ))}
           </ul>
@@ -260,7 +271,9 @@ export function AppConsent({
           <p role="alert" className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-danger">
             {redirect.kind === "device"
               ? "This request is over: start again on your TV"
-              : "This request is over: start again from the app"}
+              : redirect.kind === "quick-connect"
+                ? "This request is over: start again in the app"
+                : "This request is over: start again from the app"}
           </p>
         ) : (
           <>

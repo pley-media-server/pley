@@ -138,6 +138,220 @@ async fn signing_in_takes_every_check_pleys_sign_in_does() {
     assert_eq!(sessions_of(&app, erin).await, 0);
 }
 
+/// A Jellyfin app asking for a Quick Connect code, as Findroid does.
+async fn initiate(app: &TestApp, method: Method) -> Value {
+    let started = app.jf_raw(method, "/QuickConnect/Initiate", &[("authorization", FINDROID)], None).await;
+    assert_eq!(started.status, StatusCode::OK, "{}", started.text());
+    started.body
+}
+
+/// The person typing `code` on Pley's `/link` page, signed in with `session`.
+async fn typed(app: &TestApp, session: &str, code: &str) -> Reply {
+    app.browser_call(Method::POST, "/api/oauth/quick-connect", session, Some(json!({"code": code})), &[]).await
+}
+
+async fn answered(app: &TestApp, session: &str, id: &str, allow: bool) -> Reply {
+    let uri = format!("/api/oauth/quick-connect/{id}");
+    app.browser_call(Method::POST, &uri, session, Some(json!({"allow": allow})), &[]).await
+}
+
+async fn connect(app: &TestApp, secret: &str) -> Reply {
+    app.jf_raw(Method::GET, &format!("/QuickConnect/Connect?secret={secret}"), &[], None).await
+}
+
+async fn with_quick_connect(app: &TestApp, secret: &str) -> Reply {
+    let headers = [("authorization", FINDROID), ("user-agent", "Findroid/1.2.0")];
+    app.jf_raw(Method::POST, "/Users/AuthenticateWithQuickConnect", &headers, Some(json!({"Secret": secret}))).await
+}
+
+/// A request to the API from `peer`, with a token.
+async fn jf_from(app: &TestApp, peer: &str, method: Method, uri: &str, token: &str) -> StatusCode {
+    let req = axum::http::Request::builder()
+        .method(method)
+        .uri(uri)
+        .header("x-emby-token", token)
+        .extension(axum::extract::ConnectInfo(peer.parse::<std::net::SocketAddr>().unwrap()))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    tower::ServiceExt::oneshot(app.jellyfin.clone(), req).await.unwrap().status()
+}
+
+#[tokio::test]
+async fn quick_connect_signs_in_an_account_a_password_cant() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    assert_eq!(app.jf_json("/QuickConnect/Enabled", "").await, json!(true));
+    // Two-step sign-in: the password alone can't sign in from an app.
+    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    app.turn_on_two_step(&bob, "test-pass-1").await;
+    assert_eq!(sign_in(&app, json!({"Username": "bob", "Pw": "test-pass-1"})).await.status, StatusCode::UNAUTHORIZED);
+
+    // Some apps still ask with GET. The same device asking again replaces
+    // the code it had.
+    let first = initiate(&app, Method::GET).await;
+    // Apps read every field.
+    let started = initiate(&app, Method::POST).await;
+    assert_eq!(connect(&app, first["Secret"].as_str().unwrap()).await.status, StatusCode::NOT_FOUND, "replaced");
+    for field in ["Secret", "Code", "DeviceId", "DeviceName", "AppName", "AppVersion", "DateAdded"] {
+        assert!(started[field].is_string(), "{field}: {started}");
+    }
+    assert_eq!(started["Authenticated"], json!(false));
+    assert_eq!((&started["AppName"], &started["DeviceName"]), (&json!("Findroid"), &json!("Phone")));
+    let (secret, code) = (started["Secret"].as_str().unwrap(), started["Code"].as_str().unwrap());
+    assert!(is_hex(secret, 64), "{secret}");
+    assert!(code.len() == 6 && code.bytes().all(|b| b.is_ascii_digit()), "{code}");
+    let waiting = with_quick_connect(&app, secret).await;
+    assert_eq!(waiting.status, StatusCode::UNAUTHORIZED, "nobody allowed it yet");
+
+    // Pley's page says which app asks, and what it may do.
+    let shown = typed(&app, &bob, &format!("{} {}", &code[..3], &code[3..])).await;
+    assert_eq!(shown.status, StatusCode::OK, "{}", shown.text());
+    assert_eq!((&shown.body["app"], &shown.body["version"]), (&json!("Findroid"), &json!("0.16.1")));
+    assert_eq!((&shown.body["device"], &shown.body["code"]), (&json!("Phone"), &json!(code)));
+    assert_eq!(shown.body["scopes"], json!(["play"]));
+    let polled = connect(&app, secret).await;
+    assert_eq!((polled.status, &polled.body["Authenticated"]), (StatusCode::OK, &json!(false)));
+    let allowed = answered(&app, &bob, shown.body["id"].as_str().unwrap(), true).await;
+    assert_eq!((allowed.status, &allowed.body), (StatusCode::OK, &json!({"done": true})), "{}", allowed.text());
+    let polled = connect(&app, secret).await;
+    assert_eq!((&polled.body["Authenticated"], &polled.body["Secret"]), (&json!(true), &json!(secret)));
+
+    // The app's token, as a password sign-in gets it: once.
+    let signed_in = with_quick_connect(&app, secret).await;
+    assert_eq!(signed_in.status, StatusCode::OK, "{}", signed_in.text());
+    let token = signed_in.body["AccessToken"].as_str().unwrap().to_owned();
+    assert!(token.starts_with("pley_ct_"), "{token}");
+    assert_eq!(signed_in.body["User"]["Name"], json!("bob"));
+    assert_eq!(signed_in.body["User"]["Policy"]["IsAdministrator"], json!(false));
+    let me = app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &token)], None).await;
+    assert_eq!((me.status, &me.body["Name"]), (StatusCode::OK, &json!("bob")));
+    let listed = app.get("/api/me/compatibility-tokens", &bob).await.body;
+    let findroid = listed.as_array().unwrap().iter().find(|t| t["name"] == "Findroid on Phone").expect("listed");
+    assert_eq!((&findroid["scopes"], &findroid["allowed_from"]), (&json!(["play"]), &json!([])));
+    assert_eq!(findroid["device"], "Findroid/1.2.0");
+    assert_eq!(with_quick_connect(&app, secret).await.status, StatusCode::NOT_FOUND, "once");
+    assert_eq!(connect(&app, secret).await.status, StatusCode::NOT_FOUND, "over");
+}
+
+#[tokio::test]
+async fn a_quick_connect_code_answers_only_whoever_typed_it() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (ann, _) = app.user(&admin, "ann", json!({})).await;
+    let started = initiate(&app, Method::POST).await;
+    let (secret, code) = (started["Secret"].as_str().unwrap(), started["Code"].as_str().unwrap());
+
+    assert_eq!(typed(&app, &ann, "12345").await.status, StatusCode::BAD_REQUEST, "not a code");
+    assert_eq!(typed(&app, &ann, "BCDFGHJK").await.status, StatusCode::BAD_REQUEST, "a TV's code");
+    // From another site, or with a token rather than the cookie: never.
+    let elsewhere = [("origin", "https://evil.example")];
+    let from_elsewhere =
+        app.browser_call(Method::POST, "/api/oauth/quick-connect", &ann, Some(json!({"code": code})), &elsewhere).await;
+    assert_eq!(from_elsewhere.status, StatusCode::FORBIDDEN);
+    let bearer = app.post("/api/oauth/quick-connect", &ann, json!({"code": code})).await;
+    assert_eq!(bearer.status, StatusCode::UNAUTHORIZED, "the cookie only");
+
+    let shown = typed(&app, &ann, code).await;
+    assert_eq!(shown.status, StatusCode::OK, "{}", shown.text());
+    let id = shown.body["id"].as_str().unwrap();
+    // Someone else, signed in, can't take it over nor answer it.
+    assert_eq!(typed(&app, &admin, code).await.status, StatusCode::CONFLICT);
+    assert_eq!(answered(&app, &admin, id, true).await.status, StatusCode::NOT_FOUND);
+    // Refused: the app is told its code is unknown.
+    assert_eq!(answered(&app, &ann, id, false).await.status, StatusCode::OK);
+    assert_eq!(connect(&app, secret).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(with_quick_connect(&app, secret).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(answered(&app, &ann, id, true).await.status, StatusCode::NOT_FOUND, "over");
+
+    // Wrong codes count: then none is looked up for a while.
+    let started = initiate(&app, Method::POST).await;
+    let code = started["Code"].as_str().unwrap();
+    let wrong = if code == "000000" { "000001" } else { "000000" };
+    for _ in 0..10 {
+        assert_eq!(typed(&app, &ann, wrong).await.status, StatusCode::NOT_FOUND);
+    }
+    assert_eq!(typed(&app, &ann, code).await.status, StatusCode::TOO_MANY_REQUESTS);
+    assert_eq!(connect(&app, &"0".repeat(64)).await.status, StatusCode::NOT_FOUND);
+
+    // Ten minutes on, the code is over.
+    app.state.oauth.quick_connect.wait(std::time::Duration::from_secs(600));
+    assert_eq!(connect(&app, started["Secret"].as_str().unwrap()).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn a_jellyfin_app_signed_in_already_allows_a_code() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (ann, ann_id) = app.user(&admin, "ann", json!({})).await;
+    let phone = app.jellyfin_token(&ann).await;
+    let started = initiate(&app, Method::POST).await;
+    let (secret, code) = (started["Secret"].as_str().unwrap(), started["Code"].as_str().unwrap());
+    let authorize = |query: String| {
+        let phone = phone.clone();
+        let app = &app;
+        async move {
+            app.jf_raw(Method::POST, &format!("/QuickConnect/Authorize?{query}"), &[("x-emby-token", &phone)], None)
+                .await
+        }
+    };
+    let admins = app.jf_user(&admin).await;
+    let for_another = authorize(format!("code={code}&userId={admins}")).await;
+    assert_eq!(for_another.status, StatusCode::FORBIDDEN, "for its own account only");
+    let anonymous = app.jf_raw(Method::POST, &format!("/QuickConnect/Authorize?code={code}"), &[], None).await;
+    assert_eq!(anonymous.status, StatusCode::UNAUTHORIZED);
+    let allowed = authorize(format!("code={code}&userId={}", app.jf_user(&ann).await)).await;
+    assert_eq!((allowed.status, &allowed.body), (StatusCode::OK, &json!(true)), "{}", allowed.text());
+    let signed_in = with_quick_connect(&app, secret).await;
+    assert_eq!(signed_in.status, StatusCode::OK, "{}", signed_in.text());
+    assert_eq!(signed_in.body["User"]["Id"], json!(app.jf_ids().of(pley::jellyfin::ids::Kind::User, ann_id)));
+    let wrong = if code == "000000" { "000001" } else { "000000" };
+    assert_eq!(authorize(format!("code={wrong}")).await.status, StatusCode::NOT_FOUND);
+
+    // A token limited to where it is used gives the new one its limits: from
+    // an address they don't cover, the app gets nothing.
+    let made = app
+        .post("/api/me/compatibility-tokens", &ann, json!({"name": "Home only", "allowed_from": ["10.0.0.0/8"]}))
+        .await;
+    assert_eq!(made.status, StatusCode::CREATED, "{}", made.text());
+    let limited = made.body["token"].as_str().unwrap().to_owned();
+    let started = initiate(&app, Method::POST).await;
+    let uri = format!("/QuickConnect/Authorize?code={}", started["Code"].as_str().unwrap());
+    assert_eq!(jf_from(&app, "10.1.2.3:5000", Method::POST, &uri, &limited).await, StatusCode::OK);
+    let elsewhere = with_quick_connect(&app, started["Secret"].as_str().unwrap()).await;
+    assert_eq!(elsewhere.status, StatusCode::UNAUTHORIZED, "not from where the token may be used");
+}
+
+#[tokio::test]
+async fn quick_connect_ends_with_the_accounts_sign_ins() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (ann, ann_id) = app.user(&admin, "ann", json!({})).await;
+
+    // Allowed, then signed out everywhere before the app has its token.
+    let started = initiate(&app, Method::POST).await;
+    let shown = typed(&app, &ann, started["Code"].as_str().unwrap()).await;
+    answered(&app, &ann, shown.body["id"].as_str().unwrap(), true).await;
+    let out = app.delete(&format!("/api/users/{ann_id}/devices"), &admin).await;
+    assert!(out.status.is_success(), "{}", out.text());
+    assert_eq!(with_quick_connect(&app, started["Secret"].as_str().unwrap()).await.status, StatusCode::NOT_FOUND);
+
+    // Allowed from a browser that signed out since.
+    let ann = app.login("ann", "test-pass-1").await;
+    let started = initiate(&app, Method::POST).await;
+    let shown = typed(&app, &ann, started["Code"].as_str().unwrap()).await;
+    answered(&app, &ann, shown.body["id"].as_str().unwrap(), true).await;
+    let out = app.browser_call(Method::POST, "/api/auth/logout", &ann, None, &[]).await;
+    assert!(out.status.is_success(), "{}", out.text());
+    let late = with_quick_connect(&app, started["Secret"].as_str().unwrap()).await;
+    assert_eq!(late.status, StatusCode::UNAUTHORIZED);
+    let tokens: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM compatibility_tokens WHERE user_id = ?")
+        .bind(ann_id)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(tokens, 0, "no token was made");
+}
+
 #[tokio::test]
 async fn the_server_says_what_it_is_and_paths_go_in_any_case() {
     let app = TestApp::new().await;

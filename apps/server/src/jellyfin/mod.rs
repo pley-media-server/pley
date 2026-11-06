@@ -5,16 +5,18 @@
 //! administrator turns it on (Settings → Network), on Pley's own port or on
 //! a port of its own.
 //!
-//! Its clients sign in with a password (`/Users/AuthenticateByName`) for a
-//! token for other apps ([`crate::auth::compatibility`]): such tokens work
-//! on this API only, and Pley's own tokens never on it. Paths are
-//! case-insensitive, as Jellyfin's are, and ids are [`ids`].
+//! Its clients sign in with a password (`/Users/AuthenticateByName`) or
+//! with Quick Connect ([`quick_connect`]) for a token for other apps
+//! ([`crate::auth::compatibility`]): such tokens work on this API only, and
+//! Pley's own tokens never on it. Paths are case-insensitive, as Jellyfin's
+//! are, and ids are [`ids`].
 
 pub mod ids;
 
 mod dto;
 mod items;
 mod playback;
+mod quick_connect;
 mod socket;
 mod system;
 mod users;
@@ -54,6 +56,7 @@ pub enum JfError {
     Forbidden,
     NotFound,
     BadRequest(String),
+    TooManyRequests(String),
     Unavailable(String),
     Internal(anyhow::Error),
 }
@@ -108,6 +111,7 @@ impl IntoResponse for JfError {
             JfError::Forbidden => (StatusCode::FORBIDDEN, String::new()),
             JfError::NotFound => (StatusCode::NOT_FOUND, String::new()),
             JfError::BadRequest(m) => (StatusCode::BAD_REQUEST, m),
+            JfError::TooManyRequests(m) => (StatusCode::TOO_MANY_REQUESTS, m),
             JfError::Unavailable(m) => (StatusCode::SERVICE_UNAVAILABLE, m),
             JfError::Internal(err) => {
                 tracing::error!(error = ?err, "internal error in the Jellyfin API");
@@ -443,6 +447,7 @@ fn router(state: AppState, jellyfin: Arc<Jellyfin>) -> Router {
         .merge(users::routes())
         .merge(items::routes())
         .merge(playback::routes())
+        .merge(quick_connect::routes())
         .merge(socket::routes())
         .fallback(|| async { JfError::NotFound })
         .layer(axum::middleware::from_fn(headers))

@@ -3,7 +3,7 @@ import { Route, Routes } from "react-router";
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
-import type { ConsentRequest } from "@/api/oauth";
+import type { ConsentRequest, QuickConnectRequest } from "@/api/oauth";
 import type { User } from "@/api/types";
 import { apiError, LocationDisplay, mockApi, TestProviders, testQueryClient, testUser, type FakeRequest } from "@/test/render";
 import { LinkPage } from "./LinkPage";
@@ -113,7 +113,7 @@ describe("LinkPage", () => {
     expect(input).toHaveValue("BCDF-GHJK");
     expect(input).not.toHaveFocus();
     expect(screen.getByRole("heading", { name: "Sign in on your TV" })).toBeInTheDocument();
-    expect(screen.getByText("Check that your TV shows this code, then continue.")).toBeInTheDocument();
+    expect(screen.getByText("Check that your TV or app shows this code, then continue.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeEnabled();
 
     // Time for anything that would send it.
@@ -123,7 +123,7 @@ describe("LinkPage", () => {
 
     // Changed, it's a code being typed.
     await userEvent.setup().type(input, "{Backspace}");
-    expect(screen.getByText("Enter the code your TV shows.")).toBeInTheDocument();
+    expect(screen.getByText("Enter the code your TV shows, or a Jellyfin app's Quick Connect code.")).toBeInTheDocument();
   });
 
   it("says which device is asking: what it says it is, and where from", async () => {
@@ -153,7 +153,7 @@ describe("LinkPage", () => {
     const input = await screen.findByLabelText("Code");
     expect(input).toHaveValue("BCD");
     expect(input).toHaveFocus();
-    expect(screen.getByText("Enter the code your TV shows.")).toBeInTheDocument();
+    expect(screen.getByText("Enter the code your TV shows, or a Jellyfin app's Quick Connect code.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Continue" })).toBeDisabled();
   });
 
@@ -161,7 +161,7 @@ describe("LinkPage", () => {
     const requests = serve();
     renderPage();
 
-    expect(await screen.findByText("Enter the code your TV shows.")).toBeInTheDocument();
+    expect(await screen.findByText("Enter the code your TV shows, or a Jellyfin app's Quick Connect code.")).toBeInTheDocument();
     const input = screen.getByLabelText("Code");
     const go = screen.getByRole("button", { name: "Continue" });
     expect(input).toHaveFocus();
@@ -340,5 +340,85 @@ describe("LinkPage", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Not you? Sign out" }));
     await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/login?next=${encodeURIComponent(URL_CODE)}`));
     expect(posts(requests, "/api/auth/logout")).toHaveLength(1);
+  });
+});
+
+/** A Jellyfin app's Quick Connect request, as the server answers its code. */
+function quickConnectRequest(): QuickConnectRequest {
+  return {
+    status: "consent",
+    id: "q1",
+    expires_at: 1_700_000_600,
+    app: "Findroid",
+    version: "0.16.1",
+    device: "Phone",
+    address: "192.168.1.30",
+    code: "123456",
+    scopes: ["play"],
+  };
+}
+
+function serveQuickConnect(decision: (req: FakeRequest) => unknown = () => ({ done: true })) {
+  return mockApi({
+    "GET /api/server": () => ({ name: "Living Room", version: "1.0.0", setup_required: false }),
+    "GET /api/auth/profiles": () => [testUser],
+    "POST /api/oauth/quick-connect": () => quickConnectRequest(),
+    "POST /api/oauth/quick-connect/q1": decision,
+  });
+}
+
+const JELLYFIN_HEADING = "A Jellyfin app wants to use your Pley account";
+
+describe("LinkPage with a Jellyfin app's Quick Connect code", () => {
+  it("takes 6 digits, as the app shows them", async () => {
+    const requests = serveQuickConnect();
+    renderPage();
+    const user = userEvent.setup();
+    const input = await screen.findByLabelText("Code");
+    const go = screen.getByRole("button", { name: "Continue" });
+    await user.type(input, "123 45");
+    expect(input).toHaveValue("12345");
+    expect(go).toBeDisabled();
+    await user.type(input, "6a7");
+    expect(input).toHaveValue("123456");
+    expect(screen.queryByText(/Codes don't use/)).not.toBeInTheDocument();
+    await user.click(go);
+    await screen.findByRole("heading", { name: JELLYFIN_HEADING });
+    expect(posts(requests, "/api/oauth/quick-connect").map((r) => r.body)).toEqual([{ code: "123456" }]);
+    expect(posts(requests, "/api/oauth/device/verify")).toHaveLength(0);
+  });
+
+  it("says what the app says it is, where it asked from, and what its token may do", async () => {
+    serveQuickConnect();
+    renderPage("/link?code=123456");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Continue" }));
+    await screen.findByRole("heading", { name: JELLYFIN_HEADING });
+    expect(screen.getByText("It calls itself “Findroid 0.16.1” (Pley can't check that name)")).toBeInTheDocument();
+    expect(screen.getByText("This app isn't one of Pley's own")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Browse and play what Admin may open, and keep Admin's watch state, ratings and playlists.",
+    ]);
+    expect(screen.getByText(/^the Jellyfin app showing/)).toHaveTextContent("the Jellyfin app showing 123456");
+    expect(screen.getByText("It says it is on Phone, at 192.168.1.30.")).toBeInTheDocument();
+  });
+
+  it("allows the app, answering its own request", async () => {
+    const requests = serveQuickConnect();
+    renderPage("/link?code=123456");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Continue" }));
+    const allow = await screen.findByRole("button", { name: "Allow" });
+    attend();
+    await userEvent.setup().click(allow);
+    expect(await screen.findByRole("heading", { name: "The Jellyfin app is signing in" })).toBeInTheDocument();
+    expect(posts(requests, "/api/oauth/quick-connect/q1").map((r) => r.body)).toEqual([{ allow: true }]);
+    expect(posts(requests, "/api/oauth/requests/q1")).toHaveLength(0);
+  });
+
+  it("says when the app's request is over", async () => {
+    serveQuickConnect(() => apiError(404, "not_found", "this request is over: start again from the app or the TV"));
+    renderPage("/link?code=123456");
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Continue" }));
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Don't allow" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("This request is over: start again in the app");
   });
 });

@@ -1009,7 +1009,7 @@ pub async fn verify_user_code(
 
 /// Whether the browser session whose token has the SHA-256 `session_hash`
 /// is still signed in, to an enabled account.
-async fn signed_in(state: &AppState, session_hash: &str) -> ApiResult<bool> {
+pub(crate) async fn signed_in(state: &AppState, session_hash: &str) -> ApiResult<bool> {
     let found: Option<i64> = sqlx::query_scalar(
         "SELECT s.user_id FROM sessions s JOIN users u ON u.id = s.user_id
          WHERE s.token_hash = ? AND s.expires_at > ? AND NOT u.disabled",
@@ -1045,6 +1045,92 @@ fn decide_for_device(state: &AppState, web: &WebUser, id: &str, allow: bool) -> 
             Err(AppError::conflict("this request was answered already: start again on your TV"))
         }
     }
+}
+
+// ------------------------------------------------------------------ Quick Connect (Jellyfin's apps)
+
+const NOT_A_QUICK_CONNECT_CODE: &str = "that isn't a Quick Connect code: they are 6 digits, like 123456";
+const NO_SUCH_QUICK_CONNECT_CODE: &str =
+    "no app is waiting for that code: check the code in the app, or start again there";
+const QUICK_CONNECT_CODE_USED: &str = "that code was already used: start again in the app";
+
+/// What the `/link` page sends for a Jellyfin app: its Quick Connect code,
+/// as it was typed.
+#[derive(Deserialize)]
+pub struct TypedQuickConnectCode {
+    code: String,
+}
+
+/// `POST /api/oauth/quick-connect`: the person typed the Quick Connect code
+/// a Jellyfin app shows ([`crate::oauth::quick_connect`]). The answer is
+/// what to ask them: which app and device asked, from where, and what its
+/// token may do. The cookie only, from pley's own page ([`WebUser`]).
+///
+/// Wrong codes count. A code shown on another page already is used, unless
+/// the session of that page ended: then this page takes it over, as it does
+/// from an earlier page of this session (as for a TV's code).
+pub async fn verify_quick_connect(
+    State(state): State<AppState>,
+    web: WebUser,
+    Json(body): Json<TypedQuickConnectCode>,
+) -> ApiResult<Json<Value>> {
+    use crate::oauth::quick_connect::{self, Refused};
+    let code = quick_connect::normalize(&body.code).ok_or_else(|| AppError::bad_request(NOT_A_QUICK_CONNECT_CODE))?;
+    let found = state.oauth.quick_connect.find(&code, web.user.id).map_err(|refused| match refused {
+        Refused::Throttled => {
+            AppError::TooManyRequests("too many wrong codes: wait a few minutes and try again".into())
+        }
+        Refused::Unknown => AppError::not_found(NO_SUCH_QUICK_CONNECT_CODE),
+        Refused::Used => AppError::conflict(QUICK_CONNECT_CODE_USED),
+    })?;
+    if let Some((_, user_id, session_hash)) = &found.deciding {
+        let mine = *user_id == web.user.id && *session_hash == web.session_hash;
+        if !mine && signed_in(&state, session_hash).await? {
+            return Err(AppError::conflict(QUICK_CONNECT_CODE_USED));
+        }
+    }
+    let id = crate::auth::new_token();
+    let seen = found.deciding.as_ref().map(|(id, ..)| id.as_str());
+    if !state.oauth.quick_connect.show(&found.key, seen, &id, web.user.id, &web.session_hash) {
+        // Someone was quicker.
+        return Err(AppError::conflict(QUICK_CONNECT_CODE_USED));
+    }
+    // What the app says it is, unchecked: shown as text, without control
+    // and direction characters.
+    let said = |value: &Option<String>| value.as_deref().and_then(clients::clean_name);
+    let asker = &found.asker;
+    Ok(Json(json!({
+        "status": "consent",
+        "id": id,
+        "expires_at": now() + found.left.as_secs() as i64,
+        "app": said(&asker.app),
+        "version": said(&asker.version),
+        "device": said(&asker.device),
+        "address": asker.address.map(|address| address.to_canonical().to_string()),
+        "code": code,
+        "scopes": crate::auth::compatibility::Scopes::play().names(),
+    })))
+}
+
+/// `POST /api/oauth/quick-connect/{id}`: allowed, the Jellyfin app gets a
+/// token for other apps for the person's account when it next asks; refused,
+/// it is told its code is unknown. `404` once the request is over, or for
+/// another person's or session's.
+pub async fn decide_quick_connect(
+    State(state): State<AppState>,
+    web: WebUser,
+    Path(id): Path<String>,
+    Json(body): Json<Decision>,
+) -> ApiResult<Json<Value>> {
+    let asker = state
+        .oauth
+        .quick_connect
+        .decide(&id, web.user.id, &web.session_hash, body.allow)
+        .map_err(|_| AppError::not_found(OVER))?;
+    if body.allow {
+        tracing::info!("{} may sign in to {}'s account with Quick Connect", asker.label(), web.user.username);
+    }
+    Ok(Json(json!({"done": true})))
 }
 
 /// grant_type=urn:ietf:params:oauth:grant-type:device_code (RFC 8628

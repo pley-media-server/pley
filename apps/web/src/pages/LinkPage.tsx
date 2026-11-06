@@ -2,12 +2,24 @@ import { useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router";
 import { useMutation } from "@tanstack/react-query";
 import { errorMessage } from "@/api/client";
-import { decideDevice, verifyCode, type ConsentRequest } from "@/api/oauth";
+import {
+  decideDevice,
+  decideQuickConnect,
+  quickConnectConsent,
+  verifyCode,
+  verifyQuickConnect,
+  type ConsentRequest,
+} from "@/api/oauth";
 import { Button, Field, TextInput } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
-import { codeLetters, hasStrayLetter, isWholeCode, showCode } from "@/lib/userCode";
+import { hasStrayLetter, isQuickConnectCode, isWholeCode, showCode, typedCode } from "@/lib/userCode";
 import { AppConsent, appName } from "./AppConsent";
 import { AuthLayout } from "./AuthLayout";
+
+/** The request a code leads to: a TV's, or a Jellyfin app's Quick Connect request. */
+function lookUp(code: string): Promise<ConsentRequest> {
+  return isQuickConnectCode(code) ? verifyQuickConnect(code).then(quickConnectConsent) : verifyCode(code);
+}
 
 /**
  * Signs in a TV (OAuth device authorization, RFC 8628): the TV shows a code
@@ -15,23 +27,28 @@ import { AuthLayout } from "./AuthLayout";
  * the code and allows the app. The TV hears the answer when it next asks the
  * server. A code in the address (from the TV's QR code) is only filled in:
  * the person compares it with the TV first (RFC 8628 §5.4).
+ *
+ * A Jellyfin app's Quick Connect code (6 digits) is typed here too, and the
+ * app signs in to the Jellyfin-compatible API the same way.
  */
 export function LinkPage() {
   useDocumentTitle("Sign in on your TV");
   const [params] = useSearchParams();
-  const linked = codeLetters(params.get("code") ?? "");
-  /** The code's letters, without the dash. */
+  const linked = typedCode(params.get("code") ?? "");
+  /** The code's letters (without the dash) or digits. */
   const [code, setCode] = useState(linked);
-  const verify = useMutation({ mutationFn: verifyCode });
+  const verify = useMutation({ mutationFn: lookUp });
   /** The TV's request, with the code that found it. */
   const [found, setFound] = useState<{ request: ConsentRequest; code: string } | null>(null);
   const [answer, setAnswer] = useState<"allowed" | "denied" | null>(null);
+  const whole = (typed: string) => isWholeCode(typed) || isQuickConnectCode(typed);
   /** A whole code from the address, as it came: to compare with the TV. */
-  const checking = isWholeCode(linked) && code === linked;
+  const checking = whole(linked) && code === linked;
+  const jellyfin = found?.request.redirect.kind === "quick-connect";
 
   if (found && answer === "allowed") {
     return (
-      <AuthLayout title={`${appName(found.request.client)} on your TV is signing in`}>
+      <AuthLayout title={jellyfin ? "The Jellyfin app is signing in" : `${appName(found.request.client)} on your TV is signing in`}>
         <p className="text-sm text-muted">You can close this page.</p>
       </AuthLayout>
     );
@@ -39,43 +56,51 @@ export function LinkPage() {
   if (found && answer === "denied") {
     return (
       <AuthLayout title="Not allowed">
-        <p className="text-sm text-muted">Your TV will say so.</p>
+        <p className="text-sm text-muted">{jellyfin ? "The app won't be signed in." : "Your TV will say so."}</p>
       </AuthLayout>
     );
   }
   if (found) {
     const { request } = found;
+    const decide = jellyfin ? decideQuickConnect : decideDevice;
     return (
       <AppConsent
         request={request}
         returnTo={`/link?code=${found.code}`}
-        onAnswer={(allow) => decideDevice(request.id, allow).then(() => setAnswer(allow ? "allowed" : "denied"))}
+        onAnswer={(allow) => decide(request.id, allow).then(() => setAnswer(allow ? "allowed" : "denied"))}
       />
     );
   }
 
   const type = (value: string) => {
-    setCode(codeLetters(value));
+    setCode(typedCode(value));
     // The server's answer was about the code before.
     if (verify.isError) verify.reset();
   };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    if (!isWholeCode(code) || verify.isPending) return;
+    if (!whole(code) || verify.isPending) return;
     verify.mutate(code, { onSuccess: (request, sent) => setFound({ request, code: sent }) });
   };
+
+  // A Quick Connect code's digits are no letters at all.
+  const stray = /^[A-Z]/.test(code) && hasStrayLetter(code);
 
   return (
     <AuthLayout
       title="Sign in on your TV"
-      subtitle={checking ? "Check that your TV shows this code, then continue." : "Enter the code your TV shows."}
+      subtitle={
+        checking
+          ? "Check that your TV or app shows this code, then continue."
+          : "Enter the code your TV shows, or a Jellyfin app's Quick Connect code."
+      }
     >
       <form onSubmit={submit} className="space-y-4">
         <Field
           label="Code"
           htmlFor="code"
-          error={hasStrayLetter(code) ? "Codes don't use A, E, I, O, U or Y: check the code on your TV." : null}
+          error={stray ? "Codes don't use A, E, I, O, U or Y: check the code on your TV." : null}
         >
           <TextInput
             id="code"
@@ -104,7 +129,7 @@ export function LinkPage() {
           size="lg"
           className="w-full"
           loading={verify.isPending}
-          disabled={!isWholeCode(code)}
+          disabled={!whole(code)}
         >
           Continue
         </Button>

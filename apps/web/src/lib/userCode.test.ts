@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CODE_LETTERS, codeLetters, hasStrayLetter, isWholeCode, showCode } from "./userCode";
+import { CODE_LETTERS, codeLetters, hasStrayLetter, isQuickConnectCode, isWholeCode, showCode, typedCode } from "./userCode";
 
 describe("the codes TVs show", () => {
   it("are 20 consonants: no vowels, no Y, no digits", () => {
@@ -32,5 +32,23 @@ describe("the codes TVs show", () => {
     expect(hasStrayLetter("BCDFGHJA")).toBe(true);
     expect(hasStrayLetter("BCDY")).toBe(true);
     expect(hasStrayLetter("BCD")).toBe(false);
+  });
+});
+
+describe("Jellyfin apps' Quick Connect codes", () => {
+  it("are 6 digits, told from a TV's code by what is typed first", () => {
+    expect(typedCode("123 456")).toBe("123456");
+    expect(typedCode(" 12-34a56 7")).toBe("123456");
+    expect(typedCode("bcdf 2ghjk")).toBe("BCDFGHJK");
+    expect(typedCode("")).toBe("");
+    expect(isQuickConnectCode("123456")).toBe(true);
+    expect(isQuickConnectCode("12345")).toBe(false);
+    expect(isQuickConnectCode("BCDFGH")).toBe(false);
+    expect(isWholeCode("123456")).toBe(false);
+  });
+
+  it("show as the app does", () => {
+    expect(showCode("123456")).toBe("123456");
+    expect(showCode("12345")).toBe("12345");
   });
 });

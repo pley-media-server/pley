@@ -106,8 +106,8 @@ tool, so that one can be revoked without the others.
   the app or tool, choose what it may do and where it may be used from, and
   copy the token into it: Pley shows it once.
 - **By signing in**, for Jellyfin's apps: an app signing in to the
-  Jellyfin-compatible API gets a token of its own that may play, from
-  anywhere ([Signing in](#signing-in)).
+  Jellyfin-compatible API, with a password or with Quick Connect, gets a
+  token of its own that may play ([Signing in](#signing-in)).
 
 Account → Tokens for other apps lists each token, what it may do, where it
 may be used from, and where and with what it was last used, and revokes it.
@@ -596,11 +596,43 @@ gives them ("Findroid on Phone"). No session of Pley's is made.
 Signing in goes through the checks of Pley's own sign-in: attempt limits
 per name and address, and disabled accounts (`403`). An account with
 two-step sign-in can't sign in this way (`401`), nor one without it while
-the server requires it: an app has nowhere to type the code. Quick Connect
-isn't offered: such an app takes a token made in Account. The body must be
-JSON (`400` otherwise), as Jellyfin's is: another site's page could send
-text without asking the server first, and lock an account out with wrong
-passwords.
+the server requires it: an app has nowhere to type the code. Such an
+account signs in with Quick Connect. The body must be JSON (`400`
+otherwise), as Jellyfin's is: another site's page could send text without
+asking the server first, and lock an account out with wrong passwords.
+
+**Quick Connect.** An app that offers it shows a code of 6 digits. The
+person types it on Pley's `/link` page, where they are signed in (two-step
+sign-in included), on a phone or a computer: the page says which app asks,
+what it says its device is, the address it asked from and what its token
+may do, and asks them to allow it. The code may also be typed in a
+Jellyfin app already signed in to the account that approves codes
+(Streamyfin's Quick Connect setting): its token says who allows it. Then
+the app has a token of its own that may play, named after the app and its
+device as above, and listed in Account → Tokens for other apps. Allowed on
+the page, it may be used from anywhere; allowed in an app, from where that
+app's token may be used.
+
+- `GET /QuickConnect/Enabled` is `true`. `POST /QuickConnect/Initiate`
+  (also `GET`, which some apps try first) answers Jellyfin's
+  `QuickConnectResult`: `Code`, a `Secret` of 256 random bits, and what the
+  app's `Authorization` header said of it.
+- The app asks `GET /QuickConnect/Connect?secret=` every few seconds until
+  `Authenticated` is `true`, then trades the secret at
+  `POST /Users/AuthenticateWithQuickConnect` (`{"Secret"}`), which answers
+  as `AuthenticateByName` does, once: `401` while no one has allowed it,
+  `404` for a secret that isn't waiting.
+- `POST /QuickConnect/Authorize?code=` answers `true`, or `404` for a code
+  no app shows; a `userId` must be the caller's own (`403` otherwise).
+- A code lasts 10 minutes. At most 10 are waiting from one address (an
+  IPv6 /64), 25 from one IPv6 /56 and 250 in all (`429` past them); an app
+  that asks again from the same address, with the same `DeviceId`, gets a
+  new code in place of its old one, until someone has typed it. Refused,
+  expired or used, a code is unknown (`404`). After 10 wrong codes from
+  one person, or 300 from everyone, in 10 minutes, no code is looked up.
+- Allowed, the app gets its token only while whoever allowed it is still
+  signed in where they did, and the account's sign-ins haven't ended since
+  (a new password, signing out everywhere, disabling, deletion).
 
 Apps send the token as Jellyfin's apps do:
 
@@ -717,7 +749,8 @@ closes once it ends.
 
 | Area | Endpoints |
 |---|---|
-| Server | `GET /System/Info/Public`, `/System/Info`, `/System/Ping`, `/System/Endpoint`, `/Branding/Configuration`, `/Branding/Css`, `/QuickConnect/Enabled` (`false`; `/QuickConnect/Initiate` and `/Connect` answer `401`), `/Playback/BitrateTest` (`size` random bytes for a speed test, at most 100 MB) |
+| Server | `GET /System/Info/Public`, `/System/Info`, `/System/Ping`, `/System/Endpoint`, `/Branding/Configuration`, `/Branding/Css`, `/Playback/BitrateTest` (`size` random bytes for a speed test, at most 100 MB) |
+| Quick Connect | `GET /QuickConnect/Enabled`, `GET|POST /QuickConnect/Initiate`, `GET /QuickConnect/Connect?secret=`, `POST /QuickConnect/Authorize?code=`, `POST /Users/AuthenticateWithQuickConnect` ([Signing in](#signing-in)) |
 | Users | `POST /Users/AuthenticateByName`, `GET /Users/Me`, `/Users`, `/Users/Public`, `/Users/{id}`, `/Users/{id}/Images/Primary`, `/UserImage?userId=`, `POST /Sessions/Logout`, `/Sessions/Capabilities[/Full]`, `GET|POST /DisplayPreferences/{id}` |
 | Browsing | `GET /UserViews`, `/Items` (by `ParentId`, `Ids`, `SearchTerm`, `PersonIds`, `ArtistIds`; `IncludeItemTypes`, `Recursive`, `Filters`, `Genres`, `Years`, `OfficialRatings`, `Tags`, `Studios`, `NameStartsWith`, `SortBy`, `SortOrder`, `StartIndex`, `Limit`), `/Items/{id}`, `/Items/Latest`, `/Items/Suggestions`, `/UserItems/Resume`, `/Shows/NextUp`, `/Shows/Upcoming` (none), `/Shows/{id}/Seasons`, `/Shows/{id}/Episodes`, `/Items/{id}/Similar`, `/LocalTrailers`, `/SpecialFeatures`, `/Ancestors`, `/Items/Filters`, `/Items/Filters2`, `/Genres`, `/MusicGenres`, `/Artists`, `/Artists/AlbumArtists`, `/Studios`, `/Years`, `/Tags` (none), `/Persons?SearchTerm=`, `/Search/Hints`, `/Playlists/{id}/Items`, and the `/Users/{id}/…` forms of these |
 | Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
@@ -739,8 +772,6 @@ Run against Pley with the API on Pley's port and on a port of its own:
 
 ### Not supported by the Jellyfin-compatible API
 
-- Quick Connect, and so signing in from an app with an account that uses
-  two-step sign-in.
 - Administration: the dashboard, users, libraries, plugins, scheduled
   tasks, logs and activity.
 - Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists

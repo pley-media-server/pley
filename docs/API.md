@@ -155,8 +155,8 @@ For those origins only, the API and
 
 A wildcard origin never lets a page read an answer made with cookies, so
 these answers only carry what a token in `Authorization` opens. The consent
-page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`) never
-answer CORS. A server's proof (`/api/server` with a `challenge`,
+page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`,
+`/api/oauth/quick-connect…`) never answer CORS. A server's proof (`/api/server` with a `challenge`,
 [Telling servers apart](#telling-servers-apart)) isn't made for any other
 `Origin`, nor for `Origin: null` unless the User-Agent says webOS, as LG's
 runtime does (`403`): a website's page in a sandboxed frame sends `null`
@@ -751,7 +751,7 @@ provider. The security design is summarized in
 | POST | `/api/oauth/revoke` | `public` | signs an app out ([Tokens](#tokens)) |
 | POST | `/api/oauth/device` | `public` | a TV's code ([TVs](#tvs)) |
 | GET | `/api/oauth/device/qr?code=` | `public` | the code's address as a QR code ([TVs](#tvs)) |
-| GET | `/link` | `public` | the web app's page where a TV's code is typed ([TVs](#tvs)) |
+| GET | `/link` | `public` | the web app's page where a TV's code is typed ([TVs](#tvs)), and a Jellyfin app's Quick Connect code ([The consent page's endpoints](#the-consent-pages-endpoints)) |
 | GET | `/api/oauth/profiles` | `profiles` | the household's profiles ([Profiles](#profiles)) |
 
 ### Discovery
@@ -1422,6 +1422,8 @@ Pley's own page uses these (Who: `page`); apps never do.
 |---|---|---|---|
 | POST | `/api/oauth/requests` | `page` | `{ query }` (the page's query without `?`, at most 8 KiB) → a consent request |
 | POST | `/api/oauth/device/verify` | `page` | `{ user_code }` (as typed) → a consent request for a TV |
+| POST | `/api/oauth/quick-connect` | `page` | `{ code }` (as typed) → a Jellyfin app's Quick Connect request |
+| POST | `/api/oauth/quick-connect/{id}` | `page` | `{ allow: boolean }` → `{ done: true }` |
 | POST | `/api/oauth/requests/{id}` | `page` | `{ allow: boolean }` → `{ continue_url }`, or `{ done: true }` for a TV's request |
 | GET | `/api/oauth/requests/{id}/continue` | `page` | `303` to the app with the answer |
 
@@ -1463,6 +1465,31 @@ A request belongs to the person and browser session that opened the page,
 and lasts 10 minutes. Each person has at most 10 waiting (the oldest goes),
 the server 1,000. Requests end with the account's sign-ins (a new password,
 "Sign out everywhere", disabling, deletion).
+
+**`POST /api/oauth/quick-connect`** takes the code a Jellyfin app shows to
+sign in to the Jellyfin-compatible API with Quick Connect
+([COMPATIBILITY.md](COMPATIBILITY.md#signing-in)): 6 digits, with or
+without spaces. The `/link` page sends a code that starts with a digit
+here, and one of letters to `/api/oauth/device/verify`. It answers
+`{ status: "consent", id, expires_at, app, version, device, address, code, scopes }`:
+
+- `app`, `version` and `device`: what the app's `Authorization` header said
+  of it, unchecked, without control and direction characters, or `null`;
+  `address`: where it asked from. The page names it "A Jellyfin app", and
+  what it calls itself only as something Pley can't check.
+- `scopes`: what its token for other apps may do, `["play"]`
+  ([Compatibility tokens](#compatibility-tokens)).
+- `400` for something that isn't such a code, `404` for one no app shows
+  (it counts as a wrong one, as a TV's do, on a count of its own), `409` for
+  one shown on another session's page or answered already, `429` past the
+  wrong codes' limit.
+
+**`POST /api/oauth/quick-connect/{id}`**: allowed, the app gets a token
+for the account when it next asks, from anywhere, while this browser
+session is signed in; refused, its code is unknown to it from then on.
+`404` when the request is over, or not this person's and session's. The
+token is listed in Account like the others, named after the app and its
+device.
 
 ## Access rules
 

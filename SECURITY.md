@@ -255,6 +255,16 @@ other apps (`pley_ct_…`), never with a session's
   makes no session. An account with two-step sign-in can't sign in this way,
   nor one without it while the server requires it: the API has no second
   step.
+- Jellyfin's apps also sign in with Quick Connect, which takes no password:
+  the app shows a 6-digit code (as Jellyfin's), and someone signed in types
+  it on Pley's `/link` page, which says which app asks, what device it says
+  it is on and from which address, or in a Jellyfin app already signed in
+  to their account. The app then trades a 256-bit secret for its token,
+  once, while whoever allowed it is still signed in there, and only from
+  where the allowing token may be used. Codes last 10 minutes; at most 10
+  wait from one address (an IPv6 /64), 25 from one /56 and 250 in all, so
+  a code typed at random finds one in 4,000 at most; after 10 wrong codes
+  from one person, or 300 from everyone, in 10 minutes, none is looked up.
 - They work on the compatibility APIs only, from those APIs' token headers
   or query parameters, `Authorization: Bearer`, `X-Pley-Token` or
   `?token=`, never from the cookie. Pley's own API refuses them wherever

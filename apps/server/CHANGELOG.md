@@ -11,6 +11,12 @@ describes how they are made.
 
 ### Added
 
+- Jellyfin apps sign in with Quick Connect: the app shows a 6-digit code,
+  which you type on Pley's Link page (Account → Sign in on a TV, or Link a
+  TV in the Android app) or in a Jellyfin app already signed in. Accounts
+  with two-step sign-in, which can't sign in to these apps with a password,
+  sign in this way. The page says which app and device asks before you
+  allow it, and its token is listed in Account with the others.
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays

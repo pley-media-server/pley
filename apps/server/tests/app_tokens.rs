@@ -134,12 +134,15 @@ const ADMIN: &[(&str, &str)] = &[
 ];
 
 /// Routes that take pley's own page's cookie and nothing else: allowing
-/// an app, or a TV by the code it shows (api/oauth.rs WebUser).
+/// an app, a TV by the code it shows, or a Jellyfin app by its Quick
+/// Connect code (api/oauth.rs WebUser).
 const COOKIE_ONLY: &[(&str, &str)] = &[
     ("POST", "/api/oauth/requests"),
     ("POST", "/api/oauth/requests/{id}"),
     ("GET", "/api/oauth/requests/{id}/continue"),
     ("POST", "/api/oauth/device/verify"),
+    ("POST", "/api/oauth/quick-connect"),
+    ("POST", "/api/oauth/quick-connect/{id}"),
 ];
 
 /// Every method and path of the API router of `source` (api/mod.rs): the

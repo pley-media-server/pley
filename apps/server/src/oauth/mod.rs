@@ -17,14 +17,17 @@
 //!
 //! A sign-in in progress lives here too: the request the consent page shows
 //! ([`pending`]), the code an allowed app exchanges for its tokens
-//! ([`codes`]), and the request of a TV that signs in with a code it shows
-//! ([`devices`]). The HTTP side is `api/oauth.rs`.
+//! ([`codes`]), the request of a TV that signs in with a code it shows
+//! ([`devices`]), and that of a Jellyfin app signing in with Quick Connect
+//! ([`quick_connect`]). The HTTP side is `api/oauth.rs`, and Quick
+//! Connect's app side `jellyfin/users.rs`.
 
 pub mod clients;
 pub mod codes;
 pub mod devices;
 pub mod fetch;
 pub mod pending;
+pub mod quick_connect;
 
 use crate::config::Config;
 
@@ -39,6 +42,9 @@ pub struct AuthorizationServer {
     pub codes: codes::Codes,
     /// Requests of TVs signing in with a code, until they have their answer.
     pub devices: devices::Devices,
+    /// Jellyfin apps signing in with Quick Connect, until they have their
+    /// token.
+    pub quick_connect: quick_connect::QuickConnect,
 }
 
 impl AuthorizationServer {
@@ -48,19 +54,21 @@ impl AuthorizationServer {
             pending: pending::Pending::default(),
             codes: codes::Codes::default(),
             devices: devices::Devices::default(),
+            quick_connect: quick_connect::QuickConnect::default(),
         }
     }
 
     /// The sign-ins of `user_id` ended (a new password, signing out
     /// everywhere, disabling, deletion): nothing in progress for them can
     /// sign an app in any more. Their requests on the consent page are
-    /// over, their codes end, and TVs they allowed that haven't asked for
-    /// their answer yet are refused. Called before their apps are ended,
+    /// over, their codes end, and TVs and Jellyfin apps they allowed that
+    /// haven't asked for their answer yet are refused. Called before their apps are ended,
     /// so that an app being signed in meanwhile ends with them.
     pub fn forget_user(&self, user_id: i64) {
         self.pending.forget_user(user_id);
         self.codes.forget_user(user_id);
         self.devices.forget_user(user_id);
+        self.quick_connect.forget_user(user_id);
     }
 
     /// Forgets what is over: requests, codes, documents and counters.
@@ -69,6 +77,7 @@ impl AuthorizationServer {
         self.codes.sweep();
         self.documents.sweep();
         self.devices.sweep();
+        self.quick_connect.sweep();
     }
 }
 

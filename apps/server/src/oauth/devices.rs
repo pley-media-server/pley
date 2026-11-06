@@ -55,7 +55,7 @@ pub const MAX_PER_SITE: usize = 50;
 /// Requests in progress in all.
 pub const MAX_REQUESTS: usize = 1_000;
 /// How long a wrong code counts.
-const WRONG_CODE_WINDOW: Duration = Duration::from_secs(600);
+pub(super) const WRONG_CODE_WINDOW: Duration = Duration::from_secs(600);
 /// Wrong codes one person may type within the window.
 pub const MAX_WRONG_PER_PERSON: usize = 10;
 /// Wrong codes everyone may type within the window.
@@ -105,7 +105,7 @@ pub fn shown(code: &str) -> String {
 
 /// What requests from `address` count against: the address itself, or for
 /// IPv6 its /64 network, all of which one host may use.
-fn network(address: IpAddr) -> IpAddr {
+pub(super) fn network(address: IpAddr) -> IpAddr {
     match address.to_canonical() {
         IpAddr::V6(v6) => IpAddr::V6(Ipv6Addr::from(u128::from(v6) & (u128::MAX << 64))),
         v4 => v4,
@@ -114,7 +114,7 @@ fn network(address: IpAddr) -> IpAddr {
 
 /// The IPv6 site (/56) of a network, which counts against [`MAX_PER_SITE`]
 /// too; an IPv4 address has none.
-fn site(network: Option<IpAddr>) -> Option<Ipv6Addr> {
+pub(super) fn site(network: Option<IpAddr>) -> Option<Ipv6Addr> {
     match network? {
         IpAddr::V6(v6) => Some(Ipv6Addr::from(u128::from(v6) & (u128::MAX << 72))),
         IpAddr::V4(_) => None,
@@ -202,7 +202,7 @@ impl State {
 }
 
 /// Drops the times a wrong code no longer counts for.
-fn forget_old(times: &mut VecDeque<Instant>, now: Instant) {
+pub(super) fn forget_old(times: &mut VecDeque<Instant>, now: Instant) {
     while times.front().is_some_and(|&at| now.duration_since(at) >= WRONG_CODE_WINDOW) {
         times.pop_front();
     }

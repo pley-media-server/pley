@@ -1,5 +1,5 @@
 //! What clients ask before and after signing in: the server's name, id and
-//! version, its branding (none), whether Quick Connect is on.
+//! version, its branding (none).
 
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ use axum::routing::get;
 use axum::{Extension, Json, Router};
 use serde::Serialize;
 
-use super::{Jellyfin, JfError, JfResult, JfUser, PRODUCT, VERSION};
+use super::{Jellyfin, JfResult, JfUser, PRODUCT, VERSION};
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
@@ -22,9 +22,6 @@ pub fn routes() -> Router<AppState> {
         .route("/branding/configuration", get(branding))
         .route("/branding/css", get(css))
         .route("/branding/css.css", get(css))
-        .route("/quickconnect/enabled", get(quick_connect_enabled))
-        .route("/quickconnect/initiate", get(quick_connect_off).post(quick_connect_off))
-        .route("/quickconnect/connect", get(quick_connect_off))
         .route("/plugins", get(none))
         .route("/localization/cultures", get(none))
 }
@@ -140,17 +137,6 @@ async fn branding() -> Json<Branding> {
 
 async fn css() -> Response {
     ([(axum::http::header::CONTENT_TYPE, "text/css")], "").into_response()
-}
-
-/// Quick Connect: signing in by approving a code in Pley isn't offered.
-async fn quick_connect_enabled() -> Json<bool> {
-    Json(false)
-}
-
-/// Quick Connect's other calls, answered as Jellyfin answers them while it
-/// is off: apps that try it anyway are told so, and offer the password.
-async fn quick_connect_off() -> JfError {
-    JfError::Unauthorized
 }
 
 /// Lists Pley has nothing in (plugins, cultures), answered empty so clients

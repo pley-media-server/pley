@@ -363,6 +363,20 @@ pub async fn list(db: &Db, user_id: i64) -> Result<Vec<TokenRow>, AppError> {
     .await?)
 }
 
+/// Where token `id` of `user_id` may be used from, while it works: `None`
+/// once it was revoked or ended.
+pub async fn origins_of(db: &Db, user_id: i64, id: i64) -> Result<Option<Origins>, AppError> {
+    let found: Option<Option<String>> = sqlx::query_scalar(
+        "SELECT allowed_from FROM compatibility_tokens WHERE id = ? AND user_id = ? AND expires_at > ?",
+    )
+    .bind(id)
+    .bind(user_id)
+    .bind(now())
+    .fetch_optional(&db.read)
+    .await?;
+    Ok(found.map(|stored| Origins::from_stored(stored.as_deref())))
+}
+
 /// Ends token `id` of `user_id`; whether there was one.
 pub async fn delete(db: &Db, user_id: i64, id: i64) -> Result<bool, AppError> {
     let deleted = sqlx::query("DELETE FROM compatibility_tokens WHERE id = ? AND user_id = ?")

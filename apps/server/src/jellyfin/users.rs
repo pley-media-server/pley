@@ -243,7 +243,7 @@ struct SessionInfo {
 
 #[derive(Serialize)]
 #[serde(rename_all = "PascalCase")]
-struct AuthenticationResult {
+pub(super) struct AuthenticationResult {
     user: UserDto,
     session_info: SessionInfo,
     access_token: String,
@@ -252,7 +252,8 @@ struct AuthenticationResult {
 
 /// `POST /Users/AuthenticateByName {"Username", "Pw"}`: a token for other
 /// apps, `play` only. An account with two-step sign-in can't sign in this
-/// way: a client has nowhere to type the code.
+/// way: a client has nowhere to type the code. It signs in with Quick
+/// Connect ([`super::quick_connect`]) instead.
 async fn authenticate(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
@@ -295,7 +296,7 @@ fn is_json(headers: &HeaderMap) -> bool {
     kind == "application/json" || kind == "text/json" || (kind.starts_with("application/") && kind.ends_with("+json"))
 }
 
-async fn signed_in(
+pub(super) async fn signed_in(
     state: &AppState,
     jellyfin: &Jellyfin,
     user: &AuthUser,
