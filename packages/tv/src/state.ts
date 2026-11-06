@@ -233,7 +233,8 @@ export class AppState {
   readonly deviceChoice = signal<Language | null>(null);
   /**
    * The server keeps no account's language: a Pley from before languages,
-   * whose `GET /api/server` names none, or one that answered a choice 404.
+   * whose `GET /api/server` names none (one that names any, even one this
+   * app doesn't have, keeps it), or one that answered a choice 404 or 405.
    * Settings' Language row is then this TV's, as the globe picks it
    * ({@link chooseLanguage}).
    */

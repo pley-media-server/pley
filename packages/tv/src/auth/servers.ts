@@ -12,7 +12,10 @@ export interface ServerInfo {
    * in on a phone sets it up for whoever hasn't. False from servers before it.
    */
   twoStepRequired: boolean;
-  /** The server's language for accounts without their own ("fr"); `null` from servers before languages, which name none. */
+  /**
+   * The server's language for accounts without their own, as it names it ("fr"; a later Pley may name one this app
+   * doesn't have, "de"); `null` from servers before languages, which name none.
+   */
   language: string | null;
 }
 

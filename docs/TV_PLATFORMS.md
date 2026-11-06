@@ -785,7 +785,8 @@ French and Spanish to their punctuation.
   entries (up to six libraries, then Libraries; nothing left out for
   Live TV or Now Playing) and how far they scroll for the entry focus is
   on; `requests.json` pins where a Discover poster opens; `language.json`
-  pins which language shows. Where the
+  pins which language shows, and that a server naming any language, even
+  one the app doesn't have, keeps an account's. Where the
   Android app is
   stricter (a token answer without `token_type`, a device code without
   `expires_in`), the native app follows it, and its test says which

@@ -446,6 +446,28 @@ public class AppLanguageTests
         // A current server names its language: it keeps the account's.
         state.HeardServer(Home, "fr");
         Assert.True(state.KeepsLanguage);
+        // A later one may name a language this app doesn't have: it keeps the account's all the same.
+        state.HeardServer(Home, "de");
+        Assert.True(state.KeepsLanguage);
+        Assert.Null(state.ServerLanguage);
+    }
+
+    public static IEnumerable<object[]> KeepsCases() =>
+        Fixtures.Load("language").GetProperty("keepsLanguage").EnumerateArray().Select(c => new object[] { c.GetRawText() });
+
+    [Theory]
+    [MemberData(nameof(KeepsCases))]
+    public async Task A_server_that_names_a_language_keeps_an_accounts_as_the_web_Samsung_app_has_it(string json)
+    {
+        var c = JsonDocument.Parse(json).RootElement;
+        var server = new FakeServer();
+        server.On("GET", Home + "/api/server", 200, c.GetProperty("server").GetRawText());
+        // Pley's answer, which the app takes as the server having said.
+        Assert.NotNull(await Servers.Probe(server.Transport, Home));
+        var state = State(new MemoryKeyValue(), server, new FakeScheduler(), "en-US");
+        state.Use(Home);
+        await state.LoadServer();
+        Assert.Equal(c.GetProperty("out").GetBoolean(), state.KeepsLanguage);
     }
 
     [Fact]

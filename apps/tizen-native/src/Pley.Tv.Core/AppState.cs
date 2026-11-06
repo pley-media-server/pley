@@ -220,7 +220,11 @@ public sealed class AppState
     Task orderQueue = Task.CompletedTask;
     /// <summary>When the events last brought everything up to date (<see cref="IScheduler.Elapsed"/>).</summary>
     long? lastSync;
-    /// <summary>What each server said of its language in this launch (GET /api/server), by its address; null: none, as a Pley from before languages.</summary>
+    /// <summary>
+    /// What each server said of its language in this launch (GET /api/server), by its address, as it
+    /// named it: a later Pley may name one this app doesn't have ("de"). Null: none, as a Pley from
+    /// before languages.
+    /// </summary>
     readonly Dictionary<string, string?> serverLanguages = new Dictionary<string, string?>();
     /// <summary>The servers that answered a choice of language 404 (or 405) in this launch, by their address: they have no route for it.</summary>
     readonly HashSet<string> noLanguageRoute = new HashSet<string>();
@@ -256,13 +260,18 @@ public sealed class AppState
     /// <summary>The TV's languages, the one it is set to first.</summary>
     public IReadOnlyList<string> TvLanguages => tvLanguages;
 
-    /// <summary>The language of the server in use, for accounts without their own; null when it has none, or hasn't said yet.</summary>
-    public string? ServerLanguage => Server.Value != null && serverLanguages.TryGetValue(Server.Value, out var language) ? language : null;
+    /// <summary>
+    /// The language of the server in use, for accounts without their own; null when it has none, names
+    /// one this app doesn't have, or hasn't said yet.
+    /// </summary>
+    public string? ServerLanguage =>
+        Server.Value != null && serverLanguages.TryGetValue(Server.Value, out var language) ? Languages.Supported(language) : null;
 
     /// <summary>
-    /// The server in use keeps an account's language. False for a Pley from before languages, whose
-    /// GET /api/server names none, or one that answered a choice 404 (<see cref="LanguageRouteMissing"/>):
-    /// Settings' Language row is then this TV's, as the globe picks it. True until the server has said.
+    /// The server in use keeps an account's language: it names one, even one this app doesn't have.
+    /// False for a Pley from before languages, whose GET /api/server names none, or one that answered
+    /// a choice 404 or 405 (<see cref="LanguageRouteMissing"/>): Settings' Language row is then this
+    /// TV's, as the globe picks it. True until the server has said.
     /// </summary>
     public bool KeepsLanguage =>
         Server.Value is not { } server || (!noLanguageRoute.Contains(server) && (!serverLanguages.TryGetValue(server, out var language) || language != null));
@@ -278,7 +287,7 @@ public sealed class AppState
     {
         var home = Addresses.Origin(url);
         if (home == null) return;
-        serverLanguages[home] = Languages.Supported(language);
+        serverLanguages[home] = language;
         ChooseLanguage();
     }
 

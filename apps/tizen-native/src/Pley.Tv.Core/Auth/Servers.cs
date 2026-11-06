@@ -15,8 +15,8 @@ namespace Pley.Tv.Core.Auth;
 /// up for whoever hasn't yet. Servers before it leave it out.
 /// </param>
 /// <param name="Language">
-/// The server's language, for accounts without their own ("fr"); null from servers before
-/// languages, which name none.
+/// The server's language, for accounts without their own, as it names it ("fr"; a later Pley may
+/// name one this app doesn't have, "de"); null from servers before languages, which name none.
 /// </param>
 public sealed record ServerInfo(string Url, string Name, string Version, bool TwoStepRequired = false, string? Language = null);
 
@@ -105,7 +105,9 @@ public static class Servers
         var shown = Plain.Of(name);
         // On only when the server sends true: anything else (a string, a number) reads as off, as on Android.
         var twoStep = Json.Bool(body, "two_step_required") == true;
-        return new Answer(new ServerInfo(url, shown.Length > 0 ? shown : Addresses.DisplayAddress(url), version!, twoStep, Languages.Supported(Json.String(body, "language"))), null);
+        // As named, not only one this app has: naming any says the server keeps an account's language.
+        var language = Json.String(body, "language");
+        return new Answer(new ServerInfo(url, shown.Length > 0 ? shown : Addresses.DisplayAddress(url), version!, twoStep, string.IsNullOrEmpty(language) ? null : language), null);
     }
 
     /// <summary>A home address gets 3 s to accept a connection, one on the internet 10 s.</summary>

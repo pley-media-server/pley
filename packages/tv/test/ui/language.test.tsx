@@ -14,6 +14,8 @@ import { Input } from "../../src/ui/input";
 import { AppContext } from "../../src/ui/screens/common";
 import { SettingsScreen } from "../../src/ui/screens/settings";
 import type { Entry } from "../../src/ui/shell/navigator";
+// Shared with the native Samsung app's tests, which must answer the same.
+import fixture from "../fixtures/language.json";
 
 /**
  * The language the app is in: the one shown last until the server says,
@@ -201,6 +203,16 @@ describe("the language the app is in", () => {
     await app.chooseLanguage(null);
     expect(currentLanguage()).toBe("en");
     expect(store.get("pley.deviceLanguage")).toBeNull();
+  });
+
+  it("is the account's on a server that names a language, even one Pley here doesn't have, as the shared fixture has it", async () => {
+    for (const c of fixture.keepsLanguage) {
+      const { app } = setup({ device: ["en-US"], server: () => Promise.resolve(answer(c.server)), signedIn: true });
+      await settle();
+      // The server has said.
+      expect([c, app.serverLanguage.value === undefined]).toEqual([c, false]);
+      expect([c, !app.languageOnDevice.value]).toEqual([c, c.out]);
+    }
   });
 
   it("on a server that answers the choice 404, is this TV's from then on", async () => {

@@ -98,5 +98,23 @@
       "device": ["de-DE"],
       "out": "es"
     }
+  ],
+  "keepsLanguage": [
+    {
+      "server": { "name": "Home", "version": "1.0.0", "language": "fr" },
+      "out": true
+    },
+    {
+      "server": { "name": "Home", "version": "2.0.0", "language": "de" },
+      "out": true
+    },
+    {
+      "server": { "name": "Home", "version": "0.1.0" },
+      "out": false
+    },
+    {
+      "server": { "name": "Home", "version": "0.1.0", "language": null },
+      "out": false
+    }
   ]
 }
