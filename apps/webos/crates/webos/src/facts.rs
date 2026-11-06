@@ -11,6 +11,7 @@
 use std::path::Path;
 use std::time::Duration;
 
+use pley_i18n::t;
 use serde_json::{Value, json};
 
 use crate::luna::Luna;
@@ -394,7 +395,7 @@ impl CodecTable {
         let video: Vec<String> =
             self.video.iter().map(|r| format!("{} {}×{}@{}", r.name, r.max_width, r.max_height, r.max_fps)).collect();
         let audio: Vec<String> = self.audio.iter().map(|r| format!("{} {} ch", r.name, r.channels)).collect();
-        format!("Pipeline decoders: {}; {}", video.join(", "), audio.join(", "))
+        t!("diagnostics.lines.pipeline", video = video.join(", "), audio = audio.join(", "))
     }
 }
 

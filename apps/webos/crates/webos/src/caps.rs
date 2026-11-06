@@ -8,6 +8,7 @@
 use pley_base::Tier;
 use pley_core::device::{CapsOverrides, CapsReport};
 use pley_core::model::{ClientCaps, DeviceCaps, DisplayCaps, DolbyVisionDecoder, DynamicRange, HlsCaps, VideoDecoder};
+use pley_i18n::t;
 
 use crate::facts::WebosFacts;
 
@@ -222,35 +223,38 @@ fn unique(list: impl Iterator<Item = String>) -> Vec<String> {
 }
 
 fn lines(f: &WebosFacts, caps: &ClientCaps, dv_containers: &[String]) -> Vec<String> {
+    let tv = match &f.firmware {
+        Some(fw) => t!("diagnostics.lines.tvFirmware", model = f.model, firmware = fw),
+        None => t!("diagnostics.lines.tv", model = f.model),
+    };
+    let system = match &f.release {
+        Some(r) => t!("diagnostics.lines.webosRelease", version = f.webos, release = r),
+        None => format!("webOS {}", f.webos),
+    };
+    let size = if f.uhd8k {
+        "8K"
+    } else if f.uhd {
+        "4K"
+    } else {
+        "HD"
+    };
+    let hdr = if caps.hdr_types.is_empty() {
+        t!("diagnostics.lines.none").to_string()
+    } else {
+        caps.hdr_types.iter().map(|t| hdr_name(*t)).collect::<Vec<_>>().join(", ")
+    };
     let mut out = vec![
-        format!("TV: {}{}", f.model, f.firmware.as_ref().map_or(String::new(), |fw| format!(" (firmware {fw})"))),
-        format!("webOS {}{}", f.webos, f.release.as_ref().map_or(String::new(), |r| format!(" · release {r}"))),
-        format!(
-            "Panel: {}{}",
-            if f.uhd8k {
-                "8K"
-            } else if f.uhd {
-                "4K"
-            } else {
-                "HD"
-            },
-            if f.oled { " OLED" } else { "" }
-        ),
-        format!(
-            "HDR: {}",
-            if caps.hdr_types.is_empty() {
-                "none".to_string()
-            } else {
-                caps.hdr_types.iter().map(|t| hdr_name(*t)).collect::<Vec<_>>().join(", ")
-            }
-        ),
+        tv,
+        system,
+        t!("diagnostics.lines.panel", panel = format!("{size}{}", if f.oled { " OLED" } else { "" })),
+        t!("diagnostics.lines.hdr", formats = hdr),
     ];
     if !caps.dolby_vision_profiles.is_empty() {
         let profiles: Vec<String> = caps.dolby_vision_profiles.iter().map(|p| p.profile.to_string()).collect();
-        out.push(format!(
-            "Dolby Vision: profiles {}, from {}",
-            profiles.join(", "),
-            dv_containers.join(", ").to_uppercase()
+        out.push(t!(
+            "diagnostics.lines.dolbyVision",
+            profiles = profiles.join(", "),
+            containers = dv_containers.join(", ").to_uppercase()
         ));
     }
     let video: Vec<String> = caps
@@ -266,19 +270,22 @@ fn lines(f: &WebosFacts, caps: &ClientCaps, dv_containers: &[String]) -> Vec<Str
             )
         })
         .collect();
-    out.push(format!("Video: {}", video.join(", ")));
-    out.push(format!("Audio decoded: {}", caps.audio_decode.join(", ")));
-    out.push(format!(
-        "Sent to the receiver: {}",
-        if caps.audio_passthrough.is_empty() { "nothing".to_string() } else { caps.audio_passthrough.join(", ") }
-    ));
-    out.push(format!(
-        "Sound: {}{}{}",
-        f.sound_output.as_deref().unwrap_or("unknown"),
-        f.digital_output.as_ref().map_or(String::new(), |d| format!(" (digital {d})")),
-        if f.atmos { " · Atmos" } else { "" }
-    ));
-    out.push(format!("Streams: HLS {}", caps.hls.segments.join(", ")));
+    out.push(t!("diagnostics.lines.video", decoders = video.join(", ")));
+    out.push(t!("diagnostics.lines.audioDecoded", formats = caps.audio_decode.join(", ")));
+    let sent = if caps.audio_passthrough.is_empty() {
+        t!("diagnostics.lines.nothing").to_string()
+    } else {
+        caps.audio_passthrough.join(", ")
+    };
+    out.push(t!("diagnostics.lines.sent", formats = sent));
+    // The sound output's name is LG's id (`tv_speaker`, `external_arc`), the same in every language.
+    let output = f.sound_output.as_deref().unwrap_or(t!("diagnostics.lines.unknown"));
+    let output = match &f.digital_output {
+        Some(d) => t!("diagnostics.lines.digital", output = output, digital = d),
+        None => output.to_string(),
+    };
+    out.push(t!("diagnostics.lines.sound", output = format!("{output}{}", if f.atmos { " · Atmos" } else { "" })));
+    out.push(t!("diagnostics.lines.streams", segments = caps.hls.segments.join(", ")));
     if let Some(table) = &f.codecs {
         out.push(table.line());
     }
@@ -428,5 +435,23 @@ mod tests {
         assert_eq!(report.lines[8], "Sound: external_arc (digital auto) · Atmos");
         assert_eq!(report.lines[9], "Streams: HLS ts, fmp4");
         assert_eq!(report.lines.len(), 10);
+    }
+
+    #[test]
+    fn diagnostics_lines_are_in_the_language_shown() {
+        use pley_i18n::{Language, with_language};
+        let tv = tv(|f| {
+            f.release = Some("10.2.0".into());
+            f.dolby_vision = false;
+        });
+        let lines = with_language(Language::Fr, || webos_caps(&tv, &CapsOverrides::default()).lines);
+        assert_eq!(lines[0], "TV\u{a0}: OLED65C5PUA (firmware 33.20.65)");
+        assert_eq!(lines[1], "webOS 25 · version 10.2.0");
+        assert_eq!(lines[2], "Écran\u{a0}: 4K OLED");
+        assert_eq!(lines[6], "Envoyé à l’ampli\u{a0}: rien");
+        assert_eq!(lines[7], "Son\u{a0}: tv_speaker (numérique auto)");
+        let lines = with_language(Language::Es, || webos_caps(&tv, &CapsOverrides::default()).lines);
+        assert!(lines[5].starts_with("Audio decodificado: aac, "), "{}", lines[5]);
+        assert_eq!(lines[8], "Flujos: HLS ts, fmp4");
     }
 }

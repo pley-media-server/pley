@@ -812,15 +812,21 @@ fn facts_table(ui: &mut Ui, rect: Rect, list: &[(String, String)]) {
 
 /// The TV's facts, label and value, as Settings' Diagnostics and the Diagnostics page list them.
 pub fn device_facts(info: &pley_core::DeviceInfo, tier: pley_base::Tier) -> Vec<(String, String)> {
+    let tier = match tier {
+        pley_base::Tier::Low => t!("diagnostics.tiers.low"),
+        pley_base::Tier::Mid => t!("diagnostics.tiers.mid"),
+        pley_base::Tier::High => t!("diagnostics.tiers.high"),
+    };
+    let or_dash = |s: &str| if s.is_empty() { "—".to_string() } else { s.to_string() };
     let mut out = vec![
-        ("Model".to_string(), if info.model.is_empty() { "—".to_string() } else { info.model.clone() }),
-        ("System".to_string(), if info.os.is_empty() { "—".to_string() } else { info.os.clone() }),
-        ("Firmware".to_string(), info.firmware.clone().unwrap_or_else(|| "—".into())),
-        ("Tier".to_string(), tier.as_str().to_string()),
+        (t!("diagnostics.facts.model").to_string(), or_dash(&info.model)),
+        (t!("diagnostics.facts.system").to_string(), or_dash(&info.os)),
+        (t!("diagnostics.facts.firmware").to_string(), info.firmware.clone().unwrap_or_else(|| "—".into())),
+        (t!("diagnostics.facts.tier").to_string(), tier.to_string()),
     ];
     if !info.data_durable {
         // The data folder is in /tmp: say so, since the sign-in goes with it.
-        out.push(("Saved data".to_string(), "Lost when the TV restarts".to_string()));
+        out.push((t!("diagnostics.facts.savedData").to_string(), t!("diagnostics.facts.lostOnRestart").to_string()));
     }
     out
 }

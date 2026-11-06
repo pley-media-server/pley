@@ -1,1 +1,33 @@
-{}
+{
+  "facts": {
+    "model": "Model",
+    "system": "System",
+    "firmware": "Firmware",
+    "tier": "Tier",
+    "savedData": "Saved data",
+    "lostOnRestart": "Lost when the TV restarts"
+  },
+  "tiers": {
+    "low": "low",
+    "mid": "mid",
+    "high": "high"
+  },
+  "lines": {
+    "tv": "TV: {{model}}",
+    "tvFirmware": "TV: {{model}} (firmware {{firmware}})",
+    "webosRelease": "webOS {{version}} · release {{release}}",
+    "panel": "Panel: {{panel}}",
+    "hdr": "HDR: {{formats}}",
+    "none": "none",
+    "dolbyVision": "Dolby Vision: profiles {{profiles}}, from {{containers}}",
+    "video": "Video: {{decoders}}",
+    "audioDecoded": "Audio decoded: {{formats}}",
+    "sent": "Sent to the receiver: {{formats}}",
+    "nothing": "nothing",
+    "sound": "Sound: {{output}}",
+    "digital": "{{output}} (digital {{digital}})",
+    "unknown": "unknown",
+    "streams": "Streams: HLS {{segments}}",
+    "pipeline": "Pipeline decoders: {{video}}; {{audio}}"
+  }
+}
