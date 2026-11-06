@@ -760,7 +760,7 @@ fn a_film_on_a_drive_plays_as_it_is_with_its_subtitle_files_and_a_track_the_tv_d
     // Nothing converts it.
     for mode in [PlaybackMode::Remux, PlaybackMode::Transcode] {
         let refused = play(&server, mode).unwrap_err();
-        assert_eq!((refused.status(), refused.to_string()), (Some(409), server::NOTHING_CONVERTS.to_string()));
+        assert_eq!((refused.status(), refused.to_string()), (Some(409), server::nothing_converts().to_string()));
     }
     // Only what it gave is read.
     std::fs::write(dir.join("notes.srt"), "1\n00:00:01,000 --> 00:00:02,000\nNo\n").unwrap();

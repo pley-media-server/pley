@@ -130,6 +130,7 @@
     "serverTooOld": "Este servidor es demasiado antiguo para reproducir en esta TV: actualízalo.",
     "driveUnreadable": "No se puede leer este video. Puede que se haya desconectado el dispositivo USB.",
     "driveStuck": "Esta TV no reproduce este archivo: su imagen nunca llegó a empezar. Sin un servidor que lo convierta, prueba con otra copia.",
+    "driveCantConvert": "Esta TV no puede reproducir este archivo tal cual, y un archivo en un dispositivo USB no tiene un servidor que lo convierta",
     "noDrive": "No se puede reproducir este video: se desconectó su dispositivo USB.",
     "noServer": "No se puede reproducir este elemento: no se eligió ningún servidor.",
     "unplayable": "Este video no se puede reproducir en este dispositivo.",

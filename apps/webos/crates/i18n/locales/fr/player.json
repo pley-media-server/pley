@@ -130,6 +130,7 @@
     "serverTooOld": "Ce serveur est trop ancien pour lire sur cette TV : mettez-le à jour.",
     "driveUnreadable": "Impossible de lire cette vidéo. Le périphérique USB a peut-être été retiré.",
     "driveStuck": "Cette TV ne lit pas ce fichier : son image n’a jamais démarré. Sans serveur pour le convertir, essayez une autre copie.",
+    "driveCantConvert": "Cette TV ne peut pas lire ce fichier tel quel, et un fichier sur un périphérique USB n’a pas de serveur pour le convertir",
     "noDrive": "Impossible de lire cette vidéo : son périphérique USB a été retiré.",
     "noServer": "Impossible de lire cet élément : aucun serveur n’est choisi.",
     "unplayable": "Cette vidéo ne peut pas être lue sur cet appareil.",

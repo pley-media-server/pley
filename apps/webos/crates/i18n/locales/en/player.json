@@ -128,6 +128,7 @@
     "serverTooOld": "This server is too old to play on this TV: update it.",
     "driveUnreadable": "This video can't be read. The drive may have been pulled out.",
     "driveStuck": "This TV doesn't play this file: its picture never started. With no server to convert it, try another copy.",
+    "driveCantConvert": "This TV can't play this file as it is, and a file on a drive has no server to convert it",
     "noDrive": "Can't play this video: its USB drive was pulled out.",
     "noServer": "Can't play this item: no server is chosen.",
     "unplayable": "This video can't be played on this device.",
