@@ -23,6 +23,7 @@ sub init()
         session.observeField(fact, "onLanguageFacts")
     end for
     m.top.observeField("languageChoice", "onLanguageChoice")
+    m.top.observeField("languageRefused", "onLanguageFacts")
     onAgentChanged()
 
     m.api = CreateObject("roSGNode", "ApiTask")

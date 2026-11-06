@@ -53,6 +53,11 @@
              keeps no account's language. The scene keeps it in the
              registry and shows the language it leads to. -->
         <field id="languageChoice" type="string" alwaysNotify="true" />
+        <!-- The server (its address) that answered a choice of the
+             account's language 404 or 405: it keeps none, and the
+             Language row is this Roku's while it is the one in use, though
+             Settings closes. -->
+        <field id="languageRefused" type="string" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />

@@ -702,7 +702,8 @@ the unit tests run against it.
   language (its `GET /api/server` names none, and the route answers 404
   or 405): there the row is this Roku's, as the globe picks it, with
   Automatic the Roku's own language, and a choice shows at once and is
-  kept on the Roku.
+  kept on the Roku. A server that answers 404 or 405 though it names a
+  language is taken as one for as long as it is the server in use.
 - **Requests** to the server carry `Accept-Language` with the language
   shown. What the server writes in its own words, such as an error's
   message the app has none for, comes in English.

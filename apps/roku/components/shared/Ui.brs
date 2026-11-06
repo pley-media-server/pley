@@ -112,6 +112,10 @@ end sub
 ' sign-in's and the server's, the Roku's own and the one picked on it.
 function uiLanguageFacts() as object
     session = m.global.session
+    scene = m.top.getScene()
+    if scene = invalid then scene = m.top
+    refused = scene.languageRefused
+    if refused = invalid then refused = ""
     return {
         signedIn: session.signedIn,
         accountHeard: session.accountHeard,
@@ -119,6 +123,7 @@ function uiLanguageFacts() as object
         server: session.server,
         serverHeard: session.serverHeard,
         serverLanguage: session.serverLanguage,
+        refused: refused <> "" and refused = session.server,
         device: CreateObject("roDeviceInfo").GetCurrentLocale(),
         choice: CreateObject("roRegistrySection", "language").Read("choice")
     }

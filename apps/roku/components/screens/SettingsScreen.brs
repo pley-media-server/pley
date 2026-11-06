@@ -43,9 +43,6 @@ sub init()
     m.defaults = invalid
     m.refused = false
     m.saving = 0
-    ' The server answered a language 404 or 405: it keeps none, and the
-    ' row is this Roku's (i18nRow).
-    m.languageRefused = false
     ' What the message under the address says ({ key, values, text }),
     ' drawn again in a new language.
     m.words = { key: "", values: invalid, text: "" }
@@ -395,14 +392,14 @@ end sub
 ' What the row says: Automatic, naming what that is, or the language
 ' chosen, in itself.
 function languageShown() as string
-    row = i18nRow(uiLanguageFacts(), m.languageRefused)
+    row = i18nRow(uiLanguageFacts())
     if row.current <> "" then return i18nName(row.current)
     return t("settings.language.automatic", { language: i18nName(row.automatic) })
 end function
 
 sub openLanguages()
     say("")
-    row = i18nRow(uiLanguageFacts(), m.languageRefused)
+    row = i18nRow(uiLanguageFacts())
     choice = i18nChoices(row.automatic, row.current)
     choice.title = t("settings.language.title")
     choice.hints = []
@@ -413,7 +410,7 @@ end sub
 ' keeps one, shown once the server has it (the API task hears it in the
 ' answer); else this Roku's, shown at once.
 sub chooseLanguage(language as string)
-    if i18nRow(uiLanguageFacts(), m.languageRefused).onDevice
+    if i18nRow(uiLanguageFacts()).onDevice
         m.top.getScene().languageChoice = language
         showRows()
         return
@@ -424,7 +421,8 @@ sub chooseLanguage(language as string)
 end sub
 
 ' A Pley from before languages has no such route (404, or 405): the
-' choice is this Roku's from now on. Any other refusal says why.
+' choice is this Roku's while the server is the one in use. Any other
+' refusal says why.
 sub onLanguageSaved(event as object)
     answer = event.getData()
     if answer.ok
@@ -432,8 +430,9 @@ sub onLanguageSaved(event as object)
         return
     end if
     if answer.status = 404 or answer.status = 405
-        m.languageRefused = true
-        m.top.getScene().languageChoice = event.getRoSGNode().spec.language
+        scene = m.top.getScene()
+        scene.languageRefused = m.global.session.server
+        scene.languageChoice = event.getRoSGNode().spec.language
         showRows()
         return
     end if

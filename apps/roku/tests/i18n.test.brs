@@ -123,7 +123,7 @@ end sub
 
 ' What the scene knows: a Roku in French, not signed in, no server.
 function i18nTestFacts(more as object) as object
-    facts = { signedIn: false, accountHeard: false, account: "", server: "", serverHeard: false, serverLanguage: "", device: "fr_CA", choice: "" }
+    facts = { signedIn: false, accountHeard: false, account: "", server: "", serverHeard: false, serverLanguage: "", refused: false, device: "fr_CA", choice: "" }
     facts.Append(more)
     return facts
 end function
@@ -147,21 +147,35 @@ sub test_i18n_the_language_waits_for_what_picks_it()
 end sub
 
 sub test_i18n_the_settings_row_is_the_accounts_where_the_server_keeps_one()
-    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, account: "es", serverHeard: true, serverLanguage: "en", choice: "en" }), false)
+    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, account: "es", serverHeard: true, serverLanguage: "en", choice: "en" }))
     tkFalse(row.onDevice)
     tkEqual(row.current, "es")
     tkEqual(row.automatic, "en", "Automatic: the one picked with the globe")
-    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, account: "", serverLanguage: "es" }), false)
+    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, account: "", serverLanguage: "es" }))
     tkFalse(row.onDevice, "a server not heard yet is asked")
     tkEqual(row.current, "")
     tkEqual(row.automatic, "fr", "the Roku's")
-    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, serverHeard: true, serverLanguage: "", choice: "es" }), false)
+    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, serverHeard: true, serverLanguage: "", choice: "es" }))
     tkTrue(row.onDevice, "a Pley from before languages names none")
     tkEqual(row.current, "es")
     tkEqual(row.automatic, "fr", "Automatic: the Roku's own, never the choice")
-    row = i18nRow(i18nTestFacts({ device: "de_DE", signedIn: true, accountHeard: true, serverHeard: true, serverLanguage: "es" }), true)
+    row = i18nRow(i18nTestFacts({ device: "de_DE", signedIn: true, accountHeard: true, serverHeard: true, serverLanguage: "es", refused: true }))
     tkTrue(row.onDevice, "refused with a 404 or a 405")
     tkEqual(row.automatic, "es", "a Roku in German: the server's")
+    row = i18nRow(i18nTestFacts({ signedIn: true, accountHeard: true, serverHeard: true, serverLanguage: "de" }))
+    tkFalse(row.onDevice, "a later Pley in a language the Roku hasn't still keeps the account's")
+end sub
+
+' On a server that keeps no account's language, the one picked on the Roku
+' shows at once: nothing of the account is waited for.
+sub test_i18n_a_server_that_keeps_none_waits_for_no_account()
+    server = "http://nas:7539"
+    facts = i18nTestFacts({ signedIn: true, server: server, serverHeard: true, serverLanguage: "", choice: "es" })
+    tkEqual(i18nShown(facts), "es", "a Pley from before languages")
+    facts = i18nTestFacts({ signedIn: true, server: server, serverHeard: true, serverLanguage: "en", refused: true, choice: "es" })
+    tkEqual(i18nShown(facts), "es", "one that answered a choice 404")
+    facts = i18nTestFacts({ signedIn: true, server: server, serverHeard: true, serverLanguage: "de", choice: "es" })
+    tkEqual(i18nShown(facts), "", "one that keeps an account's: its language first")
 end sub
 
 sub test_i18n_the_choices_name_automatic_and_each_language_in_itself()

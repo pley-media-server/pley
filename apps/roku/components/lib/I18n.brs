@@ -74,14 +74,15 @@ function i18nAtStart(shownLast as dynamic, device as dynamic) as string
 end function
 
 ' The language to show now, or "" while it waits to hear what it needs:
-' signed in, the account's language (GET /api/auth/me); on a Roku in a
-' language Pley doesn't have with none picked, the server's (GET
-' /api/server), when there is a server. Meanwhile the language shown stays,
-' so nothing flashes. facts: { signedIn, accountHeard, account, server
-' (its address, "" for none), serverHeard, serverLanguage, device, choice }.
+' signed in, the account's language (GET /api/auth/me), on a server that
+' keeps one; on a Roku in a language Pley doesn't have with none picked,
+' the server's (GET /api/server), when there is a server. Meanwhile the
+' language shown stays, so nothing flashes. facts: { signedIn,
+' accountHeard, account, server (its address, "" for none), serverHeard,
+' serverLanguage, refused, device, choice }.
 function i18nShown(facts as object) as string
     account = ""
-    if facts.signedIn = true
+    if facts.signedIn = true and not i18nKeepsNone(facts)
         if facts.accountHeard <> true then return ""
         account = facts.account
     end if
@@ -91,16 +92,24 @@ function i18nShown(facts as object) as string
     return i18nPick(account, facts.serverLanguage, facts.device, facts.choice)
 end function
 
+' Whether the server in use keeps no account's language: a Pley from before
+' languages, whose GET /api/server names none (whatever language it names
+' counts, one this Roku hasn't too), or one that answered a choice 404 or
+' 405 (refused, until another server is in use).
+function i18nKeepsNone(facts as object) as boolean
+    return facts.refused = true or (facts.serverHeard = true and i18nText(facts.serverLanguage) = "")
+end function
+
 ' Settings' Language row, as the other TVs have it: { onDevice, automatic,
 ' current }. A server that keeps an account's language (its GET /api/server
 ' names one) keeps the choice for the account, on all its devices, and
 ' Automatic is what this Roku would show (the one picked with the globe,
-' else its own, else the server's). A Pley from before languages names
-' none, and answers a choice 404 or 405 (refused): there the row is this
-' Roku's, as the globe picks it, and Automatic is the Roku's own language.
-' current: the language chosen, "" for Automatic.
-function i18nRow(facts as object, refused as boolean) as object
-    if refused or (facts.serverHeard = true and i18nText(facts.serverLanguage) = "")
+' else its own, else the server's). On one that keeps none
+' (i18nKeepsNone) the row is this Roku's, as the globe picks it, and
+' Automatic is the Roku's own language. current: the language chosen, ""
+' for Automatic.
+function i18nRow(facts as object) as object
+    if i18nKeepsNone(facts)
         return { onDevice: true, automatic: i18nSystem(facts.serverLanguage, facts.device), current: i18nSupported(facts.choice) }
     end if
     return { onDevice: false, automatic: i18nPick("", facts.serverLanguage, facts.device, facts.choice), current: i18nSupported(facts.account) }
