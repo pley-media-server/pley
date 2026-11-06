@@ -1,1 +1,185 @@
-{}
+{
+  "tabs": {
+    "recommended": "Recommended",
+    "library": "Library",
+    "collections": "Collections"
+  },
+  "sorts": {
+    "title": "Title",
+    "year": "Year",
+    "added": "Date added",
+    "rating": "Rating",
+    "userRating": "Your rating",
+    "release": "Release date",
+    "duration": "Duration",
+    "lastPlayed": "Last played",
+    "bitrate": "Bitrate"
+  },
+  "chips": {
+    "filter": "Filter",
+    "unwatched": "Unwatched",
+    "genre": "Genre",
+    "year": "Year"
+  },
+  "panel": {
+    "sortBy": "Sort by",
+    "order": "Order",
+    "ascending": "Ascending",
+    "descending": "Descending",
+    "filter": "Filter",
+    "show": "Show",
+    "all": "All",
+    "unwatched": "Unwatched",
+    "watched": "Watched",
+    "genre": "Genre",
+    "allGenres": "All genres",
+    "year": "Year",
+    "allYears": "All years",
+    "resolution": "Resolution",
+    "allResolutions": "All resolutions",
+    "dynamicRange": "Dynamic range",
+    "allDynamicRanges": "All dynamic ranges",
+    "clearFilters": "Clear filters",
+    "saveAs": "Save as…",
+    "unchosen": {
+      "genre": "All genres",
+      "year": "All years",
+      "resolution": "All resolutions",
+      "dynamicRange": "All dynamic ranges"
+    }
+  },
+  "anyHdr": "Any HDR",
+  "bitrateUnknown": "Bitrate unknown",
+  "count": {
+    "movies_one": "{{count, number}} movie",
+    "movies_other": "{{count, number}} movies",
+    "shows_one": "{{count, number}} show",
+    "shows_other": "{{count, number}} shows",
+    "artists_one": "{{count, number}} artist",
+    "artists_other": "{{count, number}} artists",
+    "items_one": "{{count, number}} item",
+    "items_other": "{{count, number}} items",
+    "collections_one": "{{count, number}} collection",
+    "collections_other": "{{count, number}} collections",
+    "titles_one": "{{count, number}} title",
+    "titles_other": "{{count, number}} titles"
+  },
+  "countOf": {
+    "movies_one": "{{shown, number}} of {{count, number}} movie",
+    "movies_other": "{{shown, number}} of {{count, number}} movies",
+    "shows_one": "{{shown, number}} of {{count, number}} show",
+    "shows_other": "{{shown, number}} of {{count, number}} shows",
+    "artists_one": "{{shown, number}} of {{count, number}} artist",
+    "artists_other": "{{shown, number}} of {{count, number}} artists"
+  },
+  "messages": {
+    "offline": "Can't reach your server",
+    "failed": "Couldn't load this library",
+    "missingTitle": "This library isn't here",
+    "missingBody": "It may have been removed, or this profile may not see it.",
+    "emptyTitle": "This library is empty",
+    "emptyBody": "Nothing here yet. Titles appear as the server adds them.",
+    "noMatchesTitle": "No matches",
+    "noMatchesBody": "Nothing in this library matches the current filters.",
+    "recommendedFailed": "Couldn't load recommendations",
+    "recommendedEmptyTitle": "Nothing to recommend yet",
+    "recommendedEmptyBody": "Recommendations appear once the library has some items.",
+    "collectionsFailed": "Couldn't load collections",
+    "collectionsEmptyTitle": "No collections yet",
+    "collectionsEmptyMovies": "Movies of the same TMDB collection are grouped here once two of them are in this library.",
+    "collectionsEmptyShows": "There are no collections in this library yet."
+  },
+  "retry": "Retry",
+  "seeAll": "See all",
+  "libraries": {
+    "title": "Libraries",
+    "offline": "Can't reach your server",
+    "failed": "Couldn't load your libraries",
+    "scanning": "Scanning…",
+    "sort": "Sort libraries",
+    "done": "Done",
+    "serverOrder": "Use the server's order",
+    "open": "Open",
+    "move": "Move",
+    "sortingHint": "Select a library to move it. Your order applies on all your devices.",
+    "movingHint": "Arrows to move it, OK to drop it here, Back to put it back",
+    "needsNewerServer": "Sorting libraries needs a newer Pley on the server.",
+    "refused": "This server doesn't let the app sort your libraries: sort them on the web",
+    "raced": "Your libraries changed meanwhile: try again",
+    "noneTitle": "No libraries yet",
+    "noneBody": "Ask the server owner to add a library.",
+    "retry": "Retry"
+  },
+  "collections": {
+    "title": "Collections",
+    "label": "Collection",
+    "smart": "Smart",
+    "failed": "Couldn't load collections",
+    "failedOne": "Couldn't load this collection",
+    "noneTitle": "No collections yet",
+    "noneBody": "Movies of the same TMDB collection are grouped here once two of them are in a library.",
+    "play": "Play",
+    "shuffle": "Shuffle",
+    "empty": "Nothing in this collection yet.",
+    "noEpisodes": "Nothing to play: this show has no episodes yet",
+    "byRelease": "By release date",
+    "byTitle": "By title",
+    "customOrder": "Custom order",
+    "retry": "Retry"
+  },
+  "smartFilter": {
+    "genre": "Genre: {{value}}",
+    "label": "Label: {{value}}",
+    "studio": "Studio: {{value}}",
+    "rated": "Rated {{value}}",
+    "watched": "Watched",
+    "unwatched": "Unwatched",
+    "inProgress": "In progress",
+    "notInProgress": "Not in progress",
+    "from": "From {{value}}",
+    "after": "After {{value}}",
+    "before": "Before {{value}}",
+    "decade": "The {{value}}s",
+    "limit": "At most {{value}}",
+    "other": "{{name}}: {{value}}",
+    "sortedBy": "Sorted by {{name}}",
+    "sort": {
+      "titleSort": {
+        "asc": "By title",
+        "desc": "By title, Z to A"
+      },
+      "year": {
+        "asc": "Oldest first",
+        "desc": "Newest first"
+      },
+      "originallyAvailableAt": {
+        "asc": "Earliest release first",
+        "desc": "Latest release first"
+      },
+      "addedAt": {
+        "asc": "First added first",
+        "desc": "Recently added first"
+      },
+      "rating": {
+        "asc": "Lowest rated first",
+        "desc": "Best rated first"
+      },
+      "userRating": {
+        "asc": "Your lowest rated first",
+        "desc": "Your best rated first"
+      },
+      "lastViewedAt": {
+        "asc": "Least recently played first",
+        "desc": "Recently played first"
+      },
+      "duration": {
+        "asc": "Shortest first",
+        "desc": "Longest first"
+      },
+      "viewCount": {
+        "asc": "Least played first",
+        "desc": "Most played first"
+      }
+    }
+  }
+}

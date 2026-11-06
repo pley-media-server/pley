@@ -87,7 +87,7 @@ pub fn bitrate_line(item: &ItemSummary) -> String {
     .flatten()
     .filter(|s| !s.is_empty())
     .collect();
-    if parts.is_empty() { "Bitrate unknown".to_string() } else { parts.join(" · ") }
+    if parts.is_empty() { pley_i18n::t!("library.bitrateUnknown").to_string() } else { parts.join(" · ") }
 }
 
 /// The page an item opens: an artist's or an album's for music, a track's album, else its own.

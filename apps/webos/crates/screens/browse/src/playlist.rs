@@ -26,6 +26,7 @@ use pley_core::model::{
 };
 use pley_core::store::snapshot_keys;
 use pley_core::{Api, ApiError, Promise};
+use pley_i18n::t;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, Badge, BadgeStyle, BarItem, Button, Dialog, DialogButton,
     ListRow, ListState, PAGE_SCROLL, RoundButton, SidePanel, SlotMode, Tile, TileKind, TileSlot, backdrop_px,
@@ -334,7 +335,7 @@ impl PlaylistScreen {
             facts.extend(describe_smart_filter(filter));
         }
         let facts = facts.into_iter().filter(|s| !s.is_empty()).collect::<Vec<_>>().join("  ·  ");
-        let question = format!("“{title}” will be deleted. What's in it stays in your libraries.");
+        let question = t!("playlists.page.deleteBody", title = title);
         self.view = View { shown, ids, title, facts, question };
     }
 
@@ -490,7 +491,7 @@ impl PlaylistScreen {
         let title = item.map(|e| entry_titles(&e.item).0).unwrap_or_default();
         self.gone.push(entry);
         self.dirty = true;
-        cx.toast(format!("Removed “{title}”"));
+        cx.toast(t!("playlists.page.removed", title = title));
         let id = self.id;
         self.writes.push(Write::Remove(entry, cx.spawn(move |api| api.remove_from_playlist(id, entry))));
     }
@@ -513,7 +514,7 @@ impl PlaylistScreen {
     fn open_actions(&mut self, entry: i64) {
         let Some(e) = self.detail.value().and_then(|d| d.entries.iter().find(|e| e.entry_id == entry)) else { return };
         let (title, subtitle) = entry_titles(&e.item);
-        let go_to = format!("Go to {title}");
+        let go_to = t!("playlists.page.goTo", title = title);
         self.actions = (title, subtitle, go_to);
         self.overlay = Some(Overlay::Actions(entry));
         self.last_panel = Overlay::Actions(entry);
@@ -541,33 +542,42 @@ impl PlaylistScreen {
             Overlay::Actions(entry) => {
                 let mut lines = vec![
                     Line::Title(title, subtitle),
-                    Line::Row(ListRow::new("Play from here").icon(Icon::Play)),
+                    Line::Row(ListRow::new(t!("playlists.page.playFromHere")).icon(Icon::Play)),
                     Line::Row(ListRow::new(go_to).icon(Icon::ArrowRight)),
                 ];
                 if editable {
-                    lines.push(Line::Row(ListRow::new("Move").icon(Icon::ArrowUpDown).enabled(n > 1)));
-                    lines.push(Line::Row(ListRow::new("Remove from playlist").icon(Icon::X).danger(true)));
+                    lines.push(Line::Row(
+                        ListRow::new(t!("playlists.page.move")).icon(Icon::ArrowUpDown).enabled(n > 1),
+                    ));
+                    lines.push(Line::Row(ListRow::new(t!("playlists.page.remove")).icon(Icon::X).danger(true)));
                 }
                 chosen = panel_lines(ui, list_id, area, state, &lines, Some(1)).map(|i| (entry, i));
             }
             Overlay::Rename => {
                 let mut y = area.y + 8.0;
                 let opts = TextOpts::wrap(area.w - 16.0, 2);
-                y += ui.text(Point::new(area.x + 16.0, y), "Rename playlist", &theme::TITLE, &opts, theme::FG).h;
+                let heading = t!("playlists.page.renameTitle");
+                y += ui.text(Point::new(area.x + 16.0, y), heading, &theme::TITLE, &opts, theme::FG).h;
                 y += 12.0 + 12.0;
                 ui.initial_focus(field_id);
-                typing.field(ui, field_id, Point::new(area.x, y), area.w, "Title");
+                typing.field(ui, field_id, Point::new(area.x, y), area.w, t!("playlists.page.titleField"));
                 y += 44.0 + 12.0;
-                let hint = "Press OK on the title to type it.";
+                let hint = t!("playlists.page.hint");
                 let opts = TextOpts::wrap(area.w - 4.0, 2);
                 y += ui.text(Point::new(area.x + 4.0, y), hint, &theme::CAPTION, &opts, theme::MUTED).h;
                 y += 12.0 + 4.0 + 12.0;
                 let ok = typing.title().is_some();
-                save = Button::pill("Save").enabled(ok).show(ui, save_id, Point::new(area.x, y)).activated;
+                save = Button::pill(t!("playlists.page.save"))
+                    .enabled(ok)
+                    .show(ui, save_id, Point::new(area.x, y))
+                    .activated;
             }
             Overlay::Delete => {}
         });
-        if panel == Overlay::Rename && panel_open && self.typing.keyboard(ui, ui.id("keyboard"), "Done") {
+        if panel == Overlay::Rename
+            && panel_open
+            && self.typing.keyboard(ui, ui.id("keyboard"), t!("playlists.page.done"))
+        {
             save = true;
         }
         if save && self.overlay == Some(Overlay::Rename) {
@@ -597,9 +607,11 @@ impl PlaylistScreen {
             ui.request_repaint();
         }
 
-        let buttons = [DialogButton::new("Cancel"), DialogButton::danger("Delete")];
+        let buttons =
+            [DialogButton::new(t!("playlists.page.cancel")), DialogButton::danger(t!("playlists.page.delete"))];
         let open = self.overlay == Some(Overlay::Delete);
-        let dialog = Dialog::new("Delete playlist?").body(&self.view.question).buttons(&buttons).initial(0);
+        let dialog =
+            Dialog::new(t!("playlists.page.deleteTitle")).body(&self.view.question).buttons(&buttons).initial(0);
         let answer = dialog.show(ui, ui.id("delete"), open);
         if open {
             match answer.chosen {
@@ -754,15 +766,16 @@ impl Screen for PlaylistScreen {
             }
             Load::Failed { error, stale: None } => {
                 if error.status() == Some(404) {
-                    let body = "It was deleted, or it belongs to another profile.";
-                    let r = column_message(ui, ui.id("state"), CONTENT_Y, "Playlist not found", body, Some("Back"));
+                    let (title, body) = (t!("playlists.page.notFound"), t!("playlists.page.notFoundBody"));
+                    let r = column_message(ui, ui.id("state"), CONTENT_Y, title, body, Some(t!("playlists.page.back")));
                     if r.is_some_and(|r| r.activated) {
                         cx.pop();
                     }
                 } else {
                     let problem = error.problem();
-                    let title = failed_title(error, "Couldn't load this playlist");
-                    let r = column_message(ui, ui.id("state"), CONTENT_Y, title, &problem, Some("Retry"));
+                    let title = failed_title(error, t!("playlists.page.failed"));
+                    let retry = Some(t!("playlists.page.retry"));
+                    let r = column_message(ui, ui.id("state"), CONTENT_Y, title, &problem, retry);
                     if r.is_some_and(|r| r.activated) {
                         self.detail.invalidate();
                     }
@@ -829,11 +842,11 @@ impl Screen for PlaylistScreen {
         let kind_icon = if video { Icon::ListVideo } else { Icon::ListMusic };
         ui.icon(Rect::new(x, y, 18.0, 18.0), kind_icon, theme::MUTED);
         let kind = if smart {
-            "Smart playlist"
+            t!("playlists.page.smart")
         } else if video {
-            "Video playlist"
+            t!("playlists.page.video")
         } else {
-            "Music playlist"
+            t!("playlists.page.music")
         };
         let ky = y + (18.0 - theme::CAPTION.line_height) / 2.0;
         ui.text(Point::new(x + 26.0, ky), kind, &theme::CAPTION, &TextOpts::line(TEXT_W - 26.0), theme::MUTED);
@@ -844,7 +857,8 @@ impl Screen for PlaylistScreen {
         let mut fx = x;
         if smart {
             let badge_y = y + (theme::LABEL.line_height - pley_kit::badge::BADGE_HEIGHT) / 2.0;
-            fx += Badge::new("Smart", BadgeStyle::Outline).show(ui, Point::new(fx, badge_y)).w + 8.0;
+            fx += Badge::new(t!("playlists.page.smartBadge"), BadgeStyle::Outline).show(ui, Point::new(fx, badge_y)).w
+                + 8.0;
         }
         let opts = TextOpts::wrap((TEXT_W - (fx - x)).max(1.0), 2);
         ui.text(Point::new(fx, y), &self.view.facts, &theme::LABEL, &opts, theme::MUTED);
@@ -852,13 +866,13 @@ impl Screen for PlaylistScreen {
         let lifting = self.lift.moving.is_some();
         let by = buttons_y - shift;
         let mut items = vec![
-            ("play", BarItem::Button(Button::pill("Play").icon(Icon::Play).enabled(can_play))),
-            ("shuffle", BarItem::Round(RoundButton::new(Icon::Shuffle, "Shuffle").enabled(n >= 2))),
+            ("play", BarItem::Button(Button::pill(t!("playlists.page.play")).icon(Icon::Play).enabled(can_play))),
+            ("shuffle", BarItem::Round(RoundButton::new(Icon::Shuffle, t!("playlists.page.shuffle")).enabled(n >= 2))),
         ];
         if editable {
-            items.push(("rename", BarItem::Round(RoundButton::new(Icon::Pencil, "Rename"))));
+            items.push(("rename", BarItem::Round(RoundButton::new(Icon::Pencil, t!("playlists.page.rename")))));
         }
-        items.push(("delete", BarItem::Round(RoundButton::new(Icon::Trash2, "Delete"))));
+        items.push(("delete", BarItem::Round(RoundButton::new(Icon::Trash2, t!("playlists.page.delete")))));
         let first = if can_play {
             "play"
         } else if editable {
@@ -880,11 +894,11 @@ impl Screen for PlaylistScreen {
             (pressed("play"), pressed("shuffle"), pressed("rename"), pressed("delete"));
         if !can_play {
             let text = if smart {
-                "Nothing matches this playlist's filter yet."
+                t!("playlists.page.emptySmart")
             } else if video {
-                "This playlist is empty. Use “Add to playlist” on a movie, show or episode, or hold OK on a poster."
+                t!("playlists.page.emptyVideo")
             } else {
-                "This playlist is empty. Use “Add to playlist” on an artist or album, or hold OK on a cover."
+                t!("playlists.page.emptyMusic")
             };
             let ey = by + theme::BUTTON_HEIGHT + theme::BUTTON_LABEL_ROOM + 12.0;
             ui.text(Point::new(x, ey), text, &theme::BODY, &TextOpts::wrap(TEXT_W, 3), theme::MUTED);
@@ -950,7 +964,7 @@ impl Screen for PlaylistScreen {
                     } else if r.long_pressed || r.menu {
                         act = Some((k, EntryAct::Actions));
                     }
-                    let more = RoundButton::new(Icon::Ellipsis, "More").on_art(false);
+                    let more = RoundButton::new(Icon::Ellipsis, t!("playlists.page.more")).on_art(false);
                     let at = Point::new(MORE_X, top + MORE_DY);
                     if lifting {
                         inert(ui, |ui| more.show(ui, ids.more(e), at));
@@ -1028,7 +1042,7 @@ impl Screen for PlaylistScreen {
         }
 
         if lifting {
-            let hint = "Up and down to move it, OK to drop it here, Back to put it back";
+            let hint = t!("playlists.page.moving");
             let layout = ui.layout(hint, &theme::LABEL, &TextOpts::default());
             let size = layout.size;
             let (w, h) = (size.w + 40.0, size.h + 24.0);

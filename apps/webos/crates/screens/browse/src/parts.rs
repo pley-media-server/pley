@@ -23,7 +23,7 @@ pub fn page_title(ui: &mut Ui, text: &str, width: f32) {
 /// A failed load's title: `title`, or "Can't reach your server" when the server answered nothing
 /// (`TvOffline.kt:97-108`).
 pub fn failed_title(error: &ApiError, title: &'static str) -> &'static str {
-    if error.unreachable() { "Can't reach your server" } else { title }
+    if error.unreachable() { pley_i18n::t!("library.messages.offline") } else { title }
 }
 
 /// A page area's empty or failed state as the Android app's library pages draw it (`TvMessage` in
