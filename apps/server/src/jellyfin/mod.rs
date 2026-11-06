@@ -15,6 +15,7 @@ pub mod ids;
 mod dto;
 mod items;
 mod playback;
+mod sessions;
 mod socket;
 mod system;
 mod users;
@@ -443,6 +444,7 @@ fn router(state: AppState, jellyfin: Arc<Jellyfin>) -> Router {
         .merge(users::routes())
         .merge(items::routes())
         .merge(playback::routes())
+        .merge(sessions::routes())
         .merge(socket::routes())
         .fallback(|| async { JfError::NotFound })
         .layer(axum::middleware::from_fn(headers))

@@ -304,8 +304,10 @@ async fn signed_in(
 ) -> JfResult<AuthenticationResult> {
     let dto = user_dto(state, jellyfin, user).await?;
     let user_id = dto.id.clone();
+    // The id `/Sessions` lists this sign-in's device by.
+    let device = crate::api::remote::device_id_of(user, None);
     let session_info = SessionInfo {
-        id: jellyfin.ids.of(Kind::User, user.id),
+        id: device.map_or_else(|| jellyfin.ids.of(Kind::User, user.id), |device| jellyfin.ids.device(user.id, &device)),
         user_id,
         user_name: dto.name.clone(),
         client: client.client.clone(),

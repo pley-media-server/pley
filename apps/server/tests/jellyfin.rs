@@ -627,3 +627,319 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         assert!(theirs(&reply), "{path}: {} {}", reply.status, reply.text());
     }
 }
+
+// ------------------------------------------------------------------ remote control
+
+/// What a browser playing Matroska directly says it plays.
+const CAPS: &str = r#"{"containers": ["mkv"], "video_codecs": ["h264"], "audio_codecs": ["aac"]}"#;
+
+type Events = axum::body::BodyDataStream;
+
+/// An events stream of Pley's of `token`'s user, opened with `query` and
+/// held: a receiver it names lasts as long as it is.
+async fn events(app: &TestApp, token: &str, query: &str) -> Events {
+    let request = axum::http::Request::builder()
+        .uri(format!("/api/events?{query}"))
+        .header("authorization", format!("Bearer {token}"))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let response = tower::ServiceExt::oneshot(app.api.clone(), request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    response.into_body().into_data_stream()
+}
+
+/// The next event of `kind` that `stream` sends, within 10 s.
+async fn next_event(stream: &mut Events, kind: &str) -> Value {
+    let read = async {
+        let mut received = String::new();
+        while let Some(chunk) = stream.next().await {
+            received.push_str(&String::from_utf8_lossy(&chunk.unwrap()));
+            while let Some(end) = received.find("\n\n") {
+                let block: String = received.drain(..end + 2).collect();
+                for line in block.lines() {
+                    let Some(data) = line.strip_prefix("data:") else { continue };
+                    let event: Value = serde_json::from_str(data.trim()).unwrap();
+                    if event["type"] == kind {
+                        return event;
+                    }
+                }
+            }
+        }
+        panic!("the stream ended");
+    };
+    tokio::time::timeout(std::time::Duration::from_secs(10), read).await.expect("an event in time")
+}
+
+/// Gives the film the streams a probe would find: H.264 video, two audio
+/// tracks and subtitles.
+async fn with_tracks(app: &TestApp, film: i64) {
+    use pley_transcoder_api::{MediaInfo, MediaStream, StreamKind};
+    let stream = |index, kind, codec: &str| MediaStream { index, kind, codec: codec.into(), ..Default::default() };
+    let mut video = stream(0, StreamKind::Video, "h264");
+    (video.width, video.height, video.pix_fmt) = (Some(1920), Some(1080), Some("yuv420p".into()));
+    let mut subtitles = stream(3, StreamKind::Subtitle, "subrip");
+    subtitles.text_based = Some(true);
+    let info = MediaInfo {
+        container: Some("mkv".into()),
+        duration_ms: Some(100_000),
+        streams: vec![video, stream(1, StreamKind::Audio, "aac"), stream(2, StreamKind::Audio, "aac"), subtitles],
+        ..Default::default()
+    };
+    sqlx::query("UPDATE media_files SET media_info = ?, video_codec = 'h264', audio_codec = 'aac' WHERE id = ?")
+        .bind(serde_json::to_string(&info).unwrap())
+        .bind(app.file_of(film).await)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+}
+
+/// The film played directly on `token`'s device named `device`, by a
+/// player that obeys `controls`: its session id.
+async fn pley_plays(app: &TestApp, token: &str, film: i64, device: &str, controls: Value) -> String {
+    let body = json!({
+        "item_id": film, "caps": serde_json::from_str::<Value>(CAPS).unwrap(),
+        "controls": controls, "device_name": device,
+    });
+    let started = app.call(Method::POST, "/api/playback", Some(token), Some(body), &[]).await;
+    assert_eq!(started.status, StatusCode::OK, "{}", started.text());
+    started.body["session_id"].as_str().unwrap().to_owned()
+}
+
+/// What `token`'s user's Jellyfin app (device `bench-1`) lists at
+/// `/Sessions`, with `query`.
+async fn jf_sessions(app: &TestApp, token: &str, query: &str) -> Vec<Value> {
+    app.jf_json(&format!("/Sessions{query}"), token).await.as_array().unwrap().clone()
+}
+
+/// The session id of the device named `name` among `sessions`.
+fn named(sessions: &[Value], name: &str) -> String {
+    let found = sessions.iter().find(|s| s["DeviceName"] == name);
+    found.unwrap_or_else(|| panic!("{name}: {sessions:?}"))["Id"].as_str().unwrap().to_owned()
+}
+
+/// A viewer, with a TV that takes casts and a phone that plays the film.
+struct Household {
+    viewer: String,
+    _tv: Events,
+    session: String,
+}
+
+async fn household(w: &World) -> Household {
+    let app = &w.app;
+    let (viewer, viewer_id) = app.user(&w.admin, "viewer", json!({})).await;
+    let tv = events(app, &viewer, "receiver=tv-1&device_name=Den%20TV&device_kind=tv&casts=item,live,switch").await;
+    let (phone, _) = app.app_token(viewer_id, "library play").await;
+    let every = json!(["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles"]);
+    let session = pley_plays(app, &phone, w.film, "Phone", every).await;
+    Household { viewer, _tv: tv, session }
+}
+
+#[tokio::test]
+async fn sessions_list_the_users_devices_as_pleys_remote_does() {
+    let w = world().await;
+    let app = &w.app;
+    let h = household(&w).await;
+    // Another profile's TV, of the household: never listed.
+    let _theirs = events(app, &w.admin, "receiver=tv-9&device_name=Attic&casts=item,switch").await;
+
+    let listed = jf_sessions(app, &h.viewer, "").await;
+    let names: Vec<&str> = listed.iter().map(|s| s["DeviceName"].as_str().unwrap_or_default()).collect();
+    assert_eq!(names, ["Phone", "Bench", "Den TV"], "what plays first, then by name: {listed:?}");
+    let ids: HashSet<&str> = listed.iter().map(|s| s["Id"].as_str().unwrap()).collect();
+    assert!(ids.len() == 3 && ids.iter().all(|id| is_hex(id, 32)), "{ids:?}");
+    let viewer = app.jf_user(&h.viewer).await;
+    assert!(listed.iter().all(|s| s["UserId"] == json!(viewer) && s["UserName"] == "viewer"));
+
+    // The phone, with what it plays and where.
+    let phone = &listed[0];
+    assert_eq!(phone["NowPlayingItem"]["Id"], json!(app.jf_item(w.film)));
+    assert_eq!(phone["NowPlayingItem"]["Type"], "Movie");
+    let state = &phone["PlayState"];
+    assert_eq!((&state["IsPaused"], &state["CanSeek"]), (&json!(false), &json!(true)));
+    assert_eq!(state["PlayMethod"], json!("DirectPlay"));
+    assert!(state["PositionTicks"].is_i64(), "{state}");
+    assert_eq!((&phone["Client"], &phone["SupportsRemoteControl"]), (&json!("Pley"), &json!(true)));
+    let commands = phone["SupportedCommands"].as_array().unwrap();
+    for command in ["SetAudioStreamIndex", "SetSubtitleStreamIndex", "PlayState"] {
+        assert!(commands.contains(&json!(command)), "{command}: {commands:?}");
+    }
+    assert_eq!(phone["PlayableMediaTypes"], json!([]), "it takes no casts");
+    // The TV takes them, and plays nothing.
+    let tv = &listed[2];
+    assert_eq!((&tv["PlayableMediaTypes"], tv.get("NowPlayingItem")), (&json!(["Audio", "Video"]), None));
+    assert_eq!(tv["SupportedCommands"], json!(["Play"]));
+    assert_eq!(tv["Capabilities"]["SupportsMediaControl"], json!(true));
+    // The app's own device, as it names itself.
+    let own = &listed[1];
+    assert_eq!((&own["DeviceId"], &own["Client"]), (&json!("bench-1"), &json!("Test")));
+    assert_eq!(own["ApplicationVersion"], json!("1.0"));
+    assert_eq!(own["SupportsRemoteControl"], json!(false), "it never said it takes media control");
+    assert_eq!(own["AdditionalUsers"], json!([]));
+
+    // Its device alone, those it can control, those seen lately.
+    assert_eq!(jf_sessions(app, &h.viewer, "?DeviceId=BENCH-1").await.len(), 1);
+    let controllable = jf_sessions(app, &h.viewer, &format!("?ControllableByUserId={viewer}")).await;
+    assert_eq!(controllable.len(), 2, "{controllable:?}");
+    assert_eq!(jf_sessions(app, &h.viewer, "?ActiveWithinSeconds=60").await.len(), 3);
+    let admins = app.jf_user(&w.admin).await;
+    let refused = app.jf(Method::GET, &format!("/Sessions?ControllableByUserId={admins}"), &h.viewer, None).await;
+    assert_eq!(refused.status, StatusCode::FORBIDDEN, "another user's devices are theirs");
+
+    // Another profile of the household sees its own devices alone: a cast
+    // there would switch the viewer's TV, which only Pley's own apps do.
+    let theirs = jf_sessions(app, &w.admin, "").await;
+    let names: Vec<Value> = theirs.iter().map(|s| s["DeviceName"].clone()).collect();
+    assert_eq!(names, [json!("Attic"), json!("Bench")]);
+
+    // A sign-in's session id is the one its device is listed by.
+    let signed_in = sign_in(app, json!({"Username": "viewer", "Pw": "test-pass-1"})).await;
+    let token = signed_in.body["AccessToken"].as_str().unwrap();
+    let auth = format!(r#"{FINDROID}, Token="{token}""#);
+    let mine = app.jf_raw(Method::GET, "/Sessions?DeviceId=phone-1", &[("authorization", &auth)], None).await;
+    assert_eq!(mine.body[0]["Id"], signed_in.body["SessionInfo"]["Id"], "{}", mine.text());
+    assert_eq!(mine.body[0]["DeviceName"], json!("Phone"));
+}
+
+#[tokio::test]
+async fn a_jellyfin_app_casts_to_the_users_devices() {
+    let w = world().await;
+    let app = &w.app;
+    let h = household(&w).await;
+    let mut heard = events(app, &h.viewer, "").await;
+    let listed = jf_sessions(app, &h.viewer, "").await;
+    let (tv, phone, own) = (named(&listed, "Den TV"), named(&listed, "Phone"), named(&listed, "Bench"));
+    let film = app.jf_item(w.film);
+    let cast = |session: &str, query: String| {
+        let uri = format!("/Sessions/{session}/Playing?{query}");
+        let viewer = h.viewer.clone();
+        async move { app.jf(Method::POST, &uri, &viewer, None).await }
+    };
+
+    // Played at once, from where it was asked, saying where it came from.
+    let sent = cast(&tv, format!("PlayCommand=PlayNow&ItemIds={film}&StartPositionTicks=50000000")).await;
+    assert_eq!(sent.status, StatusCode::NO_CONTENT, "{}", sent.text());
+    let event = next_event(&mut heard, "cast").await;
+    let expected = json!({
+        "type": "cast", "receiver_id": "tv-1", "item_id": w.film, "playlist_id": null, "channel_id": null,
+        "start_ms": 5_000, "shuffle": false, "audio_index": null, "subtitle_index": null, "from": "Bench",
+    });
+    assert_eq!(event, expected);
+
+    // A playlist of the user's, shuffled: the item at StartIndex.
+    let made = app.post("/api/playlists", &h.viewer, json!({"title": "Mine", "item_ids": [w.film]})).await;
+    let playlist = app.jf_ids().of(pley::jellyfin::ids::Kind::Playlist, made.body["id"].as_i64().unwrap());
+    let sent = cast(&tv, format!("playCommand=PlayShuffle&itemIds={film},{playlist}&startIndex=1")).await;
+    assert_eq!(sent.status, StatusCode::NO_CONTENT, "{}", sent.text());
+    let event = next_event(&mut heard, "cast").await;
+    assert_eq!((&event["playlist_id"], &event["shuffle"]), (&made.body["id"], &json!(true)));
+
+    // As Pley's casting checks it: a track the title doesn't have, a queue
+    // it doesn't keep, nothing at StartIndex, a device that takes no casts,
+    // an id that names nothing, a device that isn't the user's.
+    let nothing = "0".repeat(32);
+    for (session, query, status) in [
+        (&tv, format!("PlayCommand=PlayNow&ItemIds={film}&AudioStreamIndex=7"), StatusCode::BAD_REQUEST),
+        (&tv, format!("PlayCommand=PlayNext&ItemIds={film}"), StatusCode::BAD_REQUEST),
+        (&tv, format!("PlayCommand=PlayNow&ItemIds={film}&StartIndex=1"), StatusCode::BAD_REQUEST),
+        (&phone, format!("PlayCommand=PlayNow&ItemIds={film}"), StatusCode::BAD_REQUEST),
+        (&own, format!("PlayCommand=PlayNow&ItemIds={film}"), StatusCode::BAD_REQUEST),
+        (&tv, format!("PlayCommand=PlayNow&ItemIds={nothing}"), StatusCode::NOT_FOUND),
+        (&nothing, format!("PlayCommand=PlayNow&ItemIds={film}"), StatusCode::NOT_FOUND),
+    ] {
+        let refused = cast(session, query.clone()).await;
+        assert_eq!(refused.status, status, "{query}: {}", refused.text());
+    }
+    let admins_own = named(&jf_sessions(app, &w.admin, "").await, "Bench");
+    let refused = cast(&admins_own, format!("PlayCommand=PlayNow&ItemIds={film}")).await;
+    assert_eq!(refused.status, StatusCode::NOT_FOUND, "another user's device");
+}
+
+#[tokio::test]
+async fn a_jellyfin_app_controls_the_users_players() {
+    let w = world().await;
+    let app = &w.app;
+    with_tracks(app, w.film).await;
+    let h = household(&w).await;
+    let mut heard = events(app, &h.viewer, "").await;
+    let listed = jf_sessions(app, &h.viewer, "").await;
+    let (tv, phone) = (named(&listed, "Den TV"), named(&listed, "Phone"));
+    let post = |uri: String, body: Option<Value>| {
+        let viewer = h.viewer.clone();
+        async move { app.jf(Method::POST, &uri, &viewer, body).await }
+    };
+
+    // Jellyfin's Playstate commands, as Pley's remote sends them.
+    for (command, sent, (field, value)) in [
+        ("Pause", "pause", ("command", json!("pause"))),
+        ("Unpause", "play", ("command", json!("play"))),
+        ("PlayPause", "pause", ("command", json!("pause"))),
+        ("Seek?SeekPositionTicks=300000000", "seek", ("position_ms", json!(30_000))),
+        ("NextTrack", "next", ("command", json!("next"))),
+        ("PreviousTrack", "previous", ("command", json!("previous"))),
+        ("Rewind", "skip", ("offset_ms", json!(-10_000))),
+        ("FastForward", "skip", ("offset_ms", json!(30_000))),
+    ] {
+        let reply = post(format!("/Sessions/{phone}/Playing/{command}"), None).await;
+        assert_eq!(reply.status, StatusCode::NO_CONTENT, "{command}: {}", reply.text());
+        let event = next_event(&mut heard, "player_command").await;
+        assert_eq!((&event["session_id"], &event["command"]), (&json!(h.session), &json!(sent)), "{command}");
+        assert_eq!(event[field], value, "{command}: {event}");
+    }
+    // Its general commands that Pley's remote has.
+    let general = format!("/Sessions/{phone}/Command");
+    let audio = json!({"Name": "SetAudioStreamIndex", "Arguments": {"Index": "2"}});
+    assert_eq!(post(general.clone(), Some(audio)).await.status, StatusCode::NO_CONTENT);
+    let event = next_event(&mut heard, "player_command").await;
+    assert_eq!((&event["command"], &event["stream_index"]), (&json!("audio"), &json!(2)));
+    let pause = json!({"Name": "PlayState", "Arguments": {"Command": "Pause"}});
+    assert_eq!(post(general.clone(), Some(pause)).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(next_event(&mut heard, "player_command").await["command"], json!("pause"));
+    for refused in [
+        json!({"Name": "SetAudioStreamIndex", "Arguments": {"Index": "3"}}),
+        json!({"Name": "SetSubtitleStreamIndex"}),
+        json!({"Name": "SetMaxStreamingBitrate", "Arguments": {"MaxBitrate": "8000000"}}),
+        json!({"Name": "ChannelUp"}),
+        json!({"Name": "DisplayMessage", "Arguments": {"Text": "hi"}}),
+    ] {
+        let reply = post(general.clone(), Some(refused.clone())).await;
+        assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{refused}: {}", reply.text());
+    }
+    let muted = post(format!("/Sessions/{phone}/Command/ToggleMute"), None).await;
+    assert_eq!(muted.status, StatusCode::BAD_REQUEST);
+
+    // Nothing plays on the TV: a stop stops nothing, and nothing else goes.
+    assert_eq!(post(format!("/Sessions/{tv}/Playing/Pause"), None).await.status, StatusCode::BAD_REQUEST);
+    assert_eq!(post(format!("/Sessions/{tv}/Playing/Stop"), None).await.status, StatusCode::NO_CONTENT);
+    // The phone stops as Pley's remote stops it.
+    assert_eq!(post(format!("/Sessions/{phone}/Playing/Stop"), None).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(next_event(&mut heard, "session_stopped").await["session_id"], json!(h.session));
+    assert!(app.get("/api/sessions", &h.viewer).await.body.as_array().unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn the_socket_sends_the_users_sessions_once_asked() {
+    let w = world().await;
+    let app = &w.app;
+    let (viewer, _) = app.user(&w.admin, "viewer", json!({})).await;
+    let token = app.jellyfin_token(&viewer).await;
+    let mut ws = socket(app, &token).await;
+    next_of(&mut ws, &["ForceKeepAlive"]).await;
+    let start = r#"{"MessageType":"SessionsStart","Data":"0,1000"}"#;
+    ws.send(tokio_tungstenite::tungstenite::Message::Text(start.into())).await.unwrap();
+    let first = next_of(&mut ws, &["Sessions"]).await;
+    assert_eq!(first["Data"].as_array().unwrap().len(), 1, "its own device: {first}");
+    assert_eq!(first["Data"][0]["DeviceId"], json!("bench-1"));
+
+    // A device that comes is told of.
+    let _tv = events(app, &viewer, "receiver=tv-1&device_name=Den%20TV&casts=item").await;
+    let next = next_of(&mut ws, &["Sessions"]).await;
+    let names: Vec<Value> = next["Data"].as_array().unwrap().iter().map(|s| s["DeviceName"].clone()).collect();
+    assert!(names.contains(&json!("Den TV")), "{next}");
+
+    // Until it stops asking.
+    let stop = r#"{"MessageType":"SessionsStop"}"#;
+    ws.send(tokio_tungstenite::tungstenite::Message::Text(stop.into())).await.unwrap();
+    let _kitchen = events(app, &viewer, "receiver=tv-2&device_name=Kitchen&casts=item").await;
+    let quiet = tokio::time::timeout(std::time::Duration::from_secs(3), next_of(&mut ws, &["Sessions"])).await;
+    assert!(quiet.is_err(), "no more after SessionsStop: {quiet:?}");
+}

@@ -4,7 +4,9 @@
 //! library refresh), `UserDataChanged` for their watch state, `Playstate`
 //! `Stop` when someone else stops their playback, and the commands of the
 //! user's remotes as `Playstate`, or `GeneralCommand` for a change of
-//! track, for a device that takes them ([`Remotes`]).
+//! track, for a device that takes them ([`Remotes`]). After `SessionsStart`
+//! it is sent `Sessions`, the user's devices as `/Sessions` lists them, as
+//! they change, until `SessionsStop`.
 //! The token is checked again every 30 s, and the socket closes once it is
 //! revoked.
 
@@ -21,10 +23,11 @@ use axum::routing::get;
 use parking_lot::Mutex;
 use serde_json::{Value, json};
 use tokio::sync::broadcast::error::RecvError;
+use tokio::time::Instant;
 
 use super::dto::TICKS_PER_MS;
 use super::ids::Kind;
-use super::{Jellyfin, JfUser, Q};
+use super::{Client, Jellyfin, JfUser, Q};
 use crate::auth::{AuthUser, SourceIp};
 use crate::events::ServerEvent;
 use crate::playback::{Control, Controls, Session};
@@ -37,6 +40,14 @@ const RECHECK: Duration = Duration::from_secs(30);
 const KEEP_ALIVE_SECS: i64 = 60;
 /// The most a message from a client may be, in bytes.
 const MAX_MESSAGE: usize = 64 * 1024;
+
+/// The shortest and longest a socket waits between two `Sessions`, whatever
+/// its client asked: each is a list worked out anew. Jellyfin's web app asks
+/// for one every 800 ms.
+const SESSIONS_MIN: Duration = Duration::from_millis(1000);
+const SESSIONS_MAX: Duration = Duration::from_secs(60);
+/// The longest it waits before the first.
+const SESSIONS_FIRST_MAX: Duration = Duration::from_secs(10);
 
 /// The most devices kept as taking media control, in memory. Once that
 /// many are, those without a socket open are forgotten: a client says so
@@ -91,12 +102,18 @@ impl Remotes {
     /// socket: none unless its device took media control and has one open.
     pub(crate) fn controls(&self, session: &Session) -> Controls {
         let Some(device) = session.client_id.as_deref() else { return Controls::new() };
-        let key = (session.user_id, device.to_owned());
-        if self.controllable.lock().contains(&key) && self.sockets.lock().contains_key(&key) {
+        if self.takes_control(session.user_id, device) {
             JELLYFIN_CONTROLS.into_iter().collect()
         } else {
             Controls::new()
         }
+    }
+
+    /// Whether `device` of `user_id` took media control and has its socket
+    /// open.
+    pub(super) fn takes_control(&self, user_id: i64, device: &str) -> bool {
+        let key = (user_id, device.to_owned());
+        self.controllable.lock().contains(&key) && self.sockets.lock().contains_key(&key)
     }
 
     /// Counts a socket of `device` open until the guard is dropped.
@@ -137,13 +154,14 @@ async fn socket(
     q: Q,
     upgrade: WebSocketUpgrade,
 ) -> Response {
-    let device = q.get("deviceId").map(str::to_owned).or(client.device_id);
+    let device = q.get("deviceId").map(str::to_owned).or(client.device_id.clone());
     let token = (user.compatibility.map(|c| c.token_id).unwrap_or(0), from);
+    let client = Client { device_id: device, ..client };
     // Clients send keep-alives, a few bytes each.
     upgrade
         .max_message_size(MAX_MESSAGE)
         .max_frame_size(MAX_MESSAGE)
-        .on_upgrade(move |socket| run(state, jellyfin, user, token, device, socket))
+        .on_upgrade(move |socket| run(state, jellyfin, user, token, client, socket))
 }
 
 fn message(kind: &str, data: Value) -> Message {
@@ -155,16 +173,60 @@ fn message(kind: &str, data: Value) -> Message {
     Message::Text(json!({"MessageType": kind, "MessageId": id, "Data": data}).to_string().into())
 }
 
+/// What a `SessionsStart` asked for: `Sessions` when the list changes, and
+/// while something plays (its place moves), at most every `every`.
+struct Feed {
+    every: Duration,
+    /// When the list is worked out next.
+    next: Instant,
+    /// What was sent last, which an unchanged list isn't sent again.
+    last: Option<Value>,
+}
+
+impl Feed {
+    /// `SessionsStart`'s `Data`: `"first,every"` in milliseconds (the wait
+    /// before the first, and between two), bounded. Never sooner than
+    /// [`SESSIONS_MIN`] after the last one `sent`.
+    fn asked(data: Option<&Value>, sent: Option<Instant>) -> Feed {
+        let text = data.and_then(Value::as_str).unwrap_or_default();
+        let mut parts = text.split(',').map(|part| part.trim().parse::<u64>().ok().map(Duration::from_millis));
+        let first = parts.next().flatten().unwrap_or_default().min(SESSIONS_FIRST_MAX);
+        let every = parts.next().flatten().unwrap_or(SESSIONS_MIN).clamp(SESSIONS_MIN, SESSIONS_MAX);
+        let mut next = Instant::now() + first;
+        if let Some(sent) = sent {
+            next = next.max(sent + SESSIONS_MIN);
+        }
+        Feed { every, next, last: None }
+    }
+
+    /// The user's devices changed: the list is worked out as soon as it may.
+    fn soon(&mut self, sent: Option<Instant>) {
+        let soonest = sent.map_or_else(Instant::now, |sent| (sent + SESSIONS_MIN).max(Instant::now()));
+        self.next = self.next.min(soonest);
+    }
+}
+
+/// Waits until `deadline`, or for ever without one.
+async fn until(deadline: Option<Instant>) {
+    match deadline {
+        Some(deadline) => tokio::time::sleep_until(deadline).await,
+        None => std::future::pending().await,
+    }
+}
+
 /// The socket of `user`, its token (`token`: the token's id, and where the
-/// socket was opened from, which its origins are checked against again).
+/// socket was opened from, which its origins are checked against again),
+/// from `client`'s device.
 async fn run(
     state: AppState,
     jellyfin: Arc<Jellyfin>,
     user: AuthUser,
     token: (i64, Option<std::net::IpAddr>),
-    device: Option<String>,
+    client: Client,
     mut socket: WebSocket,
 ) {
+    let device = client.device_id.clone();
+    let opened_ms = now_ms();
     let mut events = state.events.subscribe();
     // Remotes control this device while its socket is open, and no longer.
     let _open = state.jellyfin_remotes.open(user.id, device.as_deref());
@@ -173,14 +235,24 @@ async fn run(
     }
     let mut recheck = tokio::time::interval(RECHECK);
     recheck.tick().await;
+    let (mut feed, mut sent): (Option<Feed>, Option<Instant>) = (None, None);
     loop {
         tokio::select! {
             received = socket.recv() => match received {
                 Some(Ok(Message::Text(text))) => {
-                    let kind = serde_json::from_str::<Value>(&text).ok()
-                        .and_then(|v| super::field(&v, "MessageType").and_then(|t| t.as_str()).map(str::to_owned));
-                    if kind.as_deref() == Some("KeepAlive") && socket.send(message("KeepAlive", Value::Null)).await.is_err() {
-                        return;
+                    let parsed = serde_json::from_str::<Value>(&text).ok();
+                    let kind = parsed.as_ref().and_then(|v| super::field(v, "MessageType")).and_then(Value::as_str);
+                    match kind {
+                        Some("KeepAlive") => {
+                            if socket.send(message("KeepAlive", Value::Null)).await.is_err() {
+                                return;
+                            }
+                        }
+                        Some("SessionsStart") => {
+                            feed = Some(Feed::asked(parsed.as_ref().and_then(|v| super::field(v, "Data")), sent));
+                        }
+                        Some("SessionsStop") => feed = None,
+                        _ => {}
                     }
                 }
                 Some(Ok(Message::Ping(bytes))) => {
@@ -193,6 +265,11 @@ async fn run(
             },
             event = events.recv() => match event {
                 Ok(event) => {
+                    if let (ServerEvent::SessionsChanged { user_id }, Some(feed)) = (&event, feed.as_mut())
+                        && *user_id == user.id
+                    {
+                        feed.soon(sent);
+                    }
                     if let Some(out) = translate(&state, &jellyfin, &user, device.as_deref(), &event).await
                         && socket.send(out).await.is_err()
                     {
@@ -202,6 +279,26 @@ async fn run(
                 Err(RecvError::Lagged(_)) => {}
                 Err(RecvError::Closed) => return,
             },
+            _ = until(feed.as_ref().map(|f| f.next)) => {
+                let Some(feed) = feed.as_mut() else { continue };
+                feed.next = Instant::now() + feed.every;
+                let caller = super::sessions::Caller { client: &client, seen_ms: opened_ms };
+                // A list that can't be worked out now is tried again next time.
+                let Ok(list) = super::sessions::listed(&state, &jellyfin, &user, &caller).await else { continue };
+                // Only a place moves without a change the user's devices are
+                // told of (a pause, a jump, a device that comes or goes).
+                if !list.iter().any(super::sessions::SessionInfoDto::moves) {
+                    feed.next = Instant::now() + SESSIONS_MAX;
+                }
+                let Ok(list) = serde_json::to_value(list) else { continue };
+                if feed.last.as_ref() != Some(&list) {
+                    if socket.send(message("Sessions", list.clone())).await.is_err() {
+                        return;
+                    }
+                    feed.last = Some(list);
+                    sent = Some(Instant::now());
+                }
+            }
             _ = recheck.tick() => {
                 if state.auth.compatibility_user(token.0, token.1).await.is_none() {
                     let _ = socket.send(Message::Close(None)).await;

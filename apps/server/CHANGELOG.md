@@ -11,6 +11,10 @@ describes how they are made.
 
 ### Added
 
+- Jellyfin's apps are remotes on the Jellyfin-compatible API: they list
+  your devices as Pley's remote does, with what plays there, cast titles,
+  playlists and channels to them, and pause, seek, skip, change the tracks
+  or the quality and stop what they play.
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays

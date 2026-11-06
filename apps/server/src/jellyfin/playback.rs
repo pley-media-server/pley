@@ -50,7 +50,6 @@ pub fn routes() -> Router<AppState> {
         .route("/sessions/playing/progress", post(progress))
         .route("/sessions/playing/stopped", post(stopped))
         .route("/sessions/playing/ping", post(ping))
-        .route("/sessions", get(sessions))
         .route("/mediasegments/{id}", get(media_segments))
         .route("/playback/bitratetest", get(bitrate_test))
 }
@@ -839,12 +838,6 @@ async fn stopped(
 
 async fn ping(_user: JfUser) -> StatusCode {
     StatusCode::NO_CONTENT
-}
-
-/// `/Sessions`: the caller's own devices' sessions are Pley's to show; none
-/// are listed here.
-async fn sessions(_user: JfUser) -> Json<[(); 0]> {
-    Json([])
 }
 
 // ------------------------------------------------------------------ bitrate test

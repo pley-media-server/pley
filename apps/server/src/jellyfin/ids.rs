@@ -27,6 +27,8 @@ pub enum Kind {
     Studio = 9,
     /// A year, by its number.
     Year = 10,
+    /// A Live TV channel, which a session watching it shows.
+    Channel = 11,
 }
 
 impl Kind {
@@ -42,6 +44,7 @@ impl Kind {
             8 => Kind::Playlist,
             9 => Kind::Studio,
             10 => Kind::Year,
+            11 => Kind::Channel,
             _ => return None,
         })
     }
@@ -95,6 +98,17 @@ impl Ids {
     /// The number of an id of `kind`.
     pub fn number(&self, kind: Kind, text: &str) -> Option<i64> {
         self.read(text).filter(|(k, _)| *k == kind).map(|(_, n)| n)
+    }
+
+    /// The session id of device `device_id` of user `user_id` (Pley's
+    /// `device_id`, as remotes tell devices apart): 32 hexadecimal
+    /// characters, the same while the device is, which can't be made up.
+    /// It isn't read back: it is looked for among the user's devices.
+    pub fn device(&self, user_id: i64, device_id: &str) -> String {
+        let mut message = b"jellyfin device:".to_vec();
+        message.extend_from_slice(&user_id.to_be_bytes());
+        message.extend_from_slice(device_id.as_bytes());
+        hex::encode(&hmac::sign(&self.key, &message).as_ref()[..16])
     }
 
     /// A media source's id: the file and the token for other apps it was
@@ -185,6 +199,18 @@ mod tests {
         other_token[15] ^= 1;
         assert_eq!(ids.read_source(&hex::encode(other_token)), None, "the token is checked");
         assert_eq!(Ids::new(&[8u8; 32]).read_source(&source), None);
+    }
+
+    #[test]
+    fn a_devices_id_is_its_users_and_its_own() {
+        let ids = Ids::new(&[7u8; 32]);
+        let id = ids.device(1, "token-3");
+        assert!(id.len() == 32 && id.chars().all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase()), "{id}");
+        assert_eq!(ids.device(1, "token-3"), id, "the same while the device is");
+        assert_ne!(ids.device(2, "token-3"), id, "another user's");
+        assert_ne!(ids.device(1, "token-4"), id, "another device");
+        assert_ne!(Ids::new(&[8u8; 32]).device(1, "token-3"), id, "another server's");
+        assert_eq!(ids.read(&id), None, "no item's");
     }
 
     #[test]

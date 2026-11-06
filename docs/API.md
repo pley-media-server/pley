@@ -3436,7 +3436,10 @@ administrators, and Pley's own apps allowed `activity` on their accounts,
 stop other people's sessions (above) and nothing more. A home member also
 casts to the household's other profiles' devices, which switch to the
 caster's profile first ([Casting](#casting)): a device plays as the
-profile of the remote that sent it something.
+profile of the remote that sent it something. Jellyfin's apps control and
+cast to the user's own devices as well, through the Jellyfin-compatible
+API's `/Sessions`, with these checks and limits
+([COMPATIBILITY.md](COMPATIBILITY.md#remotes)).
 
 - **Players say what they obey.** A play request's `controls` lists the
   commands its player acts on: `play`, `pause`, `seek`, `skip`, `next`,

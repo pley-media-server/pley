@@ -693,9 +693,63 @@ stopped.
 The socket (`/socket`) asks to be kept alive every 60 seconds, and tells of
 changes to the libraries the user may open (`LibraryChanged`), to the
 user's watch state (`UserDataChanged`), playback stopped from Pley and the
-commands of the user's remotes (`Playstate`, `GeneralCommand`). It checks
-the token again every 30 seconds, from where the socket was opened, and
-closes once it ends.
+commands of the user's remotes (`Playstate`, `GeneralCommand`). After
+`SessionsStart` it sends `Sessions`, the list `GET /Sessions` answers
+([Remotes](#remotes)), as it changes and while something plays, at most
+once a second (the client's `Data`, the wait before the first and between
+two in milliseconds, is held to that), until `SessionsStop`. It checks the
+token again every 30 seconds, from where the socket was opened, and closes
+once it ends.
+
+### Remotes
+
+Jellyfin's apps are remotes too, for the user's own devices as Pley's
+remote lists them ([API.md](API.md#remote-control)), with its checks and
+limits:
+
+- **`GET /Sessions`** lists each of the user's devices once: those that
+  take their casts (Pley's apps with their event stream open as a
+  receiver), those that play (Pley's players, and Jellyfin apps that report
+  playback), and the asking app's own device, what plays first, then by
+  name. What a device plays is its `NowPlayingItem`, with the streams of the
+  file it plays, and its `PlayState`: where it is by now, paused or not, its
+  tracks and how it plays. A session's `Id` is keyed with the server's
+  `secret.key`, as other ids are, and stays the same while the device does;
+  a sign-in's `SessionInfo.Id` is its device's. `DeviceId` is a Jellyfin
+  app's own, so that an app finds itself, and the session's `Id` for Pley's
+  devices. `PlayableMediaTypes` is `Audio` and `Video` for a device that
+  takes casts, empty otherwise, and `SupportedCommands` lists the commands
+  below its player obeys. `DeviceId`, `ControllableByUserId` (the caller's
+  own id: another's answers `403`) and `ActiveWithinSeconds` filter it.
+- **`POST /Sessions/{id}/Playing`** casts to the device through Pley's
+  casting ([API.md](API.md#casting)): the item at `StartIndex` of
+  `ItemIds` (the first unless given), a title, a playlist or a Live TV
+  channel, played with `PlayCommand=PlayNow`, shuffled with `PlayShuffle`,
+  from `StartPositionTicks`, with `AudioStreamIndex` and
+  `SubtitleStreamIndex` for a movie or an episode. The device says it came
+  from the app's `Device`. Pley's casting plays at once and keeps no queue
+  there: `PlayNext`, `PlayLast` and `PlayInstantMix` answer `400`, as does a
+  device that takes no casts.
+- **`POST /Sessions/{id}/Playing/{command}`** sends what the device plays
+  Pley's remote commands: `Pause`, `Unpause`, `PlayPause` (as it plays or
+  not), `Seek` (to `SeekPositionTicks`), `NextTrack`, `PreviousTrack`, and
+  `Rewind` and `FastForward` (a skip 10 seconds back or 30 on, as Pley's
+  remotes skip). `Stop` stops it as Pley's remote does.
+- **`POST /Sessions/{id}/Command`** (`{ Name, Arguments }`) and
+  **`/Sessions/{id}/Command/{name}`**: `SetAudioStreamIndex` and
+  `SetSubtitleStreamIndex` (`Index`, as the device's media streams number
+  them; `-1` turns subtitles off), `SetMaxStreamingBitrate` (`MaxBitrate`:
+  the highest of its player's qualities within it, the original above every
+  copy), `ChannelUp` and `ChannelDown` on Live TV, and `PlayState` and
+  `Play` as above. Any other answers `400`.
+
+A command the player didn't say it obeys, a place, track or quality out of
+range, or a device that plays nothing answers `400` (a `Stop` there stops
+nothing, `204`); a session id that isn't one of the user's devices `404`;
+more than 10 commands or casts a second to one device `503`. The household's
+other profiles' devices aren't listed: a cast there switches the device to
+the caller's profile, which only Pley's own apps allowed to switch profiles
+do ([API.md](API.md#casting)), and Jellyfin's apps have no PIN to give.
 
 ### Jellyfin's names for Pley's things
 
@@ -723,8 +777,9 @@ closes once it ends.
 | Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
 | Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
 | Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
-| Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping`; `GET /Sessions` (none listed) |
-| Socket | `GET /socket` |
+| Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping` |
+| Remotes | `GET /Sessions` (`DeviceId`, `ControllableByUserId`, `ActiveWithinSeconds`), `POST /Sessions/{id}/Playing`, `/Sessions/{id}/Playing/{command}`, `/Sessions/{id}/Command`, `/Sessions/{id}/Command/{name}` |
+| Socket | `GET /socket` (`SessionsStart`, `SessionsStop`) |
 
 ### Jellyfin apps tested
 
@@ -743,9 +798,13 @@ Run against Pley with the API on Pley's port and on a port of its own:
   two-step sign-in.
 - Administration: the dashboard, users, libraries, plugins, scheduled
   tasks, logs and activity.
-- Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
-  none), and finding the server on the network (UDP 7359): apps are given
-  its address.
+- Live TV, SyncPlay, and finding the server on the network (UDP 7359):
+  apps are given its address.
+- As a remote: the household's other profiles' devices, a queue on another
+  device (`PlayNext`, `PlayLast`), and its volume, messages and menus
+  (`SetVolume`, `DisplayMessage`, `DisplayContent`, `/Sessions/{id}/System`
+  and `/Sessions/{id}/Message`). Pley's remotes don't cast to a Jellyfin
+  app: they control what it plays.
 - Making or changing playlists and collections, and editing metadata.
 - Lyrics, seek previews (trickplay), instant mixes, theme songs and
   videos, and intros before a title.

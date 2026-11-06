@@ -114,8 +114,8 @@ pub enum SessionKind {
 /// The channel a Live TV session watches.
 #[derive(Debug, Clone, Serialize)]
 pub struct PlayingChannel {
-    id: i64,
-    name: String,
+    pub(crate) id: i64,
+    pub(crate) name: String,
     number: Option<String>,
     logo: Option<String>,
     /// The programme on now…
@@ -131,20 +131,20 @@ pub struct PlayingChannel {
 /// One of the user's sessions as their remotes show it.
 #[derive(Debug, Clone, Serialize)]
 pub struct PlayingSession {
-    session_id: String,
-    kind: SessionKind,
-    device: Option<String>,
+    pub(crate) session_id: String,
+    pub(crate) kind: SessionKind,
+    pub(crate) device: Option<String>,
     /// Which device that is ([`device_id_of`]) and what kind
     /// ([`device_kind_of`]).
-    device_id: String,
+    pub(crate) device_id: String,
     device_kind: DeviceKind,
     /// What it plays, for `item`.
     item: Option<ItemSummary>,
     /// What it watches, for `live`.
-    channel: Option<PlayingChannel>,
-    state: String,
-    position_ms: i64,
-    duration_ms: Option<i64>,
+    pub(crate) channel: Option<PlayingChannel>,
+    pub(crate) state: String,
+    pub(crate) position_ms: i64,
+    pub(crate) duration_ms: Option<i64>,
     /// When its player last reported, or a live one asked for the channel
     /// (unix seconds).
     updated_at: i64,
@@ -152,13 +152,13 @@ pub struct PlayingSession {
     /// remotes move the place on by this and by the time since the answer
     /// came, while it plays, so a device whose clock is off still shows
     /// where the player is.
-    age_ms: i64,
-    controls: Controls,
+    pub(crate) age_ms: i64,
+    pub(crate) controls: Controls,
     /// The audio track and the subtitles it plays, by stream index (`-1`:
     /// no subtitles): what its player last said, else what its play
     /// request picked; `None` when not known, and on Live TV.
-    audio_index: Option<i64>,
-    subtitle_index: Option<i64>,
+    pub(crate) audio_index: Option<i64>,
+    pub(crate) subtitle_index: Option<i64>,
     /// Its file's tracks, which `audio` and `subtitles` pick from; none on
     /// Live TV.
     tracks: TrackOptions,
@@ -167,27 +167,33 @@ pub struct PlayingSession {
     quality: Option<&'static str>,
     /// The qualities its player's menu offers for the file, which `quality`
     /// picks from; none for music and on Live TV.
-    qualities: Vec<QualityOption>,
+    pub(crate) qualities: Vec<QualityOption>,
     /// For the order they are listed in.
     #[serde(skip)]
     started_at: i64,
     /// When its player last reported, or a live one asked for the channel
     /// (unix ms): what `age_ms` counts from.
     #[serde(skip)]
-    reported_at_ms: i64,
+    pub(crate) reported_at_ms: i64,
 }
 
 /// `GET /api/sessions`: what the caller's own players play now, oldest
 /// first. Administrators get only theirs too: everyone's is `/api/activity`.
 pub async fn list(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json<Vec<PlayingSession>>> {
-    let mut playing = playing_items(&state, &user).await?;
-    playing.extend(playing_live(&state, &user).await?);
+    Ok(Json(playing(&state, &user).await?))
+}
+
+/// The user's own sessions whose players are there, oldest first, as their
+/// remotes list them (the Jellyfin-compatible API's `/Sessions` too).
+pub(crate) async fn playing(state: &AppState, user: &AuthUser) -> ApiResult<Vec<PlayingSession>> {
+    let mut playing = playing_items(state, user).await?;
+    playing.extend(playing_live(state, user).await?);
     playing.sort_by_key(|s| s.started_at);
     let now = now_ms();
     for session in &mut playing {
         session.age_ms = (now - session.reported_at_ms).max(0);
     }
-    Ok(Json(playing))
+    Ok(playing)
 }
 
 /// The user's Live TV viewers whose players are there. A channel hidden
@@ -295,15 +301,15 @@ fn controls_of(state: &AppState, session: &Session) -> Controls {
 
 #[derive(Debug, Deserialize)]
 pub struct Command {
-    command: Control,
+    pub(crate) command: Control,
     #[serde(default)]
-    position_ms: Option<i64>,
+    pub(crate) position_ms: Option<i64>,
     #[serde(default)]
-    offset_ms: Option<i64>,
+    pub(crate) offset_ms: Option<i64>,
     #[serde(default)]
-    stream_index: Option<i64>,
+    pub(crate) stream_index: Option<i64>,
     #[serde(default)]
-    quality: Option<String>,
+    pub(crate) quality: Option<String>,
 }
 
 /// What a command carries to its player, each `None` for the commands that
@@ -341,7 +347,15 @@ pub async fn command(
     body: Result<Json<Command>, JsonRejection>,
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
-    let target = controlled(&state, &user, &id)?;
+    send_command(&state, &user, &id, &body).await?;
+    Ok(StatusCode::ACCEPTED)
+}
+
+/// Sends the player of session `id`, one of the user's own, a command it
+/// said it obeys, checked as `POST /api/sessions/{id}/command` checks it
+/// (the Jellyfin-compatible API's remote commands too).
+pub(crate) async fn send_command(state: &AppState, user: &AuthUser, id: &str, body: &Command) -> ApiResult<()> {
+    let target = controlled(state, user, id)?;
     // A track or a quality is one of the session file's; Live TV has none to pick.
     let choices = match &target {
         Controlled::Item(session) if matches!(body.command, Control::Audio | Control::Subtitles | Control::Quality) => {
@@ -352,8 +366,8 @@ pub async fn command(
         Controlled::Item(_) => Some(Choices { streams: Vec::new(), qualities: Vec::new() }),
         Controlled::Live(_) => None,
     };
-    let values = command_values(&body, target.duration_ms(), choices.as_ref())?;
-    if !target.controls(&state).contains(&body.command) {
+    let values = command_values(body, target.duration_ms(), choices.as_ref())?;
+    if !target.controls(state).contains(&body.command) {
         return Err(AppError::ConflictAs(
             "not_controllable",
             format!("this player doesn't take {} from a remote", words(body.command)),
@@ -376,14 +390,14 @@ pub async fn command(
     // order it tunes them in, so the server only passes them on.
     state.events.send(ServerEvent::PlayerCommand {
         user_id: user.id,
-        session_id: id,
+        session_id: id.to_owned(),
         command: body.command,
         position_ms: values.position_ms,
         offset_ms: values.offset_ms,
         stream_index: values.stream_index,
         quality: values.quality,
     });
-    Ok(StatusCode::ACCEPTED)
+    Ok(())
 }
 
 /// A session a remote sends a command to.
@@ -586,6 +600,8 @@ struct Open {
     /// When its newest stream connected: a device's newest receiver is the
     /// one listed.
     connected_at: Instant,
+    /// The same by the clock (unix ms), for when the device was last seen.
+    connected_ms: i64,
     /// Its streams open: several with the same id count once.
     streams: usize,
     /// Casts sent to it lately, which [`Receivers::take_cast`] counts.
@@ -646,6 +662,7 @@ impl Receivers {
                 Some(open) => {
                     open.streams += 1;
                     open.connected_at = Instant::now();
+                    open.connected_ms = now_ms();
                     let changed = open.receiver != receiver;
                     open.receiver = receiver;
                     changed
@@ -655,6 +672,7 @@ impl Receivers {
                     let open = Open {
                         receiver,
                         connected_at: Instant::now(),
+                        connected_ms: now_ms(),
                         streams: 1,
                         casts_sent: CommandWindow::default(),
                     };
@@ -691,6 +709,7 @@ impl Receivers {
                 casts: open.receiver.casts.clone(),
                 profile: None,
                 switches: open.receiver.switches,
+                connected_ms: open.connected_ms,
             })
             .collect();
         out.sort_by_cached_key(|d| (d.name.is_none(), d.name.as_deref().map(str::to_lowercase), d.receiver_id.clone()));
@@ -796,18 +815,21 @@ impl Drop for ReceiverSlot {
 /// One of the user's devices that takes casts, as their remotes list it.
 #[derive(Debug, Clone, Serialize)]
 pub struct RemoteDevice {
-    receiver_id: String,
+    pub(crate) receiver_id: String,
     /// Which device it is: remotes merge it with its sessions by this.
-    device_id: String,
-    name: Option<String>,
+    pub(crate) device_id: String,
+    pub(crate) name: Option<String>,
     kind: DeviceKind,
-    casts: BTreeSet<CastKind>,
+    pub(crate) casts: BTreeSet<CastKind>,
     /// The household's other profile the device is on; left out for the
     /// caller's own. A cast there switches it to the caller's profile.
     #[serde(skip_serializing_if = "Option::is_none")]
     profile: Option<DeviceProfile>,
     #[serde(skip)]
     switches: bool,
+    /// When its newest stream connected (unix ms).
+    #[serde(skip)]
+    pub(crate) connected_ms: i64,
 }
 
 /// The profile another of the household's devices is on.
@@ -829,9 +851,10 @@ pub struct DevicesQuery {
 /// devices, which switches them to its profile: a person's own sign-in, or
 /// one of Pley's own apps allowed to switch profiles, as a switch itself
 /// takes. Another app would learn the household's names and take over its
-/// TVs as its own profile.
+/// TVs as its own profile: a token for other apps (a Jellyfin app's) never
+/// does.
 pub(crate) fn reaches_household(user: &AuthUser) -> bool {
-    user.first_party() && user.allowed(Scope::Profiles)
+    user.compatibility.is_none() && user.first_party() && user.allowed(Scope::Profiles)
 }
 
 /// `GET /api/remote/devices`: the devices that take casts, one each: the
@@ -845,11 +868,18 @@ pub async fn devices(
     user: AuthUser,
     query: Result<Query<DevicesQuery>, QueryRejection>,
 ) -> ApiResult<Json<Vec<RemoteDevice>>> {
-    let mut out = state.receivers.listed(user.id);
     // A query that doesn't parse asks for nothing more.
     let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
-    if !asked || !reaches_household(&user) {
-        return Ok(Json(out));
+    Ok(Json(receivers_of(&state, &user, asked && reaches_household(&user)).await?))
+}
+
+/// The devices that take the user's casts, one each, by name: their own,
+/// and with `household`, those of the household's other profiles that switch
+/// to a casting remote's profile, for a home member.
+pub(crate) async fn receivers_of(state: &AppState, user: &AuthUser, household: bool) -> ApiResult<Vec<RemoteDevice>> {
+    let mut out = state.receivers.listed(user.id);
+    if !household {
+        return Ok(out);
     }
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
@@ -864,33 +894,33 @@ pub async fn devices(
     let mut seen = HashSet::new();
     out.retain(|d| seen.insert(d.device_id.clone()));
     out.sort_by_cached_key(|d| (d.name.is_none(), d.name.as_deref().map(str::to_lowercase), d.receiver_id.clone()));
-    Ok(Json(out))
+    Ok(out)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 pub struct Cast {
     #[serde(default)]
-    item_id: Option<i64>,
+    pub(crate) item_id: Option<i64>,
     /// With `profile_id`: the device the remote listed under the receiver
     /// id (`device_id`). A cast goes to that device or to none, so the id
     /// taken by another device since never gets its ticket.
     #[serde(default)]
     device_id: Option<String>,
     #[serde(default)]
-    playlist_id: Option<i64>,
+    pub(crate) playlist_id: Option<i64>,
     #[serde(default)]
-    channel_id: Option<i64>,
+    pub(crate) channel_id: Option<i64>,
     #[serde(default)]
-    start_ms: Option<i64>,
+    pub(crate) start_ms: Option<i64>,
     #[serde(default)]
-    shuffle: Option<bool>,
+    pub(crate) shuffle: Option<bool>,
     /// The audio track and the subtitles (`-1`: none) the remote had
     /// picked for a movie or an episode, by stream index of one of its
     /// files.
     #[serde(default)]
-    audio_index: Option<i64>,
+    pub(crate) audio_index: Option<i64>,
     #[serde(default)]
-    subtitle_index: Option<i64>,
+    pub(crate) subtitle_index: Option<i64>,
     /// The household's profile whose receiver it is, as the device list
     /// says (`profile.id`); the caller's own when left out.
     #[serde(default)]
@@ -936,8 +966,28 @@ pub async fn cast(
     body: Result<Json<Cast>, JsonRejection>,
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
+    // The receiver says where it came from by the name the remote gave its
+    // device ("Phone"), where the remote is a receiver too: its User-Agent
+    // says only which app it is ("Pley for Android").
+    let from = device_id_of(&user, token.as_deref())
+        .and_then(|device| state.receivers.given_name(user.id, &device))
+        .or_else(|| device_name(None, &headers));
+    cast_to(&state, &user, &id, body, from).await?;
+    Ok(StatusCode::ACCEPTED)
+}
+
+/// Sends receiver `id` what `body` names, checked as
+/// `POST /api/remote/devices/{id}/cast` checks it (the Jellyfin-compatible
+/// API's casts too), saying it comes `from` the remote's device.
+pub(crate) async fn cast_to(
+    state: &AppState,
+    user: &AuthUser,
+    id: &str,
+    body: Cast,
+    from: Option<String>,
+) -> ApiResult<()> {
     let owner = body.profile_id.unwrap_or(user.id);
-    if owner != user.id && !reaches_household(&user) {
+    if owner != user.id && !reaches_household(user) {
         return Err(AppError::ForbiddenAs(
             "not_allowed",
             format!("only Pley's own apps allowed to {} cast to another profile's device", Scope::Profiles.words()),
@@ -946,12 +996,12 @@ pub async fn cast(
     if owner != user.id {
         // A receiver outside the household is as unknown as one that isn't
         // there.
-        let household = switch_target(&state, user.id, owner).await?;
+        let household = switch_target(state, user.id, owner).await?;
         if !household.is_some_and(|p| p.both_home && !p.disabled) {
             return Err(AppError::not_found("no such device"));
         }
     }
-    let (takes, switches) = state.receivers.casts(owner, &id).ok_or_else(|| AppError::not_found("no such device"))?;
+    let (takes, switches) = state.receivers.casts(owner, id).ok_or_else(|| AppError::not_found("no such device"))?;
     // Another profile's receiver that doesn't switch would play it as that
     // profile: it isn't offered, and is as unknown.
     if owner != user.id && !switches {
@@ -966,7 +1016,7 @@ pub async fn cast(
         let Some(listed) = body.device_id.as_deref() else {
             return Err(AppError::bad_request("device_id, as the device list says, goes with profile_id"));
         };
-        if state.receivers.device_of(owner, &id).as_deref() != Some(listed) {
+        if state.receivers.device_of(owner, id).as_deref() != Some(listed) {
             return Err(AppError::not_found("no such device"));
         }
         Some(listed.to_owned())
@@ -974,7 +1024,7 @@ pub async fn cast(
     let picked = body.audio_index.is_some() || body.subtitle_index.is_some();
     let kind = match (body.item_id, body.playlist_id, body.channel_id) {
         (Some(item_id), None, None) => {
-            let row = item_or_404(&state, user.id, item_id).await?;
+            let row = item_or_404(state, user.id, item_id).await?;
             if !CASTABLE.contains(&row.kind.as_str()) {
                 return Err(AppError::bad_request(
                     "only movies, episodes, shows, seasons, tracks, albums and artists can be cast",
@@ -1002,14 +1052,14 @@ pub async fn cast(
             return Err(AppError::bad_request("audio_index and subtitle_index go with item_id"));
         }
         (None, Some(playlist_id), None) => {
-            if !crate::playlists::is_theirs(&state.db, &user, playlist_id).await? {
+            if !crate::playlists::is_theirs(&state.db, user, playlist_id).await? {
                 return Err(AppError::not_found(format!("playlist {playlist_id} not found")));
             }
             CastKind::Item
         }
         (None, None, Some(channel_id)) => {
-            state.live.check_access(&user).await?;
-            state.live.channel(&user, channel_id).await?;
+            state.live.check_access(user).await?;
+            state.live.channel(user, channel_id).await?;
             CastKind::Live
         }
         _ => return Err(AppError::bad_request("name one of item_id, playlist_id and channel_id")),
@@ -1031,18 +1081,18 @@ pub async fn cast(
     // password on a TV), one that has to set up two-step sign-in can't be
     // switched to; then the PIN, when it has one.
     if let Some(device) = &device {
-        check_cast_switch(&state, owner, user.id, device).await?;
+        check_cast_switch(state, owner, user.id, device).await?;
         match &body.pin {
             Some(CastPin(pin)) => {
-                check_own_pin(&state, &user, pin).await?;
+                check_own_pin(state, user, pin).await?;
             }
-            None if has_pin(&state, user.id).await? => {
+            None if has_pin(state, user.id).await? => {
                 return Err(AppError::ForbiddenAs("pin_needed", PIN_NEEDED.to_owned()));
             }
             None => {}
         }
     }
-    match state.receivers.take_cast(owner, &id, device.as_deref()) {
+    match state.receivers.take_cast(owner, id, device.as_deref()) {
         None => return Err(AppError::not_found("no such device")),
         Some(false) => {
             return Err(AppError::TooManyRequests(format!(
@@ -1051,17 +1101,11 @@ pub async fn cast(
         }
         Some(true) => {}
     }
-    // The receiver says where it came from by the name the remote gave its
-    // device ("Phone"), where the remote is a receiver too: its User-Agent
-    // says only which app it is ("Pley for Android").
-    let from = device_id_of(&user, token.as_deref())
-        .and_then(|device| state.receivers.given_name(user.id, &device))
-        .or_else(|| device_name(None, &headers));
     // The device it was counted for, just now.
     let switch_ticket = device.map(|device| SwitchTicket(state.receivers.issue_ticket(&device, owner, user.id)));
     state.events.send(ServerEvent::Cast {
         user_id: owner,
-        receiver_id: id,
+        receiver_id: id.to_owned(),
         item_id: body.item_id,
         playlist_id: body.playlist_id,
         channel_id: body.channel_id,
@@ -1073,7 +1117,7 @@ pub async fn cast(
         profile_id: switch_ticket.is_some().then_some(user.id),
         switch_ticket,
     });
-    Ok(StatusCode::ACCEPTED)
+    Ok(())
 }
 
 /// Whether profile `id` has a PIN.
