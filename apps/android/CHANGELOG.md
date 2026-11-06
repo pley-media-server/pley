@@ -13,14 +13,15 @@ describes how they are made.
 - Pley is in English, French and Spanish: your account's language, else
   this device's, else your server's, and Settings has a Language row on
   phones and TVs that sets it for your account on every device. Before you
-  sign in, a globe on the screens that choose a server and sign in (at the top
-  left on phones, in a corner on TVs) picks
-  this device's language. Every screen on phones, tablets and TVs is in
-  it; dates, times, runtimes, counts, the names of audio and subtitle
-  languages and connection errors follow it, and a download that failed
-  says why in it. On Android 13 and later the system's settings list
+  sign in, a globe on the screens that choose a server and sign in (at the
+  top left on phones, in a corner on TVs) picks this device's language.
+  Every screen on phones, tablets and TVs is in it; dates, times,
+  runtimes, counts, the names of audio and subtitle languages and
+  connection errors follow it, and a download that failed says why in it. On Android 13 and later the system's settings list
   Pley's languages, and one picked there is your account's, as in
   Settings, or before you sign in this device's, as with the globe.
+- The phone's remote offers Skip Intro and Skip Credits while what a TV
+  plays is in an intro or the credits, as the TV's own player does.
 - The phone's remote and Play on… list the devices of everyone in your
   household too, each saying whose profile it is on ("On Sam's
   profile"), never what it plays. Sending something there ends what
@@ -34,6 +35,10 @@ describes how they are made.
 
 - On phones the player's Downloaded badge is green, as on TVs: the file
   plays as it is.
+- After Play on…, one bar above the tabs says it is starting on the
+  device, then what plays there, where a toast and the remote's sheet came
+  and went over each other. The remote's back button goes 30 seconds, as
+  far as forward.
 - The phone's remote opens from a button in Home's top bar, beside your
   picture, while another of your devices is on. The bar above the tabs
   shows only while the phone controls what one plays (it sent it a

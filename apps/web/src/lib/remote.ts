@@ -7,7 +7,7 @@ import { streamLabel } from "./format";
 export const ANSWER_WAIT_MS = 5_000;
 
 /** How far the remote's skip buttons go, back and forward. */
-export const SKIP_BACK_MS = 10_000;
+export const SKIP_BACK_MS = 30_000;
 export const SKIP_FORWARD_MS = 30_000;
 
 

@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -36,7 +37,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberTooltipState
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,6 +94,7 @@ import app.pley.android.designsystem.tile.ChannelLogo
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
+import app.pley.android.model.MarkerKind
 import app.pley.android.model.MediaStream
 import app.pley.android.model.PlayerCommandRequest
 import app.pley.android.model.PlayingChannel
@@ -105,6 +109,7 @@ import app.pley.android.model.format.formatClockMs
 import app.pley.android.model.format.fullTitle
 import app.pley.android.model.format.streamLabel
 import app.pley.android.network.CommandRefusal
+import app.pley.android.player.markers.Markers
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
@@ -115,25 +120,28 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * A request to open the remote ([RemoteSlot]): on a device this phone sent something to ([deviceId], Play on…),
- * or on "Your devices" (`null`, Home's [RemoteButton]). Each one opens it, the same device's too.
+ * A request to the remote ([RemoteSlot]): something this phone sent to a device ([deviceId], Play on…), which
+ * the bar follows, or to open on "Your devices" (`null`, Home's [RemoteButton]). Each one counts, the same
+ * device's too.
  */
 internal class RemoteAsk(val deviceId: String? = null)
 
 /**
  * The remote's place above the tabs (over the mini player when both show)
  * and its sheet. The sheet lists the profile's other devices that are on
- * ([devices]); [asked] opens it, from Home's header or on a device Play on…
- * sent something to, and it closes when no device is left. The bar shows
- * only while this phone controls what a device plays: a command from the
- * sheet, or what it sent with Play on… once that plays (not what played
- * there before it). It goes once that device has played nothing for
- * [RemoteRepository.ANSWER_WAIT_MS], so a title ending into the next one
- * keeps it, and a cast that hasn't started within [CAST_START_WAIT_MS] isn't
- * waited for. A next, or a track that needs a new session, ends one session
- * to start another: until the device plays the new one (or the wait for it
- * is over), the one that ended stays, on the bar and in the sheet. The
- * device chosen in the sheet is kept while it is open.
+ * ([devices]); [asked] opens it from Home's header, and it closes when no
+ * device is left. The bar shows while this phone controls what a device
+ * plays: a command from the sheet, or what it sent with Play on…, which it
+ * says starts there until it plays (not what played there before it), then
+ * what plays; it opens that device's controls. It goes once that device
+ * has played nothing for [RemoteRepository.ANSWER_WAIT_MS], so a title
+ * ending into the next one keeps it, and a cast that hasn't started within
+ * [CAST_START_WAIT_MS] isn't waited for. Play on… doesn't open the sheet:
+ * the bar alone follows what it sent, so nothing comes and goes behind a
+ * sheet coming up. A next, or a track that needs a new session, ends one session to start another:
+ * until the device plays the new one (or the wait for it is over), the one
+ * that ended stays, on the bar and in the sheet. The device chosen in the
+ * sheet is kept while it is open.
  */
 @Composable
 internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, origin: String?, asked: RemoteAsk? = null) {
@@ -182,23 +190,26 @@ internal fun RemoteSlot(devices: List<OtherDevice>, remote: RemoteRepository?, o
     LaunchedEffect(asked) {
         val ask = asked ?: return@LaunchedEffect
         chosen = ask.deviceId
-        open = true
-        // Sent something from here: what it plays is this phone's to control, once it plays.
-        ask.deviceId?.let { id ->
-            controlling = id
-            started = false
-            castOver = listed.firstOrNull { it.deviceId == id }?.session?.sessionId
-            casts++
+        val id = ask.deviceId
+        if (id == null) {
+            open = true
+            return@LaunchedEffect
         }
+        // Sent something from here: the bar says it starts there, and what it plays is this phone's to control.
+        controlling = id
+        started = false
+        castOver = listed.firstOrNull { it.deviceId == id }?.session?.sessionId
+        casts++
     }
     LaunchedEffect(none) { if (none) open = false }
-    val mine = controlled?.takeIf { started && it.playing }
-    if (mine != null) {
+    val bar = controlled?.takeIf { !started || it.playing }
+    if (bar != null) {
         RemoteBar(
-            mine,
-            deviceNames(listed).getValue(mine.deviceId),
+            bar,
+            deviceNames(listed).getValue(bar.deviceId),
+            starting = !started,
             onOpen = {
-                chosen = mine.deviceId
+                chosen = bar.deviceId
                 open = true
             },
         )
@@ -255,15 +266,25 @@ internal fun deviceNames(devices: List<OtherDevice>): Map<String, String> {
 
 /**
  * The bar above the tabs while this phone controls what [device] plays
- * ([RemoteSlot]): "Playing on Living room TV" ([name]), or "Paused on",
+ * ([RemoteSlot]): "Starting on Living room TV…" ([name]) while what it sent
+ * there hasn't played yet ([starting]), then "Playing on", or "Paused on",
  * over what plays there. Tapping it opens that device's controls.
  */
 @Composable
-internal fun RemoteBar(device: OtherDevice, name: String, onOpen: () -> Unit, modifier: Modifier = Modifier) {
-    val session = device.session ?: return
-    val paused = session.session.state == ProgressState.Paused
-    val headline = stringResource(if (paused) R.string.remote_paused_on else R.string.remote_playing_on, name)
-    val detail = titleOf(session, stringResource(R.string.remote_live_tv), formatWords())
+internal fun RemoteBar(device: OtherDevice, name: String, onOpen: () -> Unit, modifier: Modifier = Modifier, starting: Boolean = false) {
+    val session = device.session
+    if (session == null && !starting) return
+    val paused = session?.session?.state == ProgressState.Paused
+    val headline = stringResource(
+        when {
+            starting -> R.string.remote_starting_on
+            paused -> R.string.remote_paused_on
+            else -> R.string.remote_playing_on
+        },
+        name,
+    )
+    // What played there before isn't what starts: nothing under the headline until it plays.
+    val detail = if (starting || session == null) "" else titleOf(session, stringResource(R.string.remote_live_tv), formatWords())
     Row(
         modifier
             .fillMaxWidth()
@@ -570,7 +591,22 @@ private fun Playing(
             .testTag(REMOTE_CARD + session.sessionId),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Header(session, origin, Modifier.alpha(dim))
+        // In an intro or the credits there, as its player would offer: Skip Intro, Skip Credits.
+        val marker = if (live || !shown.can(Control.Seek)) {
+            null
+        } else {
+            Markers.active(shown.session.markers.filter { it.kind != MarkerKind.Unknown }, shown.positionAt(now))
+        }
+        Header(
+            session,
+            origin,
+            Modifier.alpha(dim),
+            skip = marker?.let { m ->
+                // Where the player's own button lands, within the title: the server refuses a seek past its length.
+                val target = Markers.skipTarget(m).let { at -> shown.session.durationMs?.takeIf { it > 0 }?.let { minOf(at, it) } ?: at }
+                SkipOffer(m.kind, device) { send(PlayerCommandRequest(Control.Seek, positionMs = target)) }
+            },
+        )
         // The controls stay usable while a command waits for its answer (the web's): another can follow it.
         if (live) {
             session.session.channel?.let { LiveProgress(it) }
@@ -621,14 +657,19 @@ private fun Playing(
     }
 }
 
+/** Skip Intro or Skip Credits on [device], while what plays there is in one ([kind]): [skip] sends it on past it. */
+private class SkipOffer(val kind: MarkerKind, val device: String, val skip: () -> Unit)
+
 /**
  * What plays, beside its poster or the channel's logo: an episode as its
  * show and place over its title, a track over its artist, a channel's
  * number and name over Live TV (its programme is under it, with how far
- * it is: [LiveProgress]), a movie over its year.
+ * it is: [LiveProgress]), a movie over its year. In an intro or the credits,
+ * Skip Intro or Skip Credits at its end ([skip]), where the player's own
+ * shows over the picture.
  */
 @Composable
-private fun Header(session: RemoteSession, origin: String?, modifier: Modifier = Modifier) {
+private fun Header(session: RemoteSession, origin: String?, modifier: Modifier = Modifier, skip: SkipOffer? = null) {
     val playing = session.session
     val (title, under) = linesOf(playing, stringResource(R.string.remote_live_tv), formatWords())
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
@@ -654,6 +695,45 @@ private fun Header(session: RemoteSession, origin: String?, modifier: Modifier =
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg, maxLines = 2, overflow = TextOverflow.Ellipsis)
             under?.let { Text(it, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+        }
+        skip?.let {
+            Spacer(Modifier.width(12.dp))
+            SkipButton(it)
+        }
+    }
+}
+
+/**
+ * Skip Intro or Skip Credits: the player's own pill, on the sheet's surface,
+ * kept small beside the title (which gives way to it), in a 48 dp touch target.
+ */
+@Composable
+private fun SkipButton(offer: SkipOffer) {
+    val intro = offer.kind == MarkerKind.Intro
+    val label = stringResource(if (intro) R.string.remote_skip_intro else R.string.remote_skip_credits)
+    val description = stringResource(if (intro) R.string.remote_skip_intro_on else R.string.remote_skip_credits_on, offer.device)
+    val interaction = remember { MutableInteractionSource() }
+    Box(
+        Modifier
+            .testTag(REMOTE_SKIP)
+            .minimumInteractiveComponentSize()
+            .clickable(interaction, indication = null, role = Role.Button, onClick = offer.skip)
+            .clearAndSetSemantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            Modifier
+                .height(36.dp)
+                .clip(PleyShape.Pill)
+                .background(PleyColors.Surface3)
+                .border(1.dp, PleyColors.Border, PleyShape.Pill)
+                .indication(interaction, ripple())
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(label, style = MaterialTheme.typography.labelMedium, color = PleyColors.Fg, maxLines = 1, softWrap = false)
+            Icon(PleyIcons.ChevronsRight, contentDescription = null, size = 14.dp, tint = PleyColors.Fg)
         }
     }
 }
@@ -768,7 +848,7 @@ private fun Progress(session: RemoteSession, device: String, now: Long, onSeek: 
 }
 
 /**
- * The transport, one centred row. A title's: previous, back 10 s, play or
+ * The transport, one centred row. A title's: previous, back 30 s, play or
  * pause, forward 30 s and next, each where the player declares it. Next
  * shows where the player declares it or what plays has a next by nature
  * (an episode, a track), dimmed when the player can't go there; a movie
@@ -1089,3 +1169,6 @@ internal const val REMOTE_ROCKER = "pley.phone.remote_rocker"
 
 /** A channel's programme, with how far it is. */
 internal const val REMOTE_LIVE = "pley.phone.remote_live"
+
+/** Skip Intro or Skip Credits, while what plays is in one. */
+internal const val REMOTE_SKIP = "pley.phone.remote_skip"

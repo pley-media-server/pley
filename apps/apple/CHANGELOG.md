@@ -8,6 +8,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- The remote offers Skip Intro and Skip Credits while what a device plays
+  is in an intro or the credits, and its back button goes 30 seconds, as far
+  as forward.
 - Finds Pley servers on your network, keeps the ones you opened, and adds
   one by its address.
 - Sign in with your browser on iPhone, iPad and Mac, or with a code and its
@@ -136,3 +139,9 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
+- A title's page on iPhone, iPad and Mac: Resume and From start share the
+  row, with how far you got and the time left inside Resume; a line of
+  facts no longer ends in a dot where it wraps, nor repeats the edition the
+  Version picker shows; Version names the edition, with the picture, codec
+  and size in its menu; and Audio and Subtitles show their choice on one
+  line.

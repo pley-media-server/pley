@@ -15,16 +15,18 @@ export function fileMarkers(item: ItemDetail, fileId: number | null | undefined)
   return (item.markers ?? []).filter((m) => m.file_id === id);
 }
 
-/** The marker the playhead (in seconds) is in, if any. */
-export function activeMarker(markers: Marker[], seconds: number): Marker | null {
-  const ms = seconds * 1000;
-  return markers.find((m) => ms >= m.start_ms && ms < m.end_ms - TAIL_MS) ?? null;
+/**
+ * The marker a place (in milliseconds) is in, if any: from its start until a
+ * second before its end. A kind this app has no button for is left out.
+ */
+export function activeMarker(markers: Marker[], ms: number): Marker | null {
+  return markers.find((m) => (m.kind === "intro" || m.kind === "credits") && ms >= m.start_ms && ms < m.end_ms - TAIL_MS) ?? null;
 }
 
-/** Where skipping a marker lands (seconds): the last moment of an intro, the end of credits. */
+/** Where skipping a marker lands (milliseconds): the last moment of an intro, the end of credits. */
 export function skipTarget(marker: Marker): number {
   const lead = marker.kind === "intro" ? Math.min(INTRO_LEAD_MS, (marker.end_ms - marker.start_ms) / 2) : 0;
-  return (marker.end_ms - lead) / 1000;
+  return marker.end_ms - lead;
 }
 
 /**
@@ -43,7 +45,7 @@ export function useSkipMarkers({
   enabled: boolean;
   onCredits: (marker: Marker) => void;
 }): Marker | null {
-  const marker = enabled ? activeMarker(markers, seconds) : null;
+  const marker = enabled ? activeMarker(markers, seconds * 1000) : null;
   const handled = useRef(new Set<string>());
   const key = marker ? `${marker.file_id}:${marker.kind}:${marker.start_ms}` : null;
   const reached = useEffectEvent((m: Marker) => onCredits(m));

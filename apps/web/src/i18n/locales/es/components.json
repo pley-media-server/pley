@@ -170,8 +170,16 @@
     "nextChannelOn": "Canal siguiente en {{device}}",
     "channel": "Canal",
     "previousOn": "Anterior en {{device}}",
-    "backOn": "Retroceder 10 segundos en {{device}}",
+    "backOn": "Retroceder 30 segundos en {{device}}",
     "forwardOn": "Avanzar 30 segundos en {{device}}",
+    "skip": {
+      "intro": "Saltar intro",
+      "credits": "Saltar créditos"
+    },
+    "skipOn": {
+      "intro": "Saltar intro en {{device}}",
+      "credits": "Saltar créditos en {{device}}"
+    },
     "nextOn": "Siguiente en {{device}}",
     "waitingFor": "Esperando a {{device}}",
     "stopOn": "Detener en {{device}}",

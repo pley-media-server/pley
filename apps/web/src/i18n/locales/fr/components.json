@@ -170,8 +170,16 @@
     "nextChannelOn": "Chaîne suivante sur {{device}}",
     "channel": "Chaîne",
     "previousOn": "Précédent sur {{device}}",
-    "backOn": "Reculer de 10 secondes sur {{device}}",
+    "backOn": "Reculer de 30 secondes sur {{device}}",
     "forwardOn": "Avancer de 30 secondes sur {{device}}",
+    "skip": {
+      "intro": "Passer l’intro",
+      "credits": "Passer le générique"
+    },
+    "skipOn": {
+      "intro": "Passer l’intro sur {{device}}",
+      "credits": "Passer le générique sur {{device}}"
+    },
     "nextOn": "Suivant sur {{device}}",
     "waitingFor": "En attente de {{device}}",
     "stopOn": "Arrêter sur {{device}}",

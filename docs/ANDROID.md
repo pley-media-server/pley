@@ -288,15 +288,16 @@ whose it is, **On Sam's profile**. Choosing one that
 plays shows its controls in the list's place; Back, or the arrow by its
 name, goes back to the list. A device ready to play is only listed: it
 has nothing to control. With one device only, playing, its controls show
-at once. The device Play on… sent something to is kept while the sheet
-is open, so its controls show once it plays.
+at once.
 
 While the phone controls what a device plays, a bar above the tabs, over
 the mini player when music plays here too, says **Playing on** the device
 (**Paused on** while it is paused) and what plays there, and opens that device's controls. The phone
-controls it once it sends it a command from the remote, or once what it
-sent with Play on… plays there (not what played there before); what
-others play on their own shows no bar. The bar keeps to that device
+controls it once it sends it a command from the remote, or with Play on…:
+the bar then says **Starting on** the device until what it sent plays
+there (not what played there before), and turns into **Playing on** in
+place, with no toast and no sheet coming up over it; what others play on
+their own shows no bar. The bar keeps to that device
 through a title ending into the next one, and lets go once the device
 has played nothing for 5 s (stopped, or at the end). A cast that hasn't
 started playing within 30 s isn't waited for, so what plays there later
@@ -314,7 +315,12 @@ A device's controls, top to bottom:
   it ends (the channel's `now_start` and `now_stop`), its times as the
   phone writes them ("20:00 – 21:00"), and **Next:** the programme after
   it; no seek bar;
-- the transport, one centred row: previous, back 10 s, play or pause,
+- **Skip Intro** or **Skip Credits** at the end of the poster's row while
+  what plays is in an intro or the credits of its file (the session's
+  `markers`), from the start until a second before the end, where its
+  player seeks: a seek to where the player's own button lands, just before
+  the intro ends or at the credits' end. The title gives way to it;
+- the transport, one centred row: previous, back 30 s, play or pause,
   forward 30 s and next, each where its player declares it. Next shows
   where its player declares it or what plays has a next by nature (an
   episode, a track), dimmed when the player didn't declare it; a movie
@@ -430,10 +436,10 @@ the kind, the name, and what each plays now or **Ready to play** (**On
 Sam's profile** for another profile's). An album, an artist or a
 playlist has a Shuffle switch, which makes it **Shuffle on…** and sends
 `shuffle`. Picking a device sends `POST /api/remote/devices/{id}/cast`;
-once it is on its way the chooser closes, **Playing on** the device shows
-in a toast, and the remote opens on that device, its controls showing
-once what it was sent plays. The live player closes as its channel goes
-to the device, and the shell says so. A refusal is said under the
+once it is on its way the chooser closes, and the remote's bar says
+**Starting on** the device, then **Playing on** once what it was sent
+plays there; it opens the device's controls. The live player closes as
+its channel goes to the device, and the bar follows it the same way. A refusal is said under the
 devices, and another can be picked: the device **isn't on any more**
 (`404`), **can't play that** (`409`), **Too many at once** (`429`), else
 the server's own words.

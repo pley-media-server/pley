@@ -18,18 +18,19 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{delete, get, post};
 use axum::{Extension, Json, Router};
-use pley_transcoder_api::StreamKind;
+use pley_transcoder_api::{StreamKind, TrickplayInfo};
 use serde::Serialize;
 
 use super::dto::{self, TICKS_PER_MS};
 use super::ids::Kind;
 use super::items::{libraries, visible_item};
+use super::profile::{caps_of, stream_caps, stream_settings};
 use super::{Body, Client, Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
 use crate::auth::{AuthUser, CurrentToken, SourceIp};
 use crate::catalog::{self, FileRow, ItemRow};
 use crate::events::ServerEvent;
 use crate::oauth::clients::clean_name;
-use crate::playback::{Caps, Controls, Method, PlaybackMode, PlaybackRequest, Session};
+use crate::playback::{Controls, Method, PlaybackMode, PlaybackRequest, Session};
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
@@ -39,6 +40,7 @@ pub fn routes() -> Router<AppState> {
         .route("/videos/{id}/main.m3u8", get(master))
         .route("/audio/{id}/master.m3u8", get(master))
         .route("/videos/{id}/hls1/{session}/{file}", get(session_file))
+        .route("/videos/{id}/trickplay/{width}/{file}", get(trickplay))
         .route("/audio/{id}/hls1/{session}/{file}", get(session_file))
         .route("/videos/{id}/{file}", get(video_file).head(video_file))
         .route("/audio/{id}/{file}", get(audio_file).head(audio_file))
@@ -53,104 +55,6 @@ pub fn routes() -> Router<AppState> {
         .route("/sessions", get(sessions))
         .route("/mediasegments/{id}", get(media_segments))
         .route("/playback/bitratetest", get(bitrate_test))
-}
-
-// ------------------------------------------------------------------ device profiles
-
-/// Jellyfin's codec names as FFmpeg's, which Pley's capabilities use.
-fn codec(name: &str) -> String {
-    match name.trim().to_ascii_lowercase().as_str() {
-        "h265" | "hevc" => "hevc".into(),
-        "dca" | "dts" => "dts".into(),
-        "mpeg2" => "mpeg2video".into(),
-        other => other.to_owned(),
-    }
-}
-
-/// Jellyfin's container names as Pley's (`mkv`, `mp4`, `webm`, …).
-fn container(name: &str) -> Vec<String> {
-    match name.trim().to_ascii_lowercase().as_str() {
-        "matroska" | "mkv" => vec!["mkv".into()],
-        "mp4" | "m4v" | "mov" => vec!["mp4".into(), "mov".into()],
-        "mpegts" | "ts" | "m2ts" => vec!["ts".into(), "mpegts".into()],
-        other => vec![other.to_owned()],
-    }
-}
-
-/// What a device plays as it is, from the direct-play profiles of its
-/// device profile. A device that sends none plays anything it is given, as
-/// players built on mpv or ExoPlayer do (and say so by sending no limits).
-fn caps_of(profile: Option<&serde_json::Value>) -> Caps {
-    let any = Caps {
-        containers: ["mkv", "mp4", "mov", "webm", "ts", "mpegts", "avi", "m4a", "flac", "mp3", "ogg", "wav"]
-            .map(String::from)
-            .to_vec(),
-        video_codecs: ["h264", "hevc", "av1", "vp9", "vp8", "mpeg2video", "mpeg4", "vc1"].map(String::from).to_vec(),
-        audio_codecs: [
-            "aac",
-            "mp3",
-            "ac3",
-            "eac3",
-            "dts",
-            "truehd",
-            "flac",
-            "opus",
-            "vorbis",
-            "alac",
-            "mp2",
-            "pcm_s16le",
-            "pcm_s24le",
-        ]
-        .map(String::from)
-        .to_vec(),
-        hdr: true,
-        dolby_vision: true,
-        ..Default::default()
-    };
-    let Some(profile) = profile else { return any };
-    let direct: Vec<&serde_json::Value> = super::field(profile, "DirectPlayProfiles")
-        .and_then(|v| v.as_array())
-        .map(|a| a.iter().collect())
-        .unwrap_or_default();
-    if direct.is_empty() {
-        return any;
-    }
-    let mut caps = Caps { hdr: true, ..Default::default() };
-    let list = |v: Option<&serde_json::Value>| -> Vec<String> {
-        v.and_then(|v| v.as_str())
-            .map(|s| s.split(',').map(str::trim).filter(|s| !s.is_empty()).map(str::to_owned).collect())
-            .unwrap_or_default()
-    };
-    for p in direct {
-        let kind = super::field(p, "Type").and_then(|v| v.as_str()).unwrap_or("Video");
-        if !kind.eq_ignore_ascii_case("video") && !kind.eq_ignore_ascii_case("audio") {
-            continue;
-        }
-        let containers = list(super::field(p, "Container"));
-        let videos = list(super::field(p, "VideoCodec"));
-        let audios = list(super::field(p, "AudioCodec"));
-        if containers.is_empty() {
-            caps.containers.extend(any.containers.iter().cloned());
-        }
-        for c in containers {
-            caps.containers.extend(container(&c));
-        }
-        if videos.is_empty() && kind.eq_ignore_ascii_case("video") {
-            caps.video_codecs.extend(any.video_codecs.iter().cloned());
-        }
-        caps.video_codecs.extend(videos.iter().map(|c| codec(c)));
-        if audios.is_empty() {
-            caps.audio_codecs.extend(any.audio_codecs.iter().cloned());
-        }
-        caps.audio_codecs.extend(audios.iter().map(|c| codec(c)));
-    }
-    // Dolby Vision only where a profile names it (`DOVI…` video ranges).
-    caps.dolby_vision = profile.to_string().contains("DOVI");
-    for list in [&mut caps.containers, &mut caps.video_codecs, &mut caps.audio_codecs] {
-        list.sort();
-        list.dedup();
-    }
-    caps
 }
 
 // ------------------------------------------------------------------ playback info
@@ -196,7 +100,8 @@ async fn playback_info(
     let number = |name: &str| body.number(name).or_else(|| q.number(name));
     let flag = |name: &str| body.flag(name).or_else(|| q.flag(name));
     let source = body.str("MediaSourceId").or(q.get("mediaSourceId")).map(str::to_owned);
-    let caps = caps_of(body.get("DeviceProfile"));
+    let profile = body.get("DeviceProfile");
+    let caps = caps_of(profile);
     let max_bitrate =
         number("MaxStreamingBitrate").filter(|b| *b > 0).map(|b| (b / 1000).clamp(64, u32::MAX as i64) as u32);
     let start_ms = number("StartTimeTicks").map(|t| t / TICKS_PER_MS);
@@ -212,6 +117,10 @@ async fn playback_info(
     };
     let mut sources = Vec::new();
     for file in chosen {
+        // About to be played: its seek previews are made, if they aren't yet.
+        if dto::is_video(&row.kind) {
+            state.trickplay.request(file);
+        }
         let mut out = dto::media_source(&jellyfin, &row, file, token_id);
         let streams = file.streams();
         let info = file.media_info();
@@ -246,10 +155,15 @@ async fn playback_info(
         // sound or container changed goes through the HLS address.
         out.supports_direct_stream = direct;
         if !direct {
-            out.transcoding_url =
-                Some(transcoding_url(&jellyfin, &row, &out.id, &play_session, &client, &req, audio, picture_subtitle));
+            let settings = stream_settings(profile, info.as_ref().and_then(|i| i.video()));
+            // fMP4 where it is asked for and the transcoder makes it.
+            let fmp4 = settings.iter().any(|(k, v)| k == "SegmentContainer" && v == "mp4")
+                && state.transcoder.info().is_some_and(|t| t.capabilities.fmp4_segments);
+            let url =
+                transcoding_url(&jellyfin, &row, &out.id, &play_session, &client, &req, &settings, picture_subtitle);
+            out.transcoding_url = Some(url);
             out.transcoding_sub_protocol = "hls";
-            out.transcoding_container = Some("ts");
+            out.transcoding_container = Some(if fmp4 { "mp4" } else { "ts" });
             for stream in out.media_streams.iter_mut().filter(|s| Some(s.index) == picture_subtitle) {
                 stream.delivery_method = Some("Encode");
             }
@@ -264,7 +178,8 @@ async fn playback_info(
 }
 
 /// A stream's address: Pley's transcoder through [`master`], its settings
-/// in the query, as Jellyfin's are, and clients add their own.
+/// in the query, as Jellyfin's are ([`stream_settings`]), and clients add
+/// their own.
 #[allow(clippy::too_many_arguments)]
 fn transcoding_url(
     jellyfin: &Jellyfin,
@@ -273,23 +188,19 @@ fn transcoding_url(
     play_session: &str,
     client: &Client,
     req: &PlaybackRequest,
-    audio: Option<i64>,
+    settings: &[(String, String)],
     burn: Option<i64>,
 ) -> String {
-    let mut query = vec![
-        format!("MediaSourceId={source}"),
-        format!("PlaySessionId={play_session}"),
-        "VideoCodec=h264".to_owned(),
-        "AudioCodec=aac".to_owned(),
-        "SegmentContainer=ts".to_owned(),
-    ];
+    let encode = |text: &str| url::form_urlencoded::byte_serialize(text.as_bytes()).collect::<String>();
+    let mut query = vec![format!("MediaSourceId={source}"), format!("PlaySessionId={play_session}")];
+    query.extend(settings.iter().map(|(name, value)| format!("{}={}", encode(name), encode(value))));
     if let Some(device) = &client.device_id {
-        query.push(format!("DeviceId={}", url::form_urlencoded::byte_serialize(device.as_bytes()).collect::<String>()));
+        query.push(format!("DeviceId={}", encode(device)));
     }
     if let Some(kbps) = req.max_bitrate {
         query.push(format!("MaxStreamingBitrate={}", kbps as u64 * 1000));
     }
-    if let Some(index) = audio {
+    if let Some(index) = req.audio_index {
         query.push(format!("AudioStreamIndex={index}"));
     }
     if let Some(index) = burn {
@@ -430,12 +341,19 @@ pub struct Streams(parking_lot::Mutex<HashMap<String, String>>);
 /// Streams remembered before those that ended are forgotten.
 const FORGET_STREAMS_AT: usize = 256;
 
+/// The longest multivariant playlist read from the transcoder: a few lines
+/// for each size.
+const MAX_MASTER_PLAYLIST: usize = 64 * 1024;
+
 /// `/Videos/{id}/master.m3u8`: a Pley HLS session with Jellyfin's stream
 /// settings (`MaxStreamingBitrate`, `VideoBitrate`, `MaxWidth`/`MaxHeight`,
 /// `AudioStreamIndex`, `SubtitleStreamIndex` with `SubtitleMethod=Encode`,
-/// `StartTimeTicks`), answered with a master playlist that points at it.
-/// The video is copied when the source's codec is one the request names
-/// (`VideoCodec`), else converted to H.264.
+/// `StartTimeTicks`), decided as Pley's own players' streams are for what
+/// the address asks ([`stream_caps`]: `VideoCodec`, `AudioCodec`,
+/// `SegmentContainer`, the audio channels and each codec's limits and
+/// dynamic ranges), the video copied unless `AllowVideoStreamCopy=false`.
+/// It is answered with the session's own multivariant playlist, which
+/// names what the stream carries (HEVC, Dolby Vision, E-AC-3, its range).
 async fn master(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
@@ -461,17 +379,8 @@ async fn master(
                 .or_else(|| q.number("maxWidth").map(|w| w * 9 / 16))
                 .filter(|h| *h > 0)
                 .map(|h| h as u32);
-            let video_codecs: Vec<String> =
-                q.list("VideoCodec").iter().map(|c| codec(c)).filter(|c| c == "h264" || c == "hevc").collect();
             let burn = q.get("SubtitleMethod").is_some_and(|m| m.eq_ignore_ascii_case("encode"));
-            let caps = Caps {
-                containers: Vec::new(),
-                video_codecs: if video_codecs.is_empty() { vec!["h264".into()] } else { video_codecs },
-                audio_codecs: vec!["aac".into(), "mp3".into()],
-                hdr: false,
-                dolby_vision: false,
-                ..Default::default()
-            };
+            let copy = q.flag("AllowVideoStreamCopy") != Some(false);
             let client = Client::of(request.headers());
             let device = q.get("DeviceId").map(str::to_owned).or(client.device_id);
             let req = PlaybackRequest {
@@ -482,8 +391,8 @@ async fn master(
                 max_bitrate,
                 max_height,
                 start_ms: q.number("StartTimeTicks").map(|t| (t / TICKS_PER_MS).max(0)),
-                caps,
-                mode: PlaybackMode::Remux,
+                caps: stream_caps(&q),
+                mode: if copy { PlaybackMode::Remux } else { PlaybackMode::Transcode },
                 client_id: device,
                 keep_previous: false,
                 keyed_urls: false,
@@ -510,23 +419,55 @@ async fn master(
             info.session_id
         }
     };
-    let audio_only = row.kind == "track";
-    // What the stream takes at most: the file's rate, or the cap asked for.
-    let capped = max_bitrate.map(|kbps| i64::from(kbps) * 1000);
-    let bandwidth = match (file.bitrate, capped) {
-        (Some(file), Some(cap)) => file.min(cap),
-        (file, cap) => file.or(cap).unwrap_or(8_000_000),
-    }
-    .max(64_000);
-    let mut playlist = String::from("#EXTM3U\n#EXT-X-VERSION:3\n");
-    if audio_only {
-        playlist.push_str(&format!("#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},CODECS=\"mp4a.40.2\"\n"));
+    let playlist = if state.transcoder.info().is_some_and(|t| t.capabilities.hls_master_playlist) {
+        session_master(&state, &user, &session_id).await?
     } else {
-        playlist.push_str(&format!("#EXT-X-STREAM-INF:BANDWIDTH={bandwidth},CODECS=\"avc1.640028,mp4a.40.2\"\n"));
-    }
-    playlist.push_str(&format!("hls1/{session_id}/index.m3u8\n"));
+        // A transcoder older than multivariant playlists: one of the
+        // stream's own, which can't name its video's codec.
+        let capped = max_bitrate.map(|kbps| i64::from(kbps) * 1000);
+        let bandwidth = match (file.bitrate, capped) {
+            (Some(file), Some(cap)) => file.min(cap),
+            (file, cap) => file.or(cap).unwrap_or(8_000_000),
+        }
+        .max(64_000);
+        let codecs = if row.kind == "track" { ",CODECS=\"mp4a.40.2\"" } else { "" };
+        format!(
+            "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-STREAM-INF:BANDWIDTH={bandwidth}{codecs}\nhls1/{session_id}/index.m3u8\n"
+        )
+    };
     Ok(([(header::CONTENT_TYPE, "application/vnd.apple.mpegurl"), (header::CACHE_CONTROL, "no-cache")], playlist)
         .into_response())
+}
+
+/// The session's multivariant playlist, from the transcoder, its playlists'
+/// addresses taken from beside it to beside `master.m3u8` (`hls1/{session}/…`).
+async fn session_master(state: &AppState, user: &AuthUser, session_id: &str) -> JfResult<String> {
+    let answer = crate::api::playback::hls_file(
+        State(state.clone()),
+        user.clone(),
+        Path((session_id.to_owned(), "master.m3u8".to_owned())),
+    )
+    .await?;
+    let bytes = axum::body::to_bytes(answer.into_body(), MAX_MASTER_PLAYLIST)
+        .await
+        .map_err(|e| JfError::Internal(anyhow::anyhow!("reading the stream's playlist: {e}")))?;
+    Ok(beside_master(&String::from_utf8_lossy(&bytes), session_id))
+}
+
+/// A session's multivariant playlist as `master.m3u8` answers it: each
+/// playlist it names (a line that isn't a tag) under `hls1/{session}/`.
+fn beside_master(playlist: &str, session_id: &str) -> String {
+    let mut out = String::with_capacity(playlist.len() + 64);
+    for line in playlist.lines() {
+        let line = line.trim_end();
+        if line.is_empty() || line.starts_with('#') {
+            out.push_str(line);
+        } else {
+            out.push_str(&format!("hls1/{session_id}/{line}"));
+        }
+        out.push('\n');
+    }
+    out
 }
 
 /// A session's playlists and segments, which players fetch without a token:
@@ -576,6 +517,75 @@ fn end_sessions(state: &AppState, sessions: Vec<Arc<Session>>) {
         });
     }
     state.events.sessions_changed(sessions.iter().map(|s| s.user_id));
+}
+
+// ------------------------------------------------------------------ seek previews
+
+/// `/Videos/{id}/Trickplay/{width}/tiles.m3u8` and `…/{n}.jpg`: a file's
+/// seek-bar previews, Pley's own sprite sheets ([`crate::trickplay`]), at
+/// the one width Pley makes them. They are frames of the video, so they open
+/// as its stream does: with a token, or a media source's id that stands for
+/// one (`MediaSourceId`), for what its user may see. `404` while they are
+/// being made, and asking queues them.
+async fn trickplay(
+    State(state): State<AppState>,
+    Extension(jellyfin): Extension<Arc<Jellyfin>>,
+    Path((id, width, name)): Path<(String, String, String)>,
+    q: Q,
+    request: Request,
+) -> JfResult<Response> {
+    let (user, file) = media_caller(&state, &jellyfin, asking(&request), &id, q.get("mediaSourceId")).await?;
+    let Some(info) = state.trickplay.index(&file) else {
+        state.trickplay.request(&file);
+        return Err(JfError::NotFound);
+    };
+    if width.parse::<u32>().ok() != Some(info.width) {
+        return Err(JfError::NotFound);
+    }
+    if name == "tiles.m3u8" {
+        let source = jellyfin.ids.source(file.id, user.compatibility.map(|c| c.token_id).unwrap_or(0));
+        let playlist = tiles_playlist(&info, &source);
+        return Ok(([(header::CONTENT_TYPE, "application/vnd.apple.mpegurl")], playlist).into_response());
+    }
+    let n: u32 = name.strip_suffix(".jpg").and_then(|n| n.parse().ok()).ok_or(JfError::NotFound)?;
+    let path = state.trickplay.sheet(&file, n).ok_or(JfError::NotFound)?;
+    let bytes = tokio::fs::read(path).await.map_err(|e| JfError::Internal(e.into()))?;
+    Ok(([(header::CONTENT_TYPE, "image/jpeg"), (header::CACHE_CONTROL, "private, max-age=86400")], bytes)
+        .into_response())
+}
+
+/// Seconds of `ms`, as HLS writes durations: `10`, `2.5`.
+fn seconds(ms: u64) -> String {
+    let text = format!("{}.{:03}", ms / 1000, ms % 1000);
+    text.trim_end_matches('0').trim_end_matches('.').to_owned()
+}
+
+/// The previews as an HLS playlist of images (Apple's `EXT-X-TILES`), as
+/// Jellyfin writes it: a sheet a segment, the last as long as its tiles.
+/// The sheets are named with the media source's id rather than a token.
+fn tiles_playlist(info: &TrickplayInfo, source: &str) -> String {
+    let per_sheet = (info.columns * info.rows).max(1);
+    let interval = info.interval_ms.max(1) as u64;
+    let sheets = info.count.div_ceil(per_sheet).min(info.sheets);
+    let mut out = format!(
+        "#EXTM3U\n#EXT-X-TARGETDURATION:{}\n#EXT-X-VERSION:7\n#EXT-X-MEDIA-SEQUENCE:1\n\
+         #EXT-X-PLAYLIST-TYPE:VOD\n#EXT-X-IMAGES-ONLY\n",
+        (interval * u64::from(per_sheet)).div_ceil(1000)
+    );
+    for n in 0..sheets {
+        let tiles = (info.count - n * per_sheet).min(per_sheet);
+        out.push_str(&format!(
+            "#EXTINF:{},\n#EXT-X-TILES:RESOLUTION={}x{},LAYOUT={}x{},DURATION={}\n{n}.jpg?MediaSourceId={source}\n",
+            seconds(interval * u64::from(tiles)),
+            info.width,
+            info.height,
+            info.columns,
+            info.rows,
+            seconds(interval),
+        ));
+    }
+    out.push_str("#EXT-X-ENDLIST\n");
+    out
 }
 
 // ------------------------------------------------------------------ subtitles
@@ -923,23 +933,36 @@ mod tests {
     use super::*;
 
     #[test]
-    fn device_profiles_become_capabilities() {
-        let profile = serde_json::json!({
-            "DirectPlayProfiles": [
-                {"Container": "mkv,mp4", "VideoCodec": "h264,h265", "AudioCodec": "aac,ac3", "Type": "Video"},
-                {"Container": "flac", "Type": "Audio"}
-            ]
-        });
-        let caps = caps_of(Some(&profile));
-        assert!(caps.containers.contains(&"mkv".to_owned()) && caps.containers.contains(&"mov".to_owned()));
-        assert_eq!(caps.video_codecs, ["h264", "hevc"]);
-        assert!(caps.audio_codecs.contains(&"ac3".to_owned()) && caps.audio_codecs.contains(&"flac".to_owned()));
-        assert!(!caps.dolby_vision);
+    fn the_sessions_playlist_is_named_beside_master() {
+        let session = "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-STREAM-INF:BANDWIDTH=1,CODECS=\"hvc1.2.4.L153.B0,ec-3\"\nindex.m3u8\n\
+                       #EXT-X-STREAM-INF:BANDWIDTH=2\nv1.m3u8\n";
+        assert_eq!(
+            beside_master(session, "abc"),
+            "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-STREAM-INF:BANDWIDTH=1,CODECS=\"hvc1.2.4.L153.B0,ec-3\"\n\
+             hls1/abc/index.m3u8\n#EXT-X-STREAM-INF:BANDWIDTH=2\nhls1/abc/v1.m3u8\n"
+        );
+    }
 
-        let none = caps_of(None);
-        assert!(none.video_codecs.contains(&"hevc".to_owned()) && none.dolby_vision, "no profile: plays anything");
-        let empty = caps_of(Some(&serde_json::json!({"DirectPlayProfiles": []})));
-        assert!(empty.containers.contains(&"mkv".to_owned()), "no profiles: plays anything");
+    #[test]
+    fn previews_are_a_playlist_of_tiles() {
+        let info = TrickplayInfo {
+            id: "t".into(),
+            interval_ms: 2500,
+            width: 320,
+            height: 180,
+            columns: 10,
+            rows: 10,
+            count: 150,
+            sheets: 2,
+            version: 1,
+        };
+        let playlist = tiles_playlist(&info, "abc");
+        assert!(playlist.starts_with("#EXTM3U\n#EXT-X-TARGETDURATION:250\n"), "{playlist}");
+        let tiles = "#EXT-X-TILES:RESOLUTION=320x180,LAYOUT=10x10,DURATION=2.5";
+        assert!(playlist.contains(&format!("#EXTINF:250,\n{tiles}\n0.jpg?MediaSourceId=abc\n")), "{playlist}");
+        assert!(playlist.contains(&format!("#EXTINF:125,\n{tiles}\n1.jpg?MediaSourceId=abc\n")), "the last: 50 tiles");
+        assert!(playlist.ends_with("#EXT-X-ENDLIST\n") && !playlist.contains("2.jpg"));
+        assert_eq!((seconds(10_000), seconds(1_250), seconds(60)), ("10".into(), "1.25".into(), "0.06".into()));
     }
 
     #[test]

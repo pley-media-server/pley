@@ -24,22 +24,28 @@ describe("fileMarkers", () => {
 
 describe("activeMarker", () => {
   it("finds the segment the playhead is in, until a second before it ends", () => {
-    expect(activeMarker([intro, credits], 9.9)).toBeNull();
-    expect(activeMarker([intro, credits], 10)).toBe(intro);
-    expect(activeMarker([intro, credits], 68.9)).toBe(intro);
-    expect(activeMarker([intro, credits], 69)).toBeNull();
-    expect(activeMarker([intro, credits], 1_250)).toBe(credits);
+    expect(activeMarker([intro, credits], 9_900)).toBeNull();
+    expect(activeMarker([intro, credits], 10_000)).toBe(intro);
+    expect(activeMarker([intro, credits], 68_999)).toBe(intro);
+    expect(activeMarker([intro, credits], 69_000)).toBeNull();
+    expect(activeMarker([intro, credits], 1_250_000)).toBe(credits);
+  });
+
+  it("leaves out a kind it has no button for", () => {
+    const recap = makeMarker({ kind: "recap" as Marker["kind"], start_ms: 0, end_ms: 60_000 });
+    expect(activeMarker([recap, intro], 5_000)).toBeNull();
+    expect(activeMarker([recap, intro], 20_000)).toBe(intro);
   });
 });
 
 describe("skipTarget", () => {
   it("lands just before an intro ends, so its last moment plays, and at the end of credits", () => {
-    expect(skipTarget(intro)).toBe(69.25);
-    expect(skipTarget(credits)).toBe(1_300);
+    expect(skipTarget(intro)).toBe(69_250);
+    expect(skipTarget(credits)).toBe(1_300_000);
   });
 
   it("stays inside a very short intro", () => {
-    expect(skipTarget(makeMarker({ kind: "intro", start_ms: 0, end_ms: 1_000 }))).toBe(0.5);
+    expect(skipTarget(makeMarker({ kind: "intro", start_ms: 0, end_ms: 1_000 }))).toBe(500);
   });
 });
 

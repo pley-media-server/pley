@@ -8,6 +8,7 @@ import {
   Captions,
   Check,
   ChevronDown,
+  ChevronsRight,
   ChevronUp,
   CircleStop,
   Laptop,
@@ -32,7 +33,7 @@ import {
   useStopSession,
   type SessionCommand,
 } from "@/api/hooks";
-import type { Control, DeviceKind } from "@/api/types";
+import type { Control, DeviceKind, Marker } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { episodeLabel, formatClock, fullTitle } from "@/lib/format";
 import { useDismiss, useNow } from "@/lib/hooks";
@@ -61,6 +62,7 @@ import {
   type RemoteSession,
   type SentCommand,
 } from "@/lib/remote";
+import { activeMarker, skipTarget } from "@/player/SkipButton";
 import { Artwork } from "./Artwork";
 import { ChannelLogo } from "./ChannelLogo";
 import { Slider } from "./Slider";
@@ -438,6 +440,9 @@ function PlayingControls({
   // A channel goes back and on, and pauses where the player can: no skips.
   const skips = can("skip") && !live;
   const [title, detail] = titleLines(session, t);
+  // In an intro or the credits there, by where the bar shows it (a seek on its way too), as its player would
+  // offer: Skip Intro, Skip Credits.
+  const marker = live || !can("seek") ? null : activeMarker(session.markers ?? [], position);
   const waiting = command.isPending || !!sent;
   // What a next or previous plays isn't known until it plays: what plays now is dimmed until then.
   const changing = sent?.command === "next" || sent?.command === "previous";
@@ -517,6 +522,14 @@ function PlayingControls({
           </div>
           {detail ? <div className="truncate text-xs text-muted">{detail}</div> : null}
         </div>
+        {marker ? (
+          <SkipOffer
+            marker={marker}
+            name={name}
+            // No further than the title's end, which a seek can't pass.
+            onSkip={() => send("seek", { positionMs: Math.round(Math.min(skipTarget(marker), duration ?? Number.MAX_SAFE_INTEGER)) })}
+          />
+        ) : null}
       </div>
 
       {live ? (
@@ -669,6 +682,26 @@ function PlayingControls({
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * Skip Intro or Skip Credits on `name`, while what plays there is in one: the
+ * player's own button, as a pill on the panel's surface. It keeps one line at
+ * the end of the header, the title beside it giving way.
+ */
+function SkipOffer({ marker, name, onSkip }: { marker: Marker; name: string; onSkip: () => void }) {
+  const { t } = useTranslation("components");
+  return (
+    <button
+      type="button"
+      aria-label={t(`remote.skipOn.${marker.kind}`, { device: name })}
+      onClick={onSkip}
+      className="flex h-9 shrink-0 animate-fade-in items-center gap-1 whitespace-nowrap rounded-full border border-border bg-surface-3 px-3 text-xs font-medium text-fg transition-colors hover:bg-white/10"
+    >
+      {t(`remote.skip.${marker.kind}`)}
+      <ChevronsRight aria-hidden className="size-3.5" />
+    </button>
   );
 }
 

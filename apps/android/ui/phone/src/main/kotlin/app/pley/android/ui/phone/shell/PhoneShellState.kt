@@ -78,7 +78,7 @@ class PhoneShellState internal constructor(
     /** What Play on…'s chooser sends, while it shows ([playOn]); `null` while it doesn't. */
     internal var playingOn: CastTarget? by mutableStateOf(null)
 
-    /** The device the remote was last asked to open on ([openRemote]). */
+    /** What the remote was last asked: to open ([openRemote]), or to follow a cast ([castSent]). */
     internal var remoteAsked: RemoteAsk? by mutableStateOf(null)
         private set
 
@@ -87,11 +87,16 @@ class PhoneShellState internal constructor(
         playingOn = target
     }
 
+    /** The remote opens on "Your devices". */
+    internal fun openRemote() {
+        remoteAsked = RemoteAsk()
+    }
+
     /**
-     * The remote opens: on [deviceId], which this phone sent something to,
-     * its controls showing once that plays; on "Your devices" without one.
+     * This phone sent [deviceId] something to play (Play on…): the remote's
+     * bar says it starts there, then what plays, and opens its controls.
      */
-    internal fun openRemote(deviceId: String? = null) {
+    internal fun castSent(deviceId: String) {
         remoteAsked = RemoteAsk(deviceId)
     }
 

@@ -1854,7 +1854,7 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
     },
   });
   const skipMarker = () => {
-    if (marker) seekTo(Math.min(skipTarget(marker), duration));
+    if (marker) seekTo(Math.min(skipTarget(marker) / 1000, duration));
   };
 
   const retry = () => {

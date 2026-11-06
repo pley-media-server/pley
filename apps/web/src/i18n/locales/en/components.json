@@ -163,8 +163,16 @@
     "nextChannelOn": "Next channel on {{device}}",
     "channel": "Channel",
     "previousOn": "Previous on {{device}}",
-    "backOn": "Back 10 seconds on {{device}}",
+    "backOn": "Back 30 seconds on {{device}}",
     "forwardOn": "Forward 30 seconds on {{device}}",
+    "skip": {
+      "intro": "Skip Intro",
+      "credits": "Skip Credits"
+    },
+    "skipOn": {
+      "intro": "Skip intro on {{device}}",
+      "credits": "Skip credits on {{device}}"
+    },
     "nextOn": "Next on {{device}}",
     "waitingFor": "Waiting for {{device}}",
     "stopOn": "Stop on {{device}}",

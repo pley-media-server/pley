@@ -2393,7 +2393,9 @@ pseudo-random data, made as it is sent, with `Content-Length`,
 ### Version 2
 
 `caps_version: 2` turns on these rules. A report without it (the web app,
-the Android app's web view, the compatibility APIs' clients) decides as version 1,
+the Android app's web view, the Plex-compatible API's clients, and the
+Jellyfin-compatible API's as it decides whether a file plays as it is)
+decides as version 1,
 whatever else it sends: the web app's `subtitle_codecs` and
 `picture_subtitles_sideload` only tell the server it draws picture
 subtitles from their `.mks` (it asks for no `subtitle_index` of a track it
@@ -2468,7 +2470,9 @@ fragmented MP4 (fMP4) segments, not from MPEG-TS. A version 2 player whose
 HLS session in fMP4, when the server's transcoder makes it
 (`fmp4_segments` in its capabilities). A player that lists `"ts"` first
 (the Android app sends `["ts", "fmp4"]`), every version 1 player,
-downloads, Live TV and the compatibility API get MPEG-TS, as before.
+downloads, Live TV and the Plex-compatible API get MPEG-TS, as before; a
+Jellyfin app gets fMP4 when its device profile asks
+([COMPATIBILITY.md](COMPATIBILITY.md#playing)).
 
 - The playlists say `#EXT-X-VERSION:7` and name the init segment first,
   `#EXT-X-MAP:URI="init.mp4"` (a smaller size's `v{k}-init.mp4`); segments
@@ -2590,7 +2594,7 @@ index.m3u8
   `dby1` brand. A remux that doesn't keep Dolby Vision carries no record.
   Profile 8.1 converted from 7 and HDR10+ left out work as in MPEG-TS.
 - Without `master_playlist` (and for every version 1 player, the web player
-  and the compatibility APIs' clients) the session starts at `index.m3u8`, and
+  and the Plex-compatible API's clients) the session starts at `index.m3u8`, and
   remuxes name nothing.
 
 For players with master playlists, the Dolby Vision rules of version 2
@@ -3565,7 +3569,7 @@ profile of the remote that sent it something.
 - **Without its controls.** Whoever sent a command is on another device,
   so Pley's players don't bring up their controls for it: what it changed
   shows for a moment where the player puts its brief notices ("Paused",
-  "Playing", "+30 s" or "−10 s" as far as a skip asked, "Jumped to 12:34"
+  "Playing", "+30 s" or "−30 s" as far as a skip asked, "Jumped to 12:34"
   where a seek went, "Audio: …", "Subtitles: …" or "Subtitles off" and
   "Quality: …" as the menus name them), and a command that changes
   nothing shows nothing. The remote's pause doesn't keep the controls up
@@ -3593,17 +3597,15 @@ would.
   it ([below](#casting)); only such receivers are offered across profiles,
   since an app that doesn't would play the cast as the profile it is on.
   The device takes casts
-  while the stream is open: several streams with the same `receiver` count
-  once, and it goes when the last one closes. They are the same device's
-  (`device_id`, as sessions say it): while one device holds a `receiver`,
-  another's stream with it still gets its events, but isn't one, so a
-  sign-in that copies a TV's id from the list never gets what is cast to
-  the TV. Such a stream asks again as the user's receivers change and at
-  each recheck of its token, so a device back with a new token (signed in
-  again, or switched back to the profile) takes its id once its old
-  stream has gone. A user has at most 32 receivers; a stream past them still gets
-  its events, but isn't one. A receiver appearing or going sends
-  `sessions_changed`.
+  while the stream is open: several streams of one device (`device_id`,
+  as sessions say it) with the same `receiver` count once, and it goes
+  when the last one closes. A receiver is its device's: another device
+  whose stream names the same `receiver` (a sign-in that copies a TV's id
+  from the list, or the TV back with a new token while its old stream
+  lingers) is a receiver of its own, listed beside it, never in its place,
+  whichever came first. A user has at most 32 receivers; a stream past
+  them still gets its events, but isn't one. A receiver appearing or going
+  sends `sessions_changed`.
 - **`GET /api/remote/devices`** lists the caller's receivers, an
   administrator's too. With `?household=1`, for a home member, it adds
   those of the household's other profiles (home members, not disabled)
@@ -3613,7 +3615,9 @@ would.
   and so does an app other than Pley's own, or one not allowed `profiles`:
   a cast there switches someone's device to the caller's profile, which
   only a switch's own apps may do. One per device
-  (`device_id`, as sessions say it), the one that connected last, by name.
+  (`device_id`, as sessions say it), the one that connected last, by name;
+  two devices may have the same `receiver_id` and name, which apps number
+  ("Living room TV (2)").
   Remotes show them with the sessions of the same `device_id`; another
   profile's sessions stay theirs, so its devices show as on that profile,
   without what they play. An app leaves out its own receiver.
@@ -3627,22 +3631,25 @@ would.
   doesn't suit a TV's. A receiver of another of the household's profiles
   takes that profile's id, `profile_id` (its `profile.id` in the list), the
   `device_id` the list shows for it, and the caller's `pin` when their
-  profile has one: the cast goes to that device or to none, so a receiver
-  id another device holds since never gets it. It answers `202` and sends
-  the event streams of the profile the receiver is on `{ type: "cast",
+  profile has one: the cast goes to that device or to none, so another
+  device with the same receiver id never gets it. A cast to one of the
+  caller's own is checked against the device of that id that connected
+  last. It answers `202` and sends the event streams of the profile the
+  receiver is on `{ type: "cast",
   receiver_id, item_id, playlist_id, channel_id, start_ms, shuffle,
   audio_index, subtitle_index, from }`, `from` being the remote's device
   name or `null`: the `device_name` its device gave as a receiver, where it
   is one, else one from its User-Agent. To another profile's receiver it
   adds the caller's `profile_id` and a `switch_ticket` (below), and goes to
-  that receiver's streams alone: the profile's other devices don't hear
-  what someone else cast, nor the ticket. It answers, in this order:
+  that receiver's streams alone, on its device: the profile's other
+  devices don't hear what someone else cast, nor the ticket. It answers,
+  in this order:
   - `403` `{ code: "not_allowed" }` for `profile_id` from an app other
     than Pley's own, or one not allowed `profiles`;
   - `404` for a receiver unknown, gone, or of a profile outside the
     caller's household or without `profile_id` (an administrator's request
-    too: it never says which), or another device than its `device_id`
-    now; `400` for `profile_id` without `device_id`;
+    too: it never says which), or not on its `device_id`; `400` for
+    `profile_id` without `device_id`;
   - `400` for a body that doesn't name exactly one of the three;
   - `404` for a title the user can't see, `400` for one that isn't a
     movie, an episode, a show, a season, a track, an album or an artist;
@@ -3830,6 +3837,8 @@ interface PlayingSession {      // GET /api/sessions
   quality: string | null;       // the Quality menu's pick, by id ("auto", "8m"); null until its player says
   qualities: { id: string; label: string }[]; // what its menu offers for the file, which `quality`
                                 // picks from; empty for music and on live (Remote control, "Quality")
+  markers: Marker[];            // the intro and credits of the file it plays, for a remote's Skip Intro
+                                // and Skip Credits (a seek); empty on live
 }
 
 interface TrackOption {

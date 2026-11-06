@@ -344,7 +344,7 @@ export interface Marker {
   kind: MarkerKind;
   start_ms: number;
   end_ms: number;
-  source: "chapter" | "fingerprint";
+  source: "chapter" | "fingerprint" | "frames";
 }
 
 export interface MediaFile {
@@ -710,6 +710,8 @@ export interface PlayingSession {
   quality?: string | null;
   /** What its Quality menu offers for the file, which `quality` picks from; empty for music and on live. */
   qualities?: { id: string; label: string }[];
+  /** Its file's intro and credits, which a remote offers to skip; empty on live (absent from servers before them). */
+  markers?: Marker[];
 }
 
 /** What a device plays when cast to: titles, music and playlists (`item`), Live TV channels (`live`). */

@@ -181,7 +181,7 @@ struct ItemView: View {
                 }
             }
             if let season = context.seasonTitle {
-                Text("·").foregroundStyle(.secondary).accessibilityHidden(true)
+                Text("·").foregroundStyle(.secondary).accessibilityHidden(true).flowSeparator()
                 if let id = context.seasonId {
                     Button(season) { app.shell.open(.item(id)) }
                         .accessibilityHint("Opens the season")
@@ -197,10 +197,11 @@ struct ItemView: View {
     }
 
     @ViewBuilder private func meta(_ page: ItemPage) -> some View {
-        if !page.meta.isEmpty {
+        let parts = facts(page)
+        if !parts.isEmpty {
             FlowLayout(spacing: 8, lineSpacing: 4) {
-                ForEach(Array(page.meta.enumerated()), id: \.offset) { index, part in
-                    if index > 0 { Text("·").foregroundStyle(.secondary) }
+                ForEach(Array(parts.enumerated()), id: \.offset) { index, part in
+                    if index > 0 { Text("·").flowSeparator() }
                     switch part {
                     case .text(let text):
                         Text(text)
@@ -225,7 +226,7 @@ struct ItemView: View {
             .font(.subheadline)
             .foregroundStyle(.secondary)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel(page.spokenMeta)
+            .accessibilityLabel(parts.map(\.spoken).joined(separator: ", "))
             .accessibilityIdentifier("item.meta")
         }
     }
@@ -252,7 +253,7 @@ struct ItemView: View {
                 StarRating(rating: page.userRating) { rating in Task { await model.rate(rating) } }
             }
             if let tracks = page.tracks {
-                pickers(tracks)
+                pickers(page, tracks)
             }
             if let notice = model.notice {
                 Text(notice).font(.footnote).foregroundStyle(.red)
@@ -295,44 +296,65 @@ struct ItemView: View {
         if action.kind == .unavailable || model.request() == nil {
             Text("Nothing to play here yet.").foregroundStyle(.secondary)
         } else {
-            let stack = typeSize.isAccessibilitySize
-                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-                : AnyLayout(HStackLayout(spacing: 12))
-            stack {
-                Button {
-                    play(model.request())
-                } label: {
-                    VStack(spacing: 4) {
-                        Label(action.label, systemImage: "play.fill")
-                            .frame(minWidth: 140)
-                        if action.kind == .resume {
-                            ProgressView(value: action.progress)
-                                .tint(.white)
-                                .frame(width: 120)
+            // Play and From start share the row, their words on one line; at
+            // accessibility sizes, or when they don't fit across, one above
+            // the other.
+            ViewThatFits(in: .horizontal) {
+                if !typeSize.isAccessibilitySize {
+                    HStack(spacing: 12) { playButtons(page) }
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                VStack(alignment: .leading, spacing: 10) { playButtons(page) }
+            }
+            .frame(maxWidth: 480, alignment: .leading)
+            .controlSize(.large)
+        }
+    }
+
+    /// Play or Resume, and From start. Resume has how far it was played
+    /// under its name, and the time left beside that.
+    @ViewBuilder private func playButtons(_ page: ItemPage) -> some View {
+        let action = page.primary
+        Button {
+            play(model.request())
+        } label: {
+            VStack(spacing: 4) {
+                Label(action.label, systemImage: "play.fill")
+                    .lineLimit(1)
+                if action.kind == .resume {
+                    HStack(spacing: 6) {
+                        ProgressView(value: action.progress)
+                            .tint(.white)
+                            .frame(minWidth: 40)
+                            .accessibilityHidden(true)
+                        if !action.timeLeft.isEmpty {
+                            Text(action.timeLeft)
+                                .font(.caption)
+                                .lineLimit(1)
+                                .fixedSize()
+                                .opacity(0.85)
                                 .accessibilityHidden(true)
                         }
                     }
                 }
-                .buttonStyle(.borderedProminent)
-                .accessibilityValue(action.timeLeft)
-                .accessibilityIdentifier("item.play")
-                .onHover { if $0 { model.prefetch() } }
-                if page.fromStart {
-                    Button {
-                        play(model.request(fromStart: true))
-                    } label: {
-                        Label("From start", systemImage: "arrow.counterclockwise")
-                    }
-                    .buttonStyle(.bordered)
-                    .accessibilityLabel("Play from start")
-                    .accessibilityIdentifier("item.playFromStart")
-                }
-                if !action.timeLeft.isEmpty {
-                    Text(action.timeLeft).font(.subheadline).foregroundStyle(.secondary)
-                        .accessibilityHidden(true)
-                }
             }
-            .controlSize(.large)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.borderedProminent)
+        .accessibilityValue(action.timeLeft)
+        .accessibilityIdentifier("item.play")
+        .onHover { if $0 { model.prefetch() } }
+        if page.fromStart {
+            Button {
+                play(model.request(fromStart: true))
+            } label: {
+                Label("From start", systemImage: "arrow.counterclockwise")
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel("Play from start")
+            .accessibilityIdentifier("item.playFromStart")
         }
     }
 
@@ -399,45 +421,83 @@ struct ItemView: View {
 
     // MARK: Pickers
 
-    private func pickers(_ tracks: PleyScreens.TrackChoices) -> some View {
+    private func pickers(_ page: ItemPage, _ tracks: PleyScreens.TrackChoices) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if tracks.versions.count > 1 {
-                LabeledContent("Version") {
+                pickerRow("Version", chosen: versionName(page, tracks), id: "item.version") {
                     Picker("Version", selection: Binding(get: { tracks.versionId ?? 0 },
                                                          set: { model.chooseVersion($0) })) {
                         ForEach(tracks.versions) { Text($0.label).tag($0.id) }
                     }
-                    .labelsHidden()
-                    .accessibilityIdentifier("item.version")
                 }
             }
             if !tracks.audio.isEmpty {
                 let audio = Binding<Int?>(get: { tracks.automaticAudio ? nil : tracks.audioIndex },
                                           set: { index in Task { await model.chooseAudio(index) } })
-                LabeledContent("Audio") {
+                let chosen = tracks.automaticAudio ? tracks.automaticLabel
+                    : tracks.audio.first { $0.id == tracks.audioIndex }?.label ?? tracks.automaticLabel
+                pickerRow("Audio", chosen: chosen, id: "item.audio") {
                     Picker("Audio", selection: audio) {
                         Text(tracks.automaticLabel).tag(Int?.none)
                         ForEach(tracks.audio) { Text($0.label).tag(Int?.some($0.id)) }
                     }
-                    .labelsHidden()
-                    .accessibilityIdentifier("item.audio")
                 }
             }
             if !tracks.subtitles.isEmpty {
                 let subtitles = Binding<Int?>(get: { tracks.subtitleIndex },
                                               set: { index in Task { await model.chooseSubtitle(index) } })
-                LabeledContent("Subtitles") {
+                let chosen = tracks.subtitles.first { $0.id == tracks.subtitleIndex }?.label ?? "Off"
+                pickerRow("Subtitles", chosen: chosen, id: "item.subtitles") {
                     Picker("Subtitles", selection: subtitles) {
                         Text("Off").tag(Int?.none)
                         ForEach(tracks.subtitles) { Text($0.label).tag(Int?.some($0.id)) }
                     }
-                    .labelsHidden()
-                    .accessibilityIdentifier("item.subtitles")
                 }
             }
         }
-        .pickerStyle(.menu)
         .frame(maxWidth: 420, alignment: .leading)
+    }
+
+    /// The version that plays, by its edition ("Open Matte") or "Version 2";
+    /// its picture, codec and size are in the menu.
+    private func versionName(_ page: ItemPage, _ tracks: PleyScreens.TrackChoices) -> String {
+        page.mediaInfo.first { $0.id == tracks.versionId }?.title
+            ?? tracks.versions.first { $0.id == tracks.versionId }?.label ?? ""
+    }
+
+    /// The facts under the title. With the Version picker on the page, the
+    /// edition that plays is left out of them: the picker says it.
+    private func facts(_ page: ItemPage) -> [MetaPart] {
+        guard let tracks = page.tracks, tracks.versions.count > 1,
+              let edition = page.mediaInfo.first(where: { $0.id == tracks.versionId })?.title,
+              let at = page.meta.firstIndex(of: .text(edition)) else { return page.meta }
+        var parts = page.meta
+        parts.remove(at: at)
+        return parts
+    }
+
+    /// A picker's name, and its choice on one line beside it: a long
+    /// choice is cut short rather than wrapped, which a menu picker's own
+    /// label does. The choices open in a menu.
+    private func pickerRow(_ title: String, chosen: String, id: String,
+                           @ViewBuilder picker: () -> some View) -> some View {
+        HStack(spacing: 12) {
+            Text(title).fixedSize()
+            Spacer(minLength: 0)
+            Menu {
+                picker().pickerStyle(.inline).labelsHidden()
+            } label: {
+                HStack(spacing: 4) {
+                    Text(chosen).lineLimit(1)
+                    Image(systemName: "chevron.up.chevron.down").imageScale(.small)
+                }
+            }
+            .menuStyle(.button)
+            .buttonStyle(.borderless)
+            .accessibilityLabel(title)
+            .accessibilityValue(chosen)
+            .accessibilityIdentifier(id)
+        }
     }
 
     // MARK: Crew

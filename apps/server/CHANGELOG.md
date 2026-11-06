@@ -17,16 +17,31 @@ describes how they are made.
   server language, in Settings → General, is for the server's own words
   (Home's rows, the tray's menu) and for devices in a language Pley
   doesn't have.
+- Jellyfin apps that show seek-bar previews, such as Findroid and
+  Streamyfin, show Pley's as you scrub: the same previews Pley's own players
+  use. Jellyfin for Android TV doesn't show them.
+- The web and desktop apps' remote offers Skip Intro and Skip Credits while
+  what a device plays is in an intro or the credits, as its player would;
+  `GET /api/sessions` gives each session's intro and credits. Its back
+  button goes 30 seconds, as far as forward.
 - Your remote lists the TVs and other devices of everyone in your
   household, not only those on your profile, each with the profile it is
   on. Sending one something switches it to your profile first, so it plays
   as you, after your PIN when your profile has one.
+- A device that gives itself a TV's name and id on the TV's profile is
+  listed beside the TV ("Living room TV (2)"), never in its place: the TV
+  is listed again the moment it is back from being off or reconnecting,
+  and what you send the TV reaches the TV alone.
 - The web app's Play on… lists your household's devices too, and asks for
   your PIN in its menu's place when your profile has one. The desktop app
   switches to the profile of the remote that sends it something, as a TV
   does, and says so when it can't. An administrator's remote sends only to
   Pley's apps, never to a browser or the desktop app, which would stay
   signed in with the administrator's rights.
+- Jellyfin apps make, rename, fill, reorder and delete your playlists, and
+  with a token that may manage libraries, make and change collections. Each
+  playlist entry has an id of its own, so an app removes or moves the one
+  you picked when a title is there twice.
 - Pley reads the NFO files Kodi, Jellyfin, Emby, Radarr, Sonarr,
   tinyMediaManager and MediaElch keep next to movies, shows, seasons and
   episodes. Their ids decide what a title is matched to, and their titles,
@@ -36,6 +51,9 @@ describes how they are made.
   with NFO files get their metadata from them. Jellyfin's lockdata keeps an
   item from being fetched online. Settings → Server has a switch for it, on
   by default.
+- Scripts and tools edit metadata through the Jellyfin-compatible API with
+  a token that may manage libraries: titles' fields, locks, pictures and
+  Fix Match, as Pley's own editor does them.
 - In the web and desktop apps, an item's Edit details says which fields
   come from its NFO file, and Fix match says when a title was matched by
   hand, with Undo Fix Match to let its NFO file decide again.
@@ -62,6 +80,12 @@ describes how they are made.
   TMDB id is found by that id before it is searched for by name.
 - The web and desktop apps' menus open above their button where the
   window has no room for them below, as in a short window.
+- Jellyfin apps' streams go as far as Pley's own apps' do, by what their
+  device profile says: HEVC copied, or made in HEVC to stay HDR, in fMP4
+  segments where the app asks for them, VP9 and AV1 copied into fMP4, HDR
+  and Dolby Vision kept where the app shows them, and 5.1 sound (E-AC-3 or
+  AC-3) where it takes it. They were H.264 or copied HEVC, in SDR, with
+  stereo AAC.
 
 ## [0.1.7] - 2026-11-05
 

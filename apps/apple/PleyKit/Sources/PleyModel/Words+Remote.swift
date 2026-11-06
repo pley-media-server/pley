@@ -11,7 +11,7 @@ extension Words {
     public static let remoteTitle = "Your devices"
 
     /// How far the remote's skip buttons go, back and forward.
-    public static let remoteSkipBackMs = 10_000
+    public static let remoteSkipBackMs = 30_000
     public static let remoteSkipForwardMs = 30_000
 
     /// A device that is on and plays nothing: its row's second line.
@@ -117,6 +117,11 @@ extension Words {
 
     public static func remoteForward(_ device: String) -> String {
         "Forward \(remoteSkipForwardMs / 1000) seconds on \(device)"
+    }
+
+    /// Skip Intro or Skip Credits on the remote, as VoiceOver reads it: "Skip intro on Living room TV".
+    public static func remoteSkip(_ kind: MarkerKind, device: String) -> String {
+        kind == .intro ? "Skip intro on \(device)" : "Skip credits on \(device)"
     }
 
     public static func remotePlay(_ device: String) -> String { "Play on \(device)" }
