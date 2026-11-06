@@ -1485,6 +1485,10 @@ impl AppState {
             log::warn!("the language shown not kept: {e}");
         }
         self.out.push(AppEvent::Language);
+        // Diagnostics' lines are worded when the TV is probed: probed again, they are in this one.
+        if self.caps.is_some() || self.caps_task.is_some() {
+            self.probe_caps(true);
+        }
         if self.signed_in() {
             // An answer on its way is in the language before.
             self.home_task = None;
