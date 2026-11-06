@@ -29,7 +29,7 @@ use pley_core::requests::title_key;
 use pley_core::store::{SavedServer, Snapshots, keys, snapshot_keys};
 use pley_core::{Api, ApiError, CapsOverrides, CapsReport, CastReceiver, Device, EventStream, Http, Promise, Settings};
 use pley_core::{Store, StreamNews, Tasks};
-use pley_i18n::Language;
+use pley_i18n::{Language, t};
 
 use crate::cast::LAST_REPORTS_WAIT;
 use crate::cx::BackgroundSession;
@@ -61,7 +61,14 @@ pub const ITEMS_KEPT: usize = 40;
 pub const LIVE_CHANNELS_KEPT: usize = 500;
 
 /// What the shell's notice says while the server is out of reach, then the avatar's mark.
-pub const OFFLINE_TEXT: &str = "Pley is offline";
+pub fn offline_text() -> &'static str {
+    t!("shell.offline")
+}
+
+/// Why a sign-in or a switch can't be asked for: a few words, as `AuthError::Failed` holds them.
+fn no_server() -> AuthError {
+    AuthError::Failed(t!("shell.errors.noServer").into())
+}
 
 /// A library scan the server's events told of.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -497,7 +504,7 @@ impl AppState {
     /// then calls [`AppState::signed_in_now`].
     pub fn install_sign_in(&self, tokens: StoredTokens, asked_scope: String) -> Promise<Result<(), AuthError>> {
         let Some(kept) = self.tokens.clone() else {
-            return Promise::resolved(Err(AuthError::Failed("no server is in use".into())));
+            return Promise::resolved(Err(no_server()));
         };
         self.tasks.spawn(move || kept.install(tokens, &asked_scope))
     }
@@ -529,7 +536,7 @@ impl AppState {
     /// calls [`AppState::switched`].
     pub fn switch_profile(&self, profile: i64, pin: Option<String>) -> Promise<Result<(), AuthError>> {
         let Some(tokens) = self.tokens.clone() else {
-            return Promise::resolved(Err(AuthError::Failed("no server is in use".into())));
+            return Promise::resolved(Err(no_server()));
         };
         self.tasks.spawn(move || tokens.switch_profile(profile, pin.as_deref()))
     }
@@ -541,7 +548,7 @@ impl AppState {
     /// [`AppState::switched`].
     pub fn switch_for_cast(&self, profile: i64, ticket: SwitchTicket) -> Promise<Result<(), AuthError>> {
         let Some(tokens) = self.tokens.clone() else {
-            return Promise::resolved(Err(AuthError::Failed("no server is in use".into())));
+            return Promise::resolved(Err(no_server()));
         };
         let (reporter, fence) = (self.players.reporter(), self.players.fence.clone());
         self.tasks.spawn(move || {

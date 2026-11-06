@@ -1,1 +1,13 @@
-{}
+{
+  "title": "¿Quién está viendo?",
+  "useAnother": "Usar otro perfil",
+  "pin": {
+    "title": "Introduce el PIN de {{name}}",
+    "keysHint": "También puedes escribirlo con las teclas numéricas del control remoto."
+  },
+  "errors": {
+    "locked": "Este perfil no se puede usar desde la aplicación.",
+    "cantSwitch": "Este inicio de sesión no puede cambiar de perfil: vuelve a iniciar sesión para permitirlo.",
+    "notAllowed": "No puedes cambiar a este perfil."
+  }
+}

@@ -6,6 +6,7 @@
 //! 0 and ":". [`PinDots`] shows how many digits of a PIN are in.
 
 use pley_base::{Icon, Key, Point, Rect, Size};
+use pley_i18n::t;
 use pley_ui::theme::{self, radius};
 use pley_ui::{Group, Id, Ui};
 
@@ -113,8 +114,8 @@ impl Keypad {
                         ui.name(kid, || match k {
                             PadKey::Digit(d) => d.to_string(),
                             PadKey::Symbol(c) => c.to_string(),
-                            PadKey::Delete => "Delete".to_string(),
-                            PadKey::Ok => "OK".to_string(),
+                            PadKey::Delete => t!("common.pad.delete").to_string(),
+                            PadKey::Ok => t!("common.pad.ok").to_string(),
                         });
                         let r = register(ui, kid, rect, pley_ui::FocusOpts::default());
                         (r.focused, r.activated)

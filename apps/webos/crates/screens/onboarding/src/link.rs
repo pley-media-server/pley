@@ -17,6 +17,7 @@ use pley_core::auth::{AuthError, DeviceCode, DeviceSignIn, LinkState};
 use pley_core::discovery::probe_timeout;
 use pley_core::model::{Me, ServerInfo};
 use pley_core::{ApiError, Cancel, Device, Promise};
+use pley_i18n::t;
 use pley_kit::{Button, Qr};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme::{self, radius};
@@ -35,46 +36,21 @@ pub const NAME_WAIT: f64 = 3.0;
 /// Between two asks for the name.
 const NAME_ASK_EVERY: f64 = 0.4;
 
-/// The screen's words (`strings_tv_onboarding.xml`).
-pub const TITLE: &str = "Sign in to Pley";
-pub const SCAN_STEP: &str = "Scan the code with your phone";
-pub const GO_TO: &str = "or go to";
-pub const ENTER_STEP: &str = "and enter this code";
-pub const SAME_WIFI: &str = "Your phone must be on the same Wi-Fi as this TV.";
-pub const OTHER_DEVICE: &str = "Or open Pley on a signed-in device → Link a TV";
-pub const SCAN: &str = "Scan with your phone camera";
-pub const CHANGE_SERVER: &str = "Change server";
-/// Under the title, when the server requires two-step sign-in: the phone sets it up for whoever
-/// hasn't.
-pub const TWO_STEP_REQUIRED: &str = "This server requires two-step sign-in: your phone sets it up if you haven't yet.";
-pub const WAITING: &str = "Waiting for approval…";
-pub const GETTING_CODE: &str = "Getting a code…";
-pub const DECLINED: &str = "Request declined";
-pub const EXPIRED: &str = "Code expired: press OK for a new one";
-pub const NEW_CODE: &str = "Get a new code";
-pub const USE_ANOTHER: &str = "Use another profile";
-pub const APPROVE_TITLE: &str = "Approve on your phone";
-pub const ANOTHER_TITLE: &str = "Sign in as another profile";
-pub const ANOTHER_BODY: &str = "Approve this code on a phone signed in to Pley, and pick the profile there.";
-
 /// "Anna's profile needs its password: …", for a profile approved on a phone.
 pub fn approve_body(name: &str) -> String {
-    format!(
-        "{name}'s profile needs its password: approve this code on a phone signed in to Pley, and pick {name} \
-         there."
-    )
+    t!("signin.approve.intro", name = name)
 }
 
 /// "Can't reach the server. Trying again in 4 s".
 pub fn retrying(seconds: u64) -> String {
-    format!("Can't reach the server. Trying again in {seconds} s")
+    t!("signin.link.retrying", seconds = seconds)
 }
 
 /// "Signed in as Anna", or "Signed in" without a name.
 pub fn signed_in_text(name: Option<&str>) -> String {
     match name {
-        Some(n) => format!("Signed in as {n}"),
-        None => "Signed in".into(),
+        Some(n) => t!("signin.link.signedInAs", name = n),
+        None => t!("signin.link.signedIn").into(),
     }
 }
 
@@ -442,12 +418,12 @@ impl LinkView {
         }
         let code = flow.code();
         step(ui, Point::new(x, y), 1, |ui, at| {
-            ui.text(at, SCAN_STEP, &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::FG);
+            ui.text(at, t!("signin.link.scan"), &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::FG);
         });
         y += 28.0 + 12.0;
         let address = code.map_or_else(|| "…".to_string(), DeviceCode::address);
         step(ui, Point::new(x, y), 2, |ui, at| {
-            let lead = ui.layout(GO_TO, &theme::BODY_LARGE, &free_line());
+            let lead = ui.layout(t!("signin.link.goTo"), &theme::BODY_LARGE, &free_line());
             let w = lead.size.w + space(ui, &theme::BODY_LARGE);
             // The address in `Tv.Section`'s size, bold, on the same baseline as "or go to".
             let style = pley_base::TextStyle { line_height: theme::BODY_LARGE.line_height, ..theme::SECTION };
@@ -459,7 +435,7 @@ impl LinkView {
         });
         y += 28.0 + 12.0;
         step(ui, Point::new(x, y), 3, |ui, at| {
-            ui.text(at, ENTER_STEP, &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::FG);
+            ui.text(at, t!("signin.link.enterCode"), &theme::BODY_LARGE, &TextOpts::line(width - 42.0), theme::FG);
         });
         y += 28.0 + 12.0;
         let dim = code.is_none() || matches!(status, LinkStatus::Expired | LinkStatus::Starting);
@@ -470,14 +446,14 @@ impl LinkView {
         let back_id = ui.id("back");
         if needs_new {
             ui.group(ui.id("new-code-row"), Group::row(), |ui| {
-                let r = Button::pill(NEW_CODE).icon(Icon::RefreshCw).show(ui, new_id, Point::new(x, y));
-                choice.new_code = r.activated;
+                let new_code = Button::pill(t!("signin.link.newCode")).icon(Icon::RefreshCw);
+                choice.new_code = new_code.show(ui, new_id, Point::new(x, y)).activated;
             });
         } else {
             let note = TextOpts::line(width);
-            ui.text(Point::new(x, y), SAME_WIFI, &theme::BODY, &note, theme::MUTED);
+            ui.text(Point::new(x, y), t!("signin.link.sameWifi"), &theme::BODY, &note, theme::MUTED);
             let y2 = y + theme::BODY.line_height + 6.0;
-            ui.text(Point::new(x, y2), OTHER_DEVICE, &theme::BODY, &note, theme::MUTED);
+            ui.text(Point::new(x, y2), t!("signin.link.otherDevice"), &theme::BODY, &note, theme::MUTED);
         }
 
         // The status line at y 478.
@@ -485,10 +461,10 @@ impl LinkView {
         let now = ui.time();
         match status {
             LinkStatus::Starting => {
-                status_line(ui, at, width, GETTING_CODE, &theme::LABEL, theme::MUTED, true);
+                status_line(ui, at, width, t!("signin.link.gettingCode"), &theme::LABEL, theme::MUTED, true);
             }
             LinkStatus::Waiting => {
-                status_line(ui, at, width, WAITING, &theme::LABEL, theme::MUTED, true);
+                status_line(ui, at, width, t!("signin.link.waiting"), &theme::LABEL, theme::MUTED, true);
             }
             LinkStatus::Unreachable { retry_at } => {
                 let left = (retry_at - now).max(0.0).ceil() as u64;
@@ -498,10 +474,10 @@ impl LinkView {
                 }
             }
             LinkStatus::Declined => {
-                status_line(ui, at, width, DECLINED, &theme::LABEL, theme::DANGER_TEXT, false);
+                status_line(ui, at, width, t!("signin.link.declined"), &theme::LABEL, theme::DANGER_TEXT, false);
             }
             LinkStatus::Expired => {
-                status_line(ui, at, width, EXPIRED, &theme::LABEL, theme::MUTED, false);
+                status_line(ui, at, width, t!("signin.link.expired"), &theme::LABEL, theme::MUTED, false);
             }
             LinkStatus::Failed(message) => {
                 status_line(ui, at, width, &sentence(message), &theme::LABEL, theme::DANGER_TEXT, false);
@@ -522,7 +498,8 @@ impl LinkView {
             None => ui.fill(tile, theme::SURFACE2, radius::DIALOG),
         }
         let caption = TextOpts::line(268.0).aligned(pley_base::Align::Center);
-        ui.text(Point::new(qx, tile.bottom() + 12.0), SCAN, &theme::CAPTION, &caption, theme::MUTED);
+        let scan = t!("signin.link.scanCamera");
+        ui.text(Point::new(qx, tile.bottom() + 12.0), scan, &theme::CAPTION, &caption, theme::MUTED);
         let by = tile.bottom() + 12.0 + theme::CAPTION.line_height + 18.0;
         let back = Button::text(labels.back);
         let bw = back.size(ui).w;
@@ -649,8 +626,10 @@ impl Screen for LinkScreen {
         if let Some(at) = flow.update(cx, now) {
             ui.repaint_after((at - now).max(0.0));
         }
-        let intro = self.two_step_required.then_some(TWO_STEP_REQUIRED);
-        let labels = LinkLabels { title: TITLE, intro, back: CHANGE_SERVER };
+        // Under the title, when the server requires two-step sign-in: the phone sets it up for
+        // whoever hasn't.
+        let intro = self.two_step_required.then(|| t!("signin.link.twoStepRequired"));
+        let labels = LinkLabels { title: t!("signin.link.title"), intro, back: t!("signin.link.changeServer") };
         let choice = self.view.show(ui, flow, &labels);
         if !matches!(flow.status(), LinkStatus::SignedIn { .. }) {
             self.globe.show(ui, cx, Place::TopRight { centre: LOGO_Y + LOGO_H / 2.0 });
@@ -696,6 +675,22 @@ impl Screen for LinkScreen {
 mod tests {
     use super::*;
 
+    // The screen's words in English, which tests show.
+    const TITLE: &str = "Sign in to Pley";
+    const SCAN_STEP: &str = "Scan the code with your phone";
+    const GO_TO: &str = "or go to";
+    const ENTER_STEP: &str = "and enter this code";
+    const SAME_WIFI: &str = "Your phone must be on the same Wi-Fi as this TV.";
+    const OTHER_DEVICE: &str = "Or open Pley on a signed-in device → Link a TV";
+    const SCAN: &str = "Scan with your phone camera";
+    const CHANGE_SERVER: &str = "Change server";
+    const TWO_STEP_REQUIRED: &str = "This server requires two-step sign-in: your phone sets it up if you haven't yet.";
+    const WAITING: &str = "Waiting for approval…";
+    const GETTING_CODE: &str = "Getting a code…";
+    const DECLINED: &str = "Request declined";
+    const EXPIRED: &str = "Code expired: press OK for a new one";
+    const NEW_CODE: &str = "Get a new code";
+
     #[test]
     fn codes_split_in_two_halves() {
         assert_eq!(halves("BCDF-GHJK"), ["BCDF", "GHJK"]);
@@ -717,6 +712,22 @@ mod tests {
             sentence("this code doesn't work anymore: get a new one"),
             "This code doesn't work anymore: get a new one."
         );
+    }
+
+    #[test]
+    fn french_and_spanish_fill_in_the_name_and_the_seconds() {
+        use pley_i18n::{Language, with_language};
+        with_language(Language::Fr, || {
+            assert_eq!(retrying(4), "Impossible de joindre le serveur. Nouvel essai dans 4\u{a0}s");
+            assert_eq!(signed_in_text(Some("Anna")), "Connecté en tant que Anna");
+            assert_eq!(signed_in_text(None), "Connecté");
+            assert!(approve_body("Robin").starts_with("Le profil Robin demande son mot de passe\u{a0}:"));
+            assert!(approve_body("Robin").ends_with("choisissez-y Robin."));
+        });
+        with_language(Language::Es, || {
+            assert_eq!(retrying(4), "No se puede conectar con el servidor. Se volverá a intentar en 4 s");
+            assert_eq!(signed_in_text(Some("Anna")), "Sesión iniciada como Anna");
+        });
     }
 
     #[test]

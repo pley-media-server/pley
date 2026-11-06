@@ -16,13 +16,14 @@ use pley_core::auth::{AuthError, SwitchRefusal};
 use pley_core::http::sentence;
 use pley_core::model::{AppProfile, Me, ProfileNeeds};
 use pley_core::{ApiError, Device, Promise};
+use pley_i18n::t;
 use pley_kit::{Button, Keypad, PadKey, PadState, PinDots, ProfileTile};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme;
 use pley_ui::{Group, Motion, Ui};
 
 use crate::kit::profile_fill;
-use crate::link::{ANOTHER_BODY, ANOTHER_TITLE, APPROVE_TITLE, LinkFlow, LinkLabels, LinkView, Purpose, USE_ANOTHER};
+use crate::link::{LinkFlow, LinkLabels, LinkView, Purpose};
 
 /// PINs are 4 to 8 digits (`PinEntry`).
 pub const PIN_MIN: usize = 4;
@@ -33,18 +34,9 @@ const AVATAR_GAP: f32 = 40.0;
 /// More profiles than this scroll, the focused one's left edge at x 288.
 const FIT: usize = 6;
 
-/// The screen's words (`strings_tv_onboarding.xml`, `Profiles.kt`).
-pub const TITLE: &str = "Who's watching?";
-pub const PIN_HINT: &str = "You can also type with the number keys on your remote.";
-pub const RETRY: &str = "Retry";
-pub const LOCKED: &str = "This profile can't be used from the app.";
-pub const CANT_SWITCH: &str = "This sign-in can't switch profiles: sign in again to allow it.";
-/// A switch refused without a reason or a description (`Profiles.message`).
-pub const NOT_ALLOWED: &str = "You can't switch to this profile.";
-
 /// "Enter Anna's PIN".
 pub fn enter_pin(name: &str) -> String {
-    format!("Enter {name}'s PIN")
+    t!("profiles.pin.title", name = name)
 }
 
 /// The left edge of the row of `n` profiles with the one at `focused` focused: centred while
@@ -107,14 +99,14 @@ pub fn pick(profile: &AppProfile, gate: bool) -> Pick {
     }
 }
 
-/// What a refusal without a reason says (`Profiles.message`): the server's description, else
-/// [`NOT_ALLOWED`].
+/// What a refusal without a reason says (`Profiles.message`): the server's description, else that
+/// the profile can't be switched to.
 fn refused_words(e: &AuthError) -> String {
     let description = match e {
         AuthError::Refused { oauth: Some(o), .. } => o.error_description.as_deref().filter(|d| !d.trim().is_empty()),
         _ => None,
     };
-    description.map_or_else(|| NOT_ALLOWED.into(), sentence)
+    description.map_or_else(|| t!("profiles.errors.notAllowed").into(), sentence)
 }
 
 /// The PIN pad's state.
@@ -149,7 +141,7 @@ impl PinStep {
     fn locked_out(profile: AppProfile) -> Box<PinStep> {
         let mut step = PinStep::new(profile, false);
         step.locked = true;
-        step.error = Some(LOCKED.into());
+        step.error = Some(t!("profiles.errors.locked").into());
         step
     }
 }
@@ -277,8 +269,11 @@ impl ProfilesScreen {
                 Err(ApiError::SignedOut) => {}
                 // With a list on screen, trouble stays quiet.
                 Err(e) if self.profiles.is_empty() => {
-                    self.error =
-                        Some(if e.status() == Some(403) { CANT_SWITCH.into() } else { sentence(&e.to_string()) });
+                    self.error = Some(if e.status() == Some(403) {
+                        t!("profiles.errors.cantSwitch").into()
+                    } else {
+                        sentence(&e.to_string())
+                    });
                 }
                 Err(e) => log::info!("the household not loaded: {e}"),
             }
@@ -453,7 +448,7 @@ impl ProfilesScreen {
     /// the same ids so the focused profile's ring fades from where it was, and nothing claimed.
     fn pick_ui(&mut self, ui: &mut Ui, cx: &mut AppCx, live: bool) -> Next {
         let opts = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
-        ui.text(Point::new(0.0, 110.0), TITLE, &theme::PAGE_TITLE, &opts, theme::FG);
+        ui.text(Point::new(0.0, 110.0), t!("profiles.title"), &theme::PAGE_TITLE, &opts, theme::FG);
 
         let list = shown(&self.profiles, cx.state.me());
         let n = list.len();
@@ -507,7 +502,7 @@ impl ProfilesScreen {
         let mut another = false;
         ui.group(ui.id("buttons"), Group::column(), |ui| {
             if list.is_empty() && !self.loading {
-                let b = Button::pill(RETRY).icon(pley_base::Icon::RefreshCw);
+                let b = Button::pill(t!("common.actions.retry")).icon(pley_base::Icon::RefreshCw);
                 let w = b.size(ui).w;
                 let id = ui.id("retry");
                 if live {
@@ -517,7 +512,7 @@ impl ProfilesScreen {
                 y += theme::BUTTON_HEIGHT + 12.0;
             }
             if !self.can_switch {
-                let b = Button::text(ANOTHER_TITLE);
+                let b = Button::text(t!("signin.approve.anyTitle"));
                 let w = b.size(ui).w;
                 let id = ui.id("another");
                 // Retry, when it shows, has focus first (`TvProfilesScreen.kt`).
@@ -563,10 +558,10 @@ impl ProfilesScreen {
         }
         let intro = match &step.name {
             Some(name) => crate::link::approve_body(name),
-            None => ANOTHER_BODY.to_string(),
+            None => t!("signin.approve.anyIntro").to_string(),
         };
-        let title = if step.name.is_some() { APPROVE_TITLE } else { ANOTHER_TITLE };
-        let labels = LinkLabels { title, intro: Some(&intro), back: USE_ANOTHER };
+        let title = if step.name.is_some() { t!("signin.approve.title") } else { t!("signin.approve.anyTitle") };
+        let labels = LinkLabels { title, intro: Some(&intro), back: t!("profiles.useAnother") };
         let choice = step.view.show(ui, &step.flow, &labels);
         if choice.new_code {
             step.flow.new_code(cx);
@@ -632,7 +627,7 @@ impl ProfilesScreen {
             }
         }
         if step.locked {
-            let b = Button::text(USE_ANOTHER);
+            let b = Button::text(t!("profiles.useAnother"));
             let w = b.size(ui).w;
             let id = ui.id("another");
             ui.group(ui.id("locked"), Group::row(), |ui| {
@@ -649,7 +644,7 @@ impl ProfilesScreen {
             }
         } else {
             let opts = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
-            ui.text(Point::new(0.0, y), PIN_HINT, &theme::CAPTION, &opts, theme::MUTED);
+            ui.text(Point::new(0.0, y), t!("profiles.pin.keysHint"), &theme::CAPTION, &opts, theme::MUTED);
         }
         next
     }
@@ -755,6 +750,18 @@ impl Screen for ProfilesScreen {
 mod tests {
     use super::*;
 
+    // The screen's words in English, which tests show.
+    const TITLE: &str = "Who's watching?";
+    const PIN_HINT: &str = "You can also type with the number keys on your remote.";
+    const RETRY: &str = "Retry";
+    const LOCKED: &str = "This profile can't be used from the app.";
+    const NOT_ALLOWED: &str = "You can't switch to this profile.";
+    const USE_ANOTHER: &str = "Use another profile";
+    const APPROVE_TITLE: &str = "Approve on your phone";
+    const ANOTHER_TITLE: &str = "Sign in as another profile";
+    const ANOTHER_BODY: &str = "Approve this code on a phone signed in to Pley, and pick the profile there.";
+    const WAITING: &str = "Waiting for approval…";
+
     fn profile(id: i64, needs: ProfileNeeds, current: bool) -> AppProfile {
         AppProfile { id, name: format!("P{id}"), avatar_url: None, avatar_color: None, current, needs }
     }
@@ -793,6 +800,10 @@ mod tests {
         let span = 10.0 * 100.0 + 9.0 * 40.0;
         assert_eq!(row_left(10, 9), 960.0 - 48.0 - span);
         assert_eq!(enter_pin("Sam"), "Enter Sam's PIN");
+        pley_i18n::with_language(pley_i18n::Language::Fr, || {
+            assert_eq!(enter_pin("Sam"), "Saisissez le code PIN du profil Sam");
+        });
+        pley_i18n::with_language(pley_i18n::Language::Es, || assert_eq!(enter_pin("Sam"), "Introduce el PIN de Sam"));
     }
 
     use crate::link::approve_body;
@@ -867,7 +878,7 @@ mod tests {
         rig.press(&mut s, Key::Right);
         rig.press(&mut s, Key::Right);
         rig.press(&mut s, Key::Ok);
-        assert!(rig.until(&mut s, |rig| rig.says(crate::link::WAITING)), "no code came");
+        assert!(rig.until(&mut s, |rig| rig.says(WAITING)), "no code came");
         assert!(rig.says(APPROVE_TITLE) && rig.says(&approve_body("Robin")) && rig.says(USE_ANOTHER));
         assert!(s.modal() && rig.device.awake());
         assert!(rig.cx(|cx| s.back(cx)));
@@ -937,7 +948,7 @@ mod tests {
         server.set_device_approval(DeviceApproval::Never);
         let mut rig = Rig::signed_in(&server, ALEX);
         let mut s = rig.cx(|cx| ProfilesScreen::new(cx, Some(ROBIN)));
-        assert!(rig.until(&mut s, |rig| rig.says(crate::link::WAITING)), "no code came");
+        assert!(rig.until(&mut s, |rig| rig.says(WAITING)), "no code came");
         server.set_sign_in_as(ROBIN);
         server.set_device_approval(DeviceApproval::Allow);
         let settling = |s: &ProfilesScreen| matches!(&s.step, Step::Approve(a) if a.flow.settling());

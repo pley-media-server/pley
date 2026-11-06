@@ -1,1 +1,28 @@
-{}
+{
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "open": "Open",
+    "retry": "Retry"
+  },
+  "badges": {
+    "live": "LIVE",
+    "onNow": "ON NOW",
+    "new": "NEW"
+  },
+  "keyboard": {
+    "field": "text field",
+    "shift": "Shift",
+    "space": "Space",
+    "delete": "Delete",
+    "clear": "Clear",
+    "done": "Done"
+  },
+  "pad": {
+    "delete": "Delete",
+    "ok": "OK"
+  },
+  "stepper": {
+    "okResets": "OK resets"
+  }
+}

@@ -1,1 +1,28 @@
-{}
+{
+  "actions": {
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "open": "Ouvrir",
+    "retry": "Réessayer"
+  },
+  "badges": {
+    "live": "DIRECT",
+    "onNow": "EN COURS",
+    "new": "INÉDIT"
+  },
+  "keyboard": {
+    "field": "champ de texte",
+    "shift": "Maj",
+    "space": "Espace",
+    "delete": "Retour arrière",
+    "clear": "Effacer",
+    "done": "Terminé"
+  },
+  "pad": {
+    "delete": "Effacer",
+    "ok": "OK"
+  },
+  "stepper": {
+    "okResets": "OK pour réinitialiser"
+  }
+}

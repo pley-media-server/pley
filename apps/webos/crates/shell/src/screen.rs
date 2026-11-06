@@ -4,6 +4,7 @@
 use pley_base::{Point, Rect, TextOpts};
 use pley_core::DeviceEvent;
 use pley_core::model::ServerEvent;
+use pley_i18n::t;
 use pley_ui::theme::{self, focus::PILL};
 use pley_ui::{Motion, Ui};
 
@@ -212,7 +213,9 @@ impl PlaceholderScreen {
 }
 
 /// What the placeholder's text says under its title.
-pub const PLACEHOLDER_TEXT: &str = "This page isn't built yet.";
+pub fn placeholder_text() -> &'static str {
+    t!("shell.placeholder.notBuilt")
+}
 
 impl Screen for PlaceholderScreen {
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx) {
@@ -221,10 +224,11 @@ impl Screen for PlaceholderScreen {
         let title = self.route.title();
         ui.text(Point::new(x, theme::SAFE_Y), &title, &theme::PAGE_TITLE, &TextOpts::line(width), theme::FG);
         let y = theme::SAFE_Y + theme::PAGE_TITLE.line_height + theme::space::S;
-        let said = format!("{PLACEHOLDER_TEXT} ({})", self.route.name());
+        // The route's short name is the simulator's, the same in every language.
+        let said = format!("{} ({})", placeholder_text(), self.route.name());
         ui.text(Point::new(x, y), &said, &theme::BODY, &TextOpts::wrap(width, 2), theme::MUTED);
 
-        let label = "Go back";
+        let label = t!("shell.placeholder.goBack");
         let text = ui.measure(label, &theme::LABEL, &TextOpts::default());
         let rect = Rect::new(x, y + 44.0, text.w + 2.0 * theme::BUTTON_LABEL_ROOM, theme::BUTTON_HEIGHT);
         let id = ui.id("back");

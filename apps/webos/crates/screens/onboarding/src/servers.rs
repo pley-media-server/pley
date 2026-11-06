@@ -13,10 +13,11 @@ use std::net::Ipv4Addr;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
 
 use pley_base::{Icon, Key, Point, Rect, TextOpts, Waker};
-use pley_core::addresses::{candidates, host_port, origin, unencrypted};
+use pley_core::addresses::{DEFAULT_PORT, candidates, host_port, origin, unencrypted};
 use pley_core::discovery::{self, ConnectProblem, FoundServer, SWEEP_TOTAL, SearchNews};
 use pley_core::store::SavedServer;
 use pley_core::{Cancel, Http, Promise};
+use pley_i18n::t;
 use pley_kit::{Button, Dialog, DialogButton, Keyboard, KeyboardState, ResponseExt, TextEdit, TextField};
 use pley_shell::{AppCx, AppEvent, Chrome, Route, Screen};
 use pley_ui::theme::{self, radius};
@@ -47,32 +48,17 @@ const FIELD_W: f32 = 480.0;
 /// Forget dialog's title wraps without a limit.
 const NAME_MAX: usize = 64;
 
-/// "Hold OK on a saved server to forget it." and the other words of the screen
-/// (`strings_tv_onboarding.xml`).
-pub const TITLE: &str = "Choose your server";
-pub const ON_NETWORK: &str = "On this network";
-pub const UNREACHABLE: &str = "Can't reach it";
-pub const LOOKALIKE: &str = "Not your saved server";
-pub const UNENCRYPTED_TAG: &str = "Not encrypted";
-pub const SEARCHING: &str = "Looking for Pley on your network…";
-pub const NONE_FOUND: &str = "No servers found. Make sure this TV and the server are on the same network.";
-pub const ENTER_ADDRESS: &str = "Enter an address";
-pub const SEARCH_NETWORK: &str = "Search this network";
-pub const SWEEPING_NETWORK: &str = "Checking this network…";
-pub const FORGET_HINT: &str = "Hold OK on a saved server to forget it.";
-pub const FORGET_BODY: &str = "Pley signs this TV out of it and deletes what it saved from it.";
-pub const ADDRESS_TITLE: &str = "Enter your server's address";
-pub const ADDRESS_PLACEHOLDER: &str = "192.168.1.20 or pley.example.com";
-pub const ADDRESS_HINT: &str = "Port 7539 is used by default.";
-pub const CONNECT: &str = "Connect";
-pub const CHECKING: &str = "Checking…";
-
 /// "Checking 192.168.1.1-254…" while the sweep asks the TV's /24.
 pub fn sweeping_text(subnet: Option<&str>) -> String {
     match subnet {
-        Some(s) => format!("Checking {s}1-254…"),
-        None => SWEEPING_NETWORK.into(),
+        Some(s) => t!("signin.servers.checkingRange", subnet = s),
+        None => t!("signin.servers.checkingNetwork").into(),
     }
+}
+
+/// "Port 7539 is used by default.", under the address entry's field.
+pub fn address_hint() -> String {
+    t!("signin.address.port", port = DEFAULT_PORT)
 }
 
 /// A server's name as rows show it and the TV keeps it: one line of at most 64 characters, else
@@ -101,10 +87,7 @@ impl Problem {
     pub fn text(&self) -> String {
         match self {
             Problem::Connect(p) => p.text(),
-            Problem::Unencrypted { address } => format!(
-                "{address} isn't encrypted: what you watch could be read on the way. Use its https address if it \
-                 has one, or press Connect again to go ahead anyway."
-            ),
+            Problem::Unencrypted { address } => t!("signin.problem.unencrypted", address = address),
         }
     }
 }
@@ -134,9 +117,9 @@ impl ServerRow {
     pub fn line(&self, connecting: bool) -> (String, bool) {
         let address = host_port(&self.url);
         if connecting {
-            (format!("Connecting to {address}…"), false)
+            (t!("signin.servers.connecting", address = address), false)
         } else if self.unreachable {
-            (UNREACHABLE.into(), true)
+            (t!("signin.servers.unreachable").into(), true)
         } else {
             (address, false)
         }
@@ -146,11 +129,11 @@ impl ServerRow {
     /// with its green dot.
     pub fn tag(&self) -> Option<(&'static str, bool)> {
         if self.lookalike {
-            Some((LOOKALIKE, true))
+            Some((t!("signin.servers.notYours"), true))
         } else if unencrypted(&self.url) {
-            Some((UNENCRYPTED_TAG, true))
+            Some((t!("signin.servers.notEncrypted"), true))
         } else if self.found {
-            Some((ON_NETWORK, false))
+            Some((t!("signin.servers.onNetwork"), false))
         } else {
             None
         }
@@ -539,7 +522,8 @@ impl ServersScreen {
         let x = theme::GUTTER;
         let right = theme::CANVAS_W - theme::SAFE_X;
         let title_opts = TextOpts::line(right - x - 200.0);
-        ui.text(Point::new(x, TITLE_Y + (TITLE_H - 34.0) / 2.0), TITLE, &theme::PAGE_TITLE, &title_opts, theme::FG);
+        let title = t!("signin.servers.title");
+        ui.text(Point::new(x, TITLE_Y + (TITLE_H - 34.0) / 2.0), title, &theme::PAGE_TITLE, &title_opts, theme::FG);
         let logo_w = Logo::width(ui, LOGO_H);
         self.logo.show(ui, Point::new(right - logo_w, TITLE_Y + (TITLE_H - LOGO_H) / 2.0), LOGO_H);
 
@@ -590,14 +574,13 @@ impl ServersScreen {
         let buttons_id = ui.id("buttons");
         let (enter_id, enter, search) = ui.group(buttons_id, Group::row().edge(Dir::Right, Edge::Stop), |ui| {
             let enter_id = ui.id("enter");
-            let enter = Button::text(ENTER_ADDRESS).show(ui, enter_id, Point::new(x, y));
-            let w = Button::text(ENTER_ADDRESS).size(ui).w;
+            let enter_button = Button::text(t!("signin.servers.enterAddress"));
+            let enter = enter_button.show(ui, enter_id, Point::new(x, y));
+            let w = enter_button.size(ui).w;
             let sweeping = self.sweep.is_some();
-            let search = Button::text(SEARCH_NETWORK).enabled(!sweeping && self.subnet.is_some()).show(
-                ui,
-                ui.id("search"),
-                Point::new(x + w + 12.0, y),
-            );
+            let search = Button::text(t!("signin.servers.searchNetwork"))
+                .enabled(!sweeping && self.subnet.is_some())
+                .show(ui, ui.id("search"), Point::new(x + w + 12.0, y));
             (enter_id, enter, search)
         });
         y += theme::BUTTON_HEIGHT + 16.0;
@@ -615,16 +598,18 @@ impl ServersScreen {
             }
             y += 4.0 + 8.0;
         } else if self.searching {
-            y += status_line(ui, Point::new(x, y), width, SEARCHING, &theme::LABEL, theme::MUTED, true) + 8.0;
+            let text = t!("signin.servers.looking");
+            y += status_line(ui, Point::new(x, y), width, text, &theme::LABEL, theme::MUTED, true) + 8.0;
         } else if self.searched && rows.is_empty() && self.problem.is_none() {
-            y += ui.text(Point::new(x, y), NONE_FOUND, &theme::BODY, &TextOpts::wrap(width, 0), theme::MUTED).h + 8.0;
+            let text = t!("signin.servers.noneFound");
+            y += ui.text(Point::new(x, y), text, &theme::BODY, &TextOpts::wrap(width, 0), theme::MUTED).h + 8.0;
         }
         if let Some(p) = &self.problem {
             ui.text(Point::new(x, y), &p.text(), &theme::BODY, &TextOpts::wrap(width, 0), theme::DANGER_TEXT);
         }
         if rows.iter().any(|r| r.saved) {
             let at = Point::new(x, theme::CANVAS_H - theme::SAFE_Y - theme::CAPTION.line_height);
-            ui.text(at, FORGET_HINT, &theme::CAPTION, &TextOpts::line(width), theme::SUBTLE);
+            ui.text(at, t!("signin.servers.forgetHint"), &theme::CAPTION, &TextOpts::line(width), theme::SUBTLE);
         }
 
         // Focus: the first row once there is one, else "Enter an address", until a key is pressed.
@@ -671,9 +656,10 @@ impl ServersScreen {
 
     fn dialog_ui(&mut self, ui: &mut Ui, cx: &mut AppCx, row_ids: &[Id], rows: &[ServerRow]) {
         let Some(row) = self.forgetting.clone() else { return };
-        let title = format!("Forget {}?", row.name);
-        let buttons = [DialogButton::new("Cancel"), DialogButton::danger("Forget")];
-        let dialog = Dialog::new(&title).body(FORGET_BODY).buttons(&buttons).initial(0);
+        let title = t!("signin.servers.forgetTitle", name = row.name);
+        let buttons =
+            [DialogButton::new(t!("common.actions.cancel")), DialogButton::danger(t!("signin.servers.forget"))];
+        let dialog = Dialog::new(&title).body(t!("signin.servers.forgetBody")).buttons(&buttons).initial(0);
         let r = dialog.show(ui, ui.id("forget"), self.dialog_open);
         if self.dialog_open && (r.dismissed || r.chosen.is_some()) {
             self.dialog_open = false;
@@ -698,7 +684,7 @@ impl ServersScreen {
         let Some(pad) = self.pad.as_mut() else { return };
         let centre = theme::CANVAS_W / 2.0;
         let opts = TextOpts::line(theme::CANVAS_W).aligned(pley_base::Align::Center);
-        ui.text(Point::new(0.0, 27.0), ADDRESS_TITLE, &theme::TITLE, &opts, theme::FG);
+        ui.text(Point::new(0.0, 27.0), t!("signin.address.title"), &theme::TITLE, &opts, theme::FG);
         let field_y = 27.0 + theme::TITLE.line_height + 8.0;
         let connect_y = field_y + pley_kit::keyboard::FIELD_HEIGHT + 14.0;
         let info_y = connect_y + theme::BUTTON_HEIGHT + 16.0;
@@ -709,7 +695,8 @@ impl ServersScreen {
         let column = ui.id("pad");
         let mut draw = |ui: &mut Ui, pad: &mut Pad| {
             ui.group(column, Group::column().edge(Dir::Right, Edge::Stop), |ui| {
-                let field = TextField::new(&pad.edit.text, FIELD_W).placeholder(ADDRESS_PLACEHOLDER).typing(typing);
+                let placeholder = t!("signin.address.placeholder");
+                let field = TextField::new(&pad.edit.text, FIELD_W).placeholder(placeholder).typing(typing);
                 let f = field.show(ui, ui.id("field"), Point::new(centre - FIELD_W / 2.0, field_y));
                 start_typing |= f.activated;
                 // With the keyboard closed: what a keyboard types, and the remote's digits.
@@ -726,7 +713,8 @@ impl ServersScreen {
                         pad.edited();
                     }
                 }
-                let label = if pad.checking.is_some() { CHECKING } else { CONNECT };
+                let label =
+                    if pad.checking.is_some() { t!("signin.address.checking") } else { t!("signin.address.connect") };
                 let pill = Button::pill(label);
                 let at = Point::new(centre - pill.size(ui).w / 2.0, connect_y);
                 connect |= pill.show(ui, ui.id("connect"), at).activated;
@@ -739,13 +727,17 @@ impl ServersScreen {
         }
         let wrap = TextOpts::wrap(FIELD_W, 0).aligned(pley_base::Align::Center);
         let info = Point::new(centre - FIELD_W / 2.0, info_y);
-        let h = ui.text(info, ADDRESS_HINT, &theme::CAPTION, &wrap, theme::MUTED).h;
+        let h = ui.text(info, &address_hint(), &theme::CAPTION, &wrap, theme::MUTED).h;
         if let Some(p) = &pad.problem {
             ui.text(Point::new(info.x, info.y + h + 8.0), &p.text(), &theme::BODY, &wrap, theme::DANGER_TEXT);
         }
         if typing {
-            let kb =
-                Keyboard::new().action_label(CONNECT).show(ui, ui.id("keyboard"), &mut pad.keyboard, &mut pad.edit);
+            let kb = Keyboard::new().action_label(t!("signin.address.connect")).show(
+                ui,
+                ui.id("keyboard"),
+                &mut pad.keyboard,
+                &mut pad.edit,
+            );
             if kb.changed {
                 pad.edited();
             }
@@ -893,6 +885,20 @@ impl Screen for ServersScreen {
 mod tests {
     use super::*;
 
+    // The screen's words in English, which tests show.
+    const TITLE: &str = "Choose your server";
+    const ON_NETWORK: &str = "On this network";
+    const UNREACHABLE: &str = "Can't reach it";
+    const LOOKALIKE: &str = "Not your saved server";
+    const UNENCRYPTED_TAG: &str = "Not encrypted";
+    const SEARCHING: &str = "Looking for Pley on your network…";
+    const NONE_FOUND: &str = "No servers found. Make sure this TV and the server are on the same network.";
+    const FORGET_HINT: &str = "Hold OK on a saved server to forget it.";
+    const FORGET_BODY: &str = "Pley signs this TV out of it and deletes what it saved from it.";
+    const ADDRESS_TITLE: &str = "Enter your server's address";
+    const ADDRESS_HINT: &str = "Port 7539 is used by default.";
+    const CHECKING: &str = "Checking…";
+
     fn saved(url: &str, name: &str, id: Option<&str>) -> SavedServer {
         SavedServer { url: url.into(), name: name.into(), id: id.map(Into::into), last_used: 0 }
     }
@@ -975,6 +981,33 @@ mod tests {
         );
         assert_eq!(sweeping_text(Some("192.168.1.")), "Checking 192.168.1.1-254…");
         assert_eq!(sweeping_text(None), "Checking this network…");
+        assert_eq!(address_hint(), ADDRESS_HINT);
+    }
+
+    #[test]
+    fn french_and_spanish_fill_in_the_address_and_the_range() {
+        use pley_i18n::{Language, with_language};
+        let row = ServerRow {
+            url: "http://nas:7539".into(),
+            name: "Den".into(),
+            id: None,
+            saved: true,
+            found: true,
+            unreachable: false,
+            lookalike: false,
+        };
+        with_language(Language::Fr, || {
+            assert_eq!(row.line(true).0, "Connexion à nas:7539…");
+            assert_eq!(sweeping_text(Some("192.168.1.")), "Vérification de 192.168.1.1-254…");
+            assert_eq!(address_hint(), "Le port 7539 est utilisé par défaut.");
+            let warning = Problem::Unencrypted { address: "pley.example.com".into() }.text();
+            assert!(warning.starts_with("pley.example.com n’est pas chiffré\u{a0}:"), "{warning}");
+        });
+        with_language(Language::Es, || {
+            assert_eq!(row.line(true).0, "Conectando con nas:7539…");
+            assert_eq!(row.tag(), Some(("En esta red", false)));
+            assert_eq!(address_hint(), "Se usa el puerto 7539 de forma predeterminada.");
+        });
     }
 
     use crate::testing::{Rig, fixtures, now_ms};

@@ -128,7 +128,7 @@ fn the_server_out_of_reach_shows_what_was_saved_and_comes_back() {
     assert!(app.until(|app| app.state.offline()), "the server never went");
     assert!(app.state.offline_notice());
     app.advance(0.2);
-    assert!(app.list.says(pley_shell::OFFLINE_TEXT));
+    assert!(app.list.says(pley_shell::offline_text()));
     // What was saved stays.
     assert!(app.state.home().is_some());
 
