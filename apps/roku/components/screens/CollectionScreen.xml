@@ -13,6 +13,7 @@
         <field id="active" type="boolean" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/CollectionScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Titles.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />

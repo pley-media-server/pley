@@ -1,0 +1,119 @@
+{
+  "duration": {
+    "hours": "{{hours}} h",
+    "minutes": "{{minutes}} min",
+    "hoursMinutes": "{{hours}} h {{minutes}} min",
+    "left": "Quedan {{time}}"
+  },
+  "episode": {
+    "both": "T{{season}} E{{episode}}",
+    "episode": "E{{episode}}"
+  },
+  "resume": "Reanudar desde {{time}}",
+  "counts": {
+    "movies_one": "{{count, number}} película",
+    "movies_many": "{{count, number}} de películas",
+    "movies_other": "{{count, number}} películas",
+    "shows_one": "{{count, number}} serie",
+    "shows_many": "{{count, number}} de series",
+    "shows_other": "{{count, number}} series",
+    "artists_one": "{{count, number}} artista",
+    "artists_many": "{{count, number}} de artistas",
+    "artists_other": "{{count, number}} artistas",
+    "titles_one": "{{count, number}} título",
+    "titles_many": "{{count, number}} de títulos",
+    "titles_other": "{{count, number}} títulos"
+  },
+  "bitrate": {
+    "mbps": "{{n}} Mbps",
+    "kbps": "{{n}} kbps"
+  },
+  "bytes": {
+    "B": "{{n}} B",
+    "KB": "{{n}} KB",
+    "MB": "{{n}} MB",
+    "GB": "{{n}} GB",
+    "TB": "{{n}} TB"
+  },
+  "ranges": {
+    "anyHdr": "Cualquier HDR"
+  },
+  "time": {
+    "now": "ahora",
+    "minutesAgo": "hace {{n}} min",
+    "hoursAgo_one": "hace {{count}} hora",
+    "hoursAgo_many": "hace {{count}} horas",
+    "hoursAgo_other": "hace {{count}} horas",
+    "yesterday": "ayer",
+    "daysAgo_one": "hace {{count}} día",
+    "daysAgo_many": "hace {{count}} días",
+    "daysAgo_other": "hace {{count}} días",
+    "inMoment": "en un momento",
+    "inMinutes": "en {{n}} min",
+    "inHours_one": "en {{count}} hora",
+    "inHours_many": "en {{count}} horas",
+    "inHours_other": "en {{count}} horas",
+    "tomorrow": "mañana",
+    "inDays_one": "en {{count}} día",
+    "inDays_many": "en {{count}} días",
+    "inDays_other": "en {{count}} días"
+  },
+  "date": {
+    "monthDay": "{{day}} {{month}}",
+    "monthDayYear": "{{day}} {{month}} {{year}}",
+    "months": {
+      "jan": "ene",
+      "feb": "feb",
+      "mar": "mar",
+      "apr": "abr",
+      "may": "may",
+      "jun": "jun",
+      "jul": "jul",
+      "aug": "ago",
+      "sep": "sept",
+      "oct": "oct",
+      "nov": "nov",
+      "dec": "dic"
+    }
+  },
+  "clock": {
+    "am": "{{time}} a. m.",
+    "pm": "{{time}} p. m."
+  },
+  "languages": {
+    "ara": "Árabe",
+    "bul": "Búlgaro",
+    "cat": "Catalán",
+    "chi": "Chino",
+    "hrv": "Croata",
+    "cze": "Checo",
+    "dan": "Danés",
+    "dut": "Neerlandés",
+    "eng": "Inglés",
+    "fin": "Finés",
+    "fre": "Francés",
+    "ger": "Alemán",
+    "gre": "Griego",
+    "heb": "Hebreo",
+    "hin": "Hindi",
+    "hun": "Húngaro",
+    "ind": "Indonesio",
+    "ita": "Italiano",
+    "jpn": "Japonés",
+    "kor": "Coreano",
+    "nor": "Noruego",
+    "per": "Persa",
+    "pol": "Polaco",
+    "por": "Portugués",
+    "rum": "Rumano",
+    "rus": "Ruso",
+    "srp": "Serbio",
+    "slo": "Eslovaco",
+    "spa": "Español",
+    "swe": "Sueco",
+    "tha": "Tailandés",
+    "tur": "Turco",
+    "ukr": "Ucraniano",
+    "vie": "Vietnamita"
+  }
+}

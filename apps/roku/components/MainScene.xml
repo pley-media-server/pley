@@ -50,6 +50,7 @@
         <field id="liveTv" type="boolean" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/MainScene.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />

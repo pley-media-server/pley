@@ -25,6 +25,7 @@
         <field id="playerCommand" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/LivePlayerScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Http.brs" />

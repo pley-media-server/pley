@@ -16,6 +16,7 @@
         <field id="requestsChanged" type="assocarray" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/RequestTitleScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/RequestActions.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />

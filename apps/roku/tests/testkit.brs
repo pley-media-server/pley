@@ -11,6 +11,9 @@ end function
 sub tkRun(name as string, test as function)
     state = tkState()
     state.errors = []
+    ' Each test starts in English, with the package's words.
+    i18nUse("en")
+    GetGlobalAA().i18nCache = invalid
     try
         test()
     catch e

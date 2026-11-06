@@ -8,6 +8,7 @@
         <field id="gridHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/ProfileTile.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="ring" translation="[-8, -8]" width="236" height="236" color="0xEBEBEBFF" visible="false" />
         <Rectangle id="face" width="220" height="220" color="0x2E3440FF" />

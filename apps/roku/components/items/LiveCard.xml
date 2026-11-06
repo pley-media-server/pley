@@ -13,6 +13,7 @@
         <field id="gridHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/LiveCard.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="frame" color="0x262B35FF" />
         <Rectangle id="plate" color="0x2E3440FF" />

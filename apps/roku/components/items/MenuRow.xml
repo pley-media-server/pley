@@ -9,6 +9,7 @@
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/MenuRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Poster id="focus" width="300" height="72" uri="pkg:/images/button-focus.9.png" visible="false" />
         <Label id="name" translation="[24, 0]" width="252" height="72" vertAlign="center" color="0xEBEBEBFF" font="font:MediumSystemFont" />

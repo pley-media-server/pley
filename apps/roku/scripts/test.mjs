@@ -1,7 +1,8 @@
 // Runs the unit tests of the app's plain BrightScript (components/lib) on
 // this computer with brs-node, lvcabral's BrightScript engine: no Roku and
 // no SceneGraph. Every `sub test_…()` in tests/*.test.brs is a test; this
-// script writes the Main that runs them all, then reads the results.
+// script writes the Main that runs them all, then reads the results. The
+// catalogs of words are checked first (scripts/locales.mjs).
 //
 //   node scripts/test.mjs            failures and the count
 //   node scripts/test.mjs --verbose  every test
@@ -10,12 +11,17 @@ import { createRequire } from "node:module";
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkLocales } from "./locales.mjs";
 
 const require = createRequire(import.meta.url);
 const brs = require("brs-node");
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const verbose = process.argv.includes("--verbose");
+
+const wordProblems = checkLocales(root);
+for (const problem of wordProblems) console.log(`words: ${problem}`);
+console.log(`words: ${wordProblems.length === 0 ? "every language has every word" : `${wordProblems.length} problems`}`);
 
 const brsFiles = (dir) =>
   readdirSync(join(root, dir))
@@ -58,8 +64,14 @@ files.set("source/run.brs", new Blob([main]));
 // The rules every TV app shares (packages/tv/test/fixtures), which the
 // tests read as pkg:/fixtures/<name>.json.
 const fixtures = join(root, "../../packages/tv/test/fixtures");
-for (const name of ["remote.json"]) {
+for (const name of ["remote.json", "language.json"]) {
   files.set(`fixtures/${name}`, new Blob([readFileSync(join(fixtures, name))]));
+}
+// The words, as the package has them (pkg:/locales/<language>/<area>.json).
+for (const language of readdirSync(join(root, "locales"))) {
+  for (const name of readdirSync(join(root, "locales", language)).filter((n) => n.endsWith(".json"))) {
+    files.set(`locales/${language}/${name}`, new Blob([readFileSync(join(root, "locales", language, name))]));
+  }
 }
 files.set("manifest", new Blob([readFileSync(join(root, "manifest"))]));
 
@@ -100,4 +112,4 @@ if (summary === null) {
   process.exit(1);
 }
 console.log(summary);
-process.exit(failed ? 1 : 0);
+process.exit(failed || wordProblems.length > 0 ? 1 : 0);

@@ -1,0 +1,25 @@
+{
+  "actions": {
+    "ok": "OK",
+    "cancel": "Cancel",
+    "close": "Close",
+    "back": "Back",
+    "tryAgain": "Try again",
+    "retry": "Retry",
+    "save": "Save",
+    "delete": "Delete",
+    "done": "Done",
+    "open": "Open",
+    "play": "Play",
+    "resume": "Resume",
+    "remove": "Remove",
+    "seeAll": "See all",
+    "more": "More"
+  },
+  "states": {
+    "loading": "Loading…",
+    "saved": "Saved.",
+    "on": "On",
+    "off": "Off"
+  }
+}

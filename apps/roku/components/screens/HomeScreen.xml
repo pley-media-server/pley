@@ -20,6 +20,7 @@
         <field id="requestSummary" type="assocarray" onChange="onRequestSummary" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/screens/HomeScreen.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Ui.brs" />
     <script type="text/brightscript" uri="pkg:/components/shared/Titles.brs" />
     <script type="text/brightscript" uri="pkg:/components/lib/Url.brs" />

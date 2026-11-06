@@ -11,6 +11,7 @@
         <field id="listHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/LiveChannelRow.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="back" color="0x16191E00" />
         <Rectangle id="mark" color="0x38BDF8FF" width="6" visible="false" />

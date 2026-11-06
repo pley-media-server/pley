@@ -16,6 +16,7 @@
         <field id="gridHasFocus" type="boolean" value="true" onChange="onFocus" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/Tile.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <Rectangle id="frame" color="0x262B35FF" />
         <Label id="fallback" color="0xA1A9B6FF" horizAlign="center" vertAlign="center" wrap="true" maxLines="4" font="font:SmallestBoldSystemFont" />

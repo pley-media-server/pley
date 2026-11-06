@@ -1,0 +1,25 @@
+{
+  "actions": {
+    "ok": "OK",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "back": "Retour",
+    "tryAgain": "Réessayer",
+    "retry": "Réessayer",
+    "save": "Enregistrer",
+    "delete": "Supprimer",
+    "done": "Terminé",
+    "open": "Ouvrir",
+    "play": "Lire",
+    "resume": "Reprendre",
+    "remove": "Retirer",
+    "seeAll": "Tout voir",
+    "more": "Plus"
+  },
+  "states": {
+    "loading": "Chargement…",
+    "saved": "Enregistré.",
+    "on": "Activé",
+    "off": "Désactivé"
+  }
+}

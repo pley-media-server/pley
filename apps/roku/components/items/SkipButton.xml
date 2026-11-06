@@ -10,6 +10,7 @@
         <field id="playKey" type="string" alwaysNotify="true" />
     </interface>
     <script type="text/brightscript" uri="pkg:/components/items/SkipButton.brs" />
+    <script type="text/brightscript" uri="pkg:/components/lib/I18n.brs" />
     <children>
         <!-- Quiet over the picture: dark and see-through inside a light
              outline, which it always has, holding the focus while it shows. -->
