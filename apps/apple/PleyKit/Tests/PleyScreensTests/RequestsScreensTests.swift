@@ -483,6 +483,10 @@ private func object(_ data: Data?) -> [String: Any]? {
         server.setRequestsUnseen(1)
         let app = try await ready(server)
         app.shell.dismissToast()
+        // The event stream connecting reads the summary again: that read comes first, so a busy machine
+        // doesn't put it in the wait below.
+        #expect(await eventually { server.openEventStreams == 1 })
+        #expect(await eventually { server.requests("/api/requests/summary").count == 2 })
         server.delay(path: "/api/requests/seen", ms: 1500, method: "POST")
         let model = RequestsListModel(app: app)
         await model.load()
