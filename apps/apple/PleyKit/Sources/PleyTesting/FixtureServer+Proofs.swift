@@ -81,6 +81,7 @@ extension FixtureServer {
               var info = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
         else { return notFound(request.path) }
         info["id"] = serverId
+        if let language = s.account.serverLanguage { info["language"] = language }
         let challenge = request.query["challenge"]
         let proofId = request.query["proof_id"]
         if challenge == nil && proofId == nil { return json(200, info) }

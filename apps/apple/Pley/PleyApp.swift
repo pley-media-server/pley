@@ -45,10 +45,10 @@ struct PleyApp: App {
         #if os(macOS)
         // Settings (⌘,): Playback, Subtitles and Browsing.
         Settings {
-            MacSettingsView(app: app)
+            InLanguage(app: app) { MacSettingsView(app: app) }
         }
         // About Pley, in place of the standard panel.
-        AboutWindow()
+        AboutWindow(app: app)
         // Music's Now Playing, a window of its own (⌥⌘P).
         NowPlayingWindow(app: app)
         #endif
@@ -57,12 +57,14 @@ struct PleyApp: App {
         // The player, in a window of its own per playback.
         WindowGroup("Player", id: PlayerWindow.id, for: PlayRequest.self) { $request in
             PlayerWindow(app: app, request: request)
+                .environment(\.locale, app.locale)
         }
         .defaultSize(width: 960, height: 540)
         .restorationBehavior(.disabled)
         // Live TV's player, a window of its own too.
         WindowGroup("Live TV", id: LiveWindow.id, for: LiveRequest.self) { $request in
             LiveWindow(app: app, request: request)
+                .environment(\.locale, app.locale)
         }
         .defaultSize(width: 960, height: 540)
         .restorationBehavior(.disabled)
@@ -108,6 +110,9 @@ struct RootView: View {
         root
             // Another root starts again.
             .id(app.root)
+            // Another language too, so the words made in code change with
+            // it (docs/APPLE.md, "Languages"); the player and its covers stay.
+            .id(app.language)
         #if os(iOS)
         // Picture in Picture puts the player away and keeps the playback.
         .fullScreenCover(item: Binding(get: { app.playerShown },
@@ -135,6 +140,8 @@ struct RootView: View {
         .onValueChange(of: scenePhase) { phase in
             app.sceneActive(phase != .background)
         }
+        // SwiftUI looks the words up in the language shown.
+        .environment(\.locale, app.locale)
         #if os(macOS)
         // What a cast from another device plays opens as a page's Play opens it.
         .onValueChange(of: app.castOpening) { opening in
@@ -157,8 +164,10 @@ struct RootView: View {
         case .servers:
             NavigationStack(path: $app.signingIn) {
                 ServersView(app: app)
+                    .languageGlobe(app)
                     .navigationDestination(for: ServerEntry.self) { entry in
                         SignInView(app: app, entry: entry)
+                            .languageGlobe(app)
                             .toolbar {
                                 // Signing in again (for requests): Cancel goes back to the app as it was.
                                 if app.user != nil && app.server?.origin == entry.origin {

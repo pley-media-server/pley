@@ -9,8 +9,8 @@ import UIKit
 import AppKit
 #endif
 
-/// Settings on iPhone and iPad, from Me: Playback, Subtitles, Browsing,
-/// Sign-in, then Diagnostics and About. Each change is kept at once.
+/// Settings on iPhone and iPad, from Me: Language, Playback, Subtitles,
+/// Browsing, Sign-in, then Diagnostics and About. Each change is kept at once.
 struct SettingsView: View {
     @StateObject private var model: SettingsModel
 
@@ -20,6 +20,7 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            SettingsSections.LanguageRow(app: model.app)
             SettingsSections.Playback(model: model)
             SettingsSections.Subtitles(model: model)
             SettingsSections.Browsing(model: model)
@@ -43,7 +44,8 @@ struct SettingsView: View {
 }
 
 #if os(macOS)
-/// The Mac's Settings window (⌘,): Playback, Subtitles, Browsing and Downloads tabs.
+/// The Mac's Settings window (⌘,): General (the account's language), Playback, Subtitles, Browsing and
+/// Downloads tabs.
 struct MacSettingsView: View {
     @StateObject private var model: SettingsModel
     @StateObject private var downloads: DownloadsModel
@@ -55,6 +57,9 @@ struct MacSettingsView: View {
 
     var body: some View {
         TabView {
+            Form { SettingsSections.LanguageRow(app: model.app) }
+                .formStyle(.grouped)
+                .tabItem { Label("General", systemImage: "gearshape") }
             Form { SettingsSections.Playback(model: model) }
                 .formStyle(.grouped)
                 .tabItem { Label("Playback", systemImage: "play.rectangle") }
@@ -85,6 +90,30 @@ enum SettingsSections {
         #else
         false
         #endif
+    }
+
+    /// The account's language: Automatic (each device's), or one of its own,
+    /// for every device it signs in on. Saved on the server at once.
+    struct LanguageRow: View {
+        @ObservedObject var app: AppModel
+
+        var body: some View {
+            Section {
+                Picker("Language", selection: Binding(get: { Language.of(app.user?.language) },
+                                                      set: { choice in Task { await app.setAccountLanguage(choice) } })) {
+                    ForEach(AppModel.languageChoices(automatic: app.automaticLanguage)) { choice in
+                        Text(verbatim: choice.label).tag(choice.value)
+                    }
+                }
+                .disabled(app.user == nil)
+                .accessibilityIdentifier("settings.language")
+            } footer: {
+                Text("""
+                     What Pley is in for you, on every device you sign in on. \
+                     Automatic follows each device's language.
+                     """)
+            }
+        }
     }
 
     struct Playback: View {

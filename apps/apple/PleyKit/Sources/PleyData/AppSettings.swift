@@ -1,5 +1,6 @@
 import CoreText
 import Foundation
+import PleyModel
 
 /// This device's own settings, kept in `UserDefaults` under `pley.settings.*`
 /// (the quality under the `pley.quality.*` keys the player has always
@@ -27,6 +28,24 @@ public final class AppSettings: @unchecked Sendable {
     public var lastSection: String? {
         get { defaults.string(forKey: Self.prefix + "section") }
         set { set(newValue, for: "section") }
+    }
+
+    // MARK: Language
+
+    /// The language picked on this device before signing in (the globe of
+    /// the servers and sign-in); `nil`: Automatic, the device's own. It
+    /// comes before the device's languages, and an account's Automatic
+    /// means it.
+    public var pickedLanguage: Language? {
+        get { Language.of(defaults.string(forKey: Self.prefix + "pickedLanguage")) }
+        set { set(newValue?.code, for: "pickedLanguage") }
+    }
+
+    /// The language the app showed last: the next start shows it at once,
+    /// before the server has said which one.
+    public var lastLanguage: Language? {
+        get { Language.of(defaults.string(forKey: Self.prefix + "lastLanguage")) }
+        set { set(newValue?.code, for: "lastLanguage") }
     }
 
     // MARK: Playback

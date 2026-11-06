@@ -1,0 +1,23 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Automatic (%@)" : {
+      "comment" : "The Language row and the globe: Automatic, and the language it stands for, named in itself.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automático (%@)"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatique (%@)"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

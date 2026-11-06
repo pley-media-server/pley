@@ -125,11 +125,14 @@ struct MacCommands: Commands {
 /// About Pley: a window of its own, in place of the standard panel.
 struct AboutWindow: Scene {
     static let id = "about"
+    let app: AppModel
 
     var body: some Scene {
         Window("About Pley", id: Self.id) {
-            AboutView()
-                .frame(minWidth: 420, idealWidth: 460, minHeight: 300, idealHeight: 320)
+            InLanguage(app: app) {
+                AboutView()
+                    .frame(minWidth: 420, idealWidth: 460, minHeight: 300, idealHeight: 320)
+            }
         }
         .windowResizability(.contentSize)
         .restorationBehavior(.disabled)

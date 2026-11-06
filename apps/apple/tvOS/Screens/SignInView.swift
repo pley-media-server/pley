@@ -51,6 +51,12 @@ struct SignInView: View {
             .frame(maxWidth: 900, alignment: .leading)
         }
         .padding(80)
+        // The globe at the top right, on the title's line, while no account is signed in.
+        .overlay(alignment: .topTrailing) {
+            LanguageGlobe(app: app)
+                .padding(.top, 40)
+                .padding(.trailing, 80)
+        }
         .defaultFocus($focus, .cancel)
         .onExitCommand(perform: again ? { cancel() } : nil)
         .onAppear { model.signInWithCode() }

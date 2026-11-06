@@ -132,7 +132,7 @@ public final class TopShelfWriter: ObservableObject {
                 made.append(entry)
             }
             guard let self, !Task.isCancelled, mine == self.asked else { return }
-            let snapshot = ShelfSnapshot(owner: owner, entries: made)
+            let snapshot = ShelfSnapshot(owner: owner, entries: made, language: ShownLanguage.language.code)
             guard snapshot != self.shown || !fresh.isEmpty else { return }
             self.shown = snapshot
             let changed = self.changed

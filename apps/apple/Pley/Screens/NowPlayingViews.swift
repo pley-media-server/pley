@@ -431,8 +431,10 @@ struct NowPlayingWindow: Scene {
 
     var body: some Scene {
         Window("Now Playing", id: Self.id) {
-            NowPlayingView(app: app)
-                .frame(minWidth: 360, idealWidth: 420, minHeight: 520, idealHeight: 720)
+            InLanguage(app: app) {
+                NowPlayingView(app: app)
+                    .frame(minWidth: 360, idealWidth: 420, minHeight: 520, idealHeight: 720)
+            }
         }
         .keyboardShortcut("p", modifiers: [.command, .option])
         .defaultSize(width: 420, height: 720)

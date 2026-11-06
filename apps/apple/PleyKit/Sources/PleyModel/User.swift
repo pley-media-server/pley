@@ -31,6 +31,9 @@ public struct User: Codable, Hashable, Sendable, Identifiable {
     public var subtitleLanguage: String?
     /// `off`, `forced`, `foreign` or `always`.
     public var subtitleMode: String?
+    /// The language the profile sees Pley in ("en", "fr", "es"); `nil`:
+    /// Automatic, each device's (docs/API.md, "Language").
+    public var language: String?
     public var hasPassword: Bool
     public var twoStep: Bool
     /// What the app was allowed, separated by spaces (`library play`);
@@ -78,6 +81,7 @@ public struct User: Codable, Hashable, Sendable, Identifiable {
         audioLanguage = try c.decodeIfPresent(String.self, forKey: .audioLanguage)
         subtitleLanguage = try c.decodeIfPresent(String.self, forKey: .subtitleLanguage)
         subtitleMode = try c.decodeIfPresent(String.self, forKey: .subtitleMode)
+        language = try c.decodeIfPresent(String.self, forKey: .language)
         hasPassword = try c.value(.hasPassword, or: false)
         twoStep = try c.value(.twoStep, or: false)
         scope = try c.decodeIfPresent(String.self, forKey: .scope)

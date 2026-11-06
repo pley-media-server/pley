@@ -5,7 +5,8 @@ import PleyModel
 /// fixture's results, keeping those whose title or name holds what was
 /// asked; the history is 40 plays made from the fixture's three, newest
 /// first, which a test can page through and remove; track defaults are
-/// kept per profile and `GET /api/auth/me` says them.
+/// kept per profile and `GET /api/auth/me` says them, as it says each
+/// profile's language.
 extension FixtureServer {
     struct Account {
         /// `nil` until first asked for: then 40 plays, as (id, JSON).
@@ -16,6 +17,12 @@ extension FixtureServer {
         var trackDefaultsRefusal: Int?
         /// What each profile set: audio language, subtitle language, mode.
         var trackDefaults: [Int: (audio: String?, subtitles: String?, mode: String)] = [:]
+        /// Each profile's language (`PUT /api/me/language`); `nil`: Automatic.
+        var languages: [Int: String] = [:]
+        /// `PUT /api/me/language` answers this status from now on.
+        var languageRefusal: Int?
+        /// The server language `GET /api/server` says; `nil`: none chosen.
+        var serverLanguage: String?
     }
 
     /// How many plays the fixture's history holds at first.
@@ -36,6 +43,26 @@ extension FixtureServer {
     /// `PUT /api/me/track-defaults` answers this status from now on (`nil`: normally).
     public func refuseTrackDefaults(status: Int?) {
         state.withLock { $0.account.trackDefaultsRefusal = status }
+    }
+
+    /// `PUT /api/me/language` answers this status from now on (`nil`: normally).
+    public func refuseLanguage(status: Int?) {
+        state.withLock { $0.account.languageRefusal = status }
+    }
+
+    /// Sets profile `id`'s language, as another device would (`nil`: Automatic).
+    public func setLanguage(_ language: String?, profile id: Int) {
+        state.withLock { $0.account.languages[id] = language }
+    }
+
+    /// Profile `id`'s language now; `nil`: Automatic.
+    public func language(profile id: Int) -> String? {
+        state.withLock { $0.account.languages[id] }
+    }
+
+    /// The server language `GET /api/server` says from now on; `nil`: none chosen.
+    public func setServerLanguage(_ language: String?) {
+        state.withLock { $0.account.serverLanguage = language }
     }
 
     /// The history's entry ids now, newest first.
@@ -101,14 +128,33 @@ extension FixtureServer {
                 return json(200, withTrackDefaults(s, me(profile: access.profile, scope: access.scope),
                                                    profile: access.profile))
             }
+        case ("PUT", 3, "me") where parts[2] == "language":
+            return withToken(&s, request, scope: "play") { s, access in
+                if let status = s.account.languageRefusal {
+                    return json(status, ["code": "refused", "message": "not now"])
+                }
+                let body = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
+                guard body.keys.contains("language") else {
+                    return json(400, ["code": "bad_request", "message": "language is missing"])
+                }
+                let language = body["language"] as? String
+                if let language, !["en", "fr", "es"].contains(language) {
+                    return json(400, ["code": "bad_request", "message": "an unknown language"])
+                }
+                s.account.languages[access.profile] = language
+                return json(200, withTrackDefaults(s, me(profile: access.profile, scope: access.scope),
+                                                   profile: access.profile))
+            }
         default:
             return nil
         }
     }
 
-    /// `user` with the track defaults its profile set here.
+    /// `user` with the track defaults and the language its profile set here.
     static func withTrackDefaults(_ s: State, _ user: Any, profile: Int) -> Any {
-        guard var user = user as? [String: Any], let set = s.account.trackDefaults[profile] else { return user }
+        guard var user = user as? [String: Any] else { return user }
+        user["language"] = s.account.languages[profile] ?? NSNull()
+        guard let set = s.account.trackDefaults[profile] else { return user }
         user["audio_language"] = set.audio ?? NSNull()
         user["subtitle_language"] = set.subtitles ?? NSNull()
         user["subtitle_mode"] = set.mode

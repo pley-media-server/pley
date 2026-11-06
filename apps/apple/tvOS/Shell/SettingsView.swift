@@ -5,7 +5,7 @@ import SwiftUI
 
 /// Settings on Apple TV, which holds what Me holds on the other devices:
 /// the profile signed in and its server, Switch profile, History, Servers
-/// and Sign out, the profile's audio and subtitle defaults; then this
+/// and Sign out, the profile's language and its audio and subtitle defaults; then this
 /// device's settings (Playback, Subtitles, Browsing, Always start as),
 /// Diagnostics and About. Each row opens its choices; a change is kept at
 /// once.
@@ -48,6 +48,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 48) {
                     account
+                    language
                     trackDefaults
                     playback
                     subtitles
@@ -88,6 +89,22 @@ struct SettingsView: View {
                 .accessibilityIdentifier("me.signOut")
         }
         .focusSection()
+    }
+
+    /// The account's language: Automatic (each device's), or one of its own,
+    /// for every device it signs in on. Saved on the server at once.
+    private var language: some View {
+        let chosen = Language.of(app.user?.language)
+        let choices = AppModel.languageChoices(automatic: app.automaticLanguage)
+        return SettingsGroup(title: localized("Language"),
+                             note: localized("""
+                                 What Pley is in for you, on every device you sign in on. \
+                                 Automatic follows each device's language.
+                                 """)) {
+            SettingRow(title: localized("Language"),
+                       value: choices.first { $0.value == chosen }?.label ?? "", id: "settings.language",
+                       choices: choices, selected: chosen) { choice in Task { await app.setAccountLanguage(choice) } }
+        }
     }
 
     private var trackDefaults: some View {

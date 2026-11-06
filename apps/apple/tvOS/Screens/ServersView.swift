@@ -55,13 +55,18 @@ struct ServersView: View {
                         }
                     }
                 }
-                Button {
-                    model.error = nil
-                    adding = true
-                } label: {
-                    Label("Add a server", systemImage: "plus")
+                HStack(alignment: .center) {
+                    Button {
+                        model.error = nil
+                        adding = true
+                    } label: {
+                        Label("Add a server", systemImage: "plus")
+                    }
+                    .accessibilityIdentifier("servers.add")
+                    Spacer()
+                    // On the last line, at its end: Down reaches it, Left and Right don't wander off to it.
+                    LanguageGlobe(app: app)
                 }
-                .accessibilityIdentifier("servers.add")
                 .focusSection()
             }
             .padding(.horizontal, 80)

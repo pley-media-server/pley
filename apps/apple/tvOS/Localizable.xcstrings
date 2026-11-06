@@ -1,0 +1,57 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Choose a language" : {
+      "comment" : "The globe before signing in, as screen readers hear it, and its menu.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elegir un idioma"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choisir une langue"
+          }
+        }
+      }
+    },
+    "Language" : {
+      "comment" : "Settings: the account's language row.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idioma"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Langue"
+          }
+        }
+      }
+    },
+    "What Pley is in for you, on every device you sign in on. Automatic follows each device's language." : {
+      "comment" : "Settings: under the Language row.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El idioma de Pley para ti, en todos los dispositivos en los que inicies sesión. Automático sigue el idioma de cada dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La langue de Pley pour vous, sur tous les appareils où vous vous connectez. Automatique suit la langue de chaque appareil."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}
