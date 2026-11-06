@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -149,7 +150,10 @@ internal fun TvLinkContent(
     val newCode = remember { FocusRequester() }
     val back = remember { FocusRequester() }
     val needsNewCode = status == LinkStatus.Declined || status == LinkStatus.Expired
-    LaunchedEffect(needsNewCode) {
+    // Asked again once the window has focus: asked before, on a cold start, it is lost, and the
+    // window's own first focus goes wherever Compose enters the screen.
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(needsNewCode, windowFocused) {
         if (needsNewCode) runCatching { newCode.requestFocus() } else runCatching { back.requestFocus() }
     }
     Box(Modifier.fillMaxSize().brandGlow().testTag(LINK_TAG)) {
@@ -233,7 +237,8 @@ internal fun TvLinkContent(
             )
         }
         if (language != null && status !is LinkStatus.SignedIn) {
-            TvLanguageButton(picker, language, Modifier.align(Alignment.TopEnd).padding(top = 27.dp, end = 48.dp))
+            // Centred on the logo's line (40 dp tall from 56), "FR" at the screen's right edge.
+            TvLanguageButton(picker, language, Modifier.align(Alignment.TopEnd).padding(top = 60.dp, end = 48.dp - GLOBE_PADDING))
         }
         if (language != null) TvLanguagePanel(picker, language, onLanguage)
     }

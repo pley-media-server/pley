@@ -46,6 +46,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -186,7 +187,10 @@ internal fun TvServersContent(
     var touched by remember { mutableStateOf(false) }
     val rows = state.rows
     // D-pad rule 1: focus on the first server; "Enter an address" until one shows, or when none does.
-    LaunchedEffect(rows.isNotEmpty(), state.searched) {
+    // Asked again once the window has focus: asked before, on a cold start, it is lost, and the
+    // window's own first focus goes wherever Compose enters the screen.
+    val windowFocused = LocalWindowInfo.current.isWindowFocused
+    LaunchedEffect(rows.isNotEmpty(), state.searched, windowFocused) {
         if (touched) return@LaunchedEffect
         if (rows.isNotEmpty()) runCatching { firstRow.requestFocus() } else runCatching { enterAddress.requestFocus() }
     }
@@ -207,9 +211,8 @@ internal fun TvServersContent(
                     style = PleyType.Tv.PageTitle.copy(color = PleyColors.Fg),
                     modifier = Modifier.weight(1f),
                 )
-                TvLanguageButton(picker, language)
-                Spacer(Modifier.width(24.dp))
-                PleyLogo(height = 32.dp)
+                // As tall as on the code screen.
+                PleyLogo(height = 40.dp)
             }
             Spacer(Modifier.height(25.dp))
             LazyColumn(
@@ -266,6 +269,8 @@ internal fun TvServersContent(
                 BasicText(stringResource(R.string.tv_onboarding_forget_hint), style = PleyType.Tv.Caption.copy(color = PleyColors.Subtle))
             }
         }
+        // "FR" at the screen's right edge, centred on the forget hint's line (Caption, 27 from the bottom).
+        TvLanguageButton(picker, language, Modifier.align(Alignment.BottomEnd).padding(end = 48.dp - GLOBE_PADDING, bottom = 20.dp))
         TvLanguagePanel(picker, language, onLanguage)
     }
     forgetting?.let { row ->

@@ -329,7 +329,7 @@ internal fun PhoneSignInContent(
                         withoutBrowser -> onUseCode
                         else -> onContinue
                     },
-                    icon = if (withoutBrowser) null else BrowserIcon,
+                    trailingIcon = if (withoutBrowser) null else BrowserIcon,
                     enabled = (state.selected != null || typed) && !busy && !state.checkingAddress,
                     modifier = Modifier.fillMaxWidth().testTag(CONTINUE_TAG),
                 )
@@ -478,7 +478,7 @@ private fun SignInStatus(signIn: BrowserSignIn, state: ServersUiState, onRetry: 
             Text(text, style = MaterialTheme.typography.bodyMedium, color = PleyColors.DangerText)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 if (signIn.problem == SignInProblem.TooOld) {
-                    TonalButton(stringResource(R.string.onboarding_open_in_browser), onClick = { onOpenInBrowser(signIn.server) }, icon = BrowserIcon)
+                    TonalButton(stringResource(R.string.onboarding_open_in_browser), onClick = { onOpenInBrowser(signIn.server) }, trailingIcon = BrowserIcon)
                 }
                 TonalButton(stringResource(R.string.onboarding_retry), onClick = onRetry, icon = PleyIcons.RefreshCw)
             }

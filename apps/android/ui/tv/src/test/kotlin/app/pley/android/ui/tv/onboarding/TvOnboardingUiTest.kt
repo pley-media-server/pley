@@ -328,7 +328,7 @@ class TvOnboardingUiTest {
         }
         compose.waitForIdle()
         compose.onNodeWithTag(SERVER_ROW_TAG + nas.url).assertIsFocused()
-        // Down past the buttons to the bottom left.
+        // Down past the buttons to the bottom right.
         compose.press(Key.DirectionDown)
         compose.press(Key.DirectionDown)
         compose.onNodeWithTag(LANGUAGE_TAG).assertIsFocused().assertContentDescriptionEquals("Choose a language")
@@ -343,7 +343,7 @@ class TvOnboardingUiTest {
     }
 
     @Test
-    fun downFromChangeServerTheGlobeOnTheCodeScreen() {
+    fun upFromChangeServerTheGlobeOnTheCodeScreen() {
         compose.setContent {
             TvTheme(reducedMotion = true) {
                 TvLinkContent(
@@ -357,7 +357,7 @@ class TvOnboardingUiTest {
         }
         compose.waitForIdle()
         compose.onNodeWithTag(BACK_TAG).assertIsFocused()
-        compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionUp)
         compose.onNodeWithTag(LANGUAGE_TAG).assertIsFocused()
         compose.onNodeWithText("FR").assertExists()
     }
