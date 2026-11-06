@@ -1,9 +1,9 @@
 // Checks the app's words (locales/<language>/<area>.json) and the code that
 // names them, as the other apps' tests check theirs: every language has
 // English's areas and keys, every plural form it counts in and the same
-// {{values}}; French and Spanish keep their punctuation; and every key the
-// code names with t("…") is in English. scripts/test.mjs runs it before the
-// unit tests.
+// {{values}}; French and Spanish keep their punctuation; every key the
+// code names with t("…") is in English, and every English word is named
+// by the code. scripts/test.mjs runs it before the unit tests.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
@@ -132,12 +132,14 @@ export function checkLocales(root) {
   // Every key the code names whole: t("area.key") or t("area.key", { … }).
   const named = /\bt\(\s*"([^"]+)"\s*[,)]/g;
   let found = 0;
+  let code = "";
   for (const file of files(join(root, "components"), (n) => n.endsWith(".brs"))) {
     // Comments name keys too, as examples.
     const source = readFileSync(file, "utf8")
       .split("\n")
       .filter((line) => !line.trimStart().startsWith("'"))
       .join("\n");
+    code += source + "\n";
     for (const m of source.matchAll(named)) {
       found++;
       const key = m[1];
@@ -150,5 +152,18 @@ export function checkLocales(root) {
     }
   }
   if (found === 0) problems.push("no t(\"…\") found in components/");
+
+  // And every English word is shown somewhere: its key is in the code
+  // whole ("area.key", t()'s or kept for it), or under a prefix the code
+  // builds keys from ("area.sorts." + id). A word nothing shows is left
+  // over from a change.
+  for (const [area, words] of Object.entries(english)) {
+    for (const key of Object.keys(words)) {
+      const parts = `${area}.${key.replace(PLURAL, "")}`.split(".");
+      let shown = code.includes(`"${parts.join(".")}"`);
+      for (let i = parts.length - 1; i >= 1 && !shown; i--) shown = code.includes(`"${parts.slice(0, i).join(".")}."`);
+      if (!shown) problems.push(`en/${area}: ${key} isn't shown anywhere`);
+    }
+  }
   return problems;
 }
