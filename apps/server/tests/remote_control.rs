@@ -1440,7 +1440,7 @@ async fn a_cast_to_another_profiles_receiver_carries_a_ticket_it_switches_with_o
 
     // A ticket shown by another device is spent, and the device it was for
     // can't use it after: someone copied it. (Another receiver id: the first
-    // sign-in's stream may still hold tv-1.)
+    // sign-in's stream is still listed as tv-1.)
     let mut tv = stream(&w, &viewer_again, "receiver=tv-2&casts=item,switch").await;
     cast(&w, &w.other, "tv-2", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
     let ticket = heard_cast(&mut tv).await["switch_ticket"].as_str().unwrap().to_owned();
@@ -1457,39 +1457,79 @@ async fn a_cast_to_another_profiles_receiver_carries_a_ticket_it_switches_with_o
     assert_eq!(wrong.body["code"], json!("ticket_spent"));
 }
 
+/// A TV's event stream as its app opens it: a receiver that switches.
+const TV: &str = "receiver=tv-1&device_name=Living%20room%20TV&device_kind=tv&casts=item,switch";
+
+/// The devices `token`'s household list shows under receiver `id`, by
+/// `device_id`.
+async fn listed_as(w: &World, token: &str, id: &str) -> Vec<Value> {
+    let listed = household(w, token).await;
+    listed.as_array().unwrap().iter().filter(|d| d["receiver_id"] == id).map(|d| d["device_id"].clone()).collect()
+}
+
 #[tokio::test]
-async fn a_device_back_with_a_new_token_takes_its_receiver_id_once_its_old_stream_goes() {
+async fn a_device_back_with_a_new_token_is_listed_again() {
     let w = world().await;
     let app = &w.app;
     let other_id = id_of(&w, &w.other).await;
-    let first = stream(&w, &w.viewer, "receiver=tv-1&casts=item,switch").await;
-    let held = household(&w, &w.other).await;
-    let device = |listed: &Value| listed.as_array().unwrap().iter().find(|d| d["receiver_id"] == "tv-1").cloned();
-    let old = device(&held).expect("the TV is listed")["device_id"].clone();
+    let first = stream(&w, &w.viewer, TV).await;
+    let [old] = listed_as(&w, &w.other, "tv-1").await.try_into().unwrap();
     // The TV signed in again, a device of another id to the server, while
-    // its first sign-in's stream still holds tv-1: it isn't the receiver.
+    // its first sign-in's stream lingers: listed at once, beside it, and
+    // cast to as the device it is, without waiting for the old one to go.
     let again = app.login("viewer", "test-pass-1").await;
-    let mut tv = stream(&w, &again, "receiver=tv-1&casts=item,switch").await;
-    assert_eq!(device(&household(&w, &w.other).await).unwrap()["device_id"], old);
-
-    // Once the first stream goes, the new one takes tv-1 without
-    // reconnecting (as it hears of it: read, as a client reads it), and gets
-    // the casts and tickets sent to it.
-    drop(first);
-    let mut now = None;
-    for _ in 0..50 {
-        read_until(&mut tv, "sessions_changed", Duration::from_millis(20)).await;
-        now = device(&household(&w, &w.other).await).map(|d| d["device_id"].clone());
-        if now.as_ref().is_some_and(|id| *id != old) {
-            break;
-        }
-    }
-    assert!(now.is_some_and(|id| id != old), "the new stream took tv-1");
-    let sent = cast(&w, &w.other, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
+    let mut tv = stream(&w, &again, TV).await;
+    let both = listed_as(&w, &w.other, "tv-1").await;
+    assert!(both.len() == 2 && both.contains(&old), "{both:?}");
+    let new = both.into_iter().find(|d| *d != old).unwrap();
+    let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": new});
+    let sent = cast(&w, &w.other, "tv-1", body).await;
     assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
     let ticket = heard_cast(&mut tv).await["switch_ticket"].as_str().unwrap().to_owned();
+    // Once the first stream goes, the new one is listed alone.
+    drop(first);
+    assert_eq!(listed_as(&w, &w.other, "tv-1").await, [new]);
     let switched = app.post("/api/auth/switch", &again, json!({"user_id": other_id, "ticket": ticket})).await;
     assert_eq!(switched.status, StatusCode::OK, "{}", switched.text());
+}
+
+#[tokio::test]
+async fn a_look_alike_never_takes_the_tvs_place_before_or_after_the_tv_drops() {
+    let w = world().await;
+    // The TV's app, and another sign-in of the viewer's (a phone's app)
+    // that names itself after it: the TV's id and name.
+    let (tv_token, _) = w.app.app_token(w.viewer_id, "library play profiles").await;
+    let (phone_token, _) = w.app.app_token(w.viewer_id, "library play profiles").await;
+    let tv = stream(&w, &tv_token, TV).await;
+    let [tv_device] = listed_as(&w, &w.other, "tv-1").await.try_into().unwrap();
+
+    // Before the TV drops: both are listed, under one name, which the apps
+    // number.
+    let copy = stream(&w, &phone_token, TV).await;
+    let both = listed_as(&w, &w.other, "tv-1").await;
+    assert!(both.len() == 2 && both.contains(&tv_device), "{both:?}");
+    let own = devices(&w, &w.viewer).await;
+    let names: Vec<_> = own.as_array().unwrap().iter().map(|d| d["name"].clone()).collect();
+    assert_eq!(names, [json!("Living room TV"), json!("Living room TV")]);
+    // The TV drops (asleep, a network blip) and comes back: listed again.
+    drop(tv);
+    assert!(!listed_as(&w, &w.other, "tv-1").await.contains(&tv_device), "gone with its stream");
+    let tv = stream(&w, &tv_token, TV).await;
+    assert!(listed_as(&w, &w.other, "tv-1").await.contains(&tv_device));
+
+    // After the TV drops: the look-alike opens the id while the TV is away,
+    // and the TV, back, is listed beside it and gets what is cast to it.
+    drop((tv, copy));
+    let mut copy = stream(&w, &phone_token, TV).await;
+    let mut tv = stream(&w, &tv_token, TV).await;
+    let both = listed_as(&w, &w.other, "tv-1").await;
+    assert!(both.len() == 2 && both.contains(&tv_device), "{both:?}");
+    let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": tv_device});
+    let sent = cast(&w, &w.other, "tv-1", body).await;
+    assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    assert!(heard_cast(&mut tv).await["switch_ticket"].is_string());
+    let received = read_until(&mut copy, r#""type":"cast""#, Duration::from_millis(500)).await;
+    assert!(events_of(&received, "cast").is_empty(), "the look-alike hears nothing: {received}");
 }
 
 #[tokio::test]
@@ -1554,19 +1594,22 @@ async fn a_profile_with_a_pin_gives_it_to_cast_to_another_profiles_receiver() {
 }
 
 #[tokio::test]
-async fn another_sign_in_of_the_profile_never_takes_over_a_receiver_nor_its_ticket() {
+async fn a_cast_to_the_tvs_device_reaches_the_tv_alone_and_its_ticket_works_nowhere_else() {
     let w = world().await;
     let app = &w.app;
     let other_id = id_of(&w, &w.other).await;
-    let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item,switch").await;
+    let mut tv = stream(&w, &w.viewer, TV).await;
+    let [tv_device] = listed_as(&w, &w.other, "tv-1").await.try_into().unwrap();
     // A phone of the viewer's (its own sign-in) opens a stream with the TV's
-    // id, as listed to remotes: it isn't a receiver.
+    // id and name, as listed to remotes: a receiver of its own, beside it.
     let phone = app.login("viewer", "test-pass-1").await;
-    let mut taken = stream(&w, &phone, "receiver=tv-1&casts=item,switch").await;
-    let sent = cast(&w, &w.other, "tv-1", json!({"item_id": w.film, "profile_id": w.viewer_id})).await;
+    let mut copy = stream(&w, &phone, TV).await;
+    assert_eq!(listed_as(&w, &w.other, "tv-1").await.len(), 2);
+    let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": tv_device});
+    let sent = cast(&w, &w.other, "tv-1", body).await;
     assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
     let ticket = heard_cast(&mut tv).await["switch_ticket"].as_str().unwrap().to_owned();
-    let received = read_until(&mut taken, r#""type":"cast""#, Duration::from_millis(500)).await;
+    let received = read_until(&mut copy, r#""type":"cast""#, Duration::from_millis(500)).await;
     assert!(events_of(&received, "cast").is_empty(), "the phone hears nothing: {received}");
     // Nor does the ticket work there: it is the TV's.
     let refused = app.post("/api/auth/switch", &phone, json!({"user_id": other_id, "ticket": ticket})).await;
@@ -1743,7 +1786,8 @@ async fn a_cast_goes_to_the_device_listed_or_not_at_all() {
     let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": null});
     let without = w.app.post("/api/remote/devices/tv-1/cast", &w.other, body).await;
     assert_eq!(without.status, StatusCode::BAD_REQUEST, "{}", without.text());
-    // Another device under the id since: as unknown, and nothing reaches it.
+    // A device that isn't there under the id: as unknown, and nothing
+    // reaches the TV.
     let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "device_id": "web-0000000000000000"});
     let elsewhere = cast(&w, &w.other, "tv-1", body).await;
     assert_eq!(elsewhere.status, StatusCode::NOT_FOUND, "{}", elsewhere.text());
