@@ -17,6 +17,9 @@ sub init()
     m.albumsLabel = m.top.findNode("albumsLabel")
     m.albums = m.top.findNode("albums")
     m.message = m.top.findNode("message")
+    m.message.text = t("common.states.loading")
+    m.kindLabel.text = t("titles.music.artist")
+    m.albumsLabel.text = t("titles.music.albums")
     m.started = false
     ' The artist's details once they came; their albums' ids in the
     ' server's order, invalid until they came.
@@ -94,7 +97,7 @@ sub onAlbums(event as object)
     showLine()
     showButtons()
     if answer.data.shown = 0
-        m.message.text = "No albums found."
+        m.message.text = t("titles.music.noAlbums")
         return
     end if
     m.message.visible = false
@@ -133,11 +136,11 @@ sub showButtons()
     labels = []
     if m.albumIds <> invalid and m.albumIds.Count() > 0
         actions.Append(["play", "shuffle"])
-        labels.Append(["Play", "Shuffle"])
+        labels.Append([t("common.actions.play"), t("titles.actions.shuffle")])
     end if
     if m.global.music.state <> "stopped"
         actions.Push("nowPlaying")
-        labels.Push("Now playing")
+        labels.Push(t("titles.actions.nowPlaying"))
     end if
     m.actions = actions
     if FormatJson(labels) <> FormatJson(m.buttons.buttons)
@@ -190,7 +193,7 @@ sub onAlbumTracks(event as object)
     answer = event.getData()
     if not answer.ok
         m.gathering = invalid
-        if not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+        if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
         return
     end if
     gathering.lists[spec.at] = answer.data.queue
@@ -207,7 +210,7 @@ sub onAlbumTracks(event as object)
     ' Left meanwhile: nothing starts behind the screen now on top.
     if not m.top.active then return
     if tracks.Count() = 0
-        uiMessage("Nothing to play", ["It has no tracks."])
+        uiMessage(t("titles.nothingToPlay"), [t("titles.music.noTracksToPlay")])
         return
     end if
     at = 0

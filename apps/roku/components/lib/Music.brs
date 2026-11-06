@@ -59,7 +59,7 @@ function musicDiscRows(tracks as object) as object
     out = []
     for i = 0 to tracks.Count() - 1
         if several and (i = 0 or tracks[i].disc <> tracks[i - 1].disc)
-            out.Push({ title: "Disc " + urlValue(tracks[i].disc), subtitle: "", duration: "", kind: "disc", at: -1 })
+            out.Push({ title: t("titles.music.disc", { number: tracks[i].disc }), subtitle: "", duration: "", kind: "disc", at: -1 })
         end if
         rows[i].at = i
         out.Push(rows[i])
@@ -74,11 +74,7 @@ function musicAlbumLine(album as object, tracks as object) as string
     if artist <> "" then parts.Push(artist)
     year = httpNumber(album.year, 0)
     if year > 0 then parts.Push(urlValue(year))
-    if tracks.Count() = 1
-        parts.Push("1 track")
-    else if tracks.Count() > 1
-        parts.Push(urlValue(tracks.Count()) + " tracks")
-    end if
+    if tracks.Count() > 0 then parts.Push(t("titles.counts.tracks", { count: tracks.Count() }))
     total = 0
     for each track in tracks
         total = total + track.durationMs
@@ -144,17 +140,9 @@ end function
 function musicArtistLine(artist as object, albums as integer) as string
     parts = []
     count = Int(httpNumber(artist.child_count, albums))
-    if count = 1
-        parts.Push("1 album")
-    else if count > 1
-        parts.Push(urlValue(count) + " albums")
-    end if
+    if count > 0 then parts.Push(t("titles.counts.albums", { count: count }))
     tracks = Int(httpNumber(artist.leaf_count, 0))
-    if tracks = 1
-        parts.Push("1 track")
-    else if tracks > 1
-        parts.Push(urlValue(tracks) + " tracks")
-    end if
+    if tracks > 0 then parts.Push(t("titles.counts.tracks", { count: tracks }))
     genres = 0
     for each genre in httpArray(artist.genres)
         name = httpSentence(genre)

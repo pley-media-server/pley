@@ -21,8 +21,8 @@ end function
 
 ' What a crew member did: "Director", "Creator"…; "" for an actor.
 function pageRoleLabel(role as string) as string
-    labels = { creator: "Creator", director: "Director", writer: "Writer", producer: "Producer" }
-    if labels.DoesExist(role) then return labels[role]
+    kind = LCase(role)
+    if kind = "creator" or kind = "director" or kind = "writer" or kind = "producer" then return t("titles.roles." + kind)
     return ""
 end function
 
@@ -32,6 +32,9 @@ end function
 function pageCredits(detail as object, server as string) as object
     tiles = []
     seen = {}
+    ' Each person's roles said already ("9:director"): a role credited
+    ' twice is said once.
+    said = {}
     for each credit in httpArray(detail.cast)
         id = 0
         if GetInterface(credit, "ifAssociativeArray") <> invalid then id = httpNumber(credit.id, 0)
@@ -45,13 +48,15 @@ function pageCredits(detail as object, server as string) as object
         id = 0
         if GetInterface(credit, "ifAssociativeArray") <> invalid then id = httpNumber(credit.id, 0)
         key = urlValue(id)
-        role = pageRoleLabel(httpString(credit.role))
-        if id > 0 and role <> ""
+        kind = LCase(httpString(credit.role))
+        role = pageRoleLabel(kind)
+        if id > 0 and role <> "" and not said.DoesExist(key + ":" + kind)
+            said[key + ":" + kind] = true
             if seen.DoesExist(key)
                 tile = tiles[seen[key]]
                 if tile.subtitle = ""
                     tile.subtitle = role
-                else if Instr(1, tile.subtitle, role) = 0
+                else
                     tile.subtitle = tile.subtitle + ", " + role
                 end if
             else if tiles.Count() < 30
@@ -65,10 +70,12 @@ end function
 
 ' What an extra is: "Trailer", "Behind the scenes"…
 function pageExtraLabel(extraType as dynamic) as string
-    labels = { trailer: "Trailer", featurette: "Featurette", behind_the_scenes: "Behind the scenes", deleted_scene: "Deleted scene", interview: "Interview", scene: "Scene", short: "Short" }
-    kind = httpString(extraType)
-    if labels.DoesExist(kind) then return labels[kind]
-    return "Extra"
+    kind = LCase(httpString(extraType))
+    ' The server's kinds and their words' keys.
+    for each known in [["trailer", "trailer"], ["featurette", "featurette"], ["behind_the_scenes", "behindTheScenes"], ["deleted_scene", "deletedScene"], ["interview", "interview"], ["scene", "scene"], ["short", "short"]]
+        if kind = known[0] then return t("titles.extras." + known[1])
+    end for
+    return t("titles.extras.other")
 end function
 
 ' A title's extras as 16:9 tiles: their name, and what they are.
@@ -92,9 +99,9 @@ end function
 function pageDetailRows(detail as object, server as string) as object
     rows = []
     credits = pageCredits(detail, server)
-    if credits.Count() > 0 then rows.Push({ key: "credits", title: "Cast & crew", wide: false, tiles: credits })
+    if credits.Count() > 0 then rows.Push({ key: "credits", title: t("titles.page.rows.castAndCrew"), wide: false, tiles: credits })
     extras = pageExtras(detail, server)
-    if extras.Count() > 0 then rows.Push({ key: "extras", title: "Extras", wide: true, tiles: extras })
+    if extras.Count() > 0 then rows.Push({ key: "extras", title: t("titles.page.rows.extras"), wide: true, tiles: extras })
     return rows
 end function
 
@@ -106,11 +113,7 @@ function pageCollectionTile(collection as object, server as string) as object
     if image = "" then image = urlImage(server, "/api/collections/" + urlValue(id) + "/images/poster", contentPosterWidth())
     subtitle = ""
     count = httpNumber(collection.item_count, -1)
-    if count = 1
-        subtitle = "1 title"
-    else if count >= 0
-        subtitle = urlValue(count) + " titles"
-    end if
+    if count >= 0 then subtitle = fmtCount(count, "")
     return { title: httpSentence(collection.title), subtitle: subtitle, image: image, wide: false, progress: 0.0, watched: false, itemId: id, kind: "collection" }
 end function
 
@@ -189,9 +192,7 @@ end function
 ' A collection's order in words; "" for one this version doesn't know.
 function pageCollectionOrder(sort as dynamic) as string
     key = httpString(sort)
-    if key = "release" then return "By release date"
-    if key = "title" then return "By title"
-    if key = "custom" then return "Custom order"
+    if key = "release" or key = "title" or key = "custom" then return t("titles.collection.order." + key)
     return ""
 end function
 
@@ -211,45 +212,36 @@ function pageFilterNotes(filter as string) as object
         end if
         key = httpSentence(urlDecode(key))
         value = httpSentence(urlDecode(value))
-        if key = "genre"
-            notes.Push("Genre: " + value)
-        else if key = "label"
-            notes.Push("Label: " + value)
-        else if key = "studio"
-            notes.Push("Studio: " + value)
-        else if key = "contentRating"
-            notes.Push("Rated " + value)
+        off = value = "0" or value = "false"
+        ' The keys whose words say their value ("Genre: Comedy", "From
+        ' 2010"), with their words' keys.
+        worded = ""
+        for each known in [["genre", "genre"], ["label", "label"], ["studio", "studio"], ["contentRating", "rated"], ["year", "year"], ["year>>", "after"], ["year<<", "before"], ["decade", "decade"], ["limit", "limit"]]
+            if key = known[0] then worded = known[1]
+        end for
+        if worded <> ""
+            notes.Push(t("titles.smartFilter." + worded, { value: value }))
         else if key = "unwatched"
-            if value = "0" or value = "false"
-                notes.Push("Watched")
+            if off
+                notes.Push(t("titles.smartFilter.watched"))
             else
-                notes.Push("Unwatched")
+                notes.Push(t("titles.smartFilter.unwatched"))
             end if
         else if key = "inProgress"
-            if value = "0" or value = "false"
-                notes.Push("Not in progress")
+            if off
+                notes.Push(t("titles.smartFilter.notInProgress"))
             else
-                notes.Push("In progress")
+                notes.Push(t("titles.smartFilter.inProgress"))
             end if
-        else if key = "year"
-            notes.Push("From " + value)
-        else if key = "year>>"
-            notes.Push("After " + value)
-        else if key = "year<<"
-            notes.Push("Before " + value)
-        else if key = "decade"
-            notes.Push("The " + value + "s")
         else if key = "resolution" and fmtTokenLabel(fmtResolutions(), value) <> ""
             notes.Push(fmtTokenLabel(fmtResolutions(), value))
         else if key = "dynamicRange" and fmtTokenLabel(fmtDynamicRanges(), value) <> ""
             notes.Push(fmtTokenLabel(fmtDynamicRanges(), value))
         else if key = "sort"
             notes.Push(pageFilterOrder(value))
-        else if key = "limit"
-            notes.Push("At most " + value)
         else if key <> "type" and key <> "includeGuids" and key <> ""
             ' type and includeGuids are plumbing, not part of what is kept.
-            notes.Push(key + ": " + value)
+            notes.Push(t("titles.smartFilter.other", { name: key, value: value }))
         end if
     end for
     return notes
@@ -270,25 +262,17 @@ function pageFilterOrder(sort as string) as string
     end if
     dot = Instr(1, field, ".")
     if dot > 0 then field = Mid(field, dot + 1)
-    notes = [
-        ["titleSort", "By title", "By title, Z to A"],
-        ["year", "Oldest first", "Newest first"],
-        ["originallyAvailableAt", "Earliest release first", "Latest release first"],
-        ["addedAt", "First added first", "Recently added first"],
-        ["rating", "Lowest rated first", "Best rated first"],
-        ["audienceRating", "Lowest rated first", "Best rated first"],
-        ["userRating", "Your lowest rated first", "Your best rated first"],
-        ["lastViewedAt", "Least recently played first", "Recently played first"],
-        ["duration", "Shortest first", "Longest first"],
-        ["viewCount", "Least played first", "Most played first"]
-    ]
-    for each note in notes
-        if note[0] = field
-            if direction = "desc" then return note[2]
-            return note[1]
+    ' The fields and their words' keys: the audience's rating reads as the
+    ' rating.
+    fields = [["titleSort", "titleSort"], ["year", "year"], ["originallyAvailableAt", "originallyAvailableAt"], ["addedAt", "addedAt"], ["rating", "rating"], ["audienceRating", "rating"],
+        ["userRating", "userRating"], ["lastViewedAt", "lastViewedAt"], ["duration", "duration"], ["viewCount", "viewCount"]]
+    for each known in fields
+        if known[0] = field
+            if direction = "desc" then return t("titles.smartFilter.sort." + known[1] + ".desc")
+            return t("titles.smartFilter.sort." + known[1] + ".asc")
         end if
     end for
-    return "Sorted by " + field
+    return t("titles.smartFilter.sortedBy", { name: field })
 end function
 
 ' A show's seasons as poster tiles: "Season 1", and its episodes.
@@ -301,11 +285,7 @@ function pageSeasonTiles(children as dynamic, server as string) as object
             tile.title = seasons[0].title
             episodes = seasons[0].episodes
             tile.subtitle = ""
-            if episodes = 1
-                tile.subtitle = "1 episode"
-            else if episodes > 1
-                tile.subtitle = urlValue(episodes) + " episodes"
-            end if
+            if episodes > 0 then tile.subtitle = t("titles.counts.episodes", { count: Int(episodes) })
             tiles.Push(tile)
         end if
     end for
@@ -343,9 +323,9 @@ function pagePerson(person as object, server as string) as object
     if movies > 0 then counts.Push(fmtCount(movies, "movies"))
     if shows > 0 then counts.Push(fmtCount(shows, "shows"))
     line = ""
-    if counts.Count() > 0 then line = counts.Join(" · ") + " in your libraries"
+    if counts.Count() > 0 then line = t("titles.person.inLibraries", { counts: counts.Join(" · ") })
     rows = []
-    for each row in [["actor", "Acting"], ["director", "Directing"], ["creator", "Creating"], ["writer", "Writing"], ["producer", "Producing"]]
+    for each row in [["actor", "acting"], ["director", "directing"], ["creator", "creating"], ["writer", "writing"], ["producer", "producing"]]
         tiles = []
         for each credit in credits
             roles = []
@@ -361,7 +341,7 @@ function pagePerson(person as object, server as string) as object
                 tiles.Push(tile)
             end if
         end for
-        if tiles.Count() > 0 then rows.Push({ key: row[0], title: row[1], wide: false, tiles: tiles })
+        if tiles.Count() > 0 then rows.Push({ key: row[0], title: t("titles.person.rows." + row[1]), wide: false, tiles: tiles })
     end for
     name = httpSentence(person.name)
     return { name: name, photo: urlImage(server, person.photo_url, pagePhotoWidth()), initials: pageInitials(name), line: line, rows: rows }
@@ -384,21 +364,17 @@ function pageRoleText(roles as object) as string
         if kind = "actor"
             character = httpSentence(role.character)
             if character <> ""
-                text = "as " + character
+                text = t("titles.roles.as", { character: character })
             else if episodes > 0
-                text = "Guest star"
+                text = t("titles.roles.guestStar")
             else
-                text = "Actor"
+                text = t("titles.roles.actor")
             end if
         else
             text = pageRoleLabel(kind)
-            if text = "" then text = "Crew"
+            if text = "" then text = t("titles.roles.crew")
         end if
-        if episodes = 1
-            text = text + " (1 episode)"
-        else if episodes > 1
-            text = text + " (" + urlValue(episodes) + " episodes)"
-        end if
+        if episodes > 0 then text = t("titles.roles.withEpisodes", { role: text, count: episodes })
         parts.Push(text)
     end for
     return parts.Join(", ")
@@ -421,25 +397,25 @@ function pageTileOptions(tile as object, continueWatching as boolean, inList as 
     kind = httpString(tile.kind)
     options = []
     ' Music has no watched marks or My List.
-    if contentMusic(kind) then return [{ label: "Add to playlist", action: "playlist" }]
+    if contentMusic(kind) then return [{ label: t("titles.actions.addToPlaylist"), action: "playlist" }]
     if kind <> "movie" and kind <> "show" and kind <> "season" and kind <> "episode" then return options
     if httpTrue(tile.watched)
-        options.Push({ label: "Mark as unwatched", action: "unwatched" })
+        options.Push({ label: t("titles.actions.markUnwatched"), action: "unwatched" })
     else
-        options.Push({ label: "Mark as watched", action: "watched" })
+        options.Push({ label: t("titles.actions.markWatched"), action: "watched" })
     end if
     if (kind = "movie" or kind = "show") and GetInterface(inList, "ifBoolean") <> invalid
         if inList
-            options.Push({ label: "Remove from My List", action: "listRemove" })
+            options.Push({ label: t("titles.actions.removeFromMyList"), action: "listRemove" })
         else
-            options.Push({ label: "Add to My List", action: "listAdd" })
+            options.Push({ label: t("titles.actions.addToMyList"), action: "listAdd" })
         end if
     end if
-    options.Push({ label: "Add to playlist", action: "playlist" })
-    if continueWatching then options.Push({ label: "Remove from Continue Watching", action: "hide" })
+    options.Push({ label: t("titles.actions.addToPlaylist"), action: "playlist" })
+    if continueWatching then options.Push({ label: t("titles.actions.removeFromContinueWatching"), action: "hide" })
     if kind = "episode" and httpNumber(tile.grandparentId, 0) > 0
-        options.Push({ label: "Go to show", action: "show" })
-        if httpNumber(tile.parentId, 0) > 0 then options.Push({ label: "Go to season", action: "season" })
+        options.Push({ label: t("titles.actions.goToShow"), action: "show" })
+        if httpNumber(tile.parentId, 0) > 0 then options.Push({ label: t("titles.actions.goToSeason"), action: "season" })
     end if
     return options
 end function
@@ -449,12 +425,13 @@ end function
 ' "12 titles · 3 h 20 min", "Smart · 40 titles": what a playlist holds.
 function pagePlaylistLine(playlist as object) as string
     parts = []
-    if httpString(playlist.smart_filter) <> "" then parts.Push("Smart")
-    count = httpNumber(playlist.item_count, 0)
-    noun = " titles"
-    if httpString(playlist.kind) = "audio" then noun = " tracks"
-    if count = 1 then noun = Left(noun, Len(noun) - 1)
-    parts.Push(urlValue(count) + noun)
+    if httpString(playlist.smart_filter) <> "" then parts.Push(t("titles.smart"))
+    count = Int(httpNumber(playlist.item_count, 0))
+    if httpString(playlist.kind) = "audio"
+        parts.Push(t("titles.counts.tracks", { count: count }))
+    else
+        parts.Push(fmtCount(count, ""))
+    end if
     duration = fmtDuration(playlist.duration_ms)
     if duration <> "" then parts.Push(duration)
     return parts.Join(" · ")
@@ -499,6 +476,7 @@ end function
 ' episode's show and number, with entryId, the entry's own id.
 function pagePlaylistEntries(entries as dynamic, server as string) as object
     rows = []
+    watched = t("titles.watched")
     for each entry in httpArray(entries)
         item = invalid
         if GetInterface(entry, "ifAssociativeArray") <> invalid then item = httpObject(entry.item)
@@ -512,7 +490,7 @@ function pagePlaylistEntries(entries as dynamic, server as string) as object
             else if duration <> ""
                 parts.Push(duration)
             end if
-            if tile.watched then parts.Push("Watched")
+            if tile.watched then parts.Push(watched)
             tile.subtitle = parts.Join(" · ")
             tile.summary = ""
             tile.entryId = httpNumber(entry.entry_id, 0)
@@ -554,35 +532,20 @@ function pagePlaylistReordered(queue as object, before as object, after as objec
 end function
 
 ' Why a playlist didn't change, in a sentence: a sign-in from before
-' pley for Roku asked to change playlists can't (403), until signed in
+' Pley for Roku asked to change playlists can't (403), until signed in
 ' again.
 function pagePlaylistRefusal(answer as object) as string
-    if answer.status = 403 then return "This sign-in can't change playlists: sign out in Settings and sign in again to allow it."
+    if answer.status = 403 then return t("titles.playlist.refused")
     return answer.message
 end function
 
 ' --- Watch history ---
 
 ' "now", "12 min ago", "3 hours ago", "yesterday", "5 days ago", else the
-' day ("Mar 4, 2026"). seconds and now are unix seconds.
+' day ("Mar 4, 2026"), as Format.brs writes them; the day is UTC's.
+' seconds and now are unix seconds.
 function pageRelativeTime(seconds as dynamic, now as integer) as string
-    at = httpNumber(seconds, 0)
-    diff = now - at
-    if diff < 0 then diff = 0
-    if diff < 60 then return "now"
-    if diff < 3600 then return urlValue(Int(diff / 60)) + " min ago"
-    if diff < 86400
-        hours = Int(diff / 3600)
-        if hours = 1 then return "1 hour ago"
-        return urlValue(hours) + " hours ago"
-    end if
-    days = Int(diff / 86400)
-    if days = 1 then return "yesterday"
-    if days < 30 then return urlValue(days) + " days ago"
-    date = CreateObject("roDateTime")
-    date.FromSeconds(Int(at))
-    months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    return months[date.GetMonth() - 1] + " " + urlValue(date.GetDayOfMonth()) + ", " + urlValue(date.GetYear())
+    return fmtAgo(seconds, now, 0)
 end function
 
 ' The plays of the watch history as rows (EpisodeRow): an episode's show,

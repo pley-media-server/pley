@@ -37,6 +37,32 @@ sub test_details_of_a_direct_play_and_a_conversion()
     tkEqual(remux.why, "", "the method says it")
     tkEqual(remux.rows[0].value, "HEVC 4K Dolby Vision P8.1", "the video copied")
     tkEqual(remux.rows[1].value, "TrueHD 7.1 → …", "the audio converted, its output not known yet")
+    tkEqual(detLine(remux.rows[2]), "Bitrate: 24 Mbps")
+end sub
+
+sub test_details_in_french_and_spanish()
+    file = detailsTestFile()
+    live = { video: "transcode", audio: "transcode", video_in: "HEVC 3840×2160 Dolby Vision P8.1", video_out: "H.264 1920×1080", audio_in: "TrueHD 7.1", audio_out: "AAC 2.0", tonemap: "libplacebo", speed: 1.5, transcoded_ms: 70000 }
+    info = { method: "transcode", audio_index: 1, reasons: [], burn_subtitles: true }
+    i18nUse("fr")
+    converted = detPlayback(info, file, -1, live, 40000)
+    tkEqual(converted.method, "Transcodage")
+    labels = []
+    for each row in converted.rows
+        labels.Push(row.label)
+    end for
+    tkEqual(labels, ["Vidéo", "Audio", "Débit", "Affiché en", "Sous-titres", "Vitesse"])
+    tkEqual(converted.rows[2].value, "24 Mbit/s")
+    tkEqual(converted.rows[3].value, "SDR (mappage tonal avec libplacebo)")
+    tkEqual(converted.rows[4].value, "Incrustés")
+    tkEqual(detLine(converted.rows[4]), "Sous-titres" + Chr(160) + ": Incrustés")
+    tkEqual(converted.rows[5].value, "1,5× temps réel · 30 s d’avance")
+    tkEqual(detPlayback(info, file, -1, live, 70000).rows[5].value, "1,5× temps réel", "nothing ready ahead")
+    tkEqual(detChapters(file)[1].label, "2. Chapitre 2 · 1:00")
+    i18nUse("es")
+    tkEqual(detPlayback({ method: "remux", audio_converted: true }, file, -1, invalid, 0).method, "Transmisión directa · Audio transcodificado")
+    tkEqual(detPlayback({ method: "direct" }, file, -1, invalid, 0).method, "Reproducción directa")
+    tkEqual(detChapters(file)[1].label, "2. Capítulo 2 · 1:00")
 end sub
 
 sub test_details_chapters()

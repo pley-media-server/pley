@@ -7,6 +7,7 @@ sub init()
     m.episodes = m.top.findNode("episodes")
     m.message = m.top.findNode("message")
     m.seasonTimer = m.top.findNode("seasonTimer")
+    m.message.text = t("common.states.loading")
     m.started = false
     m.showId = 0
     m.wantedSeason = 0
@@ -70,11 +71,7 @@ sub onShow(event as object)
     year = httpNumber(show.year, 0)
     if year > 0 then parts.Push(urlValue(year))
     seasons = httpNumber(show.child_count, 0)
-    if seasons = 1
-        parts.Push("1 season")
-    else if seasons > 1
-        parts.Push(urlValue(seasons) + " seasons")
-    end if
+    if seasons > 0 then parts.Push(t("titles.counts.seasons", { count: Int(seasons) }))
     m.meta.text = parts.Join(" · ")
     m.backdrop.setHttpAgent(m.top.getScene().getHttpAgent())
     m.backdrop.uri = urlImage(m.global.session.server, show.backdrop_url, contentBackdropWidth())
@@ -88,7 +85,7 @@ sub onSeasons(event as object)
     end if
     content = event.getRoSGNode().content
     if content = invalid or content.getChildCount() = 0
-        m.message.text = "No episodes found."
+        m.message.text = t("titles.seasons.noEpisodes")
         return
     end if
     m.seasons.content = content
@@ -143,7 +140,7 @@ sub onEpisodes(event as object)
     m.episodes.content = request.content
     if keep > 0 and keep < answer.data.size then m.episodes.jumpToItem = keep
     if answer.data.size = 0
-        m.message.text = "No episodes found."
+        m.message.text = t("titles.seasons.noEpisodes")
         m.message.visible = true
     else
         m.message.visible = false
@@ -160,9 +157,9 @@ sub onOnDeck(event as object)
     if answer.ok and answer.data <> invalid and httpObject(answer.data.item) <> invalid
         item = answer.data.item
         m.onDeck = contentTile(item, m.global.session.server, true)
-        verb = "Play "
-        if fmtResumable(m.onDeck.positionMs, m.onDeck.durationMs) then verb = "Resume "
-        m.play.buttons = [verb + fmtEpisode(item.parent_index, item.index)]
+        key = "titles.actions.playEpisode"
+        if fmtResumable(m.onDeck.positionMs, m.onDeck.durationMs) then key = "titles.actions.resumeEpisode"
+        m.play.buttons = [t(key, { episode: fmtEpisode(item.parent_index, item.index) })]
     end if
     hadFocus = m.play.isInFocusChain()
     m.play.visible = m.onDeck <> invalid

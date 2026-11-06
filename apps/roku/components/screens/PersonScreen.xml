@@ -31,6 +31,6 @@
         <Label id="name" translation="[288, 78]" width="1536" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />
         <Label id="line" translation="[288, 158]" width="1536" color="0xA1A9B6FF" font="font:SmallSystemFont" />
         <RowList id="rows" translation="[96, 264]" itemComponentName="Tile" itemSize="[1728, 470]" rowItemSize="[[220, 410]]" numRows="2" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" rowLabelFont="font:MediumBoldSystemFont" visible="false" />
-        <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:MediumSystemFont" />
+        <Label id="message" translation="[96, 480]" width="1728" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />
     </children>
 </component>

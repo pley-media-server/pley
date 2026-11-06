@@ -23,6 +23,7 @@ sub init()
     m.menu = m.top.findNode("menu")
     m.choices = m.top.findNode("choices")
     m.info = m.top.findNode("info")
+    m.message.text = t("common.states.loading")
     m.column.visible = false
     ' What the panel shows: "" (closed), a menu ("more", "tracks"), the
     ' choices of one of its entries ("rating", "version", "audio",
@@ -209,10 +210,10 @@ sub askRows(request as object, answer as object, kind as string)
         end for
     end if
     path = "/api/items/" + urlValue(m.item.id)
-    if kind = "show" then uiRequest({ method: "GET", path: path + "/children", build: "seasonTiles", row: "seasons", title: "Seasons" }, "onRow")
+    if kind = "show" then uiRequest({ method: "GET", path: path + "/children", build: "seasonTiles", row: "seasons", title: t("titles.page.rows.seasons") }, "onRow")
     if kind = "movie" or kind = "show"
-        uiRequest({ method: "GET", path: path + "/related", query: { limit: 20 }, build: "tiles", row: "related", title: "More like this" }, "onRow")
-        uiRequest({ method: "GET", path: path + "/collections", build: "collections", row: "collections", title: "Collections" }, "onRow")
+        uiRequest({ method: "GET", path: path + "/related", query: { limit: 20 }, build: "tiles", row: "related", title: t("titles.page.rows.moreLikeThis") }, "onRow")
+        uiRequest({ method: "GET", path: path + "/collections", build: "collections", row: "collections", title: t("titles.page.rows.collections") }, "onRow")
     end if
     showRows()
 end sub
@@ -418,7 +419,7 @@ sub openMore()
     for each entry in m.detail.more
         labels.Push(entry.label)
     end for
-    showMenu("more", "More", labels)
+    showMenu("more", t("common.actions.more"), labels)
 end sub
 
 ' A menu; the entry in focus stays in focus as it shows again.
@@ -472,7 +473,7 @@ end sub
 sub showInfo()
     m.panelKind = "info"
     m.panelBack = "more"
-    m.panelTitle.text = "Media info"
+    m.panelTitle.text = t("titles.page.mediaInfo")
     m.info.text = mediaInfoText(m.item)
     m.menu.visible = false
     m.choices.visible = false
@@ -487,7 +488,7 @@ end sub
 sub showAbout()
     m.panelKind = "info"
     m.panelBack = "more"
-    m.panelTitle.text = "Details"
+    m.panelTitle.text = t("titles.page.about")
     m.info.text = contentAbout(m.item, CreateObject("roDateTime").AsSeconds(), fmtZoneSeconds())
     m.menu.visible = false
     m.choices.visible = false
@@ -522,7 +523,7 @@ sub onMenu(event as object)
             labels.Push(contentStarsLabel(stars))
             values.Push(stars)
         end for
-        showChoices("rating", "Your rating", labels, values, m.detail.stars, "more")
+        showChoices("rating", t("titles.page.yourRating"), labels, values, m.detail.stars, "more")
         return
     end if
     if action = "info"
@@ -586,19 +587,19 @@ sub openTracks()
     labels = []
     m.trackKinds = []
     if versions.values.Count() > 1
-        labels.Push("Version: " + versions.labels[versions.current])
+        labels.Push(t("titles.page.versionIs", { value: versions.labels[versions.current] }))
         m.trackKinds.Push("version")
     end if
     if tracks.audio.labels.Count() > 0
-        labels.Push("Audio: " + tracks.audio.labels[tracks.audio.current])
+        labels.Push(t("titles.page.audioIs", { value: tracks.audio.labels[tracks.audio.current] }))
         m.trackKinds.Push("audio")
     end if
     if tracks.subtitles.labels.Count() > 0
-        labels.Push("Subtitles: " + tracks.subtitles.labels[tracks.subtitles.current])
+        labels.Push(t("titles.page.subtitlesIs", { value: tracks.subtitles.labels[tracks.subtitles.current] }))
         m.trackKinds.Push("subtitles")
     end if
     if m.trackKinds.Count() > 1
-        showMenu("tracks", "Audio and subtitles", labels)
+        showMenu("tracks", t("titles.actions.audioAndSubtitles"), labels)
     else if m.trackKinds.Count() = 1
         openTrackChoices(m.trackKinds[0], "")
     end if
@@ -607,14 +608,14 @@ end sub
 sub openTrackChoices(kind as string, back as string)
     if kind = "version"
         versions = mediaVersions(m.item, m.fileId)
-        showChoices("version", "Version", versions.labels, versions.values, versions.current, back)
+        showChoices("version", t("titles.page.version"), versions.labels, versions.values, versions.current, back)
         return
     end if
     tracks = mediaTracks(playingFile())
     if kind = "audio"
-        showChoices("audio", "Audio", tracks.audio.labels, tracks.audio.values, tracks.audio.current, back)
+        showChoices("audio", t("titles.page.audio"), tracks.audio.labels, tracks.audio.values, tracks.audio.current, back)
     else
-        showChoices("subtitles", "Subtitles", tracks.subtitles.labels, tracks.subtitles.values, tracks.subtitles.current, back)
+        showChoices("subtitles", t("titles.page.subtitles"), tracks.subtitles.labels, tracks.subtitles.values, tracks.subtitles.current, back)
     end if
 end sub
 
@@ -646,7 +647,7 @@ end sub
 
 sub onTracksSaved(event as object)
     answer = event.getData()
-    if not answer.ok and not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+    if not answer.ok and not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
     if m.item <> invalid then uiGet("/api/items/" + urlValue(m.item.id), "onDetail")
 end sub
 
@@ -670,7 +671,7 @@ sub onRated(event as object)
     rating = invalid
     if before > 0 then rating = before * 2
     showRating(rating)
-    if not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+    if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
 end sub
 
 sub showRating(rating as dynamic)

@@ -35,15 +35,15 @@
             </MaskGroup>
             <!-- Only the labels with text stay in it (layoutText). -->
             <LayoutGroup id="text" layoutDirection="vert">
-                <Label id="kindLabel" text="Artist" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
+                <Label id="kindLabel" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
                 <Label id="name" width="540" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
                 <Label id="line" width="540" wrap="true" maxLines="2" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
                 <Label id="summary" width="540" wrap="true" maxLines="2" color="0xEBEBEBD9" font="font:SmallestSystemFont" />
             </LayoutGroup>
             <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" minWidth="520" maxWidth="540" visible="false" />
         </LayoutGroup>
-        <Label id="albumsLabel" translation="[700, 64]" text="Albums" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" visible="false" />
+        <Label id="albumsLabel" translation="[700, 64]" color="0xEBEBEBFF" font="font:MediumBoldSystemFont" visible="false" />
         <MarkupGrid id="albums" translation="[700, 128]" itemComponentName="Tile" numColumns="4" numRows="2" itemSize="[260, 340]" itemSpacing="[28, 40]" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-        <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:SmallSystemFont" />
+        <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
     </children>
 </component>

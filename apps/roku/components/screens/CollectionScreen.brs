@@ -20,6 +20,9 @@ sub init()
     m.buttons = m.top.findNode("buttons")
     m.grid = m.top.findNode("grid")
     m.message = m.top.findNode("message")
+    m.message.text = t("common.states.loading")
+    m.kindLabel.text = t("titles.collection.label")
+    m.top.findNode("smartText").text = t("titles.smart")
     m.started = false
     ' The page as the API task made it (lib/Pages.brs pageCollection), and
     ' the libraries once the server said ([{ id, name, kind }]).
@@ -78,7 +81,7 @@ sub onCollection(event as object)
     m.heading.text = collection.title
     m.summary.text = collection.summary
     m.note.text = ""
-    if collection.shown = 0 then m.note.text = "Nothing in this collection yet."
+    if collection.shown = 0 then m.note.text = t("titles.collection.empty")
     showBadges()
     showFacts()
     if m.backdrop.uri <> collection.backdrop
@@ -153,11 +156,11 @@ sub showButtons()
     labels = []
     if playable > 0
         actions.Push("play")
-        labels.Push("Play")
+        labels.Push(t("common.actions.play"))
     end if
     if playable > 1
         actions.Push("shuffle")
-        labels.Push("Shuffle")
+        labels.Push(t("titles.actions.shuffle"))
     end if
     if FormatJson(labels) <> FormatJson(m.buttons.buttons) then m.buttons.buttons = labels
     m.actions = actions
@@ -195,7 +198,7 @@ sub onOnDeck(event as object)
     m.picking = false
     answer = event.getData()
     if not answer.ok
-        if not uiFailed(answer) then uiMessage("That didn't work", [answer.message])
+        if not uiFailed(answer) then uiMessage(t("titles.failed"), [answer.message])
         return
     end if
     episode = invalid
@@ -203,7 +206,7 @@ sub onOnDeck(event as object)
     ' Left meanwhile: nothing starts behind the screen now on top.
     if not m.top.active then return
     if episode = invalid
-        uiMessage("Nothing to play", ["This show has no episodes yet."])
+        uiMessage(t("titles.nothingToPlay"), [t("titles.collection.noEpisodes")])
         return
     end if
     tile = contentTile(episode, m.global.session.server, true)

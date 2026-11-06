@@ -47,6 +47,22 @@ sub test_music_album_tracks_by_disc()
     tkEqual(musicDiscRows([]).Count(), 0, "no tracks")
 end sub
 
+sub test_music_in_french_and_spanish()
+    track = musicTrack(musicTestTrack(), "http://nas:7539")
+    second = musicTrack(musicTestTrack(), "http://nas:7539")
+    second.disc = 2
+    album = { title: "Blue", parent_title: "The Fixtures", year: 2001 }
+    i18nUse("fr")
+    tkEqual(musicAlbumLine(album, [track, track, track]), "The Fixtures · 2001 · 3 titres · 10 min")
+    tkEqual(musicAlbumLine(album, [track]), "The Fixtures · 2001 · 1 titre · 3 min")
+    tkEqual(musicArtistLine({ child_count: 1, leaf_count: 1234 }, 0), "1 album · 1" + Chr(8239) + "234 titres")
+    tkEqual(musicDiscRows([track, second])[0].title, "Disque 1")
+    i18nUse("es")
+    tkEqual(musicArtistLine({ child_count: 4, leaf_count: 40, genres: ["Rock"] }, 0), "4 álbumes · 40 pistas · Rock")
+    tkEqual(musicArtistLine({ child_count: 1, leaf_count: 1 }, 0), "1 álbum · 1 pista")
+    tkEqual(musicDiscRows([track, second])[2].title, "Disco 2")
+end sub
+
 sub test_music_stream_formats()
     detail = { files: [{ id: 7, container: "flac" }] }
     tkEqual(musicStreamFormat({ hls: true, file_id: 7 }, detail), "hls")

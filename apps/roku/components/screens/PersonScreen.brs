@@ -10,6 +10,7 @@ sub init()
     m.line = m.top.findNode("line")
     m.rows = m.top.findNode("rows")
     m.message = m.top.findNode("message")
+    m.message.text = t("common.states.loading")
     m.started = false
     m.rows.observeField("rowItemSelected", "onTile")
     m.top.observeField("active", "onActive")
@@ -46,7 +47,7 @@ sub onPerson(event as object)
     if not answer.ok or answer.data = invalid
         if uiFailed(answer) then return
         m.message.text = answer.message
-        if answer.status = 404 then m.message.text = "Person not found. No one by that link has anything in your libraries."
+        if answer.status = 404 then m.message.text = t("titles.person.notFound")
         return
     end if
     person = answer.data
@@ -58,7 +59,7 @@ sub onPerson(event as object)
         m.photo.uri = person.photo
     end if
     if person.shown = 0
-        m.message.text = "Nothing to show here."
+        m.message.text = t("titles.person.nothing")
         return
     end if
     m.message.visible = false

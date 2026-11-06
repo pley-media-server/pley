@@ -28,7 +28,7 @@
         <Label id="line" translation="[96, 196]" width="540" color="0xA1A9B6FF" font="font:SmallestSystemFont" />
         <ButtonGroup id="buttons" focusBitmapUri="pkg:/images/button-focus.9.png" focusFootprintBitmapUri="pkg:/images/button-footprint.9.png" textColor="0xEBEBEBFF" focusedTextColor="0x16191EFF" iconUri="" focusedIconUri="" translation="[96, 250]" minWidth="520" maxWidth="540" visible="false" />
         <MarkupList id="entries" translation="[700, 64]" itemComponentName="EpisodeRow" itemSize="[1124, 196]" itemSpacing="[0, 16]" numRows="4" drawFocusFeedback="false" vertFocusAnimationStyle="floatingFocus" />
-        <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" text="Loading…" font="font:SmallSystemFont" />
-        <Label id="hint" translation="[96, 940]" width="540" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" text="Up and down move it, OK puts it there, Back puts it back." />
+        <Label id="message" translation="[700, 400]" width="1124" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:SmallSystemFont" />
+        <Label id="hint" translation="[96, 940]" width="540" wrap="true" maxLines="3" color="0xA1A9B6FF" font="font:SmallestSystemFont" visible="false" />
     </children>
 </component>
