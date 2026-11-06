@@ -193,7 +193,7 @@ import Testing
         defer { server.stop() }
         let port = try #require(URLComponents(string: server.origin)?.port)
         let result = await ServerProbe(transport: transport()).probe("127.0.0.1:\(port)")
-        #expect(result == .pley(origin: server.origin, ServerInfo(name: "Living Room", version: "0.42.0")))
+        #expect(result == .pley(origin: server.origin, ServerInfo(name: "Living Room", version: "0.42.0", language: "en")))
         let asked = try #require(server.journal.first)
         #expect(asked.headers["authorization"] == nil)
         #expect(asked.headers["user-agent"] == testAgent)
@@ -204,7 +204,7 @@ import Testing
         defer { server.stop() }
         let secure = server.origin.replacingOccurrences(of: "http://", with: "https://")
         let result = await ServerProbe(transport: transport()).probe(candidates: [secure, server.origin])
-        #expect(result == .pley(origin: server.origin, ServerInfo(name: "Living Room", version: "0.42.0")))
+        #expect(result == .pley(origin: server.origin, ServerInfo(name: "Living Room", version: "0.42.0", language: "en")))
     }
 
     @Test func aRedirectToHttpsOnTheSameHostIsTriedNext() async throws {

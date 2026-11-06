@@ -92,15 +92,18 @@ struct SettingsView: View {
     }
 
     /// The account's language: Automatic (each device's), or one of its own,
-    /// for every device it signs in on. Saved on the server at once.
+    /// for every device it signs in on, saved on the server at once; on a
+    /// Pley from before languages, this device's, as the globe picks it.
     private var language: some View {
-        let chosen = Language.of(app.user?.language)
-        let choices = AppModel.languageChoices(automatic: app.automaticLanguage)
-        return SettingsGroup(title: localized("Language"),
-                             note: localized("""
-                                 What Pley is in for you, on every device you sign in on. \
-                                 Automatic follows each device's language.
-                                 """)) {
+        let chosen = app.languageRowChoice
+        let choices = AppModel.languageChoices(automatic: app.languageRowAutomatic)
+        let note = app.keepsAccountLanguage
+            ? localized("""
+                What Pley is in for you, on every device you sign in on. \
+                Automatic follows each device's language.
+                """)
+            : localized("What Pley is in on this device.")
+        return SettingsGroup(title: localized("Language"), note: note) {
             SettingRow(title: localized("Language"),
                        value: choices.first { $0.value == chosen }?.label ?? "", id: "settings.language",
                        choices: choices, selected: chosen) { choice in Task { await app.setAccountLanguage(choice) } }

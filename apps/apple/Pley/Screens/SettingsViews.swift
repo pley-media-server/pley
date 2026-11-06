@@ -93,25 +93,30 @@ enum SettingsSections {
     }
 
     /// The account's language: Automatic (each device's), or one of its own,
-    /// for every device it signs in on. Saved on the server at once.
+    /// for every device it signs in on, saved on the server at once; on a
+    /// Pley from before languages, this device's, as the globe picks it.
     struct LanguageRow: View {
         @ObservedObject var app: AppModel
 
         var body: some View {
             Section {
-                Picker("Language", selection: Binding(get: { Language.of(app.user?.language) },
+                Picker("Language", selection: Binding(get: { app.languageRowChoice },
                                                       set: { choice in Task { await app.setAccountLanguage(choice) } })) {
-                    ForEach(AppModel.languageChoices(automatic: app.automaticLanguage)) { choice in
+                    ForEach(AppModel.languageChoices(automatic: app.languageRowAutomatic)) { choice in
                         Text(verbatim: choice.label).tag(choice.value)
                     }
                 }
                 .disabled(app.user == nil)
                 .accessibilityIdentifier("settings.language")
             } footer: {
-                Text("""
-                     What Pley is in for you, on every device you sign in on. \
-                     Automatic follows each device's language.
-                     """)
+                if app.keepsAccountLanguage {
+                    Text("""
+                         What Pley is in for you, on every device you sign in on. \
+                         Automatic follows each device's language.
+                         """)
+                } else {
+                    Text("What Pley is in on this device.")
+                }
             }
         }
     }

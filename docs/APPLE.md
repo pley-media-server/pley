@@ -1824,7 +1824,11 @@ on iPhone and iPad, in the toolbar on the Mac; on Apple TV at the bottom
 right of the servers, on Add a server's line, and at the top right of the
 code screen, on its title's line. Its menu offers Automatic (the device's
 own) and each language; the choice is kept on the device, and an
-account's Automatic means it. The system's own words (the player's
+account's Automatic means it. A Pley from before languages keeps no
+account's language: it names none in `GET /api/server` and answers
+`PUT /api/me/language` with `404` or `405`. Signed in to one, the Language
+row is this device's choice, as the globe is, shown at once and kept on
+the device. The system's own words (the player's
 controls, the share sheet, the Mac's standard menus) are in the system's
 language.
 

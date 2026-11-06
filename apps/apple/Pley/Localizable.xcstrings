@@ -5150,6 +5150,23 @@
         }
       }
     },
+    "What Pley is in on this device." : {
+      "comment" : "Settings: under the Language row, on a Pley from before languages.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "El idioma de Pley en este dispositivo."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "La langue de Pley sur cet appareil."
+          }
+        }
+      }
+    },
     "What Pley sends with each playback request" : {
       "comment" : "Diagnostics' heading over the caps report.",
       "localizations" : {

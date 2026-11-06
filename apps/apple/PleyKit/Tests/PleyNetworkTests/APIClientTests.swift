@@ -28,7 +28,7 @@ import Testing
         let http = transport()
         let api = PleyAPI(client: APIClient(origin: server.origin, tokens: FakeTokens(server: server, transport: http),
                                             transport: http))
-        #expect(try await api.server() == ServerInfo(name: "Living Room", version: "0.42.0"))
+        #expect(try await api.server() == ServerInfo(name: "Living Room", version: "0.42.0", language: "en"))
         let profiles = try await api.householdProfiles()
         #expect(profiles.map(\.name) == ["Alex", "Sam", "Kids", "Robin", "Guest"])
         #expect(profiles.map(\.needs) == [.none, .pin, .none, .password, .locked])

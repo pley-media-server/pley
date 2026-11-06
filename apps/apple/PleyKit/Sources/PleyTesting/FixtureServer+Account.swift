@@ -21,8 +21,9 @@ extension FixtureServer {
         var languages: [Int: String] = [:]
         /// `PUT /api/me/language` answers this status from now on.
         var languageRefusal: Int?
-        /// The server language `GET /api/server` says; `nil`: none chosen.
-        var serverLanguage: String?
+        /// The server language `GET /api/server` says, English as on a Pley
+        /// with no other chosen; `nil`: a Pley from before languages, which names none.
+        var serverLanguage: String? = "en"
     }
 
     /// How many plays the fixture's history holds at first.
@@ -60,7 +61,8 @@ extension FixtureServer {
         state.withLock { $0.account.languages[id] }
     }
 
-    /// The server language `GET /api/server` says from now on; `nil`: none chosen.
+    /// The server language `GET /api/server` says from now on; `nil`: none,
+    /// as a Pley from before languages answers.
     public func setServerLanguage(_ language: String?) {
         state.withLock { $0.account.serverLanguage = language }
     }

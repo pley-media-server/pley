@@ -107,6 +107,36 @@ import Testing
         #expect(app.language == .english && app.user?.language == nil)
     }
 
+    @Test func onAServerFromBeforeLanguagesTheRowPicksOnThisDevice() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.setServerLanguage(nil)
+        let settings = freshSettings()
+        let app = try await signedIn(server, settings: settings)
+        #expect(!app.keepsAccountLanguage)
+        await app.setAccountLanguage(.french)
+        #expect(app.language == .french && app.languageRowChoice == .french)
+        #expect(settings.pickedLanguage == .french)
+        #expect(server.requests("/api/me/language").isEmpty)
+        await app.setAccountLanguage(nil)
+        #expect(app.language == .english && app.languageRowChoice == nil)
+    }
+
+    @Test func aChoiceTheServerHasNoRouteForStaysOnThisDevice() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        #expect(app.keepsAccountLanguage)
+        server.refuseLanguage(status: 404)
+        await app.setAccountLanguage(.spanish)
+        #expect(app.language == .spanish && app.languageRowChoice == .spanish)
+        #expect(!app.keepsAccountLanguage && app.user?.language == nil)
+        // The next choice isn't sent.
+        await app.setAccountLanguage(.french)
+        #expect(app.language == .french)
+        #expect(server.requests("/api/me/language").count == 1)
+    }
+
     @Test func requestsAskForTheLanguageShown() async throws {
         let server = try await fixture()
         defer { server.stop() }

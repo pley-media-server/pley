@@ -210,6 +210,9 @@ public final class AppModel: ObservableObject, SnapshotCache {
     private let applyLanguage: (Language, Locale) -> Void
     /// The open server's language, once `GET /api/server` answered (`known`); `code` is `nil` before one was chosen.
     private var serverLanguage: (known: Bool, code: String?) = (false, nil)
+    /// The server answered the account's language with `404` or `405`: a
+    /// Pley from before languages, whose Language row picks on this device.
+    @Published private var languageRouteMissing = false
     private var started = false
     /// Wakes the reconnect loop when the network changes.
     private var paths: NWPathMonitor?
@@ -1393,6 +1396,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         if let api = await session.api, let fresh = try? await api.me() { self.user = fresh }
         let info = await session.serverInfo
         serverLanguage = (info != nil, info?.language)
+        if info?.language != nil { languageRouteMissing = false }
         followLanguage()
         if let server, let name = info?.name {
             self.server = ServerEntry(origin: server.origin, name: BonjourTXT.cleanName(name).isEmpty ? server.name
@@ -1484,10 +1488,36 @@ public final class AppModel: ObservableObject, SnapshotCache {
             + Language.allCases.map { SettingChoice<Language?>($0, $0.autonym) }
     }
 
-    /// `chooseLanguage`, from the Language row: a refusal is said in a toast.
+    /// Whether the server keeps an account's language. Every Pley with
+    /// languages names its own in `GET /api/server` and answers
+    /// `PUT /api/me/language`; on one from before them, the Language row
+    /// is this device's, as the globe is before signing in.
+    public var keepsAccountLanguage: Bool {
+        !(serverLanguage.known && serverLanguage.code == nil) && !languageRouteMissing
+    }
+
+    /// The Language row's choice: the account's, or this device's where the server keeps none.
+    public var languageRowChoice: Language? {
+        keepsAccountLanguage ? Language.of(user?.language) : pickedLanguage
+    }
+
+    /// What the Language row's Automatic stands for: the account's
+    /// Automatic, or, where the server keeps none, the device's own.
+    public var languageRowAutomatic: Language {
+        keepsAccountLanguage ? automaticLanguage : deviceLanguage ?? Language.of(serverLanguage.code) ?? .english
+    }
+
+    /// From the Language row: the account's language (`chooseLanguage`, a
+    /// refusal said in a toast), or this device's where the server keeps
+    /// none, as a `404` or `405` shows on a Pley from before languages.
     public func setAccountLanguage(_ language: Language?) async {
+        guard keepsAccountLanguage else { return pickLanguage(language) }
         do {
             try await chooseLanguage(language)
+        } catch PleyError.api(404, _, _), PleyError.api(405, _, _), PleyError.unreadable(404),
+                PleyError.unreadable(405) {
+            languageRouteMissing = true
+            pickLanguage(language)
         } catch {
             shell.show(Toast(describe(error), style: .error))
         }
@@ -1687,6 +1717,7 @@ public final class AppModel: ObservableObject, SnapshotCache {
         }
         let info = await session.serverInfo
         serverLanguage = (info != nil, info?.language)
+        if info?.language != nil { languageRouteMissing = false }
         followLanguage()
         let given = info?.name
         let shown = given.map { BonjourTXT.cleanName($0) }.flatMap { $0.isEmpty ? nil : $0 } ?? name
