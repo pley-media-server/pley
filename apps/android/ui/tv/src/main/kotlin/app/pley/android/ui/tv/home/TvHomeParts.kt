@@ -148,15 +148,11 @@ internal fun TvHomeHero(
         ) {
             Column {
                 if (label != null) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(width = 4.dp, height = 16.dp).background(PleyColors.Accent, CircleShape))
-                        Spacer(Modifier.width(10.dp))
-                        BasicText(
-                            label.uppercase(),
-                            style = PleyType.Tv.Label.copy(color = PleyColors.Fg.copy(alpha = 0.85f), letterSpacing = 3.sp),
-                            maxLines = 1,
-                        )
-                    }
+                    BasicText(
+                        label.uppercase(),
+                        style = PleyType.Tv.Label.copy(color = PleyColors.Fg.copy(alpha = 0.85f), letterSpacing = 3.sp),
+                        maxLines = 1,
+                    )
                     Spacer(Modifier.height(12.dp))
                 }
                 BasicText(

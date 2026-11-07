@@ -2,7 +2,6 @@
 
 package app.pley.android.ui.tv.home
 
-import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -63,8 +62,11 @@ import app.pley.android.ui.tv.shell.ReportOffline
 import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
 import app.pley.android.ui.tv.theme.LocalTvTier
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Home on TV (design spec §2.2, §4.1; TV addendum §3.4).
@@ -167,20 +169,16 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     // What the rows' callbacks read when they run: rows that didn't change keep theirs, and aren't composed again.
     val current by rememberUpdatedState(model)
 
-    // The hero's turns. The last key's time is kept out of the state: a key press composes nothing.
+    // The hero's turns. Keys go to the clock as events, not state: a key press composes nothing.
     val heroes = model.heroes
     var turn by rememberSaveable { mutableIntStateOf(0) }
     val hero = heroes[turn % heroes.size]
-    val lastKey = remember { LongArray(1) }
+    val keys = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
     val calm = reducedMotion()
     LaunchedEffect(turn, inRows, heroes.size, calm) {
         if (inRows || heroes.size < 2 || calm) return@LaunchedEffect
-        var since = maxOf(lastKey[0], SystemClock.uptimeMillis())
-        while (true) {
-            delay(since + TURN_MS - SystemClock.uptimeMillis())
-            if (lastKey[0] <= since) break
-            since = lastKey[0]
-        }
+        // TURN_MS with no key pressed: each press starts the time over.
+        while (withTimeoutOrNull(TURN_MS) { keys.first() } != null) Unit
         turn = (turn + 1) % heroes.size
         // Its buttons may not be the last one's (From start): focus starts again on Play.
         if (hasFocus) runCatching { resume.requestFocus() }
@@ -211,7 +209,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
             .fillMaxSize()
             .onFocusChanged { hasFocus = it.hasFocus }
             .onPreviewKeyEvent {
-                lastKey[0] = SystemClock.uptimeMillis()
+                keys.tryEmit(Unit)
                 false
             },
     ) {

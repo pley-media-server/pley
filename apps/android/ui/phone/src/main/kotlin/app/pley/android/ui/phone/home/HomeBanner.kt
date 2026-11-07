@@ -189,16 +189,12 @@ private fun Slide(
                 .padding(start = metrics.marginStart, end = metrics.marginEnd, bottom = WordsBottom),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.size(width = 3.dp, height = 13.dp).background(PleyColors.Accent, CircleShape))
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    featured.label.asString().uppercase(),
-                    style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 2.4.sp, shadow = SoftShadow),
-                    color = PleyColors.Fg.copy(alpha = 0.85f),
-                    maxLines = 1,
-                )
-            }
+            Text(
+                featured.label.asString().uppercase(),
+                style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 2.4.sp, shadow = SoftShadow),
+                color = PleyColors.Fg.copy(alpha = 0.85f),
+                maxLines = 1,
+            )
             Spacer(Modifier.height(10.dp))
             Text(
                 info.title,

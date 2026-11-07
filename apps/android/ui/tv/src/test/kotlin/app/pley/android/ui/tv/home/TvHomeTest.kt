@@ -230,6 +230,36 @@ class TvHomeTest {
         compose.onNodeWithText("Play").assertIsFocused()
     }
 
+    @Test
+    fun aKeyPressStartsTheHerosTimeOver() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.mainClock.advanceTimeBy(6_000)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
+        compose.mainClock.advanceTimeBy(6_000)
+        // 12 s in, but only 6 since the key: still the first title, focus where the key put it.
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        assertEquals("Info", focusedDescription())
+        compose.mainClock.advanceTimeBy(3_500)
+        compose.onNodeWithText("Severance").assertExists()
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun leftFromPlayOpensTheRailAndUpFromTheRowsComesBackToTheHero() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        show()
+        compose.waitForIdle()
+        press(Key.DirectionDown)
+        assertTrue(focusedDescription(), focusedDescription().startsWith("Half Loop"))
+        press(Key.DirectionUp)
+        compose.onNodeWithText("Play").assertIsFocused()
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        press(Key.DirectionLeft)
+        compose.onNodeWithTag("rail").assertIsFocused()
+    }
+
     /** What was saved, with Severance's show in Recently Added too: two titles to feature, a film and a show. */
     private fun twoFeatured(): Hubs {
         val saved = Fixtures.decode<Hubs>("hubs/home.json")
