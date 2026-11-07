@@ -125,8 +125,8 @@ Each endpoint table has a **Who** column:
 | `public` | anyone, without a token |
 | `user` | any signed-in user; an app's token is refused (`403 insufficient_scope`) |
 | `any app` | any signed-in user, and every app's token |
-| `library`, `play`, `playlists`, `profiles`, `requests`, `approvals`, `activity` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`); with `play` or `activity`, a token with either |
-| `admin` | administrators only (`403` for others), never an app's token |
+| `library`, `play`, `playlists`, `profiles`, `requests`, `approvals`, `activity` | any signed-in user, and an app's token with that [scope](#scopes) (`HEAD` as `GET`); with `play` or `activity`, `activity` or `server`, a token with either |
+| `admin` | administrators only (`403` for others); of apps' tokens, only Pley's own allowed [`server`](#scopes) on an administrator's account, on the routes that scope opens |
 | `page` | Pley's consent page only ([its endpoints](#the-consent-pages-endpoints)) |
 
 ### Headers
@@ -238,7 +238,7 @@ interface Library {
   id: Id;
   name: string;
   kind: LibraryKind;
-  paths: string[];                  // empty except for administrators (not their apps' tokens)
+  paths: string[];                  // empty except for administrators (not their apps' tokens, but for Pley's own allowed `server`)
   item_count: number;               // top-level items (movies, shows, artists) this user can see
   created_at: Timestamp;
   scanned_at: Timestamp | null;
@@ -558,10 +558,11 @@ lists carry (Kodi).
 | GET | `/api/auth/profiles` | `user` | `User[]`: home profiles this user can switch to (empty for non-home users) |
 | POST | `/api/auth/switch` | `user` | `{ user_id, pin?, password?, code?, setup_id? }` → `{ user, token?, recovery_codes? }`: this device becomes that profile |
 
-- `GET /api/auth/me` with an app's token: `User & { scope: string }`.
-  `scope` is what the app was allowed (`"library play"`); `is_admin`,
-  `all_libraries` and `max_age` are the app's rights (`is_admin` is always
-  false).
+- `GET /api/auth/me` with an app's token: `User & { scope: string,
+  account_admin?: boolean }`. `scope` is what the app was allowed
+  (`"library play"`); `is_admin`, `all_libraries` and `max_age` are the
+  app's rights (`is_admin` is always false); `account_admin`, for Pley's own
+  apps only, whether the account is an administrator.
 - `PUT /api/auth/password` signs the user out everywhere but this device,
   signs out every app using the account or allowed by it, and ends the
   account's compatibility tokens.
@@ -1260,22 +1261,26 @@ everyone, in 10 minutes, no code is looked up (`429`).
 | `requests` | ask for movies and shows the libraries don't have ([Requests](#requests)), and follow the profile's requests |
 | `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; it does nothing on other accounts |
 | `activity` | see what's playing and stop it: the profile's streams, and everyone's where the account is an administrator. Any app may be allowed it, but only Pley's own see and stop everyone's, and of those only Pley for Home Assistant asks for it |
+| `server` | see the server's dashboard and manage its libraries, accounts, invitations and Live TV lineup, where the account is an administrator: the `admin` routes listed below. Pley's own apps only, and never with a TV's code ([TVs](#tvs)); it does nothing on other accounts. Of Pley's apps, Android's phones ask for it |
 
 An app's token opens only the routes whose **Who** is `any app` or one of
-its scopes (`HEAD` as `GET`). Every other route answers
-`403 insufficient_scope`: administration and sign-in settings among them.
+its scopes (`HEAD` as `GET`), and with `server` the `admin` routes listed
+below. Every other route answers `403 insufficient_scope`: sign-in
+settings among them, the server's settings, and editing collections and
+titles' details.
 Name, picture (`PATCH /api/me`), password, PIN, two-step sign-in, devices,
-apps, switching by `/api/auth/switch` and all administration stay in the
-web app.
+apps and switching by `/api/auth/switch` stay in the web app, for every
+app.
 
 What apps see:
 
-- An app's token never has administrator rights. On an administrator's
-  account it sees every library without an age limit, as the account does,
-  and administers nothing: history, sessions and collections answer it as
-  they would anyone else. Two exceptions, on an administrator's account and
-  for Pley's own apps alone: one allowed `approvals` manages requests
-  (approves and declines them, marks them as added by hand, sees and
+- An app's token has no administrator rights of its own. On an
+  administrator's account it sees every library without an age limit, as
+  the account does, and administers nothing: history, sessions and
+  collections answer it as they would anyone else. Three exceptions, on an
+  administrator's account and for Pley's own apps alone: one allowed
+  `server` manages the server (below), one allowed `approvals` manages
+  requests (approves and declines them, marks them as added by hand, sees and
   deletes everyone's, and hears the managers' request events; see
   [Requests](#requests)), and one allowed `activity` (Pley for Home
   Assistant, the only one that asks for it) sees and stops what everyone
@@ -1286,11 +1291,38 @@ What apps see:
   only its own profile's players, and gets none of the dashboard's library
   work. Any other app allowed `activity` sees and stops its profile's own
   sessions alone.
-- Libraries' `paths` are empty, and files' `path` is the file name only.
+- One of Pley's own apps allowed `server` on an administrator's account
+  manages part of what the web app's Settings do, and these `admin` routes
+  answer it as they answer the administrator's own sign-in: libraries
+  (`POST /api/libraries`, `/api/libraries/scan`, `/api/libraries/order`,
+  `PATCH` and `DELETE /api/libraries/{id}`, `/api/libraries/{id}/scan`,
+  `/api/fs`), accounts and invitations (`/api/users`, `/api/users/{id}`
+  and its `devices`, `apps` and `two-step`, `/api/invites`), the dashboard
+  (`/api/system`, `/api/system/resources`, `/api/system/storage` and its
+  `clean`, `/api/transcoder`) and Live TV's lineup and tuners
+  (`/api/live/lineup`, its `groups` and `page`, `/api/live/tuners`). It
+  sees and stops everyone's streams as one allowed `activity` does, with
+  the dashboard's library work, everyone's history (`all`, `user_id`, and
+  removing anyone's plays) and libraries' folders (`paths`).
+  What holds the server's keys, passwords and providers' addresses stays
+  with the web app and answers `403 insufficient_scope`: the server's
+  settings and their tests (`/api/settings…`), the network, the transcode
+  folder, backups, the library work's schedule, and Live TV's settings and
+  sources. Nothing it can reach carries a key or a password; in
+  `/api/system`, the transcoder's `url` comes without a user name or
+  password. It may not change the account's own name, password, PIN or
+  two-step sign-in, see or sign out its devices and apps, disable it or
+  delete it, and its administration ends at once when the account stops
+  being an administrator. `GET /api/auth/me` tells Pley's own apps whether
+  the account is an administrator (`account_admin`), so one signed in
+  before it could ask for `server` can offer to sign in again.
+- Libraries' `paths` are empty, but for one that manages the server, and
+  files' `path` is the file name only.
 - `/api/users/{id}/avatar` shows only the app's own profile, its
   household, and, to an app allowed `requests` while requests are on, the
   people named in the requests it may read: who decided its own, and for a
-  manager who made or decided any.
+  manager who made or decided any. To one that manages the server
+  (`server`), everyone's.
 - When the transcoder can't read a file, its words (which name the file)
   are replaced by Pley's own: "this title's file can't be read right now",
   and "the conversion failed" for a session's `last_error`.

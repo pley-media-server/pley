@@ -371,11 +371,18 @@ pub struct Me {
     /// What the app was allowed, for an app's token (space-separated).
     #[serde(skip_serializing_if = "Option::is_none")]
     scope: Option<String>,
+    /// Whether the account is an administrator, for one of pley's own apps
+    /// (`is_admin` is the app's rights): such an app allowed `server`
+    /// manages the server, and one signed in before it could is told to
+    /// sign in again for it.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    account_admin: Option<bool>,
 }
 
 pub async fn me(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json<Me>> {
     let mut dto = accounts::user(&state.db, user.id).await?.ok_or(AppError::Unauthorized)?;
     let scope = user.app.as_ref().map(|app| app.scopes.to_string());
+    let account_admin = (user.app.is_some() && user.first_party()).then_some(user.account_admin);
     if user.app.is_some() {
         // What the app may do, not what the account's role allows.
         dto.is_admin = user.is_admin;
@@ -385,7 +392,7 @@ pub async fn me(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json
     // What asking from here does (an administrator's ask from other
     // publishers' apps).
     dto.request_access = state.requests.caller(&user, None).await?.access;
-    Ok(Json(Me { user: dto, scope }))
+    Ok(Json(Me { user: dto, scope, account_admin }))
 }
 
 #[derive(Deserialize)]

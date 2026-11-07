@@ -13,7 +13,7 @@ import { currentLocale, t as translate } from "@/i18n";
 import { AuthLayout } from "./AuthLayout";
 
 /** The scopes Pley has words for (`consent.scopes`): what each lets an app do, for the profile it acts as. */
-const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"] as const;
+const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals", "activity", "server"] as const;
 
 function knownScope(scope: string): scope is (typeof SCOPES)[number] {
   return (SCOPES as readonly string[]).includes(scope);
@@ -173,6 +173,8 @@ export function AppConsent({
   // The administrator rights an app can get: managing requests, and for one
   // of Pley's own seeing and stopping everyone's streams.
   const approves = user.is_admin && request.scopes.includes("approvals");
+  // Managing the server: Pley's own apps only (the server refuses it to others).
+  const manages = user.is_admin && client.first_party && request.scopes.includes("server");
   const oversees = user.is_admin && client.first_party && request.scopes.includes("activity");
   const rights = new Intl.ListFormat(currentLocale(), { type: "conjunction" }).format(
     [approves ? t("consent.rights.approvals") : null, oversees ? t("consent.rights.activity") : null].filter((right) => right !== null),
@@ -243,9 +245,11 @@ export function AppConsent({
               </li>
             ))}
           </ul>
-          <p className="mt-3 text-muted">{rights ? t("consent.cantChange") : t("consent.cantChangeNoAdmin")}</p>
+          <p className="mt-3 text-muted">{rights || manages ? t("consent.cantChange") : t("consent.cantChangeNoAdmin")}</p>
           {user.is_admin ? (
-            <p className="mt-1 text-muted">{rights ? t("consent.rightsOnly", { rights }) : t("consent.adminStays")}</p>
+            <p className="mt-1 text-muted">
+              {manages ? t("consent.managesServer") : rights ? t("consent.rightsOnly", { rights }) : t("consent.adminStays")}
+            </p>
           ) : null}
         </div>
 

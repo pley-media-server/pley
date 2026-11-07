@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="admin_title">Gestionar el servidor</string>
+    <string name="admin_me_group">Servidor</string>
+    <string name="admin_me_value">Bibliotecas, cuentas, canales de TV en vivo y panel</string>
+    <string name="admin_me_sign_in">Vuelve a iniciar sesión para gestionarlo desde este teléfono</string>
+    <string name="admin_section_dashboard">Panel</string>
+    <string name="admin_section_dashboard_value">Lo que se reproduce, la carga del servidor y el almacenamiento</string>
+    <string name="admin_section_libraries">Bibliotecas</string>
+    <string name="admin_section_libraries_value">Carpetas, análisis y orden</string>
+    <string name="admin_section_livetv">TV en vivo</string>
+    <string name="admin_section_livetv_value">Canales, grupos y sintonizadores</string>
+    <string name="admin_section_users">Usuarios</string>
+    <string name="admin_section_users_value">Cuentas, perfiles y lo que ven</string>
+    <string name="admin_section_invitations">Invitaciones</string>
+    <string name="admin_section_invitations_value">Enlaces para crear una cuenta</string>
+    <string name="admin_web_only">Los ajustes del servidor, la red, el transcodificador, las solicitudes y las fuentes de TV en vivo se cambian en la aplicación web de Pley.</string>
+    <string name="admin_sign_in_title">Vuelve a iniciar sesión para gestionar el servidor</string>
+    <string name="admin_sign_in_body">Este teléfono inició sesión antes de que Pley pudiera dejarle gestionar el servidor. Vuelve a iniciar sesión y permítelo.</string>
+    <string name="admin_sign_in_action">Volver a iniciar sesión</string>
+    <string name="admin_not_admin_title">Solo los administradores gestionan el servidor</string>
+    <string name="admin_not_admin_body">Inicia sesión con una cuenta de administrador para gestionarlo desde este teléfono.</string>
+    <string name="admin_load_failed">No se pudo cargar esta página</string>
+    <string name="admin_loading">Cargando…</string>
+    <string name="admin_save">Guardar</string>
+    <string name="admin_cancel">Cancelar</string>
+    <string name="admin_number_range">De %1$d a %2$d</string>
+</resources>

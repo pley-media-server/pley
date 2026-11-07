@@ -33,7 +33,7 @@ export const appKeys = {
   user: (id: Id) => ["users", id, "apps"] as const,
 };
 
-const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"] as const;
+const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals", "activity", "server"] as const;
 const isNamedScope = (scope: string): scope is (typeof SCOPES)[number] => (SCOPES as readonly string[]).includes(scope);
 
 /** What an app may do, in a few words: "Libraries · Play · Playlists". */

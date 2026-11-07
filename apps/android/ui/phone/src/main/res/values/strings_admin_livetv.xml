@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Managing the server → Live TV (apps/web/src/pages/settings/LiveTvSettings.tsx and livetv/), in the web's words (livetv.json, "settings"). -->
+    <string name="admin_livetv_intro">Your IPTV channels and their guide, watched through this server.</string>
+    <string name="admin_livetv_open">Open Live TV</string>
+    <string name="admin_livetv_no_guide">No guide</string>
+    <string name="admin_livetv_show_name">Show %1$s</string>
+    <string name="admin_livetv_hide_name">Hide %1$s</string>
+    <plurals name="admin_livetv_channels_count">
+        <item quantity="one">%1$,d channel</item>
+        <item quantity="other">%1$,d channels</item>
+    </plurals>
+
+    <!-- The first page's way to the web's other tabs. -->
+    <string name="admin_livetv_tab_groups">Groups</string>
+    <string name="admin_livetv_tab_groups_value">Hide or show whole groups and regions</string>
+    <string name="admin_livetv_tab_channels">Channels</string>
+    <string name="admin_livetv_tab_channels_value">Hide, rename and renumber channels</string>
+
+    <!-- Watching now. -->
+    <string name="admin_livetv_watching_title">Watching now</string>
+    <string name="admin_livetv_watching_nobody">Nobody is watching. Each channel being watched takes one of its source\'s connections.</string>
+    <string name="admin_livetv_watching_letting_go">Letting go</string>
+    <string name="admin_livetv_watching_nobody_on_it">nobody</string>
+    <string name="admin_livetv_tuner_stop">Stop</string>
+    <string name="admin_livetv_tuner_stop_title">Stop %1$s?</string>
+    <string name="admin_livetv_tuner_stop_body">Everyone watching it stops, on every device.</string>
+    <string name="admin_livetv_tuner_stopped">%1$s stopped</string>
+    <string name="admin_livetv_plan_radio">radio</string>
+    <string name="admin_livetv_plan_as_it_is">%1$s as it is</string>
+    <string name="admin_livetv_plan_transcoded">%1$s → H.264 on %2$s</string>
+    <string name="admin_livetv_plan_transcoded_deinterlaced">%1$s → H.264 on %2$s, deinterlaced</string>
+    <string name="admin_livetv_plan_processor">the processor</string>
+    <string name="admin_livetv_rate_mbps">%1$s Mbit/s</string>
+    <string name="admin_livetv_rate_kbps">%1$s kbit/s</string>
+    <string name="admin_livetv_since_just_now">just now</string>
+    <string name="admin_livetv_since_minutes">for %1$d min</string>
+    <string name="admin_livetv_since_hours_minutes">for %1$d h %2$d min</string>
+
+    <!-- Sources, which the web app sets. -->
+    <string name="admin_livetv_sources_none_title">No IPTV source yet</string>
+    <string name="admin_livetv_sources_none_body">Add your provider\'s M3U playlist or Xtream Codes account in Pley\'s web app, in Settings → Live TV. Its channels then show here.</string>
+    <string name="admin_livetv_sources_web">Sources, and who may watch, are set in Pley\'s web app.</string>
+
+    <!-- Groups. -->
+    <string name="admin_livetv_groups_none_title">No groups yet</string>
+    <string name="admin_livetv_groups_none_body">Groups show here once a source has been read.</string>
+    <string name="admin_livetv_groups_region_hidden">%1$s\'s groups hidden</string>
+    <string name="admin_livetv_groups_region_shown">%1$s\'s groups shown</string>
+    <string name="admin_livetv_groups_group_hidden">%1$s hidden</string>
+    <string name="admin_livetv_groups_group_shown">%1$s shown</string>
+    <string name="admin_livetv_groups_unnamed_hidden">The group hidden</string>
+    <string name="admin_livetv_groups_unnamed_shown">The group shown</string>
+    <plurals name="admin_livetv_groups_shown">
+        <item quantity="one">%1$,d group shown</item>
+        <item quantity="other">%1$,d groups shown</item>
+    </plurals>
+    <plurals name="admin_livetv_groups_also_hidden">
+        <item quantity="one">, %1$d hidden</item>
+        <item quantity="other">, %1$d hidden</item>
+    </plurals>
+    <plurals name="admin_livetv_groups_to_watch">
+        <item quantity="one">%1$,d channel to watch.</item>
+        <item quantity="other">%1$,d channels to watch.</item>
+    </plurals>
+    <string name="admin_livetv_groups_hint">Hide the groups nobody here watches: they leave the guide, the channel lists and search for everyone.</string>
+    <string name="admin_livetv_groups_find">Find a group</string>
+    <string name="admin_livetv_groups_shown_and_hidden">Shown and hidden</string>
+    <string name="admin_livetv_groups_shown_only">Shown</string>
+    <string name="admin_livetv_groups_hidden_only">Hidden</string>
+    <string name="admin_livetv_groups_no_match">No groups match.</string>
+    <plurals name="admin_livetv_groups_region_groups">
+        <item quantity="one">%1$,d group</item>
+        <item quantity="other">%1$,d groups</item>
+    </plurals>
+    <plurals name="admin_livetv_groups_region_channels">
+        <item quantity="one">%1$,d channel</item>
+        <item quantity="other">%1$,d channels</item>
+    </plurals>
+    <string name="admin_livetv_groups_some_hidden">some hidden</string>
+    <string name="admin_livetv_groups_show_all">Show all</string>
+    <string name="admin_livetv_groups_hide_all">Hide all</string>
+    <plurals name="admin_livetv_groups_hidden_count">
+        <item quantity="one">%1$d hidden</item>
+        <item quantity="other">%1$d hidden</item>
+    </plurals>
+    <plurals name="admin_livetv_groups_offline_count">
+        <item quantity="one">%1$d offline</item>
+        <item quantity="other">%1$d offline</item>
+    </plurals>
+    <string name="admin_livetv_groups_no_group">No group</string>
+
+    <!-- Channels. -->
+    <string name="admin_livetv_lineup_none_title">No channels yet</string>
+    <string name="admin_livetv_lineup_none_body">Channels show here once a source has been read.</string>
+    <plurals name="admin_livetv_lineup_hidden">
+        <item quantity="one">%1$,d channel hidden</item>
+        <item quantity="other">%1$,d channels hidden</item>
+    </plurals>
+    <plurals name="admin_livetv_lineup_shown">
+        <item quantity="one">%1$,d channel shown</item>
+        <item quantity="other">%1$,d channels shown</item>
+    </plurals>
+    <plurals name="admin_livetv_lineup_also_hidden">
+        <item quantity="one">, %1$,d hidden</item>
+        <item quantity="other">, %1$,d hidden</item>
+    </plurals>
+    <string name="admin_livetv_lineup_hint">Hidden channels are nobody\'s to watch; names and numbers set here stay when the source is read again. Whole groups are hidden in Groups.</string>
+    <string name="admin_livetv_lineup_find">Find a channel</string>
+    <string name="admin_livetv_lineup_group">Group</string>
+    <string name="admin_livetv_lineup_every_group">Every group</string>
+    <string name="admin_livetv_lineup_which">Which</string>
+    <string name="admin_livetv_lineup_shown_and_hidden">Shown and hidden</string>
+    <string name="admin_livetv_lineup_shown_only">Shown</string>
+    <string name="admin_livetv_lineup_hidden_only">Hidden</string>
+    <string name="admin_livetv_lineup_without_guide">Without a guide</string>
+    <string name="admin_livetv_lineup_offline">Offline</string>
+    <string name="admin_livetv_lineup_choose_all">Choose every channel listed</string>
+    <plurals name="admin_livetv_lineup_chosen">
+        <item quantity="one">%1$,d chosen</item>
+        <item quantity="other">%1$,d chosen</item>
+    </plurals>
+    <string name="admin_livetv_lineup_hide">Hide</string>
+    <string name="admin_livetv_lineup_show">Show</string>
+    <string name="admin_livetv_lineup_no_match">No channels match.</string>
+    <string name="admin_livetv_lineup_at_source">“%1$s” at the source</string>
+    <string name="admin_livetv_lineup_guide">Guide</string>
+    <string name="admin_livetv_editor_saved">Channel saved</string>
+    <string name="admin_livetv_editor_name">Name</string>
+    <string name="admin_livetv_editor_name_hint">Empty: the source\'s.</string>
+    <string name="admin_livetv_editor_number">Number</string>
+    <string name="admin_livetv_editor_number_hint">Empty: the source\'s, %1$s.</string>
+    <string name="admin_livetv_editor_number_hint_none">Channels go by number, then as their source lists them.</string>
+    <string name="admin_livetv_editor_guide">Guide channel</string>
+    <string name="admin_livetv_editor_guide_hint_source">Its id in the guide (XMLTV). Empty: the source\'s, %1$s.</string>
+    <string name="admin_livetv_editor_guide_hint_matched">Its id in the guide (XMLTV). Empty: %1$s, found by its name.</string>
+    <string name="admin_livetv_editor_guide_hint_none">Its id in the guide (XMLTV): the source names none, and none goes by its name.</string>
+    <string name="admin_livetv_editor_note">A new guide channel shows its programmes once the guide is read again.</string>
+</resources>

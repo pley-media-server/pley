@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Managing the server, Invitations (apps/web/src/pages/settings/InvitesSettings.tsx). -->
+    <string name="admin_invitations_description">Comparte tus bibliotecas con amigos: cada enlace permite crear una cuenta propia.</string>
+    <string name="admin_invitations_new">Nueva invitación</string>
+    <string name="admin_invitations_empty_title">Aún no hay invitaciones</string>
+    <string name="admin_invitations_empty_description">Crea un enlace y envíaselo a alguien. Tú eliges qué bibliotecas puede ver y un límite de edad opcional.</string>
+    <string name="admin_invitations_copy_link">Copiar enlace</string>
+    <string name="admin_invitations_copied">Copiado</string>
+    <string name="admin_invitations_status_used">Usada</string>
+    <string name="admin_invitations_status_expired">Caducada</string>
+    <string name="admin_invitations_status_active">Activa</string>
+    <plurals name="admin_invitations_days">
+        <item quantity="one">%1$d día</item>
+        <item quantity="many">%1$d de días</item>
+        <item quantity="other">%1$d días</item>
+    </plurals>
+    <string name="admin_invitations_never">Nunca</string>
+    <plurals name="admin_invitations_sign_ups_left">
+        <item quantity="one">%1$d registro restante</item>
+        <item quantity="many">%1$d de registros restantes</item>
+        <item quantity="other">%1$d registros restantes</item>
+    </plurals>
+    <string name="admin_invitations_expires">caduca %1$s</string>
+    <string name="admin_invitations_expired">caducó %1$s</string>
+    <string name="admin_invitations_never_expires">no caduca</string>
+    <string name="admin_invitations_created">creada %1$s</string>
+    <string name="admin_invitations_delete">Eliminar invitación</string>
+    <string name="admin_invitations_delete_title">¿Eliminar la invitación?</string>
+    <string name="admin_invitations_delete_message">El enlace dejará de funcionar. Las cuentas ya creadas con él se conservan.</string>
+    <string name="admin_invitations_delete_action">Eliminar</string>
+    <string name="admin_invitations_deleted">Invitación eliminada</string>
+    <string name="admin_invitations_create_link">Crear enlace</string>
+    <string name="admin_invitations_intro">Cualquiera con el enlace puede crear su propia cuenta. Se une como amigo de este servidor (no como miembro del hogar) con el acceso que elijas aquí.</string>
+    <string name="admin_invitations_expires_label">El enlace caduca</string>
+    <string name="admin_invitations_uses">Número de registros</string>
+    <string name="admin_invitations_note">Nota</string>
+    <string name="admin_invitations_note_hint">Solo la ves tú; por ejemplo, para quién es el enlace.</string>
+    <string name="admin_invitations_pick_library">Elige al menos una biblioteca, o compártelas todas.</string>
+    <string name="admin_invitations_at_least_one">El enlace debe permitir al menos un registro.</string>
+    <string name="admin_invitations_ready_title">Invitación lista</string>
+    <string name="admin_invitations_ready_send">Envía este enlace a la persona que invitas:</string>
+    <string name="admin_invitations_ready_link">Enlace de invitación</string>
+    <string name="admin_invitations_ready_expires">Caduca %1$s.</string>
+    <string name="admin_invitations_share">Compartir</string>
+    <string name="admin_invitations_done">Listo</string>
+</resources>

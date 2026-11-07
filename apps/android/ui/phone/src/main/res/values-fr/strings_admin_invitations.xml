@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Managing the server, Invitations (apps/web/src/pages/settings/InvitesSettings.tsx). -->
+    <string name="admin_invitations_description">Partagez vos bibliothèques avec des amis : chaque lien permet de créer son propre compte.</string>
+    <string name="admin_invitations_new">Nouvelle invitation</string>
+    <string name="admin_invitations_empty_title">Aucune invitation pour l’instant</string>
+    <string name="admin_invitations_empty_description">Créez un lien et envoyez-le à quelqu’un. Vous choisissez les bibliothèques visibles et une éventuelle limite d’âge.</string>
+    <string name="admin_invitations_copy_link">Copier le lien</string>
+    <string name="admin_invitations_copied">Copié</string>
+    <string name="admin_invitations_status_used">Utilisée</string>
+    <string name="admin_invitations_status_expired">Expirée</string>
+    <string name="admin_invitations_status_active">Active</string>
+    <plurals name="admin_invitations_days">
+        <item quantity="one">%1$d jour</item>
+        <item quantity="many">%1$d de jours</item>
+        <item quantity="other">%1$d jours</item>
+    </plurals>
+    <string name="admin_invitations_never">Jamais</string>
+    <plurals name="admin_invitations_sign_ups_left">
+        <item quantity="one">%1$d inscription restante</item>
+        <item quantity="many">%1$d d’inscriptions restantes</item>
+        <item quantity="other">%1$d inscriptions restantes</item>
+    </plurals>
+    <string name="admin_invitations_expires">expire %1$s</string>
+    <string name="admin_invitations_expired">expirée %1$s</string>
+    <string name="admin_invitations_never_expires">n’expire jamais</string>
+    <string name="admin_invitations_created">créée %1$s</string>
+    <string name="admin_invitations_delete">Supprimer l’invitation</string>
+    <string name="admin_invitations_delete_title">Supprimer l’invitation ?</string>
+    <string name="admin_invitations_delete_message">Le lien cesse de fonctionner. Les comptes déjà créés avec lui sont conservés.</string>
+    <string name="admin_invitations_delete_action">Supprimer</string>
+    <string name="admin_invitations_deleted">Invitation supprimée</string>
+    <string name="admin_invitations_create_link">Créer le lien</string>
+    <string name="admin_invitations_intro">Toute personne ayant le lien peut créer son propre compte. Elle rejoint ce serveur en tant qu’ami (et non comme membre du foyer), avec l’accès que vous choisissez ici.</string>
+    <string name="admin_invitations_expires_label">Expiration du lien</string>
+    <string name="admin_invitations_uses">Nombre d’inscriptions</string>
+    <string name="admin_invitations_note">Note</string>
+    <string name="admin_invitations_note_hint">Vous seul la voyez, par exemple pour savoir à qui est destiné le lien.</string>
+    <string name="admin_invitations_pick_library">Choisissez au moins une bibliothèque, ou partagez-les toutes.</string>
+    <string name="admin_invitations_at_least_one">Le lien doit permettre au moins une inscription.</string>
+    <string name="admin_invitations_ready_title">Invitation prête</string>
+    <string name="admin_invitations_ready_send">Envoyez ce lien à la personne que vous invitez :</string>
+    <string name="admin_invitations_ready_link">Lien d’invitation</string>
+    <string name="admin_invitations_ready_expires">Expire %1$s.</string>
+    <string name="admin_invitations_share">Partager</string>
+    <string name="admin_invitations_done">Terminé</string>
+</resources>

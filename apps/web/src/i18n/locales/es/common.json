@@ -168,7 +168,8 @@
       "profiles": "Perfiles",
       "requests": "Solicitar películas y series",
       "approvals": "Aprobar solicitudes",
-      "activity": "Lo que se reproduce"
+      "activity": "Lo que se reproduce",
+      "server": "Gestionar el servidor"
     }
   },
   "tokens": {

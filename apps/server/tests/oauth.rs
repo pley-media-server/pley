@@ -381,7 +381,7 @@ async fn metadata_names_the_address_it_was_asked_at() {
             "token_endpoint_auth_methods_supported": ["none"],
             "revocation_endpoint_auth_methods_supported": ["none"],
             "code_challenge_methods_supported": ["S256"],
-            "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"],
+            "scopes_supported": ["library", "play", "playlists", "profiles", "requests", "approvals", "activity", "server"],
             "authorization_response_iss_parameter_supported": true,
             "client_id_metadata_document_supported": false,
             "service_documentation": "https://github.com/pley-media-server/pley/blob/master/docs/API.md",
@@ -840,6 +840,12 @@ async fn apps_by_other_publishers_need_the_setting() {
         start(&app, &admin, &query(&with(request_params(OTHER_APP, OTHER_BACK), &[("scope", Some("playlists"))])))
             .await;
     assert_eq!(more.body["error"], "invalid_scope");
+    // Nor administration, whatever it says: that is pley's own apps' alone.
+    let server =
+        start(&app, &admin, &query(&with(request_params(OTHER_APP, OTHER_BACK), &[("scope", Some("library server"))])))
+            .await;
+    assert_eq!(server.body["error"], "invalid_scope");
+    assert!(server.text().contains("only Pley's own apps can manage the server"), "{}", server.text());
 
     // Back to its address as it was sent, its own query kept.
     let address = allow(&app, &admin, &request).await;

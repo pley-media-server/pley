@@ -113,7 +113,12 @@ licences ([CONTRIBUTING.md](CONTRIBUTING.md)).
 - A route apps may use is listed in `APP_ROUTES` in
   `apps/server/src/auth/scopes.rs` with the scope it needs, and the count
   in `every_app_route_is_on_a_real_path` goes up with it. Administration
-  never goes to apps.
+  goes only to Pley's own apps, with the `server` scope, on an
+  administrator's account, never with a TV's code. It never reaches what
+  holds the server's keys and passwords (its settings, network, transcoder,
+  Radarr and Sonarr, backups, Live TV's sources), and no answer an app gets
+  carries a secret; nor one's own name, password, PIN, two-step sign-in,
+  devices or apps.
 - Input from outside (requests, files, IPTV providers, metadata sources) is
   bounded and checked: sizes, paths, formats. Pictures are served only as
   JPEG, PNG, WebP or GIF, never SVG or HTML from Pley's address.

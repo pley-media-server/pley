@@ -81,6 +81,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -526,6 +527,27 @@ class HttpPleyApi(
         send("POST", MediaRequest.serializer(), EMPTY, "api", "requests", id, "handled")
 
     override suspend fun requestOptions(): RequestOptions = get(RequestOptions.serializer(), "api", "requests", "options")
+
+    // ---------------------------------------------------------------- managing the server
+
+    override val admin: AdminApi = object : AdminApi {
+        override suspend fun <T> get(answer: DeserializationStrategy<T>, path: List<Any>, query: List<Pair<String, String?>>): T =
+            http().fetch(jsonRequest(address(path, query)).get().build()) { it.decode(answer) }
+
+        override suspend fun <T> send(method: String, answer: DeserializationStrategy<T>, path: List<Any>, body: JsonElement?): T =
+            http().fetch(jsonRequest(address(path)).method(method, jsonBody(method, body)).build()) { it.decode(answer) }
+
+        override suspend fun call(method: String, path: List<Any>, body: JsonElement?) {
+            http().fetch(jsonRequest(address(path)).method(method, jsonBody(method, body)).build()) { it.expectSuccess() }
+        }
+    }
+
+    /** [body] as JSON; without one, nothing for DELETE and an empty body for the methods that need one. */
+    private fun jsonBody(method: String, body: JsonElement?): RequestBody? = when {
+        body != null -> PleyJson.encodeToString(JsonElement.serializer(), body).toRequestBody(JSON)
+        method == "GET" || method == "DELETE" -> null
+        else -> EMPTY
+    }
 
     // ---------------------------------------------------------------- plumbing
 

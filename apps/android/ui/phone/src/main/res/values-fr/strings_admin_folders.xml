@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="admin_folders_title">Choisir un dossier</string>
+    <string name="admin_folders_select">Choisir ce dossier</string>
+    <string name="admin_folders_up">Dossier parent</string>
+    <string name="admin_folders_placeholder">Saisissez un chemin, par ex. D:\\Médias\\Films ou /mnt/media</string>
+    <string name="admin_folders_path_label">Chemin du dossier</string>
+    <string name="admin_folders_go">Ouvrir</string>
+    <string name="admin_folders_back_to_top">Revenir à la racine</string>
+    <string name="admin_folders_empty">Aucun sous-dossier ici.</string>
+</resources>

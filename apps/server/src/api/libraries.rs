@@ -114,9 +114,10 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
     Ok(Json(for_user(&user, to_dto(&state, &lib, Some(&user)).await?)))
 }
 
-/// Apps and non-administrators aren't told where the server keeps its media.
+/// Apps and non-administrators aren't told where the server keeps its media,
+/// except pley's own apps that manage the server, which change it.
 fn for_user(user: &AuthUser, mut dto: LibraryDto) -> LibraryDto {
-    if user.app.is_some() || !user.is_admin {
+    if !user.administers() {
         dto.paths.clear();
     }
     dto

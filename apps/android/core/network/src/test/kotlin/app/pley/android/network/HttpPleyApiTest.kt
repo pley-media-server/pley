@@ -40,6 +40,10 @@ import app.pley.android.testing.network.bodyText
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import org.junit.After
@@ -404,6 +408,19 @@ class HttpPleyApiTest {
             },
             Golden("requestHandled", jsonAnswer(oneRequest), "POST /api/requests/44/handled") { requestHandled(44) },
             Golden("requestOptions", json("requests/options.json"), "GET /api/requests/options") { requestOptions() },
+            // Managing the server: segments encoded, queries in order, nulls written out where the body says so.
+            Golden("admin.get", jsonAnswer("{}"), "GET /api/system/resources?since=3000") {
+                admin.get(JsonElement.serializer(), listOf("api", "system", "resources"), listOf("since" to "3000", "until" to null))
+            },
+            Golden("admin.send", jsonAnswer("{}"), "PATCH /api/users/3", body = """{"pin":null,"name":"Ann"}""") {
+                admin.send("PATCH", JsonElement.serializer(), listOf("api", "users", 3), buildJsonObject { put("pin", JsonNull); put("name", "Ann") })
+            },
+            Golden("admin.send (no body)", jsonAnswer("{}"), "POST /api/libraries/2/scan", body = "") {
+                admin.send("POST", JsonElement.serializer(), listOf("api", "libraries", 2, "scan"))
+            },
+            Golden("admin.call", MockResponse.Builder().code(204).build(), "DELETE /api/invites/a%20b") {
+                admin.call("DELETE", listOf("api", "invites", "a b"))
+            },
         )
     }
 

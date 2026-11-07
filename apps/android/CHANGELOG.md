@@ -10,6 +10,11 @@ describes how they are made.
 
 ### Added
 
+- Administrators manage the server from their phone or tablet, as in the
+  web app's Settings: Me → Manage server has the dashboard, libraries,
+  Live TV's channels and tuners, users and invitations. The server's
+  settings, network, transcoder, requests and Live TV's sources stay in
+  the web app. A phone signed in before asks to sign in again for it.
 - Home opens on the newest movies and shows you haven't watched, as the
   web does: on phones a banner under a clear top bar, with the title's
   plot, Play, More info and My List, swiped between; on Android TV and

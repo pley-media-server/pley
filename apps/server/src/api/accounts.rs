@@ -170,6 +170,9 @@ pub async fn update_user(
 ) -> ApiResult<Json<UserDto>> {
     let current = accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?;
     // Check everything first: a refused update changes nothing.
+    if body.display_name.is_some() {
+        not_ones_own_from_an_app(&admin, id, "change your own name in Pley's web app")?;
+    }
     if let Some(password) = &body.password {
         // One's own, from Account, which asks for the current one first and
         // signs one's other devices out: a session alone isn't enough.
@@ -420,10 +423,18 @@ pub async fn sign_out_device(
 
 pub async fn user_devices(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    AdminUser(admin): AdminUser,
     Path(id): Path<i64>,
 ) -> ApiResult<Json<Vec<DeviceDto>>> {
+    not_ones_own_from_an_app(&admin, id, "see your own devices in Pley's web app")?;
     Ok(Json(devices_of(&state, id, None).await?))
+}
+
+/// One's own name, devices and apps stay with Pley's web app (Account), as
+/// for every app: one that manages the server reaches them on others'
+/// accounts only.
+pub(super) fn not_ones_own_from_an_app(admin: &AuthUser, id: i64, words: &'static str) -> ApiResult<()> {
+    if admin.app.is_some() && id == admin.id { Err(AppError::bad_request(words)) } else { Ok(()) }
 }
 
 /// Sign a user out on every device and in every app, apps they were signing
@@ -664,8 +675,9 @@ pub async fn delete_avatar(State(state): State<AppState>, user: AuthUser) -> Api
 
 pub async fn avatar(State(state): State<AppState>, user: AuthUser, Path(id): Path<i64>) -> ApiResult<Response> {
     // Apps see their own profile's picture, those of its household, and
-    // those of the people named in the requests they may read.
-    if user.app.is_some() && id != user.id {
+    // those of the people named in the requests they may read; one that
+    // manages the server, everyone's, as its list of accounts shows them.
+    if user.app.is_some() && !user.administers() && id != user.id {
         let household: bool = sqlx::query_scalar(
             "SELECT EXISTS (SELECT 1 FROM users me, users them
                             WHERE me.id = ? AND them.id = ? AND me.home AND them.home AND NOT them.disabled)",

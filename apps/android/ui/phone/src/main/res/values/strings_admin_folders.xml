@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Picking a folder on the server (apps/web/src/components/FolderPicker.tsx), in the web's words. -->
+    <string name="admin_folders_title">Choose a folder</string>
+    <string name="admin_folders_select">Select this folder</string>
+    <string name="admin_folders_up">Up one level</string>
+    <string name="admin_folders_placeholder">Type a path, e.g. D:\\Media\\Movies or /mnt/media</string>
+    <string name="admin_folders_path_label">Folder path</string>
+    <string name="admin_folders_go">Go</string>
+    <string name="admin_folders_back_to_top">Back to top</string>
+    <string name="admin_folders_empty">No sub-folders here.</string>
+</resources>

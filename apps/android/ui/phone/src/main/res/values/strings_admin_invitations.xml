@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Managing the server, Invitations (apps/web/src/pages/settings/InvitesSettings.tsx). -->
+    <string name="admin_invitations_description">Share your libraries with friends: each link lets people create their own account.</string>
+    <string name="admin_invitations_new">New invitation</string>
+    <string name="admin_invitations_empty_title">No invitations yet</string>
+    <string name="admin_invitations_empty_description">Create a link and send it to someone. You choose which libraries they can see and an optional age limit.</string>
+    <string name="admin_invitations_copy_link">Copy link</string>
+    <string name="admin_invitations_copied">Copied</string>
+    <string name="admin_invitations_status_used">Used</string>
+    <string name="admin_invitations_status_expired">Expired</string>
+    <string name="admin_invitations_status_active">Active</string>
+    <plurals name="admin_invitations_days">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
+    <string name="admin_invitations_never">Never</string>
+    <plurals name="admin_invitations_sign_ups_left">
+        <item quantity="one">%1$d sign-up left</item>
+        <item quantity="other">%1$d sign-ups left</item>
+    </plurals>
+    <string name="admin_invitations_expires">expires %1$s</string>
+    <string name="admin_invitations_expired">expired %1$s</string>
+    <string name="admin_invitations_never_expires">never expires</string>
+    <string name="admin_invitations_created">created %1$s</string>
+    <string name="admin_invitations_delete">Delete invitation</string>
+    <string name="admin_invitations_delete_title">Delete invitation?</string>
+    <string name="admin_invitations_delete_message">The link stops working. Accounts already created with it are kept.</string>
+    <string name="admin_invitations_delete_action">Delete</string>
+    <string name="admin_invitations_deleted">Invitation deleted</string>
+    <string name="admin_invitations_create_link">Create link</string>
+    <string name="admin_invitations_intro">Anyone with the link can create their own account. They join as friends of this server (not home members) with the access you choose here.</string>
+    <string name="admin_invitations_expires_label">Link expires</string>
+    <string name="admin_invitations_uses">Number of sign-ups</string>
+    <string name="admin_invitations_note">Note</string>
+    <string name="admin_invitations_note_hint">Only you see it, e.g. who the link is for.</string>
+    <string name="admin_invitations_pick_library">Pick at least one library, or share all of them.</string>
+    <string name="admin_invitations_at_least_one">The link must allow at least one sign-up.</string>
+    <string name="admin_invitations_ready_title">Invitation ready</string>
+    <string name="admin_invitations_ready_send">Send this link to the person you\'re inviting:</string>
+    <string name="admin_invitations_ready_link">Invitation link</string>
+    <string name="admin_invitations_ready_expires">Expires %1$s.</string>
+    <string name="admin_invitations_share">Share</string>
+    <string name="admin_invitations_done">Done</string>
+</resources>

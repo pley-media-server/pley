@@ -121,13 +121,33 @@ impl AuthUser {
     /// Whether this request sees and stops everyone's playback, as the
     /// dashboard does: an administrator's own sign-in (and a compatibility
     /// token that sees everyone's, by its own rules), or one of pley's own
-    /// apps on an administrator's account allowed `activity` (no other app
-    /// can be: it sees and stops only its profile's own). Remote control and
-    /// casting stay the user's own whatever this says.
+    /// apps on an administrator's account allowed `activity` or `server` (no
+    /// other app can be: it sees and stops only its profile's own). Remote
+    /// control and casting stay the user's own whatever this says.
     pub fn oversees_playback(&self) -> bool {
         match &self.app {
             None => self.is_admin,
-            Some(app) => self.account_admin && app.scopes.contains(Scope::Activity) && self.first_party(),
+            Some(app) => {
+                self.account_admin
+                    && (app.scopes.contains(Scope::Activity) || app.scopes.contains(Scope::Server))
+                    && self.first_party()
+            }
+        }
+    }
+
+    /// Whether this request manages the server: an administrator's own
+    /// sign-in, or one of pley's own apps on an administrator's account
+    /// allowed `server` (no other app can be, and never a compatibility
+    /// token). The administrators' routes `server` opens ([`AdminUser`],
+    /// APP_ROUTES) answer such an app as an administrator; elsewhere it
+    /// stays a viewer, apart from what this opens by name.
+    pub fn administers(&self) -> bool {
+        if self.compatibility.is_some() {
+            return false;
+        }
+        match &self.app {
+            None => self.is_admin,
+            Some(app) => self.account_admin && app.scopes.contains(Scope::Server) && self.first_party(),
         }
     }
 
@@ -162,7 +182,9 @@ impl UsedFrom {
     }
 }
 
-/// Extractor that additionally requires administrator rights.
+/// Extractor that additionally requires administrator rights: an
+/// administrator's own sign-in, or one of pley's own apps that manages the
+/// server ([`AuthUser::administers`]), which it holds as an administrator.
 #[derive(Debug, Clone)]
 pub struct AdminUser(pub AuthUser);
 
@@ -1454,10 +1476,12 @@ impl FromRequestParts<AppState> for AdminUser {
 
     async fn from_request_parts(parts: &mut Parts, state: &AppState) -> Result<Self, Self::Rejection> {
         let user = AuthUser::from_request_parts(parts, state).await?;
-        if !user.is_admin {
+        if !user.administers() {
             return Err(AppError::forbidden("administrator rights required"));
         }
-        Ok(AdminUser(user))
+        // An app that manages the server got here through a route `server`
+        // opens (AuthUser checked it): it administers, here only.
+        Ok(AdminUser(AuthUser { is_admin: true, ..user }))
     }
 }
 
