@@ -14,10 +14,12 @@ never changes anything on Plex.
   administrator. Each person in your Plex Home you choose becomes a
   profile of Pley's household, opening the libraries they could open on
   Plex.
-- **Restrictions.** A restricted Plex Home user's profile gets an age limit
-  from Plex's ratings, and label rules from Plex's labels: titles with a
-  label they're always allowed are shown above their age limit, titles
-  with a label they're never allowed aren't shown at all. A rule Pley
+- **Restrictions.** The profile of a Plex Home user Plex limits (a managed
+  user, or a member with their own Plex account and restrictions on what
+  you share with them) gets an age limit from Plex's ratings, and label
+  rules from Plex's labels: titles with a label they're always allowed are
+  shown above their age limit, titles with a label they're never allowed
+  aren't shown at all. A rule Pley
   can't keep, such as "only titles with this label", becomes the strictest
   it can, and the import says which.
 - **Titles.** Plex's labels are added to the titles, and a title's date

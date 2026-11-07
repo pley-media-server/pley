@@ -201,6 +201,8 @@ pub struct PlanUser {
     pub title: String,
     /// The Plex account signed in, brought as the administrator.
     pub admin: bool,
+    /// Plex limits what they see: a managed user, or a Home member with
+    /// sharing filters of their own.
     pub restricted: bool,
     pub protected: bool,
     /// The Pley profile an earlier import made for them.
@@ -479,23 +481,22 @@ impl Importer {
         }
 
         let home = plex.home_users(&token).await?;
-        let filters = if home.iter().any(|u| u.restricted) { plex.user_filters(&token).await? } else { Vec::new() };
+        // A managed user's rules and a Home member's with their own account
+        // (whom Plex doesn't call restricted) are both sharing filters.
+        let filters = if home.iter().any(|u| !u.admin) { plex.user_filters(&token).await? } else { Vec::new() };
         let region = crate::ratings::region(db).await?;
         let mut users = Vec::new();
         for user in &home {
-            let limits = if user.restricted && !user.admin {
-                limits_of(&filters, user.id, &region).into()
-            } else {
-                PlanLimits::default()
-            };
+            let limits = if user.admin { Limits::default() } else { limits_of(&filters, user.id, &region) };
+            let restricted = !user.admin && (user.restricted || limits != Limits::default());
             users.push(PlanUser {
                 id: user.id,
                 title: user.title.clone(),
                 admin: user.admin,
-                restricted: user.restricted,
+                restricted,
                 protected: user.protected,
                 profile_id: if user.admin { None } else { imported_profile(db, user.id).await? },
-                limits,
+                limits: limits.into(),
             });
         }
         Ok(Plan { server: name, libraries, users })
@@ -904,8 +905,7 @@ impl Run {
         self.advance(1);
         let chosen: Vec<&HomeUser> =
             home.iter().filter(|u| !u.admin && choices.users.iter().any(|c| c.id == u.id)).collect();
-        let filters =
-            if chosen.iter().any(|u| u.restricted) { self.plex.user_filters(&self.token).await? } else { Vec::new() };
+        let filters = if chosen.is_empty() { Vec::new() } else { self.plex.user_filters(&self.token).await? };
         let region = crate::ratings::region(&self.state.db).await?;
         let all_sections: HashSet<&str> = sections.iter().map(|s| s.key.as_str()).collect();
         for user in chosen {
@@ -920,8 +920,7 @@ impl Run {
             .await;
             match theirs {
                 Ok((server, sections)) => {
-                    let limits =
-                        if user.restricted { limits_of(&filters, user.id, &region) } else { Limits::default() };
+                    let limits = limits_of(&filters, user.id, &region);
                     // Every Plex library, and every Pley library one of
                     // them: only then may the profile open all of Pley's.
                     let everything =

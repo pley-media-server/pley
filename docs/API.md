@@ -4567,7 +4567,8 @@ interface ImportPlan {
   users: {
     id: number; title: string;            // Plex's
     admin: boolean;                       // the account signed in, which comes as the administrator
-    restricted: boolean; protected: boolean;
+    restricted: boolean;                  // Plex limits what they see: a managed user, or a member with sharing filters
+    protected: boolean;
     profile_id: Id | null;                // the profile an earlier import made
     limits: { max_age: number | null; max_age_system: string | null;
               show_labels: string[]; hide_labels: string[];
@@ -4622,7 +4623,8 @@ interface ImportProgress {
   every Pley library is one of those brought; otherwise just the ones
   they could open. Plex refusing one person's lists marks theirs
   `incomplete` and the import goes on.
-- **Restrictions.** A restricted Home user's profile is made with them,
+- **Restrictions.** The profile of a Home user Plex limits (a managed
+  user, or a member with sharing filters of their own) is made with them,
   in one go: an age limit from Plex's ratings (the lower of the movie and
   TV rules', in the system most of them are in; a rating written with its
   country is read with that country's ratings only, and left out when

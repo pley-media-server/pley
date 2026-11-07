@@ -180,7 +180,10 @@ async fn fake_plex() -> String {
                 }
                 axum::Json(json!({"id": 4, "name": "Home", "users": [
                     {"id": 1, "uuid": "u-owner", "title": "Alex", "admin": true},
-                    {"id": 885, "uuid": "u-kid", "title": "Kid One", "restricted": true, "protected": true}
+                    {"id": 885, "uuid": "u-kid", "title": "Kid One", "restricted": true, "protected": true},
+                    // A Home member with their own account: Plex doesn't call them
+                    // restricted, and keeps their rules as sharing filters.
+                    {"id": 549, "uuid": "u-teen", "title": "Teen", "restricted": false}
                 ]}))
                 .into_response()
             }),
@@ -202,7 +205,9 @@ async fn fake_plex() -> String {
                     [(header::CONTENT_TYPE, "application/xml")],
                     r#"<?xml version="1.0"?><MediaContainer><User id="885" title="Kid One" home="1"
                         filterMovies="contentRating=G%2CPG|label=Family&amp;label!=Scary"
-                        filterTelevision="contentRating=TV-Y%2CTV-PG|label=Family" filterMusic=""/></MediaContainer>"#,
+                        filterTelevision="contentRating=TV-Y%2CTV-PG|label=Family" filterMusic=""/>
+                        <User id="549" title="Teen" home="1" filterMovies="label!=Scary" filterTelevision="label!=Scary"
+                        filterMusic=""/></MediaContainer>"#,
                 )
             }),
         )
@@ -317,6 +322,13 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(
         kid["limits"],
         json!({"max_age": 10, "max_age_system": "US", "show_labels": ["Family"], "hide_labels": ["Scary"],
+               "left_over": [], "not_kept": []})
+    );
+    let teen = &plan.body["users"][2];
+    assert_eq!((&teen["title"], &teen["restricted"]), (&json!("Teen"), &json!(true)));
+    assert_eq!(
+        teen["limits"],
+        json!({"max_age": null, "max_age_system": null, "show_labels": [], "hide_labels": ["Scary"],
                "left_over": [], "not_kept": []})
     );
     assert!(!plan.mentions(OWNER) && !plan.mentions(OWNER_SERVER), "no token in the plan");
