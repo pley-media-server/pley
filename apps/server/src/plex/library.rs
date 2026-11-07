@@ -317,7 +317,7 @@ pub async fn all(
     let (lib, libraries) = library_for(&state, &user, &id).await?;
     let kind = params.get("type").and_then(kind_for_number).unwrap_or(lib.kind().top_level_kind());
     let (rows, total) = if kinds_of(&lib).contains(&kind) {
-        SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &page).await?
+        SectionQuery::asked_by(&user, lib.id, kind, &params)?.page(&state.db, user.id, &page).await?
     } else {
         (Vec::new(), 0)
     };
@@ -366,7 +366,8 @@ pub async fn library_all(
             None => vec![lib.kind().top_level_kind()],
         };
         for kind in kinds {
-            let (found, count) = SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
+            let (found, count) =
+                SectionQuery::asked_by(&user, lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
             rows.extend(found);
             total += count;
         }

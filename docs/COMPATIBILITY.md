@@ -408,7 +408,9 @@ does:
   removes (each name percent-encoded once more, as `python-plexapi` sends
   them). The same for `label`, which details list as `Label` and the
   `label` filter and `/library/sections/{id}/label` find (labels are listed
-  to tokens with `manage` only: profiles' label rules go by them), and for
+  to tokens with `manage` only: profiles' label rules go by them; other
+  tokens' `label` filters, and Jellyfin's `Tags`, go as if titles had no
+  labels, while smart collections and playlists keep theirs), and for
   `collection`: the item joins or leaves the collection of that name in its
   library, which is made when missing. Details list it as `Collection`.
 - `userRating.value` (0-10; empty clears it) is the token's account's own

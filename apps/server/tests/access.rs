@@ -742,6 +742,27 @@ async fn labels_are_shown_and_listed_to_administrators_only() {
     assert!(app.jf_json(&in_jellyfin, &w.kid).await.get("Tags").is_none());
     let manager = app.compatibility_token(admin, "manage").await;
     assert_eq!(app.jf_json(&in_jellyfin, &manager).await["Tags"], json!(["4K"]));
+    // Their label filters go as if titles had none, so a label guessed finds
+    // nothing out: one finds no title, its "not" every title they see.
+    let section = format!("/library/sections/{}/all", w.movies);
+    let plex_titles = |container: &Value| titles(&container["Metadata"]);
+    let theirs = plex_titles(&app.plex_json(&section, &w.kid).await);
+    assert!(theirs.contains(&"Family Film".to_owned()), "{theirs:?}");
+    assert!(plex_titles(&app.plex_json(&format!("{section}?label=4K"), &w.kid).await).is_empty());
+    assert_eq!(plex_titles(&app.plex_json(&format!("{section}?label!=4K"), &w.kid).await), theirs);
+    assert_eq!(plex_titles(&app.plex_json(&format!("{section}?label=4K"), admin).await), ["Adult Film", "Family Film"]);
+    let tagged = format!("/Items?ParentId={}&Recursive=true&Tags=4K", app.jf_library(w.movies));
+    assert!(jf_names(&app.jf_json(&tagged, &w.kid).await).is_empty());
+    assert_eq!(jf_names(&app.jf_json(&tagged, &manager).await), ["Adult Film", "Family Film"]);
+    // A smart collection an administrator made by a label still finds its
+    // titles for them.
+    let listing = encode(&format!("server://m/com.plexapp.plugins.library{section}?type=1&label=4K"));
+    let uri = format!("/library/collections?type=1&title=4K&smart=1&sectionId={}&uri={listing}", w.movies);
+    let made = app.plex(Method::POST, &uri, admin, &[]).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.text());
+    let smart = made.body["MediaContainer"]["Metadata"][0]["ratingKey"].as_str().unwrap().to_owned();
+    let children = format!("/library/collections/{smart}/children");
+    assert_eq!(plex_titles(&app.plex_json(&children, &w.kid).await), ["Family Film"]);
 
     // Replaced as a whole; seasons and episodes take them, collections' extras don't matter here.
     label(app, admin, adult, &["4K"]).await;

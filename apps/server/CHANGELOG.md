@@ -46,6 +46,9 @@ describes how they are made.
   yet can still be added.
 - Plex and Jellyfin apps no longer show titles' labels, which label
   exceptions go by, except to tokens that may manage libraries (Kometa's).
+  Their other apps filter by label as if titles had none, so a label
+  guessed tells them nothing; smart collections made by a label still
+  find their titles.
 
 ### Fixed
 
