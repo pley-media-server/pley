@@ -16,7 +16,7 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 use crate::metadata::{MetadataAgent, TmdbError};
-use crate::ratings::rating_age;
+use crate::ratings::{self, Kind};
 use crate::settings::SettingsStore;
 use crate::util::{date_secs, now, utc};
 use pictures::Picture;
@@ -123,6 +123,8 @@ pub struct Details {
     pub release_date: Option<String>,
     pub runtime_minutes: Option<i64>,
     pub certification: Option<String>,
+    /// The country of `certification` (ISO 3166-1 alpha-2).
+    pub certification_country: Option<String>,
     pub network: Option<String>,
     pub show_status: Option<String>,
     pub poster_path: Option<String>,
@@ -137,6 +139,18 @@ pub struct Details {
     pub cast: Vec<CastMember>,
     /// Shows: TMDB's seasons in order (specials, 0, first); movies: none.
     pub seasons: Vec<Season>,
+}
+
+impl Details {
+    /// The age `certification` stands for in its country, `None` when
+    /// unrated or unknown.
+    pub fn age(&self) -> Option<i64> {
+        let kind = match self.kind {
+            TitleKind::Movie => Kind::Film,
+            TitleKind::Show => Kind::Tv,
+        };
+        ratings::age(self.certification_country.as_deref(), kind, self.certification.as_deref()?)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -387,7 +401,11 @@ impl Discover {
             }
         };
         let region = self.metadata.region();
-        all.get(&region)?.iter().rev().find(|c| rating_age(c).is_some_and(|age| age <= max_age)).cloned()
+        all.get(&region)?
+            .iter()
+            .rev()
+            .find(|c| ratings::age(Some(&region), Kind::Film, c).is_some_and(|age| age <= max_age))
+            .cloned()
     }
 
     async fn get<T: DeserializeOwned>(&self, path: &str, query: &[(&str, String)]) -> Result<T, TmdbError> {
@@ -599,16 +617,19 @@ impl RawMovie {
     fn into_details(self, tmdb_id: i64, region: &str) -> Details {
         let title = self.title.filter(|t| !t.trim().is_empty()).unwrap_or_else(|| format!("TMDB {tmdb_id}"));
         let keywords = self.keywords.map(|k| k.keywords).unwrap_or_default();
-        let certification = self.release_dates.and_then(|r| {
-            let of = |country: &str| {
-                r.results
-                    .iter()
-                    .find(|c| c.iso_3166_1 == country)
-                    .and_then(|c| c.release_dates.iter().find(|d| !d.certification.is_empty()))
-                    .map(|d| d.certification.clone())
-            };
-            of(region).or_else(|| of("US"))
-        });
+        let (certification, certification_country) = self
+            .release_dates
+            .and_then(|r| {
+                let of = |country: &str| {
+                    r.results
+                        .iter()
+                        .find(|c| c.iso_3166_1 == country)
+                        .and_then(|c| c.release_dates.iter().find(|d| !d.certification.is_empty()))
+                        .map(|d| (d.certification.clone(), country.to_owned()))
+                };
+                of(region).or_else(|| of("US"))
+            })
+            .unzip();
         Details {
             kind: TitleKind::Movie,
             tmdb_id,
@@ -621,6 +642,7 @@ impl RawMovie {
             release_date: self.release_date.filter(|d| !d.is_empty()),
             runtime_minutes: self.runtime.filter(|r| *r > 0),
             certification,
+            certification_country,
             network: self.production_companies.into_iter().next().map(|c| c.name),
             show_status: None,
             poster_path: self.poster_path,
@@ -685,12 +707,18 @@ impl RawShow {
     fn into_details(self, tmdb_id: i64, region: &str, now: i64) -> Details {
         let title = self.name.filter(|t| !t.trim().is_empty()).unwrap_or_else(|| format!("TMDB {tmdb_id}"));
         let keywords = self.keywords.map(|k| k.results).unwrap_or_default();
-        let certification = self.content_ratings.and_then(|r| {
-            let of = |country: &str| {
-                r.results.iter().find(|c| c.iso_3166_1 == country && !c.rating.is_empty()).map(|c| c.rating.clone())
-            };
-            of(region).or_else(|| of("US"))
-        });
+        let (certification, certification_country) = self
+            .content_ratings
+            .and_then(|r| {
+                let of = |country: &str| {
+                    r.results
+                        .iter()
+                        .find(|c| c.iso_3166_1 == country && !c.rating.is_empty())
+                        .map(|c| (c.rating.clone(), country.to_owned()))
+                };
+                of(region).or_else(|| of("US"))
+            })
+            .unzip();
         let ids = self.external_ids.unwrap_or_default();
         let last = self.last_episode_to_air;
         let mut seasons: Vec<Season> = self
@@ -725,6 +753,7 @@ impl RawShow {
             release_date: self.first_air_date.filter(|d| !d.is_empty()),
             runtime_minutes: None,
             certification,
+            certification_country,
             network: self.networks.into_iter().next().map(|n| n.name),
             show_status: self.status.filter(|s| !s.is_empty()),
             poster_path: self.poster_path,
@@ -850,6 +879,27 @@ mod tests {
         );
     }
 
+    /// "A" is for all ages in Denmark and for adults in India.
+    #[test]
+    fn a_movies_age_is_read_with_its_ratings_country() {
+        let raw = |country: &str| -> RawMovie {
+            serde_json::from_value(serde_json::json!({
+                "title": "Film",
+                "release_dates": {"results": [
+                    {"iso_3166_1": country, "release_dates": [{"certification": "A"}]},
+                    {"iso_3166_1": "US", "release_dates": [{"certification": "R"}]}
+                ]}
+            }))
+            .unwrap()
+        };
+        let danish = raw("DK").into_details(1, "DK");
+        assert_eq!((danish.certification.as_deref(), danish.certification_country.as_deref()), (Some("A"), Some("DK")));
+        assert_eq!(danish.age(), Some(0));
+        assert_eq!(raw("IN").into_details(1, "IN").age(), Some(18));
+        let elsewhere = raw("IN").into_details(1, "FR");
+        assert_eq!((elsewhere.certification.as_deref(), elsewhere.age()), (Some("R"), Some(17)), "the US's");
+    }
+
     #[test]
     fn upcoming_days_are_utc_dates() {
         assert_eq!(day(date_secs("2026-11-03").unwrap() + 23 * 3600), "2026-11-03");
@@ -875,6 +925,8 @@ mod tests {
         let seasons: Vec<_> = details.seasons.iter().map(|s| (s.number, s.name.as_str(), s.aired)).collect();
         assert_eq!(seasons, [(0, "Specials", 2), (1, "Season 1", 12), (2, "Second", 7)]);
         assert_eq!(details.certification.as_deref(), Some("TV-14"), "the region's, else the US's");
+        assert_eq!(details.certification_country.as_deref(), Some("US"));
+        assert_eq!(details.age(), Some(14));
         assert_eq!((details.imdb_id.as_deref(), details.tvdb_id), (Some("tt123"), Some(42)));
         assert!(details.anime && details.original_title.is_none());
         assert_eq!(details.cast[0].character.as_deref(), Some("B"));

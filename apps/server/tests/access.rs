@@ -621,3 +621,134 @@ async fn a_changed_age_limit_or_library_list_tells_the_users_devices() {
         assert_eq!(json, json!({"type": "libraries_changed"}));
     }
 }
+
+/// Gives item `id` these labels, through the edit dialog's route.
+async fn label(app: &TestApp, admin: &str, id: i64, labels: &[&str]) {
+    let reply = app.patch(&format!("/api/items/{id}"), admin, json!({ "labels": labels })).await;
+    assert_eq!(reply.status, StatusCode::OK, "{:?}", reply.body);
+}
+
+#[tokio::test]
+async fn label_rules_show_titles_above_the_age_limit_and_hide_others() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let movies = app.ids(w.movies, admin).await;
+    let (adult, family, home) = (movies["Adult Film"], movies["Family Film"], movies["Home Video"]);
+    label(app, admin, adult, &["Kids OK"]).await;
+    label(app, admin, home, &["Kids OK"]).await;
+    label(app, admin, family, &["Not Here"]).await;
+    // Matched whatever their case.
+    let rules = json!({"show_labels": ["kids ok"], "hide_labels": ["NOT HERE"]});
+    assert_eq!(app.patch(&format!("/api/users/{}", w.kid_id), admin, rules).await.status, StatusCode::OK);
+    let kid = w.kid.as_str();
+
+    // Above the limit and unrated, shown by a label; within it, hidden by one.
+    let listed = app.get(&format!("/api/libraries/{}/items", w.movies), kid).await;
+    assert_eq!(titles(&listed.body["items"]), ["Adult Film", "Home Video"]);
+    assert_eq!(app.get(&format!("/api/items/{adult}"), kid).await.status, StatusCode::OK);
+    all_hidden(app, kid, family, app.file_of(family).await, "Family Film").await;
+    assert_eq!(app.get("/api/search?q=family", kid).await.body["items"], json!([]));
+    let count = app.get(&format!("/api/libraries/{}", w.movies), kid).await;
+    assert_eq!(count.body["item_count"], json!(2));
+
+    // "Never" wins over "always".
+    label(app, admin, home, &["Kids OK", "Not Here"]).await;
+    let listed = app.get(&format!("/api/libraries/{}/items", w.movies), kid).await;
+    assert_eq!(titles(&listed.body["items"]), ["Adult Film"]);
+
+    // A label on a show hides its episodes, one on an album its tracks.
+    let shows = app.ids(w.tv, admin).await;
+    let kids_show = shows["Kids Show"];
+    let season = app.children(kids_show, admin).await["Season 1"];
+    let hello = app.children(season, admin).await["Hello"];
+    label(app, admin, kids_show, &["not here"]).await;
+    assert_eq!(app.get(&format!("/api/libraries/{}/items", w.tv), kid).await.body["items"], json!([]));
+    all_hidden(app, kid, hello, app.file_of(hello).await, "Hello").await;
+    let artist = app.ids(w.music, admin).await["Band"];
+    let album = app.children(artist, admin).await["Record"];
+    let song = app.children(album, admin).await["Song"];
+    label(app, admin, album, &["Not Here"]).await;
+    assert_eq!(app.get(&format!("/api/items/{song}"), kid).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(app.get(&format!("/api/items/{artist}"), kid).await.status, StatusCode::OK);
+
+    // A label never opens a library.
+    let secret = app.ids(w.private, admin).await["Secret"];
+    label(app, admin, secret, &["Kids OK"]).await;
+    assert_eq!(app.get(&format!("/api/items/{secret}"), kid).await.status, StatusCode::NOT_FOUND);
+
+    // "Never" hides from a profile without an age limit too.
+    let (teen, _) = app.user(admin, "teen", json!({"hide_labels": ["Not Here"]})).await;
+    let listed = app.get(&format!("/api/libraries/{}/items", w.movies), &teen).await;
+    assert_eq!(titles(&listed.body["items"]), ["Adult Film"]);
+    let count = app.get(&format!("/api/libraries/{}", w.movies), &teen).await;
+    assert_eq!(count.body["item_count"], json!(1));
+    // Nor are the people credited only in what it hides.
+    let credit = pley::people::NewCredit {
+        person: pley::people::PersonId::Tmdb(9),
+        name: "Nora Hidden".into(),
+        photo: None,
+        role: pley::people::Role::Actor,
+        character: None,
+    };
+    pley::people::replace(&app.state.db, family, &[credit]).await.unwrap();
+    assert_eq!(app.get("/api/search?q=nora", &teen).await.body["people"], json!([]));
+    assert_eq!(app.get("/api/search?q=nora", admin).await.body["people"][0]["name"], json!("Nora Hidden"));
+
+    // Administrators never are limited by them.
+    let all = app.get(&format!("/api/libraries/{}/items", w.movies), admin).await;
+    assert_eq!(titles(&all.body["items"]), ["Adult Film", "Family Film", "Home Video"]);
+}
+
+#[tokio::test]
+async fn labels_are_shown_and_listed_to_administrators_only() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let movies = app.ids(w.movies, admin).await;
+    let (adult, family) = (movies["Adult Film"], movies["Family Film"]);
+    label(app, admin, adult, &["Override: Adult", " 4K ", "4k"]).await;
+    label(app, admin, family, &["4K"]).await;
+    assert_eq!(app.get(&format!("/api/items/{adult}"), admin).await.body["labels"], json!(["4K", "Override: Adult"]));
+    let theirs = app.get(&format!("/api/items/{family}"), &w.kid).await;
+    assert!(theirs.body.get("labels").is_none(), "{:?}", theirs.body);
+    let listed = app.get("/api/labels", admin).await.body;
+    assert_eq!(
+        listed,
+        json!([{"label": "4K", "items": 2, "rules": 0}, {"label": "Override: Adult", "items": 1, "rules": 0}])
+    );
+    // A label a rule names is offered before any title carries it.
+    let rules = json!({"show_labels": ["Kids OK"], "hide_labels": ["override: adult"]});
+    assert_eq!(app.patch(&format!("/api/users/{}", w.kid_id), admin, rules).await.status, StatusCode::OK);
+    let invite = app.post("/api/invites", admin, json!({"hide_labels": ["Kids OK"]})).await;
+    assert_eq!(invite.status, StatusCode::CREATED, "{:?}", invite.body);
+    let listed = app.get("/api/labels", admin).await.body;
+    assert_eq!(
+        listed,
+        json!([
+            {"label": "4K", "items": 2, "rules": 0},
+            {"label": "Kids OK", "items": 0, "rules": 2},
+            {"label": "Override: Adult", "items": 1, "rules": 1}
+        ])
+    );
+    assert_eq!(app.get("/api/labels", &w.kid).await.status, StatusCode::FORBIDDEN);
+    // Nor do the compatibility APIs tell them, but to tokens that edit.
+    let plex_labels = |item: &Value| item["Label"].as_array().map_or(0, Vec::len);
+    let in_plex = format!("/library/metadata/{family}");
+    assert_eq!(plex_labels(&app.plex_json(&in_plex, &w.kid).await["Metadata"][0]), 0);
+    assert_eq!(plex_labels(&app.plex_json(&in_plex, admin).await["Metadata"][0]), 1);
+    let choices = format!("/library/sections/{}/label", w.movies);
+    assert!(app.plex_json(&choices, &w.kid).await.get("Directory").is_none_or(|d| d == &json!([])));
+    assert_eq!(app.plex_json(&choices, admin).await["Directory"].as_array().map_or(0, Vec::len), 2);
+    let in_jellyfin = format!("/Items/{}", app.jf_item(family));
+    assert!(app.jf_json(&in_jellyfin, &w.kid).await.get("Tags").is_none());
+    let manager = app.compatibility_token(admin, "manage").await;
+    assert_eq!(app.jf_json(&in_jellyfin, &manager).await["Tags"], json!(["4K"]));
+
+    // Replaced as a whole; seasons and episodes take them, collections' extras don't matter here.
+    label(app, admin, adult, &["4K"]).await;
+    assert_eq!(app.get(&format!("/api/items/{adult}"), admin).await.body["labels"], json!(["4K"]));
+    let bad = app.patch(&format!("/api/items/{adult}"), admin, json!({"labels": "4K"})).await;
+    assert_eq!(bad.status, StatusCode::BAD_REQUEST);
+    let long = "x".repeat(121);
+    let bad = app.patch(&format!("/api/items/{adult}"), admin, json!({"labels": [long]})).await;
+    assert_eq!(bad.status, StatusCode::BAD_REQUEST);
+}

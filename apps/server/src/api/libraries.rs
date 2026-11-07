@@ -32,11 +32,16 @@ pub struct LibraryDto {
 }
 
 /// `lib` as `viewer` sees it: its count leaves out the titles their age
-/// limit hides (administrators and profiles without one see them all).
+/// limit and label rules hide (administrators and profiles without either
+/// see them all).
 async fn to_dto(state: &AppState, lib: &LibraryRow, viewer: Option<&AuthUser>) -> ApiResult<LibraryDto> {
     let kind = lib.kind().top_level_kind();
+    let limited = match viewer {
+        Some(user) => crate::access::limited(&state.db, user).await?,
+        None => false,
+    };
     let count: i64 = match viewer {
-        Some(user) if !user.is_admin && user.max_age.is_some() => {
+        Some(user) if limited => {
             let sql = format!(
                 "{ME_CTE} SELECT COUNT(*) FROM {VISIBLE_ITEMS} WHERE {VISIBLE} AND i.library_id = ? AND i.kind = ?"
             );

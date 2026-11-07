@@ -1130,7 +1130,8 @@ async fn check_cast_switch(state: &AppState, owner: i64, caster: i64, device_id:
     let all_libraries = device.all_libraries || device.is_admin;
     let freer = to.is_admin
         || max_age.is_some_and(|mine| to.max_age.is_none_or(|theirs| theirs > mine))
-        || (!all_libraries && (to.all_libraries || to.more_libraries));
+        || (!all_libraries && (to.all_libraries || to.more_libraries))
+        || (!device.is_admin && (to.fewer_hidden_labels || (max_age.is_some() && to.more_shown_labels)));
     if freer && to.pin_hash.is_none() {
         return Err(AppError::ForbiddenAs("not_allowed", CAST_NEEDS_PIN.to_owned()));
     }

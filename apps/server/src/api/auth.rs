@@ -518,6 +518,12 @@ pub(crate) struct SwitchTarget {
     pub max_age: Option<i64>,
     /// It sees a library the current profile can't.
     pub more_libraries: bool,
+    /// It lacks a label the current profile never sees (see
+    /// `catalog::VISIBLE`), so sees titles it can't.
+    pub fewer_hidden_labels: bool,
+    /// It always sees a label the current profile doesn't, which shows
+    /// titles above an age limit.
+    pub more_shown_labels: bool,
     /// It uses two-step sign-in.
     pub two_step: bool,
 }
@@ -535,6 +541,10 @@ const SWITCH_TARGETS: &str = "SELECT t.id, t.username, t.home AND me.home AS bot
         t.pin_hash, t.pin_failures, t.password_hash, t.all_libraries, t.max_age,
         EXISTS (SELECT library_id FROM user_libraries WHERE user_id = t.id
                 EXCEPT SELECT library_id FROM user_libraries WHERE user_id = me.id) AS more_libraries,
+        NOT t.is_admin AND EXISTS (SELECT label FROM user_label_rules WHERE user_id = me.id AND kind = 'hide'
+                EXCEPT SELECT label FROM user_label_rules WHERE user_id = t.id AND kind = 'hide') AS fewer_hidden_labels,
+        NOT t.is_admin AND EXISTS (SELECT label FROM user_label_rules WHERE user_id = t.id AND kind = 'show'
+                EXCEPT SELECT label FROM user_label_rules WHERE user_id = me.id AND kind = 'show') AS more_shown_labels,
         EXISTS (SELECT 1 FROM two_step w WHERE w.user_id = t.id) AS two_step
  FROM users t, users me WHERE me.id = ?";
 
@@ -554,7 +564,9 @@ pub(crate) async fn switch_targets(state: &AppState, from: i64) -> ApiResult<Vec
 }
 
 /// Whether `target` is freer than the profile `from` acts as: an
-/// administrator, a higher age limit, or libraries it can't see. From
+/// administrator, a higher age limit, libraries it can't see, or label
+/// rules that show it more (one of `from`'s labels it never sees missing,
+/// or, for a profile with an age limit, a label it always sees added). From
 /// `from`'s rights for this request: an administrator's own sign-in may go
 /// anywhere, but an app's token, even an administrator's, has no such
 /// exemption (its `is_admin` is false).
@@ -562,7 +574,9 @@ fn is_freer(from: &AuthUser, target: &SwitchTarget) -> bool {
     !from.is_admin
         && (target.is_admin
             || from.max_age.is_some_and(|mine| target.max_age.is_none_or(|theirs| theirs > mine))
-            || (!from.all_libraries && (target.all_libraries || target.more_libraries)))
+            || (!from.all_libraries && (target.all_libraries || target.more_libraries))
+            || target.fewer_hidden_labels
+            || (from.max_age.is_some() && target.more_shown_labels))
 }
 
 /// What switching from `from`'s profile to `target` takes, by the rules of

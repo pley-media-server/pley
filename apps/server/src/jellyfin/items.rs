@@ -807,12 +807,16 @@ async fn details(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, id: &st
             }
             let mut items = dtos(state, jellyfin, user, std::slice::from_ref(&row), Fields::all()).await?;
             let mut item = items.remove(0);
-            // What an editor sends back: the locks and the labels.
+            // What an editor sends back: the locks and the labels (to editors
+            // only, see `labels::shown_to`).
             let (locked, all, sort) = super::editing::locks(state, row.id).await?;
             item.locked_fields = Some(locked);
             item.lock_data = Some(all);
             item.forced_sort_name = sort;
-            item.tags = Some(crate::labels::for_items(&state.db, &[row.id]).await?.remove(&row.id).unwrap_or_default());
+            if crate::labels::shown_to(user) {
+                item.tags =
+                    Some(crate::labels::for_items(&state.db, &[row.id]).await?.remove(&row.id).unwrap_or_default());
+            }
             Ok(Json(item).into_response())
         }
         Some((kind, number)) => Ok(Json(other(state, jellyfin, user, kind, number).await?).into_response()),

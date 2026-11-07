@@ -25,6 +25,7 @@ import { ItemRequestLine } from "./ItemRequest";
 import {
   ContentRating,
   Genres,
+  Labels,
   ItemArt,
   ItemPageShell,
   MetaLine,
@@ -174,6 +175,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
           </div>
 
           <Genres genres={item.genres} />
+          <Labels labels={item.labels} />
           <PartOfCollections item={item} />
 
           {/* One line on a phone: the others are square there, and Play gives way first. */}

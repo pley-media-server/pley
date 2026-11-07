@@ -129,6 +129,8 @@
       "genresPlaceholder": "Drama, Suspense",
       "locked": "Bloqueado: haz clic para desbloquear",
       "willUnlock": "Se desbloqueará",
+      "ratingCountry": "País: {{country}}",
+      "ratingRegion": "Se lee con las clasificaciones de la región de los metadatos",
       "fromNfo": "Del archivo NFO",
       "fields": {
         "title": "Título",
@@ -140,8 +142,11 @@
         "studio": "Estudio",
         "tagline": "Eslogan",
         "genres": "Géneros",
-        "summary": "Sinopsis"
-      }
+        "summary": "Sinopsis",
+        "labels": "Etiquetas"
+      },
+      "labelsHint": "Solo las ven los administradores. Las excepciones de los perfiles, en Ajustes → Usuarios, se basan en ellas.",
+      "removeLabel": "Quitar {{label}}"
     },
     "match": {
       "title": "Corregir coincidencia",

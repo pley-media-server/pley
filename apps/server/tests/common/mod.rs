@@ -510,7 +510,7 @@ impl TestApp {
     pub async fn set_rating(&self, title: &str, rating: Option<&str>) {
         sqlx::query("UPDATE items SET content_rating = ?, rating_age = ? WHERE title = ?")
             .bind(rating)
-            .bind(rating.and_then(pley::ratings::rating_age))
+            .bind(rating.and_then(|r| pley::ratings::age(Some("US"), pley::ratings::Kind::Film, r)))
             .bind(title)
             .execute(&self.state.db.write)
             .await

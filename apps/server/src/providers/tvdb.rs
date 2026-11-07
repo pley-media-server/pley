@@ -461,44 +461,56 @@ pub(crate) fn language(setting: &str) -> String {
     code.to_owned()
 }
 
+/// Countries by ISO 3166 alpha-2 and the alpha-3 code TheTVDB files content
+/// ratings under.
+const COUNTRIES: &[(&str, &str)] = &[
+    ("GB", "gbr"),
+    ("IE", "irl"),
+    ("CA", "can"),
+    ("AU", "aus"),
+    ("NZ", "nzl"),
+    ("FR", "fra"),
+    ("BE", "bel"),
+    ("CH", "che"),
+    ("DE", "deu"),
+    ("AT", "aut"),
+    ("ES", "esp"),
+    ("MX", "mex"),
+    ("IT", "ita"),
+    ("BR", "bra"),
+    ("PT", "prt"),
+    ("NL", "nld"),
+    ("SE", "swe"),
+    ("DK", "dnk"),
+    ("FI", "fin"),
+    ("NO", "nor"),
+    ("PL", "pol"),
+    ("CZ", "cze"),
+    ("RU", "rus"),
+    ("UA", "ukr"),
+    ("TR", "tur"),
+    ("SA", "sau"),
+    ("IL", "isr"),
+    ("IN", "ind"),
+    ("JP", "jpn"),
+    ("KR", "kor"),
+    ("CN", "chn"),
+    ("TW", "twn"),
+];
+
 /// The country TheTVDB files content ratings under (ISO 3166 alpha-3, "en-US"
 /// → "usa").
 pub(crate) fn country(setting: &str) -> &'static str {
-    match setting.split(['-', '_']).nth(1).unwrap_or_default().to_ascii_uppercase().as_str() {
-        "GB" => "gbr",
-        "IE" => "irl",
-        "CA" => "can",
-        "AU" => "aus",
-        "NZ" => "nzl",
-        "FR" => "fra",
-        "BE" => "bel",
-        "CH" => "che",
-        "DE" => "deu",
-        "AT" => "aut",
-        "ES" => "esp",
-        "MX" => "mex",
-        "IT" => "ita",
-        "BR" => "bra",
-        "PT" => "prt",
-        "NL" => "nld",
-        "SE" => "swe",
-        "DK" => "dnk",
-        "FI" => "fin",
-        "NO" => "nor",
-        "PL" => "pol",
-        "CZ" => "cze",
-        "RU" => "rus",
-        "UA" => "ukr",
-        "TR" => "tur",
-        "SA" => "sau",
-        "IL" => "isr",
-        "IN" => "ind",
-        "JP" => "jpn",
-        "KR" => "kor",
-        "CN" => "chn",
-        "TW" => "twn",
-        _ => "usa",
+    let region = setting.split(['-', '_']).nth(1).unwrap_or_default();
+    COUNTRIES.iter().find(|(alpha2, _)| alpha2.eq_ignore_ascii_case(region)).map_or("usa", |(_, alpha3)| alpha3)
+}
+
+/// The alpha-2 code of one of TheTVDB's countries ("gbr" → "GB").
+fn alpha2(alpha3: &str) -> Option<&'static str> {
+    if alpha3 == "usa" {
+        return Some("US");
     }
+    COUNTRIES.iter().find(|(_, a3)| *a3 == alpha3).map(|(alpha2, _)| *alpha2)
 }
 
 /// A picture's full URL (TheTVDB sends full URLs, older records paths).
@@ -585,6 +597,7 @@ fn to_meta(
             .find(|r| r.country.as_deref() == Some(wanted))
             .and_then(|r| text(r.name.as_deref()))
     };
+    let content_rating = rating(country).map(|r| (country, r)).or_else(|| rating("usa").map(|r| ("usa", r)));
     let mut artworks: Vec<&Artwork> =
         series.artworks.iter().filter(|a| image_url(a.image.as_deref()).is_some()).collect();
     artworks.sort_by(|a, b| b.score.unwrap_or(0.0).total_cmp(&a.score.unwrap_or(0.0)));
@@ -666,7 +679,8 @@ fn to_meta(
         year: year_of(series.year.as_deref()).or_else(|| year_of(series.first_aired.as_deref())),
         premiered: full_date(series.first_aired.as_deref()),
         rating: None,
-        content_rating: rating(country).or_else(|| rating("usa")),
+        content_rating_country: content_rating.as_ref().and_then(|(country, _)| alpha2(country)).map(str::to_owned),
+        content_rating: content_rating.map(|(_, rating)| rating),
         genres: series.genres.iter().filter_map(|g| text(g.name.as_deref())).collect(),
         network: series
             .original_network
@@ -773,10 +787,13 @@ mod tests {
         );
         // No French rating: the US one.
         assert_eq!(meta.content_rating.as_deref(), Some("TV-14"));
+        assert_eq!(meta.content_rating_country.as_deref(), Some("US"));
         assert_eq!(meta.episode(1, 1).unwrap().title.as_deref(), Some("L'Épave"));
         // Not translated: the original title.
         assert_eq!(meta.episode(1, 2).unwrap().title.as_deref(), Some("Undertow"));
-        assert_eq!(to_meta(series(), vec![], None, "eng", "gbr").content_rating.as_deref(), Some("12"));
+        let british = to_meta(series(), vec![], None, "eng", "gbr");
+        assert_eq!(british.content_rating.as_deref(), Some("12"));
+        assert_eq!(british.content_rating_country.as_deref(), Some("GB"));
     }
 
     #[test]

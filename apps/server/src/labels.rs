@@ -1,13 +1,86 @@
 //! Labels on items (see migrations/0015_labels.sql) and on collections
 //! (0043_collection_labels.sql): free-form tags, matched without regard to
-//! case. They are set through the Plex-compatible API.
+//! case. They are set through the Plex-compatible API and the web app's
+//! edit dialog, and a profile's label rules show or hide titles by them (see
+//! `catalog::VISIBLE`).
 
 use std::collections::HashMap;
 
+use serde::Serialize;
+
+use crate::auth::AuthUser;
+use crate::auth::compatibility::Scope;
 use crate::db::Db;
+use crate::error::AppError;
 
 /// Longest label kept, in characters.
 const MAX_LEN: usize = 120;
+
+/// The kinds of item the web app labels: titles and what holds them.
+pub const LABELLED: &[&str] = &["movie", "show", "season", "episode", "artist", "album"];
+
+/// Whether `user` is told items' labels: administrators in Pley's web app,
+/// and compatibility tokens that edit (Kometa's). Profiles' label rules go
+/// by them, so a child shouldn't read "Override: Adult".
+pub fn shown_to(user: &AuthUser) -> bool {
+    (user.is_admin && user.app.is_none()) || user.compatibility_allows(Scope::Manage)
+}
+
+/// Most labels an item takes from the edit dialog.
+const MAX_PER_ITEM: usize = 100;
+
+/// `labels` as they're kept: trimmed, without empty ones or the same label
+/// twice (whatever the case of its letters A to Z, as the database matches
+/// them), in their order. Refused: too many, or too long.
+pub fn check(labels: &[String]) -> Result<Vec<String>, AppError> {
+    let mut kept: Vec<String> = Vec::new();
+    for label in labels.iter().map(|l| l.trim()).filter(|l| !l.is_empty()) {
+        if label.chars().count() > MAX_LEN {
+            return Err(AppError::bad_request(format!("a label is at most {MAX_LEN} characters")));
+        }
+        if !kept.iter().any(|k| k.eq_ignore_ascii_case(label)) {
+            kept.push(label.to_owned());
+        }
+    }
+    if kept.len() > MAX_PER_ITEM {
+        return Err(AppError::bad_request(format!("at most {MAX_PER_ITEM} labels")));
+    }
+    Ok(kept)
+}
+
+/// A label, how many titles carry it, and how many profiles' and
+/// invitations' rules name it.
+#[derive(Debug, Serialize, sqlx::FromRow, PartialEq)]
+pub struct LabelUse {
+    pub label: String,
+    pub items: i64,
+    pub rules: i64,
+}
+
+/// Every label on an item or in a rule, by name: a label a rule names
+/// before any title carries it is offered too.
+pub async fn all(db: &Db) -> sqlx::Result<Vec<LabelUse>> {
+    sqlx::query_as(
+        "SELECT MIN(label) AS label, SUM(items) AS items, SUM(rules) AS rules FROM (
+             SELECT label, 1 AS items, 0 AS rules FROM item_labels
+             UNION ALL SELECT label, 0, 1 FROM user_label_rules
+             UNION ALL SELECT j.value, 0, 1 FROM invites, json_each(invites.show_labels) j
+             UNION ALL SELECT j.value, 0, 1 FROM invites, json_each(invites.hide_labels) j
+         )
+         GROUP BY label COLLATE NOCASE ORDER BY label COLLATE NOCASE",
+    )
+    .fetch_all(&db.read)
+    .await
+}
+
+/// Makes `labels` (checked by [`check`]) item `item_id`'s labels. One
+/// written otherwise ("kids" for "Kids") is removed and added again, as
+/// it's now written.
+pub async fn replace(db: &Db, item_id: i64, labels: &[String]) -> sqlx::Result<()> {
+    let current = for_items(db, &[item_id]).await?.remove(&item_id).unwrap_or_default();
+    let remove: Vec<String> = current.iter().filter(|c| !labels.contains(c)).cloned().collect();
+    edit(db, item_id, labels, &remove).await
+}
 
 /// What labels are on: the table and its owner column.
 #[derive(Clone, Copy)]
@@ -112,6 +185,12 @@ mod tests {
         assert_eq!(found[&2], ["Kids"]);
         edit(&db, 1, &[], &labels(&["OVERLAY"])).await.unwrap();
         assert_eq!(for_items(&db, &[1]).await.unwrap()[&1], ["4K"]);
+        // Replaced, a label written otherwise is written so.
+        replace(&db, 2, &labels(&["kids", "New"])).await.unwrap();
+        assert_eq!(for_items(&db, &[2]).await.unwrap()[&2], ["kids", "New"]);
+        // Letters other than A to Z are matched as written, as the database
+        // matches them.
+        assert_eq!(check(&labels(&["École", "école", "KIDS", "kids"])).unwrap(), ["École", "école", "KIDS"]);
 
         // Collections keep theirs apart, even with an item's id.
         sqlx::query(

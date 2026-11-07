@@ -293,8 +293,26 @@ impl AppState {
                 tick.tick().await;
                 state.auth.purge_expired().await;
                 state.oauth.sweep();
+                // Ages go up on the first of a month: an hourly look finds
+                // it in the server's time, whatever its time zone does.
+                state.birthday_ages().await;
             }
         });
+    }
+
+    /// Age limits that follow birthdays, kept up with the profiles' ages;
+    /// their devices are told what they may see changed.
+    pub async fn birthday_ages(&self) {
+        match crate::accounts::birthday_ages(&self.db).await {
+            Ok(changed) => {
+                for id in changed {
+                    self.auth.forget_user(id);
+                    self.events.send(crate::events::ServerEvent::OwnLibrariesChanged { user_id: id });
+                    self.events.send(crate::events::ServerEvent::RequestsSettingsChanged { user_id: Some(id) });
+                }
+            }
+            Err(err) => tracing::warn!("updating age limits from birthdays failed: {err}"),
+        }
     }
 
     pub async fn shutdown(&self) {

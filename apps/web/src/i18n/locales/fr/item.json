@@ -129,6 +129,8 @@
       "genresPlaceholder": "Drame, Thriller",
       "locked": "Verrouillé : cliquez pour déverrouiller",
       "willUnlock": "Sera déverrouillé",
+      "ratingCountry": "Pays : {{country}}",
+      "ratingRegion": "Lue selon les classifications de la région des métadonnées",
       "fromNfo": "Du fichier NFO",
       "fields": {
         "title": "Titre",
@@ -140,8 +142,11 @@
         "studio": "Studio",
         "tagline": "Slogan",
         "genres": "Genres",
-        "summary": "Résumé"
-      }
+        "summary": "Résumé",
+        "labels": "Étiquettes"
+      },
+      "labelsHint": "Seuls les administrateurs les voient. Les exceptions des profils, dans Paramètres → Utilisateurs, s’y réfèrent.",
+      "removeLabel": "Retirer {{label}}"
     },
     "match": {
       "title": "Corriger la correspondance",
