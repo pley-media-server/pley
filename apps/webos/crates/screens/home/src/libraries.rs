@@ -200,7 +200,7 @@ fn refused(e: &ApiError, cx: &mut AppCx) {
         cx.toast_error(t!("library.libraries.refused"));
     } else if e.is(409) {
         // A library came or went since they were listed.
-        cx.state.load_account();
+        cx.state.reload_account();
         cx.toast_error(t!("library.libraries.raced"));
     } else if !e.cancelled() {
         cx.toast_error(sentence(&e.to_string()));

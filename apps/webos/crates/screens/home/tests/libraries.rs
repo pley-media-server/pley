@@ -70,6 +70,62 @@ fn a_lifted_card_moves_with_the_arrows_and_its_order_is_saved() {
 }
 
 #[test]
+fn the_servers_order_stays_over_libraries_asked_before_it() {
+    let mut app = TestApp::start_with_threads(16);
+    assert!(app.until(|a| a.state.libraries().is_some()), "no libraries");
+    app.open(Route::Libraries { sort: true });
+    assert!(app.until(|a| a.focused() == Some(card(a, ids::MOVIES))), "no cards");
+    // The profile's own order, saved.
+    app.press(Key::Ok);
+    app.press(Key::Right);
+    app.press(Key::Ok);
+    let custom = [ids::SHOWS, ids::MOVIES, ids::MUSIC];
+    assert!(app.until(|a| order(a) == custom && a.server.writes("PUT", "/api/me/libraries/order").len() == 1));
+    app.advance(0.5);
+    // The libraries are asked again (another device changed something), and that answer takes 1.5 s.
+    app.server.set_mode(Mode::Slow).unwrap();
+    app.state.reload_account();
+    let start = std::time::Instant::now();
+    app.until(|_| start.elapsed() > std::time::Duration::from_millis(200));
+    // Use the server's order goes at once, and the server takes it before that answer comes.
+    app.server.set_mode(Mode::Normal).unwrap();
+    app.press(Key::Up);
+    if app.focused() != Some(app.id(&["header", "server-order"])) {
+        app.press(Key::Left);
+    }
+    assert_eq!(app.focused(), Some(app.id(&["header", "server-order"])));
+    app.press(Key::Ok);
+    let server = [ids::MOVIES, ids::SHOWS, ids::MUSIC];
+    assert!(app.until(|a| order(a) == server), "the server's order didn't come");
+    // The answer asked before it comes, then the one asked after it: the server's order stays.
+    let start = std::time::Instant::now();
+    app.until(|a| {
+        assert_eq!(order(a), server, "libraries asked before the server's order took it back");
+        start.elapsed() > std::time::Duration::from_millis(2_500)
+    });
+    assert_eq!(app.server.writes("DELETE", "/api/me/libraries/order").len(), 1);
+}
+
+#[test]
+fn an_order_saved_elsewhere_while_the_libraries_are_on_their_way_shows() {
+    let mut app = TestApp::start_with_threads(16);
+    assert!(app.until(|a| a.state.libraries().is_some()), "no libraries");
+    app.advance(0.5);
+    // The libraries are asked again, and that answer, from before what follows, takes 1.5 s.
+    app.server.set_mode(Mode::Slow).unwrap();
+    app.state.reload_account();
+    let start = std::time::Instant::now();
+    app.until(|_| start.elapsed() > std::time::Duration::from_millis(200));
+    // Another of the profile's devices saves its own order meanwhile, and the server says so.
+    app.server.set_mode(Mode::Normal).unwrap();
+    let api = app.state.api().unwrap().clone();
+    let custom = [ids::MUSIC, ids::MOVIES, ids::SHOWS];
+    api.sort_libraries(&custom).unwrap();
+    // The answer from before lands, then they are asked again: the new order shows.
+    assert!(app.until(|a| order(a) == custom), "the libraries are in the order {:?}", order(&app));
+}
+
+#[test]
 fn back_puts_a_lifted_card_back_then_ends_sorting() {
     let mut app = libraries(true);
     assert!(app.until(|a| a.shows("Sort libraries") && a.focused() == Some(card(a, ids::MOVIES))));
