@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Plus, X } from "lucide-react";
 import { useLabels } from "@/api/hooks";
-import { addLabel } from "@/lib/labels";
+import { addLabel, labelKey } from "@/lib/labels";
 import { cn } from "@/lib/cn";
 
 /** Most suggestions listed at once; typing narrows the rest. */
@@ -40,12 +40,12 @@ export function LabelPicker({
 
   const query = text.trim();
   const lower = query.toLowerCase();
-  const chosen = new Set(value.map((v) => v.toLowerCase()));
+  const chosen = new Set(value.map(labelKey));
   const matches = known
-    .filter((k) => !chosen.has(k.label.toLowerCase()) && k.label.toLowerCase().includes(lower))
+    .filter((k) => !chosen.has(labelKey(k.label)) && k.label.toLowerCase().includes(lower))
     // The label typed exactly, then those it starts, then the rest.
     .sort((a, b) => rank(a.label, lower) - rank(b.label, lower));
-  const isNew = query !== "" && !chosen.has(lower) && !known.some((k) => k.label.toLowerCase() === lower);
+  const isNew = query !== "" && !chosen.has(labelKey(query)) && !known.some((k) => labelKey(k.label) === labelKey(query));
   const choices: Choice[] = [...matches.slice(0, MAX_SHOWN), ...(isNew ? [{ label: query }] : [])];
   const shown = open && choices.length > 0;
   const current = Math.min(active, choices.length - 1);

@@ -234,7 +234,7 @@ pub fn check_label_rules(labels: &[String]) -> Result<Vec<String>, AppError> {
 /// Refuses a label both always and never shown: which one was meant isn't
 /// known.
 pub fn check_rules_apart(show: &[String], hide: &[String]) -> Result<(), AppError> {
-    match show.iter().find(|s| hide.iter().any(|h| h.to_lowercase() == s.to_lowercase())) {
+    match show.iter().find(|s| hide.iter().any(|h| h.eq_ignore_ascii_case(s))) {
         Some(label) => Err(AppError::bad_request(format!("\"{label}\" is both always and never shown"))),
         None => Ok(()),
     }

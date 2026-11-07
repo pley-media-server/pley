@@ -30,15 +30,15 @@ pub fn shown_to(user: &AuthUser) -> bool {
 const MAX_PER_ITEM: usize = 100;
 
 /// `labels` as they're kept: trimmed, without empty ones or the same label
-/// twice (whatever its case), in their order. Refused: too many, or too
-/// long.
+/// twice (whatever the case of its letters A to Z, as the database matches
+/// them), in their order. Refused: too many, or too long.
 pub fn check(labels: &[String]) -> Result<Vec<String>, AppError> {
     let mut kept: Vec<String> = Vec::new();
     for label in labels.iter().map(|l| l.trim()).filter(|l| !l.is_empty()) {
         if label.chars().count() > MAX_LEN {
             return Err(AppError::bad_request(format!("a label is at most {MAX_LEN} characters")));
         }
-        if !kept.iter().any(|k| k.to_lowercase() == label.to_lowercase()) {
+        if !kept.iter().any(|k| k.eq_ignore_ascii_case(label)) {
             kept.push(label.to_owned());
         }
     }
@@ -65,12 +65,12 @@ pub async fn all(db: &Db) -> sqlx::Result<Vec<LabelUse>> {
     .await
 }
 
-/// Makes `labels` (checked by [`check`]) item `item_id`'s labels.
+/// Makes `labels` (checked by [`check`]) item `item_id`'s labels. One
+/// written otherwise ("kids" for "Kids") is removed and added again, as
+/// it's now written.
 pub async fn replace(db: &Db, item_id: i64, labels: &[String]) -> sqlx::Result<()> {
     let current = for_items(db, &[item_id]).await?.remove(&item_id).unwrap_or_default();
-    let lower = |l: &String| l.to_lowercase();
-    let remove: Vec<String> =
-        current.iter().filter(|c| !labels.iter().any(|l| lower(l) == lower(c))).cloned().collect();
+    let remove: Vec<String> = current.iter().filter(|c| !labels.contains(c)).cloned().collect();
     edit(db, item_id, labels, &remove).await
 }
 
@@ -177,6 +177,12 @@ mod tests {
         assert_eq!(found[&2], ["Kids"]);
         edit(&db, 1, &[], &labels(&["OVERLAY"])).await.unwrap();
         assert_eq!(for_items(&db, &[1]).await.unwrap()[&1], ["4K"]);
+        // Replaced, a label written otherwise is written so.
+        replace(&db, 2, &labels(&["kids", "New"])).await.unwrap();
+        assert_eq!(for_items(&db, &[2]).await.unwrap()[&2], ["kids", "New"]);
+        // Letters other than A to Z are matched as written, as the database
+        // matches them.
+        assert_eq!(check(&labels(&["École", "école", "KIDS", "kids"])).unwrap(), ["École", "école", "KIDS"]);
 
         // Collections keep theirs apart, even with an item's id.
         sqlx::query(
