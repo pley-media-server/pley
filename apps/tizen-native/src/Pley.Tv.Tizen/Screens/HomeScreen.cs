@@ -770,8 +770,8 @@ sealed class ScrimView : View
         Size = new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(PleyTv.CanvasHeight));
         var offsets = new PropertyArray();
         var colors = new PropertyArray();
-        // At least 85 % to the text column's end (560), then eased out across the rest of the screen: no edge shows.
-        foreach (var (at, alpha) in new[] { (0f, 1f), (300f / 960, 0.92f), (560f / 960, 0.85f), (640f / 960, 0.72f), (720f / 960, 0.52f), (800f / 960, 0.32f), (880f / 960, 0.14f), (1f, 0f) })
+        // Dark behind the text (80 % at its end), then a long, gentle fall that leaves the far edge lightly shaded: no edge shows.
+        foreach (var (at, alpha) in new[] { (0f, 1f), (300f / 960, 0.9f), (520f / 960, 0.8f), (620f / 960, 0.68f), (720f / 960, 0.53f), (820f / 960, 0.38f), (1f, 0.2f) })
         {
             offsets.Add(new PropertyValue(at));
             colors.Add(new PropertyValue(new Color(PleyColors.Bg.R, PleyColors.Bg.G, PleyColors.Bg.B, alpha)));

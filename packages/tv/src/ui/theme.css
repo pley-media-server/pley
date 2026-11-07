@@ -526,17 +526,16 @@ body {
   top: 0;
   bottom: 0;
   width: 960px;
-  /* At least 85 % to the text column's end (560), then eased out across the rest of the screen: no edge shows. */
+  /* Dark behind the text (80 % at its end), then a long, gentle fall that leaves the far edge lightly shaded: no edge shows. */
   background: linear-gradient(
     to right,
     rgba(11, 13, 16, 1) 0,
-    rgba(11, 13, 16, 0.92) 300px,
-    rgba(11, 13, 16, 0.85) 560px,
-    rgba(11, 13, 16, 0.72) 640px,
-    rgba(11, 13, 16, 0.52) 720px,
-    rgba(11, 13, 16, 0.32) 800px,
-    rgba(11, 13, 16, 0.14) 880px,
-    rgba(11, 13, 16, 0) 960px
+    rgba(11, 13, 16, 0.9) 300px,
+    rgba(11, 13, 16, 0.8) 520px,
+    rgba(11, 13, 16, 0.68) 620px,
+    rgba(11, 13, 16, 0.53) 720px,
+    rgba(11, 13, 16, 0.38) 820px,
+    rgba(11, 13, 16, 0.2) 960px
   );
 }
 .backdrop .bottom-scrim {
