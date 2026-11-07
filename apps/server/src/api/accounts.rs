@@ -52,17 +52,6 @@ pub struct RatingSystems {
     /// one, is where an age limit is picked first.
     region: String,
     systems: Vec<RatingSystem>,
-    /// For administrators: by library, its movies and shows without a
-    /// rating, which an age limit hides (see `catalog::VISIBLE`), for the
-    /// limit's pickers to say so.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unrated: Option<Vec<Unrated>>,
-}
-
-#[derive(Serialize, sqlx::FromRow)]
-struct Unrated {
-    library_id: i64,
-    items: i64,
 }
 
 #[derive(Serialize)]
@@ -83,7 +72,7 @@ struct SystemRating {
 /// The rating systems an age limit is picked and shown in, each country's
 /// ratings youngest first. Names are as short as the boards' own allow:
 /// Denmark's "Tilladt for alle" is "A".
-pub async fn rating_systems(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json<RatingSystems>> {
+pub async fn rating_systems(State(state): State<AppState>, _user: AuthUser) -> ApiResult<Json<RatingSystems>> {
     let systems = ratings::SYSTEMS
         .iter()
         .map(|s| RatingSystem {
@@ -103,19 +92,7 @@ pub async fn rating_systems(State(state): State<AppState>, user: AuthUser) -> Ap
                 .collect(),
         })
         .collect();
-    let unrated = if user.is_admin && user.app.is_none() {
-        Some(
-            sqlx::query_as(
-                "SELECT library_id, COUNT(*) AS items FROM items
-                 WHERE kind IN ('movie', 'show') AND rating_age IS NULL GROUP BY library_id ORDER BY library_id",
-            )
-            .fetch_all(&state.db.read)
-            .await?,
-        )
-    } else {
-        None
-    };
-    Ok(Json(RatingSystems { region: ratings::region(&state.db).await?, systems, unrated }))
+    Ok(Json(RatingSystems { region: ratings::region(&state.db).await?, systems }))
 }
 
 async fn admins_left_after(state: &AppState, without: i64) -> ApiResult<i64> {

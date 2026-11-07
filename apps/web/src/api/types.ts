@@ -109,8 +109,6 @@ export interface RatingSystems {
   /** The metadata region (`GB`): its system is offered first. */
   region: string;
   systems: RatingSystem[];
-  /** Administrators only: each library's movies and shows without a rating, which an age limit hides. */
-  unrated?: { library_id: Id; items: number }[];
 }
 
 export interface RatingSystem {

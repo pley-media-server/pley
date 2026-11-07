@@ -3,7 +3,7 @@ import { Link } from "react-router";
 import { Check, Clapperboard, Music, TriangleAlert, Tv } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { useLibraries, useRatingSystems } from "@/api/hooks";
-import type { Id, LibraryKind, RatingSystems } from "@/api/types";
+import type { Id, LibraryKind } from "@/api/types";
 import {
   AGE_SYSTEM,
   ageIn,
@@ -279,7 +279,7 @@ export function AccessFields({
           </div>
         ) : null}
         <p className="text-xs text-subtle">{hint}</p>
-        {value.max_age != null ? <UnratedWarning count={unratedIn(systems, value)} /> : null}
+        {value.max_age != null ? <TmdbKeyWarning /> : null}
       </div>
 
       <fieldset className="space-y-3">
@@ -337,39 +337,38 @@ export function AccessFields({
   );
 }
 
-/** The movies and shows without a rating in the libraries `value` opens. */
-function unratedIn(systems: RatingSystems | undefined, value: AccessValue): number {
-  return (systems?.unrated ?? [])
-    .filter((u) => value.all_libraries || value.library_ids.includes(u.library_id))
-    .reduce((count, u) => count + u.items, 0);
-}
-
 /**
- * Titles without a rating are hidden by an age limit: how many there are,
- * where ratings come from, and, without a TMDB key, where to add one.
+ * An age limit hides unrated titles, and without a TMDB key movies get a
+ * rating only from their NFO files: says so, with where to add a key (in a
+ * new tab, so that the dialog stays as it is).
  */
-function UnratedWarning({ count }: { count: number }) {
+function TmdbKeyWarning() {
   const { t } = useTranslation("components");
-  const needsKey = useNeedsTmdbKey();
-  if (count === 0) return null;
+  if (!useNeedsTmdbKey()) return null;
   return (
     <div
       role="note"
       className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/[0.08] px-3 py-2.5 text-xs leading-relaxed text-fg/85"
     >
       <TriangleAlert className="mt-px size-4 shrink-0 text-warning" aria-hidden />
-      <div className="min-w-0 space-y-1">
-        <p className="text-sm font-medium text-fg">{t("accessFields.unrated.title", { count })}</p>
-        <p>{t("accessFields.unrated.text")}</p>
-        {needsKey ? (
-          <p>
-            <Trans
-              t={t}
-              i18nKey="accessFields.unrated.tmdbKey"
-              components={{ settings: <Link to={TMDB_KEY_SETTING} className="font-medium text-accent hover:underline" /> }}
-            />
-          </p>
-        ) : null}
+      <div className="min-w-0 space-y-0.5">
+        <p className="text-sm font-medium text-fg">{t("accessFields.unrated.title")}</p>
+        <p>
+          <Trans
+            t={t}
+            i18nKey="accessFields.unrated.text"
+            components={{
+              settings: (
+                <Link
+                  to={TMDB_KEY_SETTING}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-accent hover:underline"
+                />
+              ),
+            }}
+          />
+        </p>
       </div>
     </div>
   );

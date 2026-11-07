@@ -43,11 +43,8 @@
     "removeLabel": "Quitar {{label}}",
     "inBoth": "Una etiqueta no puede mostrarse siempre y nunca a la vez: {{labels}}.",
     "unrated": {
-      "title_one": "{{count, number}} película o serie no tiene clasificación",
-      "title_many": "{{count, number}} de películas y series no tienen clasificación",
-      "title_other": "{{count, number}} películas y series no tienen clasificación",
-      "text": "Un límite de edad oculta los títulos sin clasificación. Las clasificaciones vienen de TMDB, de TheTVDB o de los archivos NFO junto a los medios. También puedes poner una en Editar detalles de un título, o dejar pasar títulos con una etiqueta «Mostrar siempre».",
-      "tmdbKey": "Las de las películas vienen de TMDB, que necesita una clave de API: <settings>añade una clave gratuita en Ajustes</settings>."
+      "title": "Las películas sin clasificación se ocultan",
+      "text": "Sin una clave de TMDB, solo los archivos NFO dan clasificación a las películas. <settings>Añadir una clave de TMDB</settings>"
     }
   },
   "labelPicker": {

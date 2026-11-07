@@ -41,10 +41,8 @@
     "removeLabel": "Remove {{label}}",
     "inBoth": "A label can't be both always and never shown: {{labels}}.",
     "unrated": {
-      "title_one": "{{count, number}} movie or show has no rating",
-      "title_other": "{{count, number}} movies and shows have no rating",
-      "text": "An age limit hides titles without a rating. Ratings come from TMDB, TheTVDB or the NFO files next to the media. You can also set one in a title's Edit details, or let titles through with an “Always show” label.",
-      "tmdbKey": "Movies get theirs from TMDB, which needs an API key: <settings>add a free key in Settings</settings>."
+      "title": "Unrated movies are hidden",
+      "text": "Without a TMDB key, only NFO files give movies a rating. <settings>Add a TMDB key</settings>"
     }
   },
   "labelPicker": {

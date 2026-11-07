@@ -67,13 +67,10 @@ const ratingSystems: RatingSystems = {
       ],
     },
   ],
-  unrated: [
-    { library_id: 1, items: 3 },
-    { library_id: 2, items: 1 },
-  ],
 };
 
-function serve() {
+/** The server's answers, with `extra` ones added or put in their place. */
+function serve(extra: Parameters<typeof mockApi>[0] = {}) {
   let kidsApps = [kidsApp];
   let annsApps = [{ ...kidsApp, id: 10, profile: { id: 3, name: "Ann" } }];
   return mockApi({
@@ -106,6 +103,7 @@ function serve() {
     "GET /api/users/3/devices": () => [],
     "DELETE /api/users/3/two-step": () => undefined,
     "GET /api/users/4/devices": () => [],
+    ...extra,
   });
 }
 
@@ -285,20 +283,31 @@ describe("UsersSettings", () => {
     await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ max_age_system: "age" }));
   });
 
-  it("says how many titles in the profile's libraries an age limit hides for having no rating", async () => {
+  it("warns that unrated movies are hidden without a TMDB key, linking to it in a new tab", async () => {
     const user = userEvent.setup();
-    renderUsers();
+    serve({ "GET /api/settings": () => ({ tmdb_api_key: "" }) });
+    renderWithProviders(<UsersSettings />, { user: admin });
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
     await openTab(user, dialog, "Access");
-    // Kiddo opens Cartoons only.
     const note = await within(dialog).findByRole("note");
-    expect(note).toHaveTextContent("1 movie or show has no rating");
-    expect(note).toHaveTextContent(/An age limit hides titles without a rating/);
-    await user.click(within(dialog).getByRole("button", { name: "All libraries" }));
-    expect(within(dialog).getByRole("note")).toHaveTextContent("4 movies and shows have no rating");
+    expect(note).toHaveTextContent("Unrated movies are hidden");
+    const link = within(note).getByRole("link", { name: "Add a TMDB key" });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("href", "/settings/server#tmdb-key");
     // Without a limit, nothing is hidden.
     await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");
+    expect(within(dialog).queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("says nothing of TMDB where it has a key", async () => {
+    const user = userEvent.setup();
+    serve({ "GET /api/settings": () => ({ tmdb_api_key: "set" }) });
+    renderWithProviders(<UsersSettings />, { user: admin });
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    await within(dialog).findByLabelText("Rating");
     expect(within(dialog).queryByRole("note")).not.toBeInTheDocument();
   });
 

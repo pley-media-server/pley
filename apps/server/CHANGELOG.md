@@ -27,9 +27,8 @@ describes how they are made.
   or album counts for its episodes and tracks). Discover leaves the hidden
   ones out, and they can't be asked for. Labels are set in a title's Edit
   details, and only administrators see them; `GET /api/labels` lists them.
-- Setting an age limit says how many movies and shows in the profile's
-  libraries have no rating, which the limit hides, where ratings come from,
-  and, without a TMDB key, where to add one.
+- Setting an age limit without a TMDB key says that unrated movies are
+  hidden, with a link to add a key.
 
 ### Changed
 
