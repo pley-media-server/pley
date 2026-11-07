@@ -81,7 +81,19 @@ public sealed record HomeInfo(ItemSummary Item, string Title, string Context, Ho
 {
     /// <summary>Started and not finished: Resume, rather than Play.</summary>
     public bool InProgress => Progress > 0f;
+
+    /// <summary>Movies and shows, which go on My List.</summary>
+    public bool Listable => Item.Kind is "movie" or "show";
+
+    /// <summary>On the profile's My List, as the details say.</summary>
+    public bool InList { get; init; }
 }
+
+/// <summary>A title the hero features (<see cref="HomeRules.FeaturedOf"/>), with what it says about it and why it is there: "New in Movies", "On your list".</summary>
+public sealed record Featured(HomeInfo Info, string Label);
+
+/// <summary>A title <see cref="HomeRules.FeaturedOf"/> picked: new in its library, or on My List.</summary>
+public sealed record FeaturedPick(ItemSummary Item, bool FromList);
 
 /// <summary>Home as the screens draw it (design spec §4.1, §8; the Android app's HomeState).</summary>
 public abstract record HomeState
@@ -97,7 +109,11 @@ public abstract record HomeState
     /// <param name="Origin">The server's origin, which the rows' picture addresses are on.</param>
     /// <param name="Hero">What the hero shows; null with nothing to show.</param>
     /// <param name="Error">The server couldn't be asked again: what shows is what was saved.</param>
-    public sealed record Ready(string Origin, IReadOnlyList<HomeRow> Rows, HomeInfo? Hero, Exception? Error = null) : HomeState;
+    public sealed record Ready(string Origin, IReadOnlyList<HomeRow> Rows, HomeInfo? Hero, Exception? Error = null) : HomeState
+    {
+        /// <summary>The titles the hero takes turns showing (<see cref="HomeRules.FeaturedOf"/>); empty without a backdrop to show, when <see cref="Hero"/> shows.</summary>
+        public IReadOnlyList<Featured> Featured { get; init; } = Array.Empty<Featured>();
+    }
 }
 
 /// <summary>Home's rules (the Android app's HomeState.kt and homeState).</summary>
@@ -132,7 +148,52 @@ public static class HomeRules
             return new HomeState.Empty(scanning || (libraries?.Any(l => l.Scanning) ?? false));
         }
         var hero = HeroOf(rows);
-        return new HomeState.Ready(origin, rows, hero == null ? null : InfoOf(hero, null), error);
+        return new HomeState.Ready(origin, rows, hero == null ? null : InfoOf(hero, null), error)
+        {
+            Featured = FeaturedOf(rows).Select(f => new Featured(InfoOf(f.Item, null), FeaturedLabel(f, libraries))).ToList(),
+        };
+    }
+
+    /// <summary>How many titles the hero takes turns showing.</summary>
+    public const int FeaturedCount = 6;
+
+    /// <summary>
+    /// The titles the hero features, as the Android app and the web pick them (featuredOf,
+    /// apps/web/src/lib/featured.ts): the newest unwatched movies and shows with a backdrop, taken in
+    /// turn from each library's Recently Added, then from My List when that is too few; the newest
+    /// watched ones when everything has been watched. packages/tv/test/fixtures/featured.json pins it.
+    /// </summary>
+    public static IReadOnlyList<FeaturedPick> FeaturedOf(IReadOnlyList<HomeRow> rows, int count = FeaturedCount)
+    {
+        var picked = PickFeatured(rows, count, i => HasArt(i) && !i.UserState.Watched);
+        return picked.Count > 0 ? picked : PickFeatured(rows, count, HasArt);
+    }
+
+    static bool HasArt(ItemSummary item) => item.Kind is "movie" or "show" && !string.IsNullOrEmpty(item.BackdropUrl);
+
+    static List<FeaturedPick> PickFeatured(IReadOnlyList<HomeRow> rows, int count, Func<ItemSummary, bool> featurable)
+    {
+        var sources = rows.Where(r => r.Key.StartsWith("recently_added", StringComparison.Ordinal)).Select(r => r.Items.Where(featurable).ToList()).ToList();
+        var picked = new List<FeaturedPick>();
+        var seen = new HashSet<long>();
+        void Take(ItemSummary item, bool fromList)
+        {
+            if (picked.Count < count && seen.Add(item.Id)) picked.Add(new FeaturedPick(item, fromList));
+        }
+        for (var i = 0; picked.Count < count && sources.Any(s => i < s.Count); i++)
+            foreach (var source in sources)
+                if (i < source.Count) Take(source[i], false);
+        foreach (var item in rows.FirstOrDefault(r => r.Key == "my_list")?.Items ?? Array.Empty<ItemSummary>())
+            if (featurable(item)) Take(item, true);
+        return picked;
+    }
+
+    /// <summary>Why a featured title is there: "New in Movies", "New" without its library's name, "On your list".</summary>
+    public static string FeaturedLabel(FeaturedPick pick, IReadOnlyList<Library>? libraries)
+    {
+        if (pick.FromList) return Strings.T("home.featured.onList");
+        var library = libraries?.FirstOrDefault(l => l.Id == pick.Item.LibraryId)?.Name;
+        return string.IsNullOrEmpty(library) ? Strings.T("home.featured.new") : Strings.T("home.featured.newIn", ("library", library));
     }
 
     /// <summary>
@@ -214,7 +275,10 @@ public static class HomeRules
             inProgress ? Format.TimeLeft(item.UserState.PositionMs, item.DurationMs) : "",
             item.Kind is "movie" or "episode" or "extra",
             item.UserState.Watched,
-            details != null);
+            details != null)
+        {
+            InList = details?.InWatchlist == true,
+        };
     }
 
     /// <summary>The backdrop behind <paramref name="item"/>: its own, else its show's or parent's.</summary>
@@ -296,6 +360,36 @@ public sealed class HomeModel : IDisposable
         });
     }
 
+    /// <summary>
+    /// Puts <paramref name="item"/> on My List, or takes it off: its kept details say so at once (the
+    /// hero follows), and Home is asked for again after (its My List row); undone if the server refuses.
+    /// </summary>
+    public async void SetInList(ItemSummary item, bool inList)
+    {
+        var api = app.Api.Value;
+        if (api == null) return;
+        var before = app.CachedItem(item.Id);
+        if (before != null)
+        {
+            app.KeepItem(before with { InWatchlist = inList });
+            Compute();
+        }
+        try
+        {
+            if (inList) await api.AddToMyList(item.Id);
+            else await api.RemoveFromMyList(item.Id);
+            await app.LoadHome();
+        }
+        catch (Exception)
+        {
+            if (before != null && !gone)
+            {
+                app.KeepItem(before);
+                Compute();
+            }
+        }
+    }
+
     /// <summary>Marks <paramref name="item"/> watched or not; Home is asked for again after.</summary>
     public async void SetWatched(ItemSummary item, bool watched)
     {
@@ -325,6 +419,14 @@ public sealed class HomeModel : IDisposable
     {
         if (gone) return;
         var state = HomeRules.StateOf(app.Home.Value, app.HomeError.Value, app.Libraries.Value, app.Scans.Value.Count > 0, app.Server.Value ?? "");
+        if (state is HomeState.Ready { Featured.Count: > 0 } featuring)
+        {
+            // The featured titles' details, all asked for at once: turning to one shows it whole.
+            state = featuring with { Featured = featuring.Featured.Select(f => f with { Info = HomeRules.InfoOf(f.Info.Item, app.CachedItem(f.Info.Item.Id)) }).ToList() };
+            foreach (var f in featuring.Featured)
+                if (app.CachedItemStale(f.Info.Item.Id))
+                    _ = Detail(f.Info.Item, i => State.Value is HomeState.Ready r && r.Featured.Any(x => x.Info.Item.Id == i.Id), _ => Compute());
+        }
         if (state is HomeState.Ready { Hero: { } hero } ready)
         {
             // The hero's details, kept: a new answer for the rows never draws the hero without them for a moment.

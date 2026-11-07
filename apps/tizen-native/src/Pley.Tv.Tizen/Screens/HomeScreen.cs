@@ -24,6 +24,8 @@ sealed class HomeScreen : ShellPage
     /// <summary>The first row's header at rest: y = 384, under the hero.</summary>
     const float FirstRowTop = 384;
     const float HeroTop = 52, TitleBox = 72;
+    /// <summary>How long each featured title stays in the hero while nothing is pressed: the Android app's and the web's.</summary>
+    const long TurnMs = 9_000;
 
     readonly HomeModel model;
     readonly Images images;
@@ -35,12 +37,23 @@ sealed class HomeScreen : ShellPage
     readonly View hero = new View();
     readonly Redrawn heroText;
     /// <summary>What the hero says, as last drawn: the same again isn't drawn again.</summary>
-    (string, string, HomeMeta, string, bool, string, bool) heroShown;
+    (string, string, HomeMeta, string, bool, string, bool, bool, string?) heroShown;
     readonly ButtonRow heroButtons;
     readonly ButtonView resume;
     readonly RoundButton fromStart;
     readonly RoundButton info;
     readonly RoundButton watched;
+    readonly RoundButton list;
+    /// <summary>The hero's dashes, one per featured title, beside its buttons.</summary>
+    readonly View turns = new View();
+    /// <summary>The titles the hero takes turns showing, and which is on; empty when it shows Continue Watching's first.</summary>
+    IReadOnlyList<Featured> featured = Array.Empty<Featured>();
+    int turn;
+    long turnFrom;
+    long lastKey;
+    readonly Timer turnClock = new Timer(500);
+    IDisposable? keys;
+    static readonly System.Diagnostics.Stopwatch Clock = System.Diagnostics.Stopwatch.StartNew();
     readonly View infoBlock = new View { Opacity = 0 };
     readonly View body = new View { WidthResizePolicy = ResizePolicyType.FillToParent, HeightResizePolicy = ResizePolicyType.FillToParent };
     readonly List<IDisposable> watches = new List<IDisposable>();
@@ -56,8 +69,9 @@ sealed class HomeScreen : ShellPage
     Animation? reveal;
     string shownKind = "";
 
+    /// <param name="input">The remote's keys: each press starts the hero's time over.</param>
     /// <param name="open">Opens an item's page.</param>
-    public HomeScreen(TvShell shell, HomeModel model, Images images, KeyRepeatGate gate, Action<ItemSummary> open) : base(shell, new PageKey.Home(), "home")
+    public HomeScreen(TvShell shell, HomeModel model, Images images, KeyRepeatGate gate, Input input, Action<ItemSummary> open) : base(shell, new PageKey.Home(), "home")
     {
         this.model = model;
         this.images = images;
@@ -84,12 +98,35 @@ sealed class HomeScreen : ShellPage
         {
             if (heroInfo != null) model.SetWatched(heroInfo.Item, !heroInfo.Watched);
         });
+        list = new RoundButton(ItemText.AddToMyList, "plus", () =>
+        {
+            if (heroInfo != null) model.SetInList(heroInfo.Item, !heroInfo.InList);
+        });
         hero.Add(heroButtons);
+        hero.Add(turns);
         View.Add(hero);
         View.Add(body);
 
         page.ChildFocused += i => SetInRows(page.Children[i] != heroButtons.Group);
-        heroButtons.Group.Exit = d => d == Direction.Left && Scrolling.Left(gate, Shell.FocusRail);
+        // Right from the last button: the next featured title, as along a row (Left still opens the rail).
+        heroButtons.Group.Exit = d => d == Direction.Left ? Scrolling.Left(gate, Shell.FocusRail) : d == Direction.Right && featured.Count > 1 && Turn(focusPlay: true);
+
+        // The hero turns every TurnMs while no key is pressed: each press starts the time over, so it
+        // never changes as OK is pressed. Only while focus rests on it (not in the rows, nor under
+        // another page), and not with Reduce motion.
+        keys = input.Push((key, down) =>
+        {
+            lastKey = Clock.ElapsedMilliseconds;
+            return false;
+        });
+        turnClock.Tick += (_, _) =>
+        {
+            var quiet = Clock.ElapsedMilliseconds - Math.Max(lastKey, turnFrom);
+            if (!inRows && featured.Count > 1 && !Shell.ReduceMotion && quiet >= TurnMs && Tree.Current is { } at && heroButtons.Group.Children.Contains(at))
+                Turn(focusPlay: true);
+            return true;
+        };
+        turnClock.Start();
 
         watches.Add(model.State.Watch(Show));
         watches.Add(model.Info.Watch(_ => FollowFocus()));
@@ -100,6 +137,8 @@ sealed class HomeScreen : ShellPage
         foreach (var w in watches) w.Dispose();
         model.Dispose();
         skeletonTimer?.Stop();
+        turnClock.Stop();
+        keys?.Dispose();
         heroText.Stop();
     }
 
@@ -240,7 +279,11 @@ sealed class HomeScreen : ShellPage
 
     void ShowReady(HomeState.Ready s)
     {
-        if (s.Hero != null) ShowHero(s.Hero);
+        // The featured titles take turns in the hero; without any, it shows Continue Watching's first.
+        if (featured.Count != s.Featured.Count) turnFrom = Clock.ElapsedMilliseconds;
+        featured = s.Featured;
+        if (featured.Count > 0) ShowHero(featured[turn % featured.Count].Info, featured[turn % featured.Count].Label);
+        else if (s.Hero != null) ShowHero(s.Hero, null);
         if (SameRows(s.Rows, shownRows)) { }
         else if (SameItems(s.Rows, shownRows) && rowViews.Count == s.Rows.Count) UpdateRows(s);
         else ShowRows(s);
@@ -334,24 +377,60 @@ sealed class HomeScreen : ShellPage
         return null;
     }
 
-    /// <summary>
-    /// The hero's stack at x = 96: the title, an episode's "S2 · E5 · The Long Night", the
-    /// metadata line, the time left, three lines of summary, then Resume (or Play) and the round
-    /// buttons From start, Info and Watched. A missing piece closes its gap.
-    /// </summary>
-    void ShowHero(HomeInfo h)
+    /// <summary>The next featured title in the hero, focus on its Play when <paramref name="focusPlay"/>.</summary>
+    bool Turn(bool focusPlay)
     {
-        if (heroInfo == h) return;
-        var said = (h.Title, h.Context, h.Meta, h.Summary, h.InProgress, h.TimeLeft, h.Watched);
+        if (featured.Count < 2) return false;
+        turn = (turn + 1) % featured.Count;
+        turnFrom = Clock.ElapsedMilliseconds;
+        ShowHero(featured[turn].Info, featured[turn].Label);
+        FollowFocus();
+        // Its buttons may not be the last one's (From start): focus starts again on Play.
+        if (focusPlay) Tree.Focus(resume.Item);
+        return true;
+    }
+
+    /// <summary>
+    /// The hero's stack at x = 96: for a featured title why it is there (<paramref name="label"/>,
+    /// "New in Movies"), the title, an episode's "S2 · E5 · The Long Night", the metadata line, the
+    /// time left, three lines of summary, then Resume (or Play) and the round buttons From start,
+    /// Info, and My List for movies and shows (Watched for the rest), the dashes beside them while
+    /// titles take turns. A missing piece closes its gap.
+    /// </summary>
+    void ShowHero(HomeInfo h, string? label)
+    {
+        if (heroInfo == h && heroShown.Item9 == label) return;
+        var said = (h.Title, h.Context, h.Meta, h.Summary, h.InProgress, h.TimeLeft, h.Watched, h.InList, label);
         var same = heroInfo != null && said.Equals(heroShown);
         heroInfo = h;
-        if (same) return;
+        if (same)
+        {
+            ShowTurns();
+            return;
+        }
         heroShown = said;
         var text = heroText.Next();
         var title = Text.Label(h.Title, PleyType.HeroTitle, PleyColors.Fg, maxLines: 2, width: TextColumn);
         title.VerticalAlignment = VerticalAlignment.Bottom;
         title.SizeHeight = Ui.Dp(TitleBox);
         text.Add(title);
+        if (label != null)
+        {
+            // Why it is there, 12 dp above the title's first line (one line or two).
+            var lines = Math.Min(Ui.Dp(TitleBox), title.GetHeightForWidth(Ui.Dp(TextColumn)));
+            var why = Text.Label(label.ToUpperInvariant(), PleyType.Label, new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.85f), width: TextColumn);
+            why.PositionX = Ui.Dp(14);
+            why.PositionY = Ui.Dp(TitleBox - 12 - PleyType.Label.Line) - lines;
+            text.Add(why);
+            var bar = new View
+            {
+                Size = new Size(Ui.Dp(4), Ui.Dp(16)),
+                Position = new Position(0, why.PositionY + Ui.Dp((PleyType.Label.Line - 16) / 2)),
+                BackgroundColor = PleyColors.Accent,
+                CornerRadius = Ui.Dp(2),
+            };
+            text.Add(bar);
+        }
         float y = TitleBox;
         if (h.Context.Length > 0)
         {
@@ -390,14 +469,48 @@ sealed class HomeScreen : ShellPage
         heroButtons.PositionY = Ui.Dp(y);
         resume.SetText(h.InProgress ? ItemText.Resume : ItemText.Play);
         watched.SetText(h.Watched ? ItemText.MarkUnwatched : ItemText.MarkWatched);
-        LayoutHeroButtons(h.InProgress);
+        list.SetText(h.InList ? Strings.T("item.actions.removeFromMyList") : ItemText.AddToMyList);
+        list.SetIcon(h.InList ? "check" : "plus");
+        LayoutHeroButtons(h.InProgress, h.Listable);
+        ShowTurns();
     }
 
-    void LayoutHeroButtons(bool inProgress)
+    /// <summary>The dashes beside the hero's buttons: one per featured title, the one on longer and white.</summary>
+    void ShowTurns()
     {
-        // The round buttons sit after Resume, a button's gap apart; From start only while in progress.
+        foreach (var child in turns.Children.ToList())
+        {
+            turns.Remove(child);
+            child.Dispose();
+        }
+        if (featured.Count < 2)
+        {
+            turns.Hide();
+            return;
+        }
+        turns.Show();
+        turns.Position = new Position(heroButtons.PositionX + heroButtons.SizeWidth + Ui.Dp(24), heroButtons.PositionY + Ui.Dp(PleyTv.ButtonHeight / 2 - 2));
+        float x = 0;
+        for (var i = 0; i < featured.Count; i++)
+        {
+            var on = i == turn % featured.Count;
+            turns.Add(new View
+            {
+                Size = new Size(Ui.Dp(on ? 36 : 14), Ui.Dp(4)),
+                Position = new Position(Ui.Dp(x), 0),
+                BackgroundColor = on ? PleyColors.Fg : new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.3f),
+                CornerRadius = Ui.Dp(2),
+            });
+            x += (on ? 36 : 14) + 8;
+        }
+    }
+
+    void LayoutHeroButtons(bool inProgress, bool listable)
+    {
+        // The round buttons sit after Resume, a button's gap apart; From start only while in progress;
+        // My List for movies and shows, Watched for the rest.
         var focusedRound = Tree.Current;
-        foreach (var b in new View[] { fromStart, info, watched })
+        foreach (var b in new View[] { fromStart, info, watched, list })
             if (b.GetParent() != null) heroButtons.Remove(b);
         heroButtons.Group.Clear();
         heroButtons.Group.Add(resume.Item);
@@ -412,9 +525,10 @@ sealed class HomeScreen : ShellPage
         }
         if (inProgress) AddRound(fromStart);
         AddRound(info);
-        AddRound(watched);
+        AddRound(listable ? list : watched);
         heroButtons.SizeWidth = Ui.Dp(x);
-        if (focusedRound == fromStart.Item && !inProgress) Tree.Focus(resume.Item);
+        var gone = (focusedRound == fromStart.Item && !inProgress) || (focusedRound == list.Item && !listable) || (focusedRound == watched.Item && listable);
+        if (gone) Tree.Focus(resume.Item);
     }
 
     void SetInRows(bool on)

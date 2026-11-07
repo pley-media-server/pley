@@ -91,6 +91,9 @@ sealed class TvShell : Sheet
     /// <summary>The way into requests and its number, while the profile has any.</summary>
     RequestsEntry requests = RequestsEntry.None;
 
+    /// <summary>Whether the person asked for less motion (Settings): nothing turns or slides by itself.</summary>
+    public bool ReduceMotion => state.Settings.Value.ReduceMotion;
+
     public TvShell(AppState state, Action<RailItem> onRail, Action onProfile) : base("shell", Axis.Row)
     {
         this.state = state;

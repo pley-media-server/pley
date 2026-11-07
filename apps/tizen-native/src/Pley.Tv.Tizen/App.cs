@@ -594,7 +594,7 @@ class App : NUIApplication
     }
 
     /// <summary>Home: a tile opens its item's page, an artist's or album's their music page, a track its album.</summary>
-    HomeScreen Home(TvShell tv) => new HomeScreen(tv, new HomeModel(state, new ContextScheduler()), images, gate, item => Go(tv, SearchRules.Opens(item)));
+    HomeScreen Home(TvShell tv) => new HomeScreen(tv, new HomeModel(state, new ContextScheduler()), images, gate, shell.Input, item => Go(tv, SearchRules.Opens(item)));
 
     /// <summary>Settings, with the Me page for its Profile and the TV's facts under "Open diagnostics".</summary>
     SettingsModel Settings() =>

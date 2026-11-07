@@ -11,5 +11,10 @@
     "empty": "Rien pour l’instant",
     "emptyBody": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse."
   },
-  "comesNext": "Cette page arrive bientôt dans l’application native."
+  "comesNext": "Cette page arrive bientôt dans l’application native.",
+  "featured": {
+    "newIn": "Nouveau dans {{library}}",
+    "new": "Nouveau",
+    "onList": "Dans votre liste"
+  }
 }

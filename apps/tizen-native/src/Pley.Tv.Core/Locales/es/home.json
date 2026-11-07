@@ -11,5 +11,10 @@
     "empty": "Aún no hay nada",
     "emptyBody": "Tus bibliotecas están vacías. Añade contenido a sus carpetas y ejecuta un análisis."
   },
-  "comesNext": "Esa página llegará pronto a la aplicación nativa."
+  "comesNext": "Esa página llegará pronto a la aplicación nativa.",
+  "featured": {
+    "newIn": "Novedad en {{library}}",
+    "new": "Novedad",
+    "onList": "En tu lista"
+  }
 }
