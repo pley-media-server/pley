@@ -107,15 +107,17 @@ public static class Discovery
     /// Broadcasts and collects the answers: <paramref name="onFound"/> hears each server as it
     /// answers, on any thread; the answer is all of them, by name. <paramref name="lans"/> are
     /// the networks to broadcast on (<see cref="Lans.Current"/> without), <paramref name="open"/>
-    /// the socket (<see cref="UdpPort"/> without).
+    /// the socket (<see cref="UdpPort"/> without). <paramref name="windowMs"/> is how long it
+    /// listens (<see cref="WindowMs"/>); a test gives a long one and ends it with <paramref name="stop"/>,
+    /// so a slow machine never cuts a broadcast short.
     /// </summary>
     public static async Task<IReadOnlyList<FoundServer>> Search(Action<FoundServer>? onFound, CancellationToken stop,
-        IReadOnlyList<LanAddress>? lans = null, Func<IDatagramPort>? open = null, int port = Addresses.DefaultPort)
+        IReadOnlyList<LanAddress>? lans = null, Func<IDatagramPort>? open = null, int port = Addresses.DefaultPort, int windowMs = WindowMs)
     {
         var found = new List<FoundServer>();
         var seen = new HashSet<string>();
         using var window = CancellationTokenSource.CreateLinkedTokenSource(stop);
-        window.CancelAfter(WindowMs);
+        window.CancelAfter(windowMs);
         IDatagramPort socket;
         try
         {

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -164,10 +165,14 @@ public class ServersTests
 
         public ConcurrentQueue<IPEndPoint> Sent { get; } = new ConcurrentQueue<IPEndPoint>();
 
+        /// <summary>Hears how many requests have gone out, after each.</summary>
+        public Action<int>? OnSent { get; set; }
+
         public void Send(byte[] payload, IPEndPoint to)
         {
             Assert.Equal("pley?", Encoding.ASCII.GetString(payload));
             Sent.Enqueue(to);
+            OnSent?.Invoke(Sent.Count);
         }
 
         public async Task<(byte[] Bytes, IPEndPoint From)> Receive(CancellationToken cancel)
@@ -190,7 +195,14 @@ public class ServersTests
             (@"{""pley"":1,""port"":7539,""name"":""Zed"",""id"":""a"",""version"":""1""}", "10.0.0.20"),
             (@"{""pley"":1,""port"":7539,""name"":""alpha"",""version"":""1""}", "192.168.1.30"));
         var heard = new ConcurrentQueue<FoundServer>();
-        var found = await Discovery.Search(heard.Enqueue, CancellationToken.None, new[] { new LanAddress(IPAddress.Parse("192.168.1.9"), 24) }, () => port);
+        // The window ends once the third round has gone out, not on the clock: a busy machine
+        // running the tests may take longer than the app's 1.5 s to send all three.
+        using var done = new CancellationTokenSource();
+        port.OnSent = n =>
+        {
+            if (n == 6) done.Cancel();
+        };
+        var found = await Discovery.Search(heard.Enqueue, done.Token, new[] { new LanAddress(IPAddress.Parse("192.168.1.9"), 24) }, () => port, windowMs: 60_000);
         Assert.Equal(new[] { "alpha", "Zed" }, found.Select(f => f.Name));
         Assert.Equal(2, heard.Count);
         Assert.Equal(new[] { "192.168.1.255", "255.255.255.255" }, port.Sent.Select(s => s.Address.ToString()).Distinct());
