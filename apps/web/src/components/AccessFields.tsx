@@ -232,7 +232,9 @@ export function AccessFields({
               id={`${idPrefix}-age`}
               className="h-10 w-full"
               value={value.max_age ?? ""}
-              onChange={(e) => set({ max_age: Number(e.target.value) })}
+              // Kept as an age, so that one a rating also has (12 in the UK)
+              // doesn't turn into that rating.
+              onChange={(e) => set({ max_age_system: AGE_SYSTEM, max_age: Number(e.target.value) })}
             >
               {AGES.map((age) => (
                 <option key={age} value={age}>
