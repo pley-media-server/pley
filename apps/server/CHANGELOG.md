@@ -42,6 +42,8 @@ describes how they are made.
 - Labels are picked in one field of chips: the arrow keys move through the
   labels titles carry, Enter or a click adds one, and a label no title has
   yet can still be added.
+- Plex and Jellyfin apps no longer show titles' labels, which label
+  exceptions go by, except to tokens that may manage libraries (Kometa's).
 
 ## [0.1.8] - 2026-11-06
 

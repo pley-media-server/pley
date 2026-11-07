@@ -713,6 +713,18 @@ async fn labels_are_shown_and_listed_to_administrators_only() {
     let listed = app.get("/api/labels", admin).await.body;
     assert_eq!(listed, json!([{"label": "4K", "items": 2}, {"label": "Override: Adult", "items": 1}]));
     assert_eq!(app.get("/api/labels", &w.kid).await.status, StatusCode::FORBIDDEN);
+    // Nor do the compatibility APIs tell them, but to tokens that edit.
+    let plex_labels = |item: &Value| item["Label"].as_array().map_or(0, Vec::len);
+    let in_plex = format!("/library/metadata/{family}");
+    assert_eq!(plex_labels(&app.plex_json(&in_plex, &w.kid).await["Metadata"][0]), 0);
+    assert_eq!(plex_labels(&app.plex_json(&in_plex, admin).await["Metadata"][0]), 1);
+    let choices = format!("/library/sections/{}/label", w.movies);
+    assert!(app.plex_json(&choices, &w.kid).await.get("Directory").is_none_or(|d| d == &json!([])));
+    assert_eq!(app.plex_json(&choices, admin).await["Directory"].as_array().map_or(0, Vec::len), 2);
+    let in_jellyfin = format!("/Items/{}", app.jf_item(family));
+    assert!(app.jf_json(&in_jellyfin, &w.kid).await.get("Tags").is_none());
+    let manager = app.compatibility_token(admin, "manage").await;
+    assert_eq!(app.jf_json(&in_jellyfin, &manager).await["Tags"], json!(["4K"]));
 
     // Replaced as a whole; seasons and episodes take them, collections' extras don't matter here.
     label(app, admin, adult, &["4K"]).await;

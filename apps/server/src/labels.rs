@@ -8,6 +8,8 @@ use std::collections::HashMap;
 
 use serde::Serialize;
 
+use crate::auth::AuthUser;
+use crate::auth::compatibility::Scope;
 use crate::db::Db;
 use crate::error::AppError;
 
@@ -16,6 +18,13 @@ const MAX_LEN: usize = 120;
 
 /// The kinds of item the web app labels: titles and what holds them.
 pub const LABELLED: &[&str] = &["movie", "show", "season", "episode", "artist", "album"];
+
+/// Whether `user` is told items' labels: administrators in Pley's web app,
+/// and compatibility tokens that edit (Kometa's). Profiles' label rules go
+/// by them, so a child shouldn't read "Override: Adult".
+pub fn shown_to(user: &AuthUser) -> bool {
+    (user.is_admin && user.app.is_none()) || user.compatibility_allows(Scope::Manage)
+}
 
 /// Most labels an item takes from the edit dialog.
 const MAX_PER_ITEM: usize = 100;
