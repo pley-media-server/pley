@@ -183,7 +183,9 @@ async fn fake_plex() -> String {
                     {"id": 885, "uuid": "u-kid", "title": "Kid One", "restricted": true, "protected": true},
                     // A Home member with their own account: Plex doesn't call them
                     // restricted, and keeps their rules as sharing filters.
-                    {"id": 549, "uuid": "u-teen", "title": "Teen", "restricted": false}
+                    {"id": 549, "uuid": "u-teen", "title": "Teen", "restricted": false},
+                    // A managed user with no rules: restricted to Plex, but sees everything.
+                    {"id": 612, "uuid": "u-free", "title": "Sam", "restricted": true}
                 ]}))
                 .into_response()
             }),
@@ -207,7 +209,9 @@ async fn fake_plex() -> String {
                         filterMovies="contentRating=G%2CPG|label=Family&amp;label!=Scary"
                         filterTelevision="contentRating=TV-Y%2CTV-PG|label=Family" filterMusic=""/>
                         <User id="549" title="Teen" home="1" filterMovies="label!=Scary" filterTelevision="label!=Scary"
-                        filterMusic=""/></MediaContainer>"#,
+                        filterMusic=""/>
+                        <User id="612" title="Sam" home="1" filterMovies="" filterTelevision="" filterMusic=""/>
+                        </MediaContainer>"#,
                 )
             }),
         )
@@ -331,6 +335,9 @@ async fn brings_libraries_people_and_what_they_watched() {
         json!({"max_age": null, "max_age_system": null, "show_labels": [], "hide_labels": ["Scary"],
                "left_over": [], "not_kept": []})
     );
+    let free = &plan.body["users"][3];
+    assert_eq!((&free["title"], &free["restricted"]), (&json!("Sam"), &json!(false)));
+    assert_eq!(free["limits"]["max_age"], json!(null));
     assert!(!plan.mentions(OWNER) && !plan.mentions(OWNER_SERVER), "no token in the plan");
 
     let choices = json!({

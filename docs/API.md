@@ -4567,7 +4567,7 @@ interface ImportPlan {
   users: {
     id: number; title: string;            // Plex's
     admin: boolean;                       // the account signed in, which comes as the administrator
-    restricted: boolean;                  // Plex limits what they see: a managed user, or a member with sharing filters
+    restricted: boolean;                  // Plex limits what they see: their sharing filters have a rule
     protected: boolean;
     profile_id: Id | null;                // the profile an earlier import made
     limits: { max_age: number | null; max_age_system: string | null;

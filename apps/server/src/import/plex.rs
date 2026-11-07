@@ -425,9 +425,6 @@ pub struct HomeUser {
     /// Has a PIN.
     #[serde(default, deserialize_with = "flag")]
     pub protected: bool,
-    /// A managed user, with restrictions.
-    #[serde(default, deserialize_with = "flag")]
-    pub restricted: bool,
 }
 
 /// The account's Plex Home, as `/api/v2/home/users` answers.

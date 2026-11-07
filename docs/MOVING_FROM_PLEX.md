@@ -14,9 +14,9 @@ never changes anything on Plex.
   administrator. Each person in your Plex Home you choose becomes a
   profile of Pley's household, opening the libraries they could open on
   Plex.
-- **Restrictions.** The profile of a Plex Home user Plex limits (a managed
-  user, or a member with their own Plex account and restrictions on what
-  you share with them) gets an age limit from the ratings Plex allows them,
+- **Restrictions.** The profile of a Plex Home user with restrictions (a
+  managed user's, or those on what you share with a member who has their
+  own Plex account) gets an age limit from the ratings Plex allows them,
   or below the youngest it disallows, and label rules from Plex's labels:
   titles with a label they're always allowed are shown above their age
   limit, titles with a label they're never allowed aren't shown at all. A
@@ -24,7 +24,8 @@ never changes anything on Plex.
   strictest it can, and the import says which. So does a list of
   disallowed ratings with a gap (PG-13 disallowed but R allowed): an age
   limit hides everything above it. A managed user's Plex preset becomes an
-  age limit alone: 5 for Little kid, 11 for Older kid and 14 for Teen.
+  age limit alone: 5 for Little kid, 11 for Older kid and 14 for Teen. A
+  managed user without restrictions sees everything, as on Plex.
 - **Titles.** Plex's labels are added to the titles, and a title's date
   added moves to Plex's when that's earlier.
 - **What everyone watched.** Watched titles, resume points, ratings and

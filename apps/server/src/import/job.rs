@@ -201,8 +201,8 @@ pub struct PlanUser {
     pub title: String,
     /// The Plex account signed in, brought as the administrator.
     pub admin: bool,
-    /// Plex limits what they see: a managed user, or a Home member with
-    /// sharing filters of their own.
+    /// Plex limits what they see: their sharing filters have a rule (a
+    /// managed user without one sees everything, as on Plex).
     pub restricted: bool,
     pub protected: bool,
     /// The Pley profile an earlier import made for them.
@@ -481,14 +481,15 @@ impl Importer {
         }
 
         let home = plex.home_users(&token).await?;
-        // A managed user's rules and a Home member's with their own account
-        // (whom Plex doesn't call restricted) are both sharing filters.
+        // A managed user's rules (a preset's included) and a Home member's
+        // with their own account are both sharing filters. Plex calls every
+        // managed user restricted, with rules or none, so the filters say.
         let filters = if home.iter().any(|u| !u.admin) { plex.user_filters(&token).await? } else { Vec::new() };
         let region = crate::ratings::region(db).await?;
         let mut users = Vec::new();
         for user in &home {
             let limits = if user.admin { Limits::default() } else { limits_of(&filters, user.id, &region) };
-            let restricted = !user.admin && (user.restricted || limits != Limits::default());
+            let restricted = limits != Limits::default();
             users.push(PlanUser {
                 id: user.id,
                 title: user.title.clone(),
