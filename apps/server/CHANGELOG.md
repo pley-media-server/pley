@@ -38,6 +38,10 @@ describes how they are made.
   8. Ratings from TMDB, TheTVDB and NFO files keep their country; NFO
   files with several countries' give the metadata region's. Changing the
   region in Settings works every age out again.
+- Edit details says which country's ratings a title's rating is read
+  with: the country written before it ("GB:15"), the one it came with, or
+  the metadata region's, or where the region has none here, the US's and
+  others in common use.
 - A user's settings are in three tabs, Profile, Access and Devices, and
   label exceptions fold into one line, such as "Never show 2 labels",
   until they're opened.

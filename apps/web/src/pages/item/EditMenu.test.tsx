@@ -74,6 +74,33 @@ describe("EditDialogs", () => {
     expect(screen.getByText("Read with the metadata region’s ratings")).toBeInTheDocument();
   });
 
+  it("reads a rating as the server does: its written country's, else the region's or common ones", async () => {
+    const user = userEvent.setup();
+    const country = (code: string) => ({ country: code, name: code, ratings: [] });
+    mockApi({ "GET /api/ratings/systems": () => ({ region: "PL", systems: [country("GB"), country("US")] }) });
+    renderWithProviders(
+      <EditDialogs item={movie({ content_rating: "B", content_rating_country: "IN" })} dialog="details" onClose={() => {}} />,
+    );
+    const field = screen.getByLabelText("Content rating");
+    // Written with its country, it's that country's, whatever the item's.
+    await user.clear(field);
+    await user.type(field, "gb:15");
+    expect(await screen.findByText("Country: United Kingdom")).toBeInTheDocument();
+    await user.clear(field);
+    await user.type(field, "USA/R");
+    expect(screen.getByText("Country: United States")).toBeInTheDocument();
+    // Poland has no ratings here: the US's and common names are read.
+    await user.clear(field);
+    await user.type(field, "PG");
+    expect(
+      screen.getByText("Read by the US’s ratings and others in common use: the metadata region has none here"),
+    ).toBeInTheDocument();
+    // "M/12" is a rating, Portugal's, not a country's.
+    await user.clear(field);
+    await user.type(field, "M/12");
+    expect(screen.queryByText(/^Country:/)).not.toBeInTheDocument();
+  });
+
   it("has no labels field where the server gave none", () => {
     renderWithProviders(<EditDialogs item={movie()} dialog="details" onClose={() => {}} />);
     expect(screen.queryByLabelText("Labels")).not.toBeInTheDocument();

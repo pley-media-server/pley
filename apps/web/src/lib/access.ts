@@ -80,6 +80,19 @@ export function ratingSystem(systems: RatingSystems | undefined, stored: string 
 }
 
 /**
+ * The country written before a rating ("GB:15", "gb/12A", "USA:R") when
+ * it's one with ratings here: the server reads the rating as that
+ * country's. Portugal's "M/12" is a rating, not a country.
+ */
+export function writtenCountry(systems: RatingSystems | undefined, rating: string): string | null {
+  const cut = rating.search(/[:/]/);
+  if (cut < 0) return null;
+  const before = rating.slice(0, cut).trim().toUpperCase();
+  if (before === "USA") return "US";
+  return systems?.systems.some((s) => s.country === before) ? before : null;
+}
+
+/**
  * The system a limit shows in: the one stored, else the metadata region's,
  * else Age; and Age when the system has no rating for the limit (8 in the
  * US), so that it never reads as no limit.

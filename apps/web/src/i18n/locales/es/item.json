@@ -131,6 +131,7 @@
       "willUnlock": "Se desbloqueará",
       "ratingCountry": "País: {{country}}",
       "ratingRegion": "Se lee con las clasificaciones de la región de los metadatos",
+      "ratingCommon": "Se lee con las clasificaciones de EE. UU. y otras de uso común: la región de los metadatos no tiene aquí",
       "fromNfo": "Del archivo NFO",
       "fields": {
         "title": "Título",

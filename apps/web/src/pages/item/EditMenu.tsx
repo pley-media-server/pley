@@ -3,8 +3,8 @@ import { Trans, useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, FileText, ImageUp, Lock, LockOpen, Pencil, RotateCcw, Search } from "lucide-react";
 import { api, errorMessage, request } from "@/api/client";
-import { keys } from "@/api/hooks";
-import type { ItemDetail } from "@/api/types";
+import { keys, useRatingSystems } from "@/api/hooks";
+import type { ItemDetail, RatingSystems } from "@/api/types";
 import { useAuth } from "@/auth";
 import { LabelPicker } from "@/components/LabelPicker";
 import { Modal } from "@/components/Modal";
@@ -12,7 +12,7 @@ import { useToast } from "@/components/Toast";
 import { Button, Field, Spinner, TextInput } from "@/components/ui";
 import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { systemName } from "@/lib/access";
+import { systemName, writtenCountry } from "@/lib/access";
 import { sameLabels } from "@/lib/labels";
 
 type ArtworkKind = "poster" | "backdrop" | "thumb";
@@ -109,6 +109,7 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
   const [values, setValues] = useState(initial);
   const [unlock, setUnlock] = useState<Set<FieldKey>>(new Set());
   const [labels, setLabels] = useState(item.labels ?? []);
+  const { data: systems } = useRatingSystems();
   const labelled = LABELLED.has(item.kind) && item.labels !== undefined;
   const locked = new Set(item.locked_fields ?? []);
   const fromNfo = new Set(item.nfo_fields ?? []);
@@ -190,7 +191,9 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
                 label={t(`edit.details.fields.${key}`)}
                 htmlFor={`edit-${key}`}
                 hint={withRatingCountry(
-                  key === "content_rating" ? ratingCountry(item, values.content_rating, initial.content_rating) : null,
+                  key === "content_rating"
+                    ? ratingCountry(item, systems, values.content_rating, initial.content_rating)
+                    : null,
                   locked.has(key) ? (
                     <button
                       type="button"
@@ -495,14 +498,22 @@ function ArtworkGrid({
 }
 
 /**
- * Which ratings a content rating's age is read with: its country's, while
- * it's the one the item has, else the metadata region's (a rating typed by
- * hand has no country).
+ * Which ratings a content rating's age is read with, as the server reads
+ * it: the country written before it ("GB:15"), else the item's while it's
+ * the rating the item has, else the metadata region's. A region without
+ * ratings here reads it by the US's names and others in common use.
  */
-function ratingCountry(item: ItemDetail, value: string, initial: string): string | null {
+function ratingCountry(
+  item: ItemDetail,
+  systems: RatingSystems | undefined,
+  value: string,
+  initial: string,
+): string | null {
   if (value.trim() === "") return null;
-  if (value === initial && item.content_rating_country) {
-    return translate("edit.details.ratingCountry", { ns: "item", country: systemName(item.content_rating_country) });
+  const country = writtenCountry(systems, value) ?? (value === initial ? item.content_rating_country : undefined);
+  if (country) return translate("edit.details.ratingCountry", { ns: "item", country: systemName(country) });
+  if (systems && !systems.systems.some((s) => s.country === systems.region)) {
+    return translate("edit.details.ratingCommon", { ns: "item" });
   }
   return translate("edit.details.ratingRegion", { ns: "item" });
 }
