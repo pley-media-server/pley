@@ -330,9 +330,18 @@ pub async fn birthday_ages(db: &Db) -> sqlx::Result<Vec<i64>> {
     let mut changed = Vec::new();
     for (id, born, max_age) in rows {
         let limit = birthday_limit(&born, &month);
+        // Only while it still follows that birthday: a limit an
+        // administrator set meanwhile stays.
         if limit != max_age {
-            sqlx::query("UPDATE users SET max_age = ? WHERE id = ?").bind(limit).bind(id).execute(&db.write).await?;
-            changed.push(id);
+            let updated = sqlx::query("UPDATE users SET max_age = ? WHERE id = ? AND birth_month = ?")
+                .bind(limit)
+                .bind(id)
+                .bind(&born)
+                .execute(&db.write)
+                .await?;
+            if updated.rows_affected() > 0 {
+                changed.push(id);
+            }
         }
     }
     Ok(changed)
