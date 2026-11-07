@@ -1,0 +1,608 @@
+{
+  "cases": [
+    {
+      "name": "takes the newest of each library in turn",
+      "hubs": [
+        {
+          "key": "continue_watching",
+          "title": "continue_watching",
+          "library_id": null,
+          "items": [
+            {
+              "id": 1,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 1",
+              "sort_title": "title 1",
+              "added_at": 1800000001,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/1/images/backdrop"
+            }
+          ]
+        },
+        {
+          "key": "recently_added:1",
+          "title": "recently_added:1",
+          "library_id": 1,
+          "items": [
+            {
+              "id": 10,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 10",
+              "sort_title": "title 10",
+              "added_at": 1800000010,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/10/images/backdrop"
+            },
+            {
+              "id": 11,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 11",
+              "sort_title": "title 11",
+              "added_at": 1800000011,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/11/images/backdrop"
+            },
+            {
+              "id": 12,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 12",
+              "sort_title": "title 12",
+              "added_at": 1800000012,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/12/images/backdrop"
+            }
+          ]
+        },
+        {
+          "key": "recently_added:2",
+          "title": "recently_added:2",
+          "library_id": 2,
+          "items": [
+            {
+              "id": 20,
+              "library_id": 2,
+              "kind": "show",
+              "title": "Title 20",
+              "sort_title": "title 20",
+              "added_at": 1800000020,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/20/images/backdrop"
+            }
+          ]
+        }
+      ],
+      "featured": [
+        {
+          "id": 10,
+          "fromList": false
+        },
+        {
+          "id": 20,
+          "fromList": false
+        },
+        {
+          "id": 11,
+          "fromList": false
+        },
+        {
+          "id": 12,
+          "fromList": false
+        }
+      ]
+    },
+    {
+      "name": "leaves out what was watched, has no backdrop, or isn't a movie or show",
+      "hubs": [
+        {
+          "key": "recently_added:1",
+          "title": "recently_added:1",
+          "library_id": 1,
+          "items": [
+            {
+              "id": 1,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 1",
+              "sort_title": "title 1",
+              "added_at": 1800000001,
+              "user_state": {
+                "position_ms": 0,
+                "watched": true,
+                "play_count": 1
+              },
+              "backdrop_url": "/api/items/1/images/backdrop"
+            },
+            {
+              "id": 2,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 2",
+              "sort_title": "title 2",
+              "added_at": 1800000002,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              }
+            },
+            {
+              "id": 3,
+              "library_id": 1,
+              "kind": "album",
+              "title": "Title 3",
+              "sort_title": "title 3",
+              "added_at": 1800000003,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/3/images/backdrop"
+            },
+            {
+              "id": 4,
+              "library_id": 1,
+              "kind": "episode",
+              "title": "Title 4",
+              "sort_title": "title 4",
+              "added_at": 1800000004,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/4/images/backdrop"
+            },
+            {
+              "id": 5,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 5",
+              "sort_title": "title 5",
+              "added_at": 1800000005,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/5/images/backdrop"
+            }
+          ]
+        }
+      ],
+      "featured": [
+        {
+          "id": 5,
+          "fromList": false
+        }
+      ]
+    },
+    {
+      "name": "fills up from My List, once each, and stops at the count",
+      "count": 4,
+      "hubs": [
+        {
+          "key": "my_list",
+          "title": "my_list",
+          "library_id": null,
+          "items": [
+            {
+              "id": 2,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 2",
+              "sort_title": "title 2",
+              "added_at": 1800000002,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/2/images/backdrop"
+            },
+            {
+              "id": 3,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 3",
+              "sort_title": "title 3",
+              "added_at": 1800000003,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/3/images/backdrop"
+            },
+            {
+              "id": 4,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 4",
+              "sort_title": "title 4",
+              "added_at": 1800000004,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/4/images/backdrop"
+            },
+            {
+              "id": 5,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 5",
+              "sort_title": "title 5",
+              "added_at": 1800000005,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/5/images/backdrop"
+            }
+          ]
+        },
+        {
+          "key": "recently_added:1",
+          "title": "recently_added:1",
+          "library_id": 1,
+          "items": [
+            {
+              "id": 1,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 1",
+              "sort_title": "title 1",
+              "added_at": 1800000001,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/1/images/backdrop"
+            },
+            {
+              "id": 2,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 2",
+              "sort_title": "title 2",
+              "added_at": 1800000002,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/2/images/backdrop"
+            }
+          ]
+        }
+      ],
+      "featured": [
+        {
+          "id": 1,
+          "fromList": false
+        },
+        {
+          "id": 2,
+          "fromList": false
+        },
+        {
+          "id": 3,
+          "fromList": true
+        },
+        {
+          "id": 4,
+          "fromList": true
+        }
+      ]
+    },
+    {
+      "name": "features watched titles when nothing else is left",
+      "hubs": [
+        {
+          "key": "recently_added:1",
+          "title": "recently_added:1",
+          "library_id": 1,
+          "items": [
+            {
+              "id": 1,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 1",
+              "sort_title": "title 1",
+              "added_at": 1800000001,
+              "user_state": {
+                "position_ms": 0,
+                "watched": true,
+                "play_count": 1
+              },
+              "backdrop_url": "/api/items/1/images/backdrop"
+            },
+            {
+              "id": 2,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 2",
+              "sort_title": "title 2",
+              "added_at": 1800000002,
+              "user_state": {
+                "position_ms": 0,
+                "watched": true,
+                "play_count": 1
+              }
+            }
+          ]
+        },
+        {
+          "key": "recently_added:2",
+          "title": "recently_added:2",
+          "library_id": 2,
+          "items": [
+            {
+              "id": 3,
+              "library_id": 2,
+              "kind": "show",
+              "title": "Title 3",
+              "sort_title": "title 3",
+              "added_at": 1800000003,
+              "user_state": {
+                "position_ms": 0,
+                "watched": true,
+                "play_count": 1
+              },
+              "backdrop_url": "/api/items/3/images/backdrop"
+            }
+          ]
+        }
+      ],
+      "featured": [
+        {
+          "id": 1,
+          "fromList": false
+        },
+        {
+          "id": 3,
+          "fromList": false
+        }
+      ]
+    },
+    {
+      "name": "takes at most six",
+      "hubs": [
+        {
+          "key": "recently_added:1",
+          "title": "recently_added:1",
+          "library_id": 1,
+          "items": [
+            {
+              "id": 1,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 1",
+              "sort_title": "title 1",
+              "added_at": 1800000001,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/1/images/backdrop"
+            },
+            {
+              "id": 2,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 2",
+              "sort_title": "title 2",
+              "added_at": 1800000002,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/2/images/backdrop"
+            },
+            {
+              "id": 3,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 3",
+              "sort_title": "title 3",
+              "added_at": 1800000003,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/3/images/backdrop"
+            },
+            {
+              "id": 4,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 4",
+              "sort_title": "title 4",
+              "added_at": 1800000004,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/4/images/backdrop"
+            },
+            {
+              "id": 5,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 5",
+              "sort_title": "title 5",
+              "added_at": 1800000005,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/5/images/backdrop"
+            },
+            {
+              "id": 6,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 6",
+              "sort_title": "title 6",
+              "added_at": 1800000006,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/6/images/backdrop"
+            },
+            {
+              "id": 7,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 7",
+              "sort_title": "title 7",
+              "added_at": 1800000007,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/7/images/backdrop"
+            },
+            {
+              "id": 8,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 8",
+              "sort_title": "title 8",
+              "added_at": 1800000008,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/8/images/backdrop"
+            },
+            {
+              "id": 9,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 9",
+              "sort_title": "title 9",
+              "added_at": 1800000009,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/9/images/backdrop"
+            }
+          ]
+        }
+      ],
+      "featured": [
+        {
+          "id": 1,
+          "fromList": false
+        },
+        {
+          "id": 2,
+          "fromList": false
+        },
+        {
+          "id": 3,
+          "fromList": false
+        },
+        {
+          "id": 4,
+          "fromList": false
+        },
+        {
+          "id": 5,
+          "fromList": false
+        },
+        {
+          "id": 6,
+          "fromList": false
+        }
+      ]
+    },
+    {
+      "name": "features nothing without a backdrop",
+      "hubs": [
+        {
+          "key": "continue_watching",
+          "title": "continue_watching",
+          "library_id": null,
+          "items": [
+            {
+              "id": 1,
+              "library_id": 1,
+              "kind": "episode",
+              "title": "Title 1",
+              "sort_title": "title 1",
+              "added_at": 1800000001,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              },
+              "backdrop_url": "/api/items/1/images/backdrop"
+            }
+          ]
+        },
+        {
+          "key": "recently_added:1",
+          "title": "recently_added:1",
+          "library_id": 1,
+          "items": [
+            {
+              "id": 2,
+              "library_id": 1,
+              "kind": "movie",
+              "title": "Title 2",
+              "sort_title": "title 2",
+              "added_at": 1800000002,
+              "user_state": {
+                "position_ms": 0,
+                "watched": false,
+                "play_count": 0
+              }
+            }
+          ]
+        }
+      ],
+      "featured": []
+    }
+  ]
+}

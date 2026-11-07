@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
-import type { Credit, Hub, ItemDetail, ItemSummary } from "../../src/api/types";
+import type { Credit, Hub, ItemDetail, ItemSummary, Library } from "../../src/api/types";
 import { check, connect, hostPort, subnetOf } from "../../src/auth/servers";
 import { TokenError, type OAuthError } from "../../src/auth/tokens";
 import type { HttpRequest, Transport } from "../../src/net/transport";
 import { NetworkError } from "../../src/net/transport";
 import { shuffled } from "../../src/player/music";
-import { heroOf, rowKind, seeAllOf, seeAllSort } from "../../src/ui/screens/home";
+import { featuredLabel, featuredOf, heroOf, rowKind, seeAllOf, seeAllSort } from "../../src/ui/screens/home";
 import { castAndCrew } from "../../src/ui/screens/item";
 import { openingTab } from "../../src/ui/screens/library";
+import featured from "../fixtures/featured.json";
 import {
   AlphaIndex,
   cleared,
@@ -206,9 +207,25 @@ describe("Home", () => {
     expect(seeAllSort(cw)).toBeNull();
   });
 
-  it("puts Continue Watching's first in the hero, else the newest video", () => {
+  it("puts Continue Watching's first in the hero, else the newest video, when nothing is featured", () => {
     expect(heroOf([cw, movies])!.id).toBe(5);
     expect(heroOf([movies, music])!.id).toBe(6);
+  });
+
+  // The native app runs the same cases (HomeRulesTests).
+  for (const c of featured.cases) {
+    it(`features the newest movies and shows: ${c.name}`, () => {
+      const picked = featuredOf(c.hubs as unknown as Hub[], "count" in c ? c.count : undefined);
+      expect(picked.map((f) => ({ id: f.item.id, fromList: f.fromList }))).toEqual(c.featured);
+    });
+  }
+
+  it("says why a featured title is there", () => {
+    const libraries = [{ id: 1, name: "Movies", kind: "movies" }] as Library[];
+    const film = summary({ id: 6, library_id: 1 });
+    expect(featuredLabel({ item: film, fromList: false }, libraries)).toBe("New in Movies");
+    expect(featuredLabel({ item: film, fromList: false }, null)).toBe("New");
+    expect(featuredLabel({ item: film, fromList: true }, libraries)).toBe("On your list");
   });
 });
 

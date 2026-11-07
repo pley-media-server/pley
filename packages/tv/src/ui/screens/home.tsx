@@ -1,6 +1,6 @@
 import { useSignal, type Signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import type { Hub, ItemDetail, ItemSummary, LibrarySort } from "../../api/types";
+import type { Hub, ItemDetail, ItemSummary, Library, LibrarySort } from "../../api/types";
 import { cardSubtitle, episodeLabel, formatRuntime, formatTimeLeft, isInProgress, isPlayableVideo } from "../../format/format";
 import { t } from "../../i18n";
 import { useUi } from "../context";
@@ -12,7 +12,7 @@ import { Row, rowHeight, SectionPage, type Section } from "../kit/row";
 import { SeeAllTile, Tile, TILES, type TileKind } from "../kit/tile";
 import type { Entry } from "../shell/navigator";
 import { failedTitle, Message, MetaLine, problem, useApp } from "./common";
-import { pageOf, playItem, prefetchPlayback, setWatched } from "./item-actions";
+import { inMyList, pageOf, playItem, prefetchPlayback, setInMyList, setWatched } from "./item-actions";
 
 /** A row's tiles (rowShape): Continue Watching wide, music square, episodes wide, the rest posters. */
 export function rowKind(hub: Hub, musicLibraries: number[]): TileKind {
@@ -51,6 +51,56 @@ export function heroOf(hubs: Hub[]): ItemSummary | null {
     }
   }
   return best ?? bestAny;
+}
+
+/** How many titles the hero takes turns showing. */
+export const FEATURED_COUNT = 6;
+
+/** A title the hero features, and why: new in its library, or on My List. */
+export interface Featured {
+  item: ItemSummary;
+  fromList: boolean;
+}
+
+const hasArt = (i: ItemSummary) => (i.kind === "movie" || i.kind === "show") && !!i.backdrop_url;
+
+/**
+ * The titles the hero features, as the web's banner picks them
+ * (apps/web/src/lib/featured.ts, Android's featuredOf): the newest
+ * unwatched movies and shows with a backdrop, taken in turn from each
+ * library's Recently Added, then from My List when that is too few; the
+ * newest watched ones when everything has been watched.
+ * test/fixtures/featured.json pins it for both Samsung apps.
+ */
+export function featuredOf(hubs: Hub[], count = FEATURED_COUNT): Featured[] {
+  const picked = pickFeatured(hubs, count, (i) => hasArt(i) && !i.user_state.watched);
+  return picked.length ? picked : pickFeatured(hubs, count, hasArt);
+}
+
+function pickFeatured(hubs: Hub[], count: number, featurable: (i: ItemSummary) => boolean): Featured[] {
+  const sources = hubs.filter((h) => h.key.indexOf("recently_added") === 0).map((h) => h.items.filter(featurable));
+  const picked: Featured[] = [];
+  const seen: Record<number, true> = {};
+  const take = (item: ItemSummary, fromList: boolean) => {
+    if (seen[item.id] || picked.length >= count) return;
+    seen[item.id] = true;
+    picked.push({ item, fromList });
+  };
+  for (let i = 0; picked.length < count && sources.some((s) => i < s.length); i++) {
+    for (const s of sources) {
+      const item = s[i];
+      if (item) take(item, false);
+    }
+  }
+  for (const i of hubs.filter((h) => h.key === "my_list")[0]?.items ?? []) if (featurable(i)) take(i, true);
+  return picked;
+}
+
+/** Why a featured title is there: "New in Movies", "New" without its library's name, "On your list". */
+export function featuredLabel(f: Featured, libraries: Library[] | null): string {
+  if (f.fromList) return t("browse.home.featured.onList");
+  const library = (libraries ?? []).filter((l) => l.id === f.item.library_id)[0]?.name;
+  return library ? t("browse.home.featured.newIn", { library }) : t("browse.home.featured.new");
 }
 
 /** What the hero and the info block say of an item (homeInfo). */
@@ -99,11 +149,13 @@ export function useDetail(id: number | null): ItemDetail | null {
 
 const HERO_H = 356;
 const ROWS_ANCHOR = 172;
+/** How long each featured title stays in the hero while nothing is pressed: the web's banner's. */
+const TURN_MS = 9_000;
 
 /**
- * Home (TvHome): the hero (Continue Watching's first, its buttons), the
- * rows under it, the backdrop of what focus rests on. Drawn at once from
- * what was saved, then from the server.
+ * Home (TvHome): the hero (the featured titles, taking turns, else
+ * Continue Watching's first), the rows under it, the backdrop of what
+ * focus rests on. Drawn at once from what was saved, then from the server.
  */
 export function HomeScreen(p: { entry: Entry }) {
   const app = useApp();
@@ -154,7 +206,17 @@ function HomeRows(p: { entry: Entry; rows: Hub[] }) {
   const entry = p.entry;
   const rows = p.rows;
   const music = (app.libraries.value ?? []).filter((l) => l.kind === "music").map((l) => l.id);
-  const hero = heroOf(rows);
+  // The hero takes turns through the featured titles; without any, it is Continue Watching's first and stays.
+  const featured = featuredOf(rows);
+  const fallback = heroOf(rows);
+  const heroes: { item: ItemSummary; label: string | null }[] = featured.length
+    ? featured.map((f) => ({ item: f.item, label: featuredLabel(f, app.libraries.value) }))
+    : fallback
+      ? [{ item: fallback, label: null }]
+      : [];
+  const [turn, setTurn] = useState<number>((entry.state.turn as number | undefined) ?? 0);
+  const current = heroes.length ? heroes[turn % heroes.length]! : null;
+  const hero = current?.item ?? null;
   const [inRows, setInRows] = useState<boolean>(!!entry.state.inRows);
   // The tile focus is on: only the backdrop and the info block read it, so a move draws neither the page nor its rows again.
   const focused = useSignal<ItemSummary | null>(null);
@@ -168,11 +230,56 @@ function HomeRows(p: { entry: Entry; rows: Hub[] }) {
     return () => clearTimeout(t);
   }, []);
 
-  // Details of the first three in Continue Watching, ahead of a press.
+  // Details of the first three in Continue Watching, ahead of a press, and of every featured title: turning to one shows it whole.
   useEffect(() => {
     const cw = rows.filter((h) => h.key.indexOf("continue") === 0)[0];
-    for (const i of (cw?.items ?? []).slice(0, 3)) if (!app.cachedItem(i.id)) void app.item(i.id).catch(() => undefined);
+    const ahead = [...(cw?.items ?? []).slice(0, 3), ...featured.map((f) => f.item)];
+    for (const i of ahead) if (!app.cachedItem(i.id)) void app.item(i.id).catch(() => undefined);
   }, []);
+
+  // The hero's turns: every TURN_MS while no key is pressed (each press starts the time over),
+  // not in the rows nor with less motion. Right from its last button turns it too.
+  const lastKey = useRef(0);
+  useEffect(
+    () =>
+      ui.input.push(() => {
+        lastKey.current = Date.now();
+        return false;
+      }),
+    [],
+  );
+  const [focusPlay, setFocusPlay] = useState(0);
+  const next = (toPlay: boolean) => {
+    setTurn((n) => {
+      entry.state.turn = n + 1;
+      return n + 1;
+    });
+    if (toPlay) setFocusPlay((n) => n + 1);
+  };
+  useLayoutEffect(() => {
+    if (!focusPlay) return;
+    const play = document.querySelector<HTMLElement>('.home [data-fid="hero/play"]');
+    if (play) ui.focus.focus(play);
+  }, [focusPlay]);
+  useEffect(() => {
+    if (inRows || heroes.length < 2 || ui.reducedMotion) return;
+    let since = Math.max(lastKey.current, Date.now());
+    let timer = 0;
+    const wait = () => {
+      timer = window.setTimeout(() => {
+        if (lastKey.current > since) {
+          since = lastKey.current;
+          wait();
+          return;
+        }
+        // Its buttons may not be the last one's (From start): focus starts again on Play.
+        const shown = document.querySelector(".home .hero");
+        next(!!(shown && ui.focus.current && shown.contains(ui.focus.current)));
+      }, Math.max(0, since + TURN_MS - Date.now()));
+    };
+    wait();
+    return () => clearTimeout(timer);
+  }, [turn, inRows, heroes.length]);
 
   // Back from the rows: the page goes back to its hero (focus on Play), then to the rail, as on Android TV.
   // Far down the rows the hero isn't drawn: the page goes to its top first, and Play takes focus once it's there.
@@ -238,6 +345,10 @@ function HomeRows(p: { entry: Entry; rows: Hub[] }) {
         <Hero
           item={hero}
           detail={heroDetail}
+          label={current?.label ?? null}
+          turns={heroes.length}
+          turn={turn % Math.max(1, heroes.length)}
+          onNext={heroes.length > 1 ? () => next(true) : undefined}
           hidden={inRows}
           onFocus={() => {
             onFocus();
@@ -354,11 +465,22 @@ function HomeFocus(p: { hero: ItemSummary | null; heroDetail: ItemDetail | null;
   );
 }
 
-function Hero(p: { item: ItemSummary; detail: ItemDetail | null; hidden: boolean; onFocus: () => void }) {
+function Hero(p: {
+  item: ItemSummary;
+  detail: ItemDetail | null;
+  label: string | null;
+  turns: number;
+  turn: number;
+  onNext?: () => void;
+  hidden: boolean;
+  onFocus: () => void;
+}) {
   const app = useApp();
   const ui = useUi();
   const item = p.item;
   const info = homeInfo(item, p.detail);
+  // On My List: as its details say, else as Home's My List row does.
+  const listed = p.detail?.in_watchlist ?? inMyList(app, item.id) ?? false;
   const resumeRef = useRef<HTMLElement | null>(null);
   const groupRef = useRef<HTMLElement | null>(null);
   const focus = () => {
@@ -374,8 +496,14 @@ function Hero(p: { item: ItemSummary; detail: ItemDetail | null; hidden: boolean
   return (
     <>
       {p.hidden && <div class="hero-zone" onMouseMove={pointedAt} />}
-      <div class={`hero${p.hidden ? " hidden" : ""}`}>
+      <div class={`hero${p.hidden ? " hidden" : ""}${p.turns > 1 ? " turns" : ""}`}>
         <div class="hero-title">
+          {p.label && (
+            <div class="hero-label t-label one-line">
+              <span class="hero-label-bar" />
+              {p.label}
+            </div>
+          )}
           <div class="t-hero c-fg lines-2">{info.title}</div>
         </div>
         {info.context && <div class="t-title c-fg one-line" style="margin-top:10px;width:464px">{info.context}</div>}
@@ -383,11 +511,17 @@ function Hero(p: { item: ItemSummary; detail: ItemDetail | null; hidden: boolean
           <MetaLine item={item} detail={p.detail} runtime={info.runtime} />
         </div>
         {info.timeLeft && <div class="t-caption c-fg one-line" style="margin-top:10px">{info.timeLeft}</div>}
-        {info.summary && <div class="t-body-large lines-3 hero-summary">{info.summary}</div>}
+        {(info.summary || p.turns > 1) && <div class="t-body-large lines-3 hero-summary">{info.summary}</div>}
         <G
           kind="row"
           restore
           class="buttons hero-buttons"
+          // Right from the last button: the next title, as along a row. Left still finds the rail.
+          onEdge={(dir) => {
+            if (dir !== "right" || !p.onNext) return false;
+            p.onNext();
+            return true;
+          }}
           elRef={(el) => (groupRef.current = el)}
           onEnter={() => (groupRef.current && ui.focus.rememberedIn(groupRef.current)) ?? resumeRef.current?.querySelector<HTMLElement>("[data-f]") ?? null}
         >
@@ -398,13 +532,30 @@ function Hero(p: { item: ItemSummary; detail: ItemDetail | null; hidden: boolean
           </div>
           {info.inProgress && <Round label={t("browse.actions.fromStart")} icon="rotate-ccw" fid="hero/start" onFocus={focus} onSelect={() => void playItem(app, ui, item, { fromStart: true })} />}
           <Round label={t("browse.actions.info")} icon="info" fid="hero/info" onFocus={focus} onSelect={() => ui.nav.open(pageOf(item))} />
-          <Round
-            label={info.watched ? t("browse.actions.markUnwatched") : t("browse.actions.markWatched")}
-            icon="circle-check"
-            fid="hero/watched"
-            onFocus={focus}
-            onSelect={() => void setWatched(app, ui, item, !info.watched)}
-          />
+          {item.kind === "movie" || item.kind === "show" ? (
+            <Round
+              label={listed ? t("browse.actions.removeFromMyList") : t("browse.actions.addToMyList")}
+              icon={listed ? "check" : "plus"}
+              fid="hero/list"
+              onFocus={focus}
+              onSelect={() => void setInMyList(app, ui, item, !listed)}
+            />
+          ) : (
+            <Round
+              label={info.watched ? t("browse.actions.markUnwatched") : t("browse.actions.markWatched")}
+              icon="circle-check"
+              fid="hero/watched"
+              onFocus={focus}
+              onSelect={() => void setWatched(app, ui, item, !info.watched)}
+            />
+          )}
+          {p.turns > 1 && (
+            <div class="hero-turns" aria-hidden="true">
+              {Array.from({ length: p.turns }, (_, i) => (
+                <span class={i === p.turn ? "on" : ""} />
+              ))}
+            </div>
+          )}
         </G>
       </div>
     </>

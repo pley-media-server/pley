@@ -295,6 +295,15 @@ also what waits for them, in red while some failed.
   What came while the app wasn't listening (before it started, while the
   event stream was down) is found among the 20 newest unseen requests.
   Other news shows only as the number and in the lists.
+- **Home:** the hero features what the web's banner and the Android app
+  do: the newest movies and shows not yet watched that have a backdrop, a
+  library's at a time, then My List's (the newest watched ones once
+  everything has been), each with why it is there ("New in Movies"), Play,
+  Info and My List. It takes turns through them: Right from its last
+  button goes on to the next title, focus back on Play, and it turns by
+  itself every 9 s while no key is pressed, each press starting the time
+  over; with Reduce motion only Right turns it. With nothing to feature,
+  the hero is Continue Watching's first and stays.
 - **Discover:** a hero for the first trending title, then Trending this
   week, Popular movies, Popular shows, Coming to cinemas and Popular
   anime, each loaded as it comes near the screen, then Your requests;
@@ -784,7 +793,8 @@ French and Spanish to their punctuation.
   the TV was left on when it has one); `rail.json` pins the rail's
   entries (up to six libraries, then Libraries; nothing left out for
   Live TV or Now Playing) and how far they scroll for the entry focus is
-  on; `requests.json` pins where a Discover poster opens; `language.json`
+  on; `requests.json` pins where a Discover poster opens; `featured.json`
+  pins which titles Home's hero features, and in what order; `language.json`
   pins which language shows, and that a server naming any language, even
   one the app doesn't have, keeps an account's. Where the
   Android app is

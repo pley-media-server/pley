@@ -30,7 +30,12 @@
     "empty": "Aún no hay nada",
     "emptyHint": "Tus bibliotecas están vacías. Añade contenido a sus carpetas y ejecuta un análisis.",
     "loading": "Cargando tu pantalla de inicio",
-    "myList": "Mi lista"
+    "myList": "Mi lista",
+    "featured": {
+      "newIn": "Novedad en {{library}}",
+      "new": "Novedad",
+      "onList": "En tu lista"
+    }
   },
   "library": {
     "tabs": {
