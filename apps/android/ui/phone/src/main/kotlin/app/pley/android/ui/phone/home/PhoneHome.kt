@@ -9,9 +9,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -23,15 +29,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -70,10 +82,11 @@ import app.pley.android.ui.phone.shell.ReportLoad
 import kotlinx.coroutines.delay
 
 /**
- * Home on phones and tablets (design spec §4.1, mockup phone-home): no
- * hero; the Pley mark in the top bar, with the remote's button while
- * another of the profile's devices is on and the profile's avatar (which
- * opens Me), then the server's rows: Continue Watching as 16:9 stills with
+ * Home on phones and tablets (design spec §4.1, mockup phone-home): the
+ * Pley mark in the top bar, with the remote's button while another of the
+ * profile's devices is on and the profile's avatar (which opens Me), the
+ * banner of featured titles ([HomeBanner]) when there are some, under the
+ * bar until it scrolls away, then the server's rows: Continue Watching as 16:9 stills with
  * their progress and time left, "Recently Added in …" as posters (squares
  * for music), each title leading to its library listed that way.
  *
@@ -105,21 +118,57 @@ internal fun PhoneHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewMod
     // The offline banner: up while what shows is what was saved, down once the server answers.
     ReportLoad(status)
 
+    val actions: @Composable RowScope.() -> Unit = {
+        if (shell.remote != null) RemoteButton(shell.remoteDevices, onOpen = { shell.openRemote() })
+        ProfileButton(profile, onClick = { navigator.open(PleyKey.Me) })
+    }
+    // With a banner the rows go under the bar, which is clear over it; otherwise the bar sits above them.
+    val shown = model
+    if (state is HomeState.Ready && state.featured.isNotEmpty() && shown != null) {
+        val density = LocalDensity.current
+        val barBottom = WindowInsets.safeDrawing.only(WindowInsetsSides.Top).asPaddingValues().calculateTopPadding() + BarHeight
+        val bannerHeight = remember { mutableIntStateOf(0) }
+        val pull = rememberPullToRefreshState()
+        // How far the bar has come back: solid once the banner's bottom has gone under it.
+        fun solid(): Float {
+            if (list.firstVisibleItemIndex > 0) return 1f
+            val fade = with(density) { BarFade.toPx() }
+            val meets = bannerHeight.intValue - with(density) { barBottom.toPx() }
+            return ((list.firstVisibleItemScrollOffset - (meets - fade)) / fade).coerceIn(0f, 1f)
+        }
+        Box(Modifier.fillMaxSize()) {
+            PullToRefreshBox(
+                isRefreshing = refreshing,
+                onRefresh = vm::refresh,
+                state = pull,
+                modifier = Modifier.fillMaxSize(),
+                indicator = {
+                    PullToRefreshDefaults.Indicator(pull, refreshing, Modifier.align(Alignment.TopCenter).padding(top = barBottom))
+                },
+            ) {
+                HomeRows(shown, list, vm, navigator, onBannerHeight = { bannerHeight.intValue = it })
+                MarkHomeDrawn(shown)
+            }
+            PleyTopAppBar(
+                title = { Brand() },
+                scrolled = { solid() >= 1f },
+                solid = ::solid,
+                actions = actions,
+            )
+        }
+        return
+    }
     Column(Modifier.fillMaxSize()) {
         PleyTopAppBar(
             title = { Brand() },
             scrolled = { list.canScrollBackward },
-            actions = {
-                if (shell.remote != null) RemoteButton(shell.remoteDevices, onOpen = { shell.openRemote() })
-                ProfileButton(profile, onClick = { navigator.open(PleyKey.Me) })
-            },
+            actions = actions,
         )
         PullToRefreshBox(
             isRefreshing = refreshing,
             onRefresh = vm::refresh,
             modifier = Modifier.weight(1f).fillMaxWidth(),
         ) {
-            val shown = model
             when (state) {
                 // The first shaping takes a moment: an empty page, never a flash of something else.
                 null -> Unit
@@ -149,14 +198,34 @@ internal fun PhoneHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewMod
 }
 
 @Composable
-private fun HomeRows(model: PhoneHomeModel, list: LazyListState, vm: HomeViewModel, navigator: Navigator) {
+private fun HomeRows(
+    model: PhoneHomeModel,
+    list: LazyListState,
+    vm: HomeViewModel,
+    navigator: Navigator,
+    onBannerHeight: (Int) -> Unit = {},
+) {
     val skeleton = rememberSkeleton(animated = true)
+    val featured = (model.state as? HomeState.Ready)?.featured.orEmpty()
     LazyColumn(
         state = list,
-        contentPadding = PaddingValues(top = 4.dp, bottom = PleyPhone.SectionGap),
+        contentPadding = PaddingValues(top = if (featured.isEmpty()) 4.dp else 0.dp, bottom = PleyPhone.SectionGap),
         verticalArrangement = Arrangement.spacedBy(SectionGap),
         modifier = Modifier.fillMaxSize().testTag(TestTags.HOME_ROWS),
     ) {
+        if (featured.isNotEmpty()) {
+            item(BANNER_TAG, contentType = BANNER_TAG) {
+                HomeBanner(
+                    featured = featured,
+                    origin = (model.state as HomeState.Ready).origin,
+                    visible = { list.firstVisibleItemIndex == 0 },
+                    onPlay = { vm.play(it.item, fromStart = false, navigator) },
+                    onInfo = { navigator.open(pageOf(it.item)) },
+                    onList = { vm.setInList(it.item, !it.inList) },
+                    modifier = Modifier.onSizeChanged { onBannerHeight(it.height) },
+                )
+            }
+        }
         items(model.rows, key = { it.model.key }, contentType = { it.model.kind }) { row ->
             val rowState = rememberHubRowState()
             // Home told again what it shows leaves its rows alone: the press's prefetch is kept while the
@@ -231,6 +300,12 @@ private fun Modifier.prefetchOnPress(state: LazyListState, items: List<ItemSumma
 
 /** The design's section gap between rows, less the room each row keeps under its cards for a pressed one. */
 private val SectionGap = PleyPhone.SectionGap - 6.dp
+
+/** The top bar's height under the status bar (Material's small top app bar). */
+private val BarHeight = 64.dp
+
+/** How far the page scrolls while the bar over the banner turns solid. */
+private val BarFade = 48.dp
 
 /** About two rows ahead of the screen are composed, so their pictures are on their way. */
 private val RowsAhead = 520.dp

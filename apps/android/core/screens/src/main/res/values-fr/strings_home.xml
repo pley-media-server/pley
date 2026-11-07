@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="home_featured_new_in">Nouveau dans %1$s</string>
+    <string name="home_featured_new">Nouveau</string>
+    <string name="home_featured_on_list">Dans votre liste</string>
+</resources>

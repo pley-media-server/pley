@@ -63,7 +63,10 @@ class TvContinueWatchingTest {
 
     private val sources get() = (ApplicationProvider.getApplicationContext<TvTestApplication>().screensGraph as TvTestGraph).sources
 
-    private val fixtures: Hubs = Fixtures.decode("hubs/home.json")
+    // Nothing to feature (no backdrops in Recently Added): the hero is Continue Watching's first, and follows it.
+    private val fixtures: Hubs = Fixtures.decode<Hubs>("hubs/home.json").let { hubs ->
+        Hubs(hubs.hubs.map { hub -> if (hub.key.startsWith("recently_added")) hub.copy(items = hub.items.map { it.copy(backdropUrl = null) }) else hub })
+    }
 
     private fun app(hubs: Hubs = fixtures) {
         sources.home.value = Loadable.Ready(hubs, fresh = true)

@@ -10,10 +10,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,8 +25,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
@@ -77,7 +80,12 @@ fun PleyTopAppBar(
     )
 }
 
-/** [PleyTopAppBar] with any [title] content: the pley mark and wordmark on Home. */
+/**
+ * [PleyTopAppBar] with any [title] content: the pley mark and wordmark on
+ * Home. Over a banner (Home's), [solid] says how far the bar has come
+ * back, 0 to 1 (read only while drawing): clear at 0 with a scrim behind
+ * its icons, [bg][PleyColors.Bg] at 1.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PleyTopAppBar(
@@ -86,10 +94,21 @@ fun PleyTopAppBar(
     onBack: (() -> Unit)? = null,
     scrolled: () -> Boolean = { false },
     windowInsets: WindowInsets = TopAppBarDefaults.windowInsets,
+    solid: (() -> Float)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val margin = LocalPhoneMetrics.current.margin
-    Column(modifier.fillMaxWidth()) {
+    val container = if (solid == null) PleyColors.Bg else Color.Transparent
+    val over = if (solid == null) {
+        Modifier
+    } else {
+        Modifier.drawBehind {
+            drawRect(Brush.verticalGradient(0f to PleyColors.Bg.copy(alpha = 0.6f), 1f to Color.Transparent))
+            val a = solid()
+            if (a > 0f) drawRect(PleyColors.Bg.copy(alpha = a))
+        }
+    }
+    Column(modifier.fillMaxWidth().then(over)) {
         TopAppBar(
             title = title,
             navigationIcon = {
@@ -103,8 +122,8 @@ fun PleyTopAppBar(
             },
             windowInsets = windowInsets,
             colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = PleyColors.Bg,
-                scrolledContainerColor = PleyColors.Bg,
+                containerColor = container,
+                scrolledContainerColor = container,
                 titleContentColor = PleyColors.Fg,
                 navigationIconContentColor = PleyColors.Fg,
                 actionIconContentColor = PleyColors.Fg,

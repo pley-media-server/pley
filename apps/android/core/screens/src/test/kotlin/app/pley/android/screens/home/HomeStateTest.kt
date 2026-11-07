@@ -186,4 +186,77 @@ class HomeStateTest {
         val error = IOException("no")
         assertEquals(LibrariesState.Failed(error), librariesState(Loadable.Failed(error), emptyList()))
     }
+
+    @Test
+    fun theBannerFeaturesTheNewestOfEachLibraryInTurn() {
+        val movies = Hub("recently_added:1", "Recently Added in Movies", 1, listOf(art(10), art(11), art(12)))
+        val shows = Hub("recently_added:2", "Recently Added in Shows", 2, listOf(art(20, kind = ItemKind.Show, library = 2)))
+        val rows = homeRows(listOf(Hub("continue_watching", "Continue Watching", null, listOf(art(1))), movies, shows), null)
+        assertEquals(listOf(10L, 20L, 11L, 12L), featuredOf(rows).map { it.item.id })
+        assertFalse(featuredOf(rows).any { it.fromList })
+    }
+
+    @Test
+    fun theBannerLeavesOutWhatWasWatchedHasNoBackdropOrIsNotAMovieOrShow() {
+        val added = Hub(
+            "recently_added:1", "Recently Added", 1,
+            listOf(
+                art(1, watched = true),
+                art(2).copy(backdropUrl = null),
+                art(3, kind = ItemKind.Album),
+                art(4, kind = ItemKind.Episode),
+                art(5),
+            ),
+        )
+        assertEquals(listOf(5L), featuredOf(homeRows(listOf(added), null)).map { it.item.id })
+        // Without backdrops, nothing: Home is its rows.
+        assertTrue(featuredOf(homeRows(HOME.hubs, null)).isEmpty())
+    }
+
+    @Test
+    fun theBannerFillsUpFromMyListOnceEachAndStopsAtItsCount() {
+        val added = Hub("recently_added:1", "Recently Added", 1, listOf(art(1), art(2)))
+        val list = Hub(app.pley.android.model.HubKeys.MY_LIST, "My List", null, listOf(art(2), art(3), art(4), art(5)))
+        val picked = featuredOf(homeRows(listOf(list, added), null), count = 4)
+        assertEquals(listOf(1L to false, 2L to false, 3L to true, 4L to true), picked.map { it.item.id to it.fromList })
+    }
+
+    @Test
+    fun theBannerFeaturesWatchedTitlesWhenNothingElseIsLeft() {
+        val movies = Hub("recently_added:1", "Recently Added", 1, listOf(art(1, watched = true), art(2, watched = true).copy(backdropUrl = null)))
+        val shows = Hub("recently_added:2", "Recently Added", 2, listOf(art(3, kind = ItemKind.Show, library = 2, watched = true)))
+        assertEquals(listOf(1L, 3L), featuredOf(homeRows(listOf(movies, shows), null)).map { it.item.id })
+    }
+
+    @Test
+    fun theBannerSaysWhyATitleIsThere() {
+        val new = FeaturedPick(art(1), fromList = false)
+        assertEquals(UiText.res(R.string.home_featured_new_in, "Movies"), featuredLabel(new, libraries.value))
+        assertEquals(UiText.res(R.string.home_featured_new), featuredLabel(new, null))
+        assertEquals(UiText.res(R.string.home_featured_on_list), featuredLabel(FeaturedPick(art(1), fromList = true), libraries.value))
+    }
+
+    @Test
+    fun theBannerGetsGenresAndMyListWithTheDetails() {
+        val added = Hub("recently_added:1", "Recently Added in Movies", 1, listOf(art(10)))
+        val state = homeState(Loadable.Ready(Hubs(listOf(added)), true), libraries, false, FakeHomeSources.ORIGIN) as HomeState.Ready
+        val featured = state.featured.single()
+        assertEquals(UiText.res(R.string.home_featured_new_in, "Movies"), featured.label)
+        assertTrue(featured.info.listable)
+        assertFalse(featured.info.complete)
+        val detail = ItemDetail(id = 10, libraryId = 1, kind = ItemKind.Movie, title = "Title 10", genres = listOf("Drama", "Comedy"), inWatchlist = true)
+        val told = state.withDetails(mapOf(10L to detail)).featured.single().info
+        assertEquals(listOf("Drama", "Comedy"), told.genres)
+        assertTrue(told.inList)
+        assertTrue(told.complete)
+    }
+
+    private fun art(id: Long, kind: ItemKind = ItemKind.Movie, library: Long = 1, watched: Boolean = false) = ItemSummary(
+        id = id,
+        libraryId = library,
+        kind = kind,
+        title = "Title $id",
+        backdropUrl = "/api/items/$id/images/backdrop",
+        userState = UserState(watched = watched),
+    )
 }

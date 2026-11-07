@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home's banner: why a title is there, over its name. -->
+    <string name="home_featured_new_in">New in %1$s</string>
+    <string name="home_featured_new">New</string>
+    <string name="home_featured_on_list">On your list</string>
+</resources>

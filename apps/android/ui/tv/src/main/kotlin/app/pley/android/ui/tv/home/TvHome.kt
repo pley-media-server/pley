@@ -2,6 +2,7 @@
 
 package app.pley.android.ui.tv.home
 
+import android.os.SystemClock
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -14,6 +15,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -24,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -33,6 +36,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.TestTags
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyTv
+import app.pley.android.designsystem.reducedMotion
+import app.pley.android.designsystem.text.asString
 import app.pley.android.model.HubKeys
 import app.pley.android.model.ItemSummary
 import app.pley.android.screens.Navigator
@@ -58,17 +63,23 @@ import app.pley.android.ui.tv.shell.ReportOffline
 import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
 import app.pley.android.ui.tv.theme.LocalTvTier
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
  * Home on TV (design spec §2.2, §4.1; TV addendum §3.4).
  *
- * At rest: the hero for the first Continue Watching item (its backdrop,
- * progress and Resume, with initial focus), then the server's rows. Down
- * moves into the rows: the hero's buttons go, the rows come up under a
- * compact info block about the focused tile, and the backdrop and the info
- * block follow the tile once focus has rested about 400 ms. Nothing
- * rotates or plays on its own.
+ * At rest: the hero for the featured titles (the web's banner: the newest
+ * unwatched movies and shows, [app.pley.android.screens.home.featuredOf]),
+ * each with its backdrop, why it is there, Play and My List, with initial
+ * focus on Play; without any, the first Continue Watching item. Then the
+ * server's rows. The hero turns to the next title every [TURN_MS] while
+ * nothing is pressed (each key starts the time over), and Right from its
+ * last button goes on to the next; with less motion asked for, only Right
+ * does. Down moves into the rows: the hero's buttons go, the rows come up
+ * under a compact info block about the focused tile, and the backdrop and
+ * the info block follow the tile once focus has rested about 400 ms.
+ * Nothing plays on its own.
  *
  * Back from the rows gives focus to the rail's Home and puts the page back
  * at its hero, where focus lands when the rail closes. Coming back from an
@@ -103,7 +114,7 @@ internal fun TvHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewModel.
                 title = stringResource(if (state.scanning) R.string.tv_home_scanning else R.string.tv_home_empty),
                 body = stringResource(if (state.scanning) R.string.tv_home_scanning_body else R.string.tv_home_empty_body),
             )
-            is HomeState.Ready -> if (shown.hero != null) TvHomeRows(shown, shown.hero, state.origin, vm, navigator)
+            is HomeState.Ready -> if (shown.heroes.isNotEmpty()) TvHomeRows(shown, state.origin, vm, navigator)
         }
         if (shown != null && shown.state != HomeState.Loading) MarkHomeDrawn(shown)
         TvHomeToast(message, onShown = { message = null })
@@ -137,7 +148,7 @@ private fun RestedFocus(focused: State<FocusedTile?>, vm: HomeViewModel) {
 }
 
 @Composable
-private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: HomeViewModel, navigator: Navigator) {
+private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, navigator: Navigator) {
     val tier = LocalTvTier.current
     val rail = LocalTvRailFocus.current
     val actions = tileActions()
@@ -156,6 +167,29 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
     // What the rows' callbacks read when they run: rows that didn't change keep theirs, and aren't composed again.
     val current by rememberUpdatedState(model)
 
+    // The hero's turns. The last key's time is kept out of the state: a key press composes nothing.
+    val heroes = model.heroes
+    var turn by rememberSaveable { mutableIntStateOf(0) }
+    val hero = heroes[turn % heroes.size]
+    val lastKey = remember { LongArray(1) }
+    val calm = reducedMotion()
+    LaunchedEffect(turn, inRows, heroes.size, calm) {
+        if (inRows || heroes.size < 2 || calm) return@LaunchedEffect
+        var since = maxOf(lastKey[0], SystemClock.uptimeMillis())
+        while (true) {
+            delay(since + TURN_MS - SystemClock.uptimeMillis())
+            if (lastKey[0] <= since) break
+            since = lastKey[0]
+        }
+        turn = (turn + 1) % heroes.size
+        // Its buttons may not be the last one's (From start): focus starts again on Play.
+        if (hasFocus) runCatching { resume.requestFocus() }
+    }
+    val next: () -> Unit = {
+        turn = (turn + 1) % heroes.size
+        runCatching { resume.requestFocus() }
+    }
+
     // In the rows, the backdrop and the info block show the tile focus rests on.
     val about: HomeInfo = if (inRows) info ?: hero.info else hero.info
     // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbour.
@@ -172,7 +206,15 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
         rail?.focusCurrent()
     }
 
-    Box(Modifier.fillMaxSize().onFocusChanged { hasFocus = it.hasFocus }) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .onFocusChanged { hasFocus = it.hasFocus }
+            .onPreviewKeyEvent {
+                lastKey[0] = SystemClock.uptimeMillis()
+                false
+            },
+    ) {
         TvBackdrop(backdrop, about.title, scrim = if (inRows) BackdropScrim.Rows else BackdropScrim.Hero)
         // Only in the rows is it there for screen readers too; at rest the hero says the same.
         TvInfoBlock(about, Modifier.graphicsLayer { alpha = 1f - heroAlpha }.then(if (inRows) Modifier else Modifier.clearAndSetSemantics { }))
@@ -190,7 +232,12 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
                     onPlay = { fromStart -> vm.play(hero.info.item, fromStart, navigator) },
                     onInfo = { navigator.open(pageOf(hero.info.item)) },
                     onWatched = { vm.setWatched(hero.info.item, !hero.info.watched) },
+                    onList = { vm.setInList(hero.info.item, !hero.info.inList) },
                     modifier = Modifier.graphicsLayer { alpha = heroAlpha }.tvRowColumnHero(),
+                    label = hero.label?.asString(),
+                    turns = heroes.size,
+                    turn = turn % heroes.size,
+                    onNext = if (heroes.size > 1) next else null,
                 )
             }
             model.rows.forEach { row ->
@@ -229,6 +276,9 @@ private fun TvHomeRows(model: TvHomeModel, hero: TvHero, origin: String, vm: Hom
 
 /** The hero, down to the first row's header at y = 384 less the gap between rows (design spec §2.2): the first row's tiles show whole under it. */
 internal val HeroHeight = 384.dp - PleyTv.RowGap
+
+/** How long each featured title stays in the hero while nothing is pressed: the web's banner's. */
+private const val TURN_MS = 9_000L
 
 /** About one row of posters: the next row is composed before focus reaches it. */
 private val RowAhead = 300.dp

@@ -219,6 +219,16 @@ rates as the decoder gives them, the same in every language.
   steps focus a tile or a row at a time and nothing slides.
   Search's recent searches move only when the next chip would pass the
   gutter or the safe area's edge, and then glide as a row does.
+- Home's hero features what the web's banner does: the newest movies and
+  shows not yet watched that have a backdrop, a library's at a time, then
+  My List's (the newest watched ones once everything has been). It takes
+  turns through them: Right from its last button (My List) goes on to the
+  next title, focus back on Play, and it turns by itself every 9 s while
+  no key is pressed, each press starting the time over; with Reduce
+  motion only Right turns it. With nothing to feature, the hero is
+  Continue Watching's first and stays. On a phone the same titles are a
+  banner under a clear top bar, swiped between and turning by themselves
+  (not while touched, scrolled away, or with Reduce motion).
 - A held key never leaves its list, as on a TV's home screen: it stops
   on a row's first or last tile, on a page's first or last row, and at a
   grid's edges, wherever the list is (Home, a show's page, search, a

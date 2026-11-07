@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -34,9 +35,15 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
@@ -45,6 +52,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import app.pley.android.common.errorSentence
 import app.pley.android.common.perf.StartupSignals
 import app.pley.android.designsystem.PleyColors
@@ -81,11 +89,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * The hero's stack at x = 96 (design spec §2.2): the title (logo art once
- * the server has it), an episode's "S2 · E5 · The Long Night", the
- * metadata line, progress, three lines of summary, then Resume (or Play)
- * and the round buttons From start, Info and Watched. A missing piece
- * closes its gap. Resume ([resume]) is the page's initial focus.
+ * The hero's stack at x = 96 (design spec §2.2): for a featured title why
+ * it is there ([label], "New in Movies"), the title (logo art once the
+ * server has it), an episode's "S2 · E5 · The Long Night", the metadata
+ * line, progress, three lines of summary, then Resume (or Play) and the
+ * round buttons From start, Info, and My List for movies and shows (Watched
+ * for the rest). A missing piece closes its gap. Resume ([resume]) is the
+ * page's initial focus.
+ *
+ * With several titles ([turns]), dashes beside the buttons show which is
+ * on, and Right from the last button goes on to the next ([onNext]).
  *
  * It is one focus group that the rows' column comes back to by its key
  * ([HERO_KEY]), always on Resume once the page went back to its top.
@@ -99,7 +112,12 @@ internal fun TvHomeHero(
     onPlay: (fromStart: Boolean) -> Unit,
     onInfo: () -> Unit,
     onWatched: () -> Unit,
+    onList: () -> Unit,
     modifier: Modifier = Modifier,
+    label: String? = null,
+    turns: Int = 1,
+    turn: Int = 0,
+    onNext: (() -> Unit)? = null,
 ) {
     val column = LocalTvRowColumn.current
     val group = remember { FocusRequester() }
@@ -128,13 +146,27 @@ internal fun TvHomeHero(
             Modifier.width(TextColumn).height(TitleBox).wrapContentHeight(Alignment.Bottom, unbounded = true),
             contentAlignment = Alignment.BottomStart,
         ) {
-            BasicText(
-                hero.title,
-                style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.semantics { heading() },
-            )
+            Column {
+                if (label != null) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(Modifier.size(width = 4.dp, height = 16.dp).background(PleyColors.Accent, CircleShape))
+                        Spacer(Modifier.width(10.dp))
+                        BasicText(
+                            label.uppercase(),
+                            style = PleyType.Tv.Label.copy(color = PleyColors.Fg.copy(alpha = 0.85f), letterSpacing = 3.sp),
+                            maxLines = 1,
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+                BasicText(
+                    hero.title,
+                    style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics { heading() },
+                )
+            }
         }
         if (hero.context.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
@@ -148,12 +180,14 @@ internal fun TvHomeHero(
             Spacer(Modifier.height(10.dp))
             BasicText(hero.timeLeft, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1, modifier = Modifier.heightIn(min = 17.dp))
         }
-        if (hero.summary.isNotEmpty()) {
+        if (hero.summary.isNotEmpty() || turns > 1) {
             Spacer(Modifier.height(10.dp))
+            // Taking turns, the summary keeps its three lines' room: the buttons stay where they are.
             BasicText(
                 hero.summary,
                 style = PleyType.Tv.BodyLarge.copy(color = SummaryColor),
                 maxLines = 3,
+                minLines = if (turns > 1) 3 else 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.width(TextColumn),
             )
@@ -170,10 +204,51 @@ internal fun TvHomeHero(
                 TvRoundButton(stringResource(R.string.tv_home_from_start), PleyIcons.RotateCcw, onClick = { onPlay(true) })
             }
             TvRoundButton(stringResource(R.string.tv_home_info), PleyIcons.Info, onClick = onInfo)
-            TvRoundButton(
-                stringResource(if (hero.watched) R.string.tv_home_mark_unwatched else R.string.tv_home_mark_watched),
-                PleyIcons.CircleCheck,
-                onClick = onWatched,
+            // Right from the last button: the next title, as along a row.
+            val last = if (onNext == null) {
+                Modifier
+            } else {
+                Modifier.onPreviewKeyEvent {
+                    if (it.type == KeyEventType.KeyDown && it.key == Key.DirectionRight) {
+                        onNext()
+                        true
+                    } else {
+                        false
+                    }
+                }
+            }
+            if (hero.listable) {
+                TvRoundButton(
+                    stringResource(if (hero.inList) R.string.tv_item_remove_from_my_list else R.string.tv_item_add_to_my_list),
+                    if (hero.inList) PleyIcons.Check else PleyIcons.Plus,
+                    onClick = onList,
+                    modifier = last,
+                )
+            } else {
+                TvRoundButton(
+                    stringResource(if (hero.watched) R.string.tv_home_mark_unwatched else R.string.tv_home_mark_watched),
+                    PleyIcons.CircleCheck,
+                    onClick = onWatched,
+                    modifier = last,
+                )
+            }
+            if (turns > 1) {
+                Spacer(Modifier.width(24.dp))
+                HeroTurns(turns, turn, Modifier.align(Alignment.CenterVertically))
+            }
+        }
+    }
+}
+
+/** The hero's dashes: one per title, the one on longer and white. Not focusable: Right and the clock turn them. */
+@Composable
+private fun HeroTurns(count: Int, current: Int, modifier: Modifier = Modifier) {
+    Row(modifier.clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        repeat(count) { i ->
+            Box(
+                Modifier
+                    .size(width = if (i == current) 36.dp else 14.dp, height = 4.dp)
+                    .background(if (i == current) PleyColors.Fg else PleyColors.Fg.copy(alpha = 0.3f), CircleShape),
             )
         }
     }

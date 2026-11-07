@@ -20,8 +20,8 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.isFocused
-import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.junit4.StateRestorationTester
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
@@ -30,7 +30,10 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.data.Loadable
+import app.pley.android.model.HubKeys
 import app.pley.android.model.Hubs
+import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.network.OfflineException
@@ -41,13 +44,13 @@ import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.testing.Fixtures
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.TvRailFocus
-import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.ANNOUNCE_MS
+import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.LocalTvOffline
-import app.pley.android.ui.tv.shell.TvOfflineNotice
-import app.pley.android.ui.tv.shell.TvOfflineState
 import app.pley.android.ui.tv.shell.RailState
 import app.pley.android.ui.tv.shell.TvNavigator
+import app.pley.android.ui.tv.shell.TvOfflineNotice
+import app.pley.android.ui.tv.shell.TvOfflineState
 import app.pley.android.ui.tv.shell.railItems
 import app.pley.android.ui.tv.shell.requestsItem
 import app.pley.android.ui.tv.theme.TvTheme
@@ -63,8 +66,9 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 /**
- * Home on TV with key events: initial focus on Resume, Down into the
- * rows, the focused tile coming back after the page was away, Back from
+ * Home on TV with key events: initial focus on the featured title's Play,
+ * Right through the hero's buttons on to the next title, the hero turning
+ * by itself while nothing is pressed, Down into the rows, the focused tile coming back after the page was away, Back from
  * the rows going to the rail with the page back at its hero, and the
  * states drawn from what was saved without the network.
  */
@@ -119,13 +123,13 @@ class TvHomeTest {
         compose.onNode(isFocused()).fetchSemanticsNode().config.getOrElse(SemanticsProperties.ContentDescription) { emptyList() }.joinToString()
 
     @Test
-    fun resumeHasFocusFirstAndDownGoesIntoTheRows() {
+    fun playHasFocusFirstAndDownGoesIntoTheRows() {
         show()
         compose.waitForIdle()
-        // Drawn from what was saved: the hero is Continue Watching's first, Severance's "Half Loop".
-        compose.onNodeWithText("Severance").assertExists()
-        compose.onNodeWithText("S1 · E2 · Half Loop").assertExists()
-        compose.onNodeWithText("Resume").assertIsFocused()
+        // Drawn from what was saved: the hero features the newest film with a backdrop.
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.onNodeWithText("NEW").assertExists()
+        compose.onNodeWithText("Play").assertIsFocused()
 
         press(Key.DirectionDown)
         assertTrue(focusedDescription(), focusedDescription().startsWith("Half Loop"))
@@ -154,9 +158,9 @@ class TvHomeTest {
             }
         }
         compose.mainClock.advanceTimeBy(1_000)
-        compose.onNodeWithText("Severance").assertExists()
+        compose.onNodeWithText("Dune: Part Two").assertExists()
         compose.onNodeWithText("Pley is offline").assertIsDisplayed()
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
 
         // Said for a while; the rail's mark stays.
         compose.mainClock.advanceTimeBy(ANNOUNCE_MS + 1_000)
@@ -194,9 +198,50 @@ class TvHomeTest {
         compose.waitForIdle()
         assertEquals(1, rail.asked)
         compose.onNodeWithTag("rail").assertIsFocused()
-        // Coming back from the rail lands on Resume, not on the row left.
+        // Coming back from the rail lands on Play, not on the row left.
         press(Key.DirectionRight)
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun rightFromTheLastButtonGoesOnToTheNextTitle() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        show()
+        compose.waitForIdle()
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.onNodeWithText("Play").assertIsFocused()
+        // Play, Info, My List; then the next title, from its Play.
+        press(Key.DirectionRight, times = 2)
+        assertEquals("Add to My List", focusedDescription())
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Severance").assertExists()
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun theHeroTurnsByItselfWhileNothingIsPressed() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.mainClock.advanceTimeBy(9_000)
+        compose.onNodeWithText("Severance").assertExists()
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    /** What was saved, with Severance's show in Recently Added too: two titles to feature, a film and a show. */
+    private fun twoFeatured(): Hubs {
+        val saved = Fixtures.decode<Hubs>("hubs/home.json")
+        val episode = saved.hubs.first { it.key == HubKeys.CONTINUE_WATCHING }.items.first()
+        val show = ItemSummary(
+            id = episode.grandparentId ?: 200,
+            libraryId = 2,
+            kind = ItemKind.Show,
+            title = episode.grandparentTitle ?: "Severance",
+            backdropUrl = "/api/items/200/images/backdrop",
+        )
+        return Hubs(saved.hubs.map { if (it.key == "recently_added:2") it.copy(items = listOf(show)) else it })
     }
 
     @Test

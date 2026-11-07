@@ -191,7 +191,7 @@ class TvAppTest {
     @Test
     fun homeStartsFocused() {
         app()
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
     }
 
     @Test
@@ -203,12 +203,12 @@ class TvAppTest {
     @Test
     fun leftFromContentEntersTheRailAtTheCurrentPage() {
         app()
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
         compose.press(Key.DirectionLeft)
         railEntry("home").assertIsFocused()
         // Right goes back to where focus was.
         compose.press(Key.DirectionRight)
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
     }
 
     @Test
@@ -284,13 +284,13 @@ class TvAppTest {
         // The skeleton has nothing to focus: Left goes to the rail.
         compose.press(Key.DirectionLeft)
         railEntry("home").assertIsFocused()
-        // Home comes in with Resume, its initial focus, which leaves focus where it was sent.
+        // Home comes in with the featured title's Play, its initial focus, which leaves focus where it was sent.
         homeData.value = ready
-        waitFor("Resume")
+        waitFor("Play")
         railEntry("home").assertIsFocused()
-        // Right goes to the page, starting on Resume.
+        // Right goes to the page, starting on Play.
         compose.press(Key.DirectionRight)
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
     }
 
     @Test
@@ -362,13 +362,13 @@ class TvAppTest {
     @Test
     fun newsOfARequestPopsUpOverThePageAndBackGivesFocusBack() {
         app()
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
         notices.value = listOf(arrivalIsReady)
         waitFor("“Arrival” is ready to watch.")
         compose.onNodeWithText("Open").assertIsFocused()
         back()
         compose.onNodeWithTag(TV_REQUEST_NOTICE).assertDoesNotExist()
-        compose.onNodeWithText("Resume").assertIsFocused()
+        compose.onNodeWithText("Play").assertIsFocused()
         assertEquals(0, exits)
     }
 
