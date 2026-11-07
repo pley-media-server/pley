@@ -170,12 +170,20 @@ fn rating_age(rating: &str) -> Option<i64> {
 /// existed), and all of them when the ratings tables ([`VERSION`]) or the
 /// metadata region (the country of ratings with none of their own) changed
 /// since the last time.
+///
+/// The first time, ratings were all stored without their country, though
+/// many are the United States' (TMDB's when the region had none, an NFO
+/// file's "US:PG"): read as the region's, some would allow younger viewers
+/// than before (the UK's PG is 8, the US's 10). Their ages then never go
+/// down, and NFO files are read again at the next scan to learn their
+/// countries; a refresh from TMDB or TheTVDB learns theirs.
 pub async fn backfill(db: &Db) -> sqlx::Result<()> {
     let region = region(db).await?;
     let stamp = format!("{VERSION}:{region}");
     let done: Option<String> =
         sqlx::query_scalar("SELECT value FROM settings WHERE key = 'rating_ages'").fetch_optional(&db.read).await?;
     let all = done.as_deref() != Some(stamp.as_str());
+    let first = done.is_none();
     /// An item's id, kind, rating, rating's country and age.
     type Rated = (i64, String, String, Option<String>, Option<i64>);
     let rows: Vec<Rated> = sqlx::query_as(
@@ -188,13 +196,27 @@ pub async fn backfill(db: &Db) -> sqlx::Result<()> {
     let ages: Vec<(i64, Option<i64>)> = rows
         .iter()
         .filter_map(|(id, kind, rating, country, old)| {
-            let age = age(Some(country.as_deref().unwrap_or(&region)), Kind::of(kind), rating);
+            let mut age = age(Some(country.as_deref().unwrap_or(&region)), Kind::of(kind), rating);
+            if first && country.is_none() {
+                age = old.map_or(age, |old| Some(age.map_or(old, |age| age.max(old))));
+            }
             (age != *old).then_some((*id, age))
         })
         .collect();
     let mut tx = db.write.begin().await?;
     for (id, age) in &ages {
         sqlx::query("UPDATE items SET rating_age = ? WHERE id = ?").bind(age).bind(id).execute(&mut *tx).await?;
+    }
+    if first {
+        // NFO fields read before ratings had countries: a size no file has
+        // makes the next scan read the file again.
+        sqlx::query(
+            "UPDATE item_nfo SET size = -1
+             WHERE json_valid(fields) AND json_extract(fields, '$.content_rating') IS NOT NULL
+               AND json_extract(fields, '$.content_ratings') IS NULL",
+        )
+        .execute(&mut *tx)
+        .await?;
     }
     sqlx::query(
         "INSERT INTO settings (key, value) VALUES ('rating_ages', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
@@ -439,6 +461,41 @@ mod tests {
             [Some(13), Some(3), None, None],
             "existing ages are kept, unknown ratings stay unrated"
         );
+    }
+
+    /// The first time, ratings stored without their country keep the age
+    /// they had when the region's ratings would lower it, and NFO files
+    /// read before ratings had countries are read again.
+    #[tokio::test]
+    async fn backfill_after_an_upgrade_never_lowers_ages() {
+        let (_dir, db) = database().await;
+        set_language(&db, "en-GB").await;
+        insert(&db, 1, Some("PG"), None, Some(10)).await;
+        insert(&db, 2, Some("12A"), None, None).await;
+        insert(&db, 3, Some("PG"), None, Some(6)).await;
+        insert(&db, 4, Some("PG"), Some("GB"), Some(10)).await;
+        for (id, fields) in [(1, r#"{"content_rating":"PG"}"#), (4, r#"{"content_rating":"PG","content_ratings":[]}"#)]
+        {
+            sqlx::query(
+                "INSERT INTO item_nfo (item_id, path, size, mtime, ids, fields) VALUES (?, 'x.nfo', 5, 5, '{}', ?)",
+            )
+            .bind(id)
+            .bind(fields)
+            .execute(&db.write)
+            .await
+            .unwrap();
+        }
+        backfill(&db).await.unwrap();
+        assert_eq!(ages(&db).await, [Some(10), Some(12), Some(8), Some(8)], "the US's PG stays 10; GB's is 8");
+        let sizes: Vec<i64> =
+            sqlx::query_scalar("SELECT size FROM item_nfo ORDER BY item_id").fetch_all(&db.read).await.unwrap();
+        assert_eq!(sizes, [-1, 5], "read again: only the file without countries");
+        // Afterwards, ages follow the tables and the region as usual.
+        set_language(&db, "en-US").await;
+        backfill(&db).await.unwrap();
+        set_language(&db, "en-GB").await;
+        backfill(&db).await.unwrap();
+        assert_eq!(ages(&db).await[0], Some(8));
     }
 
     /// New tables, or another region, work every age out again, each with
