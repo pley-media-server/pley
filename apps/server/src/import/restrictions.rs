@@ -338,19 +338,6 @@ mod tests {
     }
 
     #[test]
-    fn plex_little_kid_preset() {
-        let preset = "contentRating=G%2CTV-G%2CTV-Y%2Cgb%2FUc%2Cgb%2FU%2CUK%3A+Uc%2CUK%3A+U%2Cde%2F0%2CFSK+0%2C\
-            Ab+0+Jahren%2Cau%2FG%2Cca%2FG%2Cfr%2FTous+publics%2Cfr%2FU%2Cbr%2FL%2Cbr%2FLivre%2Cch%2F0%2Cnl%2FAL%2C\
-            es%2FAPTA%2Cdk%2FA%2Ckr%2FA%2Cse%2FBtl%2CCSM+3%2CCSM+4%2CCSM+5%2C0%2C0%2B%2C2%2C3%2C4%2C5%2CUS%2FG%2C\
-            US%2FTV-G%2CUS%2FTV-Y";
-        let l = limits(preset, preset, "", "US");
-        // Korea's "A" (for all) isn't India's adults-only "A".
-        assert_eq!((l.max_age, l.system.as_deref()), (Some(5), Some("age")));
-        assert_eq!(age_of("UK: 15", "US", Kind::Film), Some(15));
-        assert_eq!(age_of("kr/A", "US", Kind::Film), None);
-    }
-
-    #[test]
     fn ratings_with_their_country() {
         let l = limits("contentRating=gb%2FU,gb%2FPG,gb%2F12A", "", "", "US");
         assert_eq!((l.max_age, l.system.as_deref()), (Some(12), Some("GB")));
@@ -386,5 +373,38 @@ mod tests {
         let l = limits(&never.join("&"), "", "", "US");
         assert_eq!(l.hide.len(), MAX_LABEL_RULES);
         assert_eq!(l.left_over, [format!("L{MAX_LABEL_RULES}"), format!("L{}", MAX_LABEL_RULES + 1)]);
+    }
+
+    #[test]
+    fn plex_presets_become_ages() {
+        // The filters Plex writes for its Little kid, Older kid and Teen
+        // presets: every country's ratings up to an age, and plain ages.
+        const LITTLE: &str = "G%2CTV-G%2CTV-Y%2Cgb%2FUc%2Cgb%2FU%2CUK%3A+Uc%2CUK%3A+U%2Cde%2F0%2CFSK+0%2CAb+0+Jahren%2C\
+            au%2FG%2Cca%2FG%2Cfr%2FTous+publics%2Cfr%2FU%2Cbr%2FL%2Cbr%2FLivre%2Cch%2F0%2Cnl%2FAL%2C\
+            es%2FAPTA%2Cdk%2FA%2Ckr%2FA%2Cse%2FBtl%2CCSM+3%2CCSM+4%2CCSM+5%2C0%2C0%2B%2C2%2C3%2C4%2C5%2C\
+            US%2FG%2CUS%2FTV-G%2CUS%2FTV-Y";
+        const OLDER: &str = "%2CPG%2CTV-PG%2CTV-Y7%2CGP%2Cgb%2FPG%2CUK%3A+PG%2Cde%2F6%2CFSK+6%2CAb+6+Jahren%2Cau%2FPG%2C\
+            ca%2FPG%2Cfr%2F10%2Cbr%2F10%2Cch%2F6%2Cch%2F7%2Cch%2F8%2Cch%2F10+%2Cnl%2F6%2Cnl%2F9%2C\
+            es%2F7%2Cdk%2F7%2Cdk%2F11%2Cse%2F7%2Cse%2F11%2CCSM+6%2CCSM+7%2CCSM+8%2CCSM+9%2CCSM+10%2C\
+            CSM+11%2C6%2C7%2C8%2C9%2C10%2C11%2CUS%2FPG%2CUS%2FTV-PG%2CUS%2FTV-Y7";
+        const TEEN: &str = "%2CPG-13%2CTV-14%2Cgb%2F12A%2Cgb%2F12%2CUK%3A+12a%2CUK%3A+12%2Cde%2F12%2CFSK+12%2C\
+            Ab+12+Jahren%2Cca%2F14A%2Cca%2F13%2B%2Cca%2F14%2Cca%2F14%2B%2Cfr%2F12+%2Cbr%2F12%2C\
+            br%2F14%2Cnl%2F12%2Ces%2F12%2Ckr%2F12%2CCSM+12%2CCSM+13%2CCSM+14%2C12%2C12%2B%2C12A%2C13%2C\
+            14%2C14A%2CUS%2FPG-13%2CUS%2FTV-14";
+        let presets = [
+            (format!("contentRating={LITTLE}"), 5),
+            (format!("contentRating={LITTLE}{OLDER}"), 11),
+            (format!("contentRating={LITTLE}{OLDER}{TEEN}"), 14),
+        ];
+        for region in ["US", "GB"] {
+            for (rule, age) in &presets {
+                let l = limits(rule, rule, "", region);
+                assert_eq!((l.max_age, l.system.as_deref()), (Some(*age), Some("age")), "{region} {age}");
+                assert!(l.not_kept.is_empty() && l.show.is_empty() && l.hide.is_empty(), "{region} {age}: {l:?}");
+            }
+        }
+        // Korea's "A" (for all) isn't India's adults-only "A".
+        assert_eq!(age_of("UK: 15", "US", Kind::Film), Some(15));
+        assert_eq!(age_of("kr/A", "US", Kind::Film), None);
     }
 }

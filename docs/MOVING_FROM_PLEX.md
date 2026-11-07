@@ -23,7 +23,8 @@ never changes anything on Plex.
   rule Pley can't keep, such as "only titles with this label", becomes the
   strictest it can, and the import says which. So does a list of
   disallowed ratings with a gap (PG-13 disallowed but R allowed): an age
-  limit hides everything above it.
+  limit hides everything above it. A managed user's Plex preset becomes an
+  age limit alone: 5 for Little kid, 11 for Older kid and 14 for Teen.
 - **Titles.** Plex's labels are added to the titles, and a title's date
   added moves to Plex's when that's earlier.
 - **What everyone watched.** Watched titles, resume points, ratings and
