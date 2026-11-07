@@ -285,9 +285,9 @@ function ListButton({ item }: { item: ItemDetail }) {
       aria-pressed={inList}
       title={label}
       onClick={() => setInWatchlist.mutate({ item, on: !inList }, { onError: (e) => toast.error(errorMessage(e)) })}
-      className="flex size-12 shrink-0 items-center justify-center rounded-full border-2 border-white/40 bg-black/25 text-white backdrop-blur-md transition hover:border-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="flex size-10 shrink-0 items-center justify-center rounded-full border-[1.5px] border-white/40 bg-black/25 text-white backdrop-blur-md transition hover:border-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
-      {inList ? <Check className="size-5 text-accent" strokeWidth={2.5} aria-hidden /> : <Plus className="size-5" strokeWidth={2.5} aria-hidden />}
+      {inList ? <Check className="size-[18px] text-accent" strokeWidth={2.5} aria-hidden /> : <Plus className="size-[18px]" strokeWidth={2.5} aria-hidden />}
     </button>
   );
 }
