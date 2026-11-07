@@ -194,7 +194,6 @@ function Slide({ featured: { item, from } }: { featured: Featured }) {
   return (
     <div className="max-w-2xl min-w-0 animate-hero-rise text-center sm:text-left">
       <div className="mb-3 flex items-center justify-center gap-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-white/85 [text-shadow:0_1px_8px_rgb(0_0_0/0.6)] sm:mb-4 sm:justify-start sm:text-xs">
-        <span aria-hidden className="h-3.5 w-1 rounded-full bg-accent" />
         {from === "list" ? t("home.banner.onMyList") : library ? t("home.banner.newIn", { library }) : t("home.banner.new")}
       </div>
       <h2
