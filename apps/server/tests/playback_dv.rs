@@ -853,7 +853,7 @@ async fn players_that_adapt_get_transcodes_in_several_sizes() {
     assert_eq!(
         rungs,
         [
-            (None, Some(1080), Some(8_000)),
+            (Some(1920), Some(1080), Some(8_000)),
             (Some(1280), Some(720), Some(4_000)),
             (Some(960), Some(540), Some(2_000)),
             (Some(640), Some(360), Some(700)),

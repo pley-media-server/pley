@@ -708,6 +708,13 @@ pub struct Decision {
 /// tall as it fits).
 const LADDER_LINES: [i64; 4] = [1080, 720, 540, 360];
 
+/// The width of a 16:9 picture `lines` tall, even: a quality fits a video
+/// into that box, so a film wider than 16:9 comes no wider than the screen
+/// it was picked for (1080p is at most 1920×1080, a 2.40:1 film 1920×800).
+fn box_width(lines: i64) -> i64 {
+    (lines * 16 / 9 + 1) / 2 * 2
+}
+
 /// The lower renditions of a transcode of a `width`×`height` video as
 /// `top` asks, for a player that moves between them by itself as its
 /// connection allows: its own size at the bitrate that size gets
@@ -739,7 +746,7 @@ pub fn ladder(width: Option<i64>, height: Option<i64>, top: &VideoRequest) -> Ve
         above = own;
     }
     for rung in LADDER_LINES.into_iter().filter(|l| *l < lines * 9 / 10) {
-        let width = (rung * 16 / 9 + 1) / 2 * 2;
+        let width = box_width(rung);
         let kbps = default_video_kbps(width, rung).min(cap);
         if u64::from(kbps) * 3 > u64::from(above) * 2 {
             continue;
@@ -1495,7 +1502,10 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
         reasons.push("Audio track switching not supported.".into());
     }
     let bitrate_ok = req.max_bitrate.is_none_or(|max| file.bitrate.unwrap_or(0) <= max as i64 * 1000);
-    let size_ok = req.max_height.is_none_or(|max| video.and_then(|v| v.height).unwrap_or(0) <= max as i64);
+    let size_ok = req.max_height.is_none_or(|max| {
+        let (w, h) = video.map_or((None, None), |v| (v.width, v.height));
+        h.unwrap_or(0) <= i64::from(max) && w.unwrap_or(0) <= box_width(i64::from(max))
+    });
     if !bitrate_ok || !size_ok {
         reasons.push("Lower quality picked.".into());
     }
@@ -1603,7 +1613,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
             stream_index: Some(v.index),
             mode: if copy { VideoMode::Copy } else { VideoMode::Transcode },
             codec: if hdr == OutputRange::Sdr { VideoCodec::H264 } else { VideoCodec::Hevc },
-            max_width: None,
+            max_width: max_height.and_then(|h| u32::try_from(box_width(i64::from(h))).ok()),
             max_height,
             max_bitrate_kbps: max_bitrate.map(|b| b.saturating_sub(192).max(500)),
             dolby_vision: if copy { copy_dolby_vision } else { DolbyVisionMode::Copy },
@@ -3265,6 +3275,32 @@ mod tests {
         assert_eq!(d.video.unwrap().max_bitrate_kbps, Some(500));
         req.max_bitrate = Some(5_000);
         assert_eq!(decide(&file("mp4", 5_000_000), Some(&i), &i.streams, &req).method, Method::Direct);
+    }
+
+    #[test]
+    fn a_quality_fits_a_wide_film_into_its_box() {
+        let mut i = info("h264", &["aac"], DynamicRange::Sdr);
+        (i.streams[0].width, i.streams[0].height) = (Some(2560), Some(1080));
+        let mut req = request();
+        req.max_height = Some(1080);
+        // Wider than 1920: converted, so no wider than the screen 1080p is for.
+        let d = decide(&file("mp4", 5_000_000), Some(&i), &i.streams, &req);
+        assert_eq!(d.method, Method::Transcode);
+        let v = d.video.as_ref().unwrap();
+        assert_eq!((v.max_width, v.max_height), (Some(1920), Some(1080)));
+        req.max_height = Some(720);
+        let v = decide(&file("mp4", 5_000_000), Some(&i), &i.streams, &req).video.unwrap();
+        assert_eq!((v.max_width, v.max_height), (Some(1280), Some(720)));
+        // The quality picked by itself fits the same way (4K into 3840×2160).
+        let mut i = info("hevc", &["aac"], DynamicRange::Sdr);
+        (i.streams[0].width, i.streams[0].height) = (Some(4096), Some(1716));
+        let v = decide(&file("mkv", 80_000_000), Some(&i), &i.streams, &request()).video.unwrap();
+        assert_eq!((v.max_width, v.max_height), (Some(3840), Some(2160)));
+        // A 2.40:1 film's 1080p ladder starts at 1920×800, with no second
+        // 1080p below it.
+        let top = VideoRequest { max_width: Some(1920), max_height: Some(1080), ..Default::default() };
+        let lines = ladder(Some(3840), Some(1600), &top).iter().map(|v| v.max_height.unwrap()).collect::<Vec<_>>();
+        assert!(!lines.contains(&1080), "{lines:?}");
     }
 
     #[test]

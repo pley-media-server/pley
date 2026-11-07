@@ -2265,6 +2265,9 @@ mod tests {
         assert_eq!(fit(1920, 800, Some(1280), Some(720)), (1280, 534));
         assert_eq!(fit(640, 480, None, Some(1080)), (640, 480));
         assert_eq!(fit(1440, 1080, Some(1920), Some(1080)), (1440, 1080));
+        // Films wider than 16:9 fit the box by their width.
+        assert_eq!(fit(3840, 2024, Some(1920), Some(1080)), (1920, 1012));
+        assert_eq!(fit(3840, 1600, Some(1920), Some(1080)), (1920, 800));
     }
 
     #[test]

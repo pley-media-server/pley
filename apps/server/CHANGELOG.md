@@ -17,6 +17,12 @@ describes how they are made.
   seconds (holding still under the pointer, and for those who ask their
   system for less motion). Swipe between them on a phone.
 
+### Fixed
+
+- A quality fits a film wider than 16:9 into its box: 1080p of a 2.40:1
+  film is 1920×800, no longer 2592×1080, so it isn't wider than the
+  screen and plays on players that decode H.264 up to level 4.1.
+
 ## [0.1.8] - 2026-11-06
 
 ### Added
