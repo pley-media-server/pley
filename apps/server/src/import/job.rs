@@ -32,6 +32,9 @@ const REPORT_KEY: &str = "plex_import_report";
 const CLIENT_ID_KEY: &str = "plex_client_id";
 /// Files of a Plex library looked for in Pley's, to pair the libraries.
 const SAMPLE: usize = 12;
+/// The places in a library the plan's sample is taken from, spread over
+/// it: the first titles alone may all be in one of its folders.
+const SAMPLE_SPOTS: usize = 4;
 /// Titles named in the report for each library, of those not found.
 const MISSED_NAMED: usize = 50;
 
@@ -617,8 +620,8 @@ async fn imported_profile(db: &Db, plex_id: i64) -> sqlx::Result<Option<i64>> {
         .await
 }
 
-/// Pairs Plex library `key` with Pley's: some of its files looked for
-/// among Pley's, by name and size.
+/// Pairs Plex library `key` with Pley's: some of its files, from spots
+/// spread over it, looked for among Pley's by name and size.
 async fn pair(
     db: &Db,
     plex: &Plex,
@@ -628,13 +631,20 @@ async fn pair(
     locations: &[String],
 ) -> ImportResult<Pairing> {
     let query = [("type", leaf_type(kind).to_string())];
-    let page = plex.page(server, &format!("/library/sections/{key}/all"), &query, 0).await?;
-    let files: Vec<(String, Option<i64>)> = page
-        .items
-        .iter()
-        .flat_map(|i| i.files().map(|(f, s)| (f.to_owned(), s)).take(1).collect::<Vec<_>>())
-        .take(SAMPLE)
-        .collect();
+    let path = format!("/library/sections/{key}/all");
+    let each = SAMPLE / SAMPLE_SPOTS;
+    let first = plex.page_of(server, &path, &query, 0, each).await?;
+    let mut items = first.items;
+    for spot in 1..SAMPLE_SPOTS {
+        let start = first.total * spot / SAMPLE_SPOTS;
+        // A library too small to spread over is all in the first.
+        if start < each {
+            continue;
+        }
+        items.extend(plex.page_of(server, &path, &query, start, each).await?.items);
+    }
+    let files: Vec<(String, Option<i64>)> =
+        items.iter().filter_map(|i| i.files().next().map(|(f, s)| (f.to_owned(), s))).collect();
     let mut votes: HashMap<i64, usize> = HashMap::new();
     let mut folders: Vec<Folder> = Vec::new();
     let mut found = 0;

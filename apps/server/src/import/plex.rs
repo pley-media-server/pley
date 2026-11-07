@@ -284,9 +284,21 @@ impl Plex {
 
     /// One page of a listing: `start` onwards, with the total.
     pub async fn page(&self, server: &Server, path: &str, query: &[(&str, String)], start: usize) -> PlexResult<Page> {
+        self.page_of(server, path, query, start, PAGE).await
+    }
+
+    /// `size` items of a listing from `start`, with the total.
+    pub async fn page_of(
+        &self,
+        server: &Server,
+        path: &str,
+        query: &[(&str, String)],
+        start: usize,
+        size: usize,
+    ) -> PlexResult<Page> {
         let mut query = query.to_vec();
         query.push(("X-Plex-Container-Start", start.to_string()));
-        query.push(("X-Plex-Container-Size", PAGE.to_string()));
+        query.push(("X-Plex-Container-Size", size.to_string()));
         let c: Container<Item> = self.server_json(server, path, &query).await?;
         let mc = c.media_container;
         let total = mc.total_size.unwrap_or(start as i64 + mc.metadata.len() as i64).max(0) as usize;
