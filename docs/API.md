@@ -4537,7 +4537,7 @@ are open to apps.
 | Method | Path | Who | What |
 |---|---|---|---|
 | POST | `/api/import/plex/pin` | `admin` | `{ forward_url? }` → `{ code, auth_url }`: starts Plex's sign-in; the person allows Pley at `auth_url`, which goes on to `forward_url` (http or https) |
-| GET | `/api/import/plex/pin` | `admin` | `{ signed_in }`, asked every few seconds until `true`; `409 plex_pin_expired` once the PIN has expired |
+| GET | `/api/import/plex/pin` | `admin` | `{ signed_in }`, asked every few seconds until `true`; `409 plex_pin_expired` once the PIN has expired, then `409 plex_signed_out` (sign in again) |
 | POST | `/api/import/plex/token` | `admin` | `{ token }` → `204`: signs in with a Plex token instead |
 | GET | `/api/import/plex/servers` | `admin` | `{ id, name, owned, version }[]`: the servers the account owns, then those shared with it (only an owner can read everyone's history and the Home's restrictions, so only one it owns can be chosen) |
 | POST | `/api/import/plex/server` | `admin` | `{ id }`, or `{ address }` for a server Pley can't reach through plex.tv's addresses → `{ name }`: connected; `409 plex_not_owned` for a server plex.tv doesn't list as the account's own |

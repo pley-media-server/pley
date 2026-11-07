@@ -145,12 +145,26 @@ async fn fake_plex() -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr: SocketAddr = listener.local_addr().unwrap();
     let base = format!("http://{addr}");
+    // Each sign-in gets a PIN of its own; only the first is ever allowed,
+    // the others expire.
+    let pins = std::sync::Arc::new(std::sync::atomic::AtomicI64::new(7));
     let app = Router::new()
         // plex.tv
-        .route("/api/v2/pins", post(|| async { axum::Json(json!({"id": 7, "code": "ABCD"})) }))
+        .route(
+            "/api/v2/pins",
+            post(move || async move {
+                let id = pins.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                axum::Json(json!({"id": id, "code": "ABCD"}))
+            }),
+        )
         .route(
             "/api/v2/pins/{id}",
-            get(|| async { axum::Json(json!({"id": 7, "code": "ABCD", "authToken": OWNER})) }),
+            get(|Path(id): Path<i64>| async move {
+                if id != 7 {
+                    return StatusCode::NOT_FOUND.into_response();
+                }
+                axum::Json(json!({"id": 7, "code": "ABCD", "authToken": OWNER})).into_response()
+            }),
         )
         .route(
             "/api/v2/resources",
@@ -483,4 +497,21 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);
     let r = app.get("/api/import/plex/plan", &admin).await;
     assert_eq!(r.body["code"], "plex_signed_out");
+}
+
+#[tokio::test]
+async fn an_expired_sign_in_is_said_once_then_forgotten() {
+    let plex = fake_plex().await;
+    let app = TestApp::with_config(|c| c.plex_tv = plex.clone()).await;
+    let admin = app.setup_admin().await;
+    // The first PIN, then a second one, which Plex lets expire.
+    for _ in 0..2 {
+        let r = app.post("/api/import/plex/pin", &admin, json!({})).await;
+        assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    }
+    let r = app.get("/api/import/plex/pin", &admin).await;
+    assert_eq!((r.status, r.body["code"].as_str()), (StatusCode::CONFLICT, Some("plex_pin_expired")));
+    // plex.tv isn't asked again: signing in starts over.
+    let r = app.get("/api/import/plex/pin", &admin).await;
+    assert_eq!((r.status, r.body["code"].as_str()), (StatusCode::CONFLICT, Some("plex_signed_out")));
 }

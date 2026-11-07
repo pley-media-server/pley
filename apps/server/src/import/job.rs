@@ -366,7 +366,11 @@ impl Importer {
                 Ok(true)
             }
             Ok(None) => Ok(false),
-            Err(PlexError::Refused(404)) => Err(ImportError::PinExpired),
+            // Said once: plex.tv isn't asked about it again.
+            Err(PlexError::Refused(404)) => {
+                session.pin = None;
+                Err(ImportError::PinExpired)
+            }
             Err(e) => Err(e.into()),
         }
     }
