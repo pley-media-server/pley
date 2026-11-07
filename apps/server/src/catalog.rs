@@ -427,6 +427,11 @@ pub struct ItemDetail {
     pub genres: Vec<String>,
     pub studio: Option<String>,
     pub content_rating: Option<String>,
+    /// The country `content_rating` is from (ISO 3166-1, "GB"), when known:
+    /// its age is read with that country's ratings, else the metadata
+    /// region's (see `crate::ratings`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_rating_country: Option<String>,
     pub tmdb_id: Option<i64>,
     pub imdb_id: Option<String>,
     pub files: Vec<MediaFileDto>,
@@ -1065,13 +1070,15 @@ struct DetailRow {
     genres: Option<String>,
     studio: Option<String>,
     content_rating: Option<String>,
+    content_rating_country: Option<String>,
     tmdb_id: Option<i64>,
     imdb_id: Option<String>,
 }
 
 pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
     let detail: DetailRow = sqlx::query_as(
-        "SELECT original_title, tagline, genres, studio, content_rating, tmdb_id, imdb_id FROM items WHERE id = ?",
+        "SELECT original_title, tagline, genres, studio, content_rating, content_rating_country, tmdb_id, imdb_id
+         FROM items WHERE id = ?",
     )
     .bind(row.id)
     .fetch_one(&db.read)
@@ -1091,6 +1098,7 @@ pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
         genres: detail.genres.and_then(|g| serde_json::from_str(&g).ok()).unwrap_or_default(),
         studio: detail.studio,
         content_rating: detail.content_rating,
+        content_rating_country: detail.content_rating_country,
         tmdb_id: detail.tmdb_id,
         imdb_id: detail.imdb_id,
         files: files.iter().map(FileRow::to_dto).collect(),

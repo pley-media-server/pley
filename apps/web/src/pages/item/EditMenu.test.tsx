@@ -57,6 +57,23 @@ describe("EditDialogs", () => {
     expect(option).toHaveTextContent("In exceptions");
   });
 
+  it("says which country's ratings a rating is read with", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <EditDialogs
+        item={movie({ content_rating: "A", content_rating_country: "IN", nfo_fields: ["content_rating"] })}
+        dialog="details"
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Country: India")).toBeInTheDocument();
+    // Typed by hand, it has no country.
+    await user.clear(screen.getByLabelText("Content rating"));
+    await user.type(screen.getByLabelText("Content rating"), "PG");
+    expect(screen.queryByText("Country: India")).not.toBeInTheDocument();
+    expect(screen.getByText("Read with the metadata region’s ratings")).toBeInTheDocument();
+  });
+
   it("has no labels field where the server gave none", () => {
     renderWithProviders(<EditDialogs item={movie()} dialog="details" onClose={() => {}} />);
     expect(screen.queryByLabelText("Labels")).not.toBeInTheDocument();

@@ -12,6 +12,7 @@ import { useToast } from "@/components/Toast";
 import { Button, Field, Spinner, TextInput } from "@/components/ui";
 import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { systemName } from "@/lib/access";
 import { sameLabels } from "@/lib/labels";
 
 type ArtworkKind = "poster" | "backdrop" | "thumb";
@@ -188,7 +189,8 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
               <Field
                 label={t(`edit.details.fields.${key}`)}
                 htmlFor={`edit-${key}`}
-                hint={
+                hint={withRatingCountry(
+                  key === "content_rating" ? ratingCountry(item, values.content_rating, initial.content_rating) : null,
                   locked.has(key) ? (
                     <button
                       type="button"
@@ -208,8 +210,8 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
                       <FileText className="size-3.5" />
                       {t("edit.details.fromNfo")}
                     </span>
-                  ) : undefined
-                }
+                  ) : undefined,
+                )}
               >
                 {input}
               </Field>
@@ -489,5 +491,31 @@ function ArtworkGrid({
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Which ratings a content rating's age is read with: its country's, while
+ * it's the one the item has, else the metadata region's (a rating typed by
+ * hand has no country).
+ */
+function ratingCountry(item: ItemDetail, value: string, initial: string): string | null {
+  if (value.trim() === "") return null;
+  if (value === initial && item.content_rating_country) {
+    return translate("edit.details.ratingCountry", { ns: "item", country: systemName(item.content_rating_country) });
+  }
+  return translate("edit.details.ratingRegion", { ns: "item" });
+}
+
+/** A field's hint with the rating's country after it, when there's one. */
+function withRatingCountry(country: string | null, hint: ReactNode): ReactNode {
+  if (!country) return hint;
+  if (!hint) return country;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2">
+      {hint}
+      <span aria-hidden>·</span>
+      <span>{country}</span>
+    </span>
   );
 }

@@ -129,6 +129,8 @@
       "genresPlaceholder": "Drame, Thriller",
       "locked": "Verrouillé : cliquez pour déverrouiller",
       "willUnlock": "Sera déverrouillé",
+      "ratingCountry": "Pays : {{country}}",
+      "ratingRegion": "Lue selon les classifications de la région des métadonnées",
       "fromNfo": "Du fichier NFO",
       "fields": {
         "title": "Titre",

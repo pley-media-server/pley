@@ -258,6 +258,8 @@ export interface ItemDetail extends ItemSummary {
   genres: string[];
   studio: string | null;
   content_rating: string | null;
+  /** The country `content_rating` is from ("GB"), when known: read with its ratings, else the metadata region's. */
+  content_rating_country?: string;
   tmdb_id: number | null;
   imdb_id: string | null;
   files: MediaFile[];

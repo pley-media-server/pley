@@ -306,6 +306,8 @@ interface ItemDetail extends ItemSummary {
   genres: string[];
   studio: string | null;
   content_rating: string | null;    // "PG-13"
+  content_rating_country?: string;  // "US": the country it's from, when known; its age is read with that
+                                    // country's ratings, else the metadata region's
   tmdb_id: number | null;
   imdb_id: string | null;
   locked_fields: string[];          // fields an administrator edited (PATCH /api/items/{id}), and "match"

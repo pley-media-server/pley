@@ -117,6 +117,8 @@
       "genresPlaceholder": "Drama, Thriller",
       "locked": "Locked: click to unlock",
       "willUnlock": "Will be unlocked",
+      "ratingCountry": "Country: {{country}}",
+      "ratingRegion": "Read with the metadata region’s ratings",
       "fromNfo": "From the NFO file",
       "fields": {
         "title": "Title",
