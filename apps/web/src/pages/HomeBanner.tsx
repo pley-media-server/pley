@@ -136,7 +136,7 @@ export function HomeBanner({ featured }: { featured: Featured[] }) {
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 h-[80%] bg-[linear-gradient(to_top,var(--color-bg)_12%,color-mix(in_srgb,var(--color-bg)_75%,transparent)_50%,transparent)] sm:h-[60%] sm:bg-[linear-gradient(to_top,var(--color-bg)_14%,color-mix(in_srgb,var(--color-bg)_55%,transparent)_50%,transparent)]"
+        className="pointer-events-none absolute inset-x-0 bottom-0 h-[80%] bg-linear-to-t from-bg from-12% via-bg/75 via-50% to-transparent sm:h-[60%] sm:from-14% sm:via-bg/55"
       />
 
       <div className="absolute inset-x-0 bottom-0 flex flex-col items-center gap-5 px-4 pb-20 sm:flex-row sm:items-end sm:justify-between sm:gap-6 sm:px-8 sm:pb-32 xl:pb-36">
