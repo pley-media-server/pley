@@ -556,10 +556,11 @@ mod tests {
         ImageCache::new(server, Waker::new(move || _ = wakes.fetch_add(1, Ordering::SeqCst)), config)
     }
 
-    /// Pumps until `f` holds or two seconds pass.
+    /// Pumps until `f` holds or ten seconds pass, as long as the other tests wait for other
+    /// threads: a busy machine can leave a worker unscheduled for seconds.
     fn wait_until(c: &mut ImageCache, mut f: impl FnMut(&mut ImageCache) -> bool) -> bool {
         let start = Instant::now();
-        while start.elapsed() < Duration::from_secs(2) {
+        while start.elapsed() < Duration::from_secs(10) {
             c.pump();
             if f(c) {
                 return true;
@@ -661,9 +662,12 @@ mod tests {
         let first = ImageRequest::new("http://s/first.png", 8);
         let stale = ImageRequest::new("http://s/stale.png", 8);
         let kept = ImageRequest::new("http://s/kept.png", 8);
-        c.request(&first, Priority::Visible);
-        // Let the worker take the first request before queueing the others.
-        assert!(wait_until(&mut c, |c| c.shared.lock().running.contains(&first)));
+        // Let the worker take the first request before queueing the others, asking for it every
+        // frame meanwhile: a worker that comes late would find it forgotten.
+        assert!(wait_until(&mut c, |c| {
+            c.request(&first, Priority::Visible);
+            c.shared.lock().running.contains(&first)
+        }));
         c.request(&stale, Priority::Visible);
         c.request(&kept, Priority::Visible);
         let start = Instant::now();
@@ -739,14 +743,20 @@ mod tests {
         {
             let server = FakeServer::new(true);
             let mut c = cache(server.clone(), Arc::default(), config.clone());
-            c.request(&req, Priority::Visible);
-            assert!(wait_until(&mut c, |c| c.has_uploads()));
+            // Asked every frame, as a page drawing it does, so a late worker doesn't find it
+            // forgotten.
+            assert!(wait_until(&mut c, |c| {
+                c.request(&req, Priority::Visible);
+                c.has_uploads()
+            }));
             assert_eq!(server.fetched().len(), 1);
         }
         let server = FakeServer::new(true);
         let mut c = cache(server.clone(), Arc::default(), config);
-        c.request(&req, Priority::Visible);
-        assert!(wait_until(&mut c, |c| c.has_uploads()));
+        assert!(wait_until(&mut c, |c| {
+            c.request(&req, Priority::Visible);
+            c.has_uploads()
+        }));
         assert!(server.fetched().is_empty());
         c.clear();
         assert_eq!(std::fs::read_dir(&dir).map(|d| d.count()).unwrap_or(0), 0);

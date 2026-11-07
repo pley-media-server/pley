@@ -47,12 +47,14 @@ fn answers_show_saved_first_then_fresh() {
     let profile = app.state.profile().unwrap();
     let server_url = server.url().to_string();
     let snapshots = app.state.snapshots().clone();
+    // Each answer is saved off the main thread.
+    let keys = [snapshot_keys::ME, snapshot_keys::LIBRARIES, snapshot_keys::LIVE, snapshot_keys::HOME];
+    let saved = || keys.iter().all(|k| snapshots.read(&server_url, profile, k).is_some());
     let start = Instant::now();
-    while snapshots.read(&server_url, profile, snapshot_keys::HOME).is_none()
-        && start.elapsed() < Duration::from_secs(5)
-    {
+    while !saved() && start.elapsed() < Duration::from_secs(10) {
         std::thread::sleep(Duration::from_millis(10));
     }
+    assert!(saved(), "the answers weren't saved");
     drop(app);
 
     // The next start draws who, the libraries, Live TV and Home from what was saved, before asking.

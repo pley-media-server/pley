@@ -26,6 +26,10 @@ fn saved(app: &TestApp) -> Option<HistoryPage> {
 
 fn history() -> TestApp {
     let mut app = TestApp::open_on(Route::Settings { section: None });
+    // The event stream connecting asks the pages for everything again: History, open by then,
+    // would ask for its plays anew under the steps that follow.
+    assert!(app.until(|a| a.state.connected()), "the events never connected");
+    app.settle();
     app.open(Route::History);
     assert!(app.until(|a| a.shows("Watch history") && a.focused().is_some_and(|f| f != a.page())));
     app.settle();

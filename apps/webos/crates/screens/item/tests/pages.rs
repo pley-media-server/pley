@@ -179,7 +179,9 @@ fn a_shows_play_plays_its_next_episode() {
     let mut app = TestApp::start();
     open_show(&mut app);
     app.press(Key::Ok);
-    let r = played(&app).expect("Play opened no player");
+    // The episode offered can be the one saved: Play then plays the one the server names.
+    assert!(app.until(|a| played(a).is_some()), "Play opened no player");
+    let r = played(&app).unwrap();
     assert_eq!((r.item_id, r.from_start, r.file_id), (ids::SHOW_S1E2, false, None));
 }
 
