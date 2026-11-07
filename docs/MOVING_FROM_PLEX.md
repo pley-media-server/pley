@@ -16,12 +16,14 @@ never changes anything on Plex.
   Plex.
 - **Restrictions.** The profile of a Plex Home user Plex limits (a managed
   user, or a member with their own Plex account and restrictions on what
-  you share with them) gets an age limit from Plex's ratings, and label
-  rules from Plex's labels: titles with a label they're always allowed are
-  shown above their age limit, titles with a label they're never allowed
-  aren't shown at all. A rule Pley
-  can't keep, such as "only titles with this label", becomes the strictest
-  it can, and the import says which.
+  you share with them) gets an age limit from the ratings Plex allows them,
+  or below the youngest it disallows, and label rules from Plex's labels:
+  titles with a label they're always allowed are shown above their age
+  limit, titles with a label they're never allowed aren't shown at all. A
+  rule Pley can't keep, such as "only titles with this label", becomes the
+  strictest it can, and the import says which. So does a list of
+  disallowed ratings with a gap (PG-13 disallowed but R allowed): an age
+  limit hides everything above it.
 - **Titles.** Plex's labels are added to the titles, and a title's date
   added moves to Plex's when that's earlier.
 - **What everyone watched.** Watched titles, resume points, ratings and

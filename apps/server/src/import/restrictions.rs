@@ -44,6 +44,8 @@ pub struct Limits {
 struct Rule {
     /// Ratings allowed: `None` when the rule doesn't limit them.
     ratings: Option<Vec<String>>,
+    /// Ratings not allowed (`contentRating!=`): every other one is.
+    denied: Vec<String>,
     /// Labels shown whatever the rating.
     always: Vec<String>,
     never: Vec<String>,
@@ -56,14 +58,25 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
     let rules = [(read(movies), Kind::Film), (read(television), Kind::Tv), (read(music), Kind::Film)];
     let mut out = Limits::default();
 
-    let all: Vec<&str> = rules.iter().flat_map(|(r, _)| r.ratings.iter().flatten()).map(String::as_str).collect();
+    let all: Vec<&str> =
+        rules.iter().flat_map(|(r, _)| r.ratings.iter().flatten().chain(&r.denied)).map(String::as_str).collect();
     let system = system_of(&all, region);
     let country = system.as_deref().filter(|s| *s != "age").unwrap_or(region);
-    // An empty list allows nothing rated, so the youngest age, 0.
+    let by_age = system.as_deref() == Some("age");
     out.max_age = rules
         .iter()
-        .filter_map(|(r, kind)| r.ratings.as_ref().map(|list| (list, *kind)))
-        .map(|(list, kind)| list.iter().filter_map(|r| age_of(r, country, kind)).max().unwrap_or(0))
+        .filter_map(|(rule, kind)| {
+            // An empty list allows nothing rated, so the youngest age, 0.
+            let allowed = rule
+                .ratings
+                .as_ref()
+                .map(|list| list.iter().filter_map(|r| age_of(r, country, *kind)).max().unwrap_or(0));
+            let below = below_denied(rule, country, by_age, *kind, &mut out.not_kept);
+            match (allowed, below) {
+                (Some(a), Some(b)) => Some(a.min(b)),
+                (a, b) => a.or(b),
+            }
+        })
         .min();
     out.system = out.max_age.and(system);
 
@@ -74,7 +87,8 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
         }
         out.not_kept.extend(rule.not_kept.iter().cloned());
     }
-    let limited: Vec<&Rule> = rules.iter().map(|(r, _)| r).filter(|r| r.ratings.is_some()).collect();
+    let limited: Vec<&Rule> =
+        rules.iter().map(|(r, _)| r).filter(|r| r.ratings.is_some() || !r.denied.is_empty()).collect();
     let mut show = Vec::new();
     if let Some((first, rest)) = limited.split_first() {
         for label in &first.always {
@@ -90,6 +104,47 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
         out.left_over.extend(list);
     }
     out
+}
+
+/// The age a rule's denied ratings limit it to: the oldest one under the
+/// youngest denied, which hides them all. Plex shows every rating it
+/// doesn't deny, so when some it allows are older than that (it denies
+/// PG-13 alone), Pley hides those too and says so: an age limit can't
+/// have gaps. A denied rating Pley doesn't know limits nothing, and is said.
+fn below_denied(rule: &Rule, country: &str, by_age: bool, kind: Kind, not_kept: &mut Vec<String>) -> Option<i64> {
+    if rule.denied.is_empty() {
+        return None;
+    }
+    let mut ages = Vec::new();
+    for rating in &rule.denied {
+        match age_of(rating, country, kind) {
+            Some(age) => ages.push(age),
+            None => push_unique(not_kept, &format!("contentRating!={rating}")),
+        }
+    }
+    let youngest = ages.into_iter().min()?;
+    if by_age {
+        return Some((youngest - 1).max(0));
+    }
+    let Some(system) = ratings::system(country) else { return Some((youngest - 1).max(0)) };
+    let of_kind = || system.ratings.iter().filter(|r| r.kind.is_none_or(|k| k == kind));
+    let denied = |r: &ratings::Rating| r.names.iter().any(|n| rule.denied.iter().any(|d| same(without_country(d), n)));
+    let denied_ages: Vec<i64> = of_kind().filter(|r| denied(r)).map(|r| r.age).collect();
+    // A rating Plex shows over the limit, unless one of its age is denied
+    // (X beside NC-17: an old name for the same).
+    let gaps = of_kind().any(|r| r.age >= youngest && !denied(r) && !denied_ages.contains(&r.age));
+    if gaps {
+        push_unique(not_kept, &format!("contentRating!={}", rule.denied.join(",")));
+    }
+    Some(of_kind().map(|r| r.age).filter(|age| *age < youngest).max().unwrap_or(0))
+}
+
+/// `gb/12A` → `12A`: a rating without the country Plex wrote before it.
+fn without_country(rating: &str) -> &str {
+    match rating.split_once(['/', ':']) {
+        Some((before, after)) if (2..=3).contains(&before.trim().len()) => after.trim(),
+        _ => rating.trim(),
+    }
 }
 
 /// The age of a rating on Plex's list. One written with its country is
@@ -119,7 +174,7 @@ fn read(rule: &str) -> Rule {
     let mut out = Rule::default();
     for all in rule.split('&').filter(|t| !t.trim().is_empty()) {
         let mut ratings: Option<Vec<String>> = None;
-        let (mut always, mut never, mut other) = (Vec::new(), Vec::new(), Vec::new());
+        let (mut always, mut never, mut denied, mut other) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
         for term in all.split('|') {
             let (field, negated, values) = match term.split_once("!=") {
                 Some((field, values)) => (field, true, values),
@@ -132,12 +187,14 @@ fn read(rule: &str) -> Rule {
                 decode(values).split(',').map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()).collect();
             match (decode(field).trim(), negated) {
                 ("contentRating", false) => ratings.get_or_insert_default().extend(values),
+                ("contentRating", true) => denied.extend(values),
                 ("label", false) => always.extend(values),
                 ("label", true) => never.extend(values),
                 _ => other.push(decode(term)),
             }
         }
         out.never.extend(never);
+        out.denied.extend(denied);
         out.not_kept.extend(other);
         match ratings {
             // Rated as listed, or labelled.
@@ -241,6 +298,37 @@ mod tests {
         // wider than Plex had it.
         assert!(l.show.is_empty());
         assert_eq!(l.hide, ["Loud"]);
+    }
+
+    #[test]
+    fn denied_ratings_limit_below_the_youngest() {
+        // Plex's "disallow": R and NC-17 out, so up to PG-13.
+        let l = limits("contentRating!=R,NC-17", "contentRating!=TV-MA", "", "US");
+        assert_eq!((l.max_age, l.system.as_deref()), (Some(13), Some("US")));
+        assert!(l.not_kept.is_empty(), "{:?}", l.not_kept);
+    }
+
+    #[test]
+    fn denied_ratings_with_a_gap_are_kept_strictly_and_said() {
+        // PG-13 alone denied: Pley hides R too, which Plex showed.
+        let l = limits("contentRating!=PG-13", "", "", "US");
+        assert_eq!(l.max_age, Some(10));
+        assert_eq!(l.not_kept, ["contentRating!=PG-13"]);
+    }
+
+    #[test]
+    fn denied_and_allowed_ratings_together_take_the_lower() {
+        let l = limits("contentRating=G,PG,PG-13,R&contentRating!=R", "", "", "US");
+        assert_eq!(l.max_age, Some(13));
+    }
+
+    #[test]
+    fn denied_ages_and_unknown_ratings() {
+        let l = limits("contentRating!=16,18", "", "", "GB");
+        assert_eq!((l.max_age, l.system.as_deref()), (Some(15), Some("age")));
+        let l = limits("contentRating!=Nonsense", "", "", "US");
+        assert_eq!(l.max_age, None);
+        assert_eq!(l.not_kept, ["contentRating!=Nonsense"]);
     }
 
     #[test]

@@ -4626,7 +4626,10 @@ interface ImportProgress {
 - **Restrictions.** The profile of a Home user Plex limits (a managed
   user, or a member with sharing filters of their own) is made with them,
   in one go: an age limit from Plex's ratings (the lower of the movie and
-  TV rules', in the system most of them are in; a rating written with its
+  TV rules', in the system most of them are in; ratings Plex disallows,
+  `contentRating!=`, limit it to the oldest rating below the youngest of
+  them, and the rule is noted in `not_kept` when that hides a rating Plex
+  showed; a rating written with its
   country is read with that country's ratings only, and left out when
   Pley doesn't know it there), "always show" labels from `label=` (only
   those every rule with ratings has) and "never show" labels from
