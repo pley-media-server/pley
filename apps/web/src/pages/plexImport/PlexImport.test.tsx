@@ -212,6 +212,20 @@ describe("PlexImport", () => {
     expect(await screen.findByRole("heading", { name: "Your Plex library is in Pley" })).toBeInTheDocument();
   });
 
+  it("leaves out what wasn't brought, and says when playlists were refused", async () => {
+    const profile = { ...report.profiles[0]!, playlists_incomplete: true };
+    const bring = { watch_history: false, collections: true, edits: true };
+    let progress: ImportProgress = { ...idle, state: "running", step: "playlists", done: 1, total: 3 };
+    serve({ progress: () => progress });
+    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    expect(await screen.findByText("Bringing playlists")).toBeInTheDocument();
+    progress = { ...idle, state: "done", report: { ...report, profiles: [profile], bring } };
+    await client.invalidateQueries({ queryKey: plexImportKeys.progress });
+    expect(await screen.findByText("2 playlists")).toBeInTheDocument();
+    expect(screen.queryByText(/watched/)).not.toBeInTheDocument();
+    expect(screen.getByText("Plex refused some of their playlists, so not all of them came over.")).toBeInTheDocument();
+  });
+
   it("picks where a Plex folder is with the folder picker", async () => {
     const user = userEvent.setup();
     serve();

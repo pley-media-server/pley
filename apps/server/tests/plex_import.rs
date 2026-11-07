@@ -43,7 +43,7 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
             json!({"ratingKey": "101", "type": "movie", "title": "Alien", "addedAt": 1_000_000_000,
                    "Guid": [{"id": "tmdb://348"}], "Media": file("/plexdata/movies/Alien (1979).mkv", 1024)}),
             json!({"ratingKey": "102", "type": "movie", "title": "Brazil", "addedAt": 1_100_000_000,
-                   "Media": file("/plexdata/movies/Brazil (1985).mkv", 2048)}),
+                   "Guid": [{"id": "tmdb://68"}], "Media": file("/plexdata/movies/Brazil (1985).mkv", 2048)}),
             json!({"ratingKey": "103", "type": "movie", "title": "Casablanca", "addedAt": 1_200_000_000,
                    "Media": file("/plexdata/movies/Casablanca (1942).mkv", 4096)}),
         ],
@@ -264,7 +264,7 @@ async fn fake_plex() -> String {
             get(|Path(key): Path<String>| async move {
                 let page = match key.as_str() {
                     "101" => json!({"ratingKey": "101", "type": "movie", "title": "Alien", "summary": "Hand-written.",
-                                    "contentRating": "gb/15", "studio": "Not locked",
+                                    "contentRating": "nz/R", "studio": "Not locked",
                                     "Field": [{"name": "summary", "locked": true}, {"name": "contentRating", "locked": "1"}]}),
                     "210" => json!({"ratingKey": "210", "type": "season", "title": "The First", "summary": "",
                                     "Field": [{"name": "title", "locked": true}, {"name": "summary", "locked": true}]}),
@@ -440,6 +440,24 @@ async fn brings_libraries_people_and_what_they_watched() {
         ],
         "users": [{"id": 885}],
     });
+    // Pley's search found nothing for Alien; Brazil's NFO file names its
+    // match; Pley has a TMDB collection called Space.
+    sqlx::query("UPDATE items SET metadata_at = -1 WHERE title = 'Alien'").execute(&app.state.db.write).await.unwrap();
+    sqlx::query(
+        "INSERT INTO item_nfo (item_id, path, size, mtime, ids, fields)
+         SELECT id, '/nfo', 1, 1, '{\"imdb\":\"tt0088846\"}', '{}' FROM items WHERE title = 'Brazil'",
+    )
+    .execute(&app.state.db.write)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO collections (library_id, title, sort_title, tmdb_id, created_at, updated_at)
+         VALUES (?, 'Space', 'Space', 9, 0, 0)",
+    )
+    .bind(movies)
+    .execute(&app.state.db.write)
+    .await
+    .unwrap();
     let r = app.post("/api/import/plex/start", &admin, choices.clone()).await;
     assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
     let done = finished(&app, &admin).await;
@@ -487,9 +505,12 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(one(&app, "SELECT added_at FROM items WHERE id = ?", alien).await, 1_000_000_000);
 
     // Matches and edits: Pley has no TMDB key here, so Alien starts from
-    // Plex's match; locked fields become edits, an empty one left out.
+    // Plex's match at the next refresh; Brazil keeps its NFO file's. Locked
+    // fields become edits, an empty one left out.
     assert_eq!(report["matches_fixed"], 0);
     assert_eq!(one(&app, "SELECT tmdb_id FROM items WHERE id = ?", alien).await, 348);
+    assert_eq!(one(&app, "SELECT metadata_at IS NULL FROM items WHERE id = ?", alien).await, 1);
+    assert_eq!(one(&app, "SELECT tmdb_id IS NULL FROM items WHERE id = ?", brazil).await, 1);
     assert_eq!(report["edits"], json!({"content_rating": 1, "summary": 1, "title": 1}));
     let edited: Vec<(String, String)> =
         sqlx::query_as("SELECT field, value FROM item_overrides WHERE item_id = ? ORDER BY field")
@@ -497,7 +518,15 @@ async fn brings_libraries_people_and_what_they_watched() {
             .fetch_all(&app.state.db.read)
             .await
             .unwrap();
-    assert_eq!(edited, [("content_rating".into(), "15".into()), ("summary".into(), "Hand-written.".into())]);
+    assert_eq!(edited, [("content_rating".into(), "nz/R".into()), ("summary".into(), "Hand-written.".into())]);
+    // Plex's rating keeps its country, and New Zealand's age, on a US server.
+    let rating: (String, String, i64) =
+        sqlx::query_as("SELECT content_rating, content_rating_country, rating_age FROM items WHERE id = ?")
+            .bind(alien)
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!(rating, ("R".into(), "NZ".into(), 18));
     let season: String = sqlx::query_scalar("SELECT title FROM items WHERE kind = 'season'")
         .fetch_one(&app.state.db.read)
         .await
@@ -507,10 +536,21 @@ async fn brings_libraries_people_and_what_they_watched() {
     // Collections and playlists, smart ones left out.
     assert_eq!((&report["collections_made"], &report["collection_items"]), (&json!(1), &json!(2)));
     assert_eq!(report["smart_left"], 2);
-    let (space, sort): (i64, String) = sqlx::query_as("SELECT id, sort FROM collections WHERE title = 'Space'")
-        .fetch_one(&app.state.db.read)
-        .await
-        .unwrap();
+    // Pley's TMDB collection isn't Plex's: a collection is made beside it.
+    assert_eq!(
+        one(
+            &app,
+            "SELECT COUNT(*) FROM collection_items i JOIN collections c ON c.id = i.collection_id WHERE c.tmdb_id = ?",
+            9
+        )
+        .await,
+        0
+    );
+    let (space, sort): (i64, String) =
+        sqlx::query_as("SELECT id, sort FROM collections WHERE title = 'Space' AND tmdb_id IS NULL")
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
     assert_eq!(sort, "custom");
     let order: Vec<i64> =
         sqlx::query_scalar("SELECT item_id FROM collection_items WHERE collection_id = ? ORDER BY position")
@@ -603,6 +643,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(done["report"]["edits"], json!({}));
     assert_eq!((&done["report"]["collections_made"], &done["report"]["collection_items"]), (&json!(0), &json!(0)));
     assert_eq!(one(&app, "SELECT COUNT(*) FROM playlists WHERE user_id = ?", admin_id).await, 1);
+    assert_eq!(done["report"]["profiles"][0]["playlists"], 0, "found again with nothing added");
     assert_eq!(one(&app, "SELECT COUNT(*) FROM playlist_items WHERE playlist_id > ?", 0).await, 2);
     let (watched, position): (bool, i64) =
         sqlx::query_as("SELECT watched, position_ms FROM user_item_state WHERE user_id = ? AND item_id = ?")
@@ -630,6 +671,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     let report = &done["report"];
     assert_eq!((&report["profiles"][0]["watched"], &report["profiles"][0]["playlists"]), (&json!(0), &json!(0)));
     assert_eq!((&report["smart_left"], &report["edits"]), (&json!(0), &json!({})));
+    assert_eq!(report["bring"], json!({"watch_history": false, "collections": false, "edits": false}));
 
     // Forgetting the sign-in.
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);

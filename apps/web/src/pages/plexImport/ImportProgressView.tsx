@@ -173,7 +173,7 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
           <ul className="divide-y divide-border rounded-lg border border-border bg-surface-2">
             {report.profiles.map((p) => (
               <li key={p.title} className="p-3 text-sm">
-                <ProfileLine profile={p} />
+                <ProfileLine profile={p} history={report.bring?.watch_history ?? true} />
               </li>
             ))}
           </ul>
@@ -196,10 +196,22 @@ function titleCounts(report: ImportReport, t: TFunction<["settings", "common"]>)
   return counts;
 }
 
-function ProfileLine({ profile: p }: { profile: ProfileReport }) {
+/** A person's line; what they watched only when it was brought. */
+function ProfileLine({ profile: p, history }: { profile: ProfileReport; history: boolean }) {
   const { t } = useTranslation("settings");
   const systems = useRatingSystems();
   const age = ageBadge(systems.data, null, p.max_age);
+  const counts = [
+    ...(history
+      ? [
+          t("plexImport.report.watched", { count: p.watched }),
+          t("plexImport.report.resumed", { count: p.resumed }),
+          t("plexImport.report.rated", { count: p.rated }),
+          t("plexImport.report.plays", { count: p.plays }),
+        ]
+      : []),
+    ...(p.playlists > 0 ? [t("plexImport.report.playlists", { count: p.playlists })] : []),
+  ];
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
@@ -212,18 +224,11 @@ function ProfileLine({ profile: p }: { profile: ProfileReport }) {
           <TriangleAlert className="size-3.5 shrink-0" />
           {t(`plexImport.report.skipped.${p.skipped}`)}
         </p>
-      ) : (
-        <p className="mt-0.5 text-xs text-muted">
-          {[
-            t("plexImport.report.watched", { count: p.watched }),
-            t("plexImport.report.resumed", { count: p.resumed }),
-            t("plexImport.report.rated", { count: p.rated }),
-            t("plexImport.report.plays", { count: p.plays }),
-            ...(p.playlists > 0 ? [t("plexImport.report.playlists", { count: p.playlists })] : []),
-          ].join(" · ")}
-        </p>
-      )}
+      ) : counts.length > 0 ? (
+        <p className="mt-0.5 text-xs text-muted">{counts.join(" · ")}</p>
+      ) : null}
       {p.incomplete ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.incomplete")}</p> : null}
+      {p.playlists_incomplete ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.playlistsIncomplete")}</p> : null}
       {p.not_kept.length > 0 ? (
         <p className="mt-0.5 text-xs text-warning">
           {t("plexImport.report.notKept")} <span className="font-mono">{p.not_kept.join(", ")}</span>

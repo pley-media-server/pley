@@ -977,6 +977,7 @@
         "no_access": "Non importé : cette personne n’a pas accès à ce serveur Plex."
       },
       "incomplete": "Plex a refusé certaines de ses listes : une partie de ce qu’elle a regardé n’a pas été importée.",
+      "playlistsIncomplete": "Plex a refusé certaines de ses listes de lecture : elles n’ont pas toutes été importées.",
       "notKept": "Règles que Pley n’a pas pu garder :",
       "matchesFixed_one": "{{count, number}} titre associé comme dans Plex",
       "matchesFixed_many": "{{count, number}} de titres associés comme dans Plex",

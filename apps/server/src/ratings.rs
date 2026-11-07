@@ -128,7 +128,7 @@ fn without_rated(rating: &str) -> &str {
 /// "GB:15", "gb/12A" and "USA:R": the country written before a rating, when
 /// it's one with ratings here (Portugal's "M/12" and Belgium's "KT/EA" are
 /// ratings, not countries).
-fn with_country(rating: &str) -> (Option<&'static str>, &str) {
+pub fn with_country(rating: &str) -> (Option<&'static str>, &str) {
     let Some((before, after)) = rating.split_once([':', '/']) else { return (None, rating) };
     let before = before.trim();
     let country = if before.eq_ignore_ascii_case("usa") { Some("US") } else { system(before).map(|s| s.country) };

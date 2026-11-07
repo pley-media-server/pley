@@ -52,7 +52,7 @@ export function BringStep({
               <p className="font-medium">{t(box.label)}</p>
               <p className="text-xs text-muted">{t(box.hint)}</p>
             </div>
-            <Toggle checked={bring[box.key]} onChange={(v) => onChange({ ...bring, [box.key]: v })} label={t(box.label)} />
+            <Toggle checked={bring[box.key]} onChange={(v) => onChange({ ...bring, [box.key]: v })} label={t(box.label)} disabled={starting} />
           </li>
         ))}
       </ul>

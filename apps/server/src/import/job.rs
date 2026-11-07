@@ -149,6 +149,10 @@ pub struct Report {
     /// filters don't map to Pley's.
     #[serde(default)]
     pub smart_left: u64,
+    /// What the administrator chose to bring: what wasn't brought isn't
+    /// counted as nothing found.
+    #[serde(default)]
+    pub bring: Bring,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -188,6 +192,9 @@ pub struct ProfileReport {
     /// Plex refused some of their lists: what came over is incomplete.
     #[serde(default)]
     pub incomplete: bool,
+    /// Plex refused some of their playlists.
+    #[serde(default)]
+    pub playlists_incomplete: bool,
 }
 
 // ---- The plan ----
@@ -288,7 +295,7 @@ pub struct Choices {
 }
 
 /// The import's "What to bring" boxes.
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Bring {
     /// Watched, resume points, ratings and plays.
@@ -868,6 +875,7 @@ impl Run {
         }
 
         let bring = choices.bring;
+        self.report.bring = bring;
         if bring.edits {
             let pages = titles.iter().flat_map(|t| &t.pages).filter(|k| matches.get(k).is_some()).count();
             self.step(Step::Edits, pages as u64);
@@ -888,7 +896,7 @@ impl Run {
             self.step(Step::WatchState, people.len() as u64);
             for person in &people {
                 let done = self.watch_state(person, &paired, &matches).await;
-                self.person_done(person, done)?;
+                self.person_done(person, done, false)?;
                 self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: person.user_id });
                 self.advance(1);
             }
@@ -898,7 +906,7 @@ impl Run {
                 self.plex.devices(&self.server).await.unwrap_or_default().into_iter().map(|d| (d.id, d.name)).collect();
             for person in &people {
                 let done = self.history(person, &matches, &devices).await;
-                self.person_done(person, done)?;
+                self.person_done(person, done, false)?;
                 self.advance(1);
             }
         }
@@ -907,7 +915,7 @@ impl Run {
             self.step(Step::Playlists, people.len() as u64);
             for person in &people {
                 let done = self.playlists(person, &matches).await;
-                self.person_done(person, done)?;
+                self.person_done(person, done, true)?;
                 self.advance(1);
             }
         }
@@ -915,13 +923,19 @@ impl Run {
     }
 
     /// Plex refusing one person's lists leaves theirs incomplete, not
-    /// everyone's; a cancel or Pley's own error stops the import.
-    fn person_done(&mut self, person: &Person, done: ImportResult<()>) -> ImportResult<()> {
+    /// everyone's; a cancel or Pley's own error stops the import. Their
+    /// playlists are said apart from what they watched.
+    fn person_done(&mut self, person: &Person, done: ImportResult<()>, playlists: bool) -> ImportResult<()> {
         match done {
             Ok(()) => Ok(()),
             Err(ImportError::Plex(e)) => {
-                tracing::debug!("the Plex import couldn't read all of one person's watch state: {e}");
-                self.report.profiles[person.report].incomplete = true;
+                tracing::debug!("the Plex import couldn't read all of one person's lists: {e}");
+                let profile = &mut self.report.profiles[person.report];
+                if playlists {
+                    profile.playlists_incomplete = true;
+                } else {
+                    profile.incomplete = true;
+                }
                 Ok(())
             }
             Err(e) => Err(e),
@@ -1346,13 +1360,33 @@ impl Run {
                 continue;
             }
             if ours.is_none() {
-                sqlx::query(
-                    "UPDATE items SET tmdb_id = ? WHERE id = ? AND tmdb_id IS NULL AND kind IN ('movie', 'show')",
+                // A show found on TheTVDB or TVmaze keeps that match, and
+                // only learns its TMDB id. A title with no match at all
+                // takes Plex's: matched to it with TMDB's key, or else
+                // refreshed with it next time, even after a failed search.
+                let unmatched: bool = sqlx::query_scalar(
+                    "SELECT tvdb_id IS NULL AND tvmaze_id IS NULL FROM items WHERE id = ? AND kind IN ('movie', 'show')",
                 )
-                .bind(tmdb)
                 .bind(id)
-                .execute(&db.write)
-                .await?;
+                .fetch_optional(&db.read)
+                .await?
+                .unwrap_or(false);
+                if unmatched && self.state.metadata.tmdb_enabled() {
+                    match self.state.metadata.rematch(id, *tmdb).await {
+                        Ok(()) => self.report.matches_fixed += 1,
+                        Err(e) => tracing::debug!("the Plex import couldn't match {title}: {e:#}"),
+                    }
+                } else {
+                    sqlx::query(
+                        "UPDATE items SET tmdb_id = ?, metadata_at = CASE WHEN ? THEN NULL ELSE metadata_at END
+                         WHERE id = ? AND tmdb_id IS NULL AND kind IN ('movie', 'show')",
+                    )
+                    .bind(tmdb)
+                    .bind(unmatched)
+                    .bind(id)
+                    .execute(&db.write)
+                    .await?;
+                }
             } else if self.state.metadata.tmdb_enabled() {
                 match self.state.metadata.rematch(id, *tmdb).await {
                     Ok(()) => self.report.matches_fixed += 1,
@@ -1405,7 +1439,9 @@ impl Run {
 
     /// Library `library`'s collections that aren't smart, with the titles
     /// found in Pley, in Plex's order: one Pley has by the same title gets
-    /// those it lacks, else one is made, with Plex's order and labels.
+    /// those it lacks, else one is made, with Plex's order and labels. Pley's
+    /// own TMDB collections aren't found again: their refresh keeps only
+    /// what TMDB puts in them.
     async fn collections(&mut self, library: &Paired, matches: &Matches) -> ImportResult<()> {
         if !matches!(library.kind, LibraryKind::Movies | LibraryKind::Shows) {
             return Ok(());
@@ -1435,7 +1471,7 @@ impl Run {
             }
             let existing: Option<i64> = sqlx::query_scalar(
                 "SELECT id FROM collections WHERE library_id = ? AND title = ? COLLATE NOCASE AND smart_filter IS NULL
-                 ORDER BY id LIMIT 1",
+                 AND tmdb_id IS NULL ORDER BY id LIMIT 1",
             )
             .bind(library.library_id)
             .bind(&title)
@@ -1511,6 +1547,7 @@ impl Run {
             .bind(kind)
             .fetch_optional(&db.read)
             .await?;
+            let made = existing.is_none();
             let id = match existing {
                 Some(id) => {
                     // Found again: only what it lacks, once.
@@ -1539,8 +1576,10 @@ impl Run {
                     .await?
                 }
             };
-            crate::playlists::append_leaves(&db, id, &ids).await?;
-            self.report.profiles[person.report].playlists += 1;
+            let added = crate::playlists::append_leaves(&db, id, &ids).await?;
+            if made || added > 0 {
+                self.report.profiles[person.report].playlists += 1;
+            }
         }
         Ok(())
     }
@@ -1704,14 +1743,20 @@ async fn merge(db: &Db, user_id: i64, list: &str, found: &[(i64, Item)]) -> sqlx
     Ok(changed)
 }
 
-/// Whether title `id` was matched with Fix Match in Pley, which the import
-/// leaves.
+/// Whether title `id`'s match was settled in Pley, which the import leaves:
+/// chosen with Fix Match, locked, or named by its NFO file.
 async fn fixed_in_pley(db: &Db, id: i64) -> sqlx::Result<bool> {
-    sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM item_overrides WHERE item_id = ? AND field = ?)")
-        .bind(id)
-        .bind(crate::overrides::MATCH)
-        .fetch_one(&db.read)
-        .await
+    sqlx::query_scalar(
+        "SELECT EXISTS (SELECT 1 FROM item_overrides WHERE item_id = ?1 AND field = ?2)
+             OR EXISTS (SELECT 1 FROM items WHERE id = ?1 AND metadata_locked)
+             OR EXISTS (SELECT 1 FROM item_nfo WHERE item_id = ?1 AND (locked OR json_valid(ids)
+                        AND COALESCE(json_extract(ids, '$.tmdb'), json_extract(ids, '$.imdb'),
+                                     json_extract(ids, '$.tvdb'), json_extract(ids, '$.tvmaze')) IS NOT NULL))",
+    )
+    .bind(id)
+    .bind(crate::overrides::MATCH)
+    .fetch_one(&db.read)
+    .await
 }
 
 /// The edits Plex's locked fields of `item` make, by Pley's name for the
@@ -1726,19 +1771,15 @@ fn locked_edits(item: &Item) -> Vec<(&'static str, String)> {
     if item.kind != "season" {
         let genres: Vec<String> =
             item.genres.iter().map(|g| cut(&g.tag, MAX_TITLE)).filter(|g| !g.is_empty()).take(MAX_GENRES).collect();
-        // Plex writes some ratings with their country ("gb/12A"); Pley
-        // keeps the rating, and reads its country from the region.
-        let rating = item.content_rating.as_deref().map(|r| match r.split_once('/') {
-            Some((country, rating)) if country.len() == 2 && country.chars().all(|c| c.is_ascii_alphabetic()) => rating,
-            _ => r,
-        });
         fields.extend([
             ("titleSort", "sort_title", text(item.title_sort.as_deref(), MAX_TITLE)),
             ("originalTitle", "original_title", text(item.original_title.as_deref(), MAX_TITLE)),
             ("tagline", "tagline", text(item.tagline.as_deref(), MAX_TITLE)),
             ("year", "year", item.year.map(|y| y.to_string())),
             ("originallyAvailableAt", "release_date", text(item.originally_available_at.as_deref(), 10)),
-            ("contentRating", "content_rating", text(rating, 40)),
+            // As Plex writes it, with its country when it has one ("gb/12A"),
+            // which the edit keeps for the rating's age.
+            ("contentRating", "content_rating", text(item.content_rating.as_deref(), 40)),
             ("studio", "studio", text(item.studio.as_deref(), MAX_TITLE)),
             ("genre", "genres", (!genres.is_empty()).then(|| serde_json::to_string(&genres).unwrap_or_default())),
         ]);

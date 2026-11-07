@@ -119,8 +119,10 @@ export interface ProfileReport {
   plays: number;
   /** Their playlists, made or added to. */
   playlists: number;
-  /** Plex refused some of their lists. */
+  /** Plex refused some of their watch history. */
   incomplete: boolean;
+  /** Plex refused some of their playlists. */
+  playlists_incomplete?: boolean;
 }
 
 export interface ImportReport {
@@ -141,6 +143,8 @@ export interface ImportReport {
   collection_items: number;
   /** Smart collections and playlists, which aren't brought. */
   smart_left: number;
+  /** What was chosen; missing from reports kept before the choice existed. */
+  bring?: ImportBring;
 }
 
 export type EditedField =

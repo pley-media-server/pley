@@ -4605,7 +4605,8 @@ interface ImportProgress {
                 left_over: string[]; not_kept: string[];
                 watched: number; resumed: number; rated: number; plays: number;
                 playlists: number;         // their playlists, made or added to
-                incomplete: boolean }[];   // Plex refused some of their lists
+                incomplete: boolean;       // Plex refused some of their watch history
+                playlists_incomplete: boolean }[];   // Plex refused some of their playlists
     labels_added: number;
     dates_moved: number;
     matches_fixed: number;                // titles matched again to Plex's TMDB entry
@@ -4613,6 +4614,7 @@ interface ImportProgress {
     collections_made: number;
     collection_items: number;             // titles put in collections, new or found again
     smart_left: number;                   // smart collections and playlists, not brought
+    bring: { watch_history: boolean; collections: boolean; edits: boolean };   // as chosen
   } | null;
 }
 ```
@@ -4631,7 +4633,8 @@ interface ImportProgress {
   of Pley's libraries only when Plex let them open all of its own and
   every Pley library is one of those brought; otherwise just the ones
   they could open. Plex refusing one person's lists marks theirs
-  `incomplete` and the import goes on.
+  `incomplete` (`playlists_incomplete` for playlists) and the import goes
+  on.
 - **Restrictions.** The profile of a Home user Plex limits (a managed
   user, or a member with sharing filters of their own) is made with them,
   in one go: an age limit from Plex's ratings (the lower of the movie and
@@ -4648,11 +4651,14 @@ interface ImportProgress {
   labels added to its own.
 - **Matches and edits** (`bring.edits`). A movie or show Plex matched to
   another TMDB entry than Pley did is matched again to Plex's, as Fix
-  Match does (with a TMDB key; not one fixed in Pley); one Pley hasn't
-  matched yet starts from Plex's. The fields locked on Plex's movies,
-  shows and seasons (title, sort title, original title, summary, tagline,
-  year, release date, content rating, studio, genres; a season's title
-  and summary) become edits, unless Pley has one for that field; each
+  Match does (with a TMDB key). One Pley hasn't matched yet is matched to
+  Plex's too, or without a key takes its id for the next refresh; a show
+  found on TheTVDB or TVmaze only takes the id. A title whose match was
+  settled in Pley (with Fix Match, locked, or named by its NFO file) is
+  left. The fields locked on Plex's movies, shows and seasons (title, sort
+  title, original title, summary, tagline, year, release date, content
+  rating, studio, genres; a season's title and summary) become edits, a
+  rating with Plex's country ("nz/R") read as that country's, unless Pley has one for that field; each
   title's own page is read for them, a few at a time. Tools such as
   Kometa lock what they set, so `edits` counts them by field.
 - **Collections and playlists** (`bring.collections`). Collections that
@@ -4660,7 +4666,9 @@ interface ImportProgress {
   Pley, their order and labels; everyone's playlists of video or music,
   as their own. One Pley has by the same title (and library, or person
   and kind) gets the titles it lacks; nothing is reordered or removed.
-  Smart ones are counted in `smart_left`.
+  Pley's own TMDB collections aren't found again this way. A person's
+  `playlists` counts those made or added to. Smart ones are counted in
+  `smart_left`.
 - **Watch history** (`bring.watch_history`): watched, resume points,
   ratings and plays, merged as below.
 - **What's merged.** Labels are added to titles, never removed. A date

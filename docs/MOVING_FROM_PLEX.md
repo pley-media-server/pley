@@ -95,7 +95,7 @@ Running the import again brings what's new and nothing twice. It never
 takes anything away: labels are only added, a date added only moves
 earlier, a title watched in Pley stays watched, and a resume point from
 after Plex's stays. Edits made in Pley stay, and so does a title matched
-with Fix Match in Pley. A collection or playlist found again by its title
+with Fix Match in Pley, locked, or matched by its NFO file. A collection or playlist found again by its title
 gets the titles it lacks, and nothing is reordered or removed. Profiles
 made by an earlier import are found again;
 they keep the age limit set in Pley (or get Plex's, when they have none)

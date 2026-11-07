@@ -947,6 +947,7 @@
         "no_access": "Not brought: they can't open this Plex server."
       },
       "incomplete": "Plex refused some of their lists, so some of what they watched didn't come over.",
+      "playlistsIncomplete": "Plex refused some of their playlists, so not all of them came over.",
       "notKept": "Rules Pley couldn't keep:",
       "matchesFixed_one": "{{count, number}} title matched as in Plex",
       "matchesFixed_other": "{{count, number}} titles matched as in Plex",
