@@ -36,7 +36,7 @@ describe("EditDialogs", () => {
   it("replaces the labels, suggesting those titles carry", async () => {
     const user = userEvent.setup();
     const requests = mockApi({
-      "GET /api/labels": () => [{ label: "Kometa", items: 12 }],
+      "GET /api/labels": () => [{ label: "Kometa", items: 12, rules: 0 }],
       "PATCH /api/items/5": () => movie({ labels: ["Override: Kids"] }),
     });
     renderWithProviders(<EditDialogs item={movie({ labels: ["Kometa", "4K"] })} dialog="details" onClose={() => {}} />);
@@ -46,6 +46,15 @@ describe("EditDialogs", () => {
     await waitFor(() =>
       expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ labels: ["Kometa", "Override: Kids"] }),
     );
+  });
+
+  it("suggests labels profiles' exceptions name before any title carries them", async () => {
+    const user = userEvent.setup();
+    mockApi({ "GET /api/labels": () => [{ label: "Kids OK", items: 0, rules: 2 }] });
+    renderWithProviders(<EditDialogs item={movie({ labels: [] })} dialog="details" onClose={() => {}} />);
+    await user.type(screen.getByLabelText("Labels"), "kid");
+    const option = await screen.findByRole("option", { name: /Kids OK/ });
+    expect(option).toHaveTextContent("In exceptions");
   });
 
   it("has no labels field where the server gave none", () => {

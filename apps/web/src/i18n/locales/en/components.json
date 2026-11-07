@@ -51,6 +51,7 @@
     "placeholder": "Add a label",
     "titles_one": "{{count, number}} title",
     "titles_other": "{{count, number}} titles",
+    "inRules": "In exceptions",
     "create": "Add “{{label}}”",
     "suggestions": "Suggestions"
   },

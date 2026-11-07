@@ -48,18 +48,26 @@ pub fn check(labels: &[String]) -> Result<Vec<String>, AppError> {
     Ok(kept)
 }
 
-/// A label and how many titles carry it.
+/// A label, how many titles carry it, and how many profiles' and
+/// invitations' rules name it.
 #[derive(Debug, Serialize, sqlx::FromRow, PartialEq)]
 pub struct LabelUse {
     pub label: String,
     pub items: i64,
+    pub rules: i64,
 }
 
-/// Every label on an item, with how many items carry it, by name.
+/// Every label on an item or in a rule, by name: a label a rule names
+/// before any title carries it is offered too.
 pub async fn all(db: &Db) -> sqlx::Result<Vec<LabelUse>> {
     sqlx::query_as(
-        "SELECT MIN(label) AS label, COUNT(*) AS items FROM item_labels
-         GROUP BY label ORDER BY label COLLATE NOCASE",
+        "SELECT MIN(label) AS label, SUM(items) AS items, SUM(rules) AS rules FROM (
+             SELECT label, 1 AS items, 0 AS rules FROM item_labels
+             UNION ALL SELECT label, 0, 1 FROM user_label_rules
+             UNION ALL SELECT j.value, 0, 1 FROM invites, json_each(invites.show_labels) j
+             UNION ALL SELECT j.value, 0, 1 FROM invites, json_each(invites.hide_labels) j
+         )
+         GROUP BY label COLLATE NOCASE ORDER BY label COLLATE NOCASE",
     )
     .fetch_all(&db.read)
     .await

@@ -8,7 +8,7 @@ import { cn } from "@/lib/cn";
 /** Most suggestions listed at once; typing narrows the rest. */
 const MAX_SHOWN = 50;
 
-type Choice = { label: string; items?: number };
+type Choice = { label: string; items?: number; rules?: number };
 
 /**
  * A list of labels in one field: those chosen as chips, each with a button
@@ -181,7 +181,9 @@ export function LabelPicker({
                 ) : (
                   <>
                     <span className="truncate">{choice.label}</span>
-                    <span className="shrink-0 text-xs text-subtle">{t("labelPicker.titles", { count: choice.items })}</span>
+                    <span className="shrink-0 text-xs text-subtle">
+                      {choice.items ? t("labelPicker.titles", { count: choice.items }) : t("labelPicker.inRules")}
+                    </span>
                   </>
                 )}
               </li>

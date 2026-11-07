@@ -711,7 +711,24 @@ async fn labels_are_shown_and_listed_to_administrators_only() {
     let theirs = app.get(&format!("/api/items/{family}"), &w.kid).await;
     assert!(theirs.body.get("labels").is_none(), "{:?}", theirs.body);
     let listed = app.get("/api/labels", admin).await.body;
-    assert_eq!(listed, json!([{"label": "4K", "items": 2}, {"label": "Override: Adult", "items": 1}]));
+    assert_eq!(
+        listed,
+        json!([{"label": "4K", "items": 2, "rules": 0}, {"label": "Override: Adult", "items": 1, "rules": 0}])
+    );
+    // A label a rule names is offered before any title carries it.
+    let rules = json!({"show_labels": ["Kids OK"], "hide_labels": ["override: adult"]});
+    assert_eq!(app.patch(&format!("/api/users/{}", w.kid_id), admin, rules).await.status, StatusCode::OK);
+    let invite = app.post("/api/invites", admin, json!({"hide_labels": ["Kids OK"]})).await;
+    assert_eq!(invite.status, StatusCode::CREATED, "{:?}", invite.body);
+    let listed = app.get("/api/labels", admin).await.body;
+    assert_eq!(
+        listed,
+        json!([
+            {"label": "4K", "items": 2, "rules": 0},
+            {"label": "Kids OK", "items": 0, "rules": 2},
+            {"label": "Override: Adult", "items": 1, "rules": 1}
+        ])
+    );
     assert_eq!(app.get("/api/labels", &w.kid).await.status, StatusCode::FORBIDDEN);
     // Nor do the compatibility APIs tell them, but to tokens that edit.
     let plex_labels = |item: &Value| item["Label"].as_array().map_or(0, Vec::len);

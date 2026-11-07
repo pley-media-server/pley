@@ -1084,6 +1084,8 @@ export function useCreateUser() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.users });
       void qc.invalidateQueries({ queryKey: keys.profiles });
+      // Its rules' labels are offered as labels.
+      void qc.invalidateQueries({ queryKey: keys.labels });
     },
   });
 }
@@ -1113,6 +1115,7 @@ export function useUpdateUser() {
     onSuccess: (user) => {
       void qc.invalidateQueries({ queryKey: keys.users });
       void qc.invalidateQueries({ queryKey: keys.profiles });
+      void qc.invalidateQueries({ queryKey: keys.labels });
       qc.setQueryData<User | undefined>(keys.me, (me) => (me && me.id === user.id ? user : me));
     },
   });
@@ -1187,7 +1190,10 @@ export function useCreateInvite() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: NewInviteInput) => api.post<Invite>("/api/invites", body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.invites }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.invites });
+      void qc.invalidateQueries({ queryKey: keys.labels });
+    },
   });
 }
 

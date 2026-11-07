@@ -3,6 +3,7 @@ import { Trans, useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, FileText, ImageUp, Lock, LockOpen, Pencil, RotateCcw, Search } from "lucide-react";
 import { api, errorMessage, request } from "@/api/client";
+import { keys } from "@/api/hooks";
 import type { ItemDetail } from "@/api/types";
 import { useAuth } from "@/auth";
 import { LabelPicker } from "@/components/LabelPicker";
@@ -98,6 +99,7 @@ function initialValue(item: ItemDetail, key: FieldKey): string {
 function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () => void }) {
   const { t } = useTranslation(["item", "common"]);
   const toast = useToast();
+  const qc = useQueryClient();
   const refresh = useItemRefresh(item.id);
   const initial = useMemo(
     () => Object.fromEntries(FIELDS.map((key) => [key, initialValue(item, key)])) as Record<FieldKey, string>,
@@ -130,6 +132,7 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
     },
     onSuccess: (detail) => {
       refresh(detail);
+      if (labelled && !sameLabels(labels, item.labels ?? [])) void qc.invalidateQueries({ queryKey: keys.labels });
       toast.success(t("common:states.saved"));
       onClose();
     },

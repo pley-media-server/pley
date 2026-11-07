@@ -98,7 +98,10 @@ export interface Invite {
 /** `GET /api/labels`: a label on titles, and how many carry it. */
 export interface LabelUse {
   label: string;
+  /** Titles that carry it. */
   items: number;
+  /** Profiles' and invitations' rules that name it. */
+  rules: number;
 }
 
 /** `GET /api/ratings/systems`: what an age limit is picked and shown in. */

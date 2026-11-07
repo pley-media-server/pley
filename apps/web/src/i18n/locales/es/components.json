@@ -55,6 +55,7 @@
     "titles_one": "{{count, number}} título",
     "titles_many": "{{count, number}} de títulos",
     "titles_other": "{{count, number}} títulos",
+    "inRules": "En excepciones",
     "create": "Añadir «{{label}}»",
     "suggestions": "Sugerencias"
   },
