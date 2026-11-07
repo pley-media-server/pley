@@ -14,6 +14,11 @@ export interface ModalProps {
   size?: "sm" | "md" | "lg" | "xl";
   /** Prevent closing via backdrop / Escape (e.g. while saving). */
   locked?: boolean;
+  /**
+   * Where it sits on wider screens: centred, or near the top, for a dialog
+   * whose height changes (tabs), so that its top and tabs stay put.
+   */
+  align?: "center" | "top";
 }
 
 /** Keeps Tab and Shift+Tab inside `container`: past its last control, back to its first. */
@@ -33,7 +38,7 @@ export function keepTabInside(e: KeyboardEvent, container: HTMLElement) {
   }
 }
 
-export function Modal({ open, onClose, title, children, footer, size = "md", locked }: ModalProps) {
+export function Modal({ open, onClose, title, children, footer, size = "md", locked, align = "center" }: ModalProps) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -75,7 +80,12 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end justify-center p-0 sm:items-center sm:p-6">
+    <div
+      className={cn(
+        "fixed inset-0 z-50 flex items-end justify-center p-0 sm:p-6",
+        align === "top" ? "sm:items-start sm:pt-[6vh]" : "sm:items-center",
+      )}
+    >
       <div
         className="absolute inset-0 animate-fade-in bg-black/70 backdrop-blur-sm"
         onClick={() => {
@@ -90,6 +100,7 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
         tabIndex={-1}
         className={cn(
           "relative flex max-h-[92vh] w-full animate-pop-in flex-col overflow-hidden rounded-t-xl border border-border bg-surface shadow-2xl shadow-black/60 outline-none sm:rounded-xl",
+          align === "top" && "sm:max-h-[88vh]",
           size === "sm" && "sm:max-w-sm",
           size === "md" && "sm:max-w-lg",
           size === "lg" && "sm:max-w-2xl",

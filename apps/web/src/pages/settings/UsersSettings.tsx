@@ -435,6 +435,8 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
       onClose={onClose}
       locked={busy}
       size="lg"
+      // Its tabs differ in height: the top stays put as they change.
+      align="top"
       title={isNew ? t("users.dialog.addTitle") : t("users.dialog.editTitle", { name: user?.name ?? "" })}
       footer={
         <>
