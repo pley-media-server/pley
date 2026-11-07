@@ -264,9 +264,26 @@ function MenuButton({ onMenu }: { onMenu: () => void }) {
   );
 }
 
+/** Whether the page is scrolled to its top. */
+function useAtTop(): boolean {
+  const [top, setTop] = useState(() => window.scrollY < 8);
+  useEffect(() => {
+    const on = () => setTop(window.scrollY < 8);
+    on();
+    window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
+  return top;
+}
+
 export function TopBar({ onMenu }: { onMenu: () => void }) {
+  const top = useAtTop();
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-white/[0.04] bg-bg/85 px-3 backdrop-blur-md sm:gap-3 sm:px-6 lg:px-8">
+    // Over a page's banner (the home screen's), the bar is clear until the page scrolls.
+    <header
+      data-top={top || undefined}
+      className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b border-white/[0.04] bg-bg/85 px-3 backdrop-blur-md transition-[background-color,border-color,backdrop-filter] duration-300 sm:gap-3 sm:px-6 lg:px-8 group-has-[[data-hero]]/shell:data-top:border-transparent group-has-[[data-hero]]/shell:data-top:bg-transparent group-has-[[data-hero]]/shell:data-top:backdrop-blur-none"
+    >
       <MenuButton onMenu={onMenu} />
       <SearchBox className="min-w-0 max-w-xl flex-1" />
       <div className="ml-auto flex items-center gap-1.5">

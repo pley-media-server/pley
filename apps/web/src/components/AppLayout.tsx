@@ -26,7 +26,7 @@ export function AppLayout() {
   }, [qc]);
 
   return (
-    <div className="min-h-screen">
+    <div className="group/shell min-h-screen">
       <Sidebar open={drawer} onClose={closeDrawer} />
       <div className="flex min-h-screen flex-col lg:pl-60">
         <TopBar onMenu={() => setDrawer(true)} />

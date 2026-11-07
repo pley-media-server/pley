@@ -17,6 +17,7 @@ import app.pley.android.data.PlayTarget
 import app.pley.android.data.ScanState
 import app.pley.android.data.Session
 import app.pley.android.data.WatchStateRepository
+import app.pley.android.data.WatchlistRepository
 import app.pley.android.data.valueOrNull
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemDetail
@@ -58,8 +59,9 @@ import kotlinx.coroutines.withContext
 
 /**
  * What Home reads and does: the rows, the libraries (for the empty
- * states), the scans, item details (the hero, the TV's info block, items
- * pressed ahead of their page), playing and marking watched.
+ * states and the banner's words), the scans, item details (the banner,
+ * the hero, the TV's info block, items pressed ahead of their page),
+ * playing, marking watched and My List.
  */
 interface HomeSources {
     val hubs: HubsRepository
@@ -69,6 +71,7 @@ interface HomeSources {
     val scans: StateFlow<List<ScanState>>
     val playItem: PlayItem
     val watchState: WatchStateRepository
+    val watchlist: WatchlistRepository
     val launcher: PlayerLauncher
 
     companion object {
@@ -81,6 +84,7 @@ interface HomeSources {
             override val scans get() = graph.data.liveUpdates.scans
             override val playItem get() = graph.data.playItem
             override val watchState get() = graph.data.watchState
+            override val watchlist get() = graph.data.watchlist
             override val launcher get() = graph.playerLauncher
         }
     }
@@ -114,6 +118,9 @@ data class HomeProfile(
  *   further for their own tiles with [present]. It changes only when what
  *   Home shows does: whether that is the server's answer is [status], and
  *   a refresh under way [refreshing].
+ * - The banner's titles ([HomeState.Ready.featured]) and the hero come
+ *   with their details (plot, genres, content rating, My List), all asked
+ *   for at once, so turning to a title shows it whole.
  * - After the first content, the details of the first three Continue
  *   Watching items are asked for ahead: that warms the server's keyframe
  *   index, so playing from Home can remux instead of transcoding
@@ -157,7 +164,7 @@ class HomeViewModel(
         .map { it.state }
         // An answer the same as the one before (the server asked again on coming back) goes no further.
         .distinctUntilChanged()
-        .withHeroDetails()
+        .withDetails()
         .distinctUntilChanged()
         .onEach(::prefetchContinueWatching)
         .flowOn(compute)
@@ -284,27 +291,38 @@ class HomeViewModel(
         }
     }
 
-    /**
-     * The hero's details as they come in. Details already seen are kept, so
-     * a new answer for the rows never draws the hero without them for a
-     * moment.
-     */
-    private fun Flow<HomeState>.withHeroDetails(): Flow<HomeState> {
-        var known: ItemDetail? = null
-        return flatMapLatest { state ->
-            val hero = (state as? HomeState.Ready)?.hero ?: return@flatMapLatest flowOf(state)
-            val id = hero.item.id
-            flow {
-                known?.takeIf { it.id == id }?.let { emit(state.copy(hero = homeInfo(hero.item, it))) } ?: emit(state)
-                emitAll(
-                    flow { emitAll(sources.items.detail(id)) }
-                        .mapNotNull { it.valueOrNull }
-                        .map { detail ->
-                            known = detail
-                            state.copy(hero = homeInfo(hero.item, detail))
-                        },
-                )
+    /** Puts [item] on My List, or takes it off; the banner, the rows and the item's page follow at once. */
+    fun setInList(item: ItemSummary, inList: Boolean) {
+        viewModelScope.launch(compute) {
+            try {
+                if (inList) sources.watchlist.add(item.id) else sources.watchlist.remove(item.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                messageChannel.send(HomeMessage.Failed(e))
             }
+        }
+    }
+
+    /**
+     * The hero's and the banner's details as they come in, each title's
+     * on its own. Details already seen are kept, so a new answer for the
+     * rows never draws them without for a moment.
+     */
+    private fun Flow<HomeState>.withDetails(): Flow<HomeState> {
+        val known = HashMap<Long, ItemDetail>()
+        return flatMapLatest { state ->
+            if (state !is HomeState.Ready) return@flatMapLatest flowOf(state)
+            val ids = (listOfNotNull(state.hero?.item?.id) + state.featured.map { it.info.item.id }).distinct()
+            if (ids.isEmpty()) return@flatMapLatest flowOf(state)
+            val details = ids.map { id ->
+                flow { emitAll(sources.items.detail(id)) }
+                    .mapNotNull { it.valueOrNull }
+                    .onEach { known[id] = it }
+                    .map<ItemDetail, ItemDetail?> { it }
+                    .onStart { emit(known[id]) }
+            }
+            combine(details) { found -> state.withDetails(found.filterNotNull().associateBy { it.id }) }
         }
     }
 
@@ -356,7 +374,12 @@ fun homeState(
         if (libs != null && libs.isEmpty()) return HomeState.NoLibraries
         return HomeState.Empty(scanning || libs.orEmpty().any { it.scanning })
     }
-    return HomeState.Ready(origin = origin, rows = rows, hero = heroOf(rows)?.let { homeInfo(it, null) })
+    return HomeState.Ready(
+        origin = origin,
+        rows = rows,
+        hero = heroOf(rows)?.let { homeInfo(it, null) },
+        featured = featuredOf(rows).map { Featured(homeInfo(it.item, null), featuredLabel(it, libs)) },
+    )
 }
 
 /**

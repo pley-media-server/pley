@@ -30,7 +30,12 @@
     "empty": "Nothing here yet",
     "emptyHint": "Your libraries are empty. Add media to the library folders and run a scan.",
     "loading": "Loading your home screen",
-    "myList": "My List"
+    "myList": "My List",
+    "featured": {
+      "newIn": "New in {{library}}",
+      "new": "New",
+      "onList": "On your list"
+    }
   },
   "library": {
     "tabs": {

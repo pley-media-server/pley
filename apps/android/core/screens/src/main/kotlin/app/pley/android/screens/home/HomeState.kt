@@ -3,6 +3,7 @@ package app.pley.android.screens.home
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.UiText
 import app.pley.android.model.Hub
+import app.pley.android.model.HubKeys
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
@@ -46,8 +47,13 @@ sealed interface HomeState {
         val origin: String,
         /** The rows with something in them, in the server's order. */
         val rows: List<HomeRow>,
-        /** What the TV's hero shows; `null` with nothing to show. */
+        /**
+         * What the TV's hero shows when nothing is [featured]: the first of
+         * Continue Watching, else the newest; `null` with nothing to show.
+         */
         val hero: HomeInfo?,
+        /** The banner's titles ([featuredOf]), in turn; empty without a backdrop to show. */
+        val featured: List<Featured> = emptyList(),
     ) : HomeState
 }
 
@@ -99,6 +105,12 @@ data class HomeInfo(
     val watched: Boolean,
     /** Whether the details (summary, content rating, quality) are in: the info block may change once more until then. */
     val complete: Boolean,
+    /** From the details: "Drama", "Thriller". */
+    val genres: List<String> = emptyList(),
+    /** Movies and shows, which go on My List. */
+    val listable: Boolean = false,
+    /** On the profile's My List, as the details say. */
+    val inList: Boolean = false,
 ) {
     /** Started and not finished: Resume, rather than Play. */
     val inProgress: Boolean get() = progress > 0f
@@ -117,6 +129,56 @@ data class HomeMeta(
     val badges: List<String> = emptyList(),
 )
 
+/**
+ * A title the banner features ([featuredOf]), with what it says about it,
+ * and why it is there: "New in Movies", or "On your list".
+ */
+data class Featured(
+    val info: HomeInfo,
+    val label: UiText,
+)
+
+/** A title [featuredOf] picked: new in its library, or on My List ([fromList]). */
+data class FeaturedPick(val item: ItemSummary, val fromList: Boolean)
+
+/** How many titles the banner takes turns showing. */
+const val FEATURED_COUNT = 6
+
+/**
+ * The titles Home's banner features, as the web picks them
+ * (apps/web/src/lib/featured.ts): the newest unwatched movies and shows
+ * with a backdrop, taken in turn from each library's Recently Added (so
+ * movies and shows alternate), then from My List when that is too few.
+ * When everything has been watched, the newest are featured all the same.
+ */
+fun featuredOf(rows: List<HomeRow>, count: Int = FEATURED_COUNT): List<FeaturedPick> =
+    pickFeatured(rows, count) { hasArt(it) && !it.userState.watched }.ifEmpty { pickFeatured(rows, count, ::hasArt) }
+
+private fun hasArt(item: ItemSummary): Boolean = item.kind.listable && !item.backdropUrl.isNullOrEmpty()
+
+private fun pickFeatured(rows: List<HomeRow>, count: Int, featurable: (ItemSummary) -> Boolean): List<FeaturedPick> {
+    val sources = rows.filter { it.key.startsWith(RECENTLY_ADDED_PREFIX) }.map { row -> row.items.filter(featurable) }
+    val picked = ArrayList<FeaturedPick>(count)
+    val seen = HashSet<Long>()
+    fun take(item: ItemSummary, fromList: Boolean) {
+        if (picked.size < count && seen.add(item.id)) picked += FeaturedPick(item, fromList)
+    }
+    var i = 0
+    while (picked.size < count && sources.any { i < it.size }) {
+        sources.forEach { source -> source.getOrNull(i)?.let { take(it, fromList = false) } }
+        i++
+    }
+    rows.firstOrNull { it.key == HubKeys.MY_LIST }?.items?.forEach { if (featurable(it)) take(it, fromList = true) }
+    return picked
+}
+
+/** What the banner says about why [pick] is there: "New in Movies" with its library's name ([libraries]), "New" without it. */
+fun featuredLabel(pick: FeaturedPick, libraries: List<Library>?): UiText {
+    if (pick.fromList) return UiText.res(R.string.home_featured_on_list)
+    val library = libraries?.firstOrNull { it.id == pick.item.libraryId }?.name
+    return if (library.isNullOrEmpty()) UiText.res(R.string.home_featured_new) else UiText.res(R.string.home_featured_new_in, library)
+}
+
 /** A library in the list of libraries (phone's Libraries tab, the TV's Libraries page). */
 data class LibraryEntry(
     val library: Library,
@@ -128,6 +190,7 @@ data class LibraryEntry(
 }
 
 internal const val CONTINUE_PREFIX = "continue"
+private const val RECENTLY_ADDED_PREFIX = "recently_added"
 
 /**
  * The rows of [hubs] that hold something, shaped as the web does: Continue
@@ -223,8 +286,17 @@ fun homeInfo(
         video = item.kind == ItemKind.Movie || episode || item.kind == ItemKind.Extra,
         watched = item.userState.watched,
         complete = details != null,
+        genres = details?.genres.orEmpty(),
+        listable = item.kind.listable,
+        inList = details?.inWatchlist == true,
     )
 }
+
+/** This Home with the hero and the banner's titles told what [details] (by id) say about them. */
+fun HomeState.Ready.withDetails(details: Map<Long, ItemDetail>): HomeState.Ready = copy(
+    hero = hero?.let { homeInfo(it.item, details[it.item.id]) },
+    featured = featured.map { it.copy(info = homeInfo(it.info.item, details[it.info.item.id])) },
+)
 
 /** "412 movies", "38 shows", "120 artists": what a library holds, by its kind. */
 fun libraryCountText(library: Library): UiText = UiText.plural(

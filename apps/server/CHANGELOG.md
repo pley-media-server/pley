@@ -29,6 +29,11 @@ describes how they are made.
   details, and only administrators see them; `GET /api/labels` lists them.
 - Setting an age limit without a TMDB key says that unrated movies are
   hidden, with a link to add a key.
+- The web and desktop apps' home screen opens on a banner: the newest
+  films and shows you haven't watched, full width under the top bar, each
+  with its plot, Play, More info and My List, taking turns every few
+  seconds (holding still under the pointer, and for those who ask their
+  system for less motion). Swipe between them on a phone.
 
 ### Changed
 

@@ -3,6 +3,7 @@ package app.pley.android.ui.tv.home
 import androidx.compose.runtime.Immutable
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.Tier
+import app.pley.android.common.UiText
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.tile.ArtworkTileModel
@@ -15,15 +16,22 @@ import app.pley.android.screens.home.RowShape
 
 /**
  * Home as the TV draws it: [HomeState] with each row's tiles made
- * ([ArtworkTileModel.of]) and the hero's backdrop, worked out off the main
+ * ([ArtworkTileModel.of]) and the heroes' backdrops, worked out off the main
  * thread by the ViewModel ([app.pley.android.screens.home.HomeViewModel.present]).
  */
 @Immutable
 internal data class TvHomeModel(
     val state: HomeState,
     val rows: List<TvHomeRow> = emptyList(),
-    val hero: TvHero? = null,
+    /**
+     * What the hero takes turns showing: the featured titles, or without
+     * any, the one hero of before (the first of Continue Watching).
+     */
+    val heroes: List<TvHero> = emptyList(),
 ) {
+    /** The hero shown first. */
+    val hero: TvHero? get() = heroes.firstOrNull()
+
     /**
      * Where focus goes if tile [tileId] leaves row [rowKey], as a focus
      * key: the tile after it, else the one before, else the first of the
@@ -74,7 +82,9 @@ internal data class TvHomeModel(
                     seeAll = row.seeAll,
                 )
             }
-            return TvHomeModel(state, rows, state.hero?.let { TvHero(it, backdropOf(it.item, state.origin, tier)) })
+            val featured = state.featured.map { TvHero(it.info, backdropOf(it.info.item, state.origin, tier), it.label) }
+            val heroes = featured.ifEmpty { listOfNotNull(state.hero?.let { TvHero(it, backdropOf(it.item, state.origin, tier)) }) }
+            return TvHomeModel(state, rows, heroes)
         }
 
         /** The backdrop behind [item]: its own, else its show's or parent's, at most 1280 wide (960 on T0). */
@@ -109,9 +119,9 @@ internal data class TvHomeRow(
     }
 }
 
-/** The hero: what it says, and its backdrop. */
+/** The hero: what it says, its backdrop, and for a featured title why it is there ("New in Movies"). */
 @Immutable
-internal data class TvHero(val info: HomeInfo, val backdrop: ArtworkImage)
+internal data class TvHero(val info: HomeInfo, val backdrop: ArtworkImage, val label: UiText? = null)
 
 /** The tile a row shape draws on TV. */
 internal val RowShape.tileKind: TileKind

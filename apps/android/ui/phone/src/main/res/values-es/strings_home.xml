@@ -22,4 +22,8 @@
     <string name="home_libraries_move_up">Subir</string>
     <string name="home_libraries_move_down">Bajar</string>
     <string name="home_libraries_sort_needs_newer_server">Para ordenar las bibliotecas, el servidor necesita una versión más reciente de Pley.</string>
+    <!-- Home's banner: its name for screen readers, the button to the title's page, and each title's dash. -->
+    <string name="home_banner_label">Destacados</string>
+    <string name="home_banner_more_info">Más información</string>
+    <string name="home_banner_show">Mostrar %1$s</string>
 </resources>

@@ -37,6 +37,16 @@ impl TestApp {
 
     /// The app signed in to a new fake server as Alex, the server in `mode` from the start.
     pub fn start_with(mode: Mode) -> TestApp {
+        TestApp::start_on(mode, Tasks::new(Waker::noop()))
+    }
+
+    /// As [`TestApp::start`], with `threads` for requests: enough that a write isn't held behind
+    /// answers the server is slow to give.
+    pub fn start_with_threads(threads: usize) -> TestApp {
+        TestApp::start_on(Mode::Normal, Tasks::with_threads(threads, Waker::noop()))
+    }
+
+    fn start_on(mode: Mode, tasks: Tasks) -> TestApp {
         let options = Options { scan_every: None, slow_latency: Duration::from_millis(1500), ..Options::default() };
         let server = FixtureServer::start_with(options).unwrap();
         let device = Arc::new(FakeDevice::new(|| Box::new(NullEngine::default()) as Box<dyn PlayerEngine>));
@@ -46,7 +56,7 @@ impl TestApp {
         server.set_mode(mode).unwrap();
         let mut registry = Registry::new();
         registry.add(pley_home::screen).tile_actions(pley_item::tile_actions);
-        let state = AppState::new(device.clone(), store, http, Tasks::new(Waker::noop()));
+        let state = AppState::new(device.clone(), store, http, tasks);
         let mut app = TestApp {
             ui: UiState::new(),
             list: DisplayList::default(),

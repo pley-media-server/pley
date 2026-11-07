@@ -344,7 +344,7 @@ impl SettingsScreen {
                 // Titles kept start with the tracks these pick now; who is watching is asked
                 // again, so every page has the new defaults.
                 cx.state.tracks_changed(None);
-                cx.state.load_account();
+                cx.state.reload_account();
                 cx.toast(t!("settings.saved"));
             }
             Err(e) => {

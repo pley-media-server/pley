@@ -5,6 +5,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -12,12 +14,16 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performCustomAccessibilityActionWithLabel
+import androidx.compose.ui.test.performScrollToKey
 import androidx.compose.ui.test.performTouchInput
+import app.pley.android.common.TestTags
 import app.pley.android.data.Loadable
 import app.pley.android.model.Hubs
+import app.pley.android.model.ItemDetail
+import app.pley.android.model.ItemKind
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.screens.LibraryTab
@@ -123,13 +129,46 @@ class PhoneHomeTest {
     @Test
     fun cardsOpenTheirPagesAndALongPressTheirActions() {
         home()
-        compose.onAllNodesWithContentDescription("Dune: Part Two", substring = true).onFirst().performClick()
-        assertEquals(PleyKey.Item(104), opened.last())
         compose.onAllNodesWithContentDescription("Half Loop", substring = true).onFirst().performTouchInput { longClick() }
         // From Continue Watching, the actions offer to take it out of the row; elsewhere not.
         assertEquals(PleyKey.ItemActions(204, continueWatching = true), opened.last())
-        compose.onAllNodesWithContentDescription("Dune: Part Two", substring = true).onFirst().performTouchInput { longClick() }
+        // Further down, under the banner: its row's title brought up to the bar, as a person would.
+        // (By its key: composed ahead of the screen, the row is already in the tree, unplaced.)
+        compose.onNodeWithTag(TestTags.HOME_ROWS).performScrollToKey("recently_added:1")
+        val card = compose.onAllNodes(hasContentDescription("Dune: Part Two", substring = true) and hasClickAction()).onFirst()
+        card.performClick()
+        assertEquals(PleyKey.Item(104), opened.last())
+        card.performTouchInput { longClick() }
         assertEquals(PleyKey.ItemActions(104), opened.last())
+    }
+
+    @Test
+    fun theBannerFeaturesTheNewestFilmAndPlaysOpensAndListsIt() {
+        sources.detail(104).value = Loadable.Ready(
+            ItemDetail(id = 104, libraryId = 1, kind = ItemKind.Movie, title = "Dune: Part Two", summary = "Paul unites with the Fremen.", genres = listOf("Science Fiction")),
+            fresh = true,
+        )
+        home()
+        compose.onNodeWithTag(BANNER_TAG).assertExists()
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.onNodeWithText("Paul unites with the Fremen.").assertExists()
+
+        compose.onNodeWithText("More info").performClick()
+        assertEquals(PleyKey.Item(104), opened.last())
+        compose.onNodeWithContentDescription("Add to My List").performClick()
+        assertEquals(listOf(104L to true), sources.listed)
+        compose.onNodeWithContentDescription("Remove from My List").assertExists()
+        compose.onNodeWithText("Play").performClick()
+        assertEquals(104L, sources.played.last().itemId)
+    }
+
+    @Test
+    fun withoutBackdropsHomeIsItsRows() {
+        val saved = Fixtures.decode<Hubs>("hubs/home.json")
+        sources.home.value = Loadable.Ready(Hubs(saved.hubs.map { hub -> hub.copy(items = hub.items.map { it.copy(backdropUrl = null) }) }), fresh = false)
+        home()
+        compose.onNodeWithTag(BANNER_TAG).assertDoesNotExist()
+        compose.onNodeWithText("Continue Watching").assertExists()
     }
 
     @Test

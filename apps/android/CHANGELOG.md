@@ -8,6 +8,15 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Home opens on the newest movies and shows you haven't watched, as the
+  web does: on phones a banner under a clear top bar, with the title's
+  plot, Play, More info and My List, swiped between; on Android TV and
+  Fire TV the hero, where Right from its last button goes to the next
+  title. Both turn to the next by themselves every few seconds, holding
+  still while you use them. Continue Watching is the first row under them.
+
 ## [0.1.8] - 2026-11-06
 
 ### Added

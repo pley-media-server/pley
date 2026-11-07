@@ -10,6 +10,11 @@ describes how they are made.
 
 ### Added
 
+- Home's hero features the newest movies and shows you haven't watched,
+  as the web and Android do, each with why it's there, Play, Info and My
+  List. Right from its last button goes to the next title, and it turns
+  to the next by itself every few seconds while you aren't pressing
+  anything. Continue Watching is the first row under it.
 - A globe at the bottom right of Choose your server and the address
   screen, and at the top right of the sign-in code, picks the TV's language before anyone signs in:
   Automatic (the TV's own), English, Français or Español. The TV keeps the

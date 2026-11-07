@@ -16,6 +16,9 @@ describes how they are made.
   down.
 - Marking a title watched no longer goes back to unwatched for a moment
   when the page was being refreshed as you marked it.
+- Use the server's order in Sort libraries no longer puts your own order
+  back when the libraries were being refreshed as you chose it, and an
+  order saved on another device while they were being refreshed shows.
 
 ## [0.1.7] - 2026-11-06
 

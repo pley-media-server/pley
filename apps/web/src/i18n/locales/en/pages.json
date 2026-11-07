@@ -331,7 +331,15 @@
     "empty": "Nothing here yet",
     "scanningHint": "New items will show up here as soon as they're found.",
     "emptyHint": "Your libraries are empty. Add media to the library folders and run a scan.",
-    "manage": "Manage libraries"
+    "manage": "Manage libraries",
+    "banner": {
+      "label": "Featured",
+      "new": "New",
+      "newIn": "New in {{library}}",
+      "onMyList": "On your list",
+      "moreInfo": "More info",
+      "show": "Show {{title}}"
+    }
   },
   "library": {
     "tabs": {

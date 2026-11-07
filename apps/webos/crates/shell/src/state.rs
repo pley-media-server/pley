@@ -196,6 +196,14 @@ pub struct AppState {
 
     account_me: Option<Pending<Result<Me, ApiError>>>,
     account_libraries: Option<Pending<Result<Vec<Library>, ApiError>>>,
+    /// Who is watching or the libraries changed while they were on their way: they are asked again
+    /// once those land, as their answer may be from before the change ([`AppState::reload_account`]).
+    account_again: bool,
+    /// How many times the libraries were kept ([`AppState::keep_libraries`]), and the count when
+    /// the libraries on their way were asked: libraries kept since (an order change's answer) are
+    /// newer than theirs.
+    libraries_kept: u64,
+    account_libraries_from: u64,
     home_task: Option<Pending<Result<Hubs, ApiError>>>,
     live_task: Option<Pending<Result<LiveSummary, ApiError>>>,
     requests: RequestState,
@@ -287,6 +295,9 @@ impl AppState {
             music_hidden_playing: false,
             account_me: None,
             account_libraries: None,
+            account_again: false,
+            libraries_kept: 0,
+            account_libraries_from: 0,
             home_task: None,
             live_task: None,
             requests: RequestState::default(),
@@ -718,6 +729,7 @@ impl AppState {
         self.live_last_watched = None;
         self.account_me = None;
         self.account_libraries = None;
+        self.account_again = false;
         self.home_task = None;
         self.live_task = None;
         self.requests.reset();
@@ -824,6 +836,7 @@ impl AppState {
     pub fn keep_libraries(&mut self, libraries: Vec<Library>) {
         self.save_snapshot(snapshot_keys::LIBRARIES, &libraries);
         self.libraries = Some(libraries);
+        self.libraries_kept += 1;
     }
 
     /// Asks for who is watching and the libraries (then the household and Live TV's summary).
@@ -834,8 +847,21 @@ impl AppState {
         let generation = self.generation;
         self.account_me = Some(Pending { generation, promise: self.spawn(|api| api.me()) });
         self.account_libraries = Some(Pending { generation, promise: self.spawn(|api| api.libraries()) });
+        self.account_libraries_from = self.libraries_kept;
         // What requests are for it, alongside.
         self.load_requests(false);
+    }
+
+    /// Asks for who is watching and the libraries because they changed (the server said so, it
+    /// refused an order made from an older list, or the profile's defaults were saved). With an ask
+    /// already on its way, which may have been answered before the change, they are asked again
+    /// once it lands.
+    pub fn reload_account(&mut self) {
+        if self.account_me.is_some() {
+            self.account_again = true;
+            return;
+        }
+        self.load_account();
     }
 
     // Requests.
@@ -1315,7 +1341,7 @@ impl AppState {
         match &e {
             ServerEvent::LibraryChanged { .. } => self.library_due = Some(self.now + LIBRARY_GATHER),
             ServerEvent::LibrariesChanged => {
-                self.load_account();
+                self.reload_account();
                 self.refresh();
             }
             ServerEvent::WatchlistChanged => self.refresh(),
@@ -1596,6 +1622,7 @@ impl AppState {
         let libraries = libraries.take().unwrap_or(Err(ApiError::Unreadable("no answer".into())));
         self.account_me = None;
         self.account_libraries = None;
+        let again = std::mem::take(&mut self.account_again);
         if generation != self.generation {
             return;
         }
@@ -1612,7 +1639,10 @@ impl AppState {
                 }
                 self.save_snapshot(snapshot_keys::ME, &me);
                 self.me = Some(me);
-                self.keep_libraries(libraries);
+                // Libraries kept since this was asked (an order change's answer) are newer: they stay.
+                if self.libraries_kept == self.account_libraries_from {
+                    self.keep_libraries(libraries);
+                }
                 if self.tokens.as_ref().is_some_and(|t| t.allows("profiles")) {
                     self.profiles_task = Some(Pending { generation, promise: self.spawn(|api| api.profiles()) });
                 }
@@ -1623,6 +1653,9 @@ impl AppState {
                 self.report_failure(&e);
                 self.account_error = Some(e);
             }
+        }
+        if again {
+            self.load_account();
         }
     }
 

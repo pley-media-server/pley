@@ -30,7 +30,12 @@
     "empty": "Rien pour l’instant",
     "emptyHint": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse.",
     "loading": "Chargement de votre accueil",
-    "myList": "Ma liste"
+    "myList": "Ma liste",
+    "featured": {
+      "newIn": "Nouveau dans {{library}}",
+      "new": "Nouveau",
+      "onList": "Dans votre liste"
+    }
   },
   "library": {
     "tabs": {

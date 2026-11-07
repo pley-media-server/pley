@@ -11,5 +11,10 @@
     "empty": "Nothing here yet",
     "emptyBody": "Your libraries are empty. Add media to the library folders and run a scan."
   },
-  "comesNext": "That page comes next in the native app."
+  "comesNext": "That page comes next in the native app.",
+  "featured": {
+    "newIn": "New in {{library}}",
+    "new": "New",
+    "onList": "On your list"
+  }
 }

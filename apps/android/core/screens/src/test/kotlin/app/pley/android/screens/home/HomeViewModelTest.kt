@@ -5,8 +5,11 @@ package app.pley.android.screens.home
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.ScanState
+import app.pley.android.model.Hub
+import app.pley.android.model.Hubs
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
 import app.pley.android.network.OfflineException
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PleyKey
@@ -224,5 +227,29 @@ class HomeViewModelTest {
         val profile = vm.profile.value!!
         assertEquals("Anna", profile.name)
         assertEquals("${FakeHomeSources.ORIGIN}/api/users/2/avatar?v=1", profile.pictureUrl)
+    }
+
+    @Test
+    fun theBannerComesWithItsDetailsAndPutsTitlesOnMyList() = runTest(dispatcher) {
+        val vm = home()
+        val film = ItemSummary(id = 501, libraryId = 1, kind = ItemKind.Movie, title = "Lantern", backdropUrl = "/api/items/501/images/backdrop")
+        sources.libraryList.value = Loadable.Ready(listOf(MOVIES), fresh = true)
+        sources.home.value = Loadable.Ready(Hubs(listOf(Hub("recently_added:1", "Recently Added in Movies", 1, listOf(film)))), fresh = true)
+        val before = (vm.state.value as HomeState.Ready).featured.single().info
+        assertEquals("Lantern", before.title)
+        assertFalse(before.complete)
+
+        sources.detail(501).value = Loadable.Ready(
+            ItemDetail(id = 501, libraryId = 1, kind = ItemKind.Movie, title = "Lantern", summary = "A light that never goes out.", genres = listOf("Drama")),
+            fresh = true,
+        )
+        val told = (vm.state.value as HomeState.Ready).featured.single().info
+        assertEquals("A light that never goes out.", told.summary)
+        assertEquals(listOf("Drama"), told.genres)
+        assertFalse(told.inList)
+
+        vm.setInList(told.item, true)
+        assertEquals(listOf(501L to true), sources.listed)
+        assertTrue((vm.state.value as HomeState.Ready).featured.single().info.inList)
     }
 }

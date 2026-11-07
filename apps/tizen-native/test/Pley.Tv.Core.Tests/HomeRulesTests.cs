@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.Json;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Net;
 using Pley.Tv.Core.Ui;
@@ -109,6 +110,41 @@ public class HomeRulesTests
         Assert.Equal(new HomeState.Empty(false), HomeRules.StateOf(Array.Empty<Hub>(), null, Libraries, false, ""));
         Assert.Equal(new HomeState.Empty(true), HomeRules.StateOf(Array.Empty<Hub>(), null, Libraries, true, ""));
         Assert.Equal(new HomeState.Empty(true), HomeRules.StateOf(Array.Empty<Hub>(), null, new[] { Movies with { Scanning = true } }, false, ""));
+    }
+
+    public static IEnumerable<object[]> FeaturedCases() =>
+        Enumerable.Range(0, Fixtures.Load("featured").GetProperty("cases").GetArrayLength()).Select(i => new object[] { i });
+
+    /// <summary>The hero features what the Samsung web app's does (packages/tv/test/fixtures/featured.json), as Android and the web pick it.</summary>
+    [Theory]
+    [MemberData(nameof(FeaturedCases))]
+    public void The_hero_features_the_newest_movies_and_shows(int i)
+    {
+        var c = Fixtures.Load("featured").GetProperty("cases")[i];
+        var hubs = JsonSerializer.Deserialize<List<Hub>>(c.GetProperty("hubs").GetRawText(), ApiJson.Options)!;
+        var count = c.TryGetProperty("count", out var n) ? n.GetInt32() : HomeRules.FeaturedCount;
+        var picked = HomeRules.FeaturedOf(HomeRules.Rows(hubs, null), count);
+        var expected = c.GetProperty("featured").EnumerateArray().Select(f => (f.GetProperty("id").GetInt64(), f.GetProperty("fromList").GetBoolean()));
+        Assert.Equal(expected, picked.Select(p => (p.Item.Id, p.FromList)));
+    }
+
+    [Fact]
+    public void The_hero_says_why_a_title_is_featured_and_whether_it_is_on_My_List()
+    {
+        var film = LowOrbit with { BackdropUrl = "/api/items/111/images/backdrop" };
+        Assert.Equal("New in Movies", HomeRules.FeaturedLabel(new FeaturedPick(film, false), Libraries));
+        Assert.Equal("New", HomeRules.FeaturedLabel(new FeaturedPick(film, false), null));
+        Assert.Equal("On your list", HomeRules.FeaturedLabel(new FeaturedPick(film, true), Libraries));
+
+        var ready = (HomeState.Ready)HomeRules.StateOf(new[] { HubOf("recently_added:1", "Recently Added in Movies", 1, film) }, null, Libraries, false, Origin);
+        var featured = Assert.Single(ready.Featured);
+        Assert.Equal("New in Movies", featured.Label);
+        Assert.True(featured.Info.Listable);
+        Assert.False(featured.Info.InList);
+        var detail = new ItemDetail { Id = film.Id, LibraryId = 1, Kind = "movie", Title = film.Title, InWatchlist = true };
+        Assert.True(HomeRules.InfoOf(film, detail).InList);
+        // Without a backdrop, nothing is featured: the hero is the newest video, as before.
+        Assert.Empty(((HomeState.Ready)HomeRules.StateOf(HomeHubs, null, Libraries, false, Origin)).Featured);
     }
 
     [Fact]
