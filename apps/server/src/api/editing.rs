@@ -283,8 +283,9 @@ pub(crate) async fn reset_picture(
     Ok(())
 }
 
-/// `GET /api/labels`: every label on a title, with how many carry it, for the
-/// pickers of profiles' label rules.
+/// `GET /api/labels`: every label titles carry or profiles' and invitations'
+/// rules name, with how many of each, for Edit details and the pickers of
+/// profiles' label rules.
 pub async fn labels(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<crate::labels::LabelUse>>> {
     Ok(Json(crate::labels::all(&state.db).await?))
 }
