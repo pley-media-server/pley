@@ -199,7 +199,7 @@ function Slide({ featured: { item, from } }: { featured: Featured }) {
       </div>
       <h2
         className={cn(
-          "font-extrabold leading-[0.95] tracking-[-0.025em] text-white [text-shadow:0_2px_24px_rgb(0_0_0/0.45)] [text-wrap:balance]",
+          "font-extrabold leading-[1.05] tracking-[-0.025em] text-white [text-shadow:0_2px_24px_rgb(0_0_0/0.45)] [text-wrap:balance]",
           size,
         )}
       >
