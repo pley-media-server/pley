@@ -324,13 +324,13 @@ private val SubjectAlignment = BiasAlignment(0.4f, -0.6f)
 
 /**
  * The backdrop's two gradients in one pass over it: from the left, bg at
- * 100 % (x = 0), 92 % (300), 85 % (560), 0 % (800); from the top, as
- * [scrim] says.
+ * 100 % (x = 0), 92 % (300), 85 % (560), then eased out to 0 % at the
+ * screen's edge (960), so no edge shows; from the top, as [scrim] says.
  */
 private fun Modifier.backdropScrims(scrim: BackdropScrim): Modifier = drawWithCache {
     // Stretched pictures, not gradient shaders (GradientBitmaps): over the whole
     // screen a shader cost about 13 ms a frame each on a TV's GPU.
-    val leftEnd = minOf(800.dp.toPx(), size.width)
+    val leftEnd = minOf(960.dp.toPx(), size.width)
     val from = scrim.from.toPx()
     val to = scrim.to.toPx()
     onDrawWithContent {
@@ -341,12 +341,19 @@ private fun Modifier.backdropScrims(scrim: BackdropScrim): Modifier = drawWithCa
     }
 }
 
-/** From the left, over 800 dp: bg at 100 % (x = 0), 92 % (300), 85 % (560), 0 % (800). */
+/**
+ * From the left, over 960 dp: bg at 100 % (x = 0), 92 % (300), at least
+ * 85 % to the text column's end (560), then eased out to 0 % at 960.
+ */
 private val LeftScrim by lazy {
     GradientBitmaps.horizontal(
         0f to PleyColors.Bg,
-        300f / 800f to PleyColors.Bg.copy(alpha = 0.92f),
-        560f / 800f to PleyColors.Bg.copy(alpha = 0.85f),
+        300f / 960f to PleyColors.Bg.copy(alpha = 0.92f),
+        560f / 960f to PleyColors.Bg.copy(alpha = 0.85f),
+        640f / 960f to PleyColors.Bg.copy(alpha = 0.72f),
+        720f / 960f to PleyColors.Bg.copy(alpha = 0.52f),
+        800f / 960f to PleyColors.Bg.copy(alpha = 0.32f),
+        880f / 960f to PleyColors.Bg.copy(alpha = 0.14f),
         1f to Color.Transparent,
     )
 }
