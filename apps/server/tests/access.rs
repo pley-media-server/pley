@@ -682,6 +682,17 @@ async fn label_rules_show_titles_above_the_age_limit_and_hide_others() {
     assert_eq!(titles(&listed.body["items"]), ["Adult Film"]);
     let count = app.get(&format!("/api/libraries/{}", w.movies), &teen).await;
     assert_eq!(count.body["item_count"], json!(1));
+    // Nor are the people credited only in what it hides.
+    let credit = pley::people::NewCredit {
+        person: pley::people::PersonId::Tmdb(9),
+        name: "Nora Hidden".into(),
+        photo: None,
+        role: pley::people::Role::Actor,
+        character: None,
+    };
+    pley::people::replace(&app.state.db, family, &[credit]).await.unwrap();
+    assert_eq!(app.get("/api/search?q=nora", &teen).await.body["people"], json!([]));
+    assert_eq!(app.get("/api/search?q=nora", admin).await.body["people"][0]["name"], json!("Nora Hidden"));
 
     // Administrators never are limited by them.
     let all = app.get(&format!("/api/libraries/{}/items", w.movies), admin).await;
