@@ -567,8 +567,8 @@ pub static SYSTEMS: &[System] = &[
             Rating { names: &["TV-Y", "TVY"], age: 0, kind: Some(Kind::Tv) },
             Rating { names: &["TV-Y7", "TVY7"], age: 7, kind: Some(Kind::Tv) },
             Rating { names: &["TV-Y7-FV", "TVY7FV", "TV-Y7FV"], age: 7, kind: Some(Kind::Tv) },
-            Rating { names: &["GP"], age: 10, kind: Some(Kind::Film) },
-            Rating { names: &["PG"], age: 10, kind: Some(Kind::Film) },
+            // GP, PG's name from 1970 to 1972, is read but not offered.
+            Rating { names: &["PG", "GP"], age: 10, kind: Some(Kind::Film) },
             Rating { names: &["TV-PG", "TVPG"], age: 10, kind: Some(Kind::Tv) },
             Rating { names: &["PG-13", "PG13"], age: 13, kind: Some(Kind::Film) },
             Rating { names: &["TV-14", "TV14"], age: 14, kind: Some(Kind::Tv) },

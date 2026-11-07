@@ -311,6 +311,7 @@ mod tests {
             ("IN", Kind::Film, "A", Some(18)),
             ("GB", Kind::Film, "PG", Some(8)),
             ("US", Kind::Film, "PG", Some(10)),
+            ("US", Kind::Film, "GP", Some(10)),
             ("CA", Kind::Film, "PG", Some(10)),
             ("CA", Kind::Tv, "PG", Some(8)),
             ("AU", Kind::Film, "PG", Some(10)),
