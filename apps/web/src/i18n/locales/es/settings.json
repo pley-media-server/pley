@@ -901,7 +901,17 @@
       "leftOver_other": "Un perfil guarda 50 etiquetas; estas quedan fuera: {{labels}}",
       "notKept": "Pley no puede guardar estas reglas de Plex:",
       "pin": "PIN de Plex",
-      "pinHint": "Si Plex lo pide. Pley no lo guarda.",
+      "pinHint": "Si Plex lo pide. Pley no lo guarda."
+    },
+    "bring": {
+      "title": "Qué traer",
+      "description": "Las bibliotecas y las personas se traen elijas lo que elijas. Desactiva lo que prefieras empezar de cero en Pley.",
+      "watchHistory": "Historial de visionado",
+      "watchHistoryHint": "Títulos vistos, puntos de reanudación, valoraciones y cada reproducción.",
+      "collections": "Colecciones y listas de reproducción",
+      "collectionsHint": "Las colecciones en su orden, con sus etiquetas, y las listas de reproducción de cada uno. Las inteligentes se quedan en Plex.",
+      "edits": "Coincidencias y ediciones",
+      "editsHint": "Los títulos asociados como en Plex, y los campos editados en Plex como ediciones en Pley. Kometa bloquea los campos que define, así que sus cambios también se traen.",
       "start": "Empezar la importación"
     },
     "progress": {
@@ -914,7 +924,10 @@
         "matching": "Buscando los títulos de Plex en Pley",
         "labels": "Trayendo etiquetas y fechas de adición",
         "watch_state": "Trayendo lo que vio cada uno",
-        "history": "Trayendo las reproducciones de cada uno"
+        "history": "Trayendo las reproducciones de cada uno",
+        "edits": "Trayendo coincidencias y ediciones",
+        "collections": "Trayendo colecciones",
+        "playlists": "Trayendo listas de reproducción"
       },
       "stop": "Detener la importación",
       "stopTitle": "¿Detener la importación?",
@@ -964,7 +977,36 @@
         "no_access": "No importado: no tiene acceso a este servidor Plex."
       },
       "incomplete": "Plex rechazó algunas de sus listas, así que parte de lo que vio no se importó.",
-      "notKept": "Reglas que Pley no pudo guardar:"
+      "notKept": "Reglas que Pley no pudo guardar:",
+      "matchesFixed_one": "{{count, number}} título asociado como en Plex",
+      "matchesFixed_many": "{{count, number}} de títulos asociados como en Plex",
+      "matchesFixed_other": "{{count, number}} títulos asociados como en Plex",
+      "collectionsMade_one": "{{count, number}} colección creada",
+      "collectionsMade_many": "{{count, number}} de colecciones creadas",
+      "collectionsMade_other": "{{count, number}} colecciones creadas",
+      "collectionItems_one": "{{count, number}} título añadido a colecciones",
+      "collectionItems_many": "{{count, number}} de títulos añadidos a colecciones",
+      "collectionItems_other": "{{count, number}} títulos añadidos a colecciones",
+      "smartLeft_one": "{{count, number}} colección o lista inteligente que se queda en Plex",
+      "smartLeft_many": "{{count, number}} de colecciones y listas inteligentes que se quedan en Plex",
+      "smartLeft_other": "{{count, number}} colecciones y listas inteligentes que se quedan en Plex",
+      "playlists_one": "{{count, number}} lista de reproducción",
+      "playlists_many": "{{count, number}} de listas de reproducción",
+      "playlists_other": "{{count, number}} listas de reproducción",
+      "edits": "Ediciones de Plex",
+      "editsHint": "Herramientas como Kometa bloquean los campos que definen, así que un campo editado en casi todos los títulos seguramente es suyo.",
+      "fields": {
+        "title": "Título",
+        "sort_title": "Título para ordenar",
+        "original_title": "Título original",
+        "summary": "Sinopsis",
+        "tagline": "Eslogan",
+        "year": "Año",
+        "release_date": "Fecha de estreno",
+        "content_rating": "Clasificación",
+        "studio": "Estudio",
+        "genres": "Géneros"
+      }
     }
   }
 }

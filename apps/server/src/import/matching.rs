@@ -120,6 +120,8 @@ struct Parents {
     grandparent: Option<i64>,
     /// A season's, an episode's or a track's number.
     idx: Option<i64>,
+    /// A movie's or a show's TMDB id, as Pley matched it.
+    tmdb: Option<i64>,
 }
 
 impl Index {
@@ -145,7 +147,7 @@ impl Index {
         .fetch_all(&db.read)
         .await?;
         for (id, library, kind, parent, grandparent, idx, tmdb, imdb, tvdb) in items {
-            index.items.insert(id, Parents { parent, grandparent, idx });
+            index.items.insert(id, Parents { parent, grandparent, idx, tmdb });
             if let (Some(parent), Some(idx), "season" | "episode") = (parent, idx, kind.as_str()) {
                 index.children.insert((parent, idx), id);
             }
@@ -181,6 +183,11 @@ impl Index {
     /// `season`.
     pub fn child(&self, parent: i64, number: i64) -> Option<i64> {
         self.children.get(&(parent, number)).copied()
+    }
+
+    /// A movie's or show's TMDB id, as Pley matched it.
+    pub fn tmdb(&self, item: i64) -> Option<i64> {
+        self.items.get(&item).and_then(|p| p.tmdb)
     }
 
     /// An item's parent and grandparent (an episode's season and show).
@@ -302,8 +309,8 @@ mod tests {
         let mut index = Index::default();
         index.files.insert("/p/S05E10-E21.avi".into(), (9, 20, 10));
         index.files.insert("/p/S05E11-E12.avi".into(), (9, 21, 11));
-        index.items.insert(20, Parents { parent: Some(5), grandparent: Some(1), idx: Some(10) });
-        index.items.insert(21, Parents { parent: Some(5), grandparent: Some(1), idx: Some(11) });
+        index.items.insert(20, Parents { parent: Some(5), grandparent: Some(1), idx: Some(10), tmdb: None });
+        index.items.insert(21, Parents { parent: Some(5), grandparent: Some(1), idx: Some(11), tmdb: None });
         let folders = [Folder { plex: "/x".into(), pley: "/p".into() }];
         let mut m = Matches::default();
         let episode = |key: &str, number: i64| {
@@ -325,7 +332,7 @@ mod tests {
         index.files.insert("/p/S/E1.mkv".into(), (9, 12, 50));
         index.ids.insert((9, "movie".into(), "tmdb", "7".into()), 2);
         index.ids.insert((8, "movie".into(), "tmdb", "70".into()), 3);
-        index.items.insert(12, Parents { parent: Some(11), grandparent: Some(10), idx: Some(1) });
+        index.items.insert(12, Parents { parent: Some(11), grandparent: Some(10), idx: Some(1), tmdb: None });
         index.children.insert((10, 1), 11);
         index.children.insert((11, 2), 13);
         let folders = [Folder { plex: "/x".into(), pley: "/p".into() }];

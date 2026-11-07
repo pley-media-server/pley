@@ -13,6 +13,7 @@ import {
   useStartPlexImport,
   useStartPlexSignIn,
   plexImportKeys,
+  type ImportBring,
   type ImportChoices,
   type ImportPlan,
 } from "@/api/plexImport";
@@ -23,13 +24,14 @@ import { cn } from "@/lib/cn";
 import { useOnChange } from "@/lib/hooks";
 import { choicesFor, firstChoices, libraryProblems, type LibraryChoices } from "./choices";
 import { LibrariesStep } from "./LibrariesStep";
+import { BRING_ALL, BringStep } from "./BringStep";
 import { PeopleStep, type PeopleChoices } from "./PeopleStep";
 import { ImportProgressView } from "./ImportProgressView";
 
-type Stage = "signIn" | "server" | "libraries" | "people" | "importing";
+type Stage = "signIn" | "server" | "libraries" | "people" | "bring" | "importing";
 
 /** The steps counted in "Step 2 of 4"; importing isn't one. */
-const STEPS: Stage[] = ["signIn", "server", "libraries", "people"];
+const STEPS: Stage[] = ["signIn", "server", "libraries", "people", "bring"];
 
 /** How often Plex's sign-in is asked about while its page is open. */
 const SIGN_IN_POLL_MS = 2_000;
@@ -108,10 +110,11 @@ export function PlexImport({
   const progress = usePlexImport();
   const signedIn = usePlexSignedIn(false);
   const [stage, setStage] = useState<Stage | null>(null);
-  const plan = usePlexPlan(stage === "libraries" || stage === "people");
+  const plan = usePlexPlan(stage === "libraries" || stage === "people" || stage === "bring");
   const libraries = useSharedLibraries();
   const [libraryChoices, setLibraryChoices] = useState<LibraryChoices>({});
   const [people, setPeople] = useState<PeopleChoices>({});
+  const [bring, setBring] = useState<ImportBring>(BRING_ALL);
   const start = useStartPlexImport();
   const qc = useQueryClient();
   // The server whose plan the choices were made on, and whether the only
@@ -180,11 +183,18 @@ export function PlexImport({
       return (
         <PlanStep plan={plan} onSignedOut={() => setStage("signIn")}>
           {(data) => (
-            <PeopleStep
-              plan={data}
-              choices={people}
-              onChange={setPeople}
-              onBack={() => setStage("libraries")}
+            <PeopleStep plan={data} choices={people} onChange={setPeople} onBack={() => setStage("libraries")} onNext={() => setStage("bring")} />
+          )}
+        </PlanStep>
+      );
+    case "bring":
+      return (
+        <PlanStep plan={plan} onSignedOut={() => setStage("signIn")}>
+          {(data) => (
+            <BringStep
+              bring={bring}
+              onChange={setBring}
+              onBack={() => setStage("people")}
               starting={start.isPending}
               error={start.error ? errorMessage(start.error) : null}
               onStart={() => {
@@ -201,6 +211,7 @@ export function PlexImport({
                       const pin = people[u.id]?.pin.trim();
                       return pin ? { id: u.id, pin } : { id: u.id };
                     }),
+                  bring,
                 };
                 start.mutate(choices, { onSuccess: () => setStage("importing") });
               }}

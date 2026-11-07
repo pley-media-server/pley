@@ -4,7 +4,7 @@ import type { ImportPlan, PlanLimits, PlanUser } from "@/api/plexImport";
 import { useRatingSystems } from "@/api/hooks";
 import { Badge, Button, TextInput, Toggle } from "@/components/ui";
 import { ageBadge } from "@/lib/access";
-import { ErrorNote, StepFrame } from "./PlexImport";
+import { StepFrame } from "./PlexImport";
 
 /** By Plex user's id: whether they come, and their Plex PIN. */
 export type PeopleChoices = Record<number, { bring: boolean; pin: string }>;
@@ -14,17 +14,13 @@ export function PeopleStep({
   choices,
   onChange,
   onBack,
-  onStart,
-  starting,
-  error,
+  onNext,
 }: {
   plan: ImportPlan;
   choices: PeopleChoices;
   onChange: (choices: PeopleChoices) => void;
   onBack: () => void;
-  onStart: () => void;
-  starting: boolean;
-  error: string | null;
+  onNext: () => void;
 }) {
   const { t } = useTranslation(["settings", "common"]);
   // The Plex account first: it always comes, as the administrator.
@@ -37,11 +33,11 @@ export function PeopleStep({
       description={t("plexImport.people.description")}
       actions={
         <>
-          <Button variant="ghost" onClick={onBack} disabled={starting}>
+          <Button variant="ghost" onClick={onBack}>
             {t("common:actions.back")}
           </Button>
-          <Button variant="primary" onClick={onStart} loading={starting}>
-            {t("plexImport.people.start")}
+          <Button variant="primary" onClick={onNext}>
+            {t("common:actions.continue")}
           </Button>
         </>
       }
@@ -57,7 +53,6 @@ export function PeopleStep({
           </li>
         ))}
       </ul>
-      {error ? <ErrorNote>{error}</ErrorNote> : null}
     </StepFrame>
   );
 }

@@ -305,6 +305,14 @@ impl Plex {
         Ok(Page { items: mc.metadata, total })
     }
 
+    /// Item `rating_key`'s own page: its locked fields and labels, which
+    /// listings leave out.
+    pub async fn metadata(&self, server: &Server, rating_key: &str) -> PlexResult<Option<Item>> {
+        let path = format!("/library/metadata/{}", encode_segment(rating_key));
+        let c: Container<()> = self.server_json(server, &path, &[]).await?;
+        Ok(c.media_container.metadata.into_iter().next())
+    }
+
     /// The labels used in library `section`.
     pub async fn labels(&self, server: &Server, section: &str) -> PlexResult<Vec<Tag>> {
         let c: Container<Tag> =
@@ -573,6 +581,32 @@ pub struct Item {
     pub legacy_guid: Option<String>,
     #[serde(rename = "Media")]
     pub media: Vec<Media>,
+    // An item's own page's (`/library/metadata/{id}`): its fields, which of
+    // them are locked (edited by hand, or by a tool such as Kometa), and
+    // its labels.
+    pub title_sort: Option<String>,
+    pub original_title: Option<String>,
+    pub summary: Option<String>,
+    pub tagline: Option<String>,
+    #[serde(deserialize_with = "opt_num")]
+    pub year: Option<i64>,
+    pub originally_available_at: Option<String>,
+    pub content_rating: Option<String>,
+    pub studio: Option<String>,
+    #[serde(rename = "Genre")]
+    pub genres: Vec<Named>,
+    #[serde(rename = "Field")]
+    pub fields: Vec<Field>,
+    #[serde(rename = "Label")]
+    pub labels: Vec<Named>,
+    // Collections' and playlists'.
+    #[serde(deserialize_with = "flag")]
+    pub smart: bool,
+    /// 0 by release, 1 by title, 2 in its own order.
+    #[serde(deserialize_with = "opt_num")]
+    pub collection_sort: Option<i64>,
+    /// `video`, `audio` or `photo`.
+    pub playlist_type: Option<String>,
     // The history's.
     #[serde(rename = "accountID", deserialize_with = "opt_num")]
     pub account_id: Option<i64>,
@@ -604,6 +638,29 @@ impl Item {
             let id = id.split(['?', '/']).next()?;
             (!id.is_empty()).then_some(id)
         })
+    }
+}
+
+/// A genre or a label, as an item's page lists them.
+#[derive(Debug, Default, Deserialize)]
+pub struct Named {
+    #[serde(default, deserialize_with = "text")]
+    pub tag: String,
+}
+
+/// One of an item's fields, and whether it's locked.
+#[derive(Debug, Default, Deserialize)]
+pub struct Field {
+    #[serde(default)]
+    pub name: String,
+    #[serde(default, deserialize_with = "flag")]
+    pub locked: bool,
+}
+
+impl Item {
+    /// Whether Plex's field `name` is locked.
+    pub fn locked(&self, name: &str) -> bool {
+        self.fields.iter().any(|f| f.locked && f.name == name)
     }
 }
 

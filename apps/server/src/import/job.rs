@@ -6,7 +6,7 @@
 //! it: it's forgotten when the administrator cancels or the server stops.
 //! One import runs at a time.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -21,11 +21,21 @@ use crate::state::AppState;
 use crate::util::now;
 
 use super::matching::{Folder, Index, Matches, folder_for};
+use futures::StreamExt;
+
 use super::plex::{HomeUser, Item, Plex, PlexError, Resource, Section, Server, UserFilters};
 use super::restrictions::{self, Limits};
 
 /// Where the profiles an import made are remembered (`import_accounts`).
 const SOURCE: &str = "plex";
+/// Titles' own pages read at a time, for their locked fields.
+const PAGES_AT_ONCE: usize = 4;
+/// Longest title, sort title, tagline, studio or genre brought, in characters.
+const MAX_TITLE: usize = 500;
+/// Longest summary brought, in characters.
+const MAX_SUMMARY: usize = 20_000;
+/// Most genres a title brings.
+const MAX_GENRES: usize = 30;
 /// The settings key of the last import's report.
 const REPORT_KEY: &str = "plex_import_report";
 /// The settings key of the id plex.tv knows this server by.
@@ -98,8 +108,11 @@ pub enum Step {
     Profiles,
     Matching,
     Labels,
+    Edits,
+    Collections,
     WatchState,
     History,
+    Playlists,
 }
 
 /// What an import brought over, and what it couldn't.
@@ -118,6 +131,24 @@ pub struct Report {
     pub labels_added: u64,
     /// Titles whose date added moved to Plex's.
     pub dates_moved: u64,
+    /// Titles matched again to the TMDB entry Plex has, as Fix Match does.
+    #[serde(default)]
+    pub matches_fixed: u64,
+    /// Plex's locked fields brought as edits, by Pley's name for the field
+    /// (`title`, `content_rating`, …): tools such as Kometa lock what they
+    /// set, so a field locked on most titles is likely theirs.
+    #[serde(default)]
+    pub edits: BTreeMap<String, u64>,
+    /// Collections made for Plex's.
+    #[serde(default)]
+    pub collections_made: u64,
+    /// Titles put in collections, new or found again.
+    #[serde(default)]
+    pub collection_items: u64,
+    /// Smart collections and playlists, which aren't brought: Plex's
+    /// filters don't map to Pley's.
+    #[serde(default)]
+    pub smart_left: u64,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -151,6 +182,9 @@ pub struct ProfileReport {
     pub resumed: u64,
     pub rated: u64,
     pub plays: u64,
+    /// Their playlists brought, made or added to.
+    #[serde(default)]
+    pub playlists: u64,
     /// Plex refused some of their lists: what came over is incomplete.
     #[serde(default)]
     pub incomplete: bool,
@@ -247,6 +281,28 @@ pub struct Choices {
     /// The Home users to bring (the Plex account always comes).
     #[serde(default)]
     pub users: Vec<UserChoice>,
+    /// What comes over besides the libraries and people; all of it when
+    /// left out.
+    #[serde(default)]
+    pub bring: Bring,
+}
+
+/// The import's "What to bring" boxes.
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(default)]
+pub struct Bring {
+    /// Watched, resume points, ratings and plays.
+    pub watch_history: bool,
+    /// Collections that aren't smart, and everyone's playlists.
+    pub collections: bool,
+    /// Plex's matches as Fix Match, and its locked fields as edits.
+    pub edits: bool,
+}
+
+impl Default for Bring {
+    fn default() -> Self {
+        Self { watch_history: true, collections: true, edits: true }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -705,6 +761,16 @@ struct Paired {
     report: usize,
 }
 
+/// What "Matches and edits" needs of a library's movies, shows and
+/// seasons, by Plex's `ratingKey`.
+#[derive(Default)]
+struct Titles {
+    /// Movies and shows with the TMDB id Plex matched them to, and their title.
+    tmdb: Vec<(String, i64, String)>,
+    /// Those whose own page may have locked fields.
+    pages: Vec<String>,
+}
+
 /// A person being brought: their Plex account, profile and server token.
 struct Person {
     /// Plex's history names the account's own plays `1`.
@@ -789,8 +855,9 @@ impl Run {
         let pley_libraries: Vec<i64> = paired.iter().map(|p| p.library_id).collect();
         let index = Index::load(&self.state.db, &pley_libraries).await?;
         let mut matches = Matches::default();
+        let mut titles = Vec::new();
         for library in &paired {
-            self.find(library, &index, &folders, &mut matches).await?;
+            titles.push(self.find(library, &index, &folders, &mut matches).await?);
             self.advance(1);
         }
 
@@ -800,21 +867,49 @@ impl Run {
             self.advance(1);
         }
 
-        self.step(Step::WatchState, people.len() as u64);
-        for person in &people {
-            let done = self.watch_state(person, &paired, &matches).await;
-            self.person_done(person, done)?;
-            self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: person.user_id });
-            self.advance(1);
+        let bring = choices.bring;
+        if bring.edits {
+            let pages = titles.iter().flat_map(|t| &t.pages).filter(|k| matches.get(k).is_some()).count();
+            self.step(Step::Edits, pages as u64);
+            for t in &titles {
+                self.edits(t, &index, &matches).await?;
+            }
         }
 
-        self.step(Step::History, people.len() as u64);
-        let devices: HashMap<i64, String> =
-            self.plex.devices(&self.server).await.unwrap_or_default().into_iter().map(|d| (d.id, d.name)).collect();
-        for person in &people {
-            let done = self.history(person, &matches, &devices).await;
-            self.person_done(person, done)?;
-            self.advance(1);
+        if bring.collections {
+            self.step(Step::Collections, paired.len() as u64);
+            for library in &paired {
+                self.collections(library, &matches).await?;
+                self.advance(1);
+            }
+        }
+
+        if bring.watch_history {
+            self.step(Step::WatchState, people.len() as u64);
+            for person in &people {
+                let done = self.watch_state(person, &paired, &matches).await;
+                self.person_done(person, done)?;
+                self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: person.user_id });
+                self.advance(1);
+            }
+
+            self.step(Step::History, people.len() as u64);
+            let devices: HashMap<i64, String> =
+                self.plex.devices(&self.server).await.unwrap_or_default().into_iter().map(|d| (d.id, d.name)).collect();
+            for person in &people {
+                let done = self.history(person, &matches, &devices).await;
+                self.person_done(person, done)?;
+                self.advance(1);
+            }
+        }
+
+        if bring.collections {
+            self.step(Step::Playlists, people.len() as u64);
+            for person in &people {
+                let done = self.playlists(person, &matches).await;
+                self.person_done(person, done)?;
+                self.advance(1);
+            }
         }
         Ok(())
     }
@@ -1109,22 +1204,31 @@ impl Run {
     }
 
     /// Matches library `library`'s items, moving their dates added to
-    /// Plex's when earlier.
+    /// Plex's when earlier. What "Matches and edits" needs of them.
     async fn find(
         &mut self,
         library: &Paired,
         index: &Index,
         folders: &[Folder],
         matches: &mut Matches,
-    ) -> ImportResult<()> {
+    ) -> ImportResult<Titles> {
         let mut retry: Vec<Item> = Vec::new();
         let (mut matched, mut missed, mut named) = (0u64, 0u64, Vec::new());
+        let mut titles = Titles::default();
         for (plex_type, kind) in types(library.kind) {
             let query = [("type", plex_type.to_string()), ("includeGuids", "1".to_owned())];
             let mut pager = Pager::new(&format!("/library/sections/{}/all", library.key), &query);
             while let Some(items) = pager.next(self).await? {
                 let mut dates = Vec::new();
                 for item in items {
+                    if matches!(*kind, "movie" | "show" | "season") {
+                        titles.pages.push(item.rating_key.clone());
+                    }
+                    if matches!(*kind, "movie" | "show")
+                        && let Some(tmdb) = item.guid("tmdb").and_then(|id| id.parse::<i64>().ok()).filter(|id| *id > 0)
+                    {
+                        titles.tmdb.push((item.rating_key.clone(), tmdb, item.title.clone()));
+                    }
                     match matches.find(index, library.library_id, folders, &item) {
                         Some(id) => {
                             if is_leaf(kind) {
@@ -1169,7 +1273,7 @@ impl Run {
         report.matched = matched;
         report.missed = missed;
         report.missed_titles = named;
-        Ok(())
+        Ok(titles)
     }
 
     /// Moves items' dates added to Plex's, only ever earlier.
@@ -1224,6 +1328,220 @@ impl Run {
         }
         let after = count(crate::labels::for_items(&self.state.db, &ids).await?);
         self.report.labels_added += after.saturating_sub(before) as u64;
+        Ok(())
+    }
+
+    /// Plex's matches and locked fields of a library's movies, shows and
+    /// seasons. A title Plex matched to another TMDB entry than Pley did is
+    /// matched again to Plex's, as Fix Match does, unless it was fixed in
+    /// Pley; one Pley hasn't matched yet starts from Plex's. A locked field
+    /// becomes an edit, unless Pley has one for it already.
+    async fn edits(&mut self, titles: &Titles, index: &Index, matches: &Matches) -> ImportResult<()> {
+        let db = self.state.db.clone();
+        for (key, tmdb, title) in &titles.tmdb {
+            self.cancelled()?;
+            let Some(id) = matches.get(key) else { continue };
+            let ours = index.tmdb(id);
+            if ours == Some(*tmdb) || fixed_in_pley(&db, id).await? {
+                continue;
+            }
+            if ours.is_none() {
+                sqlx::query(
+                    "UPDATE items SET tmdb_id = ? WHERE id = ? AND tmdb_id IS NULL AND kind IN ('movie', 'show')",
+                )
+                .bind(tmdb)
+                .bind(id)
+                .execute(&db.write)
+                .await?;
+            } else if self.state.metadata.tmdb_enabled() {
+                match self.state.metadata.rematch(id, *tmdb).await {
+                    Ok(()) => self.report.matches_fixed += 1,
+                    Err(e) => tracing::debug!("the Plex import couldn't match {title} again: {e:#}"),
+                }
+            }
+        }
+
+        let pages: Vec<(i64, String)> =
+            titles.pages.iter().filter_map(|key| Some((matches.get(key)?, key.clone()))).collect();
+        let (plex, server) = (self.plex.clone(), self.server.clone());
+        let mut read = futures::stream::iter(pages.into_iter().map(|(id, key)| {
+            let (plex, server) = (plex.clone(), server.clone());
+            async move { (id, plex.metadata(&server, &key).await) }
+        }))
+        .buffer_unordered(PAGES_AT_ONCE);
+        while let Some((id, page)) = read.next().await {
+            self.cancelled()?;
+            self.advance(1);
+            let item = match page {
+                Ok(Some(item)) => item,
+                Ok(None) => continue,
+                Err(e) => {
+                    tracing::debug!("the Plex import couldn't read a title's page: {e}");
+                    continue;
+                }
+            };
+            let locked = locked_edits(&item);
+            if locked.is_empty() {
+                continue;
+            }
+            let ours = crate::overrides::locked_fields(&db, id).await?;
+            let changes: Vec<(String, Option<String>)> = locked
+                .into_iter()
+                .filter(|(field, value)| {
+                    !ours.iter().any(|f| f == field) && crate::overrides::validate(field, Some(value)).is_ok()
+                })
+                .map(|(field, value)| (field.to_owned(), Some(value)))
+                .collect();
+            if changes.is_empty() {
+                continue;
+            }
+            crate::overrides::set(&db, id, &changes).await?;
+            for (field, _) in &changes {
+                *self.report.edits.entry(field.clone()).or_default() += 1;
+            }
+        }
+        Ok(())
+    }
+
+    /// Library `library`'s collections that aren't smart, with the titles
+    /// found in Pley, in Plex's order: one Pley has by the same title gets
+    /// those it lacks, else one is made, with Plex's order and labels.
+    async fn collections(&mut self, library: &Paired, matches: &Matches) -> ImportResult<()> {
+        if !matches!(library.kind, LibraryKind::Movies | LibraryKind::Shows) {
+            return Ok(());
+        }
+        let db = self.state.db.clone();
+        let mut found = Vec::new();
+        let mut pager = Pager::new(&format!("/library/sections/{}/collections", library.key), &[]);
+        while let Some(items) = pager.next(self).await? {
+            found.extend(items);
+        }
+        for collection in found {
+            if collection.smart {
+                self.report.smart_left += 1;
+                continue;
+            }
+            let title = cut(&collection.title, MAX_TITLE);
+            if title.is_empty() || !is_key(&collection.rating_key) {
+                continue;
+            }
+            let mut ids = Vec::new();
+            let mut pager = Pager::new(&format!("/library/collections/{}/children", collection.rating_key), &[]);
+            while let Some(items) = pager.next(self).await? {
+                ids.extend(items.iter().filter_map(|i| matches.get(&i.rating_key)));
+            }
+            if ids.is_empty() {
+                continue;
+            }
+            let existing: Option<i64> = sqlx::query_scalar(
+                "SELECT id FROM collections WHERE library_id = ? AND title = ? COLLATE NOCASE AND smart_filter IS NULL
+                 ORDER BY id LIMIT 1",
+            )
+            .bind(library.library_id)
+            .bind(&title)
+            .fetch_optional(&db.read)
+            .await?;
+            let id = match existing {
+                Some(id) => id,
+                None => {
+                    let summary = collection.summary.as_deref().map(|s| cut(s, MAX_SUMMARY)).filter(|s| !s.is_empty());
+                    let id = crate::collections::create(&db, library.library_id, &title, summary.as_deref()).await?;
+                    let sort = match collection.collection_sort {
+                        Some(1) => "title",
+                        Some(2) => "custom",
+                        _ => "release",
+                    };
+                    if sort != "release" {
+                        crate::collections::update(&db, id, None, None, Some(sort)).await?;
+                    }
+                    self.report.collections_made += 1;
+                    id
+                }
+            };
+            self.report.collection_items += crate::collections::add_items(&db, id, library.library_id, &ids).await?;
+            // Listings leave labels out: the collection's own page has them.
+            if let Ok(Some(page)) = self.plex.metadata(&self.server, &collection.rating_key).await {
+                let labels = kept_labels(&page);
+                if !labels.is_empty() {
+                    crate::labels::edit_collection(&db, id, &labels, &[]).await?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// `person`'s playlists that aren't smart, with the titles found in
+    /// Pley: one of theirs by the same title and kind gets those it lacks,
+    /// else one is made, in Plex's order.
+    async fn playlists(&mut self, person: &Person, matches: &Matches) -> ImportResult<()> {
+        let db = self.state.db.clone();
+        let mut lists = Vec::new();
+        let mut pager = Pager::on(person.server.clone(), "/playlists", &[]);
+        while let Some(items) = pager.next(self).await? {
+            lists.extend(items);
+        }
+        for list in lists {
+            let kind = match list.playlist_type.as_deref() {
+                Some("video") => "video",
+                Some("audio") => "audio",
+                _ => continue,
+            };
+            if list.smart {
+                self.report.smart_left += 1;
+                continue;
+            }
+            let title = cut(&list.title, MAX_TITLE);
+            if title.is_empty() || !is_key(&list.rating_key) {
+                continue;
+            }
+            let mut ids = Vec::new();
+            let mut pager = Pager::on(person.server.clone(), &format!("/playlists/{}/items", list.rating_key), &[]);
+            while let Some(items) = pager.next(self).await? {
+                ids.extend(items.iter().filter_map(|i| matches.get(&i.rating_key)));
+            }
+            if ids.is_empty() {
+                continue;
+            }
+            let existing: Option<i64> = sqlx::query_scalar(
+                "SELECT id FROM playlists WHERE user_id = ? AND title = ? COLLATE NOCASE AND kind = ?
+                 AND smart_filter IS NULL ORDER BY id LIMIT 1",
+            )
+            .bind(person.user_id)
+            .bind(&title)
+            .bind(kind)
+            .fetch_optional(&db.read)
+            .await?;
+            let id = match existing {
+                Some(id) => {
+                    // Found again: only what it lacks, once.
+                    let mut have: HashSet<i64> =
+                        sqlx::query_scalar("SELECT item_id FROM playlist_items WHERE playlist_id = ?")
+                            .bind(id)
+                            .fetch_all(&db.read)
+                            .await?
+                            .into_iter()
+                            .collect();
+                    ids.retain(|item| have.insert(*item));
+                    id
+                }
+                None => {
+                    let stamp = now();
+                    sqlx::query_scalar(
+                        "INSERT INTO playlists (user_id, title, kind, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
+                         RETURNING id",
+                    )
+                    .bind(person.user_id)
+                    .bind(&title)
+                    .bind(kind)
+                    .bind(stamp)
+                    .bind(stamp)
+                    .fetch_one(&db.write)
+                    .await?
+                }
+            };
+            crate::playlists::append_leaves(&db, id, &ids).await?;
+            self.report.profiles[person.report].playlists += 1;
+        }
         Ok(())
     }
 
@@ -1384,6 +1702,75 @@ async fn merge(db: &Db, user_id: i64, list: &str, found: &[(i64, Item)]) -> sqlx
     }
     tx.commit().await?;
     Ok(changed)
+}
+
+/// Whether title `id` was matched with Fix Match in Pley, which the import
+/// leaves.
+async fn fixed_in_pley(db: &Db, id: i64) -> sqlx::Result<bool> {
+    sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM item_overrides WHERE item_id = ? AND field = ?)")
+        .bind(id)
+        .bind(crate::overrides::MATCH)
+        .fetch_one(&db.read)
+        .await
+}
+
+/// The edits Plex's locked fields of `item` make, by Pley's name for the
+/// field: cut to the lengths Pley keeps, empty ones left out. A season has
+/// a title and a summary only.
+fn locked_edits(item: &Item) -> Vec<(&'static str, String)> {
+    let text = |value: Option<&str>, max: usize| value.map(|v| cut(v, max)).filter(|v| !v.is_empty());
+    let mut fields = vec![
+        ("title", "title", text(Some(&item.title), MAX_TITLE)),
+        ("summary", "summary", text(item.summary.as_deref(), MAX_SUMMARY)),
+    ];
+    if item.kind != "season" {
+        let genres: Vec<String> =
+            item.genres.iter().map(|g| cut(&g.tag, MAX_TITLE)).filter(|g| !g.is_empty()).take(MAX_GENRES).collect();
+        // Plex writes some ratings with their country ("gb/12A"); Pley
+        // keeps the rating, and reads its country from the region.
+        let rating = item.content_rating.as_deref().map(|r| match r.split_once('/') {
+            Some((country, rating)) if country.len() == 2 && country.chars().all(|c| c.is_ascii_alphabetic()) => rating,
+            _ => r,
+        });
+        fields.extend([
+            ("titleSort", "sort_title", text(item.title_sort.as_deref(), MAX_TITLE)),
+            ("originalTitle", "original_title", text(item.original_title.as_deref(), MAX_TITLE)),
+            ("tagline", "tagline", text(item.tagline.as_deref(), MAX_TITLE)),
+            ("year", "year", item.year.map(|y| y.to_string())),
+            ("originallyAvailableAt", "release_date", text(item.originally_available_at.as_deref(), 10)),
+            ("contentRating", "content_rating", text(rating, 40)),
+            ("studio", "studio", text(item.studio.as_deref(), MAX_TITLE)),
+            ("genre", "genres", (!genres.is_empty()).then(|| serde_json::to_string(&genres).unwrap_or_default())),
+        ]);
+    }
+    fields
+        .into_iter()
+        .filter(|(plex, _, _)| item.locked(plex))
+        .filter_map(|(_, field, value)| Some((field, value?)))
+        .collect()
+}
+
+/// A collection's labels from its page, as Pley keeps them.
+fn kept_labels(page: &Item) -> Vec<String> {
+    let labels: Vec<String> = page
+        .labels
+        .iter()
+        .map(|l| l.tag.trim().to_owned())
+        .filter(|l| !l.is_empty() && l.chars().count() <= crate::labels::MAX_LEN)
+        .take(crate::labels::MAX_PER_ITEM)
+        .collect();
+    crate::labels::check(&labels).unwrap_or_default()
+}
+
+/// `text` trimmed and cut to `max` characters.
+fn cut(text: &str, max: usize) -> String {
+    text.trim().chars().take(max).collect::<String>().trim_end().to_owned()
+}
+
+/// Whether `key` is a `ratingKey` as Plex writes them, a number, before it
+/// goes in a path.
+fn is_key(key: &str) -> bool {
+    !key.is_empty() && key.len() <= 20 && key.chars().all(|c| c.is_ascii_digit())
 }
 
 /// Whether items of Plex's `kind` are counted in the report (those that

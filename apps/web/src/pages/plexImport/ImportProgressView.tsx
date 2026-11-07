@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Link } from "react-router";
 import { CircleAlert, CircleCheck, CircleX, TriangleAlert } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useForgetPlex, usePlexImport, type ImportReport, type ProfileReport } from "@/api/plexImport";
+import { useForgetPlex, usePlexImport, type EditedField, type ImportReport, type ProfileReport } from "@/api/plexImport";
 import { useRatingSystems } from "@/api/hooks";
 import { ConfirmModal } from "@/components/Modal";
 import { Badge, Button, PageSpinner, ProgressBar } from "@/components/ui";
@@ -92,6 +93,8 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
   const title =
     report.outcome === "done" ? t("plexImport.report.done") : report.outcome === "failed" ? t("plexImport.report.failed") : t("plexImport.report.cancelled");
   const Icon = report.outcome === "done" ? CircleCheck : report.outcome === "failed" ? CircleX : CircleAlert;
+  // Reports kept from before Pley brought edits have none.
+  const edits = (Object.entries(report.edits ?? {}) as [EditedField, number][]).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
 
   return (
     <StepFrame
@@ -112,9 +115,7 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
     >
       <div className="flex items-center gap-2">
         <Icon className={report.outcome === "done" ? "size-5 text-success" : report.outcome === "failed" ? "size-5 text-danger" : "size-5 text-warning"} />
-        <span className="text-sm text-muted">
-          {t("plexImport.report.labelsAdded", { count: report.labels_added })} · {t("plexImport.report.datesMoved", { count: report.dates_moved })}
-        </span>
+        <span className="text-sm text-muted">{titleCounts(report, t).join(" · ")}</span>
       </div>
       {/* The server's own words, in English. */}
       {report.error ? <ErrorNote>{report.error}</ErrorNote> : null}
@@ -151,6 +152,21 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
         </div>
       ) : null}
 
+      {edits.length > 0 ? (
+        <div>
+          <h3 className="mb-1 text-sm font-semibold">{t("plexImport.report.edits")}</h3>
+          <p className="mb-2 text-xs text-muted">{t("plexImport.report.editsHint")}</p>
+          <ul className="divide-y divide-border rounded-lg border border-border bg-surface-2">
+            {edits.map(([field, count]) => (
+              <li key={field} className="flex items-center justify-between p-3 text-sm">
+                <span>{t(`plexImport.report.fields.${field}`)}</span>
+                <span className="tabular-nums text-muted">{count.toLocaleString(currentLocale())}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       {report.profiles.length > 0 ? (
         <div>
           <h3 className="mb-2 text-sm font-semibold">{t("plexImport.report.people")}</h3>
@@ -165,6 +181,19 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
       ) : null}
     </StepFrame>
   );
+}
+
+/** What happened to titles: labels and dates always, the rest when it happened. */
+function titleCounts(report: ImportReport, t: TFunction<["settings", "common"]>): string[] {
+  const counts = [
+    t("plexImport.report.labelsAdded", { count: report.labels_added }),
+    t("plexImport.report.datesMoved", { count: report.dates_moved }),
+  ];
+  if (report.matches_fixed > 0) counts.push(t("plexImport.report.matchesFixed", { count: report.matches_fixed }));
+  if (report.collections_made > 0) counts.push(t("plexImport.report.collectionsMade", { count: report.collections_made }));
+  if (report.collection_items > 0) counts.push(t("plexImport.report.collectionItems", { count: report.collection_items }));
+  if (report.smart_left > 0) counts.push(t("plexImport.report.smartLeft", { count: report.smart_left }));
+  return counts;
 }
 
 function ProfileLine({ profile: p }: { profile: ProfileReport }) {
@@ -190,6 +219,7 @@ function ProfileLine({ profile: p }: { profile: ProfileReport }) {
             t("plexImport.report.resumed", { count: p.resumed }),
             t("plexImport.report.rated", { count: p.rated }),
             t("plexImport.report.plays", { count: p.plays }),
+            ...(p.playlists > 0 ? [t("plexImport.report.playlists", { count: p.playlists })] : []),
           ].join(" · ")}
         </p>
       )}

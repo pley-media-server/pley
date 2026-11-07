@@ -18,7 +18,9 @@ describes how they are made.
   Home user with their restrictions as an age limit and label rules, and
   brings over the titles' labels and dates added, and each person's
   watched titles, resume points, ratings and plays, then shows what came
-  over. Running it again adds what's new and never takes anything away
+  over. Collections and playlists come too, and Plex's matches and the
+  fields edited in Plex as Fix Match and edits in Pley; a "What to bring"
+  step turns any of these off. Running it again adds what's new and never takes anything away
   (docs/MOVING_FROM_PLEX.md).
 
 ## [0.1.9] - 2026-11-08

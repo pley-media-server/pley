@@ -30,8 +30,23 @@ never changes anything on Plex.
   added moves to Plex's when that's earlier.
 - **What everyone watched.** Watched titles, resume points, ratings and
   each play, with the device it was on.
+- **Collections and playlists.** Collections, in their order and with
+  their labels, and each person's playlists, as theirs. Smart ones stay
+  behind: Plex's filters don't turn into Pley's.
+- **Matches and edits.** A title Plex matched differently from Pley is
+  matched to Plex's choice, as Fix Match does (Pley needs its TMDB key
+  for that). Fields edited in Plex, which Plex locks, come over as edits
+  in Pley: titles, summaries, years, content ratings, genres and the
+  like.
 
-Collections, playlists, edited metadata and artwork don't come over yet.
+Artwork doesn't come over: Pley picks its own posters.
+
+The last three are choices on the import's "What to bring" step, all on
+at first. If you use Kometa, some of what it made in Plex comes over this
+way: it locks the fields it sets, such as content ratings, and its
+collections are collections like any. Point Kometa at Pley afterwards
+(see [Compatibility](COMPATIBILITY.md)) and it carries on there, its
+overlays included.
 
 ## How titles are found
 
@@ -55,8 +70,8 @@ Plex.
    there. A Plex token works too, for a server you sign in to another way.
 2. **Choose the server.** Only a server your account owns can be imported:
    only its owner can read everyone's history and the Home's restrictions.
-   A server Plex doesn't list, or that Pley can't reach through Plex, is
-   chosen by its address.
+   A server Pley can't reach at the addresses Plex gives is chosen by its
+   address.
 3. **Libraries.** Each Plex library shows where it goes: *In Pley* (its
    files are in a Pley library), *Check this* (some are, or in more than
    one) or *Not in Pley* (a new library is made for it from Plex's folders,
@@ -65,7 +80,9 @@ Plex.
 4. **People.** Each Home user shows the profile they'll get and its limits.
    Turn off anyone who shouldn't come. Plex sometimes asks for a protected
    user's PIN; type it there, or they're skipped.
-5. **Import.** New libraries are scanned first, then everything else comes
+5. **What to bring.** Watch history, collections and playlists, matches
+   and edits: turn off what you'd rather start over in Pley.
+6. **Import.** New libraries are scanned first, then everything else comes
    over. You can close the page; the import goes on, and the report is
    there when you come back.
 
@@ -77,7 +94,10 @@ and what came over for each person.
 Running the import again brings what's new and nothing twice. It never
 takes anything away: labels are only added, a date added only moves
 earlier, a title watched in Pley stays watched, and a resume point from
-after Plex's stays. Profiles made by an earlier import are found again;
+after Plex's stays. Edits made in Pley stay, and so does a title matched
+with Fix Match in Pley. A collection or playlist found again by its title
+gets the titles it lacks, and nothing is reordered or removed. Profiles
+made by an earlier import are found again;
 they keep the age limit set in Pley (or get Plex's, when they have none)
 and get Plex's new labels added to their rules.
 

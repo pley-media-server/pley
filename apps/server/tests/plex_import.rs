@@ -258,6 +258,76 @@ async fn fake_plex() -> String {
                 container(json!({ "Directory": labels }))
             }),
         )
+        // Titles' own pages: what was edited in Plex is locked.
+        .route(
+            "/library/metadata/{key}",
+            get(|Path(key): Path<String>| async move {
+                let page = match key.as_str() {
+                    "101" => json!({"ratingKey": "101", "type": "movie", "title": "Alien", "summary": "Hand-written.",
+                                    "contentRating": "gb/15", "studio": "Not locked",
+                                    "Field": [{"name": "summary", "locked": true}, {"name": "contentRating", "locked": "1"}]}),
+                    "210" => json!({"ratingKey": "210", "type": "season", "title": "The First", "summary": "",
+                                    "Field": [{"name": "title", "locked": true}, {"name": "summary", "locked": true}]}),
+                    "5000" => json!({"ratingKey": "5000", "type": "collection", "title": "Space",
+                                     "Label": [{"tag": "Kometa"}]}),
+                    _ => return container(json!({ "Metadata": [] })),
+                };
+                container(json!({ "Metadata": [page] }))
+            }),
+        )
+        .route(
+            "/library/sections/{section}/collections",
+            get(|Path(section): Path<String>| async move {
+                let list = if section == "1" {
+                    json!([{"ratingKey": "5000", "type": "collection", "title": "Space", "smart": "0",
+                            "collectionSort": "2", "summary": "In space."},
+                           {"ratingKey": "5001", "type": "collection", "title": "Unwatched", "smart": "1"}])
+                } else {
+                    json!([])
+                };
+                container(json!({ "Metadata": list }))
+            }),
+        )
+        .route(
+            "/library/collections/{key}/children",
+            get(|Path(key): Path<String>| async move {
+                let list = if key == "5000" {
+                    json!([{"ratingKey": "102", "type": "movie", "title": "Brazil"},
+                           {"ratingKey": "101", "type": "movie", "title": "Alien"},
+                           {"ratingKey": "103", "type": "movie", "title": "Casablanca"}])
+                } else {
+                    json!([])
+                };
+                container(json!({ "Metadata": list }))
+            }),
+        )
+        .route(
+            "/playlists",
+            get(|headers: HeaderMap| async move {
+                let list = match token(&headers) {
+                    OWNER_SERVER => json!([
+                        {"ratingKey": "6000", "type": "playlist", "title": "Favourites", "playlistType": "video", "smart": false},
+                        {"ratingKey": "6001", "type": "playlist", "title": "Recent", "playlistType": "video", "smart": true},
+                        {"ratingKey": "6002", "type": "playlist", "title": "Holidays", "playlistType": "photo", "smart": false}
+                    ]),
+                    KID_SERVER => json!([]),
+                    _ => return StatusCode::UNAUTHORIZED.into_response(),
+                };
+                container(json!({ "Metadata": list }))
+            }),
+        )
+        .route(
+            "/playlists/{key}/items",
+            get(|Path(key): Path<String>| async move {
+                let list = if key == "6000" {
+                    json!([{"ratingKey": "201", "type": "episode", "title": "One"},
+                           {"ratingKey": "101", "type": "movie", "title": "Alien"}])
+                } else {
+                    json!([])
+                };
+                container(json!({ "Metadata": list }))
+            }),
+        )
         .route("/devices", get(|| async { container(json!({"Device": [{"id": 5, "name": "Living Room TV"}]})) }))
         .route("/status/sessions/history/all", get(history))
         .with_state(base.clone());
@@ -416,6 +486,51 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(pley::labels::for_items(&app.state.db, &[alien]).await.unwrap()[&alien], ["Scary"]);
     assert_eq!(one(&app, "SELECT added_at FROM items WHERE id = ?", alien).await, 1_000_000_000);
 
+    // Matches and edits: Pley has no TMDB key here, so Alien starts from
+    // Plex's match; locked fields become edits, an empty one left out.
+    assert_eq!(report["matches_fixed"], 0);
+    assert_eq!(one(&app, "SELECT tmdb_id FROM items WHERE id = ?", alien).await, 348);
+    assert_eq!(report["edits"], json!({"content_rating": 1, "summary": 1, "title": 1}));
+    let edited: Vec<(String, String)> =
+        sqlx::query_as("SELECT field, value FROM item_overrides WHERE item_id = ? ORDER BY field")
+            .bind(alien)
+            .fetch_all(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!(edited, [("content_rating".into(), "15".into()), ("summary".into(), "Hand-written.".into())]);
+    let season: String = sqlx::query_scalar("SELECT title FROM items WHERE kind = 'season'")
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(season, "The First");
+
+    // Collections and playlists, smart ones left out.
+    assert_eq!((&report["collections_made"], &report["collection_items"]), (&json!(1), &json!(2)));
+    assert_eq!(report["smart_left"], 2);
+    let (space, sort): (i64, String) = sqlx::query_as("SELECT id, sort FROM collections WHERE title = 'Space'")
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(sort, "custom");
+    let order: Vec<i64> =
+        sqlx::query_scalar("SELECT item_id FROM collection_items WHERE collection_id = ? ORDER BY position")
+            .bind(space)
+            .fetch_all(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!(order, [brazil, alien]);
+    assert_eq!(pley::labels::for_collections(&app.state.db, &[space]).await.unwrap()[&space], ["Kometa"]);
+    assert_eq!(report["profiles"][0]["playlists"], 1);
+    let favourites: Vec<String> = sqlx::query_scalar(
+        "SELECT i.title FROM playlist_items e JOIN playlists p ON p.id = e.playlist_id JOIN items i ON i.id = e.item_id
+         WHERE p.title = 'Favourites' AND p.user_id = ? ORDER BY e.position",
+    )
+    .bind(admin_id)
+    .fetch_all(&app.state.db.read)
+    .await
+    .unwrap();
+    assert_eq!(favourites, ["Episode 1", "Alien"]);
+
     // Watch state, each person's own.
     let (watched, count, rating): (bool, i64, Option<f64>) =
         sqlx::query_as("SELECT watched, play_count, rating FROM user_item_state WHERE user_id = ? AND item_id = ?")
@@ -484,6 +599,11 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await, users_before);
     assert_eq!(one(&app, "SELECT COUNT(*) FROM play_history WHERE user_id > ?", 0).await, 3);
     assert_eq!(done["report"]["labels_added"], 0);
+    // Pley's edits stay, and collections and playlists aren't made twice.
+    assert_eq!(done["report"]["edits"], json!({}));
+    assert_eq!((&done["report"]["collections_made"], &done["report"]["collection_items"]), (&json!(0), &json!(0)));
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM playlists WHERE user_id = ?", admin_id).await, 1);
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM playlist_items WHERE playlist_id > ?", 0).await, 2);
     let (watched, position): (bool, i64) =
         sqlx::query_as("SELECT watched, position_ms FROM user_item_state WHERE user_id = ? AND item_id = ?")
             .bind(kid_id)
@@ -492,6 +612,24 @@ async fn brings_libraries_people_and_what_they_watched() {
             .await
             .unwrap();
     assert_eq!((watched, position), (true, 99_000), "Pley's newer resume point stays, as a rewatch");
+
+    // Nothing but the libraries and people, when that's what was chosen.
+    let r = app
+        .post(
+            "/api/import/plex/start",
+            &admin,
+            json!({
+                "libraries": [{"key": "1", "library_id": movies}],
+                "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("movies")}],
+                "bring": {"watch_history": false, "collections": false, "edits": false},
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let done = finished(&app, &admin).await;
+    let report = &done["report"];
+    assert_eq!((&report["profiles"][0]["watched"], &report["profiles"][0]["playlists"]), (&json!(0), &json!(0)));
+    assert_eq!((&report["smart_left"], &report["edits"]), (&json!(0), &json!({})));
 
     // Forgetting the sign-in.
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);

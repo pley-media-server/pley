@@ -901,7 +901,17 @@
       "leftOver_other": "Un profil garde 50 étiquettes ; celles-ci sont laissées de côté : {{labels}}",
       "notKept": "Pley ne peut pas garder ces règles de Plex :",
       "pin": "Code PIN Plex",
-      "pinHint": "Si Plex le demande. Pley ne le garde pas.",
+      "pinHint": "Si Plex le demande. Pley ne le garde pas."
+    },
+    "bring": {
+      "title": "Quoi transférer",
+      "description": "Les bibliothèques et les personnes sont transférées quel que soit votre choix. Désactivez ce que vous préférez recommencer dans Pley.",
+      "watchHistory": "Historique de visionnage",
+      "watchHistoryHint": "Titres vus, points de reprise, notes et chaque lecture.",
+      "collections": "Collections et listes de lecture",
+      "collectionsHint": "Les collections dans leur ordre, avec leurs étiquettes, et les listes de lecture de chacun. Les intelligentes restent sur Plex.",
+      "edits": "Correspondances et modifications",
+      "editsHint": "Les titres associés comme dans Plex, et les champs modifiés dans Plex comme modifications dans Pley. Kometa verrouille les champs qu’il définit : ses changements viennent aussi.",
       "start": "Lancer l’import"
     },
     "progress": {
@@ -914,7 +924,10 @@
         "matching": "Recherche des titres de Plex dans Pley",
         "labels": "Import des étiquettes et des dates d’ajout",
         "watch_state": "Import de ce que chacun a regardé",
-        "history": "Import des lectures de chacun"
+        "history": "Import des lectures de chacun",
+        "edits": "Import des correspondances et des modifications",
+        "collections": "Import des collections",
+        "playlists": "Import des listes de lecture"
       },
       "stop": "Arrêter l’import",
       "stopTitle": "Arrêter l’import ?",
@@ -964,7 +977,36 @@
         "no_access": "Non importé : cette personne n’a pas accès à ce serveur Plex."
       },
       "incomplete": "Plex a refusé certaines de ses listes : une partie de ce qu’elle a regardé n’a pas été importée.",
-      "notKept": "Règles que Pley n’a pas pu garder :"
+      "notKept": "Règles que Pley n’a pas pu garder :",
+      "matchesFixed_one": "{{count, number}} titre associé comme dans Plex",
+      "matchesFixed_many": "{{count, number}} de titres associés comme dans Plex",
+      "matchesFixed_other": "{{count, number}} titres associés comme dans Plex",
+      "collectionsMade_one": "{{count, number}} collection créée",
+      "collectionsMade_many": "{{count, number}} de collections créées",
+      "collectionsMade_other": "{{count, number}} collections créées",
+      "collectionItems_one": "{{count, number}} titre ajouté aux collections",
+      "collectionItems_many": "{{count, number}} de titres ajoutés aux collections",
+      "collectionItems_other": "{{count, number}} titres ajoutés aux collections",
+      "smartLeft_one": "{{count, number}} collection ou liste intelligente laissée sur Plex",
+      "smartLeft_many": "{{count, number}} de collections et listes intelligentes laissées sur Plex",
+      "smartLeft_other": "{{count, number}} collections et listes intelligentes laissées sur Plex",
+      "playlists_one": "{{count, number}} liste de lecture",
+      "playlists_many": "{{count, number}} de listes de lecture",
+      "playlists_other": "{{count, number}} listes de lecture",
+      "edits": "Modifications venues de Plex",
+      "editsHint": "Des outils comme Kometa verrouillent les champs qu’ils définissent : un champ modifié sur la plupart des titres vient sans doute d’eux.",
+      "fields": {
+        "title": "Titre",
+        "sort_title": "Titre de tri",
+        "original_title": "Titre original",
+        "summary": "Résumé",
+        "tagline": "Accroche",
+        "year": "Année",
+        "release_date": "Date de sortie",
+        "content_rating": "Classification",
+        "studio": "Studio",
+        "genres": "Genres"
+      }
     }
   }
 }

@@ -879,7 +879,17 @@
       "leftOver_other": "A profile keeps 50 labels; these are left out: {{labels}}",
       "notKept": "Pley can't keep these rules of Plex's:",
       "pin": "Plex PIN",
-      "pinHint": "If Plex asks for it. Pley doesn't keep it.",
+      "pinHint": "If Plex asks for it. Pley doesn't keep it."
+    },
+    "bring": {
+      "title": "What to bring",
+      "description": "Libraries and people come over whatever you choose. Turn off what you'd rather start over in Pley.",
+      "watchHistory": "Watch history",
+      "watchHistoryHint": "Watched titles, resume points, ratings and every play.",
+      "collections": "Collections and playlists",
+      "collectionsHint": "Collections in their order, with their labels, and each person's playlists. Smart ones stay behind.",
+      "edits": "Matches and edits",
+      "editsHint": "Titles matched as Plex has them, and fields edited in Plex as edits in Pley. Kometa locks the fields it sets, so its changes come too.",
       "start": "Start the import"
     },
     "progress": {
@@ -892,7 +902,10 @@
         "matching": "Finding Plex's titles in Pley",
         "labels": "Bringing labels and dates added",
         "watch_state": "Bringing what everyone watched",
-        "history": "Bringing everyone's plays"
+        "history": "Bringing everyone's plays",
+        "edits": "Bringing matches and edits",
+        "collections": "Bringing collections",
+        "playlists": "Bringing playlists"
       },
       "stop": "Stop the import",
       "stopTitle": "Stop the import?",
@@ -934,7 +947,31 @@
         "no_access": "Not brought: they can't open this Plex server."
       },
       "incomplete": "Plex refused some of their lists, so some of what they watched didn't come over.",
-      "notKept": "Rules Pley couldn't keep:"
+      "notKept": "Rules Pley couldn't keep:",
+      "matchesFixed_one": "{{count, number}} title matched as in Plex",
+      "matchesFixed_other": "{{count, number}} titles matched as in Plex",
+      "collectionsMade_one": "{{count, number}} collection made",
+      "collectionsMade_other": "{{count, number}} collections made",
+      "collectionItems_one": "{{count, number}} title put in collections",
+      "collectionItems_other": "{{count, number}} titles put in collections",
+      "smartLeft_one": "{{count, number}} smart collection or playlist left behind",
+      "smartLeft_other": "{{count, number}} smart collections and playlists left behind",
+      "playlists_one": "{{count, number}} playlist",
+      "playlists_other": "{{count, number}} playlists",
+      "edits": "Edits from Plex",
+      "editsHint": "Tools such as Kometa lock the fields they set, so a field edited on most titles is likely theirs.",
+      "fields": {
+        "title": "Title",
+        "sort_title": "Sort title",
+        "original_title": "Original title",
+        "summary": "Summary",
+        "tagline": "Tagline",
+        "year": "Year",
+        "release_date": "Release date",
+        "content_rating": "Content rating",
+        "studio": "Studio",
+        "genres": "Genres"
+      }
     }
   }
 }

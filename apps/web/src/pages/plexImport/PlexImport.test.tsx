@@ -65,11 +65,17 @@ const report: ImportReport = {
       resumed: 1,
       rated: 0,
       plays: 30,
+      playlists: 2,
       incomplete: false,
     },
   ],
   labels_added: 5,
   dates_moved: 40,
+  matches_fixed: 3,
+  edits: { summary: 2, content_rating: 9 },
+  collections_made: 1,
+  collection_items: 4,
+  smart_left: 0,
 };
 
 function serve({
@@ -126,6 +132,11 @@ describe("PlexImport", () => {
     expect(screen.getByText("contentRating=X")).toBeInTheDocument();
     await user.click(screen.getByRole("switch", { name: "Bring Robin" }));
     await user.type(screen.getByLabelText("Plex PIN"), "12a34");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(await screen.findByRole("heading", { name: "What to bring" })).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Watch history" })).toBeChecked();
+    await user.click(screen.getByRole("switch", { name: "Matches and edits" }));
     progress = { ...idle, state: "running", step: "matching", done: 10, total: 40 };
     await user.click(screen.getByRole("button", { name: "Start the import" }));
 
@@ -140,6 +151,7 @@ describe("PlexImport", () => {
           { plex: "/data/tv", pley: "/media/tv" },
         ],
         users: [{ id: 2, pin: "1234" }],
+        bring: { watch_history: true, collections: true, edits: false },
       }),
     );
     expect(await screen.findByText("Finding Plex's titles in Pley")).toBeInTheDocument();
@@ -150,7 +162,15 @@ describe("PlexImport", () => {
     await client.invalidateQueries({ queryKey: plexImportKeys.progress });
     expect(await screen.findByRole("heading", { name: "Your Plex library is in Pley" })).toBeInTheDocument();
     expect(screen.getByText("41 titles found · 2 not found")).toBeInTheDocument();
-    expect(screen.getByText("12 watched · 1 to resume · 0 rated · 30 plays")).toBeInTheDocument();
+    expect(screen.getByText("12 watched · 1 to resume · 0 rated · 30 plays · 2 playlists")).toBeInTheDocument();
+    expect(
+      screen.getByText("5 labels added · 40 dates added moved earlier · 3 titles matched as in Plex · 1 collection made · 4 titles put in collections"),
+    ).toBeInTheDocument();
+    // Most edited first.
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent).filter((s) => /^(Summary|Content rating)/.test(s ?? ""))).toEqual([
+      "Content rating9",
+      "Summary2",
+    ]);
     await user.click(screen.getByRole("button", { name: "Done" }));
     expect(onFinish).toHaveBeenCalled();
   });

@@ -70,10 +70,28 @@ export interface ImportChoices {
   libraries: { key: string; library_id?: Id; new?: { name: string; paths: string[] } }[];
   folders?: PlexFolder[];
   users?: { id: number; pin?: string }[];
+  /** What comes besides the libraries and people; each on when left out. */
+  bring?: ImportBring;
+}
+
+/** The "What to bring" step's boxes. */
+export interface ImportBring {
+  watch_history: boolean;
+  collections: boolean;
+  edits: boolean;
 }
 
 export type ImportState = "idle" | "running" | "done" | "failed" | "cancelled";
-export type ImportStep = "scanning" | "profiles" | "matching" | "labels" | "watch_state" | "history";
+export type ImportStep =
+  | "scanning"
+  | "profiles"
+  | "matching"
+  | "labels"
+  | "edits"
+  | "collections"
+  | "watch_state"
+  | "history"
+  | "playlists";
 export type ProfileSkipped = "pin_needed" | "refused" | "no_access";
 
 export interface LibraryReport {
@@ -99,6 +117,8 @@ export interface ProfileReport {
   resumed: number;
   rated: number;
   plays: number;
+  /** Their playlists, made or added to. */
+  playlists: number;
   /** Plex refused some of their lists. */
   incomplete: boolean;
 }
@@ -112,7 +132,28 @@ export interface ImportReport {
   profiles: ProfileReport[];
   labels_added: number;
   dates_moved: number;
+  /** Titles matched again to Plex's TMDB entry. */
+  matches_fixed: number;
+  /** Locked fields brought as edits, by field ("title", "content_rating"). */
+  edits: Partial<Record<EditedField, number>>;
+  collections_made: number;
+  /** Titles put in collections, new or found again. */
+  collection_items: number;
+  /** Smart collections and playlists, which aren't brought. */
+  smart_left: number;
 }
+
+export type EditedField =
+  | "title"
+  | "sort_title"
+  | "original_title"
+  | "summary"
+  | "tagline"
+  | "year"
+  | "release_date"
+  | "content_rating"
+  | "studio"
+  | "genres";
 
 export interface ImportProgress {
   state: ImportState;
