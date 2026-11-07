@@ -333,7 +333,15 @@
     "empty": "Aún no hay nada",
     "scanningHint": "Los nuevos elementos aparecerán aquí en cuanto se encuentren.",
     "emptyHint": "Tus bibliotecas están vacías. Añade contenido a sus carpetas y ejecuta un análisis.",
-    "manage": "Gestionar bibliotecas"
+    "manage": "Gestionar bibliotecas",
+    "banner": {
+      "label": "Destacados",
+      "new": "Novedad",
+      "newIn": "Novedad en {{library}}",
+      "onMyList": "En tu lista",
+      "moreInfo": "Más información",
+      "show": "Mostrar {{title}}"
+    }
   },
   "library": {
     "tabs": {

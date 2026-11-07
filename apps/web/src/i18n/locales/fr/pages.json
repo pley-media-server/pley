@@ -333,7 +333,15 @@
     "empty": "Rien pour l’instant",
     "scanningHint": "Les nouveaux éléments apparaîtront ici dès qu’ils seront trouvés.",
     "emptyHint": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse.",
-    "manage": "Gérer les bibliothèques"
+    "manage": "Gérer les bibliothèques",
+    "banner": {
+      "label": "À la une",
+      "new": "Nouveau",
+      "newIn": "Nouveau dans {{library}}",
+      "onMyList": "Dans votre liste",
+      "moreInfo": "Plus d’infos",
+      "show": "Afficher {{title}}"
+    }
   },
   "library": {
     "tabs": {

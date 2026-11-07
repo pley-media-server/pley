@@ -1,12 +1,12 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { Hub, Library } from "@/api/types";
+import type { Hub, ItemDetail, Library } from "@/api/types";
 import { ListMenuProvider } from "@/components/lists/ListMenu";
 import { makeItem } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { HomePage } from "./HomePage";
-import { libraryUrl } from "@/lib/urls";
+import { itemUrl, libraryUrl } from "@/lib/urls";
 
 const movies: Library = {
   id: 1,
@@ -32,6 +32,39 @@ const hubs: Hub[] = [
   { key: "recently_added_1", title: "Recently Added in Movies", library_id: 1, items: [makeItem({ id: 8, title: "Heat", year: 1995 })] },
   { key: "top_rated_1", title: "Top Rated", library_id: 1, items: [] },
 ];
+
+const shows: Library = { ...movies, id: 2, name: "TV Shows", kind: "shows" };
+
+/** Recently added with backdrops: a film and a show the banner features. */
+const featuredHubs: Hub[] = [
+  {
+    key: "recently_added:1",
+    title: "Recently Added in Movies",
+    library_id: 1,
+    items: [makeItem({ id: 8, title: "Heat", year: 1995, duration_ms: 10_200_000, backdrop_url: "/api/items/8/images/backdrop" })],
+  },
+  {
+    key: "recently_added:2",
+    title: "Recently Added in TV Shows",
+    library_id: 2,
+    items: [makeItem({ id: 9, library_id: 2, kind: "show", title: "Lost", year: 2004, backdrop_url: "/api/items/9/images/backdrop" })],
+  },
+];
+
+function detail(item: Hub["items"][number], overrides: Partial<ItemDetail> = {}): ItemDetail {
+  return {
+    ...item,
+    original_title: null,
+    tagline: null,
+    genres: [],
+    studio: null,
+    content_rating: null,
+    tmdb_id: null,
+    imdb_id: null,
+    files: [],
+    ...overrides,
+  };
+}
 
 function serve({ libraries = [movies], home = hubs }: { libraries?: Library[]; home?: Hub[] | Response } = {}) {
   return mockApi({
@@ -183,5 +216,97 @@ describe("HomePage", () => {
     fail = false;
     await user.click(screen.getByRole("button", { name: "Retry" }));
     expect(await screen.findByRole("heading", { name: "Continue Watching" })).toBeInTheDocument();
+  });
+
+  describe("banner", () => {
+    function serveFeatured() {
+      const [heat, lost] = featuredHubs.map((h) => h.items[0]!);
+      return mockApi({
+        "GET /api/libraries": () => [movies, shows],
+        "GET /api/hubs/home": () => ({ hubs: featuredHubs }),
+        "GET /api/items/8": () =>
+          detail(heat!, { summary: "A thief's last job.", genres: ["Crime", "Thriller"], content_rating: "R", in_watchlist: false }),
+        "GET /api/items/9": () => detail(lost!, { child_count: 6, summary: "Survivors of a crash." }),
+        "PUT /api/watchlist/8": () => undefined,
+      });
+    }
+
+    it("features the newest title, with what its page says", async () => {
+      serveFeatured();
+      renderWithProviders(<HomePage />);
+
+      const banner = await screen.findByRole("region", { name: "Featured" });
+      expect(within(banner).getByText("New in Movies")).toBeInTheDocument();
+      expect(within(banner).getByRole("heading", { name: "Heat" })).toBeInTheDocument();
+      expect(await within(banner).findByText("A thief's last job.")).toBeInTheDocument();
+      expect(within(banner).getByText("2h 50m")).toBeInTheDocument();
+      expect(within(banner).getByText("Crime")).toBeInTheDocument();
+      expect(within(banner).getByRole("button", { name: "Play" })).toBeInTheDocument();
+      expect(within(banner).getByRole("link", { name: "More info" })).toHaveAttribute("href", itemUrl(8));
+      // The rows are still there under it.
+      expect(screen.getByRole("link", { name: "Recently Added in Movies" })).toBeInTheDocument();
+    });
+
+    it("turns to another title when asked", async () => {
+      const user = userEvent.setup();
+      serveFeatured();
+      renderWithProviders(<HomePage />);
+
+      const banner = await screen.findByRole("region", { name: "Featured" });
+      expect(within(banner).getByRole("button", { name: "Show Heat" })).toHaveAttribute("aria-current", "true");
+      await user.click(within(banner).getByRole("button", { name: "Show Lost" }));
+
+      expect(within(banner).getByRole("heading", { name: "Lost" })).toBeInTheDocument();
+      expect(within(banner).getByText("New in TV Shows")).toBeInTheDocument();
+      expect(await within(banner).findByText("6 seasons")).toBeInTheDocument();
+      expect(within(banner).queryByRole("heading", { name: "Heat" })).not.toBeInTheDocument();
+    });
+
+    it("puts the title on My List", async () => {
+      const user = userEvent.setup();
+      const requests = serveFeatured();
+      renderWithProviders(<HomePage />);
+
+      const banner = await screen.findByRole("region", { name: "Featured" });
+      await user.click(await within(banner).findByRole("button", { name: "Add to My List" }));
+      await waitFor(() => expect(requests.some((r) => r.method === "PUT" && r.path === "/api/watchlist/8")).toBe(true));
+    });
+
+    it("features shows when there are no films", async () => {
+      const lost = featuredHubs[1]!.items[0]!;
+      mockApi({
+        "GET /api/libraries": () => [shows],
+        "GET /api/hubs/home": () => ({ hubs: [featuredHubs[1]] }),
+        "GET /api/items/9": () => detail(lost, { child_count: 6 }),
+      });
+      renderWithProviders(<HomePage />);
+
+      const banner = await screen.findByRole("region", { name: "Featured" });
+      expect(within(banner).getByRole("heading", { name: "Lost" })).toBeInTheDocument();
+      expect(within(banner).getByText("New in TV Shows")).toBeInTheDocument();
+      // One title: nothing to turn to.
+      expect(within(banner).queryByRole("button", { name: /^Show / })).not.toBeInTheDocument();
+    });
+
+    it("still features something when everything has been watched", async () => {
+      const seen = { position_ms: 0, watched: true, play_count: 1 };
+      const watched = featuredHubs.map((h) => ({ ...h, items: h.items.map((i) => ({ ...i, user_state: seen })) }));
+      mockApi({
+        "GET /api/libraries": () => [movies, shows],
+        "GET /api/hubs/home": () => ({ hubs: watched }),
+      });
+      renderWithProviders(<HomePage />);
+
+      const banner = await screen.findByRole("region", { name: "Featured" });
+      expect(within(banner).getByRole("heading", { name: "Heat" })).toBeInTheDocument();
+      expect(within(banner).getByRole("button", { name: "Show Lost" })).toBeInTheDocument();
+    });
+
+    it("isn't there without a backdrop to show", async () => {
+      serve();
+      renderWithProviders(<HomePage />);
+      await screen.findByRole("heading", { name: "Continue Watching" });
+      expect(screen.queryByRole("region", { name: "Featured" })).not.toBeInTheDocument();
+    });
   });
 });

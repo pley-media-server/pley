@@ -9,6 +9,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- The web and desktop apps' home screen opens on a banner: the newest
+  films and shows you haven't watched, full width under the top bar, each
+  with its plot, Play, More info and My List, taking turns every few
+  seconds (holding still under the pointer, and for those who ask their
+  system for less motion). Swipe between them on a phone.
+
 ## [0.1.8] - 2026-11-06
 
 ### Added

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Clapperboard, FolderPlus } from "lucide-react";
@@ -6,7 +7,10 @@ import { useHomeHubs, useLibraries } from "@/api/hooks";
 import { useAuth } from "@/auth";
 import { HubRow, HubRowSkeleton } from "@/components/HubRow";
 import { Button, buttonClass, EmptyState } from "@/components/ui";
+import { cn } from "@/lib/cn";
+import { pickFeatured } from "@/lib/featured";
 import { useDocumentTitle } from "@/lib/hooks";
+import { HomeBanner, HomeBannerSkeleton, ROWS_OVERLAP } from "./HomeBanner";
 
 export function HomePage() {
   const { t } = useTranslation(["pages", "common"]);
@@ -14,6 +18,7 @@ export function HomePage() {
   const user = useAuth();
   const libs = useLibraries();
   const hubs = useHomeHubs();
+  const featured = useMemo(() => pickFeatured(hubs.data ?? []), [hubs.data]);
 
   if (libs.data && libs.data.length === 0) {
     return (
@@ -35,11 +40,13 @@ export function HomePage() {
 
   if (hubs.isPending) {
     return (
-      <div className="space-y-9 py-7 sm:space-y-10 sm:py-8">
-        <HubRowSkeleton aspect="thumb" />
-        <HubRowSkeleton />
-        <HubRowSkeleton />
-      </div>
+      <>
+        <HomeBannerSkeleton />
+        <div className={cn("relative space-y-9 pb-7 sm:space-y-10 sm:pb-8", ROWS_OVERLAP)}>
+          <HubRowSkeleton aspect="thumb" />
+          <HubRowSkeleton />
+        </div>
+      </>
     );
   }
 
@@ -75,10 +82,13 @@ export function HomePage() {
   }
 
   return (
-    <div className="space-y-9 py-7 sm:space-y-10 sm:py-8">
-      {visible.map((hub) => (
-        <HubRow key={hub.key} hub={hub} />
-      ))}
-    </div>
+    <>
+      {featured.length ? <HomeBanner featured={featured} /> : null}
+      <div className={cn("relative space-y-9 py-7 sm:space-y-10 sm:py-8", featured.length && [ROWS_OVERLAP, "pt-0 sm:pt-0"])}>
+        {visible.map((hub) => (
+          <HubRow key={hub.key} hub={hub} />
+        ))}
+      </div>
+    </>
   );
 }
