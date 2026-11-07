@@ -770,7 +770,8 @@ sealed class ScrimView : View
         Size = new Size(Ui.Dp(PleyTv.CanvasWidth), Ui.Dp(PleyTv.CanvasHeight));
         var offsets = new PropertyArray();
         var colors = new PropertyArray();
-        foreach (var (at, alpha) in new[] { (0f, 1f), (300f / 800, 0.92f), (560f / 800, 0.85f), (1f, 0f) })
+        // At least 85 % to the text column's end (560), then eased out across the rest of the screen: no edge shows.
+        foreach (var (at, alpha) in new[] { (0f, 1f), (300f / 960, 0.92f), (560f / 960, 0.85f), (640f / 960, 0.72f), (720f / 960, 0.52f), (800f / 960, 0.32f), (880f / 960, 0.14f), (1f, 0f) })
         {
             offsets.Add(new PropertyValue(at));
             colors.Add(new PropertyValue(new Color(PleyColors.Bg.R, PleyColors.Bg.G, PleyColors.Bg.B, alpha)));
@@ -781,7 +782,7 @@ sealed class ScrimView : View
         left.Add(GradientVisualProperty.EndPosition, new PropertyValue(new Vector2(0.5f, 0)));
         left.Add(GradientVisualProperty.StopOffset, new PropertyValue(offsets));
         left.Add(GradientVisualProperty.StopColor, new PropertyValue(colors));
-        Add(new View { Size = new Size(Ui.Dp(800), Ui.Dp(PleyTv.CanvasHeight)), Background = left });
+        Add(new View { Size = new Size(Ui.Dp(960), Ui.Dp(PleyTv.CanvasHeight)), Background = left });
 
         var top = new PropertyMap();
         var topOffsets = new PropertyArray();
