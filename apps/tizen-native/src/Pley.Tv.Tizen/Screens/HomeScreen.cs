@@ -419,17 +419,8 @@ sealed class HomeScreen : ShellPage
             // Why it is there, 12 dp above the title's first line (one line or two).
             var lines = Math.Min(Ui.Dp(TitleBox), title.GetHeightForWidth(Ui.Dp(TextColumn)));
             var why = Text.Label(label.ToUpperInvariant(), PleyType.Label, new Color(PleyColors.Fg.R, PleyColors.Fg.G, PleyColors.Fg.B, 0.85f), width: TextColumn);
-            why.PositionX = Ui.Dp(14);
             why.PositionY = Ui.Dp(TitleBox - 12 - PleyType.Label.Line) - lines;
             text.Add(why);
-            var bar = new View
-            {
-                Size = new Size(Ui.Dp(4), Ui.Dp(16)),
-                Position = new Position(0, why.PositionY + Ui.Dp((PleyType.Label.Line - 16) / 2)),
-                BackgroundColor = PleyColors.Accent,
-                CornerRadius = Ui.Dp(2),
-            };
-            text.Add(bar);
         }
         float y = TitleBox;
         if (h.Context.Length > 0)

@@ -499,10 +499,7 @@ function Hero(p: {
       <div class={`hero${p.hidden ? " hidden" : ""}${p.turns > 1 ? " turns" : ""}`}>
         <div class="hero-title">
           {p.label && (
-            <div class="hero-label t-label one-line">
-              <span class="hero-label-bar" />
-              {p.label}
-            </div>
+            <div class="hero-label t-label one-line">{p.label}</div>
           )}
           <div class="t-hero c-fg lines-2">{info.title}</div>
         </div>
