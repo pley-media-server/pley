@@ -18,6 +18,7 @@ import {
 } from "@/api/plexImport";
 import { useSharedLibraries } from "@/api/hooks";
 import { Button, Field, PageSpinner, TextInput } from "@/components/ui";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useOnChange } from "@/lib/hooks";
 import { choicesFor, firstChoices, libraryProblems, type LibraryChoices } from "./choices";
@@ -386,7 +387,10 @@ function ServerStep({
   const [picked, setPicked] = useState<string | null>(null);
   const [address, setAddress] = useState("");
   const tried = useRef(false);
-  const list = servers.data ?? [];
+  // Only a server the account owns can be imported; one shared with it is
+  // listed to say whose account to sign in with.
+  const list = (servers.data ?? []).filter((s) => s.owned);
+  const shared = (servers.data ?? []).filter((s) => !s.owned);
 
   // One server: nothing to choose, so it's connected to straight away.
   const only = auto && list.length === 1 ? list[0] : undefined;
@@ -422,6 +426,27 @@ function ServerStep({
     );
   }
 
+  if (list.length === 0) {
+    const names = new Intl.ListFormat(currentLocale(), { type: "conjunction" }).format(shared.map((s) => s.name));
+    return (
+      <StepFrame
+        stage="server"
+        title={t("plexImport.server.title")}
+        description={shared.length > 0 ? t("plexImport.server.sharedOnly", { servers: names }) : t("plexImport.server.none")}
+        actions={
+          <>
+            {leave}
+            <Button variant="primary" onClick={onBack}>
+              {t("plexImport.server.otherAccount")}
+            </Button>
+          </>
+        }
+      >
+        {null}
+      </StepFrame>
+    );
+  }
+
   const selected = picked ?? (address.trim() ? null : (list[0]?.id ?? null));
   const submit = (e: FormEvent) => {
     e.preventDefault();
@@ -435,7 +460,7 @@ function ServerStep({
       <StepFrame
         stage="server"
         title={t("plexImport.server.title")}
-        description={list.length === 0 ? t("plexImport.server.none") : t("plexImport.server.description")}
+        description={t("plexImport.server.description")}
         actions={
           <>
             <Button variant="ghost" onClick={onBack}>

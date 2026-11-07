@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { plexImportKeys, type ImportPlan, type ImportProgress, type ImportReport } from "@/api/plexImport";
+import { plexImportKeys, type ImportPlan, type ImportProgress, type ImportReport, type PlexServer } from "@/api/plexImport";
 import type { Library } from "@/api/types";
 import { apiError, mockApi, renderWithProviders } from "@/test/render";
 import { PlexImport } from "./PlexImport";
@@ -72,7 +72,11 @@ const report: ImportReport = {
   dates_moved: 40,
 };
 
-function serve({ signedIn = true, progress = () => idle }: { signedIn?: boolean | null; progress?: () => ImportProgress } = {}) {
+function serve({
+  signedIn = true,
+  progress = () => idle,
+  servers = [{ id: "m1", name: "Den", owned: true, version: "1.41.0" }],
+}: { signedIn?: boolean | null; progress?: () => ImportProgress; servers?: PlexServer[] } = {}) {
   return mockApi({
     "GET /api/import/plex": () => progress(),
     "GET /api/import/plex/pin": () => (signedIn === null ? apiError(409, "plex_signed_out", "sign in with Plex first") : { signed_in: signedIn }),
@@ -80,7 +84,7 @@ function serve({ signedIn = true, progress = () => idle }: { signedIn?: boolean 
       signedIn = false;
       return { code: 1, auth_url: "https://app.plex.tv/auth#?code=abc" };
     },
-    "GET /api/import/plex/servers": () => [{ id: "m1", name: "Den", owned: true, version: "1.41.0" }],
+    "GET /api/import/plex/servers": () => servers,
     "POST /api/import/plex/server": () => ({ name: "Den" }),
     "GET /api/import/plex/plan": () => plan,
     "POST /api/import/plex/start": () => undefined,
@@ -149,6 +153,18 @@ describe("PlexImport", () => {
     expect(screen.getByText("12 watched · 1 to resume · 0 rated · 30 plays")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Done" }));
     expect(onFinish).toHaveBeenCalled();
+  });
+
+  it("asks for the owner's account when the servers are only shared with this one", async () => {
+    const user = userEvent.setup();
+    const requests = serve({ servers: [{ id: "f1", name: "A friend's", owned: false, version: null }] });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+
+    expect(await screen.findByText(/belong to someone else \(A friend's\)/)).toBeInTheDocument();
+    expect(screen.queryByLabelText("Or its address")).not.toBeInTheDocument();
+    expect(requests.some((r) => r.method === "POST" && r.path === "/api/import/plex/server")).toBe(false);
+    await user.click(screen.getByRole("button", { name: "Sign in with another account" }));
+    expect(await screen.findByRole("button", { name: "Sign in with Plex" })).toBeInTheDocument();
   });
 
   it("signs in through Plex's page, opened in a window", async () => {

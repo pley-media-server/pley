@@ -843,12 +843,14 @@
     "server": {
       "title": "¿Qué servidor?",
       "description": "Los servidores Plex de tu cuenta.",
-      "none": "Tu cuenta de Plex no tiene ningún servidor del que Plex pueda informar a Pley. Escribe su dirección.",
+      "none": "Esta cuenta de Plex no es propietaria de ningún servidor Plex. Inicia sesión con la cuenta propietaria del tuyo.",
+      "sharedOnly": "Los servidores Plex que esta cuenta puede abrir son de otra persona ({{servers}}). Solo la cuenta propietaria de un servidor puede traer el historial de todos y las restricciones del hogar, así que inicia sesión con esa. En la página de Plex, cambia antes a esa cuenta si Plex te conecta directamente.",
+      "otherAccount": "Iniciar sesión con otra cuenta",
       "finding": "Buscando tus servidores Plex…",
       "connecting": "Conectando con {{name}}…",
       "version": "Versión {{version}}",
       "address": "O su dirección",
-      "addressHint": "Para un servidor que Plex no muestra, o al que Pley no llega a través de Plex."
+      "addressHint": "Cuando Pley no llega a tu servidor en las direcciones que da Plex."
     },
     "plan": {
       "reading": "Leyendo tus bibliotecas de Plex…",

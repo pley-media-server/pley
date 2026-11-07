@@ -405,10 +405,12 @@ impl Importer {
         let token = session.token.clone().ok_or(ImportError::NotSignedIn)?;
         let plex = self.plex(db, &mut session).await?;
         session.servers = plex.servers(&token).await?;
-        Ok(session
-            .servers
-            .iter()
-            .filter(|s| s.owned)
+        // Those shared with it too, after, for the web app to say whose
+        // account to sign in with instead.
+        let mut servers: Vec<&Resource> = session.servers.iter().collect();
+        servers.sort_by_key(|s| !s.owned);
+        Ok(servers
+            .into_iter()
             .map(|s| ServerChoice {
                 id: s.client_identifier.clone(),
                 name: s.name.clone(),
@@ -424,7 +426,18 @@ impl Importer {
         let token = session.token.clone().ok_or(ImportError::NotSignedIn)?;
         let plex = self.plex(db, &mut session).await?;
         let server = match (id, address) {
-            (_, Some(address)) => plex.server_at(address, &token).await?,
+            (_, Some(address)) => {
+                let server = plex.server_at(address, &token).await?;
+                // The account's token opens a server shared with it too:
+                // only one plex.tv lists as the account's own is imported.
+                if session.servers.is_empty() {
+                    session.servers = plex.servers(&token).await?;
+                }
+                if !session.servers.iter().any(|s| s.client_identifier == server.machine_id && s.owned) {
+                    return Err(ImportError::NotOwned);
+                }
+                server
+            }
             (Some(id), None) => {
                 if session.servers.is_empty() {
                     session.servers = plex.servers(&token).await?;

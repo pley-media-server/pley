@@ -823,12 +823,14 @@
     "server": {
       "title": "Which server?",
       "description": "The Plex servers your account owns.",
-      "none": "Your Plex account doesn't own a server Plex can tell Pley about. Enter its address instead.",
+      "none": "This Plex account doesn't own a Plex server. Sign in with the account that owns yours.",
+      "sharedOnly": "The Plex servers this account can open belong to someone else ({{servers}}). Only the account that owns a server can bring everyone's watch history and the Home's restrictions over, so sign in with that one. On Plex's page, switch to it first if Plex signs you straight in.",
+      "otherAccount": "Sign in with another account",
       "finding": "Finding your Plex servers…",
       "connecting": "Connecting to {{name}}…",
       "version": "Version {{version}}",
       "address": "Or its address",
-      "addressHint": "For a server Plex doesn't list, or Pley can't reach through it."
+      "addressHint": "When Pley can't reach your server at the addresses Plex gives."
     },
     "plan": {
       "reading": "Reading your Plex libraries…",

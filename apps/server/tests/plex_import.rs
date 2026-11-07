@@ -302,7 +302,12 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(r.body["signed_in"], true, "{:?}", r.body);
 
     let r = app.get("/api/import/plex/servers", &admin).await;
-    assert_eq!(r.body, json!([{"id": MACHINE, "name": "Den", "owned": true, "version": "1.43.5"}]));
+    // Its own first; one shared with it, for the web app to say so.
+    assert_eq!(
+        r.body,
+        json!([{"id": MACHINE, "name": "Den", "owned": true, "version": "1.43.5"},
+               {"id": "shared-1", "name": "A friend's", "owned": false, "version": null}])
+    );
     // Only a server the account owns: a friend's has no history to read.
     let r = app.post("/api/import/plex/server", &admin, json!({"id": "shared-1"})).await;
     assert_eq!(r.body["code"], "plex_not_owned", "{:?}", r.body);
