@@ -2376,4 +2376,18 @@ async fn labels_a_profile_never_sees_keep_titles_out_of_discover() {
     // Others see it as before.
     let trending = w.app.get("/api/discover/trending", &w.admin).await;
     assert_eq!(trending.body["results"].as_array().unwrap().len(), 2);
+
+    // A show another TV source named, without TMDB's id, is found by its
+    // other ids.
+    w.add(w.shows, &["shows/Breaking Bad (2008)/Season 01/Breaking Bad - S01E01.mkv"]).await;
+    w.identify("Breaking Bad", "tvdb_id = 81189, tmdb_id = NULL").await;
+    let show = w.app.ids(w.shows, &w.admin).await["Breaking Bad"];
+    let labelled = w.app.patch(&format!("/api/items/{show}"), &w.admin, json!({"labels": ["Not for Ann"]})).await;
+    assert_eq!(labelled.status, StatusCode::OK, "{}", labelled.text());
+    let trending = w.app.get("/api/discover/trending", &w.ann).await;
+    assert_eq!(common::titles(&trending.body["results"]), Vec::<String>::new(), "{}", trending.text());
+    let detail = w.app.get("/api/discover/show/1396", &w.ann).await;
+    assert_eq!(detail.body["status"], json!("restricted"), "{}", detail.text());
+    let refused = w.ask(&w.ann, json!({"kind": "show", "tmdb_id": 1396, "seasons": [2]})).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("restricted")));
 }

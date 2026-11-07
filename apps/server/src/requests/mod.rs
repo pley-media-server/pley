@@ -982,6 +982,10 @@ struct Asked {
 struct Mark {
     /// The title in a library the account can open (the first found).
     item_id: Option<i64>,
+    /// A library's copy of the title, in any library, has a label the
+    /// account never sees (see `catalog::VISIBLE`): Discover leaves it out
+    /// and it can't be asked for, as a title above an age limit.
+    hidden: bool,
     /// Shows: every library show the account can open that is this one.
     shows: Vec<i64>,
     /// Its active requests, whoever made them, newest first.
@@ -1694,18 +1698,13 @@ impl Requests {
                 Err(err) => tracing::debug!("TMDB: {} {}'s details: {err}", key.0.as_str(), key.1),
             }
         }
-        let mut hidden = HashSet::new();
-        for kind in [TitleKind::Movie, TitleKind::Show] {
-            let ids: Vec<i64> = found.results.iter().filter(|t| t.kind == kind).map(|t| t.tmdb_id).collect();
-            hidden.extend(self.hidden_by_labels(user, kind, &ids).await?.into_iter().map(|id| (kind, id)));
-        }
         let mut results = Vec::new();
         for title in &found.results {
             let key = (title.kind, title.tmdb_id);
             let known = details.get(&key);
             if known.is_some_and(|d| d.adult)
                 || (limited && known.is_none_or(|d| restricted(user, d.age())))
-                || hidden.contains(&key)
+                || marks.get(&key).is_some_and(|m| m.hidden)
             {
                 continue;
             }
@@ -1763,6 +1762,13 @@ impl Requests {
             if !others.is_empty() {
                 let more = self.in_library(user_id, kind, &others).await?;
                 found.extend(more.into_iter().map(|(j, item, visible)| (index[j], item, visible)));
+            }
+        }
+        let items: Vec<i64> = found.iter().map(|f| f.1).collect();
+        let hidden = self.hidden_by_labels(caller.user, &items).await?;
+        for (i, item, _) in &found {
+            if hidden.contains(item) {
+                marks.entry(known[*i].tmdb_id).or_default().hidden = true;
             }
         }
         // Libraries the account can't open don't count: it may ask for
@@ -1851,22 +1857,18 @@ impl Requests {
         Ok(found)
     }
 
-    /// TMDB ids among `tmdb_ids` whose library title of `kind` has a label
-    /// `user` never sees (see `catalog::VISIBLE`): Discover leaves them out
-    /// and they can't be asked for, as a title above an age limit.
-    async fn hidden_by_labels(&self, user: &AuthUser, kind: TitleKind, tmdb_ids: &[i64]) -> sqlx::Result<HashSet<i64>> {
-        if user.is_admin || tmdb_ids.is_empty() {
+    /// Of library titles `items`, those with a label `user` never sees.
+    async fn hidden_by_labels(&self, user: &AuthUser, items: &[i64]) -> sqlx::Result<HashSet<i64>> {
+        if user.is_admin || items.is_empty() {
             return Ok(HashSet::new());
         }
         let sql = format!(
-            "SELECT DISTINCT i.tmdb_id FROM user_label_rules r
-               JOIN item_labels l ON l.label = r.label JOIN items i ON i.id = l.item_id
-             WHERE r.user_id = ? AND r.kind = 'hide' AND i.kind = ? AND i.tmdb_id IN ({})",
-            vec!["?"; tmdb_ids.len()].join(",")
+            "SELECT DISTINCT l.item_id FROM user_label_rules r JOIN item_labels l ON l.label = r.label
+             WHERE r.user_id = ? AND r.kind = 'hide' AND l.item_id IN ({})",
+            vec!["?"; items.len()].join(",")
         );
-        let mut query =
-            sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(sql.as_str())).bind(user.id).bind(kind.as_str());
-        for id in tmdb_ids {
+        let mut query = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(sql.as_str())).bind(user.id);
+        for id in items {
             query = query.bind(id);
         }
         Ok(query.fetch_all(&self.db.read).await?.into_iter().collect())
@@ -1966,7 +1968,7 @@ impl Requests {
         let mark = self.marks(caller, kind, &[Known::of(&details)]).await?.remove(&tmdb_id).unwrap_or_default();
         let counts = self.season_counts(&mark.shows).await?;
         let by_age = restricted(user, details.age());
-        let hidden = self.hidden_by_labels(user, kind, &[tmdb_id]).await?.contains(&tmdb_id);
+        let hidden = mark.hidden;
         let restricted = by_age || hidden;
         let lacking = (kind == TitleKind::Show).then(|| lacking(&details, &counts));
         let status = status_of(kind, &mark, lacking.as_deref(), restricted);
@@ -2474,7 +2476,8 @@ impl Requests {
             return Err(RequestError::Restricted(restriction(details.certification.as_deref())));
         }
         // Not told why: the label may say what the profile isn't to read.
-        if self.hidden_by_labels(user, new.kind, &[new.tmdb_id]).await?.contains(&new.tmdb_id) {
+        let marks = self.marks(caller, new.kind, &[Known::of(&details)]).await?;
+        if marks.get(&new.tmdb_id).is_some_and(|m| m.hidden) {
             return Err(RequestError::Restricted(UNAVAILABLE.to_owned()));
         }
         if let Some(n) = new.seasons.iter().flatten().find(|n| !details.seasons.iter().any(|s| s.number == **n)) {
