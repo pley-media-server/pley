@@ -41,7 +41,14 @@
     "hideLabels": "Ne jamais afficher",
     "hideLabelsHint": "Les titres portant l’une de ces étiquettes ne s’affichent jamais, quelle que soit leur classification.",
     "removeLabel": "Retirer {{label}}",
-    "inBoth": "Une étiquette ne peut pas être à la fois toujours et jamais affichée : {{labels}}."
+    "inBoth": "Une étiquette ne peut pas être à la fois toujours et jamais affichée : {{labels}}.",
+    "unrated": {
+      "title_one": "{{count, number}} film ou série n’a pas de classification",
+      "title_many": "{{count, number}} de films et séries n’ont pas de classification",
+      "title_other": "{{count, number}} films et séries n’ont pas de classification",
+      "text": "Une limite d’âge masque les titres sans classification. Les classifications viennent de TMDB, de TheTVDB ou des fichiers NFO placés à côté des médias. Vous pouvez aussi en indiquer une dans Modifier les détails d’un titre, ou laisser passer des titres avec une étiquette « Toujours afficher ».",
+      "tmdbKey": "Celles des films viennent de TMDB, qui demande une clé d’API : <settings>ajoutez une clé gratuite dans les Paramètres</settings>."
+    }
   },
   "labelPicker": {
     "placeholder": "Ajouter une étiquette",

@@ -1558,7 +1558,7 @@ Invitations have fixed limits only.
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/labels` | `admin` | `{ label, items }[]`: every label on a title, with how many carry it, by name |
-| GET | `/api/ratings/systems` | `user` | `{ region, systems: { country, name, ratings: { name, age, kind: "film" \| "tv" \| null }[] }[] }`: the metadata region (`"GB"`) and each country's ratings, youngest first, as ages are read from them. A name is the board's own, or its shortest when that's a sentence; `kind` null is for films and TV alike |
+| GET | `/api/ratings/systems` | `user` | `{ region, systems: { country, name, ratings: { name, age, kind: "film" \| "tv" \| null }[] }[], unrated? }`: the metadata region (`"GB"`) and each country's ratings, youngest first, as ages are read from them. A name is the board's own, or its shortest when that's a sentence; `kind` null is for films and TV alike. For administrators, `unrated: { library_id, items }[]` counts each library's movies and shows without a rating, which an age limit hides |
 
 ## Libraries
 

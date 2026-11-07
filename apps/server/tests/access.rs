@@ -735,3 +735,14 @@ async fn labels_are_shown_and_listed_to_administrators_only() {
     let bad = app.patch(&format!("/api/items/{adult}"), admin, json!({"labels": [long]})).await;
     assert_eq!(bad.status, StatusCode::BAD_REQUEST);
 }
+
+/// The age limit's pickers are told how many movies and shows each library
+/// has without a rating, which a limit hides; administrators only.
+#[tokio::test]
+async fn administrators_are_told_which_libraries_have_unrated_titles() {
+    let w = world().await;
+    let systems = w.app.get("/api/ratings/systems", &w.admin).await.body;
+    assert_eq!(systems["unrated"], json!([{"library_id": w.movies, "items": 1}]), "Home Video; music doesn't count");
+    let theirs = w.app.get("/api/ratings/systems", &w.kid).await.body;
+    assert!(theirs.get("unrated").is_none(), "{theirs}");
+}

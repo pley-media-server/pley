@@ -67,6 +67,10 @@ const ratingSystems: RatingSystems = {
       ],
     },
   ],
+  unrated: [
+    { library_id: 1, items: 3 },
+    { library_id: 2, items: 1 },
+  ],
 };
 
 function serve() {
@@ -279,6 +283,23 @@ describe("UsersSettings", () => {
     expect(within(dialog).getByRole("option", { name: "8" })).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ max_age_system: "age" }));
+  });
+
+  it("says how many titles in the profile's libraries an age limit hides for having no rating", async () => {
+    const user = userEvent.setup();
+    renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    // Kiddo opens Cartoons only.
+    const note = await within(dialog).findByRole("note");
+    expect(note).toHaveTextContent("1 movie or show has no rating");
+    expect(note).toHaveTextContent(/An age limit hides titles without a rating/);
+    await user.click(within(dialog).getByRole("button", { name: "All libraries" }));
+    expect(within(dialog).getByRole("note")).toHaveTextContent("4 movies and shows have no rating");
+    // Without a limit, nothing is hidden.
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");
+    expect(within(dialog).queryByRole("note")).not.toBeInTheDocument();
   });
 
   it("lets a limit follow a birthday", async () => {

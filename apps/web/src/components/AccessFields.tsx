@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Check, Clapperboard, Music, Tv } from "lucide-react";
-import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
+import { Check, Clapperboard, Music, TriangleAlert, Tv } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 import { useLibraries, useRatingSystems } from "@/api/hooks";
-import type { Id, LibraryKind } from "@/api/types";
+import type { Id, LibraryKind, RatingSystems } from "@/api/types";
 import {
   AGE_SYSTEM,
   ageIn,
@@ -24,6 +25,7 @@ import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { inBoth } from "@/lib/labels";
 import { LabelPicker } from "./LabelPicker";
+import { TMDB_KEY_SETTING, useNeedsTmdbKey } from "./MetadataNotice";
 import { Button, Field, Select } from "./ui";
 
 export interface AccessValue {
@@ -277,6 +279,7 @@ export function AccessFields({
           </div>
         ) : null}
         <p className="text-xs text-subtle">{hint}</p>
+        {value.max_age != null ? <UnratedWarning count={unratedIn(systems, value)} /> : null}
       </div>
 
       <fieldset className="space-y-3">
@@ -330,6 +333,44 @@ export function AccessFields({
           </>
         ) : null}
       </fieldset>
+    </div>
+  );
+}
+
+/** The movies and shows without a rating in the libraries `value` opens. */
+function unratedIn(systems: RatingSystems | undefined, value: AccessValue): number {
+  return (systems?.unrated ?? [])
+    .filter((u) => value.all_libraries || value.library_ids.includes(u.library_id))
+    .reduce((count, u) => count + u.items, 0);
+}
+
+/**
+ * Titles without a rating are hidden by an age limit: how many there are,
+ * where ratings come from, and, without a TMDB key, where to add one.
+ */
+function UnratedWarning({ count }: { count: number }) {
+  const { t } = useTranslation("components");
+  const needsKey = useNeedsTmdbKey();
+  if (count === 0) return null;
+  return (
+    <div
+      role="note"
+      className="flex items-start gap-2.5 rounded-lg border border-warning/30 bg-warning/[0.08] px-3 py-2.5 text-xs leading-relaxed text-fg/85"
+    >
+      <TriangleAlert className="mt-px size-4 shrink-0 text-warning" aria-hidden />
+      <div className="min-w-0 space-y-1">
+        <p className="text-sm font-medium text-fg">{t("accessFields.unrated.title", { count })}</p>
+        <p>{t("accessFields.unrated.text")}</p>
+        {needsKey ? (
+          <p>
+            <Trans
+              t={t}
+              i18nKey="accessFields.unrated.tmdbKey"
+              components={{ settings: <Link to={TMDB_KEY_SETTING} className="font-medium text-accent hover:underline" /> }}
+            />
+          </p>
+        ) : null}
+      </div>
     </div>
   );
 }
