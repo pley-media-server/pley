@@ -67,12 +67,15 @@ export function limitMode(
   return shownSystem(systems, value.max_age_system, value.max_age) === AGE_SYSTEM ? "age" : "rating";
 }
 
-/** The country to pick a rating in: the one stored, else the metadata region, else the first. */
+/** The country to pick a rating in: the one stored, else the metadata region, else the US. */
 export function ratingSystem(systems: RatingSystems | undefined, stored: string | null): string | null {
   const countries = systems?.systems ?? [];
   const has = (code: string | null) => !!code && countries.some((s) => s.country === code);
   if (has(stored)) return stored;
   if (systems && has(systems.region)) return systems.region;
+  // A region without ratings here reads ratings without a country as the
+  // US's, as the server does.
+  if (has("US")) return "US";
   return countries[0]?.country ?? null;
 }
 

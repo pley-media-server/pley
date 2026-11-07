@@ -130,6 +130,7 @@ describe("age limits", () => {
     expect(ratingSystem(systems, "CA")).toBe("CA");
     expect(ratingSystem(systems, AGE_SYSTEM)).toBe("US");
     expect(ratingSystem({ ...systems, region: "ZZ" }, null)).toBe("US");
+    expect(ratingSystem({ region: "PL", systems: [...systems.systems].reverse() }, null)).toBe("US");
     expect(ratingSystem(undefined, null)).toBeNull();
   });
 });
