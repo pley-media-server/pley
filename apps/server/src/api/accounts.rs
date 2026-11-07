@@ -217,6 +217,8 @@ pub async fn create_user(
     } else {
         RequestAccess::Ask
     });
+    // The rules are made with the profile: it never exists without them.
+    let mut tx = state.db.write.begin().await?;
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (id, username, password_hash, display_name, is_admin, managed, home, all_libraries, max_age,
                             max_age_system, birth_month, pin_hash, request_access, created_at)
@@ -235,13 +237,14 @@ pub async fn create_user(
     .bind(pin_hash)
     .bind(request_access.as_str())
     .bind(now())
-    .fetch_one(&state.db.write)
+    .fetch_one(&mut *tx)
     .await?;
+    accounts::add_label_rules(&mut tx, id, "show", &show_labels).await?;
+    accounts::add_label_rules(&mut tx, id, "hide", &hide_labels).await?;
+    tx.commit().await?;
     if !body.all_libraries {
         accounts::set_libraries(&state.db, id, &body.library_ids).await?;
     }
-    accounts::set_label_rules(&state.db, id, "show", &show_labels).await?;
-    accounts::set_label_rules(&state.db, id, "hide", &hide_labels).await?;
     Ok((StatusCode::CREATED, Json(admin_view(&state, id).await?)))
 }
 
@@ -1096,16 +1099,8 @@ pub async fn accept_invite(
     .fetch_one(&mut *tx)
     .await?;
     // Made with the account: it never signs in without them.
-    for (kind, labels) in [("show", &invite.show_labels), ("hide", &invite.hide_labels)] {
-        for label in labels {
-            sqlx::query("INSERT OR IGNORE INTO user_label_rules (user_id, label, kind) VALUES (?, ?, ?)")
-                .bind(id)
-                .bind(label)
-                .bind(kind)
-                .execute(&mut *tx)
-                .await?;
-        }
-    }
+    accounts::add_label_rules(&mut tx, id, "show", &invite.show_labels).await?;
+    accounts::add_label_rules(&mut tx, id, "hide", &invite.hide_labels).await?;
     tx.commit().await?;
     if !invite.all_libraries {
         accounts::set_libraries(&state.db, id, &invite.library_ids).await?;

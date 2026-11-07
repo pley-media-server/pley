@@ -249,15 +249,27 @@ pub async fn set_label_rules(db: &Db, user_id: i64, kind: &str, labels: &[String
         .bind(kind)
         .execute(&mut *tx)
         .await?;
+    add_label_rules(&mut tx, user_id, kind, labels).await?;
+    tx.commit().await
+}
+
+/// Adds `labels` to a profile's rules of `kind`, within `conn`'s
+/// transaction: a profile made with rules never exists without them.
+pub async fn add_label_rules(
+    conn: &mut sqlx::SqliteConnection,
+    user_id: i64,
+    kind: &str,
+    labels: &[String],
+) -> sqlx::Result<()> {
     for label in labels {
         sqlx::query("INSERT OR REPLACE INTO user_label_rules (user_id, label, kind) VALUES (?, ?, ?)")
             .bind(user_id)
             .bind(label)
             .bind(kind)
-            .execute(&mut *tx)
+            .execute(&mut *conn)
             .await?;
     }
-    tx.commit().await
+    Ok(())
 }
 
 /// A profile's rules of `kind` ("show" or "hide").
