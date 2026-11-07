@@ -45,6 +45,13 @@ describes how they are made.
 - Plex and Jellyfin apps no longer show titles' labels, which label
   exceptions go by, except to tokens that may manage libraries (Kometa's).
 
+### Fixed
+
+- An NFO file's rating with a slash in it, such as India's "U/A 13+" or
+  Portugal's "M/18", is read whole, no longer as "U" or "M", which allowed
+  younger viewers. A file that gives a bare `<mpaa>` and a
+  `<certification>` naming countries gives the latter's.
+
 ## [0.1.8] - 2026-11-06
 
 ### Added

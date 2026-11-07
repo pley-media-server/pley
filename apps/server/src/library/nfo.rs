@@ -463,10 +463,17 @@ impl Entry {
             .as_deref()
             .and_then(year_of)
             .or_else(|| release_date.as_deref().and_then(|date| date[..4].parse().ok()));
-        let content_ratings = [&self.mpaa, &self.certification]
+        // The field that names its ratings' countries, else the first given:
+        // a bare `<mpaa>PG</mpaa>` doesn't hide `<certification>US:PG / GB:PG`.
+        let given: Vec<Vec<NfoRating>> = [&self.mpaa, &self.certification]
             .into_iter()
             .map(|rating| rating.as_deref().map(content_ratings).unwrap_or_default())
-            .find(|ratings| !ratings.is_empty())
+            .collect();
+        let content_ratings = given
+            .iter()
+            .find(|ratings| ratings.iter().any(|r| r.country.is_some()))
+            .or_else(|| given.iter().find(|ratings| !ratings.is_empty()))
+            .cloned()
             .unwrap_or_default();
         let content_rating = content_rating(&content_ratings);
         let rating = self
@@ -686,7 +693,9 @@ fn genres(raw: &[String]) -> Vec<String> {
 }
 
 /// Content ratings as an NFO writes them: `PG-13`, Kodi's `Rated PG-13`,
-/// `US:PG-13`, or several countries' (`GB:15 / US:R`).
+/// `US:PG-13`, or several countries' (`GB:15 / US:R`, `GB:15/US:R`). A
+/// slash within a rating (India's `U/A 13+`, Portugal's `M/18`) stays in it:
+/// ratings are cut at " / ", or where a country follows the slash.
 fn content_ratings(text: &str) -> Vec<NfoRating> {
     fn without_rated(text: &str) -> &str {
         let text = text.trim();
@@ -695,7 +704,24 @@ fn content_ratings(text: &str) -> Vec<NfoRating> {
             _ => text,
         }
     }
-    text.split('/')
+    fn entries(text: &str) -> Vec<&str> {
+        let (mut cut, mut start) = (Vec::new(), 0);
+        for (i, _) in text.match_indices('/') {
+            let after = &text[i + 1..];
+            let spaced = text[..i].ends_with(' ') && after.starts_with(' ');
+            let country = after.trim_start().split_once(':').is_some_and(|(country, _)| {
+                (2..=3).contains(&country.len()) && country.chars().all(|c| c.is_ascii_alphabetic())
+            });
+            if spaced || country {
+                cut.push(&text[start..i]);
+                start = i + 1;
+            }
+        }
+        cut.push(&text[start..]);
+        cut
+    }
+    entries(text)
+        .into_iter()
         .filter_map(|entry| {
             let (country, rating) = match without_rated(entry).split_once(':') {
                 Some((country, rating)) => (Some(country.trim()), without_rated(rating)),
@@ -1205,8 +1231,18 @@ mod tests {
         assert_eq!(shown("USA:R").as_deref(), Some("R"));
         assert_eq!(shown("TV-14").as_deref(), Some("TV-14"));
         assert_eq!(shown(" / ").as_deref(), None);
+        assert_eq!(shown("GB:15/US:R").as_deref(), Some("R"));
+        // A slash within a rating stays.
+        assert_eq!(shown("IN:U/A 13+").as_deref(), Some("U/A 13+"));
+        assert_eq!(shown("PT:M/18").as_deref(), Some("M/18"));
+        assert_eq!(shown("Rated U/A").as_deref(), Some("U/A"));
+        assert_eq!(super::content_ratings("PT:M/18 / GB:18").len(), 2);
         let nfo = one("<movie><mpaa></mpaa><certification>US:PG-13</certification></movie>");
         assert_eq!(nfo.fields.content_rating.as_deref(), Some("PG-13"));
+        // The field that names its countries wins over a bare one.
+        let nfo = one("<movie><mpaa>PG</mpaa><certification>US:PG / GB:PG</certification></movie>");
+        assert_eq!(nfo.fields.rating_in("GB"), Some((Some("GB"), "PG")));
+        assert_eq!(nfo.fields.content_ratings.len(), 2);
     }
 
     /// The metadata region's rating is used, with its country; the United
