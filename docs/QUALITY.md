@@ -18,13 +18,17 @@ The same on every app, in this order:
 |---|---|---|
 | `original` | Original | The file as it is |
 | `auto` | Automatic | Adjusts to conditions |
-| `30m` | 30 Mbps 4K | 30 Mbps, 2160 lines |
-| `15m` | 15 Mbps 4K | 15 Mbps, 2160 lines |
-| `20m` | 20 Mbps 1080p | 20 Mbps, 1080 lines |
-| `12m` | 12 Mbps 1080p | 12 Mbps, 1080 lines |
-| `8m` | 8 Mbps 1080p | 8 Mbps, 1080 lines |
-| `4m` | 4 Mbps 720p | 4 Mbps, 720 lines |
-| `2m` | 2 Mbps 480p | 2 Mbps, 480 lines |
+| `30m` | 30 Mbps 4K | 30 Mbps, 3840×2160 |
+| `15m` | 15 Mbps 4K | 15 Mbps, 3840×2160 |
+| `20m` | 20 Mbps 1080p | 20 Mbps, 1920×1080 |
+| `12m` | 12 Mbps 1080p | 12 Mbps, 1920×1080 |
+| `8m` | 8 Mbps 1080p | 8 Mbps, 1920×1080 |
+| `4m` | 4 Mbps 720p | 4 Mbps, 1280×720 |
+| `2m` | 2 Mbps 480p | 2 Mbps, 854×480 |
+
+A quality fits the video into its box, keeping its shape: a 2.40:1 film
+at 1080p comes as 1920×800, never wider than the screen it was picked
+for. The lines in a quality's name are its box's height.
 
 When the player knows the file:
 
