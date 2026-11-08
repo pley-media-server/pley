@@ -91,7 +91,7 @@ internal fun TvEpisodesSection(
     Column(Modifier.fillMaxWidth()) {
         if (seasons.seasons.size > 1) {
             SeasonTabs(seasons, onSelectSeason, Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs })
-            Spacer(Modifier.height(PleyTv.HeaderToTiles))
+            Spacer(Modifier.height(TabsToTiles))
         } else {
             BasicText(
                 seasons.selectedTab?.title ?: page.context?.seasonTitle ?: stringResource(R.string.tv_item_episodes),
@@ -255,7 +255,7 @@ private fun EpisodeRow(
 }
 
 /** Tabs are 40 tall (design spec §2.6). */
-private val TabHeight = 40.dp
+internal val TabHeight = 40.dp
 
 /** The first tab's left edge: its label at the gutter. */
 private val TabsStart = PleyTv.Gutter - 20.dp

@@ -5,7 +5,8 @@
 //! the credits, and the buttons Play or Resume, From start, watched, Audio and subtitles, My List,
 //! Trailer, Add to playlist, More), then the season tabs and episodes, the extras, cast and related
 //! rows, and the details with the versions and media info. The page moves so the focused part sits
-//! on its line (tabs at 218, episodes at 272, other rows' headers and the details at 172), and once
+//! on its line (tabs at 218 and their episodes at 286, a single season's episodes at 272, other rows'
+//! headers and the details at 172), and once
 //! focus leaves the hero an info block takes the top. Down past the last thing that takes focus
 //! reads on through the details, 160 dp a step. Side panels choose the version and tracks, rate the
 //! title, go to its show or collections, and act on a tile.
@@ -47,8 +48,11 @@ const TITLE_BOX: f32 = 72.0;
 const TEXT_W: f32 = theme::TEXT_COLUMN_END - theme::GUTTER;
 /// The season tabs' line while focus is in the episodes (`TabsTop`).
 const TABS_TOP: f32 = 218.0;
-/// The episode tiles' line (`EpisodeTilesTop`).
+/// The episode tiles' line under a single season's name (`EpisodeTilesTop`).
 const EPISODES_TOP: f32 = 272.0;
+/// From the season tabs to the episode tiles (`TabsToTiles`): room for the focused tile's growth and ring,
+/// and a gap past them, so the episodes sit at 286.
+const TABS_TO_TILES: f32 = 28.0;
 /// Room kept above the line under the info block (`Clearance`).
 const CLEARANCE: f32 = 12.0;
 /// The season tabs' row starts 20 left of the gutter, so the first label lines up with it.
@@ -1449,10 +1453,14 @@ impl Ids {
     }
 }
 
-/// The section's height: tabs or header, 14, the episode tiles and their captions.
+/// The section's height: the header and 14, or the tabs and 28, then the episode tiles and their captions.
 fn episodes_height(s: &Seasons) -> f32 {
-    let head = if s.tabs.is_empty() { theme::ROW_HEADER_HEIGHT } else { theme::BUTTON_HEIGHT };
-    head + theme::HEADER_TO_TILES + TileKind::Episode.row_height(false)
+    let head = if s.tabs.is_empty() {
+        theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES
+    } else {
+        theme::BUTTON_HEIGHT + TABS_TO_TILES
+    };
+    head + TileKind::Episode.row_height(false)
 }
 
 /// The season tabs (or the season's header) and its episodes.
@@ -1464,7 +1472,7 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
         top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES
     } else {
         draw_tabs(ui, s, view, top, ids, out);
-        top + theme::BUTTON_HEIGHT + theme::HEADER_TO_TILES
+        top + theme::BUTTON_HEIGHT + TABS_TO_TILES
     };
     let Some(episodes) = &s.episodes else { return };
     if episodes.is_empty() {

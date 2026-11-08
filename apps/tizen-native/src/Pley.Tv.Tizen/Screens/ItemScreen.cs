@@ -517,7 +517,7 @@ sealed class ItemScreen : ShellPage
         if (page.Seasons is { } s)
         {
             seasons = new SeasonsView(page, s, gate, images, Shell.FocusRail, OpenEpisode, FocusEpisode, model.SelectSeason, Tree.Focus);
-            // The season tabs at y = 218 and the episodes at 272 (mockup tv-show), under the info block and the focused episode's lines.
+            // The season tabs at y = 218 and their episodes at 286 (a single season's at 272), under the info block and the focused episode's lines.
             column.Add(seasons, seasons.Group, ItemText.ShowsTabs(s) ? 218 : 272 - PleyTv.RowHeaderHeight - PleyTv.HeaderToTiles);
         }
         var origin = page.Origin;
@@ -734,7 +734,8 @@ sealed class SeasonsView : View
             Add(tabs);
             Group.Add(tabGroup);
             tabGroup.Exit = d => d == Direction.Right || (d == Direction.Left && Scrolling.Left(gate, toRail));
-            rowTop = TabHeight + 14;
+            // 28 to the episodes: room for the focused tile's growth and ring, and a gap past them.
+            rowTop = TabHeight + 28;
         }
         else
         {

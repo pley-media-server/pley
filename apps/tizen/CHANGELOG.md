@@ -37,6 +37,8 @@ describes how they are made.
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile. Settings' Always start as
   calls this Profile used last, where it said Ask who's watching.
+- With focus on a show's episodes, its season tabs stay where they were
+  instead of moving up toward the title, as on Android TV.
 
 ### Fixed
 

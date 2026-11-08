@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- A show's episodes sit further below its season tabs, so the focused
+  episode no longer crowds them, as on Android TV.
+
 ## [0.1.8] - 2026-11-08
 
 ### Fixed

@@ -212,7 +212,7 @@ class TvItemPageTest {
         compose.onNode(hasText("Season 25") and isSelected()).assertExists()
         press(Key.DirectionDown)
         compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
-        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
+        assertEquals(TabbedEpisodeTilesTop.value, focusedTop(), 1f)
         // Back to the first tab: the row scrolls back with it.
         press(Key.DirectionUp)
         compose.onNode(isFocused()).assert(hasText("Season 25"))

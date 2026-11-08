@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -205,7 +206,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
 
     Box(Modifier.fillMaxSize()) {
         TvBackdrop(backdrop, page.context?.showTitle ?: page.title, scrim = BackdropScrim.Item)
-        ItemColumn(list, focus) {
+        ItemColumn(list, focus, tabs = (page.seasons?.seasons?.size ?: 0) > 1) {
             item(key = "hero", contentType = "hero") {
                 TvHero(
                     page = page,
@@ -388,7 +389,7 @@ private fun LazyListScope.rowsOf(
  * The page's column (design spec §2.4, §4.4): one list from the hero down,
  * which scrolls so that what has focus sits where the spec puts it — the
  * hero at the top; the season tabs at y = 218 and the episodes under them
- * at 272; other rows' tiles at 210, their header at 172; the details'
+ * at 286 (a single season's at 272, under its name); other rows' tiles at 210, their header at 172; the details'
  * header there too — and, once focus has left the hero, draws nothing
  * above that line, so the rows pass under the info block. It moves itself
  * to a row's tile, and back to the hero, as a page of rows does
@@ -399,11 +400,12 @@ private fun LazyListScope.rowsOf(
  * steps aside then and the text has the screen down from the safe area.
  */
 @Composable
-private fun ItemColumn(state: LazyListState, focus: ItemPageFocus, content: LazyListScope.() -> Unit) {
+private fun ItemColumn(state: LazyListState, focus: ItemPageFocus, tabs: Boolean, content: LazyListScope.() -> Unit) {
     val density = LocalDensity.current
     val column = rememberTvRowColumnFocus(state, with(density) { RowTilesTop.toPx() })
-    column.tileTops[EPISODE_ROW] = with(density) { EpisodeTilesTop.toPx() }
-    val spec = remember(density, state, focus, column) { column.spec(ItemPageSpec(density, state, focus)) }
+    val episodesTop = if (tabs) TabbedEpisodeTilesTop else EpisodeTilesTop
+    column.tileTops[EPISODE_ROW] = with(density) { episodesTop.toPx() }
+    val spec = remember(density, state, focus, column, episodesTop) { column.spec(ItemPageSpec(density, state, focus, episodesTop)) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTvRowColumn provides column) {
         LazyColumn(
             state = state,
@@ -436,9 +438,10 @@ private class ItemPageSpec(
     density: Density,
     private val state: LazyListState,
     private val focus: ItemPageFocus,
+    episodesTop: Dp,
 ) : BringIntoViewSpec {
     private val tabs = with(density) { TabsTop.toPx() }
-    private val episodes = with(density) { EpisodeTilesTop.toPx() }
+    private val episodes = with(density) { episodesTop.toPx() }
     private val rows = with(density) { RowTilesTop.toPx() }
     private val header = with(density) { PleyTv.FocusedRowHeaderY.toPx() }
     private val bottom = with(density) { TvSafeArea.Vertical.toPx() }
@@ -553,8 +556,14 @@ private fun Block(width: androidx.compose.ui.unit.Dp, height: androidx.compose.u
 /** The season tabs' top once focus is in the episodes (mockup tv-show). */
 internal val TabsTop = 218.dp
 
-/** The episode tiles' top, under the tabs. */
+/** The episode tiles' top under a single season's name. */
 internal val EpisodeTilesTop = 272.dp
+
+/** From the season tabs to the episode tiles: room for the focused tile's growth and ring, and a gap past them. */
+internal val TabsToTiles = 28.dp
+
+/** The episode tiles' top under the season tabs. */
+internal val TabbedEpisodeTilesTop = TabsTop + TabHeight + TabsToTiles
 
 /** Other rows' tiles' top: their header at y = 172. */
 internal val RowTilesTop = PleyTv.FocusedRowHeaderY + PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles

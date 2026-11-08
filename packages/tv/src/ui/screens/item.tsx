@@ -35,7 +35,7 @@ import { PanelRow, Round } from "../kit/buttons";
 import { F, FocusWatch, G } from "../kit/focusable";
 import { Icon } from "../kit/icons";
 import { PanelHeading, PanelTitle, SidePanel, TextDialog } from "../kit/panel";
-import { Row, rowHeight, SectionPage, type Section } from "../kit/row";
+import { Row, ROW_GAP, rowHeight, SectionPage, type Section } from "../kit/row";
 import { ArtTile, Tile, TILES } from "../kit/tile";
 import type { Entry } from "../shell/navigator";
 import { ActionsPanel } from "./actions";
@@ -414,7 +414,8 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
     sections.push({
       key: "episodes",
       height: (multiSeason ? 0 : 38) + TILES.episode.h + 14 + 34,
-      anchor: multiSeason ? EPISODES_LINE : EPISODES_LINE - 38,
+      // Under the tabs, a row's gap below them, so they stay on their line; a single season's name takes 38.
+      anchor: multiSeason ? TABS_LINE + 40 + ROW_GAP : EPISODES_LINE - 38,
       render: (onFocus) =>
         eps === null || eps === undefined ? (
           <div style={`height:${152 + (multiSeason ? 0 : 38)}px`} />
