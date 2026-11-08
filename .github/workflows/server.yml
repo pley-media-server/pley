@@ -25,6 +25,7 @@ on:
       - docs/TRANSCODER.md
       - .dockerignore
       - deploy/docker/**
+      - deploy/ffmpeg/**
       - deploy/unraid/**
       - deploy/windows/**
       - deploy/systemd/**
@@ -59,6 +60,7 @@ on:
       - docs/TRANSCODER.md
       - .dockerignore
       - deploy/docker/**
+      - deploy/ffmpeg/**
       - deploy/unraid/**
       - deploy/windows/**
       - deploy/systemd/**
@@ -276,15 +278,48 @@ jobs:
           - { arch: arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    # Where pley-ffmpeg goes when this run builds it.
+    services:
+      registry:
+        image: registry:3
+        ports:
+          - 5000:5000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: network=host
+      # The image's pley-ffmpeg: the Dockerfile names the recipe's tag, and
+      # one the FFmpeg workflow hasn't published yet (a pull request that
+      # changes it) is built here.
+      - name: pley-ffmpeg
+        id: ffmpeg
+        run: |
+          tag=$(sh deploy/ffmpeg/tag.sh)
+          image="ghcr.io/pley-media-server/pley-ffmpeg:$tag"
+          grep -qx "ARG FFMPEG_IMAGE=$image" deploy/docker/Dockerfile ||
+            { echo "::error::deploy/docker/Dockerfile must name $image"; exit 1; }
+          if docker buildx imagetools inspect "$image" >/dev/null 2>&1; then
+            echo "image=$image" >> "$GITHUB_OUTPUT"
+          else
+            echo "image=localhost:5000/pley-ffmpeg:$tag" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.ffmpeg.outputs.build == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: deploy/ffmpeg
+          push: true
+          tags: ${{ steps.ffmpeg.outputs.image }}
+          cache-from: type=gha,scope=pley-ffmpeg-${{ matrix.arch }}
+          cache-to: type=gha,mode=max,scope=pley-ffmpeg-${{ matrix.arch }}
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: deploy/docker/Dockerfile
+          build-args: FFMPEG_IMAGE=${{ steps.ffmpeg.outputs.image }}
           push: false
           load: true
           tags: pley:local
