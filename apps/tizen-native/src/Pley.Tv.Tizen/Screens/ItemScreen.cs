@@ -712,6 +712,8 @@ sealed class SeasonsView : View
     SeasonsSection? section;
     string shownEpisodes = "";
     long? restingTab;
+    float tabScroll;
+    Animation? tabAnimation;
     readonly float rowTop;
 
     public SeasonsView(ItemPage page, SeasonsSection seasons, KeyRepeatGate gate, Images images, Func<bool> toRail,
@@ -814,10 +816,12 @@ sealed class SeasonsView : View
             foreach (var tab in seasons.Seasons)
             {
                 var button = new ButtonView(tab.Title, ButtonKind.Text, () => select(tab.Id)) { PositionX = Ui.Dp(x) };
+                var left = x;
                 button.Item.FocusChanged += on =>
                 {
                     tabRest.Stop();
                     if (!on) return;
+                    ScrollTabs(left, button.WidthDp);
                     restingTab = tab.Id;
                     tabRest.Start();
                 };
@@ -837,9 +841,28 @@ sealed class SeasonsView : View
         }
     }
 
+    /// <summary>
+    /// More tabs than the screen holds slide, just far enough to show the focused one between its
+    /// place at the start and the right safe edge (the Android app's TvScrolling.inView).
+    /// </summary>
+    void ScrollTabs(float left, float width)
+    {
+        var room = PleyTv.CanvasWidth - (PleyTv.Gutter - 20) - PleyTv.SafeHorizontal;
+        var scroll = tabScroll;
+        if (left < scroll) scroll = left;
+        else if (left + width > scroll + room) scroll = left + width - room;
+        if (scroll == tabScroll) return;
+        tabScroll = scroll;
+        tabAnimation?.Stop();
+        tabAnimation = Scrolling.Glide(gate);
+        tabAnimation.AnimateTo(tabs, "PositionX", Ui.Dp(PleyTv.Gutter - 20 - tabScroll));
+        tabAnimation.Play();
+    }
+
     protected override void Dispose(global::Tizen.NUI.DisposeTypes type)
     {
         if (Disposed) return;
+        tabAnimation?.Stop();
         tabRest.Stop();
         tabRest.Dispose();
         base.Dispose(type);

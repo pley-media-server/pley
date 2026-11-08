@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A show with more seasons than fit across the screen had its later season
+  tabs off the screen's edge, where focus went out of sight. The tabs now
+  slide along as focus moves, as on Android TV and LG.
+
 ## [0.1.8] - 2026-11-08
 
 ### Added

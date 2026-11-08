@@ -19,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
@@ -54,7 +55,7 @@ import org.robolectric.annotation.Config
  * the page glides to a row and back to its buttons as a page of rows does.
  * A movie or show from a request shows its stage, and a show with seasons
  * left to ask for offers Request more seasons. Up from a show's episodes
- * goes to the shown season's tab.
+ * goes to the shown season's tab, and tabs past the screen's edge scroll in.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -158,10 +159,10 @@ class TvItemPageTest {
         assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true), stack.last())
     }
 
-    @Test
-    fun upFromAnEpisodeGoesToItsSeasonsTab() {
-        val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = 12)
-        val seasons = (1..3).map { s -> ItemSummary(id = 10L + s, libraryId = 1, kind = ItemKind.Season, title = "Season $s", index = s, parentId = 1) }
+    /** A show of [count] seasons of four episodes each. */
+    private fun showOf(count: Int): ItemData {
+        val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
+        val seasons = (1..count).map { s -> ItemSummary(id = 100L + s, libraryId = 1, kind = ItemKind.Season, title = "Season $s", index = s, parentId = 1) }
         val episodes = seasons.associate { season ->
             season.id to (1..4).map { e ->
                 ItemSummary(
@@ -170,7 +171,12 @@ class TvItemPageTest {
                 )
             }
         }
-        show(ItemData(show, children = mapOf(1L to seasons) + episodes))
+        return ItemData(show, children = mapOf(1L to seasons) + episodes)
+    }
+
+    @Test
+    fun upFromAnEpisodeGoesToItsSeasonsTab() {
+        show(showOf(3))
         val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
         while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
         compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
@@ -182,6 +188,37 @@ class TvItemPageTest {
         compose.onNode(hasTestTag(TV_SEASON_TABS)).assertExists()
         compose.onNode(hasText("Season 1") and isSelected()).assertExists()
         compose.onNode(hasText("Season 2") and isSelected()).assertDoesNotExist()
+    }
+
+    @Test
+    fun seasonTabsPastTheScreenScrollIntoViewAndShowTheirSeason() {
+        // More than the screen holds, even with Robolectric's narrow text.
+        show(showOf(25))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        for (s in 2..25) {
+            press(Key.DirectionRight)
+            compose.onNode(isFocused()).assert(hasText("Season $s"))
+            // Each tab keeps its own size, a pill one line tall and wider than that, and comes on screen.
+            val tab = compose.onNode(isFocused()).getBoundsInRoot()
+            assertTrue("Season $s: $tab", tab.left.value >= 0f && tab.right.value <= 960f)
+            assertTrue("Season $s: $tab", tab.bottom - tab.top < 50.dp && tab.right - tab.left > tab.bottom - tab.top)
+        }
+        // Focus resting on Season 25 shows it, and Down goes to its episodes, captions on screen.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        compose.onNode(hasText("Season 25") and isSelected()).assertExists()
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
+        // Back to the first tab: the row scrolls back with it.
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 25"))
+        press(Key.DirectionLeft, 24)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        assertTrue(compose.onNode(isFocused()).getBoundsInRoot().left.value >= 0f)
     }
 
     @Test

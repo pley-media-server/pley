@@ -38,6 +38,12 @@ describes how they are made.
   profile still shows every profile. Settings' Always start as
   calls this Profile used last, where it said Ask who's watching.
 
+### Fixed
+
+- A show with more seasons than fit across the screen had its later season
+  tabs off the screen's edge, where focus went out of sight. The tabs now
+  slide along as focus moves, as on Android TV and LG.
+
 ### Security
 
 - A crafted file's picture subtitles (PGS, DVB, VobSub) can no longer keep

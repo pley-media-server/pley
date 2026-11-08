@@ -8,6 +8,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- On Android TV, a show with more seasons than fit across the screen
+  showed its later season tabs squeezed into a thin column that pushed the
+  episodes' lengths off the bottom, and the seasons after it couldn't be
+  chosen. The tabs now keep their size and slide along as focus moves, so
+  every season can be chosen.
+
 ## [0.1.9] - 2026-11-08
 
 ### Added

@@ -1,9 +1,12 @@
 package app.pley.android.ui.tv.item
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -15,8 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
@@ -126,8 +131,11 @@ internal fun TvEpisodesSection(
  * the focused tab in [accent][PleyColors.Accent], at 1.05. Focus coming
  * into the tabs (Up from the episodes, Down from the buttons) lands on the
  * shown season's tab, as on the Samsung app, never on the tab nearest the
- * focus, which would show its season.
+ * focus, which would show its season. A show with more tabs than the screen
+ * holds scrolls them, each tab at its own width, just far enough to show the
+ * focused one ([TvScrolling.inView]).
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf<Long?>(null) }
@@ -136,23 +144,30 @@ private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifi
         if (rested != null && rested != seasons.selected) onSelect(rested)
     }
     val selected = remember { FocusRequester() }
-    Row(
-        modifier
-            .padding(start = PleyTv.Gutter - 20.dp, end = TvSafeArea.Horizontal)
-            .focusProperties { onEnter = { runCatching { selected.requestFocus() } } }
-            .focusGroup()
-            .testTag(TV_SEASON_TABS),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        seasons.seasons.forEach { season ->
-            val current = season.id == seasons.selected
-            SeasonTab(
-                title = season.title,
-                current = current,
-                onFocus = { focused = season.id },
-                onClick = { onSelect(season.id) },
-                modifier = if (current) Modifier.focusRequester(selected) else Modifier,
-            )
+    val density = LocalDensity.current
+    val scroll = rememberScrollState()
+    val inView = remember(density) { with(density) { TvScrolling.inView(TabsStart.toPx(), TvSafeArea.Horizontal.toPx()) } }
+    CompositionLocalProvider(LocalBringIntoViewSpec provides inView) {
+        Row(
+            modifier
+                .fillMaxWidth()
+                .focusProperties { onEnter = { runCatching { selected.requestFocus() } } }
+                .focusGroup()
+                .horizontalScroll(scroll)
+                .padding(start = TabsStart, end = TvSafeArea.Horizontal)
+                .testTag(TV_SEASON_TABS),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            seasons.seasons.forEach { season ->
+                val current = season.id == seasons.selected
+                SeasonTab(
+                    title = season.title,
+                    current = current,
+                    onFocus = { focused = season.id },
+                    onClick = { onSelect(season.id) },
+                    modifier = if (current) Modifier.focusRequester(selected) else Modifier,
+                )
+            }
         }
     }
 }
@@ -190,7 +205,7 @@ private fun SeasonTab(title: String, current: Boolean, onFocus: () -> Unit, onCl
             .padding(horizontal = 20.dp),
         contentAlignment = Alignment.Center,
     ) {
-        BasicText(title, style = PleyType.Tv.Label.copy(color = text))
+        BasicText(title, style = PleyType.Tv.Label.copy(color = text), softWrap = false, maxLines = 1)
     }
 }
 
@@ -241,6 +256,9 @@ private fun EpisodeRow(
 
 /** Tabs are 40 tall (design spec §2.6). */
 private val TabHeight = 40.dp
+
+/** The first tab's left edge: its label at the gutter. */
+private val TabsStart = PleyTv.Gutter - 20.dp
 
 internal const val TV_SEASON_TABS = "pley.tv.item.seasons"
 

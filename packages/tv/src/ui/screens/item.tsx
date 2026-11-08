@@ -28,6 +28,7 @@ import { currentLanguage, formatDate, t } from "../../i18n";
 import { mayAsk } from "../../requests";
 import { audioStreams, subtitleStreams, withTracks } from "../../player/plan";
 import { useUi } from "../context";
+import { nudge } from "../focus";
 import { artCandidates } from "../kit/art";
 import { Backdrop, useRested } from "../kit/backdrop";
 import { PanelRow, Round } from "../kit/buttons";
@@ -46,6 +47,9 @@ import { ItemRequestLine, useItemRequest } from "./request-kit";
 const TABS_LINE = 218;
 const EPISODES_LINE = 272;
 const ROWS_LINE = 172;
+/** The first season tab's left edge (its label at the gutter), and the safe area's width at the right. */
+const TABS_X = 76;
+const SAFE_X = 48;
 /**
  * The hero's section: 52 above what it holds, the focused button's label
  * (23 under the row) and 8 below. It follows what the hero holds, as the
@@ -842,17 +846,34 @@ function PlayIcon() {
   );
 }
 
+/**
+ * The season tabs (SeasonTabs): more than the screen holds slide, just far
+ * enough to show the focused one between x 76 and the safe area's edge, as
+ * on Android and LG.
+ */
 function SeasonTabs(p: { seasons: ItemSummary[]; shown: number | null; onFocus: () => void; onShow: (id: number) => void }) {
+  const ui = useUi();
   const [focused, setFocused] = useState<number | null>(null);
   const rested = useRested(focused);
   useEffect(() => {
     if (rested !== null && rested !== p.shown) p.onShow(rested);
   }, [rested]);
   const group = useRef<HTMLElement | null>(null);
+  const [shift, setShift] = useState(0);
+  useEffect(
+    () =>
+      ui.focus.onChange((el) => {
+        const row = group.current;
+        if (!el || !row || !row.contains(el)) return;
+        setShift((s) => nudge(s, el.offsetLeft, el.offsetLeft + el.offsetWidth, TABS_X, 960 - SAFE_X));
+      }),
+    [],
+  );
   return (
     <G
       kind="row"
       class="season-tabs"
+      style={shift ? `transform:translateX(${-shift}px)` : undefined}
       elRef={(el) => (group.current = el)}
       onEnter={() => group.current?.querySelector<HTMLElement>(`[data-fid="season/${p.shown}"]`) ?? null}
     >
