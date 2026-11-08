@@ -92,8 +92,8 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
     let mut show = Vec::new();
     if let Some((first, rest)) = limited.split_first() {
         for label in &first.always {
-            let everywhere = rest.iter().all(|r| r.always.iter().any(|l| same(l, label)));
-            if everywhere && !hide.iter().any(|h| same(h, label)) {
+            let everywhere = rest.iter().all(|r| r.always.iter().any(|l| same_label(l, label)));
+            if everywhere && !hide.iter().any(|h| same_label(h, label)) {
                 push_unique(&mut show, label);
             }
         }
@@ -268,8 +268,14 @@ fn same(a: &str, b: &str) -> bool {
     a.trim().to_lowercase() == b.trim().to_lowercase()
 }
 
+/// Labels compare as the database's `COLLATE NOCASE` does: "kids" is
+/// "Kids", but "Été" isn't "été", so a rule finds the titles it names.
+fn same_label(a: &str, b: &str) -> bool {
+    a.trim().eq_ignore_ascii_case(b.trim())
+}
+
 fn push_unique(list: &mut Vec<String>, label: &str) {
-    if !list.iter().any(|l| same(l, label)) {
+    if !list.iter().any(|l| same_label(l, label)) {
         list.push(label.to_owned());
     }
 }
@@ -355,6 +361,12 @@ mod tests {
         let l = limits("contentRating=G|label=Mixed&label!=Mixed", "", "", "US");
         assert!(l.show.is_empty());
         assert_eq!(l.hide, ["Mixed"]);
+    }
+
+    #[test]
+    fn labels_differing_only_in_case_are_one_as_the_database_says() {
+        let l = limits("label!=Kids&label!=kids&label!=%C3%89t%C3%A9&label!=%C3%A9t%C3%A9", "", "", "US");
+        assert_eq!(l.hide, ["Kids", "Été", "été"]);
     }
 
     #[test]
