@@ -17,6 +17,12 @@ describes how they are made.
   seconds (holding still under the pointer, and for those who ask their
   system for less motion). Swipe between them on a phone.
 
+### Fixed
+
+- A Live TV channel given a guide channel by hand shows its programmes
+  in moments, not after the next guide refresh: the source's guide is
+  read again for it.
+
 ## [0.1.8] - 2026-11-06
 
 ### Added

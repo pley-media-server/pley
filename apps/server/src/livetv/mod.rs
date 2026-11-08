@@ -466,6 +466,10 @@ pub struct LiveTv {
     downloads: PathBuf,
     /// Sources being read now, and when each was last tried.
     refreshing: Mutex<HashSet<i64>>,
+    /// Sources whose guide is read once more when their read ends: a guide
+    /// channel was set meanwhile, maybe after the read chose what to keep.
+    /// Taken with `refreshing` locked first.
+    guide_again: Mutex<HashSet<i64>>,
     tried: Mutex<HashMap<i64, Instant>>,
     refresh_lock: tokio::sync::Mutex<()>,
     /// Every channel, in order, read once and kept until something changes:
@@ -665,6 +669,7 @@ impl LiveTv {
             pictures_pruned: Mutex::default(),
             downloads,
             refreshing: Mutex::default(),
+            guide_again: Mutex::default(),
             tried: Mutex::default(),
             refresh_lock: tokio::sync::Mutex::new(()),
             lineup: Mutex::default(),
@@ -1230,22 +1235,67 @@ impl LiveTv {
             self.changed();
         }
         if guide {
-            let result = self.refresh_guide(id).await;
-            match &result {
-                Ok(Some(n)) => tracing::info!(source = id, programs = n, "live TV guide read"),
-                Ok(None) => {}
-                Err(err) => tracing::warn!(source = id, "reading the live TV guide failed: {err:#}"),
-            }
-            if let Err(err) = result {
-                let _ = sqlx::query("UPDATE live_sources SET guide_error = ? WHERE id = ?")
-                    .bind(format!("{err:#}"))
-                    .bind(id)
-                    .execute(&self.db.write)
-                    .await;
-            }
+            self.read_guide(id).await;
         }
-        self.refreshing.lock().remove(&id);
+        loop {
+            {
+                let mut refreshing = self.refreshing.lock();
+                if !self.guide_again.lock().remove(&id) {
+                    refreshing.remove(&id);
+                    break;
+                }
+            }
+            self.read_guide(id).await;
+        }
         self.changed();
+    }
+
+    /// Reads a source's guide, saying in the source how it went.
+    async fn read_guide(&self, id: i64) {
+        let result = self.refresh_guide(id).await;
+        match &result {
+            Ok(Some(n)) => tracing::info!(source = id, programs = n, "live TV guide read"),
+            Ok(None) => {}
+            Err(err) => tracing::warn!(source = id, "reading the live TV guide failed: {err:#}"),
+        }
+        if let Err(err) = result {
+            let _ = sqlx::query("UPDATE live_sources SET guide_error = ? WHERE id = ?")
+                .bind(format!("{err:#}"))
+                .bind(id)
+                .execute(&self.db.write)
+                .await;
+        }
+    }
+
+    /// Reads again, in the background, the guides that channels `ids` now
+    /// take programmes from but have none of. A guide read keeps the guide
+    /// channels some channel wanted then, so one set by hand since has
+    /// nothing until the next read. A source being read now is read once
+    /// more after it.
+    async fn read_guides_wanted(self: &Arc<Self>, ids: &[i64]) -> Result<(), AppError> {
+        let ids: HashSet<i64> = ids.iter().copied().collect();
+        let lineup = self.lineup().await?;
+        let unguided: HashSet<i64> =
+            lineup.rows.iter().filter(|c| ids.contains(&c.id) && !lineup.has_guide(c)).map(|c| c.source_id).collect();
+        if unguided.is_empty() {
+            return Ok(());
+        }
+        let sources = self.source_rows().await.map_err(|e| AppError::Internal(e.into()))?;
+        for source in sources {
+            if !source.enabled || source.effective_guide_url().is_none() || !unguided.contains(&source.id) {
+                continue;
+            }
+            {
+                let refreshing = self.refreshing.lock();
+                if refreshing.contains(&source.id) {
+                    self.guide_again.lock().insert(source.id);
+                    continue;
+                }
+            }
+            let this = self.clone();
+            tokio::spawn(async move { this.refresh(source.id, false, true).await });
+        }
+        Ok(())
     }
 
     async fn list_channels(&self, source: &SourceRow) -> anyhow::Result<Listed> {
@@ -2059,7 +2109,7 @@ impl LiveTv {
     }
 
     /// Changes channels `ids` as `patch` says.
-    pub async fn patch_channels(&self, ids: &[i64], patch: &ChannelPatch) -> Result<(), AppError> {
+    pub async fn patch_channels(self: &Arc<Self>, ids: &[i64], patch: &ChannelPatch) -> Result<(), AppError> {
         if ids.is_empty() {
             return Ok(());
         }
@@ -2108,6 +2158,12 @@ impl LiveTv {
             }
         }
         self.changed();
+        // The channels are saved: the guide coming later is no reason to fail.
+        if guide.is_some()
+            && let Err(err) = self.read_guides_wanted(ids).await
+        {
+            tracing::warn!("reading the guides of channels set again failed: {err}");
+        }
         Ok(())
     }
 

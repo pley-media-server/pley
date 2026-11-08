@@ -36,6 +36,8 @@ struct Provider {
     open: AtomicUsize,
     most: AtomicUsize,
     opened: AtomicUsize,
+    /// Guides sent.
+    guides: AtomicUsize,
 }
 
 struct Open(Arc<Provider>);
@@ -56,16 +58,20 @@ fn guide_xml() -> Vec<u8> {
 <tv>
   <channel id="one.test"><display-name>One</display-name></channel>
   <channel id="two.test"><display-name>Two HD</display-name></channel>
+  <channel id="quiz.test"><display-name>Quiz Time</display-name></channel>
   <programme start="{}" stop="{}" channel="one.test"><title>The News</title><desc>What happened.</desc><category>News</category></programme>
   <programme start="{}" stop="{}" channel="one.test"><title>The Film</title></programme>
   <programme start="{}" stop="{}" channel="two.test"><title>Football</title><live/></programme>
+  <programme start="{}" stop="{}" channel="quiz.test"><title>The Quiz</title></programme>
 </tv>"#,
         at(-600),
         at(1200),
         at(1200),
         at(7200),
         at(-60),
-        at(5400)
+        at(5400),
+        at(-300),
+        at(3600)
     );
     let mut gz = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::fast());
     gz.write_all(xml.as_bytes()).unwrap();
@@ -108,7 +114,13 @@ async fn provider() -> (String, Arc<Provider>) {
     );
     let app = Router::new()
         .route("/list.m3u", get(move || async move { playlist }))
-        .route("/guide.xml.gz", get(|| async { ([(header::CONTENT_TYPE, "application/gzip")], guide_xml()) }))
+        .route(
+            "/guide.xml.gz",
+            get(|State(counts): State<Arc<Provider>>| async move {
+                counts.guides.fetch_add(1, Ordering::SeqCst);
+                ([(header::CONTENT_TYPE, "application/gzip")], guide_xml())
+            }),
+        )
         .route("/logo.png", get(|| async { ([(header::CONTENT_TYPE, "image/png")], PNG) }))
         .route(
             "/live/{n}",
@@ -308,6 +320,54 @@ async fn channels_guide_favourites_and_connections() {
     let mut bad = settings;
     bad["timeshift_minutes"] = json!(0);
     assert_eq!(app.put("/api/live/settings", &admin, bad).await.status, StatusCode::BAD_REQUEST);
+}
+
+/// A guide channel set by hand that no channel wanted when the guide was
+/// read has its programmes at once: the guide is read again for it, and
+/// only for it.
+#[tokio::test]
+async fn a_guide_channel_set_by_hand_has_its_programmes_at_once() {
+    let (base, provider) = provider().await;
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let added = app
+        .post(
+            "/api/live/sources",
+            &admin,
+            json!({"name": "Provider", "kind": "m3u", "url": format!("{base}/list.m3u")}),
+        )
+        .await;
+    assert_eq!(added.status, StatusCode::CREATED, "{:?}", added.body);
+    wait_until_read(&app, &admin).await;
+    assert_eq!(provider.guides.load(Ordering::SeqCst), 1);
+    let channels = app.get("/api/live/channels", &admin).await.body;
+    let ten = &channels[2];
+    assert_eq!(ten["name"], "Ten");
+    assert!(ten["now"].is_null() && ten["has_guide"] == false, "{ten}");
+    let ten_id = ten["id"].as_i64().unwrap();
+
+    // The guide lists Quiz Time, which no channel wanted when it was read.
+    let set = app.patch("/api/live/lineup", &admin, json!({"ids": [ten_id], "guide_id": "quiz.test"})).await;
+    assert_eq!(set.status, StatusCode::NO_CONTENT);
+    let mut now = Value::Null;
+    for _ in 0..100 {
+        now = app.get(&format!("/api/live/channels/{ten_id}"), &admin).await.body["now"].clone();
+        if !now.is_null() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(now["title"], "The Quiz", "read again for it");
+    wait_until_read(&app, &admin).await;
+    assert_eq!(provider.guides.load(Ordering::SeqCst), 2);
+
+    // One's guide channel has its programmes already: no read for it.
+    let set = app.patch("/api/live/lineup", &admin, json!({"ids": [ten_id], "guide_id": "one.test"})).await;
+    assert_eq!(set.status, StatusCode::NO_CONTENT);
+    let ten = app.get(&format!("/api/live/channels/{ten_id}"), &admin).await.body;
+    assert_eq!(ten["now"]["title"], "The News");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert_eq!(provider.guides.load(Ordering::SeqCst), 2);
 }
 
 #[tokio::test]

@@ -4127,6 +4127,10 @@ interface LiveTuner {                  // a connection in use
 - **Hidden channels** are nobody's to watch, administrators' included,
   until shown again. Names, numbers and guide channels set in the lineup
   stay when the source is read again.
+- **Guide channels set by hand.** A guide read keeps the programmes of the
+  guide channels the source's channels take then. A guide channel set in
+  the lineup that has no programmes yet has the source's guide read again
+  in the background, and once more after a read under way.
 
 ## Users *(admin)*
 
