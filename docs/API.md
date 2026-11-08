@@ -4103,7 +4103,7 @@ interface LiveLineupChannel {          // a channel as administrators see it
   guide_id: string;                    // the guide channel it uses
   hidden: boolean; has_guide: boolean;
   source_number: string | null; source_guide_id: string; // as the source has them
-  matched_guide_id: string | null;     // the guide's channel of its name, when the source names none
+  matched_guide_id: string | null;     // when the guide lacks source_guide_id: the same id written otherwise (case, dots, dashes), else the guide's channel of its name
   custom_name: string | null; custom_number: string | null; custom_guide_id: string | null; // as set
   offline: boolean; offline_since: number | null;
 }
