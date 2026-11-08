@@ -12,8 +12,10 @@ use super::{truthy, wants_summaries};
 use crate::access;
 use crate::auth::{AdminUser, AuthUser};
 use crate::catalog::{self, ItemSummary, LibraryQuery, ME_CTE, SortKey, VISIBLE, VISIBLE_ITEMS};
+use crate::collections;
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
+use crate::hub_layout::{self, Builtin, HubKind, HubPlace};
 use crate::i18n;
 use crate::library::{LibraryKind, LibraryRow, get_library, set_order};
 use crate::state::AppState;
@@ -462,38 +464,170 @@ pub async fn hubs(
     user: AuthUser,
     headers: HeaderMap,
     Path(id): Path<i64>,
+    Query(query): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<Hubs>> {
     let lib = visible_library(&state, &user, id).await?;
     let language = i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await?;
-    let kind = lib.kind();
-    let video = kind != LibraryKind::Music;
-    let top = kind.top_level_kind();
+    let summaries = wants_summaries(&query);
+    let shown = hub_layout::shown(&state.db, &lib, hub_layout::Page::Library).await?;
+    // The rows don't depend on each other: fetched at the same time.
+    let hubs = futures::future::try_join_all(
+        shown.into_iter().map(|kind| library_hub(&state, &user, &lib, kind, language, false, summaries)),
+    )
+    .await?;
+    Ok(Json(Hubs { hubs: hubs.into_iter().flatten().filter(|h| !h.items.is_empty()).collect() }))
+}
+
+/// A library's row as Settings → Libraries arranges it, with its title.
+#[derive(Serialize)]
+pub struct HubLayoutRow {
+    #[serde(flatten)]
+    place: HubPlace,
+    title: String,
+}
+
+#[derive(Serialize)]
+pub struct HubLayout {
+    hubs: Vec<HubLayoutRow>,
+}
+
+#[derive(Deserialize)]
+pub struct HubLayoutBody {
+    hubs: Vec<HubPlace>,
+}
+
+/// `GET /api/libraries/{id}/hub-layout`: the library's rows in order, where
+/// each shows, those that show nowhere included.
+pub async fn hub_layout(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult<Json<HubLayout>> {
+    let lib = library_or_404(&state, id).await?;
+    let places = hub_layout::layout(&state.db, &lib).await?;
+    layout_dto(&state, &admin, &lib, places, &headers).await
+}
+
+/// `PUT /api/libraries/{id}/hub-layout`: arranges the library's rows (see
+/// [`hub_layout::set_layout`]).
+pub async fn set_hub_layout(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+    Json(body): Json<HubLayoutBody>,
+) -> ApiResult<Json<HubLayout>> {
+    let lib = library_or_404(&state, id).await?;
+    let places = hub_layout::set_layout(&state.db, &lib, &body.hubs).await?;
+    state.events.send(ServerEvent::LibraryChanged { library_id: lib.id });
+    layout_dto(&state, &admin, &lib, places, &headers).await
+}
+
+/// `DELETE /api/libraries/{id}/hub-layout`: the library's rows as usual
+/// again, no collection promoted.
+pub async fn reset_hub_layout(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    headers: HeaderMap,
+    Path(id): Path<i64>,
+) -> ApiResult<Json<HubLayout>> {
+    let lib = library_or_404(&state, id).await?;
+    hub_layout::reset(&state.db, lib.id).await?;
+    state.events.send(ServerEvent::LibraryChanged { library_id: lib.id });
+    let places = hub_layout::layout(&state.db, &lib).await?;
+    layout_dto(&state, &admin, &lib, places, &headers).await
+}
+
+async fn layout_dto(
+    state: &AppState,
+    admin: &AuthUser,
+    lib: &LibraryRow,
+    places: Vec<HubPlace>,
+    headers: &HeaderMap,
+) -> ApiResult<Json<HubLayout>> {
+    let language = i18n::for_user(&state.db, admin.id, &state.settings.get().language, headers).await?;
+    let titles: HashMap<i64, String> =
+        sqlx::query_as::<_, (i64, String)>("SELECT id, title FROM collections WHERE library_id = ?")
+            .bind(lib.id)
+            .fetch_all(&state.db.read)
+            .await?
+            .into_iter()
+            .collect();
+    let hubs = places
+        .into_iter()
+        .map(|place| {
+            let title = match place.kind() {
+                Some(HubKind::Collection(id)) => titles.get(&id).cloned().unwrap_or_default(),
+                Some(HubKind::Builtin(builtin)) => i18n::t(language, builtin_title(builtin, lib.kind())),
+                None => String::new(),
+            };
+            HubLayoutRow { place, title }
+        })
+        .collect();
+    Ok(Json(HubLayout { hubs }))
+}
+
+/// The title of a built-in row on its library's page.
+fn builtin_title(builtin: Builtin, kind: LibraryKind) -> &'static str {
+    match (builtin, kind) {
+        (Builtin::ContinueWatching, _) => "hubs.continueWatching",
+        (Builtin::RecentlyAdded, LibraryKind::Music) => "hubs.recentlyAddedAlbums",
+        (Builtin::RecentlyAdded, LibraryKind::Shows) => "hubs.recentlyAddedShows",
+        (Builtin::RecentlyAdded, LibraryKind::Movies) => "hubs.recentlyAdded",
+        (Builtin::RecentlyReleased, _) => "hubs.recentlyReleased",
+        (Builtin::TopRated, _) => "hubs.topRated",
+    }
+}
+
+/// Row `kind` of `lib` as `user` sees it: on the library's page, or on Home,
+/// where a built-in row says which library it is of. `None` for a
+/// collection that is gone.
+pub(super) async fn library_hub(
+    state: &AppState,
+    user: &AuthUser,
+    lib: &LibraryRow,
+    kind: HubKind,
+    language: &str,
+    home: bool,
+    summaries: bool,
+) -> ApiResult<Option<Hub>> {
     let db = &state.db;
-    // The hubs don't depend on each other: fetched at the same time.
-    let (continuing, added, released, rated) = tokio::try_join!(
-        // Video-only hubs are empty for music.
-        async { if video { catalog::continue_watching(db, user.id, Some(lib.id), 20).await } else { Ok(Vec::new()) } },
-        catalog::recently_added(db, user.id, lib.id, kind.as_str(), 30),
-        async { if video { catalog::recently_released(db, user.id, lib.id, top, 30).await } else { Ok(Vec::new()) } },
-        async { if video { catalog::top_rated(db, user.id, lib.id, top, 30).await } else { Ok(Vec::new()) } },
-    )?;
-    let added_title = match kind {
-        LibraryKind::Music => "hubs.recentlyAddedAlbums",
-        LibraryKind::Shows => "hubs.recentlyAddedShows",
-        LibraryKind::Movies => "hubs.recentlyAdded",
+    let top = lib.kind().top_level_kind();
+    let limit = if home { 20 } else { 30 };
+    let (key, title, rows) = match kind {
+        HubKind::Collection(id) => {
+            let Some((title, rows)) = collections::first_items(db, user, id, limit).await? else { return Ok(None) };
+            (kind.key(), title, rows)
+        }
+        HubKind::Builtin(builtin) => {
+            let rows = match builtin {
+                Builtin::ContinueWatching => catalog::continue_watching(db, user.id, Some(lib.id), 20).await?,
+                Builtin::RecentlyAdded => {
+                    catalog::recently_added(db, user.id, lib.id, lib.kind().as_str(), limit as i64).await?
+                }
+                Builtin::RecentlyReleased => catalog::recently_released(db, user.id, lib.id, top, limit as i64).await?,
+                Builtin::TopRated => catalog::top_rated(db, user.id, lib.id, top, limit as i64).await?,
+            };
+            let title = if home {
+                let key = match builtin {
+                    Builtin::ContinueWatching => "hubs.continueWatchingIn",
+                    Builtin::RecentlyAdded => "hubs.recentlyAddedIn",
+                    Builtin::RecentlyReleased => "hubs.recentlyReleasedIn",
+                    Builtin::TopRated => "hubs.topRatedIn",
+                };
+                // "in" reads right whatever the library is called.
+                i18n::t_with(language, key, &[("library", &lib.name)])
+            } else {
+                i18n::t(language, builtin_title(builtin, lib.kind()))
+            };
+            (format!("{}:{}", builtin.key(), lib.id), title, rows)
+        }
     };
-    let hub = |key: &str, title: &str, rows: Vec<catalog::ItemRow>| Hub {
-        key: format!("{key}:{id}"),
-        title: i18n::t(language, title),
-        library_id: Some(id),
-        items: rows.iter().map(|r| r.to_summary()).collect(),
-    };
-    let mut hubs = vec![
-        hub("continue_watching", "hubs.continueWatching", continuing),
-        hub("recently_added", added_title, added),
-        hub("recently_released", "hubs.recentlyReleased", released),
-        hub("top_rated", "hubs.topRated", rated),
-    ];
-    hubs.retain(|h| !h.items.is_empty());
-    Ok(Json(Hubs { hubs }))
+    Ok(Some(Hub {
+        key,
+        title,
+        library_id: Some(lib.id),
+        items: rows.iter().map(|r| r.to_summary_with(summaries)).collect(),
+    }))
 }

@@ -84,6 +84,10 @@ pub fn router(state: AppState) -> Router {
         .route("/libraries/{id}/items", get(libraries::items))
         .route("/libraries/{id}/filters", get(libraries::filters))
         .route("/libraries/{id}/hubs", get(libraries::hubs))
+        .route(
+            "/libraries/{id}/hub-layout",
+            get(libraries::hub_layout).put(libraries::set_hub_layout).delete(libraries::reset_hub_layout),
+        )
         .route("/libraries/{id}/collections", get(collections::list).post(collections::create))
         .route("/collections/{id}", get(collections::get).patch(collections::update).delete(collections::delete))
         .route("/collections/{id}/items", post(collections::add_items))

@@ -1578,7 +1578,10 @@ Invitations have fixed limits only.
 | POST | `/api/libraries/scan` | `admin` | `202`: scans every library |
 | GET | `/api/libraries/{id}/items` | `library` | `{ total, items: ItemSummary[] }`: top-level items, paged |
 | GET | `/api/libraries/{id}/filters` | `library` | `{ genres: string[], years: number[], resolutions: string[], dynamic_ranges: string[] }`: what the titles the user may see can be filtered by |
-| GET | `/api/libraries/{id}/hubs` | `library` | `{ hubs: Hub[] }`: `continue_watching:{id}`, `recently_added:{id}`, `recently_released:{id}`, `top_rated:{id}`; music libraries only the second; empty hubs left out |
+| GET | `/api/libraries/{id}/hubs` | `library` | `{ hubs: Hub[] }`: the library's rows that show on its page, in order (see Rows under [Libraries](#libraries)); empty ones left out |
+| GET | `/api/libraries/{id}/hub-layout` | `admin` | `{ hubs: HubLayoutRow[] }`: every row of the library, in order, those that show nowhere included |
+| PUT | `/api/libraries/{id}/hub-layout` | `admin` | `{ hubs: HubPlace[] }` → `{ hubs: HubLayoutRow[] }`: arranges the rows |
+| DELETE | `/api/libraries/{id}/hub-layout` | `admin` | `{ hubs: HubLayoutRow[] }`: the rows as usual again, no collection promoted |
 
 **Order.** Libraries have one shared order, chosen by administrators (new
 libraries go last). A user may choose their own (Settings → Libraries).
@@ -1593,6 +1596,28 @@ open only some libraries see those, in that order.
 - `PUT /api/me/libraries/order`: `400` when an id is listed twice, `409`
   when `ids` aren't the libraries the user may open. It and `DELETE` send
   `libraries_changed` to the user's event streams.
+
+**Rows.** A library has rows: built-in ones, and its collections that
+administrators promote to rows. Each row shows on the library's page, on
+administrators' Home, on everyone else's Home, or nowhere, in an order
+administrators choose (Settings → Libraries → Rows on Home and its page),
+or that a tool chooses through the Plex-compatible API's
+[hub management](COMPATIBILITY.md#hub-management).
+
+- Built-in rows: `continue_watching`, `recently_added`,
+  `recently_released` and `top_rated`; music libraries have
+  `recently_added` alone. Until administrators arrange them, every one
+  shows on the library's page and `recently_added` on Home too.
+- A collection's row is `collection:{id}`: its title and items, in its
+  order, as each viewer may see them. It goes when the collection does.
+- `HubPlace` is `{ hub, on_library, on_admin_home, on_home }`, and
+  `HubLayoutRow` adds its `title`. `PUT` takes the rows in order: each at
+  most once, collections of that library only (else `400`, as for a row
+  that isn't one), at most 200. Built-in rows it leaves out go last, where
+  they usually show. A row stays in its place while it shows nowhere.
+- In `Hub`s, a built-in row is keyed `{row}:{library_id}`, and a
+  collection's `collection:{id}`. On Home, built-in rows say which library
+  they are of ("Top Rated in Movies").
 
 **`GET /api/libraries/{id}/items`** query:
 
@@ -1814,8 +1839,10 @@ WebVTT file named `.srt` is taken as WebVTT). Its language is kept as ISO
 | GET | `/api/search?q=&limit=` | `library` | `{ items: ItemSummary[], people: PersonSummary[], channels: LiveChannel[] }`: `items`, `people` and `channels` each up to `limit` (default 40, 1 to 200): titles, people, and Live TV channels by name, number or what's on, for those Live TV is open to. The apps ask for 200 |
 
 - **Home** hubs, empty ones left out: `continue_watching` (in progress and
-  next up), then `my_list` ("My List", its 20 newest), then
-  `recently_added:<library_id>` per library in the libraries' order.
+  next up), then `my_list` ("My List", its 20 newest), then each
+  library's rows that show on Home (Rows, under [Libraries](#libraries)),
+  the libraries in their order: `recently_added:<library_id>` unless
+  administrators chose otherwise.
 - **Search**: the closest matches first in each of `items`, `people` and
   `channels`: a name that is the whole of `q` (case, accents, apostrophes
   and punctuation aside; a title's sort title counts, so "office" is the

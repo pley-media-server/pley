@@ -9,14 +9,16 @@ use axum::extract::{Path, Query, State};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Response};
 
-use super::keys::Key;
+use super::keys::{self, Key};
 use super::meta::{self, Detail, Extras, Sections, kind_for_number, kinds_of, plex_type, section_type, type_number};
 use super::pictures;
 use super::{Node, Page, Params, PlexAdmin, PlexError, PlexInfo, PlexResult, PlexUser};
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemRow, ME_CTE, VISIBLE, VISIBLE_ITEMS};
+use crate::collections;
 use crate::db::Db;
 use crate::events::ServerEvent;
+use crate::hub_layout::{self, Builtin, HubKind};
 use crate::library::LibraryRow;
 use crate::listing::{SectionQuery, bitrates_for, parse_sort, people_role, sort_rows};
 use crate::people;
@@ -984,6 +986,99 @@ pub async fn section_recently_added(
     Ok(list_container(Some(&lib), &info, nodes, total, &page))
 }
 
+/// The identifier of a library's row (see [`crate::hub_layout`]): Plex's
+/// own for the built-in ones, `custom.collection.{section}.{key}` for a
+/// collection, as tools that manage hubs (Agregarr) know them.
+pub(super) fn hub_identifier(lib: &LibraryRow, kind: HubKind) -> String {
+    let prefix = match section_type(lib) {
+        "movie" => "movie",
+        "show" => "tv",
+        _ => "music",
+    };
+    match kind {
+        // Continue Watching of shows is their next episodes: Plex's On Deck.
+        HubKind::Builtin(Builtin::ContinueWatching) if prefix == "tv" => "tv.ondeck".to_owned(),
+        HubKind::Builtin(Builtin::ContinueWatching) => format!("{prefix}.inprogress"),
+        HubKind::Builtin(Builtin::RecentlyAdded) => format!("{prefix}.recentlyadded"),
+        HubKind::Builtin(Builtin::RecentlyReleased) => format!("{prefix}.recentlyreleased"),
+        HubKind::Builtin(Builtin::TopRated) => format!("{prefix}.toprated"),
+        HubKind::Collection(id) => format!("custom.collection.{}.{}", lib.id, keys::collection(id)),
+    }
+}
+
+/// The title of a built-in row on its library's page (a collection's row
+/// has the collection's).
+pub(super) fn builtin_hub_title(builtin: Builtin) -> &'static str {
+    match builtin {
+        Builtin::ContinueWatching => "Continue Watching",
+        Builtin::RecentlyAdded => "Recently Added",
+        Builtin::RecentlyReleased => "Recently Released",
+        Builtin::TopRated => "Top Rated",
+    }
+}
+
+/// How rows are shown: the libraries the user may open, their items' detail,
+/// how many of each row, and whether on Home.
+struct Shown<'a> {
+    libraries: &'a [LibraryRow],
+    sections: &'a Sections,
+    detail: Detail,
+    count: i64,
+    home: bool,
+}
+
+/// Row `kind` of `lib` as a `Hub`, or `None` when it shows the user nothing.
+async fn layout_hub(
+    state: &AppState,
+    user: &AuthUser,
+    lib: &LibraryRow,
+    kind: HubKind,
+    shown: &Shown<'_>,
+) -> PlexResult<Option<Node>> {
+    let count = shown.count;
+    let top = lib.kind().top_level_kind();
+    let (title, key, rows) = match kind {
+        HubKind::Collection(id) => {
+            let limit = usize::try_from(count).unwrap_or(0);
+            let Some((title, rows)) = collections::first_items(&state.db, user, id, limit).await? else {
+                return Ok(None);
+            };
+            (title, Some(format!("/library/collections/{}/children", keys::collection(id))), rows)
+        }
+        HubKind::Builtin(builtin) => {
+            let (key, rows) = match builtin {
+                Builtin::ContinueWatching => {
+                    (None, continue_rows(state, user, shown.libraries, Some(lib.id), count).await?)
+                }
+                Builtin::RecentlyAdded => (
+                    Some(format!("/library/sections/{}/recentlyAdded", lib.id)),
+                    recent_rows(state, user, lib, count).await?,
+                ),
+                Builtin::RecentlyReleased => {
+                    (None, catalog::recently_released(&state.db, user.id, lib.id, top, count).await?)
+                }
+                Builtin::TopRated => (None, catalog::top_rated(&state.db, user.id, lib.id, top, count).await?),
+            };
+            let title = builtin_hub_title(builtin);
+            let title = if shown.home { format!("{title} in {}", lib.name) } else { title.to_owned() };
+            (title, key, rows)
+        }
+    };
+    if rows.is_empty() {
+        return Ok(None);
+    }
+    let identifier = match (kind, section_type(lib)) {
+        // Home's Recently Added, as Plex calls it there.
+        (HubKind::Builtin(Builtin::RecentlyAdded), "movie") if shown.home => "home.movies.recent".to_owned(),
+        (HubKind::Builtin(Builtin::RecentlyAdded), "show") if shown.home => "home.television.recent".to_owned(),
+        (HubKind::Builtin(Builtin::RecentlyAdded), _) if shown.home => "home.music.recent".to_owned(),
+        _ => hub_identifier(lib, kind),
+    };
+    let t = hub_type(&rows);
+    let items = item_nodes(state, &rows, shown.sections, shown.detail).await?;
+    Ok(Some(hub(identifier, title, t, key, items)))
+}
+
 fn hub(identifier: String, title: String, hub_type: &str, key: Option<String>, items: Vec<Node>) -> Node {
     let ids: Vec<String> = items
         .iter()
@@ -1088,25 +1183,13 @@ pub async fn hubs(State(state): State<AppState>, PlexUser(user): PlexUser, param
             items,
         ));
     }
+    // Then each library's rows on Home, as arranged (see crate::hub_layout).
+    let page = hub_layout::Page::Home { admin: user.account_admin };
     for lib in &libraries {
-        let rows = recent_rows(&state, &user, lib, count).await?;
-        if rows.is_empty() {
-            continue;
+        for kind in hub_layout::shown(&state.db, lib, page).await? {
+            let shown = Shown { libraries: &libraries, sections: &sections, detail, count, home: true };
+            hubs.extend(layout_hub(&state, &user, lib, kind, &shown).await?);
         }
-        let area = match section_type(lib) {
-            "movie" => "movies",
-            "show" => "television",
-            _ => "music",
-        };
-        let t = hub_type(&rows);
-        let items = item_nodes(&state, &rows, &sections, detail).await?;
-        hubs.push(hub(
-            format!("home.{area}.recent"),
-            format!("Recently Added in {}", lib.name),
-            t,
-            Some(format!("/library/sections/{}/recentlyAdded", lib.id)),
-            items,
-        ));
     }
     if let Some(identifiers) = params.get("identifier") {
         let wanted: Vec<&str> = identifiers.split(',').collect();
@@ -1132,42 +1215,17 @@ pub async fn section_hubs(
     let count = params.parse::<i64>("count").unwrap_or(12).clamp(1, 100);
     let sections = Sections::new(&libraries);
     let detail = listing_detail(&params);
-    let prefix = match section_type(&lib) {
-        "movie" => "movie",
-        "show" => "tv",
-        _ => "music",
-    };
-    let top = lib.kind().top_level_kind();
-    let mut candidates: Vec<(String, String, Option<String>, Vec<ItemRow>)> = Vec::new();
-    if top != "artist" {
-        let rows = continue_rows(&state, &user, &libraries, Some(lib.id), count).await?;
-        candidates.push((format!("{prefix}.inprogress"), "Continue Watching".into(), None, rows));
-    }
-    candidates.push((
-        format!("{prefix}.recentlyadded"),
-        "Recently Added".into(),
-        Some(format!("/library/sections/{}/recentlyAdded", lib.id)),
-        recent_rows(&state, &user, &lib, count).await?,
-    ));
-    if top != "artist" {
-        let rows = catalog::recently_released(&state.db, user.id, lib.id, top, count).await?;
-        candidates.push((format!("{prefix}.recentlyreleased"), "Recently Released".into(), None, rows));
-        let rows = catalog::top_rated(&state.db, user.id, lib.id, top, count).await?;
-        candidates.push((format!("{prefix}.toprated"), "Top Rated".into(), None, rows));
-    }
     let mut mc = Node::container()
         .attr("allowSync", false)
         .attr("librarySectionID", lib.id)
         .attr("librarySectionTitle", &lib.name);
     let mut size = 0;
-    for (identifier, title, key, rows) in candidates {
-        if rows.is_empty() {
-            continue;
+    for kind in hub_layout::shown(&state.db, &lib, hub_layout::Page::Library).await? {
+        let shown = Shown { libraries: &libraries, sections: &sections, detail, count, home: false };
+        if let Some(hub) = layout_hub(&state, &user, &lib, kind, &shown).await? {
+            mc.push(hub);
+            size += 1;
         }
-        let t = hub_type(&rows);
-        let items = item_nodes(&state, &rows, &sections, detail).await?;
-        mc.push(hub(identifier, title, t, key, items));
-        size += 1;
     }
     mc.set("size", size);
     Ok(mc)

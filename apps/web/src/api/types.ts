@@ -484,6 +484,22 @@ export interface Hub {
   items: ItemSummary[];
 }
 
+/** A row of a library and where it shows (Settings → Libraries → Rows). */
+export interface HubPlace {
+  /** A built-in row (`recently_added`) or a collection's (`collection:{id}`). */
+  hub: string;
+  /** On the library's own page. */
+  on_library: boolean;
+  /** On administrators' Home. */
+  on_admin_home: boolean;
+  /** On everyone else's Home. */
+  on_home: boolean;
+}
+
+export interface HubLayoutRow extends HubPlace {
+  title: string;
+}
+
 export interface SubtitleTrack {
   index: number;
   codec: string;

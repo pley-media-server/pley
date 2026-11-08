@@ -15,6 +15,8 @@ import type {
   FsListing,
   HistoryPage,
   Hub,
+  HubLayoutRow,
+  HubPlace,
   Id,
   Invite,
   InviteCheck,
@@ -63,6 +65,7 @@ export const keys = {
   libraryItems: (id: Id, q: LibraryItemsQuery) => ["library", id, "items", q] as const,
   libraryFilters: (id: Id) => ["library", id, "filters"] as const,
   libraryHubs: (id: Id) => ["library", id, "hubs"] as const,
+  hubLayout: (id: Id) => ["library", id, "hub-layout"] as const,
   homeHubs: ["hubs", "home"] as const,
   watchlist: ["watchlist"] as const,
   item: (id: Id) => ["item", id] as const,
@@ -511,6 +514,50 @@ export function useLibraryHubs(id: Id, enabled = true) {
     queryFn: () => api.get<{ hubs: Hub[] }>(`/api/libraries/${id}/hubs`),
     enabled,
   });
+}
+
+type HubLayout = { hubs: HubLayoutRow[] };
+
+/** A library's rows, in order, and where each shows (administrators). */
+export function useHubLayout(id: Id, enabled = true) {
+  return useQuery({
+    queryKey: keys.hubLayout(id),
+    queryFn: () => api.get<HubLayout>(`/api/libraries/${id}/hub-layout`),
+    enabled,
+    select: (d) => d.hubs,
+  });
+}
+
+/**
+ * Arranges a library's rows: shown at once, then as the server says. Changes
+ * are saved one after another; each is shown as it is made, so the next is
+ * made from it even while the one before is being saved.
+ */
+export function useArrangeHubs(id: Id) {
+  const qc = useQueryClient();
+  const settled = (data: HubLayout) => {
+    qc.setQueryData(keys.hubLayout(id), data);
+    // Home and the library's page show them.
+    void qc.invalidateQueries({ queryKey: keys.homeHubs });
+    void qc.invalidateQueries({ queryKey: keys.libraryHubs(id) });
+  };
+  const saving = useMutation({
+    scope: { id: `hub-layout-${id}` },
+    mutationFn: (hubs: HubPlace[]) => api.put<HubLayout>(`/api/libraries/${id}/hub-layout`, { hubs }),
+    onSuccess: settled,
+    onError: () => void qc.invalidateQueries({ queryKey: keys.hubLayout(id) }),
+  });
+  const arrange = (hubs: HubPlace[], options?: { onError?: (e: unknown) => void }) => {
+    const titles = new Map((qc.getQueryData<HubLayout>(keys.hubLayout(id))?.hubs ?? []).map((h) => [h.hub, h.title]));
+    qc.setQueryData<HubLayout>(keys.hubLayout(id), { hubs: hubs.map((h) => ({ ...h, title: titles.get(h.hub) ?? "" })) });
+    saving.mutate(hubs, options);
+  };
+  const reset = useMutation({
+    scope: { id: `hub-layout-${id}` },
+    mutationFn: () => api.del<HubLayout>(`/api/libraries/${id}/hub-layout`),
+    onSuccess: settled,
+  });
+  return { arrange, reset };
 }
 
 export interface LibraryInput {

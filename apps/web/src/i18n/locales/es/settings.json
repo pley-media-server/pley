@@ -424,7 +424,8 @@
       "typePath": "…o escribe la ruta de una carpeta",
       "folderPath": "Ruta de la carpeta",
       "layout": "Estructura recomendada: <path>{{layout}}</path>"
-    }
+    },
+    "rows": "Filas del inicio y de su página"
   },
   "users": {
     "title": "Usuarios",
@@ -820,5 +821,29 @@
     "backUpNow": "Hacer copia ahora",
     "backedUp": "Copia de seguridad hecha ({{size}})",
     "noBackups": "Aún no hay copias de seguridad."
+  },
+  "hubLayout": {
+    "title": "Filas de {{name}}",
+    "hint": "Elige dónde se muestra cada fila y en qué orden. Las colecciones también pueden ser filas. Las herramientas que gestionan los hubs de Plex, como Agregarr y Kometa, cambian estas filas.",
+    "list": "Filas",
+    "collection": "Colección",
+    "places": {
+      "on_library": "Biblioteca",
+      "on_admin_home": "Inicio admins",
+      "on_home": "Inicio otros"
+    },
+    "show": {
+      "on_library": "Mostrar {{name}} en la página de la biblioteca",
+      "on_admin_home": "Mostrar {{name}} en el inicio de los administradores",
+      "on_home": "Mostrar {{name}} en el inicio de los demás"
+    },
+    "drag": "Arrastra para reordenar",
+    "moveUp": "Subir {{name}}",
+    "moveDown": "Bajar {{name}}",
+    "remove": "Dejar de mostrar {{name}} como fila",
+    "add": "Añadir una colección como fila…",
+    "moved": "{{name}} movido a la posición {{position}} de {{total}}",
+    "useUsual": "Filas habituales",
+    "backToUsual": "Filas de nuevo como siempre"
   }
 }

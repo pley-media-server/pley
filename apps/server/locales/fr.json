@@ -7,7 +7,10 @@
     "recentlyAddedShows": "Séries ajoutées récemment",
     "recentlyAddedAlbums": "Albums ajoutés récemment",
     "recentlyReleased": "Sorties récentes",
-    "topRated": "Les mieux notés"
+    "topRated": "Les mieux notés",
+    "continueWatchingIn": "Reprendre la lecture dans {{library}}",
+    "recentlyReleasedIn": "Sorties récentes dans {{library}}",
+    "topRatedIn": "Les mieux notés dans {{library}}"
   },
   "tray": {
     "open": "&Ouvrir Pley",

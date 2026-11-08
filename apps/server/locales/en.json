@@ -7,7 +7,10 @@
     "recentlyAddedShows": "Recently Added Shows",
     "recentlyAddedAlbums": "Recently Added Albums",
     "recentlyReleased": "Recently Released",
-    "topRated": "Top Rated"
+    "topRated": "Top Rated",
+    "continueWatchingIn": "Continue Watching in {{library}}",
+    "recentlyReleasedIn": "Recently Released in {{library}}",
+    "topRatedIn": "Top Rated in {{library}}"
   },
   "tray": {
     "open": "&Open Pley",

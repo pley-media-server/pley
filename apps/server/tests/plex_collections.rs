@@ -249,25 +249,181 @@ async fn collection_items_move_and_what_pley_lacks_says_so() {
         assert_eq!(w.send(Method::PUT, &chosen).await.status, StatusCode::BAD_REQUEST);
     }
 
-    // Hubs: Kometa reads a collection's promotions, and Pley makes none.
-    let manage = format!("/hubs/sections/{}/manage", w.movies);
-    let hubs = w.app.plex_json(&format!("{manage}?metadataItemId={collection}"), &w.admin).await;
-    assert_eq!(hubs["size"], json!(0));
-    assert!(hubs.get("Hub").is_none() && hubs.get("Directory").is_none());
-    let nowhere = format!(
-        "{manage}?metadataItemId={collection}&promotedToRecommended=0&promotedToOwnHome=0&promotedToSharedHome=0"
-    );
-    assert_eq!(w.send(Method::POST, &nowhere).await.status, StatusCode::OK);
-    let promoted = format!("{manage}?metadataItemId={collection}&promotedToRecommended=1&promotedToOwnHome=0");
-    assert_eq!(w.send(Method::POST, &promoted).await.status, StatusCode::BAD_REQUEST);
-    let moved = format!("{manage}/custom.collection.{}.{collection}/move", w.movies);
-    assert_eq!(w.send(Method::PUT, &moved).await.status, StatusCode::BAD_REQUEST);
-
+    // Only a token that may manage changes a collection.
     let play = w.app.compatibility_token(&w.admin, "play").await;
-    for (method, uri) in [(Method::PUT, first), (Method::PUT, refresh), (Method::POST, nowhere), (Method::PUT, moved)] {
+    for (method, uri) in [(Method::PUT, first), (Method::PUT, refresh)] {
         assert_eq!(w.app.plex(method, &uri, &play, &[]).await.status, StatusCode::FORBIDDEN, "{uri}");
     }
-    assert_eq!(w.app.plex_json(&manage, &play).await["size"], json!(0), "reading is anyone's");
+}
+
+/// The identifiers and `promotedTo…` of a section's managed hubs.
+fn managed(hubs: &Value) -> Vec<(String, bool, bool, bool)> {
+    hubs["Hub"]
+        .as_array()
+        .map(|h| {
+            h.iter()
+                .map(|h| {
+                    let flag = |name: &str| h[name].as_bool().unwrap();
+                    let identifier = h["identifier"].as_str().unwrap().to_owned();
+                    (identifier, flag("promotedToRecommended"), flag("promotedToOwnHome"), flag("promotedToSharedHome"))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Keys of the rows Pley's own API shows on `path`.
+async fn rows(app: &TestApp, path: &str, token: &str) -> Vec<String> {
+    let hubs = app.get(path, token).await;
+    assert_eq!(hubs.status, StatusCode::OK, "{:?}", hubs.body);
+    hubs.body["hubs"].as_array().unwrap().iter().map(|h| h["key"].as_str().unwrap().to_owned()).collect()
+}
+
+#[tokio::test]
+async fn hubs_are_managed_as_agregarr_and_kometa_do() {
+    let w = world().await;
+    let collection = w.collection("Two Films", &[w.alien, w.brazil]).await;
+    let id = collection - 1_000_000_000;
+    let movies = w.movies;
+    let manage = format!("/hubs/sections/{movies}/manage");
+    let custom = format!("custom.collection.{movies}.{collection}");
+    let (viewer, _) = w.app.user(&w.admin, "viewer", json!({})).await;
+
+    // As Pley shows them until someone arranges them: the built-in rows,
+    // on the library's page, Recently Added on Home too.
+    let usual = [
+        ("movie.inprogress", true, false, false),
+        ("movie.recentlyadded", true, true, true),
+        ("movie.recentlyreleased", true, false, false),
+        ("movie.toprated", true, false, false),
+    ]
+    .map(|(id, r, o, s)| (id.to_owned(), r, o, s));
+    assert_eq!(managed(&w.app.plex_json(&manage, &w.admin).await), usual);
+    // python-plexapi's visibility(): a collection that is no row has none.
+    let visibility = format!("{manage}?metadataItemId={collection}");
+    assert_eq!(w.app.plex_json(&visibility, &w.admin).await["size"], json!(0));
+
+    // Agregarr's promotion: made a row, then shown on the library's page and
+    // administrators' Home.
+    let made = w.send(Method::POST, &format!("{manage}?metadataItemId={collection}")).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.text());
+    let shown = format!("{manage}/{custom}?promotedToRecommended=1&promotedToOwnHome=1&promotedToSharedHome=0");
+    assert_eq!(w.send(Method::PUT, &shown).await.status, StatusCode::OK);
+    let read = w.app.plex_json(&visibility, &w.admin).await;
+    assert_eq!(managed(&read), [(custom.clone(), true, true, false)]);
+    assert_eq!((&read["Hub"][0]["title"], &read["Hub"][0]["homeVisibility"]), (&json!("Two Films"), &json!("admin")));
+    assert_eq!(read["Hub"][0]["deletable"], json!(true));
+
+    // Agregarr's order: right after Continue Watching.
+    let moved = w.send(Method::PUT, &format!("{manage}/{custom}/move?after=movie.inprogress")).await;
+    assert_eq!(moved.status, StatusCode::OK, "{}", moved.text());
+    let order: Vec<String> = managed(&w.app.plex_json(&manage, &w.admin).await).into_iter().map(|h| h.0).collect();
+    assert_eq!(
+        order,
+        ["movie.inprogress", custom.as_str(), "movie.recentlyadded", "movie.recentlyreleased", "movie.toprated"]
+    );
+    // Default hubs: Top Rated leaves the library's page.
+    let hidden = format!("{manage}/movie.toprated?promotedToRecommended=0");
+    assert_eq!(w.send(Method::PUT, &hidden).await.status, StatusCode::OK);
+    let last = managed(&w.app.plex_json(&manage, &w.admin).await).pop();
+    assert_eq!(last, Some(("movie.toprated".to_owned(), false, false, false)));
+
+    // Pley's own apps show it: on the library's page, and on Home for
+    // administrators alone.
+    let row = format!("collection:{id}");
+    let recent = format!("recently_added:{movies}");
+    let page = rows(&w.app, &format!("/api/libraries/{movies}/hubs"), &w.admin).await;
+    // (Recently Released is empty: the test films have no release dates.)
+    assert_eq!(page, [row.clone(), recent.clone()]);
+    assert_eq!(rows(&w.app, "/api/hubs/home", &w.admin).await, [row.clone(), recent.clone()]);
+    assert_eq!(rows(&w.app, "/api/hubs/home", &viewer).await, std::slice::from_ref(&recent));
+    let page = w.app.get(&format!("/api/libraries/{movies}/hubs"), &w.admin).await;
+    assert_eq!(page.body["hubs"][0]["title"], json!("Two Films"));
+    assert_eq!(page.body["hubs"][0]["items"].as_array().unwrap().len(), 2);
+    // And this API's Recommended.
+    let section = w.app.plex_json(&format!("/hubs/sections/{movies}"), &w.admin).await;
+    assert_eq!(section["Hub"][0]["hubIdentifier"], json!(custom));
+    assert_eq!(section["Hub"][0]["key"], json!(format!("/library/collections/{collection}/children")));
+    assert_eq!(plex_titles(&section["Hub"][0]), ["Alien", "Brazil"]);
+
+    // No such row, nor a place after one; a built-in row stays; a
+    // collection of no section of this one isn't promoted.
+    let missing = format!("{manage}/custom.collection.{movies}.1000999999?promotedToOwnHome=1");
+    assert_eq!(w.send(Method::PUT, &missing).await.status, StatusCode::NOT_FOUND);
+    let after_missing = format!("{manage}/{custom}/move?after=movie.nothing");
+    assert_eq!(w.send(Method::PUT, &after_missing).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(w.send(Method::DELETE, &format!("{manage}/movie.toprated")).await.status, StatusCode::BAD_REQUEST);
+    let wrong = format!("{manage}/{custom}?promotedToOwnHome=maybe");
+    assert_eq!(w.send(Method::PUT, &wrong).await.status, StatusCode::BAD_REQUEST);
+    let stranger = format!("{manage}?metadataItemId=1000999999");
+    assert_eq!(w.send(Method::POST, &stranger).await.status, StatusCode::NOT_FOUND);
+
+    // Only a token that may manage changes them; reading is anyone's.
+    let play = w.app.compatibility_token(&w.admin, "play").await;
+    let made_again = format!("{manage}?metadataItemId={collection}");
+    for (method, uri) in [(Method::POST, &made_again), (Method::PUT, &shown), (Method::DELETE, &manage)] {
+        assert_eq!(w.app.plex(method, uri, &play, &[]).await.status, StatusCode::FORBIDDEN, "{uri}");
+    }
+    assert_eq!(w.app.plex_json(&visibility, &play).await["size"], json!(1));
+
+    // Unpromoted, the row goes; reset, the rows are as usual again.
+    assert_eq!(w.send(Method::DELETE, &format!("{manage}/{custom}")).await.status, StatusCode::OK);
+    assert_eq!(w.app.plex_json(&visibility, &w.admin).await["size"], json!(0));
+    assert_eq!(w.send(Method::DELETE, &manage).await.status, StatusCode::OK);
+    assert_eq!(managed(&w.app.plex_json(&manage, &w.admin).await), usual);
+
+    // A deleted collection's row goes with it.
+    let promoted = format!("{manage}?metadataItemId={collection}&promotedToRecommended=1");
+    assert_eq!(w.send(Method::POST, &promoted).await.status, StatusCode::OK);
+    assert_eq!(w.send(Method::DELETE, &format!("/library/collections/{collection}")).await.status, StatusCode::OK);
+    assert_eq!(managed(&w.app.plex_json(&manage, &w.admin).await), usual);
+}
+
+#[tokio::test]
+async fn administrators_arrange_rows_in_pley() {
+    let w = world().await;
+    let collection = w.collection("Two Films", &[w.alien, w.brazil]).await;
+    let id = collection - 1_000_000_000;
+    let movies = w.movies;
+    let layout = format!("/api/libraries/{movies}/hub-layout");
+    let (viewer, _) = w.app.user(&w.admin, "viewer", json!({})).await;
+    assert_eq!(w.app.get(&layout, &viewer).await.status, StatusCode::FORBIDDEN);
+
+    let hubs = |body: &Value| -> Vec<String> {
+        body["hubs"].as_array().unwrap().iter().map(|h| h["hub"].as_str().unwrap().to_owned()).collect()
+    };
+    let usual = w.app.get(&layout, &w.admin).await;
+    assert_eq!(usual.status, StatusCode::OK);
+    assert_eq!(hubs(&usual.body), ["continue_watching", "recently_added", "recently_released", "top_rated"]);
+    assert_eq!(usual.body["hubs"][1]["title"], json!("Recently Added"));
+
+    // The collection first, on everyone's Home; built-in rows left out go
+    // last, where they usually show.
+    let place = |hub: &str, everywhere: bool| json!({"hub": hub, "on_library": everywhere, "on_admin_home": everywhere, "on_home": everywhere});
+    let row = format!("collection:{id}");
+    let set = w.app.put(&layout, &w.admin, json!({"hubs": [place(&row, true), place("top_rated", false)]})).await;
+    assert_eq!(set.status, StatusCode::OK, "{:?}", set.body);
+    assert_eq!(
+        hubs(&set.body),
+        [row.as_str(), "top_rated", "continue_watching", "recently_added", "recently_released"]
+    );
+    assert_eq!(set.body["hubs"][0]["title"], json!("Two Films"));
+    let recent = format!("recently_added:{movies}");
+    assert_eq!(rows(&w.app, "/api/hubs/home", &viewer).await, [row.clone(), recent.clone()]);
+
+    // Rows it can't have.
+    for wrong in [
+        json!({"hubs": [place("collection:999999", true)]}),
+        json!({"hubs": [place("top_rated", true), place("top_rated", false)]}),
+        json!({"hubs": [place("on_deck", true)]}),
+    ] {
+        assert_eq!(w.app.put(&layout, &w.admin, wrong).await.status, StatusCode::BAD_REQUEST);
+    }
+
+    let reset = w.app.delete(&layout, &w.admin).await;
+    assert_eq!(reset.status, StatusCode::OK);
+    assert_eq!(hubs(&reset.body).len(), 4);
+    assert_eq!(rows(&w.app, "/api/hubs/home", &viewer).await, [recent]);
 }
 
 #[tokio::test]

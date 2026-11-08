@@ -10,6 +10,7 @@
 
 mod collection_search;
 mod edit;
+mod hubs;
 mod keys;
 mod library;
 mod lists;
@@ -307,9 +308,9 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
         .route("/hubs/home/recentlyAdded", get(library::home_recently_added))
         .route("/hubs/sections/{id}", get(library::section_hubs))
         .route("/hubs/sections/{id}/continueWatching/items", get(library::section_continue_watching))
-        .route("/hubs/sections/{id}/manage", get(lists::managed_hubs).post(lists::promote_hub))
-        .route("/hubs/sections/{id}/manage/{identifier}", put(lists::change_hub).delete(lists::change_hub))
-        .route("/hubs/sections/{id}/manage/{identifier}/move", put(lists::change_hub))
+        .route("/hubs/sections/{id}/manage", get(hubs::managed).post(hubs::promote).delete(hubs::reset))
+        .route("/hubs/sections/{id}/manage/{identifier}", put(hubs::change).delete(hubs::remove))
+        .route("/hubs/sections/{id}/manage/{identifier}/move", put(hubs::move_hub))
         .route("/search", get(library::search))
         .route("/photo/_/transcode", get(library::photo_transcode))
         .route("/_/timeline", any(playback::timeline))

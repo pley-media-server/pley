@@ -424,7 +424,8 @@
       "typePath": "…ou saisissez le chemin d’un dossier",
       "folderPath": "Chemin du dossier",
       "layout": "Organisation recommandée : <path>{{layout}}</path>"
-    }
+    },
+    "rows": "Rangées de l'accueil et de sa page"
   },
   "users": {
     "title": "Utilisateurs",
@@ -820,5 +821,29 @@
     "backUpNow": "Sauvegarder maintenant",
     "backedUp": "Sauvegarde effectuée ({{size}})",
     "noBackups": "Aucune sauvegarde pour l’instant."
+  },
+  "hubLayout": {
+    "title": "Rangées de {{name}}",
+    "hint": "Choisissez où chaque rangée s'affiche et dans quel ordre. Les collections peuvent aussi devenir des rangées. Les outils qui gèrent les hubs Plex, comme Agregarr et Kometa, modifient ces rangées.",
+    "list": "Rangées",
+    "collection": "Collection",
+    "places": {
+      "on_library": "Bibliothèque",
+      "on_admin_home": "Accueil admins",
+      "on_home": "Accueil autres"
+    },
+    "show": {
+      "on_library": "Afficher {{name}} sur la page de la bibliothèque",
+      "on_admin_home": "Afficher {{name}} sur l'accueil des administrateurs",
+      "on_home": "Afficher {{name}} sur l'accueil des autres"
+    },
+    "drag": "Glisser pour réordonner",
+    "moveUp": "Monter {{name}}",
+    "moveDown": "Descendre {{name}}",
+    "remove": "Ne plus afficher {{name}} en rangée",
+    "add": "Ajouter une collection en rangée…",
+    "moved": "{{name}} déplacé en position {{position}} sur {{total}}",
+    "useUsual": "Rangées habituelles",
+    "backToUsual": "Rangées de nouveau comme d'habitude"
   }
 }

@@ -396,7 +396,7 @@ async fn hubs_and_on_deck() {
     };
     assert_eq!(
         identifiers(&app.plex_json(&format!("/hubs/sections/{tv}"), &admin).await),
-        ["tv.inprogress", "tv.recentlyadded"]
+        ["tv.ondeck", "tv.recentlyadded"]
     );
     assert_eq!(identifiers(&app.plex_json(&format!("/hubs/sections/{music}"), &admin).await), ["music.recentlyadded"]);
     let counted = app.plex_json(&format!("/hubs/sections/{movies}?count=2"), &admin).await;

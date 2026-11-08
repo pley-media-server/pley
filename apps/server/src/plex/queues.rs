@@ -128,7 +128,7 @@ async fn resolve(state: &AppState, user: &AuthUser, params: &Params) -> PlexResu
         let section: i64 = section.parse().map_err(|_| PlexError::NotFound)?;
         let lib =
             visible_libraries(state, user).await?.into_iter().find(|l| l.id == section).ok_or(PlexError::NotFound)?;
-        let found = crate::listing::smart_items(&state.db, user.id, &lib, query.trim_start_matches('?')).await?;
+        let found = crate::listing::smart_items(&state.db, user.id, &lib, query.trim_start_matches('?'), None).await?;
         let ids: Vec<i64> = found.iter().map(|r| r.id).collect();
         return Ok(playlists::expand(&state.db, user, &ids).await?);
     }

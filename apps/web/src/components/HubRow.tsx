@@ -6,7 +6,7 @@ import type { Hub } from "@/api/types";
 import { cn } from "@/lib/cn";
 import { smoothScroll, useMediaQuery } from "@/lib/hooks";
 import { aspectFor, CardSkeleton, MediaCard, type CardAspect } from "./cards";
-import { libraryUrl } from "@/lib/urls";
+import { collectionUrl, libraryUrl } from "@/lib/urls";
 
 /** Smallest card width per shape: [mobile, desktop]. Cards grow from there to fill the row. */
 const MIN_WIDTHS: Record<CardAspect, [number, number]> = {
@@ -25,6 +25,7 @@ export function hubAspect(hub: Hub): CardAspect {
 
 function hubLink(hub: Hub): string | null {
   if (hub.library_id == null) return null;
+  if (hub.key.startsWith("collection:")) return collectionUrl(Number(hub.key.slice("collection:".length)));
   if (hub.key.startsWith("recently_added")) return libraryUrl(hub.library_id, "tab=library&sort=added&order=desc");
   if (hub.key.startsWith("recently_released")) return libraryUrl(hub.library_id, "tab=library&sort=release&order=desc");
   if (hub.key.startsWith("top_rated")) return libraryUrl(hub.library_id, "tab=library&sort=rating&order=desc");

@@ -240,10 +240,18 @@ What Pley doesn't do for it:
   or subtitle language, Plex's `hdr` and `dovi`, country or network: their
   searches answer `400` and Kometa reports that collection's error, rather
   than acting on the whole library;
-- collection modes and promoting collections to home pages, which Pley
-  doesn't have (changes answer `400`);
+- collection modes, which Pley doesn't have (changes answer `400`);
 - what Kometa does through plex.tv: playlists' `sync_to_users`,
   `plex_watchlist`, and what it asks a Plex Pass for.
+
+Kometa's `visible_library`, `visible_home` and `visible_shared` promote a
+collection to a row of its library's page, administrators' Home and
+everyone else's Home ([Hub management](#hub-management)).
+
+Agregarr manages hubs as Kometa does, through the same endpoints, but its
+setup signs in through plex.tv and picks the server from that account's
+servers, with no field for an address and a token, so it doesn't connect
+to Pley.
 
 Tautulli works in part. Its setup asks for a plex.tv sign-in and has no
 field for a token, so it is set up in its `config.ini` while it is stopped:
@@ -382,7 +390,7 @@ them.
 | Server | `/`, `/identity`, `/servers`, `/accounts` (listed, never changed), `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` answers `403`: no token changes the server's settings), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
 | Sections | `/library`, `/library/sections` (`allowSync="1"` for a token with `manage`: Kometa takes a section without it for a read-only token), `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/prefs` (no settings; `PUT` answers `403`), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
 | Items | `/library/metadata/{id}` (comma-separated ids allowed; a collection's or playlist's key answers as `/library/collections/{key}` or `/playlists/{key}` does, and `…/children`, its pictures and `…/refresh` reach it too), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/posters` and `…/arts` (the picture shown, a `Photo` named `upload://…` when it was set by hand and `metadata://…` when it is the metadata agent's), `…/file?url=` (the picture a `Photo` names), `…/themes`, `…/clearLogos` and `…/squareArts` (none), `…/refresh` (`manage`) |
-| Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/sections/{id}/manage` (empty: Pley promotes collections to no hubs, so `POST` promoting one and `PUT …/manage/{identifier}[/move]` answer `400`), `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
+| Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/sections/{id}/manage` and changes to it ([Hub management](#hub-management)), `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
 | Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}` (`includePreferences=1`), `…/children`, `…/{thumb,art,composite}[/{version}]`, `PUT …/prefs`, `PUT …/items/{item}/move?after=`, `PUT …/refresh` (changes nothing: a collection has no metadata of its own to fetch); changes under [Editing](#editing) |
 | Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title.value=` or `?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
 | Previews | `/library/parts/{id}/indexes/sd` (BIF), `/library/parts/{id}/indexes/sd/{offset}` (the frame at `offset` ms), `/library/media/{id}/chapterImages/{n}` |
@@ -464,6 +472,42 @@ does:
   gives a smart collection a new listing), `DELETE …/items/{item}` removes
   one and `DELETE /library/collections/{id}` deletes the collection.
 
+### Hub management
+
+A section's hubs are its library's rows in Pley (Rows, under
+[Libraries in API.md](API.md#libraries)): the built-in ones and the
+collections promoted to rows, in order, each on the section's Recommended
+page (Pley's library page), the owner's Home (Pley's administrators') and
+the shared Home (everyone else's). So an arrangement made here shows in every Pley app,
+and one made in Settings → Libraries shows here. `/hubs` and
+`/hubs/sections/{id}` list the rows that show there, collections' with
+the key `/library/collections/{key}/children`.
+
+Built-in hubs are `movie.inprogress` (`tv.ondeck` for shows; none for
+music), `{movie,tv,music}.recentlyadded`, `{movie,tv}.recentlyreleased` and
+`{movie,tv}.toprated`; a collection's is
+`custom.collection.{section}.{key}`.
+
+- `GET /hubs/sections/{id}/manage`: every hub of the section in order, with
+  `title`, `promotedToRecommended`, `promotedToOwnHome`,
+  `promotedToSharedHome`, `recommendationsVisibility` (`all` or `none`),
+  `homeVisibility` (`all`, `admin`, `shared` or `none`) and, for
+  collections, `deletable`. With `?metadataItemId={key}`, the collection's
+  alone, or none when it isn't a hub (python-plexapi's `visibility()`).
+  Any token reads them.
+- `POST …/manage?metadataItemId={key}` makes the section's collection a
+  hub, last and shown nowhere, unless `promotedTo…` parameters say where.
+- `PUT …/manage/{identifier}?promotedToRecommended=1&promotedToOwnHome=0…`
+  says where a hub shows (`1` or `0`; what isn't given stays).
+- `PUT …/manage/{identifier}/move?after={identifier}` moves it right after
+  another, or first.
+- `DELETE …/manage/{identifier}`: the collection is a hub no longer.
+  Built-in hubs stay (`400`): they are hidden instead.
+- `DELETE …/manage`: the section's hubs as usual again.
+
+Changes need `manage`. An identifier the section doesn't have answers
+`404`.
+
 ### Searching and filtering
 
 `/library/sections/{id}/all` accepts `type` (1 movie, 2 show, 3 season, 4
@@ -543,8 +587,7 @@ playback and sessions, editing, collections, playlists and play queues.
   remote access, and the apps that depend on it to find servers.
 - Accounts: they are listed, never made, changed or deleted.
 - Collection modes (`collectionMode`): Pley has none.
-- Promoting collections to home pages and recommendations (hub
-  management), theme music, logos and square art: changes answer `400`.
+- Theme music, logos and square art: changes answer `400`.
 - Artwork from addresses on other hosts (upload the file instead), and
   per-item preferences (`/prefs`).
 - Filters on descendants (`episode.title` on shows) and on `hdr`, `dovi`,

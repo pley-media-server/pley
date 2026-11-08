@@ -9,6 +9,25 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Collections can be rows of Home and of their library's page, and a
+  library's own rows (Continue Watching, Recently Added, Recently
+  Released, Top Rated) can be moved, hidden or put on Home: Settings →
+  Libraries → a library's menu → Rows on Home and its page. Each row shows
+  on the library's page, on administrators' Home, on everyone else's
+  Home, or nowhere, and every app shows them. A collection's row links to
+  the collection on the web.
+- The Plex-compatible API manages hubs (`/hubs/sections/{id}/manage`)
+  with these rows: Kometa's `visible_library`, `visible_home` and
+  `visible_shared` work, and tools that arrange hubs move, show and hide
+  Pley's rows.
+
+### Changed
+
+- The Plex-compatible API calls a TV library's Continue Watching hub
+  `tv.ondeck` (it was `tv.inprogress`): it holds the shows' next episodes.
+
 ## [0.1.9] - 2026-11-08
 
 ### Added

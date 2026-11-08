@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Pencil, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, LayoutList, Pencil, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { keys, useActivity, useDeleteLibrary, useReorderLibraries, useScanAll, useScanLibrary, useSharedLibraries } from "@/api/hooks";
 import type { Id, Library, ScanStatus } from "@/api/types";
@@ -16,6 +16,7 @@ import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
+import { HubLayoutModal } from "./HubLayoutModal";
 import { LibraryFormModal } from "./LibraryFormModal";
 import { libraryUrl } from "@/lib/urls";
 
@@ -33,6 +34,7 @@ function LibraryRow({
   scan,
   place,
   onEdit,
+  onArrange,
   onDelete,
 }: {
   lib: Library;
@@ -40,6 +42,8 @@ function LibraryRow({
   /** Without it (a single library), nothing to move. */
   place?: Place;
   onEdit: () => void;
+  /** Its rows, on its page and on Home. */
+  onArrange: () => void;
   onDelete: () => void;
 }) {
   const { t } = useTranslation(["settings", "common"]);
@@ -169,6 +173,15 @@ function LibraryRow({
                 >
                   {t("common:actions.edit")}
                 </MenuItem>
+                <MenuItem
+                  icon={<LayoutList />}
+                  onClick={() => {
+                    close();
+                    onArrange();
+                  }}
+                >
+                  {t("libraries.rows")}
+                </MenuItem>
                 <MenuSeparator />
                 <MenuItem
                   icon={<Trash2 />}
@@ -203,6 +216,7 @@ export function LibrariesSettings() {
   const [params, setParams] = useSearchParams();
   const adding = params.get("add") === "1";
   const [editing, setEditing] = useState<Library | null>(null);
+  const [arranging, setArranging] = useState<Library | null>(null);
   const [deleting, setDeleting] = useState<Library | null>(null);
   // Read out to screen readers after each move.
   const [moveNote, setMoveNote] = useState("");
@@ -355,6 +369,7 @@ export function LibrariesSettings() {
                     scan={scans.find((s) => s.library_id === lib.id)}
                     place={reorderable ? { index: i, count: libs.data.length, move: (direction) => moveBy(i, direction) } : undefined}
                     onEdit={() => setEditing(lib)}
+                    onArrange={() => setArranging(lib)}
                     onDelete={() => setDeleting(lib)}
                   />
                 </li>
@@ -369,6 +384,7 @@ export function LibrariesSettings() {
 
       <LibraryFormModal open={adding} onClose={closeAdd} />
       <LibraryFormModal open={!!editing} onClose={() => setEditing(null)} library={editing} />
+      <HubLayoutModal library={arranging} onClose={() => setArranging(null)} />
       <ConfirmModal
         open={!!deleting}
         onClose={() => setDeleting(null)}

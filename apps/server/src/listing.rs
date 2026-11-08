@@ -1427,12 +1427,19 @@ pub(crate) fn valid_smart_filter(lib: &LibraryRow, filter: &str) -> bool {
 }
 
 /// What a smart collection's filter finds in `lib`, as `user_id` may see it,
-/// in its order. A filter Pley can't apply finds nothing.
-pub(crate) async fn smart_items(db: &Db, user_id: i64, lib: &LibraryRow, filter: &str) -> sqlx::Result<Vec<ItemRow>> {
+/// in its order: all of it, or the first `limit`. A filter Pley can't apply
+/// finds nothing.
+pub(crate) async fn smart_items(
+    db: &Db,
+    user_id: i64,
+    lib: &LibraryRow,
+    filter: &str,
+    limit: Option<usize>,
+) -> sqlx::Result<Vec<ItemRow>> {
     let params = filter_params(filter);
     let Some(kind) = smart_kind(lib, &params) else { return Ok(Vec::new()) };
     let Ok(query) = SectionQuery::new(lib.id, kind, &params) else { return Ok(Vec::new()) };
-    Ok(query.page(db, user_id, &Page::default()).await?.0)
+    Ok(query.page(db, user_id, &Page { start: 0, size: limit }).await?.0)
 }
 
 /// How many items a smart collection's filter finds.

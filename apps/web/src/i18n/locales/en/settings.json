@@ -420,7 +420,8 @@
       "typePath": "…or type a folder path",
       "folderPath": "Folder path",
       "layout": "Recommended layout: <path>{{layout}}</path>"
-    }
+    },
+    "rows": "Rows on Home and its page"
   },
   "users": {
     "title": "Users",
@@ -800,5 +801,29 @@
     "backUpNow": "Back up now",
     "backedUp": "Backed up ({{size}})",
     "noBackups": "No backups yet."
+  },
+  "hubLayout": {
+    "title": "Rows of {{name}}",
+    "hint": "Pick where each row shows and in what order. Collections can be rows too. Tools that manage Plex hubs, like Agregarr and Kometa, change these rows.",
+    "list": "Rows",
+    "collection": "Collection",
+    "places": {
+      "on_library": "Library",
+      "on_admin_home": "Admins' Home",
+      "on_home": "Others' Home"
+    },
+    "show": {
+      "on_library": "Show {{name}} on the library's page",
+      "on_admin_home": "Show {{name}} on administrators' Home",
+      "on_home": "Show {{name}} on everyone else's Home"
+    },
+    "drag": "Drag to reorder",
+    "moveUp": "Move {{name}} up",
+    "moveDown": "Move {{name}} down",
+    "remove": "Stop showing {{name}} as a row",
+    "add": "Add a collection as a row…",
+    "moved": "{{name}} moved to position {{position}} of {{total}}",
+    "useUsual": "Use the usual rows",
+    "backToUsual": "Rows back as usual"
   }
 }

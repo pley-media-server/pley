@@ -22,6 +22,7 @@ pub mod error;
 pub mod events;
 pub mod history;
 pub mod http;
+pub mod hub_layout;
 pub mod i18n;
 pub mod identity;
 pub mod images;

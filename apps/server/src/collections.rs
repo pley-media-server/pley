@@ -188,7 +188,7 @@ pub async fn get(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<Option<(Coll
     let items = match &row.smart_filter {
         // What the filter finds, in the filter's order.
         Some(filter) => match crate::library::get_library(db, row.library_id).await? {
-            Some(lib) => crate::listing::smart_items(db, user.id, &lib, filter).await?,
+            Some(lib) => crate::listing::smart_items(db, user.id, &lib, filter, None).await?,
             None => Vec::new(),
         },
         None => catalog::items_by_ids(db, user.id, &ordered_ids(db, id, &row.sort).await?).await?,
@@ -198,6 +198,37 @@ pub async fn get(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<Option<(Coll
     }
     let count = items.len() as i64;
     Ok(Some((row.into_dto(count), items)))
+}
+
+/// A collection's title and its first `limit` items as the user may see
+/// them, in its order: a row of it on Home or on its library's page (see
+/// [`crate::hub_layout`]). The caller checked library access.
+pub async fn first_items(
+    db: &Db,
+    user: &AuthUser,
+    id: i64,
+    limit: usize,
+) -> sqlx::Result<Option<(String, Vec<ItemRow>)>> {
+    let Some(row) = row(db, id).await? else { return Ok(None) };
+    let items = match &row.smart_filter {
+        Some(filter) => match crate::library::get_library(db, row.library_id).await? {
+            Some(lib) => crate::listing::smart_items(db, user.id, &lib, filter, Some(limit)).await?,
+            None => Vec::new(),
+        },
+        None => {
+            // The first few, and the rest only when too many of those are
+            // hidden from the user: two queries at most.
+            let ids = ordered_ids(db, id, &row.sort).await?;
+            let (first, rest) = ids.split_at(ids.len().min(limit * 2));
+            let mut items = catalog::items_by_ids(db, user.id, first).await?;
+            if items.len() < limit && !rest.is_empty() {
+                items.extend(catalog::items_by_ids(db, user.id, rest).await?);
+            }
+            items.truncate(limit);
+            items
+        }
+    };
+    Ok(Some((row.title, items)))
 }
 
 #[derive(Debug, Clone, Serialize, FromRow)]

@@ -136,7 +136,7 @@ async fn owned(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<Option<Playlis
 async fn smart_entries(db: &Db, user: &AuthUser, row: &PlaylistRow) -> sqlx::Result<Vec<(i64, ItemRow)>> {
     let (Some(library_id), Some(filter)) = (row.library_id, row.smart_filter.as_deref()) else { return Ok(Vec::new()) };
     let Some(lib) = crate::library::get_library(db, library_id).await? else { return Ok(Vec::new()) };
-    let found = crate::listing::smart_items(db, user.id, &lib, filter).await?;
+    let found = crate::listing::smart_items(db, user.id, &lib, filter, None).await?;
     let mut leaves = Vec::new();
     for item in found {
         if leaves.len() as i64 >= MAX_ENTRIES {

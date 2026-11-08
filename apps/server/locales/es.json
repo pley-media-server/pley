@@ -7,7 +7,10 @@
     "recentlyAddedShows": "Series añadidas recientemente",
     "recentlyAddedAlbums": "Álbumes añadidos recientemente",
     "recentlyReleased": "Estrenos recientes",
-    "topRated": "Mejor valorados"
+    "topRated": "Mejor valorados",
+    "continueWatchingIn": "Seguir viendo en {{library}}",
+    "recentlyReleasedIn": "Estrenos recientes en {{library}}",
+    "topRatedIn": "Mejor valorados en {{library}}"
   },
   "tray": {
     "open": "&Abrir Pley",

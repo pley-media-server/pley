@@ -6,11 +6,12 @@ use axum::http::{HeaderMap, StatusCode};
 use serde::Serialize;
 
 use super::items::item_or_404;
-use super::libraries::{Hub, Hubs};
+use super::libraries::{Hub, Hubs, library_hub};
 use super::wants_summaries;
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
+use crate::hub_layout;
 use crate::i18n;
 use crate::people::PersonSummary;
 use crate::state::AppState;
@@ -23,19 +24,19 @@ pub async fn home(
 ) -> ApiResult<Json<Hubs>> {
     let language = i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await?;
     let summaries = wants_summaries(&query);
-    // A row for each library the user may open, in their order.
+    // Each library the user may open, in their order, with the rows it
+    // shows on Home.
     let libraries = crate::access::visible_libraries(&state.db, &user).await?;
+    let page = hub_layout::Page::Home { admin: user.account_admin };
+    let shown =
+        futures::future::try_join_all(libraries.iter().map(|lib| hub_layout::shown(&state.db, lib, page))).await?;
     // Every hub at the same time: they don't depend on each other.
-    let (continue_rows, my_list, recent) = tokio::try_join!(
-        catalog::continue_watching(&state.db, user.id, None, 20),
-        catalog::watchlist(&state.db, user.id, Some(20)),
-        futures::future::try_join_all(libraries.iter().map(|lib| catalog::recently_added(
-            &state.db,
-            user.id,
-            lib.id,
-            lib.kind().as_str(),
-            20
-        )),),
+    let (continue_rows, my_list, rows) = tokio::try_join!(
+        async { Ok::<_, AppError>(catalog::continue_watching(&state.db, user.id, None, 20).await?) },
+        async { Ok::<_, AppError>(catalog::watchlist(&state.db, user.id, Some(20)).await?) },
+        futures::future::try_join_all(libraries.iter().zip(&shown).flat_map(|(lib, kinds)| {
+            kinds.iter().map(|kind| library_hub(&state, &user, lib, *kind, language, true, summaries))
+        })),
     )?;
     let mut hubs = vec![
         Hub {
@@ -51,15 +52,7 @@ pub async fn home(
             items: my_list.iter().map(|r| r.to_summary_with(summaries)).collect(),
         },
     ];
-    for (lib, rows) in libraries.iter().zip(recent) {
-        hubs.push(Hub {
-            key: format!("recently_added:{}", lib.id),
-            // "in" reads right whatever the library is called.
-            title: i18n::t_with(language, "hubs.recentlyAddedIn", &[("library", &lib.name)]),
-            library_id: Some(lib.id),
-            items: rows.iter().map(|r| r.to_summary_with(summaries)).collect(),
-        });
-    }
+    hubs.extend(rows.into_iter().flatten());
     hubs.retain(|h| !h.items.is_empty());
     Ok(Json(Hubs { hubs }))
 }
