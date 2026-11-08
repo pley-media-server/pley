@@ -4039,7 +4039,7 @@ household) or `admins`; profiles with an age limit only with `age_limited`;
 | POST | `/api/live/sources/test` | `admin` | `LiveSourceInput & { source_id? }` → `{ channels, groups, guide_url, account }` without saving; `source_id` lends a saved source's password |
 | PUT | `/api/live/sources/{id}` | `admin` | `LiveSourceInput` → `LiveSource`; no `password` keeps the saved one |
 | DELETE | `/api/live/sources/{id}` | `admin` | `204`, with its channels |
-| POST | `/api/live/sources/{id}/refresh` | `admin` | `202`: reads its channels and guide again now |
+| POST | `/api/live/sources/{id}/refresh` | `admin` | `202`: reads its channels and guide again now, or after a read under way |
 | GET | `/api/live/lineup` | `admin` | `?source_id=` → `LiveLineupChannel[]`, hidden ones too |
 | PATCH | `/api/live/lineup` | `admin` | `{ ids?: Id[], groups?: string[], filter?: { source_id?, group?, state?, q? }, hidden?, name?, number?, guide_id? }` → `204`: those channels, every one of `groups` and every one `filter` keeps; `""` gives back the source's own value; 20,000 ids and 5,000 groups at most |
 | GET | `/api/live/lineup/page` | `admin` | `?source_id=&group=&state=all\|shown\|hidden\|no-guide\|offline&q=&offset=&limit=` → `{ total, hidden, offset, channels: LiveLineupChannel[] }`: a page of the lineup, filtered |
@@ -4182,9 +4182,12 @@ interface LiveTuner {                  // a connection in use
   until shown again. Names, numbers and guide channels set in the lineup
   stay when the source is read again.
 - **Guide channels set by hand.** A guide read keeps the programmes of the
-  guide channels the source's channels take then. A guide channel set in
-  the lineup that has no programmes yet has the source's guide read again
-  in the background, and once more after a read under way.
+  guide channels the source's channels take as it reads, by guide channel
+  or, for channels given none, by name. A channel given a guide channel
+  with no programmes in the lineup, or renamed while its name decides its
+  guide channel, has the source's guide read again in the background; a
+  read under way is followed by one more when it had already listed the
+  channels.
 
 ## Users *(admin)*
 

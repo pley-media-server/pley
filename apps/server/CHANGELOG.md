@@ -65,9 +65,12 @@ describes how they are made.
   Portugal's "M/18", is read whole, no longer as "U" or "M", which allowed
   younger viewers. A file that gives a bare `<mpaa>` and a
   `<certification>` naming countries gives the latter's.
-- A Live TV channel given a guide channel by hand shows its programmes
-  in moments, not after the next guide refresh: the source's guide is
-  read again for it.
+- A Live TV channel given a guide channel by hand, or a channel without
+  one renamed as the guide names it, shows its programmes once the
+  source's guide is read again for it, no longer after the next guide
+  refresh.
+- Refreshing a Live TV source, or changing it, while it is being read
+  reads it again after that read, no longer nothing.
 
 ## [0.1.8] - 2026-11-06
 

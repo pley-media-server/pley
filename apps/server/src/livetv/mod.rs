@@ -450,6 +450,21 @@ impl ProgramRow {
     }
 }
 
+/// Who asks for a source to be read, which says what happens while it is
+/// being read already.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Asker {
+    /// Reads that fall due: looked at again in a minute.
+    Schedule,
+    /// An administrator (a source added or changed, Refresh): read once more
+    /// after the read under way, channels and guide.
+    Admin,
+    /// Channels given a guide channel or a name: the guide read once more,
+    /// unless the read under way hadn't chosen its channels yet. Not counted
+    /// as a try, which would put off reads that fall due.
+    ChannelsSet,
+}
+
 pub struct LiveTv {
     db: Db,
     events: EventBus,
@@ -466,10 +481,10 @@ pub struct LiveTv {
     downloads: PathBuf,
     /// Sources being read now, and when each was last tried.
     refreshing: Mutex<HashSet<i64>>,
-    /// Sources whose guide is read once more when their read ends: a guide
-    /// channel was set meanwhile, maybe after the read chose what to keep.
-    /// Taken with `refreshing` locked first.
-    guide_again: Mutex<HashSet<i64>>,
+    /// Sources read once more when their read ends, their channels too when
+    /// `true`: asked for meanwhile ([`Asker`]). Taken with `refreshing`
+    /// locked first.
+    again: Mutex<HashMap<i64, bool>>,
     tried: Mutex<HashMap<i64, Instant>>,
     refresh_lock: tokio::sync::Mutex<()>,
     /// Every channel, in order, read once and kept until something changes:
@@ -669,7 +684,7 @@ impl LiveTv {
             pictures_pruned: Mutex::default(),
             downloads,
             refreshing: Mutex::default(),
-            guide_again: Mutex::default(),
+            again: Mutex::default(),
             tried: Mutex::default(),
             refresh_lock: tokio::sync::Mutex::new(()),
             lineup: Mutex::default(),
@@ -1168,10 +1183,10 @@ impl LiveTv {
             .ok_or_else(|| AppError::not_found(format!("live TV source {id} not found")))
     }
 
-    /// Reads a source again in the background.
+    /// Reads a source again in the background, after a read under way.
     pub fn refresh_soon(self: &Arc<Self>, id: i64) {
         let this = self.clone();
-        tokio::spawn(async move { this.refresh(id, true, true).await });
+        tokio::spawn(async move { this.read_source(id, true, true, Asker::Admin).await });
     }
 
     /// Reads a source's details without saving them: what an administrator
@@ -1213,15 +1228,51 @@ impl LiveTv {
     }
 
     /// Reads a source's channels (when `channels`) and its guide (when
-    /// `guide`), saying how it went in the source.
+    /// `guide`) as they fall due, saying how it went in the source.
     pub async fn refresh(&self, id: i64, channels: bool, guide: bool) {
-        if !self.refreshing.lock().insert(id) {
-            return;
+        self.read_source(id, channels, guide, Asker::Schedule).await;
+    }
+
+    /// [`Self::refresh`] for `asker`.
+    async fn read_source(&self, id: i64, mut channels: bool, mut guide: bool, asker: Asker) {
+        {
+            let mut refreshing = self.refreshing.lock();
+            if !refreshing.insert(id) {
+                match asker {
+                    Asker::Schedule => {}
+                    Asker::Admin => {
+                        self.again.lock().insert(id, true);
+                    }
+                    Asker::ChannelsSet => {
+                        self.again.lock().entry(id).or_insert(false);
+                    }
+                }
+                return;
+            }
         }
-        self.tried.lock().insert(id, Instant::now());
+        if asker != Asker::ChannelsSet {
+            self.tried.lock().insert(id, Instant::now());
+        }
         self.changed();
         // One source at a time: guides are large.
         let _one = self.refresh_lock.lock().await;
+        loop {
+            self.read_source_once(id, channels, guide).await;
+            let next = {
+                let mut refreshing = self.refreshing.lock();
+                let next = self.again.lock().remove(&id);
+                if next.is_none() {
+                    refreshing.remove(&id);
+                }
+                next
+            };
+            let Some(next_channels) = next else { break };
+            (channels, guide) = (next_channels, true);
+        }
+        self.changed();
+    }
+
+    async fn read_source_once(&self, id: i64, channels: bool, guide: bool) {
         if channels {
             let result = self.refresh_channels(id).await;
             if let Err(err) = &result {
@@ -1237,17 +1288,6 @@ impl LiveTv {
         if guide {
             self.read_guide(id).await;
         }
-        loop {
-            {
-                let mut refreshing = self.refreshing.lock();
-                if !self.guide_again.lock().remove(&id) {
-                    refreshing.remove(&id);
-                    break;
-                }
-            }
-            self.read_guide(id).await;
-        }
-        self.changed();
     }
 
     /// Reads a source's guide, saying in the source how it went.
@@ -1267,16 +1307,25 @@ impl LiveTv {
         }
     }
 
-    /// Reads again, in the background, the guides that channels `ids` now
-    /// take programmes from but have none of. A guide read keeps the guide
-    /// channels some channel wanted then, so one set by hand since has
-    /// nothing until the next read. A source being read now is read once
-    /// more after it.
-    async fn read_guides_wanted(self: &Arc<Self>, ids: &[i64]) -> Result<(), AppError> {
+    /// Reads again the guides of the sources of channels `ids`, given a
+    /// guide channel with no programmes (when `guide_set`) or a name that
+    /// decides their guide channel (when `renamed`). A guide read keeps the
+    /// guide channels some channel took then, by guide channel or by name,
+    /// so one set by hand since has nothing until the next read. A source
+    /// being read now is read once more after it, unless that read hadn't
+    /// chosen its channels yet.
+    async fn read_guides_wanted(&self, ids: &[i64], guide_set: bool, renamed: bool) -> Result<(), AppError> {
         let ids: HashSet<i64> = ids.iter().copied().collect();
         let lineup = self.lineup().await?;
-        let unguided: HashSet<i64> =
-            lineup.rows.iter().filter(|c| ids.contains(&c.id) && !lineup.has_guide(c)).map(|c| c.source_id).collect();
+        // The name decides only for channels given no guide channel, by hand
+        // or by the playlist (see `ChannelRow::guide_key`).
+        let by_name = |c: &ChannelRow| c.custom_guide_id.as_deref().is_none_or(str::is_empty) && c.guide_id.is_empty();
+        let unguided: HashSet<i64> = lineup
+            .rows
+            .iter()
+            .filter(|c| ids.contains(&c.id) && ((guide_set && !lineup.has_guide(c)) || (renamed && by_name(c))))
+            .map(|c| c.source_id)
+            .collect();
         if unguided.is_empty() {
             return Ok(());
         }
@@ -1285,15 +1334,7 @@ impl LiveTv {
             if !source.enabled || source.effective_guide_url().is_none() || !unguided.contains(&source.id) {
                 continue;
             }
-            {
-                let refreshing = self.refreshing.lock();
-                if refreshing.contains(&source.id) {
-                    self.guide_again.lock().insert(source.id);
-                    continue;
-                }
-            }
-            let this = self.clone();
-            tokio::spawn(async move { this.refresh(source.id, false, true).await });
+            self.read_source(source.id, false, true, Asker::ChannelsSet).await;
         }
         Ok(())
     }
@@ -1420,6 +1461,14 @@ impl LiveTv {
         let source = self.source_row(id).await.map_err(|e| anyhow::anyhow!("{e}"))?;
         let Some(url) = source.effective_guide_url() else { return Ok(None) };
         let path = self.download_guide(&url, &source).await?;
+        // Channels set by hand until now are seen by this read: no guide read
+        // after it for them (one asked for by an administrator stays).
+        {
+            let mut again = self.again.lock();
+            if again.get(&id) == Some(&false) {
+                again.remove(&id);
+            }
+        }
         let channels = self.channel_rows(Some(id), true).await.map_err(|e| anyhow::anyhow!("{e}"))?;
         let days = i64::from(self.settings().guide_days);
         let (from, to) = (now() - GUIDE_BEHIND, now() + days * 86_400);
@@ -2158,11 +2207,15 @@ impl LiveTv {
             }
         }
         self.changed();
-        // The channels are saved: the guide coming later is no reason to fail.
-        if guide.is_some()
-            && let Err(err) = self.read_guides_wanted(ids).await
-        {
-            tracing::warn!("reading the guides of channels set again failed: {err}");
+        // A guide channel, or a name the guide may know, that the last read
+        // left out: in the background, as the lineup is read again for it.
+        if guide.is_some() || name.is_some() {
+            let (this, ids, guide_set, renamed) = (self.clone(), ids.to_vec(), guide.is_some(), name.is_some());
+            tokio::spawn(async move {
+                if let Err(err) = this.read_guides_wanted(&ids, guide_set, renamed).await {
+                    tracing::warn!("reading the guides of channels set again failed: {err}");
+                }
+            });
         }
         Ok(())
     }
