@@ -59,6 +59,12 @@ const CHANNEL_CHUNKS: usize = 2048;
 const STALL: Duration = Duration::from_secs(15);
 /// The most of a provider's HLS segment read whole (to put its audio in).
 const SEGMENT_BYTES: usize = 64 << 20;
+/// The pieces a segment read whole is handed on in, as a segment read as it
+/// comes is: one piece larger than the backlog would empty it.
+const PUSH_BYTES: usize = 64 << 10;
+/// How long a provider's HLS playlist and segments may take.
+const PLAYLIST_WAIT: Duration = Duration::from_secs(10);
+const SEGMENT_WAIT: Duration = Duration::from_secs(20);
 /// Connection attempts in a row before a channel is given up on.
 const ATTEMPTS: u32 = 5;
 /// Bytes after which a connection counts as having worked (its failures
@@ -1434,8 +1440,8 @@ async fn read_text(resp: reqwest::Response) -> Result<String, String> {
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-async fn get_text(tuner: &Tuner, http: &reqwest::Client, url: &url::Url) -> Result<String, String> {
-    let mut req = http.get(url.clone()).timeout(Duration::from_secs(10));
+async fn get_text(tuner: &Tuner, http: &reqwest::Client, url: &url::Url, wait: Duration) -> Result<String, String> {
+    let mut req = http.get(url.clone()).timeout(wait);
     if !tuner.user_agent.is_empty() {
         req = req.header(reqwest::header::USER_AGENT, &tuner.user_agent);
     }
@@ -1448,7 +1454,8 @@ async fn get_text(tuner: &Tuner, http: &reqwest::Client, url: &url::Url) -> Resu
 
 /// A channel the provider serves as HLS: its media playlist followed,
 /// each new segment handed on as it comes. A variant whose audio is a
-/// rendition of its own has that rendition's segments put in its own.
+/// rendition of its own has that rendition's segments put in its own, read
+/// alongside them.
 async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut text: String) -> Result<(), String> {
     let mut sound = None;
     if let Some(variant) = best_variant(&text) {
@@ -1456,26 +1463,38 @@ async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut 
             sound = Some(audio::Rendition::new(url.join(&uri).map_err(|_| BAD_ADDRESS.to_owned())?));
         }
         url = url.join(&variant.uri).map_err(|_| BAD_ADDRESS.to_owned())?;
-        text = get_text(tuner, http, &url).await?;
+        let (got, ()) = tokio::join!(get_text(tuner, http, &url, PLAYLIST_WAIT), refresh(&mut sound, tuner, http));
+        text = got?;
     }
     let mut next: Option<u64> = None;
+    let mut held = false;
     loop {
         let playlist = media_playlist(&text)?;
         // Join a few segments behind the live edge, as players do.
         let first = next.unwrap_or_else(|| playlist.last_sequence().saturating_sub(2));
-        if let Some(rendition) = sound.as_mut().filter(|r| r.wanted()) {
-            rendition.refresh(tuner, http, first).await;
-        }
         for segment in playlist.segments.iter().filter(|s| s.sequence >= first) {
             let at = url.join(&segment.uri).map_err(|_| BAD_ADDRESS.to_owned())?;
-            let mut resp = get_segment(tuner, http, at).await?;
             match sound.as_mut().filter(|r| r.wanted()) {
                 Some(rendition) => {
-                    let video = read_segment(resp, SEGMENT_BYTES).await?;
-                    let audio = rendition.take(tuner, http, segment.duration).await;
-                    tuner.push(rendition.join(tuner.channel_id, &video, &audio).into());
+                    let video =
+                        async { read_segment(get_segment(tuner, http, at, SEGMENT_WAIT).await?, SEGMENT_BYTES).await };
+                    let (video, mut audio) =
+                        tokio::join!(video, rendition.take(tuner, http, segment.sequence, segment.duration));
+                    let video = video?;
+                    // The transcoder decides from the first moment whether
+                    // the channel has sound: the first segment waits a
+                    // little for its own.
+                    let deadline = Instant::now() + audio::FIRST_SOUND_WAIT;
+                    while !held && audio.is_empty() && rendition.active() && Instant::now() < deadline {
+                        tokio::time::sleep(Duration::from_millis(500)).await;
+                        rendition.refresh(tuner, http).await;
+                        audio = rendition.take(tuner, http, segment.sequence, 0.0).await;
+                    }
+                    held = true;
+                    push_whole(tuner, rendition.join(tuner.channel_id, &video, &audio));
                 }
                 None => {
+                    let mut resp = get_segment(tuner, http, at, SEGMENT_WAIT).await?;
                     while let Some(chunk) = resp.chunk().await.map_err(|e| super::describe(&e))? {
                         tuner.push(chunk);
                     }
@@ -1488,14 +1507,35 @@ async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut 
         }
         let wait = Duration::from_secs_f64((playlist.target_duration / 2.0).clamp(1.0, 5.0));
         tokio::time::sleep(wait).await;
-        text = get_text(tuner, http, &url).await?;
+        let (got, ()) = tokio::join!(get_text(tuner, http, &url, PLAYLIST_WAIT), refresh(&mut sound, tuner, http));
+        text = got?;
+    }
+}
+
+/// Reads an audio rendition's playlist again, if there is one.
+async fn refresh(sound: &mut Option<audio::Rendition>, tuner: &Tuner, http: &reqwest::Client) {
+    if let Some(rendition) = sound {
+        rendition.refresh(tuner, http).await;
+    }
+}
+
+/// Hands on a segment read whole, in pieces.
+fn push_whole(tuner: &Tuner, data: Vec<u8>) {
+    let data = Bytes::from(data);
+    for at in (0..data.len()).step_by(PUSH_BYTES) {
+        tuner.push(data.slice(at..data.len().min(at + PUSH_BYTES)));
     }
 }
 
 const BAD_ADDRESS: &str = "the provider's playlist names a bad address";
 
-async fn get_segment(tuner: &Tuner, http: &reqwest::Client, url: url::Url) -> Result<reqwest::Response, String> {
-    let mut req = http.get(url).timeout(Duration::from_secs(20));
+async fn get_segment(
+    tuner: &Tuner,
+    http: &reqwest::Client,
+    url: url::Url,
+    wait: Duration,
+) -> Result<reqwest::Response, String> {
+    let mut req = http.get(url).timeout(wait);
     if !tuner.user_agent.is_empty() {
         req = req.header(reqwest::header::USER_AGENT, &tuner.user_agent);
     }
@@ -1524,7 +1564,7 @@ struct MediaPlaylist {
     ended: bool,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 struct Segment {
     sequence: u64,
     /// Its `#EXTINF`, in seconds.
@@ -1572,7 +1612,7 @@ fn media_playlist(text: &str) -> Result<MediaPlaylist, String> {
         if let Some(n) = line.strip_prefix("#EXT-X-MEDIA-SEQUENCE:") {
             sequence = n.parse().unwrap_or(0);
         } else if let Some(d) = line.strip_prefix("#EXT-X-TARGETDURATION:") {
-            target_duration = d.parse().unwrap_or(6.0);
+            target_duration = seconds(d).unwrap_or(6.0);
         } else if line.starts_with("#EXT-X-MAP") {
             return Err("the provider sends fragmented MP4, which isn't read yet".into());
         } else if let Some(key) = line.strip_prefix("#EXT-X-KEY:") {
@@ -1582,7 +1622,7 @@ fn media_playlist(text: &str) -> Result<MediaPlaylist, String> {
         } else if line.starts_with("#EXT-X-ENDLIST") {
             ended = true;
         } else if let Some(info) = line.strip_prefix("#EXTINF:") {
-            duration = Some(info.split(',').next().and_then(|d| d.trim().parse().ok()).unwrap_or(target_duration));
+            duration = Some(info.split(',').next().and_then(seconds).unwrap_or(target_duration));
         } else if !line.is_empty()
             && !line.starts_with('#')
             && let Some(duration) = duration.take()
@@ -1591,9 +1631,20 @@ fn media_playlist(text: &str) -> Result<MediaPlaylist, String> {
         }
     }
     if segments.is_empty() && !ended {
-        return Err("the provider's playlist has no segments".into());
+        return Err(NO_SEGMENTS.into());
     }
     Ok(MediaPlaylist { target_duration, segments, ended })
+}
+
+/// Why a media playlist isn't read, when it has no segments (a live one
+/// may be so for a moment).
+const NO_SEGMENTS: &str = "the provider's playlist has no segments";
+
+/// A playlist's duration: a number of seconds above 0 and no more than ten
+/// minutes. Others (NaN, infinite, 0, negative) aren't taken: what they
+/// would pace would never end, or never start.
+fn seconds(text: &str) -> Option<f64> {
+    text.trim().parse::<f64>().ok().filter(|d| d.is_finite() && *d > 0.0 && *d <= 600.0)
 }
 
 #[cfg(test)]
@@ -1623,6 +1674,12 @@ mod tests {
         assert_eq!((p.target_duration, p.ended, p.last_sequence()), (4.0, false, 101));
         assert!(media_playlist("#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"k\"\n#EXTINF:4,\na.ts\n").is_err());
         assert!(media_playlist("#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n").is_err());
+        // Durations that aren't a number of seconds above 0 are the target.
+        let text = "#EXTM3U\n#EXT-X-TARGETDURATION:NaN\n#EXTINF:0,\na.ts\n#EXTINF:-3,\nb.ts\n#EXTINF:inf,\nc.ts\n";
+        let p = media_playlist(text).unwrap();
+        assert_eq!(p.target_duration, 6.0);
+        assert!(p.segments.iter().all(|s| s.duration == 6.0));
+        assert_eq!(media_playlist("#EXTM3U\n#EXT-X-TARGETDURATION:2\n").err().as_deref(), Some(NO_SEGMENTS));
     }
 
     fn packet(pid: u16, start: bool, flags: Option<u8>, payload: &[u8]) -> Vec<u8> {
