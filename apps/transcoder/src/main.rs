@@ -506,10 +506,14 @@ fn prepare_work_dir(work_dir: &Path, default: bool) -> anyhow::Result<PathBuf> {
     Ok(jobs_dir)
 }
 
-/// The folder libplacebo keeps compiled shaders in. Its path is absolute:
-/// FFmpeg runs in a job's folder, which goes with the job. It is made now,
-/// since libplacebo makes none and then silently caches nothing.
-fn shader_cache(work_dir: &Path) -> Option<PathBuf> {
+/// The folder libplacebo keeps compiled shaders in, where its FFmpeg takes
+/// one (`supported`). Its path is absolute: FFmpeg runs in a job's folder,
+/// which goes with the job. It is made now, since libplacebo makes none and
+/// then silently caches nothing.
+fn shader_cache(work_dir: &Path, supported: bool) -> Option<PathBuf> {
+    if !supported {
+        return None;
+    }
     let dir = std::path::absolute(work_dir).ok()?.join("libplacebo");
     match std::fs::create_dir_all(&dir) {
         Ok(()) => Some(dir),
@@ -555,7 +559,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         extractor.clone(),
         metrics.clone(),
         jobs_dir.clone(),
-        shader_cache(&work_dir),
+        shader_cache(&work_dir, ff.caps.placebo_shader_cache),
         Some(capabilities),
         limits.clone(),
         background.clone(),
@@ -592,7 +596,7 @@ async fn run(args: Args) -> anyhow::Result<()> {
         ff.clone(),
         prober.clone(),
         jobs.slots.clone(),
-        shader_cache(&work_dir),
+        shader_cache(&work_dir, ff.caps.placebo_shader_cache),
         work_dir.join("conversions"),
     );
     cache::spawn_janitor(work_dir.clone(), shared_work_dir(&work_dir, &jobs_dir));
@@ -757,11 +761,15 @@ mod tests {
     #[test]
     fn the_shader_cache_is_made_at_start_up() {
         let dir = tempfile::tempdir().unwrap();
-        let cache = shader_cache(&dir.path().join("work")).unwrap();
+        let cache = shader_cache(&dir.path().join("work"), true).unwrap();
         assert!(cache.is_absolute() && cache.is_dir() && cache.ends_with("libplacebo"));
         // Not where a file is in the way: tone mapping goes on without it.
         std::fs::write(dir.path().join("file"), b"").unwrap();
-        assert_eq!(shader_cache(&dir.path().join("file")), None);
+        assert_eq!(shader_cache(&dir.path().join("file"), true), None);
+        // Nor for an FFmpeg whose libplacebo takes none (7.1): FFmpeg would
+        // refuse every graph naming it.
+        assert_eq!(shader_cache(&dir.path().join("old"), false), None);
+        assert!(!dir.path().join("old").exists());
     }
 
     #[test]

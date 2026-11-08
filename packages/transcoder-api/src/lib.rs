@@ -628,6 +628,10 @@ pub struct Capabilities {
     /// a GPU, and from older transcoders, which tone map at `High`.
     #[serde(default)]
     pub tonemap_speed: Option<TonemapSpeed>,
+    /// libplacebo takes `shader_cache` (FFmpeg 8 and later): compiled
+    /// shaders are kept on disk, so tone mapping starts sooner.
+    #[serde(default)]
+    pub placebo_shader_cache: bool,
     /// AMF encoders get frames FFmpeg uploaded to the AMD GPU (Direct3D 11)
     /// rather than frames in system memory, which AMF copies over itself
     /// several times slower (Windows).

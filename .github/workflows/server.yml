@@ -25,6 +25,7 @@ on:
       - docs/TRANSCODER.md
       - .dockerignore
       - deploy/docker/**
+      - deploy/ffmpeg/**
       - deploy/unraid/**
       - deploy/windows/**
       - deploy/systemd/**
@@ -59,6 +60,7 @@ on:
       - docs/TRANSCODER.md
       - .dockerignore
       - deploy/docker/**
+      - deploy/ffmpeg/**
       - deploy/unraid/**
       - deploy/windows/**
       - deploy/systemd/**
@@ -265,44 +267,134 @@ jobs:
           command: check licenses
 
   docker:
-    name: Docker image
+    name: Docker image${{ matrix.arch != 'amd64' && format(' ({0})', matrix.arch) || '' }}
     # A release builds and publishes the image itself (image, below).
     if: ${{ !inputs.release }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { arch: amd64, os: ubuntu-latest }
+          - { arch: arm64, os: ubuntu-24.04-arm }
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read # see whether pley-ffmpeg is published, before it is public
+    # Where pley-ffmpeg goes when this run builds it.
+    services:
+      registry:
+        image: registry:3
+        ports:
+          - 5000:5000
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - if: ${{ !github.event.pull_request.head.repo.fork }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: network=host
+      # The image's pley-ffmpeg: the Dockerfile names the recipe's tag, and
+      # one the FFmpeg workflow hasn't published yet (a pull request that
+      # changes it) is built here.
+      - name: pley-ffmpeg
+        id: ffmpeg
+        run: |
+          tag=$(sh deploy/ffmpeg/tag.sh)
+          image="ghcr.io/pley-media-server/pley-ffmpeg:$tag"
+          grep -qx "ARG FFMPEG_IMAGE=$image" deploy/docker/Dockerfile ||
+            { echo "::error::deploy/docker/Dockerfile must name $image"; exit 1; }
+          if docker buildx imagetools inspect "$image" >/dev/null 2>&1; then
+            echo "image=$image" >> "$GITHUB_OUTPUT"
+          else
+            echo "image=localhost:5000/pley-ffmpeg:$tag" >> "$GITHUB_OUTPUT"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.ffmpeg.outputs.build == 'true'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: deploy/ffmpeg
+          push: true
+          tags: ${{ steps.ffmpeg.outputs.image }}
+          # The FFmpeg workflow's cache, which only it writes: FFmpeg's
+          # build is several GB a platform.
+          cache-from: type=gha,scope=pley-ffmpeg-${{ matrix.arch }}
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: deploy/docker/Dockerfile
+          build-args: FFMPEG_IMAGE=${{ steps.ffmpeg.outputs.image }}
           push: false
           load: true
           tags: pley:local
-          cache-from: type=gha
-          cache-to: ${{ github.ref == 'refs/heads/master' && 'type=gha,mode=max' || '' }}
+          cache-from: type=gha,scope=docker-${{ matrix.arch }}
+          cache-to: ${{ github.ref == 'refs/heads/master' && format('type=gha,mode=max,scope=docker-{0}', matrix.arch) || '' }}
       # What the transcoder's hardware paths use (apps/transcoder/src/ffmpeg.rs):
       # an FFmpeg update that drops one would quietly leave pley on the CPU.
+      # NVIDIA's and Intel's are built for amd64 only.
       - name: Check the image's FFmpeg
+        env:
+          ARCH: ${{ matrix.arch }}
         run: |
           fail() { echo "::error::$*"; exit 1; }
           ff() { docker run --rm --entrypoint ffmpeg pley:local -hide_banner "$@"; }
-          hwaccels=$(ff -hwaccels) filters=$(ff -filters) encoders=$(ff -encoders)
-          for name in cuda vaapi qsv vulkan opencl; do
+          ff -version | head -1 | grep '^ffmpeg version 9\.' || fail "the image's FFmpeg isn't FFmpeg 9"
+          hwaccels=$(ff -hwaccels) filters=$(ff -filters) encoders=$(ff -encoders) decoders=$(ff -decoders)
+          hw=(vaapi vulkan opencl) hw_filters=(scale_vaapi) hw_encoders=(h264_vaapi hevc_vaapi)
+          if [ "$ARCH" = amd64 ]; then
+            hw+=(cuda qsv) hw_filters+=(scale_cuda vpp_qsv) hw_encoders+=(h264_nvenc hevc_nvenc h264_qsv hevc_qsv)
+          fi
+          for name in "${hw[@]}"; do
             grep -qx "$name" <<<"$hwaccels" || fail "FFmpeg has no $name hardware acceleration"
           done
-          for name in scale_cuda scale_vaapi vpp_qsv libplacebo tonemap_opencl zscale; do
+          for name in "${hw_filters[@]}" libplacebo tonemap_opencl zscale subtitles; do
             grep -qw "$name" <<<"$filters" || fail "FFmpeg has no $name filter"
           done
-          for name in h264_nvenc hevc_nvenc h264_vaapi hevc_vaapi h264_qsv hevc_qsv libx264 libx265; do
+          # libsvtav1 and libvpx-vp9 make the clips that test GPU decoding of AV1 and VP9.
+          for name in "${hw_encoders[@]}" libx264 libx265 libsvtav1 libvpx-vp9; do
             grep -qw "$name" <<<"$encoders" || fail "FFmpeg has no $name encoder"
           done
-          # Intel's full driver: the free one leaves older GPUs on the CPU (Dockerfile).
-          docker run --rm --entrypoint dpkg pley:local -s intel-media-va-driver-non-free >/dev/null ||
-            fail "the image doesn't have Intel's non-free VAAPI driver"
+          grep -qw libdav1d <<<"$decoders" || fail "FFmpeg has no libdav1d decoder"
+          if [ "$ARCH" = amd64 ]; then
+            # Intel's full driver: the free one leaves older GPUs on the CPU (Dockerfile).
+            docker run --rm --entrypoint dpkg pley:local -s intel-media-va-driver-non-free >/dev/null ||
+              fail "the image doesn't have Intel's non-free VAAPI driver"
+          fi
+      # Transcodes as the transcoder runs them, on an HDR10 clip: libplacebo
+      # tone mapping with its shader cache (the option FFmpeg 7.1 lacked),
+      # on Mesa's Vulkan on the CPU, zscale's, and subtitles burned in.
+      - name: Transcode with the image's FFmpeg
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          work="$RUNNER_TEMP/transcode"
+          mkdir -p "$work/cache" && chmod 777 "$work" "$work/cache"
+          run() { docker run --rm -v "$work:/work" -w /work --entrypoint "$1" pley:local "${@:2}"; }
+          ff() { run ffmpeg -hide_banner -nostdin -loglevel error "$@"; }
+          hdr=setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc
+          ff -f lavfi -i testsrc2=s=1280x720:r=24:d=4 -vf "format=yuv420p10le,$hdr" \
+            -c:v libx265 -preset ultrafast -x265-params log-level=error -profile:v main10 hdr10.mkv
+          ff -init_hw_device vulkan=vk -filter_hw_device vk -i hdr10.mkv -filter_complex \
+            "[0:0]libplacebo=w=1280:h=720:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:peak_detect=0:shader_cache=/work/cache/,format=yuv420p[vout]" \
+            -map '[vout]' -c:v libx264 -preset veryfast -f hls -hls_time 2 -hls_segment_filename 'placebo%d.ts' placebo.m3u8 ||
+            fail "libplacebo didn't tone map"
+          test -n "$(ls -A "$work/cache")" || fail "libplacebo kept no shaders in its cache"
+          ff -i hdr10.mkv -vf "zscale=w=1280:h=720:t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=hable:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p" \
+            -c:v libx264 -preset veryfast -f hls -hls_time 2 -hls_segment_filename 'zscale%d.ts' zscale.m3u8 ||
+            fail "zscale didn't tone map"
+          printf '1\n00:00:00,000 --> 00:00:03,000\nPley\n' > "$work/sub.srt"
+          ff -f lavfi -i color=black:s=640x360:d=3 -vf subtitles=sub.srt -c:v libx264 -preset veryfast subs.mp4 ||
+            fail "subtitles weren't burned in"
+          # MPEG-TS lists each stream twice: under its program, then alone.
+          for out in placebo0.ts zscale0.ts; do
+            got=$(run ffprobe -v error -select_streams v -show_entries stream=codec_name,pix_fmt,width -of csv=p=0 "$out")
+            grep -x h264,1280,yuv420p <<<"$got" >/dev/null || fail "$out is $got"
+          done
       - name: Check the compose add-ons
         working-directory: deploy/docker
         env:
@@ -336,6 +428,20 @@ jobs:
           if in_pley touch /media/x 2>/dev/null; then fail "the media is writable"; fi
           in_pley touch /config/x /tmp/x || fail "/config or /tmp isn't writable"
           test "$(stat -c %a config)" = 700 || fail "the config folder isn't private"
+      - name: Check the transcoder's FFmpeg
+        working-directory: deploy/docker
+        run: |
+          fail() { echo "::error::$*"; exit 1; }
+          caps=/config/transcode/capabilities.json
+          for _ in $(seq 90); do
+            docker compose exec -T pley test -s "$caps" && break
+            sleep 2
+          done
+          docker compose logs pley | grep 'detected in' || fail "the transcoder didn't detect FFmpeg"
+          docker compose logs pley | grep 'ffmpeg 9\..*tone mapping \[[^]]*libplacebo' >/dev/null ||
+            fail "the transcoder found no FFmpeg 9 with libplacebo"
+          docker compose exec -T pley grep '"placebo_shader_cache": true' "$caps" >/dev/null ||
+            fail "the transcoder doesn't use libplacebo's shader cache"
       # As Unraid (deploy/unraid) and other NAS systems start it: as root,
       # PUID and PGID set, a config folder Docker made as root's.
       - name: Check starting as root
@@ -502,10 +608,35 @@ jobs:
   # is pushed before the release is published: required reviewers on the
   # `release` environment, in the repository's settings, hold it until
   # someone approves.
+  # The image copies pley-ffmpeg, which the FFmpeg workflow publishes after
+  # its recipe changes on master: a release waits for it.
+  ffmpeg-published:
+    name: pley-ffmpeg is published
+    if: inputs.release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - run: |
+          image=$(sed -n 's/^ARG FFMPEG_IMAGE=//p' deploy/docker/Dockerfile)
+          docker buildx imagetools inspect "$image" >/dev/null ||
+            { echo "::error::$image isn't published: let the FFmpeg workflow finish on master, or run it"; exit 1; }
+
   image:
     name: Docker image (${{ matrix.arch }})
     if: inputs.release
-    needs: [web, rust, msrv, windows-installer, licenses]
+    needs: [web, rust, msrv, windows-installer, licenses, ffmpeg-published]
     environment: release
     strategy:
       fail-fast: false

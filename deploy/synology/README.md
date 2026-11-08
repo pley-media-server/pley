@@ -19,7 +19,7 @@ doesn't run on DSM, whose C library is older than theirs.
    `https://packages.synocommunity.com`. Under **General**, set **Trust
    Level** to **Any publisher**: SynoCommunity's packages and Pley's aren't
    signed by Synology.
-2. **Install FFmpeg** from the Community tab: **ffmpeg7** (or **ffmpeg8**).
+2. **Install FFmpeg** from the Community tab: **ffmpeg8** (or **ffmpeg7**).
    For hardware transcoding on an Intel NAS, install **SynoCli Video
    Driver** too.
 3. **Install Pley.** Download `pley-server-<version>-synology-x86_64.spk`
