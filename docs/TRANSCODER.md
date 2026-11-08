@@ -883,9 +883,10 @@ available tone mapper:
   and work with any tone mapper. Profile 5 without libplacebo plays with off
   colours, with a warning.
 - libplacebo caches compiled shaders in `libplacebo/` (saving about 0.2 s at
-  every start, seek and quality switch), unless the folder's path holds a
-  character FFmpeg's filter syntax reads (`, ; [ ] ' :`, other than a drive's
-  colon).
+  every start, seek and quality switch) with FFmpeg 8 and later, whose
+  libplacebo filter lists `shader_cache` (`ffmpeg -h filter=libplacebo`,
+  checked at start-up). It doesn't when the folder's path holds a character
+  FFmpeg's filter syntax reads (`, ; [ ] ' :`, other than a drive's colon).
 
 #### libplacebo quality
 
