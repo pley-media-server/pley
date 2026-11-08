@@ -304,7 +304,7 @@ pub async fn history(
     let (records, total) = history::list(&state.db, user.id, &filter).await?;
     let libraries = visible_libraries(&state, &user).await?;
     let rows: Vec<_> = records.iter().map(|r| r.item.clone()).collect();
-    let detail = Detail { guids: false, full: false, media: false, markers: false };
+    let detail = Detail { guids: false, full: false, media: false, markers: false, labels: false };
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), detail).await?;
     let nodes = nodes
         .into_iter()

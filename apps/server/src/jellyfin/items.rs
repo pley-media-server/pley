@@ -261,7 +261,8 @@ async fn list_libraries(
             pairs.push(("id".into(), ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",")));
         }
         let params = Params(pairs);
-        let (found, count) = SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
+        let (found, count) =
+            SectionQuery::asked_by(user, lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
         rows.extend(found);
         total += count;
     }
@@ -807,12 +808,16 @@ async fn details(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, id: &st
             }
             let mut items = dtos(state, jellyfin, user, std::slice::from_ref(&row), Fields::all()).await?;
             let mut item = items.remove(0);
-            // What an editor sends back: the locks and the labels.
+            // What an editor sends back: the locks and the labels (to editors
+            // only, see `labels::shown_to`).
             let (locked, all, sort) = super::editing::locks(state, row.id).await?;
             item.locked_fields = Some(locked);
             item.lock_data = Some(all);
             item.forced_sort_name = sort;
-            item.tags = Some(crate::labels::for_items(&state.db, &[row.id]).await?.remove(&row.id).unwrap_or_default());
+            if crate::labels::shown_to(user) {
+                item.tags =
+                    Some(crate::labels::for_items(&state.db, &[row.id]).await?.remove(&row.id).unwrap_or_default());
+            }
             Ok(Json(item).into_response())
         }
         Some((kind, number)) => Ok(Json(other(state, jellyfin, user, kind, number).await?).into_response()),
@@ -1060,7 +1065,8 @@ async fn artists(
     let window = if several { Page { start: 0, size: page.size.map(|s| s + page.start) } } else { page };
     let (mut rows, mut total) = (Vec::new(), 0);
     for lib in &libs {
-        let (found, count) = SectionQuery::new(lib.id, "artist", &params)?.page(&state.db, user.id, &window).await?;
+        let (found, count) =
+            SectionQuery::asked_by(&user, lib.id, "artist", &params)?.page(&state.db, user.id, &window).await?;
         rows.extend(found);
         total += count;
     }

@@ -19,6 +19,7 @@ import { ItemRequestLine } from "./ItemRequest";
 import {
   ContentRating,
   Genres,
+  Labels,
   ItemArt,
   ItemPageShell,
   MetaLine,
@@ -66,6 +67,7 @@ export function ShowView({ item }: { item: ItemDetail }) {
             <StarRating item={item} />
           </div>
           <Genres genres={item.genres} />
+          <Labels labels={item.labels} />
           <PartOfCollections item={item} />
           <div className="flex flex-wrap items-center gap-2.5 pt-1">
             <Button

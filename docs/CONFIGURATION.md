@@ -104,7 +104,8 @@ TV libraries, at each scan:
 - **Fields**: title, original title, sort title, year, release date
   (`premiered`, `releasedate` or `aired`), summary (`plot`, else
   `outline`), tagline, content rating (`mpaa` or `certification`), genres,
-  studio and rating.
+  studio and rating. Of several countries' ratings (`GB:15 / US:R`), the
+  metadata region's is taken, else the US's, else the first.
 - **Lock**: Jellyfin's `<lockdata>true</lockdata>` keeps the item from being
   fetched online at all, Refresh included.
 - Cast, collections (`<set>`), tags and watch state aren't read. Picture

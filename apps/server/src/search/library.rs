@@ -345,8 +345,11 @@ async fn credited(
         Candidates::Matching(fts) => ("people_fts f JOIN people pe ON pe.id = f.rowid WHERE people_fts MATCH ?", fts),
         Candidates::Ids(ids) => ("people pe WHERE pe.id IN (SELECT value FROM json_each(?))", ids),
     };
+    // Labels a profile never sees hide titles from it without an age limit.
     let unrestricted: bool = sqlx::query_scalar(
-        "SELECT (is_admin OR all_libraries) AND (is_admin OR max_age IS NULL) FROM users WHERE id = ?",
+        "SELECT is_admin OR (all_libraries AND max_age IS NULL
+                             AND NOT EXISTS (SELECT 1 FROM user_label_rules r WHERE r.user_id = users.id AND r.kind = 'hide'))
+         FROM users WHERE id = ?",
     )
     .bind(user_id)
     .fetch_optional(&db.read)

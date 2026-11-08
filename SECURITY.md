@@ -152,12 +152,20 @@ protect your server.
   stops working at once, even one being checked at that moment. Its event
   streams end within 30 seconds, when they check it again.
 - Switching from a restricted profile to one that can see more (an
-  administrator, a higher age limit, other libraries) takes that profile's
-  PIN, or its password (and code).
+  administrator, a higher age limit, other libraries, fewer labels it
+  never sees or more it always sees) takes that profile's PIN, or its
+  password (and code).
+- A profile's limits (libraries, age limit, label rules) are kept by the
+  server in every listing, search, stream and compatibility API, and
+  Discover; a hidden title answers as if it didn't exist. Only
+  administrators see a title's labels and a profile's rules, so a child
+  doesn't read what a label says. The limits decide what Pley shows, not
+  what's on the disk: anyone who can read the media folders sees it all.
 - A remote casting to a device of another of the household's profiles
   switches that device to its own profile, signed in as it already, by a
   switch's rules from the device's profile: a freer profile (an
-  administrator, a higher age limit, other libraries) takes its PIN and,
+  administrator, a higher age limit, other libraries, freer label rules)
+  takes its PIN and,
   without one, can't cast there, so a child's device never becomes an
   administrator's without that PIN. An administrator's profile is cast
   only to Pley's apps, whose tokens never carry administrator rights,

@@ -554,6 +554,7 @@ impl Scanner {
             roots: lib.paths(),
             unavailable: walked.offline_roots.iter().chain(&walked.unreadable).cloned().collect(),
             listed: std::mem::take(&mut walked.nfo_files),
+            region: crate::ratings::region(&self.db).await?,
         };
         let changes = {
             let sidecars = sidecars.clone();
@@ -1429,6 +1430,8 @@ struct NfoContext {
     unavailable: Vec<PathBuf>,
     /// The size and modification time of the NFO files the walk listed.
     listed: HashMap<PathBuf, (i64, i64)>,
+    /// The metadata region, whose rating is taken of several countries'.
+    region: String,
 }
 
 /// An item whose NFO file appeared, changed or went.
@@ -1508,7 +1511,8 @@ impl NfoChange {
             // `column` comes from `overrides::nfo_values`, so formatting it
             // into SQL is safe. Only what still holds the NFO file's value
             // goes back: an edit or a refresh meanwhile wins.
-            let age = if *column == "content_rating" { ", rating_age = NULL" } else { "" };
+            let age =
+                if *column == "content_rating" { ", content_rating_country = NULL, rating_age = NULL" } else { "" };
             sqlx::query(sqlx::AssertSqlSafe(format!(
                 "UPDATE items SET {column} = ?{age}, updated_at = ? WHERE id = ? AND {column} IS ?"
             )))
@@ -1744,11 +1748,12 @@ fn nfo_reverts(
     cx: &NfoContext,
 ) -> Vec<(&'static str, String, Option<String>)> {
     let kept: HashSet<&str> = after
-        .map(|a| crate::overrides::nfo_values(&row.kind, a).into_iter().map(|(c, _)| c).collect())
+        .map(|a| crate::overrides::nfo_values(&row.kind, a, &cx.region).into_iter().map(|(c, _)| c).collect())
         .unwrap_or_default();
-    let gone: Vec<(&'static str, String)> = crate::overrides::nfo_values(&row.kind, before)
+    let gone: Vec<(&'static str, String)> = crate::overrides::nfo_values(&row.kind, before, &cx.region)
         .into_iter()
-        .filter(|(column, _)| !kept.contains(column))
+        // A rating's country goes with the rating.
+        .filter(|(column, _)| !kept.contains(column) && *column != "content_rating_country")
         .collect();
     if gone.is_empty() {
         return Vec::new();

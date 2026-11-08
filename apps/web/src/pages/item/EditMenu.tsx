@@ -3,13 +3,17 @@ import { Trans, useTranslation } from "react-i18next";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, FileText, ImageUp, Lock, LockOpen, Pencil, RotateCcw, Search } from "lucide-react";
 import { api, errorMessage, request } from "@/api/client";
-import type { ItemDetail } from "@/api/types";
+import { keys, useRatingSystems } from "@/api/hooks";
+import type { ItemDetail, RatingSystems } from "@/api/types";
 import { useAuth } from "@/auth";
+import { LabelPicker } from "@/components/LabelPicker";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button, Field, Spinner, TextInput } from "@/components/ui";
 import { t as translate } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { systemName, writtenCountry } from "@/lib/access";
+import { sameLabels } from "@/lib/labels";
 
 type ArtworkKind = "poster" | "backdrop" | "thumb";
 
@@ -79,6 +83,9 @@ const FIELDS = [
 ] as const;
 type FieldKey = (typeof FIELDS)[number];
 
+/** The kinds of item that take labels (the server's `labels::LABELLED`). */
+const LABELLED = new Set(["movie", "show", "season", "episode", "artist", "album"]);
+
 function initialValue(item: ItemDetail, key: FieldKey): string {
   switch (key) {
     case "genres":
@@ -93,6 +100,7 @@ function initialValue(item: ItemDetail, key: FieldKey): string {
 function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () => void }) {
   const { t } = useTranslation(["item", "common"]);
   const toast = useToast();
+  const qc = useQueryClient();
   const refresh = useItemRefresh(item.id);
   const initial = useMemo(
     () => Object.fromEntries(FIELDS.map((key) => [key, initialValue(item, key)])) as Record<FieldKey, string>,
@@ -100,6 +108,9 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
   );
   const [values, setValues] = useState(initial);
   const [unlock, setUnlock] = useState<Set<FieldKey>>(new Set());
+  const [labels, setLabels] = useState(item.labels ?? []);
+  const { data: systems } = useRatingSystems();
+  const labelled = LABELLED.has(item.kind) && item.labels !== undefined;
   const locked = new Set(item.locked_fields ?? []);
   const fromNfo = new Set(item.nfo_fields ?? []);
   const fields = FIELDS.filter((key) => (item.kind === "episode" || item.kind === "season" ? !["original_title", "studio", "tagline", "content_rating", "genres"].includes(key) : true));
@@ -118,10 +129,12 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
         else if (key === "year") body[key] = v === "" ? null : Number(v);
         else body[key] = v === "" ? null : v;
       }
+      if (labelled && !sameLabels(labels, item.labels ?? [])) body.labels = labels;
       return api.patch<ItemDetail>(`/api/items/${item.id}`, body);
     },
     onSuccess: (detail) => {
       refresh(detail);
+      if (labelled && !sameLabels(labels, item.labels ?? [])) void qc.invalidateQueries({ queryKey: keys.labels });
       toast.success(t("common:states.saved"));
       onClose();
     },
@@ -177,7 +190,10 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
               <Field
                 label={t(`edit.details.fields.${key}`)}
                 htmlFor={`edit-${key}`}
-                hint={
+                hint={withRatingCountry(
+                  key === "content_rating"
+                    ? ratingCountry(item, systems, values.content_rating, initial.content_rating)
+                    : null,
                   locked.has(key) ? (
                     <button
                       type="button"
@@ -197,14 +213,26 @@ function EditDetailsDialog({ item, onClose }: { item: ItemDetail; onClose: () =>
                       <FileText className="size-3.5" />
                       {t("edit.details.fromNfo")}
                     </span>
-                  ) : undefined
-                }
+                  ) : undefined,
+                )}
               >
                 {input}
               </Field>
             </div>
           );
         })}
+        {labelled ? (
+          <div className="sm:col-span-2">
+            <Field label={t("edit.details.fields.labels")} htmlFor="edit-labels" hint={t("edit.details.labelsHint")}>
+              <LabelPicker
+                id="edit-labels"
+                value={labels}
+                onChange={setLabels}
+                removeLabel={(label) => t("edit.details.removeLabel", { label })}
+              />
+            </Field>
+          </div>
+        ) : null}
       </div>
     </Modal>
   );
@@ -466,5 +494,39 @@ function ArtworkGrid({
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Which ratings a content rating's age is read with, as the server reads
+ * it: the country written before it ("GB:15"), else the item's while it's
+ * the rating the item has, else the metadata region's. A region without
+ * ratings here reads it by the US's names and others in common use.
+ */
+function ratingCountry(
+  item: ItemDetail,
+  systems: RatingSystems | undefined,
+  value: string,
+  initial: string,
+): string | null {
+  if (value.trim() === "") return null;
+  const country = writtenCountry(systems, value) ?? (value === initial ? item.content_rating_country : undefined);
+  if (country) return translate("edit.details.ratingCountry", { ns: "item", country: systemName(country) });
+  if (systems && !systems.systems.some((s) => s.country === systems.region)) {
+    return translate("edit.details.ratingCommon", { ns: "item" });
+  }
+  return translate("edit.details.ratingRegion", { ns: "item" });
+}
+
+/** A field's hint with the rating's country after it, when there's one. */
+function withRatingCountry(country: string | null, hint: ReactNode): ReactNode {
+  if (!country) return hint;
+  if (!hint) return country;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-x-2">
+      {hint}
+      <span aria-hidden>·</span>
+      <span>{country}</span>
+    </span>
   );
 }
