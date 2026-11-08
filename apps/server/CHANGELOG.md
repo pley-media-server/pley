@@ -65,6 +65,9 @@ describes how they are made.
   Portugal's "M/18", is read whole, no longer as "U" or "M", which allowed
   younger viewers. A file that gives a bare `<mpaa>` and a
   `<certification>` naming countries gives the latter's.
+- Live TV channels served as HLS with their sound in an audio track of
+  its own, as many broadcasters serve theirs, play with sound: the
+  default track is put into the picture's stream.
 
 ## [0.1.8] - 2026-11-06
 

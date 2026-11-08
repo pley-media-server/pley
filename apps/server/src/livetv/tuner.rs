@@ -12,7 +12,8 @@
 //!   watched before, so changing channels on a one-connection account just
 //!   works.
 //! - Channels served as HLS by the provider are read segment by segment and
-//!   handed on as one MPEG-TS stream.
+//!   handed on as one MPEG-TS stream, with the sound of an audio rendition
+//!   kept apart from the picture put in ([`audio`]).
 //! - A connection that breaks is made again, a few times, while the channel
 //!   is watched.
 //! - Whether a channel played is told ([`Played`]): one the provider gives
@@ -38,6 +39,8 @@ use crate::playback::{CommandWindow, Controls, DeviceKind};
 use crate::transcoder::Transcoder;
 use crate::util::{now, now_ms};
 
+mod audio;
+
 /// A channel nobody watches is let go this long after the last viewer left
 /// (unless its connection is wanted sooner): coming back to it is instant.
 const LINGER: Duration = Duration::from_secs(20);
@@ -54,6 +57,8 @@ const TS_SYNC: u8 = 0x47;
 const CHANNEL_CHUNKS: usize = 2048;
 /// The provider sending nothing this long breaks the connection.
 const STALL: Duration = Duration::from_secs(15);
+/// The most of a provider's HLS segment read whole (to put its audio in).
+const SEGMENT_BYTES: usize = 64 << 20;
 /// Connection attempts in a row before a channel is given up on.
 const ATTEMPTS: u32 = 5;
 /// Bytes after which a connection counts as having worked (its failures
@@ -1442,10 +1447,15 @@ async fn get_text(tuner: &Tuner, http: &reqwest::Client, url: &url::Url) -> Resu
 }
 
 /// A channel the provider serves as HLS: its media playlist followed,
-/// each new segment handed on as it comes.
+/// each new segment handed on as it comes. A variant whose audio is a
+/// rendition of its own has that rendition's segments put in its own.
 async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut text: String) -> Result<(), String> {
+    let mut sound = None;
     if let Some(variant) = best_variant(&text) {
-        url = url.join(&variant).map_err(|_| "the provider's playlist names a bad address".to_owned())?;
+        if let Some(uri) = variant.audio.and_then(|group| audio::rendition(&text, &group)) {
+            sound = Some(audio::Rendition::new(url.join(&uri).map_err(|_| BAD_ADDRESS.to_owned())?));
+        }
+        url = url.join(&variant.uri).map_err(|_| BAD_ADDRESS.to_owned())?;
         text = get_text(tuner, http, &url).await?;
     }
     let mut next: Option<u64> = None;
@@ -1453,20 +1463,25 @@ async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut 
         let playlist = media_playlist(&text)?;
         // Join a few segments behind the live edge, as players do.
         let first = next.unwrap_or_else(|| playlist.last_sequence().saturating_sub(2));
-        for (sequence, uri) in playlist.segments.iter().filter(|(s, _)| *s >= first) {
-            let segment = url.join(uri).map_err(|_| "the provider's playlist names a bad address".to_owned())?;
-            let mut req = http.get(segment).timeout(Duration::from_secs(20));
-            if !tuner.user_agent.is_empty() {
-                req = req.header(reqwest::header::USER_AGENT, &tuner.user_agent);
+        if let Some(rendition) = sound.as_mut().filter(|r| r.wanted()) {
+            rendition.refresh(tuner, http, first).await;
+        }
+        for segment in playlist.segments.iter().filter(|s| s.sequence >= first) {
+            let at = url.join(&segment.uri).map_err(|_| BAD_ADDRESS.to_owned())?;
+            let mut resp = get_segment(tuner, http, at).await?;
+            match sound.as_mut().filter(|r| r.wanted()) {
+                Some(rendition) => {
+                    let video = read_segment(resp, SEGMENT_BYTES).await?;
+                    let audio = rendition.take(tuner, http, segment.duration).await;
+                    tuner.push(rendition.join(tuner.channel_id, &video, &audio).into());
+                }
+                None => {
+                    while let Some(chunk) = resp.chunk().await.map_err(|e| super::describe(&e))? {
+                        tuner.push(chunk);
+                    }
+                }
             }
-            let mut resp = req.send().await.map_err(|e| super::describe(&e))?;
-            if !resp.status().is_success() {
-                return Err(format!("the provider answered {} for a segment", resp.status()));
-            }
-            while let Some(chunk) = resp.chunk().await.map_err(|e| super::describe(&e))? {
-                tuner.push(chunk);
-            }
-            next = Some(sequence + 1);
+            next = Some(segment.sequence + 1);
         }
         if playlist.ended {
             return Ok(());
@@ -1477,37 +1492,74 @@ async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut 
     }
 }
 
+const BAD_ADDRESS: &str = "the provider's playlist names a bad address";
+
+async fn get_segment(tuner: &Tuner, http: &reqwest::Client, url: url::Url) -> Result<reqwest::Response, String> {
+    let mut req = http.get(url).timeout(Duration::from_secs(20));
+    if !tuner.user_agent.is_empty() {
+        req = req.header(reqwest::header::USER_AGENT, &tuner.user_agent);
+    }
+    let resp = req.send().await.map_err(|e| super::describe(&e))?;
+    if !resp.status().is_success() {
+        return Err(format!("the provider answered {} for a segment", resp.status()));
+    }
+    Ok(resp)
+}
+
+/// A segment whole, no larger than `limit`.
+async fn read_segment(mut resp: reqwest::Response, limit: usize) -> Result<Vec<u8>, String> {
+    let mut out = Vec::new();
+    while let Some(chunk) = resp.chunk().await.map_err(|e| super::describe(&e))? {
+        if out.len() + chunk.len() > limit {
+            return Err("the provider's segment is too large".into());
+        }
+        out.extend_from_slice(&chunk);
+    }
+    Ok(out)
+}
+
 struct MediaPlaylist {
     target_duration: f64,
-    segments: Vec<(u64, String)>,
+    segments: Vec<Segment>,
     ended: bool,
+}
+
+#[derive(Debug, PartialEq)]
+struct Segment {
+    sequence: u64,
+    /// Its `#EXTINF`, in seconds.
+    duration: f64,
+    uri: String,
 }
 
 impl MediaPlaylist {
     fn last_sequence(&self) -> u64 {
-        self.segments.last().map_or(0, |(s, _)| *s)
+        self.segments.last().map_or(0, |s| s.sequence)
     }
 }
 
+struct Variant {
+    uri: String,
+    /// The audio group it names (`AUDIO="…"`).
+    audio: Option<String>,
+}
+
 /// The variant with the most bits of a multivariant playlist.
-fn best_variant(text: &str) -> Option<String> {
-    let mut best: Option<(u64, String)> = None;
+fn best_variant(text: &str) -> Option<Variant> {
+    let mut best: Option<(u64, Variant)> = None;
     let mut lines = text.lines().map(str::trim);
     while let Some(line) = lines.next() {
         if let Some(attrs) = line.strip_prefix("#EXT-X-STREAM-INF:") {
-            let bandwidth = attrs
-                .split(',')
-                .find_map(|a| a.trim().strip_prefix("BANDWIDTH="))
-                .and_then(|b| b.parse().ok())
-                .unwrap_or(0);
+            let bandwidth = audio::attribute(attrs, "BANDWIDTH").and_then(|b| b.parse().ok()).unwrap_or(0);
             if let Some(uri) = lines.by_ref().find(|l| !l.is_empty() && !l.starts_with('#'))
                 && best.as_ref().is_none_or(|(b, _)| bandwidth > *b)
             {
-                best = Some((bandwidth, uri.to_owned()));
+                let audio = audio::attribute(attrs, "AUDIO").map(str::to_owned);
+                best = Some((bandwidth, Variant { uri: uri.to_owned(), audio }));
             }
         }
     }
-    best.map(|(_, uri)| uri)
+    best.map(|(_, variant)| variant)
 }
 
 fn media_playlist(text: &str) -> Result<MediaPlaylist, String> {
@@ -1515,7 +1567,7 @@ fn media_playlist(text: &str) -> Result<MediaPlaylist, String> {
     let mut target_duration = 6.0;
     let mut segments = Vec::new();
     let mut ended = false;
-    let mut in_segment = false;
+    let mut duration = None;
     for line in text.lines().map(str::trim) {
         if let Some(n) = line.strip_prefix("#EXT-X-MEDIA-SEQUENCE:") {
             sequence = n.parse().unwrap_or(0);
@@ -1529,11 +1581,13 @@ fn media_playlist(text: &str) -> Result<MediaPlaylist, String> {
             }
         } else if line.starts_with("#EXT-X-ENDLIST") {
             ended = true;
-        } else if line.starts_with("#EXTINF") {
-            in_segment = true;
-        } else if !line.is_empty() && !line.starts_with('#') && in_segment {
-            segments.push((sequence + segments.len() as u64, line.to_owned()));
-            in_segment = false;
+        } else if let Some(info) = line.strip_prefix("#EXTINF:") {
+            duration = Some(info.split(',').next().and_then(|d| d.trim().parse().ok()).unwrap_or(target_duration));
+        } else if !line.is_empty()
+            && !line.starts_with('#')
+            && let Some(duration) = duration.take()
+        {
+            segments.push(Segment { sequence: sequence + segments.len() as u64, duration, uri: line.to_owned() });
         }
     }
     if segments.is_empty() && !ended {
@@ -1550,16 +1604,22 @@ mod tests {
     fn the_best_variant_is_the_one_with_most_bits() {
         let text = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=800000,RESOLUTION=640x360\nlow.m3u8\n\
                     #EXT-X-STREAM-INF:BANDWIDTH=5000000,RESOLUTION=1920x1080\nhigh/index.m3u8\n";
-        assert_eq!(best_variant(text).as_deref(), Some("high/index.m3u8"));
-        assert_eq!(best_variant("#EXTM3U\n#EXTINF:2,\na.ts\n"), None);
+        let best = best_variant(text).unwrap();
+        assert_eq!((best.uri.as_str(), best.audio), ("high/index.m3u8", None));
+        assert!(best_variant("#EXTM3U\n#EXTINF:2,\na.ts\n").is_none());
+        // Its audio group, its codecs' commas notwithstanding.
+        let text = "#EXTM3U\n#EXT-X-STREAM-INF:BANDWIDTH=8500800,CODECS=\"avc1.64002a,mp4a.40.2\",AUDIO=\"program_audio\"\n\
+                    1080p.m3u8\n";
+        assert_eq!(best_variant(text).unwrap().audio.as_deref(), Some("program_audio"));
     }
 
     #[test]
     fn media_playlists_number_their_segments() {
         let text =
-            "#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXT-X-MEDIA-SEQUENCE:100\n#EXTINF:4.0,\na.ts\n#EXTINF:4.0,\nb.ts\n";
+            "#EXTM3U\n#EXT-X-TARGETDURATION:4\n#EXT-X-MEDIA-SEQUENCE:100\n#EXTINF:4.0,\na.ts\n#EXTINF:3.5,\nb.ts\n";
         let p = media_playlist(text).unwrap();
-        assert_eq!(p.segments, [(100, "a.ts".to_owned()), (101, "b.ts".to_owned())]);
+        let segment = |sequence, duration, uri: &str| Segment { sequence, duration, uri: uri.to_owned() };
+        assert_eq!(p.segments, [segment(100, 4.0, "a.ts"), segment(101, 3.5, "b.ts")]);
         assert_eq!((p.target_duration, p.ended, p.last_sequence()), (4.0, false, 101));
         assert!(media_playlist("#EXTM3U\n#EXT-X-KEY:METHOD=AES-128,URI=\"k\"\n#EXTINF:4,\na.ts\n").is_err());
         assert!(media_playlist("#EXTM3U\n#EXT-X-MAP:URI=\"init.mp4\"\n").is_err());
