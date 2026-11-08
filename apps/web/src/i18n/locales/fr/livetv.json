@@ -364,7 +364,7 @@
       "numberHintNone": "Les chaînes sont classées par numéro, puis dans l’ordre de leur source.",
       "guide": "Chaîne du guide",
       "guideHintSource": "Son identifiant dans le guide (XMLTV). Vide : celui de la source, {{id}}.",
-      "guideHintMatched": "Son identifiant dans le guide (XMLTV). Vide : {{id}}, trouvé d’après son nom.",
+      "guideHintMatched": "Son identifiant dans le guide (XMLTV). Vide : {{id}}, la chaîne du guide qui lui correspond.",
       "guideHintNone": "Son identifiant dans le guide (XMLTV) : la source n’en donne aucun, et aucun ne correspond à son nom.",
       "note": "Une nouvelle chaîne du guide affiche ses programmes une fois le guide actualisé."
     },

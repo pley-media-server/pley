@@ -396,9 +396,11 @@ impl ChannelRow {
         self.custom_number.clone().filter(|n| !n.is_empty()).or_else(|| self.number.clone())
     }
 
-    /// The guide's channel it takes its programmes from.
+    /// The guide's channel it takes its programmes from: the one set for it,
+    /// else the match found when the guide lacks the source's id, else the
+    /// source's id.
     fn guide_key(&self) -> Option<&str> {
-        [self.custom_guide_id.as_deref(), Some(self.guide_id.as_str()), self.matched_guide_id.as_deref()]
+        [self.custom_guide_id.as_deref(), self.matched_guide_id.as_deref(), Some(self.guide_id.as_str())]
             .into_iter()
             .flatten()
             .find(|id| !id.is_empty())
@@ -1386,27 +1388,19 @@ impl LiveTv {
             };
             let mut matches: HashMap<i64, String> = HashMap::new();
             let guide = xmltv::read(input, from, to, |guide_channels| {
-                let ids: HashSet<&str> = guide_channels.iter().map(|c| c.id.as_str()).collect();
-                let mut by_name: HashMap<String, &str> = HashMap::new();
-                for c in guide_channels {
-                    for name in &c.names {
-                        by_name.entry(normalize(name)).or_insert(&c.id);
-                    }
-                }
+                let index = GuideIndex::new(guide_channels);
                 let mut wanted = HashSet::new();
                 for c in &channels_for_match {
                     for id in [c.custom_guide_id.as_deref(), Some(c.guide_id.as_str())].into_iter().flatten() {
-                        if ids.contains(id) {
+                        if index.ids.contains(id) {
                             wanted.insert(id.to_owned());
                         }
                     }
-                    let named = [c.custom_guide_id.as_deref(), Some(c.guide_id.as_str())]
-                        .into_iter()
-                        .flatten()
-                        .any(|id| ids.contains(id));
-                    if !named && let Some(id) = by_name.get(&normalize(c.display_name())) {
-                        matches.insert(c.id, (*id).to_owned());
-                        wanted.insert((*id).to_owned());
+                    // Made whether or not a guide channel is set, so that
+                    // clearing it falls back to this at once.
+                    if let Some(id) = index.matching(&c.guide_id, c.display_name()) {
+                        matches.insert(c.id, id.to_owned());
+                        wanted.insert(id.to_owned());
                     }
                 }
                 wanted
@@ -2341,6 +2335,52 @@ fn is_divider(name: &str) -> bool {
     name.chars().take_while(|c| "#=*-~_+•●★☆✦━─|".contains(*c)).count() >= 3 || !name.chars().any(char::is_alphanumeric)
 }
 
+/// A guide's channels, as a source's channels are looked up in them.
+struct GuideIndex<'a> {
+    ids: HashSet<&'a str>,
+    /// By [`loose_id`].
+    loose: HashMap<String, &'a str>,
+    /// By [`normalize`]d name.
+    by_name: HashMap<String, &'a str>,
+}
+
+impl<'a> GuideIndex<'a> {
+    fn new(channels: &'a [xmltv::GuideChannel]) -> Self {
+        let mut index = GuideIndex { ids: HashSet::new(), loose: HashMap::new(), by_name: HashMap::new() };
+        for c in channels {
+            index.ids.insert(&c.id);
+            let loose = loose_id(&c.id);
+            if !loose.is_empty() {
+                index.loose.entry(loose).or_insert(&c.id);
+            }
+            for name in &c.names {
+                index.by_name.entry(normalize(name)).or_insert(&c.id);
+            }
+        }
+        index
+    }
+
+    /// The guide's channel for one whose source gives it `id` and `name`,
+    /// when the guide doesn't have `id` as it is: `id` written otherwise
+    /// (`Kika.de` for `KIKA.de`, `ARD-alpha.de` for `ARD.alpha.de`), else the
+    /// channel of its name.
+    fn matching(&self, id: &str, name: &str) -> Option<&'a str> {
+        if self.ids.contains(id) {
+            return None;
+        }
+        let loose = loose_id(id);
+        let by_id = if loose.is_empty() { None } else { self.loose.get(&loose) };
+        by_id.or_else(|| self.by_name.get(&normalize(name))).copied()
+    }
+}
+
+/// A guide id as compared when it isn't found as it is: lower case, letters
+/// and digits only. Sources and guides often write the same id in another
+/// case or with other dots and dashes.
+fn loose_id(id: &str) -> String {
+    id.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
+}
+
 /// A channel name as compared with the guide's: lower case, letters and
 /// digits only, and a trailing quality said or not (`HD`, `FHD`, `4K`).
 fn normalize(name: &str) -> String {
@@ -2410,6 +2450,49 @@ fn describe(e: &reqwest::Error) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_channel_missing_from_the_guide_is_matched_by_its_id_written_otherwise_then_its_name() {
+        let channel =
+            |id: &str, name: &str| xmltv::GuideChannel { id: id.into(), names: vec![name.into()], icon: None };
+        let channels =
+            [channel("KIKA.de", "KiKA"), channel("ARD.alpha.de", "ARD alpha"), channel("WDR.de", "WDR Fernsehen")];
+        let index = GuideIndex::new(&channels);
+        // The guide has the id: nothing to match.
+        assert_eq!(index.matching("KIKA.de", "Anything"), None);
+        assert_eq!(index.matching("Kika.de", "Anything"), Some("KIKA.de"));
+        assert_eq!(index.matching("ARD-alpha.de", "Anything"), Some("ARD.alpha.de"));
+        // An id the guide has in no form: the name decides.
+        assert_eq!(index.matching("WDRFernsehen.de", "WDR Fernsehen HD"), Some("WDR.de"));
+        assert_eq!(index.matching("", "KiKA HD"), Some("KIKA.de"));
+        assert_eq!(index.matching("-", "Nothing like it"), None);
+    }
+
+    #[test]
+    fn a_match_comes_before_an_id_the_guide_lacks() {
+        let row = |custom: Option<&str>, matched: Option<&str>| ChannelRow {
+            id: 1,
+            source_id: 1,
+            name: "KiKA".into(),
+            number: None,
+            group_name: String::new(),
+            logo_url: String::new(),
+            guide_id: "Kika.de".into(),
+            matched_guide_id: matched.map(Into::into),
+            stream_url: String::new(),
+            user_agent: None,
+            position: 0,
+            hidden: false,
+            custom_name: None,
+            custom_number: None,
+            custom_guide_id: custom.map(Into::into),
+            offline_since: None,
+        };
+        assert_eq!(row(None, None).guide_key(), Some("Kika.de"));
+        assert_eq!(row(None, Some("KIKA.de")).guide_key(), Some("KIKA.de"));
+        assert_eq!(row(Some("kika.example"), Some("KIKA.de")).guide_key(), Some("kika.example"));
+        assert_eq!(row(Some(""), Some("KIKA.de")).guide_key(), Some("KIKA.de"));
+    }
 
     #[test]
     fn channels_found_come_closest_first() {

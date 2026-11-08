@@ -326,10 +326,10 @@ function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: 
           label={t("settings.editor.guide")}
           htmlFor="ch-guide"
           hint={
-            channel.source_guide_id
-              ? t("settings.editor.guideHintSource", { id: channel.source_guide_id })
-              : channel.matched_guide_id
-                ? t("settings.editor.guideHintMatched", { id: channel.matched_guide_id })
+            channel.matched_guide_id
+              ? t("settings.editor.guideHintMatched", { id: channel.matched_guide_id })
+              : channel.source_guide_id
+                ? t("settings.editor.guideHintSource", { id: channel.source_guide_id })
                 : t("settings.editor.guideHintNone")
           }
         >
@@ -337,7 +337,7 @@ function ChannelEditor({ channel, onClose }: { channel: LineupChannel; onClose: 
             id="ch-guide"
             value={guide}
             onChange={(e) => setGuide(e.target.value)}
-            placeholder={channel.source_guide_id || channel.matched_guide_id || "bbc1.uk"}
+            placeholder={channel.matched_guide_id || channel.source_guide_id || "bbc1.uk"}
             spellCheck={false}
             className="font-mono"
           />

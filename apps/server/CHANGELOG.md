@@ -17,6 +17,13 @@ describes how they are made.
   seconds (holding still under the pointer, and for those who ask their
   system for less motion). Swipe between them on a phone.
 
+### Fixed
+
+- A Live TV channel whose playlist id isn't in the guide shows the
+  programmes of the guide channel found for it, rather than "No guide".
+  That guide channel is now also found when the guide writes the same id
+  in another case or with other dots and dashes (`Kika.de` and `KIKA.de`).
+
 ## [0.1.8] - 2026-11-06
 
 ### Added
