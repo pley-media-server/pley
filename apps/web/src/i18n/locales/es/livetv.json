@@ -364,7 +364,7 @@
       "numberHintNone": "Los canales se ordenan por número y luego como los lista su fuente.",
       "guide": "Canal de la guía",
       "guideHintSource": "Su identificador en la guía (XMLTV). Vacío: el de la fuente, {{id}}.",
-      "guideHintMatched": "Su identificador en la guía (XMLTV). Vacío: {{id}}, encontrado por su nombre.",
+      "guideHintMatched": "Su identificador en la guía (XMLTV). Vacío: {{id}}, el canal de la guía que le corresponde.",
       "guideHintNone": "Su identificador en la guía (XMLTV): la fuente no indica ninguno y ninguno coincide con su nombre.",
       "note": "Un nuevo canal de la guía muestra sus programas cuando se actualiza la guía."
     },

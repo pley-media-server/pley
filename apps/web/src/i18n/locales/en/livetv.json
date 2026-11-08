@@ -339,7 +339,7 @@
       "numberHintNone": "Channels go by number, then as their source lists them.",
       "guide": "Guide channel",
       "guideHintSource": "Its id in the guide (XMLTV). Empty: the source's, {{id}}.",
-      "guideHintMatched": "Its id in the guide (XMLTV). Empty: {{id}}, found by its name.",
+      "guideHintMatched": "Its id in the guide (XMLTV). Empty: {{id}}, the guide's channel that matches it.",
       "guideHintNone": "Its id in the guide (XMLTV): the source names none, and none goes by its name.",
       "note": "A new guide channel shows its programmes once the guide is read again."
     },
