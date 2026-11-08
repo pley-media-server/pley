@@ -109,7 +109,7 @@ async fn provider() -> (String, Arc<Provider>) {
          {base}/live/1.ts\n\
          #EXTINF:-1 tvg-chno=\"2\" group-title=\"Sport\",Two HD\n\
          {base}/live/2.ts\n\
-         #EXTINF:-1 tvg-chno=\"10\" group-title=\"Sport\",Ten\n\
+         #EXTINF:-1 tvg-id=\"ten.missing\" tvg-chno=\"10\" group-title=\"Sport\",Ten\n\
          {base}/live/10.ts\n\
          #EXTINF:-1 group-title=\"Films\",A film\n\
          {base}/movie/u/p/5.mkv\n"
@@ -435,7 +435,8 @@ async fn guides_asked(provider: &Provider, n: usize) {
     assert_eq!(provider.guides.load(Ordering::SeqCst), n);
 }
 
-/// A channel renamed to a name the guide knows is matched to it at once.
+/// A channel renamed to a name the guide knows is matched to it at once,
+/// its playlist's guide channel being one the guide lacks.
 #[tokio::test]
 async fn a_channel_renamed_as_the_guide_names_it_has_its_programmes_at_once() {
     let (base, provider) = provider().await;

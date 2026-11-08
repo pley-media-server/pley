@@ -4183,7 +4183,7 @@ interface LiveTuner {                  // a connection in use
   stay when the source is read again.
 - **Guide channels set by hand.** A guide read keeps the programmes of the
   guide channels the source's channels take as it reads, by guide channel
-  or, for channels given none, by name. A channel given a guide channel
+  or, when the guide lacks theirs, by name. A channel given a guide channel
   with no programmes in the lineup, or renamed while its name decides its
   guide channel, has the source's guide read again in the background; a
   read under way is followed by one more when it had already listed the

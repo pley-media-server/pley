@@ -1319,9 +1319,13 @@ impl LiveTv {
     async fn read_guides_wanted(&self, ids: &[i64], guide_set: bool, renamed: bool) -> Result<(), AppError> {
         let ids: HashSet<i64> = ids.iter().copied().collect();
         let lineup = self.lineup().await?;
-        // The name decides only for channels given no guide channel, by hand
-        // or by the playlist (see `ChannelRow::guide_key`).
-        let by_name = |c: &ChannelRow| c.custom_guide_id.as_deref().is_none_or(str::is_empty) && c.guide_id.is_empty();
+        // The name decides only for channels given no guide channel by hand,
+        // whose playlist's guide channel the guide lacks: none, or one with
+        // no programmes (see `ChannelRow::guide_key`).
+        let by_name = |c: &ChannelRow| {
+            c.custom_guide_id.as_deref().is_none_or(str::is_empty)
+                && (c.guide_id.is_empty() || !lineup.guided.contains(&(c.source_id, c.guide_id.clone())))
+        };
         let unguided: HashSet<i64> = lineup
             .rows
             .iter()
