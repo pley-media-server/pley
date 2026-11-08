@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# pley media server and its transcoder, on Debian 13 with its FFmpeg 7.1:
+# pley media server and its transcoder, on Debian 13 with FFmpeg 9:
 # NVIDIA (NVENC, CUDA scaling), Intel (Quick Sync, VAAPI) and AMD (VAAPI)
 # transcoding, and HDR tone mapping on the GPU (libplacebo over Vulkan,
 # OpenCL) or the CPU (zscale).
@@ -9,6 +9,11 @@
 #
 # deploy/docker/README.md sets it up with Docker Compose, hardened, and
 # covers hardware transcoding; deploy/unraid has the Unraid template.
+
+# FFmpeg and libplacebo, built by deploy/ffmpeg. The tag is
+# deploy/ffmpeg/tag.sh's, which CI checks.
+ARG FFMPEG_IMAGE=ghcr.io/pley-media-server/pley-ffmpeg:9.0.2-622ab52bfc1c
+FROM ${FFMPEG_IMAGE} AS ffmpeg
 
 # ---- web app ----------------------------------------------------------------
 FROM oven/bun:1.4.4-slim AS web
@@ -60,9 +65,13 @@ LABEL org.opencontainers.image.title="Pley" \
 # libraries; the OpenCL loader learns of NVIDIA's from the file below. No
 # program keeps a setuid or setgid bit: nothing in the image can gain
 # privileges, even when it is run without no-new-privileges.
-RUN apt-get update \
+#
+# FFmpeg, libplacebo, and the Debian packages with the libraries they link.
+COPY --from=ffmpeg /usr/ /usr/
+RUN --mount=type=bind,from=ffmpeg,source=/packages,target=/tmp/ffmpeg-packages \
+    apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates ffmpeg tini \
+        ca-certificates tini $(cat /tmp/ffmpeg-packages) \
         libvulkan1 mesa-vulkan-drivers mesa-va-drivers \
     && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
         sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources \
@@ -70,6 +79,8 @@ RUN apt-get update \
         && apt-get install -y --no-install-recommends intel-media-va-driver-non-free libmfx-gen1.2; \
     fi \
     && rm -rf /var/lib/apt/lists/* \
+    && ldconfig \
+    && ffmpeg -hide_banner -version >/dev/null \
     && mkdir -p /etc/OpenCL/vendors && echo libnvidia-opencl.so.1 > /etc/OpenCL/vendors/nvidia.icd \
     && find / -xdev -perm /6000 -type f -exec chmod a-s {} + \
     && useradd --uid 1000 --user-group --no-create-home --home-dir /config --shell /usr/sbin/nologin pley \
@@ -80,8 +91,9 @@ RUN apt-get update \
 # is started (pley.sh).
 COPY --from=build /out/bin/ /usr/local/lib/pley/
 COPY --chmod=755 deploy/docker/pley.sh /usr/local/bin/pley
-# Pley's licence; Debian's packages (FFmpeg among them) keep theirs in
-# /usr/share/doc/<package>/copyright (LICENSING.md).
+# Pley's licence. FFmpeg's and libplacebo's, with their sources, are in
+# /usr/share/doc/ffmpeg and /usr/share/doc/libplacebo; Debian's packages keep
+# theirs in /usr/share/doc/<package>/copyright (LICENSING.md).
 COPY LICENSE /usr/share/doc/pley/LICENSE.txt
 COPY LICENSING.md /usr/share/doc/pley/
 

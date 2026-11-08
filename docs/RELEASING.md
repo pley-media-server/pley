@@ -137,7 +137,7 @@ workflow's `on.paths` has the exact list.
 
 | Workflow | Runs for changes in |
 |---|---|
-| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license and source scripts |
+| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,ffmpeg,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license and source scripts |
 | Desktop | `apps/desktop`, the root `package.json` |
 | Android | `apps/android`, `scripts/check-android.ps1` |
 | Samsung TV | `apps/tizen`, `packages/tv`, the root `package.json` and `bun.lock`, `scripts/commit.mjs` |
@@ -145,6 +145,7 @@ workflow's `on.paths` has the exact list.
 | LG TV | `apps/webos`, `deny.toml`, `rustfmt.toml`, `LICENSE`, `LICENSING.md`, the license and version scripts |
 | Kodi | `apps/kodi`, and the server's Rust code: its end-to-end test runs against a server built from the same commit |
 | Roku | `apps/roku`, the root `package.json` (Bun's version) |
+| FFmpeg | `deploy/ffmpeg` on master: publishes the Docker image's FFmpeg ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) |
 | Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, a unit's version (the first file in its "Version in") |
 | Release | A unit's version on master (the first file in its "Version in") |
 
