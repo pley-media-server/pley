@@ -125,7 +125,7 @@ async fn add_people(db: &Db, ids: &[i64], extras: &mut HashMap<i64, Extras>) -> 
 }
 
 pub(super) fn listing_detail(params: &Params) -> Detail {
-    Detail { guids: params.flag("includeGuids"), full: false, media: true, markers: false }
+    Detail { guids: params.flag("includeGuids"), full: false, media: true, markers: false, labels: false }
 }
 
 // ------------------------------------------------------------------ sections
@@ -317,7 +317,7 @@ pub async fn all(
     let (lib, libraries) = library_for(&state, &user, &id).await?;
     let kind = params.get("type").and_then(kind_for_number).unwrap_or(lib.kind().top_level_kind());
     let (rows, total) = if kinds_of(&lib).contains(&kind) {
-        SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &page).await?
+        SectionQuery::asked_by(&user, lib.id, kind, &params)?.page(&state.db, user.id, &page).await?
     } else {
         (Vec::new(), 0)
     };
@@ -366,7 +366,8 @@ pub async fn library_all(
             None => vec![lib.kind().top_level_kind()],
         };
         for kind in kinds {
-            let (found, count) = SectionQuery::new(lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
+            let (found, count) =
+                SectionQuery::asked_by(&user, lib.id, kind, &params)?.page(&state.db, user.id, &window).await?;
             rows.extend(found);
             total += count;
         }
@@ -588,6 +589,14 @@ pub async fn filter_choices(
             }
             return Ok(mc);
         }
+        // Titles' labels only to those told them (see `labels::shown_to`).
+        "label" if !crate::labels::shown_to(&user) => {
+            if kind == lib.kind().top_level_kind() {
+                super::lists::collection_labels(&state, &user, &lib).await?
+            } else {
+                Vec::new()
+            }
+        }
         "label" => {
             let mut labels: Vec<String> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
                 "{ME_CTE} SELECT DISTINCT l.label FROM {VISIBLE_ITEMS} JOIN item_labels l ON l.item_id = i.id
@@ -726,14 +735,20 @@ pub async fn metadata(
         None => list_library.as_ref(),
     };
     let sections = Sections::new(&libraries);
-    let detail = Detail { guids: true, full: true, media: true, markers: params.flag("includeMarkers") };
+    let detail = Detail {
+        guids: true,
+        full: true,
+        media: true,
+        markers: params.flag("includeMarkers"),
+        labels: crate::labels::shown_to(&user),
+    };
     let mut nodes = item_nodes(&state, &rows, &sections, detail).await?;
     if params.flag("includeOnDeck") {
         for (node, row) in nodes.iter_mut().zip(&rows) {
             if let Some(next) = catalog::on_deck(&state.db, user.id, row).await?
                 && let Some(next_row) = catalog::item(&state.db, user.id, next).await?
             {
-                let detail = Detail { guids: true, full: false, media: true, markers: false };
+                let detail = Detail { guids: true, full: false, media: true, markers: false, labels: false };
                 let next_node = item_nodes(&state, &[next_row], &sections, detail).await?;
                 let mut on_deck = Node::new("OnDeck");
                 on_deck.extend(next_node);
@@ -1188,9 +1203,13 @@ pub async fn hub_search(State(state): State<AppState>, PlexUser(user): PlexUser,
         if group.is_empty() {
             continue;
         }
-        let items =
-            item_nodes(&state, &group, &sections, Detail { guids: true, full: false, media: true, markers: false })
-                .await?;
+        let items = item_nodes(
+            &state,
+            &group,
+            &sections,
+            Detail { guids: true, full: false, media: true, markers: false, labels: false },
+        )
+        .await?;
         mc.push(hub(kind.into(), plural(kind).into(), kind, None, items));
         size += 1;
     }

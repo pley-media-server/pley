@@ -20,20 +20,33 @@ use crate::util::now;
 /// with `?NNN`). Administrators have no restrictions.
 macro_rules! me_cte {
     () => {
-        "WITH me(uid, all_libs, max_age) AS (
-            SELECT id, all_libraries OR is_admin, CASE WHEN is_admin THEN NULL ELSE max_age END FROM users WHERE id = ?)"
+        "WITH me(uid, all_libs, max_age, shows, hides) AS (
+            SELECT id, all_libraries OR is_admin, CASE WHEN is_admin THEN NULL ELSE max_age END,
+                   NOT is_admin AND EXISTS (SELECT 1 FROM user_label_rules r WHERE r.user_id = users.id AND r.kind = 'show'),
+                   NOT is_admin AND EXISTS (SELECT 1 FROM user_label_rules r WHERE r.user_id = users.id AND r.kind = 'hide')
+            FROM users WHERE id = ?)"
     };
 }
 pub(crate) use me_cte;
 
 /// Whether item `i` (with parent `p` and grandparent `gp`) is visible to the
-/// user in `me`: library access and age limit, see [`crate::access`].
+/// user in `me`: library access, the profile's labels it never sees, and its
+/// age limit unless a label it always sees is there, see [`crate::access`].
+/// The labels are only looked for when the profile has rules of that kind.
 pub(crate) const VISIBLE: &str = "((SELECT all_libs FROM me)
        OR i.library_id IN (SELECT library_id FROM user_libraries WHERE user_id = (SELECT uid FROM me)))
+  AND (NOT (SELECT hides FROM me)
+       OR NOT EXISTS (SELECT 1 FROM user_label_rules r JOIN item_labels l ON l.label = r.label
+                      WHERE r.user_id = (SELECT uid FROM me) AND r.kind = 'hide'
+                        AND l.item_id IN (i.id, i.parent_id, i.grandparent_id)))
   AND ((SELECT max_age FROM me) IS NULL
        OR i.kind IN ('artist', 'album', 'track')
        OR NULLIF(MAX(COALESCE(i.rating_age, -1), COALESCE(p.rating_age, -1), COALESCE(gp.rating_age, -1)), -1)
-          <= (SELECT max_age FROM me))";
+          <= (SELECT max_age FROM me)
+       OR ((SELECT shows FROM me)
+           AND EXISTS (SELECT 1 FROM user_label_rules r JOIN item_labels l ON l.label = r.label
+                       WHERE r.user_id = (SELECT uid FROM me) AND r.kind = 'show'
+                         AND l.item_id IN (i.id, i.parent_id, i.grandparent_id))))";
 
 /// Columns of [`ItemRow`]; callers add `WHERE {VISIBLE} AND …`.
 /// The `me` CTE that [`VISIBLE`] reads (binds the user id).
@@ -414,6 +427,11 @@ pub struct ItemDetail {
     pub genres: Vec<String>,
     pub studio: Option<String>,
     pub content_rating: Option<String>,
+    /// The country `content_rating` is from (ISO 3166-1, "GB"), when known:
+    /// its age is read with that country's ratings, else the metadata
+    /// region's (see `crate::ratings`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_rating_country: Option<String>,
     pub tmdb_id: Option<i64>,
     pub imdb_id: Option<String>,
     pub files: Vec<MediaFileDto>,
@@ -424,6 +442,10 @@ pub struct ItemDetail {
     /// Fields the item's NFO file sets (named as `locked_fields` are, and
     /// `rating`): they win over the online source, below hand edits.
     pub nfo_fields: Vec<String>,
+    /// The item's labels, for administrators only (a child shouldn't read
+    /// "Override: Adult"); left out for others.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub labels: Option<Vec<String>>,
     /// Trailers, featurettes and other bonus material (movies and shows).
     pub extras: Vec<ItemSummary>,
     /// Actors in billing order; for episodes, the guest stars.
@@ -1048,13 +1070,15 @@ struct DetailRow {
     genres: Option<String>,
     studio: Option<String>,
     content_rating: Option<String>,
+    content_rating_country: Option<String>,
     tmdb_id: Option<i64>,
     imdb_id: Option<String>,
 }
 
 pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
     let detail: DetailRow = sqlx::query_as(
-        "SELECT original_title, tagline, genres, studio, content_rating, tmdb_id, imdb_id FROM items WHERE id = ?",
+        "SELECT original_title, tagline, genres, studio, content_rating, content_rating_country, tmdb_id, imdb_id
+         FROM items WHERE id = ?",
     )
     .bind(row.id)
     .fetch_one(&db.read)
@@ -1074,12 +1098,14 @@ pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
         genres: detail.genres.and_then(|g| serde_json::from_str(&g).ok()).unwrap_or_default(),
         studio: detail.studio,
         content_rating: detail.content_rating,
+        content_rating_country: detail.content_rating_country,
         tmdb_id: detail.tmdb_id,
         imdb_id: detail.imdb_id,
         files: files.iter().map(FileRow::to_dto).collect(),
         markers,
         locked_fields: Vec::new(),
         nfo_fields: Vec::new(),
+        labels: None,
         extras: Vec::new(),
         cast,
         crew,

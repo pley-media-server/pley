@@ -407,7 +407,10 @@ does:
 - Tags: `genre[0].tag.tag=Horror` adds a genre, `genre[].tag.tag-=Horror,Drama`
   removes (each name percent-encoded once more, as `python-plexapi` sends
   them). The same for `label`, which details list as `Label` and the
-  `label` filter and `/library/sections/{id}/label` find, and for
+  `label` filter and `/library/sections/{id}/label` find (labels are listed
+  to tokens with `manage` only: profiles' label rules go by them; other
+  tokens' `label` filters, and Jellyfin's `Tags`, go as if titles had no
+  labels, while smart collections and playlists keep theirs), and for
   `collection`: the item joins or leaves the collection of that name in its
   library, which is made when missing. Details list it as `Collection`.
 - `userRating.value` (0-10; empty clears it) is the token's account's own
@@ -806,7 +809,7 @@ this is for scripts and tools.
   what it has are edited: `Name`, `ForcedSortName`, `OriginalTitle`,
   `ProductionYear`, `PremiereDate`, `Overview`, `Taglines` (the first),
   `Studios` (the first), `OfficialRating`, `Genres`, and `Tags` (Pley's
-  labels). Each edit is locked, as in Pley, so refreshes keep it.
+  labels, which details list to tokens with `manage` only). Each edit is locked, as in Pley, so refreshes keep it.
   Collections take `Name`, `Overview`, `ForcedSortName` and `Tags`.
 - `LockedFields` lists `Name`, `Overview`, `Genres`, `Studios` and
   `OfficialRating` while Pley keeps them; sent without one of them, that

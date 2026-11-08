@@ -116,12 +116,16 @@
   },
   "access": {
     "noLimit": "No limit",
-    "littleKids": "Little kids (G, TV-Y)",
-    "kids": "Kids (TV-Y7)",
-    "olderKids": "Older kids (PG, TV-PG)",
-    "teens": "Teens (PG-13)",
-    "adults": "Adults (R, TV-MA)",
-    "upTo": "Up to {{age}}",
+    "ageSystem": "Age",
+    "age": "Age {{age}}",
+    "upTo": "Up to {{rating}}",
+    "upToAge": "Up to age {{age}}",
+    "upToByBirthday": "Up to {{rating}} (age {{age}}, by birthday)",
+    "upToAgeByBirthday": "Up to age {{age}} (by birthday)",
+    "ratingFor": {
+      "film": "{{rating}} (film)",
+      "tv": "{{rating}} (TV)"
+    },
     "allLibraries": "All libraries",
     "noLibraries": "No libraries",
     "libraries_one": "{{count, number}} library",

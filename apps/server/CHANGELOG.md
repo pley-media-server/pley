@@ -11,14 +11,60 @@ describes how they are made.
 
 ### Added
 
+- In Settings → Users and Invitations, the age limit is set "By rating"
+  (one of 29 countries' ratings, the metadata region's first) or "By
+  age", each showing only its own fields, and lists show it that way
+  ("Up to PG-13"). A limit the old list didn't offer shows as its age, no
+  longer as "No limit". `GET /api/ratings/systems` gives the ratings, and
+  users and invitations keep the system in `max_age_system`.
+- An account's age limit can follow its age: "By birthday" asks for the
+  month and year of a birthday, and the limit goes up on the first of that
+  month each year, until it ends at 21. Only administrators see the
+  birthday, never the account itself or its apps.
+- Exceptions by label: in Settings → Users and Invitations, a profile
+  can always see titles with some labels, even above its age limit, and
+  never see titles with others, whatever their rating (a label on a show
+  or album counts for its episodes and tracks). Discover leaves the hidden
+  ones out, and they can't be asked for. Labels are set in a title's Edit
+  details, and only administrators see them; `GET /api/labels` lists them.
+- Setting an age limit without a TMDB key says that unrated movies are
+  hidden, with a link to add a key.
 - The web and desktop apps' home screen opens on a banner: the newest
   films and shows you haven't watched, full width under the top bar, each
   with its plot, Play, More info and My List, taking turns every few
   seconds (holding still under the pointer, and for those who ask their
   system for less motion). Swipe between them on a phone.
 
+### Changed
+
+- Age limits read a rating with its country's ratings, so that one of the
+  same name in another country isn't misread: "A" is for all ages in
+  Denmark, Spain and Mexico and for adults in India, and the UK's PG is
+  8. Ratings from TMDB, TheTVDB and NFO files keep their country; NFO
+  files with several countries' give the metadata region's. Changing the
+  region in Settings works every age out again.
+- Edit details says which country's ratings a title's rating is read
+  with: the country written before it ("GB:15"), the one it came with, or
+  the metadata region's, or where the region has none here, the US's and
+  others in common use.
+- A user's settings are in three tabs, Profile, Access and Devices, and
+  label exceptions fold into one line, such as "Never show 2 labels",
+  until they're opened.
+- Labels are picked in one field of chips: the arrow keys move through the
+  labels titles carry, Enter or a click adds one, and a label no title has
+  yet can still be added.
+- Plex and Jellyfin apps no longer show titles' labels, which label
+  exceptions go by, except to tokens that may manage libraries (Kometa's).
+  Their other apps filter by label as if titles had none, so a label
+  guessed tells them nothing; smart collections made by a label still
+  find their titles.
+
 ### Fixed
 
+- An NFO file's rating with a slash in it, such as India's "U/A 13+" or
+  Portugal's "M/18", is read whole, no longer as "U" or "M", which allowed
+  younger viewers. A file that gives a bare `<mpaa>` and a
+  `<certification>` naming countries gives the latter's.
 - A quality fits a film wider than 16:9 into its box: 1080p of a 2.40:1
   film is 1920×800, no longer 2592×1080, so it isn't wider than the
   screen and plays on players that decode H.264 up to level 4.1.

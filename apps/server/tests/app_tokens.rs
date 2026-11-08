@@ -64,6 +64,8 @@ const FIRST_PARTY: &[(&str, &str)] = &[
     ("DELETE", "/api/me/compatibility-tokens/{id}"),
     // Apps have their keys in their token answers.
     ("GET", "/api/server/proof-key"),
+    // For picking and showing age limits, which the web app does.
+    ("GET", "/api/ratings/systems"),
 ];
 
 /// Administration.
@@ -75,6 +77,7 @@ const ADMIN: &[(&str, &str)] = &[
     ("DELETE", "/api/libraries/{id}"),
     ("POST", "/api/libraries/{id}/scan"),
     ("POST", "/api/libraries/{id}/collections"),
+    ("GET", "/api/labels"),
     ("PATCH", "/api/collections/{id}"),
     ("DELETE", "/api/collections/{id}"),
     ("POST", "/api/collections/{id}/items"),

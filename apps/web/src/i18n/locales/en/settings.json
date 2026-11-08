@@ -509,7 +509,14 @@
       "pinDigits": "The PIN must be 4 to 8 digits.",
       "pickLibrary": "Pick at least one library, or allow all of them.",
       "added": "Added {{name}}",
-      "saved": "Saved {{name}}"
+      "saved": "Saved {{name}}",
+      "tabsLabel": "Account settings",
+      "tabs": {
+        "profile": "Profile",
+        "access": "Access",
+        "devices": "Devices"
+      },
+      "tabNeedsLook": "Something here needs a look"
     }
   },
   "invites": {
