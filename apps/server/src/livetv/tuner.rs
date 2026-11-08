@@ -1478,19 +1478,26 @@ async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut 
                 Some(rendition) => {
                     let video =
                         async { read_segment(get_segment(tuner, http, at, SEGMENT_WAIT).await?, SEGMENT_BYTES).await };
+                    // The audio has about the segment's length: the picture
+                    // waits for it no longer.
+                    let started = Instant::now();
+                    let round = started + Duration::from_secs_f64(segment.duration.clamp(2.0, 10.0));
                     let (video, mut audio) =
-                        tokio::join!(video, rendition.take(tuner, http, segment.sequence, segment.duration));
+                        tokio::join!(video, rendition.take(tuner, http, segment.sequence, segment.duration, round));
                     let video = video?;
                     // The transcoder decides from the first moment whether
                     // the channel has sound: the first segment waits a
-                    // little for its own.
-                    let deadline = Instant::now() + audio::FIRST_SOUND_WAIT;
-                    while !held && audio.is_empty() && rendition.active() && Instant::now() < deadline {
-                        tokio::time::sleep(Duration::from_millis(500)).await;
-                        rendition.refresh(tuner, http).await;
-                        audio = rendition.take(tuner, http, segment.sequence, 0.0).await;
+                    // little for its own, unless it has sound of its own.
+                    if !held {
+                        held = true;
+                        rendition.look(&video);
+                        let by = started + audio::FIRST_SOUND_WAIT;
+                        while audio.is_empty() && rendition.active() && Instant::now() < by {
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                            rendition.refresh(tuner, http, by).await;
+                            audio = rendition.take(tuner, http, segment.sequence, 0.0, by).await;
+                        }
                     }
-                    held = true;
                     push_whole(tuner, rendition.join(tuner.channel_id, &video, &audio));
                 }
                 None => {
@@ -1515,7 +1522,7 @@ async fn pull_hls(tuner: &Tuner, http: &reqwest::Client, mut url: url::Url, mut 
 /// Reads an audio rendition's playlist again, if there is one.
 async fn refresh(sound: &mut Option<audio::Rendition>, tuner: &Tuner, http: &reqwest::Client) {
     if let Some(rendition) = sound {
-        rendition.refresh(tuner, http).await;
+        rendition.refresh(tuner, http, Instant::now() + audio::PLAYLIST_WAIT).await;
     }
 }
 

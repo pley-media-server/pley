@@ -39,7 +39,9 @@ const ROUND_BYTES: usize = 8 << 20;
 /// makes tiny frames a packet each).
 const ROUND_PACKETS: usize = (16 << 20) / TS_PACKET;
 /// How long the audio playlist may take.
-const PLAYLIST_WAIT: Duration = Duration::from_secs(5);
+pub(super) const PLAYLIST_WAIT: Duration = Duration::from_secs(5);
+/// Less time than this left for a round starts no request.
+const MIN_REQUEST: Duration = Duration::from_millis(250);
 /// Failures in a row after which the audio is let be, for so long.
 const FAILURES: u32 = 3;
 const PAUSE: Duration = Duration::from_secs(30);
@@ -112,6 +114,8 @@ pub(super) struct Rendition {
     playlist: Option<MediaPlaylist>,
     /// The next segment to read; set by the picture's first segment.
     next: Option<u64>,
+    /// The last segment read, to tell whether the next follows it.
+    last: Option<u64>,
     /// Seconds of audio read less those of the picture.
     ahead: f64,
     join: Join,
@@ -131,6 +135,7 @@ impl Rendition {
             url,
             playlist: None,
             next: None,
+            last: None,
             ahead: 0.0,
             join: Join::default(),
             given_up: false,
@@ -150,13 +155,24 @@ impl Rendition {
         self.wanted() && self.paused_until.is_none_or(|until| Instant::now() >= until)
     }
 
-    /// Reads its playlist again. Only one it can never read (fragmented MP4,
-    /// encrypted) gives it up; one empty for a moment keeps the last.
-    pub(super) async fn refresh(&mut self, tuner: &Tuner, http: &reqwest::Client) {
+    /// Reads the picture's segment's tables before its sound is waited for:
+    /// a picture with sound of its own doesn't wait.
+    pub(super) fn look(&mut self, video: &[u8]) {
+        if let Some(start) = ts_sync(video) {
+            // A PMT it can't use is said when the segment is joined.
+            let _ = self.join.read_tables(video[start..].as_chunks::<TS_PACKET>().0);
+        }
+    }
+
+    /// Reads its playlist again, by `by`. Only one it can never read
+    /// (fragmented MP4, encrypted) gives it up; one empty for a moment keeps
+    /// the last.
+    pub(super) async fn refresh(&mut self, tuner: &Tuner, http: &reqwest::Client, by: Instant) {
         if !self.active() {
             return;
         }
-        let text = match get_text(tuner, http, &self.url, PLAYLIST_WAIT).await {
+        let Some(wait) = within(PLAYLIST_WAIT, by, Instant::now()) else { return };
+        let text = match get_text(tuner, http, &self.url, wait).await {
             Ok(text) => text,
             Err(why) => return self.failed(tuner.channel_id, &why),
         };
@@ -170,15 +186,17 @@ impl Rendition {
     }
 
     /// The audio segments that cover `seconds` more of the picture, whose
-    /// segment `sequence` is read alongside. Each may take about its own
-    /// length; one that fails is read again next time.
+    /// segment `sequence` is read alongside, as many as come by `by`. Each
+    /// may take about its own length; one that fails is read again next
+    /// time.
     pub(super) async fn take(
         &mut self,
         tuner: &Tuner,
         http: &reqwest::Client,
         sequence: u64,
         seconds: f64,
-    ) -> Vec<Vec<u8>> {
+        by: Instant,
+    ) -> Vec<Sound> {
         if !self.active() {
             return Vec::new();
         }
@@ -190,17 +208,22 @@ impl Rendition {
                 self.read(&segment);
                 continue;
             };
-            let wait = Duration::from_secs_f64(segment.duration.clamp(2.0, 10.0));
+            let Some(wait) = within(Duration::from_secs_f64(segment.duration.clamp(2.0, 10.0)), by, Instant::now())
+            else {
+                break;
+            };
             let read = match get_segment(tuner, http, at, wait).await {
                 Ok(resp) => read_segment(resp, SEGMENT_BYTES).await,
                 Err(why) => Err(why),
             };
             match read {
                 Ok(data) => {
+                    let follows = self.last.is_some_and(|last| last + 1 == segment.sequence);
+                    self.last = Some(segment.sequence);
                     self.read(&segment);
                     self.failures = 0;
                     bytes += data.len();
-                    out.push(data);
+                    out.push(Sound { data, follows });
                     if bytes >= ROUND_BYTES {
                         break;
                     }
@@ -249,7 +272,8 @@ impl Rendition {
     }
 
     /// A playlist or segment didn't come: after a few in a row, the audio
-    /// is let be for a while, then picked up at its live edge.
+    /// is let be for a while, then picked up at its live edge, from a
+    /// playlist read after the pause.
     fn failed(&mut self, channel: i64, why: &str) {
         tracing::debug!(channel, "a live channel's audio didn't come: {why}");
         self.failures += 1;
@@ -260,13 +284,13 @@ impl Rendition {
             }
             self.failures = 0;
             self.paused_until = Some(Instant::now() + PAUSE);
-            (self.next, self.ahead) = (None, 0.0);
+            (self.playlist, self.next, self.last, self.ahead) = (None, None, None, 0.0);
         }
     }
 
     /// The picture's segment with `audio` put in; as it is when the audio
     /// can't be.
-    pub(super) fn join(&mut self, channel: i64, video: &[u8], audio: &[Vec<u8>]) -> Vec<u8> {
+    pub(super) fn join(&mut self, channel: i64, video: &[u8], audio: &[Sound]) -> Vec<u8> {
         match self.join.join(video, audio) {
             Ok(joined) => joined,
             Err(Unsupported(why)) => {
@@ -280,6 +304,20 @@ impl Rendition {
         tracing::warn!(channel, "a live channel's separate audio can't be played: {why}");
         self.given_up = true;
     }
+}
+
+/// An audio segment read, and whether it follows the last one read: one
+/// that doesn't (after a gap or a pause) isn't timed from it.
+pub(super) struct Sound {
+    data: Vec<u8>,
+    follows: bool,
+}
+
+/// How long a request may take to be done by `by`: `wait`, or what is left
+/// if that is less; `None` when too little is left to start one.
+fn within(wait: Duration, by: Instant, now: Instant) -> Option<Duration> {
+    let left = by.checked_duration_since(now)?;
+    (left >= MIN_REQUEST).then(|| wait.min(left))
 }
 
 /// Why a rendition's audio can't be put in: it is no longer read.
@@ -315,7 +353,7 @@ impl Join {
     }
 
     /// The picture's segment `video` with the audio segments `audio` put in.
-    pub(super) fn join(&mut self, video: &[u8], audio: &[impl AsRef<[u8]>]) -> Result<Vec<u8>, Unsupported> {
+    pub(super) fn join(&mut self, video: &[u8], audio: &[Sound]) -> Result<Vec<u8>, Unsupported> {
         let Some(start) = ts_sync(video) else { return Ok(video.to_vec()) };
         let packets = video[start..].as_chunks::<TS_PACKET>().0;
         self.read_tables(packets)?;
@@ -325,7 +363,10 @@ impl Join {
         let Some(pid) = self.pid else { return Ok(video.to_vec()) };
         let mut sound = Vec::new();
         for segment in audio {
-            self.audio_packets(segment.as_ref(), pid, &mut sound)?;
+            if !segment.follows {
+                self.next_pts = None;
+            }
+            self.audio_packets(&segment.data, pid, &mut sound)?;
         }
         let mut out = Vec::with_capacity(video.len() + sound.len() * TS_PACKET);
         out.extend_from_slice(&video[..start]);
@@ -760,10 +801,13 @@ mod tests {
         r.failed(1, "timed out");
         r.failed(1, "timed out");
         assert!(r.active());
+        r.playlist = Some(segments("#EXTM3U\n#EXTINF:2,\na.aac\n"));
         r.failed(1, "timed out");
         assert!(!r.active() && r.wanted());
-        // Picked up at its live edge, not where it stopped.
-        assert_eq!((r.next, r.ahead), (None, 0.0));
+        // Picked up at its live edge, not where it stopped: from a playlist
+        // read after the pause, and not timed from before it.
+        assert_eq!((r.next, r.last, r.ahead), (None, None, 0.0));
+        assert!(r.playlist.is_none() && r.due(5).is_empty());
         r.paused_until = Some(Instant::now() - Duration::from_secs(1));
         assert!(r.active());
     }
@@ -842,6 +886,10 @@ mod tests {
             | u64::from(p[4]) >> 1
     }
 
+    fn heard(data: Vec<u8>) -> Sound {
+        Sound { data, follows: true }
+    }
+
     fn packets(data: &[u8]) -> Vec<Packet> {
         data.as_chunks::<TS_PACKET>().0.to_vec()
     }
@@ -863,7 +911,7 @@ mod tests {
         let video = [video, packet(0x100, false, &[]).repeat(3)].concat();
         let audio = [id3(90_000), adts(3, &[1; 300]), adts(3, &[2; 10])].concat();
         let mut join = Join::default();
-        let out = packets(&join.join(&video, &[audio]).unwrap());
+        let out = packets(&join.join(&video, &[heard(audio)]).unwrap());
 
         // The PMT names an audio stream on a free PID, with a good CRC.
         assert_eq!(streams(&out[1]), [(0x1b, 0x100), (ADTS_AAC, 0x101)]);
@@ -890,7 +938,7 @@ mod tests {
         assert_eq!(out[3], packets(&video)[2]);
 
         // A segment without a timestamp follows on from the last.
-        let out = packets(&join.join(&video, &[adts(3, &[3; 10])]).unwrap());
+        let out = packets(&join.join(&video, &[heard(adts(3, &[3; 10]))]).unwrap());
         let sound: Vec<_> = out.iter().filter(|p| packet_pid(*p) == 0x101).collect();
         assert_eq!(sound[0][3] & 0x0f, 3);
         assert_eq!(timestamps(&out, 0x101), [90_000 + 2 * 1920]);
@@ -901,7 +949,7 @@ mod tests {
         let video = [pat(0x1000), pmt(0x1000, &[(0x1b, 0x100)])].concat();
         let audio = [id3(PTS_MASK - 959), adts(3, &[0; 4]), adts(3, &[0; 4])].concat();
         let mut join = Join::default();
-        let out = packets(&join.join(&video, &[audio]).unwrap());
+        let out = packets(&join.join(&video, &[heard(audio)]).unwrap());
         assert_eq!(timestamps(&out, 0x101), [PTS_MASK - 959, 960]);
         assert_eq!(join.next_pts, Some(960 + 1920));
     }
@@ -913,7 +961,7 @@ mod tests {
         cut.truncate(50);
         let audio = [id3(0), adts(3, &[0; 4]), cut].concat();
         let mut join = Join::default();
-        let out = packets(&join.join(&video, &[audio]).unwrap());
+        let out = packets(&join.join(&video, &[heard(audio)]).unwrap());
         assert_eq!(timestamps(&out, 0x101), [0]);
         // The next segment goes on from the whole frames.
         assert_eq!(join.next_pts, Some(1920));
@@ -926,7 +974,7 @@ mod tests {
         let audio_pmt = packet(0x1000, true, &section(2, &pmt_body(&[(0x06, 0x100, &[0x6a, 1, 0])])));
         let audio = [pat(0x1000), audio_pmt, packet(0x100, true, &[0, 0, 1, 0xbd])].concat();
         let mut join = Join::default();
-        let out = packets(&join.join(&video, &[audio]).unwrap());
+        let out = packets(&join.join(&video, &[heard(audio)]).unwrap());
         assert_eq!(streams(&out[1]), [(0x1b, 0x100), (0x15, 0x101), (0x06, 0x102)]);
         // Its descriptor goes with it.
         assert_eq!(Pmt::read(&out[1]).unwrap().streams[2].descriptors, [0x6a, 1, 0]);
@@ -939,17 +987,17 @@ mod tests {
     fn a_picture_with_sound_of_its_own_keeps_it() {
         let video = [pat(0x1000), pmt(0x1000, &[(0x1b, 0x100), (0x0f, 0x101)])].concat();
         let mut join = Join::default();
-        assert_eq!(join.join(&video, &[adts(3, &[0; 4])]).unwrap(), video);
+        assert_eq!(join.join(&video, &[heard(adts(3, &[0; 4]))]).unwrap(), video);
         assert!(!join.wanted());
         // AC-3 marked the DVB way is sound too; teletext isn't.
         let teletext = packet(0x1000, true, &section(2, &pmt_body(&[(0x1b, 0x100, &[]), (0x06, 0x101, &[0x56, 0])])));
         let mut join = Join::default();
-        join.join(&[pat(0x1000), teletext].concat(), &[[id3(0), adts(3, &[0; 4])].concat()]).unwrap();
+        join.join(&[pat(0x1000), teletext].concat(), &[heard([id3(0), adts(3, &[0; 4])].concat())]).unwrap();
         assert!(join.wanted());
         let ac3 = packet(0x1000, true, &section(2, &pmt_body(&[(0x1b, 0x100, &[]), (0x06, 0x101, &[0x6a, 1, 0])])));
         let video = [pat(0x1000), ac3].concat();
         let mut join = Join::default();
-        assert_eq!(join.join(&video, &[adts(3, &[0; 4])]).unwrap(), video);
+        assert_eq!(join.join(&video, &[heard(adts(3, &[0; 4]))]).unwrap(), video);
         assert!(!join.wanted());
     }
 
@@ -957,17 +1005,17 @@ mod tests {
     fn audio_that_cant_be_put_in_is_said() {
         let video = [pat(0x1000), pmt(0x1000, &[(0x1b, 0x100)])].concat();
         let mut join = Join::default();
-        assert!(join.join(&video, &[b"not audio".to_vec()]).is_err());
+        assert!(join.join(&video, &[heard(b"not audio".to_vec())]).is_err());
         // Packed AAC needs a timestamp to start from: a segment or two
         // without is left out, then the rendition is given up.
         let mut join = Join::default();
         for _ in 1..UNTIMED {
-            assert_eq!(join.join(&video, &[adts(3, &[0; 4])]).unwrap(), video);
+            assert_eq!(join.join(&video, &[heard(adts(3, &[0; 4]))]).unwrap(), video);
         }
-        assert!(join.join(&video, &[adts(3, &[0; 4])]).is_err());
+        assert!(join.join(&video, &[heard(adts(3, &[0; 4]))]).is_err());
         // Tiny frames, each a packet, are bounded.
         let flood = [id3(0), adts(3, &[]).repeat(ROUND_PACKETS + 1)].concat();
-        assert!(Join::default().join(&video, &[flood]).is_err());
+        assert!(Join::default().join(&video, &[heard(flood)]).is_err());
     }
 
     #[test]
@@ -978,11 +1026,11 @@ mod tests {
         long[7] = 0;
         let video = [pat(0x1000), long].concat();
         let audio = [id3(0), adts(3, &[0; 4])].concat();
-        assert!(Join::default().join(&video, std::slice::from_ref(&audio)).is_err());
+        assert!(Join::default().join(&video, &[heard(audio.clone())]).is_err());
         // One filling its packet.
         let full = packet(0x1000, true, &section(2, &pmt_body(&[(0x1b, 0x100, &[0x52; 160])])));
         let video = [pat(0x1000), full].concat();
-        assert!(Join::default().join(&video, &[audio]).is_err());
+        assert!(Join::default().join(&video, &[heard(audio)]).is_err());
     }
 
     #[test]
@@ -992,9 +1040,40 @@ mod tests {
         empty[..6].copy_from_slice(&[TS_SYNC, 0x40 | 0x10, 0x00, 0x30, 183, 0]);
         let video = [pat(0x1000), pmt(0x1000, &[(0x1b, 0x100)]), empty].concat();
         let mut join = Join::default();
-        let out = join.join(&video, &[[id3(0), adts(3, &[0; 4])].concat()]).unwrap();
+        let out = join.join(&video, &[heard([id3(0), adts(3, &[0; 4])].concat())]).unwrap();
         assert!(packets(&out).contains(&empty));
         assert_eq!(section_at(&empty), None);
         assert!(Pmt::read(&empty).is_none());
+    }
+
+    #[test]
+    fn requests_end_by_the_rounds_deadline() {
+        let now = Instant::now();
+        let wait = Duration::from_secs(4);
+        assert_eq!(within(wait, now + Duration::from_secs(10), now), Some(wait));
+        assert_eq!(within(wait, now + Duration::from_secs(1), now), Some(Duration::from_secs(1)));
+        // Too little left, or none: no request.
+        assert_eq!(within(wait, now + Duration::from_millis(100), now), None);
+        assert_eq!(within(wait, now, now + Duration::from_secs(1)), None);
+    }
+
+    #[test]
+    fn a_picture_with_sound_of_its_own_doesnt_wait_for_the_rendition() {
+        let mut r = Rendition::new("http://provider.invalid/a.m3u8".parse().unwrap());
+        assert!(r.active());
+        r.look(&[pat(0x1000), pmt(0x1000, &[(0x1b, 0x100), (0x0f, 0x101)])].concat());
+        assert!(!r.active() && !r.wanted());
+    }
+
+    #[test]
+    fn audio_after_a_gap_isnt_timed_from_before_it() {
+        let video = [pat(0x1000), pmt(0x1000, &[(0x1b, 0x100)])].concat();
+        let mut join = Join::default();
+        join.join(&video, &[heard([id3(0), adts(3, &[0; 4])].concat())]).unwrap();
+        assert_eq!(join.next_pts, Some(1920));
+        // A segment without a timestamp after a gap is left out.
+        let gap = Sound { data: adts(3, &[0; 4]), follows: false };
+        assert_eq!(join.join(&video, &[gap]).unwrap().len(), video.len());
+        assert_eq!(join.next_pts, None);
     }
 }
