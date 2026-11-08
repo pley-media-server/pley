@@ -37,7 +37,8 @@ RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.vid
         -Dvulkan=enabled -Dshaderc=enabled -Dglslang=disabled -Dlcms=enabled -Dlibdovi=enabled \
         -Dxxhash=enabled -Dopengl=disabled -Dd3d11=disabled -Dunwind=disabled -Ddemos=false \
     && ninja -C libplacebo/build install \
-    && ldconfig
+    && ldconfig \
+    && rm -rf libplacebo
 # Quick Sync (oneVPL) and NVIDIA's are named on amd64, where the image's
 # check (.github/workflows/server.yml) expects them; elsewhere FFmpeg takes
 # NVIDIA's when it finds them.
@@ -64,7 +65,9 @@ RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_
     && cp -a /usr/local/lib/libplacebo.so.* /out/usr/local/lib/ \
     && install -m644 LICENSE.md COPYING.GPLv2 COPYING.GPLv3 COPYING.LGPLv2.1 COPYING.LGPLv3 /out/usr/share/doc/ffmpeg/ \
     && cp "../ffmpeg-$FFMPEG_VERSION.tar.xz" /out/usr/share/doc/ffmpeg/ \
-    && /usr/local/bin/ffmpeg -hide_banner -buildconf > /out/usr/share/doc/ffmpeg/buildconf.txt
+    && /usr/local/bin/ffmpeg -hide_banner -buildconf > /out/usr/share/doc/ffmpeg/buildconf.txt \
+    && cd .. \
+    && rm -rf "ffmpeg-$FFMPEG_VERSION" "ffmpeg-$FFMPEG_VERSION.tar.xz" /usr/local/include /usr/local/lib/*.a
 # The Debian packages whose libraries FFmpeg and libplacebo link, which the
 # Pley image installs.
 RUN set -eu; \

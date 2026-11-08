@@ -278,6 +278,9 @@ jobs:
           - { arch: arm64, os: ubuntu-24.04-arm }
     runs-on: ${{ matrix.os }}
     timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read # see whether pley-ffmpeg is published, before it is public
     # Where pley-ffmpeg goes when this run builds it.
     services:
       registry:
@@ -288,6 +291,12 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - if: ${{ !github.event.pull_request.head.repo.fork }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
         with:
           driver-opts: network=host
@@ -313,8 +322,9 @@ jobs:
           context: deploy/ffmpeg
           push: true
           tags: ${{ steps.ffmpeg.outputs.image }}
+          # The FFmpeg workflow's cache, which only it writes: FFmpeg's
+          # build is several GB a platform.
           cache-from: type=gha,scope=pley-ffmpeg-${{ matrix.arch }}
-          cache-to: type=gha,mode=max,scope=pley-ffmpeg-${{ matrix.arch }}
       - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -380,9 +390,10 @@ jobs:
           printf '1\n00:00:00,000 --> 00:00:03,000\nPley\n' > "$work/sub.srt"
           ff -f lavfi -i color=black:s=640x360:d=3 -vf subtitles=sub.srt -c:v libx264 -preset veryfast subs.mp4 ||
             fail "subtitles weren't burned in"
+          # MPEG-TS lists each stream twice: under its program, then alone.
           for out in placebo0.ts zscale0.ts; do
             got=$(run ffprobe -v error -select_streams v -show_entries stream=codec_name,pix_fmt,width -of csv=p=0 "$out")
-            test "$got" = h264,1280,yuv420p || fail "$out is $got"
+            grep -x h264,1280,yuv420p <<<"$got" >/dev/null || fail "$out is $got"
           done
       - name: Check the compose add-ons
         working-directory: deploy/docker
@@ -597,10 +608,35 @@ jobs:
   # is pushed before the release is published: required reviewers on the
   # `release` environment, in the repository's settings, hold it until
   # someone approves.
+  # The image copies pley-ffmpeg, which the FFmpeg workflow publishes after
+  # its recipe changes on master: a release waits for it.
+  ffmpeg-published:
+    name: pley-ffmpeg is published
+    if: inputs.release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - run: |
+          image=$(sed -n 's/^ARG FFMPEG_IMAGE=//p' deploy/docker/Dockerfile)
+          docker buildx imagetools inspect "$image" >/dev/null ||
+            { echo "::error::$image isn't published: let the FFmpeg workflow finish on master, or run it"; exit 1; }
+
   image:
     name: Docker image (${{ matrix.arch }})
     if: inputs.release
-    needs: [web, rust, msrv, windows-installer, licenses]
+    needs: [web, rust, msrv, windows-installer, licenses, ffmpeg-published]
     environment: release
     strategy:
       fail-fast: false

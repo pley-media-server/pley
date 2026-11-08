@@ -21,5 +21,5 @@ Its tag is FFmpeg's version and the [Dockerfile](Dockerfile)'s hash
    the new tag for amd64 and arm64, with build provenance. Published tags
    are never rebuilt.
 
-The package must be public on GitHub Container Registry, so that anyone
-can build the Pley image.
+GitHub makes the package private when it is first published: make it
+public in its settings, so that anyone can build the Pley image.

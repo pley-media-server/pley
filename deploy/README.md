@@ -78,8 +78,8 @@ journalctl -u pley    # the setup link, and the log
 
 Give the `pley` user read access to your media.
 
-**FFmpeg.** FFmpeg 9 is recommended; 7.1 and 8 work without a few
-speed-ups (Debian 13 has 7.1). For one not on `PATH`, such as
+**FFmpeg.** FFmpeg 9 is recommended. 8 works too; 7.1 (Debian 13's)
+works without a few speed-ups. For one not on `PATH`, such as
 [jellyfin-ffmpeg](https://repo.jellyfin.org), set `Environment=PLEY_FFMPEG=…`
 and `PLEY_FFPROBE=…` in the unit.
 
