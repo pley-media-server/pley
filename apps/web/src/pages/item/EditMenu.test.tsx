@@ -33,6 +33,79 @@ describe("EditDialogs", () => {
     expect(screen.getByRole("button", { name: "Locked: click to unlock" })).toBeInTheDocument();
   });
 
+  it("replaces the labels, suggesting those titles carry", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/labels": () => [{ label: "Kometa", items: 12, rules: 0 }],
+      "PATCH /api/items/5": () => movie({ labels: ["Override: Kids"] }),
+    });
+    renderWithProviders(<EditDialogs item={movie({ labels: ["Kometa", "4K"] })} dialog="details" onClose={() => {}} />);
+    await user.click(screen.getByRole("button", { name: "Remove 4K" }));
+    await user.type(screen.getByLabelText("Labels"), "Override: Kids{Enter}");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ labels: ["Kometa", "Override: Kids"] }),
+    );
+  });
+
+  it("suggests labels profiles' exceptions name before any title carries them", async () => {
+    const user = userEvent.setup();
+    mockApi({ "GET /api/labels": () => [{ label: "Kids OK", items: 0, rules: 2 }] });
+    renderWithProviders(<EditDialogs item={movie({ labels: [] })} dialog="details" onClose={() => {}} />);
+    await user.type(screen.getByLabelText("Labels"), "kid");
+    const option = await screen.findByRole("option", { name: /Kids OK/ });
+    expect(option).toHaveTextContent("In exceptions");
+  });
+
+  it("says which country's ratings a rating is read with", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <EditDialogs
+        item={movie({ content_rating: "A", content_rating_country: "IN", nfo_fields: ["content_rating"] })}
+        dialog="details"
+        onClose={() => {}}
+      />,
+    );
+    expect(screen.getByText("Country: India")).toBeInTheDocument();
+    // Typed by hand, it has no country.
+    await user.clear(screen.getByLabelText("Content rating"));
+    await user.type(screen.getByLabelText("Content rating"), "PG");
+    expect(screen.queryByText("Country: India")).not.toBeInTheDocument();
+    expect(screen.getByText("Read with the metadata region’s ratings")).toBeInTheDocument();
+  });
+
+  it("reads a rating as the server does: its written country's, else the region's or common ones", async () => {
+    const user = userEvent.setup();
+    const country = (code: string) => ({ country: code, name: code, ratings: [] });
+    mockApi({ "GET /api/ratings/systems": () => ({ region: "PL", systems: [country("GB"), country("US")] }) });
+    renderWithProviders(
+      <EditDialogs item={movie({ content_rating: "B", content_rating_country: "IN" })} dialog="details" onClose={() => {}} />,
+    );
+    const field = screen.getByLabelText("Content rating");
+    // Written with its country, it's that country's, whatever the item's.
+    await user.clear(field);
+    await user.type(field, "gb:15");
+    expect(await screen.findByText("Country: United Kingdom")).toBeInTheDocument();
+    await user.clear(field);
+    await user.type(field, "USA/R");
+    expect(screen.getByText("Country: United States")).toBeInTheDocument();
+    // Poland has no ratings here: the US's and common names are read.
+    await user.clear(field);
+    await user.type(field, "PG");
+    expect(
+      screen.getByText("Read by the US’s ratings and others in common use: the metadata region has none here"),
+    ).toBeInTheDocument();
+    // "M/12" is a rating, Portugal's, not a country's.
+    await user.clear(field);
+    await user.type(field, "M/12");
+    expect(screen.queryByText(/^Country:/)).not.toBeInTheDocument();
+  });
+
+  it("has no labels field where the server gave none", () => {
+    renderWithProviders(<EditDialogs item={movie()} dialog="details" onClose={() => {}} />);
+    expect(screen.queryByLabelText("Labels")).not.toBeInTheDocument();
+  });
+
   it("says nothing of NFO files for an item without one", () => {
     renderWithProviders(<EditDialogs item={movie()} dialog="details" onClose={() => {}} />);
     expect(screen.queryByText("From the NFO file")).not.toBeInTheDocument();

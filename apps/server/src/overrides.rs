@@ -38,7 +38,7 @@ pub const FIELDS: &[&str] = &[
 pub const MATCH: &str = "match";
 
 /// Item columns that are written here: the editable fields, an NFO file's
-/// rating, and the age that goes with a content rating.
+/// rating, and the country and age that go with a content rating.
 const COLUMNS: &[&str] = &[
     "title",
     "sort_title",
@@ -54,6 +54,7 @@ const COLUMNS: &[&str] = &[
     "backdrop",
     "thumb",
     "rating",
+    "content_rating_country",
     "rating_age",
 ];
 
@@ -130,10 +131,12 @@ pub async fn nfo_fields(db: &Db, item_id: i64) -> sqlx::Result<Vec<String>> {
     let sql = format!("{NFO_OF_ITEMS} WHERE n.item_id = ?");
     let row: Option<ItemNfo> = sqlx::query_as(sqlx::AssertSqlSafe(sql)).bind(item_id).fetch_optional(&db.read).await?;
     let Some((kind, fields)) = row.and_then(ItemNfo::fields) else { return Ok(Vec::new()) };
-    let mut names: Vec<String> = nfo_values(&kind, &fields)
+    let mut names: Vec<String> = nfo_values(&kind, &fields, "US")
         .into_iter()
-        // A sort title made from the NFO file's title isn't one it gives.
+        // A sort title made from the NFO file's title isn't one it gives,
+        // and a rating's country is part of the rating.
         .filter(|(column, _)| *column != "sort_title" || fields.sort_title.is_some())
+        .filter(|(column, _)| *column != "content_rating_country")
         .map(|(column, _)| column.to_owned())
         .collect();
     names.sort();
@@ -142,17 +145,20 @@ pub async fn nfo_fields(db: &Db, item_id: i64) -> sqlx::Result<Vec<String>> {
 
 /// The item columns an NFO file's fields write, and their values. A
 /// season's gives its title and summary only: its sort title stays its
-/// number.
-pub fn nfo_values(kind: &str, nfo: &NfoFields) -> Vec<(&'static str, String)> {
+/// number. Of several countries' ratings, `region`'s is taken (see
+/// [`NfoFields::rating_in`]).
+pub fn nfo_values(kind: &str, nfo: &NfoFields, region: &str) -> Vec<(&'static str, String)> {
     let mut values = vec![("title", nfo.title.clone()), ("summary", nfo.summary.clone())];
     if kind != "season" {
+        let rating = nfo.rating_in(region);
         values.extend([
             ("sort_title", nfo.sort_title.clone().or_else(|| nfo.title.as_deref().map(sort_title))),
             ("original_title", nfo.original_title.clone()),
             ("year", nfo.year.map(|y| y.to_string())),
             ("release_date", nfo.release_date.clone()),
             ("tagline", nfo.tagline.clone()),
-            ("content_rating", nfo.content_rating.clone()),
+            ("content_rating", rating.map(|(_, rating)| rating.to_owned())),
+            ("content_rating_country", rating.and_then(|(country, _)| country).map(str::to_owned)),
             ("genres", (!nfo.genres.is_empty()).then(|| serde_json::to_string(&nfo.genres).unwrap_or_default())),
             ("studio", nfo.studio.clone()),
             ("rating", nfo.rating.map(|r| r.to_string())),
@@ -175,14 +181,15 @@ pub async fn nfo_set_aside(db: &Db, item_id: i64) -> sqlx::Result<()> {
         return Ok(());
     }
     let fields = serde_json::from_str::<NfoFields>(&nfo.fields).unwrap_or_default();
+    let region = crate::ratings::region(db).await?;
     let mut tx = db.write.begin().await?;
-    for (column, value) in nfo_values(&nfo.kind, &fields) {
-        if matches!(column, "title" | "sort_title") {
+    for (column, value) in nfo_values(&nfo.kind, &fields, &region) {
+        if matches!(column, "title" | "sort_title" | "content_rating_country") {
             continue;
         }
         // `column` comes from `nfo_values`, so formatting it into SQL is
         // safe. Only what still holds the NFO file's value is emptied.
-        let age = if column == "content_rating" { ", rating_age = NULL" } else { "" };
+        let age = if column == "content_rating" { ", content_rating_country = NULL, rating_age = NULL" } else { "" };
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE items SET {column} = NULL{age} WHERE id = ? AND {column} IS ?"
         )))
@@ -235,11 +242,12 @@ pub async fn set(db: &Db, item_id: i64, changes: &[(String, Option<String>)]) ->
 /// written: a scan applies them all again, and a rescan that finds nothing
 /// new must leave listings cached (and the writer to others).
 pub async fn apply(db: &Db, item_ids: &[i64]) -> sqlx::Result<()> {
+    let region = crate::ratings::region(db).await?;
     let mut changes = Vec::new();
     for chunk in item_ids.chunks(CHUNK) {
-        let wanted = wanted(db, chunk).await?;
+        let wanted = wanted(db, chunk, &region).await?;
         if !wanted.is_empty() {
-            changes.extend(differing(db, wanted).await?);
+            changes.extend(differing(db, wanted, &region).await?);
         }
     }
     if changes.is_empty() {
@@ -272,7 +280,11 @@ pub async fn apply(db: &Db, item_ids: &[i64]) -> sqlx::Result<()> {
 
 /// What the NFO files and overrides of `item_ids` want their items' columns
 /// to hold, by item.
-async fn wanted(db: &Db, item_ids: &[i64]) -> sqlx::Result<HashMap<i64, BTreeMap<&'static str, Option<String>>>> {
+async fn wanted(
+    db: &Db,
+    item_ids: &[i64],
+    region: &str,
+) -> sqlx::Result<HashMap<i64, BTreeMap<&'static str, Option<String>>>> {
     let placeholders = vec!["?"; item_ids.len()].join(",");
     let sql = format!("{NFO_OF_ITEMS} WHERE n.item_id IN ({placeholders})");
     let mut query = sqlx::query_as::<_, ItemNfo>(sqlx::AssertSqlSafe(sql.as_str()));
@@ -291,7 +303,7 @@ async fn wanted(db: &Db, item_ids: &[i64]) -> sqlx::Result<HashMap<i64, BTreeMap
     for nfo in nfos {
         let item = nfo.item_id;
         let Some((kind, fields)) = nfo.fields() else { continue };
-        let values = nfo_values(&kind, &fields);
+        let values = nfo_values(&kind, &fields, region);
         if !values.is_empty() {
             wanted.entry(item).or_default().extend(values.into_iter().map(|(column, value)| (column, Some(value))));
         }
@@ -312,26 +324,28 @@ async fn wanted(db: &Db, item_ids: &[i64]) -> sqlx::Result<HashMap<i64, BTreeMap
             let title = edits.iter().find(|(c, _)| *c == "title").and_then(|(_, v)| v.as_deref());
             values.insert("sort_title", title.map(sort_title));
         }
-        values.extend(edits);
-    }
-    for values in wanted.values_mut() {
-        if let Some(rating) = values.get("content_rating") {
-            let age = rating.as_deref().and_then(crate::ratings::rating_age).map(|a| a.to_string());
-            values.insert("rating_age", age);
+        // A rating typed by hand has no country: it's read with the
+        // metadata region's ratings.
+        if edited("content_rating") {
+            values.insert("content_rating_country", None);
         }
+        values.extend(edits);
     }
     Ok(wanted)
 }
 
 /// The columns of `wanted` that their items don't hold, as text: a number
 /// written differently ("7" for 7.0) is left to [`apply`]'s comparison.
+/// The age that goes with a wanted content rating is worked out here, where
+/// the item's kind is known.
 async fn differing(
     db: &Db,
-    wanted: HashMap<i64, BTreeMap<&'static str, Option<String>>>,
+    mut wanted: HashMap<i64, BTreeMap<&'static str, Option<String>>>,
+    region: &str,
 ) -> sqlx::Result<Vec<(i64, &'static str, Option<String>)>> {
     let columns = COLUMNS.iter().map(|c| format!("CAST({c} AS TEXT) AS {c}")).collect::<Vec<_>>().join(", ");
     let placeholders = vec!["?"; wanted.len()].join(",");
-    let sql = format!("SELECT id, {columns} FROM items WHERE id IN ({placeholders})");
+    let sql = format!("SELECT id, kind, {columns} FROM items WHERE id IN ({placeholders})");
     let mut query = sqlx::query(sqlx::AssertSqlSafe(sql.as_str()));
     for id in wanted.keys() {
         query = query.bind(id);
@@ -339,8 +353,16 @@ async fn differing(
     let mut changes = Vec::new();
     for row in query.fetch_all(&db.read).await? {
         let id: i64 = row.try_get("id")?;
-        let Some(values) = wanted.get(&id) else { continue };
-        for (column, value) in values {
+        let Some(values) = wanted.get_mut(&id) else { continue };
+        if let Some(rating) = values.get("content_rating").cloned() {
+            let kind: String = row.try_get("kind")?;
+            // An NFO file's rating with no country has none.
+            let country = values.entry("content_rating_country").or_insert(None).clone();
+            let country = country.as_deref().unwrap_or(region);
+            let age = rating.and_then(|r| crate::ratings::age(Some(country), crate::ratings::Kind::of(&kind), &r));
+            values.insert("rating_age", age.map(|a| a.to_string()));
+        }
+        for (column, value) in values.iter() {
             let current: Option<String> = row.try_get(*column)?;
             if current != *value {
                 changes.push((id, *column, value.clone()));
@@ -400,6 +422,7 @@ pub async fn apply_tree(db: &Db, item_id: i64) -> sqlx::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::library::nfo::NfoRating;
 
     #[test]
     fn validation() {
@@ -429,7 +452,7 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(
-            nfo_values("movie", &fields),
+            nfo_values("movie", &fields, "US"),
             [
                 ("title", "The Matrix".to_owned()),
                 ("summary", "Neo.".to_owned()),
@@ -439,7 +462,27 @@ mod tests {
                 ("rating", "8.7".to_owned()),
             ]
         );
+        // Of several countries' ratings, the region's, with its country.
+        let rated = NfoFields {
+            content_rating: Some("R".into()),
+            content_ratings: vec![
+                NfoRating { country: Some("GB".into()), rating: "15".into() },
+                NfoRating { country: Some("US".into()), rating: "R".into() },
+            ],
+            ..Default::default()
+        };
+        let rating = |region| {
+            nfo_values("movie", &rated, region)
+                .into_iter()
+                .filter(|(c, _)| c.starts_with("content_rating"))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(rating("GB"), [("content_rating", "15".to_owned()), ("content_rating_country", "GB".to_owned())]);
+        assert_eq!(rating("FR"), [("content_rating", "R".to_owned()), ("content_rating_country", "US".to_owned())]);
         // A season keeps its number as its sort title.
-        assert_eq!(nfo_values("season", &fields), [("title", "The Matrix".to_owned()), ("summary", "Neo.".to_owned())]);
+        assert_eq!(
+            nfo_values("season", &fields, "US"),
+            [("title", "The Matrix".to_owned()), ("summary", "Neo.".to_owned())]
+        );
     }
 }

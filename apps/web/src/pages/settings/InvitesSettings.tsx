@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Check, Copy, Link2, MailPlus, Plus, Trash2 } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useCreateInvite, useDeleteInvite, useInvites, useLibraries } from "@/api/hooks";
+import { useCreateInvite, useDeleteInvite, useInvites, useLibraries, useRatingSystems } from "@/api/hooks";
 import type { Invite } from "@/api/types";
 import { AccessFields, type AccessValue } from "@/components/AccessFields";
 import { ConfirmModal, Modal } from "@/components/Modal";
@@ -52,14 +52,28 @@ function CreateInviteModal({ open, onClose, onCreated }: { open: boolean; onClos
   const [days, setDays] = useState(7);
   const [uses, setUses] = useState(1);
   const [note, setNote] = useState("");
-  const [access, setAccess] = useState<AccessValue>({ all_libraries: true, library_ids: [], max_age: null });
+  const [access, setAccess] = useState<AccessValue>({
+    all_libraries: true,
+    library_ids: [],
+    max_age: null,
+    max_age_system: null,
+    show_labels: [],
+    hide_labels: [],
+  });
   const [error, setError] = useState<string | null>(null);
 
   const close = () => {
     setDays(7);
     setUses(1);
     setNote("");
-    setAccess({ all_libraries: true, library_ids: [], max_age: null });
+    setAccess({
+    all_libraries: true,
+    library_ids: [],
+    max_age: null,
+    max_age_system: null,
+    show_labels: [],
+    hide_labels: [],
+  });
     setError(null);
     onClose();
   };
@@ -176,6 +190,7 @@ export function InvitesSettings() {
   useDocumentTitle(t("invites.title"));
   const invites = useInvites();
   const libs = useLibraries();
+  const systems = useRatingSystems();
   const del = useDeleteInvite();
   const toast = useToast();
   const [creating, setCreating] = useState(false);
@@ -217,7 +232,7 @@ export function InvitesSettings() {
         <ul className="divide-y divide-white/[0.05] overflow-hidden rounded-lg border border-border bg-surface">
           {invites.data.map((invite) => {
             const st = status(invite);
-            const age = ageBadge(invite.max_age);
+            const age = ageBadge(systems.data, invite.max_age_system, invite.max_age);
             return (
               <li key={invite.code} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
                 <div className="min-w-0 flex-1">

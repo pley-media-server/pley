@@ -513,7 +513,14 @@
       "pinDigits": "El PIN debe tener de 4 a 8 dígitos.",
       "pickLibrary": "Elige al menos una biblioteca, o permite todas.",
       "added": "Se añadió a {{name}}",
-      "saved": "Se guardaron los cambios de {{name}}"
+      "saved": "Se guardaron los cambios de {{name}}",
+      "tabsLabel": "Ajustes de la cuenta",
+      "tabs": {
+        "profile": "Perfil",
+        "access": "Acceso",
+        "devices": "Dispositivos"
+      },
+      "tabNeedsLook": "Algo aquí necesita revisión"
     }
   },
   "invites": {

@@ -827,8 +827,7 @@ impl MetadataAgent {
 
     /// The country of `metadata_language` ("US" for "en-US"; "US" without one).
     pub(crate) fn region(&self) -> String {
-        let lang = self.settings.get().metadata_language.clone();
-        lang.split(['-', '_']).nth(1).unwrap_or("US").to_ascii_uppercase()
+        crate::ratings::region_of(&self.settings.get().metadata_language)
     }
 
     async fn find_by_imdb(&self, imdb: &str, tv: bool) -> Result<Option<i64>, TmdbError> {
@@ -886,22 +885,31 @@ impl MetadataAgent {
         let details: MovieDetails =
             self.get(&format!("/movie/{tmdb_id}"), &[("append_to_response", "release_dates,credits".into())]).await?;
         let region = self.region();
-        let certification = details.release_dates.as_ref().and_then(|rd| {
-            rd.results
-                .iter()
-                .find(|c| c.iso_3166_1 == region)
-                .or_else(|| rd.results.iter().find(|c| c.iso_3166_1 == "US"))
-                .and_then(|c| c.release_dates.iter().map(|r| r.certification.trim()).find(|c| !c.is_empty()))
-                .map(str::to_owned)
-        });
+        // The region's certification, else the US's, with its country.
+        let (certification, country) = details
+            .release_dates
+            .as_ref()
+            .and_then(|rd| {
+                let c = rd
+                    .results
+                    .iter()
+                    .find(|c| c.iso_3166_1 == region)
+                    .or_else(|| rd.results.iter().find(|c| c.iso_3166_1 == "US"))?;
+                let found = c.release_dates.iter().map(|r| r.certification.trim()).find(|c| !c.is_empty())?;
+                Some((found.to_owned(), c.iso_3166_1.clone()))
+            })
+            .unzip();
         let poster = self.artwork(item.poster.as_deref(), details.poster_path.as_deref(), "w780").await;
         let backdrop = self.artwork(item.backdrop.as_deref(), details.backdrop_path.as_deref(), "w1280").await;
         let title = details.title.clone().unwrap_or_else(|| item.title.clone());
         let genres: Vec<String> = details.genres.iter().map(|g| g.name.clone()).collect();
-        let age = certification.as_deref().and_then(crate::ratings::rating_age);
+        let age = certification
+            .as_deref()
+            .and_then(|c| crate::ratings::age(country.as_deref(), crate::ratings::Kind::Film, c));
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE items SET title = ?, sort_title = ?, original_title = ?, year = COALESCE(?, year), summary = ?, tagline = ?,
                 rating = ?, content_rating = CASE WHEN {RATING_LOCKED} THEN content_rating ELSE ? END,
+                content_rating_country = CASE WHEN {RATING_LOCKED} THEN content_rating_country ELSE ? END,
                 rating_age = CASE WHEN {RATING_LOCKED} THEN rating_age ELSE ? END,
                 genres = ?, studio = ?, release_date = ?, duration_ms = COALESCE(duration_ms, ?),
                 tmdb_id = ?, imdb_id = COALESCE(?, imdb_id), poster = COALESCE(?, poster), backdrop = COALESCE(?, backdrop),
@@ -916,6 +924,7 @@ impl MetadataAgent {
         .bind(details.tagline.filter(|s| !s.is_empty()))
         .bind(details.vote_average.filter(|v| *v > 0.0))
         .bind(certification)
+        .bind(country)
         .bind(age)
         .bind(serde_json::to_string(&genres).ok())
         .bind(details.production_companies.first().map(|c| c.name.clone()))
@@ -958,22 +967,27 @@ impl MetadataAgent {
             )
             .await?;
         let region = self.region();
-        let rating = details.content_ratings.as_ref().and_then(|r| {
-            r.results
-                .iter()
-                .find(|c| c.iso_3166_1 == region)
-                .or_else(|| r.results.iter().find(|c| c.iso_3166_1 == "US"))
-                .map(|c| c.rating.clone())
-                .filter(|r| !r.is_empty())
-        });
+        let (rating, country) = details
+            .content_ratings
+            .as_ref()
+            .and_then(|r| {
+                r.results
+                    .iter()
+                    .find(|c| c.iso_3166_1 == region)
+                    .or_else(|| r.results.iter().find(|c| c.iso_3166_1 == "US"))
+                    .filter(|c| !c.rating.is_empty())
+                    .map(|c| (c.rating.clone(), c.iso_3166_1.clone()))
+            })
+            .unzip();
         let poster = self.artwork(item.poster.as_deref(), details.poster_path.as_deref(), "w780").await;
         let backdrop = self.artwork(item.backdrop.as_deref(), details.backdrop_path.as_deref(), "w1280").await;
         let title = details.name.clone().unwrap_or_else(|| item.title.clone());
         let genres: Vec<String> = details.genres.iter().map(|g| g.name.clone()).collect();
-        let age = rating.as_deref().and_then(crate::ratings::rating_age);
+        let age = rating.as_deref().and_then(|r| crate::ratings::age(country.as_deref(), crate::ratings::Kind::Tv, r));
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "UPDATE items SET title = ?, sort_title = ?, original_title = ?, year = COALESCE(?, year), summary = ?, tagline = ?,
                 rating = ?, content_rating = CASE WHEN {RATING_LOCKED} THEN content_rating ELSE ? END,
+                content_rating_country = CASE WHEN {RATING_LOCKED} THEN content_rating_country ELSE ? END,
                 rating_age = CASE WHEN {RATING_LOCKED} THEN rating_age ELSE ? END,
                 genres = ?, studio = ?, release_date = ?, tmdb_id = ?, imdb_id = COALESCE(?, imdb_id),
                 poster = COALESCE(?, poster), backdrop = COALESCE(?, backdrop), metadata_at = ?, updated_at = ?
@@ -987,6 +1001,7 @@ impl MetadataAgent {
         .bind(details.tagline.filter(|s| !s.is_empty()))
         .bind(details.vote_average.filter(|v| *v > 0.0))
         .bind(rating)
+        .bind(country)
         .bind(age)
         .bind(serde_json::to_string(&genres).ok())
         .bind(details.networks.first().map(|n| n.name.clone()))

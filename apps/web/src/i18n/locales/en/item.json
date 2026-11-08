@@ -117,6 +117,9 @@
       "genresPlaceholder": "Drama, Thriller",
       "locked": "Locked: click to unlock",
       "willUnlock": "Will be unlocked",
+      "ratingCountry": "Country: {{country}}",
+      "ratingRegion": "Read with the metadata region’s ratings",
+      "ratingCommon": "Read by the US’s ratings and others in common use: the metadata region has none here",
       "fromNfo": "From the NFO file",
       "fields": {
         "title": "Title",
@@ -128,8 +131,11 @@
         "studio": "Studio",
         "tagline": "Tagline",
         "genres": "Genres",
-        "summary": "Summary"
-      }
+        "summary": "Summary",
+        "labels": "Labels"
+      },
+      "labelsHint": "Only administrators see them. Profiles' exceptions in Settings → Users go by them.",
+      "removeLabel": "Remove {{label}}"
     },
     "match": {
       "title": "Fix match",
