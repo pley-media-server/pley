@@ -1193,16 +1193,8 @@ impl Run {
                 (id, true, limits.max_age)
             }
         };
-        for (kind, list) in [("show", &show), ("hide", &hide)] {
-            for label in list {
-                sqlx::query("INSERT OR REPLACE INTO user_label_rules (user_id, label, kind) VALUES (?, ?, ?)")
-                    .bind(id)
-                    .bind(label)
-                    .bind(kind)
-                    .execute(&mut *tx)
-                    .await?;
-            }
-        }
+        accounts::add_label_rules(&mut tx, id, "show", &show).await?;
+        accounts::add_label_rules(&mut tx, id, "hide", &hide).await?;
         tx.commit().await?;
         if !created {
             self.state.auth.forget_user(id);
