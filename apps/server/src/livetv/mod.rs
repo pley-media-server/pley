@@ -1320,7 +1320,9 @@ impl LiveTv {
                 "INSERT INTO live_channels (source_id, key, name, number, group_name, logo_url, guide_id, stream_url, \
                  user_agent, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
                  ON CONFLICT(source_id, key) DO UPDATE SET name = excluded.name, number = excluded.number, \
-                 group_name = excluded.group_name, logo_url = excluded.logo_url, guide_id = excluded.guide_id, \
+                 group_name = excluded.group_name, logo_url = excluded.logo_url, \
+                 matched_guide_id = CASE WHEN guide_id = excluded.guide_id THEN matched_guide_id END, \
+                 guide_id = excluded.guide_id, \
                  offline_since = CASE WHEN stream_url = excluded.stream_url THEN offline_since END, \
                  stream_url = excluded.stream_url, user_agent = excluded.user_agent, position = excluded.position, \
                  missing_since = NULL",
@@ -2347,15 +2349,28 @@ struct GuideIndex<'a> {
 impl<'a> GuideIndex<'a> {
     fn new(channels: &'a [xmltv::GuideChannel]) -> Self {
         let mut index = GuideIndex { ids: HashSet::new(), loose: HashMap::new(), by_name: HashMap::new() };
+        let mut ambiguous = HashSet::new();
         for c in channels {
             index.ids.insert(&c.id);
             let loose = loose_id(&c.id);
             if !loose.is_empty() {
-                index.loose.entry(loose).or_insert(&c.id);
+                match index.loose.get(&loose) {
+                    Some(id) if *id != c.id => {
+                        ambiguous.insert(loose);
+                    }
+                    Some(_) => {}
+                    None => {
+                        index.loose.insert(loose, &c.id);
+                    }
+                }
             }
             for name in &c.names {
                 index.by_name.entry(normalize(name)).or_insert(&c.id);
             }
+        }
+        // Two guide channels written alike would be a guess between them.
+        for loose in ambiguous {
+            index.loose.remove(&loose);
         }
         index
     }
@@ -2376,9 +2391,19 @@ impl<'a> GuideIndex<'a> {
 
 /// A guide id as compared when it isn't found as it is: lower case, letters
 /// and digits only. Sources and guides often write the same id in another
-/// case or with other dots and dashes.
+/// case or with other dots and dashes. Between two digits a separator stays,
+/// as one dot: `21.1` and `2.11` are different channels.
 fn loose_id(id: &str) -> String {
-    id.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
+    let mut loose = String::with_capacity(id.len());
+    let mut chars = id.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c.is_alphanumeric() {
+            loose.extend(c.to_lowercase());
+        } else if loose.ends_with(|p: char| p.is_ascii_digit()) && chars.peek().is_some_and(|n| n.is_ascii_digit()) {
+            loose.push('.');
+        }
+    }
+    loose
 }
 
 /// A channel name as compared with the guide's: lower case, letters and
@@ -2466,6 +2491,16 @@ mod tests {
         assert_eq!(index.matching("WDRFernsehen.de", "WDR Fernsehen HD"), Some("WDR.de"));
         assert_eq!(index.matching("", "KiKA HD"), Some("KIKA.de"));
         assert_eq!(index.matching("-", "Nothing like it"), None);
+
+        // Digits keep their separator, and ids two channels share in their
+        // loose form match neither.
+        let channels =
+            [channel("2.11", "Two"), channel("SPORT.de", "S1"), channel("Sport.de", "S2"), channel("5-1", "Five")];
+        let index = GuideIndex::new(&channels);
+        assert_eq!(index.matching("21.1", "Anything"), None);
+        assert_eq!(index.matching("2-11", "Anything"), Some("2.11"));
+        assert_eq!(index.matching("5.1", "Anything"), Some("5-1"));
+        assert_eq!(index.matching("sport.de", "Anything"), None);
     }
 
     #[test]
