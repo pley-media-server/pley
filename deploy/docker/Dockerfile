@@ -57,8 +57,8 @@ RUN apt-get update \
         libfast-float-dev libdovi-dev liblcms2-dev libshaderc-dev libvulkan-dev libxxhash-dev \
         python3-glad python3-jinja2 \
         libass-dev libchromaprint-dev libdav1d-dev libdrm-dev libffmpeg-nvenc-dev libfontconfig-dev \
-        libfreetype-dev libfribidi-dev libharfbuzz-dev libmp3lame-dev libopus-dev libva-dev libvorbis-dev \
-        libvpx-dev libwebp-dev libx264-dev libx265-dev libzimg-dev ocl-icd-opencl-dev \
+        libfreetype-dev libfribidi-dev libharfbuzz-dev libmp3lame-dev libopus-dev libsvtav1enc-dev libva-dev \
+        libvorbis-dev libvpx-dev libwebp-dev libx264-dev libx265-dev libzimg-dev ocl-icd-opencl-dev \
     && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
         apt-get install -y --no-install-recommends libvpl-dev; \
     fi \
@@ -90,7 +90,7 @@ RUN curl -fsSL --retry 5 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/
     && ./configure --prefix=/usr/local --extra-version=pley \
         --disable-debug --disable-doc --disable-ffplay \
         --enable-gpl \
-        --enable-libx264 --enable-libx265 --enable-libdav1d --enable-libvpx --enable-libwebp \
+        --enable-libx264 --enable-libx265 --enable-libsvtav1 --enable-libdav1d --enable-libvpx --enable-libwebp \
         --enable-libopus --enable-libmp3lame --enable-libvorbis \
         --enable-libass --enable-libfreetype --enable-libfontconfig --enable-libfribidi --enable-libharfbuzz \
         --enable-libplacebo --enable-libzimg --enable-chromaprint \

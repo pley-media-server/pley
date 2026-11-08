@@ -311,7 +311,8 @@ jobs:
           for name in "${hw_filters[@]}" libplacebo tonemap_opencl zscale subtitles; do
             grep -qw "$name" <<<"$filters" || fail "FFmpeg has no $name filter"
           done
-          for name in "${hw_encoders[@]}" libx264 libx265; do
+          # libsvtav1 and libvpx-vp9 make the clips that test GPU decoding of AV1 and VP9.
+          for name in "${hw_encoders[@]}" libx264 libx265 libsvtav1 libvpx-vp9; do
             grep -qw "$name" <<<"$encoders" || fail "FFmpeg has no $name encoder"
           done
           grep -qw libdav1d <<<"$decoders" || fail "FFmpeg has no libdav1d decoder"
