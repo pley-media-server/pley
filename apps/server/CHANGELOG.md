@@ -70,6 +70,10 @@ describes how they are made.
 - HDR video that libplacebo tone maps plays again in the Docker image and
   with other FFmpeg 7 installs: the transcoder no longer asks it for a
   shader cache that FFmpeg before 8.0 doesn't have.
+- A Live TV channel whose playlist id isn't in the guide shows the
+  programmes of the guide channel found for it, rather than "No guide".
+  That guide channel is now also found when the guide writes the same id
+  in another case or with other dots and dashes (`Kika.de` and `KIKA.de`).
 - A quality fits a film wider than 16:9 into its box: 1080p of a 2.40:1
   film is 1920×800, no longer 2592×1080, so it isn't wider than the
   screen and plays on players that decode H.264 up to level 4.1.
