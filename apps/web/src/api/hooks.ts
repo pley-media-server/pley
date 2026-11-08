@@ -20,6 +20,7 @@ import type {
   InviteCheck,
   ItemDetail,
   ItemSummary,
+  LabelUse,
   Library,
   LibraryFilters,
   LibraryItemsQuery,
@@ -30,6 +31,7 @@ import type {
   NetworkSettings,
   PersonDetail,
   PlayingSession,
+  RatingSystems,
   RecoveryCodes,
   RemoteDevice,
   RequestAccess,
@@ -79,6 +81,8 @@ export const keys = {
   profiles: ["profiles"] as const,
   devices: ["devices"] as const,
   invites: ["invites"] as const,
+  ratingSystems: ["ratings", "systems"] as const,
+  labels: ["labels"] as const,
   invite: (code: string) => ["invite", code] as const,
   settings: ["settings"] as const,
   network: ["network"] as const,
@@ -1065,6 +1069,10 @@ export interface NewUserInput {
   all_libraries?: boolean;
   library_ids?: Id[];
   max_age?: number | null;
+  max_age_system?: string | null;
+  birth_month?: string;
+  show_labels?: string[];
+  hide_labels?: string[];
   pin?: string;
   request_access?: RequestAccess;
 }
@@ -1076,6 +1084,8 @@ export function useCreateUser() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.users });
       void qc.invalidateQueries({ queryKey: keys.profiles });
+      // Its rules' labels are offered as labels.
+      void qc.invalidateQueries({ queryKey: keys.labels });
     },
   });
 }
@@ -1090,6 +1100,10 @@ export interface UserPatch {
   all_libraries?: boolean;
   library_ids?: Id[];
   max_age?: number | null;
+  max_age_system?: string | null;
+  birth_month?: string | null;
+  show_labels?: string[];
+  hide_labels?: string[];
   pin?: string | null;
   request_access?: RequestAccess;
 }
@@ -1101,6 +1115,7 @@ export function useUpdateUser() {
     onSuccess: (user) => {
       void qc.invalidateQueries({ queryKey: keys.users });
       void qc.invalidateQueries({ queryKey: keys.profiles });
+      void qc.invalidateQueries({ queryKey: keys.labels });
       qc.setQueryData<User | undefined>(keys.me, (me) => (me && me.id === user.id ? user : me));
     },
   });
@@ -1137,6 +1152,24 @@ export function useSignOutEverywhere() {
 // Invitations
 // ---------------------------------------------------------------------------
 
+/** The rating systems age limits are picked and shown in. */
+export function useRatingSystems() {
+  return useQuery({
+    queryKey: keys.ratingSystems,
+    queryFn: () => api.get<RatingSystems>("/api/ratings/systems"),
+    staleTime: 5 * 60_000,
+  });
+}
+
+/** Every label on a title, with how many carry it (administrators only). */
+export function useLabels() {
+  return useQuery({
+    queryKey: keys.labels,
+    queryFn: () => api.get<LabelUse[]>("/api/labels"),
+    staleTime: 60_000,
+  });
+}
+
 export function useInvites() {
   return useQuery(queries.invites());
 }
@@ -1147,6 +1180,9 @@ export interface NewInviteInput {
   all_libraries?: boolean;
   library_ids?: Id[];
   max_age?: number | null;
+  max_age_system?: string | null;
+  show_labels?: string[];
+  hide_labels?: string[];
   note?: string;
 }
 
@@ -1154,7 +1190,10 @@ export function useCreateInvite() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: NewInviteInput) => api.post<Invite>("/api/invites", body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: keys.invites }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.invites });
+      void qc.invalidateQueries({ queryKey: keys.labels });
+    },
   });
 }
 

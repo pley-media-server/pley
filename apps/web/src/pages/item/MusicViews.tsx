@@ -15,7 +15,7 @@ import { formatClock, formatDuration } from "@/lib/format";
 import { useElementWidth } from "@/lib/hooks";
 import { usePlayItem } from "@/lib/usePlayItem";
 import { MoreActions } from "./ItemActions";
-import { Genres, ItemArt, MetaLine, SectionError, Summary } from "./shared";
+import { Genres, ItemArt, Labels, MetaLine, SectionError, Summary } from "./shared";
 import { itemUrl } from "@/lib/urls";
 
 function MusicHeader({ item, kindLabel, meta, actions }: { item: ItemDetail; kindLabel: string; meta: React.ReactNode; actions: React.ReactNode }) {
@@ -29,6 +29,7 @@ function MusicHeader({ item, kindLabel, meta, actions }: { item: ItemDetail; kin
         <h1 className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-5xl">{item.title}</h1>
         {meta}
         <Genres genres={item.genres} />
+        <Labels labels={item.labels} />
         <div className="flex flex-wrap items-center gap-2.5 pt-1">{actions}</div>
       </div>
     </div>

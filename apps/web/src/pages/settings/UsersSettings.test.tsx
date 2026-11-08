@@ -2,7 +2,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { AppGrant } from "@/api/apps";
-import type { Library, User } from "@/api/types";
+import type { Library, RatingSystems, User } from "@/api/types";
 import { mockApi, renderWithProviders, testUser } from "@/test/render";
 import { UsersSettings } from "./UsersSettings";
 
@@ -22,7 +22,17 @@ const kid: User = {
 };
 const ann: User = { ...testUser, id: 3, username: "ann", name: "Ann", is_admin: false, two_step: true };
 /** An account without a password: it can't sign in until it gets one. */
-const lee: User = { ...testUser, id: 4, username: "lee", name: "Lee", is_admin: false, has_password: false };
+const lee: User = {
+  ...testUser,
+  id: 4,
+  username: "lee",
+  name: "Lee",
+  is_admin: false,
+  has_password: false,
+  // Without an age limit, labels always shown don't count.
+  show_labels: ["Kids OK"],
+  hide_labels: ["Scary", "Loud"],
+};
 const libraries: Library[] = [
   { id: 1, name: "Movies", kind: "movies", paths: [], item_count: 0, created_at: 0, scanned_at: null, scanning: false },
   { id: 2, name: "Cartoons", kind: "shows", paths: [], item_count: 0, created_at: 0, scanned_at: null, scanning: false },
@@ -44,7 +54,23 @@ const kidsApp: AppGrant = {
   last_used_at: 0,
 };
 
-function serve() {
+const ratingSystems: RatingSystems = {
+  region: "US",
+  systems: [
+    {
+      country: "US",
+      name: "United States",
+      ratings: [
+        { name: "G", age: 0, kind: "film" },
+        { name: "TV-Y7", age: 7, kind: "tv" },
+        { name: "PG-13", age: 13, kind: "film" },
+      ],
+    },
+  ],
+};
+
+/** The server's answers, with `extra` ones added or put in their place. */
+function serve(extra: Parameters<typeof mockApi>[0] = {}) {
   let kidsApps = [kidsApp];
   let annsApps = [{ ...kidsApp, id: 10, profile: { id: 3, name: "Ann" } }];
   return mockApi({
@@ -66,6 +92,8 @@ function serve() {
     },
     "GET /api/users/4/apps": () => [],
     "GET /api/users": () => [admin, kid, ann, lee],
+    "GET /api/ratings/systems": () => ratingSystems,
+    "GET /api/labels": () => [{ label: "Override: Kids", items: 3 }],
     "GET /api/libraries": () => libraries,
     "GET /api/users/1/devices": () => [],
     "GET /api/users/2/devices": () => [{ id: "d1", name: "Safari on iPhone", user_agent: null, ip: "192.0.2.4", created_at: 0, last_seen_at: 0, current: false }],
@@ -75,6 +103,7 @@ function serve() {
     "GET /api/users/3/devices": () => [],
     "DELETE /api/users/3/two-step": () => undefined,
     "GET /api/users/4/devices": () => [],
+    ...extra,
   });
 }
 
@@ -83,6 +112,12 @@ function renderUsers() {
   const requests = serve();
   renderWithProviders(<UsersSettings />, { user: admin });
   return requests;
+}
+
+/** Opens the dialog's tab `name`. */
+async function openTab(user: ReturnType<typeof userEvent.setup>, dialog: HTMLElement, name: string) {
+  // A tab that needs a look says so in its name too.
+  await user.click(within(dialog).getByRole("tab", { name: new RegExp(`^${name}`) }));
 }
 
 async function openAddDialog() {
@@ -94,11 +129,13 @@ async function openAddDialog() {
 describe("UsersSettings", () => {
   it("lists users with what sets them apart", async () => {
     renderUsers();
-    const rows = await screen.findAllByRole("listitem");
+    // The limit shows as its rating once the rating systems are in.
+    expect(await screen.findByText("Up to TV-Y7")).toBeInTheDocument();
+    const rows = screen.getAllByRole("listitem");
     expect(rows[0]).toHaveTextContent("Admin");
     expect(rows[0]).toHaveTextContent("(you)");
     expect(rows[1]).toHaveTextContent("@kid");
-    for (const badge of ["Managed", "Home", "Cartoons", "Up to 7", "PIN"]) expect(rows[1]).toHaveTextContent(badge);
+    for (const badge of ["Managed", "Home", "Cartoons", "Up to TV-Y7", "PIN"]) expect(rows[1]).toHaveTextContent(badge);
   });
 
   it("turns two-step sign-in off for someone who lost their phone", async () => {
@@ -190,6 +227,9 @@ describe("UsersSettings", () => {
       all_libraries: true,
       library_ids: [],
       max_age: null,
+      max_age_system: null,
+      show_labels: [],
+      hide_labels: [],
       pin: "1234",
     });
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -203,6 +243,7 @@ describe("UsersSettings", () => {
     expect(within(dialog).queryByLabelText("Password")).not.toBeInTheDocument();
     expect(within(dialog).getByRole("switch", { name: "Administrator" })).toBeDisabled();
     await user.type(within(dialog).getByLabelText("Username"), "little");
+    await openTab(user, dialog, "Access");
     await user.click(within(dialog).getByRole("button", { name: "Only some" }));
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
     expect(within(dialog).getByText("Pick at least one library, or allow all of them.")).toBeInTheDocument();
@@ -220,12 +261,85 @@ describe("UsersSettings", () => {
     expect(requests.find((r) => r.method === "POST")?.body).not.toHaveProperty("password");
   });
 
+  it("sets the age limit by rating or by age, showing only that way's fields", async () => {
+    const user = userEvent.setup();
+    const requests = renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    const limit = within(dialog).getByLabelText("Age limit");
+    // By rating, in the region's ratings, with the limit as its rating.
+    await waitFor(() => expect(limit).toHaveValue("rating"));
+    expect(within(dialog).getByLabelText("Rating system")).toHaveValue("US");
+    expect(within(dialog).getByLabelText("Rating")).toHaveValue("7");
+    expect(within(dialog).getByText(/suitable for age 7: TV-Y7 and gentler ratings/)).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Age")).not.toBeInTheDocument();
+    // By age keeps the limit, and offers every age.
+    await user.selectOptions(limit, "By age");
+    expect(within(dialog).queryByLabelText("Rating system")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Age")).toHaveValue("7");
+    expect(within(dialog).getByRole("option", { name: "8" })).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ max_age_system: "age" }));
+  });
+
+  it("warns that unrated movies are hidden without a TMDB key, linking to it in a new tab", async () => {
+    const user = userEvent.setup();
+    serve({ "GET /api/settings": () => ({ tmdb_api_key: "" }) });
+    renderWithProviders(<UsersSettings />, { user: admin });
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    const note = await within(dialog).findByRole("note");
+    expect(note).toHaveTextContent("Unrated movies are hidden");
+    const link = within(note).getByRole("link", { name: "Add a TMDB key" });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("href", "/settings/server#tmdb-key");
+    // Without a limit, nothing is hidden.
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");
+    expect(within(dialog).queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("says nothing of TMDB where it has a key", async () => {
+    const user = userEvent.setup();
+    serve({ "GET /api/settings": () => ({ tmdb_api_key: "set" }) });
+    renderWithProviders(<UsersSettings />, { user: admin });
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    await within(dialog).findByLabelText("Rating");
+    expect(within(dialog).queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("lets a limit follow a birthday", async () => {
+    const user = userEvent.setup();
+    const requests = renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    await waitFor(() => expect(within(dialog).getByLabelText("Age limit")).toHaveValue("rating"));
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By birthday");
+    expect(within(dialog).queryByLabelText("Rating")).not.toBeInTheDocument();
+    // Born this month seven years ago: the limit stays 7.
+    const now = new Date();
+    const year = now.getFullYear() - 7;
+    expect(within(dialog).getByLabelText("Year")).toHaveValue(String(year));
+    expect(within(dialog).getByLabelText("Birthday month")).toHaveValue(String(now.getMonth() + 1));
+    expect(within(dialog).getByText(/suitable for age 7: TV-Y7 and gentler ratings/)).toBeInTheDocument();
+    expect(within(dialog).getByText(new RegExp(`ends in .* ${year + 21}`))).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    await waitFor(() => expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ birth_month: `${year}-${month}` }));
+  });
+
   it("saves only what changed", async () => {
     const user = userEvent.setup();
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Devices");
     expect(await within(dialog).findByText("Safari on iPhone")).toBeInTheDocument();
+    await openTab(user, dialog, "Profile");
 
     const name = within(dialog).getByLabelText("Display name");
     await user.clear(name);
@@ -235,6 +349,55 @@ describe("UsersSettings", () => {
 
     expect(await screen.findByText("Saved Kiddo Two")).toBeInTheDocument();
     expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ display_name: "Kiddo Two", pin: null });
+  });
+
+  it("sets exceptions by label, refusing one both always and never shown", async () => {
+    const user = userEvent.setup();
+    const requests = renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Access");
+    // Folded away while there are none.
+    expect(within(dialog).getByText("None")).toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("Never show")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Add" }));
+
+    await user.type(within(dialog).getByLabelText("Always show"), "Override: Kids{Enter}");
+    await user.type(within(dialog).getByLabelText("Never show"), "Scary{Enter}");
+    await user.type(within(dialog).getByLabelText("Always show"), " scary {Enter}");
+    expect(within(dialog).getByText("A label can't be both always and never shown: scary.")).toBeInTheDocument();
+    // The Access tab says so from the others too.
+    await openTab(user, dialog, "Profile");
+    expect(within(dialog).getByLabelText("Something here needs a look")).toBeInTheDocument();
+    await openTab(user, dialog, "Access");
+    await user.click(within(dialog).getByRole("button", { name: "Remove scary" }));
+    expect(within(dialog).queryByText(/both always and never/)).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ show_labels: ["Override: Kids"], hide_labels: ["Scary"] }),
+    );
+  });
+
+  it("offers Always show only with an age limit, and Never show always", async () => {
+    renderUsers();
+    const { user, dialog } = await openAddDialog();
+    expect(within(dialog).queryByRole("tab", { name: "Devices" })).not.toBeInTheDocument();
+    await openTab(user, dialog, "Access");
+    await user.click(within(dialog).getByRole("button", { name: "Add" }));
+    expect(within(dialog).queryByLabelText("Always show")).not.toBeInTheDocument();
+    expect(within(dialog).getByLabelText("Never show")).toBeInTheDocument();
+  });
+
+  it("sums up a profile's exceptions until they're opened", async () => {
+    const user = userEvent.setup();
+    renderUsers();
+    await user.click(await screen.findByRole("button", { name: /Lee/ }));
+    const dialog = screen.getByRole("dialog", { name: "Edit Lee" });
+    await openTab(user, dialog, "Access");
+    expect(within(dialog).getByText("Never show 2 labels")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Change" }));
+    expect(within(dialog).getByRole("button", { name: "Remove Loud" })).toBeInTheDocument();
   });
 
   it("closes without a request when nothing changed", async () => {
@@ -280,6 +443,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Devices");
 
     const app = (await within(dialog).findByText("Pley for Android")).closest("li");
     if (!app) throw new Error("no row for the app");
@@ -299,6 +463,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    await openTab(user, dialog, "Devices");
     await within(dialog).findByText("Pley for Android");
     expect(within(dialog).getByText("No signed-in devices.")).toBeInTheDocument();
 
@@ -314,6 +479,7 @@ describe("UsersSettings", () => {
     const requests = renderUsers();
     await user.click(await screen.findByRole("button", { name: /Kiddo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Kiddo" });
+    await openTab(user, dialog, "Devices");
     await within(dialog).findByText("Pley for Android");
 
     await user.click(within(dialog).getByRole("button", { name: "Sign out everywhere" }));
@@ -335,6 +501,7 @@ describe("UsersSettings: requests", () => {
   function serveRequests() {
     const requests = mockApi({
       "GET /api/users": () => [boss, annAsks, bo],
+      "GET /api/ratings/systems": () => ratingSystems,
       "GET /api/libraries": () => libraries,
       "GET /api/users/1/apps": () => [],
       "GET /api/users/1/devices": () => [],
@@ -355,6 +522,7 @@ describe("UsersSettings: requests", () => {
     const requests = serveRequests();
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    await openTab(user, dialog, "Access");
     expect(within(dialog).getByLabelText("Requests")).toHaveValue("ask");
     await user.selectOptions(within(dialog).getByLabelText("Requests"), "auto");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -367,8 +535,10 @@ describe("UsersSettings: requests", () => {
     const requests = serveRequests();
     await user.click(await screen.findByRole("button", { name: /Ann/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Ann" });
+    await openTab(user, dialog, "Access");
     const select = within(dialog).getByLabelText("Requests");
-    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "Kids (TV-Y7)");
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By rating");
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (age 7)");
     expect(select).toHaveValue("off");
     await user.selectOptions(select, "ask");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
@@ -381,12 +551,14 @@ describe("UsersSettings: requests", () => {
     const requests = serveRequests();
     await user.click(await screen.findByRole("button", { name: /Bo/ }));
     const dialog = screen.getByRole("dialog", { name: "Edit Bo" });
-    const select = within(dialog).getByLabelText("Requests");
-    expect(select).toBeDisabled();
-    expect(select).toHaveValue("auto");
+    await openTab(user, dialog, "Access");
+    expect(within(dialog).getByLabelText("Requests")).toBeDisabled();
+    expect(within(dialog).getByLabelText("Requests")).toHaveValue("auto");
+    await openTab(user, dialog, "Profile");
     await user.click(within(dialog).getByRole("switch", { name: "Administrator" }));
-    expect(select).toBeEnabled();
-    expect(select).toHaveValue("ask");
+    await openTab(user, dialog, "Access");
+    expect(within(dialog).getByLabelText("Requests")).toBeEnabled();
+    expect(within(dialog).getByLabelText("Requests")).toHaveValue("ask");
     await user.click(within(dialog).getByRole("button", { name: "Save" }));
     expect(await screen.findByText("Saved Bo")).toBeInTheDocument();
     expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ is_admin: false, request_access: "ask" });
@@ -395,9 +567,12 @@ describe("UsersSettings: requests", () => {
   it("starts new accounts asking, but not managed profiles or those with an age limit", async () => {
     const requests = serveRequests();
     const { user, dialog } = await openAddDialog();
+    await openTab(user, dialog, "Access");
     const select = within(dialog).getByLabelText("Requests");
     expect(select).toHaveValue("ask");
-    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "Kids (TV-Y7)");
+    await waitFor(() => expect(within(dialog).getByRole("option", { name: "By rating" })).toBeEnabled());
+    await user.selectOptions(within(dialog).getByLabelText("Age limit"), "By rating");
+    await user.selectOptions(within(dialog).getByLabelText("Rating"), "TV-Y7 (age 7)");
     expect(select).toHaveValue("off");
     expect(within(dialog).getByText(/leaves out titles above the age limit/)).toBeInTheDocument();
     await user.selectOptions(within(dialog).getByLabelText("Age limit"), "No limit");
@@ -406,6 +581,7 @@ describe("UsersSettings: requests", () => {
 
     // Chosen, it stays.
     await user.selectOptions(select, "ask");
+    await openTab(user, dialog, "Profile");
     await user.type(within(dialog).getByLabelText("Username"), "little");
     await user.click(within(dialog).getByRole("button", { name: "Add user" }));
     expect(await screen.findByText("Added little")).toBeInTheDocument();

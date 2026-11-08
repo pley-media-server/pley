@@ -633,7 +633,8 @@ impl SettingsStore {
     }
 
     pub async fn update(&self, db: &Db, patch: SettingsPatch) -> Result<Arc<Settings>, AppError> {
-        let mut next = (*self.get()).clone();
+        let current = self.get();
+        let mut next = (*current).clone();
         if let Some(v) = patch.server_name {
             let v = v.trim().to_owned();
             if v.is_empty() || v.chars().count() > 64 {
@@ -895,6 +896,11 @@ impl SettingsStore {
         .bind(json)
         .execute(&db.write)
         .await?;
+        // Ratings without a country of their own are read as the metadata
+        // region's: a new region can change their ages.
+        if crate::ratings::region_of(&next.metadata_language) != crate::ratings::region_of(&current.metadata_language) {
+            crate::ratings::backfill(db).await?;
+        }
         let next = Arc::new(next);
         self.current.send_replace(next.clone());
         Ok(next)

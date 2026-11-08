@@ -7,6 +7,7 @@
 use std::cmp::Ordering;
 use std::collections::HashMap;
 
+use crate::auth::AuthUser;
 use crate::catalog::{self, ItemRow, ItemsQuery, LibraryQuery, SqlArg};
 use crate::db::Db;
 use crate::library::{LibraryKind, LibraryRow};
@@ -494,6 +495,17 @@ impl Expr {
         match self {
             Expr::Filter(filter) => test(filter),
             Expr::All(terms) | Expr::Any(terms) => terms.iter().any(|t| t.any_filter(test)),
+        }
+    }
+
+    /// Label filters as if no title had labels: `label=X` finds none and
+    /// `label!=X` every title, whatever labels titles carry (as a label
+    /// filter without values does, see [`Filter::tags`]).
+    fn without_labels(&mut self) {
+        match self {
+            Expr::Filter(filter) if filter.level == Level::Own && filter.field == "label" => filter.values.clear(),
+            Expr::Filter(_) => {}
+            Expr::All(terms) | Expr::Any(terms) => terms.iter_mut().for_each(Expr::without_labels),
         }
     }
 
@@ -1283,6 +1295,23 @@ impl<'a> SectionQuery<'a> {
             cap: params.parse("limit"),
             now: now(),
         })
+    }
+
+    /// A listing `user` asks for with `params`. Those not told titles'
+    /// labels (see `labels::shown_to`) filter as if titles had none, so that
+    /// a label they guess finds nothing out. Smart collections and
+    /// playlists, whose filters are an administrator's, go by [`Self::new`].
+    pub(crate) fn asked_by(
+        user: &AuthUser,
+        library_id: i64,
+        kind: &'a str,
+        params: &Params,
+    ) -> Result<Self, FilterError> {
+        let mut query = Self::new(library_id, kind, params)?;
+        if !crate::labels::shown_to(user) {
+            query.filter.without_labels();
+        }
+        Ok(query)
     }
 
     /// The `page` of the items and how many there are: filtered, sorted and

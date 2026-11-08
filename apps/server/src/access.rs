@@ -3,9 +3,13 @@
 //! Administrators see everything. Other users see all libraries or a chosen
 //! set and, with an age limit, only movies and shows rated for that age:
 //! music is exempt, seasons and episodes go by their show's rating (or their
-//! own, when that is stricter) and unrated titles are hidden. Item queries apply the same rules in SQL (see
-//! `catalog::VISIBLE`); this module answers them for whole libraries, and
-//! lists them in the user's own order when they chose one.
+//! own, when that is stricter) and unrated titles are hidden. A profile's
+//! label rules make exceptions: titles with a label it always sees show
+//! above its age limit, and titles with a label it never sees don't show at
+//! all, whatever their rating ("never" wins). Item queries apply the same
+//! rules in SQL (see `catalog::VISIBLE`); this module answers them for
+//! whole libraries, and lists them in the user's own order when they chose
+//! one.
 
 use std::collections::HashMap;
 
@@ -16,6 +20,19 @@ use crate::library::{LibraryRow, list_libraries};
 /// The user may open every library.
 fn sees_all(user: &AuthUser) -> bool {
     user.is_admin || user.all_libraries
+}
+
+/// Whether some titles of the libraries the user opens may be hidden from
+/// them: an age limit, or labels it never sees. Their counts are then made
+/// with `catalog::VISIBLE`.
+pub async fn limited(db: &Db, user: &AuthUser) -> sqlx::Result<bool> {
+    if user.is_admin || user.max_age.is_some() {
+        return Ok(!user.is_admin);
+    }
+    sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM user_label_rules WHERE user_id = ? AND kind = 'hide')")
+        .bind(user.id)
+        .fetch_one(&db.read)
+        .await
 }
 
 /// Library ids the user may open; `None` means all of them.

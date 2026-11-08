@@ -27,19 +27,31 @@ async fn detail(state: &AppState, user_id: i64, id: i64) -> ApiResult<ItemDetail
     detail.locked_fields = overrides::locked_fields(&state.db, id).await?;
     detail.nfo_fields = overrides::nfo_fields(&state.db, id).await?;
     detail.in_watchlist = catalog::in_watchlist(&state.db, user_id, id).await?;
+    detail.labels = Some(crate::labels::for_items(&state.db, &[id]).await?.remove(&id).unwrap_or_default());
     Ok(detail)
 }
 
 /// `{ "title": "Alien", "year": 1979, "summary": null, … }`: a value sets and
 /// locks the field, `null` unlocks it (the next refresh fills it again).
 /// `"match": null` undoes Fix Match, for the item's NFO file to decide it.
+/// `"labels": [...]` replaces the item's labels (they aren't metadata: a
+/// refresh never changes them).
 pub async fn edit(
     State(state): State<AppState>,
     AdminUser(user): AdminUser,
     Path(id): Path<i64>,
-    Json(body): Json<HashMap<String, Value>>,
+    Json(mut body): Json<HashMap<String, Value>>,
 ) -> ApiResult<Json<ItemDetail>> {
     let row = item_or_404(&state, user.id, id).await?;
+    let labels = match body.remove("labels") {
+        None => None,
+        Some(Value::Array(list)) if crate::labels::LABELLED.contains(&row.kind.as_str()) => {
+            let names: Vec<String> = list.iter().filter_map(|v| v.as_str()).map(str::to_owned).collect();
+            Some(crate::labels::check(&names)?)
+        }
+        Some(Value::Array(_)) => return Err(AppError::bad_request(format!("a {} has no labels", row.kind))),
+        Some(_) => return Err(AppError::bad_request("'labels' is a list of names")),
+    };
     let mut changes = Vec::new();
     for (field, value) in body {
         let value = match value {
@@ -64,6 +76,9 @@ pub async fn edit(
         changes.push((field, value));
     }
     overrides::set(&state.db, id, &changes).await?;
+    if let Some(labels) = labels {
+        crate::labels::replace(&state.db, id, &labels).await?;
+    }
     // Fix Match undone: the item's NFO file decides its match again.
     if changes.iter().any(|(field, value)| field == overrides::MATCH && value.is_none()) {
         crate::library::scanner::nfo_match_dropped(&state.db, id).await?;
@@ -266,4 +281,11 @@ pub(crate) async fn reset_picture(
         state.scanner.enqueue(library_id, false);
     }
     Ok(())
+}
+
+/// `GET /api/labels`: every label titles carry or profiles' and invitations'
+/// rules name, with how many of each, for Edit details and the pickers of
+/// profiles' label rules.
+pub async fn labels(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<crate::labels::LabelUse>>> {
+    Ok(Json(crate::labels::all(&state.db).await?))
 }

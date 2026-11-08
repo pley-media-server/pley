@@ -342,6 +342,7 @@ fn to_meta(show: Show, all_episodes: Option<Vec<Episode>>) -> ShowMeta {
         premiered: full_date(show.premiered.as_deref()),
         rating: show.rating.and_then(|r| r.average),
         content_rating: None,
+        content_rating_country: None,
         genres: show.genres.iter().filter_map(|g| text(Some(g))).collect(),
         network: show.network.or(show.web_channel).and_then(|n| text(n.name.as_deref())),
         imdb_id: text(externals.imdb.as_deref()).filter(|i| i.starts_with("tt")),

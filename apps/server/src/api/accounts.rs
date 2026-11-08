@@ -17,6 +17,7 @@ use crate::auth::{
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::i18n;
+use crate::ratings;
 use crate::requests::{self, RequestAccess};
 use crate::state::AppState;
 use crate::streams::{self, SubtitleMode};
@@ -29,6 +30,71 @@ fn check_age(max_age: Option<i64>) -> ApiResult<()> {
     }
 }
 
+/// The rating system an age limit is shown in, as stored: a country with
+/// ratings ("GB"), or "age".
+fn check_system(system: Option<&str>) -> ApiResult<Option<String>> {
+    match system.map(str::trim).filter(|s| !s.is_empty()) {
+        None => Ok(None),
+        Some(s) if s.eq_ignore_ascii_case(AGE_SYSTEM) => Ok(Some(AGE_SYSTEM.to_owned())),
+        Some(s) => match ratings::system(s) {
+            Some(system) => Ok(Some(system.country.to_owned())),
+            None => Err(AppError::bad_request("unknown rating system")),
+        },
+    }
+}
+
+/// The rating system of plain ages.
+const AGE_SYSTEM: &str = "age";
+
+#[derive(Serialize)]
+pub struct RatingSystems {
+    /// The metadata region (ISO 3166-1 alpha-2): its system, when it has
+    /// one, is where an age limit is picked first.
+    region: String,
+    systems: Vec<RatingSystem>,
+}
+
+#[derive(Serialize)]
+struct RatingSystem {
+    country: &'static str,
+    name: &'static str,
+    ratings: Vec<SystemRating>,
+}
+
+#[derive(Serialize)]
+struct SystemRating {
+    name: &'static str,
+    age: i64,
+    /// "film" or "tv"; `None`: both.
+    kind: Option<&'static str>,
+}
+
+/// The rating systems an age limit is picked and shown in, each country's
+/// ratings youngest first. Names are as short as the boards' own allow:
+/// Denmark's "Tilladt for alle" is "A".
+pub async fn rating_systems(State(state): State<AppState>, _user: AuthUser) -> ApiResult<Json<RatingSystems>> {
+    let systems = ratings::SYSTEMS
+        .iter()
+        .map(|s| RatingSystem {
+            country: s.country,
+            name: s.name,
+            ratings: s
+                .ratings
+                .iter()
+                .map(|r| SystemRating {
+                    name: r.short_name(),
+                    age: r.age,
+                    kind: r.kind.map(|k| match k {
+                        ratings::Kind::Film => "film",
+                        ratings::Kind::Tv => "tv",
+                    }),
+                })
+                .collect(),
+        })
+        .collect();
+    Ok(Json(RatingSystems { region: ratings::region(&state.db).await?, systems }))
+}
+
 async fn admins_left_after(state: &AppState, without: i64) -> ApiResult<i64> {
     Ok(sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE is_admin = 1 AND disabled = 0 AND id != ?")
         .bind(without)
@@ -39,7 +105,21 @@ async fn admins_left_after(state: &AppState, without: i64) -> ApiResult<i64> {
 // ------------------------------------------------------------------ admin: users
 
 pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<UserDto>>> {
-    Ok(Json(accounts::users(&state.db).await?))
+    Ok(Json(accounts::for_administrators(&state.db, accounts::users(&state.db).await?).await?))
+}
+
+/// A user as an administrator sees it: with their birthday.
+async fn admin_view(state: &AppState, id: i64) -> ApiResult<UserDto> {
+    let user = accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?;
+    Ok(accounts::for_administrators(&state.db, vec![user]).await?.remove(0))
+}
+
+/// An age limit is fixed or follows a birthday, not both.
+fn one_limit(max_age: bool, birth_month: bool) -> ApiResult<()> {
+    if max_age && birth_month {
+        return Err(AppError::bad_request("an age limit is fixed or follows a birthday, not both"));
+    }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -63,6 +143,18 @@ pub struct NewUser {
     #[serde(default)]
     max_age: Option<i64>,
     #[serde(default)]
+    max_age_system: Option<String>,
+    /// "2015-03": the age limit is the profile's age (see
+    /// `accounts::birthday_limit`), instead of `max_age`.
+    #[serde(default)]
+    birth_month: Option<String>,
+    /// Labels whose titles it sees even above its age limit, and labels
+    /// whose titles it never sees (see `catalog::VISIBLE`).
+    #[serde(default)]
+    show_labels: Vec<String>,
+    #[serde(default)]
+    hide_labels: Vec<String>,
+    #[serde(default)]
     pin: Option<String>,
     /// Left out: profiles without a password and accounts with an age limit
     /// may not ask for titles, others ask an administrator.
@@ -82,6 +174,19 @@ pub async fn create_user(
     let username = body.username.trim().to_owned();
     validate_username(&username)?;
     check_age(body.max_age)?;
+    let max_age_system = check_system(body.max_age_system.as_deref())?;
+    one_limit(body.max_age.is_some(), body.birth_month.is_some())?;
+    let show_labels = accounts::check_label_rules(&body.show_labels)?;
+    let hide_labels = accounts::check_label_rules(&body.hide_labels)?;
+    accounts::check_rules_apart(&show_labels, &hide_labels)?;
+    let birth_month = match body.birth_month.as_deref() {
+        Some(born) => Some(accounts::check_birth_month(born, &accounts::local_month(&state.db).await?)?),
+        None => None,
+    };
+    let max_age = match &birth_month {
+        Some(born) => accounts::birthday_limit(born, &accounts::local_month(&state.db).await?),
+        None => body.max_age,
+    };
     if body.managed && body.is_admin {
         return Err(AppError::bad_request("a managed profile can't be an administrator"));
     }
@@ -107,15 +212,17 @@ pub async fn create_user(
     if exists.is_some() {
         return Err(AppError::conflict(format!("user '{username}' already exists")));
     }
-    let request_access = body.request_access.unwrap_or(if body.managed || body.max_age.is_some() {
+    let request_access = body.request_access.unwrap_or(if body.managed || max_age.is_some() {
         RequestAccess::Off
     } else {
         RequestAccess::Ask
     });
+    // The rules are made with the profile: it never exists without them.
+    let mut tx = state.db.write.begin().await?;
     let id: i64 = sqlx::query_scalar(
         "INSERT INTO users (id, username, password_hash, display_name, is_admin, managed, home, all_libraries, max_age,
-                            pin_hash, request_access, created_at)
-         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
+                            max_age_system, birth_month, pin_hash, request_access, created_at)
+         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&username)
     .bind(password_hash)
@@ -124,17 +231,21 @@ pub async fn create_user(
     .bind(body.managed)
     .bind(body.home)
     .bind(body.all_libraries)
-    .bind(body.max_age)
+    .bind(max_age)
+    .bind(max_age_system)
+    .bind(birth_month)
     .bind(pin_hash)
     .bind(request_access.as_str())
     .bind(now())
-    .fetch_one(&state.db.write)
+    .fetch_one(&mut *tx)
     .await?;
+    accounts::add_label_rules(&mut tx, id, "show", &show_labels).await?;
+    accounts::add_label_rules(&mut tx, id, "hide", &hide_labels).await?;
+    tx.commit().await?;
     if !body.all_libraries {
         accounts::set_libraries(&state.db, id, &body.library_ids).await?;
     }
-    let user = accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?;
-    Ok((StatusCode::CREATED, Json(user)))
+    Ok((StatusCode::CREATED, Json(admin_view(&state, id).await?)))
 }
 
 #[derive(Deserialize)]
@@ -155,6 +266,19 @@ pub struct UserPatch {
     library_ids: Option<Vec<i64>>,
     #[serde(default, deserialize_with = "nullable")]
     max_age: Option<Option<i64>>,
+    /// `null`: the metadata region's.
+    #[serde(default, deserialize_with = "nullable")]
+    max_age_system: Option<Option<String>>,
+    /// "2015-03": the age limit follows the profile's age from now on;
+    /// `null` stops it following (the limit stays as it is). A `max_age`
+    /// stops it too.
+    #[serde(default, deserialize_with = "nullable")]
+    birth_month: Option<Option<String>>,
+    /// Replace the profile's label rules (see [`NewUser`]).
+    #[serde(default)]
+    show_labels: Option<Vec<String>>,
+    #[serde(default)]
+    hide_labels: Option<Vec<String>>,
     /// `null` removes the PIN.
     #[serde(default, deserialize_with = "nullable")]
     pin: Option<Option<String>>,
@@ -197,6 +321,22 @@ pub async fn update_user(
     if let Some(max_age) = body.max_age {
         check_age(max_age)?;
     }
+    let max_age_system = match &body.max_age_system {
+        Some(system) => Some(check_system(system.as_deref())?),
+        None => None,
+    };
+    one_limit(body.max_age.is_some(), matches!(body.birth_month, Some(Some(_))))?;
+    let month = accounts::local_month(&state.db).await?;
+    let birth_month = match &body.birth_month {
+        Some(Some(born)) => Some(Some(accounts::check_birth_month(born, &month)?)),
+        Some(None) => Some(None),
+        // A fixed limit (or none) replaces one that follows a birthday.
+        None => body.max_age.is_some().then_some(None),
+    };
+    let max_age = match &birth_month {
+        Some(Some(born)) => Some(accounts::birthday_limit(born, &month)),
+        _ => body.max_age,
+    };
     if body.pin.is_some() && id == admin.id {
         // As the password: from Account, which asks for the password. A PIN
         // switches a profile to this one without its two-step code.
@@ -205,10 +345,28 @@ pub async fn update_user(
     if let Some(Some(pin)) = body.pin.as_ref().map(|p| p.as_deref().filter(|p| !p.is_empty())) {
         accounts::validate_pin(pin)?;
     }
+    let show_labels = body.show_labels.as_deref().map(accounts::check_label_rules).transpose()?;
+    let hide_labels = body.hide_labels.as_deref().map(accounts::check_label_rules).transpose()?;
+    if show_labels.is_some() || hide_labels.is_some() {
+        // A list left out stays as it is, and is checked against the other.
+        let show = match &show_labels {
+            Some(show) => show.clone(),
+            None => accounts::label_rules(&state.db, id, "show").await?,
+        };
+        let hide = match &hide_labels {
+            Some(hide) => hide.clone(),
+            None => accounts::label_rules(&state.db, id, "hide").await?,
+        };
+        accounts::check_rules_apart(&show, &hide)?;
+    }
 
     // What the user may see changes: their devices are told to fetch it again.
-    let sees_otherwise =
-        body.is_admin.is_some() || body.all_libraries.is_some() || body.library_ids.is_some() || body.max_age.is_some();
+    let sees_otherwise = body.is_admin.is_some()
+        || body.all_libraries.is_some()
+        || body.library_ids.is_some()
+        || max_age.is_some()
+        || show_labels.is_some()
+        || hide_labels.is_some();
     if let Some(password) = body.password {
         let hash = hash_password(password).await?;
         sqlx::query("UPDATE users SET password_hash = ?, managed = 0 WHERE id = ?")
@@ -269,9 +427,29 @@ pub async fn update_user(
     if let Some(ids) = &body.library_ids {
         accounts::set_libraries(&state.db, id, ids).await?;
     }
-    if let Some(max_age) = body.max_age {
+    if let Some(labels) = &show_labels {
+        accounts::set_label_rules(&state.db, id, "show", labels).await?;
+    }
+    if let Some(labels) = &hide_labels {
+        accounts::set_label_rules(&state.db, id, "hide", labels).await?;
+    }
+    if let Some(born) = &birth_month {
+        sqlx::query("UPDATE users SET birth_month = ? WHERE id = ?")
+            .bind(born)
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
+    }
+    if let Some(max_age) = max_age {
         sqlx::query("UPDATE users SET max_age = ? WHERE id = ?")
             .bind(max_age)
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
+    }
+    if let Some(system) = max_age_system {
+        sqlx::query("UPDATE users SET max_age_system = ? WHERE id = ?")
+            .bind(system)
             .bind(id)
             .execute(&state.db.write)
             .await?;
@@ -293,7 +471,7 @@ pub async fn update_user(
             .bind(id)
             .execute(&state.db.write)
             .await?;
-    } else if current.max_age.is_none() && matches!(body.max_age, Some(Some(_))) {
+    } else if current.max_age.is_none() && matches!(max_age, Some(Some(_))) {
         // An age limit added: the account no longer asks until an
         // administrator lets it, as those made with one.
         sqlx::query("UPDATE users SET request_access = 'off' WHERE id = ? AND request_access = 'ask'")
@@ -310,7 +488,7 @@ pub async fn update_user(
     if body.request_access.is_some() || sees_otherwise {
         state.events.send(ServerEvent::RequestsSettingsChanged { user_id: Some(id) });
     }
-    Ok(Json(accounts::user(&state.db, id).await?.ok_or_else(|| AppError::not_found("user not found"))?))
+    Ok(Json(admin_view(&state, id).await?))
 }
 
 pub async fn delete_user(
@@ -701,6 +879,9 @@ struct InviteRow {
     all_libraries: bool,
     library_ids: String,
     max_age: Option<i64>,
+    max_age_system: Option<String>,
+    show_labels: String,
+    hide_labels: String,
     note: Option<String>,
 }
 
@@ -713,6 +894,9 @@ pub struct InviteDto {
     all_libraries: bool,
     library_ids: Vec<i64>,
     max_age: Option<i64>,
+    max_age_system: Option<String>,
+    show_labels: Vec<String>,
+    hide_labels: Vec<String>,
     note: Option<String>,
 }
 
@@ -720,18 +904,23 @@ impl From<InviteRow> for InviteDto {
     fn from(r: InviteRow) -> Self {
         InviteDto {
             library_ids: serde_json::from_str(&r.library_ids).unwrap_or_default(),
+            show_labels: serde_json::from_str(&r.show_labels).unwrap_or_default(),
+            hide_labels: serde_json::from_str(&r.hide_labels).unwrap_or_default(),
             code: r.code,
             created_at: r.created_at,
             expires_at: r.expires_at,
             uses_left: r.uses_left,
             all_libraries: r.all_libraries,
             max_age: r.max_age,
+            max_age_system: r.max_age_system,
             note: r.note,
         }
     }
 }
 
-const INVITE_COLUMNS: &str = "code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, note";
+const INVITE_COLUMNS: &str =
+    "code, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, max_age_system, show_labels,
+     hide_labels, note";
 
 pub async fn list_invites(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<InviteDto>>> {
     let rows: Vec<InviteRow> =
@@ -755,6 +944,12 @@ pub struct NewInvite {
     #[serde(default)]
     max_age: Option<i64>,
     #[serde(default)]
+    max_age_system: Option<String>,
+    #[serde(default)]
+    show_labels: Vec<String>,
+    #[serde(default)]
+    hide_labels: Vec<String>,
+    #[serde(default)]
     note: Option<String>,
 }
 
@@ -764,6 +959,10 @@ pub async fn create_invite(
     Json(body): Json<NewInvite>,
 ) -> ApiResult<(StatusCode, Json<InviteDto>)> {
     check_age(body.max_age)?;
+    let max_age_system = check_system(body.max_age_system.as_deref())?;
+    let show_labels = accounts::check_label_rules(&body.show_labels)?;
+    let hide_labels = accounts::check_label_rules(&body.hide_labels)?;
+    accounts::check_rules_apart(&show_labels, &hide_labels)?;
     let days = body.expires_in_days.unwrap_or(7);
     let uses = body.uses.unwrap_or(1).clamp(1, 1000);
     let code = accounts::invite_code();
@@ -771,8 +970,9 @@ pub async fn create_invite(
     let expires_at = (days > 0).then(|| created_at + days * 86_400);
     let note = body.note.map(|n| n.trim().chars().take(200).collect::<String>()).filter(|n| !n.is_empty());
     sqlx::query(
-        "INSERT INTO invites (code, created_by, created_at, expires_at, uses_left, all_libraries, library_ids, max_age, note)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO invites (code, created_by, created_at, expires_at, uses_left, all_libraries, library_ids, max_age,
+                              max_age_system, show_labels, hide_labels, note)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     )
     .bind(&code)
     .bind(admin.id)
@@ -782,6 +982,9 @@ pub async fn create_invite(
     .bind(body.all_libraries)
     .bind(serde_json::to_string(&body.library_ids).unwrap_or_else(|_| "[]".into()))
     .bind(body.max_age)
+    .bind(&max_age_system)
+    .bind(serde_json::to_string(&show_labels).unwrap_or_else(|_| "[]".into()))
+    .bind(serde_json::to_string(&hide_labels).unwrap_or_else(|_| "[]".into()))
     .bind(&note)
     .execute(&state.db.write)
     .await?;
@@ -793,6 +996,9 @@ pub async fn create_invite(
         all_libraries: body.all_libraries,
         library_ids: body.library_ids,
         max_age: body.max_age,
+        max_age_system,
+        show_labels,
+        hide_labels,
         note,
     };
     Ok((StatusCode::CREATED, Json(invite)))
@@ -878,19 +1084,23 @@ pub async fn accept_invite(
     // lets them (as accounts made with one).
     let request_access = if invite.max_age.is_some() { RequestAccess::Off } else { RequestAccess::Ask };
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO users (id, username, password_hash, display_name, home, all_libraries, max_age, request_access,
-                            created_at)
-         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, 0, ?, ?, ?, ?) RETURNING id",
+        "INSERT INTO users (id, username, password_hash, display_name, home, all_libraries, max_age, max_age_system,
+                            request_access, created_at)
+         VALUES ((SELECT last + 1 FROM user_ids), ?, ?, ?, 0, ?, ?, ?, ?, ?) RETURNING id",
     )
     .bind(&username)
     .bind(hash)
     .bind(body.display_name.map(|n| n.trim().to_owned()).filter(|n| !n.is_empty()))
     .bind(invite.all_libraries)
     .bind(invite.max_age)
+    .bind(&invite.max_age_system)
     .bind(request_access.as_str())
     .bind(now())
     .fetch_one(&mut *tx)
     .await?;
+    // Made with the account: it never signs in without them.
+    accounts::add_label_rules(&mut tx, id, "show", &invite.show_labels).await?;
+    accounts::add_label_rules(&mut tx, id, "hide", &invite.hide_labels).await?;
     tx.commit().await?;
     if !invite.all_libraries {
         accounts::set_libraries(&state.db, id, &invite.library_ids).await?;

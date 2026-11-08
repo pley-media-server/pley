@@ -6,7 +6,52 @@
     "includesLater": "Includes libraries you add later.",
     "noLibraries": "No libraries yet.",
     "ageLimit": "Age limit",
-    "ageLimitHint": "Movies and shows above this rating, and unrated ones, are hidden. Music is not affected."
+    "mode": {
+      "none": "No limit",
+      "rating": "By rating",
+      "age": "By age",
+      "birthday": "By birthday"
+    },
+    "age": "Age",
+    "ratingSystem": "Rating system",
+    "rating": "Rating",
+    "ratingOption": "{{rating}} (age {{age}})",
+    "noLimitHint": "Every movie and show, rated or not.",
+    "ratingHint": "Titles suitable for age {{age}}: {{rating}} and gentler ratings, from any country.",
+    "ageHint": "Titles suitable for age {{age}}, from any country's ratings.",
+    "ratingHintAllAges": "Titles for all ages only, such as {{rating}}, from any country.",
+    "ageHintAllAges": "Titles for all ages only, from any country's ratings.",
+    "birthMonth": "Birthday month",
+    "birthYear": "Year",
+    "birthdayHint": "The limit goes up each year on the first of {{month}}, and ends in {{end}}.",
+    "grownUpHint": "No limit: they're {{age}} or older.",
+    "exceptions": "Exceptions",
+    "exceptionsHint": "By the labels on titles, which you set in a title's Edit details.",
+    "exceptionsNone": "None",
+    "exceptionsShown_one": "Always show {{count, number}} label",
+    "exceptionsShown_other": "Always show {{count, number}} labels",
+    "exceptionsHidden_one": "Never show {{count, number}} label",
+    "exceptionsHidden_other": "Never show {{count, number}} labels",
+    "exceptionsAdd": "Add",
+    "exceptionsChange": "Change",
+    "showLabels": "Always show",
+    "showLabelsHint": "Titles with one of these labels show even above the age limit.",
+    "hideLabels": "Never show",
+    "hideLabelsHint": "Titles with one of these labels never show, whatever their rating.",
+    "removeLabel": "Remove {{label}}",
+    "inBoth": "A label can't be both always and never shown: {{labels}}.",
+    "unrated": {
+      "title": "Unrated movies are hidden",
+      "text": "Without a TMDB key, only NFO files give movies a rating. <settings>Add a TMDB key</settings>"
+    }
+  },
+  "labelPicker": {
+    "placeholder": "Add a label",
+    "titles_one": "{{count, number}} title",
+    "titles_other": "{{count, number}} titles",
+    "inRules": "In exceptions",
+    "create": "Add “{{label}}”",
+    "suggestions": "Suggestions"
   },
   "addToCollection": {
     "title": "Add to collection",

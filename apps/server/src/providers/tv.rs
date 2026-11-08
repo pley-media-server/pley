@@ -9,6 +9,7 @@ use super::{ProviderError, artwork};
 use crate::db::Db;
 use crate::overrides::RATING_LOCKED;
 use crate::people::{self, NewCredit};
+use crate::ratings::Kind;
 use crate::store::Store;
 use crate::util::{now, sort_title};
 
@@ -26,6 +27,8 @@ pub struct ShowMeta {
     /// 0-10.
     pub rating: Option<f64>,
     pub content_rating: Option<String>,
+    /// ISO 3166-1 alpha-2, when the source says.
+    pub content_rating_country: Option<String>,
     pub genres: Vec<String>,
     pub network: Option<String>,
     pub imdb_id: Option<String>,
@@ -157,12 +160,15 @@ pub async fn write(db: &Db, store: &Store, show: &ShowRow, meta: &ShowMeta) -> R
     let now = now();
     let title = if meta.title.is_empty() { show.title.as_str() } else { meta.title.as_str() };
     let genres = (!meta.genres.is_empty()).then(|| serde_json::to_string(&meta.genres).unwrap_or_default());
-    let age = meta.content_rating.as_deref().and_then(crate::ratings::rating_age);
+    let region = crate::ratings::region(db).await?;
+    let country = meta.content_rating_country.as_deref().unwrap_or(&region);
+    let age = meta.content_rating.as_deref().and_then(|r| crate::ratings::age(Some(country), Kind::Tv, r));
     let mut tx = db.write.begin().await?;
     sqlx::query(sqlx::AssertSqlSafe(format!(
         "UPDATE items SET title = ?, sort_title = ?, original_title = COALESCE(?, original_title), year = COALESCE(?, year),
             summary = COALESCE(?, summary), rating = COALESCE(?, rating),
             content_rating = CASE WHEN ? AND NOT {RATING_LOCKED} THEN ? ELSE content_rating END,
+            content_rating_country = CASE WHEN ? AND NOT {RATING_LOCKED} THEN ? ELSE content_rating_country END,
             rating_age = CASE WHEN ? AND NOT {RATING_LOCKED} THEN ? ELSE rating_age END,
             genres = COALESCE(?, genres), studio = COALESCE(?, studio), release_date = COALESCE(?, release_date),
             imdb_id = COALESCE(?, imdb_id), tvdb_id = COALESCE(?, tvdb_id), tvmaze_id = COALESCE(?, tvmaze_id),
@@ -177,6 +183,8 @@ pub async fn write(db: &Db, store: &Store, show: &ShowRow, meta: &ShowMeta) -> R
     .bind(meta.rating.filter(|r| *r > 0.0))
     .bind(meta.content_rating.is_some())
     .bind(&meta.content_rating)
+    .bind(meta.content_rating.is_some())
+    .bind(&meta.content_rating_country)
     .bind(meta.content_rating.is_some())
     .bind(age)
     .bind(genres)

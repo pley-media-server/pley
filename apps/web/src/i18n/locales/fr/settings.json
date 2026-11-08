@@ -513,7 +513,14 @@
       "pinDigits": "Le code PIN doit comporter de 4 à 8 chiffres.",
       "pickLibrary": "Choisissez au moins une bibliothèque, ou autorisez-les toutes.",
       "added": "Compte de {{name}} créé",
-      "saved": "Compte de {{name}} enregistré"
+      "saved": "Compte de {{name}} enregistré",
+      "tabsLabel": "Réglages du compte",
+      "tabs": {
+        "profile": "Profil",
+        "access": "Accès",
+        "devices": "Appareils"
+      },
+      "tabNeedsLook": "Un point à revoir ici"
     }
   },
   "invites": {
