@@ -84,6 +84,9 @@ describes how they are made.
   film is 1920×800, no longer 2592×1080, so it isn't wider than the
   screen and plays on players that decode H.264 up to level 4.1. A wide
   file the player plays, within the quality's bitrate, isn't converted.
+- Live TV channels served as HLS with their sound in an audio track of
+  its own, as many broadcasters serve theirs, play with sound: the
+  default track is put into the picture's stream.
 
 ## [0.1.8] - 2026-11-06
 

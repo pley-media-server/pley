@@ -81,6 +81,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - Channels the TV can play as they are play straight from the provider's
   stream; the others through the transcoder. Channels that don't play, and
   divider rows, can be left out.
+- Channels a provider serves as HLS are read segment by segment, their
+  sound taken from the default audio track when it is kept apart from
+  the picture (AAC, or audio in MPEG-TS).
 
 ## Watching
 
