@@ -41,7 +41,7 @@ RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.vid
 # Quick Sync (oneVPL) and NVIDIA's are named on amd64, where the image's
 # check (.github/workflows/server.yml) expects them; elsewhere FFmpeg takes
 # NVIDIA's when it finds them.
-RUN curl -fsSL --retry 5 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" \
+RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" \
     && echo "$FFMPEG_SHA256  ffmpeg-$FFMPEG_VERSION.tar.xz" | sha256sum -c - \
     && tar -xJf "ffmpeg-$FFMPEG_VERSION.tar.xz" \
     && if [ "$(dpkg --print-architecture)" = amd64 ]; then \

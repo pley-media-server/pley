@@ -12,7 +12,7 @@
 
 # FFmpeg and libplacebo, built by deploy/ffmpeg. The tag is
 # deploy/ffmpeg/tag.sh's, which CI checks.
-ARG FFMPEG_IMAGE=ghcr.io/pley-media-server/pley-ffmpeg:9.0.2-50df4fc83e39
+ARG FFMPEG_IMAGE=ghcr.io/pley-media-server/pley-ffmpeg:9.0.2-187992c04dd3
 FROM ${FFMPEG_IMAGE} AS ffmpeg
 
 # ---- web app ----------------------------------------------------------------
