@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 13;
+const DETECTION_REVISION: u32 = 14;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -572,7 +572,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         ..Default::default()
     };
     let timeout = Duration::from_secs(30);
-    let (version, probe, encoders, hwaccels, filters, muxers, bsfs) = tokio::join!(
+    let (version, probe, encoders, hwaccels, filters, muxers, bsfs, placebo_help) = tokio::join!(
         run(ffmpeg, &["-hide_banner", "-version"], timeout),
         run(ffprobe, &["-hide_banner", "-version"], timeout),
         run(ffmpeg, &["-hide_banner", "-encoders"], timeout),
@@ -580,6 +580,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         run(ffmpeg, &["-hide_banner", "-filters"], timeout),
         run(ffmpeg, &["-hide_banner", "-muxers"], timeout),
         run(ffmpeg, &["-hide_banner", "-bsfs"], timeout),
+        run(ffmpeg, &["-hide_banner", "-h", "filter=libplacebo"], timeout),
     );
     let Some(version) = version.filter(|o| o.success) else {
         return (caps, true);
@@ -717,6 +718,9 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         }
     }
     caps.dolby_vision = libplacebo;
+    // FFmpeg 7.1 (Debian 13's) has no `shader_cache`, and a graph naming
+    // it fails: the tests above leave it out, so they can't tell.
+    caps.placebo_shader_cache = libplacebo && placebo_help.is_some_and(|o| lists_option(&o.text, "shader_cache"));
     caps.subtitle_burn_image = has("overlay");
     caps.subtitle_burn_text = has("subtitles");
     caps.readrate = readrate;
@@ -1059,9 +1063,29 @@ fn second_column(text: String) -> HashSet<String> {
         .collect()
 }
 
+/// Whether `ffmpeg -h filter=…` output lists the option `name`: one line
+/// an option, its name first.
+fn lists_option(help: &str, name: &str) -> bool {
+    help.lines().any(|line| line.split_whitespace().next() == Some(name))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn finds_libplacebo_options() {
+        // FFmpeg 8's `-h filter=libplacebo`, cut down.
+        let eight = "Filter libplacebo\n  Apply various GPU filters from libplacebo\n\
+            libplacebo AVOptions:\n   extra_opts        <dictionary> ..FV....... Pass extra libplacebo-specific options\n   \
+            shader_cache      <string>     ..FV....... Set shader cache path\n   peak_detect       <boolean>    ..FV.......\n";
+        assert!(lists_option(eight, "shader_cache"));
+        assert!(lists_option(eight, "peak_detect"));
+        // FFmpeg 7.1's has none, though another option's help may name it.
+        let seven = "libplacebo AVOptions:\n   extra_opts        <dictionary> ..FV....... unlike shader_cache\n";
+        assert!(!lists_option(seven, "shader_cache"));
+        assert!(!lists_option("Unknown filter 'libplacebo'.\n", "shader_cache"));
+    }
 
     #[test]
     fn parses_encoder_list() {

@@ -37,6 +37,8 @@ describes how they are made.
 
 ### Changed
 
+- The Docker image comes with FFmpeg 9, as the Windows installer does,
+  in place of Debian's 7.1.
 - Age limits read a rating with its country's ratings, so that one of the
   same name in another country isn't misread: "A" is for all ages in
   Denmark, Spain and Mexico and for adults in India, and the UK's PG is
@@ -65,6 +67,9 @@ describes how they are made.
   Portugal's "M/18", is read whole, no longer as "U" or "M", which allowed
   younger viewers. A file that gives a bare `<mpaa>` and a
   `<certification>` naming countries gives the latter's.
+- HDR video that libplacebo tone maps plays again in the Docker image and
+  with other FFmpeg 7 installs: the transcoder no longer asks it for a
+  shader cache that FFmpeg before 8.0 doesn't have.
 - Live TV channels served as HLS with their sound in an audio track of
   its own, as many broadcasters serve theirs, play with sound: the
   default track is put into the picture's stream.

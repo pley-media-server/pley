@@ -41,11 +41,12 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
 - The .NET 8 SDK, for the native Samsung app only.
 - For the LG app's TV build, Linux with the webOS toolchain, or Docker
   ([LG.md](LG.md#the-tv-build)); its tests and simulator need only Rust.
-- FFmpeg and ffprobe on `PATH` or configured; 6.1 or newer throttles
-  transcodes. For hardware transcoding and GPU tone mapping, use a build
-  with NVENC, QSV, AMF or VAAPI and libplacebo: gyan.dev's "full" build on
-  Windows, Debian 13's or jellyfin-ffmpeg on Linux, Homebrew's `ffmpeg-full`
-  on macOS ([deploy/README.md](../deploy/README.md)).
+- FFmpeg and ffprobe on `PATH` or configured, version 9 recommended (6.1
+  or newer throttles transcodes). For hardware transcoding and GPU tone
+  mapping, use a build with NVENC, QSV, AMF or VAAPI and libplacebo:
+  gyan.dev's "full" build on Windows, the distribution's or jellyfin-ffmpeg
+  on Linux, Homebrew's `ffmpeg-full` on macOS
+  ([deploy/README.md](../deploy/README.md)).
 
 ## Running from source
 
