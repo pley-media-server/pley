@@ -64,17 +64,19 @@ RUN apt-get update \
     fi \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /src
+# libplacebo is built with the Vulkan headers it pins (a submodule), newer
+# than Debian 13's.
 RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.videolan.org/videolan/libplacebo.git \
     && test "$(git -C libplacebo rev-parse HEAD)" = "$LIBPLACEBO_COMMIT" \
+    && git -C libplacebo submodule --quiet update --init --depth 1 3rdparty/Vulkan-Headers \
+    && install -d /out/usr/share/doc/libplacebo \
+    && install -m644 libplacebo/LICENSE /out/usr/share/doc/libplacebo/ \
+    && tar --exclude-vcs -cJf "/out/usr/share/doc/libplacebo/libplacebo-$LIBPLACEBO_VERSION.tar.xz" libplacebo \
     && meson setup libplacebo/build libplacebo --prefix=/usr/local --libdir=lib --buildtype=release \
         -Dvulkan=enabled -Dshaderc=enabled -Dglslang=disabled -Dlcms=enabled -Dlibdovi=enabled \
         -Dxxhash=enabled -Dopengl=disabled -Dd3d11=disabled -Dunwind=disabled -Ddemos=false \
     && ninja -C libplacebo/build install \
-    && ldconfig \
-    && install -d /out/usr/share/doc/libplacebo \
-    && install -m644 libplacebo/LICENSE /out/usr/share/doc/libplacebo/ \
-    && git -C libplacebo archive --prefix="libplacebo-$LIBPLACEBO_VERSION/" HEAD \
-        | xz > "/out/usr/share/doc/libplacebo/libplacebo-$LIBPLACEBO_VERSION.tar.xz"
+    && ldconfig
 # Quick Sync (oneVPL) and NVIDIA's are named on amd64, where the image's
 # check (.github/workflows/server.yml) expects them; elsewhere FFmpeg takes
 # NVIDIA's when it finds them.
