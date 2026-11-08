@@ -82,7 +82,8 @@ describes how they are made.
   in another case or with other dots and dashes (`Kika.de` and `KIKA.de`).
 - A quality fits a film wider than 16:9 into its box: 1080p of a 2.40:1
   film is 1920×800, no longer 2592×1080, so it isn't wider than the
-  screen and plays on players that decode H.264 up to level 4.1.
+  screen and plays on players that decode H.264 up to level 4.1. A wide
+  file the player plays, within the quality's bitrate, isn't converted.
 
 ## [0.1.8] - 2026-11-06
 

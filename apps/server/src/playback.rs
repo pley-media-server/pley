@@ -1502,10 +1502,11 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
         reasons.push("Audio track switching not supported.".into());
     }
     let bitrate_ok = req.max_bitrate.is_none_or(|max| file.bitrate.unwrap_or(0) <= max as i64 * 1000);
-    let size_ok = req.max_height.is_none_or(|max| {
-        let (w, h) = video.map_or((None, None), |v| (v.width, v.height));
-        h.unwrap_or(0) <= i64::from(max) && w.unwrap_or(0) <= box_width(i64::from(max))
-    });
+    // Only the height counts here, not the box's width: a film wider than
+    // 16:9 that the player's decoders take, within the bitrate picked, plays
+    // as it is, since converting it would send no fewer bits. A conversion
+    // still fits the box.
+    let size_ok = req.max_height.is_none_or(|max| video.and_then(|v| v.height).unwrap_or(0) <= i64::from(max));
     if !bitrate_ok || !size_ok {
         reasons.push("Lower quality picked.".into());
     }
@@ -3283,8 +3284,12 @@ mod tests {
         (i.streams[0].width, i.streams[0].height) = (Some(2560), Some(1080));
         let mut req = request();
         req.max_height = Some(1080);
-        // Wider than 1920: converted, so no wider than the screen 1080p is for.
-        let d = decide(&file("mp4", 5_000_000), Some(&i), &i.streams, &req);
+        // Wider than 1920, but the player plays it within the bitrate: as it is.
+        assert_eq!(decide(&file("mp4", 5_000_000), Some(&i), &i.streams, &req).method, Method::Direct);
+        // Converted, it comes no wider than the screen 1080p is for.
+        let mut hevc = info("hevc", &["aac"], DynamicRange::Sdr);
+        (hevc.streams[0].width, hevc.streams[0].height) = (Some(2560), Some(1080));
+        let d = decide(&file("mp4", 5_000_000), Some(&hevc), &hevc.streams, &req);
         assert_eq!(d.method, Method::Transcode);
         let v = d.video.as_ref().unwrap();
         assert_eq!((v.max_width, v.max_height), (Some(1920), Some(1080)));

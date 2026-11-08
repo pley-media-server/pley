@@ -28,7 +28,10 @@ The same on every app, in this order:
 
 A quality fits the video into its box, keeping its shape: a 2.40:1 film
 at 1080p comes as 1920×800, never wider than the screen it was picked
-for. The lines in a quality's name are its box's height.
+for. The lines in a quality's name are its box's height. A file the player
+plays as it is, no taller than the box and within its bitrate, still plays
+so when it is wider: a 2560×1080 file at 1080p plays as it is, as
+converting it would send no fewer bits.
 
 When the player knows the file:
 
