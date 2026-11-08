@@ -56,11 +56,13 @@ make the transcoder one work with FFmpeg, bound by FFmpeg's licence (the
 GPL, for the builds Pley uses) as well as Pley's. Where a build of Pley
 ships FFmpeg beside it, FFmpeg keeps its own licence:
 
-- **The Docker image** installs Debian's `ffmpeg` package, unmodified. Its
-  licence is in the image (`/usr/share/doc/ffmpeg/copyright`, as for every
-  Debian package), and its source is Debian's, for the version the image
-  lists (`dpkg -l ffmpeg`): `apt-get source ffmpeg=<version>`, or
-  <https://sources.debian.org/src/ffmpeg/>. On amd64 the image also has
+- **The Docker image** carries FFmpeg 9 (`--enable-gpl`, so GPL) and
+  libplacebo (LGPL), built unmodified from their release sources against
+  Debian's libraries. Their licences and sources, and FFmpeg's build
+  configuration, are in `/usr/share/doc/ffmpeg` and
+  `/usr/share/doc/libplacebo`. Debian's packages keep their licences in
+  `/usr/share/doc/<package>/copyright`; their sources are at
+  <https://sources.debian.org>. On amd64 the image also has
   Intel's VAAPI driver from Debian's non-free section
   (`intel-media-va-driver-non-free`, redistributable, with GPU shaders that
   come without source), its licence in

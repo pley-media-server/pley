@@ -37,6 +37,8 @@ describes how they are made.
 
 ### Changed
 
+- The Docker image comes with FFmpeg 9, as the Windows installer does,
+  in place of Debian's 7.1.
 - Age limits read a rating with its country's ratings, so that one of the
   same name in another country isn't misread: "A" is for all ages in
   Denmark, Spain and Mexico and for adults in India, and the UK's PG is

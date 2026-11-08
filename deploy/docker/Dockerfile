@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.7
-# pley media server and its transcoder, on Debian 13 with its FFmpeg 7.1:
+# pley media server and its transcoder, on Debian 13 with FFmpeg 9:
 # NVIDIA (NVENC, CUDA scaling), Intel (Quick Sync, VAAPI) and AMD (VAAPI)
 # transcoding, and HDR tone mapping on the GPU (libplacebo over Vulkan,
 # OpenCL) or the CPU (zscale).
@@ -41,6 +41,81 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --locked -p pley-server -p pley-transcoder \
     && install -Dm755 target/release/pley target/release/pley-transcoder -t /out/bin
 
+# ---- FFmpeg -----------------------------------------------------------------
+# FFmpeg 9, as the Windows installer carries (Debian 13's is 7.1), and the
+# newer libplacebo it needs, built against Debian 13's libraries from
+# release sources pinned below. The image keeps the sources and licences
+# (LICENSING.md).
+FROM debian:trixie-slim AS ffmpeg
+ARG FFMPEG_VERSION=9.0.2
+ARG FFMPEG_SHA256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
+ARG LIBPLACEBO_VERSION=7.360.1
+ARG LIBPLACEBO_COMMIT=cee9b076f2c63104ccfd497fa79c39a867293ec4
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates clang curl git meson nasm ninja-build pkg-config xz-utils \
+        libfast-float-dev libdovi-dev liblcms2-dev libshaderc-dev libvulkan-dev libxxhash-dev \
+        python3-glad python3-jinja2 \
+        libass-dev libchromaprint-dev libdav1d-dev libdrm-dev libffmpeg-nvenc-dev libfontconfig-dev \
+        libfreetype-dev libfribidi-dev libharfbuzz-dev libmp3lame-dev libopus-dev libva-dev libvorbis-dev \
+        libvpx-dev libwebp-dev libx264-dev libx265-dev libzimg-dev ocl-icd-opencl-dev \
+    && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
+        apt-get install -y --no-install-recommends libvpl-dev; \
+    fi \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.videolan.org/videolan/libplacebo.git \
+    && test "$(git -C libplacebo rev-parse HEAD)" = "$LIBPLACEBO_COMMIT" \
+    && meson setup libplacebo/build libplacebo --prefix=/usr/local --libdir=lib --buildtype=release \
+        -Dvulkan=enabled -Dshaderc=enabled -Dglslang=disabled -Dlcms=enabled -Dlibdovi=enabled \
+        -Dxxhash=enabled -Dopengl=disabled -Dd3d11=disabled -Dunwind=disabled -Ddemos=false \
+    && ninja -C libplacebo/build install \
+    && ldconfig \
+    && install -d /out/usr/share/doc/libplacebo \
+    && install -m644 libplacebo/LICENSE /out/usr/share/doc/libplacebo/ \
+    && git -C libplacebo archive --prefix="libplacebo-$LIBPLACEBO_VERSION/" HEAD \
+        | xz > "/out/usr/share/doc/libplacebo/libplacebo-$LIBPLACEBO_VERSION.tar.xz"
+# Quick Sync (oneVPL) and NVIDIA's are named on amd64, where the image's
+# check (.github/workflows/server.yml) expects them; elsewhere FFmpeg takes
+# NVIDIA's when it finds them.
+RUN curl -fsSL --retry 5 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" \
+    && echo "$FFMPEG_SHA256  ffmpeg-$FFMPEG_VERSION.tar.xz" | sha256sum -c - \
+    && tar -xJf "ffmpeg-$FFMPEG_VERSION.tar.xz" \
+    && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
+        set -- --enable-libvpl --enable-ffnvcodec --enable-nvenc --enable-nvdec --enable-cuvid --enable-cuda-llvm; \
+    fi \
+    && cd "ffmpeg-$FFMPEG_VERSION" \
+    && ./configure --prefix=/usr/local --extra-version=pley \
+        --disable-debug --disable-doc --disable-ffplay \
+        --enable-gpl \
+        --enable-libx264 --enable-libx265 --enable-libdav1d --enable-libvpx --enable-libwebp \
+        --enable-libopus --enable-libmp3lame --enable-libvorbis \
+        --enable-libass --enable-libfreetype --enable-libfontconfig --enable-libfribidi --enable-libharfbuzz \
+        --enable-libplacebo --enable-libzimg --enable-chromaprint \
+        --enable-vaapi --enable-libdrm --enable-vulkan --enable-opencl \
+        "$@" \
+    && make -j"$(nproc)" \
+    && make install \
+    && install -d /out/usr/local/bin /out/usr/local/lib /out/usr/share/doc/ffmpeg \
+    && install -m755 /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /out/usr/local/bin/ \
+    && cp -a /usr/local/lib/libplacebo.so.* /out/usr/local/lib/ \
+    && install -m644 LICENSE.md COPYING.GPLv2 COPYING.GPLv3 COPYING.LGPLv2.1 COPYING.LGPLv3 /out/usr/share/doc/ffmpeg/ \
+    && cp "../ffmpeg-$FFMPEG_VERSION.tar.xz" /out/usr/share/doc/ffmpeg/ \
+    && /usr/local/bin/ffmpeg -hide_banner -buildconf > /out/usr/share/doc/ffmpeg/buildconf.txt
+# The Debian packages whose libraries FFmpeg and libplacebo link, which the
+# runtime image installs.
+RUN set -eu; \
+    ldd /usr/local/bin/ffmpeg /usr/local/bin/ffprobe > /tmp/ldd; \
+    if grep 'not found' /tmp/ldd; then exit 1; fi; \
+    for lib in $(awk '$2 == "=>" && $3 ~ /^\// { print $3 }' /tmp/ldd | sort -u); do \
+        real=$(realpath "$lib"); \
+        case "$real" in /usr/local/*) continue ;; esac; \
+        owner=$(dpkg -S "$real" 2>/dev/null || dpkg -S "${real#/usr}"); \
+        echo "${owner%%:*}" >> /tmp/owners; \
+    done; \
+    sort -u /tmp/owners > /packages; \
+    cat /packages
+
 # ---- runtime ----------------------------------------------------------------
 FROM debian:trixie-slim
 ARG PLEY_COMMIT=unknown
@@ -60,9 +135,13 @@ LABEL org.opencontainers.image.title="Pley" \
 # libraries; the OpenCL loader learns of NVIDIA's from the file below. No
 # program keeps a setuid or setgid bit: nothing in the image can gain
 # privileges, even when it is run without no-new-privileges.
-RUN apt-get update \
+#
+# FFmpeg, libplacebo, and the Debian packages with the libraries they link.
+COPY --from=ffmpeg /out/ /
+RUN --mount=type=bind,from=ffmpeg,source=/packages,target=/tmp/ffmpeg-packages \
+    apt-get update \
     && apt-get install -y --no-install-recommends \
-        ca-certificates ffmpeg tini \
+        ca-certificates tini $(cat /tmp/ffmpeg-packages) \
         libvulkan1 mesa-vulkan-drivers mesa-va-drivers \
     && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
         sed -i 's/^Components: main$/Components: main non-free/' /etc/apt/sources.list.d/debian.sources \
@@ -70,6 +149,8 @@ RUN apt-get update \
         && apt-get install -y --no-install-recommends intel-media-va-driver-non-free libmfx-gen1.2; \
     fi \
     && rm -rf /var/lib/apt/lists/* \
+    && ldconfig \
+    && ffmpeg -hide_banner -version >/dev/null \
     && mkdir -p /etc/OpenCL/vendors && echo libnvidia-opencl.so.1 > /etc/OpenCL/vendors/nvidia.icd \
     && find / -xdev -perm /6000 -type f -exec chmod a-s {} + \
     && useradd --uid 1000 --user-group --no-create-home --home-dir /config --shell /usr/sbin/nologin pley \
@@ -80,8 +161,9 @@ RUN apt-get update \
 # is started (pley.sh).
 COPY --from=build /out/bin/ /usr/local/lib/pley/
 COPY --chmod=755 deploy/docker/pley.sh /usr/local/bin/pley
-# Pley's licence; Debian's packages (FFmpeg among them) keep theirs in
-# /usr/share/doc/<package>/copyright (LICENSING.md).
+# Pley's licence. FFmpeg's and libplacebo's, with their sources, are in
+# /usr/share/doc/ffmpeg and /usr/share/doc/libplacebo; Debian's packages keep
+# theirs in /usr/share/doc/<package>/copyright (LICENSING.md).
 COPY LICENSE /usr/share/doc/pley/LICENSE.txt
 COPY LICENSING.md /usr/share/doc/pley/
 

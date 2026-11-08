@@ -30,10 +30,10 @@ libraries. Until then, anyone with the code can claim the server.
   | Windows | `%LOCALAPPDATA%\pley` (`%ProgramData%\pley` for the service) |
   | Docker | `/config` in the container |
 
-- **FFmpeg and ffprobe.** The Docker image and the Windows installer bring
-  their own, and the Synology package uses SynoCommunity's; elsewhere Pley
-  takes them from `PATH`, or `--ffmpeg` and `--ffprobe`. The FFmpeg build
-  decides what Pley can do with a GPU.
+- **FFmpeg and ffprobe**, version 9 recommended. The Docker image and the
+  Windows installer bring FFmpeg 9, and the Synology package uses
+  SynoCommunity's; elsewhere Pley takes them from `PATH`, or `--ffmpeg` and
+  `--ffprobe`. The FFmpeg build decides what Pley can do with a GPU.
 
 Release archives (Linux, macOS, Windows; x86_64 and arm64) hold `pley` and
 `pley-transcoder`, which must stay in the same folder. `pley --help` and
@@ -44,8 +44,8 @@ whose glibc is too old for the other one, such as DSM.
 ## Docker
 
 The image is `ghcr.io/pley-media-server/pley` (amd64 and arm64; `:latest`, or a
-version such as `:0.0.1`). It holds Pley, its transcoder, Debian 13's
-FFmpeg 7.1 and the GPU drivers for Intel, AMD and NVIDIA.
+version such as `:0.0.1`). It holds Pley, its transcoder, FFmpeg 9 and the
+GPU drivers for Intel, AMD and NVIDIA.
 [docker/README.md](docker/README.md) sets it up with Docker Compose, locked
 down, behind a reverse proxy. Without Compose:
 
@@ -78,10 +78,10 @@ journalctl -u pley    # the setup link, and the log
 
 Give the `pley` user read access to your media.
 
-**FFmpeg.** The distribution's works (Debian 13's has NVENC, VAAPI, Quick
-Sync and libplacebo). Elsewhere, [jellyfin-ffmpeg](https://repo.jellyfin.org)
-is a good choice: it isn't on `PATH`, so set `Environment=PLEY_FFMPEG=…` and
-`PLEY_FFPROBE=…` in the unit.
+**FFmpeg.** FFmpeg 9 is recommended; 7.1 and 8 work without a few
+speed-ups (Debian 13 has 7.1). For one not on `PATH`, such as
+[jellyfin-ffmpeg](https://repo.jellyfin.org), set `Environment=PLEY_FFMPEG=…`
+and `PLEY_FFPROBE=…` in the unit.
 
 **Hardware transcoding:**
 
