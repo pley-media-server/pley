@@ -17,6 +17,12 @@ describes how they are made.
   seconds (holding still under the pointer, and for those who ask their
   system for less motion). Swipe between them on a phone.
 
+### Fixed
+
+- HDR video that libplacebo tone maps plays again in the Docker image and
+  with other FFmpeg 7 installs: the transcoder no longer asks it for a
+  shader cache that FFmpeg before 8.0 doesn't have.
+
 ## [0.1.8] - 2026-11-06
 
 ### Added
