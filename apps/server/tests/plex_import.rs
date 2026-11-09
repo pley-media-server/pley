@@ -41,14 +41,19 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
     match (section, kind) {
         ("1", "1") => vec![
             json!({"ratingKey": "101", "type": "movie", "title": "Alien", "addedAt": 1_000_000_000,
+                   "thumb": "/library/metadata/101/thumb/1",
                    "Guid": [{"id": "tmdb://348"}], "Media": file("/plexdata/movies/Alien (1979).mkv", 1024)}),
+            // A poster elsewhere than the server, which Pley never asks for.
             json!({"ratingKey": "102", "type": "movie", "title": "Brazil", "addedAt": 1_100_000_000,
+                   "year": 1985, "summary": "A clerk dreams.", "thumb": "http://elsewhere.invalid/brazil.png",
                    "Guid": [{"id": "tmdb://68"}], "Media": file("/plexdata/movies/Brazil (1985).mkv", 2048)}),
             json!({"ratingKey": "103", "type": "movie", "title": "Casablanca", "addedAt": 1_200_000_000,
                    "Guid": [{"id": "tmdb://289"}], "Media": file("/plexdata/movies/Casablanca (1942).mkv", 4096)}),
         ],
         ("2", "2") => {
-            vec![json!({"ratingKey": "200", "type": "show", "title": "Show", "Guid": [{"id": "tvdb://999"}]})]
+            // Its poster isn't a picture.
+            vec![json!({"ratingKey": "200", "type": "show", "title": "Show", "summary": "A show.",
+                        "thumb": "/library/metadata/200/thumb/1", "Guid": [{"id": "tvdb://999"}]})]
         }
         ("2", "3") => vec![json!({"ratingKey": "210", "type": "season", "title": "Season 1", "index": 1,
                                   "parentRatingKey": "200"})],
@@ -58,7 +63,7 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
             json!({"ratingKey": "202", "type": "episode", "title": "Two", "index": 2, "parentIndex": 1,
                    "parentRatingKey": "210", "grandparentRatingKey": "200", "grandparentTitle": "Show",
                    "Media": file("/plexdata/tv/Show/S1/two.mkv", 5)}),
-            json!({"ratingKey": "201", "type": "episode", "title": "One", "index": 1, "parentIndex": 1,
+            json!({"ratingKey": "201", "type": "episode", "title": "One", "summary": "It begins.", "index": 1, "parentIndex": 1,
                    "parentRatingKey": "210", "grandparentRatingKey": "200", "grandparentTitle": "Show",
                    "Media": file("/plexdata/tv/Show (2015)/Season 01/Show - S01E01.mkv", 1024)}),
         ],
@@ -269,6 +274,19 @@ async fn fake_plex() -> String {
             }),
         )
         .route("/library/sections/{section}/all", get(all))
+        // Posters, through the server's picture transcoder (`/photo/:/transcode`).
+        .route(
+            "/photo/{colon}/transcode",
+            get(|Query(q): Query<HashMap<String, String>>, headers: HeaderMap| async move {
+                if token(&headers) != OWNER_SERVER {
+                    return StatusCode::UNAUTHORIZED.into_response();
+                }
+                match q.get("url").map(String::as_str) {
+                    Some("/library/metadata/101/thumb/1") => picture(png(60, 90)),
+                    _ => ([(header::CONTENT_TYPE, "text/html")], "<html></html>").into_response(),
+                }
+            }),
+        )
         .route(
             "/library/sections/{section}/label",
             get(|Path(section): Path<String>| async move {
@@ -501,6 +519,27 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert!(!serde_json::to_string(&done).unwrap().contains(OWNER), "no token in the report");
 
     let report = &done["report"];
+    // Plex's details and posters where Pley has nothing better (no metadata
+    // fetched here, Alien not found by its search), but not over Brazil's
+    // NFO file; a poster only where Plex gave a picture of its own.
+    let titles: Vec<(String, Option<i64>, Option<String>, bool)> = sqlx::query_as(
+        "SELECT title, year, summary, poster IS NOT NULL FROM items
+         WHERE kind IN ('movie', 'show', 'episode') ORDER BY kind, title",
+    )
+    .fetch_all(&app.state.db.read)
+    .await
+    .unwrap();
+    let titles: Vec<_> = titles.iter().map(|(t, y, s, p)| (t.as_str(), *y, s.as_deref(), *p)).collect();
+    assert_eq!(
+        titles,
+        [
+            ("One", None, Some("It begins."), false),
+            ("Two", None, None, false),
+            ("Alien", Some(1979), Some("Hand-written."), true),
+            ("Brazil", Some(1985), None, false),
+            ("Show", Some(2015), Some("A show."), false),
+        ]
+    );
     assert_eq!(report["libraries"][0]["matched"], 2);
     assert_eq!(report["libraries"][0]["missed"], 1);
     assert_eq!(report["libraries"][0]["missed_titles"], json!(["Casablanca"]));
@@ -627,7 +666,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     .fetch_all(&app.state.db.read)
     .await
     .unwrap();
-    assert_eq!(favourites, ["Episode 1", "Alien"]);
+    assert_eq!(favourites, ["One", "Alien"], "the episode with Plex's title");
 
     // Watch state, each person's own.
     let (watched, count, rating): (bool, i64, Option<f64>) =
@@ -863,13 +902,13 @@ async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
         .fetch_one(&app.state.db.read)
         .await
         .unwrap();
-    let (tmdb_id, fetched): (Option<i64>, bool) =
-        sqlx::query_as("SELECT tmdb_id, metadata_at IS NOT NULL FROM items WHERE id = ?")
+    let (tmdb_id, fetched, poster): (Option<i64>, bool, bool) =
+        sqlx::query_as("SELECT tmdb_id, metadata_at IS NOT NULL, poster IS NOT NULL FROM items WHERE id = ?")
             .bind(alien)
             .fetch_one(&app.state.db.read)
             .await
             .unwrap();
-    assert_eq!((tmdb_id, fetched), (Some(348), false), "Plex's match, before any metadata");
+    assert_eq!((tmdb_id, fetched, poster), (Some(348), false, true), "Plex's match and poster, before any metadata");
     let watched: i64 =
         sqlx::query_scalar("SELECT play_count FROM user_item_state WHERE user_id = ? AND item_id = ? AND watched = 1")
             .bind(admin_id)

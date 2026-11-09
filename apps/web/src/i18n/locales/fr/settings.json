@@ -930,6 +930,7 @@
         "scanning": "Analyse des nouvelles bibliothèques",
         "profiles": "Création des profils",
         "matching": "Recherche des titres de Plex dans Pley",
+        "posters": "Import des affiches de Plex",
         "labels": "Import des étiquettes et des dates d’ajout",
         "watch_state": "Import de ce que chacun a regardé",
         "history": "Import des lectures de chacun",

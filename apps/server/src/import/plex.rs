@@ -371,6 +371,25 @@ impl Plex {
         Ok(c.media_container.metadata.into_iter().next())
     }
 
+    /// Poster `thumb`, as a listing gives it, sized for a poster by the
+    /// server's picture transcoder: at most [`MAX_ANSWER`] bytes of
+    /// whatever it answers (the caller checks it's a picture). Only the
+    /// server's own pictures are asked for, never an address elsewhere,
+    /// which the transcoder would fetch.
+    pub async fn poster(&self, server: &Server, thumb: &str) -> PlexResult<Vec<u8>> {
+        if !thumb.starts_with("/library/") || thumb.contains("://") || thumb.contains("..") {
+            return Err(PlexError::Unreachable("not one of the server's pictures".into()));
+        }
+        let mut url = server.base.join("/photo/:/transcode").map_err(|_| PlexError::Unreachable("bad path".into()))?;
+        url.query_pairs_mut()
+            .append_pair("width", "600")
+            .append_pair("height", "900")
+            .append_pair("minSize", "1")
+            .append_pair("upscale", "0")
+            .append_pair("url", thumb);
+        self.send(Method::GET, url, Some(&server.token)).await
+    }
+
     /// The labels used in library `section`.
     pub async fn labels(&self, server: &Server, section: &str) -> PlexResult<Vec<Tag>> {
         let c: Container<Tag> =
@@ -676,6 +695,8 @@ pub struct Item {
     #[serde(rename = "type")]
     pub kind: String,
     pub title: String,
+    /// Its poster, a path on the server (`/library/metadata/1/thumb/…`).
+    pub thumb: Option<String>,
     #[serde(deserialize_with = "opt_num")]
     pub index: Option<i64>,
     #[serde(deserialize_with = "opt_num")]

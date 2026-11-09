@@ -18,7 +18,8 @@ use crate::db::Db;
 use crate::events::{ScanPhase, ServerEvent};
 use crate::library::{LibraryKind, get_library};
 use crate::state::AppState;
-use crate::util::now;
+use crate::store::picture_ext;
+use crate::util::{now, sort_title};
 
 use super::matching::{Folder, Index, Matches, folder_for, map_path};
 use futures::StreamExt;
@@ -30,6 +31,8 @@ use super::restrictions::{self, Limits};
 const SOURCE: &str = "plex";
 /// Titles' own pages read at a time, for their locked fields.
 const PAGES_AT_ONCE: usize = 4;
+/// Posters asked of the Plex server at the same time.
+const POSTERS_AT_ONCE: usize = 4;
 /// Longest title, sort title, tagline, studio or genre brought, in characters.
 const MAX_TITLE: usize = 500;
 /// Longest summary brought, in characters.
@@ -123,6 +126,8 @@ pub enum Step {
     Scanning,
     Profiles,
     Matching,
+    /// Plex's posters, for titles that have none before the fetch.
+    Posters,
     Labels,
     Edits,
     Collections,
@@ -831,6 +836,8 @@ struct Titles {
     ids: Vec<PlexIds>,
     /// Those whose own page may have locked fields.
     pages: Vec<String>,
+    /// Pley's movies and shows found, with Plex's poster for them.
+    posters: Vec<(i64, String)>,
 }
 
 /// A movie's or show's ids, as Plex matched it.
@@ -966,6 +973,10 @@ impl Run {
         for library in &paired {
             titles.push(self.find(library, &index, &folders, &mut matches).await?);
             self.advance(1);
+        }
+        self.posters(&titles).await?;
+        for library in &paired {
+            self.state.events.send(ServerEvent::LibraryChanged { library_id: library.library_id });
         }
         self.bring(bring, &paired, &people, &titles, &index, &matches).await?;
         self.importer.set(&self.state, self.admin, |p| p.first_pass_done = true);
@@ -1472,7 +1483,7 @@ impl Run {
             let query = [("type", plex_type.to_string()), ("includeGuids", "1".to_owned())];
             let mut pager = Pager::new(&format!("/library/sections/{}/all", library.key), &query);
             while let Some(items) = pager.next(self).await? {
-                let mut dates = Vec::new();
+                let (mut dates, mut details) = (Vec::new(), Vec::new());
                 for item in items {
                     if matches!(*kind, "movie" | "show" | "season") {
                         titles.pages.push(item.rating_key.clone());
@@ -1490,6 +1501,14 @@ impl Run {
                             if let Some(added) = item.added_at.filter(|a| *a > 0) {
                                 dates.push((id, added));
                             }
+                            if let Some(found) = PlexDetails::of(&item) {
+                                details.push((id, found));
+                            }
+                            if matches!(*kind, "movie" | "show")
+                                && let Some(thumb) = item.thumb.clone()
+                            {
+                                titles.posters.push((id, thumb));
+                            }
                         }
                         None if *kind == "episode" => retry.push(item),
                         None if is_leaf(kind) => {
@@ -1502,6 +1521,7 @@ impl Run {
                     }
                 }
                 self.dates(&dates).await?;
+                write_details(&self.state.db, &details).await?;
             }
             // An episode whose show was found only through a later
             // episode's file.
@@ -1511,6 +1531,9 @@ impl Run {
                         matched += 1;
                         if let Some(added) = item.added_at.filter(|a| *a > 0) {
                             self.dates(&[(id, added)]).await?;
+                        }
+                        if let Some(found) = PlexDetails::of(&item) {
+                            write_details(&self.state.db, &[(id, found)]).await?;
                         }
                     }
                     None => {
@@ -1527,6 +1550,51 @@ impl Run {
         report.missed = missed;
         report.missed_titles = named;
         Ok(titles)
+    }
+
+    /// Plex's posters for the movies and shows found that have none yet,
+    /// so that they show before the fetch gets to them (its posters
+    /// replace these), or where it found nothing. One Plex won't give, or
+    /// that isn't a picture, is left to the fetch.
+    async fn posters(&self, titles: &[Titles]) -> ImportResult<()> {
+        let thumbs: HashMap<i64, &str> =
+            titles.iter().flat_map(|t| &t.posters).map(|(id, thumb)| (*id, thumb.as_str())).collect();
+        let ids = serde_json::to_string(&thumbs.keys().collect::<Vec<_>>()).unwrap_or_default();
+        let wanted: Vec<i64> = sqlx::query_scalar(
+            "SELECT i.id FROM json_each(?) j JOIN items i ON i.id = j.value
+             WHERE i.poster IS NULL AND (i.metadata_at IS NULL OR i.metadata_at < 0) AND i.metadata_locked = 0",
+        )
+        .bind(ids)
+        .fetch_all(&self.state.db.read)
+        .await?;
+        if wanted.is_empty() {
+            return Ok(());
+        }
+        self.step(Step::Posters, wanted.len() as u64);
+        let (plex, server, store) = (&self.plex, &self.server, &self.state.store);
+        let mut downloads = futures::stream::iter(wanted)
+            .map(|id| {
+                let thumb = thumbs[&id];
+                async move {
+                    let bytes = plex.poster(server, thumb).await.ok()?;
+                    let blob = store.put(&bytes, picture_ext(&bytes)?).await.ok()?;
+                    Some((id, blob))
+                }
+            })
+            .buffer_unordered(POSTERS_AT_ONCE);
+        while let Some(poster) = downloads.next().await {
+            self.cancelled()?;
+            if let Some((id, blob)) = poster {
+                sqlx::query("UPDATE items SET poster = ?, updated_at = ? WHERE id = ? AND poster IS NULL")
+                    .bind(blob)
+                    .bind(now())
+                    .bind(id)
+                    .execute(&self.state.db.write)
+                    .await?;
+            }
+            self.advance(1);
+        }
+        Ok(())
     }
 
     /// Moves items' dates added to Plex's, only ever earlier.
@@ -1996,6 +2064,63 @@ async fn merge(db: &Db, user_id: i64, list: &str, found: &[(i64, Item)]) -> sqlx
     }
     tx.commit().await?;
     Ok(changed)
+}
+
+/// A movie's, show's or episode's title, year and summary as Plex has
+/// them, cut to the lengths Pley keeps.
+struct PlexDetails {
+    title: String,
+    sort_title: String,
+    year: Option<i64>,
+    summary: Option<String>,
+}
+
+impl PlexDetails {
+    fn of(item: &Item) -> Option<Self> {
+        if !matches!(item.kind.as_str(), "movie" | "show" | "episode") {
+            return None;
+        }
+        let title = cut(&item.title, MAX_TITLE);
+        if title.is_empty() {
+            return None;
+        }
+        let sort = item.title_sort.as_deref().map(|s| cut(s, MAX_TITLE)).filter(|s| !s.is_empty());
+        Some(Self {
+            sort_title: sort.map_or_else(|| sort_title(&title), |s| s.to_lowercase()),
+            title,
+            year: item.year.filter(|y| (1800..=2200).contains(y)),
+            summary: item.summary.as_deref().map(|s| cut(s, MAX_SUMMARY)).filter(|s| !s.is_empty()),
+        })
+    }
+}
+
+/// Plex's details on titles the fetch hasn't reached, or found nothing
+/// for (a negative `metadata_at`), so that they show with their names
+/// rather than their files'. What Pley has better is left: a fetch's, a
+/// title locked or edited in Pley, an NFO file's.
+async fn write_details(db: &Db, details: &[(i64, PlexDetails)]) -> sqlx::Result<()> {
+    if details.is_empty() {
+        return Ok(());
+    }
+    let mut tx = db.write.begin().await?;
+    for (id, d) in details {
+        sqlx::query(
+            "UPDATE items SET title = ?, sort_title = ?, year = COALESCE(?, year), summary = COALESCE(?, summary),
+                 updated_at = ?
+             WHERE id = ? AND (metadata_at IS NULL OR metadata_at < 0) AND metadata_locked = 0
+               AND NOT EXISTS (SELECT 1 FROM item_nfo WHERE item_id = items.id)
+               AND NOT EXISTS (SELECT 1 FROM item_overrides WHERE item_id = items.id)",
+        )
+        .bind(&d.title)
+        .bind(&d.sort_title)
+        .bind(d.year)
+        .bind(&d.summary)
+        .bind(now())
+        .bind(id)
+        .execute(&mut *tx)
+        .await?;
+    }
+    tx.commit().await
 }
 
 /// Whether title `id`'s match was settled in Pley, which the import leaves:

@@ -30,6 +30,8 @@ describes how they are made.
   rest runs, and Settings › Libraries shows the import, then its report.
   While it waits for the new libraries' scans, it shows which library is
   scanned and how many of its files are read.
+  Titles found by their files show with Plex's names, years, summaries
+  and posters until Pley's own details replace them.
   Running it again adds what's new and never takes anything away
   (docs/MOVING_FROM_PLEX.md).
 - Settings › Server has a Country, used for titles' age ratings,

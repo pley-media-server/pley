@@ -41,7 +41,10 @@ never changes anything on Plex.
   in Pley: titles, summaries, years, content ratings, genres and the
   like.
 
-Artwork doesn't come over: Pley picks its own posters.
+Titles found by their files show with Plex's names, years, summaries and
+posters until Pley fetches its own details, which replace them; they keep
+Plex's where Pley's search finds nothing. Other artwork doesn't come
+over, and seasons and episodes get their pictures from the fetch.
 
 The last three are choices on the import's "What to bring" step, all on
 at first. If you use Kometa, some of what it made in Plex comes over this
@@ -100,9 +103,10 @@ Import from Plex.
    user's PIN; type it there, or they're skipped.
 5. **What to bring.** Watch history, collections and playlists, matches
    and edits: turn off what you'd rather start over in Pley.
-6. **Import.** New libraries are scanned for their files, what's found by
-   file comes over, then Pley fetches posters and details and looks for
-   the rest of Plex's titles. Once what everyone watched is in, **Start
+6. **Import.** New libraries are scanned for their files, a library at a
+   time (it shows which, and its files read), what's found by file comes
+   over with Plex's names and posters, then Pley fetches posters and
+   details and looks for the rest of Plex's titles. Once what everyone watched is in, **Start
    watching** (or **Close**, from Settings) lets you go on while the rest
    runs. You can close the page at any time; the import goes on.
    Settings › Libraries shows how far it is, and once it's done, when it

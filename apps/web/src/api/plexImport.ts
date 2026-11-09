@@ -88,6 +88,7 @@ export type ImportStep =
   | "scanning"
   | "profiles"
   | "matching"
+  | "posters"
   | "labels"
   | "edits"
   | "collections"
