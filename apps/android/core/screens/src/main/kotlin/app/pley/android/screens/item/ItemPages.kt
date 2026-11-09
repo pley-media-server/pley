@@ -355,7 +355,12 @@ private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale, word
     val d = input.detail
     val tabs = when (d.kind) {
         ItemKind.Show, ItemKind.Season -> input.seasons.orEmpty().map { season ->
-            SeasonTab(season.id, seasonTitle(season.title, season.index, words), season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) })
+            SeasonTab(
+                season.id,
+                seasonTitle(season.title, season.index, words),
+                season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) },
+                season.posterUrl,
+            )
         }
         ItemKind.Episode -> emptyList()
         else -> return null
@@ -369,8 +374,18 @@ private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale, word
         selected = input.selectedSeason,
         episodes = input.episodes?.distinctBy { it.id }?.map { episodeLine(it, locale, words) },
         focus = focus,
+        posters = seasonPosters(input.seasons.orEmpty()),
     )
 }
+
+/**
+ * Whether a show's seasons are shown by their posters: some season has
+ * one of its own. The server gives a season without one its show's
+ * poster, the same address for each, so the seasons' addresses all match
+ * (or are all missing) only when none has its own.
+ */
+fun seasonPosters(seasons: List<ItemSummary>): Boolean =
+    seasons.size > 1 && seasons.mapTo(HashSet()) { it.posterUrl?.takeIf(String::isNotEmpty) }.size > 1
 
 /** An episode's words for lists and rows, its dates in [locale], its runtime and numbers in [words]. */
 fun episodeLine(e: ItemSummary, locale: Locale = AppLanguage.locale, words: FormatWords = AppLanguage.formatWords()): EpisodeLine {

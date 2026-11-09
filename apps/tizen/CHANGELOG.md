@@ -29,6 +29,9 @@ describes how they are made.
   "Subtitles off") and doesn't bring up the player's controls. Controls
   already up hide as they do while it plays, even once it is paused, until
   a key is pressed on the TV.
+- A show whose seasons have posters of their own shows them on its season
+  tabs, each beside the season's name and episode count, as on Android TV.
+  A season without one shows the show's poster.
 
 ### Changed
 

@@ -23,6 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
+import app.pley.android.designsystem.PleyTv
+import app.pley.android.designsystem.TvSafeArea
+import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.Credit
 import app.pley.android.model.CreditRole
 import app.pley.android.model.ItemKind
@@ -159,10 +162,16 @@ class TvItemPageTest {
         assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true), stack.last())
     }
 
-    /** A show of [count] seasons of four episodes each. */
-    private fun showOf(count: Int): ItemData {
+    /** A show of [count] seasons of four episodes each; with [posters], the first season has a poster of its own. */
+    private fun showOf(count: Int, posters: Boolean = false): ItemData {
         val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
-        val seasons = (1..count).map { s -> ItemSummary(id = 100L + s, libraryId = 1, kind = ItemKind.Season, title = "Season $s", index = s, parentId = 1) }
+        val seasons = (1..count).map { s ->
+            val poster = if (s == 1) "/api/items/${100 + s}/images/poster?v=2" else "/api/items/1/images/poster?v=1"
+            ItemSummary(
+                id = 100L + s, libraryId = 1, kind = ItemKind.Season, title = "Season $s", index = s, parentId = 1, leafCount = 4,
+                posterUrl = poster.takeIf { posters },
+            )
+        }
         val episodes = seasons.associate { season ->
             season.id to (1..4).map { e ->
                 ItemSummary(
@@ -219,6 +228,42 @@ class TvItemPageTest {
         press(Key.DirectionLeft, 24)
         compose.onNode(isFocused()).assert(hasText("Season 1"))
         assertTrue(compose.onNode(isFocused()).getBoundsInRoot().left.value >= 0f)
+    }
+
+    @Test
+    fun aSeasonWithItsOwnPosterTurnsEveryTabIntoAPosterTab() {
+        show(showOf(12, posters = true))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1")).assert(hasText("4 episodes"))
+        for (s in 2..12) {
+            press(Key.DirectionRight)
+            // Every tab a poster tab, the seasons without a poster of their own too, and on screen.
+            compose.onNode(isFocused()).assert(hasText("Season $s")).assert(hasText("4 episodes"))
+            val tab = compose.onNode(isFocused()).getBoundsInRoot()
+            assertTrue("Season $s: $tab", tab.left.value >= 0f && tab.right.value <= 960f)
+            assertEquals("Season $s: $tab", PosterTabHeight.value, (tab.bottom - tab.top).value, 4f)
+        }
+        // The episodes sit under the taller tabs, their captions on screen.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        assertEquals(PosterEpisodeTilesTop.value, focusedTop(), 1f)
+        val captionsEnd = PosterEpisodeTilesTop + TileKind.Episode.tvHeight + PleyTv.TilesToCaption + PleyTv.CaptionHeight
+        assertTrue("$captionsEnd", captionsEnd <= 540.dp - TvSafeArea.Vertical)
+    }
+
+    @Test
+    fun aShowWithoutSeasonPostersKeepsItsWordTabs() {
+        show(showOf(3))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        assertEquals(TabbedEpisodeTilesTop.value, focusedTop(), 1f)
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        compose.onNode(hasText("4 episodes")).assertDoesNotExist()
     }
 
     @Test

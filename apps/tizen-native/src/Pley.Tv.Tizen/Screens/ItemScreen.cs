@@ -517,7 +517,7 @@ sealed class ItemScreen : ShellPage
         if (page.Seasons is { } s)
         {
             seasons = new SeasonsView(page, s, gate, images, Shell.FocusRail, OpenEpisode, FocusEpisode, model.SelectSeason, Tree.Focus);
-            // The season tabs at y = 218 and their episodes at 286 (a single season's at 272), under the info block and the focused episode's lines.
+            // The season tabs at y = 218 and their episodes at 286, or 318 under poster tabs (a single season's at 272), under the info block and the focused episode's lines.
             column.Add(seasons, seasons.Group, ItemText.ShowsTabs(s) ? 218 : 272 - PleyTv.RowHeaderHeight - PleyTv.HeaderToTiles);
         }
         var origin = page.Origin;
@@ -565,7 +565,7 @@ sealed class ItemScreen : ShellPage
     static string SectionsKey(ItemPage page) =>
         string.Join("|", new[]
         {
-            page.Seasons == null ? "-" : string.Join(",", page.Seasons.Seasons.Select(t => t.Id)),
+            page.Seasons == null ? "-" : string.Join(",", page.Seasons.Seasons.Select(t => t.Id)) + (page.Seasons.Posters ? ";posters" : ""),
             string.Join(",", page.Extras.Select(e => e.Id)),
             string.Join(",", page.Cast.Select(c => c.Id)) + ";" + string.Join(",", page.Details.Crew.SelectMany(c => c.People).Select(p => p.Id)),
             string.Join(",", page.Related.Select(r => r.Id)),
@@ -693,6 +693,8 @@ sealed class ItemScreen : ShellPage
 sealed class SeasonsView : View
 {
     const float TabHeight = 40;
+    /// <summary>From a tab's start to its label, or a poster tab's to its poster: the first one's at the gutter.</summary>
+    const float TabInset = 20, PosterTabInset = 6;
 
     readonly ItemPage page;
     readonly KeyRepeatGate gate;
@@ -705,7 +707,7 @@ sealed class SeasonsView : View
     readonly View tabs = new View();
     readonly FocusGroup tabGroup = new FocusGroup(Axis.Row, "seasons");
     readonly Timer tabRest = new Timer((uint)KeyRepeatGate.RestMs);
-    readonly List<(SeasonTab Tab, ButtonView Button)> tabButtons = new List<(SeasonTab, ButtonView)>();
+    readonly List<(SeasonTab Tab, ISeasonTab Button)> tabButtons = new List<(SeasonTab, ISeasonTab)>();
     TextLabel? heading;
     RowView? row;
     TextLabel? empty;
@@ -715,6 +717,7 @@ sealed class SeasonsView : View
     float tabScroll;
     Animation? tabAnimation;
     readonly float rowTop;
+    readonly float tabsStart;
 
     public SeasonsView(ItemPage page, SeasonsSection seasons, KeyRepeatGate gate, Images images, Func<bool> toRail,
         Action<EpisodeLine> open, Action<EpisodeLine?> focus, Action<long> select, Func<FocusItem, bool> focusItem)
@@ -730,12 +733,13 @@ sealed class SeasonsView : View
         Group = new FocusGroup(Axis.Column, "episodes");
         if (ItemText.ShowsTabs(seasons))
         {
-            tabs.Position = new Position(Ui.Dp(PleyTv.Gutter - 20), 0);
+            tabsStart = PleyTv.Gutter - (seasons.Posters ? PosterTabInset : TabInset);
+            tabs.Position = new Position(Ui.Dp(tabsStart), 0);
             Add(tabs);
             Group.Add(tabGroup);
             tabGroup.Exit = d => d == Direction.Right || (d == Direction.Left && Scrolling.Left(gate, toRail));
             // 28 to the episodes: room for the focused tile's growth and ring, and a gap past them.
-            rowTop = TabHeight + 28;
+            rowTop = (seasons.Posters ? PosterTabView.Height : TabHeight) + 28;
         }
         else
         {
@@ -798,7 +802,11 @@ sealed class SeasonsView : View
         if (hadFocus != null && row.Group.Children.OfType<FocusItem>().FirstOrDefault(i => i.Name == hadFocus) is { } again) focusItem(again);
     }
 
-    /// <summary>The season tabs (design spec §2.6): 40 dp pills in Muted; the shown season on Surface3 in Fg; focused, Accent.</summary>
+    /// <summary>
+    /// The season tabs (design spec §2.6): 40 dp pills in Muted; the shown season on Surface3 in Fg;
+    /// focused, Accent. Once a season has a poster of its own (<see cref="SeasonsSection.Posters"/>),
+    /// poster tabs, 72 tall.
+    /// </summary>
     void ShowTabs(SeasonsSection seasons)
     {
         if (!ItemText.ShowsTabs(seasons))
@@ -816,7 +824,10 @@ sealed class SeasonsView : View
             float x = 0;
             foreach (var tab in seasons.Seasons)
             {
-                var button = new ButtonView(tab.Title, ButtonKind.Text, () => select(tab.Id)) { PositionX = Ui.Dp(x) };
+                ISeasonTab button = seasons.Posters
+                    ? new PosterTabView(tab, page.Origin, images, () => select(tab.Id))
+                    : new WordTab(new ButtonView(tab.Title, ButtonKind.Text, () => select(tab.Id)));
+                button.View.PositionX = Ui.Dp(x);
                 var left = x;
                 button.Item.FocusChanged += on =>
                 {
@@ -826,7 +837,7 @@ sealed class SeasonsView : View
                     restingTab = tab.Id;
                     tabRest.Start();
                 };
-                tabs.Add(button);
+                tabs.Add(button.View);
                 tabGroup.Add(button.Item);
                 tabButtons.Add((tab, button));
                 x += button.WidthDp + 4;
@@ -848,7 +859,7 @@ sealed class SeasonsView : View
     /// </summary>
     void ScrollTabs(float left, float width)
     {
-        var room = PleyTv.CanvasWidth - (PleyTv.Gutter - 20) - PleyTv.SafeHorizontal;
+        var room = PleyTv.CanvasWidth - tabsStart - PleyTv.SafeHorizontal;
         var scroll = tabScroll;
         if (left < scroll) scroll = left;
         else if (left + width > scroll + room) scroll = left + width - room;
@@ -856,7 +867,7 @@ sealed class SeasonsView : View
         tabScroll = scroll;
         tabAnimation?.Stop();
         tabAnimation = Scrolling.Glide(gate);
-        tabAnimation.AnimateTo(tabs, "PositionX", Ui.Dp(PleyTv.Gutter - 20 - tabScroll));
+        tabAnimation.AnimateTo(tabs, "PositionX", Ui.Dp(tabsStart - tabScroll));
         tabAnimation.Play();
     }
 
@@ -866,6 +877,145 @@ sealed class SeasonsView : View
         tabAnimation?.Stop();
         tabRest.Stop();
         tabRest.Dispose();
+        base.Dispose(type);
+    }
+}
+
+/// <summary>A season tab, words or poster: its view, its focus, its width and how it looks at rest.</summary>
+interface ISeasonTab
+{
+    View View { get; }
+    FocusItem Item { get; }
+    float WidthDp { get; }
+    /// <summary>The fill at rest: Surface3 for the season shown.</summary>
+    Color? Rest { set; }
+    /// <summary>The name's colour at rest: Muted, Fg for the season shown.</summary>
+    Color Ink { set; }
+}
+
+/// <summary>A season tab of words: a text button.</summary>
+sealed class WordTab : ISeasonTab
+{
+    readonly ButtonView button;
+
+    public WordTab(ButtonView button) => this.button = button;
+
+    public View View => button;
+    public FocusItem Item => button.Item;
+    public float WidthDp => button.WidthDp;
+    public Color? Rest { set => button.Rest = value; }
+    public Color Ink { set => button.Ink = value; }
+}
+
+/// <summary>
+/// A season tab with its poster (the Android app's poster tabs): 72 tall, a 40 by 60 poster 6 from
+/// its top and start (the season's, else the show's; the title's gradient until it comes), and the
+/// season's name over its episodes beside it. It looks as a word tab does: Accent and 1.05 focused.
+/// </summary>
+sealed class PosterTabView : View, ISeasonTab
+{
+    public const float Height = 72;
+    const float Inset = 6, PosterWidth = 40, PosterHeight = 60, Gap = 12, End = 20;
+
+    readonly TextLabel title;
+    readonly TextLabel? count;
+    Color ink = PleyColors.Muted;
+    Color? rest;
+    Animation? focusAnimation;
+
+    public PosterTabView(SeasonTab tab, string origin, Images images, Action onClick)
+    {
+        Item = new FocusItem(tab.Title) { Selected = onClick };
+        CornerRadius = Ui.Dp(PleyShape.ControlRadius);
+        PivotPoint = global::Tizen.NUI.PivotPoint.Center;
+        var poster = new View
+        {
+            Size = new Size(Ui.Dp(PosterWidth), Ui.Dp(PosterHeight)),
+            Position = new Position(Ui.Dp(Inset), Ui.Dp(Inset)),
+            CornerRadius = Ui.Dp(PleyShape.BadgeRadius),
+        };
+        var (from, to) = Placeholder.Colors(tab.Title);
+        poster.Background = Gradients.Diagonal(AvatarView.Rgb(from), AvatarView.Rgb(to));
+        Add(poster);
+        title = Text.Label(tab.Title, PleyType.Label, ink);
+        count = tab.Episodes != null ? Text.Label(tab.Episodes, PleyType.Caption, PleyColors.Muted) : null;
+        var textWidth = Math.Max(Text.Width(title), count != null ? Text.Width(count) : 0);
+        var x = Inset + PosterWidth + Gap;
+        var y = (Height - PleyType.Label.Line - (count != null ? PleyType.Caption.Line : 0)) / 2;
+        title.Size = new Size(Ui.Dp(textWidth) + 2, Ui.Dp(PleyType.Label.Line));
+        title.Position = new Position(Ui.Dp(x), Ui.Dp(y));
+        Add(title);
+        if (count != null)
+        {
+            count.Size = new Size(Ui.Dp(textWidth) + 2, Ui.Dp(PleyType.Caption.Line));
+            count.Position = new Position(Ui.Dp(x), Ui.Dp(y + PleyType.Label.Line));
+            Add(count);
+        }
+        Size = new Size(Ui.Dp(x + textWidth + End), Ui.Dp(Height));
+        if (!string.IsNullOrEmpty(tab.PosterUrl))
+        {
+            images.Load(new[] { Artwork.Absolute(tab.PosterUrl!, origin) }, PosterWidth, file =>
+            {
+                if (file == null || Disposed) return;
+                poster.Add(new ImageView
+                {
+                    Size = new Size(poster.SizeWidth, poster.SizeHeight),
+                    CornerRadius = poster.CornerRadius,
+                    // Decoded at the size it's drawn, not the file's.
+                    DesiredWidth = (int)poster.SizeWidth,
+                    DesiredHeight = (int)poster.SizeHeight,
+                    FittingMode = FittingModeType.ScaleToFill,
+                    ResourceUrl = file,
+                });
+            });
+        }
+        Item.FocusChanged += Look;
+        Look(false);
+    }
+
+    public View View => this;
+    public FocusItem Item { get; }
+    public float WidthDp => SizeWidth / Ui.Scale;
+
+    public Color? Rest
+    {
+        set
+        {
+            rest = value;
+            Look(Item.Focused);
+        }
+    }
+
+    public Color Ink
+    {
+        set
+        {
+            ink = value;
+            Look(Item.Focused);
+        }
+    }
+
+    void Look(bool focused)
+    {
+        // Let go already: a focus change can still reach it on its way to the view in its place.
+        if (Disposed) return;
+        BackgroundColor = focused ? PleyColors.Accent : rest ?? Color.Transparent;
+        title.TextColor = focused ? PleyColors.OnAccent : ink;
+        if (count != null) count.TextColor = focused ? new Color(PleyColors.OnAccent.R, PleyColors.OnAccent.G, PleyColors.OnAccent.B, 0.8f) : PleyColors.Muted;
+        focusAnimation?.Stop();
+        var scale = focused ? PleyShape.PillScale : 1f;
+        focusAnimation = new Animation(focused ? PleyMotion.FocusMs : PleyMotion.UnfocusMs)
+        {
+            DefaultAlphaFunction = new AlphaFunction(focused ? AlphaFunction.BuiltinFunctions.EaseOut : AlphaFunction.BuiltinFunctions.EaseIn),
+        };
+        focusAnimation.AnimateTo(this, "Scale", new Vector3(scale, scale, 1));
+        focusAnimation.Play();
+    }
+
+    protected override void Dispose(global::Tizen.NUI.DisposeTypes type)
+    {
+        if (Disposed) return;
+        focusAnimation?.Stop();
         base.Dispose(type);
     }
 }

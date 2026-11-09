@@ -6,9 +6,10 @@ import type { HttpRequest, Transport } from "../../src/net/transport";
 import { NetworkError } from "../../src/net/transport";
 import { shuffled } from "../../src/player/music";
 import { featuredLabel, featuredOf, heroOf, rowKind, seeAllOf, seeAllSort } from "../../src/ui/screens/home";
-import { castAndCrew } from "../../src/ui/screens/item";
+import { castAndCrew, seasonPosters } from "../../src/ui/screens/item";
 import { openingTab } from "../../src/ui/screens/library";
 import featured from "../fixtures/featured.json";
+import seasonPosterCases from "../fixtures/season-posters.json";
 import {
   AlphaIndex,
   cleared,
@@ -367,4 +368,13 @@ describe("Save as… (smart playlists)", () => {
     expect(describeSmartFilter("resolution=1080&dynamicRange=hdr10plus")).toEqual(["1080p", "HDR+"]);
     expect(describeSmartFilter("resolution=480")).toEqual(["resolution: 480"]);
   });
+});
+
+describe("season tabs", () => {
+  // Shared with the native Samsung app's tests.
+  for (const c of seasonPosterCases.cases) {
+    it(`show posters: ${c.name}`, () => {
+      expect(seasonPosters(c.posters.map((poster_url) => ({ poster_url })))).toBe(c.posterTabs);
+    });
+  }
 });

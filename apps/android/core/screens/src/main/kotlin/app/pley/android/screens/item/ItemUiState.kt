@@ -236,13 +236,19 @@ data class SeasonsSection(
     val episodes: List<EpisodeLine>?,
     /** The episode to start from: the one Play plays, or the page's own episode. */
     val focus: Long?,
+    /**
+     * The TV's tabs show each season's poster: at least one season has a
+     * poster of its own (the others show the show's). Decided for the
+     * whole show, so the tabs are all posters or all words.
+     */
+    val posters: Boolean = false,
 ) {
     /** The season shown, as a tab. */
     val selectedTab: SeasonTab? get() = seasons.firstOrNull { it.id == selected }
 }
 
-/** A season among a show's: "Season 2", "Specials", with "8 episodes". */
-data class SeasonTab(val id: Long, val title: String, val episodes: UiText?)
+/** A season among a show's: "Season 2", "Specials", with "8 episodes" and its poster (else the show's). */
+data class SeasonTab(val id: Long, val title: String, val episodes: UiText?, val posterUrl: String? = null)
 
 /** An episode in a list or row, its words worked out. */
 data class EpisodeLine(

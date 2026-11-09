@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- On Android TV, a show whose seasons have posters of their own shows
+  them on its season tabs, each beside the season's name and episode
+  count. A season without one shows the show's poster.
+
 ### Changed
 
 - On Android TV, a show's episodes sit further below its season tabs, so

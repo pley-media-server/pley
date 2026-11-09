@@ -1,0 +1,34 @@
+{
+  "cases": [
+    {
+      "name": "no season has its own: each has the show's",
+      "posters": ["/api/items/10/images/poster?v=5", "/api/items/10/images/poster?v=5", "/api/items/10/images/poster?v=5"],
+      "posterTabs": false
+    },
+    {
+      "name": "no posters at all",
+      "posters": [null, null],
+      "posterTabs": false
+    },
+    {
+      "name": "an empty address is none",
+      "posters": ["", null],
+      "posterTabs": false
+    },
+    {
+      "name": "one season shows no tabs",
+      "posters": ["/api/items/30/images/poster?v=7"],
+      "posterTabs": false
+    },
+    {
+      "name": "one season has its own, the others the show's or none",
+      "posters": ["/api/items/30/images/poster?v=7", "/api/items/10/images/poster?v=5", null],
+      "posterTabs": true
+    },
+    {
+      "name": "every season has its own",
+      "posters": ["/api/items/30/images/poster?v=7", "/api/items/31/images/poster?v=7"],
+      "posterTabs": true
+    }
+  ]
+}

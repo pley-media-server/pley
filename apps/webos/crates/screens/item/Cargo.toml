@@ -24,3 +24,5 @@ pley-host = { path = "../../host" }
 pley-fixtures = { path = "../../fixtures" }
 # The tests' fake TV plays with the simulated engine.
 pley-player = { path = "../../player" }
+# Reads packages/tv's fixtures, which every TV app's tests share.
+serde_json = "1.0.154"

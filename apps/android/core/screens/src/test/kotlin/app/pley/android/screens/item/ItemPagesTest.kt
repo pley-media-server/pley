@@ -5,6 +5,7 @@ import app.pley.android.model.Credit
 import app.pley.android.model.CreditRole
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
 import app.pley.android.model.MediaStream
 import app.pley.android.model.StreamKind
 import app.pley.android.model.UserState
@@ -199,6 +200,22 @@ class ItemPagesTest {
         val seasons = listOf(summary(30, ItemKind.Season, index = 0), summary(31, ItemKind.Season, index = 1), summary(32, ItemKind.Season, index = 2))
         assertEquals(32L, defaultSeason(seasons, summary(40, ItemKind.Episode, parentId = 32)))
         assertEquals(31L, defaultSeason(seasons, null))
+    }
+
+    @Test
+    fun `a show's tabs are posters once one season has a poster of its own, else words`() {
+        val show = ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", childCount = 3)
+        fun season(id: Long, poster: String?) = summary(id, ItemKind.Season, index = (id - 29).toInt()).copy(posterUrl = poster)
+        fun tabs(vararg seasons: ItemSummary) = page(show) { copy(seasons = seasons.toList(), selectedSeason = 30) }.seasons!!
+        val shows = "/api/items/10/images/poster?v=5"
+
+        assertFalse("none has its own: each has the show's", tabs(season(30, shows), season(31, shows)).posters)
+        assertFalse("no posters at all", tabs(season(30, null), season(31, null)).posters)
+        assertFalse("one season shows no tabs", tabs(season(30, "/api/items/30/images/poster?v=7")).posters)
+
+        val mixed = tabs(season(30, "/api/items/30/images/poster?v=7"), season(31, shows), season(32, null))
+        assertTrue(mixed.posters)
+        assertEquals(listOf("/api/items/30/images/poster?v=7", shows, null), mixed.seasons.map { it.posterUrl })
     }
 
     @Test
