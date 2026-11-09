@@ -1320,6 +1320,9 @@ export interface FsListing {
   path: string | null;
   parent: string | null;
   entries: FsEntry[];
+  /** With the roots only: whether Pley runs in a container, and the folders mounted into it. */
+  container?: boolean;
+  mounts?: string[];
 }
 
 export type LibrarySort =

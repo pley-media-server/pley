@@ -112,6 +112,15 @@ const router = createBrowserRouter([
       },
       { path: "/setup/start", element: <SetupStartPage /> },
       {
+        path: "/setup/library",
+        ...onDemand(
+          withWords(["settings"], () => import("@/pages/SetupLibraryPage")),
+          (m) => m.SetupLibraryPage,
+          () => [],
+          <Splash />,
+        ),
+      },
+      {
         path: "/setup/plex",
         ...onDemand(
           withWords(["settings"], () => import("@/pages/plexImport/PlexSetupPage")),

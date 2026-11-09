@@ -25,8 +25,9 @@ give it your GPU for hardware transcoding.
    again, choose **WebUI**, and create the administrator account with that
    code.
 
-4. **Add your libraries.** In Pley, go to **Settings → Libraries → Add**
-   and pick a folder under `/media`, such as `/media/Movies`.
+4. **Add your libraries.** Setup asks for them after the account (later,
+   they're in **Settings → Libraries → Add**): pick a folder under
+   `/media`, such as `/media/Movies`.
    [Naming your media](../docker/media/README.md) shows how Pley expects
    files to be named.
 

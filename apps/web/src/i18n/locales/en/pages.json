@@ -72,7 +72,14 @@
     "fromPlex": "Bring over my Plex libraries",
     "fromPlexHint": "Sign in with Plex and choose what comes.",
     "fresh": "Start fresh",
-    "freshHint": "Add your first library's folders."
+    "freshHint": "Add your media folders."
+  },
+  "setupLibrary": {
+    "title": "Your libraries",
+    "subtitle": "Show Pley the folders your movies, shows and music are in. Each starts scanning as soon as it's added.",
+    "added": "Added",
+    "addAnother": "Add another library",
+    "later": "Later"
   },
   "invite": {
     "documentTitle": "Invitation",

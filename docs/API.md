@@ -4244,7 +4244,7 @@ interface LiveTuner {                  // a connection in use
 | PUT | `/api/settings` | `admin` | partial `Settings` → `Settings` |
 | POST | `/api/settings/test` | `admin` | `{ service, api_key?, pin?, username?, password? }` → `{ ok, message, ms }` |
 | POST | `/api/settings/arr` | `admin` | `{ service: "radarr" \| "sonarr", url?, api_key? }` → `ArrOptions`: what Radarr or Sonarr offers requests |
-| POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
+| POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives, with `container`, whether Pley runs in one, and `mounts`, the folders mounted into it, which are among the roots). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
 | PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, jellyfin, jellyfin_on_web?, discovery, bonjour?, bonjour_adapters?, bonjour_host_name? }` → `Network` |
 

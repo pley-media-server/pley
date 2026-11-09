@@ -426,7 +426,8 @@
       "removePath": "Retirer {{path}}",
       "typePath": "…ou saisissez le chemin d’un dossier",
       "folderPath": "Chemin du dossier",
-      "layout": "Organisation recommandée : <path>{{layout}}</path>"
+      "layout": "Organisation recommandée : <path>{{layout}}</path>",
+      "nothingMounted": "Pley tourne dans un conteneur où aucun dossier de médias n’est encore monté. Montez le vôtre sur <path>/media</path> (avec Docker, <path>-v /vos/medias:/media:ro</path>), puis redémarrez le conteneur."
     }
   },
   "users": {

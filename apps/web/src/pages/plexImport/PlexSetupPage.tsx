@@ -16,7 +16,7 @@ export function PlexSetupPage() {
         <PlexImport
           leaveLabel={t("plexImport.startFresh")}
           goOnLabel={t("plexImport.startWatching")}
-          onLeave={() => void navigate("/settings/libraries?add=1", { replace: true })}
+          onLeave={() => void navigate("/setup/library", { replace: true })}
           onFinish={() => void navigate("/", { replace: true })}
         />
       </RequireAdmin>

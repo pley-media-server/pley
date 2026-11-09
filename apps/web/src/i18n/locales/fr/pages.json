@@ -72,7 +72,14 @@
     "fromPlex": "Importer mes bibliothèques Plex",
     "fromPlexHint": "Connectez-vous avec Plex et choisissez ce qui vient.",
     "fresh": "Partir de zéro",
-    "freshHint": "Ajoutez les dossiers de votre première bibliothèque."
+    "freshHint": "Ajoutez vos dossiers de médias."
+  },
+  "setupLibrary": {
+    "title": "Vos bibliothèques",
+    "subtitle": "Montrez à Pley les dossiers où sont vos films, séries et musique. Chacun commence à être analysé dès qu’il est ajouté.",
+    "added": "Ajoutées",
+    "addAnother": "Ajouter une autre bibliothèque",
+    "later": "Plus tard"
   },
   "invite": {
     "documentTitle": "Invitation",

@@ -422,7 +422,8 @@
       "removePath": "Remove {{path}}",
       "typePath": "…or type a folder path",
       "folderPath": "Folder path",
-      "layout": "Recommended layout: <path>{{layout}}</path>"
+      "layout": "Recommended layout: <path>{{layout}}</path>",
+      "nothingMounted": "Pley runs in a container, and no media folder is mounted into it yet. Mount yours at <path>/media</path> (with Docker, <path>-v /your/media:/media:ro</path>), then restart the container."
     }
   },
   "users": {

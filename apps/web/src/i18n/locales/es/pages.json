@@ -72,7 +72,14 @@
     "fromPlex": "Traer mis bibliotecas de Plex",
     "fromPlexHint": "Inicia sesión con Plex y elige qué viene.",
     "fresh": "Empezar de cero",
-    "freshHint": "Añade las carpetas de tu primera biblioteca."
+    "freshHint": "Añade tus carpetas de medios."
+  },
+  "setupLibrary": {
+    "title": "Tus bibliotecas",
+    "subtitle": "Muéstrale a Pley las carpetas donde están tus películas, series y música. Cada una empieza a analizarse en cuanto se añade.",
+    "added": "Añadidas",
+    "addAnother": "Añadir otra biblioteca",
+    "later": "Más tarde"
   },
   "invite": {
     "documentTitle": "Invitación",

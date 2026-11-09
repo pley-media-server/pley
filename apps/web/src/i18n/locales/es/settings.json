@@ -426,7 +426,8 @@
       "removePath": "Quitar {{path}}",
       "typePath": "…o escribe la ruta de una carpeta",
       "folderPath": "Ruta de la carpeta",
-      "layout": "Estructura recomendada: <path>{{layout}}</path>"
+      "layout": "Estructura recomendada: <path>{{layout}}</path>",
+      "nothingMounted": "Pley se ejecuta en un contenedor sin ninguna carpeta de medios montada todavía. Monta la tuya en <path>/media</path> (con Docker, <path>-v /tus/medios:/media:ro</path>) y reinicia el contenedor."
     }
   },
   "users": {

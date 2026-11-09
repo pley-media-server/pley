@@ -21,7 +21,7 @@ export function SetupStartPage() {
           </span>
           <ArrowRight className="size-4 shrink-0 text-subtle group-hover:text-accent" />
         </Link>
-        <Link to="/settings/libraries?add=1" replace className={choice}>
+        <Link to="/setup/library" className={choice}>
           <FolderPlus className="size-5 shrink-0 text-accent" />
           <span className="min-w-0 flex-1">
             <span className="block font-medium">{t("setupStart.fresh")}</span>

@@ -803,6 +803,67 @@ pub struct Listing {
     path: Option<String>,
     parent: Option<String>,
     entries: Vec<DirEntry>,
+    /// With the roots only: whether Pley runs in a container, and the
+    /// folders mounted into it, so the web app can say when no media is.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    container: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mounts: Option<Vec<String>>,
+}
+
+/// Where a container's own mounts are: Docker's `/etc/hosts`, `/proc` and
+/// `/dev`, NVIDIA's driver files, Podman's `/run/.containerenv`,
+/// Kubernetes' secrets. Media mounted there would be odd.
+const SYSTEM_FOLDERS: &[&str] =
+    &["/proc", "/sys", "/dev", "/etc", "/run", "/usr", "/var", "/tmp", "/lib", "/lib64", "/bin", "/sbin"];
+
+/// The folders mounted into a container, from `/proc/self/mountinfo`'s
+/// text: what someone gave Pley (`/media`, `/movies`), without the
+/// container's own mounts or Pley's data folder. A folder inside another
+/// that's listed is left out.
+fn mounted_folders(mountinfo: &str, data_dir: &Path) -> Vec<String> {
+    let mut points: Vec<PathBuf> = mountinfo
+        .lines()
+        .filter_map(|line| line.split(' ').nth(4))
+        .map(|point| PathBuf::from(unescape_mount(point)))
+        .filter(|point| {
+            point.parent().is_some()
+                && !point.starts_with(data_dir)
+                && !SYSTEM_FOLDERS.iter().any(|system| point.starts_with(system))
+        })
+        .collect();
+    points.sort();
+    points.dedup();
+    let mut kept: Vec<PathBuf> = Vec::new();
+    for point in points {
+        if !kept.iter().any(|outer| point.starts_with(outer)) {
+            kept.push(point);
+        }
+    }
+    kept.into_iter().map(|p| p.to_string_lossy().into_owned()).collect()
+}
+
+/// mountinfo writes a space, a tab, a newline and a backslash in a path as
+/// `\040`, `\011`, `\012` and `\134`.
+fn unescape_mount(point: &str) -> String {
+    let bytes = point.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let octal =
+            bytes.get(i + 1..i + 4).filter(|d| bytes[i] == b'\\' && d.iter().all(|c| (b'0'..=b'7').contains(c)));
+        match octal {
+            Some(d) => {
+                out.push((d[0] - b'0') * 64 + (d[1] - b'0') * 8 + (d[2] - b'0'));
+                i += 4;
+            }
+            None => {
+                out.push(bytes[i]);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn roots() -> Vec<DirEntry> {
@@ -840,9 +901,34 @@ pub struct FsQuery {
 /// a GET, so another site's link or picture could have the server open a
 /// folder of its choosing (on Windows, a share of its own, signing in to
 /// it). A POST's `Origin` says.
-pub async fn browse_fs(_admin: AdminUser, Json(query): Json<FsQuery>) -> ApiResult<Json<Listing>> {
+///
+/// The roots also say whether Pley runs in a container and what's mounted
+/// into it, and those folders are among the roots.
+pub async fn browse_fs(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Json(query): Json<FsQuery>,
+) -> ApiResult<Json<Listing>> {
     let Some(raw) = query.path.as_deref().map(str::trim).filter(|p| !p.is_empty()) else {
-        return Ok(Json(Listing { path: None, parent: None, entries: roots() }));
+        let data_dir = state.config.data_dir.clone();
+        let listing = crate::util::blocking(move || {
+            let mut entries = roots();
+            let container = network::in_container();
+            let mounts = match container {
+                true => std::fs::read_to_string("/proc/self/mountinfo")
+                    .map(|text| mounted_folders(&text, &data_dir))
+                    .unwrap_or_default(),
+                false => Vec::new(),
+            };
+            for mount in &mounts {
+                if !entries.iter().any(|e| &e.path == mount) {
+                    entries.push(DirEntry { name: mount.clone(), path: mount.clone() });
+                }
+            }
+            Ok(Listing { path: None, parent: None, entries, container: Some(container), mounts: Some(mounts) })
+        })
+        .await?;
+        return Ok(Json(listing));
     };
     let path = PathBuf::from(raw);
     if !path.is_absolute() {
@@ -865,9 +951,47 @@ pub async fn browse_fs(_admin: AdminUser, Json(query): Json<FsQuery>) -> ApiResu
             parent: path.parent().map(|p| p.to_string_lossy().into_owned()),
             path: Some(path.to_string_lossy().into_owned()),
             entries,
+            container: None,
+            mounts: None,
         })
     })
     .await
     .map_err(|e| AppError::bad_request(e.to_string()))?;
     Ok(Json(listing))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_containers_mounted_folders_are_told_from_its_own() {
+        // Docker with the Compose file's two folders, one with a space, and NVIDIA's files.
+        let docker = "\
+612 540 0:56 / / rw,relatime master:301 - overlay overlay rw,lowerdir=/var/lib/docker/overlay2/l/A
+613 612 0:58 / /proc rw,nosuid,nodev,noexec,relatime - proc proc rw
+614 612 0:59 / /dev rw,nosuid - tmpfs tmpfs rw,size=65536k,mode=755
+620 612 8:1 /srv/pley /config rw,relatime - ext4 /dev/sda1 rw
+621 612 8:17 /tank/media /media ro,relatime - ext4 /dev/sdb1 rw
+622 621 8:17 /tank/media/Movies /media/Movies ro,relatime - ext4 /dev/sdb1 rw
+623 612 8:17 /tank/Home\\040videos /home\\040videos ro,relatime - ext4 /dev/sdb1 rw
+624 612 8:1 /var/lib/docker/containers/x/resolv.conf /etc/resolv.conf rw,relatime - ext4 /dev/sda1 rw
+625 612 8:1 /var/lib/docker/containers/x/hosts /etc/hosts rw,relatime - ext4 /dev/sda1 rw
+626 612 8:1 /usr/bin/nvidia-smi /usr/bin/nvidia-smi ro,nosuid,nodev,relatime - ext4 /dev/sda1 rw
+627 612 0:25 /nvidia-persistenced/socket /run/nvidia-persistenced/socket rw - tmpfs tmpfs rw
+628 613 0:5 /driver/nvidia /proc/driver/nvidia rw - proc proc rw
+";
+        assert_eq!(mounted_folders(docker, Path::new("/config")), vec!["/home videos", "/media"]);
+
+        // Kubernetes adds its own, and nothing was mounted for media.
+        let kubernetes = "\
+1 0 0:56 / / rw - overlay overlay rw
+2 1 8:1 /pods/x/volumes/config /config rw - ext4 /dev/sda1 rw
+3 1 8:1 /pods/x/etc-hosts /etc/hosts rw - ext4 /dev/sda1 rw
+4 1 8:1 /pods/x/termination-log /dev/termination-log rw - ext4 /dev/sda1 rw
+5 1 0:61 / /var/run/secrets/kubernetes.io/serviceaccount ro - tmpfs tmpfs rw
+";
+        assert!(mounted_folders(kubernetes, Path::new("/config")).is_empty());
+        assert!(mounted_folders("", Path::new("/config")).is_empty());
+    }
 }

@@ -41,6 +41,12 @@ describes how they are made.
   by Bonjour, each shown on a row of its own to confirm or change.
   Settings › Server calls its languages the same way, Pley's language and
   Titles and summaries, and names the latter rather than showing codes.
+- Setup's Start fresh adds libraries on the setup card: one after another,
+  each scanning as soon as it's added and the next type chosen for it
+  (shows after movies), then Start watching, or Later. It used to leave
+  people in Settings › Libraries. In a container with no media folder
+  mounted, adding a library says so and how to mount one, and Browse
+  starts from the folders mounted into it.
 - Settings › Network says when Pley runs in a container on Docker's own
   network, where devices can't find it by themselves, and how to put it on
   the home network instead.
