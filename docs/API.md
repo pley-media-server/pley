@@ -4619,7 +4619,9 @@ interface ImportProgress {
   // titles found only by their ids, then what they bring) follow.
   first_pass_done: boolean;
   // During "scanning" (whose done and total count libraries): the library
-  // scanned now, or next in line, with its files read of those found.
+  // scanned now, or next in line, with its files read of those found. A
+  // library is matched as soon as its files are in, while the others are
+  // scanned; "matching" and "posters" are for those left once none is.
   scan: { library: string; phase: "queued" | "walking" | "probing"; done: number; total: number } | null;
   report: {
     finished_at: number;

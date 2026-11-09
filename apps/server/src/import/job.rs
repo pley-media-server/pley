@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::accounts::{self, MAX_LABEL_RULES, NO_PASSWORD};
 use crate::db::Db;
 use crate::events::{ScanPhase, ServerEvent};
+use crate::library::scanner::ScanStatus;
 use crate::library::{LibraryKind, get_library};
 use crate::state::AppState;
 use crate::store::picture_ext;
@@ -734,6 +735,14 @@ fn limits_of(filters: &[UserFilters], id: i64, region: &str) -> Limits {
     }
 }
 
+/// The scans of `paired` that are still finding their files.
+fn finding(state: &AppState, paired: &[Paired]) -> Vec<ScanStatus> {
+    paired
+        .iter()
+        .filter_map(|p| state.scanner.status_of(p.library_id).filter(|s| s.phase != ScanPhase::Metadata))
+        .collect()
+}
+
 async fn imported_profile(db: &Db, plex_id: i64) -> sqlx::Result<Option<i64>> {
     sqlx::query_scalar("SELECT user_id FROM import_accounts WHERE source = ? AND external_id = ?")
         .bind(SOURCE)
@@ -1007,20 +1016,9 @@ impl Run {
         // import made are scanned for their files only, and Plex's matches
         // go on them, so the fetch looks titles up by Plex's ids rather than
         // searching by their names.
-        self.wait_for_files(&paired).await?;
-        self.step(Step::Matching, paired.len() as u64);
+        let (matches, titles) = self.match_as_scanned(&paired, &folders).await?;
         let pley_libraries: Vec<i64> = paired.iter().map(|p| p.library_id).collect();
         let index = Index::load(&self.state.db, &pley_libraries).await?;
-        let mut matches = Matches::default();
-        let mut titles = Vec::new();
-        for library in &paired {
-            titles.push(self.find(library, &index, &folders, &mut matches).await?);
-            self.advance(1);
-        }
-        self.posters(&titles).await?;
-        for library in &paired {
-            self.state.events.send(ServerEvent::LibraryChanged { library_id: library.library_id });
-        }
         self.bring(bring, &paired, &people, &titles, &index, &matches).await?;
         self.importer.set(&self.state, self.admin, |p| p.first_pass_done = true);
         for person in &people {
@@ -1187,50 +1185,76 @@ impl Run {
         Ok(paired)
     }
 
-    /// Waits for the libraries' files: what's matched is what scans find.
-    /// A scan of a library the import made finds its files only; one
-    /// already running is waited for until its files are written, as it
-    /// starts on its metadata.
-    async fn wait_for_files(&self, paired: &[Paired]) -> ImportResult<()> {
-        let scanner = &self.state.scanner;
-        let finding = || {
-            paired
-                .iter()
-                .filter_map(|p| scanner.status_of(p.library_id).filter(|s| s.phase != ScanPhase::Metadata))
-                .collect::<Vec<_>>()
-        };
-        let waiting = finding().len();
-        if waiting == 0 {
-            return Ok(());
-        }
+    /// Matches each library with Plex's once its files are in: what's
+    /// matched is what scans find. A scan of a library the import made finds
+    /// its files only; one already running is waited for until its files are
+    /// written, as it starts on its metadata. A library is matched while the
+    /// others are still scanned, so that its titles show Plex's names, dates
+    /// added and posters as soon as they can; those left once nothing is
+    /// scanned are matched as steps of their own.
+    async fn match_as_scanned(
+        &mut self,
+        paired: &[Paired],
+        folders: &[Folder],
+    ) -> ImportResult<(Matches, Vec<Titles>)> {
+        let waiting = finding(&self.state, paired).len();
         let mut names = HashMap::new();
         for library in paired {
             if let Some(lib) = get_library(&self.state.db, library.library_id).await? {
                 names.insert(lib.id, lib.name);
             }
         }
-        self.step(Step::Scanning, waiting as u64);
+        if waiting > 0 {
+            self.step(Step::Scanning, waiting as u64);
+        }
+        let (mut matches, mut titles) = (Matches::default(), Vec::new());
+        let mut left: Vec<&Paired> = paired.iter().collect();
         loop {
             self.cancelled()?;
-            let left = finding();
+            let scans = finding(&self.state, paired);
+            if scans.is_empty() {
+                break;
+            }
             // One library is scanned at a time: the one under way, else the
             // next in line.
-            let now = left.iter().find(|s| s.phase != ScanPhase::Queued).or(left.first()).map(|s| ScanNow {
+            let now = scans.iter().find(|s| s.phase != ScanPhase::Queued).or(scans.first()).map(|s| ScanNow {
                 library: names.get(&s.library_id).cloned().unwrap_or_else(|| s.library_name.clone()),
                 phase: s.phase,
                 done: s.processed,
                 total: s.total,
             });
-            let done = (waiting - left.len().min(waiting)) as u64;
+            let done = (waiting - scans.len().min(waiting)) as u64;
             self.importer.set(&self.state, self.admin, |p| {
                 p.done = done;
                 p.scan = now;
             });
-            if left.is_empty() {
-                return Ok(());
+            let (ready, scanning): (Vec<&Paired>, Vec<&Paired>) =
+                left.into_iter().partition(|p| !scans.iter().any(|s| s.library_id == p.library_id));
+            left = scanning;
+            for library in ready {
+                let index = Index::load(&self.state.db, &[library.library_id]).await?;
+                let found = self.find(library, &index, folders, &mut matches).await?;
+                self.posters(std::slice::from_ref(&found), false).await?;
+                self.state.events.send(ServerEvent::LibraryChanged { library_id: library.library_id });
+                titles.push(found);
             }
             tokio::time::sleep(Duration::from_secs(2)).await;
         }
+        if !left.is_empty() {
+            self.step(Step::Matching, left.len() as u64);
+            let ids: Vec<i64> = left.iter().map(|p| p.library_id).collect();
+            let index = Index::load(&self.state.db, &ids).await?;
+            let first = titles.len();
+            for library in &left {
+                titles.push(self.find(library, &index, folders, &mut matches).await?);
+                self.advance(1);
+            }
+            self.posters(&titles[first..], true).await?;
+            for library in &left {
+                self.state.events.send(ServerEvent::LibraryChanged { library_id: library.library_id });
+            }
+        }
+        Ok((matches, titles))
     }
 
     /// Fetches the libraries' metadata, now that Plex's ids are on the
@@ -1619,7 +1643,8 @@ impl Run {
     /// replace these), or where it found nothing. One Plex won't give, that
     /// isn't a picture, or that Kometa drew its overlay on, is left to the
     /// fetch: Kometa draws its overlays again on Pley's own.
-    async fn posters(&self, titles: &[Titles]) -> ImportResult<()> {
+    /// `shown`: as a step of its own, else while another step shows.
+    async fn posters(&self, titles: &[Titles], shown: bool) -> ImportResult<()> {
         let thumbs: HashMap<i64, &str> =
             titles.iter().flat_map(|t| &t.posters).map(|(id, thumb)| (*id, thumb.as_str())).collect();
         let ids = serde_json::to_string(&thumbs.keys().collect::<Vec<_>>()).unwrap_or_default();
@@ -1633,7 +1658,9 @@ impl Run {
         if wanted.is_empty() {
             return Ok(());
         }
-        self.step(Step::Posters, wanted.len() as u64);
+        if shown {
+            self.step(Step::Posters, wanted.len() as u64);
+        }
         let (plex, server, store) = (&self.plex, &self.server, &self.state.store);
         let mut downloads = futures::stream::iter(wanted)
             .map(|id| {
@@ -1658,7 +1685,9 @@ impl Run {
                     .execute(&self.state.db.write)
                     .await?;
             }
-            self.advance(1);
+            if shown {
+                self.advance(1);
+            }
         }
         Ok(())
     }

@@ -6,6 +6,8 @@ mod common;
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use axum::Router;
@@ -400,6 +402,28 @@ async fn fake_plex() -> String {
     base
 }
 
+/// A transcoder that reads no file, as tests have none, and holds the TV
+/// library's until its flag is lowered, so that library is still scanned.
+async fn holding_transcoder() -> (String, Arc<AtomicBool>) {
+    let held = Arc::new(AtomicBool::new(true));
+    let app = Router::new()
+        .route(
+            "/v1/probe",
+            post(|State(held): State<Arc<AtomicBool>>, body: String| async move {
+                while body.contains("/tv/") && held.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                let error = json!({"code": "unavailable", "message": "no ffprobe here"});
+                (StatusCode::SERVICE_UNAVAILABLE, axum::Json(error)).into_response()
+            }),
+        )
+        .with_state(held.clone());
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    (base, held)
+}
+
 async fn finished(app: &TestApp, admin: &str) -> Value {
     for _ in 0..400 {
         let r = app.get("/api/import/plex", admin).await;
@@ -421,7 +445,12 @@ async fn one(app: &TestApp, sql: &'static str, bind: i64) -> i64 {
 #[tokio::test]
 async fn brings_libraries_people_and_what_they_watched() {
     let plex = fake_plex().await;
-    let app = TestApp::with_config(|c| c.plex_tv = plex.clone()).await;
+    let (transcoder, tv_held) = holding_transcoder().await;
+    let app = TestApp::with_config(|c| {
+        c.plex_tv = plex.clone();
+        c.transcoder_url = Some(transcoder);
+    })
+    .await;
     let admin = app.setup_admin().await;
     let admin_id: i64 =
         sqlx::query_scalar("SELECT id FROM users WHERE is_admin = 1").fetch_one(&app.state.db.read).await.unwrap();
@@ -547,6 +576,23 @@ async fn brings_libraries_people_and_what_they_watched() {
     .unwrap();
     let r = app.post("/api/import/plex/start", &admin, choices.clone()).await;
     assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+
+    // Movies is matched while TV is still scanned: its titles get Plex's
+    // dates added and posters without waiting for TV's files.
+    let alien: i64 =
+        sqlx::query_scalar("SELECT id FROM items WHERE title = 'Alien'").fetch_one(&app.state.db.read).await.unwrap();
+    for _ in 0..400 {
+        if one(&app, "SELECT poster IS NOT NULL FROM items WHERE id = ?", alien).await == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(one(&app, "SELECT poster IS NOT NULL FROM items WHERE id = ?", alien).await, 1);
+    assert_eq!(one(&app, "SELECT added_at FROM items WHERE id = ?", alien).await, 1_000_000_000);
+    let scanning = app.get("/api/import/plex", &admin).await.body;
+    assert_eq!((&scanning["step"], &scanning["scan"]["library"]), (&json!("scanning"), &json!("TV")), "{scanning:?}");
+    tv_held.store(false, Ordering::SeqCst);
+
     let done = finished(&app, &admin).await;
     assert_eq!(done["state"], "done", "{done:?}");
     assert!(!serde_json::to_string(&done).unwrap().contains(OWNER), "no token in the report");

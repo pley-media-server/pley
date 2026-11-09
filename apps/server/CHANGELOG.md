@@ -32,7 +32,8 @@ describes how they are made.
   (docs/MOVING_FROM_PLEX.md). While it waits for the new libraries'
   scans, it shows which library is scanned and how many of its files are
   read, and titles found by their files show with Plex's names, years,
-  summaries and posters until Pley's own details replace them.
+  summaries, posters and dates added as soon as their library is scanned,
+  until Pley's own details replace them.
 - Home tells administrators how far new libraries are: the Plex import's
   step while it runs, or a library's first scan (its files found, read,
   then its details fetched).

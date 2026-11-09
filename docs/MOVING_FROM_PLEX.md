@@ -41,9 +41,11 @@ never changes anything on Plex.
   in Pley: titles, summaries, years, content ratings, genres and the
   like.
 
-Titles found by their files show with Plex's names, years, summaries and
-posters until Pley fetches its own details, which replace them; they keep
-Plex's where Pley's search finds nothing. Other artwork doesn't come
+Titles found by their files show with Plex's names, years, summaries,
+posters and dates added as soon as their library is scanned, while the
+other libraries still are. Pley's own details replace the names, years,
+summaries and posters when it fetches them; titles keep Plex's where
+Pley's search finds nothing. Other artwork doesn't come
 over, and seasons and episodes get their pictures from the fetch.
 
 The last three are choices on the import's "What to bring" step, all on
