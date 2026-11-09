@@ -11,6 +11,7 @@ const SETTINGS = {
   language: "",
   tmdb_api_key: "",
   metadata_language: "en-US",
+  country: "",
   tv_metadata: "auto",
   tvdb_api_key: "",
   tvdb_pin: "",
@@ -58,6 +59,31 @@ describe("ServerSettings", () => {
     expect(await screen.findByText("Settings saved")).toBeInTheDocument();
     await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ third_party_apps: true }));
     expect(screen.getByRole("switch", { name: "Apps by other publishers" })).toBeChecked();
+  });
+
+  it("shows the metadata language's country until one is chosen, and saves the one chosen", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, metadata_language: "en-GB" }),
+      "GET /api/system": () => ({}),
+      "GET /api/ratings/systems": () => ({
+        region: "GB",
+        systems: [
+          { country: "GB", name: "United Kingdom", ratings: [] },
+          { country: "NZ", name: "New Zealand", ratings: [] },
+          { country: "US", name: "United States", ratings: [] },
+        ],
+      }),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
+    });
+    renderWithProviders(<ServerSettings />);
+    const country = await screen.findByLabelText("Country");
+    await screen.findByRole("option", { name: "New Zealand" });
+    expect(country).toHaveValue("GB");
+
+    await user.selectOptions(country, "NZ");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ country: "NZ" }));
   });
 
   it("turns reading NFO files off", async () => {

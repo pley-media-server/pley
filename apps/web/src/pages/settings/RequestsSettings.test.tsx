@@ -11,6 +11,7 @@ const SETTINGS = {
   language: "",
   tmdb_api_key: "t0k",
   metadata_language: "en-US",
+  country: "",
   tv_metadata: "auto",
   tvdb_api_key: "",
   tvdb_pin: "",

@@ -33,6 +33,8 @@
     "general": "Général",
     "serverName": "Nom du serveur",
     "serverNameHint": "Affiché sur l’écran de connexion.",
+    "country": "Pays",
+    "countryHint": "Sert aux classifications par âge des titres, aux limites d’âge des profils et à la liste Bientôt au cinéma de Découvrir.",
     "metadata": {
       "title": "Métadonnées",
       "description": "Affiches, résumés, notes, distribution et titres des épisodes.",

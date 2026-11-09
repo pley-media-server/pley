@@ -33,6 +33,8 @@
     "general": "General",
     "serverName": "Nombre del servidor",
     "serverNameHint": "Se muestra en la pantalla de inicio de sesión.",
+    "country": "País",
+    "countryHint": "Se usa para las clasificaciones por edad de los títulos, los límites de edad de los perfiles y la lista Próximamente en cines de Descubrir.",
     "metadata": {
       "title": "Metadatos",
       "description": "Pósteres, sinopsis, valoraciones, reparto y títulos de episodios.",

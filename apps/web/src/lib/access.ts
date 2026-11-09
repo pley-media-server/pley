@@ -55,6 +55,18 @@ export function systemChoices(systems: RatingSystems | undefined): { value: stri
     .sort((a, b) => collator.compare(a.label, b.label));
 }
 
+/** The country of a metadata language ("GB" for "en-GB"), the US's without one, as the server reads it. */
+export function regionOf(language: string): string {
+  return language.split(/[-_]/)[1]?.toUpperCase() || "US";
+}
+
+/** The countries a server's ratings can be read as: those whose ratings Pley knows, and `current`. */
+export function countryChoices(systems: RatingSystems | undefined, current: string): { value: string; label: string }[] {
+  const choices = systemChoices(systems);
+  if (current && !choices.some((c) => c.value === current)) return [{ value: current, label: systemName(current) }, ...choices];
+  return choices;
+}
+
 /** How an age limit is set: what the age limit select shows. */
 export type LimitMode = "none" | "rating" | "age" | "birthday";
 

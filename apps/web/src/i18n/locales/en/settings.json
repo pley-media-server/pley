@@ -33,6 +33,8 @@
     "general": "General",
     "serverName": "Server name",
     "serverNameHint": "Shown on the sign-in screen.",
+    "country": "Country",
+    "countryHint": "Used for titles' age ratings, profiles' age limits and Discover's Coming to cinemas list.",
     "metadata": {
       "title": "Metadata",
       "description": "Posters, summaries, ratings, cast and episode titles.",

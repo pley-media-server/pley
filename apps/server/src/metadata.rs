@@ -825,9 +825,9 @@ impl MetadataAgent {
         Err(TmdbError::Other(anyhow::anyhow!("TMDB rate limit")))
     }
 
-    /// The country of `metadata_language` ("US" for "en-US"; "US" without one).
+    /// The server's country ([`crate::ratings::region_in`]).
     pub(crate) fn region(&self) -> String {
-        crate::ratings::region_of(&self.settings.get().metadata_language)
+        crate::ratings::region_in(&self.settings.get())
     }
 
     async fn find_by_imdb(&self, imdb: &str, tv: bool) -> Result<Option<i64>, TmdbError> {

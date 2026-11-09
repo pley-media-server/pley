@@ -48,7 +48,7 @@ const AGE_SYSTEM: &str = "age";
 
 #[derive(Serialize)]
 pub struct RatingSystems {
-    /// The metadata region (ISO 3166-1 alpha-2): its system, when it has
+    /// The server's country (ISO 3166-1 alpha-2): its system, when it has
     /// one, is where an age limit is picked first.
     region: String,
     systems: Vec<RatingSystem>,
@@ -266,7 +266,7 @@ pub struct UserPatch {
     library_ids: Option<Vec<i64>>,
     #[serde(default, deserialize_with = "nullable")]
     max_age: Option<Option<i64>>,
-    /// `null`: the metadata region's.
+    /// `null`: the server's country's.
     #[serde(default, deserialize_with = "nullable")]
     max_age_system: Option<Option<String>>,
     /// "2015-03": the age limit follows the profile's age from now on;

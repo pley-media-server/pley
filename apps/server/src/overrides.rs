@@ -326,7 +326,7 @@ async fn wanted(
         }
         let rating_edited = edited("content_rating");
         values.extend(edits);
-        // A rating edited is read with the metadata region's ratings,
+        // A rating edited is read with the server's country's ratings,
         // unless it's written with its country ("GB:15", Plex's "nz/R"):
         // then it's that country's, as an NFO file's is.
         if rating_edited {

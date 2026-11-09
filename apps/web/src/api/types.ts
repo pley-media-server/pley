@@ -977,6 +977,8 @@ export interface Settings {
   language: string;
   tmdb_api_key: string;
   metadata_language: string;
+  /** Whose ratings are read ("NZ"); `""`: the metadata language's country. */
+  country: string;
   tv_metadata: TvMetadata;
   tvdb_api_key: string;
   /** Subscriber PIN, for TheTVDB keys that need one. */

@@ -28,6 +28,12 @@ describes how they are made.
   rest runs, and Settings › Libraries shows the import, then its report.
   Running it again adds what's new and never takes anything away
   (docs/MOVING_FROM_PLEX.md).
+- Settings › Server has a Country, used for titles' age ratings,
+  profiles' age limits and Discover's Coming to cinemas list. It was the
+  metadata language's country, and still is until one is chosen:
+  Australia, New Zealand, Canada and Ireland can now have their own
+  ratings, and a server can have summaries in one language and another
+  country's ratings.
 
 ## [0.1.9] - 2026-11-08
 

@@ -216,7 +216,7 @@ interface User {
   library_ids: Id[];
   max_age: number | null;           // age limit for movies and shows; null = none
   max_age_system?: string | null;   // in /api/users: the rating system the limit is shown in, a country
-                                    // ("GB") or "age"; null = the metadata region's (see Access rules)
+                                    // ("GB") or "age"; null = the server's country's (see Access rules)
   birth_month?: string;             // in /api/users only, when the limit follows a birthday: "2015-03"
   show_labels?: string[];           // in /api/users only: labels whose titles it sees above its age limit
   hide_labels?: string[];           // in /api/users only: labels whose titles it never sees (see Access rules)
@@ -307,7 +307,7 @@ interface ItemDetail extends ItemSummary {
   studio: string | null;
   content_rating: string | null;    // "PG-13"
   content_rating_country?: string;  // "US": the country it's from, when known; its age is read with that
-                                    // country's ratings, else the metadata region's
+                                    // country's ratings, else the server's country's
   tmdb_id: number | null;
   imdb_id: string | null;
   locked_fields: string[];          // fields an administrator edited (PATCH /api/items/{id}), and "match"
@@ -1513,7 +1513,7 @@ content rating allows that age:
 - a rating is read with its country's ratings, since some mean different
   ages in different countries ("A" is for all ages in Denmark and for
   adults in India): the country TMDB or TheTVDB gave it under, or that an
-  NFO file wrote before it (`GB:15`), else the metadata region's (a rating
+  NFO file wrote before it (`GB:15`), else the server's country's (a rating
   typed by hand, a bare one from an NFO file). 29 countries' ratings are
   known, films' and TV's apart where they differ (Canada's PG is 10 for a
   film and 8 on TV); others go by US ratings and the number in them;
@@ -1546,7 +1546,7 @@ artwork, streams and the compatibility APIs.
 The limit is an age, whatever the system it's picked in. `max_age_system`
 says which system it's shown in: a country of the table below ("GB",
 where 12 shows as "12, 12A"), or `age` for a plain age; `null` is the
-metadata region's. A limit no rating of the system has (8 in the US)
+server's country's. A limit no rating of the system has (8 in the US)
 shows as an age. An unknown system is `400`.
 
 A limit can follow a birthday instead: `birth_month` ("2015-03", the month
@@ -1560,7 +1560,7 @@ Invitations have fixed limits only.
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/labels` | `admin` | `{ label, items, rules }[]`: every label on a title or in a profile's or invitation's rules, by name, with how many titles carry it and how many rules name it |
-| GET | `/api/ratings/systems` | `user` | `{ region, systems: { country, name, ratings: { name, age, kind: "film" \| "tv" \| null }[] }[]}`: the metadata region (`"GB"`) and each country's ratings, youngest first, as ages are read from them. A name is the board's own, or its shortest when that's a sentence; `kind` null is for films and TV alike. |
+| GET | `/api/ratings/systems` | `user` | `{ region, systems: { country, name, ratings: { name, age, kind: "film" \| "tv" \| null }[] }[]}`: the server's country (`"GB"`) and each country's ratings, youngest first, as ages are read from them. A name is the board's own, or its shortest when that's a sentence; `kind` null is for films and TV alike. |
 
 ## Libraries
 
@@ -3015,7 +3015,7 @@ An app's token without the route's scope is refused before all of it
 - **Lists** (`/api/discover/…`): up to 20 titles a page in TMDB's order,
   `page` from 1 (default) to 500. `trending`: this week's movies and shows;
   `movies` and `shows`: the most popular; `upcoming`: movies coming to
-  cinemas in the server's region (`metadata_language`'s country);
+  cinemas in the server's country (`country`, else `metadata_language`'s);
   `anime`: the most popular anime shows. Adult titles are left out for
   everyone (a title page and asking answer `404` to all but managers).
   TMDB's answers are reused for an hour, details for six. For an account
@@ -3296,7 +3296,7 @@ interface DiscoverDetail extends DiscoverTitle {
   genres: string[];
   release_date: string | null;      // "2024-05-01": a movie's release, a show's first air date
   runtime_minutes: number | null;   // movies
-  certification: string | null;     // "PG-13", "TV-MA": the server's region's
+  certification: string | null;     // "PG-13", "TV-MA": the server's country's
   network: string | null;           // a show's first network, a movie's first studio
   show_status: string | null;       // shows: TMDB's ("Returning Series", "Ended")
   anime: boolean;                   // TMDB's "anime" keyword, or Japanese animation: anime's folder and profile
@@ -4357,6 +4357,8 @@ interface Settings {
   language: "" | "en" | "fr" | "es"; // the server language (see Language); "" = not chosen, English
   tmdb_api_key: string;             // "" = movies only from file names and local artwork
   metadata_language: string;        // "en-US" (TMDB and TheTVDB; TVmaze is English)
+  country: string;                  // "NZ" (ISO 3166-1 alpha-2): whose ratings are read, and the systems
+                                    // age limits are chosen from; "" = metadata_language's country ("US" without one)
   tv_metadata: "auto" | "tmdb" | "tvdb" | "tvmaze"; // TV source. "auto" (default): TMDB if it has a key,
                                     // else TheTVDB if it has one, else TVmaze (no key needed).
                                     // "tmdb" or "tvdb" without their key: 400. A new source refetches every show

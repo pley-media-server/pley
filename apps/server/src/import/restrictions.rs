@@ -53,7 +53,7 @@ struct Rule {
 }
 
 /// The limits of a user with these rules (any may be empty). `region` is
-/// the metadata region's country, for ratings that don't say theirs.
+/// the server's country, for ratings that don't say theirs.
 pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limits {
     let rules = [(read(movies), Kind::Film), (read(television), Kind::Tv), (read(music), Kind::Film)];
     let mut out = Limits::default();

@@ -1481,7 +1481,7 @@ struct NfoContext {
     unavailable: Vec<PathBuf>,
     /// The size and modification time of the NFO files the walk listed.
     listed: HashMap<PathBuf, (i64, i64)>,
-    /// The metadata region, whose rating is taken of several countries'.
+    /// The server's country, whose rating is taken of several countries'.
     region: String,
 }
 

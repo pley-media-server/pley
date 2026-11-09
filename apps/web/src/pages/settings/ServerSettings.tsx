@@ -4,9 +4,11 @@ import { appKeys } from "@/api/apps";
 import { keys, useSettings, useSystemInfo, useUsers, useWatchingHours } from "@/api/hooks";
 import type { LibraryWork, Settings, TvMetadata } from "@/api/types";
 import { useAuth } from "@/auth";
+import { CountrySelect } from "@/components/CountrySelect";
 import { Select, TextInput, Toggle } from "@/components/ui";
 import { LanguageOptions } from "@/i18n/LanguageOptions";
 import { Trans, useTranslation } from "react-i18next";
+import { regionOf } from "@/lib/access";
 import { formatTimestamp } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { Group, Link, Note, Row, SecretInput, SettingsForm, TestButton, useSettingsForm } from "./SettingsForm";
@@ -19,6 +21,7 @@ const KEYS = [
   "language",
   "tmdb_api_key",
   "metadata_language",
+  "country",
   "tv_metadata",
   "tvdb_api_key",
   "tvdb_pin",
@@ -129,6 +132,10 @@ export function ServerSettings() {
                 <Select id="server-language" value={form.language || "en"} onChange={(e) => set("language", e.target.value)}>
                   <LanguageOptions />
                 </Select>
+              </Row>
+              <Row label={t("server.country")} hint={t("server.countryHint")} htmlFor="server-country">
+                {/* The metadata language's until an administrator picks one (an empty setting). */}
+                <CountrySelect id="server-country" value={form.country || regionOf(form.metadata_language)} onChange={(v) => set("country", v)} />
               </Row>
             </Group>
 

@@ -65,7 +65,7 @@ pub struct UserDto {
     pub max_age: Option<i64>,
     /// The rating system `max_age` was chosen in and is shown in (see
     /// `GET /api/ratings/systems`): a country, or "age"; `None`: the
-    /// metadata region's.
+    /// server's country's.
     pub max_age_system: Option<String>,
     /// For administrators only (see [`for_administrators`]): the month and
     /// year the profile was born ("2015-03") when its age limit is its age.
