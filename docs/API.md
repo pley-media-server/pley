@@ -4546,9 +4546,9 @@ its file (through the folders' mapping, with the same size), then by its
 TMDB, IMDb or TheTVDB id (an episode by its show's and its numbers),
 never by its title. Music is matched by file only. Movies, shows and
 episodes found take Plex's title, year and summary where Pley hasn't
-fetched its own (or found none), and movies and shows Plex's poster,
-asked of Plex's picture transcoder for the server's own pictures only and
-kept only as JPEG, PNG, WebP or GIF. None of these routes are open to
+fetched its own (or found none), and movies and shows Plex's poster, as
+the server stored it (its own pictures only), kept only as JPEG, PNG,
+WebP or GIF and never one Kometa drew its overlay on. None of these routes are open to
 apps.
 
 | Method | Path | Who | What |
