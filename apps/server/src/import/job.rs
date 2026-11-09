@@ -1576,8 +1576,9 @@ impl Run {
 
     /// Plex's posters for the movies and shows found that have none yet,
     /// so that they show before the fetch gets to them (its posters
-    /// replace these), or where it found nothing. One Plex won't give, or
-    /// that isn't a picture, is left to the fetch.
+    /// replace these), or where it found nothing. One Plex won't give, that
+    /// isn't a picture, or that Kometa drew its overlay on, is left to the
+    /// fetch: Kometa draws its overlays again on Pley's own.
     async fn posters(&self, titles: &[Titles]) -> ImportResult<()> {
         let thumbs: HashMap<i64, &str> =
             titles.iter().flat_map(|t| &t.posters).map(|(id, thumb)| (*id, thumb.as_str())).collect();
@@ -1599,6 +1600,9 @@ impl Run {
                 let thumb = thumbs[&id];
                 async move {
                     let bytes = plex.poster(server, thumb).await.ok()?;
+                    if crate::images::has_overlay_mark(&bytes) {
+                        return None;
+                    }
                     let blob = store.put(&bytes, picture_ext(&bytes)?).await.ok()?;
                     Some((id, blob))
                 }

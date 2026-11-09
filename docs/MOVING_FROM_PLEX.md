@@ -51,8 +51,8 @@ at first. If you use Kometa, some of what it made in Plex comes over this
 way: it locks the fields it sets, such as content ratings, and its
 collections are collections like any. Point Kometa at Pley afterwards
 (see [Compatibility](COMPATIBILITY.md)) and it carries on there, its
-overlays included: its Overlay label stays behind, so it draws them again
-on Pley's posters.
+overlays included: its Overlay label and the posters it drew them on stay
+behind, so it draws them again on Pley's posters.
 
 ## How titles are found
 

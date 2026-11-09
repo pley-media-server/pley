@@ -51,7 +51,8 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
                    "Guid": [{"id": "tmdb://289"}], "Media": file("/plexdata/movies/Casablanca (1942).mkv", 4096)}),
         ],
         ("2", "2") => {
-            // Found only through its episodes, which come after it.
+            // Found only through its episodes, which come after it. Its
+            // poster has Kometa's overlay drawn on it.
             vec![json!({"ratingKey": "200", "type": "show", "title": "Show", "summary": "A show.",
                         "thumb": "/library/metadata/200/thumb/1", "Guid": [{"id": "tvdb://999"}]})]
         }
@@ -157,6 +158,17 @@ fn png(width: u32, height: u32) -> Vec<u8> {
         .write_to(&mut out, image::ImageFormat::Png)
         .unwrap();
     out.into_inner()
+}
+
+/// A poster as Kometa uploads one once it has drawn its overlay: marked so
+/// in its EXIF.
+fn overlaid_jpeg() -> Vec<u8> {
+    use image::ImageEncoder;
+    let mut out = Vec::new();
+    let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut out);
+    encoder.set_exif_metadata(pley::images::overlay_exif()).unwrap();
+    encoder.encode_image(&image::RgbImage::new(60, 90)).unwrap();
+    out
 }
 
 fn picture(bytes: Vec<u8>) -> Response {
@@ -275,15 +287,16 @@ async fn fake_plex() -> String {
             }),
         )
         .route("/library/sections/{section}/all", get(all))
-        // Posters, through the server's picture transcoder (`/photo/:/transcode`).
+        // Posters, as they were stored.
         .route(
-            "/photo/{colon}/transcode",
-            get(|Query(q): Query<HashMap<String, String>>, headers: HeaderMap| async move {
+            "/library/metadata/{key}/thumb/{version}",
+            get(|Path((key, _)): Path<(String, String)>, headers: HeaderMap| async move {
                 if token(&headers) != OWNER_SERVER {
                     return StatusCode::UNAUTHORIZED.into_response();
                 }
-                match q.get("url").map(String::as_str) {
-                    Some("/library/metadata/101/thumb/1" | "/library/metadata/200/thumb/1") => picture(png(60, 90)),
+                match key.as_str() {
+                    "101" => picture(png(60, 90)),
+                    "200" => picture(overlaid_jpeg()),
                     _ => ([(header::CONTENT_TYPE, "text/html")], "<html></html>").into_response(),
                 }
             }),
@@ -522,7 +535,8 @@ async fn brings_libraries_people_and_what_they_watched() {
     let report = &done["report"];
     // Plex's details and posters where Pley has nothing better (no metadata
     // fetched here, Alien not found by its search), but not over Brazil's
-    // NFO file; a poster only where Plex gave a picture of its own.
+    // NFO file; a poster only where Plex gave a picture of its own, and not
+    // the show's, which Kometa drew its overlay on.
     let titles: Vec<(String, Option<i64>, Option<String>, bool)> = sqlx::query_as(
         "SELECT title, year, summary, poster IS NOT NULL FROM items
          WHERE kind IN ('movie', 'show', 'episode') ORDER BY kind, title",
@@ -538,7 +552,7 @@ async fn brings_libraries_people_and_what_they_watched() {
             ("Two", None, None, false),
             ("Alien", Some(1979), Some("Hand-written."), true),
             ("Brazil", Some(1985), None, false),
-            ("Show", Some(2015), Some("A show."), true),
+            ("Show", Some(2015), Some("A show."), false),
         ]
     );
     assert_eq!(report["libraries"][0]["matched"], 2);

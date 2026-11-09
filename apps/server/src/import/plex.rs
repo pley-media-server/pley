@@ -371,22 +371,17 @@ impl Plex {
         Ok(c.media_container.metadata.into_iter().next())
     }
 
-    /// Poster `thumb`, as a listing gives it, sized for a poster by the
-    /// server's picture transcoder: at most [`MAX_ANSWER`] bytes of
-    /// whatever it answers (the caller checks it's a picture). Only the
-    /// server's own pictures are asked for, never an address elsewhere,
-    /// which the transcoder would fetch.
+    /// Poster `thumb`, as a listing gives it, as the server stored it: at
+    /// most [`MAX_ANSWER`] bytes of whatever it answers (the caller checks
+    /// it's a picture). The stored file, not the picture transcoder's copy,
+    /// as only it keeps the EXIF that says Kometa drew an overlay on it.
+    /// Only the server's own pictures are asked for, never an address
+    /// elsewhere.
     pub async fn poster(&self, server: &Server, thumb: &str) -> PlexResult<Vec<u8>> {
         if !thumb.starts_with("/library/") || thumb.contains("://") || thumb.contains("..") {
             return Err(PlexError::Unreachable("not one of the server's pictures".into()));
         }
-        let mut url = server.base.join("/photo/:/transcode").map_err(|_| PlexError::Unreachable("bad path".into()))?;
-        url.query_pairs_mut()
-            .append_pair("width", "600")
-            .append_pair("height", "900")
-            .append_pair("minSize", "1")
-            .append_pair("upscale", "0")
-            .append_pair("url", thumb);
+        let url = server.base.join(thumb).map_err(|_| PlexError::Unreachable("bad path".into()))?;
         self.send(Method::GET, url, Some(&server.token)).await
     }
 
