@@ -172,6 +172,32 @@ pub async fn create(
 
 /// Adds a library and starts its first scan.
 pub(crate) async fn add(state: &AppState, name: &str, kind: LibraryKind, paths: &[String]) -> ApiResult<i64> {
+    let id = insert(state, name, kind, paths).await?;
+    state.scanner.enqueue(id, false);
+    announce(state).await;
+    Ok(id)
+}
+
+/// Adds a library whose first scan finds its files only: the Plex import
+/// asks for the metadata once Plex's matches are in.
+pub(crate) async fn add_files_first(
+    state: &AppState,
+    name: &str,
+    kind: LibraryKind,
+    paths: &[String],
+) -> ApiResult<i64> {
+    let id = insert(state, name, kind, paths).await?;
+    state.scanner.enqueue_files(id);
+    announce(state).await;
+    Ok(id)
+}
+
+async fn announce(state: &AppState) {
+    state.watcher.reload().await;
+    state.events.send(ServerEvent::LibrariesChanged);
+}
+
+async fn insert(state: &AppState, name: &str, kind: LibraryKind, paths: &[String]) -> ApiResult<i64> {
     let name = name.trim();
     if name.is_empty() || name.chars().count() > 100 {
         return Err(AppError::bad_request("library name must be 1-100 characters"));
@@ -189,9 +215,6 @@ pub(crate) async fn add(state: &AppState, name: &str, kind: LibraryKind, paths: 
     .bind(now())
     .fetch_one(&state.db.write)
     .await?;
-    state.scanner.enqueue(id, false);
-    state.watcher.reload().await;
-    state.events.send(ServerEvent::LibrariesChanged);
     Ok(id)
 }
 

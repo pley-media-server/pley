@@ -4590,9 +4590,13 @@ interface ImportChoices {
 interface ImportProgress {
   state: "idle" | "running" | "done" | "failed" | "cancelled";
   step: "scanning" | "profiles" | "matching" | "labels" | "edits" | "collections" | "watch_state" | "history"
-      | "playlists" | null;
+      | "playlists" | "fetching" | "matching_again" | null;
   done: number; total: number;
   error: string | null;
+  // What was found by file has come over (watched titles, resume points,
+  // labels…); "fetching" the libraries' metadata and "matching_again" (the
+  // titles found only by their ids, then what they bring) follow.
+  first_pass_done: boolean;
   report: {
     finished_at: number;
     outcome: "done" | "failed" | "cancelled";   // kept with the report, so it's known after a restart

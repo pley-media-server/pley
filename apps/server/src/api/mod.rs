@@ -38,7 +38,7 @@ use tower_http::trace::TraceLayer;
 use crate::error::AppError;
 use crate::state::AppState;
 
-pub(crate) use libraries::{add as add_library, validate_paths as validate_library_paths};
+pub(crate) use libraries::{add_files_first as add_library_files_first, validate_paths as validate_library_paths};
 
 pub fn router(state: AppState) -> Router {
     let api = Router::new()

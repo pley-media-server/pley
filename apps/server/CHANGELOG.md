@@ -20,8 +20,11 @@ describes how they are made.
   watched titles, resume points, ratings and plays, then shows what came
   over. Collections and playlists come too, and Plex's matches and the
   fields edited in Plex as Fix Match and edits in Pley; a "What to bring"
-  step turns any of these off. Running it again adds what's new and never takes anything away
-  (docs/MOVING_FROM_PLEX.md).
+  step turns any of these off. What's found by its file comes over before
+  any posters or details are fetched, so watch history is there within
+  minutes, and Plex's matches mean titles are fetched by their ids rather
+  than searched for by name. Running it again adds what's new and never
+  takes anything away (docs/MOVING_FROM_PLEX.md).
 
 ## [0.1.9] - 2026-11-08
 

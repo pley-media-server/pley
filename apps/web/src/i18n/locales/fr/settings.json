@@ -927,7 +927,9 @@
         "history": "Import des lectures de chacun",
         "edits": "Import des correspondances et des modifications",
         "collections": "Import des collections",
-        "playlists": "Import des listes de lecture"
+        "playlists": "Import des listes de lecture",
+        "fetching": "Récupération des affiches et des détails",
+        "matching_again": "Recherche des autres titres de Plex"
       },
       "stop": "Arrêter l’import",
       "stopTitle": "Arrêter l’import ?",

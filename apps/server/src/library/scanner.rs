@@ -56,6 +56,19 @@ pub struct ScanStatus {
 struct ScanRequest {
     library_id: i64,
     force: bool,
+    /// Walk the folders and write what changed.
+    files: bool,
+    /// Then fetch metadata for the titles that have none.
+    metadata: bool,
+}
+
+impl ScanRequest {
+    /// Two requests for one library as one: what either asked for.
+    fn merge(&mut self, other: ScanRequest) {
+        self.force |= other.force;
+        self.files |= other.files;
+        self.metadata |= other.metadata;
+    }
 }
 
 pub struct Scanner {
@@ -180,7 +193,25 @@ impl Scanner {
         self.failures.lock().backing_off(library_id, interval, now())
     }
 
+    /// Scans a library: its files, then metadata for what has none.
     pub fn enqueue(&self, library_id: i64, force: bool) {
+        self.request(ScanRequest { library_id, force, files: true, metadata: true });
+    }
+
+    /// Scans a library's files only, leaving metadata for later: the Plex
+    /// import brings Plex's matches first, so the fetch finds their ids.
+    pub fn enqueue_files(&self, library_id: i64) {
+        self.request(ScanRequest { library_id, force: false, files: true, metadata: false });
+    }
+
+    /// Fetches metadata for a library's titles that have none, without
+    /// walking its folders again.
+    pub fn enqueue_metadata(&self, library_id: i64) {
+        self.request(ScanRequest { library_id, force: false, files: false, metadata: true });
+    }
+
+    fn request(&self, req: ScanRequest) {
+        let library_id = req.library_id;
         self.status.lock().entry(library_id).or_insert_with(|| ScanStatus {
             library_id,
             library_name: String::new(),
@@ -189,7 +220,7 @@ impl Scanner {
             total: 0,
             started_at: now(),
         });
-        let _ = self.queue.send(ScanRequest { library_id, force });
+        let _ = self.queue.send(req);
         self.events.send(ServerEvent::ScanProgress { library_id, phase: ScanPhase::Queued, processed: 0, total: 0 });
     }
 
@@ -210,6 +241,11 @@ impl Scanner {
         self.status.lock().contains_key(&library_id)
     }
 
+    /// Where a library's scan is, while it's queued or running.
+    pub fn status_of(&self, library_id: i64) -> Option<ScanStatus> {
+        self.status.lock().get(&library_id).cloned()
+    }
+
     async fn worker(self: Arc<Self>, mut rx: mpsc::UnboundedReceiver<ScanRequest>) {
         let mut pending: Vec<ScanRequest> = Vec::new();
         loop {
@@ -221,13 +257,13 @@ impl Scanner {
             }
             while let Ok(req) = rx.try_recv() {
                 match pending.iter_mut().find(|p| p.library_id == req.library_id) {
-                    Some(existing) => existing.force |= req.force,
+                    Some(existing) => existing.merge(req),
                     None => pending.push(req),
                 }
             }
             let req = pending.remove(0);
             let started = Instant::now();
-            let result = self.scan(req.library_id, req.force).await;
+            let result = self.scan(req).await;
             self.failures.lock().record(req.library_id, result.is_ok(), now());
             match result {
                 Ok(Some((t, p))) => tracing::info!(
@@ -280,14 +316,63 @@ impl Scanner {
         self.events.send(ServerEvent::ScanProgress { library_id: lib.id, phase, processed, total });
     }
 
-    async fn scan(&self, library_id: i64, force: bool) -> anyhow::Result<Option<(Totals, Phases)>> {
+    async fn scan(&self, req: ScanRequest) -> anyhow::Result<Option<(Totals, Phases)>> {
+        let ScanRequest { library_id, force, .. } = req;
         let Some(lib) = get_library(&self.db, library_id).await? else {
             return Ok(None);
         };
+        self.events.send(ServerEvent::ScanStarted { library_id });
+        let (totals, mut phases, processed, total) =
+            if req.files { self.scan_files(&lib, force).await? } else { (Totals::default(), Phases::default(), 0, 0) };
+
+        let mut phase = Instant::now();
+        if req.metadata && self.metadata.enabled_for(lib.kind()) {
+            self.set_status(&lib, ScanPhase::Metadata, 0, 0);
+            let progress = |done: u64, total: u64| self.set_status(&lib, ScanPhase::Metadata, done, total);
+            if let Err(err) = self.metadata.refresh_library(&lib, force, &progress).await {
+                tracing::warn!("metadata refresh for library {} failed: {err:#}", lib.id);
+            }
+            self.events.send(ServerEvent::LibraryChanged { library_id });
+        }
+        if totals.removed > 0 {
+            self.metadata.prune_people().await;
+        }
+        phases.metadata = phase.elapsed();
+        if req.files {
+            // New and changed files get their fingerprint; then whatever
+            // removed items left behind goes.
+            let store = self.store.clone();
+            let removed = totals.removed > 0;
+            tokio::spawn(async move {
+                store.fingerprint_pending().await;
+                if removed && let Err(err) = store.clean().await {
+                    tracing::warn!("storage clean-up failed: {err:#}");
+                }
+            });
+        }
+
+        self.set_status(&lib, ScanPhase::Done, processed, total);
+        self.events.send(ServerEvent::ScanFinished {
+            library_id,
+            added: totals.added,
+            updated: totals.updated,
+            removed: totals.removed,
+        });
+        phase = Instant::now();
+        self.db.optimize().await;
+        phases.write += phase.elapsed();
+        Ok(Some((totals, phases)))
+    }
+
+    /// The files part of a scan: walks the folders, probes and writes what
+    /// changed, sidecars and NFO files, counts, and the overrides over it.
+    /// Gives the totals, the phases' times, and the files probed of those
+    /// to probe.
+    async fn scan_files(&self, lib: &LibraryRow, force: bool) -> anyhow::Result<(Totals, Phases, u64, u64)> {
+        let library_id = lib.id;
         let kind = lib.kind();
         let roots = lib.paths();
-        self.events.send(ServerEvent::ScanStarted { library_id });
-        self.set_status(&lib, ScanPhase::Walking, 0, 0);
+        self.set_status(lib, ScanPhase::Walking, 0, 0);
 
         // Sidecar files are indexed once: matching them file by file against
         // the whole library made every scan quadratic in its size.
@@ -348,7 +433,7 @@ impl Scanner {
 
         let mut totals = Totals { removed: removed.len() as u64, ..Default::default() };
         let total = to_process.len() as u64;
-        self.set_status(&lib, ScanPhase::Probing, 0, total);
+        self.set_status(lib, ScanPhase::Probing, 0, total);
         // Probes and writes take turns: the time spent writing is taken out
         // of the probing time.
         phase = Instant::now();
@@ -357,7 +442,7 @@ impl Scanner {
             self.transcoder.wait_ready(Duration::from_secs(90)).await;
         }
 
-        let mut writer = Writer::new(&lib, &sidecars);
+        let mut writer = Writer::new(lib, &sidecars);
         let mut batch: Vec<(FoundFile, ProbeOutcome)> = Vec::with_capacity(WRITE_BATCH);
         let mut processed = 0u64;
         let mut last_emit = Instant::now();
@@ -398,7 +483,7 @@ impl Scanner {
                     last_flush = Instant::now();
                 }
                 if last_emit.elapsed() > Duration::from_millis(400) {
-                    self.set_status(&lib, ScanPhase::Probing, processed, total);
+                    self.set_status(lib, ScanPhase::Probing, processed, total);
                     last_emit = Instant::now();
                 }
             }
@@ -406,7 +491,7 @@ impl Scanner {
             self.flush(&mut writer, &mut batch, &existing_by_path, &mut totals).await?;
             writing += flushing.elapsed();
         }
-        self.set_status(&lib, ScanPhase::Probing, processed, total);
+        self.set_status(lib, ScanPhase::Probing, processed, total);
         phases.probe = phase.elapsed().saturating_sub(writing);
 
         // Vanished files go, with the items they leave empty.
@@ -482,7 +567,7 @@ impl Scanner {
         }
         // NFO files too, before what they set is applied below.
         if kind != LibraryKind::Music {
-            self.read_nfos(&lib, &sidecars, &mut walked).await?;
+            self.read_nfos(lib, &sidecars, &mut walked).await?;
         }
         phases.sidecars = phase.elapsed();
 
@@ -500,42 +585,8 @@ impl Scanner {
         crate::overrides::apply_library(&self.db, library_id).await?;
         writing += phase.elapsed();
         self.events.send(ServerEvent::LibraryChanged { library_id });
-
-        phase = Instant::now();
-        if self.metadata.enabled_for(kind) {
-            self.set_status(&lib, ScanPhase::Metadata, 0, 0);
-            let progress = |done: u64, total: u64| self.set_status(&lib, ScanPhase::Metadata, done, total);
-            if let Err(err) = self.metadata.refresh_library(&lib, force, &progress).await {
-                tracing::warn!("metadata refresh for library {} failed: {err:#}", lib.id);
-            }
-            self.events.send(ServerEvent::LibraryChanged { library_id });
-        }
-        if totals.removed > 0 {
-            self.metadata.prune_people().await;
-        }
-        phases.metadata = phase.elapsed();
-        // New and changed files get their fingerprint; then whatever removed
-        // items left behind goes.
-        let store = self.store.clone();
-        let removed = totals.removed > 0;
-        tokio::spawn(async move {
-            store.fingerprint_pending().await;
-            if removed && let Err(err) = store.clean().await {
-                tracing::warn!("storage clean-up failed: {err:#}");
-            }
-        });
-
-        self.set_status(&lib, ScanPhase::Done, processed, total);
-        self.events.send(ServerEvent::ScanFinished {
-            library_id,
-            added: totals.added,
-            updated: totals.updated,
-            removed: totals.removed,
-        });
-        phase = Instant::now();
-        self.db.optimize().await;
-        phases.write = writing + phase.elapsed();
-        Ok(Some((totals, phases)))
+        phases.write = writing;
+        Ok((totals, phases, processed, total))
     }
 
     /// Reads the NFO files of the library's movies, shows, seasons and
@@ -1873,6 +1924,18 @@ mod tests {
 
     fn nfo_ids(tmdb: Option<i64>, imdb: Option<&str>, tvdb: Option<i64>) -> NfoIds {
         NfoIds { tmdb, imdb: imdb.map(str::to_owned), tvdb, ..Default::default() }
+    }
+
+    #[test]
+    fn requests_for_one_library_merge_into_what_either_asked() {
+        let files = ScanRequest { library_id: 1, force: false, files: true, metadata: false };
+        let metadata = ScanRequest { library_id: 1, force: true, files: false, metadata: true };
+        let mut merged = files;
+        merged.merge(metadata);
+        assert!(merged.files && merged.metadata && merged.force);
+        let mut alone = metadata;
+        alone.merge(metadata);
+        assert!(!alone.files && alone.metadata);
     }
 
     #[test]

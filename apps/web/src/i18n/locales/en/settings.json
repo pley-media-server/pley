@@ -905,7 +905,9 @@
         "history": "Bringing everyone's plays",
         "edits": "Bringing matches and edits",
         "collections": "Bringing collections",
-        "playlists": "Bringing playlists"
+        "playlists": "Bringing playlists",
+        "fetching": "Fetching posters and details",
+        "matching_again": "Finding the rest of Plex's titles"
       },
       "stop": "Stop the import",
       "stopTitle": "Stop the import?",

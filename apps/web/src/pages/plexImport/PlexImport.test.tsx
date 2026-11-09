@@ -109,7 +109,7 @@ function serve({
   });
 }
 
-const idle: ImportProgress = { state: "idle", step: null, done: 0, total: 0, error: null, report: null };
+const idle: ImportProgress = { state: "idle", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false };
 
 describe("PlexImport", () => {
   it("brings the libraries and people chosen, then shows the report", async () => {

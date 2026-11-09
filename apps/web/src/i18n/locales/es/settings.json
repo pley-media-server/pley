@@ -927,7 +927,9 @@
         "history": "Trayendo las reproducciones de cada uno",
         "edits": "Trayendo coincidencias y ediciones",
         "collections": "Trayendo colecciones",
-        "playlists": "Trayendo listas de reproducción"
+        "playlists": "Trayendo listas de reproducción",
+        "fetching": "Obteniendo pósteres y detalles",
+        "matching_again": "Buscando el resto de los títulos de Plex"
       },
       "stop": "Detener la importación",
       "stopTitle": "¿Detener la importación?",

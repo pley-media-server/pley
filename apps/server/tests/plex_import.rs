@@ -45,7 +45,7 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
             json!({"ratingKey": "102", "type": "movie", "title": "Brazil", "addedAt": 1_100_000_000,
                    "Guid": [{"id": "tmdb://68"}], "Media": file("/plexdata/movies/Brazil (1985).mkv", 2048)}),
             json!({"ratingKey": "103", "type": "movie", "title": "Casablanca", "addedAt": 1_200_000_000,
-                   "Media": file("/plexdata/movies/Casablanca (1942).mkv", 4096)}),
+                   "Guid": [{"id": "tmdb://289"}], "Media": file("/plexdata/movies/Casablanca (1942).mkv", 4096)}),
         ],
         ("2", "2") => {
             vec![json!({"ratingKey": "200", "type": "show", "title": "Show", "Guid": [{"id": "tvdb://999"}]})]
@@ -527,6 +527,9 @@ async fn brings_libraries_people_and_what_they_watched() {
             .await
             .unwrap();
     assert_eq!(rating, ("R".into(), "NZ".into(), 18));
+    // The new TV library wasn't fetched (no key): its show took Plex's
+    // TheTVDB id, for TheTVDB's or TVmaze's refresh to find it by.
+    assert_eq!(one(&app, "SELECT tvdb_id FROM items WHERE kind = 'show' AND id > ?", 0).await, 999);
     let season: String = sqlx::query_scalar("SELECT title FROM items WHERE kind = 'season'")
         .fetch_one(&app.state.db.read)
         .await
@@ -677,6 +680,139 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);
     let r = app.get("/api/import/plex/plan", &admin).await;
     assert_eq!(r.body["code"], "plex_signed_out");
+}
+
+/// A stand-in for TMDB that answers nothing until `open` is sent `true`,
+/// and keeps what it was asked.
+#[derive(Clone)]
+struct Tmdb {
+    asked: std::sync::Arc<std::sync::Mutex<Vec<String>>>,
+    open: tokio::sync::watch::Receiver<bool>,
+}
+
+impl Tmdb {
+    fn asked(&self, prefix: &str) -> Vec<String> {
+        self.asked.lock().unwrap().iter().filter(|r| r.starts_with(prefix)).cloned().collect()
+    }
+}
+
+async fn tmdb(State(tmdb): State<Tmdb>, uri: axum::http::Uri, Query(q): Query<HashMap<String, String>>) -> Response {
+    let path = uri.path().strip_prefix("/tmdb").unwrap_or_default().to_owned();
+    tmdb.asked.lock().unwrap().push(format!("{path}?{}", uri.query().unwrap_or_default()));
+    let mut open = tmdb.open.clone();
+    while !*open.borrow_and_update() {
+        open.changed().await.unwrap();
+    }
+    let movie = |title: &str, date: &str, imdb: &str| {
+        json!({"title": title, "original_title": title, "overview": format!("The story of {title}."),
+               "tagline": "", "vote_average": 7.5, "release_date": date, "runtime": 100, "genres": [],
+               "production_companies": [], "poster_path": null, "backdrop_path": null, "imdb_id": imdb,
+               "release_dates": {"results": []}, "credits": {"cast": [], "crew": []},
+               "belongs_to_collection": null})
+    };
+    let body = match path.as_str() {
+        "/search/movie" if q.get("query").is_some_and(|t| t == "Casablanca") => json!({"results": [
+            {"id": 289, "title": "Casablanca", "original_title": "Casablanca", "release_date": "1942-11-26",
+             "popularity": 10.0}]}),
+        "/search/movie" => json!({"results": []}),
+        "/movie/348" => movie("Alien", "1979-05-25", "tt0078748"),
+        "/movie/289" => movie("Casablanca", "1942-11-26", "tt0034583"),
+        _ => return (StatusCode::NOT_FOUND, axum::Json(json!({"status_code": 34}))).into_response(),
+    };
+    axum::Json(body).into_response()
+}
+
+#[tokio::test]
+async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
+    let plex = fake_plex().await;
+    let (open, gate) = tokio::sync::watch::channel(false);
+    let stand_in = Tmdb { asked: Default::default(), open: gate };
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let router = Router::new().route("/tmdb/{*path}", get(tmdb)).with_state(stand_in.clone());
+    tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+    let app = TestApp::with_config(|c| {
+        c.plex_tv = plex.clone();
+        c.metadata_endpoints = Some(pley::providers::Endpoints {
+            tvmaze: format!("{base}/tvmaze"),
+            tvdb: format!("{base}/tvdb"),
+            musicbrainz: format!("{base}/mb"),
+            cover_art: format!("{base}/caa"),
+            tmdb: format!("{base}/tmdb"),
+            tmdb_images: format!("{base}/tmdb-images"),
+            opensubtitles: format!("{base}/opensubtitles"),
+        });
+    })
+    .await;
+    let admin = app.setup_admin().await;
+    let admin_id: i64 =
+        sqlx::query_scalar("SELECT id FROM users WHERE is_admin = 1").fetch_one(&app.state.db.read).await.unwrap();
+    let r = app.put("/api/settings", &admin, json!({"tmdb_api_key": "test-key"})).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    // Alien is the file Plex has; Casablanca was copied again (another size),
+    // so only its ids can find it; Brazil isn't in Pley.
+    app.media_file("movies/Alien (1979).mkv", 1024);
+    app.media_file("movies/Casablanca (1942).mkv", 4000);
+    app.post("/api/import/plex/pin", &admin, json!({})).await;
+    assert_eq!(app.get("/api/import/plex/pin", &admin).await.body["signed_in"], true);
+    app.post("/api/import/plex/server", &admin, json!({"id": MACHINE})).await;
+    let choices = json!({
+        "libraries": [{"key": "1", "new": {"name": "Films", "paths": [app.media_path("movies")]}}],
+        "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("movies")}],
+    });
+    let r = app.post("/api/import/plex/start", &admin, choices).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+
+    // TMDB answers nothing yet, and what was found by file has come over.
+    let mut progress = Value::Null;
+    for _ in 0..400 {
+        progress = app.get("/api/import/plex", &admin).await.body;
+        if progress["first_pass_done"] == true || progress["state"] != "running" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!((&progress["state"], &progress["first_pass_done"]), (&json!("running"), &json!(true)), "{progress:?}");
+    let alien: i64 = sqlx::query_scalar("SELECT id FROM items WHERE title LIKE 'Alien%'")
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    let (tmdb_id, fetched): (Option<i64>, bool) =
+        sqlx::query_as("SELECT tmdb_id, metadata_at IS NOT NULL FROM items WHERE id = ?")
+            .bind(alien)
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!((tmdb_id, fetched), (Some(348), false), "Plex's match, before any metadata");
+    let watched: i64 =
+        sqlx::query_scalar("SELECT play_count FROM user_item_state WHERE user_id = ? AND item_id = ? AND watched = 1")
+            .bind(admin_id)
+            .bind(alien)
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!(watched, 2);
+
+    open.send(true).unwrap();
+    let done = finished(&app, &admin).await;
+    assert_eq!(done["state"], "done", "{done:?}");
+    // Alien was fetched by Plex's id, never searched for by its name.
+    assert!(stand_in.asked("/search/movie?query=Alien").is_empty(), "{:?}", stand_in.asked("/search"));
+    assert_eq!(stand_in.asked("/movie/348").len(), 1, "{:?}", stand_in.asked("/"));
+    // Fetched, with Plex's locked summary kept over TMDB's.
+    let (date, summary): (String, String) = sqlx::query_as("SELECT release_date, summary FROM items WHERE id = ?")
+        .bind(alien)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!((date.as_str(), summary.as_str()), ("1979-05-25", "Hand-written."));
+    // Casablanca, found by the id its fetch gave it, then its play.
+    let report = &done["report"]["libraries"][0];
+    assert_eq!((&report["matched"], &report["missed"]), (&json!(2), &json!(1)), "{report:?}");
+    assert_eq!(report["missed_titles"], json!(["Brazil"]));
+    let casablanca: i64 =
+        sqlx::query_scalar("SELECT id FROM items WHERE tmdb_id = 289").fetch_one(&app.state.db.read).await.unwrap();
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM play_history WHERE item_id = ?", casablanca).await, 1);
 }
 
 #[tokio::test]

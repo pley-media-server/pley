@@ -55,6 +55,13 @@ first by its file (the same name and size, under the same folder), then by
 its TMDB, IMDb or TheTVDB id, an episode by its show's id and its numbers.
 Never by its title alone. Music is found by its file only.
 
+What's found by its file comes over before Pley fetches any posters or
+details, so what everyone watched is there within minutes, even for a
+large library. With matches and edits brought, Plex's matches go on the
+titles first, and Pley fetches each one by Plex's ids rather than
+searching by its name. Titles found only by their ids, which the fetch
+gives Pley, come over once it's done.
+
 When Pley sees Plex's folders under another path, say the server runs in
 Docker with `/data/movies` mounted as `/media/movies`, say where each one
 is on the Libraries step. Pley works out most of them from the files it
@@ -82,9 +89,10 @@ Plex.
    user's PIN; type it there, or they're skipped.
 5. **What to bring.** Watch history, collections and playlists, matches
    and edits: turn off what you'd rather start over in Pley.
-6. **Import.** New libraries are scanned first, then everything else comes
-   over. You can close the page; the import goes on, and the report is
-   there when you come back.
+6. **Import.** New libraries are scanned for their files, what's found by
+   file comes over, then Pley fetches posters and details and looks for
+   the rest of Plex's titles. You can close the page; the import goes on,
+   and the report is there when you come back.
 
 The report says how many titles each library found, the ones it didn't,
 and what came over for each person.

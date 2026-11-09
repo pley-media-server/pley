@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::accounts::{self, MAX_LABEL_RULES, NO_PASSWORD};
 use crate::db::Db;
-use crate::events::ServerEvent;
+use crate::events::{ScanPhase, ServerEvent};
 use crate::library::LibraryKind;
 use crate::state::AppState;
 use crate::util::now;
@@ -88,6 +88,9 @@ pub struct Progress {
     /// Why it stopped, when it failed.
     pub error: Option<String>,
     pub report: Option<Report>,
+    /// What was found by file has come over: watched titles, resume points,
+    /// labels and the rest. Metadata and the titles found by id follow.
+    pub first_pass_done: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -113,6 +116,10 @@ pub enum Step {
     WatchState,
     History,
     Playlists,
+    /// The libraries' metadata, fetched once Plex's matches are in.
+    Fetching,
+    /// Plex's titles not found by their files, looked for by their ids.
+    MatchingAgain,
 }
 
 /// What an import brought over, and what it couldn't.
@@ -772,10 +779,42 @@ struct Paired {
 /// seasons, by Plex's `ratingKey`.
 #[derive(Default)]
 struct Titles {
-    /// Movies and shows with the TMDB id Plex matched them to, and their title.
-    tmdb: Vec<(String, i64, String)>,
+    /// Movies and shows with the ids Plex matched them to.
+    ids: Vec<PlexIds>,
     /// Those whose own page may have locked fields.
     pages: Vec<String>,
+}
+
+/// A movie's or show's ids, as Plex matched it.
+struct PlexIds {
+    key: String,
+    show: bool,
+    tmdb: Option<i64>,
+    tvdb: Option<i64>,
+    imdb: Option<String>,
+    title: String,
+}
+
+impl PlexIds {
+    fn of(item: &Item) -> Option<PlexIds> {
+        let number = |source| item.guid(source).and_then(|id| id.parse::<i64>().ok()).filter(|id| *id > 0);
+        let imdb = item
+            .guid("imdb")
+            .filter(|id| {
+                id.len() <= 12
+                    && id.strip_prefix("tt").is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+            })
+            .map(str::to_owned);
+        let ids = PlexIds {
+            key: item.rating_key.clone(),
+            show: item.kind == "show",
+            tmdb: number("tmdb"),
+            tvdb: number("tvdb"),
+            imdb,
+            title: item.title.clone(),
+        };
+        (ids.tmdb.is_some() || ids.tvdb.is_some() || ids.imdb.is_some()).then_some(ids)
+    }
 }
 
 /// A person being brought: their Plex account, profile and server token.
@@ -856,8 +895,14 @@ impl Run {
         // Profiles come with their limits before anything else, so a
         // child's is never open while the rest runs, or if it stops.
         let people = self.people(&choices, &sections, &paired).await?;
-        self.wait_for_scans(&paired).await?;
+        let bring = choices.bring;
+        self.report.bring = bring;
 
+        // First what's found by file, before any metadata: the libraries the
+        // import made are scanned for their files only, and Plex's matches
+        // go on them, so the fetch looks titles up by Plex's ids rather than
+        // searching by their names.
+        self.wait_for_files(&paired).await?;
         self.step(Step::Matching, paired.len() as u64);
         let pley_libraries: Vec<i64> = paired.iter().map(|p| p.library_id).collect();
         let index = Index::load(&self.state.db, &pley_libraries).await?;
@@ -867,35 +912,72 @@ impl Run {
             titles.push(self.find(library, &index, &folders, &mut matches).await?);
             self.advance(1);
         }
+        self.bring(bring, &paired, &people, &titles, &index, &matches).await?;
+        self.importer.set(&self.state, self.admin, |p| p.first_pass_done = true);
+        for person in &people {
+            self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: person.user_id });
+        }
 
-        self.step(Step::Labels, paired.len() as u64);
+        // Then the metadata, and Plex's titles found only by their ids,
+        // which the fetch gives Pley's.
+        self.fetch(&paired).await?;
+        if self.report.libraries.iter().all(|l| l.missed == 0) {
+            return Ok(());
+        }
+        self.step(Step::MatchingAgain, paired.len() as u64);
+        let index = Index::load(&self.state.db, &pley_libraries).await?;
+        let mut again = matches.clone();
+        let mut titles = Vec::new();
         for library in &paired {
-            self.labels(library, &matches).await?;
+            titles.push(self.find(library, &index, &folders, &mut again).await?);
+            self.advance(1);
+        }
+        let found = again.since(&matches);
+        if !found.is_empty() {
+            self.bring(bring, &paired, &people, &titles, &index, &found).await?;
+            for person in &people {
+                self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: person.user_id });
+            }
+        }
+        Ok(())
+    }
+
+    /// What the import brings for the titles in `matches`, as `bring` says.
+    async fn bring(
+        &mut self,
+        bring: Bring,
+        paired: &[Paired],
+        people: &[Person],
+        titles: &[Titles],
+        index: &Index,
+        matches: &Matches,
+    ) -> ImportResult<()> {
+        self.step(Step::Labels, paired.len() as u64);
+        for library in paired {
+            self.labels(library, matches).await?;
             self.advance(1);
         }
 
-        let bring = choices.bring;
-        self.report.bring = bring;
         if bring.edits {
             let pages = titles.iter().flat_map(|t| &t.pages).filter(|k| matches.get(k).is_some()).count();
             self.step(Step::Edits, pages as u64);
-            for t in &titles {
-                self.edits(t, &index, &matches).await?;
+            for t in titles {
+                self.edits(t, index, matches).await?;
             }
         }
 
         if bring.collections {
             self.step(Step::Collections, paired.len() as u64);
-            for library in &paired {
-                self.collections(library, &matches).await?;
+            for library in paired {
+                self.collections(library, matches).await?;
                 self.advance(1);
             }
         }
 
         if bring.watch_history {
             self.step(Step::WatchState, people.len() as u64);
-            for person in &people {
-                let done = self.watch_state(person, &paired, &matches).await;
+            for person in people {
+                let done = self.watch_state(person, paired, matches).await;
                 self.person_done(person, done, false)?;
                 self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: person.user_id });
                 self.advance(1);
@@ -904,8 +986,8 @@ impl Run {
             self.step(Step::History, people.len() as u64);
             let devices: HashMap<i64, String> =
                 self.plex.devices(&self.server).await.unwrap_or_default().into_iter().map(|d| (d.id, d.name)).collect();
-            for person in &people {
-                let done = self.history(person, &matches, &devices).await;
+            for person in people {
+                let done = self.history(person, matches, &devices).await;
                 self.person_done(person, done, false)?;
                 self.advance(1);
             }
@@ -913,8 +995,8 @@ impl Run {
 
         if bring.collections {
             self.step(Step::Playlists, people.len() as u64);
-            for person in &people {
-                let done = self.playlists(person, &matches).await;
+            for person in people {
+                let done = self.playlists(person, matches).await;
                 self.person_done(person, done, true)?;
                 self.advance(1);
             }
@@ -977,7 +1059,7 @@ impl Run {
             let mut report = LibraryReport { title: section.title.clone(), ..Default::default() };
             let library_id = match choice {
                 Some(LibraryChoice { new: Some(new), .. }) => {
-                    let id = crate::api::add_library(&self.state, &new.name, kind, &new.paths)
+                    let id = crate::api::add_library_files_first(&self.state, &new.name, kind, &new.paths)
                         .await
                         .map_err(|e| ImportError::Invalid(e.to_string()))?;
                     report.created = true;
@@ -996,19 +1078,70 @@ impl Run {
         Ok(paired)
     }
 
-    /// Waits for the libraries' scans: what's matched is what they find.
-    async fn wait_for_scans(&self, paired: &[Paired]) -> ImportResult<()> {
-        let scanning = || paired.iter().filter(|p| self.state.scanner.is_scanning(p.library_id)).count();
-        let waiting = scanning();
+    /// Waits for the libraries' files: what's matched is what scans find.
+    /// A scan of a library the import made finds its files only; one
+    /// already running is waited for until its files are written, as it
+    /// starts on its metadata.
+    async fn wait_for_files(&self, paired: &[Paired]) -> ImportResult<()> {
+        let scanner = &self.state.scanner;
+        let finding = || {
+            paired
+                .iter()
+                .filter(|p| scanner.status_of(p.library_id).is_some_and(|s| s.phase != ScanPhase::Metadata))
+                .count()
+        };
+        let waiting = finding();
         if waiting == 0 {
             return Ok(());
         }
         self.step(Step::Scanning, waiting as u64);
         loop {
             self.cancelled()?;
-            let left = scanning();
+            let left = finding();
             self.importer.set(&self.state, self.admin, |p| p.done = (waiting - left.min(waiting)) as u64);
             if left == 0 {
+                return Ok(());
+            }
+            tokio::time::sleep(Duration::from_secs(2)).await;
+        }
+    }
+
+    /// Fetches the libraries' metadata, now that Plex's ids are on the
+    /// titles it found, and waits for it: titles found only by their ids
+    /// need it. Counts the titles fetched of those to fetch.
+    async fn fetch(&self, paired: &[Paired]) -> ImportResult<()> {
+        let scanner = &self.state.scanner;
+        for library in paired {
+            scanner.enqueue_metadata(library.library_id);
+        }
+        self.step(Step::Fetching, 0);
+        // Each library's last count, kept once its fetch is done and its
+        // status gone.
+        let mut counts: HashMap<i64, (u64, u64)> = HashMap::new();
+        loop {
+            self.cancelled()?;
+            let mut busy = false;
+            for library in paired {
+                match scanner.status_of(library.library_id) {
+                    Some(status) => {
+                        busy = true;
+                        if status.phase == ScanPhase::Metadata {
+                            counts.insert(library.library_id, (status.processed, status.total));
+                        }
+                    }
+                    None => {
+                        if let Some((done, total)) = counts.get_mut(&library.library_id) {
+                            *done = *total;
+                        }
+                    }
+                }
+            }
+            let (done, total) = counts.values().fold((0, 0), |(d, t), (done, total)| (d + done, t + total));
+            self.importer.set(&self.state, self.admin, |p| {
+                p.done = done;
+                p.total = total;
+            });
+            if !busy {
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_secs(2)).await;
@@ -1231,9 +1364,9 @@ impl Run {
                         titles.pages.push(item.rating_key.clone());
                     }
                     if matches!(*kind, "movie" | "show")
-                        && let Some(tmdb) = item.guid("tmdb").and_then(|id| id.parse::<i64>().ok()).filter(|id| *id > 0)
+                        && let Some(ids) = PlexIds::of(&item)
                     {
-                        titles.tmdb.push((item.rating_key.clone(), tmdb, item.title.clone()));
+                        titles.ids.push(ids);
                     }
                     match matches.find(index, library.library_id, folders, &item) {
                         Some(id) => {
@@ -1344,11 +1477,27 @@ impl Run {
     /// becomes an edit, unless Pley has one for it already.
     async fn edits(&mut self, titles: &Titles, index: &Index, matches: &Matches) -> ImportResult<()> {
         let db = self.state.db.clone();
-        for (key, tmdb, title) in &titles.tmdb {
+        for ids in &titles.ids {
             self.cancelled()?;
-            let Some(id) = matches.get(key) else { continue };
+            let Some(id) = matches.get(&ids.key) else { continue };
+            let title = &ids.title;
+            let fetched: Option<bool> = sqlx::query_scalar(
+                "SELECT metadata_at IS NOT NULL FROM items WHERE id = ? AND kind IN ('movie', 'show')",
+            )
+            .bind(id)
+            .fetch_optional(&db.read)
+            .await?;
+            let Some(fetched) = fetched else { continue };
+            if fixed_in_pley(&db, id).await? {
+                continue;
+            }
+            if !fetched {
+                seed(&db, id, ids).await?;
+                continue;
+            }
+            let Some(tmdb) = &ids.tmdb else { continue };
             let ours = index.tmdb(id);
-            if ours == Some(*tmdb) || fixed_in_pley(&db, id).await? {
+            if ours == Some(*tmdb) {
                 continue;
             }
             if ours.is_none() {
@@ -1737,6 +1886,25 @@ async fn merge(db: &Db, user_id: i64, list: &str, found: &[(i64, Item)]) -> sqlx
 
 /// Whether title `id`'s match was settled in Pley, which the import leaves:
 /// chosen with Fix Match, locked, or named by its NFO file.
+/// Plex's ids on a movie or show Pley hasn't fetched yet, where it has none,
+/// for the fetch to use instead of searching by title. A show takes its
+/// TheTVDB and IMDb ids too: TheTVDB's and TVmaze's refreshes look a show
+/// up by those, never by its TMDB id.
+async fn seed(db: &Db, id: i64, ids: &PlexIds) -> sqlx::Result<()> {
+    let (tvdb, imdb) = if ids.show { (ids.tvdb, ids.imdb.as_deref()) } else { (None, None) };
+    sqlx::query(
+        "UPDATE items SET tmdb_id = COALESCE(tmdb_id, ?), tvdb_id = COALESCE(tvdb_id, ?), imdb_id = COALESCE(imdb_id, ?)
+         WHERE id = ? AND metadata_at IS NULL AND kind IN ('movie', 'show')",
+    )
+    .bind(ids.tmdb)
+    .bind(tvdb)
+    .bind(imdb)
+    .bind(id)
+    .execute(&db.write)
+    .await?;
+    Ok(())
+}
+
 async fn fixed_in_pley(db: &Db, id: i64) -> sqlx::Result<bool> {
     sqlx::query_scalar(
         "SELECT EXISTS (SELECT 1 FROM item_overrides WHERE item_id = ?1 AND field = ?2)

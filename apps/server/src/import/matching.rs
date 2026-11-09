@@ -197,7 +197,7 @@ impl Index {
 }
 
 /// Plex's items found in Pley, by Plex's `ratingKey`.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct Matches {
     found: HashMap<String, i64>,
 }
@@ -217,6 +217,12 @@ impl Matches {
 
     pub fn insert(&mut self, rating_key: &str, item: i64) {
         self.found.insert(rating_key.to_owned(), item);
+    }
+
+    /// What's been found since `before`, which these matches grew from.
+    pub fn since(&self, before: &Matches) -> Matches {
+        let found = self.found.iter().filter(|(key, _)| !before.found.contains_key(*key));
+        Matches { found: found.map(|(key, id)| (key.clone(), *id)).collect() }
     }
 
     /// Finds `item`, and its parents through it: an episode's season and

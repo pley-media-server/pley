@@ -91,7 +91,9 @@ export type ImportStep =
   | "collections"
   | "watch_state"
   | "history"
-  | "playlists";
+  | "playlists"
+  | "fetching"
+  | "matching_again";
 export type ProfileSkipped = "pin_needed" | "refused" | "no_access";
 
 export interface LibraryReport {
@@ -166,6 +168,8 @@ export interface ImportProgress {
   total: number;
   error: string | null;
   report: ImportReport | null;
+  /** What was found by file has come over; metadata and the titles found by id follow. */
+  first_pass_done: boolean;
 }
 
 export const plexImportKeys = {
@@ -266,7 +270,7 @@ export function useStartPlexImport() {
     mutationFn: (choices: ImportChoices) => api.post<void>("/api/import/plex/start", choices),
     onSuccess: () => {
       // Running from here, not the last import's report, until the server says more.
-      qc.setQueryData<ImportProgress>(plexImportKeys.progress, { state: "running", step: null, done: 0, total: 0, error: null, report: null });
+      qc.setQueryData<ImportProgress>(plexImportKeys.progress, { state: "running", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false });
       void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true });
     },
   });
