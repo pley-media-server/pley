@@ -933,7 +933,9 @@
       },
       "stop": "Detener la importación",
       "stopTitle": "¿Detener la importación?",
-      "stopMessage": "Lo que ya se importó se queda. Pley también olvida tu sesión de Plex, así que para importar de nuevo tendrás que iniciar sesión."
+      "stopMessage": "Lo que ya se importó se queda. Pley también olvida tu sesión de Plex, así que para importar de nuevo tendrás que iniciar sesión.",
+      "inTitle": "Tus datos de Plex ya están",
+      "inDescription": "Lo que vio cada uno ya está en Pley. Ahora obtiene pósteres y detalles, y después busca el resto de los títulos de Plex. Puedes empezar a ver: el informe estará en Importar de Plex, en Ajustes › Bibliotecas."
     },
     "report": {
       "done": "Tu biblioteca de Plex está en Pley",
@@ -1010,6 +1012,16 @@
         "studio": "Estudio",
         "genres": "Géneros"
       }
+    },
+    "startWatching": "Empezar a ver",
+    "status": {
+      "running": "Importando de Plex: {{step}}",
+      "count": "{{done}} de {{total}}",
+      "done": "Importado de Plex el {{date}}",
+      "failed": "La importación de Plex falló el {{date}}",
+      "cancelled": "Se detuvo la importación de Plex el {{date}}",
+      "show": "Mostrar",
+      "report": "Ver lo que se trajo"
     }
   }
 }

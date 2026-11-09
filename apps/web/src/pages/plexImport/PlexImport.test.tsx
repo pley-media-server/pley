@@ -117,7 +117,7 @@ describe("PlexImport", () => {
     let progress = idle;
     const requests = serve({ progress: () => progress });
     const onFinish = vi.fn();
-    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={onFinish} leaveLabel="Cancel" />);
+    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={onFinish} leaveLabel="Cancel" goOnLabel="Start watching" />);
 
     // Signed in already, with one server: straight to the libraries.
     expect(await screen.findByRole("heading", { name: "Libraries on Den" })).toBeInTheDocument();
@@ -184,7 +184,7 @@ describe("PlexImport", () => {
   it("asks for the owner's account when the servers are only shared with this one", async () => {
     const user = userEvent.setup();
     const requests = serve({ servers: [{ id: "f1", name: "A friend's", owned: false, version: null }] });
-    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
 
     expect(await screen.findByText(/belong to someone else \(A friend's\)/)).toBeInTheDocument();
     expect(screen.queryByLabelText("Or its address")).not.toBeInTheDocument();
@@ -198,7 +198,7 @@ describe("PlexImport", () => {
     const popup = { closed: false, location: { href: "" }, close: vi.fn() };
     const open = vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
     serve({ signedIn: null });
-    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
 
     await user.click(await screen.findByRole("button", { name: "Sign in with Plex" }));
     expect(open).toHaveBeenCalled();
@@ -210,7 +210,7 @@ describe("PlexImport", () => {
   it("shows an import already running, through to its report", async () => {
     let progress: ImportProgress = { ...idle, state: "running", step: "history", done: 1, total: 3 };
     serve({ progress: () => progress });
-    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
     const step = await screen.findByText("Bringing everyone's plays");
     expect(within(step.closest("section")!).getByRole("button", { name: "Stop the import" })).toBeInTheDocument();
     progress = { ...idle, state: "done", report };
@@ -223,7 +223,7 @@ describe("PlexImport", () => {
     const bring = { watch_history: false, collections: true, edits: true };
     let progress: ImportProgress = { ...idle, state: "running", step: "playlists", done: 1, total: 3 };
     serve({ progress: () => progress });
-    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
     expect(await screen.findByText("Bringing playlists")).toBeInTheDocument();
     progress = { ...idle, state: "done", report: { ...report, profiles: [profile], bring } };
     await client.invalidateQueries({ queryKey: plexImportKeys.progress });
@@ -235,7 +235,7 @@ describe("PlexImport", () => {
   it("picks where a Plex folder is with the folder picker", async () => {
     const user = userEvent.setup();
     serve();
-    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
     await user.selectOptions(await screen.findByLabelText("Where TV Shows goes"), "new");
     await user.click(screen.getByRole("button", { name: "Browse for where Pley finds /data/tv" }));
     const picker = await screen.findByRole("dialog", { name: "Choose a folder" });
@@ -247,7 +247,7 @@ describe("PlexImport", () => {
   it("connects to the only server without showing the list of servers", async () => {
     let connected = () => {};
     serve({ connect: () => new Promise((resolve) => (connected = () => resolve({ name: "Den" }))) });
-    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
     expect(await screen.findByText("Connecting to Den…")).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Which server?" })).not.toBeInTheDocument();
     connected();
@@ -257,7 +257,7 @@ describe("PlexImport", () => {
   it("goes back to the only server without connecting again, and keeps the choices", async () => {
     const user = userEvent.setup();
     const requests = serve();
-    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
     await user.selectOptions(await screen.findByLabelText("Where Movies goes"), "leave");
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByRole("heading", { name: "Which server?" })).toBeInTheDocument();
@@ -267,10 +267,34 @@ describe("PlexImport", () => {
     expect(requests.filter((r) => r.path === "/api/import/plex/plan")).toHaveLength(1);
   });
 
+  it("lets people go on once what's found by file has come over", async () => {
+    const user = userEvent.setup();
+    let progress: ImportProgress = { ...idle, state: "running", step: "watch_state", done: 1, total: 2 };
+    serve({ progress: () => progress });
+    const onFinish = vi.fn();
+    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={onFinish} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    expect(await screen.findByText("Bringing what everyone watched")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Start watching" })).not.toBeInTheDocument();
+
+    progress = { ...progress, step: "fetching", done: 1204, total: 3500, first_pass_done: true };
+    await client.invalidateQueries({ queryKey: plexImportKeys.progress });
+    expect(await screen.findByRole("heading", { name: "Your Plex data is in" })).toBeInTheDocument();
+    expect(screen.getByText("Fetching posters and details")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop the import" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Start watching" }));
+    expect(onFinish).toHaveBeenCalled();
+  });
+
+  it("opens on the last import's report when asked", async () => {
+    serve({ progress: () => ({ ...idle, state: "done", report }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
+    expect(await screen.findByRole("heading", { name: "Your Plex library is in Pley" })).toBeInTheDocument();
+  });
+
   it("says an import lost to a restart was interrupted", async () => {
     let progress: ImportProgress = { ...idle, state: "running", step: "matching", done: 1, total: 3 };
     serve({ progress: () => progress });
-    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
     expect(await screen.findByText("Finding Plex's titles in Pley")).toBeInTheDocument();
     // The server restarted: idle, and no report.
     progress = idle;

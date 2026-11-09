@@ -13,8 +13,16 @@ import { ageBadge } from "@/lib/access";
 import { libraryUrl } from "@/lib/urls";
 import { ErrorNote, StepFrame } from "./PlexImport";
 
-/** The import running, then its report. */
-export function ImportProgressView({ onFinish, onAgain }: { onFinish: () => void; onAgain: () => void }) {
+/** The import running, then its report. Once what's found by file has come over, `onFinish` goes on while the rest runs. */
+export function ImportProgressView({
+  goOnLabel,
+  onFinish,
+  onAgain,
+}: {
+  goOnLabel: string;
+  onFinish: () => void;
+  onAgain: () => void;
+}) {
   const { t } = useTranslation(["settings", "common"]);
   const progress = usePlexImport();
   const forget = useForgetPlex();
@@ -44,12 +52,19 @@ export function ImportProgressView({ onFinish, onAgain }: { onFinish: () => void
     const share = data.total > 0 ? data.done / data.total : 0;
     return (
       <StepFrame
-        title={t("plexImport.progress.title")}
-        description={t("plexImport.progress.description")}
+        title={data.first_pass_done ? t("plexImport.progress.inTitle") : t("plexImport.progress.title")}
+        description={data.first_pass_done ? t("plexImport.progress.inDescription") : t("plexImport.progress.description")}
         actions={
-          <Button variant="ghost" onClick={() => setStopping(true)}>
-            {t("plexImport.progress.stop")}
-          </Button>
+          <>
+            <Button variant="ghost" onClick={() => setStopping(true)}>
+              {t("plexImport.progress.stop")}
+            </Button>
+            {data.first_pass_done ? (
+              <Button variant="primary" onClick={onFinish}>
+                {goOnLabel}
+              </Button>
+            ) : null}
+          </>
         }
       >
         <div className="space-y-2" aria-live="polite">

@@ -17,6 +17,7 @@ import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { PlexImportModal } from "@/pages/plexImport/PlexImportModal";
+import { PlexImportStatus } from "@/pages/plexImport/PlexImportStatus";
 import { LibraryFormModal } from "./LibraryFormModal";
 import { libraryUrl } from "@/lib/urls";
 
@@ -203,7 +204,8 @@ export function LibrariesSettings() {
   const reorder = useReorderLibraries();
   const [params, setParams] = useSearchParams();
   const adding = params.get("add") === "1";
-  const [importing, setImporting] = useState(false);
+  // The Plex import's steps, or its last report.
+  const [importing, setImporting] = useState<{ report: boolean } | null>(null);
   const [editing, setEditing] = useState<Library | null>(null);
   const [deleting, setDeleting] = useState<Library | null>(null);
   // Read out to screen readers after each move.
@@ -303,7 +305,7 @@ export function LibrariesSettings() {
               {t("libraries.scanAll")}
             </Button>
           ) : null}
-          <Button icon={<Import className="size-4" />} onClick={() => setImporting(true)}>
+          <Button icon={<Import className="size-4" />} onClick={() => setImporting({ report: false })}>
             {t("plexImport.title")}
           </Button>
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={openAdd}>
@@ -311,6 +313,8 @@ export function LibrariesSettings() {
           </Button>
         </div>
       </div>
+
+      <PlexImportStatus onOpen={(report) => setImporting({ report })} />
 
       {/* A list once loaded stays up when fetching it again fails. */}
       {!libs.data ? (
@@ -373,7 +377,7 @@ export function LibrariesSettings() {
       )}
 
       <LibraryFormModal open={adding} onClose={closeAdd} />
-      <PlexImportModal open={importing} onClose={() => setImporting(false)} />
+      <PlexImportModal open={importing !== null} report={importing?.report} onClose={() => setImporting(null)} />
       <LibraryFormModal open={!!editing} onClose={() => setEditing(null)} library={editing} />
       <ConfirmModal
         open={!!deleting}

@@ -92,18 +92,24 @@ export function StepFrame({
  * its libraries pair with Pley's, the people who come as profiles, then the
  * import's progress and report. The first-run page and Settings › Libraries
  * both show it; `onLeave` is their way out before the import starts,
- * `onFinish` after its report.
+ * `onFinish` once what's found by file has come over, or after its report.
  */
 export function PlexImport({
   onLeave,
   onFinish,
   leaveLabel,
+  goOnLabel,
+  report = false,
   onBusy,
 }: {
   onLeave: () => void;
   onFinish: () => void;
   /** What the way out before the import is called ("Cancel", "Start fresh instead"). */
   leaveLabel: string;
+  /** What going on while the import finishes is called ("Start watching", "Close"). */
+  goOnLabel: string;
+  /** Opens on the last import's report, when there's one. */
+  report?: boolean;
   /** Told when a request that mustn't be cut short starts or ends. */
   onBusy?: (busy: boolean) => void;
 }) {
@@ -136,7 +142,10 @@ export function PlexImport({
 
   // The first step, set once: an import already running is shown, wherever
   // it was started from, through to its report.
-  const shown: Stage = stage ?? (progress.data?.state === "running" ? "importing" : signedIn.data === true ? "server" : "signIn");
+  const last = progress.data;
+  const shown: Stage =
+    stage ??
+    (last?.state === "running" || (report && last?.report) ? "importing" : signedIn.data === true ? "server" : "signIn");
   if (stage === null) setStage(shown);
 
   const chosen = (server: string) => {
@@ -222,6 +231,7 @@ export function PlexImport({
     case "importing":
       return (
         <ImportProgressView
+          goOnLabel={goOnLabel}
           onFinish={onFinish}
           onAgain={() => {
             setAutoChosen(false);

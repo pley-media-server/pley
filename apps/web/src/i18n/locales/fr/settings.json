@@ -933,7 +933,9 @@
       },
       "stop": "Arrêter l’import",
       "stopTitle": "Arrêter l’import ?",
-      "stopMessage": "Ce qui est déjà importé reste. Pley oublie aussi votre connexion Plex : pour importer de nouveau, il faudra vous reconnecter."
+      "stopMessage": "Ce qui est déjà importé reste. Pley oublie aussi votre connexion Plex : pour importer de nouveau, il faudra vous reconnecter.",
+      "inTitle": "Vos données Plex sont là",
+      "inDescription": "Ce que chacun a regardé est dans Pley. Pley récupère les affiches et les détails, puis cherche le reste des titres de Plex. Vous pouvez commencer à regarder : le rapport sera sous Importer depuis Plex, dans Paramètres › Bibliothèques."
     },
     "report": {
       "done": "Votre bibliothèque Plex est dans Pley",
@@ -1010,6 +1012,16 @@
         "studio": "Studio",
         "genres": "Genres"
       }
+    },
+    "startWatching": "Commencer à regarder",
+    "status": {
+      "running": "Import depuis Plex : {{step}}",
+      "count": "{{done}} sur {{total}}",
+      "done": "Importé depuis Plex le {{date}}",
+      "failed": "L’import depuis Plex a échoué le {{date}}",
+      "cancelled": "L’import depuis Plex a été arrêté le {{date}}",
+      "show": "Afficher",
+      "report": "Voir ce qui a été transféré"
     }
   }
 }

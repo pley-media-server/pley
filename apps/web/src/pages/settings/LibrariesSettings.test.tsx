@@ -29,6 +29,7 @@ function serve({
   return mockApi({
     "GET /api/libraries": () => (fetched++ > 0 && refetch ? refetch() : current),
     "GET /api/activity": () => ({ scans: [], sessions: [] }),
+    "GET /api/import/plex": () => ({ state: "idle", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false }),
     "GET /api/playlists": () => ({ playlists: [] }),
     "PUT /api/libraries/order": (req) => {
       const save = () => {
@@ -398,6 +399,7 @@ describe("LibrariesSettings", () => {
     mockApi({
       "GET /api/libraries": (req) => (req.path === SHARED ? libraries : own),
       "GET /api/activity": () => ({ scans: [], sessions: [] }),
+      "GET /api/import/plex": () => ({ state: "idle", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false }),
       "GET /api/playlists": () => ({ playlists: [] }),
       "PUT /api/libraries/order": () => [libraries[0], libraries[2], libraries[1]],
     });

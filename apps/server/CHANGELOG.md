@@ -23,8 +23,10 @@ describes how they are made.
   step turns any of these off. What's found by its file comes over before
   any posters or details are fetched, so watch history is there within
   minutes, and Plex's matches mean titles are fetched by their ids rather
-  than searched for by name. Running it again adds what's new and never
-  takes anything away (docs/MOVING_FROM_PLEX.md).
+  than searched for by name; Start watching goes on from there while the
+  rest runs, and Settings › Libraries shows the import, then its report.
+  Running it again adds what's new and never takes anything away
+  (docs/MOVING_FROM_PLEX.md).
 
 ## [0.1.9] - 2026-11-08
 

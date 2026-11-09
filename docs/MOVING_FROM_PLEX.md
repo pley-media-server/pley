@@ -91,8 +91,11 @@ Plex.
    and edits: turn off what you'd rather start over in Pley.
 6. **Import.** New libraries are scanned for their files, what's found by
    file comes over, then Pley fetches posters and details and looks for
-   the rest of Plex's titles. You can close the page; the import goes on,
-   and the report is there when you come back.
+   the rest of Plex's titles. Once what everyone watched is in, **Start
+   watching** (or **Close**, from Settings) lets you go on while the rest
+   runs. You can close the page at any time; the import goes on.
+   Settings › Libraries shows how far it is, and once it's done, when it
+   ran and **See what came over**, its report.
 
 The report says how many titles each library found, the ones it didn't,
 and what came over for each person.

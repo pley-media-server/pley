@@ -911,7 +911,9 @@
       },
       "stop": "Stop the import",
       "stopTitle": "Stop the import?",
-      "stopMessage": "What's already come over stays. Pley also forgets your Plex sign-in, so importing again starts by signing in."
+      "stopMessage": "What's already come over stays. Pley also forgets your Plex sign-in, so importing again starts by signing in.",
+      "inTitle": "Your Plex data is in",
+      "inDescription": "What everyone watched is in Pley. It's fetching posters and details, then looking for the rest of Plex's titles. You can start watching now: the report will be under Import from Plex in Settings › Libraries."
     },
     "report": {
       "done": "Your Plex library is in Pley",
@@ -975,6 +977,16 @@
         "studio": "Studio",
         "genres": "Genres"
       }
+    },
+    "startWatching": "Start watching",
+    "status": {
+      "running": "Importing from Plex: {{step}}",
+      "count": "{{done}} of {{total}}",
+      "done": "Imported from Plex on {{date}}",
+      "failed": "The Plex import failed on {{date}}",
+      "cancelled": "The Plex import was stopped on {{date}}",
+      "show": "Show",
+      "report": "See what came over"
     }
   }
 }
