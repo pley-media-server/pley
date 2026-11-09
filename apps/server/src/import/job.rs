@@ -72,6 +72,9 @@ struct Session {
     server: Option<Server>,
     /// The server's name, as Plex shows it.
     server_name: String,
+    /// The plan's Home users' pictures, as Pley keeps a profile's, by
+    /// their Plex id.
+    pictures: HashMap<i64, Vec<u8>>,
 }
 
 impl Session {
@@ -81,6 +84,7 @@ impl Session {
         self.servers.clear();
         self.server = None;
         self.server_name.clear();
+        self.pictures.clear();
     }
 }
 
@@ -284,6 +288,10 @@ pub struct PlanUser {
     /// The Pley profile an earlier import made for them.
     pub profile_id: Option<i64>,
     pub limits: PlanLimits,
+    /// Their picture can be had, from `GET /api/import/plex/users/{id}/picture`.
+    pub picture: bool,
+    /// The colour of Plex's picture for them, which their profile takes.
+    pub color: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -583,21 +591,29 @@ impl Importer {
 
         let data_dir = data_dir.to_path_buf();
         let bases = tokio::task::spawn_blocking(move || crate::folders::bases(&data_dir)).await.unwrap_or_default();
-        let mut libraries = Vec::new();
-        for section in plex.sections(&server).await? {
-            let Some(kind) = pley_kind(&section.kind) else { continue };
-            let locations: Vec<String> = section.location.iter().map(|l| l.path.clone()).collect();
-            let pairing = pair(db, &plex, &server, &section.key, kind, &locations, &bases).await?;
-            libraries.push(PlanLibrary {
-                key: section.key,
-                title: section.title,
-                kind: kind.as_str(),
-                locations,
-                pairing,
-            });
-        }
-
         let home = plex.home_users(&token).await?;
+        // The pictures come from plex.tv while the libraries are paired.
+        let pairing = async {
+            let mut libraries = Vec::new();
+            for section in plex.sections(&server).await? {
+                let Some(kind) = pley_kind(&section.kind) else { continue };
+                let locations: Vec<String> = section.location.iter().map(|l| l.path.clone()).collect();
+                let pairing = pair(db, &plex, &server, &section.key, kind, &locations, &bases).await?;
+                libraries.push(PlanLibrary {
+                    key: section.key,
+                    title: section.title,
+                    kind: kind.as_str(),
+                    locations,
+                    pairing,
+                });
+            }
+            Ok::<_, ImportError>(libraries)
+        };
+        let pictures = futures::future::join_all(home.iter().map(|user| home_picture(&plex, user)));
+        let (libraries, pictures) = tokio::join!(pairing, pictures);
+        let libraries = libraries?;
+        let pictures: HashMap<i64, (Option<Vec<u8>>, Option<String>)> = pictures.into_iter().collect();
+
         // A managed user's rules (a preset's included) and a Home member's
         // with their own account are both sharing filters. Plex calls every
         // managed user restricted, with rules or none, so the filters say.
@@ -615,9 +631,18 @@ impl Importer {
                 protected: user.protected,
                 profile_id: if user.admin { None } else { imported_profile(db, user.id).await? },
                 limits: limits.into(),
+                picture: pictures.get(&user.id).is_some_and(|(jpeg, _)| jpeg.is_some()),
+                color: pictures.get(&user.id).and_then(|(_, color)| color.clone()),
             });
         }
+        let pictures = pictures.into_iter().filter_map(|(id, (jpeg, _))| Some((id, jpeg?))).collect();
+        self.session.lock().await.pictures = pictures;
         Ok(Plan { server: name, libraries, users })
+    }
+
+    /// Home user `id`'s picture, as the last plan found it: a JPEG.
+    pub async fn user_picture(&self, id: i64) -> Option<Vec<u8>> {
+        self.session.lock().await.pictures.get(&id).cloned()
     }
 
     // ---- The job ----
@@ -715,6 +740,21 @@ async fn imported_profile(db: &Db, plex_id: i64) -> sqlx::Result<Option<i64>> {
         .bind(plex_id.to_string())
         .fetch_optional(&db.read)
         .await
+}
+
+/// Home user `user`'s picture, made as a profile's is (a small JPEG, read
+/// and written afresh), and the colour of Plex's picture for them.
+async fn home_picture(plex: &Plex, user: &HomeUser) -> (i64, (Option<Vec<u8>>, Option<String>)) {
+    let Some(thumb) = user.thumb.as_deref() else { return (user.id, (None, None)) };
+    let picture = plex.picture(thumb).await;
+    let color = picture.color.filter(|c| accounts::validate_color(c).is_ok());
+    let jpeg = match (picture.bytes, crate::images::UPLOAD_DECODES.acquire().await) {
+        (Some(bytes), Ok(_decoding)) => {
+            tokio::task::spawn_blocking(move || accounts::process_avatar(&bytes)).await.ok().and_then(Result::ok)
+        }
+        _ => None,
+    };
+    (user.id, (jpeg, color))
 }
 
 /// Pairs Plex library `key` with Pley's: some of its files, from spots

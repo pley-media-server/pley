@@ -60,6 +60,15 @@ export interface PlanUser {
   /** The profile an earlier import made for them. */
   profile_id: Id | null;
   limits: PlanLimits;
+  /** Their picture is at `plexUserPicture(id)`. */
+  picture: boolean;
+  /** The colour of Plex's picture for them, which their profile takes. */
+  color: string | null;
+}
+
+/** A Home user's picture, as the last plan found it. */
+export function plexUserPicture(id: number): string {
+  return `/api/import/plex/users/${id}/picture`;
 }
 
 export interface ImportPlan {

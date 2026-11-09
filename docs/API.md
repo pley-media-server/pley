@@ -4559,6 +4559,7 @@ apps.
 | GET | `/api/import/plex/servers` | `admin` | `{ id, name, owned, version }[]`: the servers the account owns, then those shared with it (only an owner can read everyone's history and the Home's restrictions, so only one it owns can be chosen) |
 | POST | `/api/import/plex/server` | `admin` | `{ id }`, or `{ address }` for a server Pley can't reach through plex.tv's addresses → `{ name }`: connected; `409 plex_not_owned` for a server plex.tv doesn't list as the account's own |
 | GET | `/api/import/plex/plan` | `admin` | `ImportPlan` |
+| GET | `/api/import/plex/users/{id}/picture` | `admin` | A Home user's picture as the last plan found it, made as a profile's is (a 256-pixel JPEG); `404` when it had none |
 | POST | `/api/import/plex/start` | `admin` | `ImportChoices` → `202`; `409 import_running` while one runs |
 | GET | `/api/import/plex` | `admin` | `ImportProgress`: the import running, or the last one's report |
 | DELETE | `/api/import/plex` | `admin` | `204`: stops the import, and forgets the Plex sign-in |
@@ -4592,6 +4593,8 @@ interface ImportPlan {
               show_labels: string[]; hide_labels: string[];
               left_over: string[];        // labels past the 50 a profile keeps
               not_kept: string[] };       // parts of Plex's rules Pley can't keep
+    picture: boolean;                     // their picture is at /api/import/plex/users/{id}/picture
+    color: string | null;                 // the colour of Plex's picture for them, which their profile takes
   }[];
 }
 

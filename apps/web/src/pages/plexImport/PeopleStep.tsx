@@ -1,7 +1,8 @@
 import { useTranslation } from "react-i18next";
 import { Lock } from "lucide-react";
-import type { ImportPlan, PlanLimits, PlanUser } from "@/api/plexImport";
+import { plexUserPicture, type ImportPlan, type PlanLimits, type PlanUser } from "@/api/plexImport";
 import { useRatingSystems } from "@/api/hooks";
+import { Avatar } from "@/components/Avatar";
 import { Badge, Button, TextInput, Toggle } from "@/components/ui";
 import { ageBadge } from "@/lib/access";
 import { StepFrame } from "./PlexImport";
@@ -64,6 +65,10 @@ function Person({ user, choice, onChange }: { user: PlanUser; choice: { bring: b
   return (
     <div className="space-y-2">
       <div className="flex items-start gap-3">
+        <Avatar
+          user={{ id: user.id, name: user.title, avatar_url: user.picture ? plexUserPicture(user.id) : null, avatar_color: user.color }}
+          className="mt-0.5"
+        />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{user.title}</span>

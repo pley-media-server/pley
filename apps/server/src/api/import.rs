@@ -2,8 +2,9 @@
 //! administrators only. Apps never get these routes.
 
 use axum::Json;
-use axum::extract::State;
-use axum::http::StatusCode;
+use axum::extract::{Path, State};
+use axum::http::{HeaderValue, StatusCode, header};
+use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -110,6 +111,21 @@ pub async fn choose_server(
 /// its Home users with the limits they'd get.
 pub async fn plan(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Plan>> {
     Ok(Json(state.plex_import.plan(&state.db, &state.config.data_dir).await?))
+}
+
+/// `GET /api/import/plex/users/{id}/picture`: a Home user's picture, as
+/// the last plan found it.
+pub async fn user_picture(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Path(id): Path<i64>,
+) -> ApiResult<Response> {
+    let jpeg = state.plex_import.user_picture(id).await.ok_or_else(|| AppError::not_found("no picture"))?;
+    let headers = [
+        (header::CONTENT_TYPE, HeaderValue::from_static("image/jpeg")),
+        (header::CACHE_CONTROL, HeaderValue::from_static("private, no-cache")),
+    ];
+    Ok((headers, jpeg).into_response())
 }
 
 /// `POST /api/import/plex/start`: starts the import.

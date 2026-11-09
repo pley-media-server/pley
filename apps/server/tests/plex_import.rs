@@ -478,6 +478,25 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(libraries[1]["pairing"]["status"], "not_in_pley");
     // Nowhere Pley looks has its files: nothing's offered for its folder.
     assert_eq!(libraries[1]["pairing"]["folders_found"], json!([]));
+    // Pictures: Alex's own, Plex's colour alone for Kid One (an initial on
+    // it, which Pley draws itself), nothing for the others.
+    let pictures: Vec<(&Value, &Value)> =
+        plan.body["users"].as_array().unwrap().iter().map(|u| (&u["picture"], &u["color"])).collect();
+    assert_eq!(
+        pictures,
+        [
+            (&json!(true), &json!(null)),
+            (&json!(false), &json!("#eb9f9f")),
+            (&json!(false), &json!(null)),
+            (&json!(false), &json!(null))
+        ]
+    );
+    let alex = app.get("/api/import/plex/users/1/picture", &admin).await;
+    assert_eq!((alex.status, alex.headers[header::CONTENT_TYPE].to_str().unwrap()), (StatusCode::OK, "image/jpeg"));
+    assert_eq!(image::load_from_memory(&alex.bytes).unwrap().width(), 256, "made as a profile's picture is");
+    assert_eq!(app.get("/api/import/plex/users/885/picture", &admin).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(app.get("/api/import/plex/users/1/picture", &someone).await.status, StatusCode::FORBIDDEN);
+
     let kid = &plan.body["users"][1];
     assert_eq!(kid["title"], "Kid One");
     assert_eq!(

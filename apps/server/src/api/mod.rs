@@ -85,6 +85,7 @@ pub fn router(state: AppState) -> Router {
         .route("/import/plex/servers", get(import::servers))
         .route("/import/plex/server", post(import::choose_server))
         .route("/import/plex/plan", get(import::plan))
+        .route("/import/plex/users/{id}/picture", get(import::user_picture))
         .route("/import/plex/start", post(import::start))
         .route("/libraries", get(libraries::list).post(libraries::create))
         .route("/libraries/scan", post(libraries::scan_all))

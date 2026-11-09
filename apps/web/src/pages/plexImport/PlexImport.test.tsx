@@ -27,7 +27,7 @@ const plan: ImportPlan = {
     },
   ],
   users: [
-    { id: 1, title: "Alex", admin: true, restricted: false, protected: false, profile_id: null, limits: noLimits() },
+    { id: 1, title: "Alex", admin: true, restricted: false, protected: false, profile_id: null, limits: noLimits(), picture: true, color: null },
     {
       id: 2,
       title: "Sam",
@@ -36,8 +36,10 @@ const plan: ImportPlan = {
       protected: true,
       profile_id: null,
       limits: { ...noLimits(), max_age: 7, max_age_system: "age", show_labels: ["Family"], not_kept: ["contentRating=X"] },
+      picture: false,
+      color: "#eb9f9f",
     },
-    { id: 3, title: "Robin", admin: false, restricted: false, protected: false, profile_id: null, limits: noLimits() },
+    { id: 3, title: "Robin", admin: false, restricted: false, protected: false, profile_id: null, limits: noLimits(), picture: false, color: null },
   ],
 };
 
@@ -144,6 +146,9 @@ describe("PlexImport", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(await screen.findByRole("heading", { name: "Who comes over" })).toBeInTheDocument();
+    // Alex's Plex picture; Sam's initial on Plex's colour for them.
+    expect(document.querySelector('img[src="/api/import/plex/users/1/picture"]')).toBeInTheDocument();
+    expect(screen.getByText("S", { exact: true })).toHaveStyle({ backgroundColor: "#eb9f9f" });
     expect(screen.getByText("Up to age 7")).toBeInTheDocument();
     expect(screen.getByText("Always: Family")).toBeInTheDocument();
     expect(screen.getByText("contentRating=X")).toBeInTheDocument();
