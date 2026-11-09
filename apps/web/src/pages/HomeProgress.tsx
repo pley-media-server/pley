@@ -1,12 +1,13 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import i18next from "i18next";
 import { FolderSync } from "lucide-react";
 import { useActivity } from "@/api/hooks";
 import { usePlexImport } from "@/api/plexImport";
 import type { ScanStatus } from "@/api/types";
 import { useAuth } from "@/auth";
 import { ProgressBar } from "@/components/ui";
-import { currentLocale } from "@/i18n";
+import { currentLanguage, currentLocale, loadNamespaces } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { PlexImportModal } from "./plexImport/PlexImportModal";
 import { PlexImportStatus } from "./plexImport/PlexImportStatus";
@@ -21,25 +22,49 @@ export function HomeProgress({ className }: { className?: string }) {
 }
 
 function AdminProgress({ className }: { className?: string }) {
-  const { t } = useTranslation("settings");
   const progress = usePlexImport().data;
   const activity = useActivity();
-  const [open, setOpen] = useState(false);
 
-  if (progress?.state === "running") {
-    return (
-      <div className={cn("space-y-1.5", className)}>
-        <PlexImportStatus onOpen={() => setOpen(true)} />
-        {progress.first_pass_done ? <p className="px-1 text-sm text-muted">{t("plexImport.status.fillingIn")}</p> : null}
-        <PlexImportModal open={open} onClose={() => setOpen(false)} />
-      </div>
-    );
-  }
+  if (progress?.state === "running") return <Importing firstPassDone={progress.first_pass_done} className={className} />;
 
   // One library is scanned at a time: the one under way, else the next.
   const scans = (activity.data?.scans ?? []).filter((s) => s.first && s.phase !== "done");
   const scan = scans.find((s) => s.phase !== "queued") ?? scans[0];
   return scan ? <FirstScan scan={scan} className={className} /> : null;
+}
+
+/**
+ * The Plex import running, as Settings › Libraries shows it. Its words are
+ * the settings', which Home doesn't come with: they load first.
+ */
+function Importing({ firstPassDone, className }: { firstPassDone: boolean; className?: string }) {
+  const { t } = useTranslation("settings");
+  const words = useSettingsWords();
+  const [open, setOpen] = useState(false);
+  if (!words) return null;
+  return (
+    <div className={cn("space-y-1.5", className)}>
+      <PlexImportStatus onOpen={() => setOpen(true)} />
+      {firstPassDone ? <p className="px-1 text-sm text-muted">{t("plexImport.status.fillingIn")}</p> : null}
+      <PlexImportModal open={open} onClose={() => setOpen(false)} />
+    </div>
+  );
+}
+
+/** Whether the settings' words are here, loading them if they aren't. */
+function useSettingsWords(): boolean {
+  const [ready, setReady] = useState(() => i18next.hasResourceBundle(currentLanguage(), "settings"));
+  useEffect(() => {
+    if (ready) return;
+    let live = true;
+    void loadNamespaces(["settings"]).then(() => {
+      if (live) setReady(true);
+    });
+    return () => {
+      live = false;
+    };
+  }, [ready]);
+  return ready;
 }
 
 /** A library's first scan: its files found, read, then its details fetched. */

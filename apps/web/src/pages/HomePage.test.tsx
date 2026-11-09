@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import i18next from "i18next";
 import { describe, expect, it } from "vitest";
 import type { ImportProgress } from "@/api/plexImport";
 import type { Activity, Hub, ItemDetail, Library, ScanStatus } from "@/api/types";
@@ -157,6 +158,9 @@ describe("HomePage", () => {
   });
 
   it("shows the Plex import instead while it runs", async () => {
+    // Home doesn't come with the settings' words the import's line uses, as
+    // the tests' set-up gives every page: it loads them itself.
+    i18next.removeResourceBundle("en", "settings");
     serve({ scans: [firstScan], progress: importing });
     renderWithProviders(<HomePage />);
     expect(await screen.findByText("Importing from Plex: Fetching posters and details")).toBeInTheDocument();
