@@ -370,11 +370,11 @@ describe("Save as… (smart playlists)", () => {
   });
 });
 
-describe("season tabs", () => {
+describe("season posters", () => {
   // Shared with the native Samsung app's tests.
   for (const c of seasonPosterCases.cases) {
     it(`show posters: ${c.name}`, () => {
-      expect(seasonPosters(c.posters.map((poster_url) => ({ poster_url })))).toBe(c.posterTabs);
+      expect(seasonPosters(c.posters.map((poster_url) => ({ poster_url })))).toBe(c.posterRow);
     });
   }
 });

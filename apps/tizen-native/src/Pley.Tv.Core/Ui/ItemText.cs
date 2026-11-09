@@ -209,8 +209,8 @@ public static class ItemText
 
     // ---- the episodes and the rows
 
-    /// <summary>Season tabs show when the show has more than one season; else the season's name heads the row.</summary>
-    public static bool ShowsTabs(SeasonsSection seasons) => seasons.Seasons.Count > 1;
+    /// <summary>Season tabs show when the show has more than one season and no season posters; else the season's name heads the row.</summary>
+    public static bool ShowsTabs(SeasonsSection seasons) => seasons.Seasons.Count > 1 && !seasons.Posters;
 
     /// <summary>The episode row's heading without tabs: the season's, else the page's own season, else "Episodes".</summary>
     public static string EpisodesHeading(ItemPage page, SeasonsSection seasons) => seasons.SelectedTab?.Title ?? page.Context?.SeasonTitle ?? Episodes;

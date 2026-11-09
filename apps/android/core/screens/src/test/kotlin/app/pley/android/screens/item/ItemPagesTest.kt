@@ -215,7 +215,7 @@ class ItemPagesTest {
 
         val mixed = tabs(season(30, "/api/items/30/images/poster?v=7"), season(31, shows), season(32, null))
         assertTrue(mixed.posters)
-        assertEquals(listOf("/api/items/30/images/poster?v=7", shows, null), mixed.seasons.map { it.posterUrl })
+        assertEquals(listOf("/api/items/30/images/poster?v=7", shows, null), mixed.seasons.map { it.item?.posterUrl })
     }
 
     @Test

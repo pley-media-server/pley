@@ -29,7 +29,7 @@ import { mayAsk } from "../../requests";
 import { audioStreams, subtitleStreams, withTracks } from "../../player/plan";
 import { useUi } from "../context";
 import { nudge } from "../focus";
-import { Art, artCandidates } from "../kit/art";
+import { artCandidates } from "../kit/art";
 import { Backdrop, useRested } from "../kit/backdrop";
 import { PanelRow, Round } from "../kit/buttons";
 import { F, FocusWatch, G } from "../kit/focusable";
@@ -50,11 +50,8 @@ const ROWS_LINE = 172;
 /** The first season tab's left edge (its label at the gutter), and the safe area's width at the right. */
 const TABS_X = 76;
 const SAFE_X = 48;
-/** Poster tabs' left edge: their first poster at the gutter. */
-const POSTER_TABS_X = 90;
-/** Tabs' heights: words, or a 40 by 60 poster beside them. */
+/** The season tabs' height. */
 const TABS_H = 40;
-const POSTER_TABS_H = 72;
 /**
  * The hero's section: 52 above what it holds, the focused button's label
  * (23 under the row) and 8 below. It follows what the hero holds, as the
@@ -388,31 +385,32 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
   });
   const seasonList = seasons.data ?? [];
   const multiSeason = kind !== "episode" && seasonList.length > 1;
-  const posterTabs = multiSeason && seasonPosters(seasonList);
-  const tabsHeight = posterTabs ? POSTER_TABS_H : TABS_H;
+  const posters = multiSeason && seasonPosters(seasonList);
+  // Tabs over the episodes; season posters, as a row of their own, leave the episodes under the season's name.
+  const tabbed = multiSeason && !posters;
   const episodeKey = (e: ItemSummary) => `episode/${e.id}`;
   if (tv) {
     if (multiSeason) {
       sections.push({
         key: "seasons",
-        height: tabsHeight,
+        height: posters ? TILES.poster.h + 14 + 34 : TABS_H,
         anchor: TABS_LINE,
-        render: (onFocus) => (
-          <SeasonTabs
-            seasons={seasonList}
-            posters={posterTabs}
-            shown={seasonId}
-            onFocus={() => {
+        render: (onFocus) => {
+          const props: SeasonsProps = {
+            seasons: seasonList,
+            shown: seasonId,
+            onFocus: () => {
               onFocus();
               setSection("seasons");
               entry.state.section = "seasons";
-            }}
-            onShow={(id) => {
+            },
+            onShow: (id) => {
               entry.state.season = id;
               setChosenSeason(id);
-            }}
-          />
-        ),
+            },
+          };
+          return posters ? <SeasonPosters {...props} /> : <SeasonTabs {...props} />;
+        },
       });
     }
     const seasonName =
@@ -421,12 +419,12 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
     const epIndex = eps ? Math.max(0, eps.findIndex((e) => e.id === toWatch)) : 0;
     sections.push({
       key: "episodes",
-      height: (multiSeason ? 0 : 38) + TILES.episode.h + 14 + 34,
-      // Under the tabs, a row's gap below them, so they stay on their line; a single season's name takes 38.
-      anchor: multiSeason ? TABS_LINE + tabsHeight + ROW_GAP : EPISODES_LINE - 38,
+      height: (tabbed ? 0 : 38) + TILES.episode.h + 14 + 34,
+      // Under the tabs, a row's gap below them, so they stay on their line; a season's name takes 38.
+      anchor: tabbed ? TABS_LINE + TABS_H + ROW_GAP : EPISODES_LINE - 38,
       render: (onFocus) =>
         eps === null || eps === undefined ? (
-          <div style={`height:${152 + (multiSeason ? 0 : 38)}px`} />
+          <div style={`height:${152 + (tabbed ? 0 : 38)}px`} />
         ) : !eps.length ? (
           <div class="t-body c-muted" style="padding-left:96px;height:104px">
             {t("browse.item.noEpisodes")}
@@ -434,7 +432,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
         ) : (
           <Row
             key={`season-${seasonId}`}
-            title={multiSeason ? undefined : seasonName}
+            title={tabbed ? undefined : seasonName}
             kind="episode"
             items={eps}
             keyOf={(e) => e.id}
@@ -856,11 +854,11 @@ function PlayIcon() {
 }
 
 /**
- * Whether a show's season tabs show posters (SeasonsSection.posters): some
- * season has one of its own. The server gives a season without one its
- * show's poster, the same address for each, so the seasons' addresses all
- * match (or are all missing) only when none has its own. Decided for the
- * whole show, so the tabs are all posters or all words.
+ * Whether a show's seasons show as a row of posters rather than tabs
+ * (SeasonsSection.posters): some season has one of its own. The server
+ * gives a season without one its show's poster, the same address for
+ * each, so the seasons' addresses all match (or are all missing) only when
+ * none has its own. Decided for the whole show.
  * test/fixtures/season-posters.json pins it.
  */
 export function seasonPosters(seasons: Pick<ItemSummary, "poster_url">[]): boolean {
@@ -872,10 +870,9 @@ export function seasonPosters(seasons: Pick<ItemSummary, "poster_url">[]): boole
 /**
  * The season tabs (SeasonTabs): more than the screen holds slide, just far
  * enough to show the focused one between x 76 and the safe area's edge, as
- * on Android and LG. With `posters`, each tab shows its season's poster,
- * else the show's, beside its name and episodes, 72 tall.
+ * on Android and LG.
  */
-function SeasonTabs(p: { seasons: ItemSummary[]; posters: boolean; shown: number | null; onFocus: () => void; onShow: (id: number) => void }) {
+function SeasonTabs(p: SeasonsProps) {
   const ui = useUi();
   const [focused, setFocused] = useState<number | null>(null);
   const rested = useRested(focused);
@@ -889,14 +886,14 @@ function SeasonTabs(p: { seasons: ItemSummary[]; posters: boolean; shown: number
       ui.focus.onChange((el) => {
         const row = group.current;
         if (!el || !row || !row.contains(el)) return;
-        setShift((s) => nudge(s, el.offsetLeft, el.offsetLeft + el.offsetWidth, p.posters ? POSTER_TABS_X : TABS_X, 960 - SAFE_X));
+        setShift((s) => nudge(s, el.offsetLeft, el.offsetLeft + el.offsetWidth, TABS_X, 960 - SAFE_X));
       }),
-    [p.posters],
+    [],
   );
   return (
     <G
       kind="row"
-      class={`season-tabs${p.posters ? " posters" : ""}`}
+      class="season-tabs"
       style={shift ? `transform:translateX(${-shift}px)` : undefined}
       elRef={(el) => (group.current = el)}
       onEnter={() => group.current?.querySelector<HTMLElement>(`[data-fid="season/${p.shown}"]`) ?? null}
@@ -913,20 +910,57 @@ function SeasonTabs(p: { seasons: ItemSummary[]; posters: boolean; shown: number
           }}
           onSelect={() => p.onShow(s.id)}
         >
-          {p.posters ? (
-            <>
-              <Art candidates={artCandidates(s, "poster")} width={40} title={seasonTitle(s.title, s.index)} class="season-poster" />
-              <span class="season-words">
-                <span class="one-line">{seasonTitle(s.title, s.index)}</span>
-                {s.leaf_count ? <span class="season-count t-caption one-line">{pluralize(s.leaf_count, "episode")}</span> : null}
-              </span>
-            </>
-          ) : (
-            <span class="one-line">{seasonTitle(s.title, s.index)}</span>
-          )}
+          <span class="one-line">{seasonTitle(s.title, s.index)}</span>
         </F>
       ))}
     </G>
+  );
+}
+
+interface SeasonsProps {
+  seasons: ItemSummary[];
+  shown: number | null;
+  onFocus: () => void;
+  onShow: (id: number) => void;
+}
+
+/**
+ * The seasons as poster tiles (SeasonPosters), as the web shows them: each
+ * season's poster, else the show's, its name and episodes under it, in a
+ * row of the kit. As with the tabs, a season focus rests on, or Select
+ * chooses, is shown under the row; focus comes into the row on it the
+ * first time.
+ */
+function SeasonPosters(p: SeasonsProps) {
+  const ui = useUi();
+  const [focused, setFocused] = useState<number | null>(null);
+  const rested = useRested(focused);
+  useEffect(() => {
+    if (rested !== null && rested !== p.shown) p.onShow(rested);
+  }, [rested]);
+  const named = useMemo(() => p.seasons.map((s) => ({ ...s, title: seasonTitle(s.title, s.index) })), [p.seasons]);
+  return (
+    <Row
+      kind="poster"
+      items={named}
+      keyOf={(s) => s.id}
+      enterAt={Math.max(0, named.findIndex((s) => s.id === p.shown))}
+      onLeftEdge={ui.toRail}
+      onFocusIndex={(i) => {
+        p.onFocus();
+        setFocused(named[i]?.id ?? null);
+      }}
+      tile={(s, _i, place) => (
+        <Tile
+          item={s}
+          kind="poster"
+          fid={`season/${s.id}`}
+          priority={place.priority}
+          onFocus={place.onFocus}
+          onSelect={() => s.id !== p.shown && p.onShow(s.id)}
+        />
+      )}
+    />
   );
 }
 

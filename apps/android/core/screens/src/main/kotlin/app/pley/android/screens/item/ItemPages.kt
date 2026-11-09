@@ -359,7 +359,7 @@ private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale, word
                 season.id,
                 seasonTitle(season.title, season.index, words),
                 season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) },
-                season.posterUrl,
+                season,
             )
         }
         ItemKind.Episode -> emptyList()

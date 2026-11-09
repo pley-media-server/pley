@@ -5,15 +5,15 @@
 //! the credits, and the buttons Play or Resume, From start, watched, Audio and subtitles, My List,
 //! Trailer, Add to playlist, More), then the season tabs and episodes, the extras, cast and related
 //! rows, and the details with the versions and media info. The page moves so the focused part sits
-//! on its line (tabs at 218 and their episodes at 286, or 318 under poster tabs, a single season's
-//! episodes at 272, other rows' headers and the details at 172), and once
+//! on its line (tabs, or season posters, at 218 and their episodes at 286, a season's episodes under
+//! its name at 272, other rows' headers and the details at 172), and once
 //! focus leaves the hero an info block takes the top. Down past the last thing that takes focus
 //! reads on through the details, 160 dp a step. Side panels choose the version and tracks, rate the
 //! title, go to its show or collections, and act on a tile.
 
 use std::collections::HashSet;
 
-use pley_base::{Color, Icon, ImageRequest, Key, Point, Rect, TextOpts};
+use pley_base::{Color, Icon, Key, Point, Rect, TextOpts};
 use pley_core::format::season_title;
 use pley_core::model::{
     AudioChoice, CollectionRef, ItemCollections, ItemDetail, ItemKind, ItemList, ItemSummary, StreamChoice, TitleKind,
@@ -25,15 +25,15 @@ use pley_i18n::t;
 use pley_kit::badge::META_HEIGHT;
 use pley_kit::{
     Backdrop, BackdropArt, BackdropScrim, BackdropState, Button, ColumnState, Dialog, Heading, InfoBlock, List,
-    ListRow, ListState, MetaLine, POSTER_TAB_HEIGHT, POSTER_TAB_INSET, PosterTab, ResponseExt, RoundButton, Row,
-    RowColumn, RowState, SCROLL, Section, SidePanel, TileKind, backdrop_px, bar_group,
+    ListRow, ListState, MetaLine, ResponseExt, RoundButton, Row, RowColumn, RowState, SCROLL, Section, SidePanel,
+    TileKind, backdrop_px, bar_group,
 };
 use pley_shell::{AppCx, AppEvent, Chrome, Load, PlayRequest, Resource, Route, Screen};
 use pley_ui::theme::{self, radius};
 use pley_ui::{Dir, Dirs, Edge, Group, Id, Ui};
 
 use crate::actions::{Effect, ItemAction, effect, item_actions};
-use crate::common::{self, ArtKind, Change, Elsewhere, TileData, nothing_to_play, requests};
+use crate::common::{self, ArtKind, Change, Elsewhere, TileData, nothing_to_play};
 use crate::page::{
     self, Choice, Credits, FileInfo, Meta, Picks, Primary, PrimaryKind, TrackChoices, default_season, playing,
 };
@@ -57,8 +57,6 @@ const TABS_TO_TILES: f32 = 28.0;
 const CLEARANCE: f32 = 12.0;
 /// The season tabs' row starts 20 left of the gutter, so the first label lines up with it.
 const TABS_X: f32 = theme::GUTTER - 20.0;
-/// A poster tab's poster's width, for the size its picture is asked for at.
-const POSTER_TAB_POSTER_W: f32 = 40.0;
 /// The details end 200 dp before the screen's right edge (`DetailsEnd`): long lines read better
 /// narrower.
 const DETAILS_W: f32 = theme::CANVAS_W - theme::GUTTER - 200.0;
@@ -76,6 +74,7 @@ const BOTTOM_ROOM: f32 = 300.0;
 
 const HERO: u64 = 0;
 const EPISODES: u64 = 1;
+const SEASONS: u64 = 6;
 const EXTRAS: u64 = 2;
 const CAST: u64 = 3;
 const RELATED: u64 = 4;
@@ -93,21 +92,13 @@ struct Data {
     collections: Option<Resource<ItemCollections>>,
 }
 
-/// A season tab: the season's id and name, and for a poster tab its episodes ("8 episodes") and
-/// poster (else the show's).
-struct SeasonTab {
-    id: i64,
-    label: String,
-    episodes: String,
-    poster: Vec<ImageRequest>,
-}
-
 /// The seasons and episodes part of the page.
 struct Seasons {
     /// The season tabs, with more than one season (shows and seasons only).
-    tabs: Vec<SeasonTab>,
-    /// The tabs show posters: some season has one of its own ([`season_posters`]).
-    posters: bool,
+    tabs: Vec<(i64, String)>,
+    /// In place of the tabs, the seasons as poster tiles, once a season has a poster of its own
+    /// ([`season_posters`]): their ids, and the tiles.
+    posters: Vec<(i64, TileData)>,
     selected: Option<i64>,
     /// The header in place of the tabs: the season's title, else "Episodes".
     header: String,
@@ -297,6 +288,8 @@ impl Marks {
 struct View {
     column: ColumnState,
     episodes: RowState,
+    /// The season posters' row.
+    seasons: RowState,
     /// The season the episode row's state is for.
     episodes_for: Option<i64>,
     extras: RowState,
@@ -555,37 +548,29 @@ impl ItemScreen {
         let kind = d.kind;
         let episode_w = TileKind::Episode.size().w;
         let seasons_model = matches!(kind, ItemKind::Show | ItemKind::Season | ItemKind::Episode).then(|| {
-            let posters = kind != ItemKind::Episode && season_posters(seasons);
-            let tabs: Vec<SeasonTab> = if kind == ItemKind::Episode {
+            let tabs: Vec<(i64, String)> = if kind == ItemKind::Episode {
                 Vec::new()
             } else {
-                seasons
-                    .iter()
-                    .map(|s| SeasonTab {
-                        id: s.id,
-                        label: season_title(Some(&s.title), s.index),
-                        episodes: if posters {
-                            s.leaf_count
-                                .filter(|l| *l > 0)
-                                .map(|l| t!("item.counts.episodes", count = l))
-                                .unwrap_or_default()
-                        } else {
-                            String::new()
-                        },
-                        poster: if posters {
-                            requests(
-                                cx,
-                                &s.poster_url.iter().cloned().collect::<Vec<_>>(),
-                                ui.image_px(POSTER_TAB_POSTER_W),
-                            )
-                        } else {
-                            Vec::new()
-                        },
+                seasons.iter().map(|s| (s.id, season_title(Some(&s.title), s.index))).collect()
+            };
+            // The web's season cards: the poster, the season's name and its episodes.
+            let posters: Vec<(i64, TileData)> = if kind != ItemKind::Episode && season_posters(seasons) {
+                let poster_w = TileKind::Poster.size().w;
+                (seasons.iter())
+                    .map(|s| {
+                        let mut t =
+                            TileData::of(cx, ui, s, ArtKind::Poster, poster_w, pley_core::format::card_subtitle(s));
+                        t.title = season_title(Some(&s.title), s.index);
+                        (s.id, t)
                     })
                     .collect()
+            } else {
+                Vec::new()
             };
+            let shown = tabs.iter().find(|(id, _)| !posters.is_empty() && Some(*id) == selected);
             let header = match (tabs.as_slice(), kind) {
-                ([only], _) => only.label.clone(),
+                _ if shown.is_some() => shown.map(|(_, name)| name.clone()).unwrap_or_default(),
+                ([(_, only)], _) => only.clone(),
                 (_, ItemKind::Episode) => d
                     .parent_index
                     .map(|i| season_title(None, Some(i)))
@@ -614,8 +599,8 @@ impl ItemScreen {
                 }
             };
             Seasons {
-                posters: posters && tabs.len() > 1,
-                tabs: if tabs.len() > 1 { tabs } else { Vec::new() },
+                tabs: if tabs.len() > 1 && posters.is_empty() { tabs } else { Vec::new() },
+                posters,
                 selected,
                 header,
                 info_lines,
@@ -1472,6 +1457,7 @@ fn draw_credits(ui: &mut Ui, c: &Credits, at: Point) {
 struct Ids {
     buttons: Id,
     tabs: Id,
+    posters: Id,
     episodes: Id,
     extras: Id,
     cast: Id,
@@ -1484,6 +1470,7 @@ impl Ids {
         Ids {
             buttons: root.with("buttons"),
             tabs: root.with("tabs"),
+            posters: root.with("posters"),
             episodes: root.with("episodes"),
             extras: root.with("extras"),
             cast: root.with("cast"),
@@ -1498,26 +1485,9 @@ fn episodes_height(s: &Seasons) -> f32 {
     let head = if s.tabs.is_empty() {
         theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES
     } else {
-        tabs_height(s) + TABS_TO_TILES
+        theme::BUTTON_HEIGHT + TABS_TO_TILES
     };
     head + TileKind::Episode.row_height(false)
-}
-
-/// The tabs' height: 40, or 72 for poster tabs.
-fn tabs_height(s: &Seasons) -> f32 {
-    if s.posters { POSTER_TAB_HEIGHT } else { theme::BUTTON_HEIGHT }
-}
-
-/// Whether a show's season tabs show posters (Android's `seasonPosters`): some season has one of
-/// its own. The server gives a season without one its show's poster, the same address for each, so
-/// the seasons' addresses all match (or are all missing) only when none has its own. Decided for
-/// the whole show, so the tabs are all posters or all words. packages/tv/test/fixtures/season-posters.json
-/// pins it.
-fn season_posters(seasons: &[ItemSummary]) -> bool {
-    fn address(s: &ItemSummary) -> Option<&str> {
-        s.poster_url.as_deref().filter(|u| !u.is_empty())
-    }
-    seasons.len() > 1 && seasons.iter().any(|s| address(s) != address(&seasons[0]))
 }
 
 /// The season tabs (or the season's header) and its episodes.
@@ -1529,7 +1499,7 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
         top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES
     } else {
         draw_tabs(ui, s, view, top, ids, out);
-        top + tabs_height(s) + TABS_TO_TILES
+        top + theme::BUTTON_HEIGHT + TABS_TO_TILES
     };
     let Some(episodes) = &s.episodes else { return };
     if episodes.is_empty() {
@@ -1566,8 +1536,7 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
 }
 
 /// The season tabs (`SeasonTabs`): 40 dp pills from x 76, 4 apart; the shown season on Surface3;
-/// focus coming back to it; a tab shows its season once focus rests on it 400 ms, or on OK. Poster
-/// tabs start at x 90, so the first poster is at the gutter.
+/// focus coming back to it; a tab shows its season once focus rests on it 400 ms, or on OK.
 fn draw_tabs(ui: &mut Ui, s: &Seasons, view: &mut View, top: f32, ids: &Ids, out: &mut Vec<Intent>) {
     let current = s.selected.map(|id| ids.tabs.with(id as u64));
     let down = into_episodes(ui, ids.episodes, Some(s));
@@ -1576,43 +1545,74 @@ fn draw_tabs(ui: &mut Ui, s: &Seasons, view: &mut View, top: f32, ids: &Ids, out
         group = group.enter_at(c);
     }
     // Tabs past the screen's edge slide in as focus reaches them.
-    let start = if s.posters { theme::GUTTER - POSTER_TAB_INSET } else { TABS_X };
-    fn tab(t: &SeasonTab, shown: bool) -> PosterTab<'_> {
-        PosterTab::new(&t.label, &t.episodes, &t.poster, shown)
-    }
-    let widths: Vec<f32> = (s.tabs.iter())
-        .map(|t| if s.posters { tab(t, false).size(ui).w } else { Button::season_tab(&t.label, false).size(ui).w })
-        .collect();
+    let widths: Vec<f32> = s.tabs.iter().map(|(_, label)| Button::season_tab(label, false).size(ui).w).collect();
     let shift = ui.animate(ids.tabs.with("shift"), view.tabs_shift, SCROLL);
     let rested = ui.rested();
     ui.group(ids.tabs, group, |ui| {
-        let mut x = start - shift;
-        for (i, t) in s.tabs.iter().enumerate() {
-            let tid = ids.tabs.with(t.id as u64);
-            let shown = s.selected == Some(t.id);
-            let at = Point::new(x, top);
-            let r = if s.posters {
-                tab(t, shown).show(ui, tid, at)
-            } else {
-                Button::season_tab(&t.label, shown).show(ui, tid, at)
-            };
+        let mut x = TABS_X - shift;
+        for (i, (id, label)) in s.tabs.iter().enumerate() {
+            let tid = ids.tabs.with(*id as u64);
+            let shown = s.selected == Some(*id);
+            let r = Button::season_tab(label, shown).show(ui, tid, Point::new(x, top));
             if r.focused {
                 let (left, right) = (x + shift, x + shift + widths[i]);
                 let end = theme::CANVAS_W - theme::SAFE_X;
                 if right - view.tabs_shift > end {
                     view.tabs_shift = right - end;
-                } else if left - view.tabs_shift < start {
-                    view.tabs_shift = (left - start).max(0.0);
+                } else if left - view.tabs_shift < TABS_X {
+                    view.tabs_shift = (left - TABS_X).max(0.0);
                 }
                 if !shown && (r.activated || rested) {
-                    out.push(Intent::Season(t.id));
+                    out.push(Intent::Season(*id));
                 }
             } else if r.activated && !shown {
-                out.push(Intent::Season(t.id));
+                out.push(Intent::Season(*id));
             }
             x += widths[i] + 4.0;
         }
     });
+}
+
+/// The seasons as poster tiles (`SeasonPosters`), as the web shows them: each season's poster, else
+/// the show's, its name and episodes under it. As with the tabs, a season focus rests on, or OK
+/// chooses, is shown under the row; focus comes into the row on the season shown, and Down goes to
+/// its episode to watch.
+fn draw_season_posters(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, out: &mut Vec<Intent>) {
+    let Some(s) = &m.seasons else { return };
+    let row = ids.posters.with("row");
+    let mut group = Group::free().edge(Dir::Down, into_episodes(ui, ids.episodes, Some(s)));
+    if let Some(id) = s.selected {
+        group = group.enter_at(row.with(id as u64));
+    }
+    let rested = ui.rested();
+    let kind = TileKind::Poster;
+    ui.group(ids.posters, group, |ui| {
+        let r = Row::new(kind, top).show(
+            ui,
+            row,
+            &mut view.seasons,
+            s.posters.len(),
+            |i| s.posters[i].0 as u64,
+            |ui, slot| s.posters[slot.index].1.tile(kind).paint(ui, slot),
+        );
+        let chosen = r.activated.or(r.focused.filter(|_| rested));
+        if let Some(id) = chosen.map(|i| s.posters[i].0)
+            && s.selected != Some(id)
+        {
+            out.push(Intent::Season(id));
+        }
+    });
+}
+
+/// Whether a show's seasons show as a row of posters rather than tabs (Android's `seasonPosters`):
+/// some season has one of its own. The server gives a season without one its show's poster, the
+/// same address for each, so the seasons' addresses all match (or are all missing) only when none
+/// has its own. Decided for the whole show. packages/tv/test/fixtures/season-posters.json pins it.
+fn season_posters(seasons: &[ItemSummary]) -> bool {
+    fn address(s: &ItemSummary) -> Option<&str> {
+        s.poster_url.as_deref().filter(|u| !u.is_empty())
+    }
+    seasons.len() > 1 && seasons.iter().any(|s| address(s) != address(&seasons[0]))
 }
 
 /// A row of tiles under the episodes.
@@ -1948,6 +1948,9 @@ impl Screen for ItemScreen {
             // The sections and the lines they come to rest on.
             let hero = *view.hero.get_or_insert_with(|| hero_layout(ui, m));
             let mut sections = vec![Section::hero(HERO, hero.height)];
+            if m.seasons.as_ref().is_some_and(|s| !s.posters.is_empty()) {
+                sections.push(Section::new(SEASONS, TileKind::Poster.row_height(false), Some(TABS_TOP)));
+            }
             if let Some(s) = &m.seasons {
                 let anchor = if s.tabs.is_empty() { EPISODES_TOP - 38.0 } else { TABS_TOP };
                 sections.push(Section::new(EPISODES, episodes_height(s), Some(anchor)));
@@ -2005,7 +2008,7 @@ impl Screen for ItemScreen {
             } else {
                 match key {
                     HERO => None,
-                    EPISODES => Some(TABS_TOP - CLEARANCE),
+                    EPISODES | SEASONS => Some(TABS_TOP - CLEARANCE),
                     _ => Some(theme::FOCUSED_ROW_HEADER_Y - theme::ROWS_CLIP_ABOVE),
                 }
             };
@@ -2022,6 +2025,7 @@ impl Screen for ItemScreen {
                     match sections[i].key {
                         HERO => prefetch = draw_hero(ui, m, &hero, view, top, &ids, &mut out),
                         EPISODES => draw_episodes(ui, m, view, top, &ids, &mut out),
+                        SEASONS => draw_season_posters(ui, m, view, top, &ids, &mut out),
                         EXTRAS => {
                             let r = draw_row(
                                 ui,
@@ -2099,7 +2103,7 @@ impl Screen for ItemScreen {
             }
             let area = sections.get(view.column.section).map_or(HERO, |s| s.key);
             let episode = match (&m.seasons, area) {
-                (Some(s), EPISODES) => view.info_episode.and_then(|i| {
+                (Some(s), EPISODES | SEASONS) => view.info_episode.and_then(|i| {
                     let tile = s.episodes.as_ref()?.get(i)?;
                     Some((tile, s.info_lines.get(i)?.as_str()))
                 }),
@@ -2242,7 +2246,7 @@ mod tests {
     const SEASON_POSTERS: &str = include_str!("../../../../../../packages/tv/test/fixtures/season-posters.json");
 
     #[test]
-    fn tabs_are_posters_once_a_season_has_a_poster_of_its_own() {
+    fn seasons_are_posters_once_one_has_a_poster_of_its_own() {
         let fixture: serde_json::Value = serde_json::from_str(SEASON_POSTERS).unwrap();
         let cases = fixture["cases"].as_array().unwrap();
         assert!(!cases.is_empty());
@@ -2255,7 +2259,7 @@ mod tests {
                     ..ItemSummary::default()
                 })
                 .collect();
-            assert_eq!(season_posters(&seasons), case["posterTabs"].as_bool().unwrap(), "{}", case["name"]);
+            assert_eq!(season_posters(&seasons), case["posterRow"].as_bool().unwrap(), "{}", case["name"]);
         }
     }
 }

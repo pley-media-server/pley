@@ -390,7 +390,7 @@ private fun LazyListScope.rowsOf(
  * The page's column (design spec §2.4, §4.4): one list from the hero down,
  * which scrolls so that what has focus sits where the spec puts it — the
  * hero at the top; the season tabs at y = 218 and the episodes under them
- * at 286, or 318 under poster tabs (a single season's at 272, under its name); other rows' tiles at 210, their header at 172; the details'
+ * at 286 (a single season's at 272, under its name, as under season posters); other rows' tiles at 210, their header at 172; the details'
  * header there too — and, once focus has left the hero, draws nothing
  * above that line, so the rows pass under the info block. It moves itself
  * to a row's tile, and back to the hero, as a page of rows does
@@ -405,6 +405,7 @@ private fun ItemColumn(state: LazyListState, focus: ItemPageFocus, episodesTop: 
     val density = LocalDensity.current
     val column = rememberTvRowColumnFocus(state, with(density) { RowTilesTop.toPx() })
     column.tileTops[EPISODE_ROW] = with(density) { episodesTop.toPx() }
+    column.tileTops[SEASON_ROW] = with(density) { TabsTop.toPx() }
     val spec = remember(density, state, focus, column, episodesTop) { column.spec(ItemPageSpec(density, state, focus, episodesTop)) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTvRowColumn provides column) {
         LazyColumn(
@@ -565,13 +566,13 @@ internal val TabsToTiles = 28.dp
 /** The episode tiles' top under the season tabs. */
 internal val TabbedEpisodeTilesTop = TabsTop + TabHeight + TabsToTiles
 
-/** The episode tiles' top under poster tabs. */
-internal val PosterEpisodeTilesTop = TabsTop + PosterTabHeight + TabsToTiles
-
-/** Where the episode tiles sit with focus in them: under the season tabs, poster tabs, or the one season's name. */
+/**
+ * Where the episode tiles sit with focus in them: under the season tabs, or
+ * under the season's name, which is where they sit under season posters
+ * too, the posters gone above.
+ */
 private fun episodeTilesTop(seasons: SeasonsSection?): Dp = when {
-    seasons == null || seasons.seasons.size <= 1 -> EpisodeTilesTop
-    seasons.posters -> PosterEpisodeTilesTop
+    seasons == null || seasons.seasons.size <= 1 || seasons.posters -> EpisodeTilesTop
     else -> TabbedEpisodeTilesTop
 }
 

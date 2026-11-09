@@ -28,7 +28,6 @@ pub mod list;
 pub mod look;
 pub mod overlay;
 pub mod pad;
-pub mod poster_tab;
 pub mod qr;
 mod raster;
 pub mod row;
@@ -50,7 +49,6 @@ pub use list::{Heading, List, ListResponse, ListRow, ListSlot, ListState, Steppe
 pub use look::{PAGE_SCROLL, ResponseExt, SCROLL, Shade, inert, is_inert, spoken};
 pub use overlay::{Action, ActionSheet, Dialog, DialogButton, DialogResponse, PanelResponse, SidePanel, scrim_fill};
 pub use pad::{Keypad, PadKey, PadLayout, PadState, PinDots};
-pub use poster_tab::{POSTER_TAB_HEIGHT, POSTER_TAB_INSET, PosterTab};
 pub use qr::{Qr, QrError};
 pub use row::{Row, RowResponse, RowState};
 pub use tile::{

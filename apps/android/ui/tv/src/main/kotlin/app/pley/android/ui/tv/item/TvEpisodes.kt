@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -32,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
@@ -52,10 +50,7 @@ import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
-import app.pley.android.designsystem.image.Artwork
-import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.reducedMotion
-import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
@@ -79,7 +74,10 @@ import kotlinx.coroutines.flow.first
  * episodes as 208 by 117 tiles captioned "5. Glasshouse" and "26 min left".
  * Focus comes into the row on the episode to watch (or the page's own
  * episode), and stays at the gutter while the row moves. A tab chosen
- * with focus resting on it shows its season.
+ * with focus resting on it shows its season. A show whose seasons have
+ * posters of their own ([SeasonsSection.posters]) shows them as a row of
+ * poster tiles instead, as the web does, with the season shown named over
+ * its episodes.
  */
 @Composable
 internal fun TvEpisodesSection(
@@ -94,10 +92,15 @@ internal fun TvEpisodesSection(
     onActions: (ItemSummary) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        if (seasons.seasons.size > 1) {
-            SeasonTabs(seasons, page.origin, onSelectSeason, Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs })
+        val inTabs = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs }
+        if (seasons.posters) {
+            SeasonPosters(seasons, page.origin, memory, onSelectSeason, inTabs)
             Spacer(Modifier.height(TabsToTiles))
-        } else {
+        } else if (seasons.seasons.size > 1) {
+            SeasonTabs(seasons, onSelectSeason, inTabs)
+            Spacer(Modifier.height(TabsToTiles))
+        }
+        if (seasons.seasons.size <= 1 || seasons.posters) {
             BasicText(
                 seasons.selectedTab?.title ?: page.context?.seasonTitle ?: stringResource(R.string.tv_item_episodes),
                 style = PleyType.Tv.Section.copy(color = PleyColors.Fg),
@@ -138,13 +141,11 @@ internal fun TvEpisodesSection(
  * shown season's tab, as on the Samsung app, never on the tab nearest the
  * focus, which would show its season. A show with more tabs than the screen
  * holds scrolls them, each tab at its own width, just far enough to show the
- * focused one ([TvScrolling.inView]). Once a season has a poster of its
- * own ([SeasonsSection.posters]) every tab shows its season's poster, else
- * the show's, beside its name and episodes, 72 tall.
+ * focused one ([TvScrolling.inView]).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun SeasonTabs(seasons: SeasonsSection, origin: String, onSelect: (Long) -> Unit, modifier: Modifier = Modifier) {
+private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf<Long?>(null) }
     val rested = rememberRested(focused)
     LaunchedEffect(rested) {
@@ -153,7 +154,7 @@ private fun SeasonTabs(seasons: SeasonsSection, origin: String, onSelect: (Long)
     val selected = remember { FocusRequester() }
     val density = LocalDensity.current
     val scroll = rememberScrollState()
-    val start = PleyTv.Gutter - if (seasons.posters) PosterTabInset else TabInset
+    val start = PleyTv.Gutter - TabInset
     val inView = remember(density, start) { with(density) { TvScrolling.inView(start.toPx(), TvSafeArea.Horizontal.toPx()) } }
     CompositionLocalProvider(LocalBringIntoViewSpec provides inView) {
         Row(
@@ -168,35 +169,20 @@ private fun SeasonTabs(seasons: SeasonsSection, origin: String, onSelect: (Long)
         ) {
             seasons.seasons.forEach { season ->
                 val current = season.id == seasons.selected
-                val episodes = season.episodes?.asString()
-                val poster = remember(seasons.posters, season.posterUrl, origin, episodes) {
-                    if (seasons.posters) PosterTab(ArtworkImage.of(season.posterUrl, origin), episodes) else null
-                }
                 SeasonTab(
                     title = season.title,
                     current = current,
                     onFocus = { focused = season.id },
                     onClick = { onSelect(season.id) },
                     modifier = if (current) Modifier.focusRequester(selected) else Modifier,
-                    poster = poster,
                 )
             }
         }
     }
 }
 
-/** A poster tab's picture (`null`: neither the season nor the show has one) and "8 episodes". */
-private class PosterTab(val image: ArtworkImage?, val episodes: String?)
-
 @Composable
-private fun SeasonTab(
-    title: String,
-    current: Boolean,
-    onFocus: () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    poster: PosterTab? = null,
-) {
+private fun SeasonTab(title: String, current: Boolean, onFocus: () -> Unit, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     val scale by animateFloatAsState(
@@ -221,28 +207,45 @@ private fun SeasonTab(
                 scaleX = scale
                 scaleY = scale
             }
-            .heightIn(min = if (poster == null) TabHeight else PosterTabHeight)
+            .heightIn(min = TabHeight)
             .background(fill, PleyShape.Control)
             .semantics { selected = current }
             .clickable(interactionSource = interactions, indication = null, role = Role.Tab, onClick = onClick)
-            .padding(start = if (poster == null) TabInset else PosterTabInset, end = TabInset),
+            .padding(horizontal = TabInset),
         contentAlignment = Alignment.CenterStart,
     ) {
-        if (poster == null) {
-            BasicText(title, style = PleyType.Tv.Label.copy(color = text), softWrap = false, maxLines = 1)
-        } else {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Artwork(poster.image, title, Modifier.size(PosterWidth, PosterHeight).clip(PleyShape.Badge))
-                Column {
-                    BasicText(title, style = PleyType.Tv.Label.copy(color = text), softWrap = false, maxLines = 1)
-                    poster.episodes?.let {
-                        val count = if (focused) PleyColors.OnAccent.copy(alpha = 0.8f) else PleyColors.Muted
-                        BasicText(it, style = PleyType.Tv.Caption.copy(color = count), softWrap = false, maxLines = 1)
-                    }
-                }
-            }
-        }
+        BasicText(title, style = PleyType.Tv.Label.copy(color = text), softWrap = false, maxLines = 1)
     }
+}
+
+/**
+ * The seasons as poster tiles, as the web shows them: each season's poster
+ * (else the show's), its name and episodes under it, its unwatched count
+ * on it, in a row of the TV kit ([TvRow]). As with the tabs, a season
+ * focus rests on, or Select chooses, is shown under the row.
+ */
+@Composable
+private fun SeasonPosters(seasons: SeasonsSection, origin: String, memory: FocusMemory, onSelect: (Long) -> Unit, modifier: Modifier) {
+    val words = formatWords()
+    val tiles = remember(seasons.seasons, origin, words) {
+        seasons.seasons.mapNotNull { season -> season.item?.let { ArtworkTileModel.of(it.copy(title = season.title), TileKind.Poster, origin, words) } }
+    }
+    var focused by remember { mutableStateOf<Long?>(null) }
+    val rested = rememberRested(focused)
+    LaunchedEffect(rested) {
+        if (rested != null && rested != seasons.selected) onSelect(rested)
+    }
+    TvRow(
+        rowKey = SEASON_ROW,
+        title = null,
+        tiles = tiles,
+        kind = TileKind.Poster,
+        onOpen = { if (it.id != seasons.selected) onSelect(it.id) },
+        onFocus = { focused = it.id },
+        memory = memory,
+        enterOn = seasons.selected,
+        modifier = modifier.testTag(TV_SEASON_TABS),
+    )
 }
 
 /**
@@ -293,18 +296,13 @@ private fun EpisodeRow(
 /** Tabs are 40 tall (design spec §2.6). */
 internal val TabHeight = 40.dp
 
-/** Poster tabs: a 40 by 60 poster, 6 from the tab's top, bottom and start. */
-internal val PosterTabHeight = 72.dp
-private val PosterWidth = 40.dp
-private val PosterHeight = 60.dp
-
 /** From a tab's start to its label, so the first tab's label is at the gutter. */
 private val TabInset = 20.dp
 
-/** From a poster tab's start to its poster, so the first tab's poster is at the gutter. */
-private val PosterTabInset = 6.dp
-
 internal const val TV_SEASON_TABS = "pley.tv.item.seasons"
+
+/** The season posters' row's key: its tiles are remembered as "season/<id>". */
+internal const val SEASON_ROW = "season"
 
 /** The episode row's key: its tiles are remembered as "episode/<id>". */
 internal const val EPISODE_ROW = "episode"

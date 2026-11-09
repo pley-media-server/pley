@@ -216,18 +216,18 @@ public class ItemPagesTests
     public static IEnumerable<object[]> SeasonPosterCases() =>
         Enumerable.Range(0, Fixtures.Load("season-posters").GetProperty("cases").GetArrayLength()).Select(i => new object[] { i });
 
-    /// <summary>Poster tabs as the Samsung web app's (packages/tv/test/fixtures/season-posters.json) and Android's.</summary>
+    /// <summary>Season posters as the Samsung web app's (packages/tv/test/fixtures/season-posters.json) and Android's.</summary>
     [Theory]
     [MemberData(nameof(SeasonPosterCases))]
-    public void A_shows_tabs_are_posters_once_one_season_has_a_poster_of_its_own(int i)
+    public void A_shows_seasons_are_posters_once_one_has_a_poster_of_its_own(int i)
     {
         var c = Fixtures.Load("season-posters").GetProperty("cases")[i];
         var seasons = c.GetProperty("posters").EnumerateArray()
             .Select((p, n) => Summary(30 + n, "season", index: n + 1) with { PosterUrl = p.ValueKind == JsonValueKind.Null ? null : p.GetString() })
             .ToList();
         var page = Page(Show(childCount: seasons.Count), input => input with { Seasons = seasons, SelectedSeason = 30 });
-        Assert.Equal(c.GetProperty("posterTabs").GetBoolean(), page.Seasons!.Posters);
-        Assert.Equal(seasons.Select(s => s.PosterUrl), page.Seasons.Seasons.Select(t => t.PosterUrl));
+        Assert.Equal(c.GetProperty("posterRow").GetBoolean(), page.Seasons!.Posters);
+        Assert.Equal(seasons.Select(s => s.PosterUrl), page.Seasons.Seasons.Select(t => t.Item?.PosterUrl));
     }
 
     [Fact]

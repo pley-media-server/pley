@@ -11,8 +11,9 @@ describes how they are made.
 ### Added
 
 - On Android TV, a show whose seasons have posters of their own shows
-  them on its season tabs, each beside the season's name and episode
-  count. A season without one shows the show's poster.
+  them as a row of posters over its episodes, each with the season's
+  name and episode count under it, as the web app does. A season without
+  one shows the show's poster.
 
 ### Changed
 

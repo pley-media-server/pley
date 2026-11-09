@@ -23,8 +23,6 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
-import app.pley.android.designsystem.PleyTv
-import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.Credit
 import app.pley.android.model.CreditRole
@@ -231,28 +229,34 @@ class TvItemPageTest {
     }
 
     @Test
-    fun aSeasonWithItsOwnPosterTurnsEveryTabIntoAPosterTab() {
+    fun aSeasonWithItsOwnPosterShowsTheSeasonsAsPosterTiles() {
         show(showOf(12, posters = true))
         val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
         while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        // The episodes sit under the season's name, as a single season's do.
+        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
         press(Key.DirectionUp)
-        compose.onNode(isFocused()).assert(hasText("Season 1")).assert(hasText("4 episodes"))
+        val season = hasAnyAncestor(hasTestTag(TV_SEASON_TABS)) and isFocused()
+        compose.onNode(season).assert(hasContentDescription("Season 1, 4 episodes", substring = true))
+        assertEquals(TabsTop.value, focusedTop(), 2f)
         for (s in 2..12) {
             press(Key.DirectionRight)
-            // Every tab a poster tab, the seasons without a poster of their own too, and on screen.
-            compose.onNode(isFocused()).assert(hasText("Season $s")).assert(hasText("4 episodes"))
-            val tab = compose.onNode(isFocused()).getBoundsInRoot()
-            assertTrue("Season $s: $tab", tab.left.value >= 0f && tab.right.value <= 960f)
-            assertEquals("Season $s: $tab", PosterTabHeight.value, (tab.bottom - tab.top).value, 4f)
+            // Every season a poster tile, those without a poster of their own too, and on screen.
+            compose.onNode(season).assert(hasContentDescription("Season $s, 4 episodes", substring = true))
+            val tile = compose.onNode(isFocused()).getBoundsInRoot()
+            assertTrue("Season $s: $tile", tile.left.value >= 0f && tile.right.value <= 960f)
+            assertEquals("Season $s: $tile", TileKind.Poster.tvHeight.value, (tile.bottom - tile.top).value, 14f)
         }
-        // The episodes sit under the taller tabs, their captions on screen.
+        // Focus resting on Season 12 shows it, named over its episodes.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
         press(Key.DirectionDown)
-        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
-        assertEquals(PosterEpisodeTilesTop.value, focusedTop(), 1f)
-        val captionsEnd = PosterEpisodeTilesTop + TileKind.Episode.tvHeight + PleyTv.TilesToCaption + PleyTv.CaptionHeight
-        assertTrue("$captionsEnd", captionsEnd <= 540.dp - TvSafeArea.Vertical)
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 12 Episode 1", substring = true))
+        compose.onNode(hasText("Season 12")).assertExists()
+        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
+        // Up comes back to the season shown.
+        press(Key.DirectionUp)
+        compose.onNode(season).assert(hasContentDescription("Season 12", substring = true))
     }
 
     @Test

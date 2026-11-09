@@ -151,19 +151,19 @@ fn a_show_goes_down_to_its_next_episode_and_up_to_the_seasons() {
     app.press(Key::Down);
     let next = app.id(&["episodes"]).with(ids::SHOW_S1E2 as u64);
     assert_eq!(app.focused(), Some(next), "Down didn't land on the next episode");
-    // Once focus rests on it, the info block tells of it, and still does over the tabs.
+    // Once focus rests on it, the info block tells of it, and still does over the seasons.
     app.advance(0.5);
     let told = "Season 1 · Episode 2 · 20s · Aired 10 October 2025";
     assert!(app.shows(told));
     app.press(Key::Up);
-    let season1 = app.id(&["tabs"]).with(ids::SHOW_SEASON_1 as u64);
+    let season1 = app.id(&["posters", "row"]).with(ids::SHOW_SEASON_1 as u64);
     assert_eq!(app.focused(), Some(season1));
     app.advance(0.5);
-    assert!(app.shows(told), "the info block let go of the episode on the tabs");
-    // Resting on the next tab shows its season.
+    assert!(app.shows(told), "the info block let go of the episode on the seasons");
+    // Resting on the next season shows it.
     app.press(Key::Right);
     app.advance(0.5);
-    assert!(app.until(|a| a.focused() == Some(a.id(&["tabs"]).with(ids::SHOW_SEASON_2 as u64))));
+    assert!(app.until(|a| a.focused() == Some(a.id(&["posters", "row"]).with(ids::SHOW_SEASON_2 as u64))));
     // Season 2's three episodes, none started, replace season 1's (whose second is in progress).
     let unstarted = |a: &TestApp| a.list.texts().filter(|t| *t == "20s").count();
     assert!(app.until(|a| unstarted(a) == 3), "season 2's episodes never came");
