@@ -348,6 +348,10 @@ pub struct NetworkInfo {
     adapters: Vec<Adapter>,
     /// Bonjour's host name when none is chosen.
     bonjour_host_default: String,
+    /// Pley runs in a container on a network of Docker's own, which the
+    /// apps' search and Bonjour don't reach from the home network (a guess:
+    /// see [`network::on_container_network`]).
+    container_network: bool,
     /// Where a change is saved.
     config_file: String,
     /// Windows Firewall decides which kinds of network reach pley.
@@ -355,8 +359,11 @@ pub struct NetworkInfo {
 }
 
 async fn network_info(state: &AppState) -> ApiResult<NetworkInfo> {
-    let adapters = tokio::task::spawn_blocking(network::adapters).await.map_err(anyhow::Error::from)?;
+    let (adapters, contained) = tokio::task::spawn_blocking(|| (network::adapters(), network::in_container()))
+        .await
+        .map_err(anyhow::Error::from)?;
     Ok(NetworkInfo {
+        container_network: network::on_container_network(contained, &adapters),
         listen: state.network.wanted(),
         fixed: state.network.fixed,
         listeners: state.network.listeners(),

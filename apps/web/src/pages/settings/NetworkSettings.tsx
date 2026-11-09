@@ -538,7 +538,9 @@ export function NetworkSettings() {
               ? t("network.discovery.fixed")
               : form.mode === "local"
                 ? t("network.localOnly")
-                : t("network.discovery.hint")
+                : data.container_network
+                  ? t("network.containerNetwork")
+                  : t("network.discovery.hint")
           }
         >
           <Toggle
@@ -558,7 +560,9 @@ export function NetworkSettings() {
               ? t("network.bonjour.fixed")
               : form.mode === "local"
                 ? t("network.localOnly")
-                : t("network.bonjour.hint")
+                : data.container_network
+                  ? t("network.containerNetwork")
+                  : t("network.bonjour.hint")
           }
         >
           <Toggle

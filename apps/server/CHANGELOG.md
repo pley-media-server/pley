@@ -34,6 +34,9 @@ describes how they are made.
   Australia, New Zealand, Canada and Ireland can now have their own
   ratings, and a server can have summaries in one language and another
   country's ratings.
+- Settings › Network says when Pley runs in a container on Docker's own
+  network, where devices can't find it by themselves, and how to put it on
+  the home network instead.
 
 ## [0.1.9] - 2026-11-08
 

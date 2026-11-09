@@ -4338,6 +4338,9 @@ interface Network {
   bonjour_host_name: string; // the host name before .local, one DNS label (letters, digits,
                           // hyphens; "Media.local" is kept as "media"): "" = bonjour_host_default
   bonjour_host_default: string; // read only: pley- and the server id's start
+  container_network: boolean; // read only: in a container (Docker's or Podman's) with only 172.16.0.0/12
+                          // addresses, as on a Docker bridge network, which the apps' search and Bonjour
+                          // don't reach from the home network. A guess, so only shown: it turns nothing off
                           // A PUT that leaves out bonjour, bonjour_adapters or
                           // bonjour_host_name sets it to off, [] or "".
   fixed: { web: boolean; plex: boolean; jellyfin: boolean; discovery: boolean; bonjour: boolean }; // set by

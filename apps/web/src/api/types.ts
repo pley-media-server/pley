@@ -1240,6 +1240,8 @@ export interface NetworkSettings extends ListenChoice {
   adapters: NetworkAdapter[];
   /** Bonjour's host name when none is chosen (`pley-` and the server id's start). */
   bonjour_host_default: string;
+  /** In a container on a network of Docker's own, which the apps' search and Bonjour don't reach (a guess). */
+  container_network: boolean;
   /** Where a change is saved. */
   config_file: string;
   /** Windows Firewall decides which kinds of network reach pley. */

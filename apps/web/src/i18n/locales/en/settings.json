@@ -311,6 +311,7 @@
     "port": "Port",
     "portHint": "The web app's and the Pley apps'.",
     "localOnly": "On networks only: devices can't reach this computer's own address.",
+    "containerNetwork": "Pley runs on Docker's own network, where devices on yours can't find it: they need its address. Host networking, or br0 on Unraid, puts Pley on your network.",
     "discovery": {
       "label": "Found by the Pley apps",
       "fixed": "Turned off by --no-discovery or PLEY_NO_DISCOVERY.",

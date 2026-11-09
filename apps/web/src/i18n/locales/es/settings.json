@@ -312,6 +312,7 @@
     "port": "Puerto",
     "portHint": "El de la app web y las apps de Pley.",
     "localOnly": "Solo en redes: los dispositivos no pueden llegar a la dirección propia de este equipo.",
+    "containerNetwork": "Pley funciona en la red propia de Docker, donde los dispositivos de la tuya no lo encuentran: necesitan su dirección. La red del host, o br0 en Unraid, pone Pley en tu red.",
     "discovery": {
       "label": "Visible para las apps de Pley",
       "fixed": "Desactivado por --no-discovery o PLEY_NO_DISCOVERY.",
