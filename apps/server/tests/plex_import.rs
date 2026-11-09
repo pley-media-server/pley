@@ -113,7 +113,8 @@ async fn all(
         })
         .collect();
     if let Some(label) = q.get("label") {
-        list.retain(|i| label == "10" && i["ratingKey"] == "101");
+        // Alien has both: Scary, and Kometa's mark of its overlay.
+        list.retain(|i| (label == "10" || label == "11") && i["ratingKey"] == "101");
     }
     if q.get("unwatched").is_some_and(|v| v == "0") {
         list.retain(|i| i.get("viewCount").is_some());
@@ -290,7 +291,7 @@ async fn fake_plex() -> String {
         .route(
             "/library/sections/{section}/label",
             get(|Path(section): Path<String>| async move {
-                let labels = if section == "1" { json!([{"key": "10", "title": "Scary"}]) } else { json!([]) };
+                let labels = if section == "1" { json!([{"key": "10", "title": "Scary"}, {"key": "11", "title": "Overlay"}]) } else { json!([]) };
                 container(json!({ "Directory": labels }))
             }),
         )

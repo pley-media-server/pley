@@ -33,6 +33,9 @@ const SOURCE: &str = "plex";
 const PAGES_AT_ONCE: usize = 4;
 /// Posters asked of the Plex server at the same time.
 const POSTERS_AT_ONCE: usize = 4;
+/// The label Kometa puts on a title once it has drawn its overlay on the
+/// title's poster.
+const KOMETA_OVERLAY: &str = "Overlay";
 /// Longest title, sort title, tagline, studio or genre brought, in characters.
 const MAX_TITLE: usize = 500;
 /// Longest summary brought, in characters.
@@ -1625,6 +1628,13 @@ impl Run {
         for label in labels {
             // Longer than Pley keeps: no rule could name it either.
             if label.title.trim().is_empty() || label.title.chars().count() > crate::labels::MAX_LEN {
+                continue;
+            }
+            // Kometa's mark of an overlay it drew in Plex. On Pley it would
+            // send Kometa to the original it kept for that `ratingKey` in
+            // Plex, which in Pley is another title's; without it, Kometa
+            // draws its overlays afresh on Pley's poster.
+            if label.title.trim().eq_ignore_ascii_case(KOMETA_OVERLAY) {
                 continue;
             }
             for (plex_type, _) in types(library.kind) {
