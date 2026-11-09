@@ -862,7 +862,7 @@
     },
     "libraries": {
       "title": "Bibliotecas de {{server}}",
-      "description": "Pley buscó tus archivos de Plex entre los suyos. Elige adónde va cada biblioteca; sus títulos se encuentran por archivo y luego por su id de TMDB, IMDb o TheTVDB.",
+      "description": "Elige adónde va cada biblioteca.",
       "none": "Este servidor no tiene bibliotecas de películas, series ni música.",
       "status": {
         "matched": "En Pley",
@@ -877,16 +877,14 @@
       "folders_one": "{{count, number}} carpeta",
       "folders_many": "{{count, number}} de carpetas",
       "folders_other": "{{count, number}} carpetas",
-      "foldersHint": "Dónde está cada carpeta de Plex para Pley, cuando el servidor la ve en otra ruta (un volumen de Docker, una carpeta de red).",
-      "whereFor": "Dónde encuentra Pley {{folder}}",
+      "plexSees": "Plex ve <path>{{folder}}</path>. ¿Dónde lo ve Pley?",
       "browseFor": "Explorar para indicar dónde encuentra Pley {{folder}}",
-      "notFound": "No encontrada: su ruta para Pley",
       "unsureHint": "Parte de sus archivos están en esta biblioteca, o están en varias. Comprueba que sea la correcta.",
-      "unreachableHint": "Pley no puede abrir sus carpetas. Para importarla, elige Una biblioteca nueva e indica dónde están para Pley.",
       "problem": {
         "no_folders": "Indica dónde está al menos una de sus carpetas para Pley."
       },
-      "pickOne": "Elige al menos una biblioteca para importar."
+      "pickOne": "Elige al menos una biblioteca para importar.",
+      "found": "Pley ha encontrado estas carpetas. Comprueba que son las correctas."
     },
     "people": {
       "title": "Quién viene",

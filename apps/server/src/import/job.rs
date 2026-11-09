@@ -20,7 +20,7 @@ use crate::library::LibraryKind;
 use crate::state::AppState;
 use crate::util::now;
 
-use super::matching::{Folder, Index, Matches, folder_for};
+use super::matching::{Folder, Index, Matches, folder_for, map_path};
 use futures::StreamExt;
 
 use super::plex::{HomeUser, Item, Plex, PlexError, Resource, Section, Server, UserFilters};
@@ -244,6 +244,10 @@ pub struct Pairing {
     pub folders: Vec<Folder>,
     /// Plex's folders this server can open, for a library made from them.
     pub folders_here: Vec<String>,
+    /// Where Plex's other folders seem to be for Pley: found by their path's
+    /// end (`/media/movies` for `/data/media/movies`) and one of the files
+    /// sampled from them (`crate::folders::find`).
+    pub folders_found: Vec<Folder>,
 }
 
 #[derive(Debug, Serialize)]
@@ -548,7 +552,7 @@ impl Importer {
 
     /// Each Plex library with the Pley library it pairs with, and each Home
     /// user with the limits they'd get.
-    pub async fn plan(&self, db: &Db) -> ImportResult<Plan> {
+    pub async fn plan(&self, db: &Db, data_dir: &std::path::Path) -> ImportResult<Plan> {
         let mut session = self.session.lock().await;
         let token = session.token.clone().ok_or(ImportError::NotSignedIn)?;
         let server = session.server.clone().ok_or(ImportError::NoServer)?;
@@ -556,11 +560,13 @@ impl Importer {
         let plex = self.plex(db, &mut session).await?;
         drop(session);
 
+        let data_dir = data_dir.to_path_buf();
+        let bases = tokio::task::spawn_blocking(move || crate::folders::bases(&data_dir)).await.unwrap_or_default();
         let mut libraries = Vec::new();
         for section in plex.sections(&server).await? {
             let Some(kind) = pley_kind(&section.kind) else { continue };
             let locations: Vec<String> = section.location.iter().map(|l| l.path.clone()).collect();
-            let pairing = pair(db, &plex, &server, &section.key, kind, &locations).await?;
+            let pairing = pair(db, &plex, &server, &section.key, kind, &locations, &bases).await?;
             libraries.push(PlanLibrary {
                 key: section.key,
                 title: section.title,
@@ -691,7 +697,8 @@ async fn imported_profile(db: &Db, plex_id: i64) -> sqlx::Result<Option<i64>> {
 }
 
 /// Pairs Plex library `key` with Pley's: some of its files, from spots
-/// spread over it, looked for among Pley's by name and size.
+/// spread over it, looked for among Pley's by name and size. Its folders
+/// Pley knows neither way are looked for under `bases`.
 async fn pair(
     db: &Db,
     plex: &Plex,
@@ -699,6 +706,7 @@ async fn pair(
     key: &str,
     kind: LibraryKind,
     locations: &[String],
+    bases: &[std::path::PathBuf],
 ) -> ImportResult<Pairing> {
     let query = [("type", leaf_type(kind).to_string())];
     let path = format!("/library/sections/{key}/all");
@@ -751,7 +759,34 @@ async fn pair(
         Some(_) => "unsure",
     };
     let folders_here = locations.iter().filter(|l| std::path::Path::new(l).is_dir()).cloned().collect::<Vec<String>>();
-    Ok(Pairing { status, library_id: best.map(|(id, _)| id), folders, folders_here })
+    let unknown: Vec<String> = locations
+        .iter()
+        .filter(|l| {
+            !folders_here.contains(l) && !folders.iter().any(|f| map_path(std::slice::from_ref(f), l).is_some())
+        })
+        .cloned()
+        .collect();
+    let bases = bases.to_vec();
+    let folders_found = tokio::task::spawn_blocking(move || {
+        unknown
+            .iter()
+            .filter_map(|location| {
+                let found = crate::folders::find(location, &bases, |dir| {
+                    let folder = Folder { plex: location.clone(), pley: dir.to_string_lossy().into_owned() };
+                    // One of its sampled files there, the same size, says it's the one.
+                    files.iter().any(|(file, size)| {
+                        map_path(std::slice::from_ref(&folder), file)
+                            .and_then(|path| std::fs::metadata(path).ok())
+                            .is_some_and(|m| Some(m.len() as i64) == *size)
+                    })
+                })?;
+                Some(Folder { plex: location.clone(), pley: found.to_string_lossy().into_owned() })
+            })
+            .collect()
+    })
+    .await
+    .unwrap_or_default();
+    Ok(Pairing { status, library_id: best.map(|(id, _)| id), folders, folders_here, folders_found })
 }
 
 /// One import as it runs.

@@ -14,7 +14,9 @@ describes how they are made.
 - Moving from Plex: a new server offers to bring over a Plex server once
   the administrator account is made, and Settings › Libraries has Import from
   Plex. Sign in on Plex's own page and pick the server; Pley pairs each
-  Plex library with its own (or makes one), makes a profile for each Plex
+  Plex library with its own (or makes one), finding Plex's folders where
+  it sees them under another path (Docker) by a file in them, or from one
+  folder given; it makes a profile for each Plex
   Home user with their picture and their restrictions as an age limit and
   label rules, and
   brings over the titles' labels and dates added, and each person's

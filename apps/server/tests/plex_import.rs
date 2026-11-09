@@ -443,6 +443,8 @@ async fn brings_libraries_people_and_what_they_watched() {
         json!([{"plex": "/plexdata/movies", "pley": app.media_path("movies")}])
     );
     assert_eq!(libraries[1]["pairing"]["status"], "not_in_pley");
+    // Nowhere Pley looks has its files: nothing's offered for its folder.
+    assert_eq!(libraries[1]["pairing"]["folders_found"], json!([]));
     let kid = &plan.body["users"][1];
     assert_eq!(kid["title"], "Kid One");
     assert_eq!(

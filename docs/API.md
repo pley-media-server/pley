@@ -4567,6 +4567,7 @@ interface ImportPlan {
       library_id: Id | null;              // the Pley library most of its files are in
       folders: { plex: string; pley: string }[];  // read off the files found
       folders_here: string[];             // Plex's folders this server can open
+      folders_found: { plex: string; pley: string }[];  // the others, found by their path's end and a file in them
     };
   }[];
   users: {

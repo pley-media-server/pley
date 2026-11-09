@@ -862,7 +862,7 @@
     },
     "libraries": {
       "title": "Bibliothèques de {{server}}",
-      "description": "Pley a cherché vos fichiers Plex parmi les siens. Choisissez où va chaque bibliothèque ; ses titres sont retrouvés par fichier, puis par leur identifiant TMDB, IMDb ou TheTVDB.",
+      "description": "Choisissez où va chaque bibliothèque.",
       "none": "Ce serveur n’a aucune bibliothèque de films, de séries ou de musique.",
       "status": {
         "matched": "Dans Pley",
@@ -877,16 +877,14 @@
       "folders_one": "{{count, number}} dossier",
       "folders_many": "{{count, number}} de dossiers",
       "folders_other": "{{count, number}} dossiers",
-      "foldersHint": "Où se trouve chaque dossier de Plex pour Pley, quand le serveur le voit sous un autre chemin (un volume Docker, un partage réseau).",
-      "whereFor": "Où Pley trouve {{folder}}",
+      "plexSees": "Plex voit <path>{{folder}}</path>. Où Pley le voit-il ?",
       "browseFor": "Parcourir pour indiquer où Pley trouve {{folder}}",
-      "notFound": "Introuvable : son chemin pour Pley",
       "unsureHint": "Une partie de ses fichiers est dans cette bibliothèque, ou ils sont dans plusieurs. Vérifiez que c’est la bonne.",
-      "unreachableHint": "Pley ne peut pas ouvrir ses dossiers. Pour l’importer, choisissez Une nouvelle bibliothèque et indiquez où ils sont pour Pley.",
       "problem": {
         "no_folders": "Indiquez où se trouve au moins un de ses dossiers pour Pley."
       },
-      "pickOne": "Choisissez au moins une bibliothèque à importer."
+      "pickOne": "Choisissez au moins une bibliothèque à importer.",
+      "found": "Pley a trouvé ces dossiers. Vérifiez qu’ils sont bons."
     },
     "people": {
       "title": "Qui vient avec vous",

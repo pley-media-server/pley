@@ -1,12 +1,23 @@
-import { useState } from "react";
-import { useTranslation } from "react-i18next";
+import { useEffect, useRef, useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { ChevronDown, ChevronRight, FolderOpen } from "lucide-react";
+import { api } from "@/api/client";
 import type { ImportPlan, PlanLibrary } from "@/api/plexImport";
-import type { Library } from "@/api/types";
+import type { FsListing, Library } from "@/api/types";
 import { FolderPicker } from "@/components/FolderPicker";
 import { LibraryIcon } from "@/components/Sidebar";
 import { Badge, Button, Field, Select, TextInput } from "@/components/ui";
-import { bringsAny, libraryProblems, type LibraryChoice, type LibraryChoices, type LibraryProblem, type Target } from "./choices";
+import {
+  bringsAny,
+  fillIn,
+  libraryProblems,
+  swapFills,
+  swapOf,
+  type LibraryChoice,
+  type LibraryChoices,
+  type LibraryProblem,
+  type Target,
+} from "./choices";
 import { StepFrame } from "./PlexImport";
 
 export function LibrariesStep({
@@ -30,6 +41,26 @@ export function LibrariesStep({
   const [checked, setChecked] = useState(false);
   const problems = libraryProblems(plan, choices);
   const nothing = !bringsAny(choices);
+  // The choices as they are when a folder check comes back.
+  const latest = useRef(choices);
+  useEffect(() => {
+    latest.current = choices;
+  }, [choices]);
+
+  // A folder given says where the others are too: those the same swap
+  // finds there are filled in.
+  const fillFrom = async (location: string, path: string) => {
+    if (!path.trim()) return;
+    const fills = swapFills(plan, latest.current, swapOf(location, path.trim())).filter((f) => f.location !== location);
+    const there = await Promise.all(
+      fills.map((f) => api.post<FsListing>("/api/fs", { path: f.path }).then(
+        () => true,
+        () => false,
+      )),
+    );
+    const found = fills.filter((_, i) => there[i]);
+    if (found.length > 0) onChange(fillIn(latest.current, found));
+  };
 
   const next = () => {
     setChecked(true);
@@ -67,6 +98,7 @@ export function LibrariesStep({
                   choice={choice}
                   problem={checked ? problems[library.key] : undefined}
                   onChange={(c) => onChange({ ...choices, [library.key]: c })}
+                  onFolderGiven={(location, path) => void fillFrom(location, path)}
                 />
               </li>
             );
@@ -88,12 +120,15 @@ function LibraryRow({
   choice,
   problem,
   onChange,
+  onFolderGiven,
 }: {
   library: PlanLibrary;
   libraries: Library[];
   choice: LibraryChoice;
   problem?: LibraryProblem;
   onChange: (choice: LibraryChoice) => void;
+  /** A folder said, for the others to be looked for the same way. */
+  onFolderGiven: (location: string, path: string) => void;
 }) {
   const { t } = useTranslation(["settings", "common"]);
   // The Plex folder whose place for Pley is being picked.
@@ -103,12 +138,22 @@ function LibraryRow({
   const sameKind = libraries.filter((l) => l.kind === library.kind);
   const status = library.pairing.status;
   const id = `plex-library-${library.key}`;
-  const foldersOpen = choice.target !== "leave" && (showFolders || choice.target === "new" || !!problem);
+  // Left out because Pley can't open its folders: they're asked for here,
+  // and one given brings it.
+  const asking = choice.target === "leave" && !choice.left && status === "not_in_pley";
+  const foldersOpen = asking || (choice.target !== "leave" && (showFolders || choice.target === "new" || !!problem));
+  // Going to one of Pley's libraries: its folders fold away.
+  const listed = choice.target !== "new" && choice.target !== "leave";
 
   const setTarget = (value: string) => {
     const target: Target = value === "new" || value === "leave" ? value : Number(value);
-    onChange({ ...choice, target });
+    onChange({ ...choice, target, left: target === "leave" });
   };
+  const setFolder = (location: string, path: string) => {
+    const target = asking && path.trim() ? "new" : choice.target;
+    onChange({ ...choice, target, folders: { ...choice.folders, [location]: path }, found: choice.found.filter((l) => l !== location) });
+  };
+  const foundShown = choice.found.some((l) => choice.folders[l]?.trim());
 
   return (
     <div className="rounded-lg border border-border bg-surface-2 p-3.5">
@@ -119,9 +164,11 @@ function LibraryRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate font-medium">{library.title}</span>
-            <Badge tone={status === "matched" ? "success" : status === "unsure" ? "warning" : "neutral"}>{t(`plexImport.libraries.status.${status}`)}</Badge>
+            {/* On a server with no libraries, every one would say Not in Pley. */}
+            {libraries.length > 0 ? (
+              <Badge tone={status === "matched" ? "success" : status === "unsure" ? "warning" : "neutral"}>{t(`plexImport.libraries.status.${status}`)}</Badge>
+            ) : null}
           </div>
-          <p className="text-xs text-muted">{t(`libraries.kinds.${library.kind}.label`)}</p>
         </div>
         <label htmlFor={`${id}-target`} className="sr-only">
           {t("plexImport.libraries.goesTo", { name: library.title })}
@@ -142,9 +189,6 @@ function LibraryRow({
       </div>
 
       {choice.target !== "leave" && status === "unsure" ? <p className="mt-2 text-xs text-warning">{t("plexImport.libraries.unsureHint")}</p> : null}
-      {choice.target === "leave" && status === "not_in_pley" && unknown ? (
-        <p className="mt-2 text-xs text-subtle">{t("plexImport.libraries.unreachableHint")}</p>
-      ) : null}
 
       {choice.target === "new" ? (
         <div className="mt-3">
@@ -154,9 +198,9 @@ function LibraryRow({
         </div>
       ) : null}
 
-      {choice.target !== "leave" ? (
+      {foldersOpen || listed ? (
         <div className="mt-3">
-          {choice.target !== "new" ? (
+          {listed ? (
             <button
               type="button"
               aria-expanded={foldersOpen}
@@ -166,28 +210,27 @@ function LibraryRow({
               {foldersOpen ? <ChevronDown className="size-3.5" /> : <ChevronRight className="size-3.5" />}
               {t("plexImport.libraries.folders", { count: library.locations.length })}
             </button>
-          ) : (
-            <p className="text-sm font-medium">{t("plexImport.libraries.folders", { count: library.locations.length })}</p>
-          )}
+          ) : null}
           {foldersOpen ? (
-            <div className="mt-2 space-y-2">
-              <p className="text-xs text-subtle">{t("plexImport.libraries.foldersHint")}</p>
+            <div className="mt-2 space-y-3">
               {library.locations.map((location, i) => (
-                <div key={location} className="grid gap-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center sm:gap-2">
-                  <span className="truncate font-mono text-xs text-muted" title={location}>
-                    {location}
-                  </span>
+                <div key={location} className="space-y-1.5">
+                  <label htmlFor={`${id}-folder-${i}`} className="block text-xs text-muted">
+                    <Trans
+                      t={t}
+                      i18nKey="plexImport.libraries.plexSees"
+                      values={{ folder: location }}
+                      components={{ path: <span className="break-all font-mono text-fg" /> }}
+                    />
+                  </label>
                   <div className="flex items-center gap-2">
-                    <label htmlFor={`${id}-folder-${i}`} className="sr-only">
-                      {t("plexImport.libraries.whereFor", { folder: location })}
-                    </label>
                     <TextInput
                       id={`${id}-folder-${i}`}
                       value={choice.folders[location] ?? ""}
-                      placeholder={t("plexImport.libraries.notFound")}
                       spellCheck={false}
                       className="h-8 min-w-0 flex-1 font-mono text-xs"
-                      onChange={(e) => onChange({ ...choice, folders: { ...choice.folders, [location]: e.target.value } })}
+                      onChange={(e) => setFolder(location, e.target.value)}
+                      onBlur={(e) => onFolderGiven(location, e.target.value)}
                     />
                     <Button
                       size="sm"
@@ -200,6 +243,7 @@ function LibraryRow({
                   </div>
                 </div>
               ))}
+              {foundShown ? <p className="text-xs text-subtle">{t("plexImport.libraries.found")}</p> : null}
             </div>
           ) : null}
           {problem ? (
@@ -216,7 +260,10 @@ function LibraryRow({
         onClose={() => setPicking(null)}
         initialPath={picking ? choice.folders[picking]?.trim() || null : null}
         onSelect={(path) => {
-          if (picking !== null) onChange({ ...choice, folders: { ...choice.folders, [picking]: path } });
+          if (picking !== null) {
+            setFolder(picking, path);
+            onFolderGiven(picking, path);
+          }
           setPicking(null);
         }}
       />

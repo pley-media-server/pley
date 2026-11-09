@@ -842,7 +842,7 @@
     },
     "libraries": {
       "title": "Libraries on {{server}}",
-      "description": "Pley looked for your Plex files among its own. Choose where each library goes; its titles are matched by file, then by their TMDB, IMDb or TheTVDB id.",
+      "description": "Choose where each library goes.",
       "none": "This server has no movie, show or music libraries.",
       "status": {
         "matched": "In Pley",
@@ -856,16 +856,14 @@
       "name": "New library's name",
       "folders_one": "{{count, number}} folder",
       "folders_other": "{{count, number}} folders",
-      "foldersHint": "Where each of Plex's folders is for Pley, when the server sees it under another path (a Docker volume, a network share).",
-      "whereFor": "Where Pley finds {{folder}}",
+      "plexSees": "Plex sees <path>{{folder}}</path>. Where does Pley see it?",
       "browseFor": "Browse for where Pley finds {{folder}}",
-      "notFound": "Not found: its path for Pley",
       "unsureHint": "Some of its files are in this library, or they're in more than one. Check it's the right one.",
-      "unreachableHint": "Pley can't open its folders. To bring it, choose A new library and say where they are for Pley.",
       "problem": {
         "no_folders": "Say where at least one of its folders is for Pley."
       },
-      "pickOne": "Choose at least one library to bring."
+      "pickOne": "Choose at least one library to bring.",
+      "found": "Pley found these folders. Check they're right."
     },
     "people": {
       "title": "Who comes over",

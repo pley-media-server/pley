@@ -10,6 +10,10 @@ export interface LibraryChoice {
   name: string;
   /** Each of Plex's folders, where it is for Pley ("" not known). */
   folders: Record<string, string>;
+  /** Plex's folders whose place Pley filled in, until they're changed: to check. */
+  found: string[];
+  /** Left out by the person, rather than for want of its folders. */
+  left: boolean;
 }
 
 /** By Plex library's key. */
@@ -30,7 +34,10 @@ function through(folder: PlexFolder, path: string): string | null {
   const pley = bare(folder.pley);
   if (bare(path) === plex) return pley || folder.pley;
   const rest = path.slice(plex.length);
-  return path.startsWith(plex) && /^[/\\]/.test(rest) ? pley + rest : null;
+  if (!path.startsWith(plex) || !/^[/\\]/.test(rest)) return null;
+  // A Windows Plex's `\` are `/` for a Pley that writes `/`.
+  const windows = pley.includes("\\") && !pley.includes("/");
+  return pley + (windows ? rest.replace(/\//g, "\\") : rest.replace(/\\/g, "/"));
 }
 
 /** Where each of Plex's folders is for Pley, as far as the plan knows. */
@@ -38,10 +45,15 @@ export function knownFolders(library: PlanLibrary): Record<string, string> {
   const { folders, folders_here } = library.pairing;
   return Object.fromEntries(
     library.locations.map((location) => {
-      const found = folders.map((f) => through(f, location)).find((p) => p !== null);
-      return [location, found ?? (folders_here.some((h) => bare(h) === bare(location)) ? location : "")];
+      const known = folders.map((f) => through(f, location)).find((p) => p !== null);
+      return [location, known ?? (folders_here.some((h) => bare(h) === bare(location)) ? location : foundFolder(library, location))];
     }),
   );
+}
+
+/** Where Pley's search found Plex's `location`, else "". */
+function foundFolder(library: PlanLibrary, location: string): string {
+  return library.pairing.folders_found.find((f) => bare(f.plex) === bare(location))?.pley ?? "";
 }
 
 /**
@@ -56,9 +68,79 @@ export function firstChoices(plan: ImportPlan): LibraryChoices {
       const reachable = Object.values(folders).some(Boolean);
       const id = library.pairing.library_id;
       const target: Target = library.pairing.status !== "not_in_pley" && id != null ? id : reachable ? "new" : "leave";
-      return [library.key, { target, name: library.title, folders }];
+      const found = library.locations.filter((l) => folders[l] !== "" && folders[l] === foundFolder(library, l));
+      return [library.key, { target, name: library.title, folders, found, left: false }];
     }),
   );
+}
+
+/** A path's parts, `/` and `\\` alike. */
+const partsOf = (path: string) => path.split(/[/\\]+/).filter(Boolean);
+
+/** `path` without its last `n` parts ("" when that's all of it). */
+function withoutLast(path: string, n: number): string {
+  let rest = bare(path);
+  for (let i = 0; i < n; i++) {
+    const at = Math.max(rest.lastIndexOf("/"), rest.lastIndexOf("\\"));
+    if (at < 0) return "";
+    rest = rest.slice(0, at);
+  }
+  return rest;
+}
+
+/**
+ * What one answer says of Plex's other folders: its Plex folder and Pley's
+ * without the end they share, ignoring case. `/data/movies` at
+ * `/mnt/user/Movies` says `/data` is `/mnt/user`; with no end shared, it's
+ * the folder itself, which still says where the folders inside it are.
+ */
+export function swapOf(plex: string, pley: string): PlexFolder {
+  const a = partsOf(plex);
+  const b = partsOf(pley);
+  let shared = 0;
+  while (shared < a.length && shared < b.length && a[a.length - 1 - shared]!.toLowerCase() === b[b.length - 1 - shared]!.toLowerCase()) {
+    shared++;
+  }
+  return { plex: withoutLast(plex, shared), pley: withoutLast(pley, shared) };
+}
+
+/** A folder `swap` may fill in: library `key`'s Plex `location` at Pley's `path`. */
+export interface Filled {
+  key: string;
+  location: string;
+  path: string;
+}
+
+/** The empty folders of the plan's libraries that `swap` would fill in, for the step to check they're there. */
+export function swapFills(plan: ImportPlan, choices: LibraryChoices, swap: PlexFolder): Filled[] {
+  return plan.libraries.flatMap((library) => {
+    const choice = choices[library.key];
+    if (!choice) return [];
+    return library.locations.flatMap((location) => {
+      if (choice.folders[location]?.trim()) return [];
+      const path = through(swap, location);
+      return path ? [{ key: library.key, location, path }] : [];
+    });
+  });
+}
+
+/**
+ * The choices with `filled` folders, those still empty: each marked as
+ * Pley's to check, and a library left out for want of them made new.
+ */
+export function fillIn(choices: LibraryChoices, filled: Filled[]): LibraryChoices {
+  const next = { ...choices };
+  for (const { key, location, path } of filled) {
+    const choice = next[key];
+    if (!choice || choice.folders[location]?.trim()) continue;
+    next[key] = {
+      ...choice,
+      target: choice.target === "leave" && !choice.left ? "new" : choice.target,
+      folders: { ...choice.folders, [location]: path },
+      found: [...choice.found, location],
+    };
+  }
+  return next;
 }
 
 /** The new library's folders: Plex's, where they are for Pley. */

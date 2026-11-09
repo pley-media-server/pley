@@ -16,14 +16,14 @@ const plan: ImportPlan = {
       title: "Movies",
       kind: "movies",
       locations: ["/data/movies"],
-      pairing: { status: "matched", library_id: 7, folders: [{ plex: "/data/movies", pley: "/media/films" }], folders_here: [] },
+      pairing: { status: "matched", library_id: 7, folders: [{ plex: "/data/movies", pley: "/media/films" }], folders_here: [], folders_found: [] },
     },
     {
       key: "2",
       title: "TV Shows",
       kind: "shows",
       locations: ["/data/tv"],
-      pairing: { status: "not_in_pley", library_id: null, folders: [], folders_here: [] },
+      pairing: { status: "not_in_pley", library_id: null, folders: [], folders_here: [], folders_found: [] },
     },
   ],
   users: [
@@ -83,11 +83,18 @@ function serve({
   progress = () => idle,
   servers = [{ id: "m1", name: "Den", owned: true, version: "1.41.0" }],
   connect = () => ({ name: "Den" }),
+  thePlan = plan,
+  pleyLibraries = [films],
+  exists = () => true,
 }: {
   signedIn?: boolean | null;
   progress?: () => ImportProgress;
   servers?: PlexServer[];
   connect?: () => unknown;
+  thePlan?: ImportPlan;
+  pleyLibraries?: Library[];
+  /** Whether a folder is there for Pley. */
+  exists?: (path: string) => boolean;
 } = {}) {
   return mockApi({
     "GET /api/import/plex": () => progress(),
@@ -98,12 +105,13 @@ function serve({
     },
     "GET /api/import/plex/servers": () => servers,
     "POST /api/import/plex/server": () => connect(),
-    "GET /api/import/plex/plan": () => plan,
+    "GET /api/import/plex/plan": () => thePlan,
     "POST /api/import/plex/start": () => undefined,
-    "GET /api/libraries": () => [films],
+    "GET /api/libraries": () => pleyLibraries,
     "GET /api/ratings/systems": () => ({ region: "US", systems: [] }),
     "POST /api/fs": (req) => {
       const { path } = req.body as { path: string | null };
+      if (path && !exists(path)) return apiError(400, "bad_request", `cannot open ${path}`);
       return { path, parent: null, entries: path ? [] : [{ name: "/", path: "/" }] };
     },
   });
@@ -123,13 +131,16 @@ describe("PlexImport", () => {
     expect(await screen.findByRole("heading", { name: "Libraries on Den" })).toBeInTheDocument();
     expect(requests.find((r) => r.method === "POST" && r.path === "/api/import/plex/server")?.body).toEqual({ id: "m1" });
     expect(screen.getByLabelText("Where Movies goes")).toHaveValue("7");
-    // Pley can't open TV Shows' folder: left out until it's said where it is.
+    // Pley can't open TV Shows' folder: left out, and its folder asked for.
     const tv = screen.getByLabelText("Where TV Shows goes");
     expect(tv).toHaveValue("leave");
-    await user.selectOptions(tv, "new");
+    // Giving it brings the library.
+    await user.type(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"), "/media/tv");
+    expect(tv).toHaveValue("new");
+    await user.clear(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"));
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Say where at least one of its folders is for Pley.");
-    await user.type(screen.getByLabelText("Where Pley finds /data/tv"), "/media/tv");
+    await user.type(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"), "/media/tv");
     await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(await screen.findByRole("heading", { name: "Who comes over" })).toBeInTheDocument();
@@ -236,12 +247,13 @@ describe("PlexImport", () => {
     const user = userEvent.setup();
     serve();
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
-    await user.selectOptions(await screen.findByLabelText("Where TV Shows goes"), "new");
+    expect(await screen.findByLabelText("Where TV Shows goes")).toHaveValue("leave");
     await user.click(screen.getByRole("button", { name: "Browse for where Pley finds /data/tv" }));
     const picker = await screen.findByRole("dialog", { name: "Choose a folder" });
     await user.type(within(picker).getByLabelText("Folder path"), "/volume1/video/tv{Enter}");
     await user.click(within(picker).getByRole("button", { name: "Select this folder" }));
-    expect(screen.getByLabelText("Where Pley finds /data/tv")).toHaveValue("/volume1/video/tv");
+    expect(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?")).toHaveValue("/volume1/video/tv");
+    expect(screen.getByLabelText("Where TV Shows goes")).toHaveValue("new");
   });
 
   it("connects to the only server without showing the list of servers", async () => {
@@ -300,5 +312,64 @@ describe("PlexImport", () => {
     progress = idle;
     await client.invalidateQueries({ queryKey: plexImportKeys.progress });
     expect(await screen.findByRole("heading", { name: "The import was interrupted" })).toBeInTheDocument();
+  });
+
+  describe("on a server with no libraries, Plex in Docker", () => {
+    const notInPley = (key: string, title: string, kind: "movies" | "shows" | "music", location: string, found: string | null = null) => ({
+      key,
+      title,
+      kind,
+      locations: [location],
+      pairing: {
+        status: "not_in_pley" as const,
+        library_id: null,
+        folders: [],
+        folders_here: [],
+        folders_found: found ? [{ plex: location, pley: found }] : [],
+      },
+    });
+    const docker: ImportPlan = {
+      ...plan,
+      libraries: [
+        notInPley("1", "Movies", "movies", "/data/media/movies", "/media/Movies"),
+        notInPley("2", "TV Shows", "shows", "/data/media/tv"),
+        notInPley("3", "Music", "music", "/data/media/music"),
+      ],
+    };
+
+    it("starts from the folders Pley found, says so, and shows no badges", async () => {
+      serve({ thePlan: docker, pleyLibraries: [] });
+      renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+      expect(await screen.findByLabelText("Where Movies goes")).toHaveValue("new");
+      expect(screen.getByLabelText("Plex sees /data/media/movies. Where does Pley see it?")).toHaveValue("/media/Movies");
+      expect(screen.getByText("Pley found these folders. Check they're right.")).toBeInTheDocument();
+      expect(screen.getByLabelText("Where TV Shows goes")).toHaveValue("leave");
+      expect(screen.queryByText("Not in Pley")).not.toBeInTheDocument();
+    });
+
+    it("doesn't fill in a folder that isn't there", async () => {
+      const user = userEvent.setup();
+      // Pley sees Plex's /data/media as /mnt/user, with TV there and no music.
+      serve({ thePlan: { ...docker, libraries: docker.libraries.slice(1) }, pleyLibraries: [], exists: (path) => path === "/mnt/user/tv" });
+      renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+      const music = await screen.findByLabelText("Plex sees /data/media/music. Where does Pley see it?");
+      await user.type(screen.getByLabelText("Plex sees /data/media/tv. Where does Pley see it?"), "/mnt/user/TV");
+      await user.click(music);
+      // /mnt/user/music isn't there: nothing's filled in for Music.
+      await user.tab();
+      expect(music).toHaveValue("");
+      expect(screen.getByLabelText("Where Music goes")).toHaveValue("leave");
+    });
+
+    it("fills in a library from another's folder", async () => {
+      const user = userEvent.setup();
+      serve({ thePlan: { ...docker, libraries: docker.libraries.slice(1) }, pleyLibraries: [], exists: (path) => path === "/mnt/user/music" });
+      renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+      await user.type(await screen.findByLabelText("Plex sees /data/media/tv. Where does Pley see it?"), "/mnt/user/tv");
+      await user.tab();
+      await waitFor(() => expect(screen.getByLabelText("Plex sees /data/media/music. Where does Pley see it?")).toHaveValue("/mnt/user/music"));
+      expect(screen.getByLabelText("Where Music goes")).toHaveValue("new");
+      expect(screen.getByText("Pley found these folders. Check they're right.")).toBeInTheDocument();
+    });
   });
 });

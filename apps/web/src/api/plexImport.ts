@@ -33,6 +33,8 @@ export interface PlanLibrary {
     folders: PlexFolder[];
     /** Plex's folders this server can open. */
     folders_here: string[];
+    /** Where Plex's other folders seem to be for Pley, found by their path's end and a file in them. */
+    folders_found: PlexFolder[];
   };
 }
 

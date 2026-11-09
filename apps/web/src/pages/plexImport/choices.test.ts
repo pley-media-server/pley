@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ImportPlan, PlanLibrary } from "@/api/plexImport";
-import { choicesFor, firstChoices, libraryProblems } from "./choices";
+import { choicesFor, fillIn, firstChoices, libraryProblems, swapFills, swapOf } from "./choices";
 
 function library(key: string, pairing: Partial<PlanLibrary["pairing"]>, locations = [`/plex/${key}`]): PlanLibrary {
   return {
@@ -8,7 +8,7 @@ function library(key: string, pairing: Partial<PlanLibrary["pairing"]>, location
     title: `Library ${key}`,
     kind: "movies",
     locations,
-    pairing: { status: "not_in_pley", library_id: null, folders: [], folders_here: [], ...pairing },
+    pairing: { status: "not_in_pley", library_id: null, folders: [], folders_here: [], folders_found: [], ...pairing },
   };
 }
 
@@ -28,9 +28,9 @@ const plan: ImportPlan = {
 describe("Plex import choices", () => {
   it("start where the plan says each library goes", () => {
     expect(firstChoices(plan)).toEqual({
-      "1": { target: 7, name: "Library 1", folders: { "/plex/1": "/media/films" } },
-      "2": { target: "new", name: "Library 2", folders: { "/plex/2": "/plex/2" } },
-      "3": { target: "leave", name: "Library 3", folders: { "/plex/3": "" } },
+      "1": { target: 7, name: "Library 1", folders: { "/plex/1": "/media/films" }, found: [], left: false },
+      "2": { target: "new", name: "Library 2", folders: { "/plex/2": "/plex/2" }, found: [], left: false },
+      "3": { target: "leave", name: "Library 3", folders: { "/plex/3": "" }, found: [], left: false },
     });
   });
 
@@ -69,5 +69,51 @@ describe("Plex import choices", () => {
       { plex: "/data/films/", pley: "/mnt/films/" },
       { plex: "/data", pley: "/mnt/" },
     ]);
+  });
+
+  it("start from the folders Pley found, to be checked", () => {
+    const found: ImportPlan = { ...plan, libraries: [library("4", { folders_found: [{ plex: "/plex/4", pley: "/media/Movies" }] })] };
+    expect(firstChoices(found)["4"]).toEqual({ target: "new", name: "Library 4", folders: { "/plex/4": "/media/Movies" }, found: ["/plex/4"], left: false });
+  });
+
+  it("read what one folder given says of the others", () => {
+    expect(swapOf("/data/movies", "/mnt/user/Movies")).toEqual({ plex: "/data", pley: "/mnt/user" });
+    // All they share is taken off: `/data` is Pley's `/`.
+    expect(swapOf("/data/media/movies", "/media/Movies")).toEqual({ plex: "/data", pley: "" });
+    expect(swapOf("/movies", "/media/movies")).toEqual({ plex: "", pley: "/media" });
+    expect(swapOf("D:\\Plex\\Films", "/mnt/nas/films")).toEqual({ plex: "D:\\Plex", pley: "/mnt/nas" });
+    // Nothing shared: the folder itself, for the folders inside it.
+    expect(swapOf("/data/films", "/volume1/video")).toEqual({ plex: "/data/films", pley: "/volume1/video" });
+  });
+
+  it("fill in only empty folders, and bring a library left out for want of them", () => {
+    const docker: ImportPlan = {
+      server: "Den",
+      libraries: [
+        library("1", {}, ["/data/media/movies"]),
+        library("2", {}, ["/data/media/tv", "/data/other/kids"]),
+        library("3", {}, ["/data/media/music"]),
+      ],
+      users: [],
+    };
+    let choices = firstChoices(docker);
+    choices["1"] = { ...choices["1"]!, target: "new", folders: { "/data/media/movies": "/media/movies" } };
+    choices["3"] = { ...choices["3"]!, left: true };
+    const fills = swapFills(docker, choices, swapOf("/data/media/movies", "/media/movies"));
+    expect(fills).toEqual([
+      { key: "2", location: "/data/media/tv", path: "/media/tv" },
+      { key: "2", location: "/data/other/kids", path: "/other/kids" },
+      { key: "3", location: "/data/media/music", path: "/media/music" },
+    ]);
+    // The step fills in those that are there.
+    choices = fillIn(
+      choices,
+      fills.filter((f) => f.path !== "/other/kids"),
+    );
+    expect(choices["2"]).toMatchObject({ target: "new", folders: { "/data/media/tv": "/media/tv", "/data/other/kids": "" }, found: ["/data/media/tv"] });
+    // Left out by the person: filled in, but still left out.
+    expect(choices["3"]).toMatchObject({ target: "leave", folders: { "/data/media/music": "/media/music" } });
+    // A folder said already isn't changed.
+    expect(fillIn(choices, [{ key: "2", location: "/data/media/tv", path: "/elsewhere" }])["2"]?.folders["/data/media/tv"]).toBe("/media/tv");
   });
 });

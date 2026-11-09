@@ -109,7 +109,7 @@ pub async fn choose_server(
 /// `GET /api/import/plex/plan`: Plex's libraries paired with Pley's, and
 /// its Home users with the limits they'd get.
 pub async fn plan(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Plan>> {
-    Ok(Json(state.plex_import.plan(&state.db).await?))
+    Ok(Json(state.plex_import.plan(&state.db, &state.config.data_dir).await?))
 }
 
 /// `POST /api/import/plex/start`: starts the import.

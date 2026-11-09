@@ -64,10 +64,15 @@ titles first, and Pley fetches each one by Plex's ids rather than
 searching by its name. Titles found only by their ids, which the fetch
 gives Pley, come over once it's done.
 
-When Pley sees Plex's folders under another path, say the server runs in
-Docker with `/data/movies` mounted as `/media/movies`, say where each one
-is on the Libraries step. Pley works out most of them from the files it
-finds.
+When Pley sees Plex's folders under another path, say Plex runs in Docker
+with your media at `/data/media` and Pley with it at `/media`, Pley looks
+for them: under `/`, `/mnt`, `/media`, `/srv`, `/Volumes`, your home, the
+folders mounted into its container and the folders directly inside these,
+by the end of Plex's path (`media/movies`, then `movies`), and takes a
+folder only when one of Plex's files is there. Any it doesn't find, say on
+the Libraries step: one folder given says where the others are too
+(`/data/media/movies` at `/media/movies` puts `/data/media/tv` at
+`/media/tv`), and Pley fills in those it finds there.
 
 ## Importing
 
@@ -85,8 +90,11 @@ Import from Plex.
 3. **Libraries.** Each Plex library shows where it goes: *In Pley* (its
    files are in a Pley library), *Check this* (some are, or in more than
    one) or *Not in Pley* (a new library is made for it from Plex's folders,
-   or it's left out when Pley can't open them until you say where they
-   are). Change where any of them goes, or leave it out.
+   or it's left out when Pley can't find them, with each folder asked for:
+   "Plex sees `/data/media/tv`. Where does Pley see it?"; giving one brings
+   it). Folders Pley found say so, to check. Change where any library
+   goes, or leave it out. On a server with no libraries yet, the badges
+   aren't shown: every library would be Not in Pley.
 4. **People.** Each Home user shows the profile they'll get and its limits.
    Turn off anyone who shouldn't come. Plex sometimes asks for a protected
    user's PIN; type it there, or they're skipped.
