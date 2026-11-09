@@ -34,6 +34,13 @@ describes how they are made.
   Australia, New Zealand, Canada and Ireland can now have their own
   ratings, and a server can have summaries in one language and another
   country's ratings.
+- Setup has a Your server step after the administrator account: the
+  server's name, Pley's language, the language of titles and summaries
+  (the browser's to start with), the country, a TMDB key (optional,
+  checked before it's saved), and whether Apple devices find the server
+  by Bonjour, each shown on a row of its own to confirm or change.
+  Settings › Server calls its languages the same way, Pley's language and
+  Titles and summaries, and names the latter rather than showing codes.
 - Settings › Network says when Pley runs in a container on Docker's own
   network, where devices can't find it by themselves, and how to put it on
   the home network instead.

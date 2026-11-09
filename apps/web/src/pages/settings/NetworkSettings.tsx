@@ -70,7 +70,7 @@ export function splitAddress(address: string): { ip: string; port: number } {
 }
 
 const joinAddress = (ip: string, port: number) => (ip.includes(":") ? `[${ip}]:${port}` : `${ip}:${port}`);
-const isLoopback = (ip: string) => ip.startsWith("127.") || ip === "::1";
+export const isLoopback = (ip: string) => ip.startsWith("127.") || ip === "::1";
 const isAny = (ip: string) => ip === "0.0.0.0" || ip === "::";
 
 /** An API's form from its addresses of its own and whether it answers on pley's port. */

@@ -45,7 +45,7 @@ export function SetupPage() {
     if (problem) return;
     setup.mutate(
       { username: username.trim(), password, ...(needsCode ? { setup_code: code.trim() } : {}) },
-      { onSuccess: () => void navigate("/setup/start", { replace: true }) },
+      { onSuccess: () => void navigate("/setup/server", { replace: true }) },
     );
   };
 

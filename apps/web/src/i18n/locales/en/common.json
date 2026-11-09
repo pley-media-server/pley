@@ -56,7 +56,7 @@
     "accountHint": "What Pley is in for you, on every device you sign in on. Automatic follows each device's language.",
     "serverHint": "The language of the server's own words, and of the devices whose language Pley isn't in yet. Each person can choose their own on their Account page.",
     "automatic": "Automatic ({{language}})",
-    "serverLabel": "Server language",
+    "serverLabel": "Pley's language",
     "choose": "Choose a language"
   },
   "format": {

@@ -71,8 +71,8 @@ finds.
 
 ## Importing
 
-On a new server, after the administrator account is made, Pley asks
-"Coming from Plex?". Later, it's under Settings › Libraries › Import from
+On a new server, after the administrator account is made and the server's
+name, language and country are set, Pley asks "Coming from Plex?". Later, it's under Settings › Libraries › Import from
 Plex.
 
 1. **Sign in with Plex.** Plex's sign-in page opens in a window; allow Pley

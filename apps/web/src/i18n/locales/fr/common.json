@@ -56,7 +56,7 @@
     "accountHint": "La langue de Pley pour vous, sur tous les appareils où vous vous connectez. Automatique suit la langue de chaque appareil.",
     "serverHint": "La langue des textes du serveur lui-même, et des appareils dans une langue que Pley ne parle pas encore. Chacun peut choisir la sienne sur sa page Compte.",
     "automatic": "Automatique ({{language}})",
-    "serverLabel": "Langue du serveur",
+    "serverLabel": "La langue de Pley",
     "choose": "Choisir une langue"
   },
   "format": {

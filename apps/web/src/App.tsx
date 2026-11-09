@@ -101,6 +101,15 @@ const router = createBrowserRouter([
     children: [
       { path: "/profiles", element: <ProfilesPage /> },
       // The first run goes on here once the administrator's account is made.
+      {
+        path: "/setup/server",
+        ...onDemand(
+          withWords(["settings"], () => import("@/pages/SetupServerPage")),
+          (m) => m.SetupServerPage,
+          () => [],
+          <Splash />,
+        ),
+      },
       { path: "/setup/start", element: <SetupStartPage /> },
       {
         path: "/setup/plex",

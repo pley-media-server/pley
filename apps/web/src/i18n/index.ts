@@ -44,7 +44,7 @@ export function supportedLanguage(tag: string | null | undefined): Language | un
 }
 
 /** The browser's (or the desktop's) languages, the one it prefers first. */
-function deviceTags(): readonly string[] {
+export function deviceTags(): readonly string[] {
   if (typeof navigator === "undefined") return [];
   return navigator.languages?.length ? navigator.languages : navigator.language ? [navigator.language] : [];
 }

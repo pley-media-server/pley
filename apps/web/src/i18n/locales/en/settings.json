@@ -59,7 +59,7 @@
       "nfo": "NFO files",
       "nfoHint": "The NFO files Kodi, Jellyfin, Radarr and Sonarr keep next to movies and shows: their ids decide the match, and their details win over the metadata source's. Your edits win over them. Pley never changes them.",
       "nfoToggle": "Read NFO files",
-      "language": "Metadata language",
+      "language": "Titles and summaries",
       "languageHint": "For TMDB and TheTVDB. TVmaze is in English.",
       "attribution": "This product uses the TMDB API but is not endorsed or certified by TMDB. TV metadata from <tvdb>TheTVDB</tvdb>. TV data from TVmaze is licensed <license>CC BY-SA</license>; music data from MusicBrainz is public domain."
     },

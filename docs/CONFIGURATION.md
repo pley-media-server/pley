@@ -7,9 +7,16 @@ How to set Pley up once it runs. Installing it is in
 
 On start, Pley prints a link with a one-time setup code
 (`http://localhost:7539/setup?code=…`; on a desktop the tray icon opens it).
-Open it, create the administrator account, then bring over a Plex server's
-libraries and profiles ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)) or add a
-library. Nobody without the code can claim a new server.
+Open it and create the administrator account. Your server comes next: what
+Pley will use, a row each, to confirm or change. That's the server's name,
+Pley's language, the language of titles and summaries (the browser's, where
+TMDB and TheTVDB have it), the country (whose age ratings are read), a TMDB
+key for movies' posters and details (optional), and, where devices on the
+network can reach Pley, whether Apple devices find it by Bonjour (yes, but
+on what looks like Docker's own network, where they couldn't). Then bring
+over a Plex server's libraries and profiles
+([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)) or add a library. Each is in
+Settings afterwards. Nobody without the code can claim a new server.
 
 `pley reset-password <user> [--admin]` resets a lost password. It asks for
 the new one (or reads it from standard input) and turns that account's

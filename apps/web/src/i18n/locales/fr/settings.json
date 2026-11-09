@@ -59,7 +59,7 @@
       "nfo": "Fichiers NFO",
       "nfoHint": "Les fichiers NFO que Kodi, Jellyfin, Radarr et Sonarr gardent à côté des films et des séries : leurs identifiants décident de la correspondance, et leurs informations l’emportent sur celles de la source de métadonnées. Vos modifications l’emportent sur elles. Pley ne les modifie jamais.",
       "nfoToggle": "Lire les fichiers NFO",
-      "language": "Langue des métadonnées",
+      "language": "Titres et résumés",
       "languageHint": "Pour TMDB et TheTVDB. TVmaze est en anglais.",
       "attribution": "Ce produit utilise l’API TMDB mais n’est ni approuvé ni certifié par TMDB. Métadonnées TV de <tvdb>TheTVDB</tvdb>. Les données TV de TVmaze sont sous licence <license>CC BY-SA</license> ; les données musicales de MusicBrainz sont dans le domaine public."
     },
