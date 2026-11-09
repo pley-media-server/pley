@@ -2810,7 +2810,14 @@ Intro and credits detection and seek previews for whole libraries
 plays, and for a minute after. They also wait while other programs keep
 more than `library_work_max_cpu` % of the processors busy, averaged over a
 minute (Pley and the transcoder it starts don't count; a transcoder run
-separately on the same machine does). Then `library_work` decides:
+separately on the same machine does).
+
+They wait, with fingerprinting, while new libraries fill in: from the
+start of a library's first scan until the scans queued behind it are
+done, and while a Plex import runs (`waiting: "scanning"`). They would
+read the same disks and write the same database as the scans and the
+metadata fetch. Work already under way finishes, and what plays or is
+opened doesn't wait. Then `library_work` decides:
 
 - **`auto`** (the default): what is likely to be watched soon goes first,
   at any hour:
@@ -2850,7 +2857,7 @@ administrator asks for runs, at any hour.
 ```ts
 interface LibraryWorkStatus {
   mode: "auto" | "hours" | "idle";
-  waiting: "playing" | "busy" | "hours" | null; // why the rest of the libraries waits now
+  waiting: "playing" | "busy" | "hours" | "scanning" | null; // why the rest of the libraries waits now
   resumes_at: Timestamp | null;     // when the hours it waits for begin
   learned: boolean;                 // about a week of playback is known
 }

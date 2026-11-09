@@ -814,8 +814,8 @@ export interface Activity {
   library_work?: LibraryWorkStatus | null;
 }
 
-/** Why library work waits: something plays (or did a minute ago), other programs keep the processors busy, or these hours aren't its own. */
-export type LibraryWorkWait = "playing" | "busy" | "hours";
+/** Why library work waits: something plays (or did a minute ago), other programs keep the processors busy, these hours aren't its own, or new libraries are being scanned for the first time or imported. */
+export type LibraryWorkWait = "playing" | "busy" | "hours" | "scanning";
 
 export interface LibraryWorkStatus {
   mode: LibraryWork;

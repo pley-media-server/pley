@@ -33,6 +33,7 @@ use crate::config::Config;
 use crate::db::Db;
 use crate::events::{EventBus, ScanPhase, ServerEvent};
 use crate::metadata::MetadataAgent;
+use crate::schedule::LibraryHold;
 use crate::store::Store;
 use crate::transcoder::{Transcoder, TranscoderError};
 use crate::util::{normalize_key, now, path_str, sort_title};
@@ -77,6 +78,8 @@ pub struct Scanner {
     events: EventBus,
     metadata: Arc<MetadataAgent>,
     store: Arc<Store>,
+    /// Held through a library's first scan (see [`crate::schedule`]).
+    hold: Arc<LibraryHold>,
     queue: mpsc::UnboundedSender<ScanRequest>,
     status: Mutex<HashMap<i64, ScanStatus>>,
     failures: Mutex<ScanFailures>,
@@ -165,6 +168,7 @@ impl Scanner {
         events: EventBus,
         metadata: Arc<MetadataAgent>,
         store: Arc<Store>,
+        hold: Arc<LibraryHold>,
         config: &Config,
     ) -> Arc<Self> {
         let _ = config;
@@ -175,6 +179,7 @@ impl Scanner {
             events,
             metadata,
             store,
+            hold,
             queue: tx,
             status: Mutex::default(),
             failures: Mutex::default(),
@@ -248,8 +253,13 @@ impl Scanner {
 
     async fn worker(self: Arc<Self>, mut rx: mpsc::UnboundedReceiver<ScanRequest>) {
         let mut pending: Vec<ScanRequest> = Vec::new();
+        // A new library's files and metadata go before other library work,
+        // and so do the scans queued behind it: released between two, the
+        // seek previews of the first would start beside the next.
+        let mut hold = None;
         loop {
             if pending.is_empty() {
+                hold = None;
                 match rx.recv().await {
                     Some(req) => pending.push(req),
                     None => break,
@@ -262,6 +272,9 @@ impl Scanner {
                 }
             }
             let req = pending.remove(0);
+            if hold.is_none() && req.files && self.first_scan(req.library_id).await {
+                hold = Some(self.hold.take());
+            }
             let started = Instant::now();
             let result = self.scan(req).await;
             self.failures.lock().record(req.library_id, result.is_ok(), now());
@@ -296,6 +309,11 @@ impl Scanner {
                 total: 0,
             });
         }
+    }
+
+    /// Whether `library_id` was never scanned.
+    async fn first_scan(&self, library_id: i64) -> bool {
+        get_library(&self.db, library_id).await.ok().flatten().is_some_and(|lib| lib.scanned_at.is_none())
     }
 
     fn set_status(&self, lib: &LibraryRow, phase: ScanPhase, processed: u64, total: u64) {

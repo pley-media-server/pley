@@ -81,6 +81,8 @@ function libraryWorkWaits(work: LibraryWorkStatus | null): string {
       return translate("dashboard.waits.playing", { ns: "settings" });
     case "busy":
       return translate("dashboard.waits.busy", { ns: "settings" });
+    case "scanning":
+      return translate("dashboard.waits.scanning", { ns: "settings" });
     case "hours": {
       const mode = work.mode === "auto" ? "auto" : "hours";
       return work.resumes_at

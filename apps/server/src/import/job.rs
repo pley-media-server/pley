@@ -865,7 +865,12 @@ struct Person {
 
 impl Run {
     async fn go(mut self, choices: Choices) {
+        // Seek previews, intros and fingerprints wait until it's over: they
+        // would read the same disks and write the same database as its
+        // scans and fetch.
+        let hold = self.state.schedule.hold();
         let outcome = self.run(choices).await;
+        drop(hold);
         let cancelled = matches!(outcome, Err(ImportError::Cancelled)) || self.importer.cancel.load(Ordering::Relaxed);
         let state = match (&outcome, cancelled) {
             (_, true) => RunState::Cancelled,

@@ -53,6 +53,15 @@ describes how they are made.
   network, where devices can't find it by themselves, and how to put it on
   the home network instead.
 
+### Changed
+
+- Seek previews, intro detection and fingerprinting wait while a library
+  is scanned for the first time and while a Plex import runs, and the
+  dashboard says so. They used to start as soon as the first library was
+  scanned, reading the same disks as the next one's scan and slowing its
+  details down. A show's episodes are written a season at a time rather
+  than one by one.
+
 ## [0.1.9] - 2026-11-08
 
 ### Added

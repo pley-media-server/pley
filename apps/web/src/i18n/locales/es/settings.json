@@ -672,6 +672,7 @@
     "waits": {
       "playing": "espera mientras algo se reproduce",
       "busy": "espera mientras otros programas ocupan los procesadores",
+      "scanning": "espera mientras se analizan o importan las bibliotecas nuevas",
       "auto": "primero lo que probablemente se verá pronto, el resto en horas tranquilas",
       "autoFrom": "primero lo que probablemente se verá pronto, el resto en horas tranquilas (a partir del {{time}})",
       "hours": "espera a sus horas",

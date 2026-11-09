@@ -98,6 +98,11 @@ describe("DashboardSettings library work", () => {
     await client.invalidateQueries({ queryKey: ["activity"] });
     expect(await screen.findByText("37 seasons left · waits while other programs keep the processors busy")).toBeInTheDocument();
 
+    // New libraries are filling in: everything waits for them.
+    activity = { ...activity, library_work: { mode: "auto", waiting: "scanning", resumes_at: null, learned: true } };
+    await client.invalidateQueries({ queryKey: ["activity"] });
+    expect(await screen.findByText("37 seasons left · waits while new libraries are scanned or imported")).toBeInTheDocument();
+
     // Nothing waits.
     activity = { ...activity, library_work: null };
     await client.invalidateQueries({ queryKey: ["activity"] });

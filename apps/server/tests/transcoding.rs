@@ -2398,6 +2398,25 @@ async fn an_older_transcoder_makes_previews_one_at_a_time() {
 }
 
 #[tokio::test]
+async fn library_previews_wait_while_new_libraries_fill_in() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    library_work(app, admin).await;
+    // A library's first scan, or an import, holds the rest of library work.
+    let hold = app.state.schedule.hold();
+    app.state.trickplay.request_all().await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(w.fake.previews.lock().is_empty(), "nothing made meanwhile");
+    let activity = app.get("/api/activity", admin).await;
+    assert_eq!(activity.body["library_work"]["waiting"], json!("scanning"));
+
+    drop(hold);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 4, "each once");
+}
+
+#[tokio::test]
 async fn an_opened_title_does_not_wait_for_the_libraries_previews() {
     let w = previews_world(5, &ON_THREE_DISKS).await;
     let (app, admin) = (&w.app, w.admin.as_str());

@@ -116,7 +116,12 @@ impl AppState {
         let settings = Arc::new(SettingsStore::load(&db).await?);
         let events = EventBus::new();
         let transcoder = Transcoder::new(&config);
-        let store = Arc::new(Store::new(db.clone(), &config.metadata_dir(), &config.media_dir(), &config.cache_dir()));
+        // Library work waits while new libraries fill in (see `schedule`).
+        let hold = Arc::new(crate::schedule::LibraryHold::default());
+        let store = Arc::new(
+            Store::new(db.clone(), &config.metadata_dir(), &config.media_dir(), &config.cache_dir())
+                .with_hold(hold.clone()),
+        );
         if let Err(err) = store.migrate_legacy(&config.metadata_dir()).await {
             tracing::warn!("moving pictures into the blob store failed: {err:#}");
         }
@@ -130,8 +135,15 @@ impl AppState {
             settings.clone(),
             config.metadata_endpoints.as_ref().map(|e| e.opensubtitles.clone()),
         ));
-        let scanner =
-            Scanner::new(db.clone(), transcoder.clone(), events.clone(), metadata.clone(), store.clone(), &config);
+        let scanner = Scanner::new(
+            db.clone(),
+            transcoder.clone(),
+            events.clone(),
+            metadata.clone(),
+            store.clone(),
+            hold.clone(),
+            &config,
+        );
         // Discover's pictures, from TMDB's picture server (none in tests
         // without endpoints).
         let pictures = crate::discover::pictures::Pictures::new(
@@ -145,7 +157,7 @@ impl AppState {
         let sessions = Arc::new(Sessions::default());
         let stopping = CancellationToken::new();
         let resources = crate::resources::Monitor::new();
-        let schedule = Scheduler::new(db.clone(), settings.clone(), sessions.clone(), resources.clone());
+        let schedule = Scheduler::new(db.clone(), settings.clone(), sessions.clone(), resources.clone(), hold.clone());
         let markers = MarkerService::new(
             db.clone(),
             transcoder.clone(),

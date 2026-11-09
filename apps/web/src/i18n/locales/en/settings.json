@@ -664,6 +664,7 @@
     "waits": {
       "playing": "waits while something plays",
       "busy": "waits while other programs keep the processors busy",
+      "scanning": "waits while new libraries are scanned or imported",
       "auto": "what's likely to be watched soon first, the rest in quieter hours",
       "autoFrom": "what's likely to be watched soon first, the rest in quieter hours (from {{time}})",
       "hours": "waits for its hours",
