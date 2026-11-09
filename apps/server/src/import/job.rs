@@ -1172,6 +1172,9 @@ impl Run {
             user_id: Some(self.admin),
             ..Default::default()
         });
+        if let Some(owner) = owner {
+            self.picture(self.admin, owner).await?;
+        }
         self.advance(1);
         let chosen: Vec<&HomeUser> =
             home.iter().filter(|u| !u.admin && choices.users.iter().any(|c| c.id == u.id)).collect();
@@ -1198,6 +1201,7 @@ impl Run {
                     let open: Vec<i64> =
                         paired.iter().filter(|p| sections.contains(&p.key)).map(|p| p.library_id).collect();
                     let (user_id, created) = self.profile(user, &limits, everything, &open, &mut report).await?;
+                    self.picture(user_id, user).await?;
                     report.user_id = Some(user_id);
                     report.created = created;
                     people.push(Person {
@@ -1217,6 +1221,43 @@ impl Run {
             self.advance(1);
         }
         Ok(people)
+    }
+
+    /// Home user `user`'s Plex picture and colour for profile `user_id`,
+    /// each only where the profile has none. A picture that can't be had,
+    /// or isn't a picture, is left out without a word.
+    async fn picture(&self, user_id: i64, user: &HomeUser) -> ImportResult<()> {
+        let Some(thumb) = user.thumb.as_deref() else { return Ok(()) };
+        let db = &self.state.db;
+        let (avatar, color): (Option<String>, Option<String>) =
+            sqlx::query_as("SELECT avatar, avatar_color FROM users WHERE id = ?")
+                .bind(user_id)
+                .fetch_one(&db.read)
+                .await?;
+        if avatar.is_some() && color.is_some() {
+            return Ok(());
+        }
+        let picture = self.plex.picture(thumb).await;
+        if color.is_none()
+            && let Some(color) = picture.color.filter(|c| accounts::validate_color(c).is_ok())
+        {
+            sqlx::query("UPDATE users SET avatar_color = ? WHERE id = ? AND avatar_color IS NULL")
+                .bind(color)
+                .bind(user_id)
+                .execute(&db.write)
+                .await?;
+        }
+        let Some(bytes) = picture.bytes.filter(|_| avatar.is_none()) else { return Ok(()) };
+        let Ok(_decoding) = crate::images::UPLOAD_DECODES.acquire().await else { return Ok(()) };
+        match tokio::task::spawn_blocking(move || accounts::process_avatar(&bytes)).await {
+            Ok(Ok(jpeg)) => {
+                if let Err(e) = accounts::set_avatar(db, &self.state.config.data_dir, user_id, jpeg).await {
+                    tracing::debug!("the Plex import couldn't keep a profile's picture: {e}");
+                }
+            }
+            _ => tracing::debug!("the Plex import found no picture it could read for a profile"),
+        }
+        Ok(())
     }
 
     /// Whether every Pley library is one of those paired.

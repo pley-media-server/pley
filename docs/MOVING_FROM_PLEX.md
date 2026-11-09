@@ -13,7 +13,9 @@ never changes anything on Plex.
 - **People.** The Plex account you sign in with comes as you, the
   administrator. Each person in your Plex Home you choose becomes a
   profile of Pley's household, opening the libraries they could open on
-  Plex.
+  Plex. Plex's picture for each comes too, where the profile has none in
+  Pley: one chosen on Plex or a Gravatar. A Plex picture that's only an
+  initial brings its colour instead, for Pley's own initial.
 - **Restrictions.** The profile of a Plex Home user with restrictions (a
   managed user's, or those on what you share with a member who has their
   own Plex account) gets an age limit from the ratings Plex allows them,
@@ -109,8 +111,9 @@ after Plex's stays. Edits made in Pley stay, and so does a title matched
 with Fix Match in Pley, locked, or matched by its NFO file. A collection or playlist found again by its title
 gets the titles it lacks, and nothing is reordered or removed. Profiles
 made by an earlier import are found again;
-they keep the age limit set in Pley (or get Plex's, when they have none)
-and get Plex's new labels added to their rules.
+they keep the age limit set in Pley (or get Plex's, when they have none),
+and their picture and colour, and get Plex's new labels added to their
+rules.
 
 Stopping an import keeps what came over, and makes Pley forget the Plex
 sign-in. Pley keeps the sign-in in memory only, so restarting the server

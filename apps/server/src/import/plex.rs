@@ -6,7 +6,8 @@
 //!   `/api/users`, the only place a Home user's restrictions are kept, which
 //!   is XML.
 //! * Every answer is read under [`MAX_ANSWER`], whatever it says its length
-//!   is; no redirects are followed.
+//!   is; no redirects are followed, except a Home user's picture's, by hand
+//!   and only to Plex's and Gravatar's hosts ([`Plex::picture`]).
 //! * The server's address comes only from plex.tv's list of the account's
 //!   servers, or from the administrator.
 //! * Tokens are sent in headers, never in addresses, and never logged.
@@ -19,7 +20,7 @@ use std::time::Duration;
 
 use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 
-use reqwest::header::{ACCEPT, HeaderMap, HeaderValue};
+use reqwest::header::{ACCEPT, CONTENT_TYPE, HeaderMap, HeaderValue, LOCATION};
 use reqwest::{Method, StatusCode};
 use serde::de::{self, DeserializeOwned};
 use serde::{Deserialize, Deserializer};
@@ -35,6 +36,13 @@ pub const MAX_ANSWER: usize = 8 << 20;
 pub const PAGE: usize = 200;
 /// How long a request may take in all.
 const TIMEOUT: Duration = Duration::from_secs(30);
+/// The redirects a Home user's picture may take: plex.tv's address for it
+/// leads to Plex's picture store or to Gravatar.
+const PICTURE_REDIRECTS: usize = 3;
+/// Where plex.tv sends for a picture someone chose on Plex.
+const PLEX_PICTURES: &str = "assets.plex.tv";
+/// Where plex.tv sends for an account's Gravatar.
+const GRAVATAR: &str = "secure.gravatar.com";
 /// How long a connection to a server may take: its addresses are tried in
 /// turn, and those that don't answer are usually unreachable.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(4);
@@ -165,6 +173,56 @@ impl Plex {
     pub async fn home_users(&self, token: &str) -> PlexResult<Vec<HomeUser>> {
         let home: Home = self.json(Method::GET, self.tv("/api/v2/home/users"), Some(token)).await?;
         Ok(home.users)
+    }
+
+    /// Home user's picture and colour, from their `thumb` on plex.tv,
+    /// asked for without a token (the addresses are public). Plex's own
+    /// default, an initial on a colour, brings only its colour; so does a
+    /// Gravatar that doesn't exist. Whatever can't be had is left out
+    /// without a word: a picture is never worth failing an import for.
+    pub async fn picture(&self, thumb: &str) -> Picture {
+        let mut picture = Picture::default();
+        let Some(mut url) = Url::parse(thumb).ok().filter(|url| same_origin(url, &self.tv)) else {
+            return picture;
+        };
+        for _ in 0..=PICTURE_REDIRECTS {
+            let ask = match picture_hop(&url, &self.tv) {
+                Hop::Ask(ask, color) => {
+                    picture.color = picture.color.take().or(color);
+                    ask
+                }
+                Hop::Default(color) => {
+                    picture.color = picture.color.take().or(Some(color));
+                    return picture;
+                }
+                Hop::Refuse => return picture,
+            };
+            if refuse_link_local(&ask).is_err() {
+                return picture;
+            }
+            let Ok(response) = self.http.get(ask.clone()).header(ACCEPT, "image/*").send().await else {
+                return picture;
+            };
+            if response.status().is_redirection() {
+                let next =
+                    response.headers().get(LOCATION).and_then(|l| l.to_str().ok()).and_then(|l| ask.join(l).ok());
+                match next {
+                    Some(next) => url = next,
+                    None => return picture,
+                }
+            } else {
+                let image = response
+                    .headers()
+                    .get(CONTENT_TYPE)
+                    .and_then(|t| t.to_str().ok())
+                    .is_some_and(|t| t.trim_start().to_ascii_lowercase().starts_with("image/"));
+                if response.status().is_success() && image {
+                    picture.bytes = read_any(response).await.ok().filter(|b| !b.is_empty());
+                }
+                return picture;
+            }
+        }
+        picture
     }
 
     /// A Home user's own token, switching to them as the Home's
@@ -445,6 +503,72 @@ pub struct HomeUser {
     /// Has a PIN.
     #[serde(default, deserialize_with = "flag")]
     pub protected: bool,
+    /// Their picture's address on plex.tv, which leads on to it.
+    #[serde(default)]
+    pub thumb: Option<String>,
+}
+
+/// A Home user's picture as plex.tv leads to it: the picture's bytes, not
+/// yet checked as a picture, and Plex's colour for them (`#eb9f9f`).
+#[derive(Debug, Default, PartialEq)]
+pub struct Picture {
+    pub bytes: Option<Vec<u8>>,
+    pub color: Option<String>,
+}
+
+/// What to do at one address on the way to a Home user's picture.
+#[derive(Debug, PartialEq)]
+enum Hop {
+    /// Ask this address, which may bring Plex's colour along.
+    Ask(Url, Option<String>),
+    /// Plex's default picture: its colour, and no picture.
+    Default(String),
+    /// Not a host a picture comes from.
+    Refuse,
+}
+
+/// Where `url` stands on the way to a picture, with `tv` plex.tv's
+/// address: plex.tv itself, Plex's picture store, or Gravatar, asked for a
+/// 256-pixel picture and to answer 404 rather than draw a default of its
+/// own (Plex's default rides in its `d`).
+fn picture_hop(url: &Url, tv: &Url) -> Hop {
+    if same_origin(url, tv) {
+        return match default_color(url, tv) {
+            Some(color) => Hop::Default(color),
+            None => Hop::Ask(url.clone(), None),
+        };
+    }
+    if url.scheme() != "https" || url.port().is_some() {
+        return Hop::Refuse;
+    }
+    match url.host_str() {
+        Some(PLEX_PICTURES) => Hop::Ask(url.clone(), None),
+        Some(GRAVATAR) => {
+            let color = url
+                .query_pairs()
+                .find(|(k, _)| k == "d")
+                .and_then(|(_, d)| Url::parse(&d).ok())
+                .and_then(|d| default_color(&d, tv));
+            let mut ask = url.clone();
+            ask.query_pairs_mut().clear().append_pair("d", "404").append_pair("s", "256");
+            Hop::Ask(ask, color)
+        }
+        _ => Hop::Refuse,
+    }
+}
+
+/// The colour of Plex's default picture, `/avatars/<colour>/<initial>/…` on
+/// plex.tv, lower-cased with a `#`.
+fn default_color(url: &Url, tv: &Url) -> Option<String> {
+    let on_plex = same_origin(url, tv) || (url.scheme() == "https" && url.host_str() == tv.host_str());
+    let mut path = url.path_segments()?;
+    let (avatars, hex) = (path.next()?, path.next()?);
+    (on_plex && avatars == "avatars" && hex.len() == 6 && hex.chars().all(|c| c.is_ascii_hexdigit()))
+        .then(|| format!("#{}", hex.to_ascii_lowercase()))
+}
+
+fn same_origin(a: &Url, b: &Url) -> bool {
+    a.scheme() == b.scheme() && a.host_str() == b.host_str() && a.port_or_known_default() == b.port_or_known_default()
 }
 
 /// The account's Plex Home, as `/api/v2/home/users` answers.
@@ -841,6 +965,40 @@ fn opt_text<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error>
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_pictures_way_stays_on_plex_and_gravatar() {
+        let tv = Url::parse(PLEX_TV).unwrap();
+        let hop = |url: &str| picture_hop(&Url::parse(url).unwrap(), &tv);
+        let ask = |url: &str, color: Option<&str>| Hop::Ask(Url::parse(url).unwrap(), color.map(str::to_owned));
+
+        let start = "https://plex.tv/users/0a1b/avatar?c=1700000000";
+        assert_eq!(hop(start), ask(start, None));
+        assert_eq!(hop("https://plex.tv/avatars/EB9F9F/54/3"), Hop::Default("#eb9f9f".into()));
+        let chosen = "https://assets.plex.tv/avatars/9f8e7d";
+        assert_eq!(hop(chosen), ask(chosen, None));
+        assert_eq!(
+            hop("https://secure.gravatar.com/avatar/5d41?d=https%3A%2F%2Fplex.tv%2Favatars%2F6CB6E5%2F53%2F1&s=80"),
+            ask("https://secure.gravatar.com/avatar/5d41?d=404&s=256", Some("#6cb6e5"))
+        );
+        assert_eq!(
+            hop("https://secure.gravatar.com/avatar/5d41?d=mp"),
+            ask("https://secure.gravatar.com/avatar/5d41?d=404&s=256", None)
+        );
+
+        for elsewhere in [
+            "http://assets.plex.tv/avatars/9f8e7d",
+            "https://assets.plex.tv:8443/avatars/9f8e7d",
+            "https://example.com/avatars/EB9F9F/54/3",
+            "https://plex.tv.example.com/avatars/EB9F9F/54/3",
+            "http://169.254.169.254/latest",
+        ] {
+            assert_eq!(hop(elsewhere), Hop::Refuse, "{elsewhere}");
+        }
+        // Not a colour: asked for as any other address on plex.tv.
+        let odd = "https://plex.tv/avatars/EB9F9/54/3";
+        assert_eq!(hop(odd), ask(odd, None));
+    }
 
     #[test]
     fn reads_numbers_and_flags_written_either_way() {

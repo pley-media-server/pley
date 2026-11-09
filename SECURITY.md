@@ -494,7 +494,11 @@ other apps (`pley_ct_…`), never with a session's
   are made from it as the import needs them, and kept no longer. Plex
   PINs given for Home users are sent to plex.tv only.
 - Pley reads Plex's answers 8 MB at most each, follows no redirects, and
-  sends tokens in headers, never in addresses. It connects only to the
+  sends tokens in headers, never in addresses. Home users' pictures are
+  the one exception to redirects: asked for without a token, followed by
+  hand three times at most and only to plex.tv, assets.plex.tv and
+  secure.gravatar.com over HTTPS, taken only as an image, and squared to
+  Pley's size as an uploaded picture is. It connects only to the
   server's addresses plex.tv lists, or one the administrator types, never
   to a link-local address (neither one typed in nor one a name resolves
   to), and checks that the server answering is the one chosen. It falls

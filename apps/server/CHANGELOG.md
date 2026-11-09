@@ -15,7 +15,8 @@ describes how they are made.
   administrator account is made, and Settings › Libraries has Import from
   Plex. Sign in on Plex's own page and pick the server; Pley pairs each
   Plex library with its own (or makes one), makes a profile for each Plex
-  Home user with their restrictions as an age limit and label rules, and
+  Home user with their picture and their restrictions as an age limit and
+  label rules, and
   brings over the titles' labels and dates added, and each person's
   watched titles, resume points, ratings and plays, then shows what came
   over. Collections and playlists come too, and Plex's matches and the

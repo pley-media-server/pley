@@ -141,6 +141,22 @@ async fn history(Query(q): Query<HashMap<String, String>>, headers: HeaderMap) -
     container(json!({ "Metadata": plays }))
 }
 
+fn moved(to: &str) -> Response {
+    (StatusCode::FOUND, [(header::LOCATION, to.to_owned())]).into_response()
+}
+
+fn png(width: u32, height: u32) -> Vec<u8> {
+    let mut out = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(image::RgbImage::new(width, height))
+        .write_to(&mut out, image::ImageFormat::Png)
+        .unwrap();
+    out.into_inner()
+}
+
+fn picture(bytes: Vec<u8>) -> Response {
+    ([(header::CONTENT_TYPE, "image/png")], bytes).into_response()
+}
+
 async fn fake_plex() -> String {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr: SocketAddr = listener.local_addr().unwrap();
@@ -188,13 +204,15 @@ async fn fake_plex() -> String {
         )
         .route(
             "/api/v2/home/users",
-            get(|headers: HeaderMap| async move {
+            get(|State(base): State<String>, headers: HeaderMap| async move {
                 if token(&headers) != OWNER {
                     return StatusCode::UNAUTHORIZED.into_response();
                 }
                 axum::Json(json!({"id": 4, "name": "Home", "users": [
-                    {"id": 1, "uuid": "u-owner", "title": "Alex", "admin": true},
-                    {"id": 885, "uuid": "u-kid", "title": "Kid One", "restricted": true, "protected": true},
+                    {"id": 1, "uuid": "u-owner", "title": "Alex", "admin": true,
+                     "thumb": format!("{base}/users/u-owner/avatar?c=1")},
+                    {"id": 885, "uuid": "u-kid", "title": "Kid One", "restricted": true, "protected": true,
+                     "thumb": format!("{base}/users/u-kid/avatar?c=1")},
                     // A Home member with their own account: Plex doesn't call them
                     // restricted, and keeps their rules as sharing filters.
                     {"id": 549, "uuid": "u-teen", "title": "Teen", "restricted": false},
@@ -328,6 +346,21 @@ async fn fake_plex() -> String {
                 container(json!({ "Metadata": list }))
             }),
         )
+        // Pictures: plex.tv's address for each leads on to it.
+        .route("/users/u-owner/avatar", get(|| async { moved("/pictures/alex.png") }))
+        .route("/users/u-kid/avatar", get(|| async { moved("/avatars/EB9F9F/4B/3") }))
+        .route(
+            "/users/elsewhere/avatar",
+            get(|State(base): State<String>| async move {
+                moved(&format!("{}/pictures/alex.png", base.replace("127.0.0.1", "localhost")))
+            }),
+        )
+        .route("/hop/{n}", get(|Path(n): Path<u32>| async move {
+            if n < 4 { moved(&format!("/hop/{}", n + 1)) } else { picture(png(300, 200)) }
+        }))
+        .route("/pictures/alex.png", get(|| async { picture(png(300, 200)) }))
+        .route("/pictures/huge.png", get(|| async { picture(vec![0; 9 << 20]) }))
+        .route("/pictures/page.html", get(|| async { ([(header::CONTENT_TYPE, "text/html")], "<html></html>") }))
         .route("/devices", get(|| async { container(json!({"Device": [{"id": 5, "name": "Living Room TV"}]})) }))
         .route("/status/sessions/history/all", get(history))
         .with_state(base.clone());
@@ -496,6 +529,25 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(pley::accounts::label_rules(&app.state.db, kid_id, "hide").await.unwrap(), ["Scary"]);
     assert_eq!(pley::accounts::label_rules(&app.state.db, kid_id, "show").await.unwrap(), ["Family"]);
 
+    // Pictures: the account's own, squared to Pley's size; Plex's default,
+    // an initial on a colour, brings only its colour.
+    let avatar_of = |id: i64| {
+        let db = app.state.db.read.clone();
+        async move {
+            sqlx::query_as::<_, (Option<String>, Option<String>)>("SELECT avatar, avatar_color FROM users WHERE id = ?")
+                .bind(id)
+                .fetch_one(&db)
+                .await
+                .unwrap()
+        }
+    };
+    let (alex, alex_color) = avatar_of(admin_id).await;
+    let alex = alex.expect("the account's picture");
+    let jpeg = std::fs::read(pley::accounts::avatars_dir(&app.state.config.data_dir).join(&alex)).unwrap();
+    let decoded = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg).unwrap();
+    assert_eq!((decoded.width(), decoded.height(), alex_color), (256, 256, None));
+    assert_eq!(avatar_of(kid_id).await, (None, Some("#eb9f9f".into())));
+
     // Titles: labels and dates added.
     let alien: i64 =
         sqlx::query_scalar("SELECT id FROM items WHERE title = 'Alien'").fetch_one(&app.state.db.read).await.unwrap();
@@ -624,6 +676,12 @@ async fn brings_libraries_people_and_what_they_watched() {
     .execute(&app.state.db.write)
     .await
     .unwrap();
+    // And picks a colour of their own.
+    sqlx::query("UPDATE users SET avatar_color = '#38bdf8' WHERE id = ?")
+        .bind(kid_id)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
 
     // Again: nothing twice, and the same profile.
     let users_before = one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await;
@@ -656,6 +714,9 @@ async fn brings_libraries_people_and_what_they_watched() {
             .await
             .unwrap();
     assert_eq!((watched, position), (true, 99_000), "Pley's newer resume point stays, as a rewatch");
+    // Pley's pictures and colours stay.
+    assert_eq!(avatar_of(admin_id).await, (Some(alex), None));
+    assert_eq!(avatar_of(kid_id).await, (None, Some("#38bdf8".into())));
 
     // Nothing but the libraries and people, when that's what was chosen.
     let r = app
@@ -680,6 +741,28 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);
     let r = app.get("/api/import/plex/plan", &admin).await;
     assert_eq!(r.body["code"], "plex_signed_out");
+}
+
+#[tokio::test]
+async fn a_picture_comes_from_plex_tv_and_never_from_elsewhere() {
+    let base = fake_plex().await;
+    let plex = pley::import::plex::Plex::new(&base, "pley-test");
+    let at = |path: &str| format!("{base}{path}");
+
+    let alex = plex.picture(&at("/users/u-owner/avatar?c=1")).await;
+    assert_eq!((alex.bytes, alex.color), (Some(png(300, 200)), None));
+    let kid = plex.picture(&at("/users/u-kid/avatar?c=1")).await;
+    assert_eq!((kid.bytes, kid.color.as_deref()), (None, Some("#eb9f9f")));
+    // Three redirects, and no more.
+    assert!(plex.picture(&at("/hop/1")).await.bytes.is_some());
+    assert!(plex.picture(&at("/hop/0")).await.bytes.is_none());
+    // Not a picture, too large, or not from plex.tv: nothing.
+    assert!(plex.picture(&at("/pictures/page.html")).await.bytes.is_none());
+    assert!(plex.picture(&at("/pictures/huge.png")).await.bytes.is_none());
+    assert!(plex.picture(&at("/users/elsewhere/avatar")).await.bytes.is_none());
+    let elsewhere = at("/pictures/alex.png").replace("127.0.0.1", "localhost");
+    assert!(plex.picture(&elsewhere).await.bytes.is_none());
+    assert!(plex.picture("not an address").await.bytes.is_none());
 }
 
 /// A stand-in for TMDB that answers nothing until `open` is sent `true`,
