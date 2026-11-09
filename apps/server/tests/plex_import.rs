@@ -51,7 +51,7 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
                    "Guid": [{"id": "tmdb://289"}], "Media": file("/plexdata/movies/Casablanca (1942).mkv", 4096)}),
         ],
         ("2", "2") => {
-            // Its poster isn't a picture.
+            // Found only through its episodes, which come after it.
             vec![json!({"ratingKey": "200", "type": "show", "title": "Show", "summary": "A show.",
                         "thumb": "/library/metadata/200/thumb/1", "Guid": [{"id": "tvdb://999"}]})]
         }
@@ -283,7 +283,7 @@ async fn fake_plex() -> String {
                     return StatusCode::UNAUTHORIZED.into_response();
                 }
                 match q.get("url").map(String::as_str) {
-                    Some("/library/metadata/101/thumb/1") => picture(png(60, 90)),
+                    Some("/library/metadata/101/thumb/1" | "/library/metadata/200/thumb/1") => picture(png(60, 90)),
                     _ => ([(header::CONTENT_TYPE, "text/html")], "<html></html>").into_response(),
                 }
             }),
@@ -538,7 +538,7 @@ async fn brings_libraries_people_and_what_they_watched() {
             ("Two", None, None, false),
             ("Alien", Some(1979), Some("Hand-written."), true),
             ("Brazil", Some(1985), None, false),
-            ("Show", Some(2015), Some("A show."), false),
+            ("Show", Some(2015), Some("A show."), true),
         ]
     );
     assert_eq!(report["libraries"][0]["matched"], 2);

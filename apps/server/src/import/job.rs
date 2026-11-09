@@ -1480,6 +1480,7 @@ impl Run {
         matches: &mut Matches,
     ) -> ImportResult<Titles> {
         let mut retry: Vec<Item> = Vec::new();
+        let mut shows: Vec<Item> = Vec::new();
         let (mut matched, mut missed, mut named) = (0u64, 0u64, Vec::new());
         let mut titles = Titles::default();
         for (plex_type, kind) in types(library.kind) {
@@ -1514,6 +1515,7 @@ impl Run {
                             }
                         }
                         None if *kind == "episode" => retry.push(item),
+                        None if *kind == "show" => shows.push(item),
                         None if is_leaf(kind) => {
                             missed += 1;
                             if named.len() < MISSED_NAMED {
@@ -1548,6 +1550,23 @@ impl Run {
                 }
             }
         }
+        // A show without files of its own is found through its episodes',
+        // which Plex lists after it.
+        let (mut dates, mut details) = (Vec::new(), Vec::new());
+        for item in shows {
+            let Some(id) = matches.get(&item.rating_key) else { continue };
+            if let Some(added) = item.added_at.filter(|a| *a > 0) {
+                dates.push((id, added));
+            }
+            if let Some(found) = PlexDetails::of(&item) {
+                details.push((id, found));
+            }
+            if let Some(thumb) = item.thumb {
+                titles.posters.push((id, thumb));
+            }
+        }
+        self.dates(&dates).await?;
+        write_details(&self.state.db, &details).await?;
         let report = &mut self.report.libraries[library.report];
         report.matched = matched;
         report.missed = missed;
