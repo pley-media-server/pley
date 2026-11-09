@@ -67,10 +67,9 @@
     "bonjourHint": "iPhones, iPads, Macs and Apple TVs on your network find it by themselves. Without it, they need its address."
   },
   "setupStart": {
-    "title": "Coming from Plex?",
-    "subtitle": "Pley can bring over your Plex libraries, your Home's profiles and what everyone watched.",
-    "fromPlex": "Bring over my Plex libraries",
-    "fromPlexHint": "Sign in with Plex and choose what comes.",
+    "title": "How would you like to start?",
+    "fromPlex": "Bring over my Plex server",
+    "fromPlexHint": "Libraries, profiles, watch history, collections and playlists.",
     "fresh": "Start fresh",
     "freshHint": "Add your media folders."
   },

@@ -67,10 +67,9 @@
     "bonjourHint": "Los iPhone, iPad, Mac y Apple TV de tu red lo encuentran solos. Si no, necesitan su dirección."
   },
   "setupStart": {
-    "title": "¿Vienes de Plex?",
-    "subtitle": "Pley puede traer tus bibliotecas de Plex, los perfiles de tu Home y lo que vio cada uno.",
-    "fromPlex": "Traer mis bibliotecas de Plex",
-    "fromPlexHint": "Inicia sesión con Plex y elige qué viene.",
+    "title": "¿Cómo quieres empezar?",
+    "fromPlex": "Traer mi servidor de Plex",
+    "fromPlexHint": "Bibliotecas, perfiles, historial de visionado, colecciones y listas de reproducción.",
     "fresh": "Empezar de cero",
     "freshHint": "Añade tus carpetas de medios."
   },

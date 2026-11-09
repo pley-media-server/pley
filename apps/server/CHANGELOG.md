@@ -11,8 +11,8 @@ describes how they are made.
 
 ### Added
 
-- Moving from Plex: a new server asks "Coming from Plex?" once the
-  administrator account is made, and Settings › Libraries has Import from
+- Moving from Plex: a new server offers to bring over a Plex server once
+  the administrator account is made, and Settings › Libraries has Import from
   Plex. Sign in on Plex's own page and pick the server; Pley pairs each
   Plex library with its own (or makes one), makes a profile for each Plex
   Home user with their picture and their restrictions as an age limit and

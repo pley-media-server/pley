@@ -14,12 +14,15 @@ export function AuthLayout({
   subtitle,
   children,
   wide,
+  bare,
 }: {
   title: string;
   subtitle?: ReactNode;
   children: ReactNode;
   /** For a page with more to it than a form (moving from Plex). */
   wide?: boolean;
+  /** No card around it, for a choice whose options are cards of their own (how to start, in setup). */
+  bare?: boolean;
 }) {
   const signedIn = useOptionalAuth() !== null;
   return (
@@ -36,10 +39,14 @@ export function AuthLayout({
         <div className="mb-8 flex justify-center">
           <Logo className="h-10" />
         </div>
-        <div className="rounded-xl border border-border bg-surface/90 p-6 shadow-2xl shadow-black/50 backdrop-blur sm:p-8">
-          <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
+        <div
+          className={cn(
+            bare ? "text-center" : "rounded-xl border border-border bg-surface/90 p-6 shadow-2xl shadow-black/50 backdrop-blur sm:p-8",
+          )}
+        >
+          <h1 className={cn("font-semibold tracking-tight", bare ? "text-2xl" : "text-xl")}>{title}</h1>
           {subtitle ? <p className="mt-1.5 text-sm text-muted">{subtitle}</p> : null}
-          <div className="mt-6">{children}</div>
+          <div className={cn("mt-6", bare && "mt-8 text-left")}>{children}</div>
         </div>
         {signedIn ? null : (
           <div className="mt-4 flex justify-center">

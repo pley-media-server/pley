@@ -78,7 +78,7 @@ describe("startingChoices", () => {
 });
 
 describe("SetupServerPage", () => {
-  it("shows what Pley will use, changes what's asked, turns Bonjour on and goes on to Coming from Plex", async () => {
+  it("shows what Pley will use, changes what's asked, turns Bonjour on and goes on to how to start", async () => {
     const user = userEvent.setup();
     const requests = renderStep();
     expect(await screen.findByText("ds920plus")).toBeInTheDocument();

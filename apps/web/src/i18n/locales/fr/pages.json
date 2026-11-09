@@ -67,10 +67,9 @@
     "bonjourHint": "Les iPhone, iPad, Mac et Apple TV de votre réseau le trouvent d’eux-mêmes. Sinon, il leur faut son adresse."
   },
   "setupStart": {
-    "title": "Vous venez de Plex ?",
-    "subtitle": "Pley peut importer vos bibliothèques Plex, les profils de votre Home et ce que chacun a regardé.",
-    "fromPlex": "Importer mes bibliothèques Plex",
-    "fromPlexHint": "Connectez-vous avec Plex et choisissez ce qui vient.",
+    "title": "Comment voulez-vous commencer ?",
+    "fromPlex": "Importer mon serveur Plex",
+    "fromPlexHint": "Bibliothèques, profils, historique de visionnage, collections et listes de lecture.",
     "fresh": "Partir de zéro",
     "freshHint": "Ajoutez vos dossiers de médias."
   },

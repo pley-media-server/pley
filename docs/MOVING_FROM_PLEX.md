@@ -72,8 +72,9 @@ finds.
 ## Importing
 
 On a new server, after the administrator account is made and the server's
-name, language and country are set, Pley asks "Coming from Plex?". Later, it's under Settings › Libraries › Import from
-Plex.
+name, language and country are set, Pley asks how you'd like to start:
+choose Bring over my Plex server. Later, it's under Settings › Libraries ›
+Import from Plex.
 
 1. **Sign in with Plex.** Plex's sign-in page opens in a window; allow Pley
    there. A Plex token works too, for a server you sign in to another way.
