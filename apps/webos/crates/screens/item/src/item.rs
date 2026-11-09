@@ -1263,7 +1263,9 @@ fn meta_line(m: &Meta) -> MetaLine<'_> {
 fn into_episodes(ui: &Ui, row: Id, seasons: Option<&Seasons>) -> Edge {
     let Some(s) = seasons else { return Edge::Pass };
     let Some(episodes) = s.episodes.as_ref().filter(|e| !e.is_empty()) else { return Edge::Pass };
-    if ui.remembered(row).is_some() {
+    // Back to the episode focus left, unless that was another season's: a season shown anew opens
+    // on its episode to watch, never on the tile that happens to sit under the tab.
+    if ui.remembered(row).is_some_and(|r| episodes.iter().any(|e| row.with(e.id as u64) == r)) {
         return Edge::To(row);
     }
     let target = s.target.filter(|t| episodes.iter().any(|e| e.id == *t)).unwrap_or(episodes[0].id);

@@ -13,6 +13,11 @@ describes how they are made.
 - A show's episodes sit further below its season tabs, so the focused
   episode no longer crowds them, as on Android TV.
 
+### Fixed
+
+- Down from the tab of a season just shown goes to its episode to watch,
+  where it went to whichever episode sat under the tab.
+
 ## [0.1.8] - 2026-11-08
 
 ### Fixed
