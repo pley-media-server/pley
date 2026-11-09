@@ -82,7 +82,13 @@ function serve({
   signedIn = true,
   progress = () => idle,
   servers = [{ id: "m1", name: "Den", owned: true, version: "1.41.0" }],
-}: { signedIn?: boolean | null; progress?: () => ImportProgress; servers?: PlexServer[] } = {}) {
+  connect = () => ({ name: "Den" }),
+}: {
+  signedIn?: boolean | null;
+  progress?: () => ImportProgress;
+  servers?: PlexServer[];
+  connect?: () => unknown;
+} = {}) {
   return mockApi({
     "GET /api/import/plex": () => progress(),
     "GET /api/import/plex/pin": () => (signedIn === null ? apiError(409, "plex_signed_out", "sign in with Plex first") : { signed_in: signedIn }),
@@ -91,7 +97,7 @@ function serve({
       return { code: 1, auth_url: "https://app.plex.tv/auth#?code=abc" };
     },
     "GET /api/import/plex/servers": () => servers,
-    "POST /api/import/plex/server": () => ({ name: "Den" }),
+    "POST /api/import/plex/server": () => connect(),
     "GET /api/import/plex/plan": () => plan,
     "POST /api/import/plex/start": () => undefined,
     "GET /api/libraries": () => [films],
@@ -236,6 +242,16 @@ describe("PlexImport", () => {
     await user.type(within(picker).getByLabelText("Folder path"), "/volume1/video/tv{Enter}");
     await user.click(within(picker).getByRole("button", { name: "Select this folder" }));
     expect(screen.getByLabelText("Where Pley finds /data/tv")).toHaveValue("/volume1/video/tv");
+  });
+
+  it("connects to the only server without showing the list of servers", async () => {
+    let connected = () => {};
+    serve({ connect: () => new Promise((resolve) => (connected = () => resolve({ name: "Den" }))) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" />);
+    expect(await screen.findByText("Connecting to Den…")).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Which server?" })).not.toBeInTheDocument();
+    connected();
+    expect(await screen.findByRole("heading", { name: "Libraries on Den" })).toBeInTheDocument();
   });
 
   it("goes back to the only server without connecting again, and keeps the choices", async () => {

@@ -397,14 +397,18 @@ function ServerStep({
   const choose = useChoosePlexServer();
   const [picked, setPicked] = useState<string | null>(null);
   const [address, setAddress] = useState("");
+  // Read once: telling the import the only server was connected to (so
+  // Back shows the list) mustn't turn this visit's connecting off.
+  const [connectAlone] = useState(auto);
   const tried = useRef(false);
   // Only a server the account owns can be imported; one shared with it is
   // listed to say whose account to sign in with.
   const list = (servers.data ?? []).filter((s) => s.owned);
   const shared = (servers.data ?? []).filter((s) => !s.owned);
 
-  // One server: nothing to choose, so it's connected to straight away.
-  const only = auto && list.length === 1 ? list[0] : undefined;
+  // One server: nothing to choose, so it's connected to straight away,
+  // with the list shown only if that fails.
+  const only = connectAlone && list.length === 1 ? list[0] : undefined;
   useEffect(() => {
     if (!only || tried.current) return;
     tried.current = true;
@@ -412,7 +416,7 @@ function ServerStep({
     choose.mutate({ id: only.id }, { onSuccess: () => onChosen(only.id) });
   }, [only, choose, onAuto, onChosen]);
 
-  if (servers.isPending || (only && (choose.isPending || choose.isSuccess))) {
+  if (servers.isPending || (only && !choose.isError)) {
     return (
       <div className="flex flex-col items-center gap-3 py-10 text-sm text-muted">
         <PageSpinner />
