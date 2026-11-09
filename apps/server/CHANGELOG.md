@@ -28,6 +28,8 @@ describes how they are made.
   minutes, and Plex's matches mean titles are fetched by their ids rather
   than searched for by name; Start watching goes on from there while the
   rest runs, and Settings › Libraries shows the import, then its report.
+  While it waits for the new libraries' scans, it shows which library is
+  scanned and how many of its files are read.
   Running it again adds what's new and never takes anything away
   (docs/MOVING_FROM_PLEX.md).
 - Settings › Server has a Country, used for titles' age ratings,

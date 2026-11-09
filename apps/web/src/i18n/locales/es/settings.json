@@ -921,6 +921,11 @@
       "title": "Importando de Plex",
       "description": "Puede tardar en un servidor grande. Puedes cerrar esto y volver: la importación sigue.",
       "starting": "Empezando…",
+      "scan": {
+        "queued": "{{library}}: esperando para empezar",
+        "walking": "{{library}}: buscando archivos",
+        "probing": "{{library}}: leyendo archivos"
+      },
       "steps": {
         "scanning": "Analizando las bibliotecas nuevas",
         "profiles": "Creando perfiles",

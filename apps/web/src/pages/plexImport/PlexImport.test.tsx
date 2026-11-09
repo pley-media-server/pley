@@ -229,6 +229,32 @@ describe("PlexImport", () => {
     expect(await screen.findByRole("heading", { name: "Your Plex library is in Pley" })).toBeInTheDocument();
   });
 
+  it("says which library is being scanned, and its files read", async () => {
+    let progress: ImportProgress = {
+      ...idle,
+      state: "running",
+      step: "scanning",
+      done: 0,
+      total: 2,
+      scan: { library: "Movies", phase: "walking", done: 0, total: 0 },
+    };
+    serve({ progress: () => progress });
+    const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    expect(await screen.findByText("Movies: finding files")).toBeInTheDocument();
+    expect(screen.getByText("0 / 2")).toBeInTheDocument();
+
+    progress = { ...progress, done: 1, scan: { library: "TV Shows", phase: "probing", done: 2140, total: 6509 } };
+    await client.invalidateQueries({ queryKey: plexImportKeys.progress });
+    expect(await screen.findByText("TV Shows: reading files")).toBeInTheDocument();
+    expect(screen.getByText("2,140 / 6,509")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "TV Shows: reading files" })).toBeInTheDocument();
+
+    progress = { ...progress, scan: { library: "Music", phase: "queued", done: 0, total: 0 } };
+    await client.invalidateQueries({ queryKey: plexImportKeys.progress });
+    expect(await screen.findByText("Music: waiting to start")).toBeInTheDocument();
+    expect(screen.queryByRole("progressbar", { name: "Music: waiting to start" })).not.toBeInTheDocument();
+  });
+
   it("leaves out what wasn't brought, and says when playlists were refused", async () => {
     const profile = { ...report.profiles[0]!, playlists_incomplete: true };
     const bring = { watch_history: false, collections: true, edits: true };

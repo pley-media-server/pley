@@ -921,6 +921,11 @@
       "title": "Import depuis Plex",
       "description": "Cela peut prendre du temps sur un gros serveur. Vous pouvez fermer et revenir : l’import continue.",
       "starting": "Démarrage…",
+      "scan": {
+        "queued": "{{library}} : en attente",
+        "walking": "{{library}} : recherche des fichiers",
+        "probing": "{{library}} : lecture des fichiers"
+      },
       "steps": {
         "scanning": "Analyse des nouvelles bibliothèques",
         "profiles": "Création des profils",

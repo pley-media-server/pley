@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use crate::accounts::{self, MAX_LABEL_RULES, NO_PASSWORD};
 use crate::db::Db;
 use crate::events::{ScanPhase, ServerEvent};
-use crate::library::LibraryKind;
+use crate::library::{LibraryKind, get_library};
 use crate::state::AppState;
 use crate::util::now;
 
@@ -91,6 +91,19 @@ pub struct Progress {
     /// What was found by file has come over: watched titles, resume points,
     /// labels and the rest. Metadata and the titles found by id follow.
     pub first_pass_done: bool,
+    /// The library being scanned, while the import waits for the scans.
+    pub scan: Option<ScanNow>,
+}
+
+/// A library's scan the import waits for: its files found, or read of
+/// those found (`done` of `total`).
+#[derive(Debug, Clone, Serialize)]
+pub struct ScanNow {
+    pub library: String,
+    /// `queued`, `walking` or `probing`.
+    pub phase: ScanPhase,
+    pub done: u64,
+    pub total: u64,
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -902,6 +915,7 @@ impl Run {
             p.state = state;
             p.error = error;
             p.step = None;
+            p.scan = None;
             p.report = Some(report);
         });
         self.state.events.send(ServerEvent::LibrariesChanged);
@@ -919,6 +933,7 @@ impl Run {
             p.step = Some(step);
             p.done = 0;
             p.total = total;
+            p.scan = None;
         });
     }
 
@@ -1127,19 +1142,37 @@ impl Run {
         let finding = || {
             paired
                 .iter()
-                .filter(|p| scanner.status_of(p.library_id).is_some_and(|s| s.phase != ScanPhase::Metadata))
-                .count()
+                .filter_map(|p| scanner.status_of(p.library_id).filter(|s| s.phase != ScanPhase::Metadata))
+                .collect::<Vec<_>>()
         };
-        let waiting = finding();
+        let waiting = finding().len();
         if waiting == 0 {
             return Ok(());
+        }
+        let mut names = HashMap::new();
+        for library in paired {
+            if let Some(lib) = get_library(&self.state.db, library.library_id).await? {
+                names.insert(lib.id, lib.name);
+            }
         }
         self.step(Step::Scanning, waiting as u64);
         loop {
             self.cancelled()?;
             let left = finding();
-            self.importer.set(&self.state, self.admin, |p| p.done = (waiting - left.min(waiting)) as u64);
-            if left == 0 {
+            // One library is scanned at a time: the one under way, else the
+            // next in line.
+            let now = left.iter().find(|s| s.phase != ScanPhase::Queued).or(left.first()).map(|s| ScanNow {
+                library: names.get(&s.library_id).cloned().unwrap_or_else(|| s.library_name.clone()),
+                phase: s.phase,
+                done: s.processed,
+                total: s.total,
+            });
+            let done = (waiting - left.len().min(waiting)) as u64;
+            self.importer.set(&self.state, self.admin, |p| {
+                p.done = done;
+                p.scan = now;
+            });
+            if left.is_empty() {
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_secs(2)).await;

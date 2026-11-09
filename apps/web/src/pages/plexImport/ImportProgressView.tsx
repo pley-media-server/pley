@@ -4,7 +4,7 @@ import type { TFunction } from "i18next";
 import { Link } from "react-router";
 import { CircleAlert, CircleCheck, CircleX, TriangleAlert } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useForgetPlex, usePlexImport, type EditedField, type ImportReport, type ProfileReport } from "@/api/plexImport";
+import { useForgetPlex, usePlexImport, type EditedField, type ImportReport, type ImportScan, type ProfileReport } from "@/api/plexImport";
 import { useRatingSystems } from "@/api/hooks";
 import { ConfirmModal } from "@/components/Modal";
 import { Badge, Button, PageSpinner, ProgressBar } from "@/components/ui";
@@ -82,6 +82,7 @@ export function ImportProgressView({
             className="h-2"
             barClassName={data.total === 0 ? "w-1/3 animate-pulse" : undefined}
           />
+          {data.scan ? <ScanLine scan={data.scan} /> : null}
         </div>
         <ConfirmModal
           open={stopping}
@@ -101,6 +102,26 @@ export function ImportProgressView({
   const report = data.report;
   if (!report) return null;
   return <Report report={report} onFinish={onFinish} onAgain={onAgain} />;
+}
+
+/** The library the import's scans are on, with its files read once they're counted. */
+function ScanLine({ scan }: { scan: ImportScan }) {
+  const { t } = useTranslation("settings");
+  const text = t(`plexImport.progress.scan.${scan.phase}`, { library: scan.library });
+  const counted = scan.phase === "probing" && scan.total > 0;
+  return (
+    <div className="space-y-1 pt-1">
+      <div className="flex items-center justify-between text-sm text-muted">
+        <span>{text}</span>
+        {counted ? (
+          <span className="tabular-nums">
+            {scan.done.toLocaleString(currentLocale())} / {scan.total.toLocaleString(currentLocale())}
+          </span>
+        ) : null}
+      </div>
+      {counted ? <ProgressBar value={scan.done / scan.total} label={text} className="h-1" /> : null}
+    </div>
+  );
 }
 
 function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish: () => void; onAgain: () => void }) {

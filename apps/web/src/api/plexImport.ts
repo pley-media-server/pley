@@ -172,6 +172,16 @@ export interface ImportProgress {
   report: ImportReport | null;
   /** What was found by file has come over; metadata and the titles found by id follow. */
   first_pass_done: boolean;
+  /** The library being scanned while the import waits for the scans; absent from servers before it. */
+  scan?: ImportScan | null;
+}
+
+/** A library's scan the import waits for: its files found, then read (`done` of `total`). */
+export interface ImportScan {
+  library: string;
+  phase: "queued" | "walking" | "probing";
+  done: number;
+  total: number;
 }
 
 export const plexImportKeys = {

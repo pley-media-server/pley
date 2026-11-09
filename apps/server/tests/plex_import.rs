@@ -373,6 +373,7 @@ async fn finished(app: &TestApp, admin: &str) -> Value {
         let r = app.get("/api/import/plex", admin).await;
         assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
         if r.body["state"] != "running" {
+            assert_eq!(r.body["scan"], Value::Null, "no scan once it's over");
             return r.body;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;

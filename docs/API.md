@@ -4610,6 +4610,9 @@ interface ImportProgress {
   // labels…); "fetching" the libraries' metadata and "matching_again" (the
   // titles found only by their ids, then what they bring) follow.
   first_pass_done: boolean;
+  // During "scanning" (whose done and total count libraries): the library
+  // scanned now, or next in line, with its files read of those found.
+  scan: { library: string; phase: "queued" | "walking" | "probing"; done: number; total: number } | null;
   report: {
     finished_at: number;
     outcome: "done" | "failed" | "cancelled";   // kept with the report, so it's known after a restart
