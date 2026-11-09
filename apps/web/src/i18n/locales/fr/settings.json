@@ -1024,6 +1024,7 @@
     },
     "startWatching": "Commencer à regarder",
     "status": {
+      "fillingIn": "Les titres se complètent avec leurs détails et leurs affiches à mesure que Pley les récupère.",
       "running": "Import depuis Plex : {{step}}",
       "count": "{{done}} sur {{total}}",
       "done": "Importé depuis Plex le {{date}}",

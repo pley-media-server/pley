@@ -51,6 +51,8 @@ pub struct ScanStatus {
     pub processed: u64,
     pub total: u64,
     pub started_at: i64,
+    /// The library's first scan: Home says how far it is.
+    pub first: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -224,6 +226,7 @@ impl Scanner {
             processed: 0,
             total: 0,
             started_at: now(),
+            first: false,
         });
         let _ = self.queue.send(req);
         self.events.send(ServerEvent::ScanProgress { library_id, phase: ScanPhase::Queued, processed: 0, total: 0 });
@@ -325,6 +328,7 @@ impl Scanner {
             processed,
             total,
             started_at: now(),
+            first: false,
         });
         entry.library_name = lib.name.clone();
         entry.phase = phase;
@@ -339,6 +343,12 @@ impl Scanner {
         let Some(lib) = get_library(&self.db, library_id).await? else {
             return Ok(None);
         };
+        if req.files
+            && lib.scanned_at.is_none()
+            && let Some(status) = self.status.lock().get_mut(&library_id)
+        {
+            status.first = true;
+        }
         self.events.send(ServerEvent::ScanStarted { library_id });
         let (totals, mut phases, processed, total) =
             if req.files { self.scan_files(&lib, force).await? } else { (Totals::default(), Phases::default(), 0, 0) };

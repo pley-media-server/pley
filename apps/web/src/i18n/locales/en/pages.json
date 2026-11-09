@@ -369,6 +369,12 @@
     "scanningHint": "New items will show up here as soon as they're found.",
     "emptyHint": "Your libraries are empty. Add media to the library folders and run a scan.",
     "manage": "Manage libraries",
+    "firstScan": {
+      "queued": "{{library}}: waiting to start",
+      "walking": "Scanning {{library}}: finding files",
+      "probing": "Scanning {{library}}: reading files",
+      "metadata": "{{library}}: fetching details"
+    },
     "banner": {
       "label": "Featured",
       "new": "New",

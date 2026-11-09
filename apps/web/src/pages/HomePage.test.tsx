@@ -1,7 +1,8 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { Hub, ItemDetail, Library } from "@/api/types";
+import type { ImportProgress } from "@/api/plexImport";
+import type { Activity, Hub, ItemDetail, Library, ScanStatus } from "@/api/types";
 import { ListMenuProvider } from "@/components/lists/ListMenu";
 import { makeItem } from "@/test/fixtures";
 import { apiError, mockApi, renderWithProviders, testUser } from "@/test/render";
@@ -66,12 +67,39 @@ function detail(item: Hub["items"][number], overrides: Partial<ItemDetail> = {})
   };
 }
 
-function serve({ libraries = [movies], home = hubs }: { libraries?: Library[]; home?: Hub[] | Response } = {}) {
+function serve({
+  libraries = [movies],
+  home = hubs,
+  scans = [],
+  progress,
+}: { libraries?: Library[]; home?: Hub[] | Response; scans?: ScanStatus[]; progress?: ImportProgress } = {}) {
   return mockApi({
     "GET /api/libraries": () => libraries,
     "GET /api/hubs/home": () => (home instanceof Response ? home : { hubs: home }),
+    "GET /api/activity": (): Activity => ({ scans, sessions: [] }),
+    "GET /api/import/plex": () => progress ?? { ...importing, state: "idle", step: null },
   });
 }
+
+const importing: ImportProgress = {
+  state: "running",
+  step: "fetching",
+  done: 40,
+  total: 138,
+  error: null,
+  report: null,
+  first_pass_done: true,
+};
+
+const firstScan: ScanStatus = {
+  library_id: 2,
+  library_name: "TV Shows",
+  phase: "probing",
+  processed: 2140,
+  total: 6509,
+  started_at: 0,
+  first: true,
+};
 
 describe("HomePage", () => {
   it("shows the hubs that have something in them", async () => {
@@ -109,6 +137,41 @@ describe("HomePage", () => {
     serve({ libraries: [{ ...movies, scanning: true }], home: [] });
     renderWithProviders(<HomePage />);
     expect(await screen.findByText("Scanning your libraries…")).toBeInTheDocument();
+  });
+
+  it("says how far a library's first scan is", async () => {
+    serve({ scans: [{ ...firstScan, library_id: 1, library_name: "Movies", phase: "queued", processed: 0, total: 0 }, firstScan] });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByText("Scanning TV Shows: reading files")).toBeInTheDocument();
+    expect(screen.getByText("2,140 / 6,509")).toBeInTheDocument();
+    expect(screen.getByRole("progressbar", { name: "Scanning TV Shows: reading files" })).toBeInTheDocument();
+    expect(screen.queryByText(/Movies: waiting/)).not.toBeInTheDocument();
+  });
+
+  it("says nothing of a library scanned again", async () => {
+    const requests = serve({ scans: [{ ...firstScan, first: false }] });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByRole("heading", { name: "Continue Watching" })).toBeInTheDocument();
+    await waitFor(() => expect(requests.some((r) => r.path === "/api/activity")).toBe(true));
+    expect(screen.queryByText(/TV Shows/)).not.toBeInTheDocument();
+  });
+
+  it("shows the Plex import instead while it runs", async () => {
+    serve({ scans: [firstScan], progress: importing });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByText("Importing from Plex: Fetching posters and details")).toBeInTheDocument();
+    expect(screen.getByText("Titles fill in with their details and posters as Pley fetches them.")).toBeInTheDocument();
+    expect(screen.queryByText("Scanning TV Shows: reading files")).not.toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Show" }));
+    expect(await screen.findByRole("dialog", { name: "Import from Plex" })).toBeInTheDocument();
+  });
+
+  it("says nothing of scans or imports to others", async () => {
+    const requests = serve({ scans: [firstScan], progress: importing });
+    renderWithProviders(<HomePage />, { user: { ...testUser, is_admin: false } });
+    expect(await screen.findByRole("heading", { name: "Continue Watching" })).toBeInTheDocument();
+    expect(screen.queryByText(/TV Shows: reading|Importing from Plex/)).not.toBeInTheDocument();
+    expect(requests.some((r) => r.path === "/api/import/plex")).toBe(false);
   });
 
   it("has My List when the server sends it", async () => {

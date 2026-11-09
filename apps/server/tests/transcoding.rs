@@ -47,6 +47,8 @@ struct Fake {
     created_json: Arc<Mutex<Vec<Value>>>,
     deleted: Arc<Mutex<Vec<String>>>,
     probes: Arc<Mutex<Vec<String>>>,
+    /// Probes wait while this is set.
+    probes_held: Arc<AtomicBool>,
     subtitles: Arc<Mutex<Vec<SubtitleRequest>>>,
     thumbnails: Arc<AtomicUsize>,
     /// Paths seek previews were asked for.
@@ -372,6 +374,9 @@ async fn start_fake() -> (Fake, String) {
             "/v1/probe",
             post(|State(fake): State<Fake>, Json(req): Json<ProbeRequest>| async move {
                 fake.probes.lock().push(req.path.clone());
+                while fake.probes_held.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
                 match probe_result(&req.path) {
                     Some(info) => Json(info).into_response(),
                     None => error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed"),
@@ -909,6 +914,44 @@ async fn eventually(check: impl Fn() -> bool) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     panic!("condition not reached");
+}
+
+#[tokio::test]
+async fn a_librarys_first_scan_holds_library_work_and_says_so() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let turn = || app.state.schedule.turn(pley::schedule::Class::Later);
+    let scan = |activity: &Value| activity["scans"].as_array().and_then(|s| s.first()).cloned().unwrap_or_default();
+
+    // A new library: its files are read while library work waits, and its
+    // scan says it's its first.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("more/New (2022).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "More", "kind": "movies", "paths": [app.media_path("more")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let library = r.body["id"].as_i64().unwrap();
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("New (2022)"))).await;
+    let first = scan(&app.get("/api/activity", admin).await.body);
+    assert_eq!(
+        (&first["library_id"], &first["phase"], &first["first"]),
+        (&json!(library), &json!("probing"), &json!(true))
+    );
+    assert_eq!(turn(), Err(pley::schedule::Wait::Scanning));
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    assert_ne!(turn(), Err(pley::schedule::Wait::Scanning));
+
+    // A rescan neither holds nor says so.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.post(&format!("/api/libraries/{library}/scan"), admin, json!({"force": true})).await;
+    eventually(|| w.fake.probes.lock().iter().filter(|p| p.contains("New (2022)")).count() == 2).await;
+    let again = scan(&app.get("/api/activity", admin).await.body);
+    assert_eq!((&again["phase"], &again["first"]), (&json!("probing"), &json!(false)));
+    assert_ne!(turn(), Err(pley::schedule::Wait::Scanning));
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
 }
 
 #[tokio::test]

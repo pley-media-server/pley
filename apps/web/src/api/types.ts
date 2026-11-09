@@ -631,6 +631,8 @@ export interface ScanStatus {
   processed: number;
   total: number;
   started_at: Timestamp;
+  /** The library's first scan; absent from servers before it, and from scans heard of only by their events. */
+  first?: boolean;
 }
 
 export type TranscodeJobState = "starting" | "running" | "idle" | "finished" | "failed";

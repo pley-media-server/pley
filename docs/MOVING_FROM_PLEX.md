@@ -109,8 +109,9 @@ Import from Plex.
    details and looks for the rest of Plex's titles. Once what everyone watched is in, **Start
    watching** (or **Close**, from Settings) lets you go on while the rest
    runs. You can close the page at any time; the import goes on.
-   Settings › Libraries shows how far it is, and once it's done, when it
-   ran and **See what came over**, its report.
+   Home shows how far it is while it runs, and so does Settings ›
+   Libraries, which once it's done says when it ran and has **See what
+   came over**, its report.
 
 The report says how many titles each library found, the ones it didn't,
 and what came over for each person.

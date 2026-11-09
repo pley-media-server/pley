@@ -989,6 +989,7 @@
     },
     "startWatching": "Start watching",
     "status": {
+      "fillingIn": "Titles fill in with their details and posters as Pley fetches them.",
       "running": "Importing from Plex: {{step}}",
       "count": "{{done}} of {{total}}",
       "done": "Imported from Plex on {{date}}",

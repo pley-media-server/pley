@@ -28,12 +28,14 @@ describes how they are made.
   minutes, and Plex's matches mean titles are fetched by their ids rather
   than searched for by name; Start watching goes on from there while the
   rest runs, and Settings › Libraries shows the import, then its report.
-  While it waits for the new libraries' scans, it shows which library is
-  scanned and how many of its files are read.
-  Titles found by their files show with Plex's names, years, summaries
-  and posters until Pley's own details replace them.
   Running it again adds what's new and never takes anything away
-  (docs/MOVING_FROM_PLEX.md).
+  (docs/MOVING_FROM_PLEX.md). While it waits for the new libraries'
+  scans, it shows which library is scanned and how many of its files are
+  read, and titles found by their files show with Plex's names, years,
+  summaries and posters until Pley's own details replace them.
+- Home tells administrators how far new libraries are: the Plex import's
+  step while it runs, or a library's first scan (its files found, read,
+  then its details fetched).
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the
   metadata language's country, and still is until one is chosen:

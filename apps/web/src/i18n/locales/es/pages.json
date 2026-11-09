@@ -371,6 +371,12 @@
     "scanningHint": "Los nuevos elementos aparecerán aquí en cuanto se encuentren.",
     "emptyHint": "Tus bibliotecas están vacías. Añade contenido a sus carpetas y ejecuta un análisis.",
     "manage": "Gestionar bibliotecas",
+    "firstScan": {
+      "queued": "{{library}}: esperando para empezar",
+      "walking": "Analizando {{library}}: buscando archivos",
+      "probing": "Analizando {{library}}: leyendo archivos",
+      "metadata": "{{library}}: obteniendo los detalles"
+    },
     "banner": {
       "label": "Destacados",
       "new": "Novedad",

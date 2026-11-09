@@ -3864,6 +3864,7 @@ interface ScanStatus {
   processed: number;
   total: number;
   started_at: Timestamp;
+  first: boolean;                   // the library's first scan (Home shows how far it is)
 }
 
 interface SessionInfo {
