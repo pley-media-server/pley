@@ -39,10 +39,11 @@ const STEP_WEIGHTS: Record<ImportStep, number> = {
  * The Plex import, on Home and under Settings › Libraries' buttons. While it
  * runs: which of its steps it's on, how far the whole import has come and,
  * open, its steps with Stop; hidden, the step's name and count. Once it
- * ended: when and how, with its report. `onReport` opens the report;
- * `onClose`, where given, puts an ended import away.
+ * ended: when and how, with its report, and the way to import again when it
+ * didn't finish. `onReport` opens the report, `onAgain` the import's first
+ * step; `onClose`, where given, puts an ended import away.
  */
-export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; onClose?: () => void }) {
+export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () => void; onAgain: () => void; onClose?: () => void }) {
   const { t } = useTranslation(["settings", "common"]);
   const data = usePlexImport().data;
   const [hidden, setHidden] = useLocalStorage<number | null>(HIDDEN_KEY, null);
@@ -67,6 +68,8 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
     text = at < 0 ? t("plexImport.status.running", { step }) : open ? t("plexImport.status.runningAt", place) : t("plexImport.status.runningStep", { step, ...place });
     if (!open && data.total > 0) count = t("plexImport.status.count", { done: number(data.done), total: number(data.total) });
     if (at >= 0) overall = share(data);
+  } else if (data.state === "interrupted" && data.started_at) {
+    text = t("plexImport.status.interrupted", { date: formatDay(data.started_at) });
   } else if (data.report) {
     const date = formatDay(data.report.finished_at);
     const outcome = data.report.outcome;
@@ -75,6 +78,8 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
     return null;
   }
   const failure = data.report?.outcome === "failed" ? data.report.error : null;
+  // What came over stays: importing again brings the rest, and nothing twice.
+  const unfinished = !running && (data.state === "interrupted" || (!!data.report && data.report.outcome !== "done"));
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
@@ -94,7 +99,12 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
               <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
             </Button>
           ) : null}
-          {!running ? (
+          {unfinished ? (
+            <Button variant="ghost" size="sm" onClick={onAgain}>
+              {t("plexImport.report.again")}
+            </Button>
+          ) : null}
+          {!running && data.report ? (
             <Button variant="ghost" size="sm" onClick={onReport}>
               {t("plexImport.status.report")}
             </Button>

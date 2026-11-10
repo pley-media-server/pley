@@ -42,6 +42,9 @@ const MAX_SUMMARY: usize = 20_000;
 const MAX_GENRES: usize = 30;
 /// The settings key of the last import's report.
 const REPORT_KEY: &str = "plex_import_report";
+/// When the import running started, kept until its report is: found with
+/// none running, the server restarted while it ran.
+const RUNNING_KEY: &str = "plex_import_running";
 /// The settings key of the id plex.tv knows this server by.
 const CLIENT_ID_KEY: &str = "plex_client_id";
 /// Files of a Plex library looked for in Pley's, to pair the libraries.
@@ -222,6 +225,8 @@ pub enum RunState {
     Done,
     Failed,
     Cancelled,
+    /// The server restarted while it ran: it stopped, with no report.
+    Interrupted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -742,11 +747,21 @@ impl Importer {
 
     // ---- The job ----
 
-    /// Where the import is: the one running, or the last one's report.
+    /// Where the import is: the one running, the one the server restarted
+    /// during, or the last one's report.
     pub async fn progress(&self, db: &Db) -> Progress {
         let progress = self.progress.lock().clone();
         if progress.state != RunState::Idle {
             return progress;
+        }
+        let running: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
+            .bind(RUNNING_KEY)
+            .fetch_optional(&db.read)
+            .await
+            .ok()
+            .flatten();
+        if let Some(started_at) = running.and_then(|at| at.parse().ok()) {
+            return Progress { state: RunState::Interrupted, started_at, ..Default::default() };
         }
         let report: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
             .bind(REPORT_KEY)
@@ -782,6 +797,18 @@ impl Importer {
                 steps: steps(choices.bring),
                 ..Default::default()
             };
+        }
+        let started_at = self.progress.lock().started_at;
+        let marked = sqlx::query(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )
+        .bind(RUNNING_KEY)
+        .bind(started_at.to_string())
+        .execute(&state.db.write)
+        .await;
+        if let Err(err) = marked {
+            *self.progress.lock() = Progress::default();
+            return Err(err.into());
         }
         self.cancel.store(false, Ordering::Relaxed);
         drop(session);
@@ -1078,6 +1105,7 @@ impl Run {
             .execute(&self.state.db.write)
             .await;
         }
+        let _ = sqlx::query("DELETE FROM settings WHERE key = ?").bind(RUNNING_KEY).execute(&self.state.db.write).await;
         self.importer.set(&self.state, self.admin, |p| {
             p.state = state;
             p.error = error;

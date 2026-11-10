@@ -92,7 +92,8 @@ export interface ImportBring {
   edits: boolean;
 }
 
-export type ImportState = "idle" | "running" | "done" | "failed" | "cancelled";
+/** `interrupted`: the server restarted while it ran; it stopped, with no report. */
+export type ImportState = "idle" | "running" | "done" | "failed" | "cancelled" | "interrupted";
 export type ImportStep =
   | "scanning"
   | "profiles"

@@ -593,12 +593,24 @@ async fn brings_libraries_people_and_what_they_watched() {
     listed.extend(to_come.iter().map(|step| (step.to_string(), "to_come".to_owned())));
     assert_eq!(steps(&scanning), listed);
     assert_eq!(scanning["steps"][0]["count"], 2, "the administrator's profile and the Home user's");
-    assert!(scanning["started_at"].as_i64().is_some_and(|at| at > 0), "{scanning:?}");
+    let started_at = scanning["started_at"].as_i64().unwrap();
+    assert!(started_at > 0, "{scanning:?}");
+    // Marked as running, for a restart to be told.
+    let marked: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'plex_import_running'")
+        .fetch_optional(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(marked, Some(started_at.to_string()));
     tv_held.store(false, Ordering::SeqCst);
 
     let done = finished(&app, &admin).await;
     assert_eq!(done["state"], "done", "{done:?}");
     assert!(!serde_json::to_string(&done).unwrap().contains(OWNER), "no token in the report");
+    let marked: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM settings WHERE key = 'plex_import_running'")
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(marked, 0, "the mark goes with the report");
 
     let report = &done["report"];
     // Plex's details where Pley has nothing better (no metadata fetched
@@ -865,6 +877,24 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);
     let r = app.get("/api/import/plex/plan", &admin).await;
     assert_eq!(r.body["code"], "plex_signed_out");
+}
+
+#[tokio::test]
+async fn an_import_the_server_restarted_during_says_so() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    // Marked as running, with none running: the server restarted since.
+    sqlx::query("INSERT INTO settings (key, value) VALUES ('plex_import_running', '1794100000')")
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    let progress = app.get("/api/import/plex", &admin).await.body;
+    assert_eq!(
+        (&progress["state"], &progress["started_at"]),
+        (&json!("interrupted"), &json!(1_794_100_000)),
+        "{progress:?}"
+    );
+    assert_eq!(progress["report"], Value::Null);
 }
 
 #[tokio::test]

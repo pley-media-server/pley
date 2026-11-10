@@ -31,7 +31,7 @@ describe("PlexImportStatus", () => {
     let progress: ImportProgress = { ...idle, state: "running", step: "fetching", done: 1204, total: 3500, first_pass_done: true };
     mockApi({ "GET /api/import/plex": () => progress });
     const onReport = vi.fn();
-    const { client } = renderWithProviders(<PlexImportStatus onReport={onReport} />);
+    const { client } = renderWithProviders(<PlexImportStatus onReport={onReport} onAgain={() => {}} />);
     expect(await screen.findByText("Importing from Plex: Fetching posters and details")).toBeInTheDocument();
     expect(screen.getByText("1,204 of 3,500")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "See what came over" })).not.toBeInTheDocument();
@@ -53,14 +53,14 @@ describe("PlexImportStatus", () => {
     ];
     let progress: ImportProgress = { ...idle, state: "running", step: "fetching", done: 1, total: 4, started_at: 100, steps };
     mockApi({ "GET /api/import/plex": () => progress });
-    const first = renderWithProviders(<PlexImportStatus onReport={() => {}} />);
+    const first = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
     await user.click(await screen.findByRole("button", { name: /Hide the steps/ }));
     expect(screen.queryByText("Making profiles")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Show the steps/ })).toHaveAttribute("aria-expanded", "false");
     first.unmount();
 
     // Hidden still, on coming back to it.
-    const { client } = renderWithProviders(<PlexImportStatus onReport={() => {}} />);
+    const { client } = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
     expect(await screen.findByRole("button", { name: /Show the steps/ })).toBeInTheDocument();
     progress = { ...progress, started_at: 200 };
     await client.invalidateQueries({ queryKey: plexImportKeys.progress });
@@ -74,7 +74,7 @@ describe("PlexImportStatus", () => {
       "GET /api/import/plex": () => ({ ...idle, state: "running", step: "fetching", started_at: 100, steps }),
       "DELETE /api/import/plex": () => new Response(null, { status: 204 }),
     });
-    renderWithProviders(<PlexImportStatus onReport={() => {}} />);
+    renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
     await user.click(await screen.findByRole("button", { name: "Stop the import" }));
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "Stop the import" }));
@@ -95,7 +95,7 @@ describe("PlexImportStatus", () => {
     ];
     const progress: ImportProgress = { ...idle, state: "running", step: "scanning", done: 1, total: 2, started_at: 100, steps, libraries };
     mockApi({ "GET /api/import/plex": () => progress });
-    renderWithProviders(<PlexImportStatus onReport={() => {}} />);
+    renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
     // Open, the steps name the step: the line says which it is.
     expect(await screen.findByText("Importing from Plex, step 2 of 4")).toBeInTheDocument();
     expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
@@ -119,9 +119,34 @@ describe("PlexImportStatus", () => {
     expect(screen.queryByRole("button", { name: "Stop the import" })).not.toBeInTheDocument();
   });
 
+  it("says when a restart cut the import short, or it failed, with the way to import again", async () => {
+    const user = userEvent.setup();
+    // Cut short on 8 November 2026: no report to see.
+    let progress: ImportProgress = { ...idle, state: "interrupted", started_at: 1_794_139_200 };
+    mockApi({ "GET /api/import/plex": () => progress });
+    const onAgain = vi.fn();
+    const { client } = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={onAgain} />);
+    expect(await screen.findByText("The Plex import was cut short when Pley restarted on Nov 8, 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "See what came over" })).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Import again" }));
+    expect(onAgain).toHaveBeenCalled();
+
+    progress = { ...idle, state: "failed", report: { ...report, outcome: "failed", error: "Plex stopped answering" } };
+    await client.invalidateQueries({ queryKey: plexImportKeys.progress });
+    expect(await screen.findByText("Plex stopped answering")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import again" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "See what came over" })).toBeInTheDocument();
+
+    // One that finished has nothing left to bring.
+    progress = { ...idle, state: "done", report };
+    await client.invalidateQueries({ queryKey: plexImportKeys.progress });
+    expect(await screen.findByText("Imported from Plex on Nov 8, 2026")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Import again" })).not.toBeInTheDocument();
+  });
+
   it("shows nothing before any import", async () => {
     const requests = mockApi({ "GET /api/import/plex": () => idle });
-    const { container } = renderWithProviders(<PlexImportStatus onReport={() => {}} />);
+    const { container } = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
     await vi.waitFor(() => expect(requests.some((r) => r.path === "/api/import/plex")).toBe(true));
     expect(container).toBeEmptyDOMElement();
   });

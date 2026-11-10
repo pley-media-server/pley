@@ -118,7 +118,9 @@ Import from Plex.
    watch, or close the page, at any time; the import goes on. Once it
    ends, Home says how it went, why if it failed, and has **See what came
    over**, its report, until you close it; Settings › Libraries keeps
-   saying when it ran.
+   saying when it ran. An import that failed or was stopped, or that a
+   restart of the server cut short, has **Import again**, which picks up
+   where it left off: what came over stays (see below).
 
 The report says how many titles each library found, the ones it didn't,
 and what came over for each person.

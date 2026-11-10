@@ -1017,6 +1017,7 @@
       "done": "Imported from Plex on {{date}}",
       "failed": "The Plex import failed on {{date}}",
       "cancelled": "The Plex import was stopped on {{date}}",
+      "interrupted": "The Plex import was cut short when Pley restarted on {{date}}",
       "showSteps": "Show the steps",
       "hideSteps": "Hide the steps",
       "report": "See what came over"

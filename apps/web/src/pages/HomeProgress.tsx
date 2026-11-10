@@ -13,7 +13,7 @@ import { useLocalStorage, useNow } from "@/lib/hooks";
 import { PlexImportModal } from "./plexImport/PlexImportModal";
 import { PlexImportStatus } from "./plexImport/PlexImportStatus";
 
-/** The `finished_at` of the import whose ending was put away on Home. */
+/** When the import whose ending was put away on Home ended (see `endedAt`). */
 const CLOSED_KEY = "pley.plexImport.closed";
 
 /** How long an import's ending stays on Home, unless put away: a week. */
@@ -41,8 +41,7 @@ function AdminProgress({ className }: { className?: string }) {
   const now = useNow(60_000);
 
   if (progress && (progress.state === "running" || ending(progress, closed, now))) {
-    const finished = progress.report?.finished_at ?? null;
-    return <Importing progress={progress} onClose={() => setClosed(finished)} className={className} />;
+    return <Importing progress={progress} onClose={() => setClosed(endedAt(progress))} className={className} />;
   }
 
   const batch = activity.data && libraries ? newServerScans(activity.data, libraries) : null;
@@ -171,10 +170,16 @@ function LibraryLine({ scan, running }: { scan: ScanStatus; running: boolean }) 
   );
 }
 
+/** When an import ended: its report's time or, cut short by a restart, when it started. */
+function endedAt(progress: ImportProgress): number | null {
+  if (progress.state === "interrupted") return progress.started_at || null;
+  return progress.report?.finished_at ?? null;
+}
+
 /** Whether an import that ended shows on Home: it ended lately, and wasn't put away. */
 function ending(progress: ImportProgress, closed: number | null, now: number): boolean {
-  const report = progress.report;
-  return !!report && report.finished_at !== closed && now - report.finished_at < ENDING_SHOWN_FOR;
+  const at = endedAt(progress);
+  return at != null && at !== closed && now - at < ENDING_SHOWN_FOR;
 }
 
 /**
@@ -185,15 +190,16 @@ function ending(progress: ImportProgress, closed: number | null, now: number): b
 function Importing({ progress, onClose, className }: { progress: ImportProgress; onClose: () => void; className?: string }) {
   const { t } = useTranslation("settings");
   const words = useSettingsWords();
-  const [report, setReport] = useState(false);
+  // The import's dialog, on its report or its first step.
+  const [open, setOpen] = useState<{ report: boolean } | null>(null);
   if (!words) return null;
   return (
     <div className={cn("space-y-1.5", className)}>
-      <PlexImportStatus onReport={() => setReport(true)} onClose={onClose} />
+      <PlexImportStatus onReport={() => setOpen({ report: true })} onAgain={() => setOpen({ report: false })} onClose={onClose} />
       {progress.state === "running" && progress.first_pass_done ? (
         <p className="px-1 text-sm text-muted">{t("plexImport.status.fillingIn")}</p>
       ) : null}
-      <PlexImportModal open={report} report onClose={() => setReport(false)} />
+      <PlexImportModal open={open !== null} report={open?.report} onClose={() => setOpen(null)} />
     </div>
   );
 }

@@ -42,8 +42,9 @@ export function ImportProgressView({
 
   if (!data) return <PageSpinner />;
 
-  // Idle with no report: the server restarted while it ran, and kept nothing.
-  if (data.state === "idle" && !data.report) {
+  // The server restarted while it ran, and kept no report (servers before
+  // they said so: idle with none).
+  if (data.state === "interrupted" || (data.state === "idle" && !data.report)) {
     return (
       <StepFrame
         title={t("plexImport.report.lost")}

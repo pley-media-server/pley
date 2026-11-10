@@ -249,6 +249,21 @@ describe("HomePage", () => {
     expect(localStorage.getItem("pley.plexImport.closed")).toBe(String(report.finished_at));
   });
 
+  it("says when a restart cut the Plex import short, and imports again from there", async () => {
+    i18next.removeResourceBundle("en", "settings");
+    const startedAt = Math.floor(Date.now() / 1000) - 3600;
+    serve({ progress: { ...importing, state: "interrupted", step: null, started_at: startedAt, first_pass_done: false } });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByText(/^The Plex import was cut short when Pley restarted on/)).toBeInTheDocument();
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Import again" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByText(/cut short/)).not.toBeInTheDocument();
+    expect(localStorage.getItem("pley.plexImport.closed")).toBe(String(startedAt));
+  });
+
   it("says nothing of an import that ended over a week ago", async () => {
     i18next.removeResourceBundle("en", "settings");
     const report: ImportReport = { ...emptyReport, finished_at: Math.floor(Date.now() / 1000) - 8 * 24 * 60 * 60, outcome: "done" };

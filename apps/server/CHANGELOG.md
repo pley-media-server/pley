@@ -40,7 +40,8 @@ describes how they are made.
   which Home goes to as soon as it starts, with how far the whole import
   is, its steps, each library scanned with about how long it has left and
   the titles found in it, and Stop, then how it ended (and why, if it
-  failed) until that's closed; after Start fresh, which of the new libraries is being
+  failed, or that a restart of the server cut it short), with Import
+  again when it didn't finish, until that's closed; after Start fresh, which of the new libraries is being
   scanned, how far they all are, and each ticked off once done; or a
   library's first scan (its files found, read, then its details
   fetched).
