@@ -55,9 +55,12 @@ class FakeHomeSources : HomeSources {
 
     fun detail(id: Long): MutableStateFlow<Loadable<ItemDetail>> = details.getOrPut(id) { MutableStateFlow(Loadable.Loading) }
 
+    /** Each library's Recommended rows (the banner's top rated come from them): loading, until a test says. */
+    val libraryHubs = HashMap<Long, MutableStateFlow<Loadable<Hubs>>>()
+
     override val hubs = object : HubsRepository {
         override fun home(): Flow<Loadable<Hubs>> = this@FakeHomeSources.home
-        override fun library(libraryId: Long): Flow<Loadable<Hubs>> = error("not on Home")
+        override fun library(libraryId: Long): Flow<Loadable<Hubs>> = libraryHubs.getOrPut(libraryId) { MutableStateFlow(Loadable.Loading) }
         override suspend fun refresh() {
             hubRefreshes++
         }

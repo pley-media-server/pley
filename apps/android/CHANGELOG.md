@@ -23,6 +23,9 @@ describes how they are made.
 
 ### Changed
 
+- Home's banner mixes in top rated titles you haven't watched: one in
+  three, among the newest, with "Top rated in Movies" over its name. They
+  are the same all day and others the next day.
 - A show with more than 12 seasons lists them newest first, with Specials
   last, so the seasons still coming out are the first ones. On Android
   TV the seasons open at the one shown, wherever it is in the row.

@@ -221,9 +221,13 @@ rates as the decoder gives them, the same in every language.
   steps focus a tile or a row at a time and nothing slides.
   Search's recent searches move only when the next chip would pass the
   gutter or the safe area's edge, and then glide as a row does.
-- Home's hero features what the web's banner does: the newest movies and
-  shows not yet watched that have a backdrop, a library's at a time, then
-  My List's (the newest watched ones once everything has been). It takes
+- Home's hero features mostly what the web's banner does: the newest
+  movies and shows not yet watched that have a backdrop, a library's at a
+  time, then My List's (the newest watched ones once everything has
+  been). Every third title is one of the libraries' Top Rated not yet
+  watched, the same ones all day and others the next; the first two are
+  always the newest, so the title Home opens on never changes as the top
+  rated ones come in. On a phone's banner too. It takes
   turns through them: it turns by itself every 9 s while no key is
   pressed, each press starting the time over, and Right from its last
   button (My List) stays there. Dashes at the

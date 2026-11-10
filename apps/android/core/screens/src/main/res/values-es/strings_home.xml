@@ -3,4 +3,6 @@
     <string name="home_featured_new_in">Novedad en %1$s</string>
     <string name="home_featured_new">Novedad</string>
     <string name="home_featured_on_list">En tu lista</string>
+    <string name="home_featured_top_rated_in">Mejor valorados en %1$s</string>
+    <string name="home_featured_top_rated">Mejor valorados</string>
 </resources>
