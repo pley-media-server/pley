@@ -5,9 +5,9 @@
 <p align="center">A self-hosted media server for movies, shows, music and live TV.</p>
 
 <p align="center">
-<a href="https://github.com/pley-media-server/pley/releases/latest"><img src="https://img.shields.io/github/v/release/pley-media-server/pley?display_name=release&label=release" alt="Latest release"></a>
 <a href="https://github.com/pley-media-server/pley/pkgs/container/pley"><img src="https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker&logoColor=white" alt="Docker image"></a>
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-F0B27A" alt="License: AGPL-3.0"></a>
+<a href="https://discord.gg/wSsVdRRnT3"><img src="https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white" alt="Pley's Discord"></a>
 </p>
 
 <p align="center">
