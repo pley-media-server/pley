@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
+import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.Credit
 import app.pley.android.model.CreditRole
@@ -295,5 +296,26 @@ class TvItemPageTest {
         assertTrue("$back", back > 0.5f && back < 1f)
         compose.mainClock.advanceTimeBy(80)
         assertEquals(play, focusedTop(), 0.25f)
+    }
+
+    @Test
+    fun whoMadeItAndTheFactsSitUnderTheCastInSight() {
+        val cast = listOf(Credit(1, "Idris Vale", CreditRole.Actor, character = "Ras"), Credit(2, "Mara Holt", CreditRole.Actor, character = "Ines"))
+        val crew = listOf(
+            Credit(3, "Ada Brook", CreditRole.Director),
+            Credit(4, "Theo Lane", CreditRole.Writer),
+            Credit(5, "June Park", CreditRole.Writer),
+        )
+        val movie = movie().copy(cast = cast, crew = crew, originalTitle = "Le Phare", releaseDate = "2023-04-01", studio = "Northlight")
+        show(ItemData(movie))
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Idris Vale"))
+        val facts = compose.onNodeWithTag(TAG_FACTS)
+        facts.assert(hasText("Director", substring = true)).assert(hasText("Ada Brook", substring = true))
+        facts.assert(hasText("Theo Lane, June Park", substring = true)).assert(hasText("Northlight", substring = true))
+        // Under the cast's names, and above the safe area while the cast has focus.
+        val tile = compose.onNode(isFocused()).getBoundsInRoot()
+        val bounds = facts.getBoundsInRoot()
+        assertTrue("$bounds", bounds.top > tile.bottom && bounds.bottom <= 540.dp - TvSafeArea.Vertical)
     }
 }

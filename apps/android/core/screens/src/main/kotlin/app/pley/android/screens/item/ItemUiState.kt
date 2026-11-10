@@ -184,7 +184,10 @@ data class ItemDetails(
     /** Each version in the web's long form, "4K · HEVC · Dolby Vision P8.1 · TrueHD Atmos 7.1 · 62.0 GB", the one that plays checked. */
     val versions: List<TrackChoice>,
 ) {
-    val isEmpty: Boolean get() = crew.isEmpty() && originalTitle == null && released == null && studio == null && plays == null && versions.isEmpty()
+    val isEmpty: Boolean get() = !hasFacts && versions.isEmpty()
+
+    /** Who made it or a fact about it: the TV shows these under the cast. */
+    val hasFacts: Boolean get() = crew.isNotEmpty() || originalTitle != null || released != null || studio != null || plays != null
 }
 
 /** "Directors: A, B, C, D and 2 more": [role], [people] (four at most) and how many more. */

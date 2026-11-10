@@ -267,7 +267,11 @@ public static class ItemText
     // ---- details
 
     /// <summary>Whether the page has a Details section: facts, versions or media info.</summary>
-    public static bool HasDetails(ItemPage page) => !page.Details.IsEmpty || page.MediaInfo.Count > 0;
+    public static bool HasDetails(ItemPage page) =>
+        (FactsUnderCast(page) ? page.Details.Versions.Count > 0 : !page.Details.IsEmpty) || page.MediaInfo.Count > 0;
+
+    /// <summary>Who made it and the facts go under the cast row (the Android app's TvFacts) when there is one, else in the details.</summary>
+    public static bool FactsUnderCast(ItemPage page) => HasCastRow(page) && Facts(page.Details).Count > 0;
 
     /// <summary>The details' facts, label and value: who made it ("Directors: A, B and 2 more"), original title, release, studio or network, plays.</summary>
     public static IReadOnlyList<(string Label, string Value)> Facts(ItemDetails details)

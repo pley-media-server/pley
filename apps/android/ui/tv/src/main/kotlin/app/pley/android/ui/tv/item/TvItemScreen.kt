@@ -246,7 +246,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                 }
             }
             rowsOf(page, focus, memory, sections, actions) { item, returnTo -> panel = Panel.Actions(item, returnTo) }
-            if (!page.details.isEmpty || page.mediaInfo.isNotEmpty()) {
+            if (page.details.versions.isNotEmpty() || page.mediaInfo.isNotEmpty()) {
                 item(key = DETAILS_KEY, contentType = DETAILS_KEY) {
                     TvDetails(page, onChooseVersion = model::chooseVersion, modifier = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Details })
                 }
@@ -315,7 +315,7 @@ internal class TvPageActions(val model: ItemViewModel, private val navigator: Tv
     fun open(key: PleyKey) = navigator.open(key)
 }
 
-/** The rows under the episodes: Extras, Cast or Guest Stars, More Like This. */
+/** The rows under the episodes: Extras, Cast or Guest Stars, who made it and the facts, More Like This. */
 private fun LazyListScope.rowsOf(
     page: ItemPage,
     focus: ItemPageFocus,
@@ -372,6 +372,10 @@ private fun LazyListScope.rowsOf(
                 )
             }
         }
+    }
+    // Who made it and the facts, under the cast, in sight while it has focus.
+    if (page.details.hasFacts) {
+        item(key = "facts", contentType = "facts") { TvFacts(page) }
     }
     if (page.related.isNotEmpty()) {
         item(key = "related", contentType = TileKind.Poster) {

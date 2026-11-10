@@ -18,6 +18,9 @@ describes how they are made.
 
 ### Changed
 
+- Who made a title and its facts (director, writers, release, studio
+  or network) sit under the cast, each a small label over its value,
+  as on Android TV, where they were in Details at the end of the page.
 - A show's episodes sit further below its season tabs, so the focused
   episode no longer crowds them, as on Android TV.
 

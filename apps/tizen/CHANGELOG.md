@@ -37,6 +37,9 @@ describes how they are made.
 
 ### Changed
 
+- Who made a title and its facts (director, writers, release, studio
+  or network) sit under the cast, each a small label over its value,
+  as on Android TV, where they were in Details at the end of the page.
 - The TV starts straight into Home as the profile it was left on when it
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch

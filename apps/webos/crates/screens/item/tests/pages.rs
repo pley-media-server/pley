@@ -420,35 +420,37 @@ fn closing_media_info_while_reading_keeps_it_on_screen() {
 }
 
 #[test]
-fn moving_along_a_row_ends_reading() {
+fn moving_focus_ends_reading() {
     let mut app = TestApp::start();
-    open_show(&mut app);
-    // The rows come from other threads, and the moves below go by the app's clock alone: they
-    // start once More Like This is in (the page keeps it once it has drawn it).
-    let related = pley_core::store::snapshot_keys::related(ids::SHOW);
-    let in_place = |a: &TestApp| {
-        let (Some(server), Some(profile)) = (a.state.server(), a.state.profile()) else { return false };
-        a.state.snapshots().read(server, profile, &related).is_some()
-    };
-    assert!(app.until(|a| in_place(a)), "More Like This never came");
-    // More Like This is the last row that takes focus; its header comes to the rows' line.
-    let header = |a: &TestApp| a.text_y("More Like This");
-    for _ in 0..6 {
-        if header(&app) == Some(172.0) {
+    // A movie: its details (versions and Media info) are the last thing that takes focus. A
+    // show's facts are under its cast, and it has no files, so nothing past More Like This reads on.
+    open_movie(&mut app);
+    let media = app.id(&["details", "media"]);
+    for _ in 0..8 {
+        if app.focused() == Some(media) {
             break;
         }
         app.press(Key::Down);
         app.advance(0.4);
     }
-    assert_eq!(header(&app), Some(172.0), "More Like This never took focus");
-    // Down reads on into the details under it, moving the row up.
+    assert_eq!(app.focused(), Some(media), "Media info was never reached");
+    app.advance(0.5);
+    let resting = app.text_y("Media info");
+    // Down past it reads on, moving the page up.
+    app.press(Key::Ok);
     app.press(Key::Down);
     app.advance(0.5);
-    assert!(header(&app).is_some_and(|y| y < 100.0), "reading on didn't move the page: {:?}", header(&app));
-    // The next title brings the row back to its line.
-    app.press(Key::Right);
+    assert!(app.text_y("Media info") < resting, "reading on didn't move the page: {:?}", app.text_y("Media info"));
+    // Up takes the step back, then moves to the version above: reading on is over, and closing
+    // Media info from there leaves the page where a focused version puts it.
+    app.press(Key::Up);
+    app.press(Key::Up);
     app.advance(0.5);
-    assert_eq!(header(&app), Some(172.0), "the row stayed read on");
+    assert_ne!(app.focused(), Some(media), "Up never left Media info");
+    app.press(Key::Down);
+    app.press(Key::Ok);
+    app.advance(0.5);
+    assert_eq!(app.text_y("Media info"), resting, "the page stayed read on");
 }
 
 #[test]

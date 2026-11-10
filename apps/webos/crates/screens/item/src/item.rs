@@ -1680,14 +1680,70 @@ fn media_row(open: bool) -> ListRow<'static> {
     ListRow::new(t!("item.details.mediaInfo")).icon(icon).supporting(t!("item.details.mediaInfoHint"))
 }
 
-/// Measures the details: the facts card, Versions, Media info and, while open, its cards.
+/// Who made it and the facts go under the cast row (`TvFacts`) when there is one, else in the
+/// details.
+fn facts_under_cast(m: &Model) -> bool {
+    !m.cast.is_empty() && !m.facts.is_empty()
+}
+
+/// Four facts to a line under the cast, across the 816 dp from the gutter to the safe area.
+const FACTS_PER_LINE: usize = 4;
+const FACT_W: f32 = 186.0;
+const FACT_GAP: f32 = 24.0;
+const FACT_LINE_GAP: f32 = 12.0;
+const FACT_LABEL_TO_VALUE: f32 = 2.0;
+
+/// A fact's value under the cast: two lines at most.
+fn fact_strip_value_opts() -> TextOpts {
+    TextOpts::wrap(FACT_W, 2)
+}
+
+/// The height of each line of facts under the cast: a label over its value.
+fn fact_lines(ui: &Ui, facts: &[(String, String)]) -> Vec<f32> {
+    let opts = fact_strip_value_opts();
+    (facts.chunks(FACTS_PER_LINE))
+        .map(|line| {
+            let value =
+                line.iter().map(|(_, v)| ui.measure(v, &theme::BODY, &opts).h).fold(theme::BODY.line_height, f32::max);
+            theme::CAPTION.line_height + FACT_LABEL_TO_VALUE + value
+        })
+        .collect()
+}
+
+/// The facts' height under the cast.
+fn facts_height(ui: &Ui, facts: &[(String, String)]) -> f32 {
+    let lines = fact_lines(ui, facts);
+    lines.iter().sum::<f32>() + FACT_LINE_GAP * lines.len().saturating_sub(1) as f32
+}
+
+/// Who made it and the facts under the cast row (`TvFacts`), from `top`, where they're read beside
+/// the people: each a Caption label in Subtle over its value, two lines at most, four to a line.
+/// Two lines of them fit under the cast row while it has focus. Never takes focus.
+fn draw_facts(ui: &mut Ui, facts: &[(String, String)], top: f32) {
+    let (label_opts, value_opts) = (TextOpts::line(FACT_W), fact_strip_value_opts());
+    let mut y = top;
+    for (line, h) in facts.chunks(FACTS_PER_LINE).zip(fact_lines(ui, facts)) {
+        for (i, (label, value)) in line.iter().enumerate() {
+            let x = theme::GUTTER + i as f32 * (FACT_W + FACT_GAP);
+            ui.text(Point::new(x, y), label, &theme::CAPTION, &label_opts, theme::SUBTLE);
+            let value_y = y + theme::CAPTION.line_height + FACT_LABEL_TO_VALUE;
+            ui.text(Point::new(x, value_y), value, &theme::BODY, &value_opts, theme::FG.alpha(0.9));
+        }
+        y += h + FACT_LINE_GAP;
+    }
+}
+
+/// Measures the details: the facts card (when they're not under the cast), Versions, Media info and,
+/// while open, its cards.
 fn measure_details(ui: &Ui, m: &Model, media_open: bool) -> DetailsLayout {
     let w = DETAILS_W;
     let mut y = theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
     let value_opts = fact_value_opts();
+    let under_cast = facts_under_cast(m);
     let facts: Vec<f32> = m
         .facts
         .iter()
+        .filter(|_| !under_cast)
         .map(|(_, v)| ui.measure(v, &theme::BODY, &value_opts).h.max(theme::BODY.line_height) + 6.0)
         .collect();
     if !facts.is_empty() {
@@ -1759,7 +1815,7 @@ fn draw_details(
     let w = DETAILS_W;
     ui.text(Point::new(x, top), t!("item.details.title"), &theme::SECTION, &TextOpts::line(w), theme::FG);
     let mut y = top + theme::ROW_HEADER_HEIGHT + theme::HEADER_TO_TILES;
-    if !m.facts.is_empty() {
+    if !l.facts.is_empty() {
         let card_h = 32.0 + l.facts.iter().sum::<f32>();
         ui.fill(Rect::new(x, y, w, card_h), theme::SURFACE2.alpha(0.6), radius::CARD);
         let (label_opts, value_opts) = (TextOpts::line(FACT_LABEL_W - 8.0), fact_value_opts());
@@ -1969,12 +2025,13 @@ impl Screen for ItemScreen {
                 sections.push(Section::row(EXTRAS, TileKind::Landscape.row_height(true)));
             }
             if !m.cast.is_empty() {
-                sections.push(Section::row(CAST, TileKind::Person.row_height(true)));
+                let facts = if facts_under_cast(m) { theme::ROW_GAP + facts_height(ui, &m.facts) } else { 0.0 };
+                sections.push(Section::row(CAST, TileKind::Person.row_height(true) + facts));
             }
             if !m.related.is_empty() {
                 sections.push(Section::row(RELATED, TileKind::Poster.row_height(true)));
             }
-            if !m.facts.is_empty() || !m.media.is_empty() {
+            if (!m.facts.is_empty() && !facts_under_cast(m)) || !m.media.is_empty() {
                 let media_open = view.media_open;
                 let h = view.details.get_or_insert_with(|| measure_details(ui, m, media_open)).height;
                 sections.push(Section::row(DETAILS, h));
@@ -2056,6 +2113,9 @@ impl Screen for ItemScreen {
                                 draw_row(ui, ids.cast, TileKind::Person, top, m.cast_title, &m.cast, &mut view.cast);
                             if let Some(t) = r.activated {
                                 out.push(Intent::Push(Route::Person { id: m.cast[t].id }));
+                            }
+                            if facts_under_cast(m) {
+                                draw_facts(ui, &m.facts, top + r.height + theme::ROW_GAP);
                             }
                         }
                         RELATED => {

@@ -10,7 +10,8 @@ namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
 /// Details at the end of an item page (design spec §4.3; the Android app's TvDetails and
-/// TvMediaInfo): who made it and the facts on a card, a row per version (the one that plays
+/// TvMediaInfo): who made it and the facts on a card when there's no cast row for them to go under
+/// (<see cref="FactsStrip"/>), a row per version (the one that plays
 /// ticked; OK chooses another), and Media info, closed until OK opens it: each file and every
 /// stream in full, in two columns of blocks. Down reads on through the text as Android TV's readOn
 /// does: past the last row, each Down moves the section up a step (160 dp) until its end is the safe
@@ -74,7 +75,7 @@ sealed class ItemDetailsView : View
         inner.Add(header);
         y += PleyType.Section.Line + PleyTv.HeaderToTiles;
 
-        var facts = ItemText.Facts(details);
+        var facts = ItemText.FactsUnderCast(page) ? Array.Empty<(string, string)>() : ItemText.Facts(details);
         if (facts.Count > 0)
         {
             var card = FactsCard(facts);
@@ -304,6 +305,39 @@ sealed class ItemDetailsView : View
     }
 
     /// <summary>Text wrapping in <paramref name="width"/>, as tall as its lines (up to <paramref name="maxLines"/>).</summary>
+    /// <summary>
+    /// Who made it and the facts under the cast row (the Android app's TvFacts), where they're read
+    /// beside the people: each a Caption label in Subtle over its value, two lines at most, four to a
+    /// line across the 816 dp from the gutter to the safe area. Two lines of them fit under the cast
+    /// row while it has focus. Never takes focus.
+    /// </summary>
+    public static View FactsStrip(IReadOnlyList<(string Label, string Value)> facts)
+    {
+        const int PerLine = 4;
+        const float Width = 186, Gap = 24, LineGap = 12, LabelToValue = 2;
+        var strip = new View { PositionX = Ui.Dp(PleyTv.Gutter) };
+        float y = 0, line = 0;
+        for (var i = 0; i < facts.Count; i++)
+        {
+            if (i > 0 && i % PerLine == 0)
+            {
+                y += line + LineGap;
+                line = 0;
+            }
+            var x = i % PerLine * (Width + Gap);
+            var (label, value) = facts[i];
+            var l = Text.Label(label, PleyType.Caption, PleyColors.Subtle, width: Width);
+            l.Position = new Position(Ui.Dp(x), Ui.Dp(y));
+            strip.Add(l);
+            var v = Wrapped(value, PleyType.Body, Fade(PleyColors.Fg, 0.9f), Width, 2);
+            v.Position = new Position(Ui.Dp(x), Ui.Dp(y + PleyType.Caption.Line + LabelToValue));
+            strip.Add(v);
+            line = Math.Max(line, PleyType.Caption.Line + LabelToValue + v.SizeHeight / Ui.Scale);
+        }
+        strip.Size = new Size(Ui.Dp(PerLine * Width + (PerLine - 1) * Gap), Ui.Dp(y + line));
+        return strip;
+    }
+
     static TextLabel Wrapped(string text, TextStyle style, Color color, float width, int maxLines)
     {
         var label = Text.Label(text, style, color, maxLines: maxLines, width: width);

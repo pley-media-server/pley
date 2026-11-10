@@ -543,8 +543,19 @@ sealed class ItemScreen : ShellPage
         {
             var people = ItemText.CastAndCrew(page).Select(p => new TileModel(p.Id, p.Name, p.Subtitle,
                 p.Photo == null ? Array.Empty<string>() : new[] { Artwork.Absolute(p.Photo, origin) }, 0, false, 0, Array.Empty<string>(), p.Name)).ToList();
-            column.Add(new RowView(ItemText.CastRowTitle(page), people, TileKind.Person, gate, images,
-                m => go(new PageKey.Person(m.Id)), null, Shell.FocusRail, focusItem: Tree.Focus));
+            var castRow = new RowView(ItemText.CastRowTitle(page), people, TileKind.Person, gate, images,
+                m => go(new PageKey.Person(m.Id)), null, Shell.FocusRail, focusItem: Tree.Focus);
+            if (ItemText.FactsUnderCast(page))
+            {
+                // Who made it and the facts under the people, a row's gap below their names: in
+                // sight while the row has focus. The row grows to hold them, so the page lays out
+                // and scrolls as before.
+                var facts = ItemDetailsView.FactsStrip(ItemText.Facts(page.Details));
+                facts.PositionY = castRow.SizeHeight + Ui.Dp(PleyTv.RowGap);
+                castRow.Add(facts);
+                castRow.SizeHeight = facts.PositionY + facts.SizeHeight;
+            }
+            column.Add(castRow);
         }
         if (page.Related.Count > 0)
         {

@@ -493,6 +493,11 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
       )),
     );
   }
+  // Who made it and the facts, under the cast, in sight while it has focus.
+  const factList = facts(item);
+  if (factList.length) {
+    sections.push({ key: "facts", height: factsHeight(factList.length), anchor: ROWS_LINE, render: () => <Facts facts={factList} /> });
+  }
   const more = related.data ?? [];
   if (more.length) {
     sections.push(
@@ -510,7 +515,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
     );
   }
   const details = <Details item={item} file={file} onVersion={(f) => setFileId(f.id)} />;
-  sections.push({
+  if (item.files.length) sections.push({
     key: "details",
     height: 600,
     anchor: ROWS_LINE,
@@ -973,10 +978,14 @@ function SeasonPosters(p: SeasonsProps) {
   );
 }
 
-/** Details (TvDetails): the facts, the versions to pick from, and every file's media info. */
-function Details(p: { item: ItemDetail; file: MediaFile | null; onVersion: (f: MediaFile) => void }) {
-  const item = p.item;
-  const facts: { label: string; value: string }[] = [];
+interface Fact {
+  label: string;
+  value: string;
+}
+
+/** Who made it and the facts (TvFacts): the creators, directors and writers, the original title, the release, the studio or network, the plays. */
+export function facts(item: ItemDetail): Fact[] {
+  const facts: Fact[] = [];
   const names = (list: Credit[]) => {
     const shown = list.slice(0, CREW_NAMES).map((c) => c.name);
     return list.length > CREW_NAMES ? t("browse.item.andMore", { names: shown.join(", "), count: list.length - CREW_NAMES }) : shown.join(", ");
@@ -991,23 +1000,45 @@ function Details(p: { item: ItemDetail; file: MediaFile | null; onVersion: (f: M
   if (item.release_date && item.kind !== "episode") facts.push({ label: t("browse.item.facts.released"), value: mediumDate(item.release_date) });
   if (item.studio) facts.push({ label: item.kind === "show" || item.kind === "episode" ? t("browse.item.facts.network") : t("browse.item.facts.studio"), value: item.studio });
   if (item.user_state.play_count > 0) facts.push({ label: t("browse.item.facts.plays"), value: String(item.user_state.play_count) });
-  if (!facts.length && !item.files.length) return null;
+  return facts;
+}
+
+/** Four facts to a line, each a 17 dp label and two 20 dp lines of value, 12 between lines. */
+const FACTS_PER_LINE = 4;
+function factsHeight(count: number): number {
+  const lines = Math.ceil(count / FACTS_PER_LINE);
+  return lines * 59 + (lines - 1) * 12;
+}
+
+/**
+ * Who made it and the facts (TvFacts), under the cast, where they're read
+ * beside the people: each a small label over its value, four to a line.
+ * Two lines at most fit under the cast row while it has focus. Never takes
+ * focus.
+ */
+function Facts(p: { facts: Fact[] }) {
+  return (
+    <div class="facts">
+      {p.facts.map((f) => (
+        <div key={f.label} class="fact">
+          <div class="t-caption c-subtle one-line">{f.label}</div>
+          <div class="t-body lines-2 fact-value">{f.value}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Details (TvDetails): the versions to pick from and every file's media info; who made it and the facts are under the cast. */
+function Details(p: { item: ItemDetail; file: MediaFile | null; onVersion: (f: MediaFile) => void }) {
+  const item = p.item;
+  if (!item.files.length) return null;
   return (
     <div class="details" style="padding-left:96px;width:664px">
       <div class="t-section c-fg">{t("browse.item.details")}</div>
-      {facts.length > 0 && (
-        <div class="facts-card" style="margin-top:14px">
-          {facts.map((f) => (
-            <div key={f.label} class="fact-row">
-              <div class="t-body c-subtle fact-label">{f.label}</div>
-              <div class="t-body lines-2 fact-value">{f.value}</div>
-            </div>
-          ))}
-        </div>
-      )}
       {item.files.length > 0 && (
         <>
-          <div class="t-title c-fg" style="margin-top:20px">
+          <div class="t-title c-fg" style="margin-top:14px">
             {t("browse.item.versions")}
           </div>
           <G kind="col" style="margin-top:8px">
