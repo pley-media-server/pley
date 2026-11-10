@@ -294,35 +294,48 @@ export function useServerEvents(userId: Id | null) {
           break;
         case "scan_progress": {
           setScanning(ev.library_id, ev.phase !== "done");
-          qc.setQueryData<Activity>(keys.activity, (old) => {
-            const base: Activity = old ?? { scans: [], sessions: [] };
-            const existing = base.scans.find((s) => s.library_id === ev.library_id);
-            if (existing) {
+          // Kept as fetched when it was: an event says less than the server
+          // (whether it's a first scan, those done), so Home still fetches
+          // the activity once it's due, and an event never makes one up.
+          const fetched = qc.getQueryState<Activity>(keys.activity)?.dataUpdatedAt;
+          const before = qc.getQueryData<Activity>(keys.activity);
+          qc.setQueryData<Activity>(
+            keys.activity,
+            (old) => {
+              if (!old) return old;
+              const existing = old.scans.find((s) => s.library_id === ev.library_id);
+              if (existing) {
+                return {
+                  ...old,
+                  scans: old.scans.map((s) =>
+                    s.library_id === ev.library_id
+                      ? { ...s, phase: ev.phase, processed: ev.processed, total: ev.total }
+                      : s,
+                  ),
+                };
+              }
+              const name = qc.getQueryData<Library[]>(keys.libraries)?.find((l) => l.id === ev.library_id)?.name ?? "";
               return {
-                ...base,
-                scans: base.scans.map((s) =>
-                  s.library_id === ev.library_id
-                    ? { ...s, phase: ev.phase, processed: ev.processed, total: ev.total }
-                    : s,
-                ),
+                ...old,
+                scans: [
+                  ...old.scans,
+                  {
+                    library_id: ev.library_id,
+                    library_name: name,
+                    phase: ev.phase,
+                    processed: ev.processed,
+                    total: ev.total,
+                    started_at: Math.floor(Date.now() / 1000),
+                  },
+                ],
               };
-            }
-            const name = qc.getQueryData<Library[]>(keys.libraries)?.find((l) => l.id === ev.library_id)?.name ?? "";
-            return {
-              ...base,
-              scans: [
-                ...base.scans,
-                {
-                  library_id: ev.library_id,
-                  library_name: name,
-                  phase: ev.phase,
-                  processed: ev.processed,
-                  total: ev.total,
-                  started_at: Math.floor(Date.now() / 1000),
-                },
-              ],
-            };
-          });
+            },
+            { updatedAt: fetched },
+          );
+          // A scan not heard of yet: what the server says of it is fetched.
+          if (before && !before.scans.some((s) => s.library_id === ev.library_id)) {
+            void qc.invalidateQueries({ queryKey: keys.activity });
+          }
           break;
         }
         case "scan_finished":

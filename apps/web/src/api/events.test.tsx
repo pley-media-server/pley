@@ -124,6 +124,26 @@ describe("useServerEvents", () => {
     expect(client.getQueryData<Library[]>(keys.libraries)?.[0]?.scanning).toBe(false);
   });
 
+  it("leaves the activity as fetched, for Home to fetch again once it's due", () => {
+    const { client, source } = setup();
+    // Nothing fetched it: no scan is made up from what an event says.
+    act(() => source().send({ type: "scan_progress", library_id: 1, phase: "probing", processed: 3, total: 10 }));
+    expect(client.getQueryData<Activity>(keys.activity)).toBeUndefined();
+
+    // Fetched a while ago, with the first scan of library 1: the events
+    // keep what they don't say, and when it was fetched.
+    const scan = { library_id: 1, library_name: "Library 1", phase: "probing" as const, processed: 3, total: 10, started_at: 0, first: true };
+    client.setQueryData<Activity>(keys.activity, { scans: [scan], sessions: [] }, { updatedAt: 1_000 });
+    act(() => source().send({ type: "scan_progress", library_id: 1, phase: "probing", processed: 5, total: 10 }));
+    expect(client.getQueryData<Activity>(keys.activity)?.scans).toEqual([{ ...scan, processed: 5 }]);
+    expect(client.getQueryState(keys.activity)?.dataUpdatedAt).toBe(1_000);
+    expect(invalidated(client, keys.activity)).toBe(false);
+
+    // A scan it hadn't heard of: the server is asked what it is.
+    act(() => source().send({ type: "scan_progress", library_id: 2, phase: "queued", processed: 0, total: 0 }));
+    expect(invalidated(client, keys.activity)).toBe(true);
+  });
+
   it("refreshes a changed library once per burst", () => {
     const { client, source } = setup();
     client.setQueryData(keys.library(1), library(1));
