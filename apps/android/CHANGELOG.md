@@ -30,8 +30,12 @@ describes how they are made.
   the show's page already has of it, where it showed an empty outline
   until the server answered. Any title's page that is already held opens
   the same way, with no outline first.
-- On Android TV, a title's page gives a long title more room, wider and
-  up to three lines, and its description five lines where it had three.
+- On Android TV, a title's page gives its title and its description
+  more of the screen's width, and a long title up to three lines.
+- On Android TV, Home's banner gives a title and its description more
+  of the screen's width too, so a long title seldom takes two lines; when
+  one does, the description keeps two of its three lines, where it kept
+  one.
 - On Android TV, a library opens on Recommended the first time; after
   that, on the tab it was left on, as before.
 - On Android TV, Right on the last button of Home's banner (My List)

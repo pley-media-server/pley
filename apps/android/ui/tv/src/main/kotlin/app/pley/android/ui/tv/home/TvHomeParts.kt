@@ -125,9 +125,11 @@ import kotlin.math.roundToInt
  * for the rest). A missing piece closes its gap. Resume ([resume]) is the
  * page's initial focus.
  *
- * The label stays on its line: a title of two lines grows down into the
- * summary's room, which gives up as many lines, so the buttons stay where
- * they are. The buttons are the kit's compact ones, smaller than a page's.
+ * The title and the summary have more room than the text column
+ * ([HeroColumn]), so few titles take two lines. The label stays on its
+ * line: a title of two lines grows down into the summary's room, which
+ * keeps two lines for it, so the buttons stay where they are. The
+ * buttons are the kit's compact ones, smaller than a page's.
  *
  * With several titles ([turns]), dashes at the top right show which is on,
  * the one on filling as its time runs ([progress]). They take focus, Up
@@ -162,13 +164,19 @@ internal fun TvHomeHero(
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val titleLines = remember(hero.title, measurer, density) {
-        val width = with(density) { TextColumn.roundToPx() }
+        val width = with(density) { HeroColumn.roundToPx() }
         measurer.measure(hero.title, PleyType.Tv.HeroTitle, maxLines = 2, constraints = Constraints(maxWidth = width)).lineCount
     }
     val stack = (if (label != null) LabelLine else 0.dp) + HeroTitleLine * titleLines
     // How far the label and title reach below their box: the summary gives that room up.
     val below = (stack - TitleBox - TitleRise).coerceAtLeast(0.dp)
-    val summaryLines = ((SummaryRoom - below) / SummaryLine).toInt().coerceIn(1, SUMMARY_LINES)
+    // An episode's line and the time left stand between the title and the summary, and take of its room too.
+    val between = (if (hero.context.isNotEmpty()) ContextRoom else 0.dp) +
+        (if (hero.inProgress && hero.timeLeft.isNotEmpty()) TimeLeftRoom else 0.dp)
+    // Taking turns, the summary has what is left of its room, so the buttons stay where they are;
+    // a hero that stays has what its height leaves, down to the rows.
+    val summaryRoom = ((if (turns > 1) SummaryRoom else SummaryMost) - below - between).coerceAtLeast(SummaryLine)
+    val summaryLines = (summaryRoom / SummaryLine).toInt().coerceIn(1, SUMMARY_LINES)
     val column = LocalTvRowColumn.current
     val group = remember { FocusRequester() }
     if (column != null) {
@@ -228,7 +236,7 @@ internal fun TvHomeHero(
             },
         ) {
             Box(
-                Modifier.width(TextColumn).height(TitleBox + below).wrapContentHeight(Alignment.Bottom, unbounded = true),
+                Modifier.width(HeroColumn).height(TitleBox + below).wrapContentHeight(Alignment.Bottom, unbounded = true),
                 contentAlignment = Alignment.BottomStart,
             ) {
                 Column {
@@ -269,7 +277,7 @@ internal fun TvHomeHero(
                     style = PleyType.Tv.BodyLarge.copy(color = SummaryColor),
                     maxLines = summaryLines,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.width(TextColumn).then(if (turns > 1) Modifier.height(SummaryRoom - below) else Modifier),
+                    modifier = Modifier.width(HeroColumn).then(if (turns > 1) Modifier.height(summaryRoom) else Modifier),
                 )
             }
         }
@@ -660,10 +668,27 @@ private val HeroTitleLine = 44.dp
 /** How far above its box the label may sit: a title of one line under it rises just this far. */
 private val TitleRise = 2.dp
 
-/** The summary's three lines of BodyLarge. */
+/**
+ * The room the title and the summary have over the backdrop's darkened
+ * side, x 96 to 736: wider than the text column, as on a title's page.
+ */
+private val HeroColumn = 640.dp
+
+/**
+ * The summary's three lines of BodyLarge. Taking turns it has
+ * [SummaryRoom], a line more than they need: three lines under a title of
+ * one line, two under a label and a title of two. A hero that stays
+ * (Continue Watching's first) has up to [SummaryMost], what the hero's
+ * height leaves short of the rows.
+ */
 private const val SUMMARY_LINES = 3
 private val SummaryLine = 22.dp
-private val SummaryRoom = SummaryLine * SUMMARY_LINES
+private val SummaryRoom = SummaryLine * (SUMMARY_LINES + 1)
+private val SummaryMost = 128.dp
+
+/** An episode's line and the time left, each with the gap over it. */
+private val ContextRoom = 32.dp
+private val TimeLeftRoom = 27.dp
 
 /**
  * The dashes' box: its top (the safe area's, its middle level with the

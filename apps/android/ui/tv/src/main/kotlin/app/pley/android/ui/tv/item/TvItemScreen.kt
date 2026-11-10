@@ -494,7 +494,7 @@ private class ItemPageSpec(
 /**
  * The info block (design spec §4.1, §4.4; mockup tv-show) once focus has
  * left the hero: the title, on one line with the hero's room for it
- * ([TitleColumn]), and the metadata line, then the focused episode's
+ * ([HeroColumn]), and the metadata line, then the focused episode's
  * title, line and two lines of summary in the episode row, or the item's
  * own summary by the other rows. It follows the focused episode once
  * focus has rested ([rememberRested]).
@@ -520,7 +520,7 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
             style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.widthIn(max = TitleColumn),
+            modifier = Modifier.widthIn(max = HeroColumn),
         )
         Spacer(Modifier.height(10.dp))
         TvMetaLine(page.meta)
