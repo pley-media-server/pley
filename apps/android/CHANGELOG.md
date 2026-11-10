@@ -58,6 +58,8 @@ describes how they are made.
   of the screen's width too, so a long title seldom takes two lines; when
   one does, the description keeps two of its three lines, where it kept
   one.
+- On Android TV, the chips over a library's grid (the sort, Filter,
+  Unwatched, Genre, Year), Discover's and Search's are smaller again.
 - On Android TV, the tabs at the top of a library (Recommended,
   Library, Collections), of Live TV and of Requests are smaller.
 - On Android TV, a library opens on Recommended the first time; after

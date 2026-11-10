@@ -98,6 +98,7 @@ import app.pley.android.ui.tv.item.TvToastHost
 import app.pley.android.ui.tv.item.TvToastState
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.FocusMemory
+import app.pley.android.ui.tv.library.ChipHeight
 import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.SeeAll
@@ -553,7 +554,7 @@ internal fun TvCountChip(label: String, count: Int, alarm: Boolean, said: String
     Button(
         onClick = onClick,
         interactionSource = interactions,
-        modifier = modifier.height(PleyTv.ButtonHeight).semantics(mergeDescendants = true) { contentDescription = listOfNotNull(label, said).joinToString(", ") },
+        modifier = modifier.height(ChipHeight).semantics(mergeDescendants = true) { contentDescription = listOfNotNull(label, said).joinToString(", ") },
         shape = ButtonDefaults.shape(PleyShape.Control),
         colors = ButtonDefaults.colors(
             containerColor = PleyColors.Surface3,

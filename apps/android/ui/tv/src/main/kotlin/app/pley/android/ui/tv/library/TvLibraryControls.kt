@@ -39,7 +39,8 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 
 /**
- * A filter chip (design spec §2.6): a 36 dp pill in [surface3][PleyColors.Surface3]
+ * A filter chip (design spec §2.6): a 30 dp pill, smaller than a page's
+ * buttons and its tabs, in [surface3][PleyColors.Surface3]
  * with an [fg][PleyColors.Fg] label. Selected, an [accent][PleyColors.Accent]
  * check leads it (a state glyph, not a fill). Focused, it is the accent
  * fill with [onAccent][PleyColors.OnAccent] content, scaled to 1.05.
@@ -58,7 +59,7 @@ internal fun TvChip(
         onClick = onClick,
         interactionSource = interactions,
         // Set, as a pill's is: tv-material's Row would keep it at 40.
-        modifier = modifier.height(PleyTv.ButtonHeight).semantics { this.selected = selected },
+        modifier = modifier.height(ChipHeight).semantics { this.selected = selected },
         shape = ButtonDefaults.shape(PleyShape.Control),
         colors = ButtonDefaults.colors(
             containerColor = PleyColors.Surface3,
@@ -70,13 +71,13 @@ internal fun TvChip(
         ),
         scale = ButtonDefaults.scale(focusedScale = PleyFocus.PILL_SCALE, pressedScale = 1f),
         glow = ButtonDefaults.glow(Glow.None, Glow.None, Glow.None),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = ChipPadding),
     ) {
         val glyph = if (selected) PleyIcons.Check else icon
         if (glyph != null) {
             val tint = if (selected && !focused) PleyColors.Accent else LocalContentColor.current
-            Icon(glyph, contentDescription = null, size = 20.dp, tint = tint)
-            Spacer(Modifier.width(8.dp))
+            Icon(glyph, contentDescription = null, size = 16.dp, tint = tint)
+            Spacer(Modifier.width(6.dp))
         }
         Text(label, style = PleyType.Tv.Label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -123,6 +124,10 @@ internal fun TvTab(
 /** A tab's height, and the room either side of its label. */
 private val TabHeight = 32.dp
 private val TabPadding = 12.dp
+
+/** A chip's height, for what stands in a row with chips too (a count), and the room either side of its label. */
+internal val ChipHeight = 30.dp
+private val ChipPadding = 12.dp
 
 /**
  * A row of a side panel (design spec §2.7): 44 dp, its label in tvBody,
