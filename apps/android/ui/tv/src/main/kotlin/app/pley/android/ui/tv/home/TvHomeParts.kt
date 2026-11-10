@@ -50,7 +50,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -205,7 +204,7 @@ internal fun TvHomeHero(
             .padding(start = PleyTv.Gutter, top = HeroTop),
     ) {
         if (turns > 1) {
-            // At the page's top right, taking no room in the stack: with focus its chip ends at the safe area.
+            // At the page's top right, taking no room in the stack: with focus its chevron ends at the safe area.
             HeroPager(
                 turns,
                 turn,
@@ -323,13 +322,13 @@ internal fun TvHomeHero(
 }
 
 /**
- * The hero's dashes, one per title, at the page's top right: white and
- * quiet over the art, the one on longer, filling over the faint track as
- * its time runs. On a turn the long dash glides to the title on, the one
- * left giving up its fill as it shortens.
+ * The hero's dashes, one per title, at the page's top right: plain white
+ * dashes with nothing round them, faint but for the one on, which is
+ * longer and fills as its time runs. On a turn the long dash glides to
+ * the title on, the one left giving up its fill as it shortens.
  *
- * Focused, a faint white chip comes up around them, a little larger, with
- * a chevron at each end (the accent stays the buttons'): Left and Right
+ * Focused, they brighten and grow a little, a chevron at each end, and
+ * that is all: no box, and the accent stays the buttons'. Left and Right
  * turn to the title before or after, Select to the next ([onTurn]), a held
  * key once. Down goes to [down], the hero's first button, not the one
  * nearest under it.
@@ -391,38 +390,18 @@ private fun HeroPager(
                 trail.follow(current)
                 val time = progress().coerceIn(0f, 1f)
 
-                // The chip is there only with focus: a faint white fill and a hairline, out to the chevrons' room as it comes.
-                if (lit > 0f) {
-                    val inset = ChevronRoom.toPx() * (1f - lit)
-                    val corner = CornerRadius(PleyShape.ControlRadius.toPx())
-                    val edge = 1.dp.toPx()
-                    drawRoundRect(PleyColors.Fg.copy(alpha = CHIP_FILL * lit), Offset(inset, 0f), Size(size.width - inset * 2, size.height), corner)
-                    drawRoundRect(
-                        PleyColors.Fg.copy(alpha = CHIP_EDGE * lit),
-                        Offset(inset + edge / 2, edge / 2),
-                        Size(size.width - inset * 2 - edge, size.height - edge),
-                        corner,
-                        style = Stroke(edge),
-                    )
-                }
-
-                // White, a little short of full at rest: they are there to glance at, not to draw the eye from the title.
+                // White, short of full at rest: they are there to glance at, not to draw the eye from the title.
                 val ink = PleyColors.Fg.copy(alpha = DASH_REST + (1f - DASH_REST) * lit)
                 val track = PleyColors.Fg.copy(alpha = TRACK_REST + (TRACK_LIT - TRACK_REST) * lit)
                 val high = DashHeight.toPx()
                 val round = CornerRadius(high / 2)
                 val top = (size.height - high) / 2
-                // A dark line round each dash, so they keep their shape over a bright sky.
-                val line = 1.dp.toPx()
-                val under = Color.Black.copy(alpha = DASH_UNDER)
-                val underRound = CornerRadius(high / 2 + line)
                 var x = (ChevronRoom + PagerPadding).toPx()
                 repeat(count) { i ->
                     // How much of the long dash this one is: 1 on the title on, less as the glide passes.
                     val away = (on - i).mod(count.toFloat())
                     val weight = (1f - min(away, count - away)).coerceAtLeast(0f)
                     val wide = DashShort.toPx() + (DashLong - DashShort).toPx() * weight
-                    drawRoundRect(under, Offset(x - line, top - line), Size(wide + line * 2, high + line * 2), underRound)
                     drawRoundRect(track, Offset(x, top), Size(wide, high), round)
                     if (i == current) {
                         // Never less than a dot: the dash on shows as on from its first moment.
@@ -435,7 +414,8 @@ private fun HeroPager(
                 trail.shown = time
 
                 if (lit > 0f) {
-                    val middle = (ChevronRoom + PagerPadding).toPx() / 2
+                    // They come in from the dashes' side as focus does.
+                    val middle = ChevronRoom.toPx() / 2 + PagerPadding.toPx() * (1f - lit)
                     chevron(middle, -1f, ink.copy(alpha = lit))
                     chevron(size.width - middle, 1f, ink.copy(alpha = lit))
                 }
@@ -699,13 +679,13 @@ private val SummaryRoom = SummaryLine * SUMMARY_LINES
 
 /**
  * The dashes' box: its top (the safe area's, its middle level with the
- * rail's picture) and height, from the focused chip's edge to the first
- * dash, and the room at each end that chip grows into for its chevrons.
+ * rail's picture) and height, and at each end the room for a chevron and
+ * the gap from it to the dashes.
  */
 private val PagerTop = TvSafeArea.Vertical
 private val PagerHeight = 24.dp
-private val PagerPadding = 12.dp
-private val ChevronRoom = 14.dp
+private val PagerPadding = 6.dp
+private val ChevronRoom = 12.dp
 
 /** Half a chevron's height, and its whole width. */
 private val ChevronSize = 4.dp
@@ -717,16 +697,9 @@ private val DashShort = 10.dp
 private val DashGap = 6.dp
 
 /** How white the dashes are: the one on and the track under them at rest, the track with focus (the one on is then full). */
-private const val DASH_REST = 0.9f
+private const val DASH_REST = 0.8f
 private const val TRACK_REST = 0.3f
-private const val TRACK_LIT = 0.4f
-
-/** The dark line round each dash. */
-private const val DASH_UNDER = 0.22f
-
-/** The focused chip: its fill and its hairline, both white. */
-private const val CHIP_FILL = 0.16f
-private const val CHIP_EDGE = 0.45f
+private const val TRACK_LIT = 0.5f
 private val SummaryColor = PleyColors.Fg.copy(alpha = 0.85f)
 
 private const val SKELETON_DELAY_MS = 300L
