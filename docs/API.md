@@ -4673,6 +4673,10 @@ interface ImportProgress {
     collection_items: number;             // titles put in collections, new or found again
     smart_left: number;                   // smart collections and playlists, not brought
     bring: { watch_history: boolean; collections: boolean; edits: boolean };   // as chosen
+    started_at: number;                   // with finished_at, how long it took; 0 in reports from before
+    // How long each step that ran took, in order; the one it stopped in,
+    // until it stopped. Finding Plex's titles counts in "scanning".
+    steps: { step: string; secs: number }[];
   } | null;
 }
 ```

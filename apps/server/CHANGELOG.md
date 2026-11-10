@@ -27,7 +27,8 @@ describes how they are made.
   any posters or details are fetched, so watch history is there within
   minutes, and Plex's matches mean titles are fetched by their ids rather
   than searched for by name. Home and Settings › Libraries show the
-  import while the rest runs, then its report.
+  import while the rest runs, then its report, which says how long the
+  import and each of its steps took.
   Running it again adds what's new and never takes anything away
   (docs/MOVING_FROM_PLEX.md). It lists every step it goes through, ticked
   off with what each brought. While it waits for the new libraries'

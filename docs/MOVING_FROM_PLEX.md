@@ -123,7 +123,8 @@ Import from Plex.
    where it left off: what came over stays (see below).
 
 The report says how many titles each library found, the ones it didn't,
-and what came over for each person.
+what came over for each person, and how long the import took, opening on
+how long each step did.
 
 ## Importing again
 

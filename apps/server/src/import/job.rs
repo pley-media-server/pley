@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
@@ -123,6 +123,11 @@ pub struct StepRow {
     pub state: StepState,
     /// What it brought, once done, where there's a count to give.
     pub count: Option<u64>,
+    /// When it began, and how long it took once done: for the report.
+    #[serde(skip)]
+    began: Option<Instant>,
+    #[serde(skip)]
+    took: Option<Duration>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -152,10 +157,28 @@ fn steps(bring: Bring) -> Vec<StepRow> {
         steps.push(Step::Playlists);
     }
     steps.extend([Step::Fetching, Step::MatchingAgain]);
-    steps.into_iter().map(|step| StepRow { step, state: StepState::ToCome, count: None }).collect()
+    steps
+        .into_iter()
+        .map(|step| StepRow { step, state: StepState::ToCome, count: None, began: None, took: None })
+        .collect()
 }
 
 /// What step `step` brought, from the report so far.
+/// How long each of `steps` that ran took, the one running until now.
+fn step_times(steps: &[StepRow]) -> Vec<StepTime> {
+    steps
+        .iter()
+        .filter_map(|row| {
+            let took = match row.state {
+                StepState::Done => row.took?,
+                StepState::Running => row.began?.elapsed(),
+                StepState::ToCome => return None,
+            };
+            Some(StepTime { step: row.step, secs: took.as_secs_f64().round() as u64 })
+        })
+        .collect()
+}
+
 fn step_count(report: &Report, step: Step) -> Option<u64> {
     let profiles = || report.profiles.iter().filter(|p| p.user_id.is_some() && p.skipped.is_none());
     match step {
@@ -224,7 +247,7 @@ pub enum RunState {
     Interrupted,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Step {
     Scanning,
@@ -245,6 +268,10 @@ pub enum Step {
 /// What an import brought over, and what it couldn't.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Report {
+    /// When it started (Unix seconds), with `finished_at` how long it took;
+    /// 0 in reports from before it was kept.
+    #[serde(default)]
+    pub started_at: i64,
     pub finished_at: i64,
     /// How it ended: done, failed or cancelled.
     #[serde(default)]
@@ -280,6 +307,16 @@ pub struct Report {
     /// counted as nothing found.
     #[serde(default)]
     pub bring: Bring,
+    /// How long each step took, in the order they ran; the one it stopped
+    /// in, until it stopped.
+    #[serde(default)]
+    pub steps: Vec<StepTime>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StepTime {
+    pub step: Step,
+    pub secs: u64,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -1087,6 +1124,10 @@ impl Run {
             tracing::warn!("the Plex import stopped: {e}");
         }
         self.report.finished_at = now();
+        (self.report.started_at, self.report.steps) = {
+            let progress = self.importer.progress.lock();
+            (progress.started_at, step_times(&progress.steps))
+        };
         self.report.outcome = state;
         self.report.error = error.clone();
         let report = self.report.clone();
@@ -1136,8 +1177,10 @@ impl Run {
                 for before in p.steps[..at].iter_mut().filter(|r| r.state != StepState::Done) {
                     before.state = StepState::Done;
                     before.count = step_count(&self.report, before.step);
+                    before.took = before.began.map(|began| began.elapsed());
                 }
                 p.steps[at].state = StepState::Running;
+                p.steps[at].began.get_or_insert_with(Instant::now);
             }
         });
     }
@@ -2531,6 +2574,20 @@ impl Pager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_report_times_the_steps_that_ran_and_the_one_it_stopped_in() {
+        let ago = |secs| Some(Instant::now() - Duration::from_secs(secs));
+        let row = |step, state, began, took| StepRow { step, state, count: None, began, took };
+        let rows = [
+            row(Step::Profiles, StepState::Done, ago(100), Some(Duration::from_millis(2600))),
+            row(Step::Scanning, StepState::Done, ago(97), Some(Duration::from_secs(60))),
+            row(Step::Labels, StepState::Running, ago(37), None),
+            row(Step::Fetching, StepState::ToCome, None, None),
+        ];
+        let times: Vec<(Step, u64)> = step_times(&rows).into_iter().map(|t| (t.step, t.secs)).collect();
+        assert_eq!(times, [(Step::Profiles, 3), (Step::Scanning, 60), (Step::Labels, 37)]);
+    }
 
     #[test]
     fn the_steps_listed_are_those_chosen_in_the_order_they_run() {

@@ -404,6 +404,20 @@ describe("PlexImport", () => {
     serve({ progress: () => ({ ...idle, state: "done", report }) });
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
     expect(await screen.findByRole("heading", { name: "Your Plex library is in Pley" })).toBeInTheDocument();
+    expect(screen.queryByText(/^Took/)).not.toBeInTheDocument();
+  });
+
+  it("says how long the import and each of its steps took", async () => {
+    const steps: ImportReport["steps"] = [
+      { step: "profiles", secs: 2 },
+      { step: "scanning", secs: 2400 },
+      { step: "fetching", secs: 1920 },
+    ];
+    serve({ progress: () => ({ ...idle, state: "done", report: { ...report, started_at: 1000, finished_at: 1000 + 72 * 60, steps } }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
+    await userEvent.setup().click(await screen.findByText("Took 1h 12m"));
+    const times = screen.getAllByRole("listitem").filter((li) => li.closest("details"));
+    expect(times.map((li) => li.textContent)).toEqual(["Making profiles2s", "Scanning the new libraries40m", "Fetching posters and details32m"]);
   });
 
   it("says an import lost to a restart was interrupted", async () => {
@@ -411,8 +425,8 @@ describe("PlexImport", () => {
     serve({ progress: () => progress });
     const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
     expect(await screen.findByText("Finding Plex's titles in Pley")).toBeInTheDocument();
-    // The server restarted: idle, and no report.
-    progress = idle;
+    // The server restarted.
+    progress = { ...idle, state: "interrupted", started_at: 100 };
     await client.invalidateQueries({ queryKey: plexImportKeys.progress });
     expect(await screen.findByRole("heading", { name: "The import was interrupted" })).toBeInTheDocument();
   });

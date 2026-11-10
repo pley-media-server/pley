@@ -969,6 +969,7 @@
       "lostHint": "Pley se reinició mientras importaba, así que no hay informe. Lo que se importó se queda; si vuelves a importar, llega el resto y nada repetido.",
       "doneHint": "Esto es lo que se importó. Si vuelves a importar más adelante, llega lo nuevo y nada repetido.",
       "partHint": "Lo que se importó antes de detenerse se queda. Si vuelves a importar, llega el resto y nada repetido.",
+      "took": "Duró {{time}}",
       "again": "Importar de nuevo",
       "labelsAdded_one": "{{count, number}} etiqueta añadida",
       "labelsAdded_many": "{{count, number}} de etiquetas añadidas",

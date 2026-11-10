@@ -944,6 +944,7 @@
       "lostHint": "Pley restarted while it ran, so there's no report. What came over before stays; importing again brings the rest and nothing twice.",
       "doneHint": "Here's what came over. Importing again later brings what's new and nothing twice.",
       "partHint": "What came over before it stopped stays. Importing again brings the rest and nothing twice.",
+      "took": "Took {{time}}",
       "again": "Import again",
       "labelsAdded_one": "{{count, number}} label added",
       "labelsAdded_other": "{{count, number}} labels added",

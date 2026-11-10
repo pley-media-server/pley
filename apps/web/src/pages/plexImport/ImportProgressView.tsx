@@ -21,7 +21,7 @@ import { ConfirmModal } from "@/components/Modal";
 import { Badge, Button, PageSpinner, ProgressBar } from "@/components/ui";
 import { currentLocale } from "@/i18n";
 import { ageBadge } from "@/lib/access";
-import { formatTimeLeft } from "@/lib/format";
+import { formatDuration, formatTimeLeft } from "@/lib/format";
 import { libraryUrl } from "@/lib/urls";
 import { ErrorNote, StepFrame } from "./PlexImport";
 
@@ -318,6 +318,7 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
       </div>
       {/* The server's own words, in English. */}
       {report.error ? <ErrorNote>{report.error}</ErrorNote> : null}
+      {report.started_at ? <StepTimes report={report} started={report.started_at} /> : null}
 
       {report.libraries.length > 0 ? (
         <div>
@@ -379,6 +380,26 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
         </div>
       ) : null}
     </StepFrame>
+  );
+}
+
+/** How long the import took, opening on how long each of its steps did. */
+function StepTimes({ report, started }: { report: ImportReport; started: number }) {
+  const { t } = useTranslation("settings");
+  // A step of a few seconds still says it took some.
+  const time = (secs: number) => formatDuration(Math.max(secs, 1) * 1000);
+  return (
+    <details className="text-sm text-muted">
+      <summary className="cursor-pointer hover:text-fg">{t("plexImport.report.took", { time: time(report.finished_at - started) })}</summary>
+      <ul className="mt-2 space-y-1">
+        {(report.steps ?? []).map((row) => (
+          <li key={row.step} className="flex justify-between gap-3">
+            <span>{t(`plexImport.progress.steps.${row.step}`)}</span>
+            <span className="tabular-nums">{time(row.secs)}</span>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

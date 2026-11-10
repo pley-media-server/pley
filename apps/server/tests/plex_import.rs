@@ -613,6 +613,13 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(marked, 0, "the mark goes with the report");
 
     let report = &done["report"];
+    // How long it took, and each step that ran, in order.
+    assert_eq!(report["started_at"], done["started_at"]);
+    let timed: Vec<&str> = report["steps"].as_array().unwrap().iter().map(|s| s["step"].as_str().unwrap()).collect();
+    assert_eq!(timed.first(), Some(&"profiles"), "{timed:?}");
+    assert_eq!(timed.last(), Some(&"matching_again"), "{timed:?}");
+    assert!(timed.contains(&"scanning") && timed.contains(&"fetching"), "{timed:?}");
+    assert!(report["steps"].as_array().unwrap().iter().all(|s| s["secs"].is_u64()));
     // Plex's details where Pley has nothing better (no metadata fetched
     // here, Alien not found by its search), but not over Brazil's NFO
     // file; never Plex's posters, which Pley's fetch replaces.

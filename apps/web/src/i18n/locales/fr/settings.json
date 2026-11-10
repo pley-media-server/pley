@@ -969,6 +969,7 @@
       "lostHint": "Pley a redémarré pendant l’import : il n’y a pas de rapport. Ce qui a été importé reste ; importer de nouveau apporte le reste, sans rien en double.",
       "doneHint": "Voici ce qui a été importé. Importer de nouveau plus tard apporte les nouveautés, sans rien en double.",
       "partHint": "Ce qui a été importé avant l’arrêt reste. Importer de nouveau apporte le reste, sans rien en double.",
+      "took": "Durée : {{time}}",
       "again": "Importer de nouveau",
       "labelsAdded_one": "{{count, number}} étiquette ajoutée",
       "labelsAdded_many": "{{count, number}} d’étiquettes ajoutées",

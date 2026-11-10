@@ -140,8 +140,10 @@ export interface ProfileReport {
 }
 
 export interface ImportReport {
+  /** When it started; 0 or absent in reports kept before it was. */
+  started_at?: number;
   finished_at: number;
-  outcome: Exclude<ImportState, "idle" | "running">;
+  outcome: Exclude<ImportState, "idle" | "running" | "interrupted">;
   /** Why it failed, in the server's words (English). */
   error: string | null;
   libraries: LibraryReport[];
@@ -159,6 +161,8 @@ export interface ImportReport {
   smart_left: number;
   /** What was chosen; missing from reports kept before the choice existed. */
   bring?: ImportBring;
+  /** How long each step took, in seconds, in the order they ran; absent from reports kept before it was. */
+  steps?: { step: ImportStep; secs: number }[];
 }
 
 export type EditedField =
