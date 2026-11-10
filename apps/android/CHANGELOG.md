@@ -42,11 +42,14 @@ describes how they are made.
 - On Android TV, the words at the top of a show's page keep up with the
   episode focused, and no longer show an episode of another season, or
   the show's description, while focus is on the seasons.
-- On Android TV, a title's page starts higher, and its description
-  gives up a line or two where it must, so that what follows the buttons
-  shows whole where the screen's edge cut it: a show's season posters,
-  its episodes with their titles, a movie's Cast & Crew with their names.
-  A movie's page leaves "Directed by" and "Starring" to that row.
+- On Android TV, a title's page starts higher, and what follows the
+  buttons shows whole where the screen's edge cut it: a show's season
+  posters with their names and episode counts, its episodes with their
+  titles, a movie's Cast & Crew with their names. For that the room
+  under the buttons closes up first, then the description gives up a
+  line, and the line of who made it goes before the description's
+  second. A movie's page leaves "Directed by" and "Starring" to that
+  row.
 - On Android TV, a title's page gives its title and its description
   more of the screen's width, and a long title up to three lines.
 - On Android TV, the title and the picture behind the page change as

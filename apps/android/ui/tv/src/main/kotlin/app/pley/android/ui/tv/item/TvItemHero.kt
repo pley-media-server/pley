@@ -26,6 +26,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -73,11 +74,13 @@ import app.pley.android.ui.tv.requests.TvItemRequestLine
  * actions. Down from the buttons goes to [down] (the episode to watch, or a show's season posters).
  * The title and the summary have more room than the column
  * ([HeroColumn], [SummaryColumn]); a long title has up to three lines, growing down,
- * before it is cut. The summary gives up lines, down to one, so that
- * what follows the buttons shows whole above the screen's bottom edge
- * ([summaryLines]): a show's season posters, the episodes, or the first
- * row with its names. Where that row is Cast & Crew, the credits line
- * is left to it, which names the same people.
+ * before it is cut. What follows the buttons shows whole above the
+ * screen's bottom edge ([heroFit]): a show's season posters with their
+ * names, the episodes, or the first row with its names. For that the
+ * room under the buttons closes up first, then the summary gives up
+ * lines, down to one, and the credits go before its second line does.
+ * Where the row that follows is Cast & Crew, the credits line is left
+ * to it, which names the same people.
  */
 @Composable
 internal fun TvHero(
@@ -93,9 +96,14 @@ internal fun TvHero(
     request: ItemRequestState? = null,
 ) {
     val places = remember { HeroPlaces() }
+    val genres = (page.genres + page.partOf.map { stringResource(R.string.tv_item_part_of, it.title) }).joinToString(" · ")
+    // Who made it and who is in it: named by the Cast & Crew row when that is what follows, not twice.
+    val credits = if (castFollows(page)) null else creditsLine(page)
+    val fit = heroFit(page, request, genres.isNotEmpty(), credits != null)
     Column(
         Modifier
             .fillMaxWidth()
+            .shorterBy(fit.closer)
             .onPlaced { places.hero = it }
             .onFocusChanged { if (it.hasFocus) focus.area = Area.Hero }
             .tvRowColumnHero()
@@ -122,18 +130,15 @@ internal fun TvHero(
             Spacer(Modifier.height(8.dp))
             BasicText(left, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1)
         }
-        val genres =(page.genres + page.partOf.map { stringResource(R.string.tv_item_part_of, it.title) }).joinToString(" · ")
         if (genres.isNotEmpty()) {
             Spacer(Modifier.height(6.dp))
             BasicText(genres, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
         }
-        // Who made it and who is in it: named by the Cast & Crew row when that is what follows, not twice.
-        val credits = if (castFollows(page)) null else creditsLine(page)
         page.summary?.let { summary ->
             Spacer(Modifier.height(SummaryGap))
-            HeroSummary(summary, buttons, summaryLines(page, request, genres.isNotEmpty(), credits != null))
+            HeroSummary(summary, buttons, fit.lines.coerceAtLeast(1))
         }
-        credits?.let {
+        credits?.takeIf { fit.credits }?.let {
             Spacer(Modifier.height(8.dp))
             BasicText(it, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
         }
@@ -170,14 +175,25 @@ private fun HeroSummary(summary: String, buttons: HeroButtons, lines: Int) {
 }
 
 /**
- * The summary's lines: three, or as many as leave what follows the
- * buttons whole above the screen's bottom edge ([followsHeight]), one at
- * least. Worked out from what the hero shows over and under the summary
- * (a title's lines are measured), so the page is laid out once.
+ * How the hero makes room for what follows its buttons: the summary's
+ * [lines], whether the [credits] line shows, and how much [closer] what
+ * follows comes to the buttons.
+ */
+internal class HeroFit(val lines: Int, val credits: Boolean, val closer: Dp)
+
+/**
+ * The hero's fit: the summary's three lines and the credits where what
+ * follows the buttons still shows whole above the screen's bottom edge
+ * ([followsHeight]). Where it wouldn't, the room under the buttons closes
+ * up first, by [CloserMost] at the most; then the summary gives up its
+ * third line; then the credits go, before its second; one line stays.
+ * Worked out from what the hero shows over and under the summary (the
+ * title's lines and the summary's are measured), so the page is laid out
+ * once.
  */
 @Composable
-private fun summaryLines(page: ItemPage, request: ItemRequestState?, genres: Boolean, credits: Boolean): Int {
-    val follows = followsHeight(page) ?: return SUMMARY_LINES
+private fun heroFit(page: ItemPage, request: ItemRequestState?, genres: Boolean, credits: Boolean): HeroFit {
+    val follows = followsHeight(page) ?: return HeroFit(SUMMARY_LINES, credits, 0.dp)
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val title = heroTitle(page)
@@ -185,30 +201,70 @@ private fun summaryLines(page: ItemPage, request: ItemRequestState?, genres: Boo
         val width = with(density) { HeroColumn.roundToPx() }
         measurer.measure(title, PleyType.Tv.HeroTitle, maxLines = TITLE_LINES, constraints = Constraints(maxWidth = width)).lineCount
     }
+    // The lines the summary has to show: a short one asks for less room.
+    val summary = page.summary
+    val wanted = remember(summary, measurer, density) {
+        val width = with(density) { SummaryColumn.roundToPx() }
+        if (summary == null) 0 else measurer.measure(summary, PleyType.Tv.BodyLarge, maxLines = SUMMARY_LINES, constraints = Constraints(maxWidth = width)).lineCount
+    }
     val resumed = page.primary.kind == PrimaryAction.Kind.Resume && page.primary.timeLeft.isNotEmpty()
     val over = HeroTop + maxOf(TitleBox, TitleLine * titleLines) + MetaRoom +
         (if (request?.request != null) RequestRoom else 0.dp) +
         (if (resumed) CaptionRoom else 0.dp) +
         (if (genres) CaptionRoom else 0.dp) +
-        SummaryGap
-    val under = (if (credits) CaptionRoom else 0.dp) + ButtonsGap + PleyTv.ButtonHeight + PleyTv.ButtonLabelRoom + HeroBottom +
-        PleyTv.RowGap + follows
-    return ((PleyTv.CanvasHeight - over - under) / SummaryLine).toInt().coerceIn(1, SUMMARY_LINES)
+        (if (summary != null) SummaryGap else 0.dp)
+    val under = ButtonsGap + PleyTv.ButtonHeight + PleyTv.ButtonLabelRoom + HeroBottom + PleyTv.RowGap + follows
+    return fitIn(PleyTv.CanvasHeight - over - under, wanted, credits)
 }
 
 /**
+ * The fit ([HeroFit]) of a summary of [wanted] lines and the [credits]
+ * line in [room], which closing up under the buttons makes larger.
+ */
+internal fun fitIn(room: Dp, wanted: Int, credits: Boolean): HeroFit {
+    fun needs(lines: Int, withCredits: Boolean) = SummaryLine * lines + if (withCredits) CaptionRoom else 0.dp
+    fun fit(lines: Int, withCredits: Boolean): HeroFit? {
+        val closer = (needs(lines, withCredits) - room).coerceAtLeast(0.dp)
+        return if (closer <= CloserMost) HeroFit(lines, withCredits, closer) else null
+    }
+    for (lines in wanted downTo 1) {
+        // The credits stay while the summary has two lines with them.
+        if (credits && (lines > 1 || wanted == 1)) fit(lines, true)?.let { return it }
+        if (!credits || lines <= 2) fit(lines, false)?.let { return it }
+    }
+    // Nothing fits (a long title, a request, a time left): what follows is as near as it comes.
+    if (wanted == 0 && credits) fit(0, true)?.let { return it }
+    val least = wanted.coerceAtMost(1)
+    return HeroFit(least, false, (needs(least, false) - room).coerceIn(0.dp, CloserMost))
+}
+
+/**
+ * Takes [by] off the height it reports: what follows comes that much
+ * nearer, into the empty room under the hero's buttons.
+ */
+private fun Modifier.shorterBy(by: Dp): Modifier =
+    if (by <= 0.dp) {
+        this
+    } else {
+        layout { measurable, constraints ->
+            val placeable = measurable.measure(constraints)
+            layout(placeable.width, (placeable.height - by.roundToPx()).coerceAtLeast(0)) { placeable.place(0, 0) }
+        }
+    }
+
+/**
  * How much of what follows the buttons is to show above the screen's
- * bottom edge, with the page at rest: a show's season posters; the
- * episodes with their captions, under their tabs or their season's name;
- * else the first row (Extras, Cast & Crew) with its header and its
- * captions. `null` when nothing follows.
+ * bottom edge, with the page at rest: a show's season posters with their
+ * names and episode counts; the episodes with their captions, under their
+ * tabs or their season's name; else the first row (Extras, Cast & Crew)
+ * with its header and its captions. `null` when nothing follows.
  */
 private fun followsHeight(page: ItemPage): Dp? {
     val seasons = page.seasons
     val header = PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles
     val captions = PleyTv.TilesToCaption + PleyTv.CaptionHeight
     return when {
-        seasonPosterRow(page) -> TileKind.Poster.tvHeight
+        seasonPosterRow(page) -> TileKind.Poster.tvHeight + captions
         seasons != null -> (if (seasons.seasons.size > 1 && !seasons.posters) TabHeight + TabsToTiles else header) + TileKind.Episode.tvHeight + captions
         page.extras.isNotEmpty() -> header + TileKind.Landscape.tvHeight + captions
         castFollows(page) -> header + TileKind.Person.tvHeight + captions
@@ -382,6 +438,12 @@ private val RequestRoom = 30.dp
 private val SummaryGap = 10.dp
 private val ButtonsGap = 22.dp
 private val HeroBottom = 8.dp
+
+/**
+ * The most what follows comes nearer the buttons ([HeroFit.closer]): the
+ * room for a round button's label and 8 dp stay between them.
+ */
+private val CloserMost = PleyTv.RowGap
 
 /** The text column, x 96 to 560. */
 internal val TextColumn = PleyTv.TextColumnEnd - PleyTv.Gutter

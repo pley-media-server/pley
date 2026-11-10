@@ -272,6 +272,12 @@ rates as the decoder gives them, the same in every language.
   watched and some not); a show not started, or watched to its end,
   opens on the first season listed, the newest of a long show, since
   the server's next episode is then only its first.
+- What follows a title's buttons shows whole above the screen's bottom
+  edge with the page at rest: a show's season posters with their names
+  and episode counts, the episodes with their titles, or the first row
+  with its names. For that the room under the buttons closes up, by 28
+  dp at the most; then the description gives up its third line; then
+  the line of who made it goes, before the description's second.
 - Pictures wait while a key is held: the tiles a row slides past or a
   page glides past ask for none, unless the memory cache has them, and
   no backdrop is fetched ahead; where the key comes up, the tiles on

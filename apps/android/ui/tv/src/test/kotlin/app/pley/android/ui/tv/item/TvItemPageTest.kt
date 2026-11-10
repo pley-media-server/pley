@@ -168,8 +168,18 @@ class TvItemPageTest {
      * its own. [next] is the season of the episode to watch, its first: one the profile [started], or
      * the one the server names when nothing of the show has been watched.
      */
-    private fun showOf(count: Int, posters: Boolean = false, next: Int? = null, started: Boolean = true): ItemData {
-        val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
+    private fun showOf(count: Int, posters: Boolean = false, next: Int? = null, started: Boolean = true, wordy: Boolean = false): ItemData {
+        val plain = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
+        // With [wordy], a hero that asks for all its room: a summary past three lines, genres and credits.
+        val show = if (!wordy) {
+            plain
+        } else {
+            plain.copy(
+                summary = "Three salt traders cross the Danakil in the last caravan of the season. ".repeat(8),
+                genres = listOf("Drama", "Adventure"),
+                cast = listOf(Credit(1, "Idris Vale", CreditRole.Actor, character = "Ras"), Credit(2, "Mara Holt", CreditRole.Actor, character = "Ines")),
+            )
+        }
         val children = seasonsOf(count, posters)
         val onDeck = next?.let { children.getValue(100L + it).first() }
             ?.let { if (started) it.copy(userState = UserState(positionMs = 60_000)) else it }
@@ -330,6 +340,23 @@ class TvItemPageTest {
         press(Key.DirectionUp)
         press(Key.Enter)
         compose.onNode(isFocused()).assert(hasContentDescription("Season 11 Episode 1", substring = true))
+    }
+
+    @Test
+    fun aShowsSeasonPostersShowWithTheirNamesAboveTheScreensEdge() = seasonNamesAreOnScreen(wordy = false)
+
+    @Test
+    fun aShowWithALongSummaryAndCreditsStillShowsItsSeasonsNames() = seasonNamesAreOnScreen(wordy = true)
+
+    private fun seasonNamesAreOnScreen(wordy: Boolean) {
+        show(showOf(3, posters = true, wordy = wordy))
+        // Focus is on Play, the page at rest: the posters and the two lines under them are on screen.
+        val poster = compose.onNode(hasContentDescription("Season 1, 4 episodes", substring = true)).getBoundsInRoot()
+        val names = poster.bottom.value + PleyTv.TilesToCaption.value + PleyTv.CaptionHeight.value
+        assertTrue("$poster", names <= PleyTv.CanvasHeight.value)
+        // Never nearer the buttons than a round button's label needs.
+        val play = compose.onNodeWithTag(TestTags.ITEM_PLAY).getBoundsInRoot()
+        assertTrue("$poster under $play", poster.top.value - play.bottom.value >= PleyTv.ButtonLabelRoom.value + 8f - 0.5f)
     }
 
     @Test
