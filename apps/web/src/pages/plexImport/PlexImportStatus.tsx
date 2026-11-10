@@ -86,11 +86,23 @@ export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () 
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-live="polite">
-        <Import className="size-4 shrink-0 text-muted" aria-hidden />
-        <span>{text}</span>
-        {count ? <span className="tabular-nums text-muted">{count}</span> : null}
-        {left ? <span className="text-muted">{left}</span> : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {/* The icon stays with the words, which wrap on a phone. */}
+        <div className="flex min-w-0 flex-[1_1_15rem] items-start gap-3">
+          <Import className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+          <p>
+            {/* Said when the step changes, not at every count. */}
+            <span aria-live="polite">{text}</span>
+            {/* A count is kept in one piece; the space before it can break. */}
+            {count ? (
+              <>
+                {" "}
+                <span className="whitespace-nowrap tabular-nums text-muted">· {count}</span>
+              </>
+            ) : null}
+            {left ? <span className="text-muted"> · {left}</span> : null}
+          </p>
+        </div>
         <div className="ms-auto flex items-center gap-1">
           {open ? (
             <Button variant="ghost" size="sm" onClick={() => setStopping(true)}>

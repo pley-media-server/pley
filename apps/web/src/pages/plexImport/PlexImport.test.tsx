@@ -253,6 +253,20 @@ describe("PlexImport", () => {
     expect(await screen.findByRole("heading", { name: "Your Plex library is in Pley" })).toBeInTheDocument();
   });
 
+  it("says the step to screen readers when it changes, not each count", async () => {
+    const steps: ImportProgress["steps"] = [
+      { step: "profiles", state: "done", count: 2 },
+      { step: "history", state: "running", count: null },
+    ];
+    serve({ progress: () => ({ ...idle, state: "running", step: "history", done: 1, total: 3, steps }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    const list = await screen.findByRole("list");
+    expect(list.closest("[aria-live]")).toBeNull();
+    const live = document.querySelector("[aria-live]");
+    expect(live).toHaveTextContent("Bringing everyone's plays");
+    expect(live).toHaveClass("sr-only");
+  });
+
   it("says which library is being scanned, and its files read", async () => {
     let progress: ImportProgress = {
       ...idle,

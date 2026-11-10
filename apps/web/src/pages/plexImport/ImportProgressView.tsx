@@ -82,9 +82,9 @@ export function ImportProgressView({
         {data.steps?.length ? (
           <StepList progress={data} />
         ) : (
-          <div className="space-y-2" aria-live="polite">
+          <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">{data.step ? t(`plexImport.progress.steps.${data.step}`) : t("plexImport.progress.starting")}</span>
+              <span className="font-medium" aria-live="polite">{data.step ? t(`plexImport.progress.steps.${data.step}`) : t("plexImport.progress.starting")}</span>
               {data.total > 0 ? (
                 <span className="tabular-nums text-muted">
                   {data.done.toLocaleString(currentLocale())} / {data.total.toLocaleString(currentLocale())}
@@ -156,9 +156,16 @@ export function StepList({ progress, compact = false }: { progress: ImportProgre
   const running = steps.findIndex((row) => row.state === "running");
   const shown = compact && !all && running >= 0 ? running + 2 : steps.length;
   const more = steps.length - shown;
+  const step = steps[running]?.step;
   return (
     <div className="space-y-2">
-      <ol className="space-y-3" aria-live="polite">
+      {/* Said when the step changes, not at every count: the card's line says it where the list is compact. */}
+      {compact ? null : (
+        <p className="sr-only" aria-live="polite">
+          {step ? t(`plexImport.progress.steps.${step}`) : null}
+        </p>
+      )}
+      <ol className="space-y-3">
         {steps.slice(0, shown).map((row) => (
           <li key={row.step}>
             <StepLine row={row} progress={progress} />
@@ -251,16 +258,17 @@ function LibraryLine({ library }: { library: ImportLibraryRow }) {
         {phase === "done" && library.found != null ? (
           <span className="text-muted">· {t("plexImport.report.matched", { count: library.found })}</span>
         ) : null}
-        {doing ? <span className="text-muted">· {left ? `${doing} · ${left}` : doing}</span> : null}
         {reading ? (
-          <span className="ml-auto tabular-nums text-muted">
+          <span className="ml-auto shrink-0 whitespace-nowrap tabular-nums text-muted">
             {number(library.done)} / {number(library.total)}
           </span>
         ) : null}
       </div>
-      {reading ? (
-        <div className="pl-5.5">
-          <ProgressBar value={library.done / library.total} label={library.library} className="h-1.5" />
+      {/* On a line of its own, so the name and count keep theirs on a phone. */}
+      {doing ? (
+        <div className="space-y-1 pl-5.5">
+          <p className="text-muted">{left ? `${doing} · ${left}` : doing}</p>
+          {reading ? <ProgressBar value={library.done / library.total} label={library.library} className="h-1.5" /> : null}
         </div>
       ) : null}
     </div>

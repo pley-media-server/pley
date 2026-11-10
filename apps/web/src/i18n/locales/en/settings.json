@@ -931,9 +931,9 @@
       "moreSteps_one": "{{count, number}} more step",
       "moreSteps_other": "{{count, number}} more steps",
       "library": {
-        "walking": "finding files",
-        "probing": "reading files",
-        "matching": "finding Plex's titles"
+        "walking": "Finding files",
+        "probing": "Reading files",
+        "matching": "Finding Plex's titles"
       }
     },
     "report": {

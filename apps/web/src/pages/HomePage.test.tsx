@@ -166,6 +166,9 @@ describe("HomePage", () => {
     expect(await screen.findByText("Scanning TV Shows: reading files")).toBeInTheDocument();
     expect(screen.getByText("2,140 / 6,509")).toBeInTheDocument();
     expect(screen.getByText("· about 25 minutes left")).toBeInTheDocument();
+    // Screen readers hear the phase, not every count.
+    expect(screen.getByText("Scanning TV Shows: reading files")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByText("2,140 / 6,509").closest("[aria-live]")).toBeNull();
     expect(screen.getByRole("progressbar", { name: "Scanning TV Shows: reading files" })).toBeInTheDocument();
     expect(screen.queryByText(/Movies: waiting/)).not.toBeInTheDocument();
   });
@@ -183,8 +186,9 @@ describe("HomePage", () => {
       "GET /api/import/plex": () => ({ ...importing, state: "idle", step: null }),
     });
     renderWithProviders(<HomePage />);
-    expect(await screen.findByText("Scanning your libraries, 2 of 3: TV Shows")).toBeInTheDocument();
-    expect(screen.getByText("about 25 minutes left")).toBeInTheDocument();
+    expect(await screen.findByText("Scanning your libraries, 2 of 3: TV Shows")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByText("· about 25 minutes left")).toBeInTheDocument();
+    expect(screen.getByRole("list").closest("[aria-live]")).toBeNull();
     // Movies done, TV Shows a third of the way through reading its files: (1 + 2140 / 6509 / 2) / 3.
     expect(screen.getByRole("progressbar", { name: "All your libraries" })).toHaveAttribute("aria-valuenow", "39");
     const list = screen.getByRole("list");

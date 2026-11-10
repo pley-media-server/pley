@@ -106,15 +106,25 @@ function FirstScans({ scans, className }: { scans: ScanStatus[]; className?: str
   const open = !hidden;
   return (
     <div className={cn("space-y-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm", className)}>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1" aria-live="polite">
-        <FolderSync className="size-4 shrink-0 text-muted" aria-hidden />
-        <span>{text}</span>
-        {counted ? (
-          <span className="tabular-nums text-muted">
-            {number(scan.processed)} / {number(scan.total)}
-          </span>
-        ) : null}
-        {counted && scan.left_secs != null ? <span className="text-muted">{formatTimeLeft(scan.left_secs)}</span> : null}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        {/* The icon stays with the words, which wrap on a phone. */}
+        <div className="flex min-w-0 flex-[1_1_15rem] items-start gap-3">
+          <FolderSync className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+          <p>
+            {/* Said when the library or its phase changes, not at every count. */}
+            <span aria-live="polite">{text}</span>
+            {/* A count is kept in one piece; the space before it can break. */}
+            {counted ? (
+              <>
+                {" "}
+                <span className="whitespace-nowrap tabular-nums text-muted">
+                  · {number(scan.processed)} / {number(scan.total)}
+                </span>
+              </>
+            ) : null}
+            {counted && scan.left_secs != null ? <span className="text-muted"> · {formatTimeLeft(scan.left_secs)}</span> : null}
+          </p>
+        </div>
         <Button variant="ghost" size="sm" className="ms-auto" aria-expanded={open} onClick={() => setHidden(open)}>
           {open ? t("home.firstScans.hide") : t("home.firstScans.show")}
           <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
@@ -233,13 +243,15 @@ function FirstScan({ scan, className }: { scan: ScanStatus; className?: string }
   const counted = (phase === "probing" || phase === "metadata") && scan.total > 0;
   const number = (n: number) => n.toLocaleString(currentLocale());
   return (
-    <div className={cn("space-y-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm", className)} aria-live="polite">
-      <div className="flex items-center gap-3">
-        <FolderSync className="size-4 shrink-0 text-muted" aria-hidden />
-        <span>{text}</span>
-        {counted && scan.left_secs != null ? <span className="text-muted">· {formatTimeLeft(scan.left_secs)}</span> : null}
+    <div className={cn("space-y-2 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm", className)}>
+      <div className="flex items-start gap-3">
+        <FolderSync className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden />
+        <p>
+          <span aria-live="polite">{text}</span>
+          {counted && scan.left_secs != null ? <span className="text-muted"> · {formatTimeLeft(scan.left_secs)}</span> : null}
+        </p>
         {counted ? (
-          <span className="ms-auto tabular-nums text-muted">
+          <span className="ms-auto shrink-0 whitespace-nowrap tabular-nums text-muted">
             {number(scan.processed)} / {number(scan.total)}
           </span>
         ) : null}

@@ -31,8 +31,12 @@ describe("PlexImportStatus", () => {
     const onReport = vi.fn();
     const { client } = renderWithProviders(<PlexImportStatus onReport={onReport} onAgain={() => {}} />);
     expect(await screen.findByText("Importing from Plex: Fetching posters and details")).toBeInTheDocument();
-    expect(screen.getByText("1,204 of 3,500")).toBeInTheDocument();
-    expect(screen.getByText("about 25 minutes left")).toBeInTheDocument();
+    expect(screen.getByText("· 1,204 of 3,500")).toBeInTheDocument();
+    expect(screen.getByText("· about 25 minutes left")).toBeInTheDocument();
+    // Screen readers hear the step, not every count.
+    expect(screen.getByText("Importing from Plex: Fetching posters and details")).toHaveAttribute("aria-live", "polite");
+    expect(screen.getByText("· 1,204 of 3,500").closest("[aria-live]")).toBeNull();
+    expect(screen.getByText("· about 25 minutes left").closest("[aria-live]")).toBeNull();
     expect(screen.queryByRole("button", { name: "See what came over" })).not.toBeInTheDocument();
 
     progress = { ...idle, state: "done", report };
@@ -98,9 +102,9 @@ describe("PlexImportStatus", () => {
     renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
     // Open, the steps name the step: the line says which it is.
     expect(await screen.findByText("Importing from Plex, step 2 of 4")).toBeInTheDocument();
-    expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
+    expect(screen.queryByText("· 1 of 2")).not.toBeInTheDocument();
     expect(screen.getByText("· 812 titles found")).toBeInTheDocument();
-    expect(screen.getByText("· reading files · about 25 minutes left")).toBeInTheDocument();
+    expect(screen.getByText("Reading files · about 25 minutes left")).toBeInTheDocument();
     expect(screen.getByText("504 / 6,509")).toBeInTheDocument();
     // Weighed by how long each step takes: profiles (1) done, and the scans
     // (40) a library and 504 of 6,509 files into two, of 78 in all.
@@ -115,9 +119,9 @@ describe("PlexImportStatus", () => {
     // Hidden, the line names the step and counts it.
     await user.click(screen.getByRole("button", { name: /Hide the steps/ }));
     expect(screen.getByText("Importing from Plex, step 2 of 4: Scanning the new libraries")).toBeInTheDocument();
-    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    expect(screen.getByText("· 1 of 2")).toBeInTheDocument();
     // The scans' time left is the library whose files are read.
-    expect(screen.getByText("about 25 minutes left")).toBeInTheDocument();
+    expect(screen.getByText("· about 25 minutes left")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Stop the import" })).not.toBeInTheDocument();
   });
 

@@ -956,9 +956,9 @@
       "moreSteps_many": "{{count, number}} de pasos más",
       "moreSteps_other": "{{count, number}} pasos más",
       "library": {
-        "walking": "buscando archivos",
-        "probing": "leyendo archivos",
-        "matching": "buscando los títulos de Plex"
+        "walking": "Buscando archivos",
+        "probing": "Leyendo archivos",
+        "matching": "Buscando los títulos de Plex"
       }
     },
     "report": {

@@ -45,7 +45,8 @@ describes how they are made.
   fresh, which of the new libraries is being scanned, how far they all
   are, and each ticked off once done; or a library's first scan (its
   files found, read, then its details fetched). Reading files and
-  fetching details say about how long they have left.
+  fetching details say about how long they have left. Screen readers
+  hear each step as it starts, not every count.
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the
   metadata language's country, and still is until one is chosen:
