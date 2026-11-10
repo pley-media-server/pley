@@ -2225,8 +2225,6 @@ async fn write_details(db: &Db, details: &[(i64, PlexDetails)]) -> sqlx::Result<
     tx.commit().await
 }
 
-/// Whether title `id`'s match was settled in Pley, which the import leaves:
-/// chosen with Fix Match, locked, or named by its NFO file.
 /// Plex's ids on a movie or show Pley hasn't fetched yet, where it has none,
 /// for the fetch to use instead of searching by title. A show takes its
 /// TheTVDB and IMDb ids too: TheTVDB's and TVmaze's refreshes look a show
@@ -2246,6 +2244,8 @@ async fn seed(db: &Db, id: i64, ids: &PlexIds) -> sqlx::Result<()> {
     Ok(())
 }
 
+/// Whether title `id`'s match was settled in Pley, which the import leaves:
+/// chosen with Fix Match, locked, or named by its NFO file.
 async fn fixed_in_pley(db: &Db, id: i64) -> sqlx::Result<bool> {
     sqlx::query_scalar(
         "SELECT EXISTS (SELECT 1 FROM item_overrides WHERE item_id = ?1 AND field = ?2)
