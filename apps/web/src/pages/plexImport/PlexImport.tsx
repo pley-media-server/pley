@@ -92,10 +92,12 @@ export function StepFrame({
  * its libraries pair with Pley's, the people who come as profiles, then the
  * import's progress and report. The first-run page and Settings › Libraries
  * both show it; `onLeave` is their way out before the import starts,
- * `onFinish` once what's found by file has come over, or after its report.
+ * `onStarted` where it goes once started (its progress otherwise), and
+ * `onFinish` the way on from its progress or its report.
  */
 export function PlexImport({
   onLeave,
+  onStarted,
   onFinish,
   leaveLabel,
   goOnLabel,
@@ -103,6 +105,7 @@ export function PlexImport({
   onBusy,
 }: {
   onLeave: () => void;
+  onStarted?: () => void;
   onFinish: () => void;
   /** What the way out before the import is called ("Cancel", "Start fresh instead"). */
   leaveLabel: string;
@@ -222,7 +225,7 @@ export function PlexImport({
                     }),
                   bring,
                 };
-                start.mutate(choices, { onSuccess: () => setStage("importing") });
+                start.mutate(choices, { onSuccess: () => (onStarted ? onStarted() : setStage("importing")) });
               }}
             />
           )}

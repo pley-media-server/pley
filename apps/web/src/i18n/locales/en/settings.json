@@ -1002,7 +1002,8 @@
       "done": "Imported from Plex on {{date}}",
       "failed": "The Plex import failed on {{date}}",
       "cancelled": "The Plex import was stopped on {{date}}",
-      "show": "Show",
+      "showSteps": "Show the steps",
+      "hideSteps": "Hide the steps",
       "report": "See what came over"
     }
   }

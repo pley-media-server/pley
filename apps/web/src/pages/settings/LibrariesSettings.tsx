@@ -314,7 +314,7 @@ export function LibrariesSettings() {
         </div>
       </div>
 
-      <PlexImportStatus onOpen={(report) => setImporting({ report })} />
+      <PlexImportStatus onReport={() => setImporting({ report: true })} />
 
       {/* A list once loaded stays up when fetching it again fails. */}
       {!libs.data ? (

@@ -197,6 +197,25 @@ describe("PlexImport", () => {
     expect(onFinish).toHaveBeenCalled();
   });
 
+  it("goes where it's told once the import starts, instead of its progress", async () => {
+    const user = userEvent.setup();
+    let progress = idle;
+    const requests = serve({ progress: () => progress });
+    const onStarted = vi.fn();
+    renderWithProviders(
+      <PlexImport onLeave={() => {}} onStarted={onStarted} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />,
+    );
+    expect(await screen.findByRole("heading", { name: "Libraries on Den" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("button", { name: "Continue" }));
+    expect(await screen.findByRole("heading", { name: "What to bring" })).toBeInTheDocument();
+    progress = { ...idle, state: "running", step: "profiles" };
+    await user.click(screen.getByRole("button", { name: "Start the import" }));
+    await waitFor(() => expect(onStarted).toHaveBeenCalled());
+    expect(requests.some((r) => r.path === "/api/import/plex/start")).toBe(true);
+    expect(screen.queryByRole("heading", { name: "Importing from Plex" })).not.toBeInTheDocument();
+  });
+
   it("asks for the owner's account when the servers are only shared with this one", async () => {
     const user = userEvent.setup();
     const requests = serve({ servers: [{ id: "f1", name: "A friend's", owned: false, version: null }] });
@@ -310,14 +329,15 @@ describe("PlexImport", () => {
     expect(requests.filter((r) => r.path === "/api/import/plex/plan")).toHaveLength(1);
   });
 
-  it("lets people go on once what's found by file has come over", async () => {
+  it("lets people go on while it runs, saying so once what's found by file has come over", async () => {
     const user = userEvent.setup();
     let progress: ImportProgress = { ...idle, state: "running", step: "watch_state", done: 1, total: 2 };
     serve({ progress: () => progress });
     const onFinish = vi.fn();
     const { client } = renderWithProviders(<PlexImport onLeave={() => {}} onFinish={onFinish} leaveLabel="Cancel" goOnLabel="Start watching" />);
     expect(await screen.findByText("Bringing what everyone watched")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Start watching" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Importing from Plex" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Start watching" })).toBeInTheDocument();
 
     progress = { ...progress, step: "fetching", done: 1204, total: 3500, first_pass_done: true };
     await client.invalidateQueries({ queryKey: plexImportKeys.progress });

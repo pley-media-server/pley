@@ -577,6 +577,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     listed.extend(to_come.iter().map(|step| (step.to_string(), "to_come".to_owned())));
     assert_eq!(steps(&scanning), listed);
     assert_eq!(scanning["steps"][0]["count"], 2, "the administrator's profile and the Home user's");
+    assert!(scanning["started_at"].as_i64().is_some_and(|at| at > 0), "{scanning:?}");
     tv_held.store(false, Ordering::SeqCst);
 
     let done = finished(&app, &admin).await;

@@ -12,6 +12,8 @@ export function PlexImportModal({ open, onClose, report = false }: { open: boole
       {open ? (
         <PlexImport
           onLeave={onClose}
+          // Settings › Libraries shows the import's steps as it runs.
+          onStarted={onClose}
           onFinish={onClose}
           leaveLabel={t("common:actions.cancel")}
           goOnLabel={t("common:actions.close")}

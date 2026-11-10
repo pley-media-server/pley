@@ -1039,7 +1039,8 @@
       "done": "Importado de Plex el {{date}}",
       "failed": "La importación de Plex falló el {{date}}",
       "cancelled": "Se detuvo la importación de Plex el {{date}}",
-      "show": "Mostrar",
+      "showSteps": "Mostrar los pasos",
+      "hideSteps": "Ocultar los pasos",
       "report": "Ver lo que se trajo"
     }
   }

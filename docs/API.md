@@ -4609,6 +4609,7 @@ interface ImportChoices {
 
 interface ImportProgress {
   state: "idle" | "running" | "done" | "failed" | "cancelled";
+  started_at: number;   // when the last import started; 0 before one has since the server started
   step: "scanning" | "profiles" | "matching" | "labels" | "edits" | "collections" | "watch_state"
       | "history" | "playlists" | "fetching" | "matching_again" | null;
   done: number; total: number;

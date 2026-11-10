@@ -174,6 +174,8 @@ export type EditedField =
 
 export interface ImportProgress {
   state: ImportState;
+  /** When the last import started (Unix seconds); 0 when none has since the server started. Absent from servers before it. */
+  started_at?: number;
   step: ImportStep | null;
   done: number;
   total: number;

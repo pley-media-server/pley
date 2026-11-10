@@ -90,6 +90,8 @@ impl Session {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct Progress {
     pub state: RunState,
+    /// When the import last started (Unix seconds), telling one import from another.
+    pub started_at: i64,
     pub step: Option<Step>,
     pub done: u64,
     pub total: u64,
@@ -734,7 +736,12 @@ impl Importer {
             if progress.state == RunState::Running {
                 return Err(ImportError::Running);
             }
-            *progress = Progress { state: RunState::Running, steps: steps(choices.bring), ..Default::default() };
+            *progress = Progress {
+                state: RunState::Running,
+                started_at: now(),
+                steps: steps(choices.bring),
+                ..Default::default()
+            };
         }
         self.cancel.store(false, Ordering::Relaxed);
         drop(session);

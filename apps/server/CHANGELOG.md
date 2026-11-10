@@ -26,8 +26,8 @@ describes how they are made.
   step turns any of these off. What's found by its file comes over before
   any posters or details are fetched, so watch history is there within
   minutes, and Plex's matches mean titles are fetched by their ids rather
-  than searched for by name; Start watching goes on from there while the
-  rest runs, and Settings › Libraries shows the import, then its report.
+  than searched for by name. Home and Settings › Libraries show the
+  import while the rest runs, then its report.
   Running it again adds what's new and never takes anything away
   (docs/MOVING_FROM_PLEX.md). It lists every step it goes through, ticked
   off with what each brought. While it waits for the new libraries'
@@ -35,9 +35,10 @@ describes how they are made.
   read, and titles found by their files show with Plex's names, years,
   summaries and dates added as soon as their library is scanned, until
   Pley's own details replace them. Posters come from Pley's own fetch.
-- Home tells administrators how far new libraries are: the Plex import's
-  step while it runs, which of its steps that is and how far the whole
-  import has come, or a library's first scan (its files found, read, then
+- Home tells administrators how far new libraries are: the Plex import,
+  which Home goes to as soon as it starts, with every step it goes
+  through and Stop, then how it ended (and why, if it failed) until
+  that's closed; or a library's first scan (its files found, read, then
   its details fetched).
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the

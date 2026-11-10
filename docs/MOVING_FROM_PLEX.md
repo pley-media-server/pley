@@ -106,16 +106,18 @@ Import from Plex.
    user's PIN; type it there, or they're skipped.
 5. **What to bring.** Watch history, collections and playlists, matches
    and edits: turn off what you'd rather start over in Pley.
-6. **Import.** It lists every step it goes through, ticking each off
-   with what it brought. New libraries are scanned for their files, a
-   library at a time (it shows which, and its files read), what's found by file comes
-   over with Plex's names, then Pley fetches posters and
-   details and looks for the rest of Plex's titles. Once what everyone watched is in, **Start
-   watching** (or **Close**, from Settings) lets you go on while the rest
-   runs. You can close the page at any time; the import goes on.
-   Home shows which step it is on and how far the whole import has come
-   while it runs, and so does Settings › Libraries, which once it's done
-   says when it ran and has **See what came over**, its report.
+6. **Import.** Once started, Pley goes to Home (or back to Settings ›
+   Libraries, from there), which shows the import: which step it's on, how
+   far the whole import has come, and every step it goes through, ticked
+   off with what each brought, with **Stop the import**. New libraries
+   are scanned for their files, a library at a time (it shows which, and
+   its files read), what's found by file comes over with Plex's names,
+   then Pley fetches posters and details and looks for the rest of Plex's
+   titles. **Hide the steps** keeps it to a line for that import. You can
+   watch, or close the page, at any time; the import goes on. Once it
+   ends, Home says how it went, why if it failed, and has **See what came
+   over**, its report, until you close it; Settings › Libraries keeps
+   saying when it ran.
 
 The report says how many titles each library found, the ones it didn't,
 and what came over for each person.

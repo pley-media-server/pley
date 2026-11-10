@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18next from "i18next";
 import { describe, expect, it } from "vitest";
-import type { ImportProgress } from "@/api/plexImport";
+import type { ImportProgress, ImportReport } from "@/api/plexImport";
 import type { Activity, Hub, ItemDetail, Library, ScanStatus } from "@/api/types";
 import { ListMenuProvider } from "@/components/lists/ListMenu";
 import { makeItem } from "@/test/fixtures";
@@ -92,6 +92,21 @@ const importing: ImportProgress = {
   first_pass_done: true,
 };
 
+const emptyReport: ImportReport = {
+  finished_at: 0,
+  outcome: "done",
+  error: null,
+  libraries: [],
+  profiles: [],
+  labels_added: 0,
+  dates_moved: 0,
+  matches_fixed: 0,
+  edits: {},
+  collections_made: 0,
+  collection_items: 0,
+  smart_left: 0,
+};
+
 const firstScan: ScanStatus = {
   library_id: 2,
   library_name: "TV Shows",
@@ -157,17 +172,46 @@ describe("HomePage", () => {
     expect(screen.queryByText(/TV Shows/)).not.toBeInTheDocument();
   });
 
-  it("shows the Plex import instead while it runs", async () => {
+  it("shows the Plex import instead while it runs, with its steps open", async () => {
     // Home doesn't come with the settings' words the import's line uses, as
     // the tests' set-up gives every page: it loads them itself.
     i18next.removeResourceBundle("en", "settings");
-    serve({ scans: [firstScan], progress: importing });
+    const steps: ImportProgress["steps"] = [
+      { step: "profiles", state: "done", count: 2 },
+      { step: "fetching", state: "running", count: null },
+      { step: "matching_again", state: "to_come", count: null },
+    ];
+    serve({ scans: [firstScan], progress: { ...importing, started_at: 1_794_100_000, steps } });
     renderWithProviders(<HomePage />);
-    expect(await screen.findByText("Importing from Plex: Fetching posters and details")).toBeInTheDocument();
+    expect(await screen.findByText("Importing from Plex, step 2 of 3: Fetching posters and details")).toBeInTheDocument();
     expect(screen.getByText("Titles fill in with their details and posters as Pley fetches them.")).toBeInTheDocument();
     expect(screen.queryByText("Scanning TV Shows: reading files")).not.toBeInTheDocument();
-    await userEvent.setup().click(screen.getByRole("button", { name: "Show" }));
-    expect(await screen.findByRole("dialog", { name: "Import from Plex" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Hide the steps/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Finding the rest of Plex's titles")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Stop the import" })).toBeInTheDocument();
+  });
+
+  it("shows how the Plex import ended until that's put away", async () => {
+    i18next.removeResourceBundle("en", "settings");
+    const now = Math.floor(Date.now() / 1000);
+    const report: ImportReport = { ...emptyReport, finished_at: now - 60, outcome: "failed", error: "Plex couldn't be reached" };
+    serve({ progress: { ...importing, state: "failed", report, first_pass_done: false } });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByText(/^The Plex import failed on/)).toBeInTheDocument();
+    expect(screen.getByText("Plex couldn't be reached")).toBeInTheDocument();
+    await userEvent.setup().click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByText(/^The Plex import failed on/)).not.toBeInTheDocument();
+    expect(localStorage.getItem("pley.plexImport.closed")).toBe(String(report.finished_at));
+  });
+
+  it("says nothing of an import that ended over a week ago", async () => {
+    i18next.removeResourceBundle("en", "settings");
+    const report: ImportReport = { ...emptyReport, finished_at: Math.floor(Date.now() / 1000) - 8 * 24 * 60 * 60, outcome: "done" };
+    const requests = serve({ progress: { ...importing, state: "done", report } });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByRole("heading", { name: "Continue Watching" })).toBeInTheDocument();
+    await waitFor(() => expect(requests.some((r) => r.path === "/api/import/plex")).toBe(true));
+    expect(screen.queryByText(/Imported from Plex/)).not.toBeInTheDocument();
   });
 
   it("says nothing of scans or imports to others", async () => {

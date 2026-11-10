@@ -3,18 +3,26 @@ import { useTranslation } from "react-i18next";
 import i18next from "i18next";
 import { FolderSync } from "lucide-react";
 import { useActivity } from "@/api/hooks";
-import { usePlexImport } from "@/api/plexImport";
+import { usePlexImport, type ImportProgress } from "@/api/plexImport";
 import type { ScanStatus } from "@/api/types";
 import { useAuth } from "@/auth";
 import { ProgressBar } from "@/components/ui";
 import { currentLanguage, currentLocale, loadNamespaces } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { useLocalStorage, useNow } from "@/lib/hooks";
 import { PlexImportModal } from "./plexImport/PlexImportModal";
 import { PlexImportStatus } from "./plexImport/PlexImportStatus";
 
+/** The `finished_at` of the import whose ending was put away on Home. */
+const CLOSED_KEY = "pley.plexImport.closed";
+
+/** How long an import's ending stays on Home, unless put away: a week. */
+const ENDING_SHOWN_FOR = 7 * 24 * 60 * 60;
+
 /**
  * What Home says while new libraries fill in, to administrators: the Plex
- * import running, else a library's first scan. Nothing otherwise.
+ * import running, then how it ended until that's put away, else a
+ * library's first scan. Nothing otherwise.
  */
 export function HomeProgress({ className }: { className?: string }) {
   const user = useAuth();
@@ -24,8 +32,13 @@ export function HomeProgress({ className }: { className?: string }) {
 function AdminProgress({ className }: { className?: string }) {
   const progress = usePlexImport().data;
   const activity = useActivity();
+  const [closed, setClosed] = useLocalStorage<number | null>(CLOSED_KEY, null);
+  const now = useNow(60_000);
 
-  if (progress?.state === "running") return <Importing firstPassDone={progress.first_pass_done} className={className} />;
+  if (progress && (progress.state === "running" || ending(progress, closed, now))) {
+    const finished = progress.report?.finished_at ?? null;
+    return <Importing progress={progress} onClose={() => setClosed(finished)} className={className} />;
+  }
 
   // One library is scanned at a time: the one under way, else the next.
   const scans = (activity.data?.scans ?? []).filter((s) => s.first && s.phase !== "done");
@@ -33,20 +46,29 @@ function AdminProgress({ className }: { className?: string }) {
   return scan ? <FirstScan scan={scan} className={className} /> : null;
 }
 
+/** Whether an import that ended shows on Home: it ended lately, and wasn't put away. */
+function ending(progress: ImportProgress, closed: number | null, now: number): boolean {
+  const report = progress.report;
+  return !!report && report.finished_at !== closed && now - report.finished_at < ENDING_SHOWN_FOR;
+}
+
 /**
- * The Plex import running, as Settings › Libraries shows it. Its words are
- * the settings', which Home doesn't come with: they load first.
+ * The Plex import, as Settings › Libraries shows it, with the way to put
+ * its ending away. Its words are the settings', which Home doesn't come
+ * with: they load first.
  */
-function Importing({ firstPassDone, className }: { firstPassDone: boolean; className?: string }) {
+function Importing({ progress, onClose, className }: { progress: ImportProgress; onClose: () => void; className?: string }) {
   const { t } = useTranslation("settings");
   const words = useSettingsWords();
-  const [open, setOpen] = useState(false);
+  const [report, setReport] = useState(false);
   if (!words) return null;
   return (
     <div className={cn("space-y-1.5", className)}>
-      <PlexImportStatus onOpen={() => setOpen(true)} />
-      {firstPassDone ? <p className="px-1 text-sm text-muted">{t("plexImport.status.fillingIn")}</p> : null}
-      <PlexImportModal open={open} onClose={() => setOpen(false)} />
+      <PlexImportStatus onReport={() => setReport(true)} onClose={onClose} />
+      {progress.state === "running" && progress.first_pass_done ? (
+        <p className="px-1 text-sm text-muted">{t("plexImport.status.fillingIn")}</p>
+      ) : null}
+      <PlexImportModal open={report} report onClose={() => setReport(false)} />
     </div>
   );
 }

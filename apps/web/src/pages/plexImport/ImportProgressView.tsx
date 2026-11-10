@@ -23,7 +23,7 @@ import { ageBadge } from "@/lib/access";
 import { libraryUrl } from "@/lib/urls";
 import { ErrorNote, StepFrame } from "./PlexImport";
 
-/** The import running, then its report. Once what's found by file has come over, `onFinish` goes on while the rest runs. */
+/** The import running, then its report. `onFinish` goes on while it runs: Home and Settings › Libraries show it too. */
 export function ImportProgressView({
   goOnLabel,
   onFinish,
@@ -69,11 +69,9 @@ export function ImportProgressView({
             <Button variant="ghost" onClick={() => setStopping(true)}>
               {t("plexImport.progress.stop")}
             </Button>
-            {data.first_pass_done ? (
-              <Button variant="primary" onClick={onFinish}>
-                {goOnLabel}
-              </Button>
-            ) : null}
+            <Button variant="primary" onClick={onFinish}>
+              {goOnLabel}
+            </Button>
           </>
         }
       >
@@ -144,7 +142,7 @@ function stepCount(t: TFunction<"settings">, step: ImportStep, count: number): s
 }
 
 /** Every step the import goes through: those done with what they brought, the one running with how far it is, the rest to come. */
-function StepList({ progress }: { progress: ImportProgress }) {
+export function StepList({ progress }: { progress: ImportProgress }) {
   return (
     <ol className="space-y-3" aria-live="polite">
       {(progress.steps ?? []).map((row) => (
