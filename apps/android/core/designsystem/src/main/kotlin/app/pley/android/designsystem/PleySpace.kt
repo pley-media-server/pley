@@ -37,11 +37,8 @@ object PleyTv {
     val CanvasWidth = 960.dp
     val CanvasHeight = 540.dp
 
-    /** The collapsed rail: 8 + a 56 dp item + 8. */
+    /** The collapsed rail: 8, a 40 dp item, and the room to where pages are clear of it ([RailFadeClearFrom]). Open, it is as wide as its labels need. */
     val RailCollapsed = 72.dp
-
-    /** The expanded rail: 8 + a 256 dp item + 8. */
-    val RailExpanded = 272.dp
 
     /** Every page's left edge: the rail and 24. Rows keep their focused tile here. */
     val Gutter = 96.dp

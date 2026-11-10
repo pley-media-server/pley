@@ -72,6 +72,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -214,22 +216,28 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
 }
 
 /**
- * The rail (design spec §2.1): 56 dp entries collapsed, 246 open, 40 tall
- * on a 44 dp pitch. The avatar at the top switches profiles; then [items],
+ * The rail (design spec §2.1): 40 dp entries collapsed, 40 tall on a
+ * 44 dp pitch. Collapsed, the icons are in the middle of the 56 dp the
+ * pages keep dark under it ([PleyTv.RailFadeSolidUntil]), 16 dp from the
+ * screen's edge and from the page's. Open, the panel is as wide as its
+ * longest label needs, 240 dp at the least and 320 at the most
+ * ([openPillWidth]), and an entry is 8 dp from the screen's edge and
+ * from the panel's. The avatar at the top switches profiles; then [items],
  * from y = 67; Settings at the foot, at y = 473. The entries between them
  * scroll when they don't all fit ([railScroll]), drawn only between the
  * avatar and Settings; Up and Down go through them in order, whatever is
  * scrolled out of view. Collapsed, the current entry has a 4 by 20 accent
  * mark and its icon in [fg][PleyColors.Fg]; open, it is a
  * [surface3][PleyColors.Surface3] pill. The focused entry is the accent
- * pill at 1.05, grown from its icon, so the icons stay in their column
- * and the pill ends as far from the panel's edge as it starts from the
+ * pill at 1.05, grown from its icon, so the icons stay in their column,
+ * and drawn that much narrower, so it is as wide as the current entry's
+ * pill and ends as far from the panel's edge as it starts from the
  * screen's. Open, the rail is [surface][PleyColors.Surface] at 96 % with
  * a soft edge, and the shell dims the page behind it.
  *
  * Focus in it is what opens it. Over 200 ms ([PleyMotion.OVERLAY_MS]),
  * eased out as the Samsung app's rail is ([PleyMotion.EaseOut]), the
- * panel widens from 72 to 272 dp with its edge, the pills from 56 to 246,
+ * panel widens from 72 dp to its open width with its edge, the pills from 40 dp to theirs,
  * and the labels fade in as they slide 24 dp into place; leaving, the
  * same back, the labels fading where they are, and the panel fading over
  * its last 15 % into the dark under the closed entries. With
@@ -250,6 +258,8 @@ internal fun TvRail(
 ) {
     val open = rail.hasFocus
     val opening = rememberRailOpening(open)
+    val pill = openPillWidth(items, profile)
+    val panel = pill + RailInset * 2
     rail.scope = rememberCoroutineScope()
     val focus = remember { RailFocus() }
     val offlineSaid = stringResource(R.string.tv_shell_offline)
@@ -263,18 +273,18 @@ internal fun TvRail(
                 // Closed, the page's own fade is under the entries: nothing to paint.
                 if (shown <= 0f) return@drawBehind
                 // Past the rail's bounds while it closes: it is laid out closed by then.
-                val panel = lerp(PleyTv.RailCollapsed.toPx(), PleyTv.RailExpanded.toPx(), shown)
+                val width = lerp(PleyTv.RailCollapsed.toPx(), panel.toPx(), shown)
                 // It slides at full strength and fades over the last of the way: closed, it meets the page's fade under the entries.
                 val strength = (shown / RAIL_FADE).coerceAtMost(1f)
-                drawRect(PleyColors.Surface.copy(alpha = 0.96f * strength), size = Size(panel, size.height))
+                drawRect(PleyColors.Surface.copy(alpha = 0.96f * strength), size = Size(width, size.height))
                 // A stretched picture rather than a gradient shader (GradientBitmaps): cheaper on TV GPUs.
-                drawStretched(RailEdge, Offset(panel, 0f), Size(RailShadow.toPx(), size.height), alpha = shown)
+                drawStretched(RailEdge, Offset(width, 0f), Size(RailShadow.toPx(), size.height), alpha = shown)
             },
     ) {
         Column(
             Modifier
                 .fillMaxHeight()
-                .width(if (open) PleyTv.RailExpanded else PleyTv.RailCollapsed)
+                .width(if (open) panel else PleyTv.RailCollapsed)
                 .testTag(TestTags.TV_RAIL)
                 .onFocusChanged { rail.focusChanged(it.hasFocus) }
                 .focusProperties { onEnter = { with(rail) { enter() } } }
@@ -288,12 +298,13 @@ internal fun TvRail(
                         false
                     }
                 }
-                .padding(start = 8.dp, end = 8.dp, top = AvatarItemTop, bottom = TvSafeArea.Vertical),
+                .padding(start = RailInset, end = RailInset, top = AvatarItemTop, bottom = TvSafeArea.Vertical),
         ) {
             RailPill(
                 selected = rail.current == PROFILE_ITEM,
                 open = open,
                 opening = opening,
+                openWidth = pill,
                 onClick = onProfile,
                 leadingSize = AvatarSize,
                 leadingContent = { Avatar(profile, offline) },
@@ -313,16 +324,17 @@ internal fun TvRail(
                     .onFocusChanged { if (it.isFocused) focus.at = RailFocus.NO_ENTRY }
                     .semantics { if (offline) stateDescription = offlineSaid },
             ) { ink ->
-                BasicText(profile?.name.orEmpty(), style = PleyType.Tv.Label.copy(color = ink, lineHeight = 17.sp), maxLines = 1)
+                BasicText(profile?.name.orEmpty(), style = PleyType.Tv.Label.copy(color = ink, lineHeight = 17.sp), maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             Spacer(Modifier.height(AvatarGap))
-            RailEntries(items, rail, open, opening, focus, onSelect, Modifier.weight(1f))
+            RailEntries(items, rail, open, opening, pill, focus, onSelect, Modifier.weight(1f))
             Spacer(Modifier.height(ItemGap))
             RailEntry(
                 SettingsItem,
                 rail,
                 open,
                 opening,
+                pill,
                 onSelect,
                 up = items.lastOrNull()?.id ?: PROFILE_ITEM,
                 onFocused = { focus.at = RailFocus.NO_ENTRY },
@@ -359,6 +371,7 @@ private fun RailEntries(
     rail: RailState,
     open: Boolean,
     opening: Animatable<Float, AnimationVector1D>,
+    openWidth: Dp,
     focus: RailFocus,
     onSelect: (RailItem) -> Unit,
     modifier: Modifier,
@@ -393,7 +406,7 @@ private fun RailEntries(
             .onSizeChanged { viewport = with(density) { it.height.toDp().value } }
             .drawWithContent {
                 val gap = ItemGap.toPx()
-                val across = PleyTv.RailExpanded.toPx()
+                val across = (OpenPillMost + RailInset * 2).toPx()
                 clipRect(left = -across, top = -gap, right = size.width + across, bottom = size.height + gap) {
                     this@drawWithContent.drawContent()
                 }
@@ -411,6 +424,7 @@ private fun RailEntries(
                     rail,
                     open,
                     opening,
+                    openWidth,
                     onSelect,
                     up = items.getOrNull(i - 1)?.id ?: PROFILE_ITEM,
                     down = items.getOrNull(i + 1)?.id ?: SettingsItem.id,
@@ -455,6 +469,7 @@ private fun RailEntry(
     rail: RailState,
     open: Boolean,
     opening: Animatable<Float, AnimationVector1D>,
+    openWidth: Dp,
     onSelect: (RailItem) -> Unit,
     up: String? = null,
     down: String? = null,
@@ -468,6 +483,7 @@ private fun RailEntry(
         selected = selected,
         open = open,
         opening = opening,
+        openWidth = openWidth,
         onClick = { onSelect(item) },
         leadingContent = { ink ->
             Box {
@@ -488,7 +504,7 @@ private fun RailEntry(
             .testTag("${TestTags.TV_RAIL}.${item.id}")
             .then(if (selected && !open) Modifier.currentMark() else Modifier),
     ) { ink ->
-        BasicText(label(item), style = PleyType.Tv.Label.copy(color = ink), maxLines = 1)
+        BasicText(label(item), style = PleyType.Tv.Label.copy(color = ink), maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -510,7 +526,7 @@ private fun rememberRailOpening(open: Boolean): Animatable<Float, AnimationVecto
 
 /**
  * One of the rail's entries: a pill drawn as wide as the rail is open
- * ([opening]: 56 dp closed, 246 open), [height] tall, and laid out at
+ * ([opening]: 40 dp closed, [openWidth] open), [height] tall, and laid out at
  * either end ([open]). [leadingContent] (an icon, the avatar) is centred
  * on the closed pill; [content] (the label), with [supportingContent]
  * under it and [trailingContent] at the end, fades in as the pill widens,
@@ -529,6 +545,7 @@ private fun RailPill(
     selected: Boolean,
     open: Boolean,
     opening: Animatable<Float, AnimationVector1D>,
+    openWidth: Dp,
     onClick: () -> Unit,
     leadingContent: @Composable (ink: Color) -> Unit,
     modifier: Modifier = Modifier,
@@ -566,17 +583,17 @@ private fun RailPill(
     Box(
         modifier
             // Its focus area is where it shows at rest; the widening between is drawn.
-            .width(if (open) OpenPillWidth else ClosedPillWidth)
+            .width(if (!open) ClosedPillWidth else if (focused) focusedPillWidth(openWidth) else openWidth)
             .height(height)
             .graphicsLayer {
                 scaleX = scale.value
                 scaleY = scale.value
                 // About its icon, which stays in the rail's column: the pill grows to the right, into the panel.
-                transformOrigin = TransformOrigin((ClosedPillWidth / 2).toPx() / size.width, 0.5f)
+                transformOrigin = TransformOrigin(PillPivot.toPx() / size.width, 0.5f)
             }
             .drawWithContent {
                 // Past its bounds while the rail closes.
-                val width = pillWidth(opening.value)
+                val width = pillWidth(opening.value, scale.value, openWidth)
                 if (fill.alpha > 0f) {
                     val radius = PleyShape.ControlRadius.toPx()
                     drawRoundRect(fill, size = Size(width, size.height), cornerRadius = CornerRadius(radius, radius))
@@ -600,8 +617,8 @@ private fun RailPill(
                 .align(Alignment.CenterStart)
                 // Laid out open, the rail closed too: opening it only draws them.
                 .wrapContentWidth(Alignment.Start, unbounded = true)
-                .width(OpenPillWidth)
-                .padding(start = ClosedPillWidth, end = LabelEnd)
+                .width(openWidth)
+                .padding(start = LabelStart, end = LabelEnd)
                 .graphicsLayer {
                     alpha = opening.value
                     // Opening, they slide in from a little to the left as they fade in; closing, they fade
@@ -621,8 +638,42 @@ private fun RailPill(
     }
 }
 
-/** A pill's width when the rail is [opening] that far open: 56 dp closed to 246 open. */
-private fun Density.pillWidth(opening: Float): Float = lerp(ClosedPillWidth.toPx(), OpenPillWidth.toPx(), opening)
+/**
+ * A pill's width as drawn when the rail is [opening] that far open: 40 dp
+ * closed to [openWidth] open. [grown] about its icon (its focus scale),
+ * an open pill is drawn that much narrower, so that it ends as near the
+ * panel's edge as it starts from the screen's, no nearer: the focused
+ * entry's pill and the current one's are then as wide as each other.
+ */
+private fun Density.pillWidth(opening: Float, grown: Float, openWidth: Dp): Float {
+    val pivot = PillPivot.toPx()
+    val open = pivot + (openWidth.toPx() + pivot * (grown - 2f)) / grown
+    return lerp(ClosedPillWidth.toPx(), open, opening)
+}
+
+/** An open pill with focus, as laid out: what [pillWidth] draws of it once it has grown. */
+private fun focusedPillWidth(openWidth: Dp): Dp = PillPivot + (openWidth + PillPivot * (PleyFocus.PILL_SCALE - 2f)) / PleyFocus.PILL_SCALE
+
+/**
+ * An open pill's width: room for the longest of the labels (the entries',
+ * the profile's name, "Switch profile") after the icon, 224 dp at the
+ * least and 304 at the most, where a longer label is cut. So the panel is
+ * narrow where the names are short, and widens for a library's long name.
+ */
+@Composable
+private fun openPillWidth(items: List<RailItem>, profile: RailProfile?): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val labels = items.map { label(it) } + label(SettingsItem) + profile?.name.orEmpty()
+    val under = stringResource(R.string.tv_shell_switch_profile)
+    return remember(labels, under, measurer, density) {
+        val widest = maxOf(
+            labels.maxOf { measurer.measure(it, PleyType.Tv.Label, maxLines = 1).size.width },
+            measurer.measure(under, PleyType.Tv.Caption, maxLines = 1).size.width,
+        )
+        with(density) { (LabelStart + widest.toDp() + LabelEnd).coerceIn(OpenPillLeast, OpenPillMost) }
+    }
+}
 
 @Composable
 private fun label(item: RailItem): String = when (item.slot) {
@@ -700,11 +751,11 @@ private fun Avatar(profile: RailProfile?, offline: Boolean) {
     }
 }
 
-/** Collapsed, the current entry's 4 by 20 accent mark at its left edge (a state line, not focus). */
+/** Collapsed, the current entry's 4 by 20 accent mark, 4 dp left of its pill and 8 from its icon (a state line, not focus). */
 private fun Modifier.currentMark(): Modifier = drawBehind {
     val w = 4.dp.toPx()
     val h = 20.dp.toPx()
-    drawRoundRect(PleyColors.Accent, Offset(0f, (size.height - h) / 2f), Size(w, h), CornerRadius(w / 2f, w / 2f))
+    drawRoundRect(PleyColors.Accent, Offset(-w, (size.height - h) / 2f), Size(w, h), CornerRadius(w / 2f, w / 2f))
 }
 
 /**
@@ -736,14 +787,25 @@ private val CountY = (-10).dp
 /** What the number counts to before it says "99+". */
 private const val MAX_COUNT = 99
 
+/** From the rail's edges to its pills: the screen's edge, and the open panel's. */
+private val RailInset = 8.dp
+
 /**
- * A pill closed and open; the label starts where the closed pill ends, and
- * stops 12 dp short of the open one's end. Open and focused, it ends 7 dp
- * short of the panel's edge, about what it keeps from the screen's.
+ * A closed pill: its icon's middle is at x = 28, the middle of the dark
+ * the pages keep under the rail. Open, the label starts 16 dp after the
+ * icon and stops 16 dp short of the pill's end, room for it to grow with
+ * focus.
  */
-private val ClosedPillWidth = 56.dp
-private val OpenPillWidth = 246.dp
-private val LabelEnd = 12.dp
+private val ClosedPillWidth = 40.dp
+private val LabelStart = 56.dp
+private val LabelEnd = 16.dp
+
+/** An open pill at its narrowest and its widest ([openPillWidth]): a panel of 240 dp and of 320. */
+private val OpenPillLeast = 224.dp
+private val OpenPillMost = 304.dp
+
+/** The icon's middle in a pill: what a focused pill grows about. */
+private val PillPivot = ClosedPillWidth / 2
 
 /** How far the labels slide in from as the rail opens: a little, so they don't cross the icons. */
 private val LabelSlide = 24.dp
