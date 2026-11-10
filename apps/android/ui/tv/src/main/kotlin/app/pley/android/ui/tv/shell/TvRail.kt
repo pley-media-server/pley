@@ -217,9 +217,10 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
 
 /**
  * The rail (design spec §2.1): 40 dp entries collapsed, 40 tall on a
- * 44 dp pitch. Collapsed, the icons are in the middle of the 56 dp the
- * pages keep dark under it ([PleyTv.RailFadeSolidUntil]), 16 dp from the
- * screen's edge and from the page's. Open, the panel is as wide as its
+ * 44 dp pitch. Collapsed, the icons are in the middle of the dark the
+ * pages keep under it, which thins out softly past them
+ * ([PleyTv.RailFadeSolidUntil] to [PleyTv.RailFadeClearFrom]): 16 dp
+ * from the screen's edge, and as far from where the dark is half gone. Open, the panel is as wide as its
  * longest label needs, 240 dp at the least and 320 at the most
  * ([openPillWidth]), and an entry is 8 dp from the screen's edge and
  * from the panel's. The avatar at the top switches profiles; then [items],
@@ -792,7 +793,7 @@ private val RailInset = 8.dp
 
 /**
  * A closed pill: its icon's middle is at x = 28, the middle of the dark
- * the pages keep under the rail. Open, the label starts 16 dp after the
+ * the pages keep under the rail before it thins out. Open, the label starts 16 dp after the
  * icon and stops 16 dp short of the pill's end, room for it to grow with
  * focus.
  */

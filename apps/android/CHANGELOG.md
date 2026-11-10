@@ -66,6 +66,8 @@ describes how they are made.
 - On Android TV, chips and tabs, a show's season tabs among them, are
   as tall as the buttons, and the player's Skip and Play now, History's
   Remove and the music player's Play are smaller with them.
+- On Android TV, the dark under the closed rail thins out softly into
+  the page, where it ended in a hard edge.
 - On Android TV, the rail's icons sit in the middle of its dark strip,
   with the same room at either side, where they stood nearer the page.
   Open, the current entry and the focused one are as wide as each other

@@ -890,7 +890,7 @@ private fun Modifier.focusedRowOnTop(row: RowFocus): Modifier = layout { measura
 
 /**
  * Hides what scrolls under the collapsed rail (design spec §2.4): [Bg][PleyColors.Bg]
- * up to x = 56, clear from x = 72, drawn once over the content, while
+ * up to x = 44, thinning softly to clear at x = 92, drawn once over the content, while
  * [shown] (read as it draws: a row that has scrolled). The focused tile's
  * ring sits right of it.
  */
@@ -901,11 +901,23 @@ fun Modifier.railFade(shown: () -> Boolean = { true }): Modifier = drawWithConte
     if (shown()) drawStretched(RailFade, Offset.Zero, Size(PleyTv.RailFadeClearFrom.toPx(), size.height))
 }
 
-/** Bg to x = 56 of its 72 dp, then clear at 72. */
+/**
+ * Bg to x = 44 of its 92 dp, then thinning to clear at 92 along an S-shaped
+ * curve (smoothstep), gently at both ends: the dark has no edge where it
+ * starts to go, nor where the page shows through whole, 4 dp short of the
+ * gutter and the focused tile.
+ */
 private val RailFade by lazy {
     val solid = PleyTv.RailFadeSolidUntil.value / PleyTv.RailFadeClearFrom.value
-    GradientBitmaps.horizontal(0f to PleyColors.Bg, solid to PleyColors.Bg, 1f to Color.Transparent)
+    val stops = (0..FADE_STEPS).map { i ->
+        val t = i / FADE_STEPS.toFloat()
+        (solid + (1f - solid) * t) to PleyColors.Bg.copy(alpha = 1f - t * t * (3f - 2f * t))
+    }
+    GradientBitmaps.horizontal(0f to PleyColors.Bg, *stops.toTypedArray())
 }
+
+/** The straight pieces the fade's curve is made of. */
+private const val FADE_STEPS = 12
 
 /**
  * Lays this out [vertical] taller above and below than the room it takes,

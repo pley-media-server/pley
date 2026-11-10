@@ -37,7 +37,7 @@ object PleyTv {
     val CanvasWidth = 960.dp
     val CanvasHeight = 540.dp
 
-    /** The collapsed rail: 8, a 40 dp item, and the room to where pages are clear of it ([RailFadeClearFrom]). Open, it is as wide as its labels need. */
+    /** The collapsed rail: 8, a 40 dp item, and room after it; the pages' dark under it thins out from [RailFadeSolidUntil] to [RailFadeClearFrom]. Open, it is as wide as its labels need. */
     val RailCollapsed = 72.dp
 
     /** Every page's left edge: the rail and 24. Rows keep their focused tile here. */
@@ -88,10 +88,10 @@ object PleyTv {
     val ScrubThumbFocused = 12.dp
 
     /** The rows' fade under the collapsed rail: [Bg][PleyColors.Bg] to this x… */
-    val RailFadeSolidUntil = 56.dp
+    val RailFadeSolidUntil = 44.dp
 
     /** …and clear from this x. */
-    val RailFadeClearFrom = 72.dp
+    val RailFadeClearFrom = 92.dp
 }
 
 /** The phone's layout values (design spec §1.3, §3.2). */
