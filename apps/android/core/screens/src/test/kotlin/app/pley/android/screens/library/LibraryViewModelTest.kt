@@ -54,13 +54,20 @@ class LibraryViewModelTest {
     @After
     fun reset() = Dispatchers.resetMain()
 
-    private fun viewModel(libraryId: Long = 1, tab: LibraryTab? = null, saved: String? = null, view: String? = null) = LibraryViewModel(
+    private fun viewModel(
+        libraryId: Long = 1,
+        tab: LibraryTab? = null,
+        saved: String? = null,
+        view: String? = null,
+        first: LibraryTab = LibraryTab.Library,
+    ) = LibraryViewModel(
         libraryId = libraryId,
         tab = tab,
         saved = saved,
         deps = LibraryDeps(libraries, items, hubs, collections, settings, MutableStateFlow("http://pley"), dispatcher, views),
         tiles = FakeTiles,
         view = view,
+        first = first,
     )
 
     private val byTitle = LibraryQuery(LibrarySort.Title, SortOrder.Ascending)
@@ -259,6 +266,42 @@ class LibraryViewModelTest {
         advanceUntilIdle()
         assertNull("the default view is forgotten", views.kept[1])
         job.cancel()
+    }
+
+    @Test
+    fun aLibraryThatFirstOpensOnRecommendedStillOpensAsItWasLeft() = runTest(dispatcher) {
+        // The TV's: Recommended the first time.
+        val fresh = viewModel(first = LibraryTab.Recommended)
+        val job = launch { fresh.state.collect {} }
+        advanceUntilIdle()
+        assertEquals(LibraryTab.Recommended, fresh.state.value.params.tab)
+        assertEquals(LibraryTab.Recommended, fresh.state.value.openedOn)
+        assertTrue("opening keeps nothing", views.kept.isEmpty())
+        // Left on the Library tab as it comes: written out, an empty view being forgotten.
+        fresh.select(LibraryTab.Library)
+        advanceUntilIdle()
+        assertEquals("tab=library", views.kept[1])
+        job.cancel()
+
+        val again = viewModel(first = LibraryTab.Recommended)
+        val second = launch { again.state.collect {} }
+        advanceUntilIdle()
+        assertEquals(LibraryParams(tab = LibraryTab.Library), again.state.value.params)
+        // Back on Recommended as it comes, there is nothing to remember.
+        again.select(LibraryTab.Recommended)
+        advanceUntilIdle()
+        assertNull(views.kept[1])
+        second.cancel()
+
+        // A view kept before, with no tab named, is the Library tab's; one the screen saved is too.
+        views.kept[1] = "sort=added"
+        val older = viewModel(first = LibraryTab.Recommended)
+        val third = launch { older.state.collect {} }
+        advanceUntilIdle()
+        assertEquals(LibraryParams(LibraryTab.Library, LibrarySort.Added), older.state.value.params)
+        third.cancel()
+        assertEquals(LibraryTab.Library, viewModel(first = LibraryTab.Recommended, saved = "").state.value.params.tab)
+        assertEquals(LibraryTab.Recommended, viewModel(first = LibraryTab.Recommended, saved = "tab=recommended").state.value.params.tab)
     }
 
     @Test

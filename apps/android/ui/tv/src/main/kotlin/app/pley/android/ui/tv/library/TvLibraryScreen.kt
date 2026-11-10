@@ -90,14 +90,16 @@ import kotlinx.coroutines.launch
  * grid of six posters a row with the A to Z jump beside it; the
  * Recommended tab's rows; the Collections tab's grid. Sort and filters
  * open in a side panel. The first tile has focus, or the one focused last
- * when coming back.
+ * when coming back. A library opens on the tab it was left on, on
+ * Recommended the first time.
  */
 @Composable
 internal fun TvLibraryScreen(key: PleyKey.Library) {
     var saved by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val vm: LibraryViewModel<ArtworkTileModel> = viewModel {
-        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), TvTiles(context), key.view)
+        // On TV a library first opens on Recommended, its rows, rather than on the whole grid.
+        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), TvTiles(context), key.view, first = LibraryTab.Recommended)
     }
     LaunchedEffect(vm) {
         vm.state.map { it.params.toQueryString() }.distinctUntilChanged().collect { saved = it }

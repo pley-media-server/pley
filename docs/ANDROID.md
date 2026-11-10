@@ -571,6 +571,8 @@ its best file, a show by its best episode.
 - Clear filters clears them all, Save as… keeps them in the smart playlist
   (`resolution=4k&dynamicRange=hdr`), and a library opens as it was left,
   filters included; a stored value the server wouldn't take is dropped.
+  A library never opened on the device starts on its Library tab on a
+  phone, as on the web, and on Recommended on a TV.
 - Posters carry their quality badges ("4K", "DV", "HDR") only while the
   grid is sorted by bitrate or filtered by resolution or dynamic range;
   sorted by bitrate, each also shows its bitrate and size. Recommended

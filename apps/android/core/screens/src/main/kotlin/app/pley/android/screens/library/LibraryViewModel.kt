@@ -177,7 +177,8 @@ data class LibraryUiState<T : Any>(
  * handing them back as [saved]; a page opened anew starts with the sort
  * and filters the library was left in on this device ([LibraryViews]),
  * read before the page shows anything, on [tab], or without one on the
- * tab it was left on (Library the first time). Opened with a [view] (a
+ * tab it was left on ([first] the first time: Library, as the web, unless
+ * the screen says otherwise). Opened with a [view] (a
  * row's See all), it starts in that instead, as the web's address with a
  * sort does. Each tab reads only once it has been shown. Tiles and the A
  * to Z are worked out off the main thread.
@@ -189,9 +190,12 @@ class LibraryViewModel<T : Any>(
     private val deps: LibraryDeps,
     private val tiles: TileFactory<T>,
     view: String? = null,
+    private val first: LibraryTab = LibraryTab.Library,
 ) : ViewModel() {
-    private val opening = tab ?: LibraryTab.Library
-    private val params = MutableStateFlow((saved ?: view)?.let { LibraryParams.parse(it, opening) } ?: LibraryParams(tab = opening))
+    private val opening = tab ?: first
+
+    // A view written down names its tab unless it is Library, whatever a library first opens on.
+    private val params = MutableStateFlow((saved ?: view)?.let { LibraryParams.parse(it, tab ?: LibraryTab.Library) } ?: LibraryParams(tab = opening))
 
     /** The view the library was left in is read (a page that came back has its own, as does one opened with a view). */
     private val viewRead = MutableStateFlow(saved != null || view != null)
@@ -312,15 +316,26 @@ class LibraryViewModel<T : Any>(
                 val left = withTimeoutOrNull(VIEW_READ_MS) { deps.views.of(libraryId) }
                 // Unless something was chosen meanwhile. A page opened on a tab stays on it.
                 if (!left.isNullOrEmpty()) {
-                    val view = LibraryParams.parse(left, opening)
+                    val view = LibraryParams.parse(left)
                     params.compareAndSet(LibraryParams(tab = opening), if (tab != null) view.copy(tab = tab) else view)
                 }
                 openedOn.value = params.value.tab
                 viewRead.value = true
             }
             // What is chosen from now on is how the library opens next time.
-            params.map { it.view() }.distinctUntilChanged().drop(1).collect { deps.views.keep(libraryId, it) }
+            params.map(::kept).distinctUntilChanged().drop(1).collect { deps.views.keep(libraryId, it) }
         }
+    }
+
+    /**
+     * [params] as kept for next time: nothing ("") for the view a library
+     * first opens in, which needs no remembering. The Library tab as it
+     * comes is written out where that isn't it, since an empty view is
+     * forgotten.
+     */
+    private fun kept(params: LibraryParams): String = when (params) {
+        LibraryParams(tab = first) -> ""
+        else -> params.view().ifEmpty { "tab=${LibraryTab.Library.wire}" }
     }
 
     /** Shows [tab]; its content starts reading the first time. */
