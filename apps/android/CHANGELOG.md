@@ -26,6 +26,10 @@ describes how they are made.
 - A show with more than 12 seasons lists them newest first, with Specials
   last, so the seasons still coming out are the first ones. On Android
   TV the seasons open at the one shown, wherever it is in the row.
+- On Android TV, Select on a season opens its page at once, from what
+  the show's page already has of it, where it showed an empty outline
+  until the server answered. Any title's page that is already held opens
+  the same way, with no outline first.
 - On Android TV, buttons are a little smaller, those of Home's banner
   smaller again, and the banner's words fade in as it turns to the next
   title.

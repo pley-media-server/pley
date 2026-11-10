@@ -114,6 +114,27 @@ interface ItemRepository {
 
     /** Asks for [itemId]'s children ahead, unless they are kept already (a season's episodes, before it is shown). */
     suspend fun warmChildren(itemId: Long) {}
+
+    /**
+     * Gets [item]'s page ready from the listing it is in (a season among
+     * its show's): what the listing says of it stands in for its details
+     * while they aren't known, and [next] for the episode it plays, so
+     * its page opens at once; the server is asked for both now.
+     */
+    fun seed(item: ItemSummary, next: ItemSummary? = null) {}
+
+    /**
+     * [itemId]'s details as held in memory now, without asking for them:
+     * a page seen before, one asked for ahead, or a stand-in ([seed]). A
+     * page that finds them draws itself at once, with no outline first.
+     */
+    fun held(itemId: Long): ItemDetail? = null
+
+    /** [itemId]'s children as held in memory now. */
+    fun heldChildren(itemId: Long): List<ItemSummary>? = null
+
+    /** The episode [itemId] plays next as held in memory now; `null` when that isn't held. */
+    fun heldOnDeck(itemId: Long): Loadable<ItemSummary?>? = null
 }
 
 interface SearchRepository {

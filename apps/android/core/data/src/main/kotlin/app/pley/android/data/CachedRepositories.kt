@@ -9,6 +9,7 @@ import app.pley.android.model.HistoryPage
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemCollections
 import app.pley.android.model.ItemDetail
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
@@ -181,6 +182,24 @@ internal class CachedItems(private val cache: ResourceCache) : ItemRepository {
         val resource = childrenOf(itemId)
         if (cache.peek(resource) == null) cache.refreshQuietly(resource)
     }
+
+    override fun seed(item: ItemSummary, next: ItemSummary?) {
+        val detail = detailOf(item.id)
+        cache.seed(detail, ItemDetail.of(item))
+        // Asked for though a stand-in is held, which [prefetch] below would take for the answer.
+        cache.prefetch(detail)
+        if (item.kind == ItemKind.Show || item.kind == ItemKind.Season) {
+            val onDeck = onDeckOf(item.id)
+            if (next != null) cache.seed(onDeck, MaybeItem(next))
+            cache.prefetch(onDeck)
+        }
+    }
+
+    override fun held(itemId: Long): ItemDetail? = cache.peek(detailOf(itemId))
+
+    override fun heldChildren(itemId: Long): List<ItemSummary>? = cache.peek(childrenOf(itemId))?.items
+
+    override fun heldOnDeck(itemId: Long): Loadable<ItemSummary?>? = cache.peek(onDeckOf(itemId))?.let { Loadable.Ready(it.item, fresh = false) }
 
     /** Loads [itemId]'s page ahead, unless it is held: never every visible card (asking queues work on the server). */
     override fun prefetch(itemId: Long) {

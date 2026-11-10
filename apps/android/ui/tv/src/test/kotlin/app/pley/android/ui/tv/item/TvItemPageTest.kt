@@ -304,6 +304,24 @@ class TvItemPageTest {
     }
 
     @Test
+    fun aSeasonsPageIsGotReadyWhileFocusRestsOnItsPosterAndAsItOpens() {
+        val data = showOf(3, posters = true, next = 2)
+        show(data)
+        // Down lands on Season 2, the next episode's: resting there readies its page, with that episode as its next.
+        press(Key.DirectionDown)
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        assertEquals(listOf<Pair<Long, Long?>>(102L to 1021L), data.seeded)
+        // Select before focus has rested on Season 3 readies it all the same, before its page opens.
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight, 1) }
+        compose.onRoot().performKeyInput { pressKey(Key.Enter, 1) }
+        compose.mainClock.advanceTimeBy(32)
+        assertEquals(103L to null, data.seeded.last())
+        assertEquals(PleyKey.Item(103), stack.last())
+    }
+
+    @Test
     fun aShowWithoutSeasonPostersKeepsItsWordTabs() {
         show(showOf(3))
         val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()

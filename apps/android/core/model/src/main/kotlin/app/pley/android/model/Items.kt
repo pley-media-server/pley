@@ -239,6 +239,43 @@ data class ItemDetail(
         extraType = extraType,
         media = media,
     )
+
+    companion object {
+        /**
+         * What a listing says of an item, as its details: [toSummary]'s
+         * way back, with nothing of what a listing leaves out. A season's
+         * stands in for its details until the server's come: they add
+         * only its summary and the show's cast.
+         */
+        fun of(summary: ItemSummary): ItemDetail = ItemDetail(
+            id = summary.id,
+            libraryId = summary.libraryId,
+            kind = summary.kind,
+            title = summary.title,
+            sortTitle = summary.sortTitle,
+            year = summary.year,
+            index = summary.index,
+            parentId = summary.parentId,
+            parentTitle = summary.parentTitle,
+            parentIndex = summary.parentIndex,
+            grandparentId = summary.grandparentId,
+            grandparentTitle = summary.grandparentTitle,
+            durationMs = summary.durationMs,
+            rating = summary.rating,
+            addedAt = summary.addedAt,
+            posterUrl = summary.posterUrl,
+            backdropUrl = summary.backdropUrl,
+            thumbUrl = summary.thumbUrl,
+            userState = summary.userState,
+            leafCount = summary.leafCount,
+            viewedLeafCount = summary.viewedLeafCount,
+            childCount = summary.childCount,
+            summary = summary.summary,
+            releaseDate = summary.releaseDate,
+            extraType = summary.extraType,
+            media = summary.media,
+        )
+    }
 }
 
 /**

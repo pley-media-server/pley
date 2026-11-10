@@ -250,7 +250,12 @@ rates as the decoder gives them, the same in every language.
   their episodes asked for ahead, the next ones first, so a season shows
   with them. Seasons with posters of their own are a row of posters in
   the tabs' place, and Select on one opens the season's page: its
-  episodes under the buttons, without the row. A show with more than 12
+  episodes under the buttons, without the row. That page opens whole,
+  without waiting for the server: what the show's page knows of the
+  season (its name, poster and counts, its episodes, and the show's next
+  episode when it is one of them) stands in for the season's details,
+  which are asked for as soon as focus rests on the season and add its
+  summary and the cast. A show with more than 12
   seasons lists them newest first, Specials last (the phone's season
   picker too), and the tabs or posters open with the season shown in
   sight, wherever it is along them.

@@ -98,6 +98,7 @@ import app.pley.android.ui.tv.shell.TvNavigator
 import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
 import app.pley.android.ui.tv.theme.LocalTvTier
+import kotlinx.coroutines.delay
 
 /**
  * An item's page on TV (design spec §4.3, §4.4; mockups tv-movie and
@@ -130,7 +131,16 @@ internal fun TvItemScreen(model: ItemViewModel) {
     }
     Box(Modifier.fillMaxSize().testTag(TV_ITEM_PAGE)) {
         when (val s = state) {
-            ItemUiState.Loading -> TvItemSkeleton()
+            ItemUiState.Loading -> {
+                // A page that is held (seen before, or a season got ready by its show's page) is made
+                // within a frame or two: the outline waits, so it doesn't flash before the page.
+                var late by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    delay(SKELETON_AFTER_MS)
+                    late = true
+                }
+                if (late) TvItemSkeleton()
+            }
             ItemUiState.NotFound -> TvMessage(
                 title = stringResource(R.string.tv_item_not_found),
                 body = stringResource(R.string.tv_item_not_found_body),
@@ -238,6 +248,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                         rowRequester = episodesRow,
                         seasonsRequester = seasonsRow,
                         onSelectSeason = model::selectSeason,
+                        onReadySeason = model::readySeason,
                         onFocusEpisode = { focusedEpisode = it },
                         onOpen = { actions.open(it.id) },
                         onActions = { panel = Panel.Actions(it, episodesRow) },
@@ -540,7 +551,11 @@ internal fun heroTitle(page: ItemPage): String = when (page.kind) {
     else -> page.title
 }
 
-/** The loading page (design spec §8): still blocks where the hero's text and buttons will be. No spinner. */
+/**
+ * The loading page (design spec §8): still blocks where the hero's text
+ * and buttons will be, once the page has been [SKELETON_AFTER_MS] coming.
+ * No spinner.
+ */
 @Composable
 private fun TvItemSkeleton() {
     Column(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 82.dp)) {
@@ -565,6 +580,9 @@ private fun TvItemSkeleton() {
 private fun Block(width: androidx.compose.ui.unit.Dp, height: androidx.compose.ui.unit.Dp) {
     Box(Modifier.size(width, height).background(PleyColors.Surface2, PleyShape.Badge))
 }
+
+/** How long a page loads before its outline shows: longer than a held page takes to be made. */
+private const val SKELETON_AFTER_MS = 150L
 
 /** The season tabs' top once focus is in the episodes (mockup tv-show). */
 internal val TabsTop = 218.dp
