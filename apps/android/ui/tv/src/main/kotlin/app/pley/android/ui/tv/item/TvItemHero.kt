@@ -36,6 +36,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import app.pley.android.common.TestTags
 import app.pley.android.designsystem.PleyColors
@@ -72,9 +73,11 @@ import app.pley.android.ui.tv.requests.TvItemRequestLine
  * actions. Down from the buttons goes to [down] (the episode to watch, or a show's season posters).
  * The title and the summary have more room than the column
  * ([HeroColumn], [SummaryColumn]); a long title has up to three lines, growing down,
- * before it is cut. On a show's page whose season posters come next, the
- * summary gives up lines, down to one, so that the posters show whole
- * above the screen's bottom edge ([summaryLines]).
+ * before it is cut. The summary gives up lines, down to one, so that
+ * what follows the buttons shows whole above the screen's bottom edge
+ * ([summaryLines]): a show's season posters, the episodes, or the first
+ * row with its names. Where that row is Cast & Crew, the credits line
+ * is left to it, which names the same people.
  */
 @Composable
 internal fun TvHero(
@@ -124,7 +127,8 @@ internal fun TvHero(
             Spacer(Modifier.height(6.dp))
             BasicText(genres, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
         }
-        val credits = creditsLine(page)
+        // Who made it and who is in it: named by the Cast & Crew row when that is what follows, not twice.
+        val credits = if (castFollows(page)) null else creditsLine(page)
         page.summary?.let { summary ->
             Spacer(Modifier.height(SummaryGap))
             HeroSummary(summary, buttons, summaryLines(page, request, genres.isNotEmpty(), credits != null))
@@ -166,14 +170,14 @@ private fun HeroSummary(summary: String, buttons: HeroButtons, lines: Int) {
 }
 
 /**
- * The summary's lines: three, or as many as leave a show's season posters
- * whole above the screen's bottom edge when they come next, one at
+ * The summary's lines: three, or as many as leave what follows the
+ * buttons whole above the screen's bottom edge ([followsHeight]), one at
  * least. Worked out from what the hero shows over and under the summary
  * (a title's lines are measured), so the page is laid out once.
  */
 @Composable
 private fun summaryLines(page: ItemPage, request: ItemRequestState?, genres: Boolean, credits: Boolean): Int {
-    if (!seasonPosterRow(page)) return SUMMARY_LINES
+    val follows = followsHeight(page) ?: return SUMMARY_LINES
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
     val title = heroTitle(page)
@@ -188,9 +192,33 @@ private fun summaryLines(page: ItemPage, request: ItemRequestState?, genres: Boo
         (if (genres) CaptionRoom else 0.dp) +
         SummaryGap
     val under = (if (credits) CaptionRoom else 0.dp) + ButtonsGap + PleyTv.ButtonHeight + PleyTv.ButtonLabelRoom + HeroBottom +
-        PleyTv.RowGap + TileKind.Poster.tvHeight
+        PleyTv.RowGap + follows
     return ((PleyTv.CanvasHeight - over - under) / SummaryLine).toInt().coerceIn(1, SUMMARY_LINES)
 }
+
+/**
+ * How much of what follows the buttons is to show above the screen's
+ * bottom edge, with the page at rest: a show's season posters; the
+ * episodes with their captions, under their tabs or their season's name;
+ * else the first row (Extras, Cast & Crew) with its header and its
+ * captions. `null` when nothing follows.
+ */
+private fun followsHeight(page: ItemPage): Dp? {
+    val seasons = page.seasons
+    val header = PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles
+    val captions = PleyTv.TilesToCaption + PleyTv.CaptionHeight
+    return when {
+        seasonPosterRow(page) -> TileKind.Poster.tvHeight
+        seasons != null -> (if (seasons.seasons.size > 1 && !seasons.posters) TabHeight + TabsToTiles else header) + TileKind.Episode.tvHeight + captions
+        page.extras.isNotEmpty() -> header + TileKind.Landscape.tvHeight + captions
+        castFollows(page) -> header + TileKind.Person.tvHeight + captions
+        else -> null
+    }
+}
+
+/** Whether Cast & Crew is the row right under the buttons: a movie's page without extras. */
+private fun castFollows(page: ItemPage): Boolean =
+    page.seasons == null && page.extras.isEmpty() && (page.cast.isNotEmpty() || page.details.crew.isNotEmpty())
 
 /** "Directed by Lena Okafor · Starring Idris Vale, Maren Holt": labels in [muted][PleyColors.Muted]. */
 @Composable
