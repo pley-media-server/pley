@@ -68,6 +68,10 @@ describes how they are made.
   scanned, reading the same disks as the next one's scan and slowing its
   details down. A show's episodes are written a season at a time rather
   than one by one.
+- A video that has to be remuxed or converted starts without waiting for
+  a library scan's reads of other files, when the transcoder has to read
+  it first. The log says how long each playback took to start, and the
+  transcoder's part of it.
 
 ## [0.1.9] - 2026-11-08
 
