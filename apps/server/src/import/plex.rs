@@ -371,20 +371,6 @@ impl Plex {
         Ok(c.media_container.metadata.into_iter().next())
     }
 
-    /// Poster `thumb`, as a listing gives it, as the server stored it: at
-    /// most [`MAX_ANSWER`] bytes of whatever it answers (the caller checks
-    /// it's a picture). The stored file, not the picture transcoder's copy,
-    /// as only it keeps the EXIF that says Kometa drew an overlay on it.
-    /// Only the server's own pictures are asked for, never an address
-    /// elsewhere.
-    pub async fn poster(&self, server: &Server, thumb: &str) -> PlexResult<Vec<u8>> {
-        if !thumb.starts_with("/library/") || thumb.contains("://") || thumb.contains("..") {
-            return Err(PlexError::Unreachable("not one of the server's pictures".into()));
-        }
-        let url = server.base.join(thumb).map_err(|_| PlexError::Unreachable("bad path".into()))?;
-        self.send(Method::GET, url, Some(&server.token)).await
-    }
-
     /// The labels used in library `section`.
     pub async fn labels(&self, server: &Server, section: &str) -> PlexResult<Vec<Tag>> {
         let c: Container<Tag> =
@@ -690,8 +676,6 @@ pub struct Item {
     #[serde(rename = "type")]
     pub kind: String,
     pub title: String,
-    /// Its poster, a path on the server (`/library/metadata/1/thumb/…`).
-    pub thumb: Option<String>,
     #[serde(deserialize_with = "opt_num")]
     pub index: Option<i64>,
     #[serde(deserialize_with = "opt_num")]

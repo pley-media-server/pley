@@ -45,7 +45,6 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
             json!({"ratingKey": "101", "type": "movie", "title": "Alien", "addedAt": 1_000_000_000,
                    "thumb": "/library/metadata/101/thumb/1",
                    "Guid": [{"id": "tmdb://348"}], "Media": file("/plexdata/movies/Alien (1979).mkv", 1024)}),
-            // A poster elsewhere than the server, which Pley never asks for.
             json!({"ratingKey": "102", "type": "movie", "title": "Brazil", "addedAt": 1_100_000_000,
                    "year": 1985, "summary": "A clerk dreams.", "thumb": "http://elsewhere.invalid/brazil.png",
                    "Guid": [{"id": "tmdb://68"}], "Media": file("/plexdata/movies/Brazil (1985).mkv", 2048)}),
@@ -53,8 +52,7 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
                    "Guid": [{"id": "tmdb://289"}], "Media": file("/plexdata/movies/Casablanca (1942).mkv", 4096)}),
         ],
         ("2", "2") => {
-            // Found only through its episodes, which come after it. Its
-            // poster has Kometa's overlay drawn on it.
+            // Found only through its episodes, which come after it.
             vec![json!({"ratingKey": "200", "type": "show", "title": "Show", "summary": "A show.",
                         "thumb": "/library/metadata/200/thumb/1", "Guid": [{"id": "tvdb://999"}]})]
         }
@@ -160,17 +158,6 @@ fn png(width: u32, height: u32) -> Vec<u8> {
         .write_to(&mut out, image::ImageFormat::Png)
         .unwrap();
     out.into_inner()
-}
-
-/// A poster as Kometa uploads one once it has drawn its overlay: marked so
-/// in its EXIF.
-fn overlaid_jpeg() -> Vec<u8> {
-    use image::ImageEncoder;
-    let mut out = Vec::new();
-    let mut encoder = image::codecs::jpeg::JpegEncoder::new(&mut out);
-    encoder.set_exif_metadata(pley::images::overlay_exif()).unwrap();
-    encoder.encode_image(&image::RgbImage::new(60, 90)).unwrap();
-    out
 }
 
 fn picture(bytes: Vec<u8>) -> Response {
@@ -289,20 +276,6 @@ async fn fake_plex() -> String {
             }),
         )
         .route("/library/sections/{section}/all", get(all))
-        // Posters, as they were stored.
-        .route(
-            "/library/metadata/{key}/thumb/{version}",
-            get(|Path((key, _)): Path<(String, String)>, headers: HeaderMap| async move {
-                if token(&headers) != OWNER_SERVER {
-                    return StatusCode::UNAUTHORIZED.into_response();
-                }
-                match key.as_str() {
-                    "101" => picture(png(60, 90)),
-                    "200" => picture(overlaid_jpeg()),
-                    _ => ([(header::CONTENT_TYPE, "text/html")], "<html></html>").into_response(),
-                }
-            }),
-        )
         .route(
             "/library/sections/{section}/label",
             get(|Path(section): Path<String>| async move {
@@ -578,16 +551,15 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
 
     // Movies is matched while TV is still scanned: its titles get Plex's
-    // dates added and posters without waiting for TV's files.
+    // dates added without waiting for TV's files.
     let alien: i64 =
         sqlx::query_scalar("SELECT id FROM items WHERE title = 'Alien'").fetch_one(&app.state.db.read).await.unwrap();
     for _ in 0..400 {
-        if one(&app, "SELECT poster IS NOT NULL FROM items WHERE id = ?", alien).await == 1 {
+        if one(&app, "SELECT added_at FROM items WHERE id = ?", alien).await == 1_000_000_000 {
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    assert_eq!(one(&app, "SELECT poster IS NOT NULL FROM items WHERE id = ?", alien).await, 1);
     assert_eq!(one(&app, "SELECT added_at FROM items WHERE id = ?", alien).await, 1_000_000_000);
     let scanning = app.get("/api/import/plex", &admin).await.body;
     assert_eq!((&scanning["step"], &scanning["scan"]["library"]), (&json!("scanning"), &json!("TV")), "{scanning:?}");
@@ -598,10 +570,9 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert!(!serde_json::to_string(&done).unwrap().contains(OWNER), "no token in the report");
 
     let report = &done["report"];
-    // Plex's details and posters where Pley has nothing better (no metadata
-    // fetched here, Alien not found by its search), but not over Brazil's
-    // NFO file; a poster only where Plex gave a picture of its own, and not
-    // the show's, which Kometa drew its overlay on.
+    // Plex's details where Pley has nothing better (no metadata fetched
+    // here, Alien not found by its search), but not over Brazil's NFO
+    // file; never Plex's posters, which Pley's fetch replaces.
     let titles: Vec<(String, Option<i64>, Option<String>, bool)> = sqlx::query_as(
         "SELECT title, year, summary, poster IS NOT NULL FROM items
          WHERE kind IN ('movie', 'show', 'episode') ORDER BY kind, title",
@@ -615,7 +586,7 @@ async fn brings_libraries_people_and_what_they_watched() {
         [
             ("One", None, Some("It begins."), false),
             ("Two", None, None, false),
-            ("Alien", Some(1979), Some("Hand-written."), true),
+            ("Alien", Some(1979), Some("Hand-written."), false),
             ("Brazil", Some(1985), None, false),
             ("Show", Some(2015), Some("A show."), false),
         ]
@@ -988,7 +959,7 @@ async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
             .fetch_one(&app.state.db.read)
             .await
             .unwrap();
-    assert_eq!((tmdb_id, fetched, poster), (Some(348), false, true), "Plex's match and poster, before any metadata");
+    assert_eq!((tmdb_id, fetched, poster), (Some(348), false, false), "Plex's match, before any metadata");
     let watched: i64 =
         sqlx::query_scalar("SELECT play_count FROM user_item_state WHERE user_id = ? AND item_id = ? AND watched = 1")
             .bind(admin_id)

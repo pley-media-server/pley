@@ -41,20 +41,20 @@ never changes anything on Plex.
   in Pley: titles, summaries, years, content ratings, genres and the
   like.
 
-Titles found by their files show with Plex's names, years, summaries,
-posters and dates added as soon as their library is scanned, while the
-other libraries still are. Pley's own details replace the names, years,
-summaries and posters when it fetches them; titles keep Plex's where
-Pley's search finds nothing. Other artwork doesn't come
-over, and seasons and episodes get their pictures from the fetch.
+Titles found by their files show with Plex's names, years, summaries
+and dates added as soon as their library is scanned, while the other
+libraries still are. Pley's own details replace the names, years and
+summaries when it fetches them; titles keep Plex's where Pley's search
+finds nothing. Posters and other artwork don't come over: they come from
+Pley's fetch.
 
 The last three are choices on the import's "What to bring" step, all on
 at first. If you use Kometa, some of what it made in Plex comes over this
 way: it locks the fields it sets, such as content ratings, and its
 collections are collections like any. Point Kometa at Pley afterwards
 (see [Compatibility](COMPATIBILITY.md)) and it carries on there, its
-overlays included: its Overlay label and the posters it drew them on stay
-behind, so it draws them again on Pley's posters.
+overlays included: its Overlay label stays behind, so it draws them again
+on Pley's posters.
 
 ## How titles are found
 
@@ -108,7 +108,7 @@ Import from Plex.
    and edits: turn off what you'd rather start over in Pley.
 6. **Import.** New libraries are scanned for their files, a library at a
    time (it shows which, and its files read), what's found by file comes
-   over with Plex's names and posters, then Pley fetches posters and
+   over with Plex's names, then Pley fetches posters and
    details and looks for the rest of Plex's titles. Once what everyone watched is in, **Start
    watching** (or **Close**, from Settings) lets you go on while the rest
    runs. You can close the page at any time; the import goes on.

@@ -4546,9 +4546,8 @@ its file (through the folders' mapping, with the same size), then by its
 TMDB, IMDb or TheTVDB id (an episode by its show's and its numbers),
 never by its title. Music is matched by file only. Movies, shows and
 episodes found take Plex's title, year and summary where Pley hasn't
-fetched its own (or found none), and movies and shows Plex's poster, as
-the server stored it (its own pictures only), kept only as JPEG, PNG,
-WebP or GIF and never one Kometa drew its overlay on. None of these routes are open to
+fetched its own (or found none); posters and other artwork come from
+Pley's own fetch, never from Plex. None of these routes are open to
 apps.
 
 | Method | Path | Who | What |
@@ -4610,7 +4609,7 @@ interface ImportChoices {
 
 interface ImportProgress {
   state: "idle" | "running" | "done" | "failed" | "cancelled";
-  step: "scanning" | "profiles" | "matching" | "posters" | "labels" | "edits" | "collections" | "watch_state"
+  step: "scanning" | "profiles" | "matching" | "labels" | "edits" | "collections" | "watch_state"
       | "history" | "playlists" | "fetching" | "matching_again" | null;
   done: number; total: number;
   error: string | null;
@@ -4621,7 +4620,7 @@ interface ImportProgress {
   // During "scanning" (whose done and total count libraries): the library
   // scanned now, or next in line, with its files read of those found. A
   // library is matched as soon as its files are in, while the others are
-  // scanned; "matching" and "posters" are for those left once none is.
+  // scanned; "matching" is for those left once none is.
   scan: { library: string; phase: "queued" | "walking" | "probing"; done: number; total: number } | null;
   report: {
     finished_at: number;

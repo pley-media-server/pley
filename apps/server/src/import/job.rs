@@ -19,7 +19,6 @@ use crate::events::{ScanPhase, ServerEvent};
 use crate::library::scanner::ScanStatus;
 use crate::library::{LibraryKind, get_library};
 use crate::state::AppState;
-use crate::store::picture_ext;
 use crate::util::{now, sort_title};
 
 use super::matching::{Folder, Index, Matches, folder_for, map_path};
@@ -32,8 +31,6 @@ use super::restrictions::{self, Limits};
 const SOURCE: &str = "plex";
 /// Titles' own pages read at a time, for their locked fields.
 const PAGES_AT_ONCE: usize = 4;
-/// Posters asked of the Plex server at the same time.
-const POSTERS_AT_ONCE: usize = 4;
 /// The label Kometa puts on a title once it has drawn its overlay on the
 /// title's poster.
 const KOMETA_OVERLAY: &str = "Overlay";
@@ -134,8 +131,6 @@ pub enum Step {
     Scanning,
     Profiles,
     Matching,
-    /// Plex's posters, for titles that have none before the fetch.
-    Posters,
     Labels,
     Edits,
     Collections,
@@ -888,8 +883,6 @@ struct Titles {
     ids: Vec<PlexIds>,
     /// Those whose own page may have locked fields.
     pages: Vec<String>,
-    /// Pley's movies and shows found, with Plex's poster for them.
-    posters: Vec<(i64, String)>,
 }
 
 /// A movie's or show's ids, as Plex matched it.
@@ -1189,9 +1182,9 @@ impl Run {
     /// matched is what scans find. A scan of a library the import made finds
     /// its files only; one already running is waited for until its files are
     /// written, as it starts on its metadata. A library is matched while the
-    /// others are still scanned, so that its titles show Plex's names, dates
-    /// added and posters as soon as they can; those left once nothing is
-    /// scanned are matched as steps of their own.
+    /// others are still scanned, so that its titles show Plex's names and
+    /// dates added as soon as they can; those left once nothing is scanned
+    /// are matched as a step of their own.
     async fn match_as_scanned(
         &mut self,
         paired: &[Paired],
@@ -1234,7 +1227,6 @@ impl Run {
             for library in ready {
                 let index = Index::load(&self.state.db, &[library.library_id]).await?;
                 let found = self.find(library, &index, folders, &mut matches).await?;
-                self.posters(std::slice::from_ref(&found), false).await?;
                 self.state.events.send(ServerEvent::LibraryChanged { library_id: library.library_id });
                 titles.push(found);
             }
@@ -1244,12 +1236,10 @@ impl Run {
             self.step(Step::Matching, left.len() as u64);
             let ids: Vec<i64> = left.iter().map(|p| p.library_id).collect();
             let index = Index::load(&self.state.db, &ids).await?;
-            let first = titles.len();
             for library in &left {
                 titles.push(self.find(library, &index, folders, &mut matches).await?);
                 self.advance(1);
             }
-            self.posters(&titles[first..], true).await?;
             for library in &left {
                 self.state.events.send(ServerEvent::LibraryChanged { library_id: library.library_id });
             }
@@ -1572,11 +1562,6 @@ impl Run {
                             if let Some(found) = PlexDetails::of(&item) {
                                 details.push((id, found));
                             }
-                            if matches!(*kind, "movie" | "show")
-                                && let Some(thumb) = item.thumb.clone()
-                            {
-                                titles.posters.push((id, thumb));
-                            }
                         }
                         None if *kind == "episode" => retry.push(item),
                         None if *kind == "show" => shows.push(item),
@@ -1625,9 +1610,6 @@ impl Run {
             if let Some(found) = PlexDetails::of(&item) {
                 details.push((id, found));
             }
-            if let Some(thumb) = item.thumb {
-                titles.posters.push((id, thumb));
-            }
         }
         self.dates(&dates).await?;
         write_details(&self.state.db, &details).await?;
@@ -1636,60 +1618,6 @@ impl Run {
         report.missed = missed;
         report.missed_titles = named;
         Ok(titles)
-    }
-
-    /// Plex's posters for the movies and shows found that have none yet,
-    /// so that they show before the fetch gets to them (its posters
-    /// replace these), or where it found nothing. One Plex won't give, that
-    /// isn't a picture, or that Kometa drew its overlay on, is left to the
-    /// fetch: Kometa draws its overlays again on Pley's own.
-    /// `shown`: as a step of its own, else while another step shows.
-    async fn posters(&self, titles: &[Titles], shown: bool) -> ImportResult<()> {
-        let thumbs: HashMap<i64, &str> =
-            titles.iter().flat_map(|t| &t.posters).map(|(id, thumb)| (*id, thumb.as_str())).collect();
-        let ids = serde_json::to_string(&thumbs.keys().collect::<Vec<_>>()).unwrap_or_default();
-        let wanted: Vec<i64> = sqlx::query_scalar(
-            "SELECT i.id FROM json_each(?) j JOIN items i ON i.id = j.value
-             WHERE i.poster IS NULL AND (i.metadata_at IS NULL OR i.metadata_at < 0) AND i.metadata_locked = 0",
-        )
-        .bind(ids)
-        .fetch_all(&self.state.db.read)
-        .await?;
-        if wanted.is_empty() {
-            return Ok(());
-        }
-        if shown {
-            self.step(Step::Posters, wanted.len() as u64);
-        }
-        let (plex, server, store) = (&self.plex, &self.server, &self.state.store);
-        let mut downloads = futures::stream::iter(wanted)
-            .map(|id| {
-                let thumb = thumbs[&id];
-                async move {
-                    let bytes = plex.poster(server, thumb).await.ok()?;
-                    if crate::images::has_overlay_mark(&bytes) {
-                        return None;
-                    }
-                    let blob = store.put(&bytes, picture_ext(&bytes)?).await.ok()?;
-                    Some((id, blob))
-                }
-            })
-            .buffer_unordered(POSTERS_AT_ONCE);
-        while let Some(poster) = downloads.next().await {
-            self.cancelled()?;
-            if let Some((id, blob)) = poster {
-                sqlx::query("UPDATE items SET poster = ?, updated_at = ? WHERE id = ? AND poster IS NULL")
-                    .bind(blob)
-                    .bind(now())
-                    .bind(id)
-                    .execute(&self.state.db.write)
-                    .await?;
-            }
-            if shown {
-                self.advance(1);
-            }
-        }
-        Ok(())
     }
 
     /// Moves items' dates added to Plex's, only ever earlier.
