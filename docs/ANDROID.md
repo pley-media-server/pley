@@ -312,7 +312,11 @@ rates as the decoder gives them, the same in every language.
   so: its playlist does ([API.md](API.md#dolby-vision-remuxes)), and
   Media3 reads that for the track but not for the samples it hands the
   decoder. The player names those samples as their track, so they go to
-  the Dolby Vision decoder as a file played as it is does.
+  the Dolby Vision decoder as a file played as it is does. Media3's
+  MPEG-TS reader also leaves each frame's Dolby Vision metadata out of
+  its sample (the RPU, a NAL unit of its own after the frame's slices),
+  and the decoder then shows the base layer alone, HDR10: the player
+  ends each sample after the RPU, as a file's samples end.
 
 ### Remote control
 

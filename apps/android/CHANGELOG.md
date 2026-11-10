@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Dolby Vision the server repackages (a file that also carries HDR10+,
+  profile 7 made 8.1, one whose sound or container is changed) shows as
+  Dolby Vision. Since 0.1.10 it went to the Dolby Vision decoder, but
+  without its Dolby Vision metadata, so the screen still showed HDR10.
+
 ## [0.1.10] - 2026-11-10
 
 ### Added
