@@ -4,10 +4,10 @@ Each app (a "unit") has its own version and changelog. A release takes the
 units whose versions went up since the last release, each at its own
 version, under one tag named after the day it was prepared
 (`release-2026-11-02`, then `release-2026-11-02.2` for a second that day),
-and one GitHub release, named after that day too ("Pley 2026-11-02"),
-with each unit's notes. Each unit's notes are folded under its name and
-version, so readers open only their app's; a release of one unit shows
-them open. The first release is `release-2026-11-01`, for 0.1.1; the
+and one GitHub release, named after that day and what it holds ("Pley
+2026-11-02.2: Media Server, Android"), with each unit's notes. Each
+unit's notes are folded under its name and version, so readers open only
+their app's; a release of one unit shows them open. The first release is `release-2026-11-01`, for 0.1.1; the
 versions before it have no tag, and the changelogs link them to the source
 at their commit.
 

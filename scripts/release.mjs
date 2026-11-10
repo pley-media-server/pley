@@ -163,9 +163,19 @@ export function pending(root = ROOT) {
   if (tags.length > 1) wrong.push(`the units waiting link their versions to different tags: ${tags.join(", ")}`);
   const tag = tags[0] ?? null;
   if (tag && tagExists(tag, root)) wrong.push(`the tag ${tag} exists already`);
-  const title = `Pley ${tag?.replace(/^release-/, "") ?? ""}`.trim();
+  const title = releaseTitle(tag, units);
   const body = units.map((u) => folded(u, units.length === 1)).join("\n\n");
   return { since, tag, title, units, notes: body, problems: wrong };
+}
+
+/**
+ * A release's name: its day and what it holds, as "Pley 2026-11-10.2: Media
+ * Server, Android", so the list of releases shows which have a reader's app.
+ */
+function releaseTitle(tag, units) {
+  const day = `Pley ${tag?.replace(/^release-/, "") ?? ""}`.trim();
+  const holds = units.map((u) => u.title.replace(/^Pley (for )?/, "")).join(", ");
+  return holds ? `${day}: ${holds}` : day;
 }
 
 /**

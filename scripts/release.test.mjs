@@ -318,8 +318,8 @@ describe("releases", () => {
     addEntry(dir, "kodi", "Kodi's fix");
     bumped(f, "kodi", "patch");
     const one = pending(dir);
-    // A release of one unit is named after its day as any other, its notes open under the unit's name.
-    expect(one).toMatchObject({ tag: "release-2026-11-01", title: "Pley 2026-11-01", problems: [] });
+    // A release is named after its day and what it holds; the notes of its only unit are open under the unit's name.
+    expect(one).toMatchObject({ tag: "release-2026-11-01", title: "Pley 2026-11-01: Kodi", problems: [] });
     expect(one.units.map((u) => [u.unit, u.from, u.to, u.later])).toEqual([["kodi", "0.0.1", "0.0.2", []]]);
     expect(one.notes).toBe("<details open>\n<summary><strong>Pley for Kodi 0.0.2</strong></summary>\n\n### Fixed\n\n- Kodi's fix\n\n</details>");
 
@@ -327,7 +327,7 @@ describe("releases", () => {
     addEntry(dir, "roku", "Roku's fix");
     expect(bumped(f, "roku", "minor").tag).toBe("release-2026-11-01");
     const two = pending(dir);
-    expect(two).toMatchObject({ tag: "release-2026-11-01", title: "Pley 2026-11-01", problems: [] });
+    expect(two).toMatchObject({ tag: "release-2026-11-01", title: "Pley 2026-11-01: Kodi, Roku", problems: [] });
     expect(two.units.map((u) => `${u.unit} ${u.to}`)).toEqual(["kodi 0.0.2", "roku 0.1.0"]);
     expect(two.notes).toBe(
       "<details>\n<summary><strong>Pley for Kodi 0.0.2</strong></summary>\n\n### Fixed\n\n- Kodi's fix\n\n</details>\n\n" +
