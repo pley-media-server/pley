@@ -69,6 +69,9 @@ describes how they are made.
 - On Android TV, chips and tabs, a show's season tabs among them, are
   as tall as the buttons, and the player's Skip and Play now, History's
   Remove and the music player's Play are smaller with them.
+- On Android TV, posters in a row are a little larger: seven fill the
+  row to the screen's edge, where a sliver of an eighth showed beside
+  them.
 - On Android TV, the dark under the closed rail thins out softly into
   the page, where it ended in a hard edge.
 - On Android TV, the rail's icons sit in the middle of its dark strip,

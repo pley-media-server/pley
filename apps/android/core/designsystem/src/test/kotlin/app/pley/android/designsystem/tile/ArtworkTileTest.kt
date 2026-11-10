@@ -290,8 +290,8 @@ class ArtworkTileTest {
             }
         }
         compose.waitForIdle()
-        assertNear(PleyColors.Surface2, pixel("clear", 108, 162))
-        assertNear(Color(red), pixel("opaque", 108, 162))
+        assertNear(PleyColors.Surface2, pixel("clear", 110, 165))
+        assertNear(Color(red), pixel("opaque", 110, 165))
     }
 
     @Test
@@ -302,7 +302,7 @@ class ArtworkTileTest {
             }
         }
         compose.waitForIdle()
-        assertNear(Color(red), pixel("tile", 108, 162))
+        assertNear(Color(red), pixel("tile", 110, 165))
     }
 
     @Test
@@ -313,9 +313,9 @@ class ArtworkTileTest {
             }
         }
         compose.waitForIdle()
-        // 216 by 324 px at xhdpi; the bar is the bottom 8 px: accent to half, then the dark track.
-        assertNear(Color(0xFF38BDF8), pixel("tile", 52, 320))
-        val track = pixel("tile", 166, 320)
+        // 220 by 330 px at xhdpi; the bar is the bottom 8 px: accent to half, then the dark track.
+        assertNear(Color(0xFF38BDF8), pixel("tile", 52, 326))
+        val track = pixel("tile", 166, 326)
         assertTrue("track $track", track.red < 0.45f)
     }
 

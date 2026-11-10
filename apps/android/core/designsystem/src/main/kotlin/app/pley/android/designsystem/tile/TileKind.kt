@@ -25,8 +25,8 @@ enum class TileKind(
     /** People and profiles are circles. */
     val round: Boolean = false,
 ) {
-    /** Movies, shows, seasons: 7 and a peek in a TV row. */
-    Poster(108.dp, 162.dp, 118.dp),
+    /** Movies, shows, seasons: 7 in a TV row, which they fill from the gutter to 10 dp short of the screen's edge. */
+    Poster(110.dp, 165.dp, 118.dp),
 
     /** Continue Watching and extras, 16:9: 3 and most of a 4th. */
     Landscape(204.dp, 115.dp, 236.dp),
