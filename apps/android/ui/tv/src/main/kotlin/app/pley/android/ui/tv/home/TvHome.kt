@@ -324,11 +324,12 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
 }
 
 /**
- * The hero, down to the first row's header at y = 358 less the gap between
- * rows: Continue Watching's pictures, the first row's, show whole under
- * it, ending at the safe area's edge.
+ * The hero, down to the first row's header at y = 332 less the gap between
+ * rows: Continue Watching, the first row, shows whole under it, its
+ * pictures and the two lines under them, which end 7 dp above the
+ * screen's bottom edge.
  */
-internal val HeroHeight = 358.dp - PleyTv.RowGap
+internal val HeroHeight = 332.dp - PleyTv.RowGap
 
 /** How long each featured title stays in the hero while nothing is pressed: the web's banner's. */
 private const val TURN_MS = 9_000L

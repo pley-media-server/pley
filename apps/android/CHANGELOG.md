@@ -43,10 +43,10 @@ describes how they are made.
   banner's title for a moment first. Going back up, and each time the
   banner turns, its picture changes with its words, where the last
   picture stayed under them for a moment.
-- On Android TV, Home's banner sits higher: the line over its title
-  (New in Movies) is level with the dashes at the top right, and
-  Continue Watching's pictures show whole under it, where the screen's
-  edge cut them.
+- On Android TV, Home's banner sits higher and is shorter: the line
+  over its title (New in Movies) is level with the dashes at the top
+  right, and Continue Watching shows whole under it, its pictures and
+  the titles under them, where the screen's edge cut them.
 - On Android TV, Home's banner gives a title and its description more
   of the screen's width too, so a long title seldom takes two lines; when
   one does, the description keeps two of its three lines, where it kept

@@ -282,7 +282,7 @@ internal fun TvHomeHero(
                 )
             }
         }
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(ButtonsGap))
         Row(horizontalArrangement = Arrangement.spacedBy(PleyTv.ButtonGap)) {
             TvPillButton(
                 label = stringResource(if (hero.inProgress) R.string.tv_home_resume else R.string.tv_home_play),
@@ -692,7 +692,10 @@ private val SummaryColumn = 560.dp
 private const val SUMMARY_LINES = 3
 private val SummaryLine = 22.dp
 private val SummaryRoom = SummaryLine * (SUMMARY_LINES + 1)
-private val SummaryMost = 128.dp
+private val SummaryMost = 108.dp
+
+/** Over the buttons. */
+private val ButtonsGap = 16.dp
 
 /** An episode's line and the time left, each with the gap over it. */
 private val ContextRoom = 32.dp
