@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -219,7 +220,16 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     // The hero's turns. Keys go to the clock as events, not state: a key press composes nothing.
     val heroes = model.heroes
     var turn by rememberSaveable { mutableIntStateOf(0) }
-    val hero = heroes[turn % heroes.size]
+    // The titles can change under the banner (the top rated ones come a moment after the newest):
+    // the one that is on stays on, wherever it now is among them.
+    var on by rememberSaveable { mutableStateOf<Long?>(null) }
+    val at = remember(heroes, turn, on) { heroes.indexOfFirst { it.info.item.id == on }.takeIf { it >= 0 } ?: (turn % heroes.size) }
+    val hero = heroes[at]
+    SideEffect {
+        turn = at
+        on = hero.info.item.id
+    }
+    val titles by rememberUpdatedState(heroes)
     val keys = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
     val calm = reducedMotion()
     // Under another page, or with the app away, the hero waits: its clock runs only in front.
@@ -232,7 +242,9 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     val onDashes = remember { mutableStateOf(false) }
     // The title on and its time change together: a dash coming on is never drawn with the last one's time.
     val turnTo: (Int) -> Unit = { index ->
-        turn = index.mod(heroes.size)
+        val to = index.mod(titles.size)
+        turn = to
+        on = titles[to].info.item.id
         if (!calm) time.floatValue = 0f
     }
     LaunchedEffect(turn, inRows, heroes.size, calm, inFront) {
@@ -305,7 +317,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                     modifier = Modifier.graphicsLayer { alpha = heroAlpha.value }.tvRowColumnHero(),
                     label = hero.label?.asString(),
                     turns = heroes.size,
-                    turn = turn % heroes.size,
+                    turn = at,
                     progress = { time.floatValue },
                     onTurn = step,
                     onDashesFocus = { onDashes.value = it },

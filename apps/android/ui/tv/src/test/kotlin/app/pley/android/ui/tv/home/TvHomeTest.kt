@@ -236,6 +236,23 @@ class TvHomeTest {
     }
 
     @Test
+    fun theTitleOnStaysOnWhenTheBannersTitlesChange() {
+        val two = twoFeatured()
+        sources.home.value = Loadable.Ready(two, fresh = false)
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.mainClock.advanceTimeBy(10_000)
+        compose.onNodeWithText("Severance").assertExists()
+        // Another title takes its place among them, as the top rated ones do a moment after the newest.
+        val other = ItemSummary(id = 901, libraryId = 2, kind = ItemKind.Show, title = "Driftline", backdropUrl = "/api/items/901/images/backdrop")
+        val three = Hubs(two.hubs.map { if (it.key == "recently_added:2") it.copy(items = listOf(other) + it.items) else it })
+        sources.home.value = Loadable.Ready(three, fresh = true)
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Severance").assertExists()
+        compose.onNodeWithText("Driftline").assertDoesNotExist()
+    }
+
+    @Test
     fun aKeyPressStartsTheHerosTimeOver() {
         sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
         compose.mainClock.autoAdvance = false

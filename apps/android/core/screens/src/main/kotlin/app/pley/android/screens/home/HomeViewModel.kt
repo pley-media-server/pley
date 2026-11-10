@@ -156,6 +156,9 @@ class HomeViewModel(
      * kept. Nothing until they come, and nothing from a library that
      * doesn't answer: Home never waits for them.
      */
+    @Volatile
+    private var lastTopRated: List<ItemSummary> = emptyList()
+
     private val topRated: Flow<List<ItemSummary>> = flow { emitAll(sources.libraries.libraries()) }
         .map { load -> load.valueOrNull.orEmpty().filter { it.kind == LibraryKind.Movies || it.kind == LibraryKind.Shows }.map { it.id }.take(TOP_RATED_LIBRARIES) }
         .distinctUntilChanged()
@@ -169,7 +172,10 @@ class HomeViewModel(
             }
             combine(rows) { lists -> lists.flatMap { it } }
         }
-        .onStart { emit(emptyList()) }
+        // What came last time stands until this time's answer: Home collected again (the app back in
+        // front) doesn't show the newest alone for a moment and then the mix again.
+        .onEach { lastTopRated = it }
+        .onStart { emit(lastTopRated) }
         .distinctUntilChanged()
 
     /** What the repositories hold, worked out once for [state] and [status]. */
