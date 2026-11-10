@@ -125,7 +125,8 @@ import kotlin.math.roundToInt
  * for the rest). A missing piece closes its gap. Resume ([resume]) is the
  * page's initial focus.
  *
- * The title and the summary have more room than the text column
+ * The label is level with the dashes at the top right. The title and
+ * the summary have more room than the text column
  * ([HeroColumn]), so few titles take two lines. The label stays on its
  * line: a title of two lines grows down into the summary's room, which
  * keeps two lines for it, so the buttons stay where they are. The
@@ -658,7 +659,12 @@ internal fun sentence(error: Throwable): String = errorSentence(error).asString(
 /** The text column over backdrops (design spec §1.3): x 96 to 560. */
 internal val TextColumn = 464.dp
 
-private val HeroTop = 52.dp
+/**
+ * The stack's top: the label over a title of one line starts 2 dp above
+ * it, so its words are level with the dashes at the top right, their
+ * middles at y = 39.
+ */
+private val HeroTop = 32.dp
 private val TitleBox = 72.dp
 
 /** The label's line and its gap to the title, and a line of the title. */

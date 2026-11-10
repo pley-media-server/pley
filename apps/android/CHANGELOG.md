@@ -32,6 +32,10 @@ describes how they are made.
   the same way, with no outline first.
 - On Android TV, a title's page gives its title and its description
   more of the screen's width, and a long title up to three lines.
+- On Android TV, Home's banner sits higher: the line over its title
+  (New in Movies) is level with the dashes at the top right, and
+  Continue Watching's pictures show whole under it, where the screen's
+  edge cut them.
 - On Android TV, Home's banner gives a title and its description more
   of the screen's width too, so a long title seldom takes two lines; when
   one does, the description keeps two of its three lines, where it kept
