@@ -36,18 +36,14 @@ such as Kometa and Tautulli, through the
 
 ## Latest releases
 
-Each app has its own version, and a release carries the ones that changed.
-
 <!-- latest releases: written by scripts/release.mjs when an app is released -->
-| | Version | Released | Changes |
-|---|---|---|---|
-| Media Server | [0.1.9](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08) | 2026-11-08 | [Changelog](apps/server/CHANGELOG.md) |
-| Desktop | [0.1.4](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06) | 2026-11-06 | [Changelog](apps/desktop/CHANGELOG.md) |
-| Android | [0.1.11](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2) | 2026-11-10 | [Changelog](apps/android/CHANGELOG.md) |
-| Samsung | [0.1.8](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08) | 2026-11-08 | [Changelog](apps/tizen-native/CHANGELOG.md) |
-| LG | [0.1.8](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08) | 2026-11-08 | [Changelog](apps/webos/CHANGELOG.md) |
-| Kodi | [0.1.7](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06) | 2026-11-06 | [Changelog](apps/kodi/CHANGELOG.md) |
-| Roku | [0.1.7](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06) | 2026-11-06 | [Changelog](apps/roku/CHANGELOG.md) |
+[![Media Server 0.1.9](https://img.shields.io/badge/Media%20Server-0.1.9-F0B27A)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08)
+[![Desktop 0.1.4](https://img.shields.io/badge/Desktop-0.1.4-F0B27A)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06)
+[![Android 0.1.11](https://img.shields.io/badge/Android-0.1.11-F0B27A)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2)
+[![Samsung 0.1.8](https://img.shields.io/badge/Samsung-0.1.8-F0B27A)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08)
+[![LG 0.1.8](https://img.shields.io/badge/LG-0.1.8-F0B27A)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08)
+[![Kodi 0.1.7](https://img.shields.io/badge/Kodi-0.1.7-F0B27A)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06)
+[![Roku 0.1.7](https://img.shields.io/badge/Roku-0.1.7-F0B27A)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06)
 <!-- /latest releases -->
 
 [All releases](https://github.com/pley-media-server/pley/releases)

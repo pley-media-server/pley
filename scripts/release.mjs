@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 // Prepares a release (docs/RELEASING.md): bumps a unit's version in every
 // manifest, moves its CHANGELOG's Unreleased entries under the new version and
-// puts it in README.md's table of latest releases.
+// puts it among README.md's latest releases.
 // A release takes every unit whose version went up since the last release tag,
 // under one tag, release-<date>. Merging the bumps to master starts the
 // Release workflow, which builds those units, tags the commit and publishes
@@ -192,30 +192,39 @@ function folded(u, open = false) {
   return `<details${open ? " open" : ""}>\n<summary><strong>${u.title} ${u.to}</strong></summary>\n\n${u.notes}\n\n</details>`;
 }
 
-/** README.md's table of each unit's latest release sits between these marks. */
+/** README.md's pills of each unit's latest release sit between these marks. */
 const README = "README.md";
 const LATEST = /(<!-- latest releases:[^\n]*-->\n)[\s\S]*?(\n<!-- \/latest releases -->)/;
 
 /**
- * Each released unit's latest release, as README.md's table: its version,
- * linked to the release that has it, the day of it and its changes. A unit
- * with no release yet (the web Samsung app) has no row. `texts` has a unit's
- * CHANGELOG where it isn't the one on disk: the unit being bumped.
+ * Each released unit's latest release, as README.md's pills: its short name
+ * and its version, linked to the release that has it. A unit with no release
+ * yet (the web Samsung app) has none. `texts` has a unit's CHANGELOG where it
+ * isn't the one on disk: the unit being bumped.
  */
 export function latestReleases(root = ROOT, texts = {}) {
-  const rows = [];
+  const pills = [];
   for (const unit of UNIT_NAMES) {
     const { short, changelog } = UNITS[unit];
     const text = texts[unit] ?? read(root, changelog);
     const newest = sections(text).find((s) => s.name !== "Unreleased");
     const tag = newest ? linkedTag(text, newest.name) : null;
     if (!RELEASE_TAG.test(tag ?? "")) continue;
-    rows.push(`| ${short} | [${newest.name}](${REPOSITORY}/releases/tag/${tag}) | ${newest.date} | [Changelog](${changelog}) |`);
+    pills.push(`[![${short} ${newest.name}](${pill(short, newest.name)})](${REPOSITORY}/releases/tag/${tag})`);
   }
-  return ["| | Version | Released | Changes |", "|---|---|---|---|", ...rows].join("\n");
+  return pills.join("\n");
 }
 
-/** README.md with that table between its marks: { before, after }; null without the file or the marks. */
+/** A shields.io badge's address: in its path a dash and an underscore are doubled, and Markdown ends a link at a bracket. */
+function pill(label, message) {
+  const part = (s) => encodeURIComponent(s.replace(/-/g, "--").replace(/_/g, "__")).replace(/\(/g, "%28").replace(/\)/g, "%29");
+  return `https://img.shields.io/badge/${part(label)}-${part(message)}-${PILL_COLOR}`;
+}
+
+/** The README's licence badge has the same. */
+const PILL_COLOR = "F0B27A";
+
+/** README.md with those pills between its marks: { before, after }; null without the file or the marks. */
 export function readmeWith(root = ROOT, texts = {}) {
   if (!existsSync(join(root, README))) return null;
   const before = read(root, README);

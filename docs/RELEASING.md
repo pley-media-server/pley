@@ -93,9 +93,9 @@ bun test ./scripts                       # the scripts' tests
 unit's manifests and moves its Unreleased entries under the new version,
 dated today and linked to the release's tag: the one the units bumped before
 it wait for, else the day's first free one. It puts the version, linked to
-that release, in the [README](../README.md#latest-releases)'s table of each
-unit's latest release, which `check` holds to the CHANGELOGs and `readme`
-writes again. For Kodi it also writes the notes into `addon.xml`'s `<news>`. The release's tag and the units waiting come from
+that release, among the [README](../README.md#latest-releases)'s pills of
+each unit's latest release, which `check` holds to the CHANGELOGs and
+`readme` writes again. For Kodi it also writes the notes into `addon.xml`'s `<news>`. The release's tag and the units waiting come from
 the tags, so fetch them first (`git fetch --tags`).
 
 - `--draft` first adds the commits since the unit's version was set, as
