@@ -8,7 +8,7 @@
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-F0B27A" alt="License: AGPL-3.0"></a>
 <a href="https://discord.gg/wSsVdRRnT3"><img src="https://img.shields.io/badge/discord-join-5865F2?logo=discord&logoColor=white" alt="Pley's Discord"></a>
 <a href="https://github.com/pley-media-server/pley/pkgs/container/pley"><img src="https://img.shields.io/badge/docker-ghcr.io-2496ED?logo=docker&logoColor=white" alt="Docker image"></a>
-<a href="https://ca.unraid.net/apps/pley"><img src="https://img.shields.io/badge/unraid-community%20apps-F15A2C?logo=unraid&logoColor=white" alt="Pley in Unraid's Community Apps"></a>
+<a href="https://ca.unraid.net/apps/pley-0qqukvc0gs8hmc"><img src="https://img.shields.io/badge/unraid-community%20apps-F15A2C?logo=unraid&logoColor=white" alt="Pley in Unraid's Community Apps"></a>
 <br>
 <!-- latest releases: written by scripts/release.mjs when an app is released -->
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08"><img src="https://img.shields.io/badge/Media%20Server-0.1.9-0284C7" alt="Media Server 0.1.9"></a>
