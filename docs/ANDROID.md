@@ -215,7 +215,9 @@ rates as the decoder gives them, the same in every language.
   held key's slide or glide stops, the still ring goes at once and the
   tile's look comes in that way. Elsewhere under a held key a tile's focus
   look changes evenly from one tile to the next, and backdrops and info
-  blocks wait until focus has rested 400 ms. With Reduce motion a held key
+  blocks wait until the key comes up; after a press they follow focus
+  at once, and only what costs a request (a title's details, for the
+  block's summary and badges) waits for focus to rest 400 ms. With Reduce motion a held key
   steps focus a tile or a row at a time and nothing slides.
   Search's recent searches move only when the next chip would pass the
   gutter or the safe area's edge, and then glide as a row does.

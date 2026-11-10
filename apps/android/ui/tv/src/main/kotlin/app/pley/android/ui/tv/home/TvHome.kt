@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.TestTags
+import app.pley.android.common.Tier
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.reducedMotion
@@ -54,6 +55,7 @@ import app.pley.android.screens.home.pageOf
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.BackdropScrim
+import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.SeeAll
 import app.pley.android.ui.tv.kit.TvBackdrop
@@ -89,8 +91,8 @@ import kotlinx.coroutines.launch
  * long it has left; Up from the buttons reaches them, and Left and Right
  * there turn the titles. Down moves into the rows: the hero's buttons go,
  * the rows come up under a compact info block about the focused tile, and
- * the backdrop and the info block follow the tile once focus has rested
- * about 400 ms. Nothing plays on its own.
+ * the backdrop and the info block follow the focused tile at once (a
+ * held key, where it lands). Nothing plays on its own.
  *
  * Back from the rows gives focus to the rail's Home and puts the page back
  * at its hero, where focus lands when the rail closes. Coming back from an
@@ -148,14 +150,50 @@ private fun ReportHomeStatus(vm: HomeViewModel) {
 private class FocusedTile(val item: ItemSummary, val row: TvHomeRow)
 
 /**
- * Once focus rests on a tile ([rememberRested]), the info block follows
- * it and the next tiles' details are asked for ahead. Only this reads
- * [focused], so a focus move composes nothing else on the page.
+ * Once focus rests on a tile ([rememberRested]), its details are asked
+ * for, for the info block's summary and badges, and the next tiles' ahead:
+ * what costs a request waits for focus to rest.
  */
 @Composable
 private fun RestedFocus(focused: State<FocusedTile?>, vm: HomeViewModel) {
     val rested = rememberRested(focused.value)
     LaunchedEffect(rested) { rested?.let { vm.focus(it.item, it.row.after(it.item)) } }
+}
+
+/**
+ * The backdrop and the info block. At rest they are the [hero]'s. In the
+ * rows they follow the focused tile at once: after a press, and where a
+ * held key lands ([KeyRepeatGate.FOLLOW_MS]), never through each tile the
+ * key passes. They say what the tile's row lists of it, then the model's
+ * word on it, which has its summary and badges, once focus has rested
+ * there ([RestedFocus]). Only this and [RestedFocus] read [focused] and
+ * the model's word, so a focus move composes these and nothing else on
+ * the page.
+ */
+@Composable
+private fun HomeAbout(
+    hero: TvHero,
+    focused: State<FocusedTile?>,
+    vm: HomeViewModel,
+    inRows: Boolean,
+    heroAlpha: State<Float>,
+    origin: String,
+    tier: Tier,
+) {
+    val tile = rememberRested(focused.value, KeyRepeatGate.FOLLOW_MS)
+    val listed = remember(tile) { tile?.let { homeInfo(it.item, null) } }
+    val detailed by vm.info.collectAsStateWithLifecycle()
+    val about: HomeInfo = when {
+        !inRows -> hero.info
+        listed == null -> detailed ?: hero.info
+        else -> detailed?.takeIf { it.item.id == listed.item.id } ?: listed
+    }
+    val backdrop = remember(about.item.id, origin, tier) {
+        if (about.item.id == hero.info.item.id) hero.backdrop else TvHomeModel.backdropOf(about.item, origin, tier)
+    }
+    TvBackdrop(backdrop, about.title, scrim = if (inRows) BackdropScrim.Rows else BackdropScrim.Hero)
+    // Only in the rows is it there for screen readers too; at rest the hero says the same.
+    TvInfoBlock(about, Modifier.graphicsLayer { alpha = 1f - heroAlpha.value }.then(if (inRows) Modifier else Modifier.clearAndSetSemantics { }))
 }
 
 @Composable
@@ -172,11 +210,9 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     var hasFocus by remember { mutableStateOf(false) }
     val focused = remember { mutableStateOf<FocusedTile?>(null) }
     RestedFocus(focused, vm)
-    // The tile focus came to from the hero: what the info block says before the model has said anything.
-    var entered by remember { mutableStateOf<HomeInfo?>(null) }
     val backdrops = rememberBackdropPrefetcher()
-    val info by vm.info.collectAsStateWithLifecycle()
-    val heroAlpha by animateFloatAsState(if (inRows) 0f else 1f, PleyMotion.reveal(), label = "hero")
+    // Read as it is drawn: its frames compose nothing.
+    val heroAlpha = animateFloatAsState(if (inRows) 0f else 1f, PleyMotion.reveal(), label = "hero")
     // What the rows' callbacks read when they run: rows that didn't change keep theirs, and aren't composed again.
     val current by rememberUpdatedState(model)
 
@@ -230,15 +266,8 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     val dashesGone = heroes.size < 2 && Snapshot.withoutReadObservation { onDashes.value }
     LaunchedEffect(dashesGone) { if (dashesGone) runCatching { resume.requestFocus() } }
 
-    // In the rows, the backdrop and the info block show the tile focus rests on. Until focus has
-    // rested on one, they show the tile focus came down to from the hero, as its row lists it,
-    // never the hero's title over the rows.
-    val about: HomeInfo = if (inRows) info ?: entered ?: hero.info else hero.info
     // A tile its actions took away (Remove from Continue Watching): focus comes back to its neighbour.
     memory.settle(model::hasTile)
-    val backdrop = remember(about.item.id, origin, tier) {
-        if (about.item.id == hero.info.item.id) hero.backdrop else TvHomeModel.backdropOf(about.item, origin, tier)
-    }
 
     // Back from the rows: the page goes back to its hero (focus on Resume), then to the rail.
     BackHandler(enabled = inRows && hasFocus) {
@@ -257,11 +286,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                 false
             },
     ) {
-        // The hero's picture changes with its words (a turn, or coming back up to it): only among
-        // the rows' tiles does it wait for focus to rest.
-        TvBackdrop(backdrop, about.title, scrim = if (inRows) BackdropScrim.Rows else BackdropScrim.Hero, atOnce = !inRows)
-        // Only in the rows is it there for screen readers too; at rest the hero says the same.
-        TvInfoBlock(about, Modifier.graphicsLayer { alpha = 1f - heroAlpha }.then(if (inRows) Modifier else Modifier.clearAndSetSemantics { }))
+        HomeAbout(hero, focused, vm, inRows, heroAlpha, origin, tier)
         TvRowColumn(
             state = column,
             heroHeight = HeroHeight,
@@ -277,7 +302,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                     onInfo = { navigator.open(pageOf(hero.info.item)) },
                     onWatched = { vm.setWatched(hero.info.item, !hero.info.watched) },
                     onList = { vm.setInList(hero.info.item, !hero.info.inList) },
-                    modifier = Modifier.graphicsLayer { alpha = heroAlpha }.tvRowColumnHero(),
+                    modifier = Modifier.graphicsLayer { alpha = heroAlpha.value }.tvRowColumnHero(),
                     label = hero.label?.asString(),
                     turns = heroes.size,
                     turn = turn % heroes.size,
@@ -303,11 +328,8 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                             actions.open(tile.id, continueWatching = HubKeys.isContinueWatching(row.key))
                         },
                         onFocus = { tile ->
-                            val item = row.itemOf(tile)
-                            // Coming down from the hero: said at once, with the move that composes the page anyway.
-                            if (!inRows && item != null) entered = homeInfo(item, null)
                             inRows = true
-                            item?.let {
+                            row.itemOf(tile)?.let {
                                 focused.value = FocusedTile(it, row)
                                 // Its backdrop and its neighbours' load now: focus may rest on any of them next.
                                 backdrops.prefetch(

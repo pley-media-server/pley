@@ -98,6 +98,7 @@ import app.pley.android.ui.tv.item.TvToastHost
 import app.pley.android.ui.tv.item.TvToastState
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.FocusMemory
+import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.SeeAll
 import app.pley.android.ui.tv.kit.TvBackdrop
@@ -185,7 +186,8 @@ private fun DiscoverRows(state: DiscoverUiState, hero: DiscoverHero, texts: Requ
     var inRows by rememberSaveable { mutableStateOf(false) }
     var hasFocus by remember { mutableStateOf(false) }
     var focused by remember { mutableStateOf<Focused?>(null) }
-    val rested = rememberRested(focused)
+    // What the rows list of a title: followed at once, as on Home.
+    val rested = rememberRested(focused, KeyRepeatGate.FOLLOW_MS)
     val backdrops = rememberBackdropPrefetcher()
     var signIn by remember { mutableStateOf(false) }
     // Stop following pressed: its button goes with the request, and focus goes to the main one, which stays.

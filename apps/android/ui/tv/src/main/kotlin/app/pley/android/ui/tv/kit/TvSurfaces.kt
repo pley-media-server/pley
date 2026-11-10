@@ -105,7 +105,8 @@ data class BackdropScrim(val from: Dp, val to: Dp) {
  * centre, above the middle), with the two gradients that keep the text
  * column on at least 85 % [bg][PleyColors.Bg], drawn together.
  *
- * It follows [image] only once focus has rested ([rememberRested]) and
+ * It follows [image] at once after a press, and where a held key lands
+ * ([KeyRepeatGate.FOLLOW_MS]), once
  * the new picture has loaded (or failed, or taken over a second): a
  * 300 ms crossfade on T1 and T2, the upper picture's kept layer drawn at
  * its alpha over the lower's; an instant swap on T0 and with
@@ -120,12 +121,11 @@ fun TvBackdrop(
     title: String,
     modifier: Modifier = Modifier,
     scrim: BackdropScrim = BackdropScrim.Hero,
-    atOnce: Boolean = false,
 ) {
     val tier = LocalTvTier.current
     val cap = ArtworkImage.backdropCap(tier)
     val wanted = remember(image, title, cap) { Backdrop(image?.cappedAt(cap), title) }
-    val shown = rememberRested(wanted, atOnce = atOnce)
+    val shown = rememberRested(wanted, KeyRepeatGate.FOLLOW_MS)
     val instant = tier == Tier.T0 || reducedMotion()
     val slots = remember { BackdropSlots(shown) }
     LaunchedEffect(shown) { slots.show(shown, instant) }

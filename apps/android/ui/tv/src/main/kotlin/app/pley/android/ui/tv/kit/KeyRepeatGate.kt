@@ -43,8 +43,8 @@ import kotlinx.coroutines.launch
  * - a row slides on under a ring that stays still, and lands where the
  *   key comes up ([TvRow]);
  * - tiles change their focus look evenly over [GLIDE_MS] instead of easing;
- * - backdrops and details wait until focus has rested [REST_MS]
- *   ([awaitRest], [rememberRested]);
+ * - backdrops and info blocks wait for the key to come up, and a title's
+ *   details until focus has rested [REST_MS] ([awaitRest], [rememberRested]);
  * - pictures wait unless the memory cache has them: the gate is the
  *   window's [ArtworkHold], and where the key comes up loads them.
  *
@@ -282,8 +282,15 @@ class KeyRepeatGate(
         /** How long a held move's glide lasts: a little over [MOVE_INTERVAL_MS], so the next starts before it ends. */
         const val GLIDE_MS = (MOVE_INTERVAL_MS * 5 / 4).toInt()
 
-        /** How long focus rests before backdrops and details follow it. */
+        /** How long focus rests before what costs a request follows it: a title's details. */
         const val REST_MS = PleyMotion.REST_MS.toLong()
+
+        /**
+         * No rest at all, for what the page already holds (a backdrop asked
+         * for ahead, a tile's words): it follows a press at once, and a held
+         * key where it lands, never each tile the key passes.
+         */
+        const val FOLLOW_MS = 0L
 
         private const val POLL_MS = 50L
 
@@ -342,21 +349,21 @@ private class KeyRepeatGateNode(var gate: KeyRepeatGate) : Modifier.Node(), KeyI
 }
 
 /**
- * [value], once focus has rested on it: what backdrops and info blocks
- * show, so they never change while a key repeats or focus passes through.
+ * [value], once focus has rested on it: what follows focus without
+ * changing while a key repeats or focus passes through. With
+ * [KeyRepeatGate.FOLLOW_MS] it follows a press at once.
  * The first value shows at once. [afterMs] is how long focus rests first
  * ([KeyRepeatGate.awaitRest]).
  */
 @Composable
-fun <T> rememberRested(value: T, afterMs: Long = KeyRepeatGate.REST_MS, atOnce: Boolean = false): T {
+fun <T> rememberRested(value: T, afterMs: Long = KeyRepeatGate.REST_MS): T {
     val gate = LocalKeyRepeatGate.current
     var rested by remember { mutableStateOf(value) }
-    LaunchedEffect(value, atOnce) {
+    LaunchedEffect(value) {
         if (value != rested) {
-            if (!atOnce) gate.awaitRest(afterMs)
+            gate.awaitRest(afterMs)
             rested = value
         }
     }
-    // What it follows isn't a tile focus is passing over: nothing to wait for.
-    return if (atOnce) value else rested
+    return rested
 }

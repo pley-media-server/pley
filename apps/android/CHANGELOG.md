@@ -38,6 +38,10 @@ describes how they are made.
   cut them.
 - On Android TV, a title's page gives its title and its description
   more of the screen's width, and a long title up to three lines.
+- On Android TV, the title and the picture behind the page change as
+  soon as focus moves to another tile, on Home, Discover and a show's
+  episodes, where they waited for focus to rest. Under a held key they
+  change where it lands.
 - On Android TV, coming down from Home's banner to the rows, the words
   at the top are the focused title's at once. They used to stay the
   banner's title for a moment first. Going back up, and each time the

@@ -81,6 +81,7 @@ import app.pley.android.screens.item.extraSubtitle
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.TvBackdrop
 import app.pley.android.ui.tv.kit.TvRow
@@ -497,9 +498,10 @@ private class ItemPageSpec(
  * title, line and two lines of summary in the episode row, or the item's
  * own summary by the other rows. On the seasons it says no more than the
  * title and the metadata line: neither the show's summary nor an episode
- * of the season focus has left. It follows the focused episode once focus
- * has rested a moment ([EPISODE_REST_MS]), and shows at once an episode
- * focus comes to from elsewhere than its own season's row.
+ * of the season focus has left. It follows the focused episode at once
+ * after a press, and where a held key lands ([KeyRepeatGate.FOLLOW_MS]),
+ * and shows at once an episode focus comes to from elsewhere than its own
+ * season's row.
  */
 @Composable
 private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: EpisodeLine?) {
@@ -510,7 +512,7 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
     // Read through derivedStateOf, the fade's frames recompose nothing: only its end does.
     val gone by remember { derivedStateOf { (focus.area == Area.Hero || focus.reading) && visible.value == 0f } }
     if (gone) return
-    val rested = rememberRested(focusedEpisode, EPISODE_REST_MS)
+    val rested = rememberRested(focusedEpisode, KeyRepeatGate.FOLLOW_MS)
     // In the episodes only, and never one of another season than the episode focused: coming into a
     // season's row, its episode shows at once rather than the one last shown.
     val episode = when {
@@ -556,13 +558,6 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
         }
     }
 }
-
-/**
- * How long focus rests on an episode before the info block says it: long
- * enough that an episode focus passes over stays out, short enough that
- * the block keeps up with a press.
- */
-private const val EPISODE_REST_MS = 150L
 
 /** The hero's title: an episode's or season's show, else the item's own. */
 internal fun heroTitle(page: ItemPage): String = when (page.kind) {
