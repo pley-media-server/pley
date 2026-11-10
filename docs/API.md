@@ -4635,6 +4635,12 @@ interface ImportProgress {
   // titles found, labels added, edits, collections made, titles watched,
   // plays or playlists; null for the others.
   steps: { step: string; state: "to_come" | "running" | "done"; count: number | null }[];
+  // From "scanning" on, each library it brings: its files found
+  // ("walking") then read ("probing", `done` of `total`, with about how
+  // many seconds that has left once the pace can be told), then Plex's
+  // titles looked for ("matching"); `found`, once done, the titles found.
+  libraries: { library: string; phase: "queued" | "walking" | "probing" | "matching" | "done";
+               done: number; total: number; left_secs: number | null; found: number | null }[];
   report: {
     finished_at: number;
     outcome: "done" | "failed" | "cancelled";   // kept with the report, so it's known after a restart

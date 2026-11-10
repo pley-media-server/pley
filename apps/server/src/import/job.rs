@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
@@ -103,6 +103,9 @@ pub struct Progress {
     pub first_pass_done: bool,
     /// The library being scanned, while the import waits for the scans.
     pub scan: Option<ScanNow>,
+    /// Each library the import brings, while it waits for their scans and
+    /// finds Plex's titles in them; kept once that's done.
+    pub libraries: Vec<LibraryRow>,
     /// The steps it goes through, in order, as they stand.
     pub steps: Vec<StepRow>,
 }
@@ -171,6 +174,43 @@ pub struct ScanNow {
     pub phase: ScanPhase,
     pub done: u64,
     pub total: u64,
+}
+
+/// A library the import brings, during the scanning step.
+#[derive(Debug, Clone, Serialize)]
+pub struct LibraryRow {
+    pub library: String,
+    pub phase: LibraryPhase,
+    /// Its files read of those found, while they're read.
+    pub done: u64,
+    pub total: u64,
+    /// About how many seconds its files have left to be read, once that
+    /// can be told from how fast they've been read.
+    pub left_secs: Option<u64>,
+    /// Plex's titles found in it, once looked for.
+    pub found: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LibraryPhase {
+    /// Its scan waits for another's.
+    Queued,
+    /// Its files are found.
+    Walking,
+    /// Its files are read.
+    Probing,
+    /// Plex's titles are looked for in it.
+    Matching,
+    Done,
+}
+
+/// How long `left` files take to read at the pace of `read` in
+/// `elapsed_secs`, rounded to the second: none before the pace can be told.
+fn time_left(elapsed_secs: f64, read: u64, left: u64) -> Option<u64> {
+    /// The time a pace is measured over before it's trusted.
+    const MEASURED_FOR: f64 = 10.0;
+    (elapsed_secs >= MEASURED_FOR && read > 0).then(|| (left as f64 * elapsed_secs / read as f64).round() as u64)
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1296,9 +1336,39 @@ impl Run {
         }
         let (mut matches, mut titles) = (Matches::default(), Vec::new());
         let mut left: Vec<&Paired> = paired.iter().collect();
+        let mut rows: Vec<LibraryRow> = paired
+            .iter()
+            .map(|p| LibraryRow {
+                library: names.get(&p.library_id).cloned().unwrap_or_default(),
+                phase: LibraryPhase::Queued,
+                done: 0,
+                total: 0,
+                left_secs: None,
+                found: None,
+            })
+            .collect();
+        // When each library's files started being read, and how many had been.
+        let mut reading: HashMap<i64, (Instant, u64)> = HashMap::new();
         loop {
             self.cancelled()?;
             let scans = finding(&self.state, paired);
+            for (row, library) in rows.iter_mut().zip(paired) {
+                let Some(scan) = scans.iter().find(|s| s.library_id == library.library_id) else { continue };
+                row.phase = match scan.phase {
+                    ScanPhase::Walking => LibraryPhase::Walking,
+                    ScanPhase::Probing => LibraryPhase::Probing,
+                    _ => LibraryPhase::Queued,
+                };
+                (row.done, row.total) = (scan.processed, scan.total);
+                row.left_secs = (scan.phase == ScanPhase::Probing)
+                    .then(|| {
+                        let (since, first) =
+                            *reading.entry(library.library_id).or_insert((Instant::now(), scan.processed));
+                        let read = scan.processed.saturating_sub(first);
+                        time_left(since.elapsed().as_secs_f64(), read, scan.total.saturating_sub(scan.processed))
+                    })
+                    .flatten();
+            }
             if scans.is_empty() {
                 break;
             }
@@ -1314,13 +1384,16 @@ impl Run {
             self.importer.set(&self.state, self.admin, |p| {
                 p.done = done;
                 p.scan = now;
+                p.libraries = rows.clone();
             });
             let (ready, scanning): (Vec<&Paired>, Vec<&Paired>) =
                 left.into_iter().partition(|p| !scans.iter().any(|s| s.library_id == p.library_id));
             left = scanning;
             for library in ready {
+                self.matching(&mut rows, paired, library);
                 let index = Index::load(&self.state.db, &[library.library_id]).await?;
                 let found = self.find(library, &index, folders, &mut matches).await?;
+                self.found(&mut rows, paired, library);
                 self.state.events.send(ServerEvent::LibraryChanged { library_id: library.library_id });
                 titles.push(found);
             }
@@ -1331,7 +1404,9 @@ impl Run {
             let ids: Vec<i64> = left.iter().map(|p| p.library_id).collect();
             let index = Index::load(&self.state.db, &ids).await?;
             for library in &left {
+                self.matching(&mut rows, paired, library);
                 titles.push(self.find(library, &index, folders, &mut matches).await?);
+                self.found(&mut rows, paired, library);
                 self.advance(1);
             }
             for library in &left {
@@ -1339,6 +1414,25 @@ impl Run {
             }
         }
         Ok((matches, titles))
+    }
+
+    /// Says Plex's titles are looked for in `library`, of the libraries `rows` are for.
+    fn matching(&self, rows: &mut [LibraryRow], paired: &[Paired], library: &Paired) {
+        if let Some(row) = paired.iter().position(|p| p.library_id == library.library_id).map(|i| &mut rows[i]) {
+            *row = LibraryRow { phase: LibraryPhase::Matching, left_secs: None, ..row.clone() };
+        }
+        let rows = rows.to_vec();
+        self.importer.set(&self.state, self.admin, |p| p.libraries = rows);
+    }
+
+    /// Says `library` is done, with the titles found in it.
+    fn found(&self, rows: &mut [LibraryRow], paired: &[Paired], library: &Paired) {
+        if let Some(row) = paired.iter().position(|p| p.library_id == library.library_id).map(|i| &mut rows[i]) {
+            let found = self.report.libraries[library.report].matched;
+            *row = LibraryRow { phase: LibraryPhase::Done, found: Some(found), ..row.clone() };
+        }
+        let rows = rows.to_vec();
+        self.importer.set(&self.state, self.admin, |p| p.libraries = rows);
     }
 
     /// Fetches the libraries' metadata, now that Plex's ids are on the
@@ -2415,6 +2509,17 @@ impl Pager {
 
 #[cfg(test)]
 mod tests {
+    use super::time_left;
+
+    #[test]
+    fn time_left_is_told_from_the_pace_once_it_was_measured_long_enough() {
+        // 500 files in 50 seconds: 1,500 more take 150.
+        assert_eq!(time_left(50.0, 500, 1500), Some(150));
+        assert_eq!(time_left(5.0, 500, 1500), None, "too soon to tell");
+        assert_eq!(time_left(50.0, 0, 1500), None, "none read yet");
+        assert_eq!(time_left(50.0, 500, 0), Some(0));
+    }
+
     use super::*;
 
     #[test]

@@ -10,6 +10,7 @@ import {
   type EditedField,
   type ImportProgress,
   type ImportReport,
+  type ImportLibraryRow,
   type ImportScan,
   type ImportStep,
   type ImportStepRow,
@@ -141,16 +142,33 @@ function stepCount(t: TFunction<"settings">, step: ImportStep, count: number): s
   }
 }
 
-/** Every step the import goes through: those done with what they brought, the one running with how far it is, the rest to come. */
-export function StepList({ progress }: { progress: ImportProgress }) {
+/**
+ * Every step the import goes through: those done with what they brought,
+ * the one running with how far it is, the rest to come. `compact` lists
+ * those to come after the next behind a button.
+ */
+export function StepList({ progress, compact = false }: { progress: ImportProgress; compact?: boolean }) {
+  const { t } = useTranslation("settings");
+  const [all, setAll] = useState(false);
+  const steps = progress.steps ?? [];
+  const running = steps.findIndex((row) => row.state === "running");
+  const shown = compact && !all && running >= 0 ? running + 2 : steps.length;
+  const more = steps.length - shown;
   return (
-    <ol className="space-y-3" aria-live="polite">
-      {(progress.steps ?? []).map((row) => (
-        <li key={row.step}>
-          <StepLine row={row} progress={progress} />
-        </li>
-      ))}
-    </ol>
+    <div className="space-y-2">
+      <ol className="space-y-3" aria-live="polite">
+        {steps.slice(0, shown).map((row) => (
+          <li key={row.step}>
+            <StepLine row={row} progress={progress} />
+          </li>
+        ))}
+      </ol>
+      {more > 0 ? (
+        <Button variant="ghost" size="sm" className="-ml-3" onClick={() => setAll(true)}>
+          {t("plexImport.progress.moreSteps", { count: more })}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -161,6 +179,9 @@ function StepLine({ row, progress }: { row: ImportStepRow; progress: ImportProgr
   // Finding Plex's titles is part of the scans, and the second round's
   // steps are part of finding the rest: they show under their row.
   const within = progress.step && progress.step !== row.step ? t(`plexImport.progress.steps.${progress.step}`) : null;
+  // The scans list each library the import brings, with how far it is,
+  // rather than a bar of libraries done.
+  const libraries = row.step === "scanning" && row.state === "running" && progress.libraries?.length ? progress.libraries : null;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2 text-sm">
@@ -173,13 +194,21 @@ function StepLine({ row, progress }: { row: ImportStepRow; progress: ImportProgr
         )}
         <span className={row.state === "to_come" ? "text-subtle" : row.state === "running" ? "font-medium" : undefined}>{name}</span>
         {counted ? <span className="text-muted">· {counted}</span> : null}
-        {row.state === "running" && progress.total > 0 ? (
+        {row.state === "running" && !libraries && progress.total > 0 ? (
           <span className="ml-auto tabular-nums text-muted">
             {progress.done.toLocaleString(currentLocale())} / {progress.total.toLocaleString(currentLocale())}
           </span>
         ) : null}
       </div>
-      {row.state === "running" ? (
+      {libraries ? (
+        <ol className="space-y-2 pl-6">
+          {libraries.map((library, i) => (
+            <li key={i}>
+              <LibraryLine library={library} />
+            </li>
+          ))}
+        </ol>
+      ) : row.state === "running" ? (
         <div className="space-y-1 pl-6">
           {within ? <p className="text-sm text-muted">{within}</p> : null}
           <ProgressBar
@@ -188,11 +217,57 @@ function StepLine({ row, progress }: { row: ImportStepRow; progress: ImportProgr
             className="h-2"
             barClassName={progress.total === 0 ? "w-1/3 animate-pulse" : undefined}
           />
-          {progress.scan ? <ScanLine scan={progress.scan} /> : null}
+          {progress.scan && row.step === "scanning" ? <ScanLine scan={progress.scan} /> : null}
         </div>
       ) : null}
     </div>
   );
+}
+
+/** A library the import brings: its files found then read, with about how long that has left, then Plex's titles found in it. */
+function LibraryLine({ library }: { library: ImportLibraryRow }) {
+  const { t } = useTranslation("settings");
+  const number = (n: number) => n.toLocaleString(currentLocale());
+  const { phase } = library;
+  const reading = phase === "probing" && library.total > 0;
+  const doing = phase === "walking" || phase === "probing" || phase === "matching" ? t(`plexImport.progress.library.${phase}`) : null;
+  const left = reading && library.left_secs != null ? timeLeft(t, library.left_secs) : null;
+  return (
+    <div className="space-y-1 text-sm">
+      <div className="flex items-center gap-2">
+        {phase === "done" ? (
+          <CircleCheck className="size-3.5 shrink-0 text-success" aria-hidden />
+        ) : phase === "queued" ? (
+          <Circle className="size-3.5 shrink-0 text-subtle" aria-hidden />
+        ) : (
+          <LoaderCircle className="size-3.5 shrink-0 animate-spin text-accent" aria-hidden />
+        )}
+        <span className={phase === "queued" ? "text-subtle" : undefined}>{library.library}</span>
+        {phase === "done" && library.found != null ? (
+          <span className="text-muted">· {t("plexImport.report.matched", { count: library.found })}</span>
+        ) : null}
+        {doing ? <span className="text-muted">· {left ? `${doing} · ${left}` : doing}</span> : null}
+        {reading ? (
+          <span className="ml-auto tabular-nums text-muted">
+            {number(library.done)} / {number(library.total)}
+          </span>
+        ) : null}
+      </div>
+      {reading ? (
+        <div className="pl-5.5">
+          <ProgressBar value={library.done / library.total} label={library.library} className="h-1.5" />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** About how long is left, said as people would: in minutes up to an hour and a half, then in hours. */
+export function timeLeft(t: TFunction<"settings">, seconds: number): string {
+  if (seconds < 60) return t("plexImport.progress.left.underAMinute");
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 90) return t("plexImport.progress.left.minutes", { count: minutes });
+  return t("plexImport.progress.left.hours", { count: Math.round(minutes / 60) });
 }
 
 /** The library the import's scans are on, with its files read once they're counted. */

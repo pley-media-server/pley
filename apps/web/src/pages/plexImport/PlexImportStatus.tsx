@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Import, X } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useForgetPlex, usePlexImport, type ImportProgress } from "@/api/plexImport";
+import { useForgetPlex, usePlexImport, type ImportLibraryRow, type ImportProgress, type ImportStep } from "@/api/plexImport";
 import { ConfirmModal } from "@/components/Modal";
 import { Button, IconButton, ProgressBar } from "@/components/ui";
 import { currentLocale } from "@/i18n";
@@ -16,11 +16,31 @@ import { ErrorNote } from "./PlexImport";
 const HIDDEN_KEY = "pley.plexImport.stepsHidden";
 
 /**
+ * About how much of an import's time each step takes, for the bar of the
+ * whole import: scanning the libraries and fetching their details are most
+ * of it, the steps that only write what Plex said take seconds. Rough, and
+ * only ever compared with each other.
+ */
+const STEP_WEIGHTS: Record<ImportStep, number> = {
+  profiles: 1,
+  scanning: 40,
+  matching: 0,
+  labels: 2,
+  edits: 2,
+  collections: 1,
+  watch_state: 3,
+  history: 3,
+  playlists: 1,
+  fetching: 35,
+  matching_again: 12,
+};
+
+/**
  * The Plex import, on Home and under Settings › Libraries' buttons. While it
- * runs: its step, which of its steps that is, how far the whole import has
- * come and, open, every step with Stop. Once it ended: when and how, with
- * its report. `onReport` opens the report; `onClose`, where given, puts an
- * ended import away.
+ * runs: which of its steps it's on, how far the whole import has come and,
+ * open, its steps with Stop; hidden, the step's name and count. Once it
+ * ended: when and how, with its report. `onReport` opens the report;
+ * `onClose`, where given, puts an ended import away.
  */
 export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; onClose?: () => void }) {
   const { t } = useTranslation(["settings", "common"]);
@@ -33,18 +53,20 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
   const number = (n: number) => n.toLocaleString(currentLocale());
   const running = data.state === "running";
   const steps = running ? (data.steps ?? []) : [];
+  // Open unless its steps were hidden for this import.
+  const id = data.started_at ?? 0;
+  const open = steps.length > 0 && hidden !== id;
   let text: string;
   let count: string | null = null;
   let overall: number | null = null;
   if (running) {
     const step = data.step ? t(`plexImport.progress.steps.${data.step}`) : t("plexImport.progress.starting");
     const at = steps.findIndex((row) => row.state === "running");
-    text =
-      at >= 0
-        ? t("plexImport.status.runningStep", { step, at: number(at + 1), steps: number(steps.length) })
-        : t("plexImport.status.running", { step });
-    if (data.total > 0) count = t("plexImport.status.count", { done: number(data.done), total: number(data.total) });
-    if (at >= 0) overall = share(data, at);
+    const place = { at: number(at + 1), steps: number(steps.length) };
+    // Open, the steps below name the step and count it.
+    text = at < 0 ? t("plexImport.status.running", { step }) : open ? t("plexImport.status.runningAt", place) : t("plexImport.status.runningStep", { step, ...place });
+    if (!open && data.total > 0) count = t("plexImport.status.count", { done: number(data.done), total: number(data.total) });
+    if (at >= 0) overall = share(data);
   } else if (data.report) {
     const date = formatDay(data.report.finished_at);
     const outcome = data.report.outcome;
@@ -52,10 +74,6 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
   } else {
     return null;
   }
-
-  // Open unless its steps were hidden for this import.
-  const id = data.started_at ?? 0;
-  const open = steps.length > 0 && hidden !== id;
   const failure = data.report?.outcome === "failed" ? data.report.error : null;
 
   return (
@@ -65,6 +83,11 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
         <span>{text}</span>
         {count ? <span className="tabular-nums text-muted">{count}</span> : null}
         <div className="ms-auto flex items-center gap-1">
+          {open ? (
+            <Button variant="ghost" size="sm" onClick={() => setStopping(true)}>
+              {t("plexImport.progress.stop")}
+            </Button>
+          ) : null}
           {steps.length > 0 ? (
             <Button variant="ghost" size="sm" aria-expanded={open} onClick={() => setHidden(open ? id : null)}>
               {open ? t("plexImport.status.hideSteps") : t("plexImport.status.showSteps")}
@@ -83,17 +106,19 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
           ) : null}
         </div>
       </div>
-      {overall != null ? <ProgressBar value={overall} label={t("plexImport.status.overall")} className="h-1" /> : null}
+      {overall != null ? (
+        <div className="flex items-center gap-3">
+          <ProgressBar value={overall} label={t("plexImport.status.overall")} className="h-1" />
+          <span className="shrink-0 tabular-nums text-muted">
+            {new Intl.NumberFormat(currentLocale(), { style: "percent", maximumFractionDigits: 0 }).format(Math.floor(overall * 100) / 100)}
+          </span>
+        </div>
+      ) : null}
       {failure ? <p className="text-danger">{failure}</p> : null}
+      {forget.error ? <ErrorNote>{errorMessage(forget.error)}</ErrorNote> : null}
       {open ? (
-        <div className="space-y-3 border-t border-border pt-3">
-          <StepList progress={data} />
-          <div className="flex justify-end">
-            <Button variant="ghost" size="sm" onClick={() => setStopping(true)}>
-              {t("plexImport.progress.stop")}
-            </Button>
-          </div>
-          {forget.error ? <ErrorNote>{errorMessage(forget.error)}</ErrorNote> : null}
+        <div className="border-t border-border pt-3">
+          <StepList progress={data} compact />
         </div>
       ) : null}
       <ConfirmModal
@@ -111,11 +136,40 @@ export function PlexImportStatus({ onReport, onClose }: { onReport: () => void; 
 }
 
 /**
- * How far the whole import has come: its steps done, and the part of the
- * running one (the step at `at`) that is.
+ * How far the whole import has come: its steps done and the part of the
+ * running one that is, each weighed by how long it takes.
  */
-function share(progress: ImportProgress, at: number): number {
+function share(progress: ImportProgress): number {
   const steps = progress.steps ?? [];
-  const part = progress.total > 0 ? Math.min(progress.done / progress.total, 1) : 0;
-  return (at + part) / steps.length;
+  const total = steps.reduce((sum, row) => sum + STEP_WEIGHTS[row.step], 0);
+  if (total === 0) return 0;
+  const done = steps.reduce((sum, row) => {
+    const weight = STEP_WEIGHTS[row.step];
+    if (row.state === "done") return sum + weight;
+    if (row.state === "running") return sum + weight * runningPart(progress, row.step);
+    return sum;
+  }, 0);
+  return done / total;
+}
+
+/** The part of the running step done: for the scans, the libraries' files read; otherwise its count. */
+function runningPart(progress: ImportProgress, step: ImportStep): number {
+  const libraries = progress.libraries ?? [];
+  if (step === "scanning" && libraries.length > 0) {
+    return libraries.reduce((sum, library) => sum + libraryPart(library), 0) / libraries.length;
+  }
+  return progress.total > 0 ? Math.min(progress.done / progress.total, 1) : 0;
+}
+
+/** How far a library is in the scanning step: its files read, then Plex's titles found in it. */
+function libraryPart(library: ImportLibraryRow): number {
+  switch (library.phase) {
+    case "done":
+    case "matching":
+      return 1;
+    case "probing":
+      return library.total > 0 ? Math.min(library.done / library.total, 1) : 0;
+    default:
+      return 0;
+  }
 }

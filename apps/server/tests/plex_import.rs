@@ -567,7 +567,23 @@ async fn brings_libraries_people_and_what_they_watched() {
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
     assert_eq!(one(&app, "SELECT added_at FROM items WHERE id = ?", alien).await, 1_000_000_000);
-    let scanning = app.get("/api/import/plex", &admin).await.body;
+    // Each library the import brings: Movies done, with the titles found in
+    // it, TV's files still to be read.
+    let mut scanning = app.get("/api/import/plex", &admin).await.body;
+    for _ in 0..400 {
+        if scanning["libraries"][0]["phase"] == "done" {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+        scanning = app.get("/api/import/plex", &admin).await.body;
+    }
+    let libraries = scanning["libraries"].as_array().unwrap();
+    let names: Vec<&str> = libraries.iter().map(|l| l["library"].as_str().unwrap()).collect();
+    assert_eq!(names, ["Movies", "TV"], "{scanning:?}");
+    assert_eq!(libraries[0]["phase"], "done", "{scanning:?}");
+    assert!(libraries[0]["found"].as_u64().is_some_and(|n| n > 0), "{scanning:?}");
+    assert!(["queued", "walking", "probing"].contains(&libraries[1]["phase"].as_str().unwrap()), "{scanning:?}");
+    assert_eq!(libraries[1]["found"], Value::Null);
     assert_eq!((&scanning["step"], &scanning["scan"]["library"]), (&json!("scanning"), &json!("TV")), "{scanning:?}");
     // Every step it goes through is listed: the profiles made, the scans
     // under way, the rest to come.

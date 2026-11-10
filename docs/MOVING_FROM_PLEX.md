@@ -108,12 +108,13 @@ Import from Plex.
    and edits: turn off what you'd rather start over in Pley.
 6. **Import.** Once started, Pley goes to Home (or back to Settings ›
    Libraries, from there), which shows the import: which step it's on, how
-   far the whole import has come, and every step it goes through, ticked
-   off with what each brought, with **Stop the import**. New libraries
-   are scanned for their files, a library at a time (it shows which, and
-   its files read), what's found by file comes over with Plex's names,
-   then Pley fetches posters and details and looks for the rest of Plex's
-   titles. **Hide the steps** keeps it to a line for that import. You can
+   far the whole import has come, and its steps, ticked off with what each
+   brought, with **Stop the import**. New libraries are scanned for their
+   files, a library at a time: each shows its files read and about how
+   long that has left, then the titles found in it. What's found by file
+   comes over with Plex's names, then Pley fetches posters and details and
+   looks for the rest of Plex's titles. **Hide the steps** keeps it to a
+   line for that import. You can
    watch, or close the page, at any time; the import goes on. Once it
    ends, Home says how it went, why if it failed, and has **See what came
    over**, its report, until you close it; Settings › Libraries keeps

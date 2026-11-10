@@ -228,7 +228,7 @@ describe("HomePage", () => {
     ];
     serve({ scans: [firstScan], progress: { ...importing, started_at: 1_794_100_000, steps } });
     renderWithProviders(<HomePage />);
-    expect(await screen.findByText("Importing from Plex, step 2 of 3: Fetching posters and details")).toBeInTheDocument();
+    expect(await screen.findByText("Importing from Plex, step 2 of 3")).toBeInTheDocument();
     expect(screen.getByText("Titles fill in with their details and posters as Pley fetches them.")).toBeInTheDocument();
     expect(screen.queryByText("Scanning TV Shows: reading files")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Hide the steps/ })).toHaveAttribute("aria-expanded", "true");

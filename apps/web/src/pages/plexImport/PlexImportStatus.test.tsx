@@ -1,8 +1,10 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import i18next from "i18next";
 import { describe, expect, it, vi } from "vitest";
 import { plexImportKeys, type ImportProgress, type ImportReport } from "@/api/plexImport";
 import { mockApi, renderWithProviders } from "@/test/render";
+import { timeLeft } from "./ImportProgressView";
 import { PlexImportStatus } from "./PlexImportStatus";
 
 const idle: ImportProgress = { state: "idle", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false };
@@ -79,20 +81,42 @@ describe("PlexImportStatus", () => {
     await vi.waitFor(() => expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/import/plex")).toBe(true));
   });
 
-  it("says which of the steps is running and how far the whole import has come", async () => {
+  it("says which of the steps is running, each library scanned, and how far the whole import has come", async () => {
+    const user = userEvent.setup();
     const steps: ImportProgress["steps"] = [
       { step: "profiles", state: "done", count: 3 },
       { step: "scanning", state: "running", count: null },
       { step: "labels", state: "to_come", count: null },
       { step: "fetching", state: "to_come", count: null },
     ];
-    const progress: ImportProgress = { ...idle, state: "running", step: "scanning", done: 1, total: 2, steps };
+    const libraries: ImportProgress["libraries"] = [
+      { library: "Movies", phase: "done", done: 812, total: 812, left_secs: null, found: 812 },
+      { library: "TV Shows", phase: "probing", done: 504, total: 6509, left_secs: 1500, found: null },
+    ];
+    const progress: ImportProgress = { ...idle, state: "running", step: "scanning", done: 1, total: 2, started_at: 100, steps, libraries };
     mockApi({ "GET /api/import/plex": () => progress });
     renderWithProviders(<PlexImportStatus onReport={() => {}} />);
-    expect(await screen.findByText("Importing from Plex, step 2 of 4: Scanning the new libraries")).toBeInTheDocument();
+    // Open, the steps name the step: the line says which it is.
+    expect(await screen.findByText("Importing from Plex, step 2 of 4")).toBeInTheDocument();
+    expect(screen.queryByText("1 of 2")).not.toBeInTheDocument();
+    expect(screen.getByText("· 812 titles found")).toBeInTheDocument();
+    expect(screen.getByText("· reading files · about 25 minutes left")).toBeInTheDocument();
+    expect(screen.getByText("504 / 6,509")).toBeInTheDocument();
+    // Weighed by how long each step takes: profiles (1) done, and the scans
+    // (40) a library and 504 of 6,509 files into two, of 78 in all.
+    const overall = (1 + 40 * ((1 + 504 / 6509) / 2)) / 78;
+    expect(screen.getByRole("progressbar", { name: "The whole import" })).toHaveAttribute("aria-valuenow", String(Math.round(overall * 100)));
+    expect(screen.getByText("28%")).toBeInTheDocument();
+    // The steps after the next wait behind a button.
+    expect(screen.queryByText("Fetching posters and details")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "1 more step" }));
+    expect(screen.getByText("Fetching posters and details")).toBeInTheDocument();
+
+    // Hidden, the line names the step and counts it.
+    await user.click(screen.getByRole("button", { name: /Hide the steps/ }));
+    expect(screen.getByText("Importing from Plex, step 2 of 4: Scanning the new libraries")).toBeInTheDocument();
     expect(screen.getByText("1 of 2")).toBeInTheDocument();
-    // One step done and half of the second: 1.5 of 4.
-    expect(screen.getByRole("progressbar", { name: "The whole import" })).toHaveAttribute("aria-valuenow", "38");
+    expect(screen.queryByRole("button", { name: "Stop the import" })).not.toBeInTheDocument();
   });
 
   it("shows nothing before any import", async () => {
@@ -100,5 +124,17 @@ describe("PlexImportStatus", () => {
     const { container } = renderWithProviders(<PlexImportStatus onReport={() => {}} />);
     await vi.waitFor(() => expect(requests.some((r) => r.path === "/api/import/plex")).toBe(true));
     expect(container).toBeEmptyDOMElement();
+  });
+});
+
+describe("timeLeft", () => {
+  it("says about how long is left in minutes up to an hour and a half, then in hours", () => {
+    const t = i18next.getFixedT("en", "settings");
+    expect(timeLeft(t, 30)).toBe("under a minute left");
+    expect(timeLeft(t, 61)).toBe("about 2 minutes left");
+    expect(timeLeft(t, 60)).toBe("about 1 minute left");
+    expect(timeLeft(t, 89 * 60)).toBe("about 89 minutes left");
+    expect(timeLeft(t, 90 * 60)).toBe("about 2 hours left");
+    expect(timeLeft(t, 5 * 3600)).toBe("about 5 hours left");
   });
 });

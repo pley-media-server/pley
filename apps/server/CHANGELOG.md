@@ -36,9 +36,10 @@ describes how they are made.
   summaries and dates added as soon as their library is scanned, until
   Pley's own details replace them. Posters come from Pley's own fetch.
 - Home tells administrators how far new libraries are: the Plex import,
-  which Home goes to as soon as it starts, with every step it goes
-  through and Stop, then how it ended (and why, if it failed) until
-  that's closed; after Start fresh, which of the new libraries is being
+  which Home goes to as soon as it starts, with how far the whole import
+  is, its steps, each library scanned with about how long it has left and
+  the titles found in it, and Stop, then how it ended (and why, if it
+  failed) until that's closed; after Start fresh, which of the new libraries is being
   scanned, how far they all are, and each ticked off once done; or a
   library's first scan (its files found, read, then its details
   fetched).

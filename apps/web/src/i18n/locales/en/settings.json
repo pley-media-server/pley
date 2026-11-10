@@ -927,6 +927,20 @@
         "profiles_other": "{{count, number}} profiles",
         "edits_one": "{{count, number}} edit",
         "edits_other": "{{count, number}} edits"
+      },
+      "moreSteps_one": "{{count, number}} more step",
+      "moreSteps_other": "{{count, number}} more steps",
+      "library": {
+        "walking": "finding files",
+        "probing": "reading files",
+        "matching": "finding Plex's titles"
+      },
+      "left": {
+        "underAMinute": "under a minute left",
+        "minutes_one": "about {{count, number}} minute left",
+        "minutes_other": "about {{count, number}} minutes left",
+        "hours_one": "about {{count, number}} hour left",
+        "hours_other": "about {{count, number}} hours left"
       }
     },
     "report": {
@@ -997,6 +1011,7 @@
       "fillingIn": "Titles fill in with their details and posters as Pley fetches them.",
       "running": "Importing from Plex: {{step}}",
       "runningStep": "Importing from Plex, step {{at}} of {{steps}}: {{step}}",
+      "runningAt": "Importing from Plex, step {{at}} of {{steps}}",
       "overall": "The whole import",
       "count": "{{done}} of {{total}}",
       "done": "Imported from Plex on {{date}}",

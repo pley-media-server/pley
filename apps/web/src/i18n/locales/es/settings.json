@@ -951,6 +951,23 @@
         "edits_one": "{{count, number}} edición",
         "edits_many": "{{count, number}} de ediciones",
         "edits_other": "{{count, number}} ediciones"
+      },
+      "moreSteps_one": "{{count, number}} paso más",
+      "moreSteps_many": "{{count, number}} de pasos más",
+      "moreSteps_other": "{{count, number}} pasos más",
+      "library": {
+        "walking": "buscando archivos",
+        "probing": "leyendo archivos",
+        "matching": "buscando los títulos de Plex"
+      },
+      "left": {
+        "underAMinute": "queda menos de un minuto",
+        "minutes_one": "queda alrededor de {{count, number}} minuto",
+        "minutes_many": "quedan alrededor de {{count, number}} de minutos",
+        "minutes_other": "quedan alrededor de {{count, number}} minutos",
+        "hours_one": "queda alrededor de {{count, number}} hora",
+        "hours_many": "quedan alrededor de {{count, number}} de horas",
+        "hours_other": "quedan alrededor de {{count, number}} horas"
       }
     },
     "report": {
@@ -1034,6 +1051,7 @@
       "fillingIn": "Los títulos se completan con sus detalles y pósteres a medida que Pley los obtiene.",
       "running": "Importando de Plex: {{step}}",
       "runningStep": "Importando de Plex, paso {{at}} de {{steps}}: {{step}}",
+      "runningAt": "Importando de Plex, paso {{at}} de {{steps}}",
       "overall": "La importación completa",
       "count": "{{done}} de {{total}}",
       "done": "Importado de Plex el {{date}}",

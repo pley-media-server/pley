@@ -951,6 +951,23 @@
         "edits_one": "{{count, number}} modification",
         "edits_many": "{{count, number}} de modifications",
         "edits_other": "{{count, number}} modifications"
+      },
+      "moreSteps_one": "{{count, number}} étape de plus",
+      "moreSteps_many": "{{count, number}} d’étapes de plus",
+      "moreSteps_other": "{{count, number}} étapes de plus",
+      "library": {
+        "walking": "recherche des fichiers",
+        "probing": "lecture des fichiers",
+        "matching": "recherche des titres de Plex"
+      },
+      "left": {
+        "underAMinute": "encore moins d’une minute",
+        "minutes_one": "encore environ {{count, number}} minute",
+        "minutes_many": "encore environ {{count, number}} de minutes",
+        "minutes_other": "encore environ {{count, number}} minutes",
+        "hours_one": "encore environ {{count, number}} heure",
+        "hours_many": "encore environ {{count, number}} d’heures",
+        "hours_other": "encore environ {{count, number}} heures"
       }
     },
     "report": {
@@ -1034,6 +1051,7 @@
       "fillingIn": "Les titres se complètent avec leurs détails et leurs affiches à mesure que Pley les récupère.",
       "running": "Import depuis Plex : {{step}}",
       "runningStep": "Import depuis Plex, étape {{at}} sur {{steps}} : {{step}}",
+      "runningAt": "Import depuis Plex, étape {{at}} sur {{steps}}",
       "overall": "L’import en entier",
       "count": "{{done}} sur {{total}}",
       "done": "Importé depuis Plex le {{date}}",

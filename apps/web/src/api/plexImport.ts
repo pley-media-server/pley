@@ -187,6 +187,8 @@ export interface ImportProgress {
   scan?: ImportScan | null;
   /** The steps it goes through, in order, as they stand; absent from servers before it. */
   steps?: ImportStepRow[];
+  /** Each library it brings, from the scanning step on; absent from servers before it. */
+  libraries?: ImportLibraryRow[];
 }
 
 /** One of the steps an import goes through. `count`: what it brought, once done, where there's one to give. */
@@ -197,6 +199,19 @@ export interface ImportStepRow {
 }
 
 /** A library's scan the import waits for: its files found, then read (`done` of `total`). */
+/** A library the import brings, during the scanning step. */
+export interface ImportLibraryRow {
+  library: string;
+  phase: "queued" | "walking" | "probing" | "matching" | "done";
+  /** Its files read of those found, while they're read. */
+  done: number;
+  total: number;
+  /** About how many seconds its files have left to be read, once that can be told. */
+  left_secs: number | null;
+  /** Plex's titles found in it, once looked for. */
+  found: number | null;
+}
+
 export interface ImportScan {
   library: string;
   phase: "queued" | "walking" | "probing";
