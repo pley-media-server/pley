@@ -34,6 +34,24 @@ Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
 such as Kometa and Tautulli, through the
 [compatibility APIs](docs/COMPATIBILITY.md).
 
+## Latest releases
+
+Each app has its own version, and a release carries the ones that changed.
+
+<!-- latest releases: written by scripts/release.mjs when an app is released -->
+| | Version | Released | Changes |
+|---|---|---|---|
+| Media Server | [0.1.9](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08) | 2026-11-08 | [Changelog](apps/server/CHANGELOG.md) |
+| Desktop | [0.1.4](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06) | 2026-11-06 | [Changelog](apps/desktop/CHANGELOG.md) |
+| Android | [0.1.11](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2) | 2026-11-10 | [Changelog](apps/android/CHANGELOG.md) |
+| Samsung | [0.1.8](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08) | 2026-11-08 | [Changelog](apps/tizen-native/CHANGELOG.md) |
+| LG | [0.1.8](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08) | 2026-11-08 | [Changelog](apps/webos/CHANGELOG.md) |
+| Kodi | [0.1.7](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06) | 2026-11-06 | [Changelog](apps/kodi/CHANGELOG.md) |
+| Roku | [0.1.7](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06) | 2026-11-06 | [Changelog](apps/roku/CHANGELOG.md) |
+<!-- /latest releases -->
+
+[All releases](https://github.com/pley-media-server/pley/releases)
+
 ## Install
 
 - [Docker](deploy/docker/README.md)

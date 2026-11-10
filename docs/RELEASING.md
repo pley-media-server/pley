@@ -84,15 +84,18 @@ bun scripts/release.mjs kodi patch --dry-run
 bun scripts/release.mjs kodi patch --commit
 bun scripts/release.mjs kodi notes 0.0.2 # a version's notes
 bun scripts/release.mjs pending          # the release HEAD waits for: its tag, units, and what stops it
-bun scripts/release.mjs check            # no unit below the version it had at the last release (CI runs it)
+bun scripts/release.mjs check            # no unit below the version it had at the last release, the README's latest releases right (CI runs it)
+bun scripts/release.mjs readme           # writes the README's latest releases from the CHANGELOGs
 bun test ./scripts                       # the scripts' tests
 ```
 
 `release.mjs <unit> <patch|minor|major|X.Y.Z>` sets the version in the
 unit's manifests and moves its Unreleased entries under the new version,
 dated today and linked to the release's tag: the one the units bumped before
-it wait for, else the day's first free one. For Kodi it also writes the notes
-into `addon.xml`'s `<news>`. The release's tag and the units waiting come from
+it wait for, else the day's first free one. It puts the version, linked to
+that release, in the [README](../README.md#latest-releases)'s table of each
+unit's latest release, which `check` holds to the CHANGELOGs and `readme`
+writes again. For Kodi it also writes the notes into `addon.xml`'s `<news>`. The release's tag and the units waiting come from
 the tags, so fetch them first (`git fetch --tags`).
 
 - `--draft` first adds the commits since the unit's version was set, as
@@ -155,7 +158,7 @@ workflow's `on.paths` has the exact list.
 | Kodi | `apps/kodi`, and the server's Rust code: its end-to-end test runs against a server built from the same commit |
 | Roku | `apps/roku`, the root `package.json` (Bun's version) |
 | FFmpeg | `deploy/ffmpeg` on master: publishes the Docker image's FFmpeg ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) |
-| Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, a unit's version (the first file in its "Version in") |
+| Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, `README.md`, a unit's version (the first file in its "Version in") |
 | Release | A unit's version on master (the first file in its "Version in") |
 
 Repository also fails a pull request whose merge would leave a unit's

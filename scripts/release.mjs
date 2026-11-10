@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // Prepares a release (docs/RELEASING.md): bumps a unit's version in every
-// manifest and moves its CHANGELOG's Unreleased entries under the new version.
+// manifest, moves its CHANGELOG's Unreleased entries under the new version and
+// puts it in README.md's table of latest releases.
 // A release takes every unit whose version went up since the last release tag,
 // under one tag, release-<date>. Merging the bumps to master starts the
 // Release workflow, which builds those units, tags the commit and publishes
@@ -11,7 +12,9 @@
 //   bun scripts/release.mjs <unit> draft                      add its commits since its version was set to Unreleased
 //   bun scripts/release.mjs <unit> notes [X.Y.Z]              print a version's notes (default: the current one)
 //   bun scripts/release.mjs pending                           the release HEAD waits for: its tag, units and notes
-//   bun scripts/release.mjs check                             fails when a unit's version is below its last release's
+//   bun scripts/release.mjs check                             fails when a unit's version is below its last release's,
+//                                                             or README.md's latest releases aren't the CHANGELOGs'
+//   bun scripts/release.mjs readme                            write README.md's latest releases from the CHANGELOGs
 //
 //   --dry-run      show what would change and write nothing
 //   --draft        with a bump: add the commits since its version was set to Unreleased first
@@ -25,7 +28,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { addEntries, entryOf, findSection, notes, plainText, release } from "./changelog.mjs";
+import { addEntries, entryOf, findSection, notes, plainText, release, sections } from "./changelog.mjs";
 import {
   REPOSITORY,
   ROOT,
@@ -189,6 +192,37 @@ function folded(u, open = false) {
   return `<details${open ? " open" : ""}>\n<summary><strong>${u.title} ${u.to}</strong></summary>\n\n${u.notes}\n\n</details>`;
 }
 
+/** README.md's table of each unit's latest release sits between these marks. */
+const README = "README.md";
+const LATEST = /(<!-- latest releases:[^\n]*-->\n)[\s\S]*?(\n<!-- \/latest releases -->)/;
+
+/**
+ * Each released unit's latest release, as README.md's table: its version,
+ * linked to the release that has it, the day of it and its changes. A unit
+ * with no release yet (the web Samsung app) has no row. `texts` has a unit's
+ * CHANGELOG where it isn't the one on disk: the unit being bumped.
+ */
+export function latestReleases(root = ROOT, texts = {}) {
+  const rows = [];
+  for (const unit of UNIT_NAMES) {
+    const { short, changelog } = UNITS[unit];
+    const text = texts[unit] ?? read(root, changelog);
+    const newest = sections(text).find((s) => s.name !== "Unreleased");
+    const tag = newest ? linkedTag(text, newest.name) : null;
+    if (!RELEASE_TAG.test(tag ?? "")) continue;
+    rows.push(`| ${short} | [${newest.name}](${REPOSITORY}/releases/tag/${tag}) | ${newest.date} | [Changelog](${changelog}) |`);
+  }
+  return ["| | Version | Released | Changes |", "|---|---|---|---|", ...rows].join("\n");
+}
+
+/** README.md with that table between its marks: { before, after }; null without the file or the marks. */
+export function readmeWith(root = ROOT, texts = {}) {
+  if (!existsSync(join(root, README))) return null;
+  const before = read(root, README);
+  if (!LATEST.test(before)) return null;
+  return { before, after: before.replace(LATEST, (_, open, close) => `${open}${latestReleases(root, texts)}${close}`) };
+}
+
 /** The tag for a release prepared on `date`: the one HEAD waits for, else that day's first free one. */
 function nextTag(waiting, date, root) {
   if (waiting.tag) return waiting.tag;
@@ -269,6 +303,10 @@ export function plan({ unit, how, date = today(), withDraft = false, since = nul
     const c = changes.find((x) => x.path.endsWith("addon.xml"));
     c.after = kodiNews(c.after, to, date, body);
     c.what += ", <news>";
+  }
+  const readme = readmeWith(root, { [unit]: text });
+  if (readme && readme.after !== readme.before) {
+    changes.push({ path: README, before: readme.before, after: readme.after, what: `${UNITS[unit].short} ${to} among the latest releases` });
   }
   return { unit, from, to, tag, date, drafted, changes, notes: body };
 }
@@ -379,11 +417,26 @@ function pendingCommand(opts) {
 }
 
 function checkCommand() {
+  const readme = readmeWith();
+  if (readme && readme.after !== readme.before) {
+    console.error(`${README}'s latest releases aren't the CHANGELOGs': write them with \`bun scripts/release.mjs readme\`.`);
+    process.exitCode = 1;
+  } else if (readme) console.log(`${README} has each unit's latest release.`);
   const { since, problems: wrong } = lowered();
   if (!since) return console.log(yellow("No release tag here yet: git fetch --tags brings GitHub's."));
   if (!wrong.length) return console.log(`No unit is below the version it had at ${since}.`);
   console.error(`${wrong.join("\n")}\nA unit's version never goes below the one it had at ${since}: put back its manifests and CHANGELOG from master.`);
   process.exitCode = 1;
+}
+
+/** Writes README.md's latest releases: what a bump does, for a README edited by hand. */
+function readmeCommand(opts) {
+  const readme = readmeWith();
+  if (!readme) throw new UsageError(`${README} has no "<!-- latest releases: ... -->" and "<!-- /latest releases -->" marks to write between`);
+  if (readme.after === readme.before) return console.log(`${README} has each unit's latest release already.`);
+  if (opts.dryRun) return console.log(`${latestReleases()}\n\n${yellow("Dry run: nothing was written.")}`);
+  writeFileSync(join(ROOT, README), readme.after);
+  console.log(`${green("Written")} ${README}.`);
 }
 
 /** Each unit's version, the tag it waits for, its commits since its version was set and its Unreleased entries. */
@@ -445,7 +498,9 @@ const USAGE = `usage:
   bun scripts/release.mjs <unit> draft [--since <ref>] [--dry-run]
   bun scripts/release.mjs <unit> notes [X.Y.Z]
   bun scripts/release.mjs pending [--json]                  the release HEAD waits for
-  bun scripts/release.mjs check                             fails when a unit's version is below its last release's
+  bun scripts/release.mjs check                             fails when a unit's version is below its last release's,
+                                                            or README.md's latest releases aren't the CHANGELOGs'
+  bun scripts/release.mjs readme [--dry-run]                write README.md's latest releases from the CHANGELOGs
 units: ${UNIT_NAMES.join(", ")}`;
 
 function main(argv) {
@@ -460,6 +515,10 @@ function main(argv) {
   if (unit === "check") {
     if (action) throw new UsageError(`unexpected ${action}\n${USAGE}`);
     return checkCommand();
+  }
+  if (unit === "readme") {
+    if (action) throw new UsageError(`unexpected ${action}\n${USAGE}`);
+    return readmeCommand(opts);
   }
   unitOf(unit);
   if (!action) throw new UsageError(`${USAGE}\n\nWhat for ${unit}? A bump (patch, minor, major or X.Y.Z), draft or notes.`);
