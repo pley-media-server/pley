@@ -231,11 +231,8 @@ class TvItemPageTest {
     @Test
     fun aSeasonWithItsOwnPosterShowsTheSeasonsAsPosterTiles() {
         show(showOf(12, posters = true))
-        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
-        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
-        // The episodes sit under the season's name, as a single season's do.
-        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
-        press(Key.DirectionUp)
+        // Down from the buttons comes to the seasons, on the season shown.
+        press(Key.DirectionDown)
         val season = hasAnyAncestor(hasTestTag(TV_SEASON_TABS)) and isFocused()
         compose.onNode(season).assert(hasContentDescription("Season 1, 4 episodes", substring = true))
         assertEquals(TabsTop.value, focusedTop(), 2f)
@@ -247,16 +244,20 @@ class TvItemPageTest {
             assertTrue("Season $s: $tile", tile.left.value >= 0f && tile.right.value <= 960f)
             assertEquals("Season $s: $tile", TileKind.Poster.tvHeight.value, (tile.bottom - tile.top).value, 14f)
         }
-        // Focus resting on Season 12 shows it, named over its episodes.
+        // Resting on Season 12 leaves Season 1 shown; Select shows Season 12 and goes into its episodes.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
-        press(Key.DirectionDown)
+        compose.onNode(hasContentDescription("Season 1 Episode 1", substring = true)).assertExists()
+        press(Key.Enter)
         compose.onNode(isFocused()).assert(hasContentDescription("Season 12 Episode 1", substring = true))
         compose.onNode(hasText("Season 12")).assertExists()
+        // The episodes sit under the season's name, as a single season's do.
         assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
-        // Up comes back to the season shown.
+        // Up comes back to the season shown, Down goes back into its episodes.
         press(Key.DirectionUp)
         compose.onNode(season).assert(hasContentDescription("Season 12", substring = true))
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 12 Episode 1", substring = true))
     }
 
     @Test

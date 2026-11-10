@@ -524,7 +524,7 @@ sealed class ItemScreen : ShellPage
         {
             if (s.Posters)
             {
-                seasonPosters = new SeasonPostersView(s, page.Origin, gate, images, Shell.FocusRail, model.SelectSeason, Tree.Focus);
+                seasonPosters = new SeasonPostersView(s, page.Origin, gate, images, Shell.FocusRail, ChooseSeason, Tree.Focus);
                 column.Add(seasonPosters, seasonPosters.Group, 218);
             }
             seasons = new SeasonsView(page, s, gate, images, Shell.FocusRail, OpenEpisode, FocusEpisode, model.SelectSeason, Tree.Focus);
@@ -597,6 +597,13 @@ sealed class ItemScreen : ShellPage
     }
 
     void OpenEpisode(EpisodeLine episode) => go(new PageKey.Item(episode.Item.Id));
+
+    /// <summary>Select on a season's poster: it is shown, and focus goes into its episodes once they are here.</summary>
+    void ChooseSeason(long id)
+    {
+        seasons?.Enter(id);
+        if (id != shown?.Seasons?.Selected) model.SelectSeason(id);
+    }
 
     /// <summary>The info block follows the focused episode once focus has rested on it.</summary>
     void FocusEpisode(EpisodeLine? episode)
@@ -723,6 +730,7 @@ sealed class SeasonsView : View
     TextLabel? empty;
     SeasonsSection? section;
     string shownEpisodes = "";
+    long? entering;
     long? restingTab;
     float tabScroll;
     Animation? tabAnimation;
@@ -772,7 +780,11 @@ sealed class SeasonsView : View
         section = seasons;
         ShowTabs(seasons);
         var key = seasons.Episodes == null ? "loading" : string.Join(",", seasons.Episodes.Select(e => $"{e.Item.Id}:{e.Length}:{e.Watched}"));
-        if (key == shownEpisodes) return;
+        if (key == shownEpisodes)
+        {
+            TryEnter();
+            return;
+        }
         shownEpisodes = key;
         var hadFocus = row?.Group.Children.OfType<FocusItem>().FirstOrDefault(i => i.Focused)?.Name;
         if (row != null)
@@ -808,6 +820,31 @@ sealed class SeasonsView : View
         var at = seasons.Focus is { } id ? episodes.ToList().FindIndex(e => e.Item.Id == id) : -1;
         if (at >= 0) row.Group.RememberChild(at);
         if (hadFocus != null && row.Group.Children.OfType<FocusItem>().FirstOrDefault(i => i.Name == hadFocus) is { } again) focusItem(again);
+        TryEnter();
+    }
+
+    /// <summary>Select on a season's poster: focus goes into its episodes, on the one to watch, once they are here.</summary>
+    public void Enter(long season)
+    {
+        entering = season;
+        TryEnter();
+    }
+
+    void TryEnter()
+    {
+        if (entering is not { } id || section?.Selected != id || section.Episodes is not { } episodes) return;
+        // Another season's episodes, still shown while this one's are asked for.
+        if (episodes.Any(e => e.Item.ParentId != id)) return;
+        if (episodes.Count == 0)
+        {
+            entering = null;
+            return;
+        }
+        if (row == null) return;
+        entering = null;
+        var tiles = row.Group.Children.OfType<FocusItem>().ToList();
+        var at = section.Focus is { } f ? episodes.ToList().FindIndex(e => e.Item.Id == f) : -1;
+        if (tiles.Count > 0) focusItem(tiles[Math.Clamp(at, 0, tiles.Count - 1)]);
     }
 
     /// <summary>The season tabs (design spec §2.6): 40 dp pills in Muted; the shown season on Surface3 in Fg; focused, Accent.</summary>
@@ -886,39 +923,22 @@ sealed class SeasonsView : View
 
 /// <summary>
 /// The seasons as poster tiles (the Android app's SeasonPosters), as the web shows them: each
-/// season's poster, else the show's, its name and episodes under it, in a row of the kit. As with
-/// the tabs, a season focus rests on, or Select chooses, is shown under the row, and focus comes
-/// back into the row on the season shown.
+/// season's poster, else the show's, its name and episodes under it, in a row of the kit. Moving
+/// along them leaves the episodes as they are; Select on a season chooses it. Focus comes back into
+/// the row on the season shown.
 /// </summary>
 sealed class SeasonPostersView : View
 {
     readonly RowView row;
-    readonly Action<long> select;
-    readonly Timer rest = new Timer((uint)KeyRepeatGate.RestMs);
-    SeasonsSection seasons;
-    long? resting;
 
     public SeasonPostersView(SeasonsSection seasons, string origin, KeyRepeatGate gate, Images images, Func<bool> toRail,
-        Action<long> select, Func<FocusItem, bool> focusItem)
+        Action<long> choose, Func<FocusItem, bool> focusItem)
     {
-        this.seasons = seasons;
-        this.select = select;
         var tiles = seasons.Seasons
             .Where(t => t.Item != null)
             .Select(t => TileModel.Of(t.Item! with { Title = t.Title }, TileKind.Poster, origin))
             .ToList();
-        row = new RowView(null, tiles, TileKind.Poster, gate, images, m => Choose(m.Id), null, toRail, m =>
-        {
-            resting = m.Id;
-            rest.Stop();
-            rest.Start();
-        }, focusItem);
-        rest.Tick += (s, e) =>
-        {
-            // Only while focus is still on the season it rested on.
-            if (resting is { } id && id != this.seasons.Selected && FocusInside) select(id);
-            return false;
-        };
+        row = new RowView(null, tiles, TileKind.Poster, gate, images, m => choose(m.Id), null, toRail, null, focusItem);
         Size = row.Size;
         Add(row);
         // The first section under the hero: its pictures are near from the start.
@@ -933,21 +953,7 @@ sealed class SeasonPostersView : View
 
     public void Update(SeasonsSection seasons)
     {
-        this.seasons = seasons;
         var at = seasons.Seasons.ToList().FindIndex(t => t.Id == seasons.Selected);
         if (at >= 0) row.Group.RememberChild(at);
-    }
-
-    void Choose(long id)
-    {
-        if (id != seasons.Selected) select(id);
-    }
-
-    protected override void Dispose(global::Tizen.NUI.DisposeTypes type)
-    {
-        if (Disposed) return;
-        rest.Stop();
-        rest.Dispose();
-        base.Dispose(type);
     }
 }

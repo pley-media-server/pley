@@ -65,7 +65,7 @@ import app.pley.android.ui.tv.requests.TvItemRequestLine
  * Play, From start, Request more seasons (a show with seasons to ask
  * for), Watched, Audio and subtitles, My List, Add to playlist, More.
  * Focus starts on Resume or Play; holding Select on it opens the item's
- * actions. Down from the buttons goes to [down] (the episode to watch).
+ * actions. Down from the buttons goes to [down] (the episode to watch, or the season posters).
  */
 @Composable
 internal fun TvHero(

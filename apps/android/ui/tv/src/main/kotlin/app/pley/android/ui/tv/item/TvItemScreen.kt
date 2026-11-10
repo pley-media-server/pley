@@ -199,6 +199,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
     var focusedEpisode by remember { mutableStateOf<EpisodeLine?>(null) }
     val buttons = remember { HeroButtons() }
     val episodesRow = remember { FocusRequester() }
+    val seasonsRow = remember { FocusRequester() }
     val sections = remember { SectionFocus() }
     val backdrop = remember(page.item, page.origin, tier) { ArtworkCandidates.backdrop(page.item, page.origin, tier) }
     val actions = remember(model, navigator) { TvPageActions(model, navigator) }
@@ -214,7 +215,12 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                     focus = focus,
                     memory = memory,
                     buttons = buttons,
-                    down = if (page.seasons?.episodes?.isNotEmpty() == true) episodesRow else null,
+                    down = when {
+                        // Season posters are a row of their own: Down comes to it, as to any row.
+                        page.seasons?.posters == true -> seasonsRow
+                        page.seasons?.episodes?.isNotEmpty() == true -> episodesRow
+                        else -> null
+                    },
                     actions = actions,
                     onTracks = { panel = Panel.Tracks },
                     onMore = { panel = Panel.More },
@@ -230,6 +236,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                         focus = focus,
                         memory = memory,
                         rowRequester = episodesRow,
+                        seasonsRequester = seasonsRow,
                         onSelectSeason = model::selectSeason,
                         onFocusEpisode = { focusedEpisode = it },
                         onOpen = { actions.open(it.id) },

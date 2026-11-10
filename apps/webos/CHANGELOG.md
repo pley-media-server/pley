@@ -13,7 +13,8 @@ describes how they are made.
 - A show whose seasons have posters of their own shows them as a row of
   posters over its episodes, each with the season's name and episode
   count under it, as the web app and Android TV do. A season without
-  one shows the show's poster.
+  one shows the show's poster. Select on a season shows its episodes
+  and goes into them, and Down from the buttons comes to the seasons.
 
 ### Changed
 

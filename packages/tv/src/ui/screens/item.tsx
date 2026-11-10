@@ -280,6 +280,18 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
   entry.state.rowIndex = rowIndex;
   // The episode focus is on: only the info block reads it, so a move along the episodes draws nothing else again.
   const focusedEpisode = useSignal<ItemSummary | null>(null);
+  // A season chosen on its poster: focus goes into its episodes once they are drawn.
+  const enterSeason = useRef<number | null>(null);
+  const [, chosen] = useState(0);
+  useEffect(() => {
+    const id = enterSeason.current;
+    const eps = episodes.data;
+    if (id === null || id !== seasonId || !eps || eps.some((e) => e.parent_id !== id)) return;
+    enterSeason.current = null;
+    const at = rowIndex[`season-${id}`] ?? Math.max(0, eps.findIndex((e) => e.id === toWatch));
+    const episode = eps[at];
+    if (episode) ui.focus.focus(document.querySelector<HTMLElement>(`[data-fid="episode/${episode.id}"]`));
+  });
   const [readOn, setReadOn] = useState(0);
   const [summaryCut, setSummaryCut] = useState(false);
   const heroEl = useRef<HTMLDivElement | null>(null);
@@ -407,6 +419,12 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
             onShow: (id) => {
               entry.state.season = id;
               setChosenSeason(id);
+            },
+            onChoose: (id) => {
+              enterSeason.current = id;
+              entry.state.season = id;
+              setChosenSeason(id);
+              chosen((n) => n + 1);
             },
           };
           return posters ? <SeasonPosters {...props} /> : <SeasonTabs {...props} />;
@@ -921,23 +939,21 @@ interface SeasonsProps {
   seasons: ItemSummary[];
   shown: number | null;
   onFocus: () => void;
+  /** Show a season: a tab focus rests on, or chooses. */
   onShow: (id: number) => void;
+  /** Select on a season's poster: show it and go into its episodes. */
+  onChoose: (id: number) => void;
 }
 
 /**
  * The seasons as poster tiles (SeasonPosters), as the web shows them: each
  * season's poster, else the show's, its name and episodes under it, in a
- * row of the kit. As with the tabs, a season focus rests on, or Select
- * chooses, is shown under the row; focus comes into the row on it the
- * first time.
+ * row of the kit. Moving along them leaves the episodes as they are;
+ * Select on a season shows it and goes into its episodes. Focus comes into
+ * the row on the season shown the first time.
  */
 function SeasonPosters(p: SeasonsProps) {
   const ui = useUi();
-  const [focused, setFocused] = useState<number | null>(null);
-  const rested = useRested(focused);
-  useEffect(() => {
-    if (rested !== null && rested !== p.shown) p.onShow(rested);
-  }, [rested]);
   const named = useMemo(() => p.seasons.map((s) => ({ ...s, title: seasonTitle(s.title, s.index) })), [p.seasons]);
   return (
     <Row
@@ -946,10 +962,7 @@ function SeasonPosters(p: SeasonsProps) {
       keyOf={(s) => s.id}
       enterAt={Math.max(0, named.findIndex((s) => s.id === p.shown))}
       onLeftEdge={ui.toRail}
-      onFocusIndex={(i) => {
-        p.onFocus();
-        setFocused(named[i]?.id ?? null);
-      }}
+      onFocusIndex={() => p.onFocus()}
       tile={(s, _i, place) => (
         <Tile
           item={s}
@@ -957,7 +970,7 @@ function SeasonPosters(p: SeasonsProps) {
           fid={`season/${s.id}`}
           priority={place.priority}
           onFocus={place.onFocus}
-          onSelect={() => s.id !== p.shown && p.onShow(s.id)}
+          onSelect={() => p.onChoose(s.id)}
         />
       )}
     />
