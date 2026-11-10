@@ -42,6 +42,22 @@ describe("PlexImportStatus", () => {
     expect(onOpen).toHaveBeenLastCalledWith(true);
   });
 
+  it("says which of the steps is running and how far the whole import has come", async () => {
+    const steps: ImportProgress["steps"] = [
+      { step: "profiles", state: "done", count: 3 },
+      { step: "scanning", state: "running", count: null },
+      { step: "labels", state: "to_come", count: null },
+      { step: "fetching", state: "to_come", count: null },
+    ];
+    const progress: ImportProgress = { ...idle, state: "running", step: "scanning", done: 1, total: 2, steps };
+    mockApi({ "GET /api/import/plex": () => progress });
+    renderWithProviders(<PlexImportStatus onOpen={() => {}} />);
+    expect(await screen.findByText("Importing from Plex, step 2 of 4: Scanning the new libraries")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    // One step done and half of the second: 1.5 of 4.
+    expect(screen.getByRole("progressbar", { name: "The whole import" })).toHaveAttribute("aria-valuenow", "38");
+  });
+
   it("shows nothing before any import", async () => {
     const requests = mockApi({ "GET /api/import/plex": () => idle });
     const { container } = renderWithProviders(<PlexImportStatus onOpen={() => {}} />);

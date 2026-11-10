@@ -1033,6 +1033,8 @@
     "status": {
       "fillingIn": "Les titres se complètent avec leurs détails et leurs affiches à mesure que Pley les récupère.",
       "running": "Import depuis Plex : {{step}}",
+      "runningStep": "Import depuis Plex, étape {{at}} sur {{steps}} : {{step}}",
+      "overall": "L’import en entier",
       "count": "{{done}} sur {{total}}",
       "done": "Importé depuis Plex le {{date}}",
       "failed": "L’import depuis Plex a échoué le {{date}}",

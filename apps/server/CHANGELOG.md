@@ -36,8 +36,9 @@ describes how they are made.
   summaries and dates added as soon as their library is scanned, until
   Pley's own details replace them. Posters come from Pley's own fetch.
 - Home tells administrators how far new libraries are: the Plex import's
-  step while it runs, or a library's first scan (its files found, read,
-  then its details fetched).
+  step while it runs, which of its steps that is and how far the whole
+  import has come, or a library's first scan (its files found, read, then
+  its details fetched).
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the
   metadata language's country, and still is until one is chosen:
