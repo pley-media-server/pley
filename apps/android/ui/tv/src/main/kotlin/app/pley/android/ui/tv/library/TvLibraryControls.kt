@@ -83,7 +83,8 @@ internal fun TvChip(
 }
 
 /**
- * A tab (design spec §2.6): a 36 dp pill, its label [muted][PleyColors.Muted];
+ * A tab (design spec §2.6): a 32 dp pill, smaller than a page's buttons
+ * as it sits on the page title's line, its label [muted][PleyColors.Muted];
  * the current tab on [surface3][PleyColors.Surface3] in [fg][PleyColors.Fg];
  * focused, the accent fill, scaled to 1.05. Select shows it: focus passing
  * over the tabs changes nothing.
@@ -97,7 +98,8 @@ internal fun TvTab(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(PleyTv.ButtonHeight).semantics {
+        // Set, as a pill's is: tv-material's Row would keep it at 40.
+        modifier = modifier.height(TabHeight).semantics {
             role = Role.Tab
             this.selected = selected
         },
@@ -112,11 +114,15 @@ internal fun TvTab(
         ),
         scale = ButtonDefaults.scale(focusedScale = PleyFocus.PILL_SCALE, pressedScale = 1f),
         glow = ButtonDefaults.glow(Glow.None, Glow.None, Glow.None),
-        contentPadding = PaddingValues(horizontal = 16.dp),
+        contentPadding = PaddingValues(horizontal = TabPadding),
     ) {
         Text(label, style = PleyType.Tv.Label, maxLines = 1)
     }
 }
+
+/** A tab's height, and the room either side of its label. */
+private val TabHeight = 32.dp
+private val TabPadding = 12.dp
 
 /**
  * A row of a side panel (design spec §2.7): 44 dp, its label in tvBody,
