@@ -101,10 +101,6 @@ class ItemViewModel(
     @Volatile
     private var shown: ItemDetail? = null
 
-    /** The episode the page shown plays next (a show's, a season's), if any. */
-    @Volatile
-    private var nextUp: ItemSummary? = null
-
     private var traced = false
 
     init {
@@ -121,9 +117,8 @@ class ItemViewModel(
 
     /**
      * The page as what is held in memory makes it, there for its first
-     * frame: an item seen before, one asked for ahead, or a season its
-     * show's page got ready ([readySeason]) opens whole, with no outline
-     * and no empty frame first. Loading when its details aren't held; its
+     * frame: an item seen before, or one asked for ahead, opens whole,
+     * with no outline and no empty frame first. Loading when its details aren't held; its
      * seasons, episodes and next episode are in it when they are held
      * too, as the first page made from the server's answers has them.
      * The one page made on the calling thread: nothing is waited for.
@@ -145,7 +140,6 @@ class ItemViewModel(
             else -> d.parentId
         }
         shown = d
-        nextUp = next?.valueOrNull
         val page = itemPage(
             PageInput(
                 detail = d,
@@ -231,7 +225,6 @@ class ItemViewModel(
         return combine(detail, origin, pick, beside, AppLanguage.shown) { load, server, picked, b, _ ->
             val d = load.valueOrNull ?: return@combine withoutDetail(load)
             shown = d
-            nextUp = b.onDeck?.valueOrNull
             val page = itemPage(
                 PageInput(
                     detail = d,
@@ -452,23 +445,6 @@ class ItemViewModel(
     /** Shows [seasonId]'s episodes. */
     fun selectSeason(seasonId: Long) {
         chosenSeason.value = seasonId
-    }
-
-    /**
-     * Gets [seasonId]'s own page ready, the one Select on its poster
-     * opens: what this page lists of the season stands in for its
-     * details, and the show's next episode for the season's when it is
-     * one of its episodes, while the server is asked for both. Its
-     * episodes are held already, so the page opens whole rather than as
-     * a skeleton. Called when focus rests on a season, and as it opens.
-     */
-    fun readySeason(seasonId: Long) {
-        val page = (state.value as? ItemUiState.Ready)?.page ?: return
-        val season = page.seasons?.seasons?.firstOrNull { it.id == seasonId }?.item ?: return
-        val next = nextUp?.takeIf { it.parentId == seasonId }
-        // The season's page is titled with its show: named here should the listing leave it out.
-        val show = page.title.takeIf { page.kind == ItemKind.Show }
-        data.items.seed(if (season.parentTitle.isNullOrEmpty() && show != null) season.copy(parentTitle = show) else season, next)
     }
 
     /**

@@ -133,8 +133,8 @@ internal fun TvItemScreen(model: ItemViewModel) {
     Box(Modifier.fillMaxSize().testTag(TV_ITEM_PAGE)) {
         when (val s = state) {
             ItemUiState.Loading -> {
-                // A page that is held (seen before, or a season got ready by its show's page) is made
-                // within a frame or two: the outline waits, so it doesn't flash before the page.
+                // A page whose details aren't held in memory is often made within a frame or two all the
+                // same (its snapshot, a quick answer): the outline waits, so it doesn't flash before the page.
                 var late by remember { mutableStateOf(false) }
                 LaunchedEffect(Unit) {
                     delay(SKELETON_AFTER_MS)
@@ -249,7 +249,6 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                         rowRequester = episodesRow,
                         seasonsRequester = seasonsRow,
                         onSelectSeason = model::selectSeason,
-                        onReadySeason = model::readySeason,
                         onFocusEpisode = { focusedEpisode = it },
                         onOpen = { actions.open(it.id) },
                         onActions = { panel = Panel.Actions(it, episodesRow) },

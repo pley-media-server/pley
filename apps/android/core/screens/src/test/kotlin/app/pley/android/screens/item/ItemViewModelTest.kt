@@ -221,40 +221,6 @@ class ItemViewModelTest {
     }
 
     @Test
-    fun `a season's page is got ready from its show's, and opens before the server answers`() = runTest(dispatcher) {
-        val show = model(10)
-        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 6, childCount = 2))
-        data.setChildren(10, listOf(summary(30, ItemKind.Season, index = 1, parentId = 10), summary(31, ItemKind.Season, index = 2, parentId = 10)))
-        val next = summary(41, ItemKind.Episode, parentId = 31, parentIndex = 2, index = 1, positionMs = 5_000)
-        data.setOnDeck(10, next)
-        data.setChildren(31, listOf(next, summary(42, ItemKind.Episode, parentId = 31, parentIndex = 2, index = 2)))
-        assertEquals(31L, show.page.seasons?.selected)
-
-        // The season of the show's next episode plays it; another's is the server's to say.
-        show.readySeason(31)
-        show.readySeason(30)
-        show.readySeason(99)
-        assertEquals(listOf<Pair<Long, Long?>>(31L to 41L, 30L to null), data.seeded)
-
-        // Its page is whole at once: under its show's title, its button and its episodes there.
-        val season = model(31)
-        val page = season.page
-        assertEquals(ItemKind.Season, page.kind)
-        assertEquals("Driftline", page.context?.showTitle)
-        assertEquals(PrimaryAction(PrimaryAction.Kind.Resume, "S2 · E1", 5_000f / 3_480_000f, "58 min left"), page.primary)
-        assertEquals(listOf(41L, 42L), page.seasons?.episodes?.map { it.item.id })
-        assertEquals(null, page.summary)
-
-        // Held, so the page is there before anything is collected: no outline, not for a frame.
-        val first = (ItemViewModel(data, launcher, 31, compute = dispatcher).state.value as ItemUiState.Ready).page
-        assertEquals(page, first)
-
-        // The server's details take the stand-in's place.
-        data.set(ItemDetail(id = 31, libraryId = 2, kind = ItemKind.Season, title = "", index = 2, parentId = 10, parentTitle = "Driftline", summary = "The second winter."))
-        assertEquals("The second winter.", season.page.summary)
-    }
-
-    @Test
     fun `a held show's page is whole at once, on the season its next episode is in`() = runTest(dispatcher) {
         data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 6, childCount = 2))
         data.setChildren(10, listOf(summary(30, ItemKind.Season, index = 1), summary(31, ItemKind.Season, index = 2)))
@@ -274,6 +240,12 @@ class ItemViewModelTest {
         // The page made from the answers is the same one: nothing moves as it takes over.
         backgroundScope.launch(dispatcher) { held.state.collect { } }
         assertEquals(first, held.page)
+        // A season's page, held too, is its show's seasons and its own episodes at once.
+        data.set(ItemDetail(id = 31, libraryId = 2, kind = ItemKind.Season, title = "", index = 2, parentId = 10, parentTitle = "Driftline"))
+        val season = (ItemViewModel(data, launcher, 31, compute = dispatcher).state.value as ItemUiState.Ready).page
+        assertEquals("Driftline", season.context?.showTitle)
+        assertEquals(31L, season.seasons?.selected)
+        assertEquals(listOf(41L), season.seasons?.episodes?.map { it.item.id })
         // Music and extras have other pages: theirs go the usual way.
         data.set(ItemDetail(id = 50, libraryId = 3, kind = ItemKind.Album, title = "Low Tide"))
         assertEquals(ItemUiState.Loading, ItemViewModel(data, launcher, 50, compute = dispatcher).state.value)

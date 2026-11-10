@@ -163,17 +163,6 @@ internal class ResourceCache(
         if (entry.state.value !is Loadable.Ready || entry.stale()) entry.start()
     }
 
-    /**
-     * [value] stands in for [resource]'s answer while nothing is known of
-     * it: shown, not fresh, until its snapshot or the server's answer
-     * comes, which it is still asked for. Never written to disk, and it
-     * replaces nothing that is held.
-     */
-    fun <T> seed(resource: Resource<T>, value: T) {
-        val profile = (scopes.value as? ScopeState.Ready)?.profile ?: return
-        entry(profile, resource).seed(value)
-    }
-
     /** [value] is [resource]'s answer now (the server gave it with a change). */
     fun <T> put(resource: Resource<T>, value: T) {
         val profile = (scopes.value as? ScopeState.Ready)?.profile ?: return
@@ -316,10 +305,6 @@ internal class Entry<T>(
     @Volatile
     private var snapshotHash: Int? = null
 
-    /** What [seed] put in [state], while it is still what shows: the snapshot, an answer once, says more. */
-    @Volatile
-    private var seeded: Loadable<T>? = null
-
     override val key: String get() = resource.key
     override val active: Boolean get() = subscribers.get() > 0
     override val current: Any? get() = state.value.valueOrNull
@@ -367,14 +352,6 @@ internal class Entry<T>(
         persist(value)
     }
 
-    /** Shows [value] while nothing else is: [fetchedAt] stays never, so the server is still asked. */
-    fun seed(value: T) {
-        val stand = Loadable.Ready(value, fresh = false)
-        // Named before it shows, so a snapshot read meanwhile knows it; one that never shows matches nothing.
-        seeded = stand
-        state.compareAndSet(Loadable.Loading, stand)
-    }
-
     override fun refresh() {
         load()
     }
@@ -414,7 +391,7 @@ internal class Entry<T>(
             when (shown) {
                 Loadable.Loading -> Loadable.Ready(value, fresh = false)
                 is Loadable.Failed -> if (shown.stale == null) Loadable.Failed(shown.error, value) else shown
-                is Loadable.Ready -> if (shown === seeded) Loadable.Ready(value, fresh = false) else shown
+                is Loadable.Ready -> shown
             }
         }
     }

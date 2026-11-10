@@ -83,9 +83,9 @@ import kotlin.math.roundToInt
  * with focus resting on it shows its season. A show whose seasons have
  * posters of their own ([SeasonsSection.posters]) shows them as a row of
  * poster tiles instead, as the web does, with the season shown named over
- * its episodes; Select on a season opens its page, as on the web. That
- * page is the season's: its episodes under its name, the other seasons a
- * Back away on the show's ([seasonPosterRow]).
+ * its episodes. Resting on a season shows its episodes under the row,
+ * and Select goes down into them, on the episode to watch: the page has
+ * them already, so nothing opens and nothing loads.
  */
 @Composable
 internal fun TvEpisodesSection(
@@ -96,7 +96,6 @@ internal fun TvEpisodesSection(
     rowRequester: FocusRequester,
     seasonsRequester: FocusRequester,
     onSelectSeason: (Long) -> Unit,
-    onReadySeason: (Long) -> Unit,
     onFocusEpisode: (EpisodeLine) -> Unit,
     onOpen: (ItemSummary) -> Unit,
     onActions: (ItemSummary) -> Unit,
@@ -104,8 +103,22 @@ internal fun TvEpisodesSection(
 ) {
     Column(Modifier.fillMaxWidth()) {
         val inTabs = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs }
+        // A season chosen on its poster: focus goes into its episodes once they are the ones shown.
+        var enter by remember { mutableStateOf<Long?>(null) }
+        LaunchedEffect(enter, seasons.selected, seasons.episodes) {
+            val season = enter ?: return@LaunchedEffect
+            val episodes = seasons.episodes ?: return@LaunchedEffect
+            if (seasons.selected != season || episodes.any { it.item.parentId != season }) return@LaunchedEffect
+            enter = null
+            if (episodes.isNotEmpty()) runCatching { rowRequester.requestFocus() }
+        }
         if (seasonPosterRow(page)) {
-            SeasonPosters(seasons, page.origin, memory, onSelectSeason, onReadySeason, onOpen, onSeasonActions, inTabs.focusRequester(seasonsRequester))
+            val choose = { id: Long ->
+                enter = id
+                // Select before focus had rested there: shown now.
+                if (id != seasons.selected) onSelectSeason(id)
+            }
+            SeasonPosters(seasons, page.origin, memory, onSelectSeason, choose, onSeasonActions, inTabs.focusRequester(seasonsRequester))
             Spacer(Modifier.height(TabsToTiles))
         } else if (seasons.seasons.size > 1 && !seasons.posters) {
             SeasonTabs(seasons, onSelectSeason, inTabs)
@@ -146,7 +159,7 @@ internal fun TvEpisodesSection(
 
 /**
  * Whether the page shows its seasons as a row of posters: a show's page
- * does. A season's own page, the one Select on a poster opens, goes
+ * does. A season's own page goes
  * without the row: it would stand between the buttons and the episodes
  * the season was opened for.
  */
@@ -256,11 +269,9 @@ private fun SeasonTab(title: String, current: Boolean, onFocus: () -> Unit, onCl
  * The seasons as poster tiles, as the web shows them: each season's poster
  * (else the show's), its name and episodes under it, its unwatched count
  * on it, in a row of the TV kit ([TvRow]). As with the tabs, the season
- * focus rests on is shown under the row; Select [opens][onOpen] the
- * season's page, as a click on the web's season card does, and holding
- * it gives the season's [actions][onActions]. That page is got
- * [ready][onReady] while focus rests on the season, from what the row
- * knows of it, so it opens whole and at once.
+ * focus rests on is shown under the row; Select [chooses][onChoose] it,
+ * which takes focus down into its episodes, and holding it gives the
+ * season's [actions][onActions].
  */
 @Composable
 private fun SeasonPosters(
@@ -268,8 +279,7 @@ private fun SeasonPosters(
     origin: String,
     memory: FocusMemory,
     onSelect: (Long) -> Unit,
-    onReady: (Long) -> Unit,
-    onOpen: (ItemSummary) -> Unit,
+    onChoose: (Long) -> Unit,
     onActions: (ItemSummary) -> Unit,
     modifier: Modifier,
 ) {
@@ -281,10 +291,7 @@ private fun SeasonPosters(
     var focused by remember { mutableStateOf<Long?>(null) }
     val rested = rememberRested(focused, SEASON_REST_MS)
     LaunchedEffect(rested) {
-        if (rested == null) return@LaunchedEffect
-        // Select may come next: its page is got ready with what is listed here, and its details asked for.
-        onReady(rested)
-        if (rested != seasons.selected) onSelect(rested)
+        if (rested != null && rested != seasons.selected) onSelect(rested)
     }
     // The season shown isn't always the first poster (a long show lists its newest first, and
     // opens on the season to watch): the row opens at it, so its poster is there for Down from
@@ -307,13 +314,7 @@ private fun SeasonPosters(
         title = null,
         tiles = tiles,
         kind = TileKind.Poster,
-        onOpen = { tile ->
-            byId[tile.id]?.let {
-                // Select before focus had rested: ready all the same, so the page opens whole.
-                onReady(it.id)
-                onOpen(it)
-            }
-        },
+        onOpen = { tile -> onChoose(tile.id) },
         onActions = { tile -> byId[tile.id]?.let(onActions) },
         onFocus = { focused = it.id },
         memory = memory,

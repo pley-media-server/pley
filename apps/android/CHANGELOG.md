@@ -15,7 +15,7 @@ describes how they are made.
   name and episode count under it, as the web app does. A season without
   one shows the show's poster. Resting on a season shows its episodes,
   and Down from the buttons comes to the seasons. Select on a season
-  opens its page, with its episodes right under the buttons.
+  goes down into its episodes, on the one to watch.
 - On Android TV, Home's banner shows a dash for each title it turns
   through, at the top right: the one on is longer and fills as its time
   runs. Up from the banner's buttons reaches the dashes, where Left and
@@ -26,10 +26,9 @@ describes how they are made.
 - A show with more than 12 seasons lists them newest first, with Specials
   last, so the seasons still coming out are the first ones. On Android
   TV the seasons open at the one shown, wherever it is in the row.
-- On Android TV, Select on a season opens its page at once, from what
-  the show's page already has of it, where it showed an empty outline
-  until the server answered. Any title's page that is already held opens
-  the same way, with no outline first.
+- On Android TV, a title's page that is already held in memory (seen
+  before, or asked for ahead) opens whole at once, where it showed an
+  empty outline for a moment first.
 - On Android TV, the words at the top of a show's page keep up with the
   episode focused, and no longer show an episode of another season, or
   the show's description, while focus is on the seasons.

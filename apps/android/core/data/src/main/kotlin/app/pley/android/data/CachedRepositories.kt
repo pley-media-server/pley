@@ -9,7 +9,6 @@ import app.pley.android.model.HistoryPage
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemCollections
 import app.pley.android.model.ItemDetail
-import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemList
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
@@ -181,18 +180,6 @@ internal class CachedItems(private val cache: ResourceCache) : ItemRepository {
     override suspend fun warmChildren(itemId: Long) {
         val resource = childrenOf(itemId)
         if (cache.peek(resource) == null) cache.refreshQuietly(resource)
-    }
-
-    override fun seed(item: ItemSummary, next: ItemSummary?) {
-        val detail = detailOf(item.id)
-        cache.seed(detail, ItemDetail.of(item))
-        // Asked for though a stand-in is held, which [prefetch] below would take for the answer.
-        cache.prefetch(detail)
-        if (item.kind == ItemKind.Show || item.kind == ItemKind.Season) {
-            val onDeck = onDeckOf(item.id)
-            if (next != null) cache.seed(onDeck, MaybeItem(next))
-            cache.prefetch(onDeck)
-        }
     }
 
     override fun held(itemId: Long): ItemDetail? = cache.peek(detailOf(itemId))

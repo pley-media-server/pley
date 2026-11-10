@@ -296,29 +296,22 @@ class TvItemPageTest {
         compose.onNode(hasText("Season 12")).assertExists()
         // The episodes sit under the season's name, as a single season's do.
         assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
-        // Up comes back to the season shown; Select opens its page.
+        // Up comes back to the season shown. Select on another, before focus has rested there, shows
+        // it and goes down into its episodes: no other page opens.
         press(Key.DirectionUp)
         compose.onNode(season).assert(hasContentDescription("Season 12", substring = true))
-        press(Key.Enter)
-        assertEquals(PleyKey.Item(112), stack.last())
-    }
-
-    @Test
-    fun aSeasonsPageIsGotReadyWhileFocusRestsOnItsPosterAndAsItOpens() {
-        val data = showOf(3, posters = true, next = 2)
-        show(data)
-        // Down lands on Season 2, the next episode's: resting there readies its page, with that episode as its next.
-        press(Key.DirectionDown)
-        compose.mainClock.advanceTimeBy(2_000)
-        compose.waitForIdle()
-        assertEquals(listOf<Pair<Long, Long?>>(102L to 1021L), data.seeded)
-        // Select before focus has rested on Season 3 readies it all the same, before its page opens.
         compose.mainClock.autoAdvance = false
-        compose.onRoot().performKeyInput { pressKey(Key.DirectionRight, 1) }
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionLeft, 1) }
         compose.onRoot().performKeyInput { pressKey(Key.Enter, 1) }
-        compose.mainClock.advanceTimeBy(32)
-        assertEquals(103L to null, data.seeded.last())
-        assertEquals(PleyKey.Item(103), stack.last())
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 11 Episode 1", substring = true))
+        compose.onNode(hasText("Season 11")).assertExists()
+        assertEquals(listOf<NavKey>(PleyKey.Home, PleyKey.Item(1)), stack)
+        // Select on the season shown goes down too.
+        press(Key.DirectionUp)
+        press(Key.Enter)
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 11 Episode 1", substring = true))
     }
 
     @Test

@@ -61,9 +61,6 @@ class FakeData : DataGraph {
     /** The items whose children were asked for ahead, in order. */
     val warmed = mutableListOf<Long>()
 
-    /** The items whose pages were got ready from a listing, each with the episode given as its next. */
-    val seeded = mutableListOf<Pair<Long, Long?>>()
-
     /** My List's writes: the item, and whether it went in. */
     val listed = mutableListOf<Pair<Long, Boolean>>()
 
@@ -104,13 +101,6 @@ class FakeData : DataGraph {
         override fun heldChildren(itemId: Long): List<ItemSummary>? = children[itemId]?.value?.valueOrNull
 
         override fun heldOnDeck(itemId: Long): Loadable<ItemSummary?>? = onDecks[itemId]?.value?.takeIf { it is Loadable.Ready }
-
-        /** As the app's: what the listing says shows while nothing else does. */
-        override fun seed(item: ItemSummary, next: ItemSummary?) {
-            seeded += item.id to next?.id
-            this@FakeData.detail(item.id).compareAndSet(Loadable.Loading, Loadable.Ready(ItemDetail.of(item), fresh = false))
-            if (next != null) onDecks.getOrPut(item.id) { MutableStateFlow(Loadable.Loading) }.compareAndSet(Loadable.Loading, Loadable.Ready(next, fresh = false))
-        }
     }
 
     override val watchState: WatchStateRepository = object : WatchStateRepository {

@@ -58,9 +58,6 @@ internal class ItemData(
     /** My List's writes: the item, and whether it went in. */
     val listed = mutableListOf<Pair<Long, Boolean>>()
 
-    /** The items whose pages were got ready from a listing, each with the episode given as its next. */
-    val seeded = mutableListOf<Pair<Long, Long?>>()
-
     val launcher = object : PlayerLauncher {
         override fun play(request: PlayRequest) {
             played += request
@@ -75,9 +72,6 @@ internal class ItemData(
         override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), true))
         override suspend fun next(itemId: Long): ItemSummary? = null
         override fun prefetch(itemId: Long) = Unit
-        override fun seed(item: ItemSummary, next: ItemSummary?) {
-            seeded += item.id to next?.id
-        }
     }
 
     override val watchState: WatchStateRepository = object : WatchStateRepository {
