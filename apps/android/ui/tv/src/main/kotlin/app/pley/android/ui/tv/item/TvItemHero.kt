@@ -60,12 +60,14 @@ import app.pley.android.ui.tv.requests.TvItemRequestLine
  * 464 dp text column at x = 96: the title (the show's, for an episode or
  * season) bottom-aligned in the logo's 72 dp box, an episode's context
  * line, the metadata line (and under it a movie's or show's [request],
- * its stage), genres, three lines of summary (More shows it
+ * its stage), genres, five lines of summary (More shows it
  * all when it runs longer), the credits, then the buttons: Resume or
  * Play, From start, Request more seasons (a show with seasons to ask
  * for), Watched, Audio and subtitles, My List, Add to playlist, More.
  * Focus starts on Resume or Play; holding Select on it opens the item's
  * actions. Down from the buttons goes to [down] (the episode to watch, or a show's season posters).
+ * A long title has more room than the column ([TitleColumn]) and up to
+ * three lines, growing down, before it is cut.
  */
 @Composable
 internal fun TvHero(
@@ -90,8 +92,8 @@ internal fun TvHero(
             .focusGroup()
             .padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = HeroTop, bottom = 8.dp),
     ) {
-        Box(Modifier.width(TextColumn).heightIn(min = TitleBox), contentAlignment = Alignment.BottomStart) {
-            BasicText(heroTitle(page), style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg), maxLines = 2, overflow = TextOverflow.Ellipsis)
+        Box(Modifier.widthIn(max = TitleColumn).heightIn(min = TitleBox), contentAlignment = Alignment.BottomStart) {
+            BasicText(heroTitle(page), style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg), maxLines = TITLE_LINES, overflow = TextOverflow.Ellipsis)
         }
         contextLine(page)?.let {
             Spacer(Modifier.height(8.dp))
@@ -303,7 +305,15 @@ private val TitleBox = 72.dp
 /** The text column, x 96 to 560. */
 internal val TextColumn = PleyTv.TextColumnEnd - PleyTv.Gutter
 
-private const val SUMMARY_LINES = 3
+/**
+ * The room a title has, x 96 to 736: wider than the text under it, over
+ * the backdrop's darkened side, so a long title is seldom cut.
+ */
+internal val TitleColumn = 640.dp
+
+private const val TITLE_LINES = 3
+
+private const val SUMMARY_LINES = 5
 
 /** Names after "Starring". */
 private const val STARRING = 3

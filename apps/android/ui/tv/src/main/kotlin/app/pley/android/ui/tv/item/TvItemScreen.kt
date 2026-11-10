@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -492,7 +493,8 @@ private class ItemPageSpec(
 
 /**
  * The info block (design spec §4.1, §4.4; mockup tv-show) once focus has
- * left the hero: the title and metadata line, then the focused episode's
+ * left the hero: the title, on one line with the hero's room for it
+ * ([TitleColumn]), and the metadata line, then the focused episode's
  * title, line and two lines of summary in the episode row, or the item's
  * own summary by the other rows. It follows the focused episode once
  * focus has rested ([rememberRested]).
@@ -510,36 +512,38 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
     Column(
         Modifier
             .padding(start = PleyTv.Gutter, top = 28.dp, end = TvSafeArea.Horizontal)
-            .width(TextColumn)
             .graphicsLayer { alpha = visible.value },
     ) {
+        // The title has the hero's room for it; the rest keeps to the text column.
         BasicText(
             heroTitle(page),
             style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = TitleColumn),
         )
         Spacer(Modifier.height(10.dp))
         TvMetaLine(page.meta)
         val showEpisode = (area == Area.Episodes || area == Area.Tabs) && episode != null
         if (showEpisode && episode != null) {
             Spacer(Modifier.height(14.dp))
-            BasicText(episode.item.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            BasicText(episode.item.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             Spacer(Modifier.height(4.dp))
             val aired = episode.aired?.let { stringResource(R.string.tv_item_aired, it) }
             BasicText(
                 listOfNotNull(episode.longLabel.ifEmpty { null }, episode.runtime.ifEmpty { null }, aired).joinToString(" · "),
                 style = PleyType.Tv.Caption.copy(color = PleyColors.Muted),
                 maxLines = 1,
+                modifier = Modifier.width(TextColumn),
             )
             episode.summary?.let {
                 Spacer(Modifier.height(6.dp))
-                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             }
         } else {
             page.summary?.let {
                 Spacer(Modifier.height(8.dp))
-                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             }
         }
     }

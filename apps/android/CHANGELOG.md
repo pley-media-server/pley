@@ -30,6 +30,8 @@ describes how they are made.
   the show's page already has of it, where it showed an empty outline
   until the server answered. Any title's page that is already held opens
   the same way, with no outline first.
+- On Android TV, a title's page gives a long title more room, wider and
+  up to three lines, and its description five lines where it had three.
 - On Android TV, buttons are a little smaller, those of Home's banner
   smaller again, and the banner's words fade in as it turns to the next
   title.
