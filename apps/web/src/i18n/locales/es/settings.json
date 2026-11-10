@@ -943,7 +943,15 @@
       "stopTitle": "¿Detener la importación?",
       "stopMessage": "Lo que ya se importó se queda. Pley también olvida tu sesión de Plex, así que para importar de nuevo tendrás que iniciar sesión.",
       "inTitle": "Tus datos de Plex ya están",
-      "inDescription": "Lo que vio cada uno ya está en Pley. Ahora obtiene pósteres y detalles, y después busca el resto de los títulos de Plex. Puedes empezar a ver: el informe estará en Importar de Plex, en Ajustes › Bibliotecas."
+      "inDescription": "Lo que vio cada uno ya está en Pley. Ahora obtiene pósteres y detalles, y después busca el resto de los títulos de Plex. Puedes empezar a ver: el informe estará en Importar de Plex, en Ajustes › Bibliotecas.",
+      "counts": {
+        "profiles_one": "{{count, number}} perfil",
+        "profiles_many": "{{count, number}} de perfiles",
+        "profiles_other": "{{count, number}} perfiles",
+        "edits_one": "{{count, number}} edición",
+        "edits_many": "{{count, number}} de ediciones",
+        "edits_other": "{{count, number}} ediciones"
+      }
     },
     "report": {
       "done": "Tu biblioteca de Plex está en Pley",

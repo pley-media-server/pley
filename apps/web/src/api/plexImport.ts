@@ -183,6 +183,15 @@ export interface ImportProgress {
   first_pass_done: boolean;
   /** The library being scanned while the import waits for the scans; absent from servers before it. */
   scan?: ImportScan | null;
+  /** The steps it goes through, in order, as they stand; absent from servers before it. */
+  steps?: ImportStepRow[];
+}
+
+/** One of the steps an import goes through. `count`: what it brought, once done, where there's one to give. */
+export interface ImportStepRow {
+  step: ImportStep;
+  state: "to_come" | "running" | "done";
+  count: number | null;
 }
 
 /** A library's scan the import waits for: its files found, then read (`done` of `total`). */

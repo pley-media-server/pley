@@ -29,7 +29,8 @@ describes how they are made.
   than searched for by name; Start watching goes on from there while the
   rest runs, and Settings › Libraries shows the import, then its report.
   Running it again adds what's new and never takes anything away
-  (docs/MOVING_FROM_PLEX.md). While it waits for the new libraries'
+  (docs/MOVING_FROM_PLEX.md). It lists every step it goes through, ticked
+  off with what each brought. While it waits for the new libraries'
   scans, it shows which library is scanned and how many of its files are
   read, and titles found by their files show with Plex's names, years,
   summaries and dates added as soon as their library is scanned, until

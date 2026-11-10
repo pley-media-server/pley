@@ -921,7 +921,13 @@
       "stopTitle": "Stop the import?",
       "stopMessage": "What's already come over stays. Pley also forgets your Plex sign-in, so importing again starts by signing in.",
       "inTitle": "Your Plex data is in",
-      "inDescription": "What everyone watched is in Pley. It's fetching posters and details, then looking for the rest of Plex's titles. You can start watching now: the report will be under Import from Plex in Settings › Libraries."
+      "inDescription": "What everyone watched is in Pley. It's fetching posters and details, then looking for the rest of Plex's titles. You can start watching now: the report will be under Import from Plex in Settings › Libraries.",
+      "counts": {
+        "profiles_one": "{{count, number}} profile",
+        "profiles_other": "{{count, number}} profiles",
+        "edits_one": "{{count, number}} edit",
+        "edits_other": "{{count, number}} edits"
+      }
     },
     "report": {
       "done": "Your Plex library is in Pley",

@@ -943,7 +943,15 @@
       "stopTitle": "Arrêter l’import ?",
       "stopMessage": "Ce qui est déjà importé reste. Pley oublie aussi votre connexion Plex : pour importer de nouveau, il faudra vous reconnecter.",
       "inTitle": "Vos données Plex sont là",
-      "inDescription": "Ce que chacun a regardé est dans Pley. Pley récupère les affiches et les détails, puis cherche le reste des titres de Plex. Vous pouvez commencer à regarder : le rapport sera sous Importer depuis Plex, dans Paramètres › Bibliothèques."
+      "inDescription": "Ce que chacun a regardé est dans Pley. Pley récupère les affiches et les détails, puis cherche le reste des titres de Plex. Vous pouvez commencer à regarder : le rapport sera sous Importer depuis Plex, dans Paramètres › Bibliothèques.",
+      "counts": {
+        "profiles_one": "{{count, number}} profil",
+        "profiles_many": "{{count, number}} de profils",
+        "profiles_other": "{{count, number}} profils",
+        "edits_one": "{{count, number}} modification",
+        "edits_many": "{{count, number}} de modifications",
+        "edits_other": "{{count, number}} modifications"
+      }
     },
     "report": {
       "done": "Votre bibliothèque Plex est dans Pley",

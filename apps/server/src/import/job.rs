@@ -101,6 +101,63 @@ pub struct Progress {
     pub first_pass_done: bool,
     /// The library being scanned, while the import waits for the scans.
     pub scan: Option<ScanNow>,
+    /// The steps it goes through, in order, as they stand.
+    pub steps: Vec<StepRow>,
+}
+
+/// One of the steps an import goes through, as it stands.
+#[derive(Debug, Clone, Serialize)]
+pub struct StepRow {
+    pub step: Step,
+    pub state: StepState,
+    /// What it brought, once done, where there's a count to give.
+    pub count: Option<u64>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum StepState {
+    ToCome,
+    Running,
+    Done,
+}
+
+/// The steps an import of what `bring` says goes through, in order:
+/// finding Plex's titles is part of the scans (each library is matched as
+/// its scan ends), and the second round, for the titles found by their ids
+/// after the fetch, is part of finding the rest.
+fn steps(bring: Bring) -> Vec<StepRow> {
+    let mut steps = vec![Step::Profiles, Step::Scanning, Step::Labels];
+    if bring.edits {
+        steps.push(Step::Edits);
+    }
+    if bring.collections {
+        steps.push(Step::Collections);
+    }
+    if bring.watch_history {
+        steps.extend([Step::WatchState, Step::History]);
+    }
+    if bring.collections {
+        steps.push(Step::Playlists);
+    }
+    steps.extend([Step::Fetching, Step::MatchingAgain]);
+    steps.into_iter().map(|step| StepRow { step, state: StepState::ToCome, count: None }).collect()
+}
+
+/// What step `step` brought, from the report so far.
+fn step_count(report: &Report, step: Step) -> Option<u64> {
+    let profiles = || report.profiles.iter().filter(|p| p.user_id.is_some() && p.skipped.is_none());
+    match step {
+        Step::Profiles => Some(profiles().count() as u64),
+        Step::Scanning | Step::Matching => Some(report.libraries.iter().map(|l| l.matched).sum()),
+        Step::Labels => Some(report.labels_added),
+        Step::Edits => Some(report.edits.values().sum()),
+        Step::Collections => Some(report.collections_made),
+        Step::WatchState => Some(profiles().map(|p| p.watched).sum()),
+        Step::History => Some(profiles().map(|p| p.plays).sum()),
+        Step::Playlists => Some(profiles().map(|p| p.playlists).sum()),
+        Step::Fetching | Step::MatchingAgain => None,
+    }
 }
 
 /// A library's scan the import waits for: its files found, or read of
@@ -677,12 +734,20 @@ impl Importer {
             if progress.state == RunState::Running {
                 return Err(ImportError::Running);
             }
-            *progress = Progress { state: RunState::Running, ..Default::default() };
+            *progress = Progress { state: RunState::Running, steps: steps(choices.bring), ..Default::default() };
         }
         self.cancel.store(false, Ordering::Relaxed);
         drop(session);
-        let run =
-            Run { state: state.clone(), importer: self.clone(), plex, token, server, admin, report: Report::default() };
+        let run = Run {
+            state: state.clone(),
+            importer: self.clone(),
+            plex,
+            token,
+            server,
+            admin,
+            report: Report::default(),
+            again: false,
+        };
         tokio::spawn(run.go(choices));
         Ok(())
     }
@@ -865,6 +930,9 @@ struct Run {
     server: Server,
     admin: i64,
     report: Report,
+    /// In the second round, for Plex's titles found by their ids after the
+    /// fetch: its steps show as finding them.
+    again: bool,
 }
 
 /// A library being brought: Plex's, Pley's.
@@ -980,12 +1048,26 @@ impl Run {
         Ok(())
     }
 
+    /// Starts step `step`, of `total` things to do: its row runs, and the
+    /// rows before it are done, with what they brought.
     fn step(&self, step: Step, total: u64) {
+        let row = match step {
+            _ if self.again => Step::MatchingAgain,
+            Step::Matching => Step::Scanning,
+            step => step,
+        };
         self.importer.set(&self.state, self.admin, |p| {
             p.step = Some(step);
             p.done = 0;
             p.total = total;
             p.scan = None;
+            if let Some(at) = p.steps.iter().position(|r| r.step == row) {
+                for before in p.steps[..at].iter_mut().filter(|r| r.state != StepState::Done) {
+                    before.state = StepState::Done;
+                    before.count = step_count(&self.report, before.step);
+                }
+                p.steps[at].state = StepState::Running;
+            }
         });
     }
 
@@ -1020,10 +1102,15 @@ impl Run {
 
         // Then the metadata, and Plex's titles found only by their ids,
         // which the fetch gives Pley's.
+        let all_found = self.report.libraries.iter().all(|l| l.missed == 0);
+        if all_found {
+            self.importer.set(&self.state, self.admin, |p| p.steps.retain(|r| r.step != Step::MatchingAgain));
+        }
         self.fetch(&paired).await?;
-        if self.report.libraries.iter().all(|l| l.missed == 0) {
+        if all_found {
             return Ok(());
         }
+        self.again = true;
         self.step(Step::MatchingAgain, paired.len() as u64);
         let index = Index::load(&self.state.db, &pley_libraries).await?;
         let mut again = matches.clone();
@@ -2316,5 +2403,34 @@ impl Pager {
         // Plex leaves out the total on some listings: a short page is the last.
         self.done = got == 0 || (self.start >= page.total && got < super::plex::PAGE);
         Ok((got > 0).then_some(page.items))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_steps_listed_are_those_chosen_in_the_order_they_run() {
+        let listed = |bring| steps(bring).into_iter().map(|r| r.step).collect::<Vec<_>>();
+        let nothing = Bring { watch_history: false, collections: false, edits: false };
+        assert_eq!(
+            listed(nothing),
+            [Step::Profiles, Step::Scanning, Step::Labels, Step::Fetching, Step::MatchingAgain]
+        );
+        assert_eq!(
+            listed(Bring { watch_history: true, ..nothing }),
+            [
+                Step::Profiles,
+                Step::Scanning,
+                Step::Labels,
+                Step::WatchState,
+                Step::History,
+                Step::Fetching,
+                Step::MatchingAgain
+            ]
+        );
+        assert_eq!(listed(Bring::default()).len(), 10);
+        assert!(steps(Bring::default()).iter().all(|r| r.state == StepState::ToCome && r.count.is_none()));
     }
 }

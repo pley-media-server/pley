@@ -410,6 +410,12 @@ async fn finished(app: &TestApp, admin: &str) -> Value {
     panic!("the import didn't finish");
 }
 
+/// The import's steps, as its progress lists them: each with its state.
+fn steps(progress: &Value) -> Vec<(String, String)> {
+    let rows = progress["steps"].as_array().cloned().unwrap_or_default();
+    rows.iter().map(|r| (r["step"].as_str().unwrap().to_owned(), r["state"].as_str().unwrap().to_owned())).collect()
+}
+
 /// A number `sql` answers, with `bind` for its `?`.
 async fn one(app: &TestApp, sql: &'static str, bind: i64) -> i64 {
     sqlx::query_scalar(sql).bind(bind).fetch_one(&app.state.db.read).await.unwrap()
@@ -563,6 +569,14 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(one(&app, "SELECT added_at FROM items WHERE id = ?", alien).await, 1_000_000_000);
     let scanning = app.get("/api/import/plex", &admin).await.body;
     assert_eq!((&scanning["step"], &scanning["scan"]["library"]), (&json!("scanning"), &json!("TV")), "{scanning:?}");
+    // Every step it goes through is listed: the profiles made, the scans
+    // under way, the rest to come.
+    let to_come =
+        ["labels", "edits", "collections", "watch_state", "history", "playlists", "fetching", "matching_again"];
+    let mut listed = vec![("profiles".to_owned(), "done".to_owned()), ("scanning".to_owned(), "running".to_owned())];
+    listed.extend(to_come.iter().map(|step| (step.to_string(), "to_come".to_owned())));
+    assert_eq!(steps(&scanning), listed);
+    assert_eq!(scanning["steps"][0]["count"], 2, "the administrator's profile and the Home user's");
     tv_held.store(false, Ordering::SeqCst);
 
     let done = finished(&app, &admin).await;
@@ -949,6 +963,12 @@ async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
     assert_eq!((&progress["state"], &progress["first_pass_done"]), (&json!("running"), &json!(true)), "{progress:?}");
+    // Finding the rest is listed, as Casablanca wasn't found by its file.
+    let listed: Vec<String> = steps(&progress).into_iter().map(|(step, _)| step).collect();
+    let all = ["profiles", "scanning", "labels", "edits", "collections", "watch_state", "history", "playlists"];
+    assert_eq!(listed, [&all[..], &["fetching", "matching_again"]].concat(), "{progress:?}");
+    assert_eq!(steps(&progress)[..2], [("profiles".into(), "done".into()), ("scanning".into(), "done".into())]);
+    assert_eq!(progress["steps"][1]["count"], 1, "Alien, found by its file");
     let alien: i64 = sqlx::query_scalar("SELECT id FROM items WHERE title LIKE 'Alien%'")
         .fetch_one(&app.state.db.read)
         .await

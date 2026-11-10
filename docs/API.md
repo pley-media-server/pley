@@ -4622,6 +4622,14 @@ interface ImportProgress {
   // library is matched as soon as its files are in, while the others are
   // scanned; "matching" is for those left once none is.
   scan: { library: string; phase: "queued" | "walking" | "probing"; done: number; total: number } | null;
+  // Every step it goes through, in order, as chosen on "What to bring":
+  // "profiles", "scanning" (with "matching" in it), "labels", "edits",
+  // "collections", "watch_state", "history", "playlists", "fetching",
+  // "matching_again" (with the steps it brings again in it; left out once
+  // every title was found by its file). `count`, once done: profiles made,
+  // titles found, labels added, edits, collections made, titles watched,
+  // plays or playlists; null for the others.
+  steps: { step: string; state: "to_come" | "running" | "done"; count: number | null }[];
   report: {
     finished_at: number;
     outcome: "done" | "failed" | "cancelled";   // kept with the report, so it's known after a restart

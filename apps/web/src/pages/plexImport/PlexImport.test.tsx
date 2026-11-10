@@ -328,6 +328,58 @@ describe("PlexImport", () => {
     expect(onFinish).toHaveBeenCalled();
   });
 
+  it("lists every step: those done with what they brought, the one running, the rest to come", async () => {
+    const progress: ImportProgress = {
+      ...idle,
+      state: "running",
+      step: "scanning",
+      done: 1,
+      total: 2,
+      scan: { library: "TV Shows", phase: "probing", done: 4510, total: 6509 },
+      steps: [
+        { step: "profiles", state: "done", count: 2 },
+        { step: "scanning", state: "running", count: null },
+        { step: "labels", state: "to_come", count: null },
+        { step: "watch_state", state: "to_come", count: null },
+        { step: "fetching", state: "to_come", count: null },
+      ],
+    };
+    serve({ progress: () => progress });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    const steps = within(await screen.findByRole("list"));
+    expect(steps.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
+      "Making profiles· 2 profiles",
+      "Scanning the new libraries1 / 2TV Shows: reading files4,510 / 6,509",
+      "Bringing labels and dates added",
+      "Bringing what everyone watched",
+      "Fetching posters and details",
+    ]);
+    expect(steps.getByRole("progressbar", { name: "Scanning the new libraries" })).toBeInTheDocument();
+  });
+
+  it("shows the second round's steps under finding the rest", async () => {
+    const progress: ImportProgress = {
+      ...idle,
+      state: "running",
+      step: "watch_state",
+      done: 0,
+      total: 1,
+      first_pass_done: true,
+      steps: [
+        { step: "watch_state", state: "done", count: 12 },
+        { step: "fetching", state: "done", count: null },
+        { step: "matching_again", state: "running", count: null },
+      ],
+    };
+    serve({ progress: () => progress });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    const steps = within(await screen.findByRole("list"));
+    expect(steps.getByText("· 12 watched")).toBeInTheDocument();
+    expect(steps.getByText("Finding the rest of Plex's titles")).toBeInTheDocument();
+    // What it does for the titles found, under the step it's part of.
+    expect(steps.getByText("Bringing what everyone watched", { selector: "p" })).toBeInTheDocument();
+  });
+
   it("opens on the last import's report when asked", async () => {
     serve({ progress: () => ({ ...idle, state: "done", report }) });
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);

@@ -2,9 +2,19 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { Link } from "react-router";
-import { CircleAlert, CircleCheck, CircleX, TriangleAlert } from "lucide-react";
+import { Circle, CircleAlert, CircleCheck, CircleX, LoaderCircle, TriangleAlert } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useForgetPlex, usePlexImport, type EditedField, type ImportReport, type ImportScan, type ProfileReport } from "@/api/plexImport";
+import {
+  useForgetPlex,
+  usePlexImport,
+  type EditedField,
+  type ImportProgress,
+  type ImportReport,
+  type ImportScan,
+  type ImportStep,
+  type ImportStepRow,
+  type ProfileReport,
+} from "@/api/plexImport";
 import { useRatingSystems } from "@/api/hooks";
 import { ConfirmModal } from "@/components/Modal";
 import { Badge, Button, PageSpinner, ProgressBar } from "@/components/ui";
@@ -67,23 +77,28 @@ export function ImportProgressView({
           </>
         }
       >
-        <div className="space-y-2" aria-live="polite">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium">{data.step ? t(`plexImport.progress.steps.${data.step}`) : t("plexImport.progress.starting")}</span>
-            {data.total > 0 ? (
-              <span className="tabular-nums text-muted">
-                {data.done.toLocaleString(currentLocale())} / {data.total.toLocaleString(currentLocale())}
-              </span>
-            ) : null}
+        {/* Servers before the list of steps give the one running alone. */}
+        {data.steps?.length ? (
+          <StepList progress={data} />
+        ) : (
+          <div className="space-y-2" aria-live="polite">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium">{data.step ? t(`plexImport.progress.steps.${data.step}`) : t("plexImport.progress.starting")}</span>
+              {data.total > 0 ? (
+                <span className="tabular-nums text-muted">
+                  {data.done.toLocaleString(currentLocale())} / {data.total.toLocaleString(currentLocale())}
+                </span>
+              ) : null}
+            </div>
+            <ProgressBar
+              value={share}
+              label={t("plexImport.progress.title")}
+              className="h-2"
+              barClassName={data.total === 0 ? "w-1/3 animate-pulse" : undefined}
+            />
+            {data.scan ? <ScanLine scan={data.scan} /> : null}
           </div>
-          <ProgressBar
-            value={share}
-            label={t("plexImport.progress.title")}
-            className="h-2"
-            barClassName={data.total === 0 ? "w-1/3 animate-pulse" : undefined}
-          />
-          {data.scan ? <ScanLine scan={data.scan} /> : null}
-        </div>
+        )}
         <ConfirmModal
           open={stopping}
           onClose={() => setStopping(false)}
@@ -102,6 +117,84 @@ export function ImportProgressView({
   const report = data.report;
   if (!report) return null;
   return <Report report={report} onFinish={onFinish} onAgain={onAgain} />;
+}
+
+/** The words for what a step brought, where it has a count. */
+function stepCount(t: TFunction<"settings">, step: ImportStep, count: number): string | null {
+  switch (step) {
+    case "profiles":
+      return t("plexImport.progress.counts.profiles", { count });
+    case "scanning":
+      return t("plexImport.report.matched", { count });
+    case "labels":
+      return t("plexImport.report.labelsAdded", { count });
+    case "edits":
+      return t("plexImport.progress.counts.edits", { count });
+    case "collections":
+      return t("plexImport.report.collectionsMade", { count });
+    case "watch_state":
+      return t("plexImport.report.watched", { count });
+    case "history":
+      return t("plexImport.report.plays", { count });
+    case "playlists":
+      return t("plexImport.report.playlists", { count });
+    default:
+      return null;
+  }
+}
+
+/** Every step the import goes through: those done with what they brought, the one running with how far it is, the rest to come. */
+function StepList({ progress }: { progress: ImportProgress }) {
+  return (
+    <ol className="space-y-3" aria-live="polite">
+      {(progress.steps ?? []).map((row) => (
+        <li key={row.step}>
+          <StepLine row={row} progress={progress} />
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function StepLine({ row, progress }: { row: ImportStepRow; progress: ImportProgress }) {
+  const { t } = useTranslation("settings");
+  const name = t(`plexImport.progress.steps.${row.step}`);
+  const counted = row.state === "done" && row.count != null ? stepCount(t, row.step, row.count) : null;
+  // Finding Plex's titles is part of the scans, and the second round's
+  // steps are part of finding the rest: they show under their row.
+  const within = progress.step && progress.step !== row.step ? t(`plexImport.progress.steps.${progress.step}`) : null;
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-2 text-sm">
+        {row.state === "done" ? (
+          <CircleCheck className="size-4 shrink-0 text-success" aria-hidden />
+        ) : row.state === "running" ? (
+          <LoaderCircle className="size-4 shrink-0 animate-spin text-accent" aria-hidden />
+        ) : (
+          <Circle className="size-4 shrink-0 text-subtle" aria-hidden />
+        )}
+        <span className={row.state === "to_come" ? "text-subtle" : row.state === "running" ? "font-medium" : undefined}>{name}</span>
+        {counted ? <span className="text-muted">· {counted}</span> : null}
+        {row.state === "running" && progress.total > 0 ? (
+          <span className="ml-auto tabular-nums text-muted">
+            {progress.done.toLocaleString(currentLocale())} / {progress.total.toLocaleString(currentLocale())}
+          </span>
+        ) : null}
+      </div>
+      {row.state === "running" ? (
+        <div className="space-y-1 pl-6">
+          {within ? <p className="text-sm text-muted">{within}</p> : null}
+          <ProgressBar
+            value={progress.total > 0 ? progress.done / progress.total : 0}
+            label={name}
+            className="h-2"
+            barClassName={progress.total === 0 ? "w-1/3 animate-pulse" : undefined}
+          />
+          {progress.scan ? <ScanLine scan={progress.scan} /> : null}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 /** The library the import's scans are on, with its files read once they're counted. */
