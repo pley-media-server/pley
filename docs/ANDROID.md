@@ -288,7 +288,12 @@ rates as the decoder gives them, the same in every language.
   (a download of profile 5, which has none, on its Dolby Vision decoder),
   and the player's details say why ("HDR10 (Dolby Vision base layer, as
   this screen doesn't show Dolby Vision)"). Their Decoded line names what
-  the decoder makes: HEVC and HDR10 for a base layer.
+  the decoder makes: HEVC and HDR10 for a base layer. A stream the server
+  repackages keeps its Dolby Vision in MPEG-TS segments, which can't say
+  so: its playlist does ([API.md](API.md#dolby-vision-remuxes)), and
+  Media3 reads that for the track but not for the samples it hands the
+  decoder. The player names those samples as their track, so they go to
+  the Dolby Vision decoder as a file played as it is does.
 
 ### Remote control
 

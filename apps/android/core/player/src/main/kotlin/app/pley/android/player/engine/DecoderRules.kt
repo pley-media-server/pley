@@ -20,10 +20,11 @@ import app.pley.android.caps.DecoderPolicy
  * software at any size. Dolby Vision decoders are left out when the video
  * doesn't come out as Dolby Vision, so Media3 falls back to the HEVC (or
  * AVC, AV1) decoder of the base layer, and come first when it does
- * ([dolbyVisionDecoders]). Profiles 5 and 7 have no base layer another
- * decoder plays: their Dolby Vision decoders stay, as Media3 keeps them,
- * but for profile 7 on a drive ([profile7BaseLayer]), which goes to the
- * HEVC decoder. Audio decoders are never limited.
+ * ([dolbyVisionDecoders]). A repackaged stream's samples are named Dolby
+ * Vision as their track is ([named]). Profiles 5 and 7 have no base layer
+ * another decoder plays: their Dolby Vision decoders stay, as Media3 keeps
+ * them, but for profile 7 on a drive ([profile7BaseLayer]), which goes to
+ * the HEVC decoder. Audio decoders are never limited.
  */
 @OptIn(markerClass = [UnstableApi::class])
 class DecoderRules(
@@ -36,7 +37,8 @@ class DecoderRules(
     /**
      * Dolby Vision profile 7 plays on the HEVC decoder, as its HDR10 base
      * layer, as on the Samsung app: a file on a drive, which no server can
-     * make 8.1 of (a server's stream of it is 8.1 or HDR10 already).
+     * make 8.1 of (a server's stream of it is 8.1 or HDR10 already, or
+     * profile 7 for a player that decodes it).
      */
     private val profile7BaseLayer: () -> Boolean = { false },
 ) {
@@ -70,6 +72,26 @@ class DecoderRules(
         } else {
             format
         }
+
+    /**
+     * [sample] named as its track is. A stream the server repackages keeps
+     * its Dolby Vision in MPEG-TS segments, which can't say so: its
+     * playlist does. Media3 names the track ([tracks], the renderer's) by
+     * the playlist, Dolby Vision, and each sample by its segment, HEVC, and
+     * picks the decoder by the sample: the HEVC decoder, which plays the
+     * base layer (profile 5, which has none, in wrong colours). Named as
+     * its track, the sample goes to the Dolby Vision decoder, as a file
+     * played as it is does. Media3 gives a sample its track's id (none, for
+     * the server's stream of one size): a sample goes by the one track with
+     * its id, and stays as it is when that isn't Dolby Vision over the
+     * sample's codec.
+     */
+    fun named(sample: Format, tracks: Array<Format>): Format {
+        if (sample.sampleMimeType == MimeTypes.VIDEO_DOLBY_VISION) return sample
+        val track = tracks.singleOrNull { it.id == sample.id } ?: return sample
+        if (track.sampleMimeType != MimeTypes.VIDEO_DOLBY_VISION || baseLayerOf(track.codecs) != sample.sampleMimeType) return sample
+        return sample.buildUpon().setSampleMimeType(MimeTypes.VIDEO_DOLBY_VISION).setCodecs(track.codecs).build()
+    }
 
     /**
      * The decoders of [format], best first, when it is Dolby Vision that
@@ -157,6 +179,20 @@ class DecoderRules(
     }
 
     companion object {
+        /**
+         * The codec under a Dolby Vision codec string (RFC 6381): HEVC
+         * under `dvhe` and `dvh1`, H.264 under `dvav` and `dva1`, AV1 under
+         * `dav1`. `null` for anything else. Media3's own
+         * (`getDolbyVisionBaseLayerMimeType`) has none for profile 7, which
+         * the server names for a player that decodes it.
+         */
+        fun baseLayerOf(codecs: String?): String? = when (codecs?.substringBefore(',')?.trim()?.lowercase()?.substringBefore('.')) {
+            "dvhe", "dvh1" -> MimeTypes.VIDEO_H265
+            "dvav", "dva1" -> MimeTypes.VIDEO_H264
+            "dav1" -> MimeTypes.VIDEO_AV1
+            else -> null
+        }
+
         /** [list] with its hardware entries first, each kind in Media3's order. */
         fun <T> hardwareFirst(list: List<T>, hardware: (T) -> Boolean): List<T> {
             val (hw, sw) = list.partition(hardware)

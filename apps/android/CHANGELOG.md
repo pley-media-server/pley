@@ -89,6 +89,12 @@ describes how they are made.
 
 ### Fixed
 
+- Dolby Vision the server repackages stays Dolby Vision: a file that also
+  carries HDR10+, profile 7 made 8.1, a file that doesn't name its Dolby
+  Vision or overstates its level, or one whose sound or container is
+  changed. On a Dolby Vision screen these played as their HDR10 or HLG
+  base layer, and profile 5, which has none, in wrong colours; only files
+  played as they are came out as Dolby Vision.
 - On Android TV, the line over a title in Home's banner (New in Movies)
   reached the top of the screen when the title took two lines. It now
   keeps its place and the title grows down.

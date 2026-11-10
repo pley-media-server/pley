@@ -14,6 +14,7 @@ import app.pley.android.caps.DecoderPolicy
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -118,6 +119,72 @@ class DecoderRulesTest {
         assertNull(DecoderRules({ DecoderPolicy(tv = true) }).dolbyVisionDecoders(context, base, format, false, false))
         val hevc = video(MimeTypes.VIDEO_H265, 3840, 2160, 23.976f, "hvc1.2.4.L153.B0")
         assertNull(shown.dolbyVisionDecoders(context, base, hevc, false, false))
+    }
+
+    @Test
+    fun aRepackagedStreamsSamplesAreNamedDolbyVisionAsTheirTrackIs() {
+        val rules = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { true })
+        // An HLS remux in MPEG-TS: the playlist names the track, the segments their HEVC.
+        val track = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvh1.08.06").buildUpon().setId("0").build()
+        val sample = video(MimeTypes.VIDEO_H265, 3840, 1606, 23.976f, "hvc1.2.4.L150.B0", hdr10).buildUpon().setId("0").build()
+        val named = rules.named(sample, arrayOf(track))
+        assertEquals(MimeTypes.VIDEO_DOLBY_VISION, named.sampleMimeType)
+        assertEquals("dvh1.08.06", named.codecs)
+        assertEquals("the picture stays the sample's", 1606 to hdr10, named.height to named.colorInfo)
+        // Profiles 5 and 7, which the playlist names alone.
+        for (codecs in listOf("dvh1.05.06", "dvh1.07.06")) {
+            val alone = track.buildUpon().setCodecs(codecs).build()
+            assertEquals(codecs, rules.named(sample, arrayOf(alone)).codecs)
+        }
+
+        // As it is: Dolby Vision already, a track that isn't, one over another codec.
+        val dolbyVision = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvhe.08.06")
+        assertSame(dolbyVision, rules.named(dolbyVision, arrayOf(track)))
+        val hevc = video(MimeTypes.VIDEO_H265, 3840, 2160, 23.976f, "hvc1.2.4.L153.B0").buildUpon().setId("0").build()
+        assertSame(sample, rules.named(sample, arrayOf(hevc)))
+        val h264 = video(MimeTypes.VIDEO_H264, 1920, 1080, 23.976f, "avc1.640028").buildUpon().setId("0").build()
+        assertSame(h264, rules.named(h264, arrayOf(track)))
+        // A sample goes by its own track, the one with its id: not by another that is Dolby Vision, nor without one.
+        val second = sample.buildUpon().setId("1").build()
+        assertSame(second, rules.named(second, arrayOf(track, hevc.buildUpon().setId("1").build())))
+        assertSame(second, rules.named(second, arrayOf(track)))
+        assertSame(sample, rules.named(sample, emptyArray()))
+        // The server's stream of one size has no ids, as Media3 reads it: its one track is the sample's.
+        val (unnamedTrack, unnamedSample) = track.buildUpon().setId(null as String?).build() to sample.buildUpon().setId(null as String?).build()
+        assertEquals("dvh1.08.06", rules.named(unnamedSample, arrayOf(unnamedTrack)).codecs)
+        // Several without ids: which is the sample's can't be told.
+        assertSame(unnamedSample, rules.named(unnamedSample, arrayOf(unnamedTrack, unnamedTrack)))
+    }
+
+    @Test
+    fun aSampleNamedDolbyVisionGoesWhereAFilesDoes() {
+        val context = RuntimeEnvironment.getApplication()
+        val track = video(MimeTypes.VIDEO_DOLBY_VISION, 3840, 2160, 23.976f, "dvh1.08.06").buildUpon().setId("0").build()
+        val sample = video(MimeTypes.VIDEO_H265, 3840, 2160, 23.976f, "hvc1.2.4.L150.B0", hdr10).buildUpon().setId("0").build()
+        val shown = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { true })
+        val named = shown.named(sample, arrayOf(track))
+        assertEquals(
+            listOf("c2.vendor.dolby.decoder", "c2.vendor.hevc.decoder"),
+            shown.dolbyVisionDecoders(context, base, named, secure = false, tunneling = false)?.map { it.name },
+        )
+        // Not shown: profile 8 gets no Dolby Vision decoder (Media3 then takes its base layer's), profile 5 keeps its own.
+        val notShown = DecoderRules({ DecoderPolicy(tv = true) }, dolbyVisionShown = { false })
+        assertEquals(emptyList<String>(), names(notShown, MimeTypes.VIDEO_DOLBY_VISION, named))
+        val p5 = notShown.named(sample, arrayOf(track.buildUpon().setCodecs("dvh1.05.06").build()))
+        assertEquals(listOf("c2.vendor.dolby.decoder"), names(notShown, MimeTypes.VIDEO_DOLBY_VISION, p5))
+        // The player's details say what its decoder makes of it.
+        assertEquals("Dolby Vision", PlaybackAnalytics.rangeOf(named, MimeTypes.VIDEO_DOLBY_VISION))
+        assertEquals("HDR10", PlaybackAnalytics.rangeOf(named, MimeTypes.VIDEO_H265))
+    }
+
+    @Test
+    fun dolbyVisionCodecStringsNameTheCodecUnderThem() {
+        assertEquals(MimeTypes.VIDEO_H265, DecoderRules.baseLayerOf("dvh1.08.06"))
+        assertEquals(MimeTypes.VIDEO_H265, DecoderRules.baseLayerOf("dvhe.05.06,ec-3"))
+        assertEquals(MimeTypes.VIDEO_H264, DecoderRules.baseLayerOf("dvav.09.05"))
+        assertEquals(MimeTypes.VIDEO_AV1, DecoderRules.baseLayerOf("dav1.10.06"))
+        assertNull(DecoderRules.baseLayerOf("hvc1.2.4.L153.B0"))
+        assertNull(DecoderRules.baseLayerOf(null))
     }
 
     @Test
