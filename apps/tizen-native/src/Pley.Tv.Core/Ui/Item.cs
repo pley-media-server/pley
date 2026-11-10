@@ -236,15 +236,14 @@ public sealed record StreamInfo(string Kind, string Codec, string? Language, str
 /// <param name="Selected">The season shown.</param>
 /// <param name="Episodes">Its episodes; null while they load.</param>
 /// <param name="Focus">The episode to start from: the one Play plays, or the page's own episode.</param>
-/// <param name="Posters">The seasons show as a row of posters rather than tabs: some season has one of its own (<see cref="ItemPages.SeasonPosters"/>).</param>
-public sealed record SeasonsSection(IReadOnlyList<SeasonTab> Seasons, long? Selected, IReadOnlyList<EpisodeLine>? Episodes, long? Focus, bool Posters = false)
+public sealed record SeasonsSection(IReadOnlyList<SeasonTab> Seasons, long? Selected, IReadOnlyList<EpisodeLine>? Episodes, long? Focus)
 {
     /// <summary>The season shown, as a tab.</summary>
     public SeasonTab? SelectedTab => Seasons.FirstOrDefault(s => s.Id == Selected);
 }
 
-/// <summary>A season among a show's: "Season 2", "Specials", with "8 episodes", and the season itself for its poster tile.</summary>
-public sealed record SeasonTab(long Id, string Title, string? Episodes, ItemSummary? Item = null);
+/// <summary>A season among a show's: "Season 2", "Specials", with "8 episodes".</summary>
+public sealed record SeasonTab(long Id, string Title, string? Episodes);
 
 /// <summary>An episode in a row, its words worked out.</summary>
 /// <param name="Title">"5. Glasshouse".</param>
@@ -587,7 +586,7 @@ public static class ItemPages
             case "show":
             case "season":
                 tabs = (input.Seasons ?? Array.Empty<ItemSummary>())
-                    .Select(s => new SeasonTab(s.Id, ItemFormat.SeasonTitle(s.Title, s.Index), s.LeafCount is { } n ? Strings.Count("item.counts.episodes", n) : null, s))
+                    .Select(s => new SeasonTab(s.Id, ItemFormat.SeasonTitle(s.Title, s.Index), s.LeafCount is { } n ? Strings.Count("item.counts.episodes", n) : null))
                     .ToList();
                 break;
             case "episode":
@@ -601,19 +600,8 @@ public static class ItemPages
             tabs,
             input.SelectedSeason,
             input.Episodes == null ? null : Distinct(input.Episodes).Select(e => EpisodeLine(e, input.Culture)).ToList(),
-            focus,
-            d.Kind != "episode" && SeasonPosters(input.Seasons ?? Array.Empty<ItemSummary>()));
+            focus);
     }
-
-    /// <summary>
-    /// Whether a show's seasons show as a row of posters rather than tabs (the Android app's
-    /// seasonPosters): some season has one of its own. The server gives a season without one its
-    /// show's poster, the same address for each, so the seasons' addresses all match (or are all
-    /// missing) only when none has its own. Decided for the whole show.
-    /// packages/tv/test/fixtures/season-posters.json pins it.
-    /// </summary>
-    public static bool SeasonPosters(IReadOnlyList<ItemSummary> seasons) =>
-        seasons.Count > 1 && seasons.Select(s => string.IsNullOrEmpty(s.PosterUrl) ? null : s.PosterUrl).Distinct().Count() > 1;
 
     /// <summary>An episode's words for rows.</summary>
     public static EpisodeLine EpisodeLine(ItemSummary e, CultureInfo? culture = null)

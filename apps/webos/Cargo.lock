@@ -1267,7 +1267,6 @@ dependencies = [
  "pley-requests",
  "pley-shell",
  "pley-ui",
- "serde_json",
 ]
 
 [[package]]

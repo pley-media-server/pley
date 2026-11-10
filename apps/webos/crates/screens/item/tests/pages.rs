@@ -144,41 +144,34 @@ fn a_mark_the_server_took_stays_over_an_answer_asked_before_it() {
 }
 
 #[test]
-fn a_show_goes_down_to_its_seasons_and_its_next_episode_and_ok_on_a_season_opens_it() {
+fn a_show_goes_down_to_its_next_episode_and_up_to_the_seasons() {
     let mut app = TestApp::start();
     open_show(&mut app);
     assert!(app.until(|a| a.shows("Season 1") && a.shows("Season 2") && a.shows("2. Episode 2")));
-    // Down from the buttons comes to the season posters, on the season shown, then to its next episode.
-    app.press(Key::Down);
-    let season1 = app.id(&["posters", "row"]).with(ids::SHOW_SEASON_1 as u64);
-    assert_eq!(app.focused(), Some(season1), "Down didn't land on the season shown");
     app.press(Key::Down);
     let next = app.id(&["episodes"]).with(ids::SHOW_S1E2 as u64);
     assert_eq!(app.focused(), Some(next), "Down didn't land on the next episode");
-    // Once focus rests on it, the info block tells of it, and still does over the seasons.
+    // Once focus rests on it, the info block tells of it, and still does over the tabs.
     app.advance(0.5);
     let told = "Season 1 · Episode 2 · 20s · Aired 10 October 2025";
     assert!(app.shows(told));
     app.press(Key::Up);
+    let season1 = app.id(&["tabs"]).with(ids::SHOW_SEASON_1 as u64);
     assert_eq!(app.focused(), Some(season1));
     app.advance(0.5);
-    assert!(app.shows(told), "the info block let go of the episode on the seasons");
-    // Resting on the next season shows it: its three episodes, none started, replace season 1's
-    // (whose second is in progress).
+    assert!(app.shows(told), "the info block let go of the episode on the tabs");
+    // Resting on the next tab shows its season.
     app.press(Key::Right);
-    let season2 = app.id(&["posters", "row"]).with(ids::SHOW_SEASON_2 as u64);
-    assert!(app.until(|a| a.focused() == Some(season2)));
     app.advance(0.5);
+    assert!(app.until(|a| a.focused() == Some(a.id(&["tabs"]).with(ids::SHOW_SEASON_2 as u64))));
+    // Season 2's three episodes, none started, replace season 1's (whose second is in progress).
     let unstarted = |a: &TestApp| a.list.texts().filter(|t| *t == "20s").count();
     assert!(app.until(|a| unstarted(a) == 3), "season 2's episodes never came");
     app.press(Key::Down);
     let first = app.id(&["episodes"]).with(ids::SHOW_S2E1 as u64);
     assert!(app.until(|a| a.focused() == Some(first)), "season 2's episodes never took focus");
-    // OK on a season opens its page.
-    app.press(Key::Up);
-    assert!(app.until(|a| a.focused() == Some(season2)));
     app.press(Key::Ok);
-    assert_eq!(app.route(), Some(&Route::Item { id: ids::SHOW_SEASON_2 }));
+    assert_eq!(app.route(), Some(&Route::Item { id: ids::SHOW_S2E1 }));
 }
 
 #[test]
@@ -420,37 +413,35 @@ fn closing_media_info_while_reading_keeps_it_on_screen() {
 }
 
 #[test]
-fn moving_focus_ends_reading() {
+fn moving_along_a_row_ends_reading() {
     let mut app = TestApp::start();
-    // A movie: its details (versions and Media info) are the last thing that takes focus. A
-    // show's facts are under its cast, and it has no files, so nothing past More Like This reads on.
-    open_movie(&mut app);
-    let media = app.id(&["details", "media"]);
-    for _ in 0..8 {
-        if app.focused() == Some(media) {
+    open_show(&mut app);
+    // The rows come from other threads, and the moves below go by the app's clock alone: they
+    // start once More Like This is in (the page keeps it once it has drawn it).
+    let related = pley_core::store::snapshot_keys::related(ids::SHOW);
+    let in_place = |a: &TestApp| {
+        let (Some(server), Some(profile)) = (a.state.server(), a.state.profile()) else { return false };
+        a.state.snapshots().read(server, profile, &related).is_some()
+    };
+    assert!(app.until(|a| in_place(a)), "More Like This never came");
+    // More Like This is the last row that takes focus; its header comes to the rows' line.
+    let header = |a: &TestApp| a.text_y("More Like This");
+    for _ in 0..6 {
+        if header(&app) == Some(172.0) {
             break;
         }
         app.press(Key::Down);
         app.advance(0.4);
     }
-    assert_eq!(app.focused(), Some(media), "Media info was never reached");
-    app.advance(0.5);
-    let resting = app.text_y("Media info");
-    // Down past it reads on, moving the page up.
-    app.press(Key::Ok);
+    assert_eq!(header(&app), Some(172.0), "More Like This never took focus");
+    // Down reads on into the details under it, moving the row up.
     app.press(Key::Down);
     app.advance(0.5);
-    assert!(app.text_y("Media info") < resting, "reading on didn't move the page: {:?}", app.text_y("Media info"));
-    // Up takes the step back, then moves to the version above: reading on is over, and closing
-    // Media info from there leaves the page where a focused version puts it.
-    app.press(Key::Up);
-    app.press(Key::Up);
+    assert!(header(&app).is_some_and(|y| y < 100.0), "reading on didn't move the page: {:?}", header(&app));
+    // The next title brings the row back to its line.
+    app.press(Key::Right);
     app.advance(0.5);
-    assert_ne!(app.focused(), Some(media), "Up never left Media info");
-    app.press(Key::Down);
-    app.press(Key::Ok);
-    app.advance(0.5);
-    assert_eq!(app.text_y("Media info"), resting, "the page stayed read on");
+    assert_eq!(header(&app), Some(172.0), "the row stayed read on");
 }
 
 #[test]

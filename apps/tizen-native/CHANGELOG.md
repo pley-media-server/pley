@@ -8,28 +8,6 @@ describes how they are made.
 
 ## [Unreleased]
 
-### Added
-
-- A show whose seasons have posters of their own shows them as a row of
-  posters over its episodes, each with the season's name and episode
-  count under it, as the web app and Android TV do. A season without
-  one shows the show's poster. Resting on a season shows its episodes,
-  Select opens its page, and Down from the buttons comes to the seasons.
-
-### Changed
-
-- Who made a title and its facts (director, writers, release, studio
-  or network) sit under the cast, each a small label over its value,
-  as on Android TV, where they were in Details at the end of the page.
-- A show's episodes sit further below its season tabs, so the focused
-  episode no longer crowds them, as on Android TV.
-
-### Fixed
-
-- A show with more seasons than fit across the screen had its later season
-  tabs off the screen's edge, where focus went out of sight. The tabs now
-  slide along as focus moves, as on Android TV and LG.
-
 ## [0.1.8] - 2026-11-08
 
 ### Added

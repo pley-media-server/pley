@@ -1,8 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Text.Json;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Ui;
 using Xunit;
@@ -211,23 +209,6 @@ public class ItemPagesTests
         var seasons = new[] { Summary(30, "season", index: 0), Summary(31, "season", index: 1), Summary(32, "season", index: 2) };
         Assert.Equal(32L, ItemPages.DefaultSeason(seasons, Summary(40, "episode", parentId: 32)));
         Assert.Equal(31L, ItemPages.DefaultSeason(seasons, null));
-    }
-
-    public static IEnumerable<object[]> SeasonPosterCases() =>
-        Enumerable.Range(0, Fixtures.Load("season-posters").GetProperty("cases").GetArrayLength()).Select(i => new object[] { i });
-
-    /// <summary>Season posters as the Samsung web app's (packages/tv/test/fixtures/season-posters.json) and Android's.</summary>
-    [Theory]
-    [MemberData(nameof(SeasonPosterCases))]
-    public void A_shows_seasons_are_posters_once_one_has_a_poster_of_its_own(int i)
-    {
-        var c = Fixtures.Load("season-posters").GetProperty("cases")[i];
-        var seasons = c.GetProperty("posters").EnumerateArray()
-            .Select((p, n) => Summary(30 + n, "season", index: n + 1) with { PosterUrl = p.ValueKind == JsonValueKind.Null ? null : p.GetString() })
-            .ToList();
-        var page = Page(Show(childCount: seasons.Count), input => input with { Seasons = seasons, SelectedSeason = 30 });
-        Assert.Equal(c.GetProperty("posterRow").GetBoolean(), page.Seasons!.Posters);
-        Assert.Equal(seasons.Select(s => s.PosterUrl), page.Seasons.Seasons.Select(t => t.Item?.PosterUrl));
     }
 
     [Fact]

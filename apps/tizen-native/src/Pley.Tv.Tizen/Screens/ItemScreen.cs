@@ -45,7 +45,6 @@ sealed class ItemScreen : ShellPage
     readonly Dictionary<FocusItem, HeroButtonKind> buttonKinds = new Dictionary<FocusItem, HeroButtonKind>();
     RowColumnView? column;
     SeasonsView? seasons;
-    SeasonPostersView? seasonPosters;
     ItemPage? shown;
     /// <summary>What requests say of a movie or show: its request's stage, and Request more seasons.</summary>
     readonly ItemRequestModel? requests;
@@ -500,11 +499,7 @@ sealed class ItemScreen : ShellPage
         var key = SectionsKey(page);
         if (key == shownSections)
         {
-            if (page.Seasons != null)
-            {
-                seasonPosters?.Update(page.Seasons);
-                seasons?.Update(page.Seasons, page.Origin);
-            }
+            if (page.Seasons != null) seasons?.Update(page.Seasons, page.Origin);
             return;
         }
         shownSections = key;
@@ -519,17 +514,10 @@ sealed class ItemScreen : ShellPage
         }
         column = new RowColumnView(gate, top: RowsTop(), firstAtTop: false);
         seasons = null;
-        seasonPosters = null;
         if (page.Seasons is { } s)
         {
-            if (s.Posters)
-            {
-                seasonPosters = new SeasonPostersView(s, page.Origin, gate, images, Shell.FocusRail, model.SelectSeason,
-                    season => go(new PageKey.Item(season.Id)), season => Panel(ItemText.ActionsPanel(season), season), Tree.Focus);
-                column.Add(seasonPosters, seasonPosters.Group, 218);
-            }
             seasons = new SeasonsView(page, s, gate, images, Shell.FocusRail, OpenEpisode, FocusEpisode, model.SelectSeason, Tree.Focus);
-            // The season tabs (or posters) at y = 218 and their episodes at 286 (a season's under its name at 272), under the info block and the focused episode's lines.
+            // The season tabs at y = 218 and the episodes at 272 (mockup tv-show), under the info block and the focused episode's lines.
             column.Add(seasons, seasons.Group, ItemText.ShowsTabs(s) ? 218 : 272 - PleyTv.RowHeaderHeight - PleyTv.HeaderToTiles);
         }
         var origin = page.Origin;
@@ -543,19 +531,8 @@ sealed class ItemScreen : ShellPage
         {
             var people = ItemText.CastAndCrew(page).Select(p => new TileModel(p.Id, p.Name, p.Subtitle,
                 p.Photo == null ? Array.Empty<string>() : new[] { Artwork.Absolute(p.Photo, origin) }, 0, false, 0, Array.Empty<string>(), p.Name)).ToList();
-            var castRow = new RowView(ItemText.CastRowTitle(page), people, TileKind.Person, gate, images,
-                m => go(new PageKey.Person(m.Id)), null, Shell.FocusRail, focusItem: Tree.Focus);
-            if (ItemText.FactsUnderCast(page))
-            {
-                // Who made it and the facts under the people, a row's gap below their names: in
-                // sight while the row has focus. The row grows to hold them, so the page lays out
-                // and scrolls as before.
-                var facts = ItemDetailsView.FactsStrip(ItemText.Facts(page.Details));
-                facts.PositionY = castRow.SizeHeight + Ui.Dp(PleyTv.RowGap);
-                castRow.Add(facts);
-                castRow.SizeHeight = facts.PositionY + facts.SizeHeight;
-            }
-            column.Add(castRow);
+            column.Add(new RowView(ItemText.CastRowTitle(page), people, TileKind.Person, gate, images,
+                m => go(new PageKey.Person(m.Id)), null, Shell.FocusRail, focusItem: Tree.Focus));
         }
         if (page.Related.Count > 0)
         {
@@ -588,7 +565,7 @@ sealed class ItemScreen : ShellPage
     static string SectionsKey(ItemPage page) =>
         string.Join("|", new[]
         {
-            page.Seasons == null ? "-" : string.Join(",", page.Seasons.Seasons.Select(t => t.Id)) + (page.Seasons.Posters ? ";posters" : ""),
+            page.Seasons == null ? "-" : string.Join(",", page.Seasons.Seasons.Select(t => t.Id)),
             string.Join(",", page.Extras.Select(e => e.Id)),
             string.Join(",", page.Cast.Select(c => c.Id)) + ";" + string.Join(",", page.Details.Crew.SelectMany(c => c.People).Select(p => p.Id)),
             string.Join(",", page.Related.Select(r => r.Id)),
@@ -675,7 +652,7 @@ sealed class ItemScreen : ShellPage
         meta.PositionY = Ui.Dp(y);
         infoBlock.Add(meta);
         y += 18;
-        var episode = (seasons?.FocusInside ?? false) || (seasonPosters?.FocusInside ?? false) ? restedEpisode : null;
+        var episode = seasons != null && seasons.FocusInside ? restedEpisode : null;
         if (episode != null)
         {
             y += 14;
@@ -711,8 +688,7 @@ sealed class ItemScreen : ShellPage
 /// The seasons and episodes (design spec §2.4, §4.4; the Android app's TvEpisodesSection): the
 /// season tabs when the show has more than one season, else the season's name, then its episodes as
 /// tiles captioned "5. Glasshouse" and "26 min left". Focus comes into the row on the episode to
-/// watch. A tab focus rests on shows its season. Under season posters (<see cref="SeasonPostersView"/>)
-/// it is the season's name and its episodes.
+/// watch. A tab focus rests on shows its season.
 /// </summary>
 sealed class SeasonsView : View
 {
@@ -736,8 +712,6 @@ sealed class SeasonsView : View
     SeasonsSection? section;
     string shownEpisodes = "";
     long? restingTab;
-    float tabScroll;
-    Animation? tabAnimation;
     readonly float rowTop;
 
     public SeasonsView(ItemPage page, SeasonsSection seasons, KeyRepeatGate gate, Images images, Func<bool> toRail,
@@ -758,8 +732,7 @@ sealed class SeasonsView : View
             Add(tabs);
             Group.Add(tabGroup);
             tabGroup.Exit = d => d == Direction.Right || (d == Direction.Left && Scrolling.Left(gate, toRail));
-            // 28 to the episodes: room for the focused tile's growth and ring, and a gap past them.
-            rowTop = TabHeight + 28;
+            rowTop = TabHeight + 14;
         }
         else
         {
@@ -833,8 +806,6 @@ sealed class SeasonsView : View
                 heading.Position = new Position(Ui.Dp(PleyTv.Gutter), 0);
                 Add(heading);
             }
-            // Under season posters, the season shown changes.
-            else heading.Text = ItemText.EpisodesHeading(page, seasons);
             return;
         }
         if (tabButtons.Count == 0)
@@ -843,12 +814,10 @@ sealed class SeasonsView : View
             foreach (var tab in seasons.Seasons)
             {
                 var button = new ButtonView(tab.Title, ButtonKind.Text, () => select(tab.Id)) { PositionX = Ui.Dp(x) };
-                var left = x;
                 button.Item.FocusChanged += on =>
                 {
                     tabRest.Stop();
                     if (!on) return;
-                    ScrollTabs(left, button.WidthDp);
                     restingTab = tab.Id;
                     tabRest.Start();
                 };
@@ -868,92 +837,11 @@ sealed class SeasonsView : View
         }
     }
 
-    /// <summary>
-    /// More tabs than the screen holds slide, just far enough to show the focused one between its
-    /// place at the start and the right safe edge (the Android app's TvScrolling.inView).
-    /// </summary>
-    void ScrollTabs(float left, float width)
-    {
-        var room = PleyTv.CanvasWidth - (PleyTv.Gutter - 20) - PleyTv.SafeHorizontal;
-        var scroll = tabScroll;
-        if (left < scroll) scroll = left;
-        else if (left + width > scroll + room) scroll = left + width - room;
-        if (scroll == tabScroll) return;
-        tabScroll = scroll;
-        tabAnimation?.Stop();
-        tabAnimation = Scrolling.Glide(gate);
-        tabAnimation.AnimateTo(tabs, "PositionX", Ui.Dp(PleyTv.Gutter - 20 - tabScroll));
-        tabAnimation.Play();
-    }
-
     protected override void Dispose(global::Tizen.NUI.DisposeTypes type)
     {
         if (Disposed) return;
-        tabAnimation?.Stop();
         tabRest.Stop();
         tabRest.Dispose();
-        base.Dispose(type);
-    }
-}
-
-/// <summary>
-/// The seasons as poster tiles (the Android app's SeasonPosters), as the web shows them: each
-/// season's poster, else the show's, its name and episodes under it, in a row of the kit. As with
-/// the tabs, the season focus rests on is shown under the row; Select opens the season's page, as a
-/// click on the web's season card does. Focus comes back into the row on the season shown.
-/// </summary>
-sealed class SeasonPostersView : View
-{
-    readonly RowView row;
-    readonly Timer rest = new Timer((uint)KeyRepeatGate.RestMs);
-    SeasonsSection seasons;
-    long? resting;
-
-    public SeasonPostersView(SeasonsSection seasons, string origin, KeyRepeatGate gate, Images images, Func<bool> toRail,
-        Action<long> select, Action<ItemSummary> open, Action<ItemSummary> actions, Func<FocusItem, bool> focusItem)
-    {
-        this.seasons = seasons;
-        var byId = seasons.Seasons.Where(t => t.Item != null).ToDictionary(t => t.Id, t => t.Item!);
-        var tiles = seasons.Seasons
-            .Where(t => t.Item != null)
-            .Select(t => TileModel.Of(t.Item! with { Title = t.Title }, TileKind.Poster, origin))
-            .ToList();
-        row = new RowView(null, tiles, TileKind.Poster, gate, images, m => open(byId[m.Id]), m => actions(byId[m.Id]), toRail, m =>
-        {
-            resting = m.Id;
-            rest.Stop();
-            rest.Start();
-        }, focusItem);
-        rest.Tick += (s, e) =>
-        {
-            // Only while focus is still on the season it rested on.
-            if (resting is { } id && id != this.seasons.Selected && FocusInside) select(id);
-            return false;
-        };
-        Size = row.Size;
-        Add(row);
-        // The first section under the hero: its pictures are near from the start.
-        row.ShowPictures();
-        Update(seasons);
-    }
-
-    public FocusGroup Group => row.Group;
-
-    /// <summary>Whether focus is on a season: the info block keeps the episode, as over the tabs.</summary>
-    public bool FocusInside => row.Group.Children.OfType<FocusItem>().Any(i => i.Focused);
-
-    public void Update(SeasonsSection seasons)
-    {
-        this.seasons = seasons;
-        var at = seasons.Seasons.ToList().FindIndex(t => t.Id == seasons.Selected);
-        if (at >= 0) row.Group.RememberChild(at);
-    }
-
-    protected override void Dispose(global::Tizen.NUI.DisposeTypes type)
-    {
-        if (Disposed) return;
-        rest.Stop();
-        rest.Dispose();
         base.Dispose(type);
     }
 }

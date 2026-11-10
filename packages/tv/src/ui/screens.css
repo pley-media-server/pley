@@ -487,13 +487,10 @@
   to { opacity: 1; }
 }
 .reduced .item-info { animation: none; }
-/* Wider than the screen, the tabs slide to keep the focused one in view (SeasonTabs). */
-.season-tabs { position: relative; display: flex; padding-left: 76px; transition: transform 220ms cubic-bezier(0.2, 0, 0, 1); }
-.reduced .season-tabs { transition: none; }
+.season-tabs { display: flex; padding-left: 76px; }
 .season-tabs > * + * { margin-left: 4px; }
 .season-tab {
   position: relative;
-  flex: none;
   min-height: 40px;
   padding: 0 20px;
   box-sizing: border-box;
@@ -506,10 +503,9 @@
 .season-tab.shown { background: var(--surface3); color: var(--fg); }
 .season-tab[data-focused] { background: var(--accent); color: var(--on-accent); transform: scale(1.05); transition: transform 150ms var(--focus-ease); }
 .facts-card { background: rgba(25, 29, 36, 0.6); border-radius: 6px; padding: 16px; }
-.facts { display: flex; flex-wrap: wrap; gap: 12px 24px; padding: 0 48px 0 96px; }
-.fact { width: 186px; }
-.fact > .t-caption { margin-bottom: 2px; }
-.fact-value { color: rgba(233, 235, 239, 0.9); }
+.fact-row { display: flex; padding: 3px 0; }
+.fact-label { width: 160px; flex: none; }
+.fact-value { flex: 1; min-width: 0; color: rgba(233, 235, 239, 0.85); }
 .media-card { margin-bottom: 12px; }
 .media-blocks { display: flex; flex-wrap: wrap; }
 .media-block { width: 300px; margin: 0 24px 14px 0; }

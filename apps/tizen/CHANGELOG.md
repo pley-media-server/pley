@@ -29,30 +29,14 @@ describes how they are made.
   "Subtitles off") and doesn't bring up the player's controls. Controls
   already up hide as they do while it plays, even once it is paused, until
   a key is pressed on the TV.
-- A show whose seasons have posters of their own shows them as a row of
-  posters over its episodes, each with the season's name and episode
-  count under it, as the web app and Android TV do. A season without
-  one shows the show's poster. Resting on a season shows its episodes,
-  Select opens its page, and Down from the buttons comes to the seasons.
 
 ### Changed
 
-- Who made a title and its facts (director, writers, release, studio
-  or network) sit under the cast, each a small label over its value,
-  as on Android TV, where they were in Details at the end of the page.
 - The TV starts straight into Home as the profile it was left on when it
   has no PIN, where a household of several profiles was asked "Who's
   watching?" each time. A profile with a PIN still asks first, and Switch
   profile still shows every profile. Settings' Always start as
   calls this Profile used last, where it said Ask who's watching.
-- With focus on a show's episodes, its season tabs stay where they were
-  instead of moving up toward the title, as on Android TV.
-
-### Fixed
-
-- A show with more seasons than fit across the screen had its later season
-  tabs off the screen's edge, where focus went out of sight. The tabs now
-  slide along as focus moves, as on Android TV and LG.
 
 ### Security
 
