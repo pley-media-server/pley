@@ -208,7 +208,8 @@ private fun heroFit(page: ItemPage, request: ItemRequestState?, genres: Boolean,
         if (summary == null) 0 else measurer.measure(summary, PleyType.Tv.BodyLarge, maxLines = SUMMARY_LINES, constraints = Constraints(maxWidth = width)).lineCount
     }
     val resumed = page.primary.kind == PrimaryAction.Kind.Resume && page.primary.timeLeft.isNotEmpty()
-    val over = HeroTop + maxOf(TitleBox, TitleLine * titleLines) + MetaRoom +
+    val over = HeroTop + maxOf(TitleBox, TitleLine * titleLines) +
+        (if (contextLine(page) != null) ContextRoom else 0.dp) + MetaRoom +
         (if (request?.request != null) RequestRoom else 0.dp) +
         (if (resumed) CaptionRoom else 0.dp) +
         (if (genres) CaptionRoom else 0.dp) +
@@ -430,7 +431,8 @@ private val TitleLine = 44.dp
 private val SummaryLine = 22.dp
 private val CaptionRoom = 25.dp
 
-/** The metadata line and a request's line, each with the gap over it. */
+/** The line under the title of an episode's or a season's page, the metadata line and a request's line, each with the gap over it. */
+private val ContextRoom = 30.dp
 private val MetaRoom = 32.dp
 private val RequestRoom = 30.dp
 

@@ -152,7 +152,7 @@ class TvItemPageTest {
         val requests = FakeRequests()
         val downloading = Fixtures.decode<RequestList>("requests/list.json").requests.first { it.id == 42L }
         requests.api.answer("itemRequest", ItemRequest(TitleKind.Show, 1396, TitleStatus.Requested, downloading, askable = listOf(3)))
-        val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = 20)
+        val show = movie().copy(kind = ItemKind.Show, title = "Driftline", files = emptyList(), leafCount = 20)
         show(ItemData(show, requests = requests))
         // Asked once the page has drawn.
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("Downloading 42%", substring = true)).fetchSemanticsNodes().isNotEmpty() }
@@ -169,7 +169,7 @@ class TvItemPageTest {
      * the one the server names when nothing of the show has been watched.
      */
     private fun showOf(count: Int, posters: Boolean = false, next: Int? = null, started: Boolean = true, wordy: Boolean = false): ItemData {
-        val plain = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
+        val plain = movie().copy(kind = ItemKind.Show, title = "Driftline", files = emptyList(), leafCount = count * 4)
         // With [wordy], a hero that asks for all its room: a summary past three lines, genres and credits.
         val show = if (!wordy) {
             plain
@@ -373,7 +373,7 @@ class TvItemPageTest {
     @Test
     fun aSeasonsPageOfAShowWithSeasonPostersShowsItsEpisodesUnderTheButtons() {
         val season = movie().copy(
-            id = 102, kind = ItemKind.Season, title = "Season 2", index = 2, parentId = 1, parentTitle = "Breaking Bad",
+            id = 102, kind = ItemKind.Season, title = "Season 2", index = 2, parentId = 1, parentTitle = "Driftline",
             files = emptyList(), leafCount = 4,
         )
         show(ItemData(season, children = seasonsOf(3, posters = true)), id = 102)
@@ -388,11 +388,26 @@ class TvItemPageTest {
     }
 
     @Test
+    fun anEpisodesPageShowsItsSeasonsEpisodesWithTheirTitlesAboveTheScreensEdge() {
+        // The line under the show's name ("S1 · E2 · Episode 2") takes its room too.
+        val episode = movie().copy(
+            id = 1012, kind = ItemKind.Episode, title = "Episode 2", index = 2, parentId = 101, parentIndex = 1,
+            grandparentId = 1, grandparentTitle = "Driftline",
+            summary = "Three salt traders cross the Danakil in the last caravan of the season. ".repeat(8),
+            cast = listOf(Credit(1, "Idris Vale", CreditRole.Actor, character = "Ras"), Credit(2, "Mara Holt", CreditRole.Actor, character = "Ines")),
+        )
+        show(ItemData(episode, children = seasonsOf(2, posters = false)), id = 1012)
+        val tile = compose.onNode(hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and hasContentDescription("Episode 2", substring = true)).getBoundsInRoot()
+        val titles = tile.bottom.value + PleyTv.TilesToCaption.value + PleyTv.CaptionHeight.value
+        assertTrue("$tile", titles <= PleyTv.CanvasHeight.value)
+    }
+
+    @Test
     fun onAnEpisodesPageSelectOnItPlaysItAndAnotherEpisodeTakesThePagesPlace() {
         val episodes = seasonsOf(2, posters = false)
         val episode = movie().copy(
             id = 1012, kind = ItemKind.Episode, title = "Episode 2", index = 2, parentId = 101, parentIndex = 1,
-            grandparentId = 1, grandparentTitle = "Breaking Bad",
+            grandparentId = 1, grandparentTitle = "Driftline",
         )
         val data = ItemData(episode, children = episodes)
         stack.clear()
