@@ -153,12 +153,12 @@ class ItemViewModel(
             ItemKind.Show, ItemKind.Season -> data.items.onDeck(itemId)
             else -> flowOf(null)
         }
-        // The tabs: a show's seasons, or a season's and its siblings.
+        // The tabs: a show's seasons, or a season's and its siblings, in the order they are listed.
         val seasons: Flow<List<ItemSummary>?> = when (shape.kind) {
-            ItemKind.Show -> data.items.children(itemId).map { it.valueOrNull }
-            ItemKind.Season -> shape.parentId?.let { show -> data.items.children(show).map { it.valueOrNull } } ?: flowOf(null)
-            else -> flowOf(null)
-        }
+            ItemKind.Show -> data.items.children(itemId)
+            ItemKind.Season -> shape.parentId?.let { show -> data.items.children(show) }
+            else -> null
+        }?.map { load -> load.valueOrNull?.let(::seasonOrder) } ?: flowOf(null)
         val selected: Flow<Long?> = when (shape.kind) {
             ItemKind.Show -> combine(chosenSeason, seasons, onDeck) { chosen, list, next ->
                 chosen ?: when {

@@ -203,6 +203,20 @@ class ItemPagesTest {
     }
 
     @Test
+    fun `more than twelve seasons are listed newest first, Specials last`() {
+        fun seasons(count: Int) = (0..count).map { summary(30L + it, ItemKind.Season, index = it) }
+        // Twelve and Specials: the server's order.
+        assertEquals((0..12).toList(), seasonOrder(seasons(12)).map { it.index })
+        assertEquals((13 downTo 1).toList() + 0, seasonOrder(seasons(13)).map { it.index })
+        // Specials aren't counted, and a show without them is turned round the same.
+        assertEquals((13 downTo 1).toList(), seasonOrder(seasons(13).drop(1)).map { it.index })
+        // The page opens on the next episode's season wherever it is listed, else on the newest.
+        val long = seasonOrder(seasons(13))
+        assertEquals(31L, defaultSeason(long, summary(40, ItemKind.Episode, parentId = 31)))
+        assertEquals(43L, defaultSeason(long, null))
+    }
+
+    @Test
     fun `a show's tabs are posters once one season has a poster of its own, else words`() {
         val show = ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", childCount = 3)
         fun season(id: Long, poster: String?) = summary(id, ItemKind.Season, index = (id - 29).toInt()).copy(posterUrl = poster)

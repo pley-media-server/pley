@@ -23,6 +23,9 @@ describes how they are made.
 
 ### Changed
 
+- A show with more than 12 seasons lists them newest first, with Specials
+  last, so the seasons still coming out are the first ones. On Android
+  TV the seasons open at the one shown, wherever it is in the row.
 - On Android TV, buttons are a little smaller, those of Home's banner
   smaller again, and the banner's words fade in as it turns to the next
   title.

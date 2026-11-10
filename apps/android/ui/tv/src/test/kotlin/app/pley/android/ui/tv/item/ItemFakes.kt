@@ -40,13 +40,15 @@ import kotlinx.coroutines.flow.flowOf
 
 /**
  * An item page's data for the TV's tests: the items set, what was written,
- * and [requests] and each item's [children] (a show's seasons, a season's
- * episodes) where a test gives them.
+ * and [requests], each item's [children] (a show's seasons, a season's
+ * episodes) and the episode a show plays next ([onDeck]) where a test
+ * gives them.
  */
 internal class ItemData(
     vararg details: ItemDetail,
     override val requests: RequestsRepository = RequestsRepository.None,
     private val children: Map<Long, List<ItemSummary>> = emptyMap(),
+    private val onDeck: Map<Long, ItemSummary> = emptyMap(),
 ) : DataGraph {
     private val held = details.associate { it.id to MutableStateFlow<Loadable<ItemDetail>>(Loadable.Ready(it, true)) }
     val streams = mutableListOf<List<Long?>>()
@@ -65,7 +67,7 @@ internal class ItemData(
     override val items: ItemRepository = object : ItemRepository {
         override fun detail(itemId: Long): Flow<Loadable<ItemDetail>> = held[itemId] ?: flowOf(Loadable.Loading)
         override fun children(itemId: Long): Flow<Loadable<List<ItemSummary>>> = flowOf(Loadable.Ready(children[itemId].orEmpty(), true))
-        override fun onDeck(itemId: Long): Flow<Loadable<ItemSummary?>> = flowOf(Loadable.Ready(null, true))
+        override fun onDeck(itemId: Long): Flow<Loadable<ItemSummary?>> = flowOf(Loadable.Ready(onDeck[itemId], true))
         override fun related(itemId: Long): Flow<Loadable<List<ItemSummary>>> = flowOf(Loadable.Ready(emptyList(), true))
         override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), true))
         override suspend fun next(itemId: Long): ItemSummary? = null

@@ -65,7 +65,7 @@ data class PageInput(
     val pick: StreamPick = StreamPick(),
     /** Shows and seasons: the episode Play plays; `null` while not asked. */
     val onDeck: Loadable<ItemSummary?>? = null,
-    /** The show's seasons (a show's own, a season's siblings); `null` while they load. */
+    /** The show's seasons (a show's own, a season's siblings) as they are listed ([seasonOrder]); `null` while they load. */
     val seasons: List<ItemSummary>? = null,
     val selectedSeason: Long? = null,
     /** The selected season's episodes; `null` while they load. */
@@ -406,7 +406,25 @@ fun episodeLine(e: ItemSummary, locale: Locale = AppLanguage.locale, words: Form
     )
 }
 
-/** The season a show page opens on: the next episode's, else the first that isn't Specials, else the first. */
+/**
+ * The order a show's seasons are listed in: the server's, the first season
+ * first. A show with more than [MANY_SEASONS] lists the newest first, so
+ * the seasons still coming out aren't a long way along the row, and
+ * Specials, which the server puts first, go last.
+ */
+fun seasonOrder(seasons: List<ItemSummary>): List<ItemSummary> {
+    val (numbered, specials) = seasons.partition { (it.index ?: 1) > 0 }
+    return if (numbered.size > MANY_SEASONS) numbered.asReversed() + specials else seasons
+}
+
+/** The most numbered seasons a show lists first season first ([seasonOrder]). */
+const val MANY_SEASONS = 12
+
+/**
+ * The season a show page opens on: the next episode's, else the first
+ * listed that isn't Specials (the newest of a long show, [seasonOrder]),
+ * else the first.
+ */
 fun defaultSeason(seasons: List<ItemSummary>, onDeck: ItemSummary?): Long? =
     onDeck?.parentId?.takeIf { id -> seasons.any { it.id == id } }
         ?: seasons.firstOrNull { (it.index ?: 1) > 0 }?.id

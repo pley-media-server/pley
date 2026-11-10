@@ -25,8 +25,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -36,6 +38,8 @@ import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -68,6 +72,7 @@ import app.pley.android.ui.tv.kit.rememberRested
 import app.pley.android.ui.tv.kit.rememberTvRowState
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlin.math.roundToInt
 
 /**
  * The seasons and episodes (design spec §2.4, §4.4; mockup tv-show): the
@@ -169,6 +174,17 @@ private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifi
     val scroll = rememberScrollState()
     val start = PleyTv.Gutter - TabInset
     val inView = remember(density, start) { with(density) { TvScrolling.inView(start.toPx(), TvSafeArea.Horizontal.toPx()) } }
+    // The tab of the season shown is in sight as the tabs open: a long show lists its newest
+    // season first, and opens on the season to watch. Once: after that focus moves the tabs.
+    var shownEnd by remember { mutableIntStateOf(UNPLACED) }
+    var opened by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (opened) return@LaunchedEffect
+        val end = snapshotFlow { shownEnd }.first { it != UNPLACED }
+        opened = true
+        val past = with(density) { start.roundToPx() + end + TvSafeArea.Horizontal.roundToPx() } - scroll.viewportSize
+        if (past > 0) scroll.scrollTo(past)
+    }
     CompositionLocalProvider(LocalBringIntoViewSpec provides inView) {
         Row(
             modifier
@@ -187,7 +203,11 @@ private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifi
                     current = current,
                     onFocus = { focused = season.id },
                     onClick = { onSelect(season.id) },
-                    modifier = if (current) Modifier.focusRequester(selected) else Modifier,
+                    modifier = if (current) {
+                        Modifier.focusRequester(selected).onPlaced { shownEnd = (it.positionInParent().x + it.size.width).roundToInt() }
+                    } else {
+                        Modifier
+                    },
                 )
             }
         }
@@ -259,6 +279,22 @@ private fun SeasonPosters(
     LaunchedEffect(rested) {
         if (rested != null && rested != seasons.selected) onSelect(rested)
     }
+    // The season shown isn't always the first poster (a long show lists its newest first, and
+    // opens on the season to watch): the row opens at it, so its poster is there for Down from
+    // the buttons to land on. Once: after that the row is where focus left it.
+    val shownAt = tiles.indexOfFirst { it.id == seasons.selected }
+    val state = rememberTvRowState(initialFirstVisibleItemIndex = shownAt.coerceAtLeast(0))
+    var opened by rememberSaveable { mutableStateOf(false) }
+    val density = LocalDensity.current
+    LaunchedEffect(shownAt >= 0) {
+        // The season shown isn't known until the episode to watch is.
+        if (opened || shownAt < 0) return@LaunchedEffect
+        opened = true
+        val endRoom = with(density) { TvSafeArea.Horizontal.toPx() }
+        // Seasons that all fit on screen open unscrolled, whichever is shown.
+        val at = if (snapshotFlow { TvScrolling.fits(state, endRoom) }.filterNotNull().first()) 0 else shownAt
+        if (state.firstVisibleItemIndex != at || (at == 0 && state.firstVisibleItemScrollOffset != 0)) state.scrollToItem(at)
+    }
     TvRow(
         rowKey = SEASON_ROW,
         title = null,
@@ -269,6 +305,7 @@ private fun SeasonPosters(
         onFocus = { focused = it.id },
         memory = memory,
         enterOn = seasons.selected,
+        state = state,
         modifier = modifier.testTag(TV_SEASON_TABS),
     )
 }
@@ -329,6 +366,9 @@ private const val SEASON_REST_MS = 150L
 
 /** From a tab's start to its label, so the first tab's label is at the gutter. */
 private val TabInset = 20.dp
+
+/** Where the shown season's tab ends, before the tabs are laid out. */
+private const val UNPLACED = -1
 
 internal const val TV_SEASON_TABS = "pley.tv.item.seasons"
 

@@ -161,10 +161,15 @@ class TvItemPageTest {
         assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true), stack.last())
     }
 
-    /** A show of [count] seasons of four episodes each; with [posters], the first season has a poster of its own. */
-    private fun showOf(count: Int, posters: Boolean = false): ItemData {
+    /**
+     * A show of [count] seasons of four episodes each; with [posters], the first season has a poster of
+     * its own. [next] is the season of the episode to watch, its first.
+     */
+    private fun showOf(count: Int, posters: Boolean = false, next: Int? = null): ItemData {
         val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
-        return ItemData(show, children = seasonsOf(count, posters))
+        val children = seasonsOf(count, posters)
+        val onDeck = next?.let { children.getValue(100L + it).first() }
+        return ItemData(show, children = children, onDeck = listOfNotNull(onDeck?.let { 1L to it }).toMap())
     }
 
     /** Show 1's [count] seasons, and each season's four episodes, by the item they are under. */
@@ -205,13 +210,13 @@ class TvItemPageTest {
 
     @Test
     fun seasonTabsPastTheScreenScrollIntoViewAndShowTheirSeason() {
-        // More than the screen holds, even with Robolectric's narrow text.
+        // More than the screen holds, even with Robolectric's narrow text; that many are listed newest first.
         show(showOf(25))
         val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
         while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
         press(Key.DirectionUp)
-        compose.onNode(isFocused()).assert(hasText("Season 1"))
-        for (s in 2..25) {
+        compose.onNode(isFocused()).assert(hasText("Season 25"))
+        for (s in 24 downTo 1) {
             press(Key.DirectionRight)
             compose.onNode(isFocused()).assert(hasText("Season $s"))
             // Each tab keeps its own size, a pill one line tall and wider than that, and comes on screen.
@@ -219,19 +224,52 @@ class TvItemPageTest {
             assertTrue("Season $s: $tab", tab.left.value >= 0f && tab.right.value <= 960f)
             assertTrue("Season $s: $tab", tab.bottom - tab.top < 50.dp && tab.right - tab.left > tab.bottom - tab.top)
         }
-        // Focus resting on Season 25 shows it, and Down goes to its episodes, captions on screen.
+        // Focus resting on Season 1 shows it, and Down goes to its episodes, captions on screen.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
-        compose.onNode(hasText("Season 25") and isSelected()).assertExists()
+        compose.onNode(hasText("Season 1") and isSelected()).assertExists()
         press(Key.DirectionDown)
         compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
         assertEquals(TabbedEpisodeTilesTop.value, focusedTop(), 1f)
         // Back to the first tab: the row scrolls back with it.
         press(Key.DirectionUp)
-        compose.onNode(isFocused()).assert(hasText("Season 25"))
-        press(Key.DirectionLeft, 24)
         compose.onNode(isFocused()).assert(hasText("Season 1"))
+        press(Key.DirectionLeft, 24)
+        compose.onNode(isFocused()).assert(hasText("Season 25"))
         assertTrue(compose.onNode(isFocused()).getBoundsInRoot().left.value >= 0f)
+    }
+
+    @Test
+    fun aLongShowsTabsOpenWithTheSeasonToWatchInSight() {
+        // The newest season is the first tab, so the first season, the one to watch, is the last.
+        show(showOf(25, next = 1))
+        val shown = compose.onNode(hasText("Season 1") and isSelected()).getBoundsInRoot()
+        assertTrue("$shown", shown.left.value >= 0f && shown.right.value <= 960f - TvSafeArea.Horizontal.value + 1f)
+        // Up from its episodes goes to its tab, which stays where it is.
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        press(Key.DirectionLeft)
+        compose.onNode(isFocused()).assert(hasText("Season 2"))
+    }
+
+    @Test
+    fun aLongShowsSeasonPostersOpenAtTheSeasonToWatch() {
+        show(showOf(14, posters = true, next = 1))
+        // Down from the buttons lands on the season shown, the last poster of fourteen, on screen.
+        press(Key.DirectionDown)
+        val season = hasAnyAncestor(hasTestTag(TV_SEASON_TABS)) and isFocused()
+        compose.onNode(season).assert(hasContentDescription("Season 1, 4 episodes", substring = true))
+        val tile = compose.onNode(isFocused()).getBoundsInRoot()
+        assertTrue("$tile", tile.left.value >= 0f && tile.right.value <= 960f)
+        // Resting there leaves Season 1 shown; the seasons before it are the newer ones.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        press(Key.DirectionLeft)
+        compose.onNode(season).assert(hasContentDescription("Season 2, 4 episodes", substring = true))
+        press(Key.DirectionLeft, 12)
+        compose.onNode(season).assert(hasContentDescription("Season 14, 4 episodes", substring = true))
     }
 
     @Test

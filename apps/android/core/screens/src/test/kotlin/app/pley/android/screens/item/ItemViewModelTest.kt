@@ -201,6 +201,26 @@ class ItemViewModelTest {
     }
 
     @Test
+    fun `a show with more than twelve seasons lists the newest first`() = runTest(dispatcher) {
+        val model = model(10)
+        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 28, childCount = 13))
+        // Specials, then seasons 1 to 13, as the server lists them.
+        data.setChildren(10, (30L..43L).map { summary(it, ItemKind.Season, index = (it - 30).toInt()) })
+        val next = summary(60, ItemKind.Episode, parentId = 42, parentIndex = 12, index = 1)
+        data.setOnDeck(10, next)
+        val seasons = model.page.seasons!!
+        assertEquals((43L downTo 31L).toList() + 30L, seasons.seasons.map { it.id })
+        assertEquals((13 downTo 1).toList() + 0, seasons.seasons.map { it.item?.index })
+        // It opens on the next episode's season, and asks ahead for the seasons beside it as they are listed.
+        assertEquals(42L, seasons.selected)
+        assertEquals(listOf(41L, 43L, 40L), data.warmed)
+        // A season's own page lists its show's seasons the same way.
+        val season = model(42)
+        data.set(ItemDetail(id = 42, libraryId = 2, kind = ItemKind.Season, title = "Season 12", index = 12, parentId = 10))
+        assertEquals(seasons.seasons.map { it.id }, season.page.seasons?.seasons?.map { it.id })
+    }
+
+    @Test
     fun `a show with one season asks for nothing ahead`() = runTest(dispatcher) {
         val model = model(10)
         data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 2, childCount = 1))
