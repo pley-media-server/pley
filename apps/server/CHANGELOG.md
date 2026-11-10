@@ -46,7 +46,9 @@ describes how they are made.
   are, and each ticked off once done; or a library's first scan (its
   files found, read, then its details fetched). Reading files and
   fetching details say about how long they have left. Screen readers
-  hear each step as it starts, not every count.
+  hear each step as it starts, not every count. The browser tab's title
+  says how far the import is, and how it ended if that was while the tab
+  was out of sight.
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the
   metadata language's country, and still is until one is chosen:

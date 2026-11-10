@@ -399,5 +399,12 @@
       "removeWhen": "Podrás quitarla {{when}}.",
       "tryAgainWhen": "Podrás volver a intentarlo {{when}}."
     }
+  },
+  "importTitle": {
+    "running": "{{percent}} · Importando de Plex",
+    "done": "Importación de Plex terminada",
+    "failed": "Falló la importación de Plex",
+    "cancelled": "Importación de Plex detenida",
+    "interrupted": "Importación de Plex interrumpida"
   }
 }

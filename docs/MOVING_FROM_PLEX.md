@@ -114,8 +114,9 @@ Import from Plex.
    long that has left, then the titles found in it. What's found by file
    comes over with Plex's names, then Pley fetches posters and details and
    looks for the rest of Plex's titles. **Hide the steps** keeps it to a
-   line for that import. You can
-   watch, or close the page, at any time; the import goes on. Once it
+   line for that import. The browser tab's title says how far it is, on
+   any page, and how it ended if that was while the tab was out of sight.
+   You can watch, or close the page, at any time; the import goes on. Once it
    ends, Home says how it went, why if it failed, and has **See what came
    over**, its report, until you close it; Settings › Libraries keeps
    saying when it ran. An import that failed or was stopped, or that a

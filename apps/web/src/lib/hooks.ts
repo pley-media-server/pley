@@ -78,12 +78,36 @@ export function useElementWidth<T extends HTMLElement>(): [RefObject<T | null>, 
 export function useDocumentTitle(title: string | null | undefined) {
   useEffect(() => {
     if (!title) return;
-    const prev = document.title;
-    document.title = `${title} · Pley`;
-    return () => {
-      document.title = prev;
-    };
+    let prev = "";
+    showTab((tab) => {
+      prev = tab.page;
+      tab.page = `${title} · Pley`;
+    });
+    return () => showTab((tab) => void (tab.page = prev));
   }, [title]);
+}
+
+/**
+ * Puts `note` before the page's title while mounted, for what goes on
+ * whatever the page, such as the Plex import: "22% · Importing from Plex ·
+ * Home · Pley".
+ */
+export function useTitleNote(note: string | null) {
+  useEffect(() => {
+    if (!note) return;
+    showTab((tab) => void (tab.note = note));
+    return () => showTab((tab) => void (tab.note = null));
+  }, [note]);
+}
+
+/** The tab's title: the page's, after a note while there's one. */
+let tab: { page: string; note: string | null } | null = null;
+
+function showTab(change: (tab: { page: string; note: string | null }) => void) {
+  // The document's own title until a page names itself.
+  tab ??= { page: document.title, note: null };
+  change(tab);
+  document.title = tab.note ? `${tab.note} · ${tab.page}` : tab.page;
 }
 
 /**

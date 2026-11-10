@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Import, X } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useForgetPlex, usePlexImport, type ImportLibraryRow, type ImportProgress, type ImportStep } from "@/api/plexImport";
+import { useForgetPlex, usePlexImport, type ImportProgress } from "@/api/plexImport";
 import { ConfirmModal } from "@/components/Modal";
 import { Button, IconButton, ProgressBar } from "@/components/ui";
 import { currentLocale } from "@/i18n";
@@ -10,30 +10,11 @@ import { cn } from "@/lib/cn";
 import { formatDay, formatTimeLeft } from "@/lib/format";
 import { useLocalStorage } from "@/lib/hooks";
 import { StepList } from "./ImportProgressView";
+import { formatShare, importShare } from "./share";
 import { ErrorNote } from "./PlexImport";
 
 /** The `started_at` of the import whose steps were hidden: the next one shows them again. */
 const HIDDEN_KEY = "pley.plexImport.stepsHidden";
-
-/**
- * About how much of an import's time each step takes, for the bar of the
- * whole import: scanning the libraries and fetching their details are most
- * of it, the steps that only write what Plex said take seconds. Rough, and
- * only ever compared with each other.
- */
-const STEP_WEIGHTS: Record<ImportStep, number> = {
-  profiles: 1,
-  scanning: 40,
-  matching: 0,
-  labels: 2,
-  edits: 2,
-  collections: 1,
-  watch_state: 3,
-  history: 3,
-  playlists: 1,
-  fetching: 35,
-  matching_again: 12,
-};
 
 /**
  * The Plex import, on Home and under Settings › Libraries' buttons. While it
@@ -70,7 +51,7 @@ export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () 
     if (!open && data.total > 0) count = t("plexImport.status.count", { done: number(data.done), total: number(data.total) });
     const seconds = stepLeft(data);
     if (!open && seconds != null) left = formatTimeLeft(seconds);
-    if (at >= 0) overall = share(data);
+    if (at >= 0) overall = importShare(data);
   } else if (data.state === "interrupted" && data.started_at) {
     text = t("plexImport.status.interrupted", { date: formatDay(data.started_at) });
   } else if (data.report) {
@@ -136,7 +117,7 @@ export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () 
         <div className="flex items-center gap-3">
           <ProgressBar value={overall} label={t("plexImport.status.overall")} className="h-1" />
           <span className="shrink-0 tabular-nums text-muted">
-            {new Intl.NumberFormat(currentLocale(), { style: "percent", maximumFractionDigits: 0 }).format(Math.floor(overall * 100) / 100)}
+            {formatShare(overall)}
           </span>
         </div>
       ) : null}
@@ -161,47 +142,8 @@ export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () 
   );
 }
 
-/**
- * How far the whole import has come: its steps done and the part of the
- * running one that is, each weighed by how long it takes.
- */
-function share(progress: ImportProgress): number {
-  const steps = progress.steps ?? [];
-  const total = steps.reduce((sum, row) => sum + STEP_WEIGHTS[row.step], 0);
-  if (total === 0) return 0;
-  const done = steps.reduce((sum, row) => {
-    const weight = STEP_WEIGHTS[row.step];
-    if (row.state === "done") return sum + weight;
-    if (row.state === "running") return sum + weight * runningPart(progress, row.step);
-    return sum;
-  }, 0);
-  return done / total;
-}
-
 /** About how many seconds the running step has left: in the scans, the library whose files are read. */
 function stepLeft(progress: ImportProgress): number | null {
   if (progress.step === "scanning") return progress.libraries?.find((library) => library.phase === "probing")?.left_secs ?? null;
   return progress.left_secs ?? null;
-}
-
-/** The part of the running step done: for the scans, the libraries' files read; otherwise its count. */
-function runningPart(progress: ImportProgress, step: ImportStep): number {
-  const libraries = progress.libraries ?? [];
-  if (step === "scanning" && libraries.length > 0) {
-    return libraries.reduce((sum, library) => sum + libraryPart(library), 0) / libraries.length;
-  }
-  return progress.total > 0 ? Math.min(progress.done / progress.total, 1) : 0;
-}
-
-/** How far a library is in the scanning step: its files read, then Plex's titles found in it. */
-function libraryPart(library: ImportLibraryRow): number {
-  switch (library.phase) {
-    case "done":
-    case "matching":
-      return 1;
-    case "probing":
-      return library.total > 0 ? Math.min(library.done / library.total, 1) : 0;
-    default:
-      return 0;
-  }
 }

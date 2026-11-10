@@ -381,5 +381,12 @@
       "removeWhen": "You can remove it {{when}}.",
       "tryAgainWhen": "You can try again {{when}}."
     }
+  },
+  "importTitle": {
+    "running": "{{percent}} · Importing from Plex",
+    "done": "Plex import done",
+    "failed": "Plex import failed",
+    "cancelled": "Plex import stopped",
+    "interrupted": "Plex import cut short"
   }
 }
