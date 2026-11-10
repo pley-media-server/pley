@@ -249,6 +249,23 @@ class TvRailTest {
         assertEquals(513f, bottom("settings"), 0.5f)
     }
 
+    @Test
+    fun theFocusedEntryGrowsFromItsIconClearOfTheScreenAndThePanelsEdge() {
+        shell(reduced = true)
+        pressNow(Key.DirectionLeft)
+        compose.waitForIdle()
+        entry("home").assertIsFocused()
+        // At rest an open entry is 246 dp from x = 8.
+        val rest = entry("search").getBoundsInRoot()
+        assertEquals(8f, rest.left.value, 0.5f)
+        assertEquals(254f, rest.right.value, 0.5f)
+        // Focused, it is 1.05 as large about its icon's middle, x = 36: the icon stays in the rail's
+        // column, and the pill ends 7 dp from the 272 dp panel's edge, as it starts 7 from the screen's.
+        val focused = entry("home").getBoundsInRoot()
+        assertEquals(6.6f, focused.left.value, 0.5f)
+        assertEquals(264.9f, focused.right.value, 0.5f)
+    }
+
     /**
      * Where entry [i] of [many] starts while it has focus: down to the fourth
      * place, then there while the entries scroll by whole entries, until the

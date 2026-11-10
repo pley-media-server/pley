@@ -214,7 +214,7 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
 }
 
 /**
- * The rail (design spec §2.1): 56 dp entries collapsed, 256 open, 40 tall
+ * The rail (design spec §2.1): 56 dp entries collapsed, 246 open, 40 tall
  * on a 44 dp pitch. The avatar at the top switches profiles; then [items],
  * from y = 67; Settings at the foot, at y = 473. The entries between them
  * scroll when they don't all fit ([railScroll]), drawn only between the
@@ -222,12 +222,14 @@ class RailState(private val content: FocusRequester = FocusRequester()) : TvRail
  * scrolled out of view. Collapsed, the current entry has a 4 by 20 accent
  * mark and its icon in [fg][PleyColors.Fg]; open, it is a
  * [surface3][PleyColors.Surface3] pill. The focused entry is the accent
- * pill at 1.05. Open, the rail is [surface][PleyColors.Surface] at 96 %
- * with a soft edge, and the shell dims the page behind it.
+ * pill at 1.05, grown from its icon, so the icons stay in their column
+ * and the pill ends as far from the panel's edge as it starts from the
+ * screen's. Open, the rail is [surface][PleyColors.Surface] at 96 % with
+ * a soft edge, and the shell dims the page behind it.
  *
  * Focus in it is what opens it. Over 200 ms ([PleyMotion.OVERLAY_MS]),
  * eased out as the Samsung app's rail is ([PleyMotion.EaseOut]), the
- * panel widens from 72 to 272 dp with its edge, the pills from 56 to 256,
+ * panel widens from 72 to 272 dp with its edge, the pills from 56 to 246,
  * and the labels fade in as they slide 24 dp into place; leaving, the
  * same back, the labels fading where they are, and the panel fading over
  * its last 15 % into the dark under the closed entries. With
@@ -508,7 +510,7 @@ private fun rememberRailOpening(open: Boolean): Animatable<Float, AnimationVecto
 
 /**
  * One of the rail's entries: a pill drawn as wide as the rail is open
- * ([opening]: 56 dp closed, 256 open), [height] tall, and laid out at
+ * ([opening]: 56 dp closed, 246 open), [height] tall, and laid out at
  * either end ([open]). [leadingContent] (an icon, the avatar) is centred
  * on the closed pill; [content] (the label), with [supportingContent]
  * under it and [trailingContent] at the end, fades in as the pill widens,
@@ -518,8 +520,9 @@ private fun rememberRailOpening(open: Boolean): Animatable<Float, AnimationVecto
  * Entries are in [muted][PleyColors.Muted], the current one ([selected])
  * in fg, on the [surface3][PleyColors.Surface3] pill while [open]. Focused,
  * the pill is the accent fill with [onAccent][PleyColors.OnAccent]
- * content, and grows to 1.05 in its layer (in place with reduced motion);
- * pressed, accentBright. No border and no glow: focus is the fill.
+ * content, and grows to 1.05 in its layer, about its icon (in place with
+ * reduced motion); pressed, accentBright. No border and no glow: focus is
+ * the fill.
  */
 @Composable
 private fun RailPill(
@@ -568,8 +571,8 @@ private fun RailPill(
             .graphicsLayer {
                 scaleX = scale.value
                 scaleY = scale.value
-                // About the pill's middle, as wide as it shows.
-                transformOrigin = TransformOrigin(pillWidth(opening.value) / 2f / size.width, 0.5f)
+                // About its icon, which stays in the rail's column: the pill grows to the right, into the panel.
+                transformOrigin = TransformOrigin((ClosedPillWidth / 2).toPx() / size.width, 0.5f)
             }
             .drawWithContent {
                 // Past its bounds while the rail closes.
@@ -618,7 +621,7 @@ private fun RailPill(
     }
 }
 
-/** A pill's width when the rail is [opening] that far open: 56 dp closed to 256 open. */
+/** A pill's width when the rail is [opening] that far open: 56 dp closed to 246 open. */
 private fun Density.pillWidth(opening: Float): Float = lerp(ClosedPillWidth.toPx(), OpenPillWidth.toPx(), opening)
 
 @Composable
@@ -733,9 +736,13 @@ private val CountY = (-10).dp
 /** What the number counts to before it says "99+". */
 private const val MAX_COUNT = 99
 
-/** A pill closed and open; the label starts where the closed pill ends, and stops 12 dp short of the open one's end. */
+/**
+ * A pill closed and open; the label starts where the closed pill ends, and
+ * stops 12 dp short of the open one's end. Open and focused, it ends 7 dp
+ * short of the panel's edge, about what it keeps from the screen's.
+ */
 private val ClosedPillWidth = 56.dp
-private val OpenPillWidth = 256.dp
+private val OpenPillWidth = 246.dp
 private val LabelEnd = 12.dp
 
 /** How far the labels slide in from as the rail opens: a little, so they don't cross the icons. */
