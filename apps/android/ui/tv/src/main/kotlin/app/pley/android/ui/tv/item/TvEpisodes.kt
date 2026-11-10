@@ -103,9 +103,10 @@ internal fun TvEpisodesSection(
     onSeasonActions: (ItemSummary) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        val inTabs = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs }
-        // A season chosen on its poster: focus goes into its episodes once they are the ones shown.
+        // A season chosen on its poster: focus goes into its episodes once they are the ones shown,
+        // unless it has gone elsewhere by then (up to the buttons, along to another season).
         var enter by remember { mutableStateOf<Long?>(null) }
+        val inTabs = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs else enter = null }
         LaunchedEffect(enter, seasons.selected, seasons.episodes) {
             val season = enter ?: return@LaunchedEffect
             val episodes = seasons.episodes ?: return@LaunchedEffect
@@ -119,7 +120,16 @@ internal fun TvEpisodesSection(
                 // Select before focus had rested there: shown now.
                 if (id != seasons.selected) onSelectSeason(id)
             }
-            SeasonPosters(seasons, page.origin, memory, onSelectSeason, choose, onSeasonActions, inTabs.focusRequester(seasonsRequester))
+            SeasonPosters(
+                seasons = seasons,
+                origin = page.origin,
+                memory = memory,
+                onSelect = onSelectSeason,
+                onChoose = choose,
+                onActions = onSeasonActions,
+                onFocusSeason = { id -> if (enter != id) enter = null },
+                modifier = inTabs.focusRequester(seasonsRequester),
+            )
             Spacer(Modifier.height(TabsToTiles))
         } else if (seasons.seasons.size > 1 && !seasons.posters) {
             SeasonTabs(seasons, onSelectSeason, inTabs)
@@ -273,7 +283,8 @@ private fun SeasonTab(title: String, current: Boolean, onFocus: () -> Unit, onCl
  * on it, in a row of the TV kit ([TvRow]). As with the tabs, the season
  * focus rests on is shown under the row; Select [chooses][onChoose] it,
  * which takes focus down into its episodes, and holding it gives the
- * season's [actions][onActions].
+ * season's [actions][onActions]. [onFocusSeason] hears each season focus
+ * comes to.
  */
 @Composable
 private fun SeasonPosters(
@@ -283,6 +294,7 @@ private fun SeasonPosters(
     onSelect: (Long) -> Unit,
     onChoose: (Long) -> Unit,
     onActions: (ItemSummary) -> Unit,
+    onFocusSeason: (Long) -> Unit,
     modifier: Modifier,
 ) {
     val words = formatWords()
@@ -318,7 +330,10 @@ private fun SeasonPosters(
         kind = TileKind.Poster,
         onOpen = { tile -> onChoose(tile.id) },
         onActions = { tile -> byId[tile.id]?.let(onActions) },
-        onFocus = { focused = it.id },
+        onFocus = {
+            focused = it.id
+            onFocusSeason(it.id)
+        },
         memory = memory,
         enterOn = seasons.selected,
         state = state,
