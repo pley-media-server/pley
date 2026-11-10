@@ -36,9 +36,9 @@ describes how they are made.
   first season listed: the newest of a show with more than 12, which
   opened on Season 1, at the far end of its seasons. A show you are
   part-way through still opens on the season of the next episode.
-- On Android TV, a title's page that is already held in memory (seen
-  before, or asked for ahead) opens whole at once, where it showed an
-  empty outline for a moment first.
+- A title's page that is already held in memory (seen before, or asked
+  for ahead) opens whole at once, where it showed an empty outline for a
+  moment first.
 - On Android TV, the words at the top of a show's page keep up with the
   episode focused, and no longer show an episode of another season, or
   the show's description, while focus is on the seasons.
@@ -74,7 +74,9 @@ describes how they are made.
 - On Android TV, the tabs at the top of a library (Recommended,
   Library, Collections), of Live TV and of Requests are smaller.
 - On Android TV, a library opens on Recommended the first time; after
-  that, on the tab it was left on, as before.
+  that, on the tab it was left on, as before. A library left on its
+  Library tab before this version, with no sort or filter of its own,
+  opens on Recommended once more.
 - On Android TV, Right on the last button of Home's banner (My List)
   stays there. It used to turn to the next title, which the dashes at the
   top right and the banner's own time still do.
@@ -98,8 +100,9 @@ describes how they are made.
 - On Android TV, the rail's focused entry grows from its icon, so the
   icons stay in line, and it no longer reaches the edge of the screen or
   of the rail's panel.
-- On Android TV, resting on a season shows its episodes sooner, and they
-  are loaded ahead, so moving along a show's seasons keeps up.
+- On Android TV, resting on a season shows its episodes sooner. The
+  seasons beside the one shown have their episodes loaded ahead, on
+  phones too, so moving along a show's seasons keeps up.
 - On Android TV, who made a title and its facts (director, writers, release,
   studio or network) sit under the cast, each a small label over its
   value, where they were in Details at the end of the page.

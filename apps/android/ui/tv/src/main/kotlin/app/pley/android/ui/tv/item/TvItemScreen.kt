@@ -111,8 +111,8 @@ import kotlinx.coroutines.delay
  * stays at the top, for the focused episode in the episode row. An
  * episode opens its own page; on that page Select on the same episode in
  * its season's row plays it, and another episode's page takes the page's
- * place, so Back from an episode is always the show, on the episode
- * opened from it.
+ * place, so Back is where the first was opened from: the show, on the
+ * episode opened from it, or Home, or a search.
  * Artists, albums and tracks open their music pages instead, an extra
  * its movie's or show's page.
  */
