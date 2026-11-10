@@ -387,6 +387,22 @@ describe("HomePage", () => {
       });
     }
 
+    it("comes after what's filling in, while that shows", async () => {
+      const kids: Library = { ...movies, id: 5, name: "Kids", scanned_at: 1_700_000_000 };
+      mockApi({
+        "GET /api/libraries": () => [movies, shows, kids],
+        "GET /api/hubs/home": () => ({ hubs: featuredHubs }),
+        "GET /api/activity": (): Activity => ({ scans: [firstScan], sessions: [] }),
+        "GET /api/import/plex": () => ({ ...importing, state: "idle", step: null }),
+      });
+      renderWithProviders(<HomePage />);
+      const banner = await screen.findByRole("region", { name: "Featured" });
+      const scan = await screen.findByText("Scanning TV Shows: reading files");
+      expect(scan.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      expect(banner.previousElementSibling).toHaveAttribute("data-home-progress");
+      expect(banner.previousElementSibling).not.toBeEmptyDOMElement();
+    });
+
     it("features the newest title, with what its page says", async () => {
       serveFeatured();
       renderWithProviders(<HomePage />);

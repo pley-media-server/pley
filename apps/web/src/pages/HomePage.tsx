@@ -87,9 +87,12 @@ export function HomePage() {
 
   return (
     <>
+      {/* What's filling in comes first while it shows: the banner then starts below it rather than under the top bar. */}
+      <div data-home-progress className="px-4 pt-6 pb-6 empty:hidden sm:px-8">
+        <HomeProgress />
+      </div>
       {featured.length ? <HomeBanner featured={featured} /> : null}
       <div className={cn("relative space-y-9 py-7 sm:space-y-10 sm:py-8", featured.length && [ROWS_OVERLAP, "pt-0 sm:pt-0"])}>
-        <HomeProgress className="mx-4 sm:mx-8" />
         {visible.map((hub) => (
           <HubRow key={hub.key} hub={hub} />
         ))}

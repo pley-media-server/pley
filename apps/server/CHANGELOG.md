@@ -35,7 +35,8 @@ describes how they are made.
   read, and titles found by their files show with Plex's names, years,
   summaries and dates added as soon as their library is scanned, until
   Pley's own details replace them. Posters come from Pley's own fetch.
-- Home tells administrators how far new libraries are: the Plex import,
+- Home tells administrators how far new libraries are, first on the page,
+  above the banner: the Plex import,
   which Home goes to as soon as it starts, with how far the whole import
   is, its steps, each library scanned with about how long it has left and
   the titles found in it, and Stop, then how it ended (and why, if it
