@@ -120,11 +120,12 @@ fun TvBackdrop(
     title: String,
     modifier: Modifier = Modifier,
     scrim: BackdropScrim = BackdropScrim.Hero,
+    atOnce: Boolean = false,
 ) {
     val tier = LocalTvTier.current
     val cap = ArtworkImage.backdropCap(tier)
     val wanted = remember(image, title, cap) { Backdrop(image?.cappedAt(cap), title) }
-    val shown = rememberRested(wanted)
+    val shown = rememberRested(wanted, atOnce = atOnce)
     val instant = tier == Tier.T0 || reducedMotion()
     val slots = remember { BackdropSlots(shown) }
     LaunchedEffect(shown) { slots.show(shown, instant) }

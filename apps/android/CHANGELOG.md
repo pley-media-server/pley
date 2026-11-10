@@ -36,6 +36,11 @@ describes how they are made.
   cut them.
 - On Android TV, a title's page gives its title and its description
   more of the screen's width, and a long title up to three lines.
+- On Android TV, coming down from Home's banner to the rows, the words
+  at the top are the focused title's at once. They used to stay the
+  banner's title for a moment first. Going back up, and each time the
+  banner turns, its picture changes with its words, where the last
+  picture stayed under them for a moment.
 - On Android TV, Home's banner sits higher: the line over its title
   (New in Movies) is level with the dashes at the top right, and
   Continue Watching's pictures show whole under it, where the screen's

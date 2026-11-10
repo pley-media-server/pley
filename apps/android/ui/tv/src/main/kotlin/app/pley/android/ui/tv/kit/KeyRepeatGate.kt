@@ -348,14 +348,15 @@ private class KeyRepeatGateNode(var gate: KeyRepeatGate) : Modifier.Node(), KeyI
  * ([KeyRepeatGate.awaitRest]).
  */
 @Composable
-fun <T> rememberRested(value: T, afterMs: Long = KeyRepeatGate.REST_MS): T {
+fun <T> rememberRested(value: T, afterMs: Long = KeyRepeatGate.REST_MS, atOnce: Boolean = false): T {
     val gate = LocalKeyRepeatGate.current
     var rested by remember { mutableStateOf(value) }
-    LaunchedEffect(value) {
+    LaunchedEffect(value, atOnce) {
         if (value != rested) {
-            gate.awaitRest(afterMs)
+            if (!atOnce) gate.awaitRest(afterMs)
             rested = value
         }
     }
-    return rested
+    // What it follows isn't a tile focus is passing over: nothing to wait for.
+    return if (atOnce) value else rested
 }
