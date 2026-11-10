@@ -217,6 +217,23 @@ class ItemPagesTest {
     }
 
     @Test
+    fun `a show not being watched opens on its first season listed, not on the first episode's`() {
+        fun seasons(watched: (Int) -> Int) = seasonOrder((1..13).map { summary(30L + it, ItemKind.Season, index = it).copy(leafCount = 4, viewedLeafCount = watched(it)) })
+        val first = summary(40, ItemKind.Episode, parentId = 31)
+        // Not started: the server's next episode is the first, which isn't where the profile is.
+        assertEquals(43L, defaultSeason(seasons { 0 }, first))
+        // Watched to the end: the first again.
+        assertEquals(43L, defaultSeason(seasons { 4 }, first.copy(userState = UserState(watched = true))))
+        // Started, even at its first episode: there.
+        assertEquals(31L, defaultSeason(seasons { 0 }, first.copy(userState = UserState(positionMs = 60_000))))
+        // Some of it watched: the season of the next one.
+        assertEquals(35L, defaultSeason(seasons { if (it < 5) 4 else 0 }, summary(41, ItemKind.Episode, parentId = 35)))
+        // A show listed first season first opens on Season 1 either way, after Specials.
+        val short = listOf(0, 1, 2).map { summary(30L + it, ItemKind.Season, index = it).copy(leafCount = 4, viewedLeafCount = 0) }
+        assertEquals(31L, defaultSeason(short, summary(42, ItemKind.Episode, parentId = 30)))
+    }
+
+    @Test
     fun `a show's tabs are posters once one season has a poster of its own, else words`() {
         val show = ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", childCount = 3)
         fun season(id: Long, poster: String?) = summary(id, ItemKind.Season, index = (id - 29).toInt()).copy(posterUrl = poster)

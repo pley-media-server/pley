@@ -34,6 +34,7 @@ import app.pley.android.model.format.qualityBadges
 import app.pley.android.model.format.resolutionLabel
 import app.pley.android.model.format.seasonTitle
 import app.pley.android.model.format.streamLabel
+import app.pley.android.model.format.unwatchedCount
 import app.pley.android.model.format.versionDescription
 import app.pley.android.model.format.versionLabel
 import app.pley.android.screens.R
@@ -421,14 +422,29 @@ fun seasonOrder(seasons: List<ItemSummary>): List<ItemSummary> {
 const val MANY_SEASONS = 12
 
 /**
- * The season a show page opens on: the next episode's, else the first
- * listed that isn't Specials (the newest of a long show, [seasonOrder]),
- * else the first.
+ * The season a show page opens on: the next episode's while the show is
+ * being watched ([underway]), else the first listed that isn't Specials
+ * (the newest of a long show, [seasonOrder]), else the first.
  */
 fun defaultSeason(seasons: List<ItemSummary>, onDeck: ItemSummary?): Long? =
-    onDeck?.parentId?.takeIf { id -> seasons.any { it.id == id } }
+    onDeck?.takeIf { underway(seasons, it) }?.parentId?.takeIf { id -> seasons.any { it.id == id } }
         ?: seasons.firstOrNull { (it.index ?: 1) > 0 }?.id
         ?: seasons.firstOrNull()?.id
+
+/**
+ * Whether [next] is an episode the profile has got to: one it started, or
+ * the next of a show it has watched some of and not all. For a show not
+ * started, or watched to its end, the server answers with the first
+ * episode, which Play starts but which says nothing of where the seasons
+ * open: a long show's would open on Season 1, at the far end of its row.
+ * Seasons that don't say how many of their episodes are watched leave
+ * nothing to tell by, and the server's answer stands.
+ */
+private fun underway(seasons: List<ItemSummary>, next: ItemSummary): Boolean {
+    if (next.userState.positionMs > 0) return true
+    val counted = seasons.filter { it.leafCount != null }
+    return counted.isEmpty() || (counted.any { (it.viewedLeafCount ?: 0) > 0 } && counted.any { unwatchedCount(it) > 0 })
+}
 
 private val EXTRA_LABELS = mapOf(
     ExtraType.Trailer to R.string.item_extra_trailer,

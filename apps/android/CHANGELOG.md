@@ -32,6 +32,10 @@ describes how they are made.
 - A show with more than 12 seasons lists them newest first, with Specials
   last, so the seasons still coming out are the first ones. On Android
   TV the seasons open at the one shown, wherever it is in the row.
+- A show you haven't started, or have watched to its end, opens on the
+  first season listed: the newest of a show with more than 12, which
+  opened on Season 1, at the far end of its seasons. A show you are
+  part-way through still opens on the season of the next episode.
 - On Android TV, a title's page that is already held in memory (seen
   before, or asked for ahead) opens whole at once, where it showed an
   empty outline for a moment first.

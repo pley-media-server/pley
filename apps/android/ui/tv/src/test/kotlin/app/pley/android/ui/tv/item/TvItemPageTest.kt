@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
+import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.Credit
@@ -33,6 +34,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.RequestList
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
+import app.pley.android.model.UserState
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemViewModel
 import app.pley.android.testing.Fixtures
@@ -163,12 +165,14 @@ class TvItemPageTest {
 
     /**
      * A show of [count] seasons of four episodes each; with [posters], the first season has a poster of
-     * its own. [next] is the season of the episode to watch, its first.
+     * its own. [next] is the season of the episode to watch, its first: one the profile [started], or
+     * the one the server names when nothing of the show has been watched.
      */
-    private fun showOf(count: Int, posters: Boolean = false, next: Int? = null): ItemData {
+    private fun showOf(count: Int, posters: Boolean = false, next: Int? = null, started: Boolean = true): ItemData {
         val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
         val children = seasonsOf(count, posters)
         val onDeck = next?.let { children.getValue(100L + it).first() }
+            ?.let { if (started) it.copy(userState = UserState(positionMs = 60_000)) else it }
         return ItemData(show, children = children, onDeck = listOfNotNull(onDeck?.let { 1L to it }).toMap())
     }
 
@@ -252,6 +256,20 @@ class TvItemPageTest {
         compose.onNode(isFocused()).assert(hasText("Season 1"))
         press(Key.DirectionLeft)
         compose.onNode(isFocused()).assert(hasText("Season 2"))
+    }
+
+    @Test
+    fun aLongShowNotStartedOpensOnItsNewestSeason() {
+        // The server's next episode is the show's first: Season 1, the last poster of fourteen.
+        show(showOf(14, posters = true, next = 1, started = false))
+        press(Key.DirectionDown)
+        val season = hasAnyAncestor(hasTestTag(TV_SEASON_TABS)) and isFocused()
+        compose.onNode(season).assert(hasContentDescription("Season 14, 4 episodes", substring = true))
+        assertEquals(PleyTv.Gutter.value, compose.onNode(isFocused()).getBoundsInRoot().left.value, 1f)
+        // Its episodes are the ones under the row.
+        press(Key.Enter)
+        compose.onNode(hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        assertTrue(compose.onAllNodes(hasText("Season 14")).fetchSemanticsNodes().isNotEmpty())
     }
 
     @Test

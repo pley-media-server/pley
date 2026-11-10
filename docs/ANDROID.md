@@ -267,7 +267,11 @@ rates as the decoder gives them, the same in every language.
   outline only after 150 ms. A show with more than 12
   seasons lists them newest first, Specials last (the phone's season
   picker too), and the tabs or posters open with the season shown in
-  sight, wherever it is along them.
+  sight, wherever it is along them. The season shown first is the next
+  episode's while the show is being watched (an episode started, or some
+  watched and some not); a show not started, or watched to its end,
+  opens on the first season listed, the newest of a long show, since
+  the server's next episode is then only its first.
 - Pictures wait while a key is held: the tiles a row slides past or a
   page glides past ask for none, unless the memory cache has them, and
   no backdrop is fetched ahead; where the key comes up, the tiles on
