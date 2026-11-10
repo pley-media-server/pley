@@ -244,20 +244,19 @@ class TvItemPageTest {
             assertTrue("Season $s: $tile", tile.left.value >= 0f && tile.right.value <= 960f)
             assertEquals("Season $s: $tile", TileKind.Poster.tvHeight.value, (tile.bottom - tile.top).value, 14f)
         }
-        // Resting on Season 12 leaves Season 1 shown; Select shows Season 12 and goes into its episodes.
+        // Focus resting on Season 12 shows it, named over its episodes.
         compose.mainClock.advanceTimeBy(2_000)
         compose.waitForIdle()
-        compose.onNode(hasContentDescription("Season 1 Episode 1", substring = true)).assertExists()
-        press(Key.Enter)
+        press(Key.DirectionDown)
         compose.onNode(isFocused()).assert(hasContentDescription("Season 12 Episode 1", substring = true))
         compose.onNode(hasText("Season 12")).assertExists()
         // The episodes sit under the season's name, as a single season's do.
         assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
-        // Up comes back to the season shown, Down goes back into its episodes.
+        // Up comes back to the season shown; Select opens its page.
         press(Key.DirectionUp)
         compose.onNode(season).assert(hasContentDescription("Season 12", substring = true))
-        press(Key.DirectionDown)
-        compose.onNode(isFocused()).assert(hasContentDescription("Season 12 Episode 1", substring = true))
+        press(Key.Enter)
+        assertEquals(PleyKey.Item(112), stack.last())
     }
 
     @Test

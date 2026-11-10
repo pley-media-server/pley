@@ -77,7 +77,7 @@ import kotlinx.coroutines.flow.first
  * with focus resting on it shows its season. A show whose seasons have
  * posters of their own ([SeasonsSection.posters]) shows them as a row of
  * poster tiles instead, as the web does, with the season shown named over
- * its episodes; Select on a season shows it and goes into its episodes.
+ * its episodes; Select on a season opens its page, as on the web.
  */
 @Composable
 internal fun TvEpisodesSection(
@@ -91,24 +91,12 @@ internal fun TvEpisodesSection(
     onFocusEpisode: (EpisodeLine) -> Unit,
     onOpen: (ItemSummary) -> Unit,
     onActions: (ItemSummary) -> Unit,
+    onSeasonActions: (ItemSummary) -> Unit,
 ) {
-    // A season chosen on its poster: focus goes into its episodes once they are here.
-    var enter by remember { mutableStateOf<Long?>(null) }
-    LaunchedEffect(enter, seasons.selected, seasons.episodes) {
-        val season = enter ?: return@LaunchedEffect
-        val episodes = seasons.episodes ?: return@LaunchedEffect
-        if (seasons.selected != season || episodes.any { it.item.parentId != season }) return@LaunchedEffect
-        enter = null
-        if (episodes.isNotEmpty()) runCatching { rowRequester.requestFocus() }
-    }
     Column(Modifier.fillMaxWidth()) {
         val inTabs = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs }
         if (seasons.posters) {
-            val choose = { id: Long ->
-                enter = id
-                if (id != seasons.selected) onSelectSeason(id)
-            }
-            SeasonPosters(seasons, page.origin, memory, choose, inTabs.focusRequester(seasonsRequester))
+            SeasonPosters(seasons, page.origin, memory, onSelectSeason, onOpen, onSeasonActions, inTabs.focusRequester(seasonsRequester))
             Spacer(Modifier.height(TabsToTiles))
         } else if (seasons.seasons.size > 1) {
             SeasonTabs(seasons, onSelectSeason, inTabs)
@@ -235,21 +223,39 @@ private fun SeasonTab(title: String, current: Boolean, onFocus: () -> Unit, onCl
 /**
  * The seasons as poster tiles, as the web shows them: each season's poster
  * (else the show's), its name and episodes under it, its unwatched count
- * on it, in a row of the TV kit ([TvRow]). Moving along them leaves the
- * episodes as they are; Select on a season [chooses][onChoose] it.
+ * on it, in a row of the TV kit ([TvRow]). As with the tabs, the season
+ * focus rests on is shown under the row; Select [opens][onOpen] the
+ * season's page, as a click on the web's season card does, and holding
+ * it gives the season's [actions][onActions].
  */
 @Composable
-private fun SeasonPosters(seasons: SeasonsSection, origin: String, memory: FocusMemory, onChoose: (Long) -> Unit, modifier: Modifier) {
+private fun SeasonPosters(
+    seasons: SeasonsSection,
+    origin: String,
+    memory: FocusMemory,
+    onSelect: (Long) -> Unit,
+    onOpen: (ItemSummary) -> Unit,
+    onActions: (ItemSummary) -> Unit,
+    modifier: Modifier,
+) {
     val words = formatWords()
     val tiles = remember(seasons.seasons, origin, words) {
         seasons.seasons.mapNotNull { season -> season.item?.let { ArtworkTileModel.of(it.copy(title = season.title), TileKind.Poster, origin, words) } }
+    }
+    val byId = remember(seasons.seasons) { seasons.seasons.mapNotNull { it.item }.associateBy { it.id } }
+    var focused by remember { mutableStateOf<Long?>(null) }
+    val rested = rememberRested(focused)
+    LaunchedEffect(rested) {
+        if (rested != null && rested != seasons.selected) onSelect(rested)
     }
     TvRow(
         rowKey = SEASON_ROW,
         title = null,
         tiles = tiles,
         kind = TileKind.Poster,
-        onOpen = { onChoose(it.id) },
+        onOpen = { tile -> byId[tile.id]?.let(onOpen) },
+        onActions = { tile -> byId[tile.id]?.let(onActions) },
+        onFocus = { focused = it.id },
         memory = memory,
         enterOn = seasons.selected,
         modifier = modifier.testTag(TV_SEASON_TABS),

@@ -144,7 +144,7 @@ fn a_mark_the_server_took_stays_over_an_answer_asked_before_it() {
 }
 
 #[test]
-fn a_show_goes_down_to_its_seasons_and_its_next_episode_and_ok_on_a_season_goes_into_it() {
+fn a_show_goes_down_to_its_seasons_and_its_next_episode_and_ok_on_a_season_opens_it() {
     let mut app = TestApp::start();
     open_show(&mut app);
     assert!(app.until(|a| a.shows("Season 1") && a.shows("Season 2") && a.shows("2. Episode 2")));
@@ -163,21 +163,22 @@ fn a_show_goes_down_to_its_seasons_and_its_next_episode_and_ok_on_a_season_goes_
     assert_eq!(app.focused(), Some(season1));
     app.advance(0.5);
     assert!(app.shows(told), "the info block let go of the episode on the seasons");
-    // Resting on the next season leaves season 1 shown.
+    // Resting on the next season shows it: its three episodes, none started, replace season 1's
+    // (whose second is in progress).
     app.press(Key::Right);
     let season2 = app.id(&["posters", "row"]).with(ids::SHOW_SEASON_2 as u64);
     assert!(app.until(|a| a.focused() == Some(season2)));
-    app.advance(1.0);
+    app.advance(0.5);
     let unstarted = |a: &TestApp| a.list.texts().filter(|t| *t == "20s").count();
-    assert_ne!(unstarted(&app), 3, "resting on season 2 showed it");
-    // OK on it: season 2's three episodes, none started, replace season 1's (whose second is in
-    // progress), and focus goes into them.
-    app.press(Key::Ok);
     assert!(app.until(|a| unstarted(a) == 3), "season 2's episodes never came");
+    app.press(Key::Down);
     let first = app.id(&["episodes"]).with(ids::SHOW_S2E1 as u64);
     assert!(app.until(|a| a.focused() == Some(first)), "season 2's episodes never took focus");
+    // OK on a season opens its page.
+    app.press(Key::Up);
+    assert!(app.until(|a| a.focused() == Some(season2)));
     app.press(Key::Ok);
-    assert_eq!(app.route(), Some(&Route::Item { id: ids::SHOW_S2E1 }));
+    assert_eq!(app.route(), Some(&Route::Item { id: ids::SHOW_SEASON_2 }));
 }
 
 #[test]

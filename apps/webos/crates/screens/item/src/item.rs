@@ -290,8 +290,6 @@ struct View {
     episodes: RowState,
     /// The season posters' row.
     seasons: RowState,
-    /// A season chosen on its poster: focus goes into its episodes once they are drawn.
-    enter_season: Option<i64>,
     /// The season the episode row's state is for.
     episodes_for: Option<i64>,
     extras: RowState,
@@ -1511,9 +1509,6 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
     if episodes.is_empty() {
         let at = Point::new(theme::GUTTER, tiles_y);
         ui.text(at, t!("item.rows.noEpisodes"), &theme::BODY, &TextOpts::line(DETAILS_W), theme::MUTED);
-        if view.enter_season == s.selected {
-            view.enter_season = None;
-        }
         return;
     }
     if view.episodes_for != s.selected {
@@ -1521,11 +1516,6 @@ fn draw_episodes(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, o
         let at = s.target.and_then(|t| episodes.iter().position(|e| e.id == t)).unwrap_or(0);
         view.episodes = RowState::at(at);
         view.episodes_for = s.selected;
-    }
-    if view.enter_season.is_some() && view.enter_season == s.selected {
-        view.enter_season = None;
-        let at = view.episodes.index.min(episodes.len() - 1);
-        ui.request_focus(ids.episodes.with(episodes[at].id as u64));
     }
     let kind = TileKind::Episode;
     let r = Row::new(kind, tiles_y).show(
@@ -1588,9 +1578,9 @@ fn draw_tabs(ui: &mut Ui, s: &Seasons, view: &mut View, top: f32, ids: &Ids, out
 }
 
 /// The seasons as poster tiles (`SeasonPosters`), as the web shows them: each season's poster, else
-/// the show's, its name and episodes under it. Moving along them leaves the episodes as they are; OK
-/// on a season shows it and goes into its episodes. Focus comes into the row on the season shown,
-/// and Down goes to its episode to watch.
+/// the show's, its name and episodes under it. As with the tabs, the season focus rests on is shown
+/// under the row; OK opens the season's page, as a click on the web's season card does. Focus comes
+/// into the row on the season shown, and Down goes to its episode to watch.
 fn draw_season_posters(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &Ids, out: &mut Vec<Intent>) {
     let Some(s) = &m.seasons else { return };
     let row = ids.posters.with("row");
@@ -1598,6 +1588,7 @@ fn draw_season_posters(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &
     if let Some(id) = s.selected {
         group = group.enter_at(row.with(id as u64));
     }
+    let rested = ui.rested();
     let kind = TileKind::Poster;
     ui.group(ids.posters, group, |ui| {
         let r = Row::new(kind, top).show(
@@ -1608,11 +1599,17 @@ fn draw_season_posters(ui: &mut Ui, m: &Model, view: &mut View, top: f32, ids: &
             |i| s.posters[i].0 as u64,
             |ui, slot| s.posters[slot.index].1.tile(kind).paint(ui, slot),
         );
-        if let Some(id) = r.activated.map(|i| s.posters[i].0) {
-            view.enter_season = Some(id);
-            if s.selected != Some(id) {
-                out.push(Intent::Season(id));
-            }
+        if let Some(i) = r.activated {
+            out.push(Intent::Push(Route::Item { id: s.posters[i].0 }));
+        } else if let Some(id) = r.focused.filter(|_| rested).map(|i| s.posters[i].0)
+            && s.selected != Some(id)
+        {
+            out.push(Intent::Season(id));
+        }
+        if let Some(i) = r.actions
+            && let Some(item) = s.posters[i].1.item.clone()
+        {
+            out.push(Intent::Open(Panel::Actions { item: Box::new(item) }));
         }
     });
 }

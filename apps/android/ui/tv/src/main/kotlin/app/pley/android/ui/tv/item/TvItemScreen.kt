@@ -241,6 +241,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                         onFocusEpisode = { focusedEpisode = it },
                         onOpen = { actions.open(it.id) },
                         onActions = { panel = Panel.Actions(it, episodesRow) },
+                        onSeasonActions = { panel = Panel.Actions(it, seasonsRow) },
                     )
                 }
             }
