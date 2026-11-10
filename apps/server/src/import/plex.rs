@@ -46,6 +46,8 @@ const GRAVATAR: &str = "secure.gravatar.com";
 /// How long a connection to a server may take: its addresses are tried in
 /// turn, and those that don't answer are usually unreachable.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(4);
+/// Times a GET is sent when its connection breaks before an answer.
+const SEND_TRIES: u32 = 3;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PlexError {
@@ -111,16 +113,25 @@ impl Plex {
         self.tv.join(path).unwrap_or_else(|_| self.tv.clone())
     }
 
+    /// Sends a request. A GET whose connection breaks before it's answered
+    /// (one Plex closed while it sat idle, or dropped under load) is sent
+    /// again, after a moment: it changes nothing. One that took too long or
+    /// couldn't connect isn't, so trying a server's addresses stays quick.
     async fn send(&self, method: Method, url: Url, token: Option<&str>) -> PlexResult<Vec<u8>> {
         refuse_link_local(&url)?;
-        let response = self
-            .http
-            .request(method, url)
-            .headers(self.headers(token))
-            .send()
-            .await
-            .map_err(|e| PlexError::Unreachable(describe(e)))?;
-        read(response).await
+        let mut tries = 0;
+        loop {
+            tries += 1;
+            let sent = self.http.request(method.clone(), url.clone()).headers(self.headers(token)).send().await;
+            match sent {
+                Ok(response) => return read(response).await,
+                Err(e) if method == Method::GET && tries < SEND_TRIES && !e.is_timeout() && !e.is_connect() => {
+                    tracing::debug!("a request to Plex broke ({}), sending it again", describe(e));
+                    tokio::time::sleep(Duration::from_millis(500) * tries).await;
+                }
+                Err(e) => return Err(PlexError::Unreachable(describe(e))),
+            }
+        }
     }
 
     async fn json<T: DeserializeOwned>(&self, method: Method, url: Url, token: Option<&str>) -> PlexResult<T> {
@@ -838,15 +849,26 @@ async fn read_any(mut response: reqwest::Response) -> PlexResult<Vec<u8>> {
 }
 
 /// What went wrong with a request, without its address (which may hold
-/// nothing secret, but is long and says little).
+/// nothing secret, but is long and says little), and with what caused it:
+/// reqwest's own words alone ("error sending request") say little.
 fn describe(e: reqwest::Error) -> String {
     if e.is_timeout() {
-        "it took too long to answer".into()
-    } else if e.is_connect() {
-        "it couldn't be reached".into()
-    } else {
-        e.without_url().to_string()
+        return "it took too long to answer".into();
     }
+    if e.is_connect() {
+        return "it couldn't be reached".into();
+    }
+    let e = e.without_url();
+    let mut text = e.to_string();
+    let mut cause = std::error::Error::source(&e);
+    while let Some(c) = cause {
+        let said = c.to_string();
+        if !text.ends_with(&said) {
+            text = format!("{text}: {said}");
+        }
+        cause = c.source();
+    }
+    text
 }
 
 /// `text` as one segment of a path.
@@ -965,6 +987,44 @@ fn opt_text<'de, D: Deserializer<'de>>(d: D) -> Result<Option<String>, D::Error>
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tokio::io::{AsyncReadExt, AsyncWriteExt};
+
+    /// A server that closes its first `broken` connections once it has
+    /// read their request, without answering, then answers the rest.
+    async fn breaking_server(broken: usize) -> Server {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}/", listener.local_addr().unwrap());
+        tokio::spawn(async move {
+            let mut accepted = 0;
+            loop {
+                let (mut socket, _) = listener.accept().await.unwrap();
+                let mut request = vec![0; 4096];
+                let _ = socket.read(&mut request).await;
+                accepted += 1;
+                if accepted <= broken {
+                    continue;
+                }
+                let body = r#"{"MediaContainer":{"size":0,"Directory":[]}}"#;
+                let answer = format!(
+                    "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                    body.len()
+                );
+                let _ = socket.write_all(answer.as_bytes()).await;
+            }
+        });
+        Server { base: base.parse().unwrap(), token: "token".into(), machine_id: "machine".into() }
+    }
+
+    #[tokio::test]
+    async fn a_request_whose_connection_breaks_is_sent_again() {
+        let plex = Plex::new("http://127.0.0.1:9/", "client");
+        assert!(plex.sections(&breaking_server(SEND_TRIES as usize - 1).await).await.unwrap().is_empty());
+        // Broken every time: it says why, not only that sending failed.
+        let Err(PlexError::Unreachable(said)) = plex.sections(&breaking_server(usize::MAX).await).await else {
+            panic!("a request never answered fails");
+        };
+        assert!(said.starts_with("error sending request: "), "{said}");
+    }
 
     #[test]
     fn a_pictures_way_stays_on_plex_and_gravatar() {
