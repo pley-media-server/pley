@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -59,10 +58,10 @@ import app.pley.android.designsystem.icon.PleyIcon
  */
 
 /**
- * A pill: Play, Resume, Get a new code, Play now. 40 tall, at least 128
+ * A pill: Play, Resume, Get a new code, Play now. 36 tall, at least 116
  * wide. At rest a faint fill with a [control][PleyColors.Control] edge.
  * How far a title was played shows beside it, not in the button.
- * [compact] is the home banner's: 34 tall and at least 112 wide, its label
+ * [compact] is the home banner's: 32 tall and at least 104 wide, its label
  * the same size.
  */
 @Composable
@@ -87,8 +86,8 @@ fun TvPillButton(
         interactionSource = interactions,
         modifier = modifier
             .menuKey(onLongClick)
-            // tv-material's Row would keep a compact pill at 40: its height is set, not a least one.
-            .then(if (compact) Modifier.height(CompactHeight) else Modifier.heightIn(min = PleyTv.ButtonHeight))
+            // tv-material's Row would keep the pill at 40: its height is set, not a least one.
+            .height(if (compact) CompactHeight else PleyTv.ButtonHeight)
             .widthIn(min = minWidth)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .focusProperties { canFocus = enabled || focused },
@@ -112,7 +111,7 @@ fun TvPillButton(
             disabledBorder = Border(BorderStroke(1.dp, PleyColors.Control), shape = PleyShape.Control),
             focusedDisabledBorder = Border.None,
         ),
-        // tv-material's Row is at least 40 tall, at the top: as tall as the pill, it centres the label.
+        // tv-material's Row starts at the top: as tall as the pill, it centres the label.
         contentPadding = PaddingValues(horizontal = padding, vertical = 0.dp),
     ) {
         // That Row starts its content at the left; a short label sits centred in the pill.
@@ -131,7 +130,7 @@ fun TvPillButton(
 }
 
 /**
- * An icon button: From start, Watched, Audio and subtitles, More. A 40 dp
+ * An icon button: From start, Watched, Audio and subtitles, More. A 36 dp
  * square, its corners a [control][PleyShape.Control]'s, with a 20 dp icon
  * and the pill's [control][PleyColors.Control] edge, so it reads on dark art
  * too; [onArt] puts it on [bg][PleyColors.Bg] at 80 % over a backdrop, else
@@ -140,8 +139,8 @@ fun TvPillButton(
  * the button has focus. The button keeps that room ([PleyTv.ButtonLabelRoom])
  * under itself, so a row of buttons never jumps. Without [showLabel] (a
  * star that says it all) the label is only heard, and the button is the
- * square alone. [compact] is the home banner's: a 34 dp square with an
- * 18 dp icon, its label the same size.
+ * square alone. [compact] is the home banner's: a 32 dp square with a
+ * 16 dp icon, its label the same size.
  */
 @Composable
 fun TvRoundButton(
@@ -210,7 +209,7 @@ fun TvRoundButton(
 }
 
 /**
- * A text button: Change server, Cancel, Clear filters. 40 tall, its label
+ * A text button: Change server, Cancel, Clear filters. 36 tall, its label
  * on a faint fill, quieter than a pill's (no edge), so beside a focused
  * button it still reads as one. A [link] (an album's artist, in a column
  * of text) has no fill until focused. An [icon] goes before the label (the
@@ -235,7 +234,8 @@ fun TvTextButton(
         enabled = enabled,
         interactionSource = interactions,
         modifier = modifier
-            .heightIn(min = PleyTv.ButtonHeight)
+            // Set, as a pill's is: tv-material's Row would keep it at 40.
+            .height(PleyTv.ButtonHeight)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .focusProperties { canFocus = enabled || focused },
         shape = ButtonDefaults.shape(PleyShape.Control),
@@ -268,14 +268,14 @@ private const val DISABLED_ALPHA = 0.4f
 private val TextButtonFill = PleyColors.Fg.copy(alpha = 0.08f)
 
 /** A pill's least width, and the room either side of its label. */
-private val PillMinWidth = 128.dp
-private val PillPadding = 20.dp
+private val PillMinWidth = 116.dp
+private val PillPadding = 18.dp
 
 /** The home banner's buttons, smaller than a page's: their height, a pill's least width and padding, their icons. */
-private val CompactHeight = 34.dp
-private val CompactPillMinWidth = 112.dp
-private val CompactPillPadding = 16.dp
-private val CompactIconSize = 18.dp
+private val CompactHeight = 32.dp
+private val CompactPillMinWidth = 104.dp
+private val CompactPillPadding = 14.dp
+private val CompactIconSize = 16.dp
 
 /**
  * Disabled buttons can't take focus (§2.5), and focus always shows (§5.2

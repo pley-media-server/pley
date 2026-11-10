@@ -77,8 +77,8 @@ object PleyTv {
     val ButtonGap = 10.dp
     val ButtonLabelRoom = 24.dp
 
-    /** Pills and round buttons. tv-material's buttons lay their content in a row at least this tall, so labels sit centred. */
-    val ButtonHeight = 40.dp
+    /** Pills and round buttons. */
+    val ButtonHeight = 36.dp
 
     /** The least height of a row in a list, a side panel or settings. */
     val ListRowHeight = 44.dp

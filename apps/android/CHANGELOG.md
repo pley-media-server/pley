@@ -23,8 +23,9 @@ describes how they are made.
 
 ### Changed
 
-- On Android TV, Home's banner has smaller buttons, and its words fade in
-  as it turns to the next title.
+- On Android TV, buttons are a little smaller, those of Home's banner
+  smaller again, and the banner's words fade in as it turns to the next
+  title.
 - On Android TV, the rail's focused entry grows from its icon, so the
   icons stay in line, and it no longer reaches the edge of the screen or
   of the rail's panel.
