@@ -248,7 +248,9 @@ rates as the decoder gives them, the same in every language.
   the tab of the season shown; another season shows once focus rests on
   its tab, 150 ms. The two seasons on each side of the one shown have
   their episodes asked for ahead, the next ones first, so a season shows
-  with them.
+  with them. Seasons with posters of their own are a row of posters in
+  the tabs' place, and Select on one opens the season's page: its
+  episodes under the buttons, without the row.
 - Pictures wait while a key is held: the tiles a row slides past or a
   page glides past ask for none, unless the memory cache has them, and
   no backdrop is fetched ahead; where the key comes up, the tiles on

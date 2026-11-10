@@ -14,7 +14,8 @@ describes how they are made.
   them as a row of posters over its episodes, each with the season's
   name and episode count under it, as the web app does. A season without
   one shows the show's poster. Resting on a season shows its episodes,
-  Select opens its page, and Down from the buttons comes to the seasons.
+  and Down from the buttons comes to the seasons. Select on a season
+  opens its page, with its episodes right under the buttons.
 - On Android TV, Home's banner shows a dash for each title it turns
   through, at the top right: the one on is longer and fills as its time
   runs. Up from the banner's buttons reaches the dashes, where Left and

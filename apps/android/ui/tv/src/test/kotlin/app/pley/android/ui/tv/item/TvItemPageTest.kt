@@ -68,8 +68,8 @@ class TvItemPageTest {
 
     private val stack = mutableListOf<NavKey>(PleyKey.Home, PleyKey.Item(1))
 
-    private fun show(data: ItemData, reduced: Boolean = true) {
-        val model = ItemViewModel(data, data.launcher, 1, compute = Dispatchers.Main.immediate)
+    private fun show(data: ItemData, reduced: Boolean = true, id: Long = 1) {
+        val model = ItemViewModel(data, data.launcher, id, compute = Dispatchers.Main.immediate)
         val navigator = TvNavigator(stack, RailState()) {}
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = reduced) {
@@ -164,6 +164,11 @@ class TvItemPageTest {
     /** A show of [count] seasons of four episodes each; with [posters], the first season has a poster of its own. */
     private fun showOf(count: Int, posters: Boolean = false): ItemData {
         val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = count * 4)
+        return ItemData(show, children = seasonsOf(count, posters))
+    }
+
+    /** Show 1's [count] seasons, and each season's four episodes, by the item they are under. */
+    private fun seasonsOf(count: Int, posters: Boolean): Map<Long, List<ItemSummary>> {
         val seasons = (1..count).map { s ->
             val poster = if (s == 1) "/api/items/${100 + s}/images/poster?v=2" else "/api/items/1/images/poster?v=1"
             ItemSummary(
@@ -179,7 +184,7 @@ class TvItemPageTest {
                 )
             }
         }
-        return ItemData(show, children = mapOf(1L to seasons) + episodes)
+        return mapOf(1L to seasons) + episodes
     }
 
     @Test
@@ -269,6 +274,23 @@ class TvItemPageTest {
         press(Key.DirectionUp)
         compose.onNode(isFocused()).assert(hasText("Season 1"))
         compose.onNode(hasText("4 episodes")).assertDoesNotExist()
+    }
+
+    @Test
+    fun aSeasonsPageOfAShowWithSeasonPostersShowsItsEpisodesUnderTheButtons() {
+        val season = movie().copy(
+            id = 102, kind = ItemKind.Season, title = "Season 2", index = 2, parentId = 1, parentTitle = "Breaking Bad",
+            files = emptyList(), leafCount = 4,
+        )
+        show(ItemData(season, children = seasonsOf(3, posters = true)), id = 102)
+        // The page Select on Season 2's poster opens: no row of posters between its buttons and its episodes.
+        compose.onNode(hasTestTag(TV_SEASON_TABS)).assertDoesNotExist()
+        compose.onNodeWithTag(TestTags.ITEM_PLAY).assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 2 Episode 1", substring = true))
+        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
+        press(Key.DirectionUp)
+        compose.onNodeWithTag(TestTags.ITEM_PLAY).assertIsFocused()
     }
 
     @Test

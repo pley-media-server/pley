@@ -217,7 +217,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                     buttons = buttons,
                     down = when {
                         // Season posters are a row of their own: Down comes to it, as to any row.
-                        page.seasons?.posters == true -> seasonsRow
+                        seasonPosterRow(page) -> seasonsRow
                         page.seasons?.episodes?.isNotEmpty() == true -> episodesRow
                         else -> null
                     },

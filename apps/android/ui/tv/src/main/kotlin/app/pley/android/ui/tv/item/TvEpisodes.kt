@@ -54,6 +54,7 @@ import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ArtworkTileModel
 import app.pley.android.designsystem.tile.TileKind
+import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.screens.item.EpisodeLine
 import app.pley.android.screens.item.ItemPage
@@ -77,7 +78,9 @@ import kotlinx.coroutines.flow.first
  * with focus resting on it shows its season. A show whose seasons have
  * posters of their own ([SeasonsSection.posters]) shows them as a row of
  * poster tiles instead, as the web does, with the season shown named over
- * its episodes; Select on a season opens its page, as on the web.
+ * its episodes; Select on a season opens its page, as on the web. That
+ * page is the season's: its episodes under its name, the other seasons a
+ * Back away on the show's ([seasonPosterRow]).
  */
 @Composable
 internal fun TvEpisodesSection(
@@ -95,10 +98,10 @@ internal fun TvEpisodesSection(
 ) {
     Column(Modifier.fillMaxWidth()) {
         val inTabs = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Tabs }
-        if (seasons.posters) {
+        if (seasonPosterRow(page)) {
             SeasonPosters(seasons, page.origin, memory, onSelectSeason, onOpen, onSeasonActions, inTabs.focusRequester(seasonsRequester))
             Spacer(Modifier.height(TabsToTiles))
-        } else if (seasons.seasons.size > 1) {
+        } else if (seasons.seasons.size > 1 && !seasons.posters) {
             SeasonTabs(seasons, onSelectSeason, inTabs)
             Spacer(Modifier.height(TabsToTiles))
         }
@@ -134,6 +137,14 @@ internal fun TvEpisodesSection(
         }
     }
 }
+
+/**
+ * Whether the page shows its seasons as a row of posters: a show's page
+ * does. A season's own page, the one Select on a poster opens, goes
+ * without the row: it would stand between the buttons and the episodes
+ * the season was opened for.
+ */
+internal fun seasonPosterRow(page: ItemPage): Boolean = page.seasons?.posters == true && page.kind != ItemKind.Season
 
 /**
  * The season tabs (design spec §2.6): 40 dp pills, labels in [muted][PleyColors.Muted];
