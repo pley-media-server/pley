@@ -333,7 +333,7 @@ private fun TvLibraryTab(
                 )
             }
         }
-        Spacer(Modifier.height(GridTop - ChipsTop - 40.dp - TileRoom))
+        Spacer(Modifier.height(GridTop - ChipsTop - PleyTv.ButtonHeight - TileRoom))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val failed = state.grid.cells as? Loadable.Failed
             ReportOffline(state.grid.cells)
@@ -431,7 +431,7 @@ private fun ChipRow(modifier: Modifier, content: @Composable RowScope.() -> Unit
                 .railFade { scroll.value > 0 }
                 .horizontalScroll(scroll)
                 .padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal)
-                .height(40.dp)
+                .height(PleyTv.ButtonHeight)
                 .then(modifier),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -458,7 +458,7 @@ private fun TvCollectionsTab(
     val list = collections.valueOrNull
     Column(Modifier.fillMaxSize()) {
         Spacer(Modifier.height(ChipsTop))
-        Box(Modifier.padding(start = PleyTv.Gutter).height(40.dp), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.padding(start = PleyTv.Gutter).height(PleyTv.ButtonHeight), contentAlignment = Alignment.CenterStart) {
             if (list != null) {
                 BasicText(
                     tvCount(resources, R.plurals.tv_library_count_collections, list.size),
@@ -466,7 +466,7 @@ private fun TvCollectionsTab(
                 )
             }
         }
-        Spacer(Modifier.height(GridTop - ChipsTop - 40.dp - TileRoom))
+        Spacer(Modifier.height(GridTop - ChipsTop - PleyTv.ButtonHeight - TileRoom))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 list == null && collections is Loadable.Failed -> TvMessage(

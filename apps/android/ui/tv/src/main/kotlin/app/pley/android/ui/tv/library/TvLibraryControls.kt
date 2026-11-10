@@ -39,7 +39,7 @@ import app.pley.android.designsystem.icon.PleyIcon
 import app.pley.android.designsystem.icon.PleyIcons
 
 /**
- * A filter chip (design spec §2.6): a 40 dp pill in [surface3][PleyColors.Surface3]
+ * A filter chip (design spec §2.6): a 36 dp pill in [surface3][PleyColors.Surface3]
  * with an [fg][PleyColors.Fg] label. Selected, an [accent][PleyColors.Accent]
  * check leads it (a state glyph, not a fill). Focused, it is the accent
  * fill with [onAccent][PleyColors.OnAccent] content, scaled to 1.05.
@@ -57,7 +57,8 @@ internal fun TvChip(
     Button(
         onClick = onClick,
         interactionSource = interactions,
-        modifier = modifier.height(40.dp).semantics { this.selected = selected },
+        // Set, as a pill's is: tv-material's Row would keep it at 40.
+        modifier = modifier.height(PleyTv.ButtonHeight).semantics { this.selected = selected },
         shape = ButtonDefaults.shape(PleyShape.Control),
         colors = ButtonDefaults.colors(
             containerColor = PleyColors.Surface3,
@@ -82,7 +83,7 @@ internal fun TvChip(
 }
 
 /**
- * A tab (design spec §2.6): a 40 dp pill, its label [muted][PleyColors.Muted];
+ * A tab (design spec §2.6): a 36 dp pill, its label [muted][PleyColors.Muted];
  * the current tab on [surface3][PleyColors.Surface3] in [fg][PleyColors.Fg];
  * focused, the accent fill, scaled to 1.05. Select shows it: focus passing
  * over the tabs changes nothing.
@@ -96,7 +97,7 @@ internal fun TvTab(
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(40.dp).semantics {
+        modifier = modifier.height(PleyTv.ButtonHeight).semantics {
             role = Role.Tab
             this.selected = selected
         },

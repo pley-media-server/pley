@@ -147,7 +147,7 @@ internal fun TvEpisodesSection(
 internal fun seasonPosterRow(page: ItemPage): Boolean = page.seasons?.posters == true && page.kind != ItemKind.Season
 
 /**
- * The season tabs (design spec §2.6): 40 dp pills, labels in [muted][PleyColors.Muted];
+ * The season tabs (design spec §2.6): 36 dp pills, labels in [muted][PleyColors.Muted];
  * the shown season on [surface3][PleyColors.Surface3] in [fg][PleyColors.Fg];
  * the focused tab in [accent][PleyColors.Accent], at 1.05. Focus coming
  * into the tabs (Up from the episodes, Down from the buttons) lands on the
@@ -318,8 +318,8 @@ private fun EpisodeRow(
     )
 }
 
-/** Tabs are 40 tall (design spec §2.6). */
-internal val TabHeight = 40.dp
+/** Tabs are as tall as the buttons (design spec §2.6). */
+internal val TabHeight = PleyTv.ButtonHeight
 
 /**
  * How long focus rests on a season before it shows: its episodes are asked

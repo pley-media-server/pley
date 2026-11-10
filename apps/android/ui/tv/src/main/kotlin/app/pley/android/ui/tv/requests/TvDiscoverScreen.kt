@@ -551,7 +551,7 @@ internal fun TvCountChip(label: String, count: Int, alarm: Boolean, said: String
     Button(
         onClick = onClick,
         interactionSource = interactions,
-        modifier = modifier.height(40.dp).semantics(mergeDescendants = true) { contentDescription = listOfNotNull(label, said).joinToString(", ") },
+        modifier = modifier.height(PleyTv.ButtonHeight).semantics(mergeDescendants = true) { contentDescription = listOfNotNull(label, said).joinToString(", ") },
         shape = ButtonDefaults.shape(PleyShape.Control),
         colors = ButtonDefaults.colors(
             containerColor = PleyColors.Surface3,

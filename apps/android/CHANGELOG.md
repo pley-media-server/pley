@@ -26,6 +26,9 @@ describes how they are made.
 - On Android TV, buttons are a little smaller, those of Home's banner
   smaller again, and the banner's words fade in as it turns to the next
   title.
+- On Android TV, chips and tabs, a show's season tabs among them, are
+  as tall as the buttons, and the player's Skip and Play now, History's
+  Remove and the music player's Play are smaller with them.
 - On Android TV, the rail's focused entry grows from its icon, so the
   icons stay in line, and it no longer reaches the edge of the screen or
   of the rail's panel.
