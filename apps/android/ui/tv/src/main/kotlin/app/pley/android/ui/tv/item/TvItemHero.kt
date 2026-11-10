@@ -71,7 +71,7 @@ import app.pley.android.ui.tv.requests.TvItemRequestLine
  * Focus starts on Resume or Play; holding Select on it opens the item's
  * actions. Down from the buttons goes to [down] (the episode to watch, or a show's season posters).
  * The title and the summary have more room than the column
- * ([HeroColumn]); a long title has up to three lines, growing down,
+ * ([HeroColumn], [SummaryColumn]); a long title has up to three lines, growing down,
  * before it is cut. On a show's page whose season posters come next, the
  * summary gives up lines, down to one, so that the posters show whole
  * above the screen's bottom edge ([summaryLines]).
@@ -161,7 +161,7 @@ private fun HeroSummary(summary: String, buttons: HeroButtons, lines: Int) {
         maxLines = lines,
         overflow = TextOverflow.Ellipsis,
         onTextLayout = { buttons.summaryCut = it.hasVisualOverflow },
-        modifier = Modifier.widthIn(max = HeroColumn),
+        modifier = Modifier.widthIn(max = SummaryColumn),
     )
 }
 
@@ -359,11 +359,13 @@ private val HeroBottom = 8.dp
 internal val TextColumn = PleyTv.TextColumnEnd - PleyTv.Gutter
 
 /**
- * The room the title and the summary have, x 96 to 736: wider than the
- * lines between and under them, over the backdrop's darkened side, so a
- * long title is seldom cut and three lines of summary say more.
+ * The room the title has, x 96 to 736, over the backdrop's darkened side:
+ * wider than the lines under it, so a long title is seldom cut.
  */
 internal val HeroColumn = 640.dp
+
+/** The room the summary has, x 96 to 656: wider than the text column, so its three lines say more, short of the title's. */
+internal val SummaryColumn = 560.dp
 
 private const val TITLE_LINES = 3
 

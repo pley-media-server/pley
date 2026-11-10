@@ -127,7 +127,7 @@ import kotlin.math.roundToInt
  *
  * The label is level with the dashes at the top right. The title and
  * the summary have more room than the text column
- * ([HeroColumn]), so few titles take two lines. The label stays on its
+ * ([HeroColumn], [SummaryColumn]), so few titles take two lines. The label stays on its
  * line: a title of two lines grows down into the summary's room, which
  * keeps two lines for it, so the buttons stay where they are. The
  * buttons are the kit's compact ones, smaller than a page's.
@@ -278,7 +278,7 @@ internal fun TvHomeHero(
                     style = PleyType.Tv.BodyLarge.copy(color = SummaryColor),
                     maxLines = summaryLines,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.width(HeroColumn).then(if (turns > 1) Modifier.height(summaryRoom) else Modifier),
+                    modifier = Modifier.width(SummaryColumn).then(if (turns > 1) Modifier.height(summaryRoom) else Modifier),
                 )
             }
         }
@@ -675,10 +675,12 @@ private val HeroTitleLine = 44.dp
 private val TitleRise = 2.dp
 
 /**
- * The room the title and the summary have over the backdrop's darkened
- * side, x 96 to 736: wider than the text column, as on a title's page.
+ * The room the title has over the backdrop's darkened side, x 96 to 736,
+ * and the summary's, x 96 to 656: wider than the text column, as on a
+ * title's page.
  */
 private val HeroColumn = 640.dp
+private val SummaryColumn = 560.dp
 
 /**
  * The summary's three lines of BodyLarge. Taking turns it has
