@@ -221,8 +221,8 @@ function pill(label, message) {
   return `https://img.shields.io/badge/${part(label)}-${part(message)}-${PILL_COLOR}`;
 }
 
-/** The README's licence badge has the same. */
-const PILL_COLOR = "F0B27A";
+/** Pley's blue, the deep one of its logo (--color-brand-deep in the web app), which white letters read on. */
+const PILL_COLOR = "0284C7";
 
 /** README.md with those pills between its marks: { before, after }; null without the file or the marks. */
 export function readmeWith(root = ROOT, texts = {}) {

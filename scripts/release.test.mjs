@@ -363,7 +363,7 @@ describe("releases", () => {
     const kodi = bumped(f, "kodi", "patch");
     expect(kodi.changes.at(-1)).toMatchObject({ path: "README.md", what: "Kodi 0.0.2 among the latest releases" });
     const releases = "https://github.com/pley-media-server/pley/releases/tag";
-    const kodiPill = `[![Kodi 0.0.2](https://img.shields.io/badge/Kodi-0.0.2-F0B27A)](${releases}/release-2026-11-01)`;
+    const kodiPill = `[![Kodi 0.0.2](https://img.shields.io/badge/Kodi-0.0.2-0284C7)](${releases}/release-2026-11-01)`;
     // The units with no release of their own yet have no pill.
     expect(latestReleases(dir)).toBe(kodiPill);
     expect(readFileSync(join(dir, "README.md"), "utf8")).toBe(
@@ -377,8 +377,8 @@ describe("releases", () => {
     addEntry(dir, "kodi");
     bumped(f, "kodi", "patch", "2026-11-02");
     expect(latestReleases(dir)).toBe(
-      `[![Media Server 0.1.0](https://img.shields.io/badge/Media%20Server-0.1.0-F0B27A)](${releases}/release-2026-11-01)\n` +
-        `[![Kodi 0.0.3](https://img.shields.io/badge/Kodi-0.0.3-F0B27A)](${releases}/release-2026-11-02)`,
+      `[![Media Server 0.1.0](https://img.shields.io/badge/Media%20Server-0.1.0-0284C7)](${releases}/release-2026-11-01)\n` +
+        `[![Kodi 0.0.3](https://img.shields.io/badge/Kodi-0.0.3-0284C7)](${releases}/release-2026-11-02)`,
     );
     const readme = readmeWith(dir);
     expect(readme.after).toBe(readme.before);
