@@ -88,9 +88,11 @@ const LIMITS = {
   "samsung-native": tizen,
 };
 
+// `title` heads a unit's notes, with its version; `short` names it in a release's name.
 export const UNITS = {
   server: {
     title: "Pley Media Server",
+    short: "Media Server",
     about: "the server, its transcoder and the web app it embeds; the Docker image and the Windows installer are its packages",
     changelog: "apps/server/CHANGELOG.md",
     // What its changes are drafted from (scripts/release.mjs).
@@ -109,6 +111,7 @@ export const UNITS = {
   },
   desktop: {
     title: "Pley Desktop",
+    short: "Desktop",
     about: "the desktop app (Tauri) for Windows, macOS and Linux",
     changelog: "apps/desktop/CHANGELOG.md",
     paths: ["apps/desktop"],
@@ -122,6 +125,7 @@ export const UNITS = {
   },
   android: {
     title: "Pley for Android",
+    short: "Android",
     about: "the Android app for phones, tablets, Android TV and Fire TV",
     changelog: "apps/android/CHANGELOG.md",
     paths: ["apps/android"],
@@ -129,6 +133,7 @@ export const UNITS = {
   },
   samsung: {
     title: "Pley for Samsung TV",
+    short: "Samsung (web)",
     about: "the Samsung TV app (Tizen), built with packages/tv",
     changelog: "apps/tizen/CHANGELOG.md",
     paths: ["apps/tizen", "packages/tv", "packages/picture-subtitles"],
@@ -136,6 +141,7 @@ export const UNITS = {
   },
   "samsung-native": {
     title: "Pley for Samsung TV (native)",
+    short: "Samsung",
     about: "the native Samsung TV app (Tizen .NET), beside the web one",
     changelog: "apps/tizen-native/CHANGELOG.md",
     paths: ["apps/tizen-native"],
@@ -147,6 +153,7 @@ export const UNITS = {
   },
   lg: {
     title: "Pley for LG TV",
+    short: "LG",
     about: "the LG TV app (webOS), a native app in Rust",
     changelog: "apps/webos/CHANGELOG.md",
     paths: ["apps/webos"],
@@ -159,6 +166,7 @@ export const UNITS = {
   },
   kodi: {
     title: "Pley for Kodi",
+    short: "Kodi",
     about: "the Kodi add-on, plugin.video.pley",
     changelog: "apps/kodi/CHANGELOG.md",
     paths: ["apps/kodi"],
@@ -166,6 +174,7 @@ export const UNITS = {
   },
   roku: {
     title: "Pley for Roku",
+    short: "Roku",
     about: "the Roku app",
     changelog: "apps/roku/CHANGELOG.md",
     paths: ["apps/roku"],

@@ -334,6 +334,8 @@ describe("releases", () => {
         "<details>\n<summary><strong>Pley for Roku 0.1.0</strong></summary>\n\n### Fixed\n\n- Roku's fix\n\n</details>",
     );
     expect(status(dir).filter((u) => u.waits).map((u) => u.unit)).toEqual(["kodi", "roku"]);
+    // The names are short ones: the native Samsung app, the one released, is plain "Samsung".
+    expect(Object.values(UNITS).map((u) => u.short)).toEqual(["Media Server", "Desktop", "Android", "Samsung (web)", "Samsung", "LG", "Kodi", "Roku"]);
 
     // A unit waiting for its release isn't bumped again.
     addEntry(dir, "kodi");

@@ -5,7 +5,8 @@ units whose versions went up since the last release, each at its own
 version, under one tag named after the day it was prepared
 (`release-2026-11-02`, then `release-2026-11-02.2` for a second that day),
 and one GitHub release, named after that day and what it holds ("Pley
-2026-11-02.2: Media Server, Android"), with each unit's notes. Each
+2026-11-02.2: Media Server, Android", by the [units](#units)' short
+names), with each unit's notes. Each
 unit's notes are folded under its name and version, so readers open only
 their app's; a release of one unit shows them open. The first release is `release-2026-11-01`, for 0.1.1; the
 versions before it have no tag, and the changelogs link them to the source
@@ -114,6 +115,9 @@ the tags, so fetch them first (`git fetch --tags`).
 | `kodi` | The Kodi add-on | `apps/kodi/plugin.video.pley/addon.xml` | `plugin.video.pley-<version>.zip` |
 | `roku` | The Roku app | `apps/roku/manifest` (major, minor, build), `apps/roku/package.json` | `pley-roku-<version>.zip` |
 
+- In a release's name the units are Media Server, Desktop, Android,
+  Samsung (the native app; the web one is Samsung (web)), LG, Kodi and
+  Roku, in that order.
 - The lock files record the versions too; `version.mjs set` updates them.
 - The transcoder, the protocol crate and the web app carry the server's
   version: they ship only inside the server's release files. The server and

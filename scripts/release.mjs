@@ -128,8 +128,8 @@ export function lowered(root = ROOT) {
 
 /**
  * The release HEAD waits for: every unit whose version isn't the one it had
- * at the last release tag. { since, tag, title, units: [{ unit, title, from,
- * to, notes, later }], notes, problems }. A unit's `later` are its commits
+ * at the last release tag. { since, tag, title, units: [{ unit, title, short,
+ * from, to, notes, later }], notes, problems }. A unit's `later` are its commits
  * after its version was set, which its notes may not tell.
  */
 export function pending(root = ROOT) {
@@ -140,7 +140,7 @@ export function pending(root = ROOT) {
     const from = versionAt(unit, since, root);
     const to = versionOf(unit, root);
     if (from === to) continue;
-    const { title, changelog } = UNITS[unit];
+    const { title, short, changelog } = UNITS[unit];
     const text = read(root, changelog);
     wrong.push(...problems(unit, root).map((p) => `${unit}: ${p}`));
     const down = wentDown(unit, from, to);
@@ -157,7 +157,7 @@ export function pending(root = ROOT) {
       wrong.push(`${changelog}: ${e.message}`);
     }
     const set = versionCommit(unit, to, root);
-    units.push({ unit, title, from, to, tag, notes: body, later: set ? commitsSince(unit, set, root, "%h %s") : [] });
+    units.push({ unit, title, short, from, to, tag, notes: body, later: set ? commitsSince(unit, set, root, "%h %s") : [] });
   }
   const tags = [...new Set(units.map((u) => u.tag).filter(Boolean))];
   if (tags.length > 1) wrong.push(`the units waiting link their versions to different tags: ${tags.join(", ")}`);
@@ -169,12 +169,13 @@ export function pending(root = ROOT) {
 }
 
 /**
- * A release's name: its day and what it holds, as "Pley 2026-11-10.2: Media
- * Server, Android", so the list of releases shows which have a reader's app.
+ * A release's name: its day and what it holds, by the units' short names, as
+ * "Pley 2026-11-10.2: Media Server, Android", so the list of releases shows
+ * which have a reader's app.
  */
 function releaseTitle(tag, units) {
   const day = `Pley ${tag?.replace(/^release-/, "") ?? ""}`.trim();
-  const holds = units.map((u) => u.title.replace(/^Pley (for )?/, "")).join(", ");
+  const holds = units.map((u) => u.short).join(", ");
   return holds ? `${day}: ${holds}` : day;
 }
 
