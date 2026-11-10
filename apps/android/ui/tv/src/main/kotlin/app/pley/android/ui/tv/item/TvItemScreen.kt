@@ -562,7 +562,7 @@ internal fun heroTitle(page: ItemPage): String = when (page.kind) {
  */
 @Composable
 private fun TvItemSkeleton() {
-    Column(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 82.dp)) {
+    Column(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 42.dp)) {
         Block(320.dp, 40.dp)
         Spacer(Modifier.height(14.dp))
         Block(220.dp, 18.dp)

@@ -384,11 +384,13 @@ class TvItemPageTest {
         assertTrue("$partway", partway > 0.5f && partway < 1f)
         compose.mainClock.advanceTimeBy(80)
         assertEquals(to, focusedTop(), 0.25f)
-        // Up glides back to the top the same way.
+        // Up glides back to the top the same way: from where the buttons went with the page, back to where they were.
+        val away = compose.onNodeWithTag(TestTags.ITEM_PLAY).getBoundsInRoot().top.value
+        assertEquals(play - (from - to), away, 0.25f)
         compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
         compose.onNodeWithTag(TestTags.ITEM_PLAY).assertIsFocused()
         compose.mainClock.advanceTimeBy(80)
-        val back = (focusedTop() - to) / (play - to)
+        val back = (focusedTop() - away) / (play - away)
         assertTrue("$back", back > 0.5f && back < 1f)
         compose.mainClock.advanceTimeBy(80)
         assertEquals(play, focusedTop(), 0.25f)

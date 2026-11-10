@@ -27,12 +27,15 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import app.pley.android.common.TestTags
 import app.pley.android.designsystem.PleyColors
@@ -40,6 +43,7 @@ import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.CreditRole
 import app.pley.android.model.ItemKind
 import app.pley.android.screens.PleyKey
@@ -58,7 +62,7 @@ import app.pley.android.ui.tv.requests.TvItemRequestLine
 /**
  * The top of the TV item page (design spec §4.3, mockup tv-movie), in the
  * 464 dp text column at x = 96: the title (the show's, for an episode or
- * season) bottom-aligned in the logo's 72 dp box, an episode's context
+ * season) from y = 40, an episode's context
  * line, the metadata line (and under it a movie's or show's [request],
  * its stage), genres, three lines of summary (More shows it
  * all when it runs longer), the credits, then the buttons: Resume or
@@ -68,7 +72,9 @@ import app.pley.android.ui.tv.requests.TvItemRequestLine
  * actions. Down from the buttons goes to [down] (the episode to watch, or a show's season posters).
  * The title and the summary have more room than the column
  * ([HeroColumn]); a long title has up to three lines, growing down,
- * before it is cut.
+ * before it is cut. On a show's page whose season posters come next, the
+ * summary gives up lines, down to one, so that the posters show whole
+ * above the screen's bottom edge ([summaryLines]).
  */
 @Composable
 internal fun TvHero(
@@ -91,7 +97,7 @@ internal fun TvHero(
             .onFocusChanged { if (it.hasFocus) focus.area = Area.Hero }
             .tvRowColumnHero()
             .focusGroup()
-            .padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = HeroTop, bottom = 8.dp),
+            .padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal, top = HeroTop, bottom = HeroBottom),
     ) {
         Box(Modifier.widthIn(max = HeroColumn).heightIn(min = TitleBox), contentAlignment = Alignment.BottomStart) {
             BasicText(heroTitle(page), style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg), maxLines = TITLE_LINES, overflow = TextOverflow.Ellipsis)
@@ -118,15 +124,16 @@ internal fun TvHero(
             Spacer(Modifier.height(6.dp))
             BasicText(genres, style = PleyType.Tv.Caption.copy(color = PleyColors.Muted), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
         }
+        val credits = creditsLine(page)
         page.summary?.let { summary ->
-            Spacer(Modifier.height(10.dp))
-            HeroSummary(summary, buttons)
+            Spacer(Modifier.height(SummaryGap))
+            HeroSummary(summary, buttons, summaryLines(page, request, genres.isNotEmpty(), credits != null))
         }
-        creditsLine(page)?.let { credits ->
+        credits?.let {
             Spacer(Modifier.height(8.dp))
-            BasicText(credits, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
+            BasicText(it, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
         }
-        Spacer(Modifier.height(22.dp))
+        Spacer(Modifier.height(ButtonsGap))
         HeroButtonsRow(page, memory, buttons, down, actions, places, focus, onTracks, onMore, onPrimaryActions, request)
     }
 }
@@ -147,15 +154,42 @@ private class HeroPlaces {
  * lines, More offers it all ([HeroButtons.summaryCut]).
  */
 @Composable
-private fun HeroSummary(summary: String, buttons: HeroButtons) {
+private fun HeroSummary(summary: String, buttons: HeroButtons, lines: Int) {
     BasicText(
         summary,
         style = PleyType.Tv.BodyLarge.copy(color = PleyColors.Fg.copy(alpha = 0.85f)),
-        maxLines = SUMMARY_LINES,
+        maxLines = lines,
         overflow = TextOverflow.Ellipsis,
         onTextLayout = { buttons.summaryCut = it.hasVisualOverflow },
         modifier = Modifier.widthIn(max = HeroColumn),
     )
+}
+
+/**
+ * The summary's lines: three, or as many as leave a show's season posters
+ * whole above the screen's bottom edge when they come next, one at
+ * least. Worked out from what the hero shows over and under the summary
+ * (a title's lines are measured), so the page is laid out once.
+ */
+@Composable
+private fun summaryLines(page: ItemPage, request: ItemRequestState?, genres: Boolean, credits: Boolean): Int {
+    if (!seasonPosterRow(page)) return SUMMARY_LINES
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val title = heroTitle(page)
+    val titleLines = remember(title, measurer, density) {
+        val width = with(density) { HeroColumn.roundToPx() }
+        measurer.measure(title, PleyType.Tv.HeroTitle, maxLines = TITLE_LINES, constraints = Constraints(maxWidth = width)).lineCount
+    }
+    val resumed = page.primary.kind == PrimaryAction.Kind.Resume && page.primary.timeLeft.isNotEmpty()
+    val over = HeroTop + maxOf(TitleBox, TitleLine * titleLines) + MetaRoom +
+        (if (request?.request != null) RequestRoom else 0.dp) +
+        (if (resumed) CaptionRoom else 0.dp) +
+        (if (genres) CaptionRoom else 0.dp) +
+        SummaryGap
+    val under = (if (credits) CaptionRoom else 0.dp) + ButtonsGap + PleyTv.ButtonHeight + PleyTv.ButtonLabelRoom + HeroBottom +
+        PleyTv.RowGap + TileKind.Poster.tvHeight
+    return ((PleyTv.CanvasHeight - over - under) / SummaryLine).toInt().coerceIn(1, SUMMARY_LINES)
 }
 
 /** "Directed by Lena Okafor · Starring Idris Vale, Maren Holt": labels in [muted][PleyColors.Muted]. */
@@ -297,11 +331,29 @@ internal fun primaryLabel(primary: PrimaryAction): String {
     }
 }
 
-/** The hero's top: the logo box at y = 52. */
-private val HeroTop = 52.dp
+/**
+ * The hero's top, the title's: high on the page, so that what follows the
+ * buttons (a show's season posters, the episodes) shows above the
+ * screen's bottom edge.
+ */
+private val HeroTop = 40.dp
 
-/** The logo art's box, 320 by 72; the title sits at its bottom. */
-private val TitleBox = 72.dp
+/** The title's box at the least: a title of one line. */
+private val TitleBox = 44.dp
+
+/** A line of the title, of the summary, and of the captions (time left, genres, credits) with the gap over each. */
+private val TitleLine = 44.dp
+private val SummaryLine = 22.dp
+private val CaptionRoom = 25.dp
+
+/** The metadata line and a request's line, each with the gap over it. */
+private val MetaRoom = 32.dp
+private val RequestRoom = 30.dp
+
+/** Over the summary, over the buttons, and under the hero. */
+private val SummaryGap = 10.dp
+private val ButtonsGap = 22.dp
+private val HeroBottom = 8.dp
 
 /** The text column, x 96 to 560. */
 internal val TextColumn = PleyTv.TextColumnEnd - PleyTv.Gutter

@@ -30,6 +30,10 @@ describes how they are made.
   the show's page already has of it, where it showed an empty outline
   until the server answered. Any title's page that is already held opens
   the same way, with no outline first.
+- On Android TV, a title's page starts higher, and on a show's page
+  the description gives up a line or two where it must, so that the
+  season posters under the buttons show whole, where the screen's edge
+  cut them.
 - On Android TV, a title's page gives its title and its description
   more of the screen's width, and a long title up to three lines.
 - On Android TV, Home's banner sits higher: the line over its title
