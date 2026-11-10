@@ -198,8 +198,8 @@ const LATEST = /(<!-- latest releases:[^\n]*-->\n)[\s\S]*?(\n<!-- \/latest relea
 
 /**
  * Each released unit's latest release, as README.md's pills: its short name
- * and its version, linked to the release that has it. A unit with no release
- * yet (the web Samsung app) has none. `texts` has a unit's CHANGELOG where it
+ * and its version, linked to the release that has it, in HTML as the badges
+ * over them are. A unit with no release yet (the web Samsung app) has none. `texts` has a unit's CHANGELOG where it
  * isn't the one on disk: the unit being bumped.
  */
 export function latestReleases(root = ROOT, texts = {}) {
@@ -210,14 +210,14 @@ export function latestReleases(root = ROOT, texts = {}) {
     const newest = sections(text).find((s) => s.name !== "Unreleased");
     const tag = newest ? linkedTag(text, newest.name) : null;
     if (!RELEASE_TAG.test(tag ?? "")) continue;
-    pills.push(`[![${short} ${newest.name}](${pill(short, newest.name)})](${REPOSITORY}/releases/tag/${tag})`);
+    pills.push(`<a href="${REPOSITORY}/releases/tag/${tag}"><img src="${pill(short, newest.name)}" alt="${short} ${newest.name}"></a>`);
   }
   return pills.join("\n");
 }
 
-/** A shields.io badge's address: in its path a dash and an underscore are doubled, and Markdown ends a link at a bracket. */
+/** A shields.io badge's address: in its path a dash and an underscore are doubled. */
 function pill(label, message) {
-  const part = (s) => encodeURIComponent(s.replace(/-/g, "--").replace(/_/g, "__")).replace(/\(/g, "%28").replace(/\)/g, "%29");
+  const part = (s) => encodeURIComponent(s.replace(/-/g, "--").replace(/_/g, "__"));
   return `https://img.shields.io/badge/${part(label)}-${part(message)}-${PILL_COLOR}`;
 }
 

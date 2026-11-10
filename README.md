@@ -10,6 +10,18 @@
 <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-F0B27A" alt="License: AGPL-3.0"></a>
 </p>
 
+<p align="center">
+<!-- latest releases: written by scripts/release.mjs when an app is released -->
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08"><img src="https://img.shields.io/badge/Media%20Server-0.1.9-0284C7" alt="Media Server 0.1.9"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06"><img src="https://img.shields.io/badge/Desktop-0.1.4-0284C7" alt="Desktop 0.1.4"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2"><img src="https://img.shields.io/badge/Android-0.1.11-0284C7" alt="Android 0.1.11"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08"><img src="https://img.shields.io/badge/Samsung-0.1.8-0284C7" alt="Samsung 0.1.8"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08"><img src="https://img.shields.io/badge/LG-0.1.8-0284C7" alt="LG 0.1.8"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06"><img src="https://img.shields.io/badge/Kodi-0.1.7-0284C7" alt="Kodi 0.1.7"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06"><img src="https://img.shields.io/badge/Roku-0.1.7-0284C7" alt="Roku 0.1.7"></a>
+<!-- /latest releases -->
+</p>
+
 > [!WARNING]
 > Pley is still in testing: expect rough edges, and keep backups of your data.
 
@@ -33,20 +45,6 @@ Web, Windows, macOS, Linux, [Android](docs/ANDROID.md), [Kodi](docs/KODI.md),
 [LG TV](docs/LG.md). Jellyfin's apps work too, and tools built on Plex's API
 such as Kometa and Tautulli, through the
 [compatibility APIs](docs/COMPATIBILITY.md).
-
-## Latest releases
-
-<!-- latest releases: written by scripts/release.mjs when an app is released -->
-[![Media Server 0.1.9](https://img.shields.io/badge/Media%20Server-0.1.9-0284C7)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08)
-[![Desktop 0.1.4](https://img.shields.io/badge/Desktop-0.1.4-0284C7)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06)
-[![Android 0.1.11](https://img.shields.io/badge/Android-0.1.11-0284C7)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2)
-[![Samsung 0.1.8](https://img.shields.io/badge/Samsung-0.1.8-0284C7)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08)
-[![LG 0.1.8](https://img.shields.io/badge/LG-0.1.8-0284C7)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08)
-[![Kodi 0.1.7](https://img.shields.io/badge/Kodi-0.1.7-0284C7)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06)
-[![Roku 0.1.7](https://img.shields.io/badge/Roku-0.1.7-0284C7)](https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06)
-<!-- /latest releases -->
-
-[All releases](https://github.com/pley-media-server/pley/releases)
 
 ## Install
 
