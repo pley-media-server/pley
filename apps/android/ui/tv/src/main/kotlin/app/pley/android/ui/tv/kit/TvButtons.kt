@@ -62,6 +62,8 @@ import app.pley.android.designsystem.icon.PleyIcon
  * A pill: Play, Resume, Get a new code, Play now. 40 tall, at least 128
  * wide. At rest a faint fill with a [control][PleyColors.Control] edge.
  * How far a title was played shows beside it, not in the button.
+ * [compact] is the home banner's: 34 tall and at least 112 wide, its label
+ * the same size.
  */
 @Composable
 fun TvPillButton(
@@ -71,10 +73,13 @@ fun TvPillButton(
     icon: PleyIcon? = null,
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
+    compact: Boolean = false,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     HandOffFocus(enabled, focused)
+    val minWidth = if (compact) CompactPillMinWidth else PillMinWidth
+    val padding = if (compact) CompactPillPadding else PillPadding
     Button(
         onClick = onClick,
         onLongClick = onLongClick,
@@ -82,8 +87,9 @@ fun TvPillButton(
         interactionSource = interactions,
         modifier = modifier
             .menuKey(onLongClick)
-            .heightIn(min = PleyTv.ButtonHeight)
-            .widthIn(min = PillMinWidth)
+            // tv-material's Row would keep a compact pill at 40: its height is set, not a least one.
+            .then(if (compact) Modifier.height(CompactHeight) else Modifier.heightIn(min = PleyTv.ButtonHeight))
+            .widthIn(min = minWidth)
             .alpha(if (enabled) 1f else DISABLED_ALPHA)
             .focusProperties { canFocus = enabled || focused },
         shape = ButtonDefaults.shape(PleyShape.Control),
@@ -107,16 +113,16 @@ fun TvPillButton(
             focusedDisabledBorder = Border.None,
         ),
         // tv-material's Row is at least 40 tall, at the top: as tall as the pill, it centres the label.
-        contentPadding = PaddingValues(horizontal = PillPadding, vertical = 0.dp),
+        contentPadding = PaddingValues(horizontal = padding, vertical = 0.dp),
     ) {
-        // That Row starts its content at the left; a short label sits centred in the 128.
+        // That Row starts its content at the left; a short label sits centred in the pill.
         Row(
-            Modifier.widthIn(min = PillMinWidth - PillPadding * 2),
+            Modifier.widthIn(min = minWidth - padding * 2),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (icon != null) {
-                Icon(icon, contentDescription = null, size = PleyTv.IconSize, tint = androidx.tv.material3.LocalContentColor.current)
+                Icon(icon, contentDescription = null, size = if (compact) CompactIconSize else PleyTv.IconSize, tint = androidx.tv.material3.LocalContentColor.current)
                 Spacer(Modifier.width(8.dp))
             }
             Text(label, style = PleyType.Tv.Label)
@@ -134,7 +140,8 @@ fun TvPillButton(
  * the button has focus. The button keeps that room ([PleyTv.ButtonLabelRoom])
  * under itself, so a row of buttons never jumps. Without [showLabel] (a
  * star that says it all) the label is only heard, and the button is the
- * square alone.
+ * square alone. [compact] is the home banner's: a 34 dp square with an
+ * 18 dp icon, its label the same size.
  */
 @Composable
 fun TvRoundButton(
@@ -146,19 +153,21 @@ fun TvRoundButton(
     enabled: Boolean = true,
     onLongClick: (() -> Unit)? = null,
     showLabel: Boolean = true,
+    compact: Boolean = false,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val focused by interactions.collectIsFocusedAsState()
     HandOffFocus(enabled, focused)
     val labelAlpha by animateFloatAsState(if (focused) 1f else 0f, PleyMotion.reveal(), label = "label")
-    Box(modifier.menuKey(onLongClick).width(PleyTv.ButtonHeight).alpha(if (enabled) 1f else DISABLED_ALPHA), contentAlignment = Alignment.TopCenter) {
+    val side = if (compact) CompactHeight else PleyTv.ButtonHeight
+    Box(modifier.menuKey(onLongClick).width(side).alpha(if (enabled) 1f else DISABLED_ALPHA), contentAlignment = Alignment.TopCenter) {
         IconButton(
             onClick = onClick,
             onLongClick = onLongClick,
             enabled = enabled,
             interactionSource = interactions,
             modifier = Modifier
-                .size(PleyTv.ButtonHeight)
+                .size(side)
                 .focusProperties { canFocus = enabled || focused }
                 .semantics { contentDescription = label },
             shape = IconButtonDefaults.shape(PleyShape.Control),
@@ -182,7 +191,7 @@ fun TvRoundButton(
                 focusedDisabledBorder = Border.None,
             ),
         ) {
-            Icon(icon, contentDescription = null, size = PleyTv.IconSize, tint = androidx.tv.material3.LocalContentColor.current)
+            Icon(icon, contentDescription = null, size = if (compact) CompactIconSize else PleyTv.IconSize, tint = androidx.tv.material3.LocalContentColor.current)
         }
         // The visible label, under the button; the button above already says it to screen readers.
         if (showLabel) {
@@ -192,7 +201,7 @@ fun TvRoundButton(
                 maxLines = 1,
                 softWrap = false,
                 modifier = Modifier
-                    .padding(top = PleyTv.ButtonHeight + 6.dp)
+                    .padding(top = side + 6.dp)
                     .graphicsLayer { alpha = labelAlpha }
                     .wrapContentWidthUnbounded(),
             )
@@ -261,6 +270,12 @@ private val TextButtonFill = PleyColors.Fg.copy(alpha = 0.08f)
 /** A pill's least width, and the room either side of its label. */
 private val PillMinWidth = 128.dp
 private val PillPadding = 20.dp
+
+/** The home banner's buttons, smaller than a page's: their height, a pill's least width and padding, their icons. */
+private val CompactHeight = 34.dp
+private val CompactPillMinWidth = 112.dp
+private val CompactPillPadding = 16.dp
+private val CompactIconSize = 18.dp
 
 /**
  * Disabled buttons can't take focus (§2.5), and focus always shows (§5.2

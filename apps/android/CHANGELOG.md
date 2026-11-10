@@ -15,9 +15,15 @@ describes how they are made.
   name and episode count under it, as the web app does. A season without
   one shows the show's poster. Resting on a season shows its episodes,
   Select opens its page, and Down from the buttons comes to the seasons.
+- On Android TV, Home's banner shows a dash for each title it turns
+  through, at the top right: the one on is longer and fills as its time
+  runs. Up from the banner's buttons reaches the dashes, where Left and
+  Right turn to the title before or after.
 
 ### Changed
 
+- On Android TV, Home's banner has smaller buttons, and its words fade in
+  as it turns to the next title.
 - On Android TV, who made a title and its facts (director, writers, release,
   studio or network) sit under the cast, each a small label over its
   value, where they were in Details at the end of the page.
@@ -26,6 +32,9 @@ describes how they are made.
 
 ### Fixed
 
+- On Android TV, the line over a title in Home's banner (New in Movies)
+  reached the top of the screen when the title took two lines. It now
+  keeps its place and the title grows down.
 - On Android TV, a show with more seasons than fit across the screen
   showed its later season tabs squeezed into a thin column that pushed the
   episodes' lengths off the bottom, and the seasons after it couldn't be

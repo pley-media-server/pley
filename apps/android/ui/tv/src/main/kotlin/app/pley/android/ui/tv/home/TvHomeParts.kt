@@ -1,7 +1,13 @@
 package app.pley.android.ui.tv.home
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusGroup
+import androidx.compose.foundation.focusable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -9,6 +15,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
@@ -17,7 +24,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentHeight
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
@@ -31,15 +37,28 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -48,14 +67,20 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.pley.android.common.Tier
 import app.pley.android.common.errorSentence
 import app.pley.android.common.perf.StartupSignals
 import app.pley.android.designsystem.PleyColors
+import app.pley.android.designsystem.PleyFocus
+import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
 import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
@@ -63,6 +88,7 @@ import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.LocalArtworkImageLoader
+import app.pley.android.designsystem.reducedMotion
 import app.pley.android.designsystem.text.asString
 import app.pley.android.designsystem.tile.QualityBadge
 import app.pley.android.designsystem.tile.TileKind
@@ -79,6 +105,7 @@ import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.TvPillButton
 import app.pley.android.ui.tv.kit.TvRoundButton
 import app.pley.android.ui.tv.kit.initialFocus
+import app.pley.android.ui.tv.theme.LocalTvTier
 import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
@@ -87,6 +114,9 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlin.math.abs
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
  * The hero's stack at x = 96 (design spec §2.2): for a featured title why
@@ -97,8 +127,16 @@ import kotlinx.coroutines.withTimeoutOrNull
  * for the rest). A missing piece closes its gap. Resume ([resume]) is the
  * page's initial focus.
  *
- * With several titles ([turns]), dashes beside the buttons show which is
- * on, and Right from the last button goes on to the next ([onNext]).
+ * The label stays on its line: a title of two lines grows down into the
+ * summary's room, which gives up as many lines, so the buttons stay where
+ * they are. The buttons are the kit's compact ones, smaller than a page's.
+ *
+ * With several titles ([turns]), dashes at the top right show which is on,
+ * the one on filling as its time runs ([progress]). They take focus, Up
+ * from the buttons ([onDashesFocus] hears it): Left and Right there turn
+ * to the title before or after ([onTurn]), and Down goes back to Resume.
+ * Right from the last button goes on to the next ([onNext]). A title
+ * turned to fades its words in; the buttons stay as they are.
  *
  * It is one focus group that the rows' column comes back to by its key
  * ([HERO_KEY]), always on Resume once the page went back to its top.
@@ -117,8 +155,22 @@ internal fun TvHomeHero(
     label: String? = null,
     turns: Int = 1,
     turn: Int = 0,
+    progress: () -> Float = { 1f },
+    onTurn: (Int) -> Unit = {},
     onNext: (() -> Unit)? = null,
+    onDashesFocus: (Boolean) -> Unit = {},
 ) {
+    // The title's lines decide the summary's: measured here, so the page lays out once.
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    val titleLines = remember(hero.title, measurer, density) {
+        val width = with(density) { TextColumn.roundToPx() }
+        measurer.measure(hero.title, PleyType.Tv.HeroTitle, maxLines = 2, constraints = Constraints(maxWidth = width)).lineCount
+    }
+    val stack = (if (label != null) LabelLine else 0.dp) + HeroTitleLine * titleLines
+    // How far the label and title reach below their box: the summary gives that room up.
+    val below = (stack - TitleBox - TitleRise).coerceAtLeast(0.dp)
+    val summaryLines = ((SummaryRoom - below) / SummaryLine).toInt().coerceIn(1, SUMMARY_LINES)
     val column = LocalTvRowColumn.current
     val group = remember { FocusRequester() }
     if (column != null) {
@@ -127,8 +179,18 @@ internal fun TvHomeHero(
             onDispose { if (column.rows[HERO_KEY] === group) column.rows.remove(HERO_KEY) }
         }
     }
+    // A title turned to fades its words in (the first is there at once, as is each on the slowest boxes).
+    // Made with the title, at nothing: reset in an effect, the words would show whole for a frame first.
+    val plain = LocalTvTier.current == Tier.T0
+    val opened = remember { booleanArrayOf(false) }
+    val words = remember(hero.item.id) {
+        Animatable(if (opened[0] && !plain) 0f else 1f).also { opened[0] = true }
+    }
+    LaunchedEffect(words) { words.animateTo(1f, PleyMotion.reveal()) }
     Column(
         modifier
+            // As wide as the page: its dashes are at the far end, and a layer fading it cuts at its edge.
+            .fillMaxWidth()
             .height(HeroHeight)
             .wrapContentHeight(Alignment.Top, unbounded = true)
             .focusRequester(group)
@@ -142,51 +204,76 @@ internal fun TvHomeHero(
             .focusGroup()
             .padding(start = PleyTv.Gutter, top = HeroTop),
     ) {
-        Box(
-            Modifier.width(TextColumn).height(TitleBox).wrapContentHeight(Alignment.Bottom, unbounded = true),
-            contentAlignment = Alignment.BottomStart,
+        if (turns > 1) {
+            // At the page's top right, taking no room in the stack: with focus its chip ends at the safe area.
+            HeroPager(
+                turns,
+                turn,
+                progress,
+                onTurn,
+                onDashesFocus,
+                resume,
+                Modifier.layout { measurable, constraints ->
+                    val pager = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                    val safe = TvSafeArea.Horizontal.roundToPx()
+                    // From the stack's start: read right to left, that is the page's far side, and the dashes are at its left.
+                    val x = if (layoutDirection == LayoutDirection.Ltr) constraints.maxWidth - safe - pager.width else safe - constraints.maxWidth
+                    layout(0, 0) { pager.place(x, (PagerTop - HeroTop).roundToPx()) }
+                },
+            )
+        }
+        // Text alone, nothing over anything else: faded as it is drawn, with no layer of its own to fill.
+        Column(
+            Modifier.graphicsLayer {
+                alpha = words.value
+                compositingStrategy = CompositingStrategy.ModulateAlpha
+            },
         ) {
-            Column {
-                if (label != null) {
+            Box(
+                Modifier.width(TextColumn).height(TitleBox + below).wrapContentHeight(Alignment.Bottom, unbounded = true),
+                contentAlignment = Alignment.BottomStart,
+            ) {
+                Column {
+                    if (label != null) {
+                        BasicText(
+                            label.uppercase(),
+                            style = PleyType.Tv.Label.copy(color = PleyColors.Fg.copy(alpha = 0.85f), letterSpacing = 3.sp),
+                            maxLines = 1,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
                     BasicText(
-                        label.uppercase(),
-                        style = PleyType.Tv.Label.copy(color = PleyColors.Fg.copy(alpha = 0.85f), letterSpacing = 3.sp),
-                        maxLines = 1,
+                        hero.title,
+                        style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.semantics { heading() },
                     )
-                    Spacer(Modifier.height(12.dp))
                 }
+            }
+            if (hero.context.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                BasicText(hero.context, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
+            }
+            if (!hero.meta.isEmpty) {
+                Spacer(Modifier.height(8.dp))
+                TvMetaLine(hero.meta)
+            }
+            if (hero.inProgress && hero.timeLeft.isNotEmpty()) {
+                Spacer(Modifier.height(10.dp))
+                BasicText(hero.timeLeft, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1, modifier = Modifier.heightIn(min = 17.dp))
+            }
+            if (hero.summary.isNotEmpty() || turns > 1) {
+                Spacer(Modifier.height(10.dp))
+                // Taking turns, the summary keeps its room: the buttons stay where they are.
                 BasicText(
-                    hero.title,
-                    style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg),
-                    maxLines = 2,
+                    hero.summary,
+                    style = PleyType.Tv.BodyLarge.copy(color = SummaryColor),
+                    maxLines = summaryLines,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics { heading() },
+                    modifier = Modifier.width(TextColumn).then(if (turns > 1) Modifier.height(SummaryRoom - below) else Modifier),
                 )
             }
-        }
-        if (hero.context.isNotEmpty()) {
-            Spacer(Modifier.height(10.dp))
-            BasicText(hero.context, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
-        }
-        if (!hero.meta.isEmpty) {
-            Spacer(Modifier.height(8.dp))
-            TvMetaLine(hero.meta)
-        }
-        if (hero.inProgress && hero.timeLeft.isNotEmpty()) {
-            Spacer(Modifier.height(10.dp))
-            BasicText(hero.timeLeft, style = PleyType.Tv.Caption.copy(color = PleyColors.Fg), maxLines = 1, modifier = Modifier.heightIn(min = 17.dp))
-        }
-        if (hero.summary.isNotEmpty() || turns > 1) {
-            Spacer(Modifier.height(10.dp))
-            // Taking turns, the summary keeps its three lines' room: the buttons stay where they are.
-            BasicText(
-                hero.summary,
-                style = PleyType.Tv.BodyLarge.copy(color = SummaryColor),
-                maxLines = 3,
-                minLines = if (turns > 1) 3 else 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.width(TextColumn),
-            )
         }
         Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(PleyTv.ButtonGap)) {
@@ -195,11 +282,12 @@ internal fun TvHomeHero(
                 onClick = { onPlay(false) },
                 icon = PleyIcons.Play,
                 modifier = Modifier.focusRequester(resume).initialFocus(memory),
+                compact = true,
             )
             if (hero.inProgress) {
-                TvRoundButton(stringResource(R.string.tv_home_from_start), PleyIcons.RotateCcw, onClick = { onPlay(true) })
+                TvRoundButton(stringResource(R.string.tv_home_from_start), PleyIcons.RotateCcw, onClick = { onPlay(true) }, compact = true)
             }
-            TvRoundButton(stringResource(R.string.tv_home_info), PleyIcons.Info, onClick = onInfo)
+            TvRoundButton(stringResource(R.string.tv_home_info), PleyIcons.Info, onClick = onInfo, compact = true)
             // Right from the last button: the next title, as along a row.
             val last = if (onNext == null) {
                 Modifier
@@ -219,6 +307,7 @@ internal fun TvHomeHero(
                     if (hero.inList) PleyIcons.Check else PleyIcons.Plus,
                     onClick = onList,
                     modifier = last,
+                    compact = true,
                 )
             } else {
                 TvRoundButton(
@@ -226,29 +315,164 @@ internal fun TvHomeHero(
                     PleyIcons.CircleCheck,
                     onClick = onWatched,
                     modifier = last,
+                    compact = true,
                 )
-            }
-            if (turns > 1) {
-                Spacer(Modifier.width(24.dp))
-                HeroTurns(turns, turn, Modifier.align(Alignment.CenterVertically))
             }
         }
     }
 }
 
-/** The hero's dashes: one per title, the one on longer and white. Not focusable: Right and the clock turn them. */
+/**
+ * The hero's dashes, one per title, at the page's top right: white and
+ * quiet over the art, the one on longer, filling over the faint track as
+ * its time runs. On a turn the long dash glides to the title on, the one
+ * left giving up its fill as it shortens.
+ *
+ * Focused, a faint white chip comes up around them, a little larger, with
+ * a chevron at each end (the accent stays the buttons'): Left and Right
+ * turn to the title before or after, Select to the next ([onTurn]), a held
+ * key once. Down goes to [down], the hero's first button, not the one
+ * nearest under it.
+ *
+ * It is one box that draws: [progress], the glide and the focus are read as
+ * it draws, so none of them composes or lays anything out.
+ */
 @Composable
-private fun HeroTurns(count: Int, current: Int, modifier: Modifier = Modifier) {
-    Row(modifier.clearAndSetSemantics { }, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        repeat(count) { i ->
-            Box(
-                Modifier
-                    .size(width = if (i == current) 36.dp else 14.dp, height = 4.dp)
-                    .background(if (i == current) PleyColors.Fg else PleyColors.Fg.copy(alpha = 0.3f), CircleShape),
-            )
-        }
+private fun HeroPager(
+    count: Int,
+    current: Int,
+    progress: () -> Float,
+    onTurn: (Int) -> Unit,
+    onFocus: (Boolean) -> Unit,
+    down: FocusRequester,
+    modifier: Modifier = Modifier,
+) {
+    val calm = reducedMotion()
+    // The slowest boxes go without the glide, as they do without the words' fade.
+    val still = calm || LocalTvTier.current == Tier.T0
+    val interactions = remember { MutableInteractionSource() }
+    val focused by interactions.collectIsFocusedAsState()
+    val focus = animateFloatAsState(if (focused) 1f else 0f, if (focused) PleyMotion.focus(calm) else PleyMotion.unfocus(calm), label = "dashes")
+    // Where the long dash is, in titles: it goes the short way round, so the last title to the first is one step.
+    val at = remember { Animatable(current.toFloat()) }
+    LaunchedEffect(current, count, still) {
+        val by = shortWay(current - at.value, count)
+        // As long as the backdrop takes to change: the dash lands with the picture.
+        if (!still && abs(by) > 0.001f) at.animateTo(at.value + by, tween(PleyMotion.BACKDROP_MS, easing = PleyMotion.FocusEasing))
+        at.snapTo(current.toFloat())
+    }
+    val trail = remember { PagerTrail(current) }
+    DisposableEffect(Unit) { onDispose { onFocus(false) } }
+    val description = stringResource(R.string.tv_home_turns, current + 1, count)
+    Box(
+        modifier
+            .graphicsLayer {
+                val scale = 1f + (PleyFocus.PILL_SCALE - 1f) * focus.value
+                scaleX = scale
+                scaleY = scale
+            }
+            .onFocusChanged { onFocus(it.isFocused) }
+            .focusProperties { this.down = down }
+            .onKeyEvent {
+                val by = when (it.key) {
+                    Key.DirectionLeft -> -1
+                    Key.DirectionRight, Key.DirectionCenter, Key.Enter, Key.NumPadEnter -> 1
+                    else -> return@onKeyEvent false
+                }
+                if (it.type == KeyEventType.KeyDown && it.nativeKeyEvent.repeatCount == 0) onTurn(by)
+                true
+            }
+            .focusable(interactionSource = interactions)
+            .clearAndSetSemantics { contentDescription = description }
+            .size(DashLong + (DashShort + DashGap) * (count - 1) + (PagerPadding + ChevronRoom) * 2, PagerHeight)
+            .drawBehind {
+                val lit = focus.value
+                val on = if (still) current.toFloat() else at.value
+                trail.follow(current)
+                val time = progress().coerceIn(0f, 1f)
+
+                // The chip is there only with focus: a faint white fill and a hairline, out to the chevrons' room as it comes.
+                if (lit > 0f) {
+                    val inset = ChevronRoom.toPx() * (1f - lit)
+                    val corner = CornerRadius(PleyShape.ControlRadius.toPx())
+                    val edge = 1.dp.toPx()
+                    drawRoundRect(PleyColors.Fg.copy(alpha = CHIP_FILL * lit), Offset(inset, 0f), Size(size.width - inset * 2, size.height), corner)
+                    drawRoundRect(
+                        PleyColors.Fg.copy(alpha = CHIP_EDGE * lit),
+                        Offset(inset + edge / 2, edge / 2),
+                        Size(size.width - inset * 2 - edge, size.height - edge),
+                        corner,
+                        style = Stroke(edge),
+                    )
+                }
+
+                // White, a little short of full at rest: they are there to glance at, not to draw the eye from the title.
+                val ink = PleyColors.Fg.copy(alpha = DASH_REST + (1f - DASH_REST) * lit)
+                val track = PleyColors.Fg.copy(alpha = TRACK_REST + (TRACK_LIT - TRACK_REST) * lit)
+                val high = DashHeight.toPx()
+                val round = CornerRadius(high / 2)
+                val top = (size.height - high) / 2
+                // A dark line round each dash, so they keep their shape over a bright sky.
+                val line = 1.dp.toPx()
+                val under = Color.Black.copy(alpha = DASH_UNDER)
+                val underRound = CornerRadius(high / 2 + line)
+                var x = (ChevronRoom + PagerPadding).toPx()
+                repeat(count) { i ->
+                    // How much of the long dash this one is: 1 on the title on, less as the glide passes.
+                    val away = (on - i).mod(count.toFloat())
+                    val weight = (1f - min(away, count - away)).coerceAtLeast(0f)
+                    val wide = DashShort.toPx() + (DashLong - DashShort).toPx() * weight
+                    drawRoundRect(under, Offset(x - line, top - line), Size(wide + line * 2, high + line * 2), underRound)
+                    drawRoundRect(track, Offset(x, top), Size(wide, high), round)
+                    if (i == current) {
+                        // Never less than a dot: the dash on shows as on from its first moment.
+                        drawRoundRect(ink, Offset(x, top), Size(high + (wide - high) * time, high), round)
+                    } else if (i == trail.left && weight > 0f) {
+                        drawRoundRect(ink.copy(alpha = weight), Offset(x, top), Size(high + (wide - high) * trail.leftAt, high), round)
+                    }
+                    x += wide + DashGap.toPx()
+                }
+                trail.shown = time
+
+                if (lit > 0f) {
+                    val middle = (ChevronRoom + PagerPadding).toPx() / 2
+                    chevron(middle, -1f, ink.copy(alpha = lit))
+                    chevron(size.width - middle, 1f, ink.copy(alpha = lit))
+                }
+            },
+    )
+}
+
+/** A chevron about [x] at the box's middle, pointing left ([way] -1) or right (1). */
+private fun DrawScope.chevron(x: Float, way: Float, color: Color) {
+    val half = ChevronSize.toPx()
+    val y = size.height / 2
+    val tip = Offset(x + way * half / 2, y)
+    val stroke = 1.5.dp.toPx()
+    drawLine(color, Offset(x - way * half / 2, y - half), tip, stroke, StrokeCap.Round)
+    drawLine(color, Offset(x - way * half / 2, y + half), tip, stroke, StrokeCap.Round)
+}
+
+/**
+ * What the dashes last drew, kept between draws and not as state: the
+ * title on, the one it turned from ([left]) and how far that one's time
+ * had run ([leftAt]), which its dash keeps while it shortens.
+ */
+private class PagerTrail(var on: Int) {
+    var left = -1
+    var leftAt = 0f
+    var shown = 0f
+
+    fun follow(current: Int) {
+        if (current == on) return
+        left = on
+        leftAt = shown
+        on = current
     }
 }
+
+/** [by] titles on, as the shorter way round [count] of them: from the last to the first is one on, not all of them back. */
+private fun shortWay(by: Float, count: Int): Float = by - count * (by / count).roundToInt()
 
 /**
  * The compact block about the focused tile over the rows (design spec
@@ -460,6 +684,49 @@ internal val TextColumn = 464.dp
 
 private val HeroTop = 52.dp
 private val TitleBox = 72.dp
+
+/** The label's line and its gap to the title, and a line of the title. */
+private val LabelLine = 30.dp
+private val HeroTitleLine = 44.dp
+
+/** How far above its box the label may sit: a title of one line under it rises just this far. */
+private val TitleRise = 2.dp
+
+/** The summary's three lines of BodyLarge. */
+private const val SUMMARY_LINES = 3
+private val SummaryLine = 22.dp
+private val SummaryRoom = SummaryLine * SUMMARY_LINES
+
+/**
+ * The dashes' box: its top (the safe area's, its middle level with the
+ * rail's picture) and height, from the focused chip's edge to the first
+ * dash, and the room at each end that chip grows into for its chevrons.
+ */
+private val PagerTop = TvSafeArea.Vertical
+private val PagerHeight = 24.dp
+private val PagerPadding = 12.dp
+private val ChevronRoom = 14.dp
+
+/** Half a chevron's height, and its whole width. */
+private val ChevronSize = 4.dp
+
+/** A dash: its height, its length (the one on, the rest) and the gap between two. */
+private val DashHeight = 3.dp
+private val DashLong = 28.dp
+private val DashShort = 10.dp
+private val DashGap = 6.dp
+
+/** How white the dashes are: the one on and the track under them at rest, the track with focus (the one on is then full). */
+private const val DASH_REST = 0.9f
+private const val TRACK_REST = 0.3f
+private const val TRACK_LIT = 0.4f
+
+/** The dark line round each dash. */
+private const val DASH_UNDER = 0.22f
+
+/** The focused chip: its fill and its hairline, both white. */
+private const val CHIP_FILL = 0.16f
+private const val CHIP_EDGE = 0.45f
 private val SummaryColor = PleyColors.Fg.copy(alpha = 0.85f)
 
 private const val SKELETON_DELAY_MS = 300L

@@ -28,6 +28,10 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.data.Loadable
 import app.pley.android.model.HubKeys
@@ -244,6 +248,80 @@ class TvHomeTest {
         compose.mainClock.advanceTimeBy(3_500)
         compose.onNodeWithText("Severance").assertExists()
         compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun upFromTheButtonsReachesTheDashesWhichTurnTheTitles() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        show()
+        compose.waitForIdle()
+        press(Key.DirectionRight)
+        assertEquals("Info", focusedDescription())
+        press(Key.DirectionUp)
+        assertEquals("Title 1 of 2", focusedDescription())
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Severance").assertExists()
+        assertEquals("Title 2 of 2", focusedDescription())
+        // On from the last title is the first, and back from the first the last.
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        press(Key.DirectionLeft)
+        compose.onNodeWithText("Severance").assertExists()
+        assertEquals("Title 2 of 2", focusedDescription())
+        // Down is Play, though the dashes are over none of the buttons.
+        press(Key.DirectionDown)
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun theDashesKeepFocusWhenTheHeroTurnsByItself() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals("Title 1 of 2", focusedDescription())
+        compose.mainClock.advanceTimeBy(9_000)
+        compose.onNodeWithText("Severance").assertExists()
+        assertEquals("Title 2 of 2", focusedDescription())
+    }
+
+    @Test
+    fun focusOnTheDashesGoesToPlayWhenTheyGo() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        show()
+        compose.waitForIdle()
+        press(Key.DirectionUp)
+        assertEquals("Title 1 of 2", focusedDescription())
+        // One title left to feature: no dashes.
+        sources.home.value = Loadable.Ready(Fixtures.decode<Hubs>("hubs/home.json"), fresh = false)
+        compose.waitForIdle()
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun theHeroWaitsUnderAnotherPage() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        compose.mainClock.autoAdvance = false
+        val page = object : LifecycleOwner {
+            val registry = LifecycleRegistry(this)
+            override val lifecycle: Lifecycle get() = registry
+        }
+        page.registry.currentState = Lifecycle.State.RESUMED
+        val vm = HomeViewModel(sources, Dispatchers.Unconfined)
+        compose.setContent { CompositionLocalProvider(LocalLifecycleOwner provides page) { Page(vm) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        // Covered, as the shell keeps the page under the one on top.
+        compose.runOnUiThread { page.registry.currentState = Lifecycle.State.CREATED }
+        compose.mainClock.advanceTimeBy(12_000)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        // In front again, the title's time starts over.
+        compose.runOnUiThread { page.registry.currentState = Lifecycle.State.RESUMED }
+        compose.mainClock.advanceTimeBy(8_000)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.onNodeWithText("Severance").assertExists()
     }
 
     @Test

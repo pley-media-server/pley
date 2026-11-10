@@ -224,8 +224,14 @@ rates as the decoder gives them, the same in every language.
   My List's (the newest watched ones once everything has been). It takes
   turns through them: Right from its last button (My List) goes on to the
   next title, focus back on Play, and it turns by itself every 9 s while
-  no key is pressed, each press starting the time over; with Reduce
-  motion only Right turns it. With nothing to feature, the hero is
+  no key is pressed, each press starting the time over. Dashes at the
+  top right, one per title, show which is on, its dash longer and
+  filling with its time. Up from the buttons reaches them: they take
+  focus as one button, Left and Right turn to the title before or after
+  (round the ends), Select goes on, and Down comes back to Play; a turn
+  made there, or by itself while focus is there, leaves focus on them.
+  With Reduce motion the hero never turns by itself, and Right and the
+  dashes still turn it. With nothing to feature, the hero is
   Continue Watching's first and stays. On a phone the same titles are a
   banner under a clear top bar, swiped between and turning by themselves
   (not while touched, scrolled away, or with Reduce motion).

@@ -14,6 +14,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,6 +22,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.onFocusChanged
@@ -30,7 +32,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.TestTags
 import app.pley.android.designsystem.PleyMotion
@@ -63,10 +68,11 @@ import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
 import app.pley.android.ui.tv.theme.LocalTvTier
 import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Home on TV (design spec §2.2, §4.1; TV addendum §3.4).
@@ -77,11 +83,13 @@ import kotlinx.coroutines.withTimeoutOrNull
  * focus on Play; without any, the first Continue Watching item. Then the
  * server's rows. The hero turns to the next title every [TURN_MS] while
  * nothing is pressed (each key starts the time over), and Right from its
- * last button goes on to the next; with less motion asked for, only Right
- * does. Down moves into the rows: the hero's buttons go, the rows come up
- * under a compact info block about the focused tile, and the backdrop and
- * the info block follow the tile once focus has rested about 400 ms.
- * Nothing plays on its own.
+ * last button goes on to the next; with less motion asked for, it never
+ * turns by itself. Dashes at the top right show which title is on and how
+ * long it has left; Up from the buttons reaches them, and Left and Right
+ * there turn the titles. Down moves into the rows: the hero's buttons go,
+ * the rows come up under a compact info block about the focused tile, and
+ * the backdrop and the info block follow the tile once focus has rested
+ * about 400 ms. Nothing plays on its own.
  *
  * Back from the rows gives focus to the rail's Home and puts the page back
  * at its hero, where focus lands when the rail closes. Coming back from an
@@ -175,18 +183,53 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     val hero = heroes[turn % heroes.size]
     val keys = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
     val calm = reducedMotion()
-    LaunchedEffect(turn, inRows, heroes.size, calm) {
-        if (inRows || heroes.size < 2 || calm) return@LaunchedEffect
-        // TURN_MS with no key pressed: each press starts the time over.
-        while (withTimeoutOrNull(TURN_MS) { keys.first() } != null) Unit
-        turn = (turn + 1) % heroes.size
-        // Its buttons may not be the last one's (From start): focus starts again on Play.
-        if (hasFocus) runCatching { resume.requestFocus() }
+    // Under another page, or with the app away, the hero waits: its clock runs only in front.
+    val lifecycle by LocalLifecycleOwner.current.lifecycle.currentStateAsState()
+    val inFront = lifecycle.isAtLeast(Lifecycle.State.RESUMED)
+    // How far the title on is through its time: its dash fills with it, read as the dash draws.
+    // Small timed steps rather than an animation: each draws the dashes again and nothing else.
+    val time = remember { mutableFloatStateOf(1f) }
+    // Whether focus is on the dashes. Only the clock reads it, when it turns: it composes nothing.
+    val onDashes = remember { mutableStateOf(false) }
+    // The title on and its time change together: a dash coming on is never drawn with the last one's time.
+    val turnTo: (Int) -> Unit = { index ->
+        turn = index.mod(heroes.size)
+        if (!calm) time.floatValue = 0f
+    }
+    LaunchedEffect(turn, inRows, heroes.size, calm, inFront) {
+        // The dash stays as it is under the page that covers it, and starts over when that one goes.
+        if (!inFront) return@LaunchedEffect
+        if (inRows || heroes.size < 2 || calm) {
+            time.floatValue = 1f
+            return@LaunchedEffect
+        }
+        val timed = turn
+        // TURN_MS with no key pressed: each press starts the time over, and the dash with it.
+        keys.onStart { emit(Unit) }.collectLatest {
+            var gone = 0L
+            time.floatValue = 0f
+            while (gone < TURN_MS) {
+                delay(FILL_STEP_MS)
+                gone += FILL_STEP_MS
+                time.floatValue = gone.toFloat() / TURN_MS
+            }
+            // A turn made by hand at this very moment has its own time coming: it isn't turned past.
+            if (turn != timed) return@collectLatest
+            turnTo(timed + 1)
+            // Its buttons may not be the last one's (From start): focus starts again on Play. The dashes stay, and keep theirs.
+            if (hasFocus && !onDashes.value) runCatching { resume.requestFocus() }
+        }
     }
     val next: () -> Unit = {
-        turn = (turn + 1) % heroes.size
+        turnTo(turn + 1)
         runCatching { resume.requestFocus() }
     }
+    // The dashes turn the titles under their own focus.
+    val step: (Int) -> Unit = { by -> turnTo(turn + by) }
+    // With one title left to feature the dashes go, and focus that was on them goes to Play.
+    // Read as they go and not observed: focus on the dashes composes nothing.
+    val dashesGone = heroes.size < 2 && Snapshot.withoutReadObservation { onDashes.value }
+    LaunchedEffect(dashesGone) { if (dashesGone) runCatching { resume.requestFocus() } }
 
     // In the rows, the backdrop and the info block show the tile focus rests on.
     val about: HomeInfo = if (inRows) info ?: hero.info else hero.info
@@ -235,7 +278,10 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                     label = hero.label?.asString(),
                     turns = heroes.size,
                     turn = turn % heroes.size,
+                    progress = { time.floatValue },
+                    onTurn = step,
                     onNext = if (heroes.size > 1) next else null,
+                    onDashesFocus = { onDashes.value = it },
                 )
             }
             model.rows.forEach { row ->
@@ -277,6 +323,9 @@ internal val HeroHeight = 384.dp - PleyTv.RowGap
 
 /** How long each featured title stays in the hero while nothing is pressed: the web's banner's. */
 private const val TURN_MS = 9_000L
+
+/** The dash of the title on fills in steps this far apart: about a pixel each at 1080p, five small draws a second. */
+private const val FILL_STEP_MS = 200L
 
 /** About one row of posters: the next row is composed before focus reaches it. */
 private val RowAhead = 300.dp
