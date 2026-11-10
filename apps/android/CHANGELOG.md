@@ -24,6 +24,8 @@ describes how they are made.
 
 - On Android TV, Home's banner has smaller buttons, and its words fade in
   as it turns to the next title.
+- On Android TV, resting on a season shows its episodes sooner, and they
+  are loaded ahead, so moving along a show's seasons keeps up.
 - On Android TV, who made a title and its facts (director, writers, release,
   studio or network) sit under the cast, each a small label over its
   value, where they were in Details at the end of the page.

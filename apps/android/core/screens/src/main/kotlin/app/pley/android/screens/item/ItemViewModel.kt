@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -171,9 +172,15 @@ class ItemViewModel(
             ItemKind.Episode -> flowOf(shape.parentId)
             else -> flowOf(null)
         }.distinctUntilChanged()
-        val episodes: Flow<Pair<Long?, List<ItemSummary>?>> = selected.flatMapLatest { season ->
+        val shownEpisodes: Flow<Pair<Long?, List<ItemSummary>?>> = selected.flatMapLatest { season ->
             if (season == null) flowOf(null to null) else data.items.children(season).map { season to it.valueOrNull }
         }
+        // The seasons beside the one shown have their episodes asked for ahead, while the page is
+        // shown: moving along the seasons, each has its episodes when focus rests on it.
+        val warming = flow<Nothing> {
+            combine(selected, seasons) { season, list -> season to list }.collectLatest { (season, list) -> warmBeside(season, list) }
+        }
+        val episodes = merge(shownEpisodes, warming)
         val beside = combine(onDeck, seasons, episodes, related, partOf) { next, list, (season, eps), rel, part ->
             Beside(next, list, season, eps, rel, part)
         }
@@ -402,6 +409,25 @@ class ItemViewModel(
         chosenSeason.value = seasonId
     }
 
+    /**
+     * Asks for the episodes of the seasons beside [season] ahead, the
+     * nearest first, one at a time. Only those: each is an answer kept, and
+     * the next ones are asked for when focus gets to this one's neighbour.
+     */
+    private suspend fun warmBeside(season: Long?, seasons: List<ItemSummary>?) {
+        val at = seasons?.indexOfFirst { it.id == season }?.takeIf { it >= 0 } ?: return
+        for (by in WARM_BESIDE) {
+            val beside = seasons.getOrNull(at + by) ?: continue
+            try {
+                data.items.warmChildren(beside.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Asked again when shown.
+            }
+        }
+    }
+
     override fun onCleared() {
         endTrace()
     }
@@ -420,6 +446,9 @@ class ItemViewModel(
     companion object {
         /** Keeps loading this long after the page stops showing (rotation, a quick look elsewhere). */
         const val STOP_MS = 5_000L
+
+        /** The seasons whose episodes are asked for ahead, from the one shown: the next ones first. */
+        private val WARM_BESIDE = intArrayOf(1, -1, 2, -2)
 
         /** Request events gathered before the item's request is read again. */
         const val REQUEST_CHANGES_MS = 500L

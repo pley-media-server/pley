@@ -111,6 +111,9 @@ interface ItemRepository {
 
     /** Loads [itemId]'s details ahead (a likely next tap), at low priority. */
     fun prefetch(itemId: Long)
+
+    /** Asks for [itemId]'s children ahead, unless they are kept already (a season's episodes, before it is shown). */
+    suspend fun warmChildren(itemId: Long) {}
 }
 
 interface SearchRepository {

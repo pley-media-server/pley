@@ -199,11 +199,15 @@ class KeyRepeatGate(
         return !holding && clock() - lastMove >= REST_MS
     }
 
-    /** Returns once focus has rested ([rested]); at once if it already has. */
-    suspend fun awaitRest() {
+    /**
+     * Returns once focus has rested ([rested]); at once if it already has.
+     * [afterMs] is how long it rests: less than [REST_MS] for what is
+     * ready to show.
+     */
+    suspend fun awaitRest(afterMs: Long = REST_MS) {
         while (true) {
             expireHold(clock())
-            val left = lastMove + REST_MS - clock()
+            val left = lastMove + afterMs - clock()
             if (!holding && left <= 0) return
             delay(if (holding || left > POLL_MS) POLL_MS else left)
         }
@@ -340,15 +344,16 @@ private class KeyRepeatGateNode(var gate: KeyRepeatGate) : Modifier.Node(), KeyI
 /**
  * [value], once focus has rested on it: what backdrops and info blocks
  * show, so they never change while a key repeats or focus passes through.
- * The first value shows at once.
+ * The first value shows at once. [afterMs] is how long focus rests first
+ * ([KeyRepeatGate.awaitRest]).
  */
 @Composable
-fun <T> rememberRested(value: T): T {
+fun <T> rememberRested(value: T, afterMs: Long = KeyRepeatGate.REST_MS): T {
     val gate = LocalKeyRepeatGate.current
     var rested by remember { mutableStateOf(value) }
     LaunchedEffect(value) {
         if (value != rested) {
-            gate.awaitRest()
+            gate.awaitRest(afterMs)
             rested = value
         }
     }

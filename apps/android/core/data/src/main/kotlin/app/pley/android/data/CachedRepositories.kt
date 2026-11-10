@@ -177,6 +177,11 @@ internal class CachedItems(private val cache: ResourceCache) : ItemRepository {
 
     override suspend fun next(itemId: Long): ItemSummary? = cache.api(cache.profile()).next(itemId).item
 
+    override suspend fun warmChildren(itemId: Long) {
+        val resource = childrenOf(itemId)
+        if (cache.peek(resource) == null) cache.refreshQuietly(resource)
+    }
+
     /** Loads [itemId]'s page ahead, unless it is held: never every visible card (asking queues work on the server). */
     override fun prefetch(itemId: Long) {
         prefetching

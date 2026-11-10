@@ -57,6 +57,9 @@ class FakeData : DataGraph {
     val streams = mutableListOf<StreamWrite>()
     val hidden = mutableListOf<Long>()
 
+    /** The items whose children were asked for ahead, in order. */
+    val warmed = mutableListOf<Long>()
+
     /** My List's writes: the item, and whether it went in. */
     val listed = mutableListOf<Pair<Long, Boolean>>()
 
@@ -88,6 +91,9 @@ class FakeData : DataGraph {
         override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), true))
         override suspend fun next(itemId: Long): ItemSummary? = null
         override fun prefetch(itemId: Long) = Unit
+        override suspend fun warmChildren(itemId: Long) {
+            warmed += itemId
+        }
     }
 
     override val watchState: WatchStateRepository = object : WatchStateRepository {

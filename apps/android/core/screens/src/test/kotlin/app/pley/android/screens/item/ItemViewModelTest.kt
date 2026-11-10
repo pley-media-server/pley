@@ -185,6 +185,32 @@ class ItemViewModelTest {
     }
 
     @Test
+    fun `the seasons beside the one shown have their episodes asked for ahead`() = runTest(dispatcher) {
+        val model = model(10)
+        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 12, childCount = 6))
+        data.setChildren(10, (30L..35L).map { summary(it, ItemKind.Season, index = (it - 29).toInt()) })
+        // Not before the season shown is known.
+        assertTrue(data.warmed.isEmpty())
+        data.setOnDeck(10, null)
+        assertEquals(30L, model.page.seasons?.selected)
+        assertEquals(listOf(31L, 32L), data.warmed)
+        data.warmed.clear()
+        model.selectSeason(33)
+        // The nearest first, the next ones before the ones passed.
+        assertEquals(listOf(34L, 32L, 35L, 31L), data.warmed)
+    }
+
+    @Test
+    fun `a show with one season asks for nothing ahead`() = runTest(dispatcher) {
+        val model = model(10)
+        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 2, childCount = 1))
+        data.setChildren(10, listOf(summary(30, ItemKind.Season, index = 1)))
+        data.setOnDeck(10, null)
+        assertEquals(30L, model.page.seasons?.selected)
+        assertTrue(data.warmed.isEmpty())
+    }
+
+    @Test
     fun `nothing to play is told, not played`() = runTest(dispatcher) {
         val model = model(10)
         data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Empty", leafCount = 0))

@@ -149,7 +149,7 @@ internal fun TvEpisodesSection(
 @Composable
 private fun SeasonTabs(seasons: SeasonsSection, onSelect: (Long) -> Unit, modifier: Modifier = Modifier) {
     var focused by remember { mutableStateOf<Long?>(null) }
-    val rested = rememberRested(focused)
+    val rested = rememberRested(focused, SEASON_REST_MS)
     LaunchedEffect(rested) {
         if (rested != null && rested != seasons.selected) onSelect(rested)
     }
@@ -244,7 +244,7 @@ private fun SeasonPosters(
     }
     val byId = remember(seasons.seasons) { seasons.seasons.mapNotNull { it.item }.associateBy { it.id } }
     var focused by remember { mutableStateOf<Long?>(null) }
-    val rested = rememberRested(focused)
+    val rested = rememberRested(focused, SEASON_REST_MS)
     LaunchedEffect(rested) {
         if (rested != null && rested != seasons.selected) onSelect(rested)
     }
@@ -309,6 +309,12 @@ private fun EpisodeRow(
 
 /** Tabs are 40 tall (design spec §2.6). */
 internal val TabHeight = 40.dp
+
+/**
+ * How long focus rests on a season before it shows: its episodes are asked
+ * for ahead, so only long enough that a season focus passes over stays out.
+ */
+private const val SEASON_REST_MS = 150L
 
 /** From a tab's start to its label, so the first tab's label is at the gutter. */
 private val TabInset = 20.dp

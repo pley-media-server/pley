@@ -272,6 +272,24 @@ class TvItemPageTest {
     }
 
     @Test
+    fun selectOnASeasonsTabShowsItsEpisodesWithoutTheRest() {
+        show(showOf(3))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        press(Key.DirectionUp)
+        compose.mainClock.autoAdvance = false
+        // Short presses: the clock stays well short of the rest.
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionRight, 1) } }
+        compose.onNode(isFocused()).assert(hasText("Season 3"))
+        compose.onRoot().performKeyInput { pressKey(Key.Enter, 1) }
+        compose.mainClock.advanceTimeBy(32)
+        compose.onNode(hasText("Season 3") and isSelected()).assertExists()
+        compose.mainClock.autoAdvance = true
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+    }
+
+    @Test
     fun thePageGlidesToARowAndBackToItsButtonsOver150MsEasedOut() {
         val cast = listOf(Credit(1, "Idris Vale", CreditRole.Actor, character = "Ras"), Credit(2, "Mara Holt", CreditRole.Actor, character = "Ines"))
         show(ItemData(movie().copy(cast = cast)), reduced = false)
