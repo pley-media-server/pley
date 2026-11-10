@@ -99,7 +99,9 @@ import kotlin.math.roundToInt
  *
  * - The row is one focus group that comes back to the tile focused last
  *   (focusRestorer), the first time to [enterOn] when given; [memory]
- *   keeps that tile across leaving the page, so Back lands on it.
+ *   keeps that tile across leaving the page, so Back lands on it: the
+ *   tile the page remembers is then what the row is entered on, before
+ *   [enterOn].
  * - Left from the first tile enters the rail, on a press of its own: a
  *   held Left stops there. Right stops at the end.
  * - Keys are the tiles' ids, and the content type their kind.
@@ -178,6 +180,12 @@ fun TvRow(
         }
     }
     val enter = remember { FocusRequester() }
+    // The tile the row is entered on: the one the page remembers focus on when it is one of this
+    // row's (the page shown again after Back), else [enterOn]. The remembered tile asks for focus
+    // itself, and coming into the row its request is answered by this entry: it must be that tile.
+    val entry = memory?.key?.takeIf { it.startsWith("$rowKey/") }?.substring(rowKey.length + 1)?.toLongOrNull()
+        ?.takeIf { id -> tiles.any { it.id == id } }
+        ?: enterOn
     Column(
         modifier
             .fillMaxWidth()
@@ -207,7 +215,7 @@ fun TvRow(
                     .bleed(TileBleed)
                     .testTag("$ROW_TAG$rowKey")
                     .railOnLeftStopOnRight(rail)
-                    .focusRestorer(if (enterOn != null) enter else FocusRequester.Default)
+                    .focusRestorer(if (entry != null) enter else FocusRequester.Default)
                     .onPreviewKeyEvent(motion::onKey)
                     .drawWithCache { motion.drawRing(this, kind) },
                 contentPadding = PaddingValues(
@@ -238,7 +246,7 @@ fun TvRow(
                         focusModifier = remembered
                             .focusSlot(motion.slots, index)
                             .then(if (tile.id == heir) Modifier.focusRequester(heirFocus) else Modifier)
-                            .then(if (tile.id == enterOn) Modifier.focusRequester(enter) else Modifier),
+                            .then(if (tile.id == entry) Modifier.focusRequester(enter) else Modifier),
                     )
                 }
                 if (seeAll != null) {

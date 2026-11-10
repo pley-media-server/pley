@@ -89,6 +89,13 @@ describes how they are made.
 
 ### Fixed
 
+- On Android TV, Back from an episode's page returns to the episode it
+  was opened from, in its season. Focus used to land on the season's
+  first episode, or the one to watch.
+- On Android TV, on an episode's page, Select on that episode in its
+  season's row plays it, where it did nothing and took a second Back to
+  leave; Select on another episode shows that one in the page's place, so
+  Back still returns to the show.
 - Dolby Vision the server repackages stays Dolby Vision: a file that also
   carries HDR10+, profile 7 made 8.1, a file that doesn't name its Dolby
   Vision or overstates its level, or one whose sound or container is

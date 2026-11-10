@@ -343,6 +343,30 @@ class TvItemPageTest {
     }
 
     @Test
+    fun onAnEpisodesPageSelectOnItPlaysItAndAnotherEpisodeTakesThePagesPlace() {
+        val episodes = seasonsOf(2, posters = false)
+        val episode = movie().copy(
+            id = 1012, kind = ItemKind.Episode, title = "Episode 2", index = 2, parentId = 101, parentIndex = 1,
+            grandparentId = 1, grandparentTitle = "Breaking Bad",
+        )
+        val data = ItemData(episode, children = episodes)
+        stack.clear()
+        stack += listOf(PleyKey.Home, PleyKey.Item(1), PleyKey.Item(1012))
+        show(data, id = 1012)
+        // Down from Play: its season's row, on the page's own episode.
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 2", substring = true))
+        // Select there plays it; the page stays.
+        press(Key.Enter)
+        assertEquals(1012L, data.played.single().itemId)
+        assertEquals(listOf<NavKey>(PleyKey.Home, PleyKey.Item(1), PleyKey.Item(1012)), stack)
+        // Another episode's page takes this one's place: Back is still the show.
+        press(Key.DirectionRight)
+        press(Key.Enter)
+        assertEquals(listOf<NavKey>(PleyKey.Home, PleyKey.Item(1), PleyKey.Item(1013)), stack)
+    }
+
+    @Test
     fun selectOnASeasonsTabShowsItsEpisodesWithoutTheRest() {
         show(showOf(3))
         val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()

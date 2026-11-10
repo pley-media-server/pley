@@ -108,7 +108,11 @@ import kotlinx.coroutines.delay
  * backdrop. Focus starts on Resume or Play. Down goes to the episodes
  * (shows, seasons, episodes) and the rows (Extras, Cast, More Like
  * This), then Details; once focus has left the buttons, an info block
- * stays at the top, for the focused episode in the episode row.
+ * stays at the top, for the focused episode in the episode row. An
+ * episode opens its own page; on that page Select on the same episode in
+ * its season's row plays it, and another episode's page takes the page's
+ * place, so Back from an episode is always the show, on the episode
+ * opened from it.
  * Artists, albums and tracks open their music pages instead, an extra
  * its movie's or show's page.
  */
@@ -251,7 +255,16 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                         seasonsRequester = seasonsRow,
                         onSelectSeason = model::selectSeason,
                         onFocusEpisode = { focusedEpisode = it },
-                        onOpen = { actions.open(it.id) },
+                        onOpen = { episode ->
+                            when {
+                                // The page's own episode, in its season's row: Select plays it, as Play does.
+                                episode.id == page.id -> model.play()
+                                // Another episode, from an episode's page: its page takes this one's place,
+                                // so Back is still the show, however many episodes were looked at.
+                                page.kind == ItemKind.Episode -> actions.replace(episode.id)
+                                else -> actions.open(episode.id)
+                            }
+                        },
                         onActions = { panel = Panel.Actions(it, episodesRow) },
                         onSeasonActions = { panel = Panel.Actions(it, seasonsRow) },
                     )
@@ -321,6 +334,9 @@ internal class SectionFocus {
 @Stable
 internal class TvPageActions(val model: ItemViewModel, private val navigator: TvNavigator) {
     fun open(id: Long) = navigator.open(PleyKey.Item(id))
+
+    /** [id]'s page in this page's place. */
+    fun replace(id: Long) = navigator.replace(PleyKey.Item(id))
 
     fun openPerson(id: Long) = navigator.open(PleyKey.Person(id))
 
