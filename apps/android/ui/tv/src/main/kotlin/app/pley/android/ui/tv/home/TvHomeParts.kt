@@ -55,7 +55,6 @@ import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onKeyEvent
-import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalDensity
@@ -134,8 +133,9 @@ import kotlin.math.roundToInt
  * the one on filling as its time runs ([progress]). They take focus, Up
  * from the buttons ([onDashesFocus] hears it): Left and Right there turn
  * to the title before or after ([onTurn]), and Down goes back to Resume.
- * Right from the last button goes on to the next ([onNext]). A title
- * turned to fades its words in; the buttons stay as they are.
+ * Right from the last button stays on it: only the dashes, and the time,
+ * turn the titles. A title turned to fades its words in; the buttons stay
+ * as they are.
  *
  * It is one focus group that the rows' column comes back to by its key
  * ([HERO_KEY]), always on Resume once the page went back to its top.
@@ -156,7 +156,6 @@ internal fun TvHomeHero(
     turn: Int = 0,
     progress: () -> Float = { 1f },
     onTurn: (Int) -> Unit = {},
-    onNext: (() -> Unit)? = null,
     onDashesFocus: (Boolean) -> Unit = {},
 ) {
     // The title's lines decide the summary's: measured here, so the page lays out once.
@@ -287,19 +286,8 @@ internal fun TvHomeHero(
                 TvRoundButton(stringResource(R.string.tv_home_from_start), PleyIcons.RotateCcw, onClick = { onPlay(true) }, compact = true)
             }
             TvRoundButton(stringResource(R.string.tv_home_info), PleyIcons.Info, onClick = onInfo, compact = true)
-            // Right from the last button: the next title, as along a row.
-            val last = if (onNext == null) {
-                Modifier
-            } else {
-                Modifier.onPreviewKeyEvent {
-                    if (it.type == KeyEventType.KeyDown && it.key == Key.DirectionRight) {
-                        onNext()
-                        true
-                    } else {
-                        false
-                    }
-                }
-            }
+            // Right from the last button stays on it: it neither turns to the next title nor finds the dashes above.
+            val last = Modifier.focusProperties { end = FocusRequester.Cancel }
             if (hero.listable) {
                 TvRoundButton(
                     stringResource(if (hero.inList) R.string.tv_item_remove_from_my_list else R.string.tv_item_add_to_my_list),

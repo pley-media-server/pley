@@ -71,7 +71,7 @@ import org.robolectric.annotation.Config
 
 /**
  * Home on TV with key events: initial focus on the featured title's Play,
- * Right through the hero's buttons on to the next title, the hero turning
+ * Right through the hero's buttons stopping on the last, the hero turning
  * by itself while nothing is pressed, Down into the rows, the focused tile coming back after the page was away, Back from
  * the rows going to the rail with the page back at its hero, and the
  * states drawn from what was saved without the network.
@@ -208,18 +208,19 @@ class TvHomeTest {
     }
 
     @Test
-    fun rightFromTheLastButtonGoesOnToTheNextTitle() {
+    fun rightFromTheLastButtonStaysOnIt() {
         sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
         show()
         compose.waitForIdle()
         compose.onNodeWithText("Dune: Part Two").assertExists()
         compose.onNodeWithText("Play").assertIsFocused()
-        // Play, Info, My List; then the next title, from its Play.
+        // Play, Info, My List; Right again turns nothing and goes nowhere, the dashes above included.
         press(Key.DirectionRight, times = 2)
         assertEquals("Add to My List", focusedDescription())
-        press(Key.DirectionRight)
-        compose.onNodeWithText("Severance").assertExists()
-        compose.onNodeWithText("Play").assertIsFocused()
+        press(Key.DirectionRight, times = 2)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.onNodeWithText("Severance").assertDoesNotExist()
+        assertEquals("Add to My List", focusedDescription())
     }
 
     @Test

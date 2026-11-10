@@ -34,6 +34,9 @@ describes how they are made.
   up to three lines, and its description five lines where it had three.
 - On Android TV, a library opens on Recommended the first time; after
   that, on the tab it was left on, as before.
+- On Android TV, Right on the last button of Home's banner (My List)
+  stays there. It used to turn to the next title, which the dashes at the
+  top right and the banner's own time still do.
 - On Android TV, buttons are a little smaller, those of Home's banner
   smaller again, and the banner's words fade in as it turns to the next
   title.

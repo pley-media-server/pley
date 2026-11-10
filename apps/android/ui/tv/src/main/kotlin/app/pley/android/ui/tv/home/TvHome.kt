@@ -82,9 +82,9 @@ import kotlinx.coroutines.launch
  * each with its backdrop, why it is there, Play and My List, with initial
  * focus on Play; without any, the first Continue Watching item. Then the
  * server's rows. The hero turns to the next title every [TURN_MS] while
- * nothing is pressed (each key starts the time over), and Right from its
- * last button goes on to the next; with less motion asked for, it never
- * turns by itself. Dashes at the top right show which title is on and how
+ * nothing is pressed (each key starts the time over); with less motion
+ * asked for, it never turns by itself. Right from its last button stays
+ * there. Dashes at the top right show which title is on and how
  * long it has left; Up from the buttons reaches them, and Left and Right
  * there turn the titles. Down moves into the rows: the hero's buttons go,
  * the rows come up under a compact info block about the focused tile, and
@@ -220,10 +220,6 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
             if (hasFocus && !onDashes.value) runCatching { resume.requestFocus() }
         }
     }
-    val next: () -> Unit = {
-        turnTo(turn + 1)
-        runCatching { resume.requestFocus() }
-    }
     // The dashes turn the titles under their own focus.
     val step: (Int) -> Unit = { by -> turnTo(turn + by) }
     // With one title left to feature the dashes go, and focus that was on them goes to Play.
@@ -280,7 +276,6 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                     turn = turn % heroes.size,
                     progress = { time.floatValue },
                     onTurn = step,
-                    onNext = if (heroes.size > 1) next else null,
                     onDashesFocus = { onDashes.value = it },
                 )
             }
