@@ -30,6 +30,9 @@ describes how they are made.
   the show's page already has of it, where it showed an empty outline
   until the server answered. Any title's page that is already held opens
   the same way, with no outline first.
+- On Android TV, the words at the top of a show's page keep up with the
+  episode focused, and no longer show an episode of another season, or
+  the show's description, while focus is on the seasons.
 - On Android TV, a title's page starts higher, and on a show's page
   the description gives up a line or two where it must, so that the
   season posters under the buttons show whole, where the screen's edge

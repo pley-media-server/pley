@@ -496,8 +496,11 @@ private class ItemPageSpec(
  * left the hero: the title, on one line with the hero's room for it
  * ([HeroColumn]), and the metadata line, then the focused episode's
  * title, line and two lines of summary in the episode row, or the item's
- * own summary by the other rows. It follows the focused episode once
- * focus has rested ([rememberRested]).
+ * own summary by the other rows. On the seasons it says no more than the
+ * title and the metadata line: neither the show's summary nor an episode
+ * of the season focus has left. It follows the focused episode once focus
+ * has rested a moment ([EPISODE_REST_MS]), and shows at once an episode
+ * focus comes to from elsewhere than its own season's row.
  */
 @Composable
 private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: EpisodeLine?) {
@@ -508,7 +511,14 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
     // Read through derivedStateOf, the fade's frames recompose nothing: only its end does.
     val gone by remember { derivedStateOf { (focus.area == Area.Hero || focus.reading) && visible.value == 0f } }
     if (gone) return
-    val episode = rememberRested(focusedEpisode)
+    val rested = rememberRested(focusedEpisode, EPISODE_REST_MS)
+    // In the episodes only, and never one of another season than the episode focused: coming into a
+    // season's row, its episode shows at once rather than the one last shown.
+    val episode = when {
+        area != Area.Episodes -> null
+        rested?.item?.parentId == focusedEpisode?.item?.parentId -> rested
+        else -> focusedEpisode
+    }
     Column(
         Modifier
             .padding(start = PleyTv.Gutter, top = 28.dp, end = TvSafeArea.Horizontal)
@@ -524,8 +534,7 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
         )
         Spacer(Modifier.height(10.dp))
         TvMetaLine(page.meta)
-        val showEpisode = (area == Area.Episodes || area == Area.Tabs) && episode != null
-        if (showEpisode && episode != null) {
+        if (episode != null) {
             Spacer(Modifier.height(14.dp))
             BasicText(episode.item.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             Spacer(Modifier.height(4.dp))
@@ -540,7 +549,7 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
                 Spacer(Modifier.height(6.dp))
                 BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             }
-        } else {
+        } else if (area != Area.Tabs && area != Area.Episodes) {
             page.summary?.let {
                 Spacer(Modifier.height(8.dp))
                 BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
@@ -548,6 +557,13 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
         }
     }
 }
+
+/**
+ * How long focus rests on an episode before the info block says it: long
+ * enough that an episode focus passes over stays out, short enough that
+ * the block keeps up with a press.
+ */
+private const val EPISODE_REST_MS = 150L
 
 /** The hero's title: an episode's or season's show, else the item's own. */
 internal fun heroTitle(page: ItemPage): String = when (page.kind) {
