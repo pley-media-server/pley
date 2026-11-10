@@ -67,6 +67,15 @@
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "daysHours": "{{days}} j {{hours}} h",
     "left": "Il reste {{time}}",
+    "timeLeft": {
+      "underAMinute": "encore moins d’une minute",
+      "minutes_one": "encore environ {{count, number}} minute",
+      "minutes_many": "encore environ {{count, number}} de minutes",
+      "minutes_other": "encore environ {{count, number}} minutes",
+      "hours_one": "encore environ {{count, number}} heure",
+      "hours_many": "encore environ {{count, number}} d’heures",
+      "hours_other": "encore environ {{count, number}} heures"
+    },
     "bitrateUnknown": "Débit inconnu",
     "specials": "Épisodes spéciaux",
     "season": "Saison",

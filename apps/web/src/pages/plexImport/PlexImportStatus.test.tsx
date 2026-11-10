@@ -1,10 +1,8 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import i18next from "i18next";
 import { describe, expect, it, vi } from "vitest";
 import { plexImportKeys, type ImportProgress, type ImportReport } from "@/api/plexImport";
 import { mockApi, renderWithProviders } from "@/test/render";
-import { timeLeft } from "./ImportProgressView";
 import { PlexImportStatus } from "./PlexImportStatus";
 
 const idle: ImportProgress = { state: "idle", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false };
@@ -28,12 +26,13 @@ const report: ImportReport = {
 describe("PlexImportStatus", () => {
   it("shows the import's step and count while it runs, then when it ended and its report", async () => {
     const user = userEvent.setup();
-    let progress: ImportProgress = { ...idle, state: "running", step: "fetching", done: 1204, total: 3500, first_pass_done: true };
+    let progress: ImportProgress = { ...idle, state: "running", step: "fetching", done: 1204, total: 3500, left_secs: 1500, first_pass_done: true };
     mockApi({ "GET /api/import/plex": () => progress });
     const onReport = vi.fn();
     const { client } = renderWithProviders(<PlexImportStatus onReport={onReport} onAgain={() => {}} />);
     expect(await screen.findByText("Importing from Plex: Fetching posters and details")).toBeInTheDocument();
     expect(screen.getByText("1,204 of 3,500")).toBeInTheDocument();
+    expect(screen.getByText("about 25 minutes left")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "See what came over" })).not.toBeInTheDocument();
 
     progress = { ...idle, state: "done", report };
@@ -51,9 +50,10 @@ describe("PlexImportStatus", () => {
       { step: "profiles", state: "done", count: 2 },
       { step: "fetching", state: "running", count: null },
     ];
-    let progress: ImportProgress = { ...idle, state: "running", step: "fetching", done: 1, total: 4, started_at: 100, steps };
+    let progress: ImportProgress = { ...idle, state: "running", step: "fetching", done: 1, total: 4, left_secs: 20, started_at: 100, steps };
     mockApi({ "GET /api/import/plex": () => progress });
     const first = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
+    expect(await screen.findByText("· under a minute left")).toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: /Hide the steps/ }));
     expect(screen.queryByText("Making profiles")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Show the steps/ })).toHaveAttribute("aria-expanded", "false");
@@ -116,6 +116,8 @@ describe("PlexImportStatus", () => {
     await user.click(screen.getByRole("button", { name: /Hide the steps/ }));
     expect(screen.getByText("Importing from Plex, step 2 of 4: Scanning the new libraries")).toBeInTheDocument();
     expect(screen.getByText("1 of 2")).toBeInTheDocument();
+    // The scans' time left is the library whose files are read.
+    expect(screen.getByText("about 25 minutes left")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Stop the import" })).not.toBeInTheDocument();
   });
 
@@ -149,17 +151,5 @@ describe("PlexImportStatus", () => {
     const { container } = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
     await vi.waitFor(() => expect(requests.some((r) => r.path === "/api/import/plex")).toBe(true));
     expect(container).toBeEmptyDOMElement();
-  });
-});
-
-describe("timeLeft", () => {
-  it("says about how long is left in minutes up to an hour and a half, then in hours", () => {
-    const t = i18next.getFixedT("en", "settings");
-    expect(timeLeft(t, 30)).toBe("under a minute left");
-    expect(timeLeft(t, 61)).toBe("about 2 minutes left");
-    expect(timeLeft(t, 60)).toBe("about 1 minute left");
-    expect(timeLeft(t, 89 * 60)).toBe("about 89 minutes left");
-    expect(timeLeft(t, 90 * 60)).toBe("about 2 hours left");
-    expect(timeLeft(t, 5 * 3600)).toBe("about 5 hours left");
   });
 });

@@ -67,6 +67,15 @@
     "hoursMinutes": "{{hours}} h {{minutes}} min",
     "daysHours": "{{days}} d {{hours}} h",
     "left": "Quedan {{time}}",
+    "timeLeft": {
+      "underAMinute": "queda menos de un minuto",
+      "minutes_one": "queda alrededor de {{count, number}} minuto",
+      "minutes_many": "quedan alrededor de {{count, number}} de minutos",
+      "minutes_other": "quedan alrededor de {{count, number}} minutos",
+      "hours_one": "queda alrededor de {{count, number}} hora",
+      "hours_many": "quedan alrededor de {{count, number}} de horas",
+      "hours_other": "quedan alrededor de {{count, number}} horas"
+    },
     "bitrateUnknown": "Tasa de bits desconocida",
     "specials": "Especiales",
     "season": "Temporada",

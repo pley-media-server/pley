@@ -9,6 +9,7 @@ import { useAuth } from "@/auth";
 import { Button, ProgressBar } from "@/components/ui";
 import { currentLanguage, currentLocale, loadNamespaces } from "@/i18n";
 import { cn } from "@/lib/cn";
+import { formatTimeLeft } from "@/lib/format";
 import { useLocalStorage, useNow } from "@/lib/hooks";
 import { PlexImportModal } from "./plexImport/PlexImportModal";
 import { PlexImportStatus } from "./plexImport/PlexImportStatus";
@@ -113,6 +114,7 @@ function FirstScans({ scans, className }: { scans: ScanStatus[]; className?: str
             {number(scan.processed)} / {number(scan.total)}
           </span>
         ) : null}
+        {counted && scan.left_secs != null ? <span className="text-muted">{formatTimeLeft(scan.left_secs)}</span> : null}
         <Button variant="ghost" size="sm" className="ms-auto" aria-expanded={open} onClick={() => setHidden(open)}>
           {open ? t("home.firstScans.hide") : t("home.firstScans.show")}
           <ChevronDown className={cn("size-4 transition-transform", open && "rotate-180")} aria-hidden />
@@ -157,7 +159,10 @@ function LibraryLine({ scan, running }: { scan: ScanStatus; running: boolean }) 
       </div>
       {running && phase ? (
         <div className="space-y-1 pl-6">
-          <p className="text-muted">{t(`home.firstScans.phases.${phase}`)}</p>
+          <p className="text-muted">
+            {t(`home.firstScans.phases.${phase}`)}
+            {counted && scan.left_secs != null ? ` · ${formatTimeLeft(scan.left_secs)}` : null}
+          </p>
           <ProgressBar
             value={counted ? scan.processed / scan.total : 0}
             label={scan.library_name}
@@ -232,6 +237,7 @@ function FirstScan({ scan, className }: { scan: ScanStatus; className?: string }
       <div className="flex items-center gap-3">
         <FolderSync className="size-4 shrink-0 text-muted" aria-hidden />
         <span>{text}</span>
+        {counted && scan.left_secs != null ? <span className="text-muted">· {formatTimeLeft(scan.left_secs)}</span> : null}
         {counted ? (
           <span className="ms-auto tabular-nums text-muted">
             {number(scan.processed)} / {number(scan.total)}

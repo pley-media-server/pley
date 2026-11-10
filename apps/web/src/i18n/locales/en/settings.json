@@ -934,13 +934,6 @@
         "walking": "finding files",
         "probing": "reading files",
         "matching": "finding Plex's titles"
-      },
-      "left": {
-        "underAMinute": "under a minute left",
-        "minutes_one": "about {{count, number}} minute left",
-        "minutes_other": "about {{count, number}} minutes left",
-        "hours_one": "about {{count, number}} hour left",
-        "hours_other": "about {{count, number}} hours left"
       }
     },
     "report": {

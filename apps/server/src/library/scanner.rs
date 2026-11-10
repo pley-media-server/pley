@@ -36,7 +36,7 @@ use crate::metadata::MetadataAgent;
 use crate::schedule::LibraryHold;
 use crate::store::Store;
 use crate::transcoder::{Transcoder, TranscoderError};
-use crate::util::{normalize_key, now, path_str, sort_title};
+use crate::util::{Pace, normalize_key, now, path_str, sort_title};
 
 const PROBE_CONCURRENCY: usize = 6;
 const WRITE_BATCH: usize = 64;
@@ -53,6 +53,30 @@ pub struct ScanStatus {
     pub started_at: i64,
     /// The library's first scan: Home says how far it is.
     pub first: bool,
+    /// About how many seconds its files have left to be read, or its
+    /// titles' details to be fetched, once that can be told from how fast
+    /// they've gone.
+    pub left_secs: Option<u64>,
+    /// The phase `left_secs` is told for, and how fast it goes.
+    #[serde(skip)]
+    pace: Option<(ScanPhase, Pace)>,
+}
+
+impl ScanStatus {
+    /// The scan is at `processed` of `total` in `phase`, with about how long
+    /// that has left.
+    fn update(&mut self, phase: ScanPhase, processed: u64, total: u64) {
+        self.phase = phase;
+        self.processed = processed;
+        self.total = total;
+        // Measured from where the phase began: reading files and fetching
+        // details go at their own paces.
+        if self.pace.is_none_or(|(measured, _)| measured != phase) {
+            self.pace =
+                matches!(phase, ScanPhase::Probing | ScanPhase::Metadata).then(|| (phase, Pace::new(processed)));
+        }
+        self.left_secs = self.pace.and_then(|(_, pace)| pace.left(processed, total));
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -239,6 +263,8 @@ impl Scanner {
             total: 0,
             started_at: now(),
             first: false,
+            left_secs: None,
+            pace: None,
         });
         entry.first |= first;
         drop(status);
@@ -335,7 +361,7 @@ impl Scanner {
                     && scanned
                 {
                     first_done.retain(|s| s.library_id != req.library_id);
-                    first_done.push(ScanStatus { phase: ScanPhase::Done, ..done });
+                    first_done.push(ScanStatus { phase: ScanPhase::Done, left_secs: None, ..done });
                 }
                 if !status.values().any(|s| s.first) {
                     first_done.clear();
@@ -365,11 +391,11 @@ impl Scanner {
             total,
             started_at: now(),
             first: false,
+            left_secs: None,
+            pace: None,
         });
         entry.library_name = lib.name.clone();
-        entry.phase = phase;
-        entry.processed = processed;
-        entry.total = total;
+        entry.update(phase, processed, total);
         drop(status);
         self.events.send(ServerEvent::ScanProgress { library_id: lib.id, phase, processed, total });
     }
@@ -1977,6 +2003,34 @@ fn extra_title(stem: &str, extra: &Extra) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_scan_says_how_long_its_phase_has_left_from_the_pace_since_it_began() {
+        use std::time::Instant;
+        let mut scan = ScanStatus {
+            library_id: 1,
+            library_name: "Movies".into(),
+            phase: ScanPhase::Walking,
+            processed: 0,
+            total: 0,
+            started_at: 0,
+            first: true,
+            left_secs: None,
+            pace: None,
+        };
+        scan.update(ScanPhase::Walking, 0, 0);
+        assert!(scan.pace.is_none(), "finding files has no count to go by");
+        scan.update(ScanPhase::Probing, 100, 1000);
+        assert_eq!(scan.left_secs, None, "too soon to tell");
+        // 200 files read in 20 seconds: 700 more take 70.
+        scan.pace = Some((ScanPhase::Probing, Pace::measured_since(Instant::now() - Duration::from_secs(20), 100)));
+        scan.update(ScanPhase::Probing, 300, 1000);
+        assert_eq!(scan.left_secs, Some(70));
+        // Fetching details is measured afresh.
+        scan.update(ScanPhase::Metadata, 0, 50);
+        assert_eq!(scan.left_secs, None);
+        assert!(matches!(scan.pace, Some((ScanPhase::Metadata, _))));
+    }
 
     fn library(id: i64, scanned_at: Option<i64>) -> LibraryRow {
         LibraryRow { id, name: "Movies".into(), kind: "movies".into(), paths: "[]".into(), created_at: 0, scanned_at }

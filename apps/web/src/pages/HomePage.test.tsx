@@ -115,6 +115,7 @@ const firstScan: ScanStatus = {
   total: 6509,
   started_at: 0,
   first: true,
+  left_secs: 1500,
 };
 
 describe("HomePage", () => {
@@ -164,6 +165,7 @@ describe("HomePage", () => {
     renderWithProviders(<HomePage />);
     expect(await screen.findByText("Scanning TV Shows: reading files")).toBeInTheDocument();
     expect(screen.getByText("2,140 / 6,509")).toBeInTheDocument();
+    expect(screen.getByText("· about 25 minutes left")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Scanning TV Shows: reading files" })).toBeInTheDocument();
     expect(screen.queryByText(/Movies: waiting/)).not.toBeInTheDocument();
   });
@@ -182,12 +184,13 @@ describe("HomePage", () => {
     });
     renderWithProviders(<HomePage />);
     expect(await screen.findByText("Scanning your libraries, 2 of 3: TV Shows")).toBeInTheDocument();
+    expect(screen.getByText("about 25 minutes left")).toBeInTheDocument();
     // Movies done, TV Shows a third of the way through reading its files: (1 + 2140 / 6509 / 2) / 3.
     expect(screen.getByRole("progressbar", { name: "All your libraries" })).toHaveAttribute("aria-valuenow", "39");
     const list = screen.getByRole("list");
     expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
       "Movies",
-      "TV Shows2,140 / 6,509Reading files",
+      "TV Shows2,140 / 6,509Reading files · about 25 minutes left",
       "Music",
     ]);
     await user.click(screen.getByRole("button", { name: /Hide the libraries/ }));

@@ -7,7 +7,7 @@ import { ConfirmModal } from "@/components/Modal";
 import { Button, IconButton, ProgressBar } from "@/components/ui";
 import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
-import { formatDay } from "@/lib/format";
+import { formatDay, formatTimeLeft } from "@/lib/format";
 import { useLocalStorage } from "@/lib/hooks";
 import { StepList } from "./ImportProgressView";
 import { ErrorNote } from "./PlexImport";
@@ -59,6 +59,7 @@ export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () 
   const open = steps.length > 0 && hidden !== id;
   let text: string;
   let count: string | null = null;
+  let left: string | null = null;
   let overall: number | null = null;
   if (running) {
     const step = data.step ? t(`plexImport.progress.steps.${data.step}`) : t("plexImport.progress.starting");
@@ -67,6 +68,8 @@ export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () 
     // Open, the steps below name the step and count it.
     text = at < 0 ? t("plexImport.status.running", { step }) : open ? t("plexImport.status.runningAt", place) : t("plexImport.status.runningStep", { step, ...place });
     if (!open && data.total > 0) count = t("plexImport.status.count", { done: number(data.done), total: number(data.total) });
+    const seconds = stepLeft(data);
+    if (!open && seconds != null) left = formatTimeLeft(seconds);
     if (at >= 0) overall = share(data);
   } else if (data.state === "interrupted" && data.started_at) {
     text = t("plexImport.status.interrupted", { date: formatDay(data.started_at) });
@@ -87,6 +90,7 @@ export function PlexImportStatus({ onReport, onAgain, onClose }: { onReport: () 
         <Import className="size-4 shrink-0 text-muted" aria-hidden />
         <span>{text}</span>
         {count ? <span className="tabular-nums text-muted">{count}</span> : null}
+        {left ? <span className="text-muted">{left}</span> : null}
         <div className="ms-auto flex items-center gap-1">
           {open ? (
             <Button variant="ghost" size="sm" onClick={() => setStopping(true)}>
@@ -160,6 +164,12 @@ function share(progress: ImportProgress): number {
     return sum;
   }, 0);
   return done / total;
+}
+
+/** About how many seconds the running step has left: in the scans, the library whose files are read. */
+function stepLeft(progress: ImportProgress): number | null {
+  if (progress.step === "scanning") return progress.libraries?.find((library) => library.phase === "probing")?.left_secs ?? null;
+  return progress.left_secs ?? null;
 }
 
 /** The part of the running step done: for the scans, the libraries' files read; otherwise its count. */

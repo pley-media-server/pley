@@ -9,7 +9,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
@@ -19,7 +19,7 @@ use crate::events::{ScanPhase, ServerEvent};
 use crate::library::scanner::ScanStatus;
 use crate::library::{LibraryKind, get_library};
 use crate::state::AppState;
-use crate::util::{now, sort_title};
+use crate::util::{Pace, now, sort_title};
 
 use super::matching::{Folder, Index, Matches, folder_for, map_path};
 use futures::StreamExt;
@@ -98,6 +98,9 @@ pub struct Progress {
     pub step: Option<Step>,
     pub done: u64,
     pub total: u64,
+    /// About how many seconds the step has left, where that can be told
+    /// from how fast it goes: fetching the libraries' details.
+    pub left_secs: Option<u64>,
     /// Why it stopped, when it failed.
     pub error: Option<String>,
     pub report: Option<Report>,
@@ -206,14 +209,6 @@ pub enum LibraryPhase {
     /// Plex's titles are looked for in it.
     Matching,
     Done,
-}
-
-/// How long `left` files take to read at the pace of `read` in
-/// `elapsed_secs`, rounded to the second: none before the pace can be told.
-fn time_left(elapsed_secs: f64, read: u64, left: u64) -> Option<u64> {
-    /// The time a pace is measured over before it's trusted.
-    const MEASURED_FOR: f64 = 10.0;
-    (elapsed_secs >= MEASURED_FOR && read > 0).then(|| (left as f64 * elapsed_secs / read as f64).round() as u64)
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1135,6 +1130,7 @@ impl Run {
             p.step = Some(step);
             p.done = 0;
             p.total = total;
+            p.left_secs = None;
             p.scan = None;
             if let Some(at) = p.steps.iter().position(|r| r.step == row) {
                 for before in p.steps[..at].iter_mut().filter(|r| r.state != StepState::Done) {
@@ -1375,8 +1371,6 @@ impl Run {
                 found: None,
             })
             .collect();
-        // When each library's files started being read, and how many had been.
-        let mut reading: HashMap<i64, (Instant, u64)> = HashMap::new();
         loop {
             self.cancelled()?;
             let scans = finding(&self.state, paired);
@@ -1388,14 +1382,7 @@ impl Run {
                     _ => LibraryPhase::Queued,
                 };
                 (row.done, row.total) = (scan.processed, scan.total);
-                row.left_secs = (scan.phase == ScanPhase::Probing)
-                    .then(|| {
-                        let (since, first) =
-                            *reading.entry(library.library_id).or_insert((Instant::now(), scan.processed));
-                        let read = scan.processed.saturating_sub(first);
-                        time_left(since.elapsed().as_secs_f64(), read, scan.total.saturating_sub(scan.processed))
-                    })
-                    .flatten();
+                row.left_secs = if scan.phase == ScanPhase::Probing { scan.left_secs } else { None };
             }
             if scans.is_empty() {
                 break;
@@ -1475,15 +1462,18 @@ impl Run {
         // Each library's last count, kept once its fetch is done and its
         // status gone.
         let mut counts: HashMap<i64, (u64, u64)> = HashMap::new();
+        let pace = Pace::new(0);
         loop {
             self.cancelled()?;
-            let mut busy = false;
+            let (mut busy, mut uncounted) = (false, false);
             for library in paired {
                 match scanner.status_of(library.library_id) {
                     Some(status) => {
                         busy = true;
                         if status.phase == ScanPhase::Metadata {
                             counts.insert(library.library_id, (status.processed, status.total));
+                        } else {
+                            uncounted = true;
                         }
                     }
                     None => {
@@ -1494,9 +1484,12 @@ impl Run {
                 }
             }
             let (done, total) = counts.values().fold((0, 0), |(d, t), (done, total)| (d + done, t + total));
+            // A library still waiting for its fetch would add to what's left.
+            let left = if uncounted { None } else { pace.left(done, total) };
             self.importer.set(&self.state, self.admin, |p| {
                 p.done = done;
                 p.total = total;
+                p.left_secs = left;
             });
             if !busy {
                 return Ok(());
@@ -2537,17 +2530,6 @@ impl Pager {
 
 #[cfg(test)]
 mod tests {
-    use super::time_left;
-
-    #[test]
-    fn time_left_is_told_from_the_pace_once_it_was_measured_long_enough() {
-        // 500 files in 50 seconds: 1,500 more take 150.
-        assert_eq!(time_left(50.0, 500, 1500), Some(150));
-        assert_eq!(time_left(5.0, 500, 1500), None, "too soon to tell");
-        assert_eq!(time_left(50.0, 0, 1500), None, "none read yet");
-        assert_eq!(time_left(50.0, 500, 0), Some(0));
-    }
-
     use super::*;
 
     #[test]

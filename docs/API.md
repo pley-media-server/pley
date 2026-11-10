@@ -3869,6 +3869,11 @@ interface ScanStatus {
   total: number;
   started_at: Timestamp;
   first: boolean;                   // the library's first scan (Home shows how far it is), from when it's queued
+  // About how many seconds its files have left to be read ("probing"), or
+  // its titles' details to be fetched ("metadata"), told from how fast they
+  // have gone since the phase began; null until that's been measured for
+  // ten seconds.
+  left_secs: number | null;
 }
 
 interface SessionInfo {
@@ -4619,6 +4624,9 @@ interface ImportProgress {
   step: "scanning" | "profiles" | "matching" | "labels" | "edits" | "collections" | "watch_state"
       | "history" | "playlists" | "fetching" | "matching_again" | null;
   done: number; total: number;
+  // During "fetching": about how many seconds it has left, once every
+  // library's count is in and the pace can be told; null otherwise.
+  left_secs: number | null;
   error: string | null;
   // What was found by file has come over (watched titles, resume points,
   // labels…); "fetching" the libraries' metadata and "matching_again" (the

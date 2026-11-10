@@ -633,6 +633,8 @@ export interface ScanStatus {
   started_at: Timestamp;
   /** The library's first scan; absent from servers before it, and from scans heard of only by their events. */
   first?: boolean;
+  /** About how many seconds its files have left to be read, or its details to be fetched, once that can be told; absent from servers before it. */
+  left_secs?: number | null;
 }
 
 export type TranscodeJobState = "starting" | "running" | "idle" | "finished" | "failed";

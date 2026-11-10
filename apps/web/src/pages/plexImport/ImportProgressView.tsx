@@ -21,6 +21,7 @@ import { ConfirmModal } from "@/components/Modal";
 import { Badge, Button, PageSpinner, ProgressBar } from "@/components/ui";
 import { currentLocale } from "@/i18n";
 import { ageBadge } from "@/lib/access";
+import { formatTimeLeft } from "@/lib/format";
 import { libraryUrl } from "@/lib/urls";
 import { ErrorNote, StepFrame } from "./PlexImport";
 
@@ -195,6 +196,9 @@ function StepLine({ row, progress }: { row: ImportStepRow; progress: ImportProgr
         )}
         <span className={row.state === "to_come" ? "text-subtle" : row.state === "running" ? "font-medium" : undefined}>{name}</span>
         {counted ? <span className="text-muted">· {counted}</span> : null}
+        {row.state === "running" && !libraries && progress.left_secs != null ? (
+          <span className="text-muted">· {formatTimeLeft(progress.left_secs)}</span>
+        ) : null}
         {row.state === "running" && !libraries && progress.total > 0 ? (
           <span className="ml-auto tabular-nums text-muted">
             {progress.done.toLocaleString(currentLocale())} / {progress.total.toLocaleString(currentLocale())}
@@ -232,7 +236,7 @@ function LibraryLine({ library }: { library: ImportLibraryRow }) {
   const { phase } = library;
   const reading = phase === "probing" && library.total > 0;
   const doing = phase === "walking" || phase === "probing" || phase === "matching" ? t(`plexImport.progress.library.${phase}`) : null;
-  const left = reading && library.left_secs != null ? timeLeft(t, library.left_secs) : null;
+  const left = reading && library.left_secs != null ? formatTimeLeft(library.left_secs) : null;
   return (
     <div className="space-y-1 text-sm">
       <div className="flex items-center gap-2">
@@ -261,14 +265,6 @@ function LibraryLine({ library }: { library: ImportLibraryRow }) {
       ) : null}
     </div>
   );
-}
-
-/** About how long is left, said as people would: in minutes up to an hour and a half, then in hours. */
-export function timeLeft(t: TFunction<"settings">, seconds: number): string {
-  if (seconds < 60) return t("plexImport.progress.left.underAMinute");
-  const minutes = Math.ceil(seconds / 60);
-  if (minutes < 90) return t("plexImport.progress.left.minutes", { count: minutes });
-  return t("plexImport.progress.left.hours", { count: Math.round(minutes / 60) });
 }
 
 /** The library the import's scans are on, with its files read once they're counted. */

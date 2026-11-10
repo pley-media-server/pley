@@ -36,15 +36,15 @@ describes how they are made.
   summaries and dates added as soon as their library is scanned, until
   Pley's own details replace them. Posters come from Pley's own fetch.
 - Home tells administrators how far new libraries are, first on the page,
-  above the banner: the Plex import,
-  which Home goes to as soon as it starts, with how far the whole import
-  is, its steps, each library scanned with about how long it has left and
-  the titles found in it, and Stop, then how it ended (and why, if it
-  failed, or that a restart of the server cut it short), with Import
-  again when it didn't finish, until that's closed; after Start fresh, which of the new libraries is being
-  scanned, how far they all are, and each ticked off once done; or a
-  library's first scan (its files found, read, then its details
-  fetched).
+  above the banner: the Plex import, which Home goes to as soon as it
+  starts, with how far the whole import is, its steps, each library
+  scanned with the titles found in it, and Stop, then how it ended (and
+  why, if it failed, or that a restart of the server cut it short), with
+  Import again when it didn't finish, until that's closed; after Start
+  fresh, which of the new libraries is being scanned, how far they all
+  are, and each ticked off once done; or a library's first scan (its
+  files found, read, then its details fetched). Reading files and
+  fetching details say about how long they have left.
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the
   metadata language's country, and still is until one is chosen:

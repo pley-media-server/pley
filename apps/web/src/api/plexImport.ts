@@ -180,6 +180,8 @@ export interface ImportProgress {
   step: ImportStep | null;
   done: number;
   total: number;
+  /** About how many seconds the step has left, where that can be told (fetching details); absent from servers before it. */
+  left_secs?: number | null;
   error: string | null;
   report: ImportReport | null;
   /** What was found by file has come over; metadata and the titles found by id follow. */
@@ -199,7 +201,6 @@ export interface ImportStepRow {
   count: number | null;
 }
 
-/** A library's scan the import waits for: its files found, then read (`done` of `total`). */
 /** A library the import brings, during the scanning step. */
 export interface ImportLibraryRow {
   library: string;

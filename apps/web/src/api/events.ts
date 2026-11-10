@@ -309,7 +309,8 @@ export function useServerEvents(userId: Id | null) {
                   ...old,
                   scans: old.scans.map((s) =>
                     s.library_id === ev.library_id
-                      ? { ...s, phase: ev.phase, processed: ev.processed, total: ev.total }
+                      ? // Time left is for the phase it was told for.
+                        { ...s, phase: ev.phase, processed: ev.processed, total: ev.total, left_secs: s.phase === ev.phase ? s.left_secs : null }
                       : s,
                   ),
                 };

@@ -67,6 +67,13 @@
     "hoursMinutes": "{{hours}}h {{minutes}}m",
     "daysHours": "{{days}}d {{hours}}h",
     "left": "{{time}} left",
+    "timeLeft": {
+      "underAMinute": "under a minute left",
+      "minutes_one": "about {{count, number}} minute left",
+      "minutes_other": "about {{count, number}} minutes left",
+      "hours_one": "about {{count, number}} hour left",
+      "hours_other": "about {{count, number}} hours left"
+    },
     "bitrateUnknown": "Bitrate unknown",
     "specials": "Specials",
     "season": "Season",

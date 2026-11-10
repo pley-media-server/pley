@@ -132,10 +132,13 @@ describe("useServerEvents", () => {
 
     // Fetched a while ago, with the first scan of library 1: the events
     // keep what they don't say, and when it was fetched.
-    const scan = { library_id: 1, library_name: "Library 1", phase: "probing" as const, processed: 3, total: 10, started_at: 0, first: true };
+    const scan = { library_id: 1, library_name: "Library 1", phase: "probing" as const, processed: 3, total: 10, started_at: 0, first: true, left_secs: 70 };
     client.setQueryData<Activity>(keys.activity, { scans: [scan], sessions: [] }, { updatedAt: 1_000 });
     act(() => source().send({ type: "scan_progress", library_id: 1, phase: "probing", processed: 5, total: 10 }));
     expect(client.getQueryData<Activity>(keys.activity)?.scans).toEqual([{ ...scan, processed: 5 }]);
+    // The time left was for reading files, not for fetching details.
+    act(() => source().send({ type: "scan_progress", library_id: 1, phase: "metadata", processed: 0, total: 4 }));
+    expect(client.getQueryData<Activity>(keys.activity)?.scans).toEqual([{ ...scan, phase: "metadata", processed: 0, total: 4, left_secs: null }]);
     expect(client.getQueryState(keys.activity)?.dataUpdatedAt).toBe(1_000);
     expect(invalidated(client, keys.activity)).toBe(false);
 

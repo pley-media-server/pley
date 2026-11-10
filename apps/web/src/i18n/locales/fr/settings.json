@@ -959,15 +959,6 @@
         "walking": "recherche des fichiers",
         "probing": "lecture des fichiers",
         "matching": "recherche des titres de Plex"
-      },
-      "left": {
-        "underAMinute": "encore moins d’une minute",
-        "minutes_one": "encore environ {{count, number}} minute",
-        "minutes_many": "encore environ {{count, number}} de minutes",
-        "minutes_other": "encore environ {{count, number}} minutes",
-        "hours_one": "encore environ {{count, number}} heure",
-        "hours_many": "encore environ {{count, number}} d’heures",
-        "hours_other": "encore environ {{count, number}} heures"
       }
     },
     "report": {
