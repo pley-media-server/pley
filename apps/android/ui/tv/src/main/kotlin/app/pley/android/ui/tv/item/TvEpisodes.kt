@@ -79,7 +79,8 @@ import kotlin.math.roundToInt
  * season tabs, when the show has more than one season, then the season's
  * episodes as 208 by 117 tiles captioned "5. Glasshouse" and "26 min left".
  * Focus comes into the row on the episode to watch (or the page's own
- * episode), and stays at the gutter while the row moves. A tab chosen
+ * episode, which is marked in the row: the one the page is about), and
+ * stays at the gutter while the row moves. A tab chosen
  * with focus resting on it shows its season. A show whose seasons have
  * posters of their own ([SeasonsSection.posters]) shows them as a row of
  * poster tiles instead, as the web does, with the season shown named over
@@ -145,6 +146,7 @@ internal fun TvEpisodesSection(
                     episodes = episodes,
                     origin = page.origin,
                     target = seasons.focus,
+                    current = page.id.takeIf { page.kind == ItemKind.Episode },
                     memory = memory,
                     rowRequester = rowRequester,
                     modifier = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Episodes },
@@ -328,13 +330,15 @@ private fun SeasonPosters(
  * The episodes, as a row of the TV kit ([TvRow]): the focused tile's left
  * edge at the gutter, focus coming back to the tile it left (or the first
  * time to [target]), Left from the first tile to the rail, Right stopping
- * at the end, and a held key sliding the row as any row's does.
+ * at the end, and a held key sliding the row as any row's does. [current]
+ * is the episode whose page this is, marked among the others.
  */
 @Composable
 private fun EpisodeRow(
     episodes: List<EpisodeLine>,
     origin: String,
     target: Long?,
+    current: Long?,
     memory: FocusMemory,
     rowRequester: FocusRequester,
     modifier: Modifier,
@@ -365,6 +369,7 @@ private fun EpisodeRow(
         memory = memory,
         enterOn = episodes.getOrNull(start)?.item?.id,
         state = state,
+        current = current,
         modifier = modifier.focusRequester(rowRequester),
     )
 }

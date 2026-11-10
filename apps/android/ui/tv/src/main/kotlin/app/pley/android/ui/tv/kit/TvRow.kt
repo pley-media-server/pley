@@ -121,7 +121,8 @@ import kotlin.math.roundToInt
  * row's item key. [initialFocus] makes the first tile the page's initial
  * focus. [seeAll] adds the "See all" tile at the end. [onFocus] hears
  * each tile that takes focus (an info block follows it once it rests,
- * [rememberRested]); [onActions] is the long press of Select.
+ * [rememberRested]); [onActions] is the long press of Select. [current]
+ * is the tile the page is about, marked as such ([TvTile]).
  */
 @Composable
 fun TvRow(
@@ -138,6 +139,7 @@ fun TvRow(
     seeAll: SeeAll? = null,
     enterOn: Long? = null,
     state: LazyListState = rememberTvRowState(),
+    current: Long? = null,
 ) {
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
@@ -234,6 +236,7 @@ fun TvRow(
                         kind = kind,
                         onClick = { onOpen(tile) },
                         onLongClick = onActions?.let { { it(tile) } },
+                        current = tile.id == current,
                         modifier = Modifier.onFocusChanged {
                             if (it.hasFocus) {
                                 row.focusedIndex = index

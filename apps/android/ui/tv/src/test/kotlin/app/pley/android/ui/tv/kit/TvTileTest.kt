@@ -26,7 +26,7 @@ import org.robolectric.annotation.Config
 /**
  * Tiles: Select opens, and holding Select or pressing Menu gives the actions (rule 6);
  * a quiet tile (a row sliding, a grid gliding under a held key) shows none of its focus
- * look until the quiet ends.
+ * look until the quiet ends. The mark of the tile a page is about is [TvCurrentTileTest]'s.
  * Held direction keys are [TvRowFocusTest]'s.
  */
 @OptIn(ExperimentalTestApi::class)

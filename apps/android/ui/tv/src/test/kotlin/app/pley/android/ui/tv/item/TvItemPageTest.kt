@@ -353,9 +353,12 @@ class TvItemPageTest {
         stack.clear()
         stack += listOf(PleyKey.Home, PleyKey.Item(1), PleyKey.Item(1012))
         show(data, id = 1012)
+        // Its own episode is marked among its season's, before focus is anywhere near.
+        compose.onNode(hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isSelected()).assert(hasContentDescription("Episode 2", substring = true))
         // Down from Play: its season's row, on the page's own episode.
         press(Key.DirectionDown)
         compose.onNode(isFocused()).assert(hasContentDescription("Episode 2", substring = true))
+        compose.onNode(isFocused()).assert(isSelected())
         // Select there plays it; the page stays.
         press(Key.Enter)
         assertEquals(1012L, data.played.single().itemId)

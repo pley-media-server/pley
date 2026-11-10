@@ -257,8 +257,9 @@ rates as the decoder gives them, the same in every language.
   with them. Seasons with posters of their own are a row of posters in
   the tabs' place: resting on one shows its episodes under the row, and
   Select goes down into them, on the episode to watch. An episode opens
-  its own page, whose season row starts on it; there, Select on the same
-  episode plays it and another episode's page takes the page's place, so
+  its own page, whose season row starts on it and marks it, with a thin
+  ring and its title in bold, while focus is elsewhere; there, Select on
+  the same episode plays it and another episode's page takes the page's place, so
   Back from an episode is the show again, on the season and the episode
   it was opened from. A title's page
   whose details are held in memory (seen before, or asked for ahead)

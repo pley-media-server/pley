@@ -20,6 +20,9 @@ describes how they are made.
   through, at the top right: the one on is longer and fills as its time
   runs. Up from the banner's buttons reaches the dashes, where Left and
   Right turn to the title before or after.
+- On Android TV, an episode's page marks its own episode in its
+  season's row, with a thin ring and its title in bold, so it is found
+  among the others before focus is on it.
 
 ### Changed
 
