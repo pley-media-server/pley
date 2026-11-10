@@ -3461,7 +3461,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/activity` | `activity` | `{ scans: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
+| GET | `/api/activity` | `activity` | `{ scans: ScanStatus[], first_scans_done: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
@@ -3469,7 +3469,11 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
-`/api/activity`: `seasons_pending` counts seasons waiting for intro and
+`/api/activity`: `scans` are the scans queued or running.
+`first_scans_done` are libraries' first scans that are done while other
+first scans are still queued or running, so Home can tick them off; it's
+empty once the last is done. A library's scan is its first from the
+moment it's added. `seasons_pending` counts seasons waiting for intro and
 credits detection, `previews_pending` files waiting for seek previews
 (those being made included), `previews_running` those being made now, and
 `library_work` says why they wait while some do ([Library work](#library-work)).
@@ -3864,7 +3868,7 @@ interface ScanStatus {
   processed: number;
   total: number;
   started_at: Timestamp;
-  first: boolean;                   // the library's first scan (Home shows how far it is)
+  first: boolean;                   // the library's first scan (Home shows how far it is), from when it's queued
 }
 
 interface SessionInfo {

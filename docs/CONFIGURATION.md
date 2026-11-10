@@ -17,9 +17,10 @@ on what looks like Docker's own network, where they couldn't). Then bring
 over a Plex server's libraries and profiles
 ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)), or start fresh: add libraries
 one after another (movies, then shows, then music), each scanning as soon
-as it's added, then Start watching. Home shows how far each library's
-first scan is (to administrators), and seek previews and intro detection
-wait until it's done. In a container with no media folder mounted, the
+as it's added, then Start watching. Home shows administrators how far the
+libraries' first scans are, which of them it's on, and each library
+ticked off as it's done; seek previews and intro detection wait until
+they are. In a container with no media folder mounted, the
 step says so and how to mount one. Each is in Settings afterwards. Nobody without the code can claim a new server.
 
 `pley reset-password <user> [--admin]` resets a lost password. It asks for

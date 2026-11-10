@@ -375,6 +375,17 @@
       "probing": "Scanning {{library}}: reading files",
       "metadata": "{{library}}: fetching details"
     },
+    "firstScans": {
+      "title": "Scanning your libraries, {{at}} of {{count}}: {{library}}",
+      "overall": "All your libraries",
+      "show": "Show the libraries",
+      "hide": "Hide the libraries",
+      "phases": {
+        "walking": "Finding files",
+        "probing": "Reading files",
+        "metadata": "Fetching posters and details"
+      }
+    },
     "banner": {
       "label": "Featured",
       "new": "New",

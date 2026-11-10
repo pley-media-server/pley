@@ -84,6 +84,9 @@ pub struct Scanner {
     hold: Arc<LibraryHold>,
     queue: mpsc::UnboundedSender<ScanRequest>,
     status: Mutex<HashMap<i64, ScanStatus>>,
+    /// First scans that finished while other first scans are under way:
+    /// Home ticks them off until the last is done.
+    first_done: Mutex<Vec<ScanStatus>>,
     failures: Mutex<ScanFailures>,
 }
 
@@ -184,6 +187,7 @@ impl Scanner {
             hold,
             queue: tx,
             status: Mutex::default(),
+            first_done: Mutex::default(),
             failures: Mutex::default(),
         });
         tokio::spawn(scanner.clone().worker(rx));
@@ -202,24 +206,32 @@ impl Scanner {
 
     /// Scans a library: its files, then metadata for what has none.
     pub fn enqueue(&self, library_id: i64, force: bool) {
-        self.request(ScanRequest { library_id, force, files: true, metadata: true });
+        self.request(ScanRequest { library_id, force, files: true, metadata: true }, false);
+    }
+
+    /// Scans a library just added: a first scan from the moment it's
+    /// queued, so Home lists it while it waits behind another.
+    pub fn enqueue_new(&self, library_id: i64) {
+        self.request(ScanRequest { library_id, force: false, files: true, metadata: true }, true);
     }
 
     /// Scans a library's files only, leaving metadata for later: the Plex
     /// import brings Plex's matches first, so the fetch finds their ids.
     pub fn enqueue_files(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: true, metadata: false });
+        self.request(ScanRequest { library_id, force: false, files: true, metadata: false }, false);
     }
 
     /// Fetches metadata for a library's titles that have none, without
     /// walking its folders again.
     pub fn enqueue_metadata(&self, library_id: i64) {
-        self.request(ScanRequest { library_id, force: false, files: false, metadata: true });
+        self.request(ScanRequest { library_id, force: false, files: false, metadata: true }, false);
     }
 
-    fn request(&self, req: ScanRequest) {
+    /// Queues `req`; `first` when it's the library's first scan.
+    fn request(&self, req: ScanRequest, first: bool) {
         let library_id = req.library_id;
-        self.status.lock().entry(library_id).or_insert_with(|| ScanStatus {
+        let mut status = self.status.lock();
+        let entry = status.entry(library_id).or_insert_with(|| ScanStatus {
             library_id,
             library_name: String::new(),
             phase: ScanPhase::Queued,
@@ -228,13 +240,18 @@ impl Scanner {
             started_at: now(),
             first: false,
         });
+        entry.first |= first;
+        drop(status);
         let _ = self.queue.send(req);
         self.events.send(ServerEvent::ScanProgress { library_id, phase: ScanPhase::Queued, processed: 0, total: 0 });
     }
 
     pub async fn enqueue_all(&self, force: bool) -> sqlx::Result<()> {
         for lib in list_libraries(&self.db).await? {
-            self.enqueue(lib.id, force);
+            self.request(
+                ScanRequest { library_id: lib.id, force, files: true, metadata: true },
+                lib.scanned_at.is_none(),
+            );
         }
         Ok(())
     }
@@ -243,6 +260,13 @@ impl Scanner {
         let mut list: Vec<_> = self.status.lock().values().cloned().collect();
         list.sort_by_key(|s| s.started_at);
         list
+    }
+
+    /// The first scans done while others are queued or running; none once
+    /// the last is done. A library scanned again since isn't among them.
+    pub fn first_scans_done(&self) -> Vec<ScanStatus> {
+        let status = self.status.lock();
+        self.first_done.lock().iter().filter(|s| !status.contains_key(&s.library_id)).cloned().collect()
     }
 
     pub fn is_scanning(&self, library_id: i64) -> bool {
@@ -280,6 +304,7 @@ impl Scanner {
             }
             let started = Instant::now();
             let result = self.scan(req).await;
+            let scanned = matches!(result, Ok(Some(_)));
             self.failures.lock().record(req.library_id, result.is_ok(), now());
             match result {
                 Ok(Some((t, p))) => tracing::info!(
@@ -303,7 +328,18 @@ impl Scanner {
                 Err(err) => tracing::error!("scan of library {} failed: {err:#}", req.library_id),
             }
             if !pending.iter().any(|p| p.library_id == req.library_id) {
-                self.status.lock().remove(&req.library_id);
+                let mut status = self.status.lock();
+                let mut first_done = self.first_done.lock();
+                if let Some(done) = status.remove(&req.library_id)
+                    && done.first
+                    && scanned
+                {
+                    first_done.retain(|s| s.library_id != req.library_id);
+                    first_done.push(ScanStatus { phase: ScanPhase::Done, ..done });
+                }
+                if !status.values().any(|s| s.first) {
+                    first_done.clear();
+                }
             }
             self.events.send(ServerEvent::ScanProgress {
                 library_id: req.library_id,

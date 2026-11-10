@@ -155,13 +155,58 @@ describe("HomePage", () => {
     expect(await screen.findByText("Scanning your libraries…")).toBeInTheDocument();
   });
 
-  it("says how far a library's first scan is", async () => {
-    serve({ scans: [{ ...firstScan, library_id: 1, library_name: "Movies", phase: "queued", processed: 0, total: 0 }, firstScan] });
+  it("says how far a library's first scan is, on a server that has others", async () => {
+    const kids: Library = { ...movies, id: 5, name: "Kids", scanned_at: 1_700_000_000 };
+    serve({
+      libraries: [movies, { ...movies, id: 2, name: "TV Shows", kind: "shows" }, kids],
+      scans: [{ ...firstScan, library_id: 1, library_name: "Movies", phase: "queued", processed: 0, total: 0 }, firstScan],
+    });
     renderWithProviders(<HomePage />);
     expect(await screen.findByText("Scanning TV Shows: reading files")).toBeInTheDocument();
     expect(screen.getByText("2,140 / 6,509")).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Scanning TV Shows: reading files" })).toBeInTheDocument();
     expect(screen.queryByText(/Movies: waiting/)).not.toBeInTheDocument();
+  });
+
+  it("ticks off a new server's libraries as their first scans finish", async () => {
+    const user = userEvent.setup();
+    const libraries: Library[] = [movies, { ...movies, id: 2, name: "TV Shows", kind: "shows" }, { ...movies, id: 3, name: "Music", kind: "music" }];
+    // Movies is done; Music waits behind TV Shows, its name not known to its scan yet.
+    const done: ScanStatus = { ...firstScan, library_id: 1, library_name: "Movies", phase: "done", processed: 812, total: 812 };
+    const music: ScanStatus = { ...firstScan, library_id: 3, library_name: "", phase: "queued", processed: 0, total: 0, started_at: 5 };
+    mockApi({
+      "GET /api/libraries": () => libraries,
+      "GET /api/hubs/home": () => ({ hubs }),
+      "GET /api/activity": (): Activity => ({ scans: [firstScan, music], first_scans_done: [done], sessions: [] }),
+      "GET /api/import/plex": () => ({ ...importing, state: "idle", step: null }),
+    });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByText("Scanning your libraries, 2 of 3: TV Shows")).toBeInTheDocument();
+    // Movies done, TV Shows a third of the way through reading its files: (1 + 2140 / 6509 / 2) / 3.
+    expect(screen.getByRole("progressbar", { name: "All your libraries" })).toHaveAttribute("aria-valuenow", "39");
+    const list = screen.getByRole("list");
+    expect(within(list).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Movies",
+      "TV Shows2,140 / 6,509Reading files",
+      "Music",
+    ]);
+    await user.click(screen.getByRole("button", { name: /Hide the libraries/ }));
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    expect(localStorage.getItem("pley.home.firstScansHidden")).toBe("true");
+  });
+
+  it("says nothing more once a new server's libraries are all scanned", async () => {
+    const done: ScanStatus = { ...firstScan, library_id: 1, library_name: "Movies", phase: "done" };
+    const requests = mockApi({
+      "GET /api/libraries": () => [movies],
+      "GET /api/hubs/home": () => ({ hubs }),
+      "GET /api/activity": (): Activity => ({ scans: [done], sessions: [] }),
+      "GET /api/import/plex": () => ({ ...importing, state: "idle", step: null }),
+    });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByRole("heading", { name: "Continue Watching" })).toBeInTheDocument();
+    await waitFor(() => expect(requests.some((r) => r.path === "/api/activity")).toBe(true));
+    expect(screen.queryByText(/Scanning your libraries/)).not.toBeInTheDocument();
   });
 
   it("says nothing of a library scanned again", async () => {

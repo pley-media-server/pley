@@ -955,6 +955,48 @@ async fn a_librarys_first_scan_holds_library_work_and_says_so() {
 }
 
 #[tokio::test]
+async fn first_scans_done_stay_listed_until_the_last_is_done() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let add = |name: &'static str| async move {
+        let r = app
+            .post("/api/libraries", admin, json!({"name": name, "kind": "movies", "paths": [app.media_path(name)]}))
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+        r.body["id"].as_i64().unwrap()
+    };
+    let listed = |activity: &Value, list: &str| -> Vec<(i64, String, bool)> {
+        activity[list]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| (s["library_id"].as_i64().unwrap(), s["phase"].as_str().unwrap().to_owned(), s["first"] == true))
+            .collect()
+    };
+
+    // Empty's scan finishes at once; Held's waits on its file, and Next's
+    // waits behind it, a first scan from the moment it's queued.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    std::fs::create_dir_all(app.media_path("empty")).unwrap();
+    app.media_file("held/Held (2020).mkv", 5000);
+    app.media_file("next/Next (2021).mkv", 5000);
+    let empty = add("empty").await;
+    let held = add("held").await;
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("Held (2020)"))).await;
+    let next = add("next").await;
+    let activity = app.get("/api/activity", admin).await.body;
+    assert_eq!(listed(&activity, "first_scans_done"), [(empty, "done".to_owned(), true)]);
+    assert_eq!(listed(&activity, "scans"), [(held, "probing".to_owned(), true), (next, "queued".to_owned(), true)]);
+
+    // Once the last is done, none is listed.
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    let activity = app.get("/api/activity", admin).await.body;
+    assert_eq!(listed(&activity, "first_scans_done"), []);
+    assert_eq!(listed(&activity, "scans"), []);
+}
+
+#[tokio::test]
 async fn scans_keep_what_the_transcoder_probed() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());

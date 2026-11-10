@@ -377,6 +377,17 @@
       "probing": "Analyse de {{library}} : lecture des fichiers",
       "metadata": "{{library}} : récupération des détails"
     },
+    "firstScans": {
+      "title": "Analyse de vos bibliothèques, {{at}} sur {{count}} : {{library}}",
+      "overall": "Toutes vos bibliothèques",
+      "show": "Afficher les bibliothèques",
+      "hide": "Masquer les bibliothèques",
+      "phases": {
+        "walking": "Recherche des fichiers",
+        "probing": "Lecture des fichiers",
+        "metadata": "Récupération des affiches et des détails"
+      }
+    },
     "banner": {
       "label": "À la une",
       "new": "Nouveau",

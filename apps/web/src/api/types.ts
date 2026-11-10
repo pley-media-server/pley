@@ -803,6 +803,8 @@ export interface CastRequest {
 
 export interface Activity {
   scans: ScanStatus[];
+  /** Libraries' first scans done while others are queued or running; empty once the last is done. Absent from servers before it. */
+  first_scans_done?: ScanStatus[];
   sessions: SessionInfo[];
   /** Intro/credits detection in progress (admins only). */
   analysis?: AnalysisStatus | null;

@@ -38,8 +38,10 @@ describes how they are made.
 - Home tells administrators how far new libraries are: the Plex import,
   which Home goes to as soon as it starts, with every step it goes
   through and Stop, then how it ended (and why, if it failed) until
-  that's closed; or a library's first scan (its files found, read, then
-  its details fetched).
+  that's closed; after Start fresh, which of the new libraries is being
+  scanned, how far they all are, and each ticked off once done; or a
+  library's first scan (its files found, read, then its details
+  fetched).
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the
   metadata language's country, and still is until one is chosen:

@@ -173,7 +173,7 @@ pub async fn create(
 /// Adds a library and starts its first scan.
 pub(crate) async fn add(state: &AppState, name: &str, kind: LibraryKind, paths: &[String]) -> ApiResult<i64> {
     let id = insert(state, name, kind, paths).await?;
-    state.scanner.enqueue(id, false);
+    state.scanner.enqueue_new(id);
     announce(state).await;
     Ok(id)
 }

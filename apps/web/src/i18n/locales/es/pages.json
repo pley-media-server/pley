@@ -377,6 +377,17 @@
       "probing": "Analizando {{library}}: leyendo archivos",
       "metadata": "{{library}}: obteniendo los detalles"
     },
+    "firstScans": {
+      "title": "Analizando tus bibliotecas, {{at}} de {{count}}: {{library}}",
+      "overall": "Todas tus bibliotecas",
+      "show": "Mostrar las bibliotecas",
+      "hide": "Ocultar las bibliotecas",
+      "phases": {
+        "walking": "Buscando archivos",
+        "probing": "Leyendo archivos",
+        "metadata": "Obteniendo los pósteres y los detalles"
+      }
+    },
     "banner": {
       "label": "Destacados",
       "new": "Novedad",
