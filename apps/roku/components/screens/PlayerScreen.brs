@@ -473,8 +473,11 @@ end sub
 ' Automatic asks the server what it knows of the network first.
 sub askPlayback()
     choice = aqChoice(playbackSection())
-    ' Nothing to ask the network for where only the original plays.
-    if choice = "auto" and m.autoQuality = "" and not m.originalOnly
+    ' Where only the original plays it is asked for, whatever is kept:
+    ' there is nothing to ask the network for, and a quality would be
+    ' answered with the original copied into a stream.
+    if m.originalOnly then choice = "original"
+    if choice = "auto" and m.autoQuality = ""
         startAutomatic()
         return
     end if
@@ -1928,7 +1931,9 @@ sub onMenuChoice(event as object)
         setSleep(value)
         return
     end if
-    if value = aqChoice(playbackSection()) then return
+    ' Original alone is offered where it alone plays: the quality kept stays
+    ' as it is, for servers that convert.
+    if m.originalOnly or value = aqChoice(playbackSection()) then return
     chooseQuality(value)
 end sub
 
