@@ -507,9 +507,11 @@ other apps (`pley_ct_…`), never with a session's
 - A Home user's profile is made with Plex's restrictions in the same
   step, so it's never open to everything while the import runs, or if it
   stops. A restriction Pley can't keep is made stricter, never dropped.
-  A profile with labels it never sees is turned off until the run
-  finishes, since Plex's labels reach Pley's titles only later in it; one
-  an administrator turns on or off meanwhile stays as they left it.
+  A profile with labels it never sees gets the libraries the run brings
+  it only when the run finishes, since Plex's labels reach Pley's titles
+  later in it; it can sign in meanwhile, so apps stay signed in. Libraries
+  an administrator gives it meanwhile are theirs. A profile an earlier
+  import made keeps the libraries it has while new labels come over.
   Titles the import can't find on Plex don't get Plex's labels, and the
   report says so for the profiles that rely on them.
 - What Plex sends is checked as any input: labels and label rules as

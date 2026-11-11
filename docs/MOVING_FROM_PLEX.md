@@ -33,10 +33,12 @@ never changes anything on Plex.
   any age limit does, so on its own it gives the oldest. A managed user's Plex preset becomes an
   age limit alone: 5 for Little kid, 11 for Older kid and 14 for Teen. A
   managed user without restrictions sees everything, as on Plex. A
-  profile with labels it's never allowed is off until the import
-  finishes, since Plex's labels come to Pley's titles later in it; you can
-  turn it on sooner in Settings › Users. Titles Pley couldn't find on Plex
-  don't get Plex's labels, so those rules don't hide them.
+  profile with labels it's never allowed gets its libraries when the
+  import finishes, since Plex's labels come to Pley's titles later in it;
+  it can sign in meanwhile, and you can give it its libraries sooner in
+  Settings › Users. A profile an earlier import made keeps the libraries
+  it has while Plex's new labels come over. Titles Pley couldn't find on
+  Plex don't get Plex's labels, so those rules don't hide them.
 - **Titles.** Plex's labels are added to the titles, and a title's date
   added moves to Plex's when that's earlier.
 - **What everyone watched.** Watched titles, resume points, ratings and
@@ -158,7 +160,9 @@ Plex; one already in Pley stays as you set it.
 
 Stopping an import keeps what came over, and the libraries it made fetch
 their posters and details all the same, as they do after a restart cuts
-one short. However an import ends, Pley
+one short. A profile still waiting for libraries gets them when an
+import of them finishes, or when you give it its libraries in Settings ›
+Users; the report names them. However an import ends, Pley
 forgets the Plex sign-in, so importing again starts by signing in. Pley
 keeps the sign-in in memory only, so restarting the server forgets it
 too.

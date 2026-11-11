@@ -42,7 +42,6 @@ struct UserRow {
     has_password: bool,
     two_step: bool,
     request_access: String,
-    import_held: bool,
 }
 
 /// A user as the API shows it.
@@ -98,17 +97,12 @@ pub struct UserDto {
     /// Whether it may ask for movies and shows (`crate::requests`):
     /// administrators always are approved as they ask.
     pub request_access: RequestAccess,
-    /// Turned off by an import while it runs, and on again when it's over
-    /// (`crate::import`).
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub import_held: bool,
 }
 
 const USER_COLUMNS: &str = "id, username, display_name, is_admin, managed, home, pin_hash IS NOT NULL AS has_pin,
     avatar, avatar_color, all_libraries, max_age, max_age_system, disabled, created_at, audio_language, subtitle_language,
     subtitle_mode, language, password_hash NOT LIKE '!%' AS has_password,
-    EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id) AS two_step, request_access,
-    EXISTS (SELECT 1 FROM import_accounts i WHERE i.user_id = users.id AND i.held) AS import_held";
+    EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id) AS two_step, request_access";
 
 impl UserRow {
     fn into_dto(self, library_ids: Vec<i64>) -> UserDto {
@@ -143,7 +137,6 @@ impl UserRow {
             } else {
                 RequestAccess::parse(&self.request_access)
             },
-            import_held: self.import_held,
         }
     }
 }
@@ -952,7 +945,6 @@ mod tests {
             has_password: true,
             two_step: false,
             request_access: "off".into(),
-            import_held: false,
         }
     }
 

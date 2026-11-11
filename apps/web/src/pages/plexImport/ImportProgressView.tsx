@@ -384,7 +384,6 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
                 <ProfileLine
                   profile={p}
                   history={report.bring?.watch_history ?? true}
-                  finished={report.outcome === "done"}
                   missed={report.libraries.some((l) => l.missed > 0)}
                 />
               </li>
@@ -433,13 +432,10 @@ function titleCounts(report: ImportReport, t: TFunction<["settings", "common"]>)
 function ProfileLine({
   profile: p,
   history,
-  finished,
   missed,
 }: {
   profile: ProfileReport;
   history: boolean;
-  /** The import finished, turning held profiles on again. */
-  finished: boolean;
   /** Some of Plex's titles weren't found. */
   missed: boolean;
 }) {
@@ -479,7 +475,14 @@ function ProfileLine({
           {t("plexImport.report.notKept")} <span className="font-mono">{p.not_kept.join(", ")}</span>
         </p>
       ) : null}
-      {p.held && !finished ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.held")}</p> : null}
+      {p.waiting?.length ? (
+        <p className="mt-0.5 text-xs text-warning">
+          {t("plexImport.report.waiting", {
+            count: p.waiting.length,
+            libraries: new Intl.ListFormat(currentLocale(), { type: "conjunction" }).format(p.waiting),
+          })}
+        </p>
+      ) : null}
       {/* Titles not found have none of Plex's labels to hide them by. */}
       {missed && p.hide_labels.length > 0 ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.missedUnlabelled")}</p> : null}
     </>

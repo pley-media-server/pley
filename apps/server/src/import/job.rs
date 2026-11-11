@@ -6,7 +6,7 @@
 //! it: it's forgotten when the administrator cancels or the server stops.
 //! One import runs at a time.
 
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -371,9 +371,10 @@ pub struct ProfileReport {
     /// Plex refused some of their playlists.
     #[serde(default)]
     pub playlists_incomplete: bool,
-    /// Off while the import runs, for labels it never sees.
+    /// The libraries it waits for, by name: given while it ran, they open
+    /// to a profile with labels it never sees once a run finishes.
     #[serde(default)]
-    pub held: bool,
+    pub waiting: Vec<String>,
 }
 
 // ---- The plan ----
@@ -943,6 +944,7 @@ impl Importer {
             again: false,
             playlists_counted: HashSet::new(),
             fetched: false,
+            paired: Vec::new(),
         };
         tokio::spawn(run.go(choices));
         Ok(())
@@ -1007,6 +1009,30 @@ fn finding(state: &AppState, paired: &[Paired]) -> Vec<ScanStatus> {
         .iter()
         .filter_map(|p| state.scanner.status_of(p.library_id).filter(|s| s.phase != ScanPhase::Metadata))
         .collect()
+}
+
+/// Profile `user_id` waits for `libraries` until a run finishes.
+async fn wait_for(tx: &mut sqlx::SqliteConnection, user_id: i64, libraries: &[i64]) -> sqlx::Result<()> {
+    for library in libraries {
+        sqlx::query("INSERT OR IGNORE INTO import_waiting_libraries (user_id, library_id) VALUES (?, ?)")
+            .bind(user_id)
+            .bind(library)
+            .execute(&mut *tx)
+            .await?;
+    }
+    Ok(())
+}
+
+/// Profile `user_id` waits for no library an import gave it: the
+/// administrator chose its libraries.
+pub async fn stop_waiting(db: &Db, user_id: i64) -> sqlx::Result<()> {
+    let mut tx = db.write.begin().await?;
+    sqlx::query("DELETE FROM import_waiting_libraries WHERE user_id = ?").bind(user_id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE import_accounts SET waits_for_all = 0 WHERE user_id = ?")
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+    tx.commit().await
 }
 
 async fn imported_profile(db: &Db, plex_id: i64) -> sqlx::Result<Option<i64>> {
@@ -1147,6 +1173,8 @@ struct Run {
     playlists_counted: HashSet<i64>,
     /// Whether the fetch has been asked for.
     fetched: bool,
+    /// Pley's libraries brought into.
+    paired: Vec<i64>,
 }
 
 /// A library being brought: Plex's, Pley's.
@@ -1225,12 +1253,15 @@ impl Run {
             fetch_made(&self.state, started_at).await;
         }
         // Only a run that finished has every label it could bring on Pley's
-        // titles: one that stopped leaves its held profiles off.
+        // titles: one that stopped leaves the libraries waiting closed.
         if outcome.is_ok()
             && !self.importer.cancel.load(Ordering::Relaxed)
-            && let Err(e) = self.release_held().await
+            && let Err(e) = self.open_waiting().await
         {
-            tracing::warn!("the Plex import couldn't turn its profiles back on: {e}");
+            tracing::warn!("the Plex import couldn't open the libraries its profiles wait for: {e}");
+        }
+        if let Err(e) = self.still_waiting().await {
+            tracing::debug!("the Plex import couldn't list the libraries its profiles wait for: {e}");
         }
         // The sign-in was for this run: importing again signs in again. One
         // started while it ran is the next run's.
@@ -1282,23 +1313,59 @@ impl Run {
         self.state.events.send(ServerEvent::LibrariesChanged);
     }
 
-    /// Turns the profiles the import held back on.
-    async fn release_held(&self) -> sqlx::Result<()> {
+    /// Opens the libraries brought into to the profiles waiting for them,
+    /// and every library to those that may open all of them once none
+    /// waits.
+    async fn open_waiting(&self) -> sqlx::Result<()> {
         let mut tx = self.state.db.write.begin().await?;
-        let held: Vec<i64> = sqlx::query_scalar("SELECT user_id FROM import_accounts WHERE source = ? AND held")
-            .bind(SOURCE)
-            .fetch_all(&mut *tx)
-            .await?;
-        for id in &held {
-            sqlx::query("UPDATE users SET disabled = 0 WHERE id = ?").bind(id).execute(&mut *tx).await?;
+        let mut opened = BTreeSet::new();
+        for library in &self.paired {
+            let users: Vec<i64> =
+                sqlx::query_scalar("DELETE FROM import_waiting_libraries WHERE library_id = ? RETURNING user_id")
+                    .bind(library)
+                    .fetch_all(&mut *tx)
+                    .await?;
+            for user in users {
+                sqlx::query("INSERT OR IGNORE INTO user_libraries (user_id, library_id) VALUES (?, ?)")
+                    .bind(user)
+                    .bind(library)
+                    .execute(&mut *tx)
+                    .await?;
+                opened.insert(user);
+            }
         }
-        sqlx::query("UPDATE import_accounts SET held = 0 WHERE source = ? AND held")
-            .bind(SOURCE)
-            .execute(&mut *tx)
-            .await?;
+        let everything: Vec<i64> = sqlx::query_scalar(
+            "UPDATE import_accounts SET waits_for_all = 0
+             WHERE source = ? AND waits_for_all AND user_id NOT IN (SELECT user_id FROM import_waiting_libraries)
+             RETURNING user_id",
+        )
+        .bind(SOURCE)
+        .fetch_all(&mut *tx)
+        .await?;
+        for user in everything {
+            sqlx::query("UPDATE users SET all_libraries = 1 WHERE id = ?").bind(user).execute(&mut *tx).await?;
+            opened.insert(user);
+        }
         tx.commit().await?;
-        for id in held {
-            self.state.auth.forget_user(id);
+        for user_id in opened {
+            self.state.auth.forget_user(user_id);
+            self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id });
+        }
+        Ok(())
+    }
+
+    /// The libraries each profile brought still waits for, in the report.
+    async fn still_waiting(&mut self) -> sqlx::Result<()> {
+        let db = &self.state.db;
+        for profile in &mut self.report.profiles {
+            let Some(id) = profile.user_id else { continue };
+            profile.waiting = sqlx::query_scalar(
+                "SELECT l.name FROM import_waiting_libraries w JOIN libraries l ON l.id = w.library_id
+                 WHERE w.user_id = ? ORDER BY l.name",
+            )
+            .bind(id)
+            .fetch_all(&db.write)
+            .await?;
         }
         Ok(())
     }
@@ -1346,6 +1413,7 @@ impl Run {
         let sections = self.plex.sections(&self.server).await?;
         self.check(&choices, &sections).await?;
         let paired = self.libraries(&choices, &sections).await?;
+        self.paired = paired.iter().map(|p| p.library_id).collect();
         // Profiles come with their limits before anything else, so a
         // child's is never open while the rest runs, or if it stops.
         let people = self.people(&choices, &sections, &paired).await?;
@@ -1887,11 +1955,17 @@ impl Run {
         }
         left_over.extend(show.split_off(show.len().min(MAX_LABEL_RULES)));
 
+        // A profile with labels it never sees waits for the libraries this
+        // run brings it: until the run is over, Plex's labels aren't all on
+        // their titles, so its rules would hide nothing. They open when a
+        // run finishes.
+        let waits = !hide.is_empty();
+
         let mut tx = db.write.begin().await?;
         let (id, created, max_age) = match found {
             Some(id) => {
-                let (age, born): (Option<i64>, Option<String>) =
-                    sqlx::query_as("SELECT max_age, birth_month FROM users WHERE id = ?")
+                let (age, born, all): (Option<i64>, Option<String>, bool) =
+                    sqlx::query_as("SELECT max_age, birth_month, all_libraries FROM users WHERE id = ?")
                         .bind(id)
                         .fetch_one(&mut *tx)
                         .await?;
@@ -1907,15 +1981,37 @@ impl Run {
                     age
                 };
                 sqlx::query("DELETE FROM user_label_rules WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
-                for library in made {
-                    sqlx::query(
-                        "INSERT OR IGNORE INTO user_libraries (user_id, library_id)
-                         SELECT id, ? FROM users WHERE id = ? AND NOT all_libraries",
-                    )
-                    .bind(library)
-                    .bind(id)
-                    .execute(&mut *tx)
-                    .await?;
+                if waits && !made.is_empty() {
+                    // Open to every library, it opens those it had, and all
+                    // of them again once the new ones open.
+                    if all {
+                        let had: Vec<i64> = sqlx::query_scalar("SELECT id FROM libraries").fetch_all(&mut *tx).await?;
+                        for library in had.iter().filter(|l| !made.contains(l)) {
+                            sqlx::query("INSERT OR IGNORE INTO user_libraries (user_id, library_id) VALUES (?, ?)")
+                                .bind(id)
+                                .bind(library)
+                                .execute(&mut *tx)
+                                .await?;
+                        }
+                        sqlx::query("UPDATE users SET all_libraries = 0 WHERE id = ?")
+                            .bind(id)
+                            .execute(&mut *tx)
+                            .await?;
+                        sqlx::query("UPDATE import_accounts SET waits_for_all = 1 WHERE source = ? AND user_id = ?")
+                            .bind(SOURCE)
+                            .bind(id)
+                            .execute(&mut *tx)
+                            .await?;
+                    }
+                    wait_for(&mut tx, id, made).await?;
+                } else if !all {
+                    for library in made {
+                        sqlx::query("INSERT OR IGNORE INTO user_libraries (user_id, library_id) VALUES (?, ?)")
+                            .bind(id)
+                            .bind(library)
+                            .execute(&mut *tx)
+                            .await?;
+                    }
                 }
                 (id, false, age)
             }
@@ -1929,7 +2025,7 @@ impl Run {
                 .bind(&username)
                 .bind(NO_PASSWORD)
                 .bind(Some(cut(&user.title, MAX_NAME)).filter(|t| !t.is_empty()))
-                .bind(everything)
+                .bind(everything && !waits)
                 .bind(max_age)
                 .bind(&limits.system)
                 .bind(now())
@@ -1941,7 +2037,16 @@ impl Run {
                     .bind(id)
                     .execute(&mut *tx)
                     .await?;
-                if !everything {
+                if waits {
+                    if everything {
+                        sqlx::query("UPDATE import_accounts SET waits_for_all = 1 WHERE source = ? AND user_id = ?")
+                            .bind(SOURCE)
+                            .bind(id)
+                            .execute(&mut *tx)
+                            .await?;
+                    }
+                    wait_for(&mut tx, id, open).await?;
+                } else if !everything {
                     for library in open {
                         sqlx::query("INSERT OR IGNORE INTO user_libraries (user_id, library_id) VALUES (?, ?)")
                             .bind(id)
@@ -1955,31 +2060,7 @@ impl Run {
         };
         accounts::add_label_rules(&mut tx, id, "show", &show).await?;
         accounts::add_label_rules(&mut tx, id, "hide", &hide).await?;
-        // A profile with labels it never sees is off until the run is over:
-        // until then Plex's labels aren't all on Pley's titles, so its rules
-        // would hide nothing. One an administrator turned off stays theirs.
-        let held = !hide.is_empty() && {
-            let (disabled, held): (bool, bool) = sqlx::query_as(
-                "SELECT u.disabled, COALESCE((SELECT i.held FROM import_accounts i WHERE i.user_id = u.id), 0)
-                 FROM users u WHERE u.id = ?",
-            )
-            .bind(id)
-            .fetch_one(&mut *tx)
-            .await?;
-            held || !disabled
-        };
-        if held {
-            sqlx::query("UPDATE users SET disabled = 1 WHERE id = ?").bind(id).execute(&mut *tx).await?;
-            sqlx::query("UPDATE import_accounts SET held = 1 WHERE source = ? AND user_id = ?")
-                .bind(SOURCE)
-                .bind(id)
-                .execute(&mut *tx)
-                .await?;
-        }
         tx.commit().await?;
-        if held {
-            self.state.oauth.forget_user(id);
-        }
         if !created {
             self.state.auth.forget_user(id);
             self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: id });
@@ -1990,7 +2071,6 @@ impl Run {
         report.hide_labels = limits.hide.clone();
         report.left_over = left_over;
         report.not_kept = limits.not_kept.clone();
-        report.held = held;
         Ok((id, created))
     }
 

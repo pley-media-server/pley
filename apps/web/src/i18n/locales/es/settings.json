@@ -442,7 +442,6 @@
       "managed": "Gestionado",
       "home": "Hogar",
       "disabled": "Desactivado",
-      "importHeld": "Desactivado hasta que termine la importación",
       "pin": "PIN",
       "twoStep": "2FA",
       "twoStepMissing": "2FA sin configurar"
@@ -1026,7 +1025,9 @@
       "incomplete": "Plex rechazó algunas de sus listas, así que parte de lo que vio no se importó.",
       "playlistsIncomplete": "Plex rechazó algunas de sus listas de reproducción, así que no todas se importaron.",
       "notKept": "Reglas que Pley no pudo guardar, así que oculta más:",
-      "held": "Desactivado hasta que termine una importación, para que las etiquetas que nunca ve estén antes en los títulos de Pley. Puedes activarlo en Ajustes › Usuarios.",
+      "waiting_one": "Este perfil tendrá acceso a {{libraries}} cuando termine una importación, una vez que las etiquetas que nunca ve estén en los títulos de esa biblioteca. Puedes darle acceso antes en Ajustes › Usuarios.",
+      "waiting_many": "Este perfil tendrá acceso a {{libraries}} cuando termine una importación, una vez que las etiquetas que nunca ve estén en los títulos de esas bibliotecas. Puedes darle acceso antes en Ajustes › Usuarios.",
+      "waiting_other": "Este perfil tendrá acceso a {{libraries}} cuando termine una importación, una vez que las etiquetas que nunca ve estén en los títulos de esas bibliotecas. Puedes darle acceso antes en Ajustes › Usuarios.",
       "missedUnlabelled": "Los títulos que Pley no encontró no tienen las etiquetas de Plex, así que las etiquetas que este perfil nunca ve no los ocultan.",
       "matchesFixed_one": "{{count, number}} título asociado como en Plex",
       "matchesFixed_many": "{{count, number}} de títulos asociados como en Plex",

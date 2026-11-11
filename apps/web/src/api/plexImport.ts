@@ -142,8 +142,8 @@ export interface ProfileReport {
   incomplete: boolean;
   /** Plex refused some of their playlists. */
   playlists_incomplete?: boolean;
-  /** Off while the import ran, for labels it never sees. */
-  held?: boolean;
+  /** Libraries it waits for, by name: they open to a profile with labels it never sees once a run finishes. */
+  waiting?: string[];
 }
 
 export interface ImportReport {

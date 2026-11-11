@@ -442,7 +442,6 @@
       "managed": "Géré",
       "home": "Foyer",
       "disabled": "Désactivé",
-      "importHeld": "Désactivé jusqu’à la fin de l’importation",
       "pin": "PIN",
       "twoStep": "2FA",
       "twoStepMissing": "2FA non configurée"
@@ -1026,7 +1025,9 @@
       "incomplete": "Plex a refusé certaines de ses listes : une partie de ce qu’elle a regardé n’a pas été importée.",
       "playlistsIncomplete": "Plex a refusé certaines de ses listes de lecture : elles n’ont pas toutes été importées.",
       "notKept": "Règles que Pley n’a pas pu garder, alors il masque davantage :",
-      "held": "Désactivé jusqu’à la fin d’une importation, pour que les étiquettes qu’il ne voit jamais soient d’abord sur les titres de Pley. Vous pouvez l’activer dans Paramètres › Utilisateurs.",
+      "waiting_one": "Ce profil aura accès à {{libraries}} à la fin d’une importation, quand les étiquettes qu’il ne voit jamais seront sur les titres de cette bibliothèque. Vous pouvez lui en donner l’accès plus tôt dans Paramètres › Utilisateurs.",
+      "waiting_many": "Ce profil aura accès à {{libraries}} à la fin d’une importation, quand les étiquettes qu’il ne voit jamais seront sur les titres de ces bibliothèques. Vous pouvez lui en donner l’accès plus tôt dans Paramètres › Utilisateurs.",
+      "waiting_other": "Ce profil aura accès à {{libraries}} à la fin d’une importation, quand les étiquettes qu’il ne voit jamais seront sur les titres de ces bibliothèques. Vous pouvez lui en donner l’accès plus tôt dans Paramètres › Utilisateurs.",
       "missedUnlabelled": "Les titres que Pley n’a pas trouvés n’ont pas les étiquettes de Plex : les étiquettes que ce profil ne voit jamais ne les masquent pas.",
       "matchesFixed_one": "{{count, number}} titre associé comme dans Plex",
       "matchesFixed_many": "{{count, number}} de titres associés comme dans Plex",

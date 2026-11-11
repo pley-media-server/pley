@@ -46,8 +46,9 @@ describes how they are made.
   their ids rather than searched for by name. Titles found by their files
   show with Plex's names, years, summaries and dates added as soon as
   their library is scanned, until Pley's own details replace them; posters
-  come from Pley's own fetch. A profile with labels it's never allowed is
-  off until the import finishes, when Plex's labels are on Pley's titles.
+  come from Pley's own fetch. A profile with labels it's never allowed
+  gets its libraries when the import finishes, once Plex's labels are on
+  Pley's titles.
   Home goes to the import as soon as it starts, and shows it while it
   runs, as Settings › Libraries does: how far the whole import is, every
   step it goes through, ticked off with what each brought, which library
