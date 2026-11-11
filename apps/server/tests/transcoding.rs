@@ -1003,6 +1003,43 @@ async fn first_scans_done_stay_listed_until_the_last_is_done() {
 }
 
 #[tokio::test]
+async fn first_scans_one_behind_another_hold_library_work_until_the_last() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let add = |name: &'static str| async move {
+        let r = app
+            .post("/api/libraries", admin, json!({"name": name, "kind": "movies", "paths": [app.media_path(name)]}))
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    };
+    // Next is queued while Held's scan runs.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("held/Held (2020).mkv", 5000);
+    app.media_file("next/Next (2021).mkv", 5000);
+    add("held").await;
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("Held (2020)"))).await;
+    add("next").await;
+
+    let let_go = Arc::new(AtomicUsize::new(0));
+    let watcher = tokio::spawn({
+        let (state, let_go) = (app.state.clone(), let_go.clone());
+        async move {
+            loop {
+                state.schedule.let_go().await;
+                let_go.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    eventually(|| let_go.load(Ordering::SeqCst) > 0).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    watcher.abort();
+    assert_eq!(let_go.load(Ordering::SeqCst), 1, "let go once, after Next");
+}
+
+#[tokio::test]
 async fn a_first_scan_says_how_long_its_files_have_left_once_it_has_read_for_a_while() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());

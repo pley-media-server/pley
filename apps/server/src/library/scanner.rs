@@ -311,6 +311,13 @@ impl Scanner {
         // seek previews of the first would start beside the next.
         let mut hold = None;
         loop {
+            // One queued while the last ran keeps the hold; only an empty
+            // queue lets library work go.
+            if pending.is_empty()
+                && let Ok(req) = rx.try_recv()
+            {
+                pending.push(req);
+            }
             if pending.is_empty() {
                 hold = None;
                 match rx.recv().await {
