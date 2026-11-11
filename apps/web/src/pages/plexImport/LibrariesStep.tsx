@@ -141,17 +141,14 @@ function LibraryRow({
   const status = library.pairing.status;
   const id = `plex-library-${library.key}`;
   // Left out because Pley can't open its folders: they're asked for here,
-  // and one given brings it.
+  // and one given that Pley can open brings it.
   const asking = choice.target === "leave" && !choice.left && status === "not_in_pley";
   const foldersOpen = asking || (choice.target !== "leave" && (showFolders || choice.target === "new" || !!problem));
   // Going to one of Pley's libraries: its folders fold away.
   const listed = choice.target !== "new" && choice.target !== "leave";
 
   const setBrought = (on: boolean) => onChange({ ...choice, target: on ? bringTo(library) : "leave", left: !on });
-  const setFolder = (location: string, path: string) => {
-    const target = asking && path.trim() ? bringTo(library) : choice.target;
-    onChange({ ...choice, target, folders: { ...choice.folders, [location]: path } });
-  };
+  const setFolder = (location: string, path: string) => onChange({ ...choice, folders: { ...choice.folders, [location]: path } });
   const size = librarySize(library, t);
   const into = typeof choice.target === "number" ? libraries.find((l) => l.id === choice.target) : undefined;
 
@@ -208,6 +205,7 @@ function LibraryRow({
                   onChange={(path) => setFolder(location, path)}
                   onBlur={(path) => onFolderGiven(location, path)}
                   onBrowse={() => setPicking(location)}
+                  onOpens={asking ? () => onChange({ ...choice, target: bringTo(library) }) : undefined}
                 />
               ))}
             </div>
@@ -267,6 +265,7 @@ function FolderLine({
   onChange,
   onBlur,
   onBrowse,
+  onOpens,
 }: {
   /** The Plex library's key. */
   library: string;
@@ -276,12 +275,18 @@ function FolderLine({
   onChange: (path: string) => void;
   onBlur: (path: string) => void;
   onBrowse: () => void;
+  /** Pley can open the folder given. */
+  onOpens?: () => void;
 }) {
   const { t } = useTranslation(["settings", "common"]);
   // Checked once the path has settled, not at each key.
   const settled = useDebouncedValue(value.trim(), 400);
   const check = useFolderCheck(library, location, settled).data;
-  const said = settled === value.trim() && check && check !== "untold" ? check : null;
+  const current = settled === value.trim() ? check : undefined;
+  const said = current && current !== "untold" ? current : null;
+  useEffect(() => {
+    if (current && current !== "missing") onOpens?.();
+  }, [current, onOpens]);
   const Icon = said === "found" ? CircleCheck : said === "none_found" ? TriangleAlert : CircleX;
   return (
     <div className="space-y-1.5">

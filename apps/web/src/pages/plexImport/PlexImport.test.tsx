@@ -147,9 +147,9 @@ describe("PlexImport", () => {
     // Pley has no library of shows to put TV Shows in, and can't open its folder: left out, and its folder asked for.
     const tv = screen.getByRole("switch", { name: "Bring TV Shows" });
     expect(tv).not.toBeChecked();
-    // Giving it brings the library, under Plex's name.
+    // Giving one Pley can open brings the library, under Plex's name.
     await user.type(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"), "/media/tv");
-    expect(tv).toBeChecked();
+    await waitFor(() => expect(tv).toBeChecked());
     expect(screen.getAllByText(/Goes into/)).toHaveLength(1);
     await user.clear(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"));
     await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -329,7 +329,23 @@ describe("PlexImport", () => {
     await user.type(within(picker).getByLabelText("Folder path"), "/volume1/video/tv{Enter}");
     await user.click(within(picker).getByRole("button", { name: "Select this folder" }));
     expect(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?")).toHaveValue("/volume1/video/tv");
-    expect(screen.getByRole("switch", { name: "Bring TV Shows" })).toBeChecked();
+    await waitFor(() => expect(screen.getByRole("switch", { name: "Bring TV Shows" })).toBeChecked());
+  });
+
+  it("leaves a library out while Pley can't open the folder given for it", async () => {
+    const user = userEvent.setup();
+    serve({ check: ({ pley }) => (pley === "/nowhere" ? "missing" : "none_found") });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    const tv = await screen.findByRole("switch", { name: "Bring TV Shows" });
+    const folder = screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?");
+    await user.type(folder, "/nowhere");
+    expect(await screen.findByText("Pley can't open this folder")).toBeInTheDocument();
+    expect(tv).not.toBeChecked();
+    // A folder it opens brings it, even with none of Plex's files in it, to be checked.
+    await user.clear(folder);
+    await user.type(folder, "/media/other");
+    expect(await screen.findByText("None of Plex's files are here")).toBeInTheDocument();
+    expect(tv).toBeChecked();
   });
 
   it("says whether Plex's files are in each folder, as the folder changes", async () => {
