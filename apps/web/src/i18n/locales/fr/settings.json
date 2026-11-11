@@ -442,6 +442,7 @@
       "managed": "Géré",
       "home": "Foyer",
       "disabled": "Désactivé",
+      "importWaiting": "Bibliothèques en attente d’une importation",
       "pin": "PIN",
       "twoStep": "2FA",
       "twoStepMissing": "2FA non configurée"
@@ -983,7 +984,7 @@
       "failed": "L’import a échoué",
       "cancelled": "L’import a été arrêté",
       "lost": "L’import a été interrompu",
-      "lostHint": "Pley a redémarré pendant l’import : il n’y a pas de rapport. Ce qui a été importé reste ; importer de nouveau apporte le reste, sans rien en double.",
+      "lostHint": "Pley a redémarré pendant l’import : il n’y a pas de rapport. Ce qui a été importé reste ; importer de nouveau apporte le reste, sans rien en double. Les profils qui attendent encore des bibliothèques l’indiquent dans Paramètres › Utilisateurs.",
       "doneHint": "Voici ce qui a été importé. Importer de nouveau plus tard apporte les nouveautés, sans rien en double.",
       "partHint": "Ce qui a été importé avant l’arrêt reste. Importer de nouveau apporte le reste, sans rien en double.",
       "took": "Durée : {{time}}",

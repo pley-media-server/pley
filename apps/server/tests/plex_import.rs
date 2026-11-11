@@ -661,6 +661,11 @@ async fn brings_libraries_people_and_what_they_watched() {
     .await
     .unwrap();
     assert_eq!(waiting, ["Movies"]);
+    let waiting_in_users = || async {
+        let users = app.get("/api/users", &admin).await.body;
+        users.as_array().unwrap().iter().find(|u| u["id"] == kid).unwrap()["import_waiting"].clone()
+    };
+    assert_eq!(waiting_in_users().await, json!(true), "Users says so");
     tv_held.store(false, Ordering::SeqCst);
 
     let done = finished(&app, &admin).await;
@@ -738,6 +743,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     // Its library opened once the import finished.
     assert_eq!(report["profiles"][1]["waiting"], json!([]));
     assert_eq!(one(&app, "SELECT COUNT(*) FROM import_waiting_libraries WHERE user_id = ?", kid_id).await, 0);
+    assert_eq!(waiting_in_users().await, Value::Null);
 
     // Pictures: the account's own, squared to Pley's size; Plex's default,
     // an initial on a colour, brings only its colour.

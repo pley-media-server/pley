@@ -221,6 +221,8 @@ interface User {
   show_labels?: string[];           // in /api/users only: labels whose titles it sees above its age limit
   hide_labels?: string[];           // in /api/users only: labels whose titles it never sees (see Access rules)
   disabled: boolean;
+  import_waiting?: boolean;         // in /api/users, when true: waits for libraries a Plex import gave it,
+                                    // until a run of them finishes (see Moving from Plex)
   created_at: Timestamp;
   // Default tracks for titles without a remembered choice (see Your account):
   audio_language: string | null;    // ISO 639 code ("eng", "fr"); null = the file's default track

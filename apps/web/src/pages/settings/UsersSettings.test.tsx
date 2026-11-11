@@ -138,6 +138,15 @@ describe("UsersSettings", () => {
     for (const badge of ["Managed", "Home", "Cartoons", "Up to TV-Y7", "PIN"]) expect(rows[1]).toHaveTextContent(badge);
   });
 
+  it("says a profile waits for libraries a Plex import gave it", async () => {
+    serve({ "GET /api/users": () => [admin, { ...kid, import_waiting: true }, ann] });
+    renderWithProviders(<UsersSettings />, { user: admin });
+    expect(await screen.findByText("Libraries wait for an import")).toBeInTheDocument();
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[1]).toHaveTextContent("Libraries wait for an import");
+    expect(rows[2]).not.toHaveTextContent("Libraries wait for an import");
+  });
+
   it("turns two-step sign-in off for someone who lost their phone", async () => {
     const user = userEvent.setup();
     const requests = renderUsers();

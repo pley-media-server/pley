@@ -167,7 +167,8 @@ Stopping an import keeps what came over, and the libraries it made fetch
 their posters and details all the same, as they do after a restart cuts
 one short. A profile still waiting for libraries gets them when an
 import of them finishes, or when you give it its libraries in Settings ›
-Users; the report names them. However an import ends, Pley
+Users; the report names them, and Settings › Users marks the profile,
+even when a restart cut the import short. However an import ends, Pley
 forgets the Plex sign-in, so importing again starts by signing in. Pley
 keeps the sign-in in memory only, so restarting the server forgets it
 too.

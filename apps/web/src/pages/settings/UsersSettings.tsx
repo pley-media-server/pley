@@ -697,6 +697,7 @@ function UserRow({ user, self, libraries, onOpen }: { user: User; self: boolean;
             {user.managed ? <Badge tone="info">{t("users.badges.managed")}</Badge> : null}
             {user.home ? <Badge>{t("users.badges.home")}</Badge> : null}
             {user.disabled ? <Badge tone="danger">{t("users.badges.disabled")}</Badge> : null}
+            {user.import_waiting ? <Badge tone="warning">{t("users.badges.importWaiting")}</Badge> : null}
             {!user.is_admin && !user.all_libraries ? <Badge>{librariesLabel(user, libraries)}</Badge> : null}
             {age && !user.is_admin ? <Badge>{age}</Badge> : null}
             {user.has_pin ? (

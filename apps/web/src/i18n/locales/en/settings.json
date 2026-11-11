@@ -438,6 +438,7 @@
       "managed": "Managed",
       "home": "Home",
       "disabled": "Disabled",
+      "importWaiting": "Libraries wait for an import",
       "pin": "PIN",
       "twoStep": "2FA",
       "twoStepMissing": "2FA not set up"
@@ -953,7 +954,7 @@
       "failed": "The import stopped",
       "cancelled": "The import was stopped",
       "lost": "The import was interrupted",
-      "lostHint": "Pley restarted while it ran, so there's no report. What came over before stays; importing again brings the rest and nothing twice.",
+      "lostHint": "Pley restarted while it ran, so there's no report. What came over before stays; importing again brings the rest and nothing twice. Profiles still waiting for libraries say so in Settings › Users.",
       "doneHint": "Here's what came over. Importing again later brings what's new and nothing twice.",
       "partHint": "What came over before it stopped stays. Importing again brings the rest and nothing twice.",
       "took": "Took {{time}}",
