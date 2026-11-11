@@ -381,7 +381,12 @@ function Report({ report, onFinish, onAgain }: { report: ImportReport; onFinish:
           <ul className="divide-y divide-border rounded-lg border border-border bg-surface-2">
             {report.profiles.map((p) => (
               <li key={p.title} className="p-3 text-sm">
-                <ProfileLine profile={p} history={report.bring?.watch_history ?? true} />
+                <ProfileLine
+                  profile={p}
+                  history={report.bring?.watch_history ?? true}
+                  finished={report.outcome === "done"}
+                  missed={report.libraries.some((l) => l.missed > 0)}
+                />
               </li>
             ))}
           </ul>
@@ -425,7 +430,19 @@ function titleCounts(report: ImportReport, t: TFunction<["settings", "common"]>)
 }
 
 /** A person's line; what they watched only when it was brought. */
-function ProfileLine({ profile: p, history }: { profile: ProfileReport; history: boolean }) {
+function ProfileLine({
+  profile: p,
+  history,
+  finished,
+  missed,
+}: {
+  profile: ProfileReport;
+  history: boolean;
+  /** The import finished, turning held profiles on again. */
+  finished: boolean;
+  /** Some of Plex's titles weren't found. */
+  missed: boolean;
+}) {
   const { t } = useTranslation("settings");
   const systems = useRatingSystems();
   const age = ageBadge(systems.data, null, p.max_age);
@@ -462,6 +479,9 @@ function ProfileLine({ profile: p, history }: { profile: ProfileReport; history:
           {t("plexImport.report.notKept")} <span className="font-mono">{p.not_kept.join(", ")}</span>
         </p>
       ) : null}
+      {p.held && !finished ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.held")}</p> : null}
+      {/* Titles not found have none of Plex's labels to hide them by. */}
+      {missed && p.hide_labels.length > 0 ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.missedUnlabelled")}</p> : null}
     </>
   );
 }

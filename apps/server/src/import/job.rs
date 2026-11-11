@@ -365,6 +365,9 @@ pub struct ProfileReport {
     /// Plex refused some of their playlists.
     #[serde(default)]
     pub playlists_incomplete: bool,
+    /// Off while the import runs, for labels it never sees.
+    #[serde(default)]
+    pub held: bool,
 }
 
 // ---- The plan ----
@@ -1188,6 +1191,14 @@ impl Run {
         let hold = self.state.schedule.hold();
         let outcome = self.run(choices).await;
         drop(hold);
+        // Only a run that finished has every label it could bring on Pley's
+        // titles: one that stopped leaves its held profiles off.
+        if outcome.is_ok()
+            && !self.importer.cancel.load(Ordering::Relaxed)
+            && let Err(e) = self.release_held().await
+        {
+            tracing::warn!("the Plex import couldn't turn its profiles back on: {e}");
+        }
         let cancelled = matches!(outcome, Err(ImportError::Cancelled)) || self.importer.cancel.load(Ordering::Relaxed);
         let state = match (&outcome, cancelled) {
             (_, true) => RunState::Cancelled,
@@ -1228,6 +1239,27 @@ impl Run {
             p.report = Some(report);
         });
         self.state.events.send(ServerEvent::LibrariesChanged);
+    }
+
+    /// Turns the profiles the import held back on.
+    async fn release_held(&self) -> sqlx::Result<()> {
+        let mut tx = self.state.db.write.begin().await?;
+        let held: Vec<i64> = sqlx::query_scalar("SELECT user_id FROM import_accounts WHERE source = ? AND held")
+            .bind(SOURCE)
+            .fetch_all(&mut *tx)
+            .await?;
+        for id in &held {
+            sqlx::query("UPDATE users SET disabled = 0 WHERE id = ?").bind(id).execute(&mut *tx).await?;
+        }
+        sqlx::query("UPDATE import_accounts SET held = 0 WHERE source = ? AND held")
+            .bind(SOURCE)
+            .execute(&mut *tx)
+            .await?;
+        tx.commit().await?;
+        for id in held {
+            self.state.auth.forget_user(id);
+        }
+        Ok(())
     }
 
     fn cancelled(&self) -> ImportResult<()> {
@@ -1861,7 +1893,31 @@ impl Run {
         };
         accounts::add_label_rules(&mut tx, id, "show", &show).await?;
         accounts::add_label_rules(&mut tx, id, "hide", &hide).await?;
+        // A profile with labels it never sees is off until the run is over:
+        // until then Plex's labels aren't all on Pley's titles, so its rules
+        // would hide nothing. One an administrator turned off stays theirs.
+        let held = !hide.is_empty() && {
+            let (disabled, held): (bool, bool) = sqlx::query_as(
+                "SELECT u.disabled, COALESCE((SELECT i.held FROM import_accounts i WHERE i.user_id = u.id), 0)
+                 FROM users u WHERE u.id = ?",
+            )
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+            held || !disabled
+        };
+        if held {
+            sqlx::query("UPDATE users SET disabled = 1 WHERE id = ?").bind(id).execute(&mut *tx).await?;
+            sqlx::query("UPDATE import_accounts SET held = 1 WHERE source = ? AND user_id = ?")
+                .bind(SOURCE)
+                .bind(id)
+                .execute(&mut *tx)
+                .await?;
+        }
         tx.commit().await?;
+        if held {
+            self.state.oauth.forget_user(id);
+        }
         if !created {
             self.state.auth.forget_user(id);
             self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: id });
@@ -1872,6 +1928,7 @@ impl Run {
         report.hide_labels = limits.hide.clone();
         report.left_over = left_over;
         report.not_kept = limits.not_kept.clone();
+        report.held = held;
         Ok((id, created))
     }
 

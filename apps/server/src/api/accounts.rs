@@ -410,6 +410,9 @@ pub async fn update_user(
             .bind(id)
             .execute(&state.db.write)
             .await?;
+        // On or off, it's the administrator's choice now: an import that
+        // held the profile doesn't turn it on when it's over.
+        sqlx::query("UPDATE import_accounts SET held = 0 WHERE user_id = ?").bind(id).execute(&state.db.write).await?;
         // Apps it was signing in (a code not exchanged yet, a TV allowed
         // that hasn't asked for its answer yet) get nothing, rather than
         // signed in should the account be enabled again.

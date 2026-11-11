@@ -626,6 +626,21 @@ async fn brings_libraries_people_and_what_they_watched() {
         .await
         .unwrap();
     assert_eq!(marked, Some(started_at.to_string()));
+    // The Home user's profile, which never sees a label, is off until the
+    // labels are on Pley's titles, and says why.
+    let (kid, disabled): (i64, bool) =
+        sqlx::query_as("SELECT u.id, u.disabled FROM users u JOIN import_accounts i ON i.user_id = u.id WHERE i.held")
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
+    assert!(disabled);
+    let listed = app.get("/api/users", &admin).await.body;
+    let listed = listed.as_array().unwrap().iter().find(|u| u["id"] == kid).unwrap().clone();
+    assert_eq!((&listed["disabled"], &listed["import_held"]), (&json!(true), &json!(true)));
+    // Turned off by the administrator meanwhile, it's theirs: the end of the
+    // import leaves it off.
+    let r = app.patch(&format!("/api/users/{kid}"), &admin, json!({"disabled": true})).await;
+    assert!(r.status.is_success(), "{:?}", r.body);
     tv_held.store(false, Ordering::SeqCst);
 
     let done = finished(&app, &admin).await;
@@ -696,6 +711,11 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(opened, [movies]);
     assert_eq!(pley::accounts::label_rules(&app.state.db, kid_id, "hide").await.unwrap(), ["Scary"]);
     assert_eq!(pley::accounts::label_rules(&app.state.db, kid_id, "show").await.unwrap(), ["Family"]);
+    assert_eq!(report["profiles"][1]["held"], true);
+    assert_eq!(one(&app, "SELECT disabled FROM users WHERE id = ?", kid_id).await, 1);
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM import_accounts WHERE held AND user_id > ?", 0).await, 0);
+    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"disabled": false})).await;
+    assert!(r.status.is_success(), "{:?}", r.body);
 
     // Pictures: the account's own, squared to Pley's size; Plex's default,
     // an initial on a colour, brings only its colour.
@@ -882,6 +902,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(done["state"], "done", "{done:?}");
     assert_eq!(done["report"]["profiles"][1]["user_id"], kid_id);
     assert_eq!(done["report"]["profiles"][1]["created"], false);
+    assert_eq!(one(&app, "SELECT disabled FROM users WHERE id = ?", kid_id).await, 0, "held again, then on");
     assert_eq!(done["report"]["libraries"][1]["library_id"], Value::Null, "TV left out this time");
     assert_eq!(one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await, users_before);
     assert_eq!(one(&app, "SELECT COUNT(*) FROM play_history WHERE user_id > ?", 0).await, 3);
@@ -923,6 +944,25 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!((&report["profiles"][0]["watched"], &report["profiles"][0]["playlists"]), (&json!(0), &json!(0)));
     assert_eq!((&report["smart_left"], &report["edits"]), (&json!(0), &json!({})));
     assert_eq!(report["bring"], json!({"watch_history": false, "collections": false, "edits": false}));
+
+    // A profile the administrator turns off stays off, whatever the import.
+    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"disabled": true})).await;
+    assert!(r.status.is_success(), "{:?}", r.body);
+    let r = app
+        .post(
+            "/api/import/plex/start",
+            &admin,
+            json!({
+                "libraries": [{"key": "1", "library_id": movies}],
+                "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("movies")}],
+                "users": [{"id": 885}],
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let done = finished(&app, &admin).await;
+    assert_eq!(done["report"]["profiles"][1]["held"], false);
+    assert_eq!(one(&app, "SELECT disabled FROM users WHERE id = ?", kid_id).await, 1);
 
     // Forgetting the sign-in.
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);

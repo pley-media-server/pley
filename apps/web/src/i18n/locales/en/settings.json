@@ -438,6 +438,7 @@
       "managed": "Managed",
       "home": "Home",
       "disabled": "Disabled",
+      "importHeld": "Off until the import finishes",
       "pin": "PIN",
       "twoStep": "2FA",
       "twoStepMissing": "2FA not set up"
@@ -987,6 +988,8 @@
       "incomplete": "Plex refused some of their lists, so some of what they watched didn't come over.",
       "playlistsIncomplete": "Plex refused some of their playlists, so not all of them came over.",
       "notKept": "Rules Pley couldn't keep:",
+      "held": "Off until an import finishes, so that the labels it never sees are on Pley's titles first. You can turn it on in Settings › Users.",
+      "missedUnlabelled": "Titles Pley couldn't find don't have Plex's labels, so the labels this profile never sees don't hide them.",
       "matchesFixed_one": "{{count, number}} title matched as in Plex",
       "matchesFixed_other": "{{count, number}} titles matched as in Plex",
       "collectionsMade_one": "{{count, number}} collection made",

@@ -28,7 +28,11 @@ never changes anything on Plex.
   disallowed ratings with a gap (PG-13 disallowed but R allowed): an age
   limit hides everything above it. A managed user's Plex preset becomes an
   age limit alone: 5 for Little kid, 11 for Older kid and 14 for Teen. A
-  managed user without restrictions sees everything, as on Plex.
+  managed user without restrictions sees everything, as on Plex. A
+  profile with labels it's never allowed is off until the import
+  finishes, since Plex's labels come to Pley's titles later in it; you can
+  turn it on sooner in Settings › Users. Titles Pley couldn't find on Plex
+  don't get Plex's labels, so those rules don't hide them.
 - **Titles.** Plex's labels are added to the titles, and a title's date
   added moves to Plex's when that's earlier.
 - **What everyone watched.** Watched titles, resume points, ratings and

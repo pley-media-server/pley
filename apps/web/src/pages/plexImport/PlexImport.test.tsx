@@ -485,6 +485,23 @@ describe("PlexImport", () => {
     expect(steps.getByText("Bringing what everyone watched", { selector: "p" })).toBeInTheDocument();
   });
 
+  it("says a profile held for its labels stays off when the import didn't finish, and which titles its labels miss", async () => {
+    const held = { ...report.profiles[0]!, hide_labels: ["Scary"], held: true };
+    serve({ progress: () => ({ ...idle, state: "cancelled", report: { ...report, outcome: "cancelled", profiles: [held] } }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
+    expect(await screen.findByText(/^Off until an import finishes/)).toBeInTheDocument();
+    expect(screen.getByText(/^Titles Pley couldn't find don't have Plex's labels/)).toBeInTheDocument();
+  });
+
+  it("says nothing of a hold once the import finished", async () => {
+    const held = { ...report.profiles[0]!, held: true };
+    serve({ progress: () => ({ ...idle, state: "done", report: { ...report, profiles: [held] } }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
+    expect(await screen.findByText("Sam")).toBeInTheDocument();
+    expect(screen.queryByText(/^Off until an import finishes/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^Titles Pley couldn't find/)).not.toBeInTheDocument();
+  });
+
   it("opens on the last import's report when asked", async () => {
     serve({ progress: () => ({ ...idle, state: "done", report }) });
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);

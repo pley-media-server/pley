@@ -33,6 +33,8 @@ export interface User {
   /** Labels whose titles it never sees (only in administrators' lists). */
   hide_labels?: string[];
   disabled: boolean;
+  /** Turned off by an import while it runs, and on again when it's over. */
+  import_held?: boolean;
   created_at: Timestamp;
   /** Default tracks for titles without a remembered choice. ISO 639 code; `null`: the file's default track. */
   audio_language: string | null;

@@ -138,6 +138,15 @@ describe("UsersSettings", () => {
     for (const badge of ["Managed", "Home", "Cartoons", "Up to TV-Y7", "PIN"]) expect(rows[1]).toHaveTextContent(badge);
   });
 
+  it("says a profile is off only while an import runs", async () => {
+    serve({ "GET /api/users": () => [admin, { ...kid, disabled: true, import_held: true }, { ...ann, disabled: true }] });
+    renderWithProviders(<UsersSettings />, { user: admin });
+    expect(await screen.findByText("Off until the import finishes")).toBeInTheDocument();
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[1]).not.toHaveTextContent("Disabled");
+    expect(rows[2]).toHaveTextContent("Disabled");
+  });
+
   it("turns two-step sign-in off for someone who lost their phone", async () => {
     const user = userEvent.setup();
     const requests = renderUsers();

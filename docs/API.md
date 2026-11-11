@@ -221,6 +221,8 @@ interface User {
   show_labels?: string[];           // in /api/users only: labels whose titles it sees above its age limit
   hide_labels?: string[];           // in /api/users only: labels whose titles it never sees (see Access rules)
   disabled: boolean;
+  import_held?: boolean;            // in /api/users, when true: disabled only until the Plex import finishes
+                                    // (see Moving from Plex); turning it on or off in Settings ends that
   created_at: Timestamp;
   // Default tracks for titles without a remembered choice (see Your account):
   audio_language: string | null;    // ISO 639 code ("eng", "fr"); null = the file's default track
@@ -4667,7 +4669,8 @@ interface ImportProgress {
                 watched: number; resumed: number; rated: number; plays: number;
                 playlists: number;         // their playlists, made or added to
                 incomplete: boolean;       // Plex refused some of their watch history
-                playlists_incomplete: boolean }[];   // Plex refused some of their playlists
+                playlists_incomplete: boolean;       // Plex refused some of their playlists
+                held: boolean }[];         // turned off until a run finishes, for labels it never sees
     labels_added: number;
     dates_moved: number;
     matches_fixed: number;                // titles matched again to Plex's TMDB entry
