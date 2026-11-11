@@ -28,11 +28,13 @@ pub struct Limits {
     /// "age", or the country (ISO 3166-1 alpha-2) of the ratings Plex's
     /// list mostly has; `None` with no age limit.
     pub system: Option<String>,
-    /// Labels always shown, at most [`MAX_LABEL_RULES`].
+    /// Labels always shown, at most [`MAX_LABEL_RULES`], each a label's
+    /// length at most.
     pub show: Vec<String>,
     /// Labels never shown, at most [`MAX_LABEL_RULES`].
     pub hide: Vec<String>,
-    /// Labels past [`MAX_LABEL_RULES`] in either list, left out.
+    /// Labels past [`MAX_LABEL_RULES`] in either list, or too long, left
+    /// out.
     pub left_over: Vec<String>,
     /// Parts of the rules Pley has no way to keep (only titles with a
     /// label, or a field other than ratings and labels), as Plex wrote them.
@@ -78,7 +80,6 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
             }
         })
         .min();
-    out.system = out.max_age.and(system);
 
     let mut hide = Vec::new();
     for (rule, _) in &rules {
@@ -98,7 +99,17 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
             }
         }
     }
+    // A label never shown that can't be kept (too many, or too long for a
+    // label) would show its titles: the youngest age instead, which hides
+    // all it can.
+    let long = |l: &String| l.chars().count() > crate::labels::MAX_LEN;
+    if hide.len() > MAX_LABEL_RULES || hide.iter().any(long) {
+        out.max_age = Some(0);
+    }
+    out.system = out.max_age.and(system);
     for (list, kept) in [(show, &mut out.show), (hide, &mut out.hide)] {
+        let (too_long, list): (Vec<String>, Vec<String>) = list.into_iter().partition(long);
+        out.left_over.extend(too_long);
         let mut list = list.into_iter();
         kept.extend(list.by_ref().take(MAX_LABEL_RULES));
         out.left_over.extend(list);
@@ -110,19 +121,29 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
 /// youngest denied, which hides them all. Plex shows every rating it
 /// doesn't deny, so when some it allows are older than that (it denies
 /// PG-13 alone), Pley hides those too and says so: an age limit can't
-/// have gaps. A denied rating Pley doesn't know limits nothing, and is said.
+/// have gaps. A denied rating Pley doesn't know could be any age, so it
+/// limits to the youngest, and is said; denying unrated titles is what any
+/// age limit does, so it limits to the oldest.
 fn below_denied(rule: &Rule, country: &str, by_age: bool, kind: Kind, not_kept: &mut Vec<String>) -> Option<i64> {
     if rule.denied.is_empty() {
         return None;
     }
-    let mut ages = Vec::new();
-    for rating in &rule.denied {
+    let (mut ages, mut unknown) = (Vec::new(), false);
+    for rating in rule.denied.iter().filter(|r| !unrated(r)) {
         match age_of(rating, country, kind) {
             Some(age) => ages.push(age),
-            None => push_unique(not_kept, &format!("contentRating!={rating}")),
+            None => {
+                push_unique(not_kept, &format!("contentRating!={rating}"));
+                unknown = true;
+            }
         }
     }
-    let youngest = ages.into_iter().min()?;
+    if unknown {
+        return Some(0);
+    }
+    // Of every kind: one profile's limit is for films and TV alike.
+    let oldest = || ratings::system(country).filter(|_| !by_age)?.ratings.iter().map(|r| r.age).max();
+    let Some(youngest) = ages.into_iter().min() else { return Some(oldest().unwrap_or(18)) };
     if by_age {
         return Some((youngest - 1).max(0));
     }
@@ -137,6 +158,11 @@ fn below_denied(rule: &Rule, country: &str, by_age: bool, kind: Kind, not_kept: 
         push_unique(not_kept, &format!("contentRating!={}", rule.denied.join(",")));
     }
     Some(of_kind().map(|r| r.age).filter(|age| *age < youngest).max().unwrap_or(0))
+}
+
+/// Plex's names for no rating at all.
+fn unrated(rating: &str) -> bool {
+    matches!(without_country(rating).to_ascii_uppercase().as_str(), "NR" | "UNRATED" | "NOT RATED" | "N/A" | "-")
 }
 
 /// `gb/12A` → `12A`: a rating without the country Plex wrote before it.
@@ -193,9 +219,16 @@ fn read(rule: &str) -> Rule {
                 _ => other.push(decode(term)),
             }
         }
+        // Only fields Pley doesn't have (`genre=Kids`, `year!=1990`): every
+        // title had to pass one, so the strictest it has, never none. One
+        // beside a rating or label only lets more through on Plex.
+        let unkept = !other.is_empty() && never.is_empty() && denied.is_empty() && always.is_empty();
         out.never.extend(never);
         out.denied.extend(denied);
         out.not_kept.extend(other);
+        if unkept && ratings.is_none() {
+            out.ratings = Some(Vec::new());
+        }
         match ratings {
             // Rated as listed, or labelled.
             Some(list) => {
@@ -332,9 +365,22 @@ mod tests {
     fn denied_ages_and_unknown_ratings() {
         let l = limits("contentRating!=16,18", "", "", "GB");
         assert_eq!((l.max_age, l.system.as_deref()), (Some(15), Some("age")));
+        // A rating Pley doesn't know could be any age: the youngest.
         let l = limits("contentRating!=Nonsense", "", "", "US");
-        assert_eq!(l.max_age, None);
+        assert_eq!(l.max_age, Some(0));
         assert_eq!(l.not_kept, ["contentRating!=Nonsense"]);
+        let l = limits("contentRating!=R,Nonsense", "", "", "US");
+        assert_eq!(l.max_age, Some(0));
+    }
+
+    #[test]
+    fn denying_unrated_titles_is_any_age_limit() {
+        // Any limit hides unrated titles; the oldest hides nothing else.
+        let l = limits("contentRating!=NR", "contentRating!=Not%20Rated", "", "US");
+        assert_eq!(l.max_age, Some(18));
+        assert!(l.not_kept.is_empty(), "{:?}", l.not_kept);
+        let l = limits("contentRating!=NR,R,NC-17", "", "", "US");
+        assert_eq!(l.max_age, Some(13));
     }
 
     #[test]
@@ -374,6 +420,12 @@ mod tests {
         let l = limits("label=Kids", "year=1990&contentRating=G", "", "US");
         assert_eq!(l.not_kept, ["label=Kids", "year=1990"]);
         assert_eq!(l.max_age, Some(0));
+        // A field Pley doesn't have, alone, could hide anything.
+        let l = limits("genre!=Horror", "", "", "US");
+        assert_eq!((l.max_age, l.not_kept.as_slice()), (Some(0), ["genre!=Horror".to_owned()].as_slice()));
+        // Beside a rating, it only let more through: the rating's limit.
+        let l = limits("contentRating=PG|genre=Kids", "", "", "US");
+        assert_eq!((l.max_age, l.not_kept.as_slice()), (Some(10), ["genre=Kids".to_owned()].as_slice()));
         // Only titles labelled Kids: as strict as Pley can be, never open.
         let l = limits("label=Kids", "", "", "US");
         assert_eq!((l.max_age, l.show.as_slice()), (Some(0), ["Kids".to_owned()].as_slice()));
@@ -385,6 +437,18 @@ mod tests {
         let l = limits(&never.join("&"), "", "", "US");
         assert_eq!(l.hide.len(), MAX_LABEL_RULES);
         assert_eq!(l.left_over, [format!("L{MAX_LABEL_RULES}"), format!("L{}", MAX_LABEL_RULES + 1)]);
+        // Those titles would show: the youngest age hides all it can.
+        assert_eq!(l.max_age, Some(0));
+        let long = "L".repeat(crate::labels::MAX_LEN + 1);
+        let l = limits(&format!("label!={long}&label!=Scary"), "", "", "US");
+        assert_eq!(
+            (l.max_age, l.hide.as_slice(), l.left_over.as_slice()),
+            (Some(0), ["Scary".to_owned()].as_slice(), [long].as_slice())
+        );
+        // Labels always shown, left out, only show less.
+        let always: Vec<String> = (0..MAX_LABEL_RULES + 2).map(|n| format!("L{n}")).collect();
+        let l = limits(&format!("contentRating=R|label={}", always.join(",")), "", "", "US");
+        assert_eq!((l.max_age, l.left_over.len()), (Some(17), 2));
     }
 
     #[test]

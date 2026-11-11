@@ -1821,18 +1821,23 @@ impl Run {
             None => (Vec::new(), Vec::new()),
         };
         let mut left_over = limits.left_over.clone();
+        let mut max_age = limits.max_age;
         for (list, from) in [(&mut hide, &limits.hide), (&mut show, &limits.show)] {
             for label in from {
-                if label.chars().count() > crate::labels::MAX_LEN {
-                    left_over.push(label.clone());
-                } else if !list.iter().any(|l| l.eq_ignore_ascii_case(label)) {
+                if !list.iter().any(|l| l.eq_ignore_ascii_case(label)) {
                     list.push(label.clone());
                 }
             }
         }
         // "Never" in either is "never".
         show.retain(|s| !hide.iter().any(|h| h.eq_ignore_ascii_case(s)));
+        let dropped = left_over.len();
         left_over.extend(hide.split_off(hide.len().min(MAX_LABEL_RULES)));
+        // With the profile's own, past the most it keeps: a label never
+        // shown left out would show its titles, so the youngest age instead.
+        if left_over.len() > dropped {
+            max_age = Some(0);
+        }
         left_over.extend(show.split_off(show.len().min(MAX_LABEL_RULES)));
 
         let mut tx = db.write.begin().await?;
@@ -1843,14 +1848,14 @@ impl Run {
                         .bind(id)
                         .fetch_one(&mut *tx)
                         .await?;
-                let age = if age.is_none() && born.is_none() && limits.max_age.is_some() {
+                let age = if age.is_none() && born.is_none() && max_age.is_some() {
                     sqlx::query("UPDATE users SET max_age = ?, max_age_system = ? WHERE id = ?")
-                        .bind(limits.max_age)
+                        .bind(max_age)
                         .bind(&limits.system)
                         .bind(id)
                         .execute(&mut *tx)
                         .await?;
-                    limits.max_age
+                    max_age
                 } else {
                     age
                 };
@@ -1868,7 +1873,7 @@ impl Run {
                 .bind(NO_PASSWORD)
                 .bind(Some(cut(&user.title, MAX_NAME)).filter(|t| !t.is_empty()))
                 .bind(everything)
-                .bind(limits.max_age)
+                .bind(max_age)
                 .bind(&limits.system)
                 .bind(now())
                 .fetch_one(&mut *tx)
@@ -1888,7 +1893,7 @@ impl Run {
                             .await?;
                     }
                 }
-                (id, true, limits.max_age)
+                (id, true, max_age)
             }
         };
         accounts::add_label_rules(&mut tx, id, "show", &show).await?;

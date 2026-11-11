@@ -946,7 +946,12 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(report["bring"], json!({"watch_history": false, "collections": false, "edits": false}));
 
     // A profile the administrator turns off stays off, whatever the import.
-    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"disabled": true})).await;
+    // With as many labels it never sees as a profile keeps, and no age
+    // limit, Plex's "Scary" can't be added: the youngest age hides it.
+    let full: Vec<String> = (0..50).map(|n| format!("L{n}")).collect();
+    let r = app
+        .patch(&format!("/api/users/{kid_id}"), &admin, json!({"disabled": true, "max_age": null, "hide_labels": full}))
+        .await;
     assert!(r.status.is_success(), "{:?}", r.body);
     let r = app
         .post(
@@ -963,6 +968,9 @@ async fn brings_libraries_people_and_what_they_watched() {
     let done = finished(&app, &admin).await;
     assert_eq!(done["report"]["profiles"][1]["held"], false);
     assert_eq!(one(&app, "SELECT disabled FROM users WHERE id = ?", kid_id).await, 1);
+    assert_eq!(done["report"]["profiles"][1]["left_over"], json!(["Scary"]));
+    assert_eq!(done["report"]["profiles"][1]["max_age"], 0);
+    assert_eq!(one(&app, "SELECT max_age FROM users WHERE id = ?", kid_id).await, 0);
 
     // Forgetting the sign-in.
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);

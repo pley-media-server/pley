@@ -23,10 +23,14 @@ never changes anything on Plex.
   or below the youngest it disallows, and label rules from Plex's labels:
   titles with a label they're always allowed are shown above their age
   limit, titles with a label they're never allowed aren't shown at all. A
-  rule Pley can't keep, such as "only titles with this label", becomes the
-  strictest it can, and the import says which. So does a list of
-  disallowed ratings with a gap (PG-13 disallowed but R allowed): an age
-  limit hides everything above it. A managed user's Plex preset becomes an
+  rule Pley can't keep becomes the strictest it can, and the import says
+  which: "only titles with this label", a field other than ratings and
+  labels, a disallowed rating Pley doesn't know, or a label never allowed
+  that can't be kept (past 50 of them, or longer than a label can be)
+  give the youngest age limit. A list of disallowed ratings with a gap
+  (PG-13 disallowed but R allowed) hides everything above the youngest of
+  them: an age limit can't have gaps. Disallowing unrated titles is what
+  any age limit does, so on its own it gives the oldest. A managed user's Plex preset becomes an
   age limit alone: 5 for Little kid, 11 for Older kid and 14 for Teen. A
   managed user without restrictions sees everything, as on Plex. A
   profile with labels it's never allowed is off until the import
