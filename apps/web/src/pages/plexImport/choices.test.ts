@@ -28,9 +28,9 @@ const plan: ImportPlan = {
 describe("Plex import choices", () => {
   it("start where the plan says each library goes", () => {
     expect(firstChoices(plan)).toEqual({
-      "1": { target: 7, name: "Library 1", folders: { "/plex/1": "/media/films" }, found: [], left: false },
-      "2": { target: "new", name: "Library 2", folders: { "/plex/2": "/plex/2" }, found: [], left: false },
-      "3": { target: "leave", name: "Library 3", folders: { "/plex/3": "" }, found: [], left: false },
+      "1": { target: 7, name: "Library 1", folders: { "/plex/1": "/media/films" }, left: false },
+      "2": { target: "new", name: "Library 2", folders: { "/plex/2": "/plex/2" }, left: false },
+      "3": { target: "leave", name: "Library 3", folders: { "/plex/3": "" }, left: false },
     });
   });
 
@@ -73,7 +73,7 @@ describe("Plex import choices", () => {
 
   it("start from the folders Pley found, to be checked", () => {
     const found: ImportPlan = { ...plan, libraries: [library("4", { folders_found: [{ plex: "/plex/4", pley: "/media/Movies" }] })] };
-    expect(firstChoices(found)["4"]).toEqual({ target: "new", name: "Library 4", folders: { "/plex/4": "/media/Movies" }, found: ["/plex/4"], left: false });
+    expect(firstChoices(found)["4"]).toEqual({ target: "new", name: "Library 4", folders: { "/plex/4": "/media/Movies" }, left: false });
   });
 
   it("read what one folder given says of the others", () => {
@@ -110,7 +110,7 @@ describe("Plex import choices", () => {
       choices,
       fills.filter((f) => f.path !== "/other/kids"),
     );
-    expect(choices["2"]).toMatchObject({ target: "new", folders: { "/data/media/tv": "/media/tv", "/data/other/kids": "" }, found: ["/data/media/tv"] });
+    expect(choices["2"]).toMatchObject({ target: "new", folders: { "/data/media/tv": "/media/tv", "/data/other/kids": "" } });
     // Left out by the person: filled in, but still left out.
     expect(choices["3"]).toMatchObject({ target: "leave", folders: { "/data/media/music": "/media/music" } });
     // A folder said already isn't changed.

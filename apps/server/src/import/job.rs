@@ -76,6 +76,9 @@ struct Session {
     /// The plan's Home users' pictures, as Pley keeps a profile's, by
     /// their Plex id.
     pictures: HashMap<i64, Vec<u8>>,
+    /// The files the plan sampled from each library, by its key, with their
+    /// sizes: a folder given for it is checked against them.
+    samples: HashMap<String, Vec<(String, Option<i64>)>>,
 }
 
 impl Session {
@@ -86,6 +89,7 @@ impl Session {
         self.server = None;
         self.server_name.clear();
         self.pictures.clear();
+        self.samples.clear();
     }
 }
 
@@ -387,7 +391,25 @@ pub struct PlanLibrary {
     pub kind: &'static str,
     /// Plex's folders.
     pub locations: Vec<String>,
+    /// How much it holds: movies, episodes or tracks.
+    pub items: u64,
+    /// Its shows or artists; none for movies.
+    pub groups: Option<u64>,
     pub pairing: Pairing,
+}
+
+/// Whether one of Plex's folders is where it's said to be for Pley.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FolderCheck {
+    /// One of the files the plan sampled from it is there, the same size.
+    Found,
+    /// None of them is.
+    NoneFound,
+    /// Pley can't open it.
+    Missing,
+    /// No file was sampled from it to tell.
+    Untold,
 }
 
 /// How a Plex library pairs with Pley's.
@@ -726,24 +748,35 @@ impl Importer {
         let home = plex.home_users(&token).await?;
         // The pictures come from plex.tv while the libraries are paired.
         let pairing = async {
-            let mut libraries = Vec::new();
+            let (mut libraries, mut samples) = (Vec::new(), HashMap::new());
             for section in plex.sections(&server).await? {
                 let Some(kind) = pley_kind(&section.kind) else { continue };
                 let locations: Vec<String> = section.location.iter().map(|l| l.path.clone()).collect();
-                let pairing = pair(db, &plex, &server, &section.key, kind, &locations, &bases).await?;
+                let (pairing, sample, items) = pair(db, &plex, &server, &section.key, kind, &locations, &bases).await?;
+                let groups = match group_type(kind) {
+                    Some(kind) => {
+                        let query = [("type", kind.to_string())];
+                        let path = format!("/library/sections/{}/all", section.key);
+                        Some(plex.page_of(&server, &path, &query, 0, 0).await?.total as u64)
+                    }
+                    None => None,
+                };
+                samples.insert(section.key.clone(), sample);
                 libraries.push(PlanLibrary {
                     key: section.key,
                     title: section.title,
                     kind: kind.as_str(),
                     locations,
+                    items: items as u64,
+                    groups,
                     pairing,
                 });
             }
-            Ok::<_, ImportError>(libraries)
+            Ok::<_, ImportError>((libraries, samples))
         };
         let pictures = futures::future::join_all(home.iter().map(|user| home_picture(&plex, user)));
         let (libraries, pictures) = tokio::join!(pairing, pictures);
-        let libraries = libraries?;
+        let (libraries, samples) = libraries?;
         let pictures: HashMap<i64, (Option<Vec<u8>>, Option<String>)> = pictures.into_iter().collect();
 
         // A managed user's rules (a preset's included) and a Home member's
@@ -768,8 +801,38 @@ impl Importer {
             });
         }
         let pictures = pictures.into_iter().filter_map(|(id, (jpeg, _))| Some((id, jpeg?))).collect();
-        self.session.lock().await.pictures = pictures;
+        let mut session = self.session.lock().await;
+        session.pictures = pictures;
+        session.samples = samples;
         Ok(Plan { server: name, libraries, users })
+    }
+
+    /// Whether Plex library `key`'s folder `plex` is `pley` for Pley, told
+    /// by the files the last plan sampled from it.
+    pub async fn check_folder(&self, key: &str, plex: &str, pley: &str) -> FolderCheck {
+        let files = self.session.lock().await.samples.get(key).cloned().unwrap_or_default();
+        let folder = Folder { plex: plex.to_owned(), pley: pley.to_owned() };
+        tokio::task::spawn_blocking(move || {
+            if !std::path::Path::new(&folder.pley).is_dir() {
+                return FolderCheck::Missing;
+            }
+            let there: Vec<(String, Option<i64>)> = files
+                .iter()
+                .filter_map(|(file, size)| Some((map_path(std::slice::from_ref(&folder), file)?, *size)))
+                .collect();
+            if there.is_empty() {
+                FolderCheck::Untold
+            } else if there
+                .iter()
+                .any(|(path, size)| std::fs::metadata(path).is_ok_and(|m| m.is_file() && Some(m.len() as i64) == *size))
+            {
+                FolderCheck::Found
+            } else {
+                FolderCheck::NoneFound
+            }
+        })
+        .await
+        .unwrap_or(FolderCheck::Untold)
     }
 
     /// Home user `id`'s picture, as the last plan found it: a JPEG.
@@ -886,6 +949,16 @@ fn types(kind: LibraryKind) -> &'static [(u8, &'static str)] {
 }
 
 /// The type whose files a library of `kind` is sampled by.
+/// Plex's type for what a library of `kind` groups its items in: shows,
+/// artists. Movies aren't grouped.
+fn group_type(kind: LibraryKind) -> Option<u8> {
+    match kind {
+        LibraryKind::Movies => None,
+        LibraryKind::Shows => Some(2),
+        LibraryKind::Music => Some(8),
+    }
+}
+
 fn leaf_type(kind: LibraryKind) -> u8 {
     match kind {
         LibraryKind::Movies => 1,
@@ -934,7 +1007,8 @@ async fn home_picture(plex: &Plex, user: &HomeUser) -> (i64, (Option<Vec<u8>>, O
 
 /// Pairs Plex library `key` with Pley's: some of its files, from spots
 /// spread over it, looked for among Pley's by name and size. Its folders
-/// Pley knows neither way are looked for under `bases`.
+/// Pley knows neither way are looked for under `bases`. With the files
+/// sampled, and how many items (movies, episodes, tracks) it holds.
 async fn pair(
     db: &Db,
     plex: &Plex,
@@ -943,7 +1017,7 @@ async fn pair(
     kind: LibraryKind,
     locations: &[String],
     bases: &[std::path::PathBuf],
-) -> ImportResult<Pairing> {
+) -> ImportResult<(Pairing, Vec<(String, Option<i64>)>, usize)> {
     let query = [("type", leaf_type(kind).to_string())];
     let path = format!("/library/sections/{key}/all");
     let each = SAMPLE / SAMPLE_SPOTS;
@@ -1003,6 +1077,7 @@ async fn pair(
         .cloned()
         .collect();
     let bases = bases.to_vec();
+    let sample = files.clone();
     let folders_found = tokio::task::spawn_blocking(move || {
         unknown
             .iter()
@@ -1022,7 +1097,8 @@ async fn pair(
     })
     .await
     .unwrap_or_default();
-    Ok(Pairing { status, library_id: best.map(|(id, _)| id), folders, folders_here, folders_found })
+    let pairing = Pairing { status, library_id: best.map(|(id, _)| id), folders, folders_here, folders_found };
+    Ok((pairing, sample, first.total))
 }
 
 /// One import as it runs.

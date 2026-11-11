@@ -118,6 +118,7 @@ const ADMIN: &[(&str, &str)] = &[
     ("GET", "/api/import/plex/servers"),
     ("POST", "/api/import/plex/server"),
     ("GET", "/api/import/plex/plan"),
+    ("POST", "/api/import/plex/folder"),
     ("GET", "/api/import/plex/users/{id}/picture"),
     ("POST", "/api/import/plex/start"),
     ("POST", "/api/system/storage/clean"),

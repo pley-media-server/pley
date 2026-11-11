@@ -4567,6 +4567,7 @@ apps.
 | GET | `/api/import/plex/servers` | `admin` | `{ id, name, owned, version }[]`: the servers the account owns, then those shared with it (only an owner can read everyone's history and the Home's restrictions, so only one it owns can be chosen) |
 | POST | `/api/import/plex/server` | `admin` | `{ id }`, or `{ address }` for a server Pley can't reach through plex.tv's addresses → `{ name }`: connected; `409 plex_not_owned` for a server plex.tv doesn't list as the account's own |
 | GET | `/api/import/plex/plan` | `admin` | `ImportPlan` |
+| POST | `/api/import/plex/folder` | `admin` | `{ library, plex, pley }`: a library's key from the plan, one of its Plex folders and where Pley sees it → `{ state }`: `found` (a file Plex has there is there, the same size), `none_found`, `missing` (Pley can't open the folder) or `untold` (none of the files the plan sampled are in that Plex folder) |
 | GET | `/api/import/plex/users/{id}/picture` | `admin` | A Home user's picture as the last plan found it, made as a profile's is (a 256-pixel JPEG); `404` when it had none |
 | POST | `/api/import/plex/start` | `admin` | `ImportChoices` → `202`; `409 import_running` while one runs |
 | GET | `/api/import/plex` | `admin` | `ImportProgress`: the import running, or the last one's report |
@@ -4583,6 +4584,8 @@ interface ImportPlan {
     key: string; title: string;
     kind: "movies" | "shows" | "music";   // Plex's photo libraries are left out
     locations: string[];                  // Plex's folders
+    items: number;                        // movies, episodes or tracks
+    groups: number | null;                // shows or artists; null for movies
     pairing: {
       status: "matched" | "unsure" | "not_in_pley";
       library_id: Id | null;              // the Pley library most of its files are in

@@ -1,7 +1,7 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { plexImportKeys, type ImportPlan, type ImportProgress, type ImportReport, type PlexServer } from "@/api/plexImport";
+import { plexImportKeys, type FolderCheck, type ImportPlan, type ImportProgress, type ImportReport, type PlexServer } from "@/api/plexImport";
 import type { Library } from "@/api/types";
 import { apiError, mockApi, renderWithProviders } from "@/test/render";
 import { PlexImport } from "./PlexImport";
@@ -16,6 +16,8 @@ const plan: ImportPlan = {
       title: "Movies",
       kind: "movies",
       locations: ["/data/movies"],
+      items: 812,
+      groups: null,
       pairing: { status: "matched", library_id: 7, folders: [{ plex: "/data/movies", pley: "/media/films" }], folders_here: [], folders_found: [] },
     },
     {
@@ -23,6 +25,8 @@ const plan: ImportPlan = {
       title: "TV Shows",
       kind: "shows",
       locations: ["/data/tv"],
+      items: 6509,
+      groups: 64,
       pairing: { status: "not_in_pley", library_id: null, folders: [], folders_here: [], folders_found: [] },
     },
   ],
@@ -88,6 +92,7 @@ function serve({
   thePlan = plan,
   pleyLibraries = [films],
   exists = () => true,
+  check = () => "untold",
 }: {
   signedIn?: boolean | null;
   progress?: () => ImportProgress;
@@ -97,6 +102,8 @@ function serve({
   pleyLibraries?: Library[];
   /** Whether a folder is there for Pley. */
   exists?: (path: string) => boolean;
+  /** What Pley finds of a library's Plex files in a folder. */
+  check?: (folder: { library: string; plex: string; pley: string }) => FolderCheck;
 } = {}) {
   return mockApi({
     "GET /api/import/plex": () => progress(),
@@ -109,6 +116,7 @@ function serve({
     "POST /api/import/plex/server": () => connect(),
     "GET /api/import/plex/plan": () => thePlan,
     "POST /api/import/plex/start": () => undefined,
+    "POST /api/import/plex/folder": (req) => ({ state: check(req.body as { library: string; plex: string; pley: string }) }),
     "GET /api/libraries": () => pleyLibraries,
     "GET /api/ratings/systems": () => ({ region: "US", systems: [] }),
     "POST /api/fs": (req) => {
@@ -133,12 +141,15 @@ describe("PlexImport", () => {
     expect(await screen.findByRole("heading", { name: "Libraries on Den" })).toBeInTheDocument();
     expect(requests.find((r) => r.method === "POST" && r.path === "/api/import/plex/server")?.body).toEqual({ id: "m1" });
     expect(screen.getByLabelText("Where Movies goes")).toHaveValue("7");
-    // Pley can't open TV Shows' folder: left out, and its folder asked for.
-    const tv = screen.getByLabelText("Where TV Shows goes");
-    expect(tv).toHaveValue("leave");
-    // Giving it brings the library.
+    expect(screen.getByText("812 movies")).toBeInTheDocument();
+    expect(screen.getByText("64 shows · 6,509 episodes")).toBeInTheDocument();
+    // Pley has no library of shows to put TV Shows in, and can't open its folder: left out, and its folder asked for.
+    const tv = screen.getByRole("switch", { name: "Bring TV Shows" });
+    expect(tv).not.toBeChecked();
+    // Giving it brings the library, under Plex's name.
     await user.type(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"), "/media/tv");
-    expect(tv).toHaveValue("new");
+    expect(tv).toBeChecked();
+    expect(screen.getByText(/A new library named/)).toHaveTextContent("A new library named TV Shows");
     await user.clear(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"));
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Say where at least one of its folders is for Pley.");
@@ -311,13 +322,59 @@ describe("PlexImport", () => {
     const user = userEvent.setup();
     serve();
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
-    expect(await screen.findByLabelText("Where TV Shows goes")).toHaveValue("leave");
+    expect(await screen.findByRole("switch", { name: "Bring TV Shows" })).not.toBeChecked();
     await user.click(screen.getByRole("button", { name: "Browse for where Pley finds /data/tv" }));
     const picker = await screen.findByRole("dialog", { name: "Choose a folder" });
     await user.type(within(picker).getByLabelText("Folder path"), "/volume1/video/tv{Enter}");
     await user.click(within(picker).getByRole("button", { name: "Select this folder" }));
     expect(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?")).toHaveValue("/volume1/video/tv");
-    expect(screen.getByLabelText("Where TV Shows goes")).toHaveValue("new");
+    expect(screen.getByRole("switch", { name: "Bring TV Shows" })).toBeChecked();
+  });
+
+  it("says whether Plex's files are in each folder, as the folder changes", async () => {
+    const user = userEvent.setup();
+    const states: Record<string, FolderCheck> = { "/media/tv": "found", "/media/films": "none_found", "/nowhere": "missing" };
+    const requests = serve({ check: ({ pley }) => states[pley] ?? "untold" });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    const folder = await screen.findByLabelText("Plex sees /data/tv. Where does Pley see it?");
+    await user.type(folder, "/media/tv");
+    expect(await screen.findByText("Plex's files are here")).toBeInTheDocument();
+    expect(requests.find((r) => r.path === "/api/import/plex/folder")?.body).toEqual({ library: "2", plex: "/data/tv", pley: "/media/tv" });
+    await user.clear(folder);
+    await user.type(folder, "/media/films");
+    expect(await screen.findByText("None of Plex's files are here")).toBeInTheDocument();
+    await user.clear(folder);
+    // Nothing's said of a folder until it's settled.
+    expect(screen.queryByText("None of Plex's files are here")).not.toBeInTheDocument();
+    await user.type(folder, "/nowhere");
+    expect(await screen.findByText("Pley can't open this folder")).toBeInTheDocument();
+    // Nor where Pley can't tell.
+    await user.clear(folder);
+    await user.type(folder, "/elsewhere");
+    await waitFor(() => expect(requests.some((r) => (r.body as { pley?: string } | undefined)?.pley === "/elsewhere")).toBe(true));
+    expect(screen.queryByText(/files are here|can't open/)).not.toBeInTheDocument();
+  });
+
+  it("names a new library as Plex does, until it's renamed", async () => {
+    const user = userEvent.setup();
+    const movies = { ...plan.libraries[0]!, pairing: { ...plan.libraries[1]!.pairing, folders_here: ["/data/movies"] } };
+    const requests = serve({ thePlan: { ...plan, libraries: [movies] }, pleyLibraries: [] });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    expect(await screen.findByText(/A new library named/)).toHaveTextContent("A new library named Movies");
+    expect(screen.queryByLabelText("New library's name")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Rename" }));
+    const name = screen.getByLabelText("New library's name");
+    expect(name).toHaveFocus();
+    await user.clear(name);
+    await user.type(name, "Films");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("button", { name: "Continue" }));
+    await user.click(await screen.findByRole("button", { name: "Start the import" }));
+    await waitFor(() =>
+      expect((requests.find((r) => r.path === "/api/import/plex/start")?.body as { libraries: unknown[] }).libraries).toEqual([
+        { key: "1", new: { name: "Films", paths: ["/data/movies"] } },
+      ]),
+    );
   });
 
   it("connects to the only server without showing the list of servers", async () => {
@@ -469,13 +526,13 @@ describe("PlexImport", () => {
     };
 
     it("starts from the folders Pley found, says so, and shows no badges", async () => {
-      serve({ thePlan: docker, pleyLibraries: [] });
+      serve({ thePlan: docker, pleyLibraries: [], check: ({ pley }) => (pley === "/media/Movies" ? "found" : "untold") });
       renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
-      expect(await screen.findByLabelText("Where Movies goes")).toHaveValue("new");
+      expect(await screen.findByRole("switch", { name: "Bring Movies" })).toBeChecked();
       expect(screen.getByLabelText("Plex sees /data/media/movies. Where does Pley see it?")).toHaveValue("/media/Movies");
-      expect(screen.getByText("Pley found these folders. Check they're right.")).toBeInTheDocument();
-      expect(screen.getByLabelText("Where TV Shows goes")).toHaveValue("leave");
+      expect(screen.getByRole("switch", { name: "Bring TV Shows" })).not.toBeChecked();
       expect(screen.queryByText("Not in Pley")).not.toBeInTheDocument();
+      expect(await screen.findByText("Plex's files are here")).toBeInTheDocument();
     });
 
     it("doesn't fill in a folder that isn't there", async () => {
@@ -489,7 +546,7 @@ describe("PlexImport", () => {
       // /mnt/user/music isn't there: nothing's filled in for Music.
       await user.tab();
       expect(music).toHaveValue("");
-      expect(screen.getByLabelText("Where Music goes")).toHaveValue("leave");
+      expect(screen.getByRole("switch", { name: "Bring Music" })).not.toBeChecked();
     });
 
     it("fills in a library from another's folder", async () => {
@@ -499,8 +556,7 @@ describe("PlexImport", () => {
       await user.type(await screen.findByLabelText("Plex sees /data/media/tv. Where does Pley see it?"), "/mnt/user/tv");
       await user.tab();
       await waitFor(() => expect(screen.getByLabelText("Plex sees /data/media/music. Where does Pley see it?")).toHaveValue("/mnt/user/music"));
-      expect(screen.getByLabelText("Where Music goes")).toHaveValue("new");
-      expect(screen.getByText("Pley found these folders. Check they're right.")).toBeInTheDocument();
+      expect(screen.getByRole("switch", { name: "Bring Music" })).toBeChecked();
     });
   });
 });

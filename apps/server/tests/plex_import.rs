@@ -486,6 +486,31 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(libraries[1]["pairing"]["status"], "not_in_pley");
     // Nowhere Pley looks has its files: nothing's offered for its folder.
     assert_eq!(libraries[1]["pairing"]["folders_found"], json!([]));
+    // How much each holds: movies; shows and their episodes.
+    assert_eq!((&libraries[0]["items"], &libraries[0]["groups"]), (&json!(3), &Value::Null));
+    assert_eq!((&libraries[1]["items"], &libraries[1]["groups"]), (&json!(2), &json!(1)));
+
+    // A folder given is checked against the files the plan sampled.
+    let check = |library: &'static str, plex: &'static str, pley: String| {
+        let (app, admin) = (&app, &admin);
+        async move {
+            let r = app
+                .post("/api/import/plex/folder", admin, json!({"library": library, "plex": plex, "pley": pley}))
+                .await;
+            assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+            r.body["state"].as_str().unwrap().to_owned()
+        }
+    };
+    assert_eq!(check("1", "/plexdata/movies", app.media_path("movies")).await, "found");
+    std::fs::create_dir_all(app.media_path("elsewhere")).unwrap();
+    assert_eq!(check("1", "/plexdata/movies", app.media_path("elsewhere")).await, "none_found");
+    assert_eq!(check("1", "/plexdata/movies", app.media_path("nowhere")).await, "missing");
+    // No file was sampled from a folder Plex doesn't have.
+    assert_eq!(check("1", "/plexdata/other", app.media_path("movies")).await, "untold");
+    let r = app
+        .post("/api/import/plex/folder", &someone, json!({"library": "1", "plex": "/plexdata/movies", "pley": "/"}))
+        .await;
+    assert_eq!(r.status, StatusCode::FORBIDDEN);
     // Pictures: Alex's own, Plex's colour alone for Kid One (an initial on
     // it, which Pley draws itself), nothing for the others.
     let pictures: Vec<(&Value, &Value)> =

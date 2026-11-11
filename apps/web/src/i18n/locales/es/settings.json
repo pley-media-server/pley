@@ -885,7 +885,31 @@
         "no_folders": "Indica dónde está al menos una de sus carpetas para Pley."
       },
       "pickOne": "Elige al menos una biblioteca para importar.",
-      "found": "Pley ha encontrado estas carpetas. Comprueba que son las correctas."
+      "newNamed": "Una biblioteca nueva llamada <name>{{name}}</name>",
+      "rename": "Cambiar el nombre",
+      "bring": "Importar {{name}}",
+      "check": {
+        "found": "Los archivos de Plex están aquí",
+        "none_found": "Ninguno de los archivos de Plex está aquí",
+        "missing": "Pley no puede abrir esta carpeta"
+      },
+      "size": {
+        "movies_one": "{{count, number}} película",
+        "movies_other": "{{count, number}} películas",
+        "movies_many": "{{count, number}} de películas",
+        "shows_one": "{{count, number}} serie",
+        "shows_other": "{{count, number}} series",
+        "shows_many": "{{count, number}} de series",
+        "episodes_one": "{{count, number}} episodio",
+        "episodes_other": "{{count, number}} episodios",
+        "episodes_many": "{{count, number}} de episodios",
+        "artists_one": "{{count, number}} artista",
+        "artists_other": "{{count, number}} artistas",
+        "artists_many": "{{count, number}} de artistas",
+        "tracks_one": "{{count, number}} pista",
+        "tracks_other": "{{count, number}} pistas",
+        "tracks_many": "{{count, number}} de pistas"
+      }
     },
     "people": {
       "title": "Quién viene",

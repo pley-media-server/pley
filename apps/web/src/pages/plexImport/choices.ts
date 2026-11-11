@@ -10,8 +10,6 @@ export interface LibraryChoice {
   name: string;
   /** Each of Plex's folders, where it is for Pley ("" not known). */
   folders: Record<string, string>;
-  /** Plex's folders whose place Pley filled in, until they're changed: to check. */
-  found: string[];
   /** Left out by the person, rather than for want of its folders. */
   left: boolean;
 }
@@ -68,8 +66,7 @@ export function firstChoices(plan: ImportPlan): LibraryChoices {
       const reachable = Object.values(folders).some(Boolean);
       const id = library.pairing.library_id;
       const target: Target = library.pairing.status !== "not_in_pley" && id != null ? id : reachable ? "new" : "leave";
-      const found = library.locations.filter((l) => folders[l] !== "" && folders[l] === foundFolder(library, l));
-      return [library.key, { target, name: library.title, folders, found, left: false }];
+      return [library.key, { target, name: library.title, folders, left: false }];
     }),
   );
 }
@@ -125,8 +122,8 @@ export function swapFills(plan: ImportPlan, choices: LibraryChoices, swap: PlexF
 }
 
 /**
- * The choices with `filled` folders, those still empty: each marked as
- * Pley's to check, and a library left out for want of them made new.
+ * The choices with `filled` folders, those still empty: a library left out
+ * for want of them made new.
  */
 export function fillIn(choices: LibraryChoices, filled: Filled[]): LibraryChoices {
   const next = { ...choices };
@@ -137,7 +134,6 @@ export function fillIn(choices: LibraryChoices, filled: Filled[]): LibraryChoice
       ...choice,
       target: choice.target === "leave" && !choice.left ? "new" : choice.target,
       folders: { ...choice.folders, [location]: path },
-      found: [...choice.found, location],
     };
   }
   return next;

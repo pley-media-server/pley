@@ -16,7 +16,8 @@ describes how they are made.
   Plex. Sign in on Plex's own page and pick the server; Pley pairs each
   Plex library with its own (or makes one), finding Plex's folders where
   it sees them under another path (Docker) by a file in them, or from one
-  folder given; it shows each Plex Home user with their picture, and makes
+  folder given, and says how much each library holds and whether Plex's
+  files are in each folder given; it shows each Plex Home user with their picture, and makes
   a profile for each one chosen with their picture and their restrictions
   as an age limit and label rules, and
   brings over the titles' labels and dates added, and each person's

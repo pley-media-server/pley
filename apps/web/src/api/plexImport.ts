@@ -25,6 +25,10 @@ export interface PlanLibrary {
   kind: LibraryKind;
   /** Plex's folders. */
   locations: string[];
+  /** How much it holds: movies, episodes or tracks; absent from servers before it. */
+  items?: number;
+  /** Its shows or artists; null for movies. */
+  groups?: number | null;
   pairing: {
     status: PairingStatus;
     /** The Pley library most of its files are in. */
@@ -230,7 +234,25 @@ export const plexImportKeys = {
   servers: ["import", "plex", "servers"] as const,
   plan: ["import", "plex", "plan"] as const,
   signedIn: ["import", "plex", "pin"] as const,
+  folder: (library: string, plex: string, pley: string) => ["import", "plex", "folder", library, plex, pley] as const,
 };
+
+/**
+ * Whether one of a Plex library's folders is where it's said to be for
+ * Pley: `found` when one of the files the plan sampled from it is there,
+ * `untold` when none was sampled from it.
+ */
+export type FolderCheck = "found" | "none_found" | "missing" | "untold";
+
+/** `plex`, one of Plex library `library`'s folders, checked at `pley`; nothing asked while `pley` is empty. */
+export function useFolderCheck(library: string, plex: string, pley: string) {
+  return useQuery({
+    queryKey: plexImportKeys.folder(library, plex, pley),
+    queryFn: () => api.post<{ state: FolderCheck }>("/api/import/plex/folder", { library, plex, pley }).then((r) => r.state),
+    enabled: pley.trim() !== "",
+    staleTime: 30_000,
+  });
+}
 
 /**
  * Where the import is, or the last one's report: fetched again on each

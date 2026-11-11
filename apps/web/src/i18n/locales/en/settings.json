@@ -864,7 +864,26 @@
         "no_folders": "Say where at least one of its folders is for Pley."
       },
       "pickOne": "Choose at least one library to bring.",
-      "found": "Pley found these folders. Check they're right."
+      "newNamed": "A new library named <name>{{name}}</name>",
+      "rename": "Rename",
+      "bring": "Bring {{name}}",
+      "check": {
+        "found": "Plex's files are here",
+        "none_found": "None of Plex's files are here",
+        "missing": "Pley can't open this folder"
+      },
+      "size": {
+        "movies_one": "{{count, number}} movie",
+        "movies_other": "{{count, number}} movies",
+        "shows_one": "{{count, number}} show",
+        "shows_other": "{{count, number}} shows",
+        "episodes_one": "{{count, number}} episode",
+        "episodes_other": "{{count, number}} episodes",
+        "artists_one": "{{count, number}} artist",
+        "artists_other": "{{count, number}} artists",
+        "tracks_one": "{{count, number}} track",
+        "tracks_other": "{{count, number}} tracks"
+      }
     },
     "people": {
       "title": "Who comes over",

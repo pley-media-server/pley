@@ -885,7 +885,31 @@
         "no_folders": "Indiquez où se trouve au moins un de ses dossiers pour Pley."
       },
       "pickOne": "Choisissez au moins une bibliothèque à importer.",
-      "found": "Pley a trouvé ces dossiers. Vérifiez qu’ils sont bons."
+      "newNamed": "Une nouvelle bibliothèque nommée <name>{{name}}</name>",
+      "rename": "Renommer",
+      "bring": "Importer {{name}}",
+      "check": {
+        "found": "Les fichiers de Plex sont ici",
+        "none_found": "Aucun des fichiers de Plex n’est ici",
+        "missing": "Pley ne peut pas ouvrir ce dossier"
+      },
+      "size": {
+        "movies_one": "{{count, number}} film",
+        "movies_other": "{{count, number}} films",
+        "movies_many": "{{count, number}} de films",
+        "shows_one": "{{count, number}} série",
+        "shows_other": "{{count, number}} séries",
+        "shows_many": "{{count, number}} de séries",
+        "episodes_one": "{{count, number}} épisode",
+        "episodes_other": "{{count, number}} épisodes",
+        "episodes_many": "{{count, number}} d’épisodes",
+        "artists_one": "{{count, number}} artiste",
+        "artists_other": "{{count, number}} artistes",
+        "artists_many": "{{count, number}} d’artistes",
+        "tracks_one": "{{count, number}} titre",
+        "tracks_other": "{{count, number}} titres",
+        "tracks_many": "{{count, number}} de titres"
+      }
     },
     "people": {
       "title": "Qui vient avec vous",

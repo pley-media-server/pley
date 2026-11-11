@@ -10,7 +10,7 @@ use serde_json::{Value, json};
 
 use crate::auth::AdminUser;
 use crate::error::{ApiResult, AppError};
-use crate::import::job::{Choices, ImportError, Plan, Progress, ServerChoice};
+use crate::import::job::{Choices, FolderCheck, ImportError, Plan, Progress, ServerChoice};
 use crate::import::plex::PlexError;
 use crate::state::AppState;
 
@@ -111,6 +111,30 @@ pub async fn choose_server(
 /// its Home users with the limits they'd get.
 pub async fn plan(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Plan>> {
     Ok(Json(state.plex_import.plan(&state.db, &state.config.data_dir).await?))
+}
+
+#[derive(Deserialize)]
+pub struct FolderToCheck {
+    /// The Plex library's key.
+    library: String,
+    /// One of its folders, as Plex sees it.
+    plex: String,
+    /// Where it's said to be for Pley.
+    pley: String,
+}
+
+/// `POST /api/import/plex/folder`: whether one of a Plex library's folders
+/// is where it's said to be for Pley, told by the files the plan sampled.
+pub async fn check_folder(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Json(body): Json<FolderToCheck>,
+) -> ApiResult<Json<Value>> {
+    if body.library.len() > 64 || body.plex.len() > 4096 || body.pley.len() > 4096 {
+        return Err(AppError::bad_request("that folder is too long"));
+    }
+    let check: FolderCheck = state.plex_import.check_folder(&body.library, &body.plex, body.pley.trim()).await;
+    Ok(Json(json!({ "state": check })))
 }
 
 /// `GET /api/import/plex/users/{id}/picture`: a Home user's picture, as
