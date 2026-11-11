@@ -192,12 +192,12 @@
     "load": {
       "title": "Load",
       "description": "What the transcoder takes on, how much of it at once, and how far ahead of the player it works.",
-      "convertVideo": "Convert video",
-      "convertVideoHint": "For devices that can't play a file's video as it is, and for lower qualities. Off: video is only copied, with the sound converted where a device needs it. A file whose video a device can't play doesn't play there, and players offer the Original quality alone. Live TV has its own settings.",
-      "max": "Max simultaneous transcodes",
-      "maxHint": "Streams whose video is converted.",
-      "maxRemuxes": "Max simultaneous remuxes",
-      "maxRemuxesHint": "Streams whose video is copied: only the container or the sound changes. They cost far less than a transcode.",
+      "allowVideo": "Allow video transcoding",
+      "allowVideoHint": "Off: only sound is transcoded, and video is copied as it is.",
+      "maxVideo": "Max simultaneous video transcodes",
+      "max": "Max simultaneous total transcodes",
+      "maxHint": "Video transcodes, remuxes and sound transcodes together.",
+      "automatic": "Automatic · {{limit}}",
       "maxJobsManaged": "The transcoder itself runs {{max}} at most (transcoder_max_jobs in pley.toml).",
       "maxJobsExternal": "The transcoder itself runs {{max}} at most (its --max-jobs).",
       "throttle": "Throttle transcodes",
@@ -206,7 +206,7 @@
       "memory": "Transcode in memory",
       "memoryHint": "Keeps segments in RAM instead of on disk.",
       "memoryHintUpTo": "Keeps segments in RAM instead of on disk. Up to {{size}}.",
-      "toDisk": "{{reason}}: segments go to disk."
+      "notInMemory": "{{reason}}."
     }
   },
   "choices": {

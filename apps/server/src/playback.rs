@@ -527,9 +527,9 @@ pub struct PlaybackInfo {
     pub original_only: bool,
 }
 
-/// The reason a play has when it asked for a quality or a conversion of a
-/// server that converts no video ([`PlaybackRequest::copy_video_only`]).
-pub const NOT_CONVERTED: &str = "This server doesn't convert video.";
+/// The reason a play has when it asked for a quality or a transcode of a
+/// server that transcodes no video ([`PlaybackRequest::copy_video_only`]).
+pub const NOT_CONVERTED: &str = "Video transcoding is off on this server.";
 
 /// What FFmpeg's MPEG-TS muxer adds to every timestamp of the transcoder's
 /// HLS segments, which otherwise keep the file's times from whatever point
@@ -2204,32 +2204,32 @@ const STOPPED_KEPT_SECS: i64 = 30 * 60;
 /// How many stopped sessions are remembered at most (the oldest go first).
 const STOPPED_KEPT: usize = 1_000;
 
-/// Which limit a stream the transcoder makes counts against: a video
-/// conversion costs many times what a copy does, so each has its own
-/// (`max_transcodes` and `max_remuxes` in Settings → Transcoder), and
-/// people whose players only need the sound converted aren't kept out by
-/// those whose video is.
+/// What a stream the transcoder makes costs: transcoding video takes many
+/// times what copying it does, so those streams have a limit of their own
+/// within the limit of every kind (`max_video_transcodes` and
+/// `max_transcodes` in Settings → Transcoder), which leaves room for people
+/// whose players only need the sound transcoded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Pool {
-    /// The video is converted.
-    Transcodes,
+    /// The video is transcoded.
+    Video,
     /// The video is copied, or there is none: a remux, with the sound
-    /// converted or not, and music.
-    Remuxes,
+    /// transcoded or not, and music.
+    Light,
 }
 
 impl Pool {
     /// The pool of a stream with this video.
     pub fn of(video: Option<&VideoRequest>) -> Pool {
         match video {
-            Some(v) if v.mode == VideoMode::Transcode => Pool::Transcodes,
-            _ => Pool::Remuxes,
+            Some(v) if v.mode == VideoMode::Transcode => Pool::Video,
+            _ => Pool::Light,
         }
     }
 }
 
-/// A slot of a [`Pool`], held while the job is created. It counts against
-/// the pool's limit until the session takes it over
+/// A slot for a stream of a [`Pool`], held while the job is created. It
+/// counts against the limits until the session takes it over
 /// ([`Sessions::insert_transcode`]) or it is dropped: the request failed, or
 /// the client went away.
 pub struct TranscodeSlot<'a> {
@@ -2241,6 +2241,15 @@ impl Drop for TranscodeSlot<'_> {
     fn drop(&mut self) {
         self.sessions.reserved[self.pool as usize].fetch_sub(1, Ordering::SeqCst);
     }
+}
+
+/// The limit that kept a stream from starting ([`Sessions::reserve_transcode`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Full {
+    /// Streams of every kind.
+    Total,
+    /// Streams that transcode video.
+    Video,
 }
 
 /// A play request on its way to a session (see [`Sessions::begin_start`]).
@@ -2329,21 +2338,26 @@ impl Sessions {
         session
     }
 
-    /// Take one of the `max` slots of `pool`, or `None` when its live
-    /// streams and the play requests still creating their job use them all.
-    /// Creating a job takes seconds: checking and taking happen under one
-    /// lock, so play requests arriving together can't all pass the check
-    /// before any of them has a session. A session counts in the pool of
-    /// the stream the transcoder really makes (a copy it had to convert
-    /// counts as a conversion), whichever slot it was started with.
-    pub fn reserve_transcode(&self, pool: Pool, max: usize) -> Option<TranscodeSlot<'_>> {
+    /// Take a slot for a stream of `pool`: one of the `total` of every
+    /// kind, and for one that transcodes video one of the `video` among
+    /// them too. `Err` names the limit that live streams and the play
+    /// requests still creating their job have used up. Creating a job takes
+    /// seconds: checking and taking happen under one lock, so play requests
+    /// arriving together can't all pass the check before any of them has a
+    /// session. A session counts as the stream the transcoder really makes
+    /// (a copy it had to transcode counts as a video transcode), whichever
+    /// slot it was started with.
+    pub fn reserve_transcode(&self, pool: Pool, total: usize, video: usize) -> Result<TranscodeSlot<'_>, Full> {
         let map = self.map.lock();
-        let reserved = &self.reserved[pool as usize];
-        if live_transcodes(&map, Some(pool)) + reserved.load(Ordering::SeqCst) >= max {
-            return None;
+        let reserved = |pool: Pool| self.reserved[pool as usize].load(Ordering::SeqCst);
+        if live_transcodes(&map, None) + reserved(Pool::Video) + reserved(Pool::Light) >= total {
+            return Err(Full::Total);
         }
-        reserved.fetch_add(1, Ordering::SeqCst);
-        Some(TranscodeSlot { sessions: self, pool })
+        if pool == Pool::Video && live_transcodes(&map, Some(Pool::Video)) + reserved(Pool::Video) >= video {
+            return Err(Full::Video);
+        }
+        self.reserved[pool as usize].fetch_add(1, Ordering::SeqCst);
+        Ok(TranscodeSlot { sessions: self, pool })
     }
 
     /// Add a transcode session, which takes over the slot reserved for it.
@@ -4068,41 +4082,43 @@ mod tests {
     #[test]
     fn transcode_slots_are_taken_before_the_job_exists() {
         let sessions = Sessions::default();
-        let reserve = |max| sessions.reserve_transcode(Pool::Transcodes, max);
+        let reserve = |max| sessions.reserve_transcode(Pool::Video, max, max);
         let first = reserve(2).expect("a free slot");
         let second = reserve(2).expect("another one");
-        assert!(reserve(2).is_none(), "both are taken while their jobs are created");
+        assert_eq!(reserve(2).err(), Some(Full::Total), "both are taken while their jobs are created");
         drop(second);
         let third = reserve(2).expect("a failed request gives its slot back");
         sessions.insert_transcode(session(1, None, true), first);
         assert_eq!(sessions.active_transcodes(), 1);
-        assert!(reserve(2).is_none(), "the session keeps the slot it took over");
+        assert!(reserve(2).is_err(), "the session keeps the slot it took over");
         drop(third);
-        assert!(reserve(2).is_some());
-        assert!(reserve(1).is_none(), "a lower limit counts the live session");
+        assert!(reserve(2).is_ok());
+        assert!(reserve(1).is_err(), "a lower limit counts the live session");
     }
 
     #[test]
-    fn copies_and_conversions_have_their_own_slots() {
+    fn video_transcodes_have_a_limit_within_the_total() {
         let sessions = Sessions::default();
-        let video = sessions.reserve_transcode(Pool::Transcodes, 1).expect("a free slot");
-        assert!(sessions.reserve_transcode(Pool::Transcodes, 1).is_none());
-        let copy = sessions.reserve_transcode(Pool::Remuxes, 1).expect("a conversion takes no copy's slot");
-        assert!(sessions.reserve_transcode(Pool::Remuxes, 1).is_none());
+        // Three streams at once, one of them transcoding video.
+        let reserve = |pool| sessions.reserve_transcode(pool, 3, 1);
+        let video = reserve(Pool::Video).expect("a free slot");
+        assert_eq!(reserve(Pool::Video).err(), Some(Full::Video), "its job still being created counts");
+        let copy = reserve(Pool::Light).expect("a copy takes none of the video transcodes'");
         sessions.insert_transcode(session(1, None, true), video);
         sessions.insert_transcode(remux_session(), copy);
         assert_eq!(sessions.active_transcodes(), 2, "both are the transcoder's");
-        assert!(sessions.reserve_transcode(Pool::Transcodes, 1).is_none());
-        assert!(sessions.reserve_transcode(Pool::Remuxes, 1).is_none());
-        assert!(sessions.reserve_transcode(Pool::Remuxes, 2).is_some(), "the conversion isn't counted with the copies");
-        // A copy the transcoder had to convert counts as what it is,
+        assert_eq!(reserve(Pool::Video).err(), Some(Full::Video));
+        let third = reserve(Pool::Light).expect("room for a third");
+        // The total counts every kind, and is what a full server says first.
+        assert_eq!(reserve(Pool::Light).err(), Some(Full::Total));
+        assert_eq!(reserve(Pool::Video).err(), Some(Full::Total));
+        // A copy the transcoder had to transcode counts as what it is,
         // whichever slot its request took.
-        let slot = sessions.reserve_transcode(Pool::Remuxes, 2).expect("a free slot");
-        sessions.insert_transcode(session(1, None, true), slot);
-        assert!(sessions.reserve_transcode(Pool::Remuxes, 2).is_some());
-        assert!(sessions.reserve_transcode(Pool::Transcodes, 2).is_none());
-        // Music has no video: a copy's slot.
-        assert_eq!(Pool::of(None), Pool::Remuxes);
+        sessions.insert_transcode(session(1, None, true), third);
+        assert_eq!(sessions.reserve_transcode(Pool::Video, 4, 2).err(), Some(Full::Video));
+        assert!(sessions.reserve_transcode(Pool::Light, 4, 2).is_ok());
+        // Music has no video.
+        assert_eq!(Pool::of(None), Pool::Light);
     }
 
     #[test]

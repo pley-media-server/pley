@@ -28,7 +28,7 @@ use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::library::sidecar::EXTERNAL_INDEX_BASE;
 use crate::playback::{
-    Decision, Delivery, HLS_PTS_OFFSET_MS, Method, NOT_CONVERTED, PlaybackInfo, PlaybackRequest, Pool, Session,
+    Decision, Delivery, Full, HLS_PTS_OFFSET_MS, Method, NOT_CONVERTED, PlaybackInfo, PlaybackRequest, Pool, Session,
     SessionStatus, TranscodeInfo, TranscodeSpec, decide, decide_with_audio, may_draw_pictures, new_media_key,
     picture_to_prepare, sentence, subtitle_tracks, transcode_info, video_range_shown,
 };
@@ -102,11 +102,20 @@ async fn decide_picked(
 /// as the play's reasons or the transcoder's warnings have it.
 fn video_not_converted(why: impl Iterator<Item = String>) -> AppError {
     let why: Vec<String> = why.filter(|reason| reason != NOT_CONVERTED).collect();
-    let needs = "this server doesn't convert video, which this file needs to play on this device";
+    let needs = "video transcoding is off on this server, and this file needs it to play on this device";
     AppError::ConflictAs(
         "video_not_converted",
         if why.is_empty() { needs.to_owned() } else { format!("{needs}. {}", why.join(" ")) },
     )
+}
+
+/// The limits on streams in force now: those set, or what the transcoder
+/// and this computer take ([`crate::settings::Settings::transcode_limits`]).
+pub(crate) fn transcode_limits(state: &AppState) -> crate::settings::TranscodeLimits {
+    // A transcoder elsewhere has processors of its own.
+    let processors =
+        state.transcoder.is_managed().then(|| std::thread::available_parallelism().map_or(1, |n| n.get() as u32));
+    state.settings.get().transcode_limits(state.transcoder.info().as_ref(), processors)
 }
 
 /// Whether `decision` converts video on a server that converts none.
@@ -282,14 +291,16 @@ pub async fn start(
 
     // Taken before the job is created (that takes seconds) and handed to the
     // session; given back if this request fails or the client goes away.
+    let limits = transcode_limits(&state);
     let pool = Pool::of(decision.video.as_ref());
-    let (max, made) = match pool {
-        Pool::Transcodes => (settings.max_transcodes, "transcodes"),
-        Pool::Remuxes => (settings.max_remuxes, "remuxes"),
-    };
-    let Some(slot) = state.sessions.reserve_transcode(pool, max as usize) else {
-        return Err(AppError::Unavailable(format!("the server is already running its maximum of {max} {made}")));
-    };
+    let slot =
+        state.sessions.reserve_transcode(pool, limits.total as usize, limits.video as usize).map_err(|full| {
+            let (max, made) = match full {
+                Full::Total => (limits.total, "transcodes"),
+                Full::Video => (limits.video, "video transcodes"),
+            };
+            AppError::Unavailable(format!("the server is already running its maximum of {max} {made}"))
+        })?;
     let job_request = JobRequest {
         input: file.path.clone(),
         media: info,

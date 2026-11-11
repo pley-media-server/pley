@@ -279,10 +279,10 @@ sizes ("size 2 of 4").
 
 ## A server that converts no video
 
-An administrator can turn video conversion off (Settings → Transcoder,
-"Convert video"): the server then copies video, converts sound where a
-player needs it, and has no lower quality to give. Its play answers say so
-(`original_only`), and every player follows:
+An administrator can turn video transcoding off (Settings → Transcoder,
+"Allow video transcoding"): the server then copies video, transcodes sound
+where a player needs it, and has no lower quality to give. Its play
+answers say so (`original_only`), and every player follows:
 
 - The menu offers Original alone, and shows it as what plays.
 - Automatic plays the Original and takes no steps: nothing is asked of the
@@ -310,10 +310,12 @@ Kodi's quality is a setting: it keeps its choice, and the Original plays.
   quality of its lines.
 - The response's `auto_quality` is what the server would choose for the
   file, and `adaptive` says whether the stream comes in several sizes.
-- Conversions and remuxes are limited apart (`max_transcodes` and
-  `max_remuxes` in Settings → Transcoder): a video conversion costs many
-  times what a copy does, so people whose players only need the sound
-  converted aren't kept out by those whose video is.
+- Streams are limited twice (Settings → Transcoder): all of them by
+  `max_transcodes`, and those that transcode video by
+  `max_video_transcodes` within it. A video transcode costs many times
+  what a copy does, so a lower limit for them leaves room for people whose
+  players only need the sound transcoded. Either can be left to the
+  server ("Automatic"), which fits it to the transcoder and its computer.
 - `GET /api/playback/network` reads the network memory,
   `GET /api/playback/speedtest` is the speed test, and
   `PUT /api/playback/network` reports both

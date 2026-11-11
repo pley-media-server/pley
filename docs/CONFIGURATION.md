@@ -39,8 +39,8 @@ Everything else is set in the web app:
 
 - **Settings → Server**: the server name, metadata sources and keys, scanning.
 - **Settings → Transcoder**: hardware acceleration, tone mapping, whether
-  video is converted at all, and how many transcodes and remuxes run at
-  once.
+  video is transcoded at all, and how many streams run at once (video
+  transcodes, and all of them).
 - **Settings → Network**: where Pley listens (networks, port, the Plex- and
   Jellyfin-compatible APIs, discovery, Bonjour), changed while Pley runs and
   saved in `pley.toml`, unless `--bind`, `--plex-bind`, `--jellyfin-bind`,

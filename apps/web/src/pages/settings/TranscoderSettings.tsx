@@ -3,10 +3,10 @@ import { Trans, useTranslation } from "react-i18next";
 import { CircleAlert, FolderOpen } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useSaveTranscodeDir, useSystemInfo } from "@/api/hooks";
-import type { HwAccel, Settings, ToneMapping, TranscodeDir, TranscodePreset } from "@/api/types";
+import type { HwAccel, Settings, ToneMapping, TranscodeDir, TranscodeLimit, TranscodePreset } from "@/api/types";
 import { FolderPicker } from "@/components/FolderPicker";
 import { useToast } from "@/components/Toast";
-import { Button, Select, TextInput, Toggle } from "@/components/ui";
+import { Button, Select, Toggle } from "@/components/ui";
 import { formatBytes } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { Group, Link, Note, Row, SettingsForm, TestButton, useSettingsForm } from "./SettingsForm";
@@ -35,8 +35,8 @@ const KEYS = [
   "tonemapping",
   "transcode_preset",
   "transcode_video",
+  "max_video_transcodes",
   "max_transcodes",
-  "max_remuxes",
   "throttle_transcodes",
   "transcode_in_memory",
 ] as const satisfies readonly (keyof Settings)[];
@@ -130,6 +130,36 @@ function TranscodeFolder({ dir }: { dir: TranscodeDir }) {
   );
 }
 
+/** The limits offered by name: every one up to 16, then wider steps up to the most the server takes. */
+const LIMITS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 24, 32, 48, 64];
+
+/**
+ * A limit on streams at once: Automatic, which says what it comes to here
+ * (`auto`, once the server has said), or a number.
+ */
+function LimitSelect(props: { id: string; value: TranscodeLimit; auto: number | null; disabled?: boolean; onChange: (value: TranscodeLimit) => void }) {
+  const { t } = useTranslation("settings");
+  const { value } = props;
+  // One saved before that the list doesn't name stays offered.
+  const numbers = value === "auto" || LIMITS.includes(value) ? LIMITS : [...LIMITS, value].sort((a, b) => a - b);
+  return (
+    <Select
+      id={props.id}
+      value={String(value)}
+      disabled={props.disabled}
+      onChange={(e) => props.onChange(e.target.value === "auto" ? "auto" : Number(e.target.value))}
+      className="w-full"
+    >
+      <option value="auto">{props.auto === null ? t("choices.automatic") : t("transcoder.load.automatic", { limit: props.auto })}</option>
+      {numbers.map((n) => (
+        <option key={n} value={n}>
+          {n}
+        </option>
+      ))}
+    </Select>
+  );
+}
+
 export function TranscoderSettings() {
   const { t } = useTranslation("settings");
   useDocumentTitle(t("transcoder.documentTitle"));
@@ -167,10 +197,11 @@ export function TranscoderSettings() {
         const noThrottling = known?.throttling === false;
         const memoryProblem = memoryReason(system.data, form.throttle_transcodes);
         const memoryBudget = tc?.memory?.available ? tc.memory.budget_bytes : 0;
-        // A server before these settings converts video, and counts every stream with the transcodes.
-        const convertsVideo = form.transcode_video !== false;
-        const maxJobsNote = (asked: number) =>
-          tc?.available && tc.max_jobs > 0 && asked > tc.max_jobs ? (
+        // What a limit left to the server comes to here, and the total in force as the form has it.
+        const auto = tc?.auto_limits ?? null;
+        const totalNow = form.max_transcodes === "auto" ? (auto?.total ?? null) : form.max_transcodes;
+        const maxJobsNote = (asked: TranscodeLimit) =>
+          asked !== "auto" && tc?.available && tc.max_jobs > 0 && asked > tc.max_jobs ? (
             <Note>{t(tc.managed ? "transcoder.load.maxJobsManaged" : "transcoder.load.maxJobsExternal", { max: tc.max_jobs })}</Note>
           ) : null;
 
@@ -294,38 +325,23 @@ export function TranscoderSettings() {
             </Group>
 
             <Group title={t("transcoder.load.title")} description={t("transcoder.load.description")}>
-              {form.transcode_video !== undefined ? (
-                <Row label={t("transcoder.load.convertVideo")} hint={t("transcoder.load.convertVideoHint")}>
-                  <Toggle checked={convertsVideo} onChange={(v) => set("transcode_video", v)} label={t("transcoder.load.convertVideo")} />
-                </Row>
-              ) : null}
-              <Row label={t("transcoder.load.max")} htmlFor="max-transcodes" hint={t("transcoder.load.maxHint")}>
-                <TextInput
-                  id="max-transcodes"
-                  type="number"
-                  min={1}
-                  max={64}
-                  disabled={!convertsVideo}
-                  value={form.max_transcodes}
-                  onChange={(e) => set("max_transcodes", Math.max(1, Number(e.target.value) || 1))}
-                  className="w-28"
-                />
-                {convertsVideo ? maxJobsNote(form.max_transcodes) : null}
+              <Row label={t("transcoder.load.allowVideo")} hint={t("transcoder.load.allowVideoHint")}>
+                <Toggle checked={form.transcode_video} onChange={(v) => set("transcode_video", v)} label={t("transcoder.load.allowVideo")} />
               </Row>
-              {form.max_remuxes !== undefined ? (
-                <Row label={t("transcoder.load.maxRemuxes")} htmlFor="max-remuxes" hint={t("transcoder.load.maxRemuxesHint")}>
-                  <TextInput
-                    id="max-remuxes"
-                    type="number"
-                    min={1}
-                    max={64}
-                    value={form.max_remuxes}
-                    onChange={(e) => set("max_remuxes", Math.max(1, Number(e.target.value) || 1))}
-                    className="w-28"
-                  />
-                  {maxJobsNote(form.max_remuxes)}
-                </Row>
-              ) : null}
+              <Row label={t("transcoder.load.maxVideo")} htmlFor="max-video-transcodes">
+                <LimitSelect
+                  id="max-video-transcodes"
+                  value={form.max_video_transcodes}
+                  auto={auto ? Math.min(auto.video, totalNow ?? auto.video) : null}
+                  disabled={!form.transcode_video}
+                  onChange={(v) => set("max_video_transcodes", v)}
+                />
+                {form.transcode_video ? maxJobsNote(form.max_video_transcodes) : null}
+              </Row>
+              <Row label={t("transcoder.load.max")} htmlFor="max-transcodes" hint={t("transcoder.load.maxHint")}>
+                <LimitSelect id="max-transcodes" value={form.max_transcodes} auto={auto?.total ?? null} onChange={(v) => set("max_transcodes", v)} />
+                {maxJobsNote(form.max_transcodes)}
+              </Row>
               <Row label={t("transcoder.load.throttle")} hint={t("transcoder.load.throttleHint")}>
                 <Toggle
                   checked={form.throttle_transcodes}
@@ -345,7 +361,7 @@ export function TranscoderSettings() {
                   onChange={(v) => set("transcode_in_memory", v)}
                   label={t("transcoder.load.memory")}
                 />
-                {memoryProblem ? <Note>{t("transcoder.load.toDisk", { reason: capitalize(memoryProblem) })}</Note> : null}
+                {memoryProblem ? <Note>{t("transcoder.load.notInMemory", { reason: capitalize(memoryProblem) })}</Note> : null}
               </Row>
             </Group>
           </>

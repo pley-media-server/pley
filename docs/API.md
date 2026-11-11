@@ -2254,12 +2254,13 @@ Rules:
 - A session started with a `client_id` ends that user's previous sessions
   on the same client (a quality or audio switch, the next episode) before
   the limits are checked.
-- Streams the transcoder makes are limited by kind: those that convert
-  video by `max_transcodes`, those that copy it or have none (a remux,
-  with the sound converted or not, and music) by `max_remuxes`. With every
-  slot of its kind taken, a play request answers `503 unavailable`
-  ("the server is already running its maximum of 4 transcodes", or
-  "… of 8 remuxes"). A direct play counts against neither.
+- Streams the transcoder makes are limited twice: all of them by
+  `max_transcodes` (video transcodes, remuxes, sound transcodes and
+  music), and within that those that transcode video by
+  `max_video_transcodes`, so some room stays for the cheap ones. Past
+  either, a play request answers `503 unavailable` ("the server is
+  already running its maximum of 4 transcodes", or "… of 2 video
+  transcodes"). A direct play counts against neither.
 - If the transcoder loses a job (restart, expiry), the server recreates it
   with the same segment layout. When it can't, segments answer `404
   not_found` ("playback session expired"): start a new session at the
@@ -2271,8 +2272,8 @@ Rules:
 
 #### A server that converts no video
 
-With `transcode_video` off in Settings → Transcoder, the server copies
-video or doesn't play it:
+With `transcode_video` off ("Allow video transcoding" in Settings →
+Transcoder), the server copies video or doesn't play it:
 
 - Direct plays and remuxes are as ever, and so is converted sound: a file
   whose video the player plays gets its audio converted in a remux.
@@ -2280,7 +2281,7 @@ video or doesn't play it:
   the limits are left out. `mode: "transcode"` copies the video into HLS,
   as `"remux"` does, rather than play the file as it is, so a player
   whose decoder gave up on the file isn't sent it again. `reasons` then
-  has "This server doesn't convert video."
+  has "Video transcoding is off on this server."
 - A play that needs new frames (a codec, profile or HDR format the player
   can't play, picture subtitles to burn in, a file not analyzed yet, a
   picture turned on its side) answers `409 video_not_converted`, with the
@@ -4399,12 +4400,16 @@ interface Settings {
   hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR
-  transcode_video: boolean;         // convert video for players that can't play a file's as it is, or
+  transcode_video: boolean;         // transcode video for players that can't play a file's as it is, or
                                     // that ask for a lower quality (default true). Off: video is only
                                     // copied (see "A server that converts no video")
-  max_transcodes: number;           // streams that convert video, at once (1 to 64, default 4)
-  max_remuxes: number;              // streams that copy the video or have none, at once (1 to 64,
-                                    // default 8)
+  max_video_transcodes: number | "auto"; // streams that transcode video, at once, within max_transcodes
+                                    // (1 to 64; default "auto")
+  max_transcodes: number | "auto";  // streams the transcoder makes at once, of every kind (1 to 64;
+                                    // default 4). "auto" leaves a limit to the server: every kind, what
+                                    // the transcoder runs at once; video, its hardware encoder's sessions,
+                                    // or in software half this computer's processors
+                                    // (`transcoder.auto_limits` in GET /api/system says what they come to)
   transcode_preset: "ultrafast" | "superfast" | "veryfast" | "faster" | "fast" | "medium";
   throttle_transcodes: boolean;     // real time once a 120 s buffer is built; paused 90 s ahead of the player
   transcode_in_memory: boolean;     // keep throttled transcodes' segments in RAM where the transcoder can
@@ -4519,6 +4524,8 @@ interface SystemInfo {
                                     // segments can be kept in RAM (`transcode_in_memory`), and at most how
                                     // much; reason: why not ("works on Linux only"); null while unavailable
     max_jobs: number;
+    auto_limits: { total: number; video: number }; // what max_transcodes and max_video_transcodes come to
+                                    // here when they are "auto"
     active_jobs: number;
     error: string | null;
   };

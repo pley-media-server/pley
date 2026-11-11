@@ -1176,19 +1176,25 @@ async fn players_that_put_fmp4_first_stream_fmp4_segments() {
 async fn the_transcode_limits_count_live_hls_sessions() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
-    app.put("/api/settings", admin, json!({"max_transcodes": 1, "max_remuxes": 1})).await;
+    app.put("/api/settings", admin, json!({"max_transcodes": 2, "max_video_transcodes": 1})).await;
     let feature = w.movies["Feature"];
     let start = |client: &str| json!({"item_id": feature, "caps": browser(), "client_id": client});
     let small = |client: &str| json!({"item_id": feature, "caps": browser(), "client_id": client, "max_height": 720});
+    let stop = |session: &Value| {
+        let stop = json!({"position_ms": 1_000, "state": "stopped", "session_id": session});
+        async move { app.post(&format!("/api/items/{feature}/progress"), admin, stop).await }
+    };
 
     let tab = play(app, admin, start("tab")).await;
     assert_eq!((tab.status, &tab.body["method"]), (StatusCode::OK, &json!("remux")));
     let tv = play(app, admin, start("tv")).await;
-    assert_eq!(tv.status, StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(tv.body["code"], json!("unavailable"));
-    assert!(tv.body["message"].as_str().unwrap().contains("maximum of 1 remuxes"));
+    assert_eq!(tv.status, StatusCode::OK);
+    let phone = play(app, admin, start("phone")).await;
+    assert_eq!(phone.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(phone.body["code"], json!("unavailable"));
+    assert!(phone.body["message"].as_str().unwrap().contains("maximum of 2 transcodes"));
     // Direct play never counts.
-    let clip = play(app, admin, json!({"item_id": w.movies["Clip"], "caps": browser(), "client_id": "tv"})).await;
+    let clip = play(app, admin, json!({"item_id": w.movies["Clip"], "caps": browser(), "client_id": "phone"})).await;
     assert_eq!((clip.status, clip.body["method"].clone()), (StatusCode::OK, json!("direct")));
 
     // The same client switching quality replaces its own session.
@@ -1197,18 +1203,43 @@ async fn the_transcode_limits_count_live_hls_sessions() {
     assert_eq!(switched.body["method"], json!("transcode"));
     eventually(|| w.fake.deleted.lock().contains(&"job1".to_owned())).await;
 
-    // A video conversion counts against its own limit: the remuxes' slot
-    // is free again, and the conversions' is taken.
-    assert_eq!(play(app, admin, start("tv")).await.status, StatusCode::OK);
-    let phone = play(app, admin, small("phone")).await;
-    assert_eq!(phone.status, StatusCode::SERVICE_UNAVAILABLE);
-    assert!(phone.body["message"].as_str().unwrap().contains("maximum of 1 transcodes"));
+    // Video transcodes have a limit of their own within the total: with
+    // room for another stream, a second one is refused and a remux starts.
+    stop(&tv.body["session_id"]).await;
+    let second = play(app, admin, small("desk")).await;
+    assert_eq!(second.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(second.body["message"].as_str().unwrap().contains("maximum of 1 video transcodes"), "{:?}", second.body);
+    assert_eq!(play(app, admin, start("desk")).await.status, StatusCode::OK);
 
     // A stopped player frees its slot.
-    let session = switched.body["session_id"].as_str().unwrap();
-    let stop = json!({"position_ms": 1_000, "state": "stopped", "session_id": session});
-    app.post(&format!("/api/items/{feature}/progress"), admin, stop).await;
-    assert_eq!(play(app, admin, small("phone")).await.status, StatusCode::OK);
+    stop(&switched.body["session_id"]).await;
+    assert_eq!(play(app, admin, small("tv")).await.status, StatusCode::OK);
+}
+
+/// Limits left to Pley ("auto") come from what the transcoder runs at once.
+#[tokio::test]
+async fn limits_left_to_pley_are_the_transcoders() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let saved =
+        app.put("/api/settings", admin, json!({"max_transcodes": "auto", "max_video_transcodes": "auto"})).await;
+    assert_eq!((&saved.body["max_transcodes"], &saved.body["max_video_transcodes"]), (&json!("auto"), &json!("auto")));
+    let system = app.get("/api/system", admin).await;
+    let auto = &system.body["transcoder"]["auto_limits"];
+    let total = auto["total"].as_u64().unwrap();
+    assert_eq!(total, system.body["transcoder"]["max_jobs"].as_u64().unwrap(), "{auto}");
+    assert!((1..=total).contains(&auto["video"].as_u64().unwrap()), "{auto}");
+
+    // As many remuxes start as that, and no more.
+    let feature = w.movies["Feature"];
+    for n in 0..total {
+        let started =
+            play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": format!("tv{n}")})).await;
+        assert_eq!(started.status, StatusCode::OK, "stream {n}: {:?}", started.body);
+    }
+    let over = play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": "one more"})).await;
+    assert_eq!(over.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(over.body["message"].as_str().unwrap().contains(&format!("maximum of {total} transcodes")));
 }
 
 #[tokio::test]
@@ -1236,7 +1267,7 @@ async fn a_server_that_converts_no_video_copies_it_or_refuses() {
     assert_eq!((low.status, &low.body["method"]), (StatusCode::OK, &json!("remux")), "{:?}", low.body);
     let video = w.fake.last_request().video.unwrap();
     assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Copy, None, None));
-    assert!(low.body["reason"].as_str().unwrap().contains("doesn't convert video"), "{:?}", low.body["reason"]);
+    assert!(low.body["reason"].as_str().unwrap().contains("transcoding is off"), "{:?}", low.body["reason"]);
     assert_eq!(low.body["auto_quality"], Value::Null);
 
     // What needs new frames isn't played: no job is made, and what the
@@ -1251,7 +1282,7 @@ async fn a_server_that_converts_no_video_copies_it_or_refuses() {
         assert_eq!(refused.status, StatusCode::CONFLICT, "{:?}", refused.body);
         assert_eq!(refused.body["code"], json!("video_not_converted"));
         let message = refused.body["message"].as_str().unwrap();
-        assert!(message.contains("doesn't convert video") && message.contains(why), "{message}");
+        assert!(message.contains("transcoding is off") && message.contains(why), "{message}");
     }
     assert_eq!(w.fake.created(), made);
     assert_eq!(app.get(&format!("/api/playback/{playing}/index.m3u8"), admin).await.status, StatusCode::OK);
@@ -1274,7 +1305,7 @@ async fn a_server_that_converts_no_video_copies_it_or_refuses() {
 async fn simultaneous_play_requests_stay_within_the_transcode_limit() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
-    app.put("/api/settings", admin, json!({"max_remuxes": 1})).await;
+    app.put("/api/settings", admin, json!({"max_transcodes": 1})).await;
     let feature = w.movies["Feature"];
     let start = |client: &str| json!({"item_id": feature, "caps": browser(), "client_id": client});
 

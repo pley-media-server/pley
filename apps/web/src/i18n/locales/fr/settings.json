@@ -193,12 +193,12 @@
     "load": {
       "title": "Charge",
       "description": "Ce dont le transcodeur se charge, combien à la fois, et quelle avance il prend sur le lecteur.",
-      "convertVideo": "Convertir la vidéo",
-      "convertVideoHint": "Pour les appareils qui ne lisent pas la vidéo d’un fichier telle quelle, et pour les qualités inférieures. Désactivé : la vidéo est seulement copiée, et le son converti là où un appareil en a besoin. Un fichier dont un appareil ne lit pas la vidéo n’y est pas lu, et les lecteurs ne proposent que la qualité Original. La TV en direct a ses propres réglages.",
-      "max": "Transcodages simultanés au maximum",
-      "maxHint": "Les flux dont la vidéo est convertie.",
-      "maxRemuxes": "Remux simultanés au maximum",
-      "maxRemuxesHint": "Les flux dont la vidéo est copiée : seuls le conteneur ou le son changent. Ils coûtent bien moins qu’un transcodage.",
+      "allowVideo": "Autoriser le transcodage vidéo",
+      "allowVideoHint": "Désactivé : seul le son est transcodé, la vidéo est copiée.",
+      "maxVideo": "Maximum de transcodages vidéo simultanés",
+      "max": "Maximum de transcodages simultanés au total",
+      "maxHint": "Transcodages vidéo, remux et transcodages du son réunis.",
+      "automatic": "Automatique · {{limit}}",
       "maxJobsManaged": "Le transcodeur lui-même en exécute {{max}} au plus (transcoder_max_jobs dans pley.toml).",
       "maxJobsExternal": "Le transcodeur lui-même en exécute {{max}} au plus (son --max-jobs).",
       "throttle": "Limiter les transcodages",
@@ -207,7 +207,7 @@
       "memory": "Transcoder en mémoire",
       "memoryHint": "Garde les segments en RAM plutôt que sur le disque.",
       "memoryHintUpTo": "Garde les segments en RAM plutôt que sur le disque. Jusqu’à {{size}}.",
-      "toDisk": "{{reason}} : les segments vont sur le disque."
+      "notInMemory": "{{reason}}."
     }
   },
   "choices": {

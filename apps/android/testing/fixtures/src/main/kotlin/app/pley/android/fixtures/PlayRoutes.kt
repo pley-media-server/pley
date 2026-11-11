@@ -152,7 +152,7 @@ internal class PlayRoutes(private val s: State) {
         val bitrateOk = !s.convertsVideo || request.maxBitrate == null || (file.bitrate ?: 0L) <= request.maxBitrate!! * 1_000L
         if (!bitrateOk) reasons += "The file's bitrate is over the quality asked for."
         if (!s.convertsVideo && (!videoOk || burn != null)) {
-            return Reply.error(409, "video_not_converted", "this server doesn't convert video, which this file needs to play on this device")
+            return Reply.error(409, "video_not_converted", "video transcoding is off on this server, and this file needs it to play on this device")
         }
 
         val method = when (request.mode) {

@@ -995,15 +995,14 @@ export interface Settings {
   hardware_decoding: boolean;
   tonemapping: ToneMapping;
   /**
-   * Convert video for players that can't play a file's as it is, or that
-   * ask for a lower quality. Off: video is only copied. Absent from servers
-   * before it, which convert.
+   * Transcode video for players that can't play a file's as it is, or that
+   * ask for a lower quality. Off: video is only copied.
    */
-  transcode_video?: boolean;
-  /** Streams that convert video, at once. */
-  max_transcodes: number;
-  /** Streams that copy the video or have none, at once. Absent from servers before it, which count them with the transcodes. */
-  max_remuxes?: number;
+  transcode_video: boolean;
+  /** Streams that transcode video, at once, within `max_transcodes`. */
+  max_video_transcodes: TranscodeLimit;
+  /** Streams the transcoder makes at once, of every kind. */
+  max_transcodes: TranscodeLimit;
   transcode_preset: TranscodePreset;
   throttle_transcodes: boolean;
   /** Keep transcodes' segments in RAM where the transcoder can, else on disk. Throttled transcodes only. */
@@ -1107,6 +1106,9 @@ export interface ServiceTestResult {
   ms: number;
 }
 
+/** A limit on streams at once: a number (1 to 64), or left to the server, which fits it to the transcoder and its computer. */
+export type TranscodeLimit = number | "auto";
+
 export interface TranscoderInfo {
   available: boolean;
   managed: boolean;
@@ -1133,6 +1135,8 @@ export interface TranscoderInfo {
   /** Whether segments can be kept in memory, and how much; `null` while the transcoder is unavailable. */
   memory?: TranscoderMemory | null;
   max_jobs: number;
+  /** What the limits on streams come to here when left to the server ("auto"). */
+  auto_limits?: { total: number; video: number };
   active_jobs: number;
   error: string | null;
 }

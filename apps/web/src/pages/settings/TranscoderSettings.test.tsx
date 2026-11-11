@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Settings } from "@/api/types";
@@ -18,8 +18,8 @@ const SETTINGS = {
   hardware_decoding: true,
   tonemapping: "auto",
   transcode_video: true,
+  max_video_transcodes: "auto",
   max_transcodes: 4,
-  max_remuxes: 8,
   transcode_preset: "veryfast",
   throttle_transcodes: true,
   transcode_in_memory: true,
@@ -206,7 +206,7 @@ describe("TranscoderSettings on this server's hardware", () => {
       expect(toggle).toBeEnabled();
       expect(toggle).toBeChecked();
       expect(screen.getByText("Keeps segments in RAM instead of on disk. Up to 4.0 GB.")).toBeInTheDocument();
-      expect(screen.queryByText(/segments go to disk/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Works on Linux only|Needs throttling/)).not.toBeInTheDocument();
 
       await user.click(toggle);
       await user.click(screen.getByRole("button", { name: "Save" }));
@@ -220,7 +220,7 @@ describe("TranscoderSettings on this server's hardware", () => {
       const toggle = await memorySwitch();
       expect(toggle).toBeDisabled();
       expect(toggle).toBeChecked();
-      expect(screen.getByText("Works on Linux only: segments go to disk.")).toBeInTheDocument();
+      expect(screen.getByText("Works on Linux only.")).toBeInTheDocument();
       expect(screen.getByText("Keeps segments in RAM instead of on disk.")).toBeInTheDocument();
     });
 
@@ -231,14 +231,14 @@ describe("TranscoderSettings on this server's hardware", () => {
       expect(await memorySwitch()).toBeEnabled();
       await user.click(screen.getByRole("switch", { name: "Throttle transcodes" }));
       expect(screen.getByRole("switch", { name: "Transcode in memory" })).toBeDisabled();
-      expect(screen.getByText("Needs throttling: segments go to disk.")).toBeInTheDocument();
+      expect(screen.getByText("Needs throttling.")).toBeInTheDocument();
     });
 
     it("needs an FFmpeg that throttles", async () => {
       mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => system({ ...linux, throttling: false }, "linux") });
       renderWithProviders(<TranscoderSettings />);
       expect(await memorySwitch()).toBeDisabled();
-      expect(screen.getByText("Needs throttling: segments go to disk.")).toBeInTheDocument();
+      expect(screen.getByText("Needs throttling.")).toBeInTheDocument();
     });
 
     it("is left alone while the transcoder isn't running", async () => {
@@ -248,7 +248,7 @@ describe("TranscoderSettings on this server's hardware", () => {
       });
       renderWithProviders(<TranscoderSettings />);
       expect(await memorySwitch()).toBeEnabled();
-      expect(screen.queryByText(/segments go to disk/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Works on Linux only|Needs throttling/)).not.toBeInTheDocument();
     });
   });
 
@@ -354,34 +354,42 @@ describe("TranscoderSettings on this server's hardware", () => {
     expect(await screen.findByText(/The transcoder itself runs 8 at most/)).toBeInTheDocument();
   });
 
-  it("turns video conversion off, and limits remuxes apart from transcodes", async () => {
+  it("turns video transcoding off, and limits video transcodes within the total", async () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/settings": () => SETTINGS,
-      "GET /api/system": () => system(intel),
+      "GET /api/system": () => system({ ...intel, auto_limits: { total: 8, video: 6 } }),
       "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
     });
     renderWithProviders(<TranscoderSettings />);
-    const convert = await screen.findByRole("switch", { name: "Convert video" });
-    expect(convert).toBeChecked();
-    expect(screen.getByLabelText("Max simultaneous transcodes")).toBeEnabled();
-    expect(screen.getByLabelText("Max simultaneous remuxes")).toHaveValue(8);
+    const allow = await screen.findByRole("switch", { name: "Allow video transcoding" });
+    expect(allow).toBeChecked();
+    const video = screen.getByLabelText("Max simultaneous video transcodes");
+    const total = screen.getByLabelText("Max simultaneous total transcodes");
+    // Left to the server, which says what that comes to: never more video transcodes than streams in all.
+    expect(video).toHaveValue("auto");
+    expect(within(video).getByRole("option", { name: "Automatic · 4" })).toBeInTheDocument();
+    expect(total).toHaveValue("4");
+    expect(within(total).getByRole("option", { name: "Automatic · 8" })).toBeInTheDocument();
 
-    await user.click(convert);
-    // No video is converted: how many at once says nothing.
-    expect(screen.getByLabelText("Max simultaneous transcodes")).toBeDisabled();
-    fireEvent.change(screen.getByLabelText("Max simultaneous remuxes"), { target: { value: "12" } });
-    expect(screen.getByText(/The transcoder itself runs 8 at most/)).toBeInTheDocument();
+    await user.selectOptions(total, "auto");
+    expect(within(video).getByRole("option", { name: "Automatic · 6" })).toBeInTheDocument();
+    await user.selectOptions(video, "2");
     await user.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ transcode_video: false, max_remuxes: 12 }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ max_video_transcodes: 2, max_transcodes: "auto" }));
+
+    // No video is transcoded: how many at once says nothing.
+    await user.click(allow);
+    expect(video).toBeDisabled();
+    expect(total).toBeEnabled();
   });
 
-  it("offers neither on a server before them", async () => {
-    const older = { ...SETTINGS, transcode_video: undefined, max_remuxes: undefined };
-    mockApi({ "GET /api/settings": () => older, "GET /api/system": () => system(intel) });
+  it("keeps a limit saved before that the list doesn't name", async () => {
+    mockApi({ "GET /api/settings": () => ({ ...SETTINGS, max_transcodes: 40 }), "GET /api/system": () => system(intel) });
     renderWithProviders(<TranscoderSettings />);
-    expect(await screen.findByLabelText("Max simultaneous transcodes")).toBeEnabled();
-    expect(screen.queryByRole("switch", { name: "Convert video" })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Max simultaneous remuxes")).not.toBeInTheDocument();
+    const total = await screen.findByLabelText("Max simultaneous total transcodes");
+    expect(total).toHaveValue("40");
+    // Until the server says what Automatic comes to, it is only named.
+    expect(within(total).getByRole("option", { name: "Automatic" })).toBeInTheDocument();
   });
 });
