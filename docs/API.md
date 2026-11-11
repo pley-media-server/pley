@@ -1575,7 +1575,7 @@ Invitations have fixed limits only.
 | DELETE | `/api/me/libraries/order` | `play` | `Library[]` in the shared order, which the user sees again |
 | GET | `/api/libraries/{id}` | `library` | `Library` |
 | PATCH | `/api/libraries/{id}` | `admin` | `{ name?, paths? }` → `Library` |
-| DELETE | `/api/libraries/{id}` | `admin` | `204` |
+| DELETE | `/api/libraries/{id}` | `admin` | `204`; a profile waiting only for it to be open to every library again (see Moving from Plex) is, unless an import runs |
 | POST | `/api/libraries/{id}/scan` | `admin` | `{ force?: boolean }` → `202`. `force` re-probes files and refreshes metadata |
 | POST | `/api/libraries/scan` | `admin` | `202`: scans every library |
 | GET | `/api/libraries/{id}/items` | `library` | `{ total, items: ItemSummary[] }`: top-level items, paged |
@@ -4235,6 +4235,11 @@ interface LiveTuner {                  // a connection in use
   `requests_settings_changed`, so they fetch the request summary again.
 - An age limit added to an account whose `request_access` is `"ask"` makes
   it `"off"`, unless the same change sets `request_access`.
+- `all_libraries` or `library_ids` ends the waiting for libraries a Plex
+  import gave the profile (`import_waiting`, see Moving from Plex): it has
+  the libraries sent, and a profile listed library by library while it
+  waited to be open to every library keeps that list unless
+  `all_libraries` is `true`.
 
 ## Invitations
 
