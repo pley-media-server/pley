@@ -636,6 +636,13 @@ async fn brings_libraries_people_and_what_they_watched() {
         .await
         .unwrap();
     assert_eq!(marked, Some(started_at.to_string()));
+    let tv: i64 =
+        sqlx::query_scalar("SELECT id FROM libraries WHERE name = 'TV'").fetch_one(&app.state.db.read).await.unwrap();
+    let made: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = 'plex_import_made'")
+        .fetch_optional(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(made, Some(format!("[{tv}]")), "the library it made, for a restart");
     // The Home user's profile, which never sees a label, can sign in, but
     // its library waits until the labels are on Pley's titles.
     let (kid, disabled, all): (i64, bool, bool) = sqlx::query_as(
@@ -659,11 +666,12 @@ async fn brings_libraries_people_and_what_they_watched() {
     let done = finished(&app, &admin).await;
     assert_eq!(done["state"], "done", "{done:?}");
     assert!(!serde_json::to_string(&done).unwrap().contains(OWNER), "no token in the report");
-    let marked: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM settings WHERE key = 'plex_import_running'")
-        .fetch_one(&app.state.db.read)
-        .await
-        .unwrap();
-    assert_eq!(marked, 0, "the mark goes with the report");
+    let marked: i64 =
+        sqlx::query_scalar("SELECT COUNT(*) FROM settings WHERE key IN ('plex_import_running', 'plex_import_made')")
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!(marked, 0, "the marks go with the report");
 
     let report = &done["report"];
     // The sign-in went with the run.
@@ -1100,7 +1108,7 @@ async fn an_import_the_server_restarted_during_says_so() {
     assert_eq!(progress["report"], Value::Null);
 
     // The libraries it made fetch their details, which it would have done
-    // last; one from before it doesn't.
+    // last, once; one made otherwise doesn't.
     let made = |name: &str, at: i64| {
         sqlx::query_scalar::<_, i64>(
             "INSERT INTO libraries (id, name, kind, paths, created_at, position)
@@ -1112,7 +1120,16 @@ async fn an_import_the_server_restarted_during_says_so() {
     };
     made("Before", 1_794_000_000).await.unwrap();
     let films = made("Films", 1_794_100_005).await.unwrap();
+    made("Since", 1_794_100_010).await.unwrap();
+    sqlx::query("INSERT INTO settings (key, value) VALUES ('plex_import_made', ?)")
+        .bind(format!("[{films}, 999]"))
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
     assert_eq!(app.state.plex_import.after_restart(&app.state).await, [films]);
+    assert_eq!(app.state.plex_import.after_restart(&app.state).await, Vec::<i64>::new(), "at one restart only");
+    let progress = app.get("/api/import/plex", &admin).await.body;
+    assert_eq!(progress["state"], "interrupted", "still said");
 }
 
 #[tokio::test]

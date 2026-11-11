@@ -47,6 +47,9 @@ const REPORT_KEY: &str = "plex_import_report";
 /// When the import running started, kept until its report is: found with
 /// none running, the server restarted while it ran.
 const RUNNING_KEY: &str = "plex_import_running";
+/// The libraries the import running made, as a JSON list: a restart that
+/// cuts it short fetches their details once, then forgets them.
+const MADE_KEY: &str = "plex_import_made";
 /// The settings key of the id plex.tv knows this server by.
 const CLIENT_ID_KEY: &str = "plex_client_id";
 /// Files of a Plex library looked for in Pley's, to pair the libraries.
@@ -849,16 +852,21 @@ impl Importer {
     /// After a restart that cut a run short: the libraries it made fetch
     /// their details, which the run would have done last. The ones queued.
     pub async fn after_restart(&self, state: &AppState) -> Vec<i64> {
-        let running: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
-            .bind(RUNNING_KEY)
-            .fetch_optional(&state.db.read)
+        let made: Option<String> = sqlx::query_scalar("DELETE FROM settings WHERE key = ? RETURNING value")
+            .bind(MADE_KEY)
+            .fetch_optional(&state.db.write)
             .await
             .ok()
             .flatten();
-        match running.and_then(|at| at.parse().ok()) {
-            Some(started_at) => fetch_made(state, started_at).await,
-            None => Vec::new(),
+        let made: Vec<i64> = made.and_then(|m| serde_json::from_str(&m).ok()).unwrap_or_default();
+        let mut queued = Vec::new();
+        for id in made {
+            if get_library(&state.db, id).await.ok().flatten().is_some() {
+                state.scanner.enqueue_metadata(id);
+                queued.push(id);
+            }
         }
+        queued
     }
 
     /// Home user `id`'s picture, as the last plan found it: a JPEG.
@@ -1249,8 +1257,11 @@ impl Run {
         // Stopped before its fetch: the libraries it made fetch their
         // details all the same, rather than at their next scan.
         if !self.fetched {
-            let started_at = self.importer.progress.lock().started_at;
-            fetch_made(&self.state, started_at).await;
+            for library in self.report.libraries.iter().filter(|l| l.created) {
+                if let Some(id) = library.library_id {
+                    self.state.scanner.enqueue_metadata(id);
+                }
+            }
         }
         // Only a run that finished has every label it could bring on Pley's
         // titles: one that stopped leaves the libraries waiting closed.
@@ -1302,7 +1313,11 @@ impl Run {
             .execute(&self.state.db.write)
             .await;
         }
-        let _ = sqlx::query("DELETE FROM settings WHERE key = ?").bind(RUNNING_KEY).execute(&self.state.db.write).await;
+        let _ = sqlx::query("DELETE FROM settings WHERE key IN (?, ?)")
+            .bind(RUNNING_KEY)
+            .bind(MADE_KEY)
+            .execute(&self.state.db.write)
+            .await;
         self.importer.set(&self.state, self.admin, |p| {
             p.state = state;
             p.error = error;
@@ -1583,6 +1598,7 @@ impl Run {
                         .await
                         .map_err(|e| ImportError::Invalid(e.to_string()))?;
                     report.created = true;
+                    self.made(id).await?;
                     Some(id)
                 }
                 Some(LibraryChoice { library_id: Some(id), .. }) => Some(*id),
@@ -1596,6 +1612,21 @@ impl Run {
             }
         }
         Ok(paired)
+    }
+
+    /// Keeps that the run made library `id`, for a restart to fetch it.
+    async fn made(&self, id: i64) -> ImportResult<()> {
+        let mut made: Vec<i64> =
+            self.report.libraries.iter().filter(|l| l.created).filter_map(|l| l.library_id).collect();
+        made.push(id);
+        sqlx::query(
+            "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        )
+        .bind(MADE_KEY)
+        .bind(serde_json::to_string(&made).unwrap_or_default())
+        .execute(&self.state.db.write)
+        .await?;
+        Ok(())
     }
 
     /// Matches each library with Plex's once its files are in: what's
@@ -2706,20 +2737,6 @@ async fn write_details(db: &Db, details: &[(i64, PlexDetails)]) -> sqlx::Result<
         .await?;
     }
     tx.commit().await
-}
-
-/// Queues the details of the libraries made since `started_at` (Unix
-/// seconds): those of a run that ended before its fetch. The ones queued.
-async fn fetch_made(state: &AppState, started_at: i64) -> Vec<i64> {
-    let made: Vec<i64> = sqlx::query_scalar("SELECT id FROM libraries WHERE created_at >= ? ORDER BY id")
-        .bind(started_at)
-        .fetch_all(&state.db.read)
-        .await
-        .unwrap_or_default();
-    for id in &made {
-        state.scanner.enqueue_metadata(*id);
-    }
-    made
 }
 
 /// Plex's ids on a movie or show Pley hasn't fetched yet, where it has none,
