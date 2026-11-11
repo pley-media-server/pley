@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { createBrowserRouter, Navigate, RouterProvider, type Params, type RouteObject } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
-import { ApiError, setUnauthorizedHandler } from "@/api/client";
+import { ApiError, setUnauthorizedHandler, signInAgainFrom } from "@/api/client";
 import { queries } from "@/api/hooks";
 import { liveQueries } from "@/api/livetv";
 import { requestQueries } from "@/api/requests";
@@ -322,7 +322,7 @@ const router = createBrowserRouter([
 // Any authenticated request that comes back 401 (expired/revoked session) sends the user to the login screen.
 setUnauthorizedHandler(() => {
   const { pathname, search } = window.location;
-  if (pathname.startsWith("/login") || pathname.startsWith("/setup") || pathname.startsWith("/invite/")) return;
+  if (!signInAgainFrom(pathname)) return;
   const next = pathname + search;
   void router
     .navigate(next && next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login", { replace: true })
