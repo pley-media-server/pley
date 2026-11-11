@@ -42,9 +42,13 @@ const NETWORK: NetworkSettings = {
   windows: false,
 };
 
-function renderStep({ network = NETWORK, tmdb }: { network?: NetworkSettings; tmdb?: ServiceTestResult } = {}) {
+function renderStep({
+  settings = SETTINGS,
+  network = NETWORK,
+  tmdb,
+}: { settings?: Settings; network?: NetworkSettings; tmdb?: ServiceTestResult } = {}) {
   const requests = mockApi({
-    "GET /api/settings": () => SETTINGS,
+    "GET /api/settings": () => settings,
     "GET /api/network": () => network,
     "GET /api/ratings/systems": () => SYSTEMS,
     "POST /api/settings/test": () => tmdb ?? { ok: true, message: "TMDB answered", ms: 40 },
@@ -74,6 +78,8 @@ describe("startingChoices", () => {
     expect(start({}, ["de-AT"])).toEqual({ country: "DE", metadataLanguage: "de-DE" });
     expect(start({ metadata_language: "en-GB" }, ["en"])).toEqual({ country: "GB", metadataLanguage: "en-GB" });
     expect(start({}, [], undefined)).toEqual({ country: "US", metadataLanguage: "en-US" });
+    // US English with a country saved was chosen.
+    expect(start({ country: "GB" }, ["fr"])).toEqual({ country: "GB", metadataLanguage: "en-US" });
   });
 });
 
@@ -131,6 +137,23 @@ describe("SetupServerPage", () => {
       await user.selectOptions(screen.getByLabelText("Titles and summaries"), "en-GB");
       await user.click(screen.getByRole("button", { name: "Continue" }));
       await waitFor(() => expect(puts(requests, "/api/settings")[0]?.body).toMatchObject({ metadata_language: "en-GB" }));
+    } finally {
+      languages.mockRestore();
+    }
+  });
+
+  it("keeps what was chosen when setup comes back to it", async () => {
+    const user = userEvent.setup();
+    const languages = vi.spyOn(navigator, "languages", "get").mockReturnValue(["de-DE"]);
+    try {
+      const requests = renderStep({ settings: { ...SETTINGS, country: "GB" } });
+      expect(await screen.findByText("United Kingdom")).toBeInTheDocument();
+      expect(screen.queryByText("German (Germany)")).not.toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Change: Apple devices" }));
+      expect(screen.getByRole("switch", { name: "Apple devices find this server" })).not.toBeChecked();
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+      await waitFor(() => expect(puts(requests, "/api/settings")[0]?.body).toMatchObject({ metadata_language: "en-US", country: "GB" }));
+      expect(puts(requests, "/api/network")).toHaveLength(0);
     } finally {
       languages.mockRestore();
     }

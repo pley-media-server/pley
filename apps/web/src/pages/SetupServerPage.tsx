@@ -23,14 +23,15 @@ import { SetupActions, SetupStep } from "./SetupLayout";
  * country is the one chosen, else the first of the browser's whose ratings
  * Pley knows ("en-NZ"), else the starting language's ("de-AT" is German,
  * so Germany). US English is the default nobody chose, so the browser's
- * language goes before it.
+ * language goes before it, until a country is saved: then this step, or
+ * Settings, chose it.
  */
 export function startingChoices(
   settings: Settings,
   systems: RatingSystems | undefined,
   tags: readonly string[],
 ): { country: string; metadataLanguage: string } {
-  const chosen = settings.metadata_language === "en-US" ? null : settings.metadata_language;
+  const chosen = settings.metadata_language === "en-US" && !settings.country ? null : settings.metadata_language;
   const known = new Set(systems?.systems.map((s) => s.country));
   const browsers = tags.map((tag) => tag.split(/[-_]/)[1]?.toUpperCase()).find((c) => c !== undefined && known.has(c));
   const country = settings.country || browsers || regionOf(chosen ?? browserMetadataLanguage(tags, ""));
@@ -95,9 +96,12 @@ function ServerForm({
   const [metadataLanguage, setMetadataLanguage] = useState(start.metadataLanguage);
   const [tmdbKey, setTmdbKey] = useState(settings.tmdb_api_key);
   // Asked only where devices could reach Pley, and nothing has decided it
-  // already; on unless Pley seems to be on Docker's own network.
+  // already; on unless Pley seems to be on Docker's own network, or this
+  // step was saved before (a country is saved with it) and left it off.
   const askBonjour = network !== undefined && !network.fixed.bonjour && network.web.some((a) => !isLoopback(splitAddress(a).ip));
-  const [bonjour, setBonjour] = useState(() => network !== undefined && (network.bonjour || !network.container_network));
+  const [bonjour, setBonjour] = useState(
+    () => network !== undefined && (network.bonjour || (!settings.country && !network.container_network)),
+  );
   // Each row shows what Pley will use; Change opens its field in place.
   const [open, setOpen] = useState<ReadonlySet<RowKey>>(new Set());
   const openRow = (row: RowKey) => setOpen((rows) => new Set(rows).add(row));
