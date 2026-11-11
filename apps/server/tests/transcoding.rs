@@ -1216,32 +1216,6 @@ async fn the_transcode_limits_count_live_hls_sessions() {
     assert_eq!(play(app, admin, small("tv")).await.status, StatusCode::OK);
 }
 
-/// Limits left to Pley ("auto") come from what the transcoder runs at once.
-#[tokio::test]
-async fn limits_left_to_pley_are_the_transcoders() {
-    let w = world().await;
-    let (app, admin) = (&w.app, w.admin.as_str());
-    let saved =
-        app.put("/api/settings", admin, json!({"max_transcodes": "auto", "max_video_transcodes": "auto"})).await;
-    assert_eq!((&saved.body["max_transcodes"], &saved.body["max_video_transcodes"]), (&json!("auto"), &json!("auto")));
-    let system = app.get("/api/system", admin).await;
-    let auto = &system.body["transcoder"]["auto_limits"];
-    let total = auto["total"].as_u64().unwrap();
-    assert_eq!(total, system.body["transcoder"]["max_jobs"].as_u64().unwrap(), "{auto}");
-    assert!((1..=total).contains(&auto["video"].as_u64().unwrap()), "{auto}");
-
-    // As many remuxes start as that, and no more.
-    let feature = w.movies["Feature"];
-    for n in 0..total {
-        let started =
-            play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": format!("tv{n}")})).await;
-        assert_eq!(started.status, StatusCode::OK, "stream {n}: {:?}", started.body);
-    }
-    let over = play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": "one more"})).await;
-    assert_eq!(over.status, StatusCode::SERVICE_UNAVAILABLE);
-    assert!(over.body["message"].as_str().unwrap().contains(&format!("maximum of {total} transcodes")));
-}
-
 #[tokio::test]
 async fn a_server_that_converts_no_video_copies_it_or_refuses() {
     let w = world().await;

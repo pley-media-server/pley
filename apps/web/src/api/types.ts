@@ -999,10 +999,10 @@ export interface Settings {
    * ask for a lower quality. Off: video is only copied.
    */
   transcode_video: boolean;
-  /** Streams that transcode video, at once, within `max_transcodes`. */
-  max_video_transcodes: TranscodeLimit;
+  /** Streams that transcode video, at once: counted within `max_transcodes`, and never more than it. */
+  max_video_transcodes: number;
   /** Streams the transcoder makes at once, of every kind. */
-  max_transcodes: TranscodeLimit;
+  max_transcodes: number;
   transcode_preset: TranscodePreset;
   throttle_transcodes: boolean;
   /** Keep transcodes' segments in RAM where the transcoder can, else on disk. Throttled transcodes only. */
@@ -1106,9 +1106,6 @@ export interface ServiceTestResult {
   ms: number;
 }
 
-/** A limit on streams at once: a number (1 to 64), or left to the server, which fits it to the transcoder and its computer. */
-export type TranscodeLimit = number | "auto";
-
 export interface TranscoderInfo {
   available: boolean;
   managed: boolean;
@@ -1135,8 +1132,6 @@ export interface TranscoderInfo {
   /** Whether segments can be kept in memory, and how much; `null` while the transcoder is unavailable. */
   memory?: TranscoderMemory | null;
   max_jobs: number;
-  /** What the limits on streams come to here when left to the server ("auto"). */
-  auto_limits?: { total: number; video: number };
   active_jobs: number;
   error: string | null;
 }

@@ -545,9 +545,6 @@ pub struct TranscoderSummary {
     /// the transcoder is unavailable, or from one too old to say).
     memory: Option<pley_transcoder_api::MemoryInfo>,
     max_jobs: u32,
-    /// What the limits on streams come to here when they are left to Pley
-    /// (`max_transcodes` and `max_video_transcodes` at `"auto"`).
-    auto_limits: crate::settings::TranscodeLimits,
     active_jobs: u32,
     error: Option<String>,
 }
@@ -624,18 +621,6 @@ pub async fn system(State(state): State<AppState>, _admin: AdminUser) -> ApiResu
             })
         }),
         max_jobs: info.as_ref().map(|i| i.limits.max_jobs).unwrap_or(0),
-        auto_limits: {
-            let auto = crate::settings::Settings {
-                max_transcodes: crate::settings::Limit::Auto,
-                max_video_transcodes: crate::settings::Limit::Auto,
-                ..(*settings).clone()
-            };
-            let processors = state
-                .transcoder
-                .is_managed()
-                .then(|| std::thread::available_parallelism().map_or(1, |n| n.get() as u32));
-            auto.transcode_limits(info.as_ref(), processors)
-        },
         active_jobs,
         error: state.transcoder.last_error(),
     };

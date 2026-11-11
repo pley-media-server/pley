@@ -4403,13 +4403,11 @@ interface Settings {
   transcode_video: boolean;         // transcode video for players that can't play a file's as it is, or
                                     // that ask for a lower quality (default true). Off: video is only
                                     // copied (see "A server that converts no video")
-  max_video_transcodes: number | "auto"; // streams that transcode video, at once, within max_transcodes
-                                    // (1 to 64; default "auto")
-  max_transcodes: number | "auto";  // streams the transcoder makes at once, of every kind (1 to 64;
-                                    // default 4). "auto" leaves a limit to the server: every kind, what
-                                    // the transcoder runs at once; video, its hardware encoder's sessions,
-                                    // or in software half this computer's processors
-                                    // (`transcoder.auto_limits` in GET /api/system says what they come to)
+  max_video_transcodes: number;     // streams that transcode video, at once (1 to 64, default 4): counted
+                                    // within max_transcodes and never more than it (one saved above it
+                                    // comes down to it; a server from before it has what max_transcodes was)
+  max_transcodes: number;           // streams the transcoder makes at once, of every kind (1 to 64,
+                                    // default 4)
   transcode_preset: "ultrafast" | "superfast" | "veryfast" | "faster" | "fast" | "medium";
   throttle_transcodes: boolean;     // real time once a 120 s buffer is built; paused 90 s ahead of the player
   transcode_in_memory: boolean;     // keep throttled transcodes' segments in RAM where the transcoder can
@@ -4524,8 +4522,6 @@ interface SystemInfo {
                                     // segments can be kept in RAM (`transcode_in_memory`), and at most how
                                     // much; reason: why not ("works on Linux only"); null while unavailable
     max_jobs: number;
-    auto_limits: { total: number; video: number }; // what max_transcodes and max_video_transcodes come to
-                                    // here when they are "auto"
     active_jobs: number;
     error: string | null;
   };

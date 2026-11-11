@@ -20,9 +20,8 @@ describes how they are made.
 - "Max simultaneous video transcodes" limits the streams that transcode
   video within "Max simultaneous total transcodes" (the limit there
   before, which still counts every stream), so room can be kept for
-  streams that only need their sound transcoded. Each can be set to
-  Automatic, which fits it to the transcoder and the computer and says
-  what that comes to.
+  streams that only need their sound transcoded. It starts at the total a
+  server already had, and is never more than it.
 
 ### Changed
 

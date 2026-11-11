@@ -109,15 +109,6 @@ fn video_not_converted(why: impl Iterator<Item = String>) -> AppError {
     )
 }
 
-/// The limits on streams in force now: those set, or what the transcoder
-/// and this computer take ([`crate::settings::Settings::transcode_limits`]).
-pub(crate) fn transcode_limits(state: &AppState) -> crate::settings::TranscodeLimits {
-    // A transcoder elsewhere has processors of its own.
-    let processors =
-        state.transcoder.is_managed().then(|| std::thread::available_parallelism().map_or(1, |n| n.get() as u32));
-    state.settings.get().transcode_limits(state.transcoder.info().as_ref(), processors)
-}
-
 /// Whether `decision` converts video on a server that converts none.
 fn converts_unwanted_video(req: &PlaybackRequest, decision: &Decision) -> bool {
     req.copy_video_only && decision.video.as_ref().is_some_and(|v| v.mode == VideoMode::Transcode)
@@ -291,16 +282,16 @@ pub async fn start(
 
     // Taken before the job is created (that takes seconds) and handed to the
     // session; given back if this request fails or the client goes away.
-    let limits = transcode_limits(&state);
+    // Video transcodes are some of the streams: never more than all of them.
+    let (total, video) = (settings.max_transcodes, settings.max_video_transcodes.min(settings.max_transcodes));
     let pool = Pool::of(decision.video.as_ref());
-    let slot =
-        state.sessions.reserve_transcode(pool, limits.total as usize, limits.video as usize).map_err(|full| {
-            let (max, made) = match full {
-                Full::Total => (limits.total, "transcodes"),
-                Full::Video => (limits.video, "video transcodes"),
-            };
-            AppError::Unavailable(format!("the server is already running its maximum of {max} {made}"))
-        })?;
+    let slot = state.sessions.reserve_transcode(pool, total as usize, video as usize).map_err(|full| {
+        let (max, made) = match full {
+            Full::Total => (total, "transcodes"),
+            Full::Video => (video, "video transcodes"),
+        };
+        AppError::Unavailable(format!("the server is already running its maximum of {max} {made}"))
+    })?;
     let job_request = JobRequest {
         input: file.path.clone(),
         media: info,

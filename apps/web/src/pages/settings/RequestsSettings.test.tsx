@@ -19,7 +19,7 @@ const SETTINGS = {
   hardware_decoding: true,
   tonemapping: "auto",
   transcode_video: true,
-  max_video_transcodes: "auto",
+  max_video_transcodes: 4,
   max_transcodes: 4,
   transcode_preset: "veryfast",
   throttle_transcodes: true,

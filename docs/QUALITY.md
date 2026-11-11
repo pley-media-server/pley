@@ -312,10 +312,9 @@ Kodi's quality is a setting: it keeps its choice, and the Original plays.
   file, and `adaptive` says whether the stream comes in several sizes.
 - Streams are limited twice (Settings → Transcoder): all of them by
   `max_transcodes`, and those that transcode video by
-  `max_video_transcodes` within it. A video transcode costs many times
-  what a copy does, so a lower limit for them leaves room for people whose
-  players only need the sound transcoded. Either can be left to the
-  server ("Automatic"), which fits it to the transcoder and its computer.
+  `max_video_transcodes` within it, never more than it. A video transcode
+  costs many times what a copy does, so a lower limit for them leaves room
+  for people whose players only need the sound transcoded.
 - `GET /api/playback/network` reads the network memory,
   `GET /api/playback/speedtest` is the speed test, and
   `PUT /api/playback/network` reports both

@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Settings } from "@/api/types";
@@ -18,7 +18,7 @@ const SETTINGS = {
   hardware_decoding: true,
   tonemapping: "auto",
   transcode_video: true,
-  max_video_transcodes: "auto",
+  max_video_transcodes: 4,
   max_transcodes: 4,
   transcode_preset: "veryfast",
   throttle_transcodes: true,
@@ -358,7 +358,7 @@ describe("TranscoderSettings on this server's hardware", () => {
     const user = userEvent.setup();
     const requests = mockApi({
       "GET /api/settings": () => SETTINGS,
-      "GET /api/system": () => system({ ...intel, auto_limits: { total: 8, video: 6 } }),
+      "GET /api/system": () => system(intel),
       "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
     });
     renderWithProviders(<TranscoderSettings />);
@@ -366,30 +366,28 @@ describe("TranscoderSettings on this server's hardware", () => {
     expect(allow).toBeChecked();
     const video = screen.getByLabelText("Max simultaneous video transcodes");
     const total = screen.getByLabelText("Max simultaneous total transcodes");
-    // Left to the server, which says what that comes to: never more video transcodes than streams in all.
-    expect(video).toHaveValue("auto");
-    expect(within(video).getByRole("option", { name: "Automatic · 4" })).toBeInTheDocument();
-    expect(total).toHaveValue("4");
-    expect(within(total).getByRole("option", { name: "Automatic · 8" })).toBeInTheDocument();
+    expect(video).toHaveValue(4);
+    expect(total).toHaveValue(4);
+    expect(screen.getByText(/Counted within the total below/)).toBeInTheDocument();
 
-    await user.selectOptions(total, "auto");
-    expect(within(video).getByRole("option", { name: "Automatic · 6" })).toBeInTheDocument();
-    await user.selectOptions(video, "2");
+    // Never more video transcodes than streams in all: typed above the total, it stops there...
+    fireEvent.change(video, { target: { value: "9" } });
+    expect(video).toHaveValue(4);
+    fireEvent.change(video, { target: { value: "2" } });
+    // ...and a total lowered under it brings it down, once typed.
+    fireEvent.change(total, { target: { value: "1" } });
+    expect(video).toHaveValue(2);
+    fireEvent.blur(total);
+    expect(video).toHaveValue(1);
+    fireEvent.change(total, { target: { value: "6" } });
+    fireEvent.blur(total);
+    expect(video).toHaveValue(1);
     await user.click(screen.getByRole("button", { name: "Save" }));
-    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ max_video_transcodes: 2, max_transcodes: "auto" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ max_video_transcodes: 1, max_transcodes: 6 }));
 
     // No video is transcoded: how many at once says nothing.
     await user.click(allow);
     expect(video).toBeDisabled();
     expect(total).toBeEnabled();
-  });
-
-  it("keeps a limit saved before that the list doesn't name", async () => {
-    mockApi({ "GET /api/settings": () => ({ ...SETTINGS, max_transcodes: 40 }), "GET /api/system": () => system(intel) });
-    renderWithProviders(<TranscoderSettings />);
-    const total = await screen.findByLabelText("Max simultaneous total transcodes");
-    expect(total).toHaveValue("40");
-    // Until the server says what Automatic comes to, it is only named.
-    expect(within(total).getByRole("option", { name: "Automatic" })).toBeInTheDocument();
   });
 });

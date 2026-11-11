@@ -72,12 +72,13 @@ pub struct Settings {
     /// plays the original, and a file whose video the player can't play
     /// isn't played there ([`crate::playback::PlaybackRequest::copy_video_only`]).
     pub transcode_video: bool,
-    /// Streams that transcode video, at once, within `max_transcodes`
-    /// ([`Settings::transcode_limits`]).
-    pub max_video_transcodes: Limit,
+    /// Streams that transcode video, at once: counted within
+    /// `max_transcodes` and never more than it, so a lower number leaves
+    /// room for streams that only need their sound transcoded.
+    pub max_video_transcodes: u32,
     /// Streams the transcoder makes at once, of every kind (video
     /// transcodes, remuxes, sound transcodes, music).
-    pub max_transcodes: Limit,
+    pub max_transcodes: u32,
     pub transcode_preset: String,
     pub throttle_transcodes: bool,
     /// Keep transcodes' segments in memory where the transcoder can (a
@@ -216,8 +217,8 @@ impl Default for Settings {
             hardware_decoding: true,
             tonemapping: TonemapMode::Auto,
             transcode_video: true,
-            max_video_transcodes: Limit::Auto,
-            max_transcodes: Limit::At(4),
+            max_video_transcodes: 4,
+            max_transcodes: 4,
             // Chosen by the transcoder from its load and lead (crate::transcoder).
             transcode_preset: "auto".into(),
             throttle_transcodes: true,
@@ -259,68 +260,6 @@ impl Default for Settings {
             sonarr_search: true,
         }
     }
-}
-
-/// Streams of every kind at once when the limit is left to Pley and the
-/// transcoder hasn't said what it runs: its own default.
-const AUTO_TRANSCODES: u32 = 8;
-
-/// A limit on streams at once: a number, or left to Pley, which fits it to
-/// the transcoder and this computer ([`Settings::transcode_limits`]). In
-/// JSON, the number or `"auto"`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Limit {
-    Auto,
-    At(u32),
-}
-
-impl Limit {
-    /// The most a limit is set to.
-    const MOST: u32 = 64;
-
-    /// The limit, when it is one an administrator may set.
-    fn checked(self, name: &str) -> Result<Limit, AppError> {
-        match self {
-            Limit::At(n) if !(1..=Limit::MOST).contains(&n) => {
-                Err(AppError::bad_request(format!("{name} must be between 1 and {}, or \"auto\"", Limit::MOST)))
-            }
-            limit => Ok(limit),
-        }
-    }
-}
-
-impl Serialize for Limit {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        match self {
-            Limit::Auto => serializer.serialize_str("auto"),
-            Limit::At(n) => serializer.serialize_u32(*n),
-        }
-    }
-}
-
-impl<'de> Deserialize<'de> for Limit {
-    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Written {
-            Number(u32),
-            Word(String),
-        }
-        match Written::deserialize(deserializer)? {
-            Written::Number(n) => Ok(Limit::At(n)),
-            Written::Word(word) if word == "auto" => Ok(Limit::Auto),
-            Written::Word(word) => Err(serde::de::Error::custom(format!("{word} isn't a number or \"auto\""))),
-        }
-    }
-}
-
-/// How many streams the transcoder makes at once ([`Settings::transcode_limits`]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-pub struct TranscodeLimits {
-    /// Of every kind.
-    pub total: u32,
-    /// Of those, the ones that transcode video.
-    pub video: u32,
 }
 
 /// Proxy addresses kept at most.
@@ -383,29 +322,16 @@ pub(crate) fn arr_url(value: &str) -> Result<String, AppError> {
 }
 
 impl Settings {
-    /// The limits in force: those set, or for one left to Pley
-    /// ([`Limit::Auto`]) what the transcoder and this computer take at once.
-    ///
-    /// - Every kind: the transcoder's own limit of processes.
-    /// - Video: with a hardware encoder, the sessions the transcoder gives
-    ///   it; in software, half the processors (`processors`, when the
-    ///   transcoder runs on this computer), as the automatic preset eases
-    ///   the encoder under load. Never more than the limit of every kind.
-    pub fn transcode_limits(&self, info: Option<&TranscoderInfo>, processors: Option<u32>) -> TranscodeLimits {
-        let total = match self.max_transcodes {
-            Limit::Auto => info.map(|i| i.limits.max_jobs).filter(|max| *max > 0).unwrap_or(AUTO_TRANSCODES),
-            Limit::At(set) => set,
-        };
-        let hardware = info.map(|i| {
-            picked_encoder(&i.capabilities, VideoCodec::H264, self.hwaccel, false).is_some_and(|e| e.hardware)
-        });
-        let video = match (self.max_video_transcodes, hardware) {
-            (Limit::Auto, Some(true)) => info.map(|i| i.limits.max_hw_jobs).filter(|max| *max > 0).unwrap_or(total),
-            (Limit::Auto, Some(false)) => processors.map_or(total, |p| (p / 2).max(1)),
-            (Limit::Auto, None) => total,
-            (Limit::At(set), _) => set,
-        };
-        TranscodeLimits { total, video: video.min(total) }
+    /// Settings as they were saved. Ones saved before video transcodes had
+    /// a limit of their own take the limit of every stream for it, so
+    /// nothing changes on those servers.
+    fn saved(json: &str) -> Option<Settings> {
+        let mut settings: Settings = serde_json::from_str(json).ok()?;
+        let written: serde_json::Value = serde_json::from_str(json).ok()?;
+        if written.get("max_video_transcodes").is_none() {
+            settings.max_video_transcodes = settings.max_transcodes;
+        }
+        Some(settings)
     }
 
     pub fn transcode_options(&self) -> TranscodeOptions {
@@ -667,8 +593,8 @@ pub struct SettingsPatch {
     pub hardware_decoding: Option<bool>,
     pub tonemapping: Option<TonemapMode>,
     pub transcode_video: Option<bool>,
-    pub max_video_transcodes: Option<Limit>,
-    pub max_transcodes: Option<Limit>,
+    pub max_video_transcodes: Option<u32>,
+    pub max_transcodes: Option<u32>,
     pub transcode_preset: Option<String>,
     pub throttle_transcodes: Option<bool>,
     pub transcode_in_memory: Option<bool>,
@@ -720,7 +646,7 @@ impl SettingsStore {
     pub async fn load(db: &Db) -> anyhow::Result<Self> {
         let stored: Option<String> =
             sqlx::query_scalar("SELECT value FROM settings WHERE key = ?").bind(KEY).fetch_optional(&db.read).await?;
-        let settings = stored.and_then(|json| serde_json::from_str(&json).ok()).unwrap_or_default();
+        let settings = stored.and_then(|json| Settings::saved(&json)).unwrap_or_default();
         Ok(Self { current: watch::Sender::new(Arc::new(settings)) })
     }
 
@@ -800,11 +726,19 @@ impl SettingsStore {
             next.tonemapping = v;
         }
         if let Some(v) = patch.max_transcodes {
-            next.max_transcodes = v.checked("max transcodes")?;
+            if !(1..=64).contains(&v) {
+                return Err(AppError::bad_request("max transcodes must be between 1 and 64"));
+            }
+            next.max_transcodes = v;
         }
         if let Some(v) = patch.max_video_transcodes {
-            next.max_video_transcodes = v.checked("max video transcodes")?;
+            if !(1..=64).contains(&v) {
+                return Err(AppError::bad_request("max video transcodes must be between 1 and 64"));
+            }
+            next.max_video_transcodes = v;
         }
+        // Video transcodes are some of the streams: never more than all of them.
+        next.max_video_transcodes = next.max_video_transcodes.min(next.max_transcodes);
         if let Some(v) = patch.transcode_video {
             next.transcode_video = v;
         }
@@ -1087,23 +1021,22 @@ mod tests {
         assert_eq!(s.language, "fr");
         assert_eq!(s.tmdb_api_key, "abc");
         assert_eq!(s.metadata_language, "fr-FR");
-        assert_eq!((s.max_transcodes, s.transcode_preset.as_str()), (Limit::At(64), "medium"));
-        assert_eq!((s.max_video_transcodes, s.transcode_video), (Limit::At(2), false));
+        assert_eq!((s.max_transcodes, s.transcode_preset.as_str()), (64, "medium"));
+        assert_eq!((s.max_video_transcodes, s.transcode_video), (2, false));
         let unset = Settings::default();
-        assert_eq!(unset.max_video_transcodes, Limit::Auto, "left to Pley unless set");
+        assert_eq!((unset.max_video_transcodes, unset.max_transcodes), (4, 4), "four streams of any kind, as ever");
         assert!(unset.transcode_video, "video is transcoded unless turned off");
-        // A limit is a number, or left to Pley.
-        let auto = serde_json::json!({"max_transcodes": "auto", "max_video_transcodes": "auto"});
-        let left = store.update(&db, patch(auto.clone())).await.unwrap();
-        assert_eq!((left.max_transcodes, left.max_video_transcodes), (Limit::Auto, Limit::Auto));
-        let saved = serde_json::to_value(&*left).unwrap();
-        let s = store.update(&db, patch(serde_json::json!({"max_transcodes": 64}))).await.unwrap();
+        // Video transcodes are never more than all the streams: a limit above the total comes down to it.
+        let both = serde_json::json!({"max_transcodes": 3, "max_video_transcodes": 5});
+        let lowered = store.update(&db, patch(both)).await.unwrap();
+        assert_eq!((lowered.max_video_transcodes, lowered.max_transcodes), (3, 3));
+        let lowered = store.update(&db, patch(serde_json::json!({"max_transcodes": 2}))).await.unwrap();
         assert_eq!(
-            (&saved["max_transcodes"], &saved["max_video_transcodes"]),
-            (&auto["max_transcodes"], &auto["max_video_transcodes"])
+            (lowered.max_video_transcodes, lowered.max_transcodes),
+            (2, 2),
+            "also when only the total is lowered"
         );
-        assert_eq!(serde_json::to_value(Limit::At(4)).unwrap(), serde_json::json!(4));
-        assert!(serde_json::from_value::<SettingsPatch>(serde_json::json!({"max_transcodes": "lots"})).is_err());
+        let s = store.update(&db, patch(serde_json::json!({"max_transcodes": 64}))).await.unwrap();
         assert_eq!(s.scan_interval_minutes, 7 * 24 * 60, "at most a week");
         assert_eq!(Settings::default().transcode_preset, "auto", "the transcoder chooses by default");
         assert!(!s.seek_previews);
@@ -1114,7 +1047,7 @@ mod tests {
         assert_eq!((s.library_work, s.library_work_from, s.library_work_to), (LibraryWork::Hours, 22, 6));
         // Fields left out keep their values.
         let s = store.update(&db, patch(serde_json::json!({"watch_libraries": false}))).await.unwrap();
-        assert_eq!((s.server_name.as_str(), s.max_transcodes), ("Den", Limit::At(64)));
+        assert_eq!((s.server_name.as_str(), s.max_transcodes), ("Den", 64));
         assert!(!s.seek_previews && !s.watch_libraries);
         // ...and survive a restart.
         assert_eq!(*SettingsStore::load(&db).await.unwrap().get(), *s);
@@ -1162,7 +1095,8 @@ mod tests {
             .await
             .unwrap();
         let s = SettingsStore::load(&db).await.unwrap().get();
-        assert_eq!((s.server_name.as_str(), s.max_transcodes, s.hwaccel), ("Attic", Limit::At(2), HwAccel::Nvenc));
+        assert_eq!((s.server_name.as_str(), s.max_transcodes, s.hwaccel), ("Attic", 2, HwAccel::Nvenc));
+        assert_eq!(s.max_video_transcodes, 2, "saved before video had a limit of its own: the one it had");
         assert_eq!(s.tv_metadata, TvMetadata::Auto);
         assert!(s.music_metadata && s.read_nfo && s.seek_previews && s.previews_in_background && s.detect_markers);
         assert_eq!((s.library_work, s.library_work_max_cpu), (LibraryWork::Auto, 50));
@@ -1228,39 +1162,6 @@ mod tests {
             tonemappers: vec![Tonemapper::Opencl, Tonemapper::Zscale],
             ..Default::default()
         }
-    }
-
-    #[test]
-    fn limits_left_to_pley_fit_the_transcoder_and_the_computer() {
-        use pley_transcoder_api::Limits;
-        let info = |caps: Capabilities| TranscoderInfo {
-            capabilities: caps,
-            limits: Limits { max_jobs: 8, max_hw_jobs: 6 },
-            ..Default::default()
-        };
-        let limits = |settings: &Settings, info: Option<&TranscoderInfo>, processors| {
-            let found = settings.transcode_limits(info, processors);
-            (found.video, found.total)
-        };
-        let auto = Settings { max_transcodes: Limit::Auto, max_video_transcodes: Limit::Auto, ..Default::default() };
-        // A hardware encoder: its sessions, of the transcoder's processes.
-        let gpu = info(intel());
-        assert_eq!(limits(&auto, Some(&gpu), Some(16)), (6, 8));
-        // In software: half this computer's processors, one at least.
-        let software = Settings { hwaccel: HwAccel::None, ..auto.clone() };
-        assert_eq!(limits(&software, Some(&gpu), Some(8)), (4, 8));
-        assert_eq!(limits(&software, Some(&gpu), Some(1)), (1, 8));
-        assert_eq!(limits(&software, Some(&gpu), Some(64)), (8, 8), "never more than of every kind");
-        // A transcoder elsewhere: its processors aren't known.
-        assert_eq!(limits(&software, Some(&gpu), None), (8, 8));
-        // Not running yet: its own defaults.
-        assert_eq!(limits(&auto, None, Some(8)), (8, 8));
-        // What is set is kept, video within the total.
-        let set = Settings { max_transcodes: Limit::At(3), max_video_transcodes: Limit::At(5), ..Default::default() };
-        assert_eq!(limits(&set, Some(&gpu), Some(16)), (3, 3));
-        let unset = Settings::default();
-        assert_eq!(limits(&unset, Some(&gpu), Some(16)), (4, 4), "as before: four streams, of any kind");
-        assert_eq!(limits(&Settings { hwaccel: HwAccel::None, ..unset }, Some(&gpu), Some(4)), (2, 4));
     }
 
     #[test]
