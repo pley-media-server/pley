@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { api, isApiError } from "./client";
 import { onServerEvent } from "./events";
 import { keys } from "./hooks";
@@ -260,20 +260,53 @@ export function useFolderCheck(library: string, plex: string, pley: string) {
 /** The running import's step as last seen, by whichever views show it: one refetch per step, not one per view. */
 let seenStep: string | null = null;
 
+/** The least time between two fetches `import_changed` events ask for: some steps send one per title. */
+export const IMPORT_EVENT_MS = 500;
+
+/** How many views show the import, and the one listener they share. */
+let watching = 0;
+let unwatch: (() => void) | null = null;
+
+/** Fetches the import's progress again on `import_changed`, at most every {@link IMPORT_EVENT_MS}, until the returned function is called. */
+function watchImport(qc: QueryClient): () => void {
+  watching += 1;
+  if (watching === 1) {
+    let last = 0;
+    let later: ReturnType<typeof setTimeout> | undefined;
+    const refetch = () => {
+      later = undefined;
+      last = Date.now();
+      // A fetch on its way answers the event too.
+      void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true }, { cancelRefetch: false });
+    };
+    const stop = onServerEvent((ev) => {
+      if (ev.type !== "import_changed" || later !== undefined) return;
+      const wait = last + IMPORT_EVENT_MS - Date.now();
+      if (wait <= 0) refetch();
+      else later = setTimeout(refetch, wait);
+    });
+    unwatch = () => {
+      stop();
+      clearTimeout(later);
+    };
+  }
+  return () => {
+    watching -= 1;
+    if (watching === 0) {
+      unwatch?.();
+      unwatch = null;
+    }
+  };
+}
+
 /**
- * Where the import is, or the last one's report: fetched again on each
- * `import_changed` event, and every few seconds while it runs in case the
+ * Where the import is, or the last one's report: fetched again on
+ * `import_changed` events, and every few seconds while it runs in case the
  * event stream is down.
  */
 export function usePlexImport() {
   const qc = useQueryClient();
-  useEffect(
-    () =>
-      onServerEvent((ev) => {
-        if (ev.type === "import_changed") void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true });
-      }),
-    [qc],
-  );
+  useEffect(() => watchImport(qc), [qc]);
   const query = useQuery({
     queryKey: plexImportKeys.progress,
     queryFn: () => api.get<ImportProgress>("/api/import/plex"),
