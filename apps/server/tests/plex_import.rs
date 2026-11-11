@@ -44,7 +44,7 @@ fn items(section: &str, kind: &str) -> Vec<Value> {
         ("1", "1") => vec![
             json!({"ratingKey": "101", "type": "movie", "title": "Alien", "addedAt": 1_000_000_000,
                    "thumb": "/library/metadata/101/thumb/1",
-                   "Guid": [{"id": "tmdb://348"}], "Media": file("/plexdata/movies/Alien (1979).mkv", 1024)}),
+                   "Guid": [{"id": "imdb://tt0078748"}, {"id": "tmdb://348"}], "Media": file("/plexdata/movies/Alien (1979).mkv", 1024)}),
             json!({"ratingKey": "102", "type": "movie", "title": "Brazil", "addedAt": 1_100_000_000,
                    "year": 1985, "summary": "A clerk dreams.", "thumb": "http://elsewhere.invalid/brazil.png",
                    "Guid": [{"id": "tmdb://68"}], "Media": file("/plexdata/movies/Brazil (1985).mkv", 2048)}),
@@ -1130,13 +1130,17 @@ async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
         .fetch_one(&app.state.db.read)
         .await
         .unwrap();
-    let (tmdb_id, fetched, poster): (Option<i64>, bool, bool) =
-        sqlx::query_as("SELECT tmdb_id, metadata_at IS NOT NULL, poster IS NOT NULL FROM items WHERE id = ?")
+    let (tmdb_id, imdb_id, fetched, poster): (Option<i64>, Option<String>, bool, bool) =
+        sqlx::query_as("SELECT tmdb_id, imdb_id, metadata_at IS NOT NULL, poster IS NOT NULL FROM items WHERE id = ?")
             .bind(alien)
             .fetch_one(&app.state.db.read)
             .await
             .unwrap();
-    assert_eq!((tmdb_id, fetched, poster), (Some(348), false, false), "Plex's match, before any metadata");
+    assert_eq!(
+        (tmdb_id, imdb_id.as_deref(), fetched, poster),
+        (Some(348), Some("tt0078748"), false, false),
+        "Plex's match, before any metadata"
+    );
     let watched: i64 =
         sqlx::query_scalar("SELECT play_count FROM user_item_state WHERE user_id = ? AND item_id = ? AND watched = 1")
             .bind(admin_id)

@@ -2582,11 +2582,13 @@ async fn write_details(db: &Db, details: &[(i64, PlexDetails)]) -> sqlx::Result<
 }
 
 /// Plex's ids on a movie or show Pley hasn't fetched yet, where it has none,
-/// for the fetch to use instead of searching by title. A show takes its
-/// TheTVDB and IMDb ids too: TheTVDB's and TVmaze's refreshes look a show
-/// up by those, never by its TMDB id.
+/// for the fetch to use instead of searching by title. The IMDb id finds a
+/// movie on TMDB when Plex has no TMDB id (its old IMDb agent's). A show
+/// takes its TheTVDB id too: TheTVDB's and TVmaze's refreshes look a show
+/// up by that or its IMDb id, never by its TMDB id.
 async fn seed(db: &Db, id: i64, ids: &PlexIds) -> sqlx::Result<()> {
-    let (tvdb, imdb) = if ids.show { (ids.tvdb, ids.imdb.as_deref()) } else { (None, None) };
+    let tvdb = ids.tvdb.filter(|_| ids.show);
+    let imdb = ids.imdb.as_deref();
     sqlx::query(
         "UPDATE items SET tmdb_id = COALESCE(tmdb_id, ?), tvdb_id = COALESCE(tvdb_id, ?), imdb_id = COALESCE(imdb_id, ?)
          WHERE id = ? AND metadata_at IS NULL AND kind IN ('movie', 'show')",
