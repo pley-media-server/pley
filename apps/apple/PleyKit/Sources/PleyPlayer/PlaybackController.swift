@@ -785,11 +785,12 @@ public final class PlaybackController: ObservableObject {
     // MARK: Sessions
 
     private func prepareFirst() async {
-        // What the server knows of the network, asked at once when the quality remembered is Automatic.
+        // What the server knows of the network, asked at once when the quality remembered is Automatic;
+        // not of a server that converts no video (the title before said so), where the original plays.
         let remembered = env.quality.remembered()
         let network = network
-        let lookup: Task<NetworkStart.Lookup, Never>? = Qualities.choose(nil, remembered: remembered).automatic
-            ? Task { await network.lookUp() } : nil
+        let asksNetwork = !originalOnly && Qualities.choose(nil, remembered: remembered).automatic
+        let lookup: Task<NetworkStart.Lookup, Never>? = asksNetwork ? Task { await network.lookUp() } : nil
         defer { lookup?.cancel() }
         do {
             let saved = await env.local?.detail(request.itemId)
@@ -823,7 +824,7 @@ public final class PlaybackController: ObservableObject {
                 quality = Qualities.original
                 state.canFindSubtitles = false
             } else {
-                picked = Qualities.choose(chosen, remembered: remembered)
+                picked = originalOnly ? Qualities.original : Qualities.choose(chosen, remembered: remembered)
                 var start = StartCeiling.device
                 if picked.automatic, let lookup { start = await network.resolve(await lookup.value) }
                 guard !closed else { return }
