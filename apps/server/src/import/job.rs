@@ -1035,6 +1035,32 @@ async fn wait_for(tx: &mut sqlx::SqliteConnection, user_id: i64, libraries: &[i6
     Ok(())
 }
 
+/// Profile `user_id`, open to every library, is given those there are one
+/// by one, but for `except` and those it waits for, and waits to be open to
+/// every library again once nothing does.
+async fn list_libraries(tx: &mut sqlx::SqliteConnection, user_id: i64, except: &[i64]) -> sqlx::Result<()> {
+    let had: Vec<i64> = sqlx::query_scalar(
+        "SELECT id FROM libraries WHERE id NOT IN (SELECT library_id FROM import_waiting_libraries WHERE user_id = ?)",
+    )
+    .bind(user_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    for library in had.iter().filter(|l| !except.contains(l)) {
+        sqlx::query("INSERT OR IGNORE INTO user_libraries (user_id, library_id) VALUES (?, ?)")
+            .bind(user_id)
+            .bind(library)
+            .execute(&mut *tx)
+            .await?;
+    }
+    sqlx::query("UPDATE users SET all_libraries = 0 WHERE id = ?").bind(user_id).execute(&mut *tx).await?;
+    sqlx::query("UPDATE import_accounts SET waits_for_all = 1 WHERE source = ? AND user_id = ?")
+        .bind(SOURCE)
+        .bind(user_id)
+        .execute(&mut *tx)
+        .await?;
+    Ok(())
+}
+
 /// Profile `user_id` waits for no library an import gave it: the
 /// administrator chose its libraries.
 pub async fn stop_waiting(db: &Db, user_id: i64) -> sqlx::Result<()> {
@@ -1431,6 +1457,7 @@ impl Run {
             choices.folders.iter().map(|f| Folder { plex: f.plex.clone(), pley: f.pley.clone() }).collect();
         let sections = self.plex.sections(&self.server).await?;
         self.check(&choices, &sections).await?;
+        self.close_found(&choices).await?;
         let paired = self.libraries(&choices, &sections).await?;
         self.paired = paired.iter().map(|p| p.library_id).collect();
         // Profiles come with their limits before anything else, so a
@@ -1616,6 +1643,32 @@ impl Run {
             }
         }
         Ok(paired)
+    }
+
+    /// The profiles of the Home users chosen that an earlier import made,
+    /// open to every library and with labels they never see, given the
+    /// libraries there are one by one before the run makes any: a new one
+    /// would be open to them as soon as it's made, before Plex's labels are
+    /// on its titles. Every library is theirs again when a run finishes.
+    async fn close_found(&self, choices: &Choices) -> ImportResult<()> {
+        if !choices.libraries.iter().any(|l| l.new.is_some()) {
+            return Ok(());
+        }
+        let db = &self.state.db;
+        for choice in &choices.users {
+            let Some(id) = imported_profile(db, choice.id).await? else { continue };
+            let all: bool =
+                sqlx::query_scalar("SELECT all_libraries FROM users WHERE id = ?").bind(id).fetch_one(&db.read).await?;
+            if !all || accounts::label_rules(db, id, "hide").await?.is_empty() {
+                continue;
+            }
+            let mut tx = db.write.begin().await?;
+            list_libraries(&mut tx, id, &[]).await?;
+            tx.commit().await?;
+            self.state.auth.forget_user(id);
+            self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id: id });
+        }
+        Ok(())
     }
 
     /// Keeps that the run made library `id`, for a restart to fetch it.
@@ -2017,28 +2070,22 @@ impl Run {
                     age
                 };
                 sqlx::query("DELETE FROM user_label_rules WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
-                if waits && !made.is_empty() {
-                    // Open to every library, it opens those it had, and all
-                    // of them again once the new ones open.
-                    if all {
-                        let had: Vec<i64> = sqlx::query_scalar("SELECT id FROM libraries").fetch_all(&mut *tx).await?;
-                        for library in had.iter().filter(|l| !made.contains(l)) {
-                            sqlx::query("INSERT OR IGNORE INTO user_libraries (user_id, library_id) VALUES (?, ?)")
-                                .bind(id)
-                                .bind(library)
-                                .execute(&mut *tx)
-                                .await?;
-                        }
-                        sqlx::query("UPDATE users SET all_libraries = 0 WHERE id = ?")
-                            .bind(id)
-                            .execute(&mut *tx)
-                            .await?;
-                        sqlx::query("UPDATE import_accounts SET waits_for_all = 1 WHERE source = ? AND user_id = ?")
-                            .bind(SOURCE)
-                            .bind(id)
-                            .execute(&mut *tx)
-                            .await?;
-                    }
+                let waits_for_all: bool =
+                    sqlx::query_scalar("SELECT waits_for_all FROM import_accounts WHERE source = ? AND user_id = ?")
+                        .bind(SOURCE)
+                        .bind(id)
+                        .fetch_optional(&mut *tx)
+                        .await?
+                        .unwrap_or(false);
+                let created: Vec<i64> =
+                    self.report.libraries.iter().filter(|l| l.created).filter_map(|l| l.library_id).collect();
+                if waits && (all || waits_for_all) && !created.is_empty() {
+                    // Open to every library, it has those there were, and
+                    // waits for every one the run made, its own or not: all
+                    // of them again once those open.
+                    list_libraries(&mut tx, id, &created).await?;
+                    wait_for(&mut tx, id, &created).await?;
+                } else if waits {
                     wait_for(&mut tx, id, made).await?;
                 } else if !all {
                     for library in made {

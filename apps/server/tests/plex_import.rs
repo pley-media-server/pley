@@ -1036,7 +1036,9 @@ async fn brings_libraries_people_and_what_they_watched() {
         )
         .await;
     assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
-    // Its TV held: the kid waits for the films, every other library open.
+    // Its TV held: the kid has the libraries there were, and waits for both
+    // the run made, More TV too, which it couldn't open on Plex: given every
+    // library, it gets that too, but once its labels are on.
     for _ in 0..400 {
         if one(&app, "SELECT COUNT(*) FROM import_waiting_libraries WHERE user_id = ?", kid_id).await > 0 {
             break;
@@ -1045,17 +1047,24 @@ async fn brings_libraries_people_and_what_they_watched() {
     }
     assert_eq!(one(&app, "SELECT all_libraries FROM users WHERE id = ?", kid_id).await, 0);
     assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 1);
-    let more: i64 = sqlx::query_scalar("SELECT id FROM libraries WHERE name = 'More films'")
-        .fetch_one(&app.state.db.read)
-        .await
-        .unwrap();
-    assert_eq!(one(&app, "SELECT library_id FROM import_waiting_libraries WHERE user_id = ?", kid_id).await, more);
-    let opened: Vec<i64> = sqlx::query_scalar("SELECT library_id FROM user_libraries WHERE user_id = ?")
-        .bind(kid_id)
-        .fetch_all(&app.state.db.read)
-        .await
-        .unwrap();
-    assert!(!opened.contains(&more) && opened.len() > 2, "{opened:?}");
+    let waiting: Vec<String> = sqlx::query_scalar(
+        "SELECT l.name FROM import_waiting_libraries w JOIN libraries l ON l.id = w.library_id
+         WHERE w.user_id = ? ORDER BY l.name",
+    )
+    .bind(kid_id)
+    .fetch_all(&app.state.db.read)
+    .await
+    .unwrap();
+    assert_eq!(waiting, ["More TV", "More films"]);
+    let opened: Vec<i64> =
+        sqlx::query_scalar("SELECT library_id FROM user_libraries WHERE user_id = ? ORDER BY library_id")
+            .bind(kid_id)
+            .fetch_all(&app.state.db.read)
+            .await
+            .unwrap();
+    let mut before = vec![movies, tv, films];
+    before.sort();
+    assert_eq!(opened, before);
     tv_held.store(false, Ordering::SeqCst);
     let done = finished(&app, &admin).await;
     assert_eq!(done["state"], "done", "{done:?}");

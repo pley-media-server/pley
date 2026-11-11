@@ -39,8 +39,10 @@ never changes anything on Plex.
   profile with labels it's never allowed gets its libraries when the
   import finishes, since Plex's labels come to Pley's titles later in it;
   it can sign in meanwhile, and you can give it its libraries sooner in
-  Settings › Users. A profile an earlier import made keeps the libraries
-  it has while Plex's new labels come over. Titles Pley couldn't find on
+  Settings › Users. One you gave every library waits for every library
+  the import makes, and has every library again once it finishes. A
+  profile an earlier import made keeps the libraries it has while Plex's
+  new labels come over. Titles Pley couldn't find on
   Plex don't get Plex's labels, so those rules don't hide them.
 - **Titles.** Plex's labels are added to the titles, and a title's date
   added moves to Plex's when that's earlier.

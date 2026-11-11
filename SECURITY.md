@@ -510,8 +510,12 @@ other apps (`pley_ct_…`), never with a session's
   A profile with labels it never sees gets the libraries the run brings
   it only when the run finishes, since Plex's labels reach Pley's titles
   later in it; it can sign in meanwhile, so apps stay signed in. Libraries
-  an administrator gives it meanwhile are theirs. A profile an earlier
-  import made keeps the libraries it has while new labels come over.
+  an administrator gives it meanwhile are theirs. One open to every
+  library has those there are listed before the run makes any, waits for
+  every library the run makes, and is open to every library again when
+  it finishes. A profile an earlier import made keeps the libraries it has
+  while new labels come over, and one that gets its first such label in
+  this run has its new rules only once the run reaches its profile.
   Titles the import can't find on Plex don't get Plex's labels, and the
   report says so for the profiles that rely on them.
 - What Plex sends is checked as any input: labels and label rules as
