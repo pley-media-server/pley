@@ -522,7 +522,7 @@ describe("PlexImport", () => {
     const waiting = { ...report.profiles[0]!, hide_labels: ["Scary"], waiting: ["Films", "Kids"] };
     serve({ progress: () => ({ ...idle, state: "cancelled", report: { ...report, outcome: "cancelled", profiles: [waiting] } }) });
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
-    expect(await screen.findByText(/^This profile gets Films and Kids once an import finishes, when .* on those libraries' titles/)).toBeInTheDocument();
+    expect(await screen.findByText(/^This profile gets Films and Kids once an import of those libraries finishes/)).toBeInTheDocument();
     expect(screen.getByText(/^Titles Pley couldn't find don't have Plex's labels/)).toBeInTheDocument();
   });
 
@@ -539,7 +539,7 @@ describe("PlexImport", () => {
     serve({ progress: () => ({ ...idle, state: "done", report: { ...report, profiles: [opened] } }) });
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
     expect(await screen.findByText("Sam")).toBeInTheDocument();
-    expect(screen.queryByText(/once an import finishes/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/once an import of/)).not.toBeInTheDocument();
     expect(screen.queryByText(/^Titles Pley couldn't find/)).not.toBeInTheDocument();
   });
 
