@@ -7,22 +7,33 @@ How to set Pley up once it runs. Installing it is in
 
 On start, Pley prints a link with a one-time setup code
 (`http://localhost:7539/setup?code=…`; on a desktop the tray icon opens it).
-Open it and create the administrator account. Your server comes next: what
-Pley will use, a row each, to confirm or change. That's the server's name,
-Pley's language, the language of titles and summaries (the browser's, where
-TMDB and TheTVDB have it), the country (whose age ratings are read), a TMDB
-key for movies' posters and details (optional), and, where devices on the
-network can reach Pley, whether Apple devices find it by Bonjour (yes, but
-on what looks like Docker's own network, where they couldn't). Then bring
-over a Plex server's libraries and profiles
-([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)), or start fresh: give the folders
-of a Movies, a TV Shows and a Music library, leaving out any you don't
-have, add more of any type (Kids Movies) with their own names, then Start
-watching adds each one given a folder and starts its scan. Home shows administrators how far the
-libraries' first scans are, which of them it's on, and each library
-ticked off as it's done; seek previews and intro detection wait until
-they are. In a container with no media folder mounted, the
-step says so and how to mount one. Each is in Settings afterwards. Nobody without the code can claim a new server.
+Nobody without the code can claim a new server. Setup is one card, with how
+far it is along its top:
+
+1. **The account.** The administrator's username and password, and the
+   setup code, filled in when the link carries it.
+2. **Your server.** What Pley will use, a row each, to confirm or change:
+   the server's name, Pley's language, the language of titles and summaries
+   (the browser's, where TMDB and TheTVDB have it), the country (whose age
+   ratings are read), a TMDB key for movies' posters and details
+   (optional), and, where devices on the network can reach Pley, whether
+   Apple devices find it by Bonjour (yes, but on what looks like Docker's
+   own network, where they couldn't).
+3. **How to start.** Bring over a Plex server's libraries, profiles and
+   what each person watched ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)),
+   or start fresh.
+4. **Your libraries**, starting fresh. A row each for Movies, TV Shows and
+   Music: give each its folders, remove any you don't have, and add more
+   of any type, such as Kids Movies, under their own names. Start watching
+   adds each one given a folder and starts its scan; Later leaves with
+   none. In a container with no media folder mounted, the step says so and
+   how to mount one.
+
+From how to start onwards, Back goes a step back; the account, once made,
+stays. Everything setup asks for is in Settings afterwards. Home then shows
+administrators how far the libraries' first scans are, which of them it's
+on, and each library ticked off as it's done; seek previews and intro
+detection wait until they are.
 
 `pley reset-password <user> [--admin]` resets a lost password. It asks for
 the new one (or reads it from standard input) and turns that account's

@@ -24,9 +24,12 @@ You need Docker Engine with the Compose plugin (or Docker Desktop).
 2. Open the link it prints, which carries a one-time setup code, and create
    the administrator account.
 
-3. Add your libraries, which setup asks for next (later, in **Settings →
-   Libraries**): folders under `/media`, such as `/media/Movies`. Media goes in `media/` here unless `.env` says
-   otherwise; [media/README.md](media/README.md) shows how to name it.
+3. Setup asks about your server, then whether to bring over a Plex server
+   or add your libraries ([First start](../../docs/CONFIGURATION.md#first-start);
+   later, in **Settings → Libraries**). Libraries are folders under
+   `/media`, such as `/media/Movies`. Media goes in `media/` here unless
+   `.env` says otherwise; [media/README.md](media/README.md) shows how to
+   name it.
 
 Pley is now on `http://127.0.0.1:7539`, on this computer only: point your
 reverse proxy at it ([below](#behind-a-reverse-proxy)).

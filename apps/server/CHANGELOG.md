@@ -11,32 +11,48 @@ describes how they are made.
 
 ### Added
 
-- Moving from Plex: a new server offers to bring over a Plex server once
-  the administrator account is made, and Settings › Libraries has Import from
-  Plex. Sign in on Plex's own page and pick the server; Pley pairs each
-  Plex library with its own (or makes one), finding Plex's folders where
-  it sees them under another path (Docker) by a file in them, or from one
-  folder given, and says how much each library holds and whether Plex's
-  files are in each folder given; it shows each Plex Home user with their picture, and makes
-  a profile for each one chosen with their picture and their restrictions
-  as an age limit and label rules, gives the administrator their Plex
-  name when they have no display name, and brings over the titles' labels and dates added, and each person's
-  watched titles, resume points, ratings and plays, then shows what came
-  over. Collections and playlists come too, and Plex's matches and the
-  fields edited in Plex as Fix Match and edits in Pley; a "What to bring"
-  step turns any of these off. What's found by its file comes over before
-  any posters or details are fetched, so watch history is there within
-  minutes, and Plex's matches mean titles are fetched by their ids rather
-  than searched for by name. Home and Settings › Libraries show the
-  import while the rest runs, then its report, which says how long the
-  import and each of its steps took.
-  Running it again adds what's new and never takes anything away
+- A new setup, on one card with how far it is along its top. After the
+  administrator account, Your server shows what Pley will use, each on a
+  row of its own to confirm or change: the server's name, Pley's language,
+  the language of titles and summaries (the browser's to start with), the
+  country, a TMDB key (optional, checked before it's saved), and whether
+  Apple devices find the server by Bonjour. Then it asks how to start:
+  bring over a Plex server (below), or start fresh, with a row each for
+  Movies, TV Shows and Music to give folders for and more of any type
+  (Kids Movies) under their own names, any of them removable; Start
+  watching adds each one given a folder and starts its scan, or Later
+  leaves with none. From how to start onwards, Back goes a step back.
+  Start fresh used to leave people in Settings › Libraries. In a container
+  with no media folder mounted, adding a library says so and how to mount
+  one, and Browse starts from the folders mounted into it. Settings ›
+  Server calls its languages the same way, Pley's language and Titles and
+  summaries, and names the latter rather than showing codes.
+- Moving from Plex: setup offers to bring over a Plex server, and Settings
+  › Libraries has Import from Plex. Sign in on Plex's own page and pick
+  the server; Pley pairs each Plex library with its own (or makes one),
+  finding Plex's folders where it sees them under another path (Docker) by
+  a file in them, or from one folder given, and says how much each library
+  holds and whether Plex's files are in each folder given; it shows each
+  Plex Home user with their picture, and makes a profile for each one
+  chosen with their picture and their restrictions as an age limit and
+  label rules, gives the administrator their Plex name when they have no
+  display name, and brings over the titles' labels and dates added, and
+  each person's watched titles, resume points, ratings and plays, then
+  shows what came over. Collections and playlists come too, and Plex's
+  matches and the fields edited in Plex as Fix Match and edits in Pley; a
+  "What to bring" step turns any of these off. What's found by its file
+  comes over before any posters or details are fetched, so watch history
+  is there within minutes, and Plex's matches mean titles are fetched by
+  their ids rather than searched for by name. Home and Settings ›
+  Libraries show the import while the rest runs, then its report, which
+  says how long the import and each of its steps took. Running it again
+  adds what's new and never takes anything away
   (docs/MOVING_FROM_PLEX.md). It lists every step it goes through, ticked
-  off with what each brought. While it waits for the new libraries'
-  scans, it shows which library is scanned and how many of its files are
-  read, and titles found by their files show with Plex's names, years,
-  summaries and dates added as soon as their library is scanned, until
-  Pley's own details replace them. Posters come from Pley's own fetch.
+  off with what each brought. While it waits for the new libraries' scans,
+  it shows which library is scanned and how many of its files are read,
+  and titles found by their files show with Plex's names, years, summaries
+  and dates added as soon as their library is scanned, until Pley's own
+  details replace them. Posters come from Pley's own fetch.
 - Home tells administrators how far new libraries are, first on the page,
   above the banner: the Plex import, which Home goes to as soon as it
   starts, with how far the whole import is, its steps, each library
@@ -56,20 +72,6 @@ describes how they are made.
   Australia, New Zealand, Canada and Ireland can now have their own
   ratings, and a server can have summaries in one language and another
   country's ratings.
-- Setup has a Your server step after the administrator account: the
-  server's name, Pley's language, the language of titles and summaries
-  (the browser's to start with), the country, a TMDB key (optional,
-  checked before it's saved), and whether Apple devices find the server
-  by Bonjour, each shown on a row of its own to confirm or change.
-  Settings › Server calls its languages the same way, Pley's language and
-  Titles and summaries, and names the latter rather than showing codes.
-- Setup's Start fresh adds libraries on the setup card: a row each for
-  Movies, TV Shows and Music to give folders for, and more of any type
-  (Kids Movies) with their own names, any of them removable, then Start
-  watching adds each one given a folder and starts its scan, or Later.
-  It used to leave people in Settings › Libraries. In a container with no media folder
-  mounted, adding a library says so and how to mount one, and Browse
-  starts from the folders mounted into it.
 - Settings › Network says when Pley runs in a container on Docker's own
   network, where devices can't find it by themselves, and how to put it on
   the home network instead.
@@ -88,11 +90,6 @@ describes how they are made.
   transcoder's part of it.
 - Home and a library's page show a new library's titles as its files are
   read, every few seconds, instead of only once all of them have been.
-- Setup's steps, from the administrator account to the first libraries or
-  the Plex import, share one card of one width that stays as each step
-  comes in, with how far setup is along its top. Each step's title is in
-  the same style, and from how to start onwards Back is on the left and
-  the way on at the right.
 
 ## [0.1.9] - 2026-11-08
 
