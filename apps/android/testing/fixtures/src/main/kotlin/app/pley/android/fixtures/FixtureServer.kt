@@ -140,7 +140,6 @@ class FixtureServer(private val options: Options = Options()) : Closeable {
         get() = synchronized(state.lock) { state.network.available }
         set(value) = synchronized(state.lock) { state.network.available = value }
 
-    /** Off, subtitle search answers 503 "not set up". */
     /** Whether the server converts video (Settings → Transcoder): off, it only copies it, and says so in its play answers. */
     var convertsVideo: Boolean
         get() = state.convertsVideo
@@ -148,6 +147,7 @@ class FixtureServer(private val options: Options = Options()) : Closeable {
             state.convertsVideo = value
         }
 
+    /** Off, subtitle search answers 503 "not set up". */
     var subtitleSearch: Boolean
         get() = state.subtitleSearch
         set(value) {
