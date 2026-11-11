@@ -31,6 +31,12 @@ describes how they are made.
 - Dropdowns' carets stand in from their right edge instead of sitting
   against it, and a dropdown that can't be changed is greyed out.
 
+### Fixed
+
+- A movie titled with a number, such as "300", takes its year from its
+  file's name, like other movies, rather than its folder's. A full rescan
+  merges copies that show twice.
+
 ## [0.1.9] - 2026-11-08
 
 ### Added
