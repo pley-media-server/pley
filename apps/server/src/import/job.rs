@@ -926,6 +926,7 @@ impl Importer {
             admin,
             report: Report::default(),
             again: false,
+            playlists_counted: HashSet::new(),
         };
         tokio::spawn(run.go(choices));
         Ok(())
@@ -1125,6 +1126,9 @@ struct Run {
     /// In the second round, for Plex's titles found by their ids after the
     /// fetch: its steps show as finding them.
     again: bool,
+    /// The playlists the report counts already: the second round adds to
+    /// those the first made.
+    playlists_counted: HashSet<i64>,
 }
 
 /// A library being brought: Plex's, Pley's.
@@ -2248,7 +2252,10 @@ impl Run {
         }
         for collection in found {
             if collection.smart {
-                self.report.smart_left += 1;
+                // Once: the second round meets it again.
+                if !self.again {
+                    self.report.smart_left += 1;
+                }
                 continue;
             }
             let title = cut(&collection.title, MAX_TITLE);
@@ -2317,7 +2324,9 @@ impl Run {
                 _ => continue,
             };
             if list.smart {
-                self.report.smart_left += 1;
+                if !self.again {
+                    self.report.smart_left += 1;
+                }
                 continue;
             }
             let title = cut(&list.title, MAX_TITLE);
@@ -2371,7 +2380,7 @@ impl Run {
                 }
             };
             let added = crate::playlists::append_leaves(&db, id, &ids).await?;
-            if made || added > 0 {
+            if (made || added > 0) && self.playlists_counted.insert(id) {
                 self.report.profiles[person.report].playlists += 1;
             }
         }

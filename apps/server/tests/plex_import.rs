@@ -346,7 +346,8 @@ async fn fake_plex() -> String {
             get(|Path(key): Path<String>| async move {
                 let list = if key == "6000" {
                     json!([{"ratingKey": "201", "type": "episode", "title": "One"},
-                           {"ratingKey": "101", "type": "movie", "title": "Alien"}])
+                           {"ratingKey": "101", "type": "movie", "title": "Alien"},
+                           {"ratingKey": "103", "type": "movie", "title": "Casablanca"}])
                 } else {
                     json!([])
                 };
@@ -1186,6 +1187,11 @@ async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
     let casablanca: i64 =
         sqlx::query_scalar("SELECT id FROM items WHERE tmdb_id = 289").fetch_one(&app.state.db.read).await.unwrap();
     assert_eq!(one(&app, "SELECT COUNT(*) FROM play_history WHERE item_id = ?", casablanca).await, 1);
+    // And put in the playlist made before it was found: still one playlist,
+    // and the smart ones left out once.
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM playlist_items WHERE item_id = ?", casablanca).await, 1);
+    assert_eq!(done["report"]["profiles"][0]["playlists"], 1);
+    assert_eq!(done["report"]["smart_left"], 2);
 }
 
 #[tokio::test]
