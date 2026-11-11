@@ -196,7 +196,7 @@
       "allowVideo": "Autoriser le transcodage vidéo",
       "allowVideoHint": "Désactivé : seul le son est transcodé, la vidéo est copiée.",
       "maxVideo": "Maximum de transcodages vidéo simultanés",
-      "maxVideoHint": "Comptés dans le total ci-dessous, ce qui laisse de la place aux remux et aux transcodages du son.",
+      "maxVideoHint": "Combien, sur le total ci-dessous, peuvent être des transcodages vidéo complets.",
       "max": "Maximum de transcodages simultanés au total",
       "maxHint": "Transcodages vidéo, remux et transcodages du son réunis.",
       "maxJobsManaged": "Le transcodeur lui-même en exécute {{max}} au plus (transcoder_max_jobs dans pley.toml).",

@@ -195,7 +195,7 @@
       "allowVideo": "Allow video transcoding",
       "allowVideoHint": "Off: only sound is transcoded, and video is copied as it is.",
       "maxVideo": "Max simultaneous video transcodes",
-      "maxVideoHint": "Counted within the total below, which leaves room for remuxes and sound transcodes.",
+      "maxVideoHint": "How many of the total below can be full video transcodes.",
       "max": "Max simultaneous total transcodes",
       "maxHint": "Video transcodes, remuxes and sound transcodes together.",
       "maxJobsManaged": "The transcoder itself runs {{max}} at most (transcoder_max_jobs in pley.toml).",
