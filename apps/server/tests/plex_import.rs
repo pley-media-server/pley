@@ -417,6 +417,15 @@ fn steps(progress: &Value) -> Vec<(String, String)> {
 }
 
 /// A number `sql` answers, with `bind` for its `?`.
+/// Signs in to Plex with the owner's token and picks the fake server: each
+/// run needs a sign-in.
+async fn sign_in(app: &TestApp, admin: &str) {
+    let r = app.post("/api/import/plex/token", admin, json!({"token": OWNER})).await;
+    assert_eq!(r.status, StatusCode::NO_CONTENT, "{:?}", r.body);
+    let r = app.post("/api/import/plex/server", admin, json!({"id": MACHINE})).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+}
+
 async fn one(app: &TestApp, sql: &'static str, bind: i64) -> i64 {
     sqlx::query_scalar(sql).bind(bind).fetch_one(&app.state.db.read).await.unwrap()
 }
@@ -653,6 +662,9 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(marked, 0, "the mark goes with the report");
 
     let report = &done["report"];
+    // The sign-in went with the run.
+    let r = app.get("/api/import/plex/plan", &admin).await;
+    assert_eq!(r.body["code"], "plex_signed_out", "{:?}", r.body);
     // How long it took, and each step that ran, in order.
     assert_eq!(report["started_at"], done["started_at"]);
     let timed: Vec<&str> = report["steps"].as_array().unwrap().iter().map(|s| s["step"].as_str().unwrap()).collect();
@@ -890,6 +902,7 @@ async fn brings_libraries_people_and_what_they_watched() {
         .unwrap();
 
     // Again: nothing twice, and the same profile.
+    sign_in(&app, &admin).await;
     let users_before = one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await;
     let choices = json!({
         "libraries": [{"key": "1", "library_id": movies}],
@@ -927,6 +940,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(avatar_of(kid_id).await, (None, Some("#38bdf8".into())));
 
     // Nothing but the libraries and people, when that's what was chosen.
+    sign_in(&app, &admin).await;
     let r = app
         .post(
             "/api/import/plex/start",
@@ -956,6 +970,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     // Plex's movies into a library of their own: the kid, who could open
     // them on Plex, may open it.
     app.media_file("films/Alien (1979).mkv", 1024);
+    sign_in(&app, &admin).await;
     let r = app
         .post(
             "/api/import/plex/start",
@@ -983,7 +998,8 @@ async fn brings_libraries_people_and_what_they_watched() {
             .unwrap();
     assert_eq!(opened, [movies, films]);
 
-    // Forgetting the sign-in.
+    // Forgetting the sign-in, before a run.
+    sign_in(&app, &admin).await;
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);
     let r = app.get("/api/import/plex/plan", &admin).await;
     assert_eq!(r.body["code"], "plex_signed_out");

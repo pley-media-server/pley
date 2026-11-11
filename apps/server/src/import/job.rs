@@ -84,6 +84,12 @@ struct Session {
 }
 
 impl Session {
+    /// Forgets everything but how Pley asks plex.tv.
+    fn forget(&mut self) {
+        let plex = self.plex.take();
+        *self = Session { plex, ..Default::default() };
+    }
+
     /// Forgets the account's token and what was chosen with it.
     fn signed_out(&mut self) {
         self.token = None;
@@ -663,8 +669,7 @@ impl Importer {
         // Under the lock, so a start in progress either sees it or starts
         // before it and is stopped by it.
         self.cancel.store(true, Ordering::Relaxed);
-        let plex = session.plex.take();
-        *session = Session { plex, ..Default::default() };
+        session.forget();
     }
 
     // ---- The server ----
@@ -1198,6 +1203,14 @@ impl Run {
             && let Err(e) = self.release_held().await
         {
             tracing::warn!("the Plex import couldn't turn its profiles back on: {e}");
+        }
+        // The sign-in was for this run: importing again signs in again. One
+        // started while it ran is the next run's.
+        {
+            let mut session = self.importer.session.lock().await;
+            if session.token.as_deref() == Some(self.token.as_str()) {
+                session.forget();
+            }
         }
         let cancelled = matches!(outcome, Err(ImportError::Cancelled)) || self.importer.cancel.load(Ordering::Relaxed);
         let state = match (&outcome, cancelled) {

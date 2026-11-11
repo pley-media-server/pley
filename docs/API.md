@@ -4571,7 +4571,7 @@ apps.
 | GET | `/api/import/plex/plan` | `admin` | `ImportPlan` |
 | POST | `/api/import/plex/folder` | `admin` | `{ library, plex, pley }`: a library's key from the plan, one of its Plex folders and where Pley sees it → `{ state }`: `found` (a file Plex has there is there, the same size), `none_found`, `missing` (Pley can't open the folder) or `untold` (none of the files the plan sampled are in that Plex folder) |
 | GET | `/api/import/plex/users/{id}/picture` | `admin` | A Home user's picture as the last plan found it, made as a profile's is (a 256-pixel JPEG); `404` when it had none |
-| POST | `/api/import/plex/start` | `admin` | `ImportChoices` → `202`; `409 import_running` while one runs |
+| POST | `/api/import/plex/start` | `admin` | `ImportChoices` → `202`; `409 import_running` while one runs. The run forgets the Plex sign-in when it ends |
 | GET | `/api/import/plex` | `admin` | `ImportProgress`: the import running, or the last one's report |
 | DELETE | `/api/import/plex` | `admin` | `204`: stops the import, and forgets the Plex sign-in |
 

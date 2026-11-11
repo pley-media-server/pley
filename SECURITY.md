@@ -490,7 +490,7 @@ other apps (`pley_ct_…`), never with a session's
   apps.
 - The Plex token, from Plex's own sign-in page or pasted, is kept in
   memory only: never saved, logged or sent to the browser, and forgotten
-  when the import is cancelled or the server stops. Home users' tokens
+  when the import ends, however it ends, or the server stops. Home users' tokens
   are made from it as the import needs them, and kept no longer. Plex
   PINs given for Home users are sent to plex.tv only.
 - Pley reads Plex's answers 8 MB at most each, follows no redirects, and
