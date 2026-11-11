@@ -11,10 +11,9 @@ describes how they are made.
 
 ### Fixed
 
-- A movie whose title is a number, such as "300" or "1917", takes its year
-  from the file's name, as other movies do, rather than from its folder's.
-  Two copies of the film in folders named with different years are now one
-  movie with two versions.
+- A movie titled with a number, such as "300", takes its year from its
+  file's name, like other movies, rather than its folder's. A full rescan
+  merges copies that show twice.
 
 ## [0.1.9] - 2026-11-08
 
