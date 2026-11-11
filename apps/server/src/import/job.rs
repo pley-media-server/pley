@@ -374,8 +374,9 @@ pub struct ProfileReport {
     /// Plex refused some of their playlists.
     #[serde(default)]
     pub playlists_incomplete: bool,
-    /// The libraries it waits for, by name: given while it ran, they open
-    /// to a profile with labels it never sees once a run finishes.
+    /// The libraries it waits for now, by name: given while it ran, they
+    /// open to a profile with labels it never sees once a run of them
+    /// finishes. Not kept: worked out as the report is shown.
     #[serde(default)]
     pub waiting: Vec<String>,
     /// Found again with an age limit of its own, which it kept: rules not
@@ -883,6 +884,27 @@ impl Importer {
     /// Where the import is: the one running, the one the server restarted
     /// during, or the last one's report.
     pub async fn progress(&self, db: &Db) -> Progress {
+        let mut progress = self.kept(db).await;
+        // What each profile waits for now: given its libraries since, it
+        // waits for none.
+        if let Some(report) = &mut progress.report {
+            for profile in &mut report.profiles {
+                let Some(id) = profile.user_id else { continue };
+                profile.waiting = sqlx::query_scalar(
+                    "SELECT l.name FROM import_waiting_libraries w JOIN libraries l ON l.id = w.library_id
+                     WHERE w.user_id = ? ORDER BY l.name",
+                )
+                .bind(id)
+                .fetch_all(&db.read)
+                .await
+                .unwrap_or_default();
+            }
+        }
+        progress
+    }
+
+    /// Where the import is, as it was kept.
+    async fn kept(&self, db: &Db) -> Progress {
         let progress = self.progress.lock().clone();
         if progress.state != RunState::Idle {
             return progress;
@@ -1301,9 +1323,6 @@ impl Run {
         {
             tracing::warn!("the Plex import couldn't open the libraries its profiles wait for: {e}");
         }
-        if let Err(e) = self.still_waiting().await {
-            tracing::debug!("the Plex import couldn't list the libraries its profiles wait for: {e}");
-        }
         // The sign-in was for this run: importing again signs in again. One
         // started while it ran is the next run's.
         {
@@ -1395,22 +1414,6 @@ impl Run {
         for user_id in opened {
             self.state.auth.forget_user(user_id);
             self.state.events.send(ServerEvent::OwnLibrariesChanged { user_id });
-        }
-        Ok(())
-    }
-
-    /// The libraries each profile brought still waits for, in the report.
-    async fn still_waiting(&mut self) -> sqlx::Result<()> {
-        let db = &self.state.db;
-        for profile in &mut self.report.profiles {
-            let Some(id) = profile.user_id else { continue };
-            profile.waiting = sqlx::query_scalar(
-                "SELECT l.name FROM import_waiting_libraries w JOIN libraries l ON l.id = w.library_id
-                 WHERE w.user_id = ? ORDER BY l.name",
-            )
-            .bind(id)
-            .fetch_all(&db.write)
-            .await?;
         }
         Ok(())
     }

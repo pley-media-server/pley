@@ -1095,9 +1095,13 @@ async fn brings_libraries_people_and_what_they_watched() {
         .execute(&app.state.db.write)
         .await
         .unwrap();
+    let waiting_in_report =
+        || async { app.get("/api/import/plex", &admin).await.body["report"]["profiles"][1]["waiting"].clone() };
+    assert_eq!(waiting_in_report().await, json!(["Films"]));
     let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"library_ids": [movies]})).await;
     assert!(r.status.is_success(), "{:?}", r.body);
     assert_eq!(one(&app, "SELECT COUNT(*) FROM import_waiting_libraries WHERE user_id = ?", kid_id).await, 0);
+    assert_eq!(waiting_in_report().await, json!([]), "the report says so too");
     assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 0);
 
     // Forgetting the sign-in, before a run.
