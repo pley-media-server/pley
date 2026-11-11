@@ -10,9 +10,9 @@ describes how they are made.
 
 ### Added
 
-- On a server that converts no video (Settings → Transcoder), the Quality
-  menu offers Original alone and Automatic plays it, rather than ask for
-  qualities the server would only answer with the Original.
+- On a server with video transcoding turned off (Settings → Transcoder),
+  the Quality menu offers Original alone and Automatic plays it, rather
+  than ask for qualities the server would only answer with the Original.
 
 ## [0.1.7] - 2026-11-06
 
