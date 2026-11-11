@@ -15,9 +15,10 @@ key for movies' posters and details (optional), and, where devices on the
 network can reach Pley, whether Apple devices find it by Bonjour (yes, but
 on what looks like Docker's own network, where they couldn't). Then bring
 over a Plex server's libraries and profiles
-([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)), or start fresh: add libraries
-one after another (movies, then shows, then music), each scanning as soon
-as it's added, then Start watching. Home shows administrators how far the
+([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)), or start fresh: give the folders
+of a Movies, a TV Shows and a Music library, leaving out any you don't
+have, add more of any type (Kids Movies) with their own names, then Start
+watching adds each one given a folder and starts its scan. Home shows administrators how far the
 libraries' first scans are, which of them it's on, and each library
 ticked off as it's done; seek previews and intro detection wait until
 they are. In a container with no media folder mounted, the

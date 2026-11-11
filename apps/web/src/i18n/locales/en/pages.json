@@ -76,9 +76,32 @@
   },
   "setupLibrary": {
     "title": "Your libraries",
-    "subtitle": "Show Pley the folders your movies, shows and music are in. Each starts scanning as soon as it's added.",
+    "subtitle": "Show Pley where your movies, shows and music are. Leave out any you don't have.",
     "added": "Added",
-    "addAnother": "Add another library",
+    "toAdd": "Libraries to add",
+    "nameOf": "Name of this {{type}} library",
+    "namePlaceholder": {
+      "movies": "Name, such as Kids Movies",
+      "shows": "Name, such as Kids Shows",
+      "music": "Name, such as Kids Music"
+    },
+    "folderOf": "Folder for {{name}}",
+    "where": {
+      "movies": "Where are your movies?",
+      "shows": "Where are your shows?",
+      "music": "Where is your music?"
+    },
+    "browseFor": "Browse for {{name}}",
+    "addFolder": "Add another folder",
+    "thisFolder": "this folder",
+    "remove": "Remove {{name}}",
+    "addAnother": "Add another library:",
+    "problem": {
+      "noFolder": "Choose a folder for this library, or remove it.",
+      "noName": "Give this library a name.",
+      "nameTaken": "Another library already has this name."
+    },
+    "pickOne": "Choose a folder for at least one library, or press Later.",
     "later": "Later"
   },
   "invite": {

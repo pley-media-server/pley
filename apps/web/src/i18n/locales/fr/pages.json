@@ -76,9 +76,32 @@
   },
   "setupLibrary": {
     "title": "Vos bibliothèques",
-    "subtitle": "Montrez à Pley les dossiers où sont vos films, séries et musique. Chacun commence à être analysé dès qu’il est ajouté.",
+    "subtitle": "Montrez à Pley où sont vos films, séries et musique. Laissez vide ce que vous n’avez pas.",
     "added": "Ajoutées",
-    "addAnother": "Ajouter une autre bibliothèque",
+    "toAdd": "Bibliothèques à ajouter",
+    "nameOf": "Nom de cette bibliothèque ({{type}})",
+    "namePlaceholder": {
+      "movies": "Nom, par exemple Films pour enfants",
+      "shows": "Nom, par exemple Séries pour enfants",
+      "music": "Nom, par exemple Musique pour enfants"
+    },
+    "folderOf": "Dossier de {{name}}",
+    "where": {
+      "movies": "Où sont vos films ?",
+      "shows": "Où sont vos séries ?",
+      "music": "Où est votre musique ?"
+    },
+    "browseFor": "Parcourir pour {{name}}",
+    "addFolder": "Ajouter un autre dossier",
+    "thisFolder": "ce dossier",
+    "remove": "Retirer {{name}}",
+    "addAnother": "Ajouter une autre bibliothèque :",
+    "problem": {
+      "noFolder": "Choisissez un dossier pour cette bibliothèque, ou retirez-la.",
+      "noName": "Donnez un nom à cette bibliothèque.",
+      "nameTaken": "Une autre bibliothèque porte déjà ce nom."
+    },
+    "pickOne": "Choisissez un dossier pour au moins une bibliothèque, ou appuyez sur Plus tard.",
     "later": "Plus tard"
   },
   "invite": {
