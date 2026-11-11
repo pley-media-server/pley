@@ -829,7 +829,6 @@
   "plexImport": {
     "title": "Importar de Plex",
     "setupTitle": "De Plex a Pley",
-    "startFresh": "Empezar de cero",
     "stepOf": "Paso {{step}} de {{total}}",
     "signIn": {
       "title": "Inicia sesión con Plex",

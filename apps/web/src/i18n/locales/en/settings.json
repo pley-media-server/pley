@@ -809,7 +809,6 @@
   "plexImport": {
     "title": "Import from Plex",
     "setupTitle": "Moving from Plex",
-    "startFresh": "Start fresh instead",
     "stepOf": "Step {{step}} of {{total}}",
     "signIn": {
       "title": "Sign in with Plex",

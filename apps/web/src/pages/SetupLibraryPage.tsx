@@ -118,9 +118,15 @@ function LibraryForm({ libraries }: { libraries: Library[] }) {
               <Button type="submit" variant="primary" size="lg" className="w-full" loading={create.isPending}>
                 {t("settings:libraries.form.addTitle")}
               </Button>
-              <Button type="button" variant="ghost" className="w-full" disabled={create.isPending} onClick={() => void navigate("/", { replace: true })}>
-                {t("setupLibrary.later")}
-              </Button>
+              {/* Until a library is added, bringing over Plex is still a step back. */}
+              <div className="flex gap-2">
+                <Button type="button" variant="ghost" className="flex-1" disabled={create.isPending} onClick={() => void navigate("/setup/start", { replace: true })}>
+                  {t("common:actions.back")}
+                </Button>
+                <Button type="button" variant="ghost" className="flex-1" disabled={create.isPending} onClick={() => void navigate("/", { replace: true })}>
+                  {t("setupLibrary.later")}
+                </Button>
+              </div>
             </>
           )}
         </div>

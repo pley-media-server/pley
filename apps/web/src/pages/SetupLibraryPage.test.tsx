@@ -94,11 +94,19 @@ describe("SetupLibraryPage", () => {
     expect(created(requests)).toHaveLength(0);
   });
 
+  it("goes back to how to start until a library is added", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await user.click(await screen.findByRole("button", { name: "Back" }));
+    expect(await screen.findByTestId("location")).toHaveTextContent(/^\/setup\/start$/);
+  });
+
   it("goes on from libraries added before, starting with the next type", async () => {
     renderStep({ libraries: [movies] });
     expect(await screen.findByRole("button", { name: "Start watching" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "TV Shows" })).toHaveAttribute("aria-pressed", "true");
     expect(screen.queryByRole("button", { name: "Later" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Back" })).not.toBeInTheDocument();
   });
 
   it("says when a container has no media mounted", async () => {
