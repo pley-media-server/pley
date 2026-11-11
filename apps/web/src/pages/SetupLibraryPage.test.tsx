@@ -180,6 +180,18 @@ describe("SetupLibraryPage", () => {
     expect(list.map((l) => l.name)).toEqual(["Movies", "TV Shows"]);
   });
 
+  it("takes away a suggested library that isn't wanted", async () => {
+    const user = userEvent.setup();
+    const requests = renderStep();
+    await user.type(await screen.findByLabelText("Folder for Music"), "/media/Music");
+    await user.click(screen.getByRole("button", { name: "Remove Music" }));
+    expect(screen.queryByLabelText("Folder for Music")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Folder for Movies"), "/media/Movies");
+    await user.click(screen.getByRole("button", { name: "Start watching" }));
+    expect(await screen.findByTestId("location")).toHaveTextContent(/^\/$/);
+    expect(created(requests)).toEqual([{ name: "Movies", kind: "movies", paths: ["/media/Movies"] }]);
+  });
+
   it("goes home without a library when it's for later", async () => {
     const user = userEvent.setup();
     const requests = renderStep();

@@ -65,9 +65,9 @@ describes how they are made.
   Titles and summaries, and names the latter rather than showing codes.
 - Setup's Start fresh adds libraries on the setup card: a row each for
   Movies, TV Shows and Music to give folders for, and more of any type
-  (Kids Movies) with their own names, then Start watching adds each one
-  given a folder and starts its scan, or Later. It used to leave
-  people in Settings › Libraries. In a container with no media folder
+  (Kids Movies) with their own names, any of them removable, then Start
+  watching adds each one given a folder and starts its scan, or Later.
+  It used to leave people in Settings › Libraries. In a container with no media folder
   mounted, adding a library says so and how to mount one, and Browse
   starts from the folders mounted into it.
 - Settings › Network says when Pley runs in a container on Docker's own

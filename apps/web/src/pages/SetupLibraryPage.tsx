@@ -287,11 +287,9 @@ function Row({
             row.suggested && "border-transparent bg-transparent hover:border-border focus:bg-surface-2",
           )}
         />
-        {row.suggested ? null : (
-          <IconButton label={t("setupLibrary.remove", { name: shown })} size="sm" onClick={onRemove}>
-            <X className="size-4" />
-          </IconButton>
-        )}
+        <IconButton label={t("setupLibrary.remove", { name: shown })} size="sm" onClick={onRemove}>
+          <X className="size-4" />
+        </IconButton>
       </div>
       <div className="mt-3 space-y-2">
         {row.folders.map((folder, index) => (
