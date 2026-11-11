@@ -140,7 +140,8 @@ describe("PlexImport", () => {
     // Signed in already, with one server: straight to the libraries.
     expect(await screen.findByRole("heading", { name: "Libraries on Den" })).toBeInTheDocument();
     expect(requests.find((r) => r.method === "POST" && r.path === "/api/import/plex/server")?.body).toEqual({ id: "m1" });
-    expect(screen.getByLabelText("Where Movies goes")).toHaveValue("7");
+    expect(screen.getByRole("switch", { name: "Bring Movies" })).toBeChecked();
+    expect(screen.getByText(/Goes into/)).toHaveTextContent("Goes into Films");
     expect(screen.getByText("812 movies")).toBeInTheDocument();
     expect(screen.getByText("64 shows · 6,509 episodes")).toBeInTheDocument();
     // Pley has no library of shows to put TV Shows in, and can't open its folder: left out, and its folder asked for.
@@ -355,25 +356,22 @@ describe("PlexImport", () => {
     expect(screen.queryByText(/files are here|can't open/)).not.toBeInTheDocument();
   });
 
-  it("names a new library as Plex does, until it's renamed", async () => {
+  it("brings a library back into the Pley library with its files once turned on again", async () => {
     const user = userEvent.setup();
-    const movies = { ...plan.libraries[0]!, pairing: { ...plan.libraries[1]!.pairing, folders_here: ["/data/movies"] } };
-    const requests = serve({ thePlan: { ...plan, libraries: [movies] }, pleyLibraries: [] });
+    const requests = serve();
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
-    expect(await screen.findByText(/A new library named/)).toHaveTextContent("A new library named Movies");
-    expect(screen.queryByLabelText("New library's name")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Rename" }));
-    const name = screen.getByLabelText("New library's name");
-    expect(name).toHaveFocus();
-    await user.clear(name);
-    await user.type(name, "Films");
+    const movies = await screen.findByRole("switch", { name: "Bring Movies" });
+    await user.click(movies);
+    expect(screen.queryByText(/Goes into/)).not.toBeInTheDocument();
+    await user.click(movies);
+    expect(screen.getByText(/Goes into/)).toHaveTextContent("Goes into Films");
+    // There's nothing to name: a new library takes Plex's name.
+    expect(screen.queryByRole("textbox", { name: /name/i })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Continue" }));
     await user.click(await screen.findByRole("button", { name: "Continue" }));
     await user.click(await screen.findByRole("button", { name: "Start the import" }));
     await waitFor(() =>
-      expect((requests.find((r) => r.path === "/api/import/plex/start")?.body as { libraries: unknown[] }).libraries).toEqual([
-        { key: "1", new: { name: "Films", paths: ["/data/movies"] } },
-      ]),
+      expect((requests.find((r) => r.path === "/api/import/plex/start")?.body as { libraries: unknown[] }).libraries).toEqual([{ key: "1", library_id: 7 }]),
     );
   });
 
@@ -391,11 +389,11 @@ describe("PlexImport", () => {
     const user = userEvent.setup();
     const requests = serve();
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
-    await user.selectOptions(await screen.findByLabelText("Where Movies goes"), "leave");
+    await user.click(await screen.findByRole("switch", { name: "Bring Movies" }));
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByRole("heading", { name: "Which server?" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Continue" }));
-    expect(await screen.findByLabelText("Where Movies goes")).toHaveValue("leave");
+    expect(await screen.findByRole("switch", { name: "Bring Movies" })).not.toBeChecked();
     expect(requests.filter((r) => r.path === "/api/import/plex/server")).toHaveLength(2);
     expect(requests.filter((r) => r.path === "/api/import/plex/plan")).toHaveLength(1);
   });

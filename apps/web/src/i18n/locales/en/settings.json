@@ -843,29 +843,24 @@
     },
     "libraries": {
       "title": "Libraries on {{server}}",
-      "description": "Choose where each library goes.",
+      "description": "Choose which libraries come over.",
       "none": "This server has no movie, show or music libraries.",
       "status": {
         "matched": "In Pley",
         "unsure": "Check this",
         "not_in_pley": "Not in Pley"
       },
-      "goesTo": "Where {{name}} goes",
-      "pleyLibraries": "Pley's libraries",
-      "newLibrary": "A new library",
-      "leaveOut": "Leave it out",
-      "name": "New library's name",
       "folders_one": "{{count, number}} folder",
       "folders_other": "{{count, number}} folders",
       "plexSees": "Plex sees <path>{{folder}}</path>. Where does Pley see it?",
       "browseFor": "Browse for where Pley finds {{folder}}",
-      "unsureHint": "Some of its files are in this library, or they're in more than one. Check it's the right one.",
+      "unsureHint": "Some of its files aren't in this library, so what Plex knows of them won't come over.",
       "problem": {
         "no_folders": "Say where at least one of its folders is for Pley."
       },
       "pickOne": "Choose at least one library to bring.",
+      "goesInto": "Goes into <name>{{name}}</name>",
       "newNamed": "A new library named <name>{{name}}</name>",
-      "rename": "Rename",
       "bring": "Bring {{name}}",
       "check": {
         "found": "Plex's files are here",

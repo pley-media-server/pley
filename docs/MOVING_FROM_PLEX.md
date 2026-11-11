@@ -94,16 +94,18 @@ Import from Plex.
    A server Pley can't reach at the addresses Plex gives is chosen by its
    address.
 3. **Libraries.** Each Plex library shows how much it holds and where it
-   goes: *In Pley* (its files are in a Pley library), *Check this* (some
-   are, or in more than one) or *Not in Pley* (a new library is made for
-   it from Plex's folders, or it's left out when Pley can't find them, with
-   each folder asked for: "Plex sees `/data/media/tv`. Where does Pley see
-   it?"; giving one brings it). Under each folder, Pley says whether
-   Plex's files are there, checking a few of them by name and size, as
-   the folder changes. Change where any library goes, or leave it out;
-   where Pley has no library of its kind, a switch brings it as a new
-   library or leaves it out. A new library takes Plex's name; Rename gives
-   it another. On a server with no libraries yet, the badges aren't shown:
+   goes, which follows its files: *In Pley* (its files are in a Pley
+   library, and it goes there), *Check this* (only some are, or they're in
+   more than one; it goes into the one with most, and what Plex knows of
+   the others doesn't come) or *Not in Pley* (a new library is made for it
+   from Plex's folders, under Plex's name, or it's left out when Pley
+   can't find them, with each folder asked for: "Plex sees
+   `/data/media/tv`. Where does Pley see it?"; giving one brings it).
+   Plex's libraries stay apart: none goes into another Pley library. Under
+   each folder, Pley says whether Plex's files are there, checking a few
+   of them by name and size, as the folder changes. Turn off any library
+   that shouldn't come. Rename a new library afterwards, in Settings ›
+   Libraries. On a server with no libraries yet, the badges aren't shown:
    every library would be Not in Pley.
 4. **People.** Each Home user shows the profile they'll get and its limits.
    Turn off anyone who shouldn't come. Plex sometimes asks for a protected

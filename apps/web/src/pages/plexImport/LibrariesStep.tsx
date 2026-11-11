@@ -7,11 +7,12 @@ import { useFolderCheck, type ImportPlan, type PlanLibrary } from "@/api/plexImp
 import type { FsListing, Library } from "@/api/types";
 import { FolderPicker } from "@/components/FolderPicker";
 import { LibraryIcon } from "@/components/Sidebar";
-import { Badge, Button, Field, Select, TextInput, Toggle } from "@/components/ui";
+import { Badge, Button, TextInput, Toggle } from "@/components/ui";
 import { cn } from "@/lib/cn";
 import { useDebouncedValue } from "@/lib/hooks";
 import {
   bringsAny,
+  bringTo,
   fillIn,
   libraryProblems,
   swapFills,
@@ -19,7 +20,6 @@ import {
   type LibraryChoice,
   type LibraryChoices,
   type LibraryProblem,
-  type Target,
 } from "./choices";
 import { StepFrame } from "./PlexImport";
 
@@ -138,7 +138,6 @@ function LibraryRow({
   const [picking, setPicking] = useState<string | null>(null);
   const unknown = Object.values(choice.folders).some((f) => !f.trim());
   const [showFolders, setShowFolders] = useState(choice.target === "new" || (unknown && choice.target !== "leave"));
-  const sameKind = libraries.filter((l) => l.kind === library.kind);
   const status = library.pairing.status;
   const id = `plex-library-${library.key}`;
   // Left out because Pley can't open its folders: they're asked for here,
@@ -148,15 +147,13 @@ function LibraryRow({
   // Going to one of Pley's libraries: its folders fold away.
   const listed = choice.target !== "new" && choice.target !== "leave";
 
-  const setTarget = (value: string) => {
-    const target: Target = value === "new" || value === "leave" ? value : Number(value);
-    onChange({ ...choice, target, left: target === "leave" });
-  };
+  const setBrought = (on: boolean) => onChange({ ...choice, target: on ? bringTo(library) : "leave", left: !on });
   const setFolder = (location: string, path: string) => {
-    const target = asking && path.trim() ? "new" : choice.target;
+    const target = asking && path.trim() ? bringTo(library) : choice.target;
     onChange({ ...choice, target, folders: { ...choice.folders, [location]: path } });
   };
   const size = librarySize(library, t);
+  const into = typeof choice.target === "number" ? libraries.find((l) => l.id === choice.target) : undefined;
 
   return (
     <div className="rounded-lg border border-border bg-surface-2 p-3.5">
@@ -174,36 +171,21 @@ function LibraryRow({
           </div>
           {size ? <p className="text-xs text-muted">{size}</p> : null}
         </div>
-        {/* With no Pley library of its kind to go to, it's brought as a new one or not at all. */}
-        {sameKind.length > 0 ? (
-          <>
-            <label htmlFor={`${id}-target`} className="sr-only">
-              {t("plexImport.libraries.goesTo", { name: library.title })}
-            </label>
-            <Select id={`${id}-target`} value={String(choice.target)} onChange={(e) => setTarget(e.target.value)} className="w-full sm:w-56">
-              <optgroup label={t("plexImport.libraries.pleyLibraries")}>
-                {sameKind.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.name}
-                  </option>
-                ))}
-              </optgroup>
-              <option value="new">{t("plexImport.libraries.newLibrary")}</option>
-              <option value="leave">{t("plexImport.libraries.leaveOut")}</option>
-            </Select>
-          </>
-        ) : (
-          <Toggle
-            checked={choice.target !== "leave"}
-            onChange={(on) => setTarget(on ? "new" : "leave")}
-            label={t("plexImport.libraries.bring", { name: library.title })}
-          />
-        )}
+        {/* Where it goes isn't a choice: the library with its files, or a new one under Plex's name. */}
+        <Toggle checked={choice.target !== "leave"} onChange={setBrought} label={t("plexImport.libraries.bring", { name: library.title })} />
       </div>
 
-      {choice.target !== "leave" && status === "unsure" ? <p className="mt-2 text-xs text-warning">{t("plexImport.libraries.unsureHint")}</p> : null}
-
-      {choice.target === "new" ? <NewName library={library} choice={choice} inputId={`${id}-name`} onChange={onChange} /> : null}
+      {choice.target !== "leave" ? (
+        <p className="mt-2 text-sm text-muted">
+          <Trans
+            t={t}
+            i18nKey={into ? "plexImport.libraries.goesInto" : "plexImport.libraries.newNamed"}
+            values={{ name: into?.name ?? library.title }}
+            components={{ name: <span className="font-medium text-fg" /> }}
+          />
+        </p>
+      ) : null}
+      {choice.target !== "leave" && status === "unsure" ? <p className="mt-1 text-xs text-warning">{t("plexImport.libraries.unsureHint")}</p> : null}
 
       {foldersOpen || listed ? (
         <div className="mt-3">
@@ -278,44 +260,6 @@ function librarySize(library: PlanLibrary, t: TFunction<["settings", "common"]>)
     default:
       return null;
   }
-}
-
-/** A new library's name: Plex's, until renamed. */
-function NewName({
-  library,
-  choice,
-  inputId,
-  onChange,
-}: {
-  library: PlanLibrary;
-  choice: LibraryChoice;
-  inputId: string;
-  onChange: (choice: LibraryChoice) => void;
-}) {
-  const { t } = useTranslation("settings");
-  const [renaming, setRenaming] = useState(false);
-  if (renaming) {
-    return (
-      <div className="mt-3">
-        <Field label={t("plexImport.libraries.name")} htmlFor={inputId}>
-          <TextInput id={inputId} autoFocus value={choice.name} placeholder={library.title} onChange={(e) => onChange({ ...choice, name: e.target.value })} />
-        </Field>
-      </div>
-    );
-  }
-  return (
-    <p className="mt-2 text-sm text-muted">
-      <Trans
-        t={t}
-        i18nKey="plexImport.libraries.newNamed"
-        values={{ name: choice.name.trim() || library.title }}
-        components={{ name: <span className="font-medium text-fg" /> }}
-      />{" "}
-      <button type="button" className="whitespace-nowrap text-accent hover:underline" onClick={() => setRenaming(true)}>
-        {t("plexImport.libraries.rename")}
-      </button>
-    </p>
-  );
 }
 
 /** One of Plex's folders, where it is for Pley, and whether Plex's files are there. */

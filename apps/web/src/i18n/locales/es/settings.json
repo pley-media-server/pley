@@ -863,30 +863,25 @@
     },
     "libraries": {
       "title": "Bibliotecas de {{server}}",
-      "description": "Elige adónde va cada biblioteca.",
+      "description": "Elige qué bibliotecas importar.",
       "none": "Este servidor no tiene bibliotecas de películas, series ni música.",
       "status": {
         "matched": "En Pley",
         "unsure": "Revísala",
         "not_in_pley": "No está en Pley"
       },
-      "goesTo": "Adónde va {{name}}",
-      "pleyLibraries": "Bibliotecas de Pley",
-      "newLibrary": "Una biblioteca nueva",
-      "leaveOut": "No importarla",
-      "name": "Nombre de la biblioteca nueva",
       "folders_one": "{{count, number}} carpeta",
       "folders_many": "{{count, number}} de carpetas",
       "folders_other": "{{count, number}} carpetas",
       "plexSees": "Plex ve <path>{{folder}}</path>. ¿Dónde lo ve Pley?",
       "browseFor": "Explorar para indicar dónde encuentra Pley {{folder}}",
-      "unsureHint": "Parte de sus archivos están en esta biblioteca, o están en varias. Comprueba que sea la correcta.",
+      "unsureHint": "Parte de sus archivos no están en esta biblioteca, así que lo que Plex sabe de ellos no se importará.",
       "problem": {
         "no_folders": "Indica dónde está al menos una de sus carpetas para Pley."
       },
       "pickOne": "Elige al menos una biblioteca para importar.",
+      "goesInto": "Va a <name>{{name}}</name>",
       "newNamed": "Una biblioteca nueva llamada <name>{{name}}</name>",
-      "rename": "Cambiar el nombre",
       "bring": "Importar {{name}}",
       "check": {
         "found": "Los archivos de Plex están aquí",

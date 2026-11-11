@@ -6,8 +6,6 @@ export type Target = Id | "new" | "leave";
 
 export interface LibraryChoice {
   target: Target;
-  /** The new library's name. */
-  name: string;
   /** Each of Plex's folders, where it is for Pley ("" not known). */
   folders: Record<string, string>;
   /** Left out by the person, rather than for want of its folders. */
@@ -64,11 +62,19 @@ export function firstChoices(plan: ImportPlan): LibraryChoices {
     plan.libraries.map((library) => {
       const folders = knownFolders(library);
       const reachable = Object.values(folders).some(Boolean);
-      const id = library.pairing.library_id;
-      const target: Target = library.pairing.status !== "not_in_pley" && id != null ? id : reachable ? "new" : "leave";
-      return [library.key, { target, name: library.title, folders, left: false }];
+      const target: Target = library.pairing.status !== "not_in_pley" || reachable ? bringTo(library) : "leave";
+      return [library.key, { target, folders, left: false }];
     }),
   );
+}
+
+/**
+ * Where a library brought goes: the Pley library that has its files, or a
+ * new one. Plex's libraries are kept apart, so it's never another.
+ */
+export function bringTo(library: PlanLibrary): Target {
+  const id = library.pairing.library_id;
+  return library.pairing.status !== "not_in_pley" && id != null ? id : "new";
 }
 
 /** A path's parts, `/` and `\\` alike. */
@@ -167,7 +173,7 @@ export function choicesFor(plan: ImportPlan, choices: LibraryChoices): Pick<Impo
     const choice = choices[library.key];
     if (!choice || choice.target === "leave") continue;
     if (choice.target === "new") {
-      libraries.push({ key: library.key, new: { name: choice.name.trim() || library.title, paths: newPaths(choice) } });
+      libraries.push({ key: library.key, new: { name: library.title, paths: newPaths(choice) } });
     } else {
       libraries.push({ key: library.key, library_id: choice.target });
     }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ImportPlan, PlanLibrary } from "@/api/plexImport";
-import { choicesFor, fillIn, firstChoices, libraryProblems, swapFills, swapOf } from "./choices";
+import { bringTo, choicesFor, fillIn, firstChoices, libraryProblems, swapFills, swapOf } from "./choices";
 
 function library(key: string, pairing: Partial<PlanLibrary["pairing"]>, locations = [`/plex/${key}`]): PlanLibrary {
   return {
@@ -28,16 +28,20 @@ const plan: ImportPlan = {
 describe("Plex import choices", () => {
   it("start where the plan says each library goes", () => {
     expect(firstChoices(plan)).toEqual({
-      "1": { target: 7, name: "Library 1", folders: { "/plex/1": "/media/films" }, left: false },
-      "2": { target: "new", name: "Library 2", folders: { "/plex/2": "/plex/2" }, left: false },
-      "3": { target: "leave", name: "Library 3", folders: { "/plex/3": "" }, left: false },
+      "1": { target: 7, folders: { "/plex/1": "/media/films" }, left: false },
+      "2": { target: "new", folders: { "/plex/2": "/plex/2" }, left: false },
+      "3": { target: "leave", folders: { "/plex/3": "" }, left: false },
     });
   });
 
+  it("bring a library into the Pley library with its files, even some of them, else a new one", () => {
+    expect(bringTo(library("1", { status: "matched", library_id: 7 }))).toBe(7);
+    expect(bringTo(library("1", { status: "unsure", library_id: 7 }))).toBe(7);
+    expect(bringTo(library("1", {}))).toBe("new");
+  });
+
   it("send the libraries brought and where their folders are", () => {
-    const choices = firstChoices(plan);
-    choices["2"] = { ...choices["2"]!, name: "  " };
-    expect(choicesFor(plan, choices)).toEqual({
+    expect(choicesFor(plan, firstChoices(plan))).toEqual({
       libraries: [
         { key: "1", library_id: 7 },
         { key: "2", new: { name: "Library 2", paths: ["/plex/2"] } },
@@ -73,7 +77,7 @@ describe("Plex import choices", () => {
 
   it("start from the folders Pley found, to be checked", () => {
     const found: ImportPlan = { ...plan, libraries: [library("4", { folders_found: [{ plex: "/plex/4", pley: "/media/Movies" }] })] };
-    expect(firstChoices(found)["4"]).toEqual({ target: "new", name: "Library 4", folders: { "/plex/4": "/media/Movies" }, left: false });
+    expect(firstChoices(found)["4"]).toEqual({ target: "new", folders: { "/plex/4": "/media/Movies" }, left: false });
   });
 
   it("read what one folder given says of the others", () => {
