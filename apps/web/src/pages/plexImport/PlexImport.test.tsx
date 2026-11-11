@@ -93,6 +93,7 @@ function serve({
   pleyLibraries = [films],
   exists = () => true,
   check = () => "untold",
+  pinAfter = 0,
 }: {
   signedIn?: boolean | null;
   progress?: () => ImportProgress;
@@ -104,10 +105,15 @@ function serve({
   exists?: (path: string) => boolean;
   /** What Pley finds of a library's Plex files in a folder. */
   check?: (folder: { library: string; plex: string; pley: string }) => FolderCheck;
+  /** How long the server takes to say whether it's signed in, in ms. */
+  pinAfter?: number;
 } = {}) {
   return mockApi({
     "GET /api/import/plex": () => progress(),
-    "GET /api/import/plex/pin": () => (signedIn === null ? apiError(409, "plex_signed_out", "sign in with Plex first") : { signed_in: signedIn }),
+    "GET /api/import/plex/pin": async () => {
+      await new Promise((resolve) => setTimeout(resolve, pinAfter));
+      return signedIn === null ? apiError(409, "plex_signed_out", "sign in with Plex first") : { signed_in: signedIn };
+    },
     "POST /api/import/plex/pin": () => {
       signedIn = false;
       return { code: 1, auth_url: "https://app.plex.tv/auth#?code=abc" };
@@ -238,6 +244,22 @@ describe("PlexImport", () => {
     expect(requests.some((r) => r.method === "POST" && r.path === "/api/import/plex/server")).toBe(false);
     await user.click(screen.getByRole("button", { name: "Sign in with another account" }));
     expect(await screen.findByRole("button", { name: "Sign in with Plex" })).toBeInTheDocument();
+  });
+
+  it("waits for the new sign-in when signing in again, not the one before", async () => {
+    const user = userEvent.setup();
+    const popup = { closed: false, location: { href: "" }, close: vi.fn() };
+    const open = vi.spyOn(window, "open").mockReturnValue(popup as unknown as Window);
+    serve({ servers: [{ id: "f1", name: "A friend's", owned: false, version: null }], pinAfter: 50 });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+
+    await user.click(await screen.findByRole("button", { name: "Sign in with another account" }));
+    await user.click(await screen.findByRole("button", { name: "Sign in with Plex" }));
+    await waitFor(() => expect(popup.location.href).toBe("https://app.plex.tv/auth#?code=abc"));
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(popup.close).not.toHaveBeenCalled();
+    expect(screen.getByRole("link", { name: "Open Plex's sign-in page" })).toBeInTheDocument();
+    open.mockRestore();
   });
 
   it("signs in through Plex's page, opened in a window", async () => {

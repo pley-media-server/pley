@@ -318,8 +318,12 @@ export function usePlexSignedIn(poll: number | false) {
 
 /** Starts Plex's sign-in: the page the person allows Pley on. */
 export function useStartPlexSignIn() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<{ code: number; auth_url: string }>("/api/import/plex/pin", {}),
+    // A new PIN signs the server out until it's allowed: the sign-in
+    // before it isn't this one.
+    onSuccess: () => qc.setQueryData(plexImportKeys.signedIn, false),
   });
 }
 
