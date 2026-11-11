@@ -178,7 +178,8 @@ fn without_country(rating: &str) -> &str {
 /// read with that country's ratings only, and left out when Pley doesn't
 /// know it there, rather than read by another country's names (Plex's
 /// presets have Korea's `kr/A`, for all ages, which would read as India's
-/// adults only): a rating left out only makes the limit stricter.
+/// adults only): a rating left out only makes the limit stricter. In a
+/// country Pley has no ratings for, only a plain age is read (`ch/16`).
 fn age_of(rating: &str, country: &str, kind: Kind) -> Option<i64> {
     let rating = rating.trim();
     if let Some((before, after)) = rating.split_once(['/', ':']) {
@@ -190,7 +191,10 @@ fn age_of(rating: &str, country: &str, kind: Kind) -> Option<i64> {
                 other => other.to_owned(),
             };
             // Only that country's names: "A" is no age at all in Korea's.
-            return ratings::system(&written)?.age(kind, after.trim());
+            return match ratings::system(&written) {
+                Some(system) => system.age(kind, after.trim()),
+                None => after.trim().trim_end_matches('+').parse::<u8>().ok().filter(|a| *a <= 21).map(i64::from),
+            };
         }
     }
     ratings::age(Some(country), kind, rating)
@@ -404,6 +408,18 @@ mod tests {
         assert!(l.not_kept.is_empty(), "{:?}", l.not_kept);
         let l = limits("contentRating!=NR,R,NC-17", "", "", "US");
         assert_eq!(l.max_age, Some(13));
+    }
+
+    #[test]
+    fn a_country_pley_has_no_ratings_for_reads_plain_ages() {
+        // Switzerland's: 16 and 18 out, so up to 15, not denied unread.
+        let l = limits("contentRating!=ch/16,ch/18", "", "", "CH");
+        assert_eq!(l.max_age, Some(15));
+        let l = limits("contentRating=ch/12,ch/7", "", "", "CH");
+        assert_eq!(l.max_age, Some(12));
+        // A name, never read by another country's ratings.
+        let l = limits("contentRating=ch/A", "", "", "CH");
+        assert_eq!(l.max_age, Some(0));
     }
 
     #[test]
