@@ -66,12 +66,12 @@ describes how they are made.
   then its details fetched). Reading files and fetching details say about
   how long they have left. Screen readers hear each step as it starts,
   not every count.
-- Settings › Server has a Country, used for titles' age ratings,
-  profiles' age limits and Discover's Coming to cinemas list. It was the
-  metadata language's country, and still is until one is chosen:
-  Australia, New Zealand, Canada and Ireland can now have their own
-  ratings, and a server can have summaries in one language and another
-  country's ratings.
+- Settings › Server has a Country, used for titles' age ratings (TMDB's
+  and TheTVDB's), profiles' age limits and Discover's Coming to cinemas
+  list. It was the metadata language's country, and still is until one
+  is chosen: Australia, New Zealand, Canada and Ireland can now have
+  their own ratings, and a server can have summaries in one language and
+  another country's ratings.
 - Settings › Network says when Pley runs in a container on Docker's own
   network, where devices can't find it by themselves, and how to put it on
   the home network instead.
@@ -90,12 +90,6 @@ describes how they are made.
   transcoder's part of it.
 - Home and a library's page show a new library's titles as its files are
   read, every few seconds, instead of only once all of them have been.
-
-### Fixed
-
-- TheTVDB's content ratings are the server's country's (Settings ›
-  Server), as TMDB's are, rather than the country of the language titles
-  and summaries are in: a UK server with US English titles had US ratings.
 
 ## [0.1.9] - 2026-11-08
 
