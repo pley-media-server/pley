@@ -49,6 +49,8 @@ struct Fake {
     probes: Arc<Mutex<Vec<String>>>,
     /// Probes wait while this is set.
     probes_held: Arc<AtomicBool>,
+    /// How long each probe takes.
+    probe_delay: Arc<Mutex<Duration>>,
     subtitles: Arc<Mutex<Vec<SubtitleRequest>>>,
     thumbnails: Arc<AtomicUsize>,
     /// Paths seek previews were asked for.
@@ -376,6 +378,10 @@ async fn start_fake() -> (Fake, String) {
                 fake.probes.lock().push(req.path.clone());
                 while fake.probes_held.load(Ordering::SeqCst) {
                     tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                let delay = *fake.probe_delay.lock();
+                if !delay.is_zero() {
+                    tokio::time::sleep(delay).await;
                 }
                 match probe_result(&req.path) {
                     Some(info) => Json(info).into_response(),
@@ -994,6 +1000,38 @@ async fn first_scans_done_stay_listed_until_the_last_is_done() {
     let activity = app.get("/api/activity", admin).await.body;
     assert_eq!(listed(&activity, "first_scans_done"), []);
     assert_eq!(listed(&activity, "scans"), []);
+}
+
+#[tokio::test]
+async fn a_first_scan_says_how_long_its_files_have_left_once_it_has_read_for_a_while() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // 120 files read 6 at a time, a second each: about 20 seconds.
+    *w.fake.probe_delay.lock() = Duration::from_secs(1);
+    for n in 0..120 {
+        app.media_file(&format!("slow/Film {n} ({}).mkv", 1950 + n), 5000);
+    }
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "Slow", "kind": "movies", "paths": [app.media_path("slow")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let id = r.body["id"].as_i64().unwrap();
+    let scan = || async move {
+        let activity = app.get("/api/activity", admin).await.body;
+        activity["scans"].as_array().unwrap().iter().find(|s| s["library_id"] == id).cloned()
+    };
+
+    tokio::time::sleep(Duration::from_secs(4)).await;
+    let early = scan().await.expect("still scanning");
+    assert_eq!((early["phase"].as_str(), &early["left_secs"]), (Some("probing"), &Value::Null), "too soon to tell");
+    tokio::time::sleep(Duration::from_secs(8)).await;
+    let later = scan().await.expect("still scanning");
+    assert_eq!(later["phase"], "probing");
+    let left = later["left_secs"].as_u64().unwrap_or_else(|| panic!("no time left: {later}"));
+    assert!((1..=20).contains(&left), "{left} seconds left of about 8: {later}");
+
+    *w.fake.probe_delay.lock() = Duration::ZERO;
+    app.wait_for_scans().await;
 }
 
 #[tokio::test]

@@ -6,7 +6,7 @@ import { connectionLost, eventsLive } from "@/lib/connection";
 import { apiError, mockApi, testQueryClient } from "@/test/render";
 import { makeDetail, makeRequest, makeRequestList, makeShowDetail, makeSummary, makeTitle } from "@/test/requests";
 import { LOST_AFTER_MS, onServerEvent, setReceiver, useServerEvents } from "./events";
-import { keys } from "./hooks";
+import { keys, useActivity } from "./hooks";
 import { EVERY_REQUEST, requestKeys, type DiscoverPage, type DiscoverTitle } from "./requests";
 import type { Activity, Library, ServerEvent } from "./types";
 
@@ -145,6 +145,31 @@ describe("useServerEvents", () => {
     // A scan it hadn't heard of: the server is asked what it is.
     act(() => source().send({ type: "scan_progress", library_id: 2, phase: "queued", processed: 0, total: 0 }));
     expect(invalidated(client, keys.activity)).toBe(true);
+  });
+
+  it("still fetches the activity while a scan's events keep coming, for what they don't say", async () => {
+    // Its time left, told once the server has measured the pace.
+    let fetches = 0;
+    const scan = { library_id: 1, library_name: "Library 1", phase: "probing" as const, processed: 3, total: 100, started_at: 0, first: true };
+    mockApi({ "GET /api/activity": (): Activity => ({ scans: [{ ...scan, left_secs: ++fetches > 1 ? 70 : null }], sessions: [] }) });
+    const client = testQueryClient();
+    const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    renderHook(
+      () => {
+        useServerEvents(1);
+        return useActivity();
+      },
+      { wrapper },
+    );
+    await act(() => vi.advanceTimersByTimeAsync(10));
+    expect(fetches).toBe(1);
+    // An event every 400 ms, for six seconds.
+    for (let n = 1; n <= 15; n++) {
+      act(() => (FakeEventSource.all.at(-1) as FakeEventSource).send({ type: "scan_progress", library_id: 1, phase: "probing", processed: 3 + n, total: 100 }));
+      await act(() => vi.advanceTimersByTimeAsync(400));
+    }
+    expect(fetches).toBeGreaterThan(1);
+    expect(client.getQueryData<Activity>(keys.activity)?.scans[0]?.left_secs).toBe(70);
   });
 
   it("refreshes a changed library once per burst", () => {

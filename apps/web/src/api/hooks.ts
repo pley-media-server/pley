@@ -922,13 +922,16 @@ export function usePerson(id: Id) {
 // Activity
 // ---------------------------------------------------------------------------
 
+/** How often the activity is fetched while a scan runs. */
+export const ACTIVITY_POLL_MS = 4_000;
+
 export function useActivity(opts: { poll?: number | false } = {}) {
   return useQuery({
     ...queries.activity(),
     refetchInterval: (query) => {
       if (opts.poll) return opts.poll;
       const scans = query.state.data?.scans ?? [];
-      return scans.some((s) => s.phase !== "done") ? 4_000 : false;
+      return scans.some((s) => s.phase !== "done") ? ACTIVITY_POLL_MS : false;
     },
     refetchIntervalInBackground: false,
   });

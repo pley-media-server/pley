@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { connectionLost, eventsLive, serverAnswers, setConnectionLost, setEventsLive } from "@/lib/connection";
 import { isApiError } from "./client";
-import { keys } from "./hooks";
+import { ACTIVITY_POLL_MS, keys } from "./hooks";
 import { liveKeys } from "./livetv";
 import { patchBadges, patchTitles, refetchBadges, requestKeys, requestQueries, titleShown, type TitleKind } from "./requests";
 import type { Activity, Id, Library, ServerEvent } from "./types";
@@ -295,8 +295,8 @@ export function useServerEvents(userId: Id | null) {
         case "scan_progress": {
           setScanning(ev.library_id, ev.phase !== "done");
           // Kept as fetched when it was: an event says less than the server
-          // (whether it's a first scan, those done), so Home still fetches
-          // the activity once it's due, and an event never makes one up.
+          // (whether it's a first scan, those done, the time left), and an
+          // event never makes one up.
           const fetched = qc.getQueryState<Activity>(keys.activity)?.dataUpdatedAt;
           const before = qc.getQueryData<Activity>(keys.activity);
           qc.setQueryData<Activity>(
@@ -336,6 +336,11 @@ export function useServerEvents(userId: Id | null) {
           // A scan not heard of yet: what the server says of it is fetched.
           if (before && !before.scans.some((s) => s.library_id === ev.library_id)) {
             void qc.invalidateQueries({ queryKey: keys.activity });
+          } else if (fetched && Date.now() - fetched >= ACTIVITY_POLL_MS) {
+            // Each patch restarts the poll's timer, and events come more
+            // often than it: the activity is fetched here once it's due,
+            // joining a fetch under way rather than cancelling it.
+            void qc.refetchQueries({ queryKey: keys.activity, exact: true, type: "active" }, { cancelRefetch: false });
           }
           break;
         }
