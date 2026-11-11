@@ -109,9 +109,30 @@ fn video_not_converted(why: impl Iterator<Item = String>) -> AppError {
     )
 }
 
-/// Whether `decision` converts video on a server that converts none.
-fn converts_unwanted_video(req: &PlaybackRequest, decision: &Decision) -> bool {
-    req.copy_video_only && decision.video.as_ref().is_some_and(|v| v.mode == VideoMode::Transcode)
+/// Why `decision` needs its video converted, on a server that converts
+/// none: its own reasons, or the transcoder's, which makes new frames of a
+/// picture turned on its side rather than copy it (what it writes can't
+/// say the turn). `None` when the video is copied, or there is none.
+fn unwanted_conversion(req: &PlaybackRequest, decision: &Decision, info: Option<&MediaInfo>) -> Option<Vec<String>> {
+    let video = decision.video.as_ref().filter(|_| req.copy_video_only)?;
+    if video.mode == VideoMode::Transcode {
+        return Some(decision.reasons.clone());
+    }
+    let turned = info.and_then(|i| i.video()).is_some_and(|v| v.rotation_degrees() != 0);
+    turned.then(|| {
+        let mut reasons = decision.reasons.clone();
+        reasons.push("The picture is turned, which a copy can't say.".into());
+        reasons
+    })
+}
+
+/// What a play gets past a limit on streams (Settings → Transcoder).
+fn too_many_streams(full: Full, total: u32, video: u32) -> AppError {
+    let (max, made) = match full {
+        Full::Total => (total, "transcodes"),
+        Full::Video => (video, "video transcodes"),
+    };
+    AppError::Unavailable(format!("the server is already running its maximum of {max} {made}"))
 }
 
 /// The subtitles a play starts with, as the user's remotes show them until
@@ -177,8 +198,8 @@ pub async fn start(
     // stream copies. `PlaybackInfo.audio_index` tells the player.
     let decision = decide_picked(&state, user.id, &row, &file, info.as_ref(), &streams, &mut req).await?;
     // Before what the client plays now is ended: it goes on.
-    if converts_unwanted_video(&req, &decision) {
-        return Err(video_not_converted(decision.reasons.into_iter()));
+    if let Some(why) = unwanted_conversion(&req, &decision, info.as_ref()) {
+        return Err(video_not_converted(why.into_iter()));
     }
     // Picture subtitles the player draws from their own file beside a
     // stream: copied out of the media file from now on, rather than once
@@ -285,13 +306,10 @@ pub async fn start(
     // Video transcodes are some of the streams: never more than all of them.
     let (total, video) = (settings.max_transcodes, settings.max_video_transcodes.min(settings.max_transcodes));
     let pool = Pool::of(decision.video.as_ref());
-    let slot = state.sessions.reserve_transcode(pool, total as usize, video as usize).map_err(|full| {
-        let (max, made) = match full {
-            Full::Total => (total, "transcodes"),
-            Full::Video => (video, "video transcodes"),
-        };
-        AppError::Unavailable(format!("the server is already running its maximum of {max} {made}"))
-    })?;
+    let mut slot = state
+        .sessions
+        .reserve_transcode(pool, total as usize, video as usize)
+        .map_err(|full| too_many_streams(full, total, video))?;
     let job_request = JobRequest {
         input: file.path.clone(),
         media: info,
@@ -313,11 +331,24 @@ pub async fn start(
         segment_format: decision.segment_format,
     };
     let created = state.transcoder.create_job(&job_request).await.map_err(|err| for_viewer(&user, err))?;
-    // A copy the transcoder can only make by converting (a picture turned
-    // on its side, a file with no keyframes to cut at).
-    if req.copy_video_only && created.video.as_ref().is_some_and(|v| v.mode == VideoMode::Transcode) {
-        let _ = state.transcoder.delete_job(&created.id).await;
-        return Err(video_not_converted(created.warnings.iter().map(|w| sentence(w))));
+    // A copy the transcoder can only make by converting (a file whose
+    // keyframes it doesn't know yet): not on a server that converts no
+    // video, and elsewhere as one of the video transcodes, while there is
+    // room for one.
+    if created.video.as_ref().is_some_and(|v| v.mode == VideoMode::Transcode) {
+        let refused = if req.copy_video_only {
+            Some(video_not_converted(created.warnings.iter().map(|w| sentence(w))))
+        } else {
+            state
+                .sessions
+                .transcodes_video(&mut slot, video as usize)
+                .err()
+                .map(|full| too_many_streams(full, total, video))
+        };
+        if let Some(refused) = refused {
+            let _ = state.transcoder.delete_job(&created.id).await;
+            return Err(refused);
+        }
     }
     // Once the transcoder knows a playback starts: the copy waits for it.
     if let Some(index) = picture {
@@ -831,8 +862,8 @@ pub async fn convert(
             url: format!("/api/files/{}/stream", file.id),
         }));
     }
-    if converts_unwanted_video(&req, &decision) {
-        return Err(video_not_converted(decision.reasons.into_iter()));
+    if let Some(why) = unwanted_conversion(&req, &decision, info.as_ref()) {
+        return Err(video_not_converted(why.into_iter()));
     }
     // A player that opens no Matroska (QuickTime) gets MP4.
     let container = req.caps.download_container();

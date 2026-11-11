@@ -2344,9 +2344,9 @@ impl Sessions {
     /// requests still creating their job have used up. Creating a job takes
     /// seconds: checking and taking happen under one lock, so play requests
     /// arriving together can't all pass the check before any of them has a
-    /// session. A session counts as the stream the transcoder really makes
-    /// (a copy it had to transcode counts as a video transcode), whichever
-    /// slot it was started with.
+    /// session. A session counts as the stream the transcoder really makes:
+    /// a copy it had to transcode takes a video transcode's slot before it
+    /// starts ([`Sessions::transcodes_video`]).
     pub fn reserve_transcode(&self, pool: Pool, total: usize, video: usize) -> Result<TranscodeSlot<'_>, Full> {
         let map = self.map.lock();
         let reserved = |pool: Pool| self.reserved[pool as usize].load(Ordering::SeqCst);
@@ -2358,6 +2358,26 @@ impl Sessions {
         }
         self.reserved[pool as usize].fetch_add(1, Ordering::SeqCst);
         Ok(TranscodeSlot { sessions: self, pool })
+    }
+
+    /// The stream `slot` was taken for transcodes its video after all (a
+    /// copy the transcoder could only make by transcoding): it takes one of
+    /// the `video` too, or `Err` when live streams and the requests still
+    /// creating their job have them all, and the stream doesn't start.
+    pub fn transcodes_video(&self, slot: &mut TranscodeSlot<'_>, video: usize) -> Result<(), Full> {
+        if slot.pool == Pool::Video {
+            return Ok(());
+        }
+        let map = self.map.lock();
+        let reserved = &self.reserved[Pool::Video as usize];
+        if live_transcodes(&map, Some(Pool::Video)) + reserved.load(Ordering::SeqCst) >= video {
+            return Err(Full::Video);
+        }
+        // Under the lock, as a slot is taken: one count for the other.
+        reserved.fetch_add(1, Ordering::SeqCst);
+        self.reserved[Pool::Light as usize].fetch_sub(1, Ordering::SeqCst);
+        slot.pool = Pool::Video;
+        Ok(())
     }
 
     /// Add a transcode session, which takes over the slot reserved for it.
@@ -4112,8 +4132,15 @@ mod tests {
         // The total counts every kind, and is what a full server says first.
         assert_eq!(reserve(Pool::Light).err(), Some(Full::Total));
         assert_eq!(reserve(Pool::Video).err(), Some(Full::Total));
-        // A copy the transcoder had to transcode counts as what it is,
-        // whichever slot its request took.
+        // A copy the transcoder had to transcode is a video transcode: it
+        // doesn't start past their limit...
+        let mut third = third;
+        assert_eq!(sessions.transcodes_video(&mut third, 1).err(), Some(Full::Video));
+        assert_eq!(reserve(Pool::Light).err(), Some(Full::Total), "refused, it is still a copy's slot");
+        // ...and within it takes one of them, as its session then counts.
+        assert_eq!(sessions.transcodes_video(&mut third, 2), Ok(()));
+        assert_eq!(sessions.reserve_transcode(Pool::Video, 4, 2).err(), Some(Full::Video), "its job being created");
+        assert_eq!(sessions.transcodes_video(&mut third, 2), Ok(()), "asked again, it has its slot");
         sessions.insert_transcode(session(1, None, true), third);
         assert_eq!(sessions.reserve_transcode(Pool::Video, 4, 2).err(), Some(Full::Video));
         assert!(sessions.reserve_transcode(Pool::Light, 4, 2).is_ok());

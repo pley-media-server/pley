@@ -2260,7 +2260,10 @@ Rules:
   `max_video_transcodes`, so some room stays for the cheap ones. Past
   either, a play request answers `503 unavailable` ("the server is
   already running its maximum of 4 transcodes", or "… of 2 video
-  transcodes"). A direct play counts against neither.
+  transcodes"). A direct play counts against neither. A copy the
+  transcoder can only make by transcoding (a picture turned on its side, a
+  file whose keyframes it doesn't know yet) is a video transcode: past
+  their limit it doesn't start, and answers the same.
 - If the transcoder loses a job (restart, expiry), the server recreates it
   with the same segment layout. When it can't, segments answer `404
   not_found` ("playback session expired"): start a new session at the
@@ -2287,7 +2290,9 @@ Transcoder), the server copies video or doesn't play it:
   picture turned on its side) answers `409 video_not_converted`, with the
   reasons in `message`. What the client plays goes on. `POST
   /api/conversions` answers the same for a download that would be
-  converted.
+  converted. A file whose keyframes the transcoder doesn't know yet
+  answers it once its stream is asked of the transcoder, after the
+  client's last session ended; it plays once they are read.
 - Every play answer has `original_only: true`, and remotes are listed the
   original alone as the player's qualities.
 - Live TV follows its own settings (Settings → Live TV).
