@@ -256,7 +256,12 @@ export function PlexImport({
           onFinish={onFinish}
           onAgain={() => {
             setAutoChosen(false);
-            setStage(signedIn.data === true ? "server" : "signIn");
+            // Every run forgets the Plex sign-in: importing again signs in
+            // again, maybe as another account.
+            qc.setQueryData(plexImportKeys.signedIn, null);
+            qc.removeQueries({ queryKey: plexImportKeys.servers });
+            qc.removeQueries({ queryKey: plexImportKeys.plan });
+            setStage("signIn");
           }}
         />
       );

@@ -535,6 +535,14 @@ describe("PlexImport", () => {
     expect(screen.queryByText(/^Titles Pley couldn't find/)).not.toBeInTheDocument();
   });
 
+  it("signs in again to import again, since a run forgets the sign-in", async () => {
+    const user = userEvent.setup();
+    serve({ progress: () => ({ ...idle, state: "cancelled", report: { ...report, outcome: "cancelled" } }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
+    await user.click(await screen.findByRole("button", { name: "Import again" }));
+    expect(await screen.findByRole("heading", { name: "Sign in with Plex" })).toBeInTheDocument();
+  });
+
   it("opens on the last import's report when asked", async () => {
     serve({ progress: () => ({ ...idle, state: "done", report }) });
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
