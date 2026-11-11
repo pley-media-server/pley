@@ -715,6 +715,18 @@ async fn brings_libraries_people_and_what_they_watched() {
     let decoded = image::load_from_memory_with_format(&jpeg, image::ImageFormat::Jpeg).unwrap();
     assert_eq!((decoded.width(), decoded.height(), alex_color), (256, 256, None));
     assert_eq!(avatar_of(kid_id).await, (None, Some("#eb9f9f".into())));
+    // Names: the account's Plex name for the administrator, who had none.
+    let name_of = |id: i64| {
+        let db = app.state.db.read.clone();
+        async move {
+            sqlx::query_scalar::<_, Option<String>>("SELECT display_name FROM users WHERE id = ?")
+                .bind(id)
+                .fetch_one(&db)
+                .await
+                .unwrap()
+        }
+    };
+    assert_eq!(name_of(admin_id).await.as_deref(), Some("Alex"));
 
     // Titles: labels and dates added.
     let alien: i64 =
@@ -844,6 +856,12 @@ async fn brings_libraries_people_and_what_they_watched() {
     .execute(&app.state.db.write)
     .await
     .unwrap();
+    // The administrator renames themselves.
+    sqlx::query("UPDATE users SET display_name = 'Al' WHERE id = ?")
+        .bind(admin_id)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
     // And picks a colour of their own.
     sqlx::query("UPDATE users SET avatar_color = '#38bdf8' WHERE id = ?")
         .bind(kid_id)
@@ -882,7 +900,8 @@ async fn brings_libraries_people_and_what_they_watched() {
             .await
             .unwrap();
     assert_eq!((watched, position), (true, 99_000), "Pley's newer resume point stays, as a rewatch");
-    // Pley's pictures and colours stay.
+    // Pley's names, pictures and colours stay.
+    assert_eq!(name_of(admin_id).await.as_deref(), Some("Al"));
     assert_eq!(avatar_of(admin_id).await, (Some(alex), None));
     assert_eq!(avatar_of(kid_id).await, (None, Some("#38bdf8".into())));
 

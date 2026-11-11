@@ -11,7 +11,8 @@ never changes anything on Plex.
   library: one that already has its files, or a new one made from its
   folders. Photo libraries stay behind.
 - **People.** The Plex account you sign in with comes as you, the
-  administrator. Each person in your Plex Home you choose becomes a
+  administrator, with its Plex name as your display name if you haven't
+  set one. Each person in your Plex Home you choose becomes a
   profile of Pley's household, opening the libraries they could open on
   Plex. Plex's picture for each comes too, where the profile has none in
   Pley: one chosen on Plex or a Gravatar. A Plex picture that's only an

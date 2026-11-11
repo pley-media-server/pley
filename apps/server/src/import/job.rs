@@ -36,6 +36,8 @@ const PAGES_AT_ONCE: usize = 4;
 const KOMETA_OVERLAY: &str = "Overlay";
 /// Longest title, sort title, tagline, studio or genre brought, in characters.
 const MAX_TITLE: usize = 500;
+/// A person's name from Plex, as a profile's display name.
+const MAX_NAME: usize = 100;
 /// Longest summary brought, in characters.
 const MAX_SUMMARY: usize = 20_000;
 /// Most genres a title brings.
@@ -1642,6 +1644,7 @@ impl Run {
             ..Default::default()
         });
         if let Some(owner) = owner {
+            self.name(self.admin, owner).await?;
             self.picture(self.admin, owner).await?;
         }
         self.advance(1);
@@ -1690,6 +1693,26 @@ impl Run {
             self.advance(1);
         }
         Ok(people)
+    }
+
+    /// Home user `user`'s Plex name as the display name of `user_id`, the
+    /// administrator, where it has none: their username stands for them
+    /// until then. A name that is the username already changes nothing.
+    async fn name(&self, user_id: i64, user: &HomeUser) -> ImportResult<()> {
+        let name = cut(&user.title, MAX_NAME);
+        if name.is_empty() {
+            return Ok(());
+        }
+        sqlx::query(
+            "UPDATE users SET display_name = ?
+             WHERE id = ? AND NULLIF(TRIM(display_name), '') IS NULL AND username <> ? COLLATE NOCASE",
+        )
+        .bind(&name)
+        .bind(user_id)
+        .bind(&name)
+        .execute(&self.state.db.write)
+        .await?;
+        Ok(())
     }
 
     /// Home user `user`'s Plex picture and colour for profile `user_id`,
@@ -1811,7 +1834,7 @@ impl Run {
                 )
                 .bind(&username)
                 .bind(NO_PASSWORD)
-                .bind(Some(user.title.trim()).filter(|t| !t.is_empty()))
+                .bind(Some(cut(&user.title, MAX_NAME)).filter(|t| !t.is_empty()))
                 .bind(everything)
                 .bind(limits.max_age)
                 .bind(&limits.system)

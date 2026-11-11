@@ -19,8 +19,8 @@ describes how they are made.
   folder given, and says how much each library holds and whether Plex's
   files are in each folder given; it shows each Plex Home user with their picture, and makes
   a profile for each one chosen with their picture and their restrictions
-  as an age limit and label rules, and
-  brings over the titles' labels and dates added, and each person's
+  as an age limit and label rules, gives the administrator their Plex
+  name when they have no display name, and brings over the titles' labels and dates added, and each person's
   watched titles, resume points, ratings and plays, then shows what came
   over. Collections and playlists come too, and Plex's matches and the
   fields edited in Plex as Fix Match and edits in Pley; a "What to bring"
