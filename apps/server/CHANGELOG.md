@@ -43,29 +43,28 @@ describes how they are made.
   "What to bring" step turns any of these off. What's found by its file
   comes over before any posters or details are fetched, so watch history
   is there within minutes, and Plex's matches mean titles are fetched by
-  their ids rather than searched for by name. Home and Settings ›
-  Libraries show the import while the rest runs, then its report, which
-  says how long the import and each of its steps took. Running it again
-  adds what's new and never takes anything away
-  (docs/MOVING_FROM_PLEX.md). It lists every step it goes through, ticked
-  off with what each brought. While it waits for the new libraries' scans,
-  it shows which library is scanned and how many of its files are read,
-  and titles found by their files show with Plex's names, years, summaries
-  and dates added as soon as their library is scanned, until Pley's own
-  details replace them. Posters come from Pley's own fetch.
+  their ids rather than searched for by name. Titles found by their files
+  show with Plex's names, years, summaries and dates added as soon as
+  their library is scanned, until Pley's own details replace them; posters
+  come from Pley's own fetch. A profile with labels it's never allowed is
+  off until the import finishes, when Plex's labels are on Pley's titles.
+  Home goes to the import as soon as it starts, and shows it while it
+  runs, as Settings › Libraries does: how far the whole import is, every
+  step it goes through, ticked off with what each brought, which library
+  is being scanned and how many of its files are read, and Stop; then how
+  it ended (and why, if it failed, or that a restart of the server cut it
+  short), with Import again when it didn't finish, and its report, which
+  says how long the import and each of its steps took, until that's
+  closed. The browser tab's title says how far the import is, and how it
+  ended if that was while the tab was out of sight. Running it again adds
+  what's new and never takes anything away (docs/MOVING_FROM_PLEX.md).
 - Home tells administrators how far new libraries are, first on the page,
-  above the banner: the Plex import, which Home goes to as soon as it
-  starts, with how far the whole import is, its steps, each library
-  scanned with the titles found in it, and Stop, then how it ended (and
-  why, if it failed, or that a restart of the server cut it short), with
-  Import again when it didn't finish, until that's closed; after Start
-  fresh, which of the new libraries is being scanned, how far they all
-  are, and each ticked off once done; or a library's first scan (its
-  files found, read, then its details fetched). Reading files and
-  fetching details say about how long they have left. Screen readers
-  hear each step as it starts, not every count. The browser tab's title
-  says how far the import is, and how it ended if that was while the tab
-  was out of sight.
+  above the banner: the Plex import (above); after Start fresh, which of
+  the new libraries is being scanned, how far they all are, and each
+  ticked off once done; or a library's first scan (its files found, read,
+  then its details fetched). Reading files and fetching details say about
+  how long they have left. Screen readers hear each step as it starts,
+  not every count.
 - Settings › Server has a Country, used for titles' age ratings,
   profiles' age limits and Discover's Coming to cinemas list. It was the
   metadata language's country, and still is until one is chosen:
