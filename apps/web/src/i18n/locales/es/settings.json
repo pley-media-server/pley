@@ -192,7 +192,7 @@
     },
     "load": {
       "title": "Carga",
-      "description": "De qué se encarga el transcodificador, de cuánto a la vez y cuánto se adelanta al reproductor.",
+      "description": "De qué se encarga el transcodificador, cuánto hace a la vez y cuánto se adelanta al reproductor.",
       "allowVideo": "Permitir la transcodificación de video",
       "allowVideoHint": "Desactivado: solo se transcodifica el sonido; el video se copia.",
       "maxVideo": "Máximo de transcodificaciones de video simultáneas",
