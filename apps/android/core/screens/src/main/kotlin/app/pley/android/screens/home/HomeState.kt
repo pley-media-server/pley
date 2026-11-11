@@ -54,6 +54,11 @@ sealed interface HomeState {
         val hero: HomeInfo?,
         /** The banner's titles ([featuredOf]), in turn; empty without a backdrop to show. */
         val featured: List<Featured> = emptyList(),
+        /**
+         * Whether Home opens on its banner (the device's setting, TVs only).
+         * Without it there is no [hero] and nothing [featured]: Home opens on its rows.
+         */
+        val banner: Boolean = true,
     ) : HomeState
 }
 

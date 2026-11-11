@@ -73,8 +73,9 @@ import org.robolectric.annotation.Config
  * Home on TV with key events: initial focus on the featured title's Play,
  * Right through the hero's buttons stopping on the last, the hero turning
  * by itself while nothing is pressed, Down into the rows, the focused tile coming back after the page was away, Back from
- * the rows going to the rail with the page back at its hero, and the
- * states drawn from what was saved without the network.
+ * the rows going to the rail with the page back at its hero, Home opening
+ * on its rows with the banner turned off, and the states drawn from what
+ * was saved without the network.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -144,6 +145,23 @@ class TvHomeTest {
         assertEquals("See all", focusedDescription())
         press(Key.DirectionLeft)
         assertTrue(focusedDescription(), focusedDescription().startsWith("Dune: Part Two"))
+    }
+
+    @Test
+    fun withTheBannerOffHomeOpensOnItsRows() {
+        sources.bannerOn.value = false
+        show()
+        compose.waitForIdle()
+        // No hero: focus starts on the first row's first tile.
+        compose.onNodeWithText("Play").assertDoesNotExist()
+        compose.onNodeWithText("NEW").assertDoesNotExist()
+        assertTrue(focusedDescription(), focusedDescription().startsWith("Half Loop"))
+
+        press(Key.DirectionRight)
+        assertTrue(focusedDescription(), focusedDescription().startsWith("Arrival"))
+        press(Key.DirectionDown)
+        assertEquals("See all", focusedDescription())
+        compose.onNodeWithText("Play").assertDoesNotExist()
     }
 
     @Test

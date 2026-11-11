@@ -13,6 +13,7 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.screens.home.HomeInfo
 import app.pley.android.screens.home.HomeState
 import app.pley.android.screens.home.RowShape
+import app.pley.android.screens.home.homeInfo
 
 /**
  * Home as the TV draws it: [HomeState] with each row's tiles made
@@ -25,12 +26,18 @@ internal data class TvHomeModel(
     val rows: List<TvHomeRow> = emptyList(),
     /**
      * What the hero takes turns showing: the featured titles, or without
-     * any, the one hero of before (the first of Continue Watching).
+     * any, the one hero of before (the first of Continue Watching). Empty
+     * with the banner turned off: Home opens on its rows.
      */
     val heroes: List<TvHero> = emptyList(),
+    /** Without a hero, what the info block shows until focus comes to a tile: the first row's first. */
+    val first: TvHero? = null,
 ) {
     /** The hero shown first. */
     val hero: TvHero? get() = heroes.firstOrNull()
+
+    /** What the page shows at rest: the hero, else the first tile, else nothing (nothing to draw). */
+    val atRest: TvHero? get() = hero ?: first
 
     /**
      * Where focus goes if tile [tileId] leaves row [rowKey], as a focus
@@ -84,7 +91,8 @@ internal data class TvHomeModel(
             }
             val featured = state.featured.map { TvHero(it.info, backdropOf(it.info.item, state.origin, tier), it.label) }
             val heroes = featured.ifEmpty { listOfNotNull(state.hero?.let { TvHero(it, backdropOf(it.item, state.origin, tier)) }) }
-            return TvHomeModel(state, rows, heroes)
+            val first = if (state.banner) null else state.rows.firstOrNull()?.items?.firstOrNull()?.let { TvHero(homeInfo(it, null), backdropOf(it, state.origin, tier)) }
+            return TvHomeModel(state, rows, heroes, first)
         }
 
         /** The backdrop behind [item]: its own, else its show's or parent's, at most 1280 wide (960 on T0). */

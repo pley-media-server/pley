@@ -67,6 +67,7 @@ internal class DataStoreSettings(
                 alwaysStartAs = p[ALWAYS_START_AS],
                 showPlaybackDetails = p[PLAYBACK_DETAILS] ?: defaults.showPlaybackDetails,
                 gridDensity = p[GRID_DENSITY]?.let { enumOrNull<GridDensity>(it) } ?: defaults.gridDensity,
+                homeBanner = p[HOME_BANNER] ?: defaults.homeBanner,
                 reduceMotion = p[REDUCE_MOTION] ?: defaults.reduceMotion,
                 allowSoftwareVideo = p[SOFTWARE_VIDEO] ?: defaults.allowSoftwareVideo,
                 downloadOnMobileData = p[DOWNLOAD_ON_MOBILE] ?: defaults.downloadOnMobileData,
@@ -94,6 +95,7 @@ internal class DataStoreSettings(
         p.keep(ALWAYS_START_AS, s.alwaysStartAs, null)
         p.keep(PLAYBACK_DETAILS, s.showPlaybackDetails, d.showPlaybackDetails)
         p.keep(GRID_DENSITY, s.gridDensity.name, d.gridDensity.name)
+        p.keep(HOME_BANNER, s.homeBanner, d.homeBanner)
         p.keep(REDUCE_MOTION, s.reduceMotion, d.reduceMotion)
         p.keep(SOFTWARE_VIDEO, s.allowSoftwareVideo, d.allowSoftwareVideo)
         p.keep(DOWNLOAD_ON_MOBILE, s.downloadOnMobileData, d.downloadOnMobileData)
@@ -121,6 +123,7 @@ internal class DataStoreSettings(
         private val ALWAYS_START_AS = longPreferencesKey("always_start_as")
         private val PLAYBACK_DETAILS = booleanPreferencesKey("playback_details")
         private val GRID_DENSITY = stringPreferencesKey("grid_density")
+        private val HOME_BANNER = booleanPreferencesKey("home_banner")
         private val REDUCE_MOTION = booleanPreferencesKey("reduce_motion")
         private val SOFTWARE_VIDEO = booleanPreferencesKey("allow_software_video")
         private val DOWNLOAD_ON_MOBILE = booleanPreferencesKey("download_on_mobile_data")

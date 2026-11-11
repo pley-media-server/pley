@@ -64,6 +64,12 @@ class TvTestGraph : ScreensGraph {
     /** How each library was left on this device (its view, as kept): not at all, unless a test says. */
     val left = HashMap<Long, String>()
 
+    /**
+     * The device's settings. Home's banner is on, off as it is by default
+     * only where a test says: most of these tests walk its hero.
+     */
+    val settingsFlow = MutableStateFlow(Settings(homeBanner = true))
+
     /** What every library can be filtered by: nothing, unless a test says. */
     val filters = MutableStateFlow<Loadable<LibraryFilters>>(Loadable.Ready(LibraryFilters(), fresh = true))
 
@@ -134,7 +140,7 @@ class TvTestGraph : ScreensGraph {
         override val trackDefaults: TrackDefaultsRepository get() = unused("trackDefaults")
         override val watchlist: app.pley.android.data.WatchlistRepository get() = unused("watchlist")
         override val settings = object : AppSettings {
-            override val settings: Flow<Settings> = MutableStateFlow(Settings())
+            override val settings: Flow<Settings> = settingsFlow
             override suspend fun update(change: (Settings) -> Settings) = Unit
         }
     }

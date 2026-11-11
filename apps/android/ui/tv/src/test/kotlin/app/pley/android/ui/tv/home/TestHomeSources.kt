@@ -55,6 +55,10 @@ class TestHomeSources : HomeSources {
     /** Every library's Recommended rows: none, unless a test says. */
     val libraryHubs = MutableStateFlow<Loadable<Hubs>>(Loadable.Ready(Hubs(emptyList()), fresh = true))
 
+    /** The device's Home banner setting: on, until a test turns it off. */
+    val bannerOn = MutableStateFlow(true)
+    override val banner: Flow<Boolean> = bannerOn
+
     override val hubs = object : HubsRepository {
         override fun home(): Flow<Loadable<Hubs>> = this@TestHomeSources.home
         override fun library(libraryId: Long): Flow<Loadable<Hubs>> = libraryHubs

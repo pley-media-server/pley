@@ -537,6 +537,16 @@ private fun LazyListScope.pane(
                     modifier = keyed("row-subtitle-position"),
                 )
             }
+            item(key = "row-home-banner", contentType = SETTING_ROW) {
+                TvSettingRow(
+                    stringResource(R.string.tv_settings_home_banner),
+                    value = stringResource(R.string.tv_settings_home_banner_hint),
+                    checked = s.homeBanner,
+                    icon = PleyIcons.Images,
+                    onClick = { model.setHomeBanner(!s.homeBanner) },
+                    modifier = keyed("row-home-banner"),
+                )
+            }
             item(key = "row-reduce-motion", contentType = SETTING_ROW) {
                 TvSettingRow(
                     stringResource(R.string.tv_settings_reduce_motion),

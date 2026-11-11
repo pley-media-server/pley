@@ -6,6 +6,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.layout.LazyLayoutCacheWindow
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -57,6 +58,7 @@ import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.item.tileActions
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.KeyRepeatGate
+import app.pley.android.ui.tv.kit.LastRowRoom
 import app.pley.android.ui.tv.kit.LocalTvRailFocus
 import app.pley.android.ui.tv.kit.SeeAll
 import app.pley.android.ui.tv.kit.TvBackdrop
@@ -99,6 +101,12 @@ import kotlinx.coroutines.launch
  * at its hero, where focus lands when the rail closes. Coming back from an
  * item, focus lands on the tile it was opened from; when that tile's
  * actions took it out of its row, on its neighbour.
+ *
+ * The hero is there only with the banner turned on in Settings
+ * ([HomeState.Ready.banner]); it is off by default. Without it, Home opens
+ * on its rows, focus on the first tile, the backdrop and the info block
+ * following it as they do in the rows, and Back goes to the rail as from
+ * any other page of rows.
  */
 @Composable
 internal fun TvHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory)) {
@@ -128,7 +136,7 @@ internal fun TvHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewModel.
                 title = stringResource(if (state.scanning) R.string.tv_home_scanning else R.string.tv_home_empty),
                 body = stringResource(if (state.scanning) R.string.tv_home_scanning_body else R.string.tv_home_empty_body),
             )
-            is HomeState.Ready -> if (shown.heroes.isNotEmpty()) TvHomeRows(shown, state.origin, vm, navigator)
+            is HomeState.Ready -> if (shown.atRest != null) TvHomeRows(shown, state.origin, vm, navigator)
         }
         if (shown != null && shown.state != HomeState.Loading) MarkHomeDrawn(shown)
         TvHomeToast(message, onShown = { message = null })
@@ -208,12 +216,15 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     // Composes about a row ahead, so the next row's pictures are on their way before focus gets there.
     val column = rememberLazyListState(cacheWindow = remember { LazyLayoutCacheWindow(ahead = RowAhead, behind = 0.dp) })
     var inRows by rememberSaveable { mutableStateOf(false) }
+    // Without a hero (the banner turned off) the page is in its rows from the start.
+    val banner = model.heroes.isNotEmpty()
+    val rowsShown = inRows || !banner
     var hasFocus by remember { mutableStateOf(false) }
     val focused = remember { mutableStateOf<FocusedTile?>(null) }
     RestedFocus(focused, vm)
     val backdrops = rememberBackdropPrefetcher()
     // Read as it is drawn: its frames compose nothing.
-    val heroAlpha = animateFloatAsState(if (inRows) 0f else 1f, PleyMotion.reveal(), label = "hero")
+    val heroAlpha = animateFloatAsState(if (rowsShown) 0f else 1f, PleyMotion.reveal(), label = "hero")
     // What the rows' callbacks read when they run: rows that didn't change keep theirs, and aren't composed again.
     val current by rememberUpdatedState(model)
 
@@ -223,11 +234,15 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     // The titles can change under the banner (the top rated ones come a moment after the newest):
     // the one that is on stays on, wherever it now is among them.
     var on by rememberSaveable { mutableStateOf<Long?>(null) }
-    val at = remember(heroes, turn, on) { heroes.indexOfFirst { it.info.item.id == on }.takeIf { it >= 0 } ?: (turn % heroes.size) }
-    val hero = heroes[at]
+    val at = remember(heroes, turn, on) {
+        if (heroes.isEmpty()) 0 else heroes.indexOfFirst { it.info.item.id == on }.takeIf { it >= 0 } ?: (turn % heroes.size)
+    }
+    val hero = heroes.getOrNull(at)
     SideEffect {
-        turn = at
-        on = hero.info.item.id
+        if (hero != null) {
+            turn = at
+            on = hero.info.item.id
+        }
     }
     val titles by rememberUpdatedState(heroes)
     val keys = remember { MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST) }
@@ -282,13 +297,15 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
     memory.settle(model::hasTile)
 
     // Back from the rows: the page goes back to its hero (focus on Resume), then to the rail.
-    BackHandler(enabled = inRows && hasFocus) {
+    BackHandler(enabled = banner && inRows && hasFocus) {
         inRows = false
         runCatching { resume.requestFocus() }
         scope.launch { column.scrollToItem(0) }
         rail?.focusCurrent()
     }
 
+    // What the page shows before focus is on a tile: the hero, else the first tile. TvHomeScreen draws no page without either.
+    val rest = hero ?: model.first ?: return
     Box(
         Modifier
             .fillMaxSize()
@@ -298,13 +315,15 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                 false
             },
     ) {
-        HomeAbout(hero, focused, vm, inRows, heroAlpha, origin, tier)
+        HomeAbout(rest, focused, vm, rowsShown, heroAlpha, origin, tier)
         TvRowColumn(
             state = column,
-            heroHeight = HeroHeight,
+            // Without a hero the first row's header starts where a focused row's comes to, under the info block.
+            contentPadding = if (hero != null) PaddingValues(bottom = LastRowRoom) else PaddingValues(top = PleyTv.FocusedRowHeaderY, bottom = LastRowRoom),
+            heroHeight = if (hero != null) HeroHeight else 0.dp,
             modifier = Modifier.fillMaxSize().testTag(TestTags.HOME_ROWS),
         ) {
-            item(HERO_KEY, contentType = HERO_KEY) {
+            if (hero != null) item(HERO_KEY, contentType = HERO_KEY) {
                 TvHomeHero(
                     hero = hero.info,
                     resume = resume,
@@ -323,7 +342,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                     onDashesFocus = { onDashes.value = it },
                 )
             }
-            model.rows.forEach { row ->
+            model.rows.forEachIndexed { index, row ->
                 item(row.key, contentType = row.kind) {
                     val seeAllLabel = stringResource(R.string.tv_home_see_all)
                     val seeAll = remember(row.seeAll, seeAllLabel) { row.seeAll?.let { key -> SeeAll(seeAllLabel) { navigator.open(key) } } }
@@ -333,6 +352,7 @@ private fun TvHomeRows(model: TvHomeModel, origin: String, vm: HomeViewModel, na
                         tiles = row.tiles,
                         kind = row.kind,
                         memory = memory,
+                        initialFocus = hero == null && index == 0,
                         seeAll = seeAll,
                         onOpen = { tile -> row.itemOf(tile)?.let { navigator.open(pageOf(it)) } },
                         onActions = { tile ->
