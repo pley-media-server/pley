@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { LocationDisplay, mockApi, renderWithProviders } from "@/test/render";
 import { PlexSetupPage } from "./plexImport/PlexSetupPage";
-import { SetupLayout } from "./SetupLayout";
+import { SetupLayout, SetupStep } from "./SetupLayout";
 import { SetupStartPage } from "./SetupStartPage";
 
 function renderSetup(route: string) {
@@ -13,6 +13,7 @@ function renderSetup(route: string) {
       <Route element={<SetupLayout />}>
         <Route path="/setup/start" element={<SetupStartPage />} />
         <Route path="/setup/plex" element={<PlexSetupPage />} />
+        <Route path="/setup/library" element={<SetupStep progress={90} title="Your libraries">{null}</SetupStep>} />
       </Route>
       <Route path="*" element={<LocationDisplay />} />
     </Routes>,
@@ -28,6 +29,13 @@ describe("SetupLayout", () => {
     expect(screen.getByRole("progressbar", { name: "How far setup is" })).toHaveAttribute("aria-valuenow", "75");
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByTestId("location")).toHaveTextContent(/^\/setup\/server$/);
+  });
+
+  it("puts the focus on a step's title as it comes in, not on the page", async () => {
+    const user = userEvent.setup();
+    renderSetup("/setup/start");
+    await user.click(await screen.findByRole("link", { name: /^Start fresh/ }));
+    expect(await screen.findByRole("heading", { name: "Your libraries" })).toHaveFocus();
   });
 
   it("shows the Plex import's steps as setup's, with no step count of their own", async () => {

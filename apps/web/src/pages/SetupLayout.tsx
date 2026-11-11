@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type ReactNode, type Ref } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
 import { Outlet, useLocation } from "react-router";
 import { useTranslation } from "react-i18next";
 import { Logo } from "@/components/Logo";
@@ -60,17 +60,25 @@ export function SetupStep({
   progress: number;
   title: string;
   subtitle?: ReactNode;
-  /** For a step that puts the focus on its title. */
+  /** For a step that puts the focus on its title itself; else it goes there when the step comes in. */
   headingRef?: Ref<HTMLHeadingElement>;
   children: ReactNode;
 }) {
   const frame = useSetupFrame();
   const titleId = useId();
+  const ownHeading = useRef<HTMLHeadingElement>(null);
   useEffect(() => frame?.setProgress(progress), [frame, progress]);
+  // A step comes in over the one whose button was pressed: the focus goes
+  // to its title, read out, rather than to the page. A field the step
+  // focuses keeps it.
+  useEffect(() => {
+    const focused = document.activeElement;
+    if (!focused || focused === document.body) ownHeading.current?.focus();
+  }, []);
   return (
     <section aria-labelledby={titleId} className="space-y-6">
       <header>
-        <h1 id={titleId} ref={headingRef} tabIndex={headingRef ? -1 : undefined} className="text-xl font-semibold tracking-tight outline-none">
+        <h1 id={titleId} ref={headingRef ?? ownHeading} tabIndex={-1} className="text-xl font-semibold tracking-tight outline-none">
           {title}
         </h1>
         {subtitle ? <p className="mt-1.5 text-sm text-muted">{subtitle}</p> : null}
