@@ -278,8 +278,9 @@ function watchImport(qc: QueryClient): () => void {
     const refetch = () => {
       later = undefined;
       last = Date.now();
-      // A fetch on its way answers the event too.
-      void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true }, { cancelRefetch: false });
+      // A fetch on its way may have left before the change: a new one
+      // replaces it.
+      void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true });
     };
     const stop = onServerEvent((ev) => {
       if (ev.type !== "import_changed" || later !== undefined) return;
