@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isApiError } from "./client";
 import { onServerEvent } from "./events";
+import { keys } from "./hooks";
 import type { Id, LibraryKind } from "./types";
 
 /** A Plex server the account owns (docs/API.md, "Moving from Plex"). */
@@ -254,6 +255,9 @@ export function useFolderCheck(library: string, plex: string, pley: string) {
   });
 }
 
+/** The running import's step as last seen, by whichever views show it: one refetch per step, not one per view. */
+let seenStep: string | null = null;
+
 /**
  * Where the import is, or the last one's report: fetched again on each
  * `import_changed` event, and every few seconds while it runs in case the
@@ -268,12 +272,23 @@ export function usePlexImport() {
       }),
     [qc],
   );
-  return useQuery({
+  const query = useQuery({
     queryKey: plexImportKeys.progress,
     queryFn: () => api.get<ImportProgress>("/api/import/plex"),
     refetchInterval: (query) => (query.state.data?.state === "running" ? 5_000 : false),
     staleTime: 0,
   });
+  const data = query.data;
+  const step = data?.state === "running" ? `${data.started_at ?? 0}:${data.step ?? ""}` : null;
+  // The import makes profiles and gives them, and the administrator, Plex's
+  // pictures: each step it moves on, they're fetched again, so they show
+  // without a reload.
+  useEffect(() => {
+    if (step === null || step === seenStep) return;
+    seenStep = step;
+    for (const key of [keys.me, keys.users, keys.profiles]) void qc.invalidateQueries({ queryKey: key, exact: true });
+  }, [step, qc]);
+  return query;
 }
 
 /**

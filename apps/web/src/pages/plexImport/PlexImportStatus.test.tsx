@@ -1,7 +1,8 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { plexImportKeys, type ImportProgress, type ImportReport } from "@/api/plexImport";
+import { keys } from "@/api/hooks";
 import { mockApi, renderWithProviders } from "@/test/render";
 import { PlexImportStatus } from "./PlexImportStatus";
 
@@ -46,6 +47,20 @@ describe("PlexImportStatus", () => {
     expect(onReport).toHaveBeenCalled();
     // Settings › Libraries keeps it: only Home puts it away.
     expect(screen.queryByRole("button", { name: "Close" })).not.toBeInTheDocument();
+  });
+
+  it("fetches the account and profiles again as the import moves on, for the pictures it brings", async () => {
+    let progress: ImportProgress = { ...idle, state: "running", step: "profiles", done: 0, total: 3, started_at: 4242 };
+    mockApi({ "GET /api/import/plex": () => progress });
+    const { client } = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={() => {}} />);
+    expect(await screen.findByText("Importing from Plex: Making profiles")).toBeInTheDocument();
+    // Fetched before the import gave the administrator Plex's picture.
+    client.setQueryData(keys.me, { id: 1, avatar_url: null });
+    client.setQueryData(keys.profiles, []);
+    progress = { ...progress, step: "scanning", done: 0, total: 2 };
+    await client.invalidateQueries({ queryKey: plexImportKeys.progress });
+    await waitFor(() => expect(client.getQueryState(keys.me)?.isInvalidated).toBe(true));
+    expect(client.getQueryState(keys.profiles)?.isInvalidated).toBe(true);
   });
 
   it("shows the steps open, hidden for that import once hidden, and open again for the next", async () => {
