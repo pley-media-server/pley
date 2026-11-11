@@ -317,10 +317,12 @@ export function usePlexImport() {
     staleTime: 0,
   });
   const data = query.data;
-  const step = data?.state === "running" ? `${data.started_at ?? 0}:${data.step ?? ""}` : null;
+  const step =
+    data && data.state !== "idle" ? `${data.started_at ?? 0}:${data.state === "running" ? (data.step ?? "") : data.state}` : null;
   // The import makes profiles and gives them, and the administrator, Plex's
-  // pictures: each step it moves on, they're fetched again, so they show
-  // without a reload.
+  // pictures, and opens libraries to profiles as it ends: each step it moves
+  // on, and once when it ends, they're fetched again, so they show without
+  // a reload.
   useEffect(() => {
     if (step === null || step === seenStep) return;
     seenStep = step;
