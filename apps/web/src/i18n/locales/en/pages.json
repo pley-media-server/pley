@@ -41,7 +41,8 @@
     "passwordHint": "At least {{min}} characters. A few words that don't go together are easy to remember and hard to guess.",
     "setupCode": "Setup code",
     "setupCodeHint": "Open Pley from its tray icon and it's filled in for you. On a server without one, it's in Pley's log (with Docker, run docker logs pley).",
-    "createAccount": "Create account"
+    "createAccount": "Create account",
+    "progress": "How far setup is"
   },
   "setupServer": {
     "title": "Your server",

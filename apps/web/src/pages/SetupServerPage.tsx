@@ -14,7 +14,8 @@ import { browserMetadataLanguage, metadataLanguageChoices, metadataLanguageName 
 import { useDocumentTitle } from "@/lib/hooks";
 import { isLoopback, splitAddress } from "./settings/NetworkSettings";
 import { Link, SecretInput } from "./settings/SettingsForm";
-import { AuthLayout } from "./AuthLayout";
+import { SETUP_PROGRESS } from "@/lib/setupFrame";
+import { SetupActions, SetupStep } from "./SetupLayout";
 
 /**
  * The country and the language of titles and summaries to start from, from
@@ -146,7 +147,7 @@ function ServerForm({
 
   const hasKey = tmdbKey.trim() !== "";
   return (
-    <AuthLayout title={t("setupServer.title")} subtitle={t("setupServer.subtitle")}>
+    <SetupStep progress={SETUP_PROGRESS.server} title={t("setupServer.title")} subtitle={t("setupServer.subtitle")}>
       <form onSubmit={onSubmit} className="space-y-5">
         <div className="divide-y divide-border border-y border-border">
           <Row
@@ -245,18 +246,19 @@ function ServerForm({
             {error}
           </p>
         ) : null}
-        <div className="space-y-2">
-          <Button type="submit" variant="primary" size="lg" className="w-full" loading={busy}>
-            {t("common:actions.continue")}
-          </Button>
+        {/* The account is made: there's no way back from here. */}
+        <SetupActions>
           {refused ? (
-            <Button type="button" variant="ghost" className="w-full" disabled={busy} onClick={() => void go(true)}>
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void go(true)}>
               {t("setupServer.withoutKey")}
             </Button>
           ) : null}
-        </div>
+          <Button type="submit" variant="primary" loading={busy}>
+            {t("common:actions.continue")}
+          </Button>
+        </SetupActions>
       </form>
-    </AuthLayout>
+    </SetupStep>
   );
 }
 

@@ -41,7 +41,8 @@
     "passwordHint": "Al menos {{min}} caracteres. Unas cuantas palabras sin relación entre sí son fáciles de recordar y difíciles de adivinar.",
     "setupCode": "Código de configuración",
     "setupCodeHint": "Abre Pley desde su icono en la bandeja del sistema y se rellena solo. En un servidor sin icono, está en el registro de Pley (con Docker, ejecuta docker logs pley).",
-    "createAccount": "Crear cuenta"
+    "createAccount": "Crear cuenta",
+    "progress": "Avance de la configuración"
   },
   "setupServer": {
     "title": "Tu servidor",

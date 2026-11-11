@@ -1,20 +1,23 @@
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { ArrowRight, FolderPlus, Import } from "lucide-react";
+import { Button } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
-import { AuthLayout } from "./AuthLayout";
+import { SETUP_PROGRESS } from "@/lib/setupFrame";
+import { SetupActions, SetupStep } from "./SetupLayout";
 
 /**
  * After Your server (`/setup/start`): bring over another server (Plex), or
  * start fresh. The question names no server, so others can join Plex here.
  */
 export function SetupStartPage() {
-  const { t } = useTranslation("pages");
+  const { t } = useTranslation(["pages", "common"]);
   useDocumentTitle(t("setupStart.title"));
+  const navigate = useNavigate();
   const choice =
-    "group flex flex-col rounded-xl border border-border bg-surface/90 p-6 text-left shadow-2xl shadow-black/50 backdrop-blur transition-colors hover:border-accent hover:bg-accent/5 focus-visible:border-accent focus-visible:outline-none";
+    "group flex flex-col rounded-lg border border-border bg-surface-2 p-5 text-left transition-colors hover:border-accent hover:bg-accent/5 focus-visible:border-accent focus-visible:outline-none";
   return (
-    <AuthLayout title={t("setupStart.title")} wide bare>
+    <SetupStep progress={SETUP_PROGRESS.start} title={t("setupStart.title")}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Link to="/setup/plex" className={choice}>
           <span className="flex items-center justify-between">
@@ -33,6 +36,13 @@ export function SetupStartPage() {
           <span className="mt-1 block text-xs text-muted">{t("setupStart.freshHint")}</span>
         </Link>
       </div>
-    </AuthLayout>
+      <SetupActions
+        back={
+          <Button variant="ghost" onClick={() => void navigate("/setup/server", { replace: true })}>
+            {t("common:actions.back")}
+          </Button>
+        }
+      />
+    </SetupStep>
   );
 }

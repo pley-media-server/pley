@@ -23,6 +23,7 @@ import { NotFoundPage, RouteErrorPage } from "@/pages/NotFoundPage";
 import { PersonPage } from "@/pages/PersonPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
 import { SearchPage } from "@/pages/SearchPage";
+import { SetupLayout } from "@/pages/SetupLayout";
 import { SetupPage } from "@/pages/SetupPage";
 import { SetupStartPage } from "@/pages/SetupStartPage";
 import { loadPlayerPage, playerData } from "@/player/preload";
@@ -81,7 +82,48 @@ function onDemand<M>(
 }
 
 const router = createBrowserRouter([
-  { path: "/setup", element: <SetupPage />, errorElement: <RouteErrorPage /> },
+  // Setup, from the administrator's account on, in one card that stays.
+  {
+    element: <SetupLayout />,
+    errorElement: <RouteErrorPage />,
+    children: [
+      { path: "/setup", element: <SetupPage /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          // The first run goes on here once the administrator's account is made.
+          {
+            path: "/setup/server",
+            ...onDemand(
+              withWords(["settings"], () => import("@/pages/SetupServerPage")),
+              (m) => m.SetupServerPage,
+              () => [],
+              <Splash />,
+            ),
+          },
+          { path: "/setup/start", element: <SetupStartPage /> },
+          {
+            path: "/setup/library",
+            ...onDemand(
+              withWords(["settings"], () => import("@/pages/SetupLibraryPage")),
+              (m) => m.SetupLibraryPage,
+              () => [],
+              <Splash />,
+            ),
+          },
+          {
+            path: "/setup/plex",
+            ...onDemand(
+              withWords(["settings"], () => import("@/pages/plexImport/PlexSetupPage")),
+              (m) => m.PlexSetupPage,
+              () => [],
+              <Splash />,
+            ),
+          },
+        ],
+      },
+    ],
+  },
   { path: "/login", element: <LoginPage />, errorElement: <RouteErrorPage /> },
   { path: "/invite/:code", element: <InvitePage />, errorElement: <RouteErrorPage /> },
   // Where the way back to an app leads once its request is over.
@@ -100,35 +142,6 @@ const router = createBrowserRouter([
     errorElement: <RouteErrorPage />,
     children: [
       { path: "/profiles", element: <ProfilesPage /> },
-      // The first run goes on here once the administrator's account is made.
-      {
-        path: "/setup/server",
-        ...onDemand(
-          withWords(["settings"], () => import("@/pages/SetupServerPage")),
-          (m) => m.SetupServerPage,
-          () => [],
-          <Splash />,
-        ),
-      },
-      { path: "/setup/start", element: <SetupStartPage /> },
-      {
-        path: "/setup/library",
-        ...onDemand(
-          withWords(["settings"], () => import("@/pages/SetupLibraryPage")),
-          (m) => m.SetupLibraryPage,
-          () => [],
-          <Splash />,
-        ),
-      },
-      {
-        path: "/setup/plex",
-        ...onDemand(
-          withWords(["settings"], () => import("@/pages/plexImport/PlexSetupPage")),
-          (m) => m.PlexSetupPage,
-          () => [],
-          <Splash />,
-        ),
-      },
       // The OAuth authorization endpoint: an app asks to use the account.
       {
         path: "/oauth/authorize",

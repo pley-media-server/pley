@@ -22,6 +22,8 @@ import { Button, Field, PageSpinner, TextInput } from "@/components/ui";
 import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { useOnChange } from "@/lib/hooks";
+import { plexProgress, SETUP_PROGRESS, useSetupFrame } from "@/lib/setupFrame";
+import { SetupStep } from "../SetupLayout";
 import { choicesFor, firstChoices, libraryProblems, type LibraryChoices } from "./choices";
 import { LibrariesStep } from "./LibrariesStep";
 import { BRING_ALL, BringStep } from "./BringStep";
@@ -62,12 +64,28 @@ export function StepFrame({
   const index = stage ? STEPS.indexOf(stage) : -1;
   const titleId = useId();
   const heading = useRef<HTMLHeadingElement>(null);
+  const inSetup = useSetupFrame() !== null;
   // A new step replaces the one whose button was pressed: the focus goes to
   // its title, read out, rather than to the page.
   useEffect(() => {
     const focused = document.activeElement;
     if (!focused || focused === document.body) heading.current?.focus();
   }, []);
+  // In setup, a step of setup's: its bar says how far, and the way back is
+  // on the left, as on setup's other steps.
+  if (inSetup) {
+    return (
+      <SetupStep
+        progress={index >= 0 ? plexProgress(index, STEPS.length) : SETUP_PROGRESS.start}
+        title={title}
+        subtitle={description}
+        headingRef={heading}
+      >
+        {children}
+        {actions ? <div className="flex flex-wrap items-center gap-2 pt-1 [&>:first-child]:me-auto">{actions}</div> : null}
+      </SetupStep>
+    );
+  }
   return (
     <section className="space-y-5" aria-labelledby={titleId}>
       <div>

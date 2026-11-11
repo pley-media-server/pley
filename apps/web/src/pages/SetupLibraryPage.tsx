@@ -10,7 +10,8 @@ import { LibraryIcon } from "@/components/Sidebar";
 import { Button } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
 import { draftPaths, emptyDraft, KINDS, LibraryFields, type LibraryDraft } from "./settings/LibraryFields";
-import { AuthLayout } from "./AuthLayout";
+import { SETUP_PROGRESS } from "@/lib/setupFrame";
+import { SetupActions, SetupStep } from "./SetupLayout";
 
 /** The type to start the next library with: the first not added yet (shows after movies). */
 export function nextKind(libraries: readonly Library[]): LibraryKind {
@@ -27,11 +28,11 @@ export function SetupLibraryPage() {
   const { t } = useTranslation(["pages", "settings"]);
   useDocumentTitle(t("setupLibrary.title"));
   return (
-    <AuthLayout title={t("setupLibrary.title")} subtitle={t("setupLibrary.subtitle")}>
+    <SetupStep progress={SETUP_PROGRESS.libraries} title={t("setupLibrary.title")} subtitle={t("setupLibrary.subtitle")}>
       <RequireAdmin>
         <SetupLibrary />
       </RequireAdmin>
-    </AuthLayout>
+    </SetupStep>
   );
 }
 
@@ -103,33 +104,36 @@ function LibraryForm({ libraries }: { libraries: Library[] }) {
             {error}
           </p>
         ) : null}
-        <div className="space-y-2">
+        <SetupActions
+          back={
+            // Until a library is added, bringing over Plex is still a step back.
+            started ? null : (
+              <Button type="button" variant="ghost" disabled={create.isPending} onClick={() => void navigate("/setup/start", { replace: true })}>
+                {t("common:actions.back")}
+              </Button>
+            )
+          }
+        >
           {started ? (
             <>
-              <Button type="button" variant="primary" size="lg" className="w-full" loading={create.isPending} onClick={() => void startWatching()}>
-                {t("settings:plexImport.startWatching")}
-              </Button>
-              <Button type="submit" className="w-full" disabled={create.isPending}>
+              <Button type="submit" disabled={create.isPending}>
                 {t("setupLibrary.addAnother")}
+              </Button>
+              <Button type="button" variant="primary" loading={create.isPending} onClick={() => void startWatching()}>
+                {t("settings:plexImport.startWatching")}
               </Button>
             </>
           ) : (
             <>
-              <Button type="submit" variant="primary" size="lg" className="w-full" loading={create.isPending}>
+              <Button type="button" variant="ghost" disabled={create.isPending} onClick={() => void navigate("/", { replace: true })}>
+                {t("setupLibrary.later")}
+              </Button>
+              <Button type="submit" variant="primary" loading={create.isPending}>
                 {t("settings:libraries.form.addTitle")}
               </Button>
-              {/* Until a library is added, bringing over Plex is still a step back. */}
-              <div className="flex gap-2">
-                <Button type="button" variant="ghost" className="flex-1" disabled={create.isPending} onClick={() => void navigate("/setup/start", { replace: true })}>
-                  {t("common:actions.back")}
-                </Button>
-                <Button type="button" variant="ghost" className="flex-1" disabled={create.isPending} onClick={() => void navigate("/", { replace: true })}>
-                  {t("setupLibrary.later")}
-                </Button>
-              </div>
             </>
           )}
-        </div>
+        </SetupActions>
       </form>
       <FolderPicker
         open={picker}

@@ -27,14 +27,7 @@ export function AuthLayout({
   const signedIn = useOptionalAuth() !== null;
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-12">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-60"
-        style={{
-          background:
-            "radial-gradient(900px 500px at 15% -10%, color-mix(in oklab, var(--color-accent) 18%, transparent), transparent 60%), radial-gradient(700px 500px at 110% 110%, color-mix(in oklab, var(--color-info) 12%, transparent), transparent 60%)",
-        }}
-      />
+      <AuthBackground />
       <div className={cn("relative w-full animate-pop-in", wide ? "max-w-2xl" : "max-w-sm")}>
         <div className="mb-8 flex justify-center">
           <Logo className="h-10" />
@@ -55,5 +48,19 @@ export function AuthLayout({
         )}
       </div>
     </div>
+  );
+}
+
+/** The glow behind the sign-in and setup screens. */
+export function AuthBackground() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 opacity-60"
+      style={{
+        background:
+          "radial-gradient(900px 500px at 15% -10%, color-mix(in oklab, var(--color-accent) 18%, transparent), transparent 60%), radial-gradient(700px 500px at 110% 110%, color-mix(in oklab, var(--color-info) 12%, transparent), transparent 60%)",
+      }}
+    />
   );
 }

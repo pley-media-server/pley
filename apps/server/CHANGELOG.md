@@ -87,6 +87,11 @@ describes how they are made.
   transcoder's part of it.
 - Home and a library's page show a new library's titles as its files are
   read, every few seconds, instead of only once all of them have been.
+- Setup's steps, from the administrator account to the first libraries or
+  the Plex import, share one card of one width that stays as each step
+  comes in, with how far setup is along its top. Each step's title is in
+  the same style, and from how to start onwards Back is on the left and
+  the way on at the right.
 
 ## [0.1.9] - 2026-11-08
 
