@@ -196,7 +196,7 @@ export function PlexImport({
       );
     case "libraries":
       return (
-        <PlanStep plan={plan} onSignedOut={() => setStage("signIn")}>
+        <PlanStep plan={plan} onSignedOut={() => setStage("signIn")} onBack={() => setStage("server")}>
           {(data) => (
             <LibrariesStep
               plan={data}
@@ -211,7 +211,7 @@ export function PlexImport({
       );
     case "people":
       return (
-        <PlanStep plan={plan} onSignedOut={() => setStage("signIn")}>
+        <PlanStep plan={plan} onSignedOut={() => setStage("signIn")} onBack={() => setStage("server")}>
           {(data) => (
             <PeopleStep plan={data} choices={people} onChange={setPeople} onBack={() => setStage("libraries")} onNext={() => setStage("bring")} />
           )}
@@ -219,7 +219,7 @@ export function PlexImport({
       );
     case "bring":
       return (
-        <PlanStep plan={plan} onSignedOut={() => setStage("signIn")}>
+        <PlanStep plan={plan} onSignedOut={() => setStage("signIn")} onBack={() => setStage("server")}>
           {(data) => (
             <BringStep
               bring={bring}
@@ -267,10 +267,13 @@ export function PlexImport({
 function PlanStep({
   plan,
   onSignedOut,
+  onBack,
   children,
 }: {
   plan: ReturnType<typeof usePlexPlan>;
   onSignedOut: () => void;
+  /** To the server step: another server, or the address typed for this one. */
+  onBack: () => void;
   children: (plan: ImportPlan) => ReactNode;
 }) {
   const { t } = useTranslation(["settings", "common"]);
@@ -281,15 +284,20 @@ function PlanStep({
       <StepFrame
         title={t("plexImport.plan.couldntRead")}
         actions={
-          signedOut ? (
-            <Button variant="primary" onClick={onSignedOut}>
-              {t("plexImport.signIn.again")}
+          <>
+            <Button variant="ghost" onClick={onBack}>
+              {t("common:actions.back")}
             </Button>
-          ) : (
-            <Button variant="primary" onClick={() => void plan.refetch()}>
-              {t("common:actions.retry")}
-            </Button>
-          )
+            {signedOut ? (
+              <Button variant="primary" onClick={onSignedOut}>
+                {t("plexImport.signIn.again")}
+              </Button>
+            ) : (
+              <Button variant="primary" onClick={() => void plan.refetch()}>
+                {t("common:actions.retry")}
+              </Button>
+            )}
+          </>
         }
       >
         <ErrorNote>{errorMessage(plan.error)}</ErrorNote>

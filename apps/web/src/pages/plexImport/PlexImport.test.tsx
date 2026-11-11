@@ -99,7 +99,8 @@ function serve({
   progress?: () => ImportProgress;
   servers?: PlexServer[];
   connect?: () => unknown;
-  thePlan?: ImportPlan;
+  /** Null: Plex doesn't answer. */
+  thePlan?: ImportPlan | null;
   pleyLibraries?: Library[];
   /** Whether a folder is there for Pley. */
   exists?: (path: string) => boolean;
@@ -120,7 +121,7 @@ function serve({
     },
     "GET /api/import/plex/servers": () => servers,
     "POST /api/import/plex/server": () => connect(),
-    "GET /api/import/plex/plan": () => thePlan,
+    "GET /api/import/plex/plan": () => thePlan ?? apiError(502, "plex_unreachable", "Plex didn't answer"),
     "POST /api/import/plex/start": () => undefined,
     "POST /api/import/plex/folder": (req) => ({ state: check(req.body as { library: string; plex: string; pley: string }) }),
     "GET /api/libraries": () => pleyLibraries,
@@ -392,6 +393,16 @@ describe("PlexImport", () => {
     await user.type(folder, "/elsewhere");
     await waitFor(() => expect(requests.some((r) => (r.body as { pley?: string } | undefined)?.pley === "/elsewhere")).toBe(true));
     expect(screen.queryByText(/files are here|can't open/)).not.toBeInTheDocument();
+  });
+
+  it("goes back to the servers when Plex's can't be read", async () => {
+    const user = userEvent.setup();
+    serve({ thePlan: null });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Start watching" />);
+    expect(await screen.findByRole("heading", { name: "Pley couldn't read your Plex server" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    expect(await screen.findByRole("heading", { name: "Which server?" })).toBeInTheDocument();
   });
 
   it("brings a library back into the Pley library with its files once turned on again", async () => {
