@@ -150,7 +150,7 @@ describe("PlexImport", () => {
     // Giving it brings the library, under Plex's name.
     await user.type(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"), "/media/tv");
     expect(tv).toBeChecked();
-    expect(screen.getByText(/A new library named/)).toHaveTextContent("A new library named TV Shows");
+    expect(screen.getAllByText(/Goes into/)).toHaveLength(1);
     await user.clear(screen.getByLabelText("Plex sees /data/tv. Where does Pley see it?"));
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.getByRole("alert")).toHaveTextContent("Say where at least one of its folders is for Pley.");

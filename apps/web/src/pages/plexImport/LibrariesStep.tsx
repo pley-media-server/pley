@@ -175,14 +175,10 @@ function LibraryRow({
         <Toggle checked={choice.target !== "leave"} onChange={setBrought} label={t("plexImport.libraries.bring", { name: library.title })} />
       </div>
 
-      {choice.target !== "leave" ? (
+      {/* A new library needs no saying: it's the one under Plex's name. */}
+      {into ? (
         <p className="mt-2 text-sm text-muted">
-          <Trans
-            t={t}
-            i18nKey={into ? "plexImport.libraries.goesInto" : "plexImport.libraries.newNamed"}
-            values={{ name: into?.name ?? library.title }}
-            components={{ name: <span className="font-medium text-fg" /> }}
-          />
+          <Trans t={t} i18nKey="plexImport.libraries.goesInto" values={{ name: into.name }} components={{ name: <span className="font-medium text-fg" /> }} />
         </p>
       ) : null}
       {choice.target !== "leave" && status === "unsure" ? <p className="mt-1 text-xs text-warning">{t("plexImport.libraries.unsureHint")}</p> : null}

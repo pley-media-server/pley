@@ -881,7 +881,6 @@
       },
       "pickOne": "Choisissez au moins une bibliothèque à importer.",
       "goesInto": "Va dans <name>{{name}}</name>",
-      "newNamed": "Une nouvelle bibliothèque nommée <name>{{name}}</name>",
       "bring": "Importer {{name}}",
       "check": {
         "found": "Les fichiers de Plex sont ici",

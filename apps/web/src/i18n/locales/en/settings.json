@@ -860,7 +860,6 @@
       },
       "pickOne": "Choose at least one library to bring.",
       "goesInto": "Goes into <name>{{name}}</name>",
-      "newNamed": "A new library named <name>{{name}}</name>",
       "bring": "Bring {{name}}",
       "check": {
         "found": "Plex's files are here",
