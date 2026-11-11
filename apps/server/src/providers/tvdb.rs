@@ -282,7 +282,7 @@ impl Tvdb {
                 }
             }
         };
-        Ok(to_meta(series, episodes, translated, &lang, country(&settings.metadata_language)))
+        Ok(to_meta(series, episodes, translated, &lang, country(&crate::ratings::region_in(settings))))
     }
 
     async fn find(&self, auth: &Credentials, show: &ShowRow) -> Result<Option<i64>, ProviderError> {
@@ -498,10 +498,10 @@ const COUNTRIES: &[(&str, &str)] = &[
     ("TW", "twn"),
 ];
 
-/// The country TheTVDB files content ratings under (ISO 3166 alpha-3, "en-US"
-/// → "usa").
-pub(crate) fn country(setting: &str) -> &'static str {
-    let region = setting.split(['-', '_']).nth(1).unwrap_or_default();
+/// The country TheTVDB files content ratings under (ISO 3166 alpha-3) for
+/// the server's country (alpha-2, "GB" → "gbr"); the US's for one it
+/// doesn't list.
+fn country(region: &str) -> &'static str {
     COUNTRIES.iter().find(|(alpha2, _)| alpha2.eq_ignore_ascii_case(region)).map_or("usa", |(_, alpha3)| alpha3)
 }
 
@@ -814,10 +814,10 @@ mod tests {
         assert_eq!(language("zh-CN"), "zho");
         assert_eq!(language("nb-NO"), "nor");
         assert_eq!(language("xx"), "eng");
-        assert_eq!(country("en-US"), "usa");
-        assert_eq!(country("en-GB"), "gbr");
-        assert_eq!(country("de-DE"), "deu");
-        assert_eq!(country("en"), "usa");
+        assert_eq!(country("US"), "usa");
+        assert_eq!(country("GB"), "gbr");
+        assert_eq!(country("de"), "deu");
+        assert_eq!(country("XX"), "usa");
     }
 
     #[test]

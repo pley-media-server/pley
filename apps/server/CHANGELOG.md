@@ -91,6 +91,12 @@ describes how they are made.
 - Home and a library's page show a new library's titles as its files are
   read, every few seconds, instead of only once all of them have been.
 
+### Fixed
+
+- TheTVDB's content ratings are the server's country's (Settings ›
+  Server), as TMDB's are, rather than the country of the language titles
+  and summaries are in: a UK server with US English titles had US ratings.
+
 ## [0.1.9] - 2026-11-08
 
 ### Added
