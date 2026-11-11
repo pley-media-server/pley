@@ -27,7 +27,10 @@ never changes anything on Plex.
   which: "only titles with this label", a field other than ratings and
   labels, a disallowed rating Pley doesn't know, or a label never allowed
   that can't be kept (past 50 of them, or longer than a label can be)
-  give the youngest age limit. A list of disallowed ratings with a gap
+  give the youngest age limit. A label always allowed is kept only when
+  the rest of the restriction lets its titles through too (not beside
+  another list of ratings, say); otherwise it's one of the rules Pley
+  can't keep. A list of disallowed ratings with a gap
   (PG-13 disallowed but R allowed) hides everything above the youngest of
   them: an age limit can't have gaps. Disallowing unrated titles is what
   any age limit does, so on its own it gives the oldest. A managed user's Plex preset becomes an

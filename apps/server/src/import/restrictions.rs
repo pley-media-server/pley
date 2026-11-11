@@ -12,8 +12,9 @@
 //! a rating on the list or the label `Override: Kids`, and never the label
 //! `Override: Adult`. Pley has one age limit for every library, so the
 //! lower of the rules' wins; "never" labels come from any rule, "always"
-//! labels only from those every rule with ratings has, so no library opens
-//! wider than Plex had it.
+//! labels only from those every rule with ratings has, and that every other
+//! part of their rule lets through, so no library opens wider than Plex had
+//! it.
 
 use std::collections::BTreeMap;
 
@@ -198,6 +199,9 @@ fn age_of(rating: &str, country: &str, kind: Kind) -> Option<i64> {
 /// A rule as Plex writes it, read.
 fn read(rule: &str) -> Rule {
     let mut out = Rule::default();
+    // Each part's labels shown whatever the rating, and whether the part
+    // limits what's shown (more than labels never shown).
+    let mut parts: Vec<(Vec<String>, bool)> = Vec::new();
     for all in rule.split('&').filter(|t| !t.trim().is_empty()) {
         let mut ratings: Option<Vec<String>> = None;
         let (mut always, mut never, mut denied, mut other) = (Vec::new(), Vec::new(), Vec::new(), Vec::new());
@@ -223,6 +227,7 @@ fn read(rule: &str) -> Rule {
         // title had to pass one, so the strictest it has, never none. One
         // beside a rating or label only lets more through on Plex.
         let unkept = !other.is_empty() && never.is_empty() && denied.is_empty() && always.is_empty();
+        let limiting = ratings.is_some() || !denied.is_empty() || !other.is_empty() || !always.is_empty();
         out.never.extend(never);
         out.denied.extend(denied);
         out.not_kept.extend(other);
@@ -237,16 +242,34 @@ fn read(rule: &str) -> Rule {
                     Some(before) => before.into_iter().filter(|r| list.iter().any(|l| l == r)).collect(),
                     None => list,
                 });
-                out.always.extend(always);
             }
             // Only titles with these labels: Pley has no such limit, so the
             // strictest it has (rated for all, or labelled), never none.
             None if !always.is_empty() => {
                 out.ratings = Some(Vec::new());
-                out.always.extend(always);
                 out.not_kept.push(decode(all));
             }
             None => {}
+        }
+        parts.push((always, limiting));
+    }
+    // On Plex a title with such a label still had to pass the rule's other
+    // parts; Pley shows it whatever else, so only where every other part
+    // lets it through too.
+    for (i, (always, _)) in parts.iter().enumerate() {
+        for label in always {
+            let through = parts
+                .iter()
+                .enumerate()
+                .all(|(j, (theirs, limiting))| j == i || !limiting || theirs.iter().any(|l| same_label(l, label)));
+            if through {
+                push_unique(&mut out.always, label);
+            } else {
+                let term = format!("label={label}");
+                if !out.not_kept.contains(&term) {
+                    out.not_kept.push(term);
+                }
+            }
         }
     }
     out
@@ -400,6 +423,28 @@ mod tests {
         assert_eq!(limits("", "", "", "US"), Limits::default());
         let l = limits("label!=Scary", "", "", "US");
         assert_eq!((l.max_age, l.system, l.hide), (None, None, vec!["Scary".to_owned()]));
+    }
+
+    #[test]
+    fn always_needs_every_other_part_of_the_rule() {
+        // Plex let a Kids title through only if it passed the other part
+        // too: a list of ratings, ratings denied, or a field Pley doesn't
+        // have. Shown whatever its rating, it would be wider than that.
+        for rule in [
+            "contentRating=G|label=Kids&contentRating=G,PG",
+            "contentRating=G|label=Kids&contentRating!=R",
+            "contentRating=G|label=Kids&genre=Animation",
+        ] {
+            let l = limits(rule, "", "", "US");
+            assert!(l.show.is_empty(), "{rule}: {l:?}");
+            assert!(l.not_kept.contains(&"label=Kids".to_owned()), "{rule}: {l:?}");
+        }
+        // Every part lets it through, or the other part only hides labels.
+        let l = limits("contentRating=G|label=Kids&contentRating=G,PG|label=Kids", "", "", "US");
+        assert_eq!((l.show.as_slice(), l.max_age), (["Kids".to_owned()].as_slice(), Some(0)));
+        let l = limits("contentRating=G|label=Kids&label!=Scary", "", "", "US");
+        assert_eq!((l.show, l.hide), (vec!["Kids".to_owned()], vec!["Scary".to_owned()]));
+        assert!(l.not_kept.is_empty());
     }
 
     #[test]
