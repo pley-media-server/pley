@@ -10,8 +10,9 @@ describes how they are made.
 
 ### Added
 
-- On Android TV, Settings → Display → Home banner turns off the banner
-  of featured titles at the top of Home: Home then opens on its rows.
+- On Android TV, Settings → Subtitles and display → Home banner turns
+  off the banner of featured titles at the top of Home: Home then opens
+  on its rows.
 
 ## [0.1.11] - 2026-11-10
 
