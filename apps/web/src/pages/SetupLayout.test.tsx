@@ -2,12 +2,12 @@ import { Route, Routes } from "react-router";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { LocationDisplay, mockApi, renderWithProviders } from "@/test/render";
+import { LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { PlexSetupPage } from "./plexImport/PlexSetupPage";
 import { SetupLayout, SetupStep } from "./SetupLayout";
 import { SetupStartPage } from "./SetupStartPage";
 
-function renderSetup(route: string) {
+function renderSetup(route: string, user = testUser) {
   return renderWithProviders(
     <Routes>
       <Route element={<SetupLayout />}>
@@ -17,7 +17,7 @@ function renderSetup(route: string) {
       </Route>
       <Route path="*" element={<LocationDisplay />} />
     </Routes>,
-    { route },
+    { route, user },
   );
 }
 
@@ -29,6 +29,11 @@ describe("SetupLayout", () => {
     expect(screen.getByRole("progressbar", { name: "How far setup is" })).toHaveAttribute("aria-valuenow", "75");
     await user.click(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByTestId("location")).toHaveTextContent(/^\/setup\/server$/);
+  });
+
+  it("sends anyone but an administrator home from how to start", async () => {
+    renderSetup("/setup/start", { ...testUser, is_admin: false });
+    expect(await screen.findByTestId("location")).toHaveTextContent(/^\/$/);
   });
 
   it("puts the focus on a step's title as it comes in, not on the page", async () => {

@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router";
+import { Link, Navigate, useNavigate } from "react-router";
 import { ArrowRight, FolderPlus, Import } from "lucide-react";
+import { useAuth } from "@/auth";
 import { Button } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
 import { SETUP_PROGRESS } from "@/lib/setupFrame";
@@ -11,6 +12,12 @@ import { SetupActions, SetupStep } from "./SetupLayout";
  * start fresh. The question names no server, so others can join Plex here.
  */
 export function SetupStartPage() {
+  const user = useAuth();
+  if (!user.is_admin) return <Navigate to="/" replace />;
+  return <SetupStart />;
+}
+
+function SetupStart() {
   const { t } = useTranslation(["pages", "common"]);
   useDocumentTitle(t("setupStart.title"));
   const navigate = useNavigate();
