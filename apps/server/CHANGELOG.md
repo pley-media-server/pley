@@ -85,6 +85,8 @@ describes how they are made.
   a library scan's reads of other files, when the transcoder has to read
   it first. The log says how long each playback took to start, and the
   transcoder's part of it.
+- Home and a library's page show a new library's titles as its files are
+  read, every few seconds, instead of only once all of them have been.
 
 ## [0.1.9] - 2026-11-08
 

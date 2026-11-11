@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { connectionLost, eventsLive } from "@/lib/connection";
 import { apiError, mockApi, testQueryClient } from "@/test/render";
 import { makeDetail, makeRequest, makeRequestList, makeShowDetail, makeSummary, makeTitle } from "@/test/requests";
-import { LOST_AFTER_MS, onServerEvent, setReceiver, useServerEvents } from "./events";
+import { LOST_AFTER_MS, onServerEvent, READING_REFRESH_MS, setReceiver, useServerEvents } from "./events";
 import { keys, useActivity } from "./hooks";
 import { EVERY_REQUEST, requestKeys, type DiscoverPage, type DiscoverTitle } from "./requests";
 import type { Activity, Library, ServerEvent } from "./types";
@@ -170,6 +170,39 @@ describe("useServerEvents", () => {
     }
     expect(fetches).toBeGreaterThan(1);
     expect(client.getQueryData<Activity>(keys.activity)?.scans[0]?.left_secs).toBe(70);
+  });
+
+  it("fetches Home and the library again now and then while its files are read, as their titles go in", () => {
+    const { client, source } = setup();
+    const fetched = () => {
+      client.setQueryData(keys.library(1), library(1, true));
+      client.setQueryData(keys.homeHubs, { hubs: [] });
+      client.setQueryData(keys.item(5), {});
+    };
+    fetched();
+    const read = (processed: number) => act(() => source().send({ type: "scan_progress", library_id: 1, phase: "probing", processed, total: 100 }));
+    read(0);
+    read(10);
+    expect(invalidated(client, keys.homeHubs)).toBe(false);
+    act(() => {
+      vi.advanceTimersByTime(READING_REFRESH_MS);
+    });
+    read(20);
+    expect(invalidated(client, keys.homeHubs)).toBe(true);
+    expect(invalidated(client, keys.library(1))).toBe(true);
+    // Not what a library change refreshes besides.
+    expect(invalidated(client, keys.item(5))).toBe(false);
+
+    // Not again until it's due.
+    fetched();
+    read(30);
+    expect(invalidated(client, keys.homeHubs)).toBe(false);
+    // Nor for a scan's other phases.
+    act(() => {
+      vi.advanceTimersByTime(READING_REFRESH_MS);
+    });
+    act(() => source().send({ type: "scan_progress", library_id: 1, phase: "metadata", processed: 1, total: 100 }));
+    expect(invalidated(client, keys.homeHubs)).toBe(false);
   });
 
   it("refreshes a changed library once per burst", () => {

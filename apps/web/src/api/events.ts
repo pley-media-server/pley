@@ -10,6 +10,9 @@ import type { Activity, Id, Library, ServerEvent } from "./types";
 /** How long the stream may be down before the pages say the server is out of reach: a restart takes a moment. */
 export const LOST_AFTER_MS = 5_000;
 
+/** How often what lists a library's titles is fetched again while its files are read, and its titles go in. */
+export const READING_REFRESH_MS = 5_000;
+
 type Listener = (ev: ServerEvent) => void;
 const listeners = new Set<Listener>();
 
@@ -148,6 +151,8 @@ export function useServerEvents(userId: Id | null) {
     let connectedBefore = false;
     let lostTimer: number | undefined;
     const pendingLibraries = new Set<Id>();
+    // When each library being read was last fetched again.
+    const readFetched = new Map<Id, number>();
     let pendingWatchState: WatchStateChange | null = null;
     let summaryTimer: number | undefined;
     let requestsTimer: number | undefined;
@@ -279,6 +284,21 @@ export function useServerEvents(userId: Id | null) {
       schedule(300);
     };
 
+    // A scan adds titles as it reads their files, but says the library
+    // changed only once it has read them all: Home and the library's page
+    // fetch them again now and then meanwhile, not the rest a library
+    // change refreshes.
+    const reading = (id: Id) => {
+      const now = Date.now();
+      const last = readFetched.get(id);
+      if (last !== undefined && now - last < READING_REFRESH_MS) return;
+      readFetched.set(id, now);
+      // The first event is the reading's start: nothing's in yet.
+      if (last === undefined) return;
+      void qc.invalidateQueries({ queryKey: keys.library(id) });
+      void qc.invalidateQueries({ queryKey: ["hubs"] });
+    };
+
     const setScanning = (id: Id, scanning: boolean) => {
       // The user's order and the shared one (Settings) alike.
       qc.setQueriesData<Library[]>({ queryKey: keys.libraries }, (old) =>
@@ -289,11 +309,13 @@ export function useServerEvents(userId: Id | null) {
     const handle = (ev: ServerEvent) => {
       switch (ev.type) {
         case "scan_started":
+          readFetched.delete(ev.library_id);
           setScanning(ev.library_id, true);
           void qc.invalidateQueries({ queryKey: keys.activity });
           break;
         case "scan_progress": {
           setScanning(ev.library_id, ev.phase !== "done");
+          if (ev.phase === "probing") reading(ev.library_id);
           // Kept as fetched when it was: an event says less than the server
           // (whether it's a first scan, those done, the time left), and an
           // event never makes one up.
@@ -345,6 +367,7 @@ export function useServerEvents(userId: Id | null) {
           break;
         }
         case "scan_finished":
+          readFetched.delete(ev.library_id);
           setScanning(ev.library_id, false);
           void qc.invalidateQueries({ queryKey: keys.activity });
           scheduleLibrary(ev.library_id);
