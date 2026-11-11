@@ -32,7 +32,6 @@ import app.pley.android.data.ServersRepository
 import app.pley.android.data.Session
 import app.pley.android.data.SessionRepository
 import app.pley.android.data.SessionState
-import app.pley.android.data.Settings
 import app.pley.android.data.SnapshotStore
 import app.pley.android.data.TrackDefaultsRepository
 import app.pley.android.data.WatchStateRepository
@@ -204,11 +203,7 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
         override val trackDefaults: TrackDefaultsRepository get() = unused("trackDefaults")
         override val watchlist: app.pley.android.data.WatchlistRepository get() = unused("watchlist")
         override val playItem: PlayItem get() = unused("playItem")
-        // Home reads whether to show its banner: the defaults.
-        override val settings = object : AppSettings {
-            override val settings: Flow<Settings> = flowOf(Settings())
-            override suspend fun update(change: (Settings) -> Settings) = Unit
-        }
+        override val settings: AppSettings get() = unused("settings")
     }
 
     private fun unused(what: String): Nothing = error("the shell doesn't use $what")

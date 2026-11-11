@@ -241,11 +241,12 @@ rates as the decoder gives them, the same in every language.
   Continue Watching's first and stays. On a phone the same titles are a
   banner under a clear top bar, swiped between and turning by themselves
   (not while touched, scrolled away, or with Reduce motion).
-- On a TV, Settings → Subtitles and display → Home banner turns the
-  hero off. Home then opens on its rows, focus on the first tile, the
-  backdrop and the info block following focus as they do in the rows, and
-  Back goes to the rail. Nothing is featured, so neither the featured
-  titles' details nor the libraries' Top Rated rows are asked for.
+- On a TV the hero is off unless Settings → Subtitles and display →
+  Home banner turns it on. Without it, Home opens on its rows, focus on
+  the first tile, the backdrop and the info block following focus as they
+  do in the rows, and Back goes to the rail. Nothing is featured, so
+  neither the featured titles' details nor the libraries' Top Rated rows
+  are asked for. A phone always shows its banner.
 - A held key never leaves its list, as on a TV's home screen: it stops
   on a row's first or last tile, on a page's first or last row, and at a
   grid's edges, wherever the list is (Home, a show's page, search, a

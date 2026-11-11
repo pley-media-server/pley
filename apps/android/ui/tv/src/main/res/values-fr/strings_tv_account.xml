@@ -78,7 +78,7 @@
     <string name="tv_settings_playback_details">Détails de lecture</string>
     <string name="tv_settings_playback_details_hint">Afficher sur la vidéo comment elle est lue (direct, remux ou transcodage)</string>
     <string name="tv_settings_home_banner">Bannière de l\'accueil</string>
-    <string name="tv_settings_home_banner_hint">Des titres à la une en haut de l\'accueil ; désactivée, l\'accueil s\'ouvre sur ses rangées</string>
+    <string name="tv_settings_home_banner_hint">Des titres à la une en haut de l\'accueil</string>
     <string name="tv_settings_reduce_motion">Réduire les animations</string>
     <string name="tv_settings_reduce_motion_hint">Ni zoom, ni glissement, ni fondu : tout change sur place</string>
     <string name="tv_settings_advanced">Avancé</string>

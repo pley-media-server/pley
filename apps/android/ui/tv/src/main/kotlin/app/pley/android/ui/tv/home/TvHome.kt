@@ -102,10 +102,11 @@ import kotlinx.coroutines.launch
  * item, focus lands on the tile it was opened from; when that tile's
  * actions took it out of its row, on its neighbour.
  *
- * With the banner turned off in Settings ([HomeState.Ready.banner]) there
- * is no hero: Home opens on its rows, focus on the first tile, the
- * backdrop and the info block following it as they do in the rows, and
- * Back goes to the rail as from any other page of rows.
+ * The hero is there only with the banner turned on in Settings
+ * ([HomeState.Ready.banner]); it is off by default. Without it, Home opens
+ * on its rows, focus on the first tile, the backdrop and the info block
+ * following it as they do in the rows, and Back goes to the rail as from
+ * any other page of rows.
  */
 @Composable
 internal fun TvHomeScreen(vm: HomeViewModel = viewModel(factory = HomeViewModel.Factory)) {

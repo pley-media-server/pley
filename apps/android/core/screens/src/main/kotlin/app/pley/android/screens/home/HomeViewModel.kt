@@ -77,7 +77,7 @@ interface HomeSources {
     val watchlist: WatchlistRepository
     val launcher: PlayerLauncher
 
-    /** Whether Home opens on its banner ([app.pley.android.data.Settings.homeBanner]). */
+    /** Whether Home opens on its banner: on a TV as its settings say ([app.pley.android.data.Settings.homeBanner]), always on a phone. */
     val banner: Flow<Boolean> get() = flowOf(true)
 
     companion object {
@@ -92,7 +92,8 @@ interface HomeSources {
             override val watchState get() = graph.data.watchState
             override val watchlist get() = graph.data.watchlist
             override val launcher get() = graph.playerLauncher
-            override val banner get() = graph.data.settings.settings.map { it.homeBanner }.distinctUntilChanged()
+            override val banner
+                get() = if (graph.device.isTv) graph.data.settings.settings.map { it.homeBanner }.distinctUntilChanged() else flowOf(true)
         }
     }
 }

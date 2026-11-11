@@ -78,7 +78,7 @@
     <string name="tv_settings_playback_details">Detalles de reproducción</string>
     <string name="tv_settings_playback_details_hint">Mostrar sobre el video cómo se reproduce (directo, remux o transcodificación)</string>
     <string name="tv_settings_home_banner">Banner de Inicio</string>
-    <string name="tv_settings_home_banner_hint">Títulos destacados arriba de Inicio; desactivado, Inicio se abre en sus filas</string>
+    <string name="tv_settings_home_banner_hint">Títulos destacados en la parte superior de Inicio</string>
     <string name="tv_settings_reduce_motion">Reducir el movimiento</string>
     <string name="tv_settings_reduce_motion_hint">Sin zoom, deslizamientos ni fundidos: todo cambia en su sitio</string>
     <string name="tv_settings_advanced">Avanzado</string>

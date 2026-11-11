@@ -85,7 +85,7 @@
     <string name="tv_settings_playback_details">Playback details</string>
     <string name="tv_settings_playback_details_hint">Show how a video plays (direct, remux or transcode) over it</string>
     <string name="tv_settings_home_banner">Home banner</string>
-    <string name="tv_settings_home_banner_hint">Featured titles at the top of Home; off, Home opens on its rows</string>
+    <string name="tv_settings_home_banner_hint">Featured titles at the top of Home</string>
     <string name="tv_settings_reduce_motion">Reduce motion</string>
     <string name="tv_settings_reduce_motion_hint">No zooming, sliding or fading: things change in place</string>
     <string name="tv_settings_advanced">Advanced</string>
