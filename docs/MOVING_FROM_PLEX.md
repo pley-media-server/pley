@@ -153,7 +153,8 @@ gets the titles it lacks, and nothing is reordered or removed. Profiles
 made by an earlier import are found again;
 they keep the age limit set in Pley (or get Plex's, when they have none),
 and their picture and colour, and get Plex's new labels added to their
-rules.
+rules. A library the import makes opens for those who could open it on
+Plex; one already in Pley stays as you set it.
 
 Stopping an import keeps what came over, and makes Pley forget the Plex
 sign-in. Pley keeps the sign-in in memory only, so restarting the server

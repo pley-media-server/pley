@@ -953,13 +953,16 @@ async fn brings_libraries_people_and_what_they_watched() {
         .patch(&format!("/api/users/{kid_id}"), &admin, json!({"disabled": true, "max_age": null, "hide_labels": full}))
         .await;
     assert!(r.status.is_success(), "{:?}", r.body);
+    // Plex's movies into a library of their own: the kid, who could open
+    // them on Plex, may open it.
+    app.media_file("films/Alien (1979).mkv", 1024);
     let r = app
         .post(
             "/api/import/plex/start",
             &admin,
             json!({
-                "libraries": [{"key": "1", "library_id": movies}],
-                "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("movies")}],
+                "libraries": [{"key": "1", "new": {"name": "Films", "paths": [app.media_path("films")]}}],
+                "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("films")}],
                 "users": [{"id": 885}],
             }),
         )
@@ -971,6 +974,14 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(done["report"]["profiles"][1]["left_over"], json!(["Scary"]));
     assert_eq!(done["report"]["profiles"][1]["max_age"], 0);
     assert_eq!(one(&app, "SELECT max_age FROM users WHERE id = ?", kid_id).await, 0);
+    let films = done["report"]["libraries"][0]["library_id"].as_i64().unwrap();
+    let opened: Vec<i64> =
+        sqlx::query_scalar("SELECT library_id FROM user_libraries WHERE user_id = ? ORDER BY library_id")
+            .bind(kid_id)
+            .fetch_all(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!(opened, [movies, films]);
 
     // Forgetting the sign-in.
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);

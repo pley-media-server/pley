@@ -1702,9 +1702,11 @@ impl Run {
                     // them: only then may the profile open all of Pley's.
                     let everything =
                         all_sections.iter().all(|k| sections.contains(*k)) && self.all_paired(paired).await?;
-                    let open: Vec<i64> =
-                        paired.iter().filter(|p| sections.contains(&p.key)).map(|p| p.library_id).collect();
-                    let (user_id, created) = self.profile(user, &limits, everything, &open, &mut report).await?;
+                    let open: Vec<&Paired> = paired.iter().filter(|p| sections.contains(&p.key)).collect();
+                    let made: Vec<i64> =
+                        open.iter().filter(|p| self.report.libraries[p.report].created).map(|p| p.library_id).collect();
+                    let open: Vec<i64> = open.iter().map(|p| p.library_id).collect();
+                    let (user_id, created) = self.profile(user, &limits, everything, &open, &made, &mut report).await?;
                     self.picture(user_id, user).await?;
                     report.user_id = Some(user_id);
                     report.created = created;
@@ -1805,13 +1807,16 @@ impl Run {
     /// managed profile of the home, made in one go with its limits and the
     /// libraries it may open (all of them only when `everything`, else
     /// `open`). One an earlier import made gets the labels added to its own
-    /// rules, and the age limit only when it has none. Whether it's new.
+    /// rules, the age limit only when it has none, and of the libraries it
+    /// may open those this run `made`: the others were the administrator's
+    /// to give. Whether it's new.
     async fn profile(
         &self,
         user: &HomeUser,
         limits: &Limits,
         everything: bool,
         open: &[i64],
+        made: &[i64],
         report: &mut ProfileReport,
     ) -> ImportResult<(i64, bool)> {
         let db = &self.state.db;
@@ -1860,6 +1865,16 @@ impl Run {
                     age
                 };
                 sqlx::query("DELETE FROM user_label_rules WHERE user_id = ?").bind(id).execute(&mut *tx).await?;
+                for library in made {
+                    sqlx::query(
+                        "INSERT OR IGNORE INTO user_libraries (user_id, library_id)
+                         SELECT id, ? FROM users WHERE id = ? AND NOT all_libraries",
+                    )
+                    .bind(library)
+                    .bind(id)
+                    .execute(&mut *tx)
+                    .await?;
+                }
                 (id, false, age)
             }
             None => {
