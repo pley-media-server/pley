@@ -332,8 +332,12 @@ impl Scanner {
                 }
             }
             let req = pending.remove(0);
-            if hold.is_none() && req.files && self.first_scan(req.library_id).await {
-                hold = Some(self.hold.take());
+            if req.files && self.first_scan(req.library_id).await {
+                hold.get_or_insert_with(|| self.hold.take());
+            } else if hold.is_some() && !self.first_pending(&pending).await {
+                // Only a library's first scan holds library work back: a
+                // later one, with none to come, lets it go.
+                hold = None;
             }
             let started = Instant::now();
             let result = self.scan(req).await;
@@ -381,6 +385,16 @@ impl Scanner {
                 total: 0,
             });
         }
+    }
+
+    /// Whether one of `pending` is a library's first scan.
+    async fn first_pending(&self, pending: &[ScanRequest]) -> bool {
+        for req in pending {
+            if req.files && self.first_scan(req.library_id).await {
+                return true;
+            }
+        }
+        false
     }
 
     /// Whether `library_id` was never scanned.

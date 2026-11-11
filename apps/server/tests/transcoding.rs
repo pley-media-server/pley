@@ -1040,6 +1040,47 @@ async fn first_scans_one_behind_another_hold_library_work_until_the_last() {
 }
 
 #[tokio::test]
+async fn a_rescan_after_a_first_scan_lets_library_work_go() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.media_file("old/Old (2019).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "Old", "kind": "movies", "paths": [app.media_path("old")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let old = r.body["id"].as_i64().unwrap();
+    app.wait_for_scans().await;
+
+    // Old's rescan is queued while New's first scan runs.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("new/New (2021).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "New", "kind": "movies", "paths": [app.media_path("new")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("New (2021)"))).await;
+    let r = app.post(&format!("/api/libraries/{old}/scan"), admin, json!({"force": true})).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let held = || app.state.schedule.turn(pley::schedule::Class::Soon) == Err(pley::schedule::Wait::Scanning);
+    assert!(held());
+
+    // Old reads its file again slowly: New's done, so nothing holds.
+    *w.fake.probe_delay.lock() = Duration::from_secs(2);
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    // New's file read first, slowly too.
+    for _ in 0..1000 {
+        if w.fake.probes.lock().iter().filter(|p| p.contains("Old (2019)")).count() == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(app.state.scanner.is_scanning(old));
+    assert!(!held(), "a rescan holds nothing back");
+    *w.fake.probe_delay.lock() = Duration::ZERO;
+    app.wait_for_scans().await;
+}
+
+#[tokio::test]
 async fn a_first_scan_says_how_long_its_files_have_left_once_it_has_read_for_a_while() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
