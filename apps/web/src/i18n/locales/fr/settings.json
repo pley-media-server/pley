@@ -1025,6 +1025,7 @@
       "incomplete": "Plex a refusé certaines de ses listes : une partie de ce qu’elle a regardé n’a pas été importée.",
       "playlistsIncomplete": "Plex a refusé certaines de ses listes de lecture : elles n’ont pas toutes été importées.",
       "notKept": "Règles que Pley n’a pas pu garder, alors il masque davantage :",
+      "notKeptOwnLimit": "Règles que Pley n’a pas pu garder ; le profil garde la limite d’âge qu’il a dans Pley :",
       "waiting_one": "Ce profil aura accès à {{libraries}} à la fin d’une importation, quand les étiquettes qu’il ne voit jamais seront sur les titres de cette bibliothèque. Vous pouvez lui en donner l’accès plus tôt dans Paramètres › Utilisateurs.",
       "waiting_many": "Ce profil aura accès à {{libraries}} à la fin d’une importation, quand les étiquettes qu’il ne voit jamais seront sur les titres de ces bibliothèques. Vous pouvez lui en donner l’accès plus tôt dans Paramètres › Utilisateurs.",
       "waiting_other": "Ce profil aura accès à {{libraries}} à la fin d’une importation, quand les étiquettes qu’il ne voit jamais seront sur les titres de ces bibliothèques. Vous pouvez lui en donner l’accès plus tôt dans Paramètres › Utilisateurs.",

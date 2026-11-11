@@ -526,6 +526,14 @@ describe("PlexImport", () => {
     expect(screen.getByText(/^Titles Pley couldn't find don't have Plex's labels/)).toBeInTheDocument();
   });
 
+  it("says a profile found again kept its own age limit rather than hiding more", async () => {
+    const found = { ...report.profiles[0]!, not_kept: ["genre=Kids"], kept_limit: true };
+    serve({ progress: () => ({ ...idle, state: "done", report: { ...report, profiles: [found] } }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
+    expect(await screen.findByText(/the profile keeps the age limit it has in Pley/)).toBeInTheDocument();
+    expect(screen.queryByText(/so it hides more instead/)).not.toBeInTheDocument();
+  });
+
   it("says nothing of waiting once the libraries opened", async () => {
     const opened = { ...report.profiles[0]!, waiting: [] };
     serve({ progress: () => ({ ...idle, state: "done", report: { ...report, profiles: [opened] } }) });

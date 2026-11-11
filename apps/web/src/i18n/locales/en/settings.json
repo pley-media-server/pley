@@ -987,6 +987,7 @@
       "incomplete": "Plex refused some of their lists, so some of what they watched didn't come over.",
       "playlistsIncomplete": "Plex refused some of their playlists, so not all of them came over.",
       "notKept": "Rules Pley couldn't keep, so it hides more instead:",
+      "notKeptOwnLimit": "Rules Pley couldn't keep; the profile keeps the age limit it has in Pley:",
       "waiting_one": "This profile gets {{libraries}} once an import finishes, when the labels it never sees are on that library's titles. You can give it access sooner in Settings › Users.",
       "waiting_other": "This profile gets {{libraries}} once an import finishes, when the labels it never sees are on those libraries' titles. You can give it access sooner in Settings › Users.",
       "missedUnlabelled": "Titles Pley couldn't find don't have Plex's labels, so the labels this profile never sees don't hide them.",

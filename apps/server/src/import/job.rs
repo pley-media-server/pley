@@ -378,6 +378,10 @@ pub struct ProfileReport {
     /// to a profile with labels it never sees once a run finishes.
     #[serde(default)]
     pub waiting: Vec<String>,
+    /// Found again with an age limit of its own, which it kept: rules not
+    /// kept didn't make it stricter.
+    #[serde(default)]
+    pub kept_limit: bool,
 }
 
 // ---- The plan ----
@@ -1993,14 +1997,15 @@ impl Run {
         let waits = !hide.is_empty();
 
         let mut tx = db.write.begin().await?;
-        let (id, created, max_age) = match found {
+        let (id, created, max_age, kept_limit) = match found {
             Some(id) => {
                 let (age, born, all): (Option<i64>, Option<String>, bool) =
                     sqlx::query_as("SELECT max_age, birth_month, all_libraries FROM users WHERE id = ?")
                         .bind(id)
                         .fetch_one(&mut *tx)
                         .await?;
-                let age = if age.is_none() && born.is_none() && max_age.is_some() {
+                let kept = age.is_some() || born.is_some();
+                let age = if !kept && max_age.is_some() {
                     sqlx::query("UPDATE users SET max_age = ?, max_age_system = ? WHERE id = ?")
                         .bind(max_age)
                         .bind(&limits.system)
@@ -2044,7 +2049,7 @@ impl Run {
                             .await?;
                     }
                 }
-                (id, false, age)
+                (id, false, age, kept)
             }
             None => {
                 let username = free_username(db, &user.title).await?;
@@ -2086,7 +2091,7 @@ impl Run {
                             .await?;
                     }
                 }
-                (id, true, max_age)
+                (id, true, max_age, false)
             }
         };
         accounts::add_label_rules(&mut tx, id, "show", &show).await?;
@@ -2102,6 +2107,7 @@ impl Run {
         report.hide_labels = limits.hide.clone();
         report.left_over = left_over;
         report.not_kept = limits.not_kept.clone();
+        report.kept_limit = kept_limit;
         Ok((id, created))
     }
 

@@ -4668,7 +4668,8 @@ interface ImportProgress {
                 playlists: number;         // their playlists, made or added to
                 incomplete: boolean;       // Plex refused some of their watch history
                 playlists_incomplete: boolean;       // Plex refused some of their playlists
-                waiting: string[] }[];     // libraries, by name, it gets once a run finishes (labels it never sees)
+                waiting: string[];         // libraries, by name, it gets once a run finishes (labels it never sees)
+                kept_limit: boolean }[];   // found again, it kept its own age limit: not_kept made nothing stricter
     labels_added: number;
     dates_moved: number;
     matches_fixed: number;                // titles matched again to Plex's TMDB entry

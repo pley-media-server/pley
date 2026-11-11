@@ -926,6 +926,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(done["report"]["profiles"][1]["user_id"], kid_id);
     assert_eq!(done["report"]["profiles"][1]["created"], false);
     assert_eq!(done["report"]["profiles"][1]["waiting"], json!([]), "no library new to it");
+    assert_eq!(done["report"]["profiles"][1]["kept_limit"], true, "its age limit, set by the first");
     assert_eq!(done["report"]["libraries"][1]["library_id"], Value::Null, "TV left out this time");
     assert_eq!(one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await, users_before);
     assert_eq!(one(&app, "SELECT COUNT(*) FROM play_history WHERE user_id > ?", 0).await, 3);
@@ -998,6 +999,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(one(&app, "SELECT disabled FROM users WHERE id = ?", kid_id).await, 1);
     assert_eq!(done["report"]["profiles"][1]["left_over"], json!(["Scary"]));
     assert_eq!(done["report"]["profiles"][1]["max_age"], 0);
+    assert_eq!(done["report"]["profiles"][1]["kept_limit"], false, "none of its own");
     assert_eq!(one(&app, "SELECT max_age FROM users WHERE id = ?", kid_id).await, 0);
     let films = done["report"]["libraries"][0]["library_id"].as_i64().unwrap();
     let opened: Vec<i64> =

@@ -157,7 +157,7 @@ with Fix Match in Pley, locked, or matched by its NFO file. A collection or play
 gets the titles it lacks, and nothing is reordered or removed. Profiles
 made by an earlier import are found again;
 they keep the age limit set in Pley (or get Plex's, when they have none),
-and their picture and colour, and get Plex's new labels added to their
+which a rule Pley can't keep doesn't make stricter, and their picture and colour, and get Plex's new labels added to their
 rules. A library the import makes opens for those who could open it on
 Plex; one already in Pley stays as you set it.
 

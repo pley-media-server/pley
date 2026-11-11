@@ -472,7 +472,7 @@ function ProfileLine({
       {p.playlists_incomplete ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.playlistsIncomplete")}</p> : null}
       {p.not_kept.length > 0 ? (
         <p className="mt-0.5 text-xs text-warning">
-          {t("plexImport.report.notKept")} <span className="font-mono">{p.not_kept.join(", ")}</span>
+          {t(p.kept_limit ? "plexImport.report.notKeptOwnLimit" : "plexImport.report.notKept")} <span className="font-mono">{p.not_kept.join(", ")}</span>
         </p>
       ) : null}
       {p.waiting?.length ? (

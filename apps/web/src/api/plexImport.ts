@@ -144,6 +144,8 @@ export interface ProfileReport {
   playlists_incomplete?: boolean;
   /** Libraries it waits for, by name: they open to a profile with labels it never sees once a run finishes. */
   waiting?: string[];
+  /** Found again with an age limit of its own, which it kept: rules not kept didn't make it stricter. */
+  kept_limit?: boolean;
 }
 
 export interface ImportReport {
