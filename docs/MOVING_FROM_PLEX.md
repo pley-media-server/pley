@@ -156,7 +156,9 @@ and their picture and colour, and get Plex's new labels added to their
 rules. A library the import makes opens for those who could open it on
 Plex; one already in Pley stays as you set it.
 
-Stopping an import keeps what came over. However an import ends, Pley
+Stopping an import keeps what came over, and the libraries it made fetch
+their posters and details all the same, as they do after a restart cuts
+one short. However an import ends, Pley
 forgets the Plex sign-in, so importing again starts by signing in. Pley
 keeps the sign-in in memory only, so restarting the server forgets it
 too.

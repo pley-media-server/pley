@@ -845,6 +845,21 @@ impl Importer {
         .unwrap_or(FolderCheck::Untold)
     }
 
+    /// After a restart that cut a run short: the libraries it made fetch
+    /// their details, which the run would have done last. The ones queued.
+    pub async fn after_restart(&self, state: &AppState) -> Vec<i64> {
+        let running: Option<String> = sqlx::query_scalar("SELECT value FROM settings WHERE key = ?")
+            .bind(RUNNING_KEY)
+            .fetch_optional(&state.db.read)
+            .await
+            .ok()
+            .flatten();
+        match running.and_then(|at| at.parse().ok()) {
+            Some(started_at) => fetch_made(state, started_at).await,
+            None => Vec::new(),
+        }
+    }
+
     /// Home user `id`'s picture, as the last plan found it: a JPEG.
     pub async fn user_picture(&self, id: i64) -> Option<Vec<u8>> {
         self.session.lock().await.pictures.get(&id).cloned()
@@ -927,6 +942,7 @@ impl Importer {
             report: Report::default(),
             again: false,
             playlists_counted: HashSet::new(),
+            fetched: false,
         };
         tokio::spawn(run.go(choices));
         Ok(())
@@ -1129,6 +1145,8 @@ struct Run {
     /// The playlists the report counts already: the second round adds to
     /// those the first made.
     playlists_counted: HashSet<i64>,
+    /// Whether the fetch has been asked for.
+    fetched: bool,
 }
 
 /// A library being brought: Plex's, Pley's.
@@ -1200,6 +1218,12 @@ impl Run {
         let hold = self.state.schedule.hold();
         let outcome = self.run(choices).await;
         drop(hold);
+        // Stopped before its fetch: the libraries it made fetch their
+        // details all the same, rather than at their next scan.
+        if !self.fetched {
+            let started_at = self.importer.progress.lock().started_at;
+            fetch_made(&self.state, started_at).await;
+        }
         // Only a run that finished has every label it could bring on Pley's
         // titles: one that stopped leaves its held profiles off.
         if outcome.is_ok()
@@ -1623,11 +1647,12 @@ impl Run {
     /// Fetches the libraries' metadata, now that Plex's ids are on the
     /// titles it found, and waits for it: titles found only by their ids
     /// need it. Counts the titles fetched of those to fetch.
-    async fn fetch(&self, paired: &[Paired]) -> ImportResult<()> {
+    async fn fetch(&mut self, paired: &[Paired]) -> ImportResult<()> {
         let scanner = &self.state.scanner;
         for library in paired {
             scanner.enqueue_metadata(library.library_id);
         }
+        self.fetched = true;
         self.step(Step::Fetching, 0);
         // Each library's last count, kept once its fetch is done and its
         // status gone.
@@ -2601,6 +2626,20 @@ async fn write_details(db: &Db, details: &[(i64, PlexDetails)]) -> sqlx::Result<
         .await?;
     }
     tx.commit().await
+}
+
+/// Queues the details of the libraries made since `started_at` (Unix
+/// seconds): those of a run that ended before its fetch. The ones queued.
+async fn fetch_made(state: &AppState, started_at: i64) -> Vec<i64> {
+    let made: Vec<i64> = sqlx::query_scalar("SELECT id FROM libraries WHERE created_at >= ? ORDER BY id")
+        .bind(started_at)
+        .fetch_all(&state.db.read)
+        .await
+        .unwrap_or_default();
+    for id in &made {
+        state.scanner.enqueue_metadata(*id);
+    }
+    made
 }
 
 /// Plex's ids on a movie or show Pley hasn't fetched yet, where it has none,

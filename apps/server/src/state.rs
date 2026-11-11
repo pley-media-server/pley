@@ -303,6 +303,10 @@ impl AppState {
         tokio::spawn(async move { watcher.reload().await });
         let state = self.clone();
         tokio::spawn(async move {
+            state.plex_import.after_restart(&state).await;
+        });
+        let state = self.clone();
+        tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(3600));
             loop {
                 tick.tick().await;

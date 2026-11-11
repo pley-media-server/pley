@@ -1022,6 +1022,21 @@ async fn an_import_the_server_restarted_during_says_so() {
         "{progress:?}"
     );
     assert_eq!(progress["report"], Value::Null);
+
+    // The libraries it made fetch their details, which it would have done
+    // last; one from before it doesn't.
+    let made = |name: &str, at: i64| {
+        sqlx::query_scalar::<_, i64>(
+            "INSERT INTO libraries (id, name, kind, paths, created_at, position)
+             VALUES ((SELECT last + 1 FROM library_ids), ?, 'movies', '[]', ?, 0) RETURNING id",
+        )
+        .bind(name.to_owned())
+        .bind(at)
+        .fetch_one(&app.state.db.write)
+    };
+    made("Before", 1_794_000_000).await.unwrap();
+    let films = made("Films", 1_794_100_005).await.unwrap();
+    assert_eq!(app.state.plex_import.after_restart(&app.state).await, [films]);
 }
 
 #[tokio::test]
