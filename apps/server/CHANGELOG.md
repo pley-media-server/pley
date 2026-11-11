@@ -28,6 +28,8 @@ describes how they are made.
 
 - In Settings → Transcoder, the note under "Transcode in memory" says
   only why it is off.
+- Dropdowns' carets stand in from their right edge instead of sitting
+  against it, and a dropdown that can't be changed is greyed out.
 
 ## [0.1.9] - 2026-11-08
 
