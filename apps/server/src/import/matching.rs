@@ -11,9 +11,11 @@
 //! Shows, seasons, artists and albums are also found through an episode or
 //! track found inside them.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use serde::Serialize;
+use unicode_normalization::{UnicodeNormalization, is_nfc};
 
 use crate::db::Db;
 
@@ -24,6 +26,20 @@ use super::plex::Item;
 pub struct Folder {
     pub plex: String,
     pub pley: String,
+}
+
+/// `path` with each accented letter one character (NFC). A Mac often keeps
+/// a name's accents apart from their letters (NFD) where Linux, and Plex
+/// on it, keep them whole: the same name, "Brüno", written two ways.
+pub fn nfc(path: &str) -> Cow<'_, str> {
+    if is_nfc(path) { Cow::Borrowed(path) } else { Cow::Owned(path.nfc().collect()) }
+}
+
+/// Whether `path`'s file name is `name`, however either writes its
+/// accents.
+pub fn named(path: &str, name: &str) -> bool {
+    let own = path.rsplit(['/', '\\']).next().unwrap_or(path);
+    own == name || nfc(own) == nfc(name)
 }
 
 /// Plex's path `file` as Pley sees it, through the first folder it's in,
@@ -55,7 +71,7 @@ fn within<'a>(path: &'a str, folder: &str) -> Option<&'a str> {
 pub fn folder_between(plex: &str, pley: &str) -> Option<Folder> {
     let a: Vec<&str> = plex.split(['/', '\\']).collect();
     let b: Vec<&str> = pley.split(['/', '\\']).collect();
-    let same = a.iter().rev().zip(b.iter().rev()).take_while(|(x, y)| x == y).count();
+    let same = a.iter().rev().zip(b.iter().rev()).take_while(|(x, y)| x == y || nfc(x) == nfc(y)).count();
     if same == 0 {
         return None;
     }
@@ -103,7 +119,7 @@ pub fn folder_for(locations: &[String], plex: &str, pley: &str) -> Option<Folder
 /// What Pley has to match against, read once for the libraries imported.
 #[derive(Default)]
 pub struct Index {
-    /// A file's path: its library, item and size.
+    /// A file's path, in NFC: its library, item and size.
     files: HashMap<String, (i64, i64, i64)>,
     /// An item's parent, grandparent and number, for every item indexed.
     items: HashMap<i64, Parents>,
@@ -136,7 +152,7 @@ impl Index {
         .fetch_all(&db.read)
         .await?;
         for (path, library, item, size) in files {
-            index.files.insert(path, (library, item, size));
+            index.add_file(&path, library, item, size);
         }
         type Row = (i64, i64, String, Option<i64>, Option<i64>, Option<i64>, Option<i64>, Option<String>, Option<i64>);
         let items: Vec<Row> = sqlx::query_as(
@@ -164,10 +180,15 @@ impl Index {
         Ok(index)
     }
 
+    /// Pley's file at `path`, the file of `item` in `library`.
+    fn add_file(&mut self, path: &str, library: i64, item: i64, size: i64) {
+        self.files.insert(nfc(path).into_owned(), (library, item, size));
+    }
+
     /// The item of a file Plex lists, by its path and size, in `library`.
     pub fn by_file(&self, library: i64, folders: &[Folder], file: &str, size: Option<i64>) -> Option<i64> {
         let path = map_path(folders, file)?;
-        let (in_library, item, known) = self.files.get(&path)?;
+        let (in_library, item, known) = self.files.get(nfc(&path).as_ref())?;
         (*in_library == library && size.is_none_or(|s| s == *known)).then_some(*item)
     }
 
@@ -267,6 +288,27 @@ impl Matches {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_file_is_found_however_its_name_writes_its_accents() {
+        // Pley read one on a Mac (NFD), Plex lists it from Linux (NFC); and
+        // the other way round.
+        let mut index = Index::default();
+        index.add_file("/Users/s/Movies/Bru\u{308}no (2009)/Bru\u{308}no.mkv", 1, 7, 100);
+        index.add_file("/Users/s/Movies/Pok\u{e9}mon (2019)/Pok\u{e9}mon.mp4", 1, 8, 200);
+        let folders = [Folder { plex: "/data/movies".into(), pley: "/Users/s/Movies".into() }];
+        assert_eq!(index.by_file(1, &folders, "/data/movies/Br\u{fc}no (2009)/Br\u{fc}no.mkv", Some(100)), Some(7));
+        assert_eq!(
+            index.by_file(1, &folders, "/data/movies/Poke\u{301}mon (2019)/Poke\u{301}mon.mp4", Some(200)),
+            Some(8)
+        );
+        assert!(named("/Users/s/Movies/Poke\u{301}mon.mkv", "Pok\u{e9}mon.mkv"));
+        assert!(!named("/Users/s/Movies/Pokemon.mkv", "Pok\u{e9}mon.mkv"));
+        assert_eq!(
+            folder_between("/data/movies/Br\u{fc}no/Br\u{fc}no.mkv", "/Users/s/Movies/Bru\u{308}no/Bru\u{308}no.mkv"),
+            Some(Folder { plex: "/data/movies".into(), pley: "/Users/s/Movies".into() })
+        );
+    }
 
     #[test]
     fn paths_map_through_the_first_folder_they_are_in() {

@@ -21,7 +21,7 @@ use crate::library::{LibraryKind, get_library};
 use crate::state::AppState;
 use crate::util::{Pace, now, sort_title};
 
-use super::matching::{Folder, Index, Matches, folder_for, map_path};
+use super::matching::{Folder, Index, Matches, folder_for, map_path, named};
 use futures::StreamExt;
 
 use super::plex::{HomeUser, Item, Plex, PlexError, Resource, Section, Server, UserFilters};
@@ -1039,16 +1039,16 @@ async fn pair(
     for (file, size) in &files {
         let name = file.rsplit(['/', '\\']).next().unwrap_or(file);
         let Some(size) = size else { continue };
+        // The name's compared here, not in SQL, for its accents may be
+        // written another way (see `matching::nfc`).
         let hits: Vec<(String, i64, String)> = sqlx::query_as(
             "SELECT f.path, f.library_id, l.kind FROM media_files f JOIN libraries l ON l.id = f.library_id
-             WHERE f.size = ? AND (substr(f.path, -length(?) - 1) IN ('/' || ?, '\\' || ?))",
+             WHERE f.size = ?",
         )
         .bind(size)
-        .bind(name)
-        .bind(name)
-        .bind(name)
         .fetch_all(&db.read)
         .await?;
+        let hits: Vec<_> = hits.into_iter().filter(|(path, ..)| named(path, name)).collect();
         // A file found more than once (a copy) says nothing for sure.
         let [(path, library, library_kind)] = hits.as_slice() else { continue };
         if library_kind != kind.as_str() {
