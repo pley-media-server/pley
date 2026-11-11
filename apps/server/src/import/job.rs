@@ -874,6 +874,30 @@ impl Importer {
         queued
     }
 
+    /// After a library is removed: a profile waiting only for it to be open
+    /// to every library again is. Not while an import runs, which does so
+    /// as it ends.
+    pub async fn after_library_removed(&self, state: &AppState) {
+        if self.progress.lock().state == RunState::Running {
+            return;
+        }
+        let again = async {
+            let mut tx = state.db.write.begin().await?;
+            let users = everything_again(&mut tx).await?;
+            tx.commit().await?;
+            Ok::<_, sqlx::Error>(users)
+        };
+        match again.await {
+            Ok(users) => {
+                for user_id in users {
+                    state.auth.forget_user(user_id);
+                    state.events.send(ServerEvent::OwnLibrariesChanged { user_id });
+                }
+            }
+            Err(e) => tracing::warn!("couldn't open every library to the profiles a Plex import left waiting: {e}"),
+        }
+    }
+
     /// Home user `id`'s picture, as the last plan found it: a JPEG.
     pub async fn user_picture(&self, id: i64) -> Option<Vec<u8>> {
         self.session.lock().await.pictures.get(&id).cloned()
@@ -1081,6 +1105,23 @@ async fn list_libraries(tx: &mut sqlx::SqliteConnection, user_id: i64, except: &
         .execute(&mut *tx)
         .await?;
     Ok(())
+}
+
+/// The profiles waiting to be open to every library that wait for no
+/// library any more, open to every library again.
+async fn everything_again(tx: &mut sqlx::SqliteConnection) -> sqlx::Result<Vec<i64>> {
+    let users: Vec<i64> = sqlx::query_scalar(
+        "UPDATE import_accounts SET waits_for_all = 0
+         WHERE source = ? AND waits_for_all AND user_id NOT IN (SELECT user_id FROM import_waiting_libraries)
+         RETURNING user_id",
+    )
+    .bind(SOURCE)
+    .fetch_all(&mut *tx)
+    .await?;
+    for user in &users {
+        sqlx::query("UPDATE users SET all_libraries = 1 WHERE id = ?").bind(user).execute(&mut *tx).await?;
+    }
+    Ok(users)
 }
 
 /// Profile `user_id` waits for no library an import gave it: the
@@ -1398,18 +1439,7 @@ impl Run {
                 opened.insert(user);
             }
         }
-        let everything: Vec<i64> = sqlx::query_scalar(
-            "UPDATE import_accounts SET waits_for_all = 0
-             WHERE source = ? AND waits_for_all AND user_id NOT IN (SELECT user_id FROM import_waiting_libraries)
-             RETURNING user_id",
-        )
-        .bind(SOURCE)
-        .fetch_all(&mut *tx)
-        .await?;
-        for user in everything {
-            sqlx::query("UPDATE users SET all_libraries = 1 WHERE id = ?").bind(user).execute(&mut *tx).await?;
-            opened.insert(user);
-        }
+        opened.extend(everything_again(&mut tx).await?);
         tx.commit().await?;
         for user_id in opened {
             self.state.auth.forget_user(user_id);

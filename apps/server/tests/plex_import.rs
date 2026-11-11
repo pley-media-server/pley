@@ -1102,6 +1102,29 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert!(r.status.is_success(), "{:?}", r.body);
     assert_eq!(one(&app, "SELECT COUNT(*) FROM import_waiting_libraries WHERE user_id = ?", kid_id).await, 0);
     assert_eq!(waiting_in_report().await, json!([]), "the report says so too");
+
+    // Waiting to be open to every library, for a library removed since: it
+    // is again.
+    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"all_libraries": false})).await;
+    assert!(r.status.is_success(), "{:?}", r.body);
+    let more_tv: i64 = sqlx::query_scalar("SELECT id FROM libraries WHERE name = 'More TV'")
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO import_waiting_libraries (user_id, library_id) VALUES (?, ?)")
+        .bind(kid_id)
+        .bind(more_tv)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE import_accounts SET waits_for_all = 1 WHERE user_id = ?")
+        .bind(kid_id)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+    assert_eq!(app.delete(&format!("/api/libraries/{more_tv}"), &admin).await.status, StatusCode::NO_CONTENT);
+    assert_eq!(one(&app, "SELECT all_libraries FROM users WHERE id = ?", kid_id).await, 1);
+    assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 0);
     assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 0);
 
     // Forgetting the sign-in, before a run.

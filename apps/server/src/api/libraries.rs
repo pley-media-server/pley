@@ -318,6 +318,7 @@ pub async fn remove(State(state): State<AppState>, _admin: AdminUser, Path(id): 
     if result.rows_affected() == 0 {
         return Err(AppError::not_found(format!("library {id} not found")));
     }
+    state.plex_import.after_library_removed(&state).await;
     state.watcher.reload().await;
     state.events.send(ServerEvent::LibrariesChanged);
     Ok(StatusCode::NO_CONTENT)

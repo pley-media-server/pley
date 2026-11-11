@@ -168,7 +168,9 @@ their posters and details all the same, as they do after a restart cuts
 one short. A profile still waiting for libraries gets them when an
 import of them finishes, or when you give it its libraries in Settings ›
 Users; the report names them, and Settings › Users marks the profile,
-even when a restart cut the import short. However an import ends, Pley
+even when a restart cut the import short. Removing a library it waits
+for opens every library to a profile you'd given them all, once it waits
+for nothing else. However an import ends, Pley
 forgets the Plex sign-in, so importing again starts by signing in. Pley
 keeps the sign-in in memory only, so restarting the server forgets it
 too.
