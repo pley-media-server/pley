@@ -137,6 +137,9 @@ internal class State(val options: FixtureServer.Options) {
     @Volatile
     var subtitleSearch = true
 
+    /** The server converts video; off, a quality asked for plays the original, copied. */
+    var convertsVideo = true
+
     /** Subtitles added to files (POST /api/items/{id}/subtitles), by file. */
     val addedSubtitles = HashMap<Long, MutableList<app.pley.android.model.SubtitleTrack>>()
 

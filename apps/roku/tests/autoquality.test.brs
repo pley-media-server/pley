@@ -74,6 +74,13 @@ sub test_aq_the_menus_pick_for_a_file()
     tkEqual(aqPicked("4m", hd), "4m")
     tkEqual(aqPicked("30m", hd), "original", "a quality the file doesn't offer plays the original")
     tkEqual(aqPicked("30m", invalid), "30m", "an unknown file: the whole menu")
+    ' A server that converts no video has only the original to give.
+    tkEqual(aqMenuIds(hd, true), ["original"])
+    tkEqual(aqMenuIds(invalid, true), ["original"])
+    tkEqual(aqMenuFor(hd, true).Count(), 1)
+    tkEqual(aqMenuFor(hd, true)[0].id, "original")
+    tkEqual(aqPicked("auto", hd, true), "original")
+    tkEqual(aqPicked("4m", hd, true), "original")
 end sub
 
 sub test_aq_how_each_choice_is_asked_for()

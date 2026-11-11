@@ -34,7 +34,9 @@ const KEYS = [
   "hardware_decoding",
   "tonemapping",
   "transcode_preset",
+  "transcode_video",
   "max_transcodes",
+  "max_remuxes",
   "throttle_transcodes",
   "transcode_in_memory",
 ] as const satisfies readonly (keyof Settings)[];
@@ -165,6 +167,12 @@ export function TranscoderSettings() {
         const noThrottling = known?.throttling === false;
         const memoryProblem = memoryReason(system.data, form.throttle_transcodes);
         const memoryBudget = tc?.memory?.available ? tc.memory.budget_bytes : 0;
+        // A server before these settings converts video, and counts every stream with the transcodes.
+        const convertsVideo = form.transcode_video !== false;
+        const maxJobsNote = (asked: number) =>
+          tc?.available && tc.max_jobs > 0 && asked > tc.max_jobs ? (
+            <Note>{t(tc.managed ? "transcoder.load.maxJobsManaged" : "transcoder.load.maxJobsExternal", { max: tc.max_jobs })}</Note>
+          ) : null;
 
         return (
           <>
@@ -286,20 +294,38 @@ export function TranscoderSettings() {
             </Group>
 
             <Group title={t("transcoder.load.title")} description={t("transcoder.load.description")}>
-              <Row label={t("transcoder.load.max")} htmlFor="max-transcodes">
+              {form.transcode_video !== undefined ? (
+                <Row label={t("transcoder.load.convertVideo")} hint={t("transcoder.load.convertVideoHint")}>
+                  <Toggle checked={convertsVideo} onChange={(v) => set("transcode_video", v)} label={t("transcoder.load.convertVideo")} />
+                </Row>
+              ) : null}
+              <Row label={t("transcoder.load.max")} htmlFor="max-transcodes" hint={t("transcoder.load.maxHint")}>
                 <TextInput
                   id="max-transcodes"
                   type="number"
                   min={1}
                   max={64}
+                  disabled={!convertsVideo}
                   value={form.max_transcodes}
                   onChange={(e) => set("max_transcodes", Math.max(1, Number(e.target.value) || 1))}
                   className="w-28"
                 />
-                {tc?.available && tc.max_jobs > 0 && form.max_transcodes > tc.max_jobs ? (
-                  <Note>{t(tc.managed ? "transcoder.load.maxJobsManaged" : "transcoder.load.maxJobsExternal", { max: tc.max_jobs })}</Note>
-                ) : null}
+                {convertsVideo ? maxJobsNote(form.max_transcodes) : null}
               </Row>
+              {form.max_remuxes !== undefined ? (
+                <Row label={t("transcoder.load.maxRemuxes")} htmlFor="max-remuxes" hint={t("transcoder.load.maxRemuxesHint")}>
+                  <TextInput
+                    id="max-remuxes"
+                    type="number"
+                    min={1}
+                    max={64}
+                    value={form.max_remuxes}
+                    onChange={(e) => set("max_remuxes", Math.max(1, Number(e.target.value) || 1))}
+                    className="w-28"
+                  />
+                  {maxJobsNote(form.max_remuxes)}
+                </Row>
+              ) : null}
               <Row label={t("transcoder.load.throttle")} hint={t("transcoder.load.throttleHint")}>
                 <Toggle
                   checked={form.throttle_transcodes}

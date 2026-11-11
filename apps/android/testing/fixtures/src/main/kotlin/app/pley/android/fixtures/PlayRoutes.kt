@@ -148,13 +148,17 @@ internal class PlayRoutes(private val s: State) {
         if (!audioOk) reasons += "${chosenAudio.codec.uppercase()} audio isn't supported by this player."
         if (chosenAudio != null && chosenAudio != defaultAudio && !switchesTracks) reasons += "Another audio track than the file's default is played."
         if (burn != null) reasons += "Image subtitles are burned in."
-        val bitrateOk = request.maxBitrate == null || (file.bitrate ?: 0L) <= request.maxBitrate!! * 1_000L
+        // A server that converts no video has no lower quality to give: one asked for plays the original, copied.
+        val bitrateOk = !s.convertsVideo || request.maxBitrate == null || (file.bitrate ?: 0L) <= request.maxBitrate!! * 1_000L
         if (!bitrateOk) reasons += "The file's bitrate is over the quality asked for."
+        if (!s.convertsVideo && (!videoOk || burn != null)) {
+            return Reply.error(409, "video_not_converted", "this server doesn't convert video, which this file needs to play on this device")
+        }
 
         val method = when (request.mode) {
             PlaybackMode.Direct -> PlaybackMethod.Direct
             PlaybackMode.Remux -> PlaybackMethod.Remux
-            PlaybackMode.Transcode -> PlaybackMethod.Transcode
+            PlaybackMode.Transcode -> if (s.convertsVideo) PlaybackMethod.Transcode else PlaybackMethod.Remux
             else -> when {
                 reasons.isEmpty() -> PlaybackMethod.Direct
                 videoOk && burn == null && bitrateOk -> PlaybackMethod.Remux
@@ -216,6 +220,7 @@ internal class PlayRoutes(private val s: State) {
             reasons = reasons,
             reason = reasons.joinToString(" ").ifEmpty { null },
             autoQuality = if (method == PlaybackMethod.Transcode && request.maxBitrate == null) "8m" else null,
+            originalOnly = !s.convertsVideo,
         )
         return Reply.json(PlaybackInfo.serializer(), info)
     }

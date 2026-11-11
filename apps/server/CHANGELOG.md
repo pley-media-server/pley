@@ -9,6 +9,19 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Settings → Transcoder has "Convert video". Turned off, Pley only copies
+  video: files play as they are or with just their sound converted, a
+  quality asked for plays the Original, and a file whose video a device
+  can't play doesn't play there, with a message that says why. Players
+  offer the Original quality alone, and the Plex- and Jellyfin-compatible
+  APIs follow the same rule.
+- Remuxes have a limit of their own, "Max simultaneous remuxes" (8 unless
+  changed). A stream that copies the video, its sound converted or not, no
+  longer takes one of the "Max simultaneous transcodes", which count only
+  streams that convert video.
+
 ## [0.1.9] - 2026-11-08
 
 ### Added

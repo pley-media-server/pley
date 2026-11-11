@@ -541,6 +541,11 @@ export interface PlaybackInfo {
    */
   auto_quality?: string | null;
   /**
+   * The server converts no video: the Quality menu offers the original
+   * alone, and Automatic stays there. Absent otherwise.
+   */
+  original_only?: boolean;
+  /**
    * What the screen gets of HDR video, by name: "Dolby Vision P8.1", "HDR10
    * (Dolby Vision base layer)", "SDR (tone-mapped)"… Absent for SDR video
    * and from older servers.
@@ -989,7 +994,16 @@ export interface Settings {
   hwaccel: HwAccel;
   hardware_decoding: boolean;
   tonemapping: ToneMapping;
+  /**
+   * Convert video for players that can't play a file's as it is, or that
+   * ask for a lower quality. Off: video is only copied. Absent from servers
+   * before it, which convert.
+   */
+  transcode_video?: boolean;
+  /** Streams that convert video, at once. */
   max_transcodes: number;
+  /** Streams that copy the video or have none, at once. Absent from servers before it, which count them with the transcodes. */
+  max_remuxes?: number;
   transcode_preset: TranscodePreset;
   throttle_transcodes: boolean;
   /** Keep transcodes' segments in RAM where the transcoder can, else on disk. Throttled transcodes only. */

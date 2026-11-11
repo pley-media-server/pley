@@ -227,6 +227,9 @@ public final class PlaybackController: ObservableObject {
     private var picked = Qualities.automatic
     /// The quality playing: the original or a transcode (Automatic's step, or the one picked).
     private var quality = Qualities.original
+    /// The server converts no video, as its last play answer had it: only
+    /// the original is offered, and plays.
+    private var originalOnly = false
     /// "Quality lowered to …" is said once the next session loads.
     private var autoNoticePending = false
     /// A switch's next session is getting ready: this one's stalls and drops no longer count.
@@ -615,7 +618,8 @@ public final class PlaybackController: ObservableObject {
     public func selectQuality(_ id: String) {
         guard !closed, !stopped, localFile == nil else { return }
         let wanted = Qualities.byIdOrLabel(id)
-        guard let choice = Qualities.forFile(file).first(where: { $0.id == wanted.id }), choice.id != picked.id else {
+        guard let choice = Qualities.offered(file, originalOnly: originalOnly).first(where: { $0.id == wanted.id }),
+              choice.id != picked.id else {
             return
         }
         let before = quality
@@ -1062,6 +1066,13 @@ public final class PlaybackController: ObservableObject {
             }
         }
         let info = started.info
+        originalOnly = info.originalOnly
+        if originalOnly {
+            // Whatever was asked for, the original plays: the menu says so,
+            // and the quality kept stays for servers that convert.
+            picked = Qualities.original
+            quality = playedFor(picked)
+        }
         state.method = info.method
         state.downloaded = started.local
         state.audioConverted = info.audioConverted
@@ -1250,7 +1261,8 @@ public final class PlaybackController: ObservableObject {
             // Automatic goes lower by itself; otherwise the person is told a lower quality would help.
             if automatic, let step = auto.serverTooSlow(nowMs: env.clock.now()) {
                 applyAuto(step)
-            } else {
+            } else if !originalOnly {
+                // Nothing is suggested where there is none to choose.
                 state.notice = PlayerTexts.slowServer
             }
         case .fail(let failure, let detail):
@@ -1905,7 +1917,7 @@ public final class PlaybackController: ObservableObject {
              Words.bitrate(f.bitrate)].filter { !$0.isEmpty }.joined(separator: " · ")
         }
         let lowered = automatic && (converted != nil || !quality.original)
-        state.qualities = Qualities.forFile(file).map { preset in
+        state.qualities = Qualities.offered(file, originalOnly: originalOnly).map { preset in
             let detail: String? = if preset.automatic {
                 lowered ? [PlayerTexts.now(playing), note].compactMap { $0 }.joined(separator: " · ")
                     : PlayerTexts.automaticHint

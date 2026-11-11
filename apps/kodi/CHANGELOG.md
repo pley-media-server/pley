@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- On a server that converts no video (Settings → Transcoder), Automatic
+  plays the Original and takes no steps, and the remote is offered
+  Original alone.
+
 ## [0.1.7] - 2026-11-06
 
 ### Added

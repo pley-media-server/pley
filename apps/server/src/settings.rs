@@ -66,7 +66,18 @@ pub struct Settings {
     pub hwaccel: HwAccel,
     pub hardware_decoding: bool,
     pub tonemapping: TonemapMode,
+    /// Convert video for a player that can't play a file's as it is, or
+    /// that asks for a lower quality. Off: video is only ever copied, with
+    /// the sound converted where the player needs it, a quality asked for
+    /// plays the original, and a file whose video the player can't play
+    /// isn't played there ([`crate::playback::PlaybackRequest::copy_video_only`]).
+    pub transcode_video: bool,
+    /// Streams that convert video, at once.
     pub max_transcodes: u32,
+    /// Streams that copy the video or have none, at once (remuxes, with the
+    /// sound converted or not, and music): they cost far less than a video
+    /// conversion, and have their own limit ([`crate::playback::Pool`]).
+    pub max_remuxes: u32,
     pub transcode_preset: String,
     pub throttle_transcodes: bool,
     /// Keep transcodes' segments in memory where the transcoder can (a
@@ -204,7 +215,9 @@ impl Default for Settings {
             hwaccel: HwAccel::Auto,
             hardware_decoding: true,
             tonemapping: TonemapMode::Auto,
+            transcode_video: true,
             max_transcodes: 4,
+            max_remuxes: 8,
             // Chosen by the transcoder from its load and lead (crate::transcoder).
             transcode_preset: "auto".into(),
             throttle_transcodes: true,
@@ -566,7 +579,9 @@ pub struct SettingsPatch {
     pub hwaccel: Option<HwAccel>,
     pub hardware_decoding: Option<bool>,
     pub tonemapping: Option<TonemapMode>,
+    pub transcode_video: Option<bool>,
     pub max_transcodes: Option<u32>,
+    pub max_remuxes: Option<u32>,
     pub transcode_preset: Option<String>,
     pub throttle_transcodes: Option<bool>,
     pub transcode_in_memory: Option<bool>,
@@ -702,6 +717,15 @@ impl SettingsStore {
                 return Err(AppError::bad_request("max transcodes must be between 1 and 64"));
             }
             next.max_transcodes = v;
+        }
+        if let Some(v) = patch.max_remuxes {
+            if !(1..=64).contains(&v) {
+                return Err(AppError::bad_request("max remuxes must be between 1 and 64"));
+            }
+            next.max_remuxes = v;
+        }
+        if let Some(v) = patch.transcode_video {
+            next.transcode_video = v;
         }
         if let Some(v) = patch.transcode_preset {
             if !matches!(v.as_str(), "auto" | "ultrafast" | "superfast" | "veryfast" | "faster" | "fast" | "medium") {
@@ -953,6 +977,8 @@ mod tests {
         assert!(bad(serde_json::json!({"language": "fr-FR"})).await);
         assert!(bad(serde_json::json!({"max_transcodes": 0})).await);
         assert!(bad(serde_json::json!({"max_transcodes": 65})).await);
+        assert!(bad(serde_json::json!({"max_remuxes": 0})).await);
+        assert!(bad(serde_json::json!({"max_remuxes": 65})).await);
         assert!(bad(serde_json::json!({"transcode_preset": "placebo"})).await);
         assert!(bad(serde_json::json!({"library_work_from": 24})).await);
         assert!(bad(serde_json::json!({"library_work_max_cpu": 5})).await);
@@ -967,6 +993,8 @@ mod tests {
                     "tmdb_api_key": "  abc  ",
                     "metadata_language": " fr-FR ",
                     "max_transcodes": 64,
+                    "max_remuxes": 2,
+                    "transcode_video": false,
                     "transcode_preset": "medium",
                     "scan_interval_minutes": 1_000_000,
                     "seek_previews": false,
@@ -979,6 +1007,9 @@ mod tests {
         assert_eq!(s.tmdb_api_key, "abc");
         assert_eq!(s.metadata_language, "fr-FR");
         assert_eq!((s.max_transcodes, s.transcode_preset.as_str()), (64, "medium"));
+        assert_eq!((s.max_remuxes, s.transcode_video), (2, false));
+        let unset = Settings::default();
+        assert_eq!((unset.max_remuxes, unset.transcode_video), (8, true), "video is converted unless turned off");
         assert_eq!(s.scan_interval_minutes, 7 * 24 * 60, "at most a week");
         assert_eq!(Settings::default().transcode_preset, "auto", "the transcoder chooses by default");
         assert!(!s.seek_previews);

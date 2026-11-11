@@ -28,9 +28,9 @@ use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::library::sidecar::EXTERNAL_INDEX_BASE;
 use crate::playback::{
-    Decision, Delivery, HLS_PTS_OFFSET_MS, Method, PlaybackInfo, PlaybackRequest, Session, SessionStatus,
-    TranscodeInfo, TranscodeSpec, decide, decide_with_audio, may_draw_pictures, new_media_key, picture_to_prepare,
-    sentence, subtitle_tracks, transcode_info, video_range_shown,
+    Decision, Delivery, HLS_PTS_OFFSET_MS, Method, NOT_CONVERTED, PlaybackInfo, PlaybackRequest, Pool, Session,
+    SessionStatus, TranscodeInfo, TranscodeSpec, decide, decide_with_audio, may_draw_pictures, new_media_key,
+    picture_to_prepare, sentence, subtitle_tracks, transcode_info, video_range_shown,
 };
 use crate::state::AppState;
 use crate::streams;
@@ -97,6 +97,23 @@ async fn decide_picked(
     Ok(decision)
 }
 
+/// What a player gets when a file needs its video converted to play there
+/// and the server converts none (`transcode_video` is off): why it does,
+/// as the play's reasons or the transcoder's warnings have it.
+fn video_not_converted(why: impl Iterator<Item = String>) -> AppError {
+    let why: Vec<String> = why.filter(|reason| reason != NOT_CONVERTED).collect();
+    let needs = "this server doesn't convert video, which this file needs to play on this device";
+    AppError::ConflictAs(
+        "video_not_converted",
+        if why.is_empty() { needs.to_owned() } else { format!("{needs}. {}", why.join(" ")) },
+    )
+}
+
+/// Whether `decision` converts video on a server that converts none.
+fn converts_unwanted_video(req: &PlaybackRequest, decision: &Decision) -> bool {
+    req.copy_video_only && decision.video.as_ref().is_some_and(|v| v.mode == VideoMode::Transcode)
+}
+
 /// The subtitles a play starts with, as the user's remotes show them until
 /// its player says: those burned in, else those the user's choices pick
 /// (the item's `selected_subtitle`, which players start with), `-1` for
@@ -137,6 +154,8 @@ pub async fn start(
     req.hdr_transcodes = state.transcoder.info().is_some_and(|info| info.capabilities.hdr_transcode);
     // fMP4 segments only from a transcoder that makes them.
     req.fmp4_segments = state.transcoder.info().is_some_and(|info| info.capabilities.fmp4_segments);
+    let settings = state.settings.get();
+    req.copy_video_only = !settings.transcode_video;
     if !matches!(row.kind.as_str(), "movie" | "episode" | "track" | "extra") {
         return Err(AppError::bad_request("this item cannot be played directly"));
     }
@@ -157,6 +176,10 @@ pub async fn start(
     // sounds on its output), or for a file that streams anyway the one its
     // stream copies. `PlaybackInfo.audio_index` tells the player.
     let decision = decide_picked(&state, user.id, &row, &file, info.as_ref(), &streams, &mut req).await?;
+    // Before what the client plays now is ended: it goes on.
+    if converts_unwanted_video(&req, &decision) {
+        return Err(video_not_converted(decision.reasons.into_iter()));
+    }
     // Picture subtitles the player draws from their own file beside a
     // stream: copied out of the media file from now on, rather than once
     // the player asks.
@@ -253,17 +276,19 @@ pub async fn start(
             adaptive: false,
             live_bitrate: false,
             pts_offset_ms: None,
+            original_only: req.copy_video_only,
         }));
     }
 
-    let settings = state.settings.get();
     // Taken before the job is created (that takes seconds) and handed to the
     // session; given back if this request fails or the client goes away.
-    let Some(slot) = state.sessions.reserve_transcode(settings.max_transcodes as usize) else {
-        return Err(AppError::Unavailable(format!(
-            "the server is already running its maximum of {} transcodes",
-            settings.max_transcodes
-        )));
+    let pool = Pool::of(decision.video.as_ref());
+    let (max, made) = match pool {
+        Pool::Transcodes => (settings.max_transcodes, "transcodes"),
+        Pool::Remuxes => (settings.max_remuxes, "remuxes"),
+    };
+    let Some(slot) = state.sessions.reserve_transcode(pool, max as usize) else {
+        return Err(AppError::Unavailable(format!("the server is already running its maximum of {max} {made}")));
     };
     let job_request = JobRequest {
         input: file.path.clone(),
@@ -286,6 +311,12 @@ pub async fn start(
         segment_format: decision.segment_format,
     };
     let created = state.transcoder.create_job(&job_request).await.map_err(|err| for_viewer(&user, err))?;
+    // A copy the transcoder can only make by converting (a picture turned
+    // on its side, a file with no keyframes to cut at).
+    if req.copy_video_only && created.video.as_ref().is_some_and(|v| v.mode == VideoMode::Transcode) {
+        let _ = state.transcoder.delete_job(&created.id).await;
+        return Err(video_not_converted(created.warnings.iter().map(|w| sentence(w))));
+    }
     // Once the transcoder knows a playback starts: the copy waits for it.
     if let Some(index) = picture {
         prepare_picture_track(&state, &file, index, start_ms);
@@ -364,6 +395,7 @@ pub async fn start(
         live_bitrate: method == Method::Transcode && state.transcoder.live_bitrate() && created.segment_format.is_ts(),
         // The MP4 muxer keeps the file's times as they are.
         pts_offset_ms: Some(if created.segment_format.is_ts() { HLS_PTS_OFFSET_MS } else { 0 }),
+        original_only: req.copy_video_only,
     }))
 }
 
@@ -778,6 +810,7 @@ pub async fn convert(
     let transcoder = state.transcoder.info();
     req.hdr_transcodes = transcoder.as_ref().is_some_and(|info| info.capabilities.hdr_transcode);
     req.download = true;
+    req.copy_video_only = !state.settings.get().transcode_video;
     let files = catalog::files_for_item(&state.db, row.id).await?;
     let file = match req.file_id {
         Some(id) => files.into_iter().find(|f| f.id == id).ok_or_else(|| AppError::not_found("file not found"))?,
@@ -795,6 +828,9 @@ pub async fn convert(
             error: None,
             url: format!("/api/files/{}/stream", file.id),
         }));
+    }
+    if converts_unwanted_video(&req, &decision) {
+        return Err(video_not_converted(decision.reasons.into_iter()));
     }
     // A player that opens no Matroska (QuickTime) gets MP4.
     let container = req.caps.download_container();

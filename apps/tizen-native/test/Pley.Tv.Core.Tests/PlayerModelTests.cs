@@ -615,6 +615,23 @@ public class PlayerModelTests
     }
 
     [Fact]
+    public void A_server_that_converts_no_video_is_offered_the_original_alone_and_the_quality_kept_stays()
+    {
+        h.Add(PlayerHarness.Movie());
+        h.Source.UpdateSettings(s => s with { Quality = "8m" });
+        h.Source.Answer = _ => FakePlayerSource.Stream(10, "remux") with { OriginalOnly = true };
+        h.Start(new PlayRequest(1, 0, true));
+        // Asked as kept; the answer is the original, which plays on.
+        Assert.Equal("transcode", (string)h.LastBody["mode"]!);
+        Assert.Single(h.Source.Bodies);
+        Assert.Equal("Original", h.State.Quality);
+        Assert.Equal(new[] { "original" }, h.State.Qualities.Select(q => q.Id));
+        h.Model.SelectQuality("8m");
+        Assert.Single(h.Source.Bodies);
+        Assert.Equal("8m", h.Source.Settings.Quality);
+    }
+
+    [Fact]
     public void Automatic_names_the_quality_the_server_converts_the_original_at()
     {
         h.Add(PlayerHarness.Movie());

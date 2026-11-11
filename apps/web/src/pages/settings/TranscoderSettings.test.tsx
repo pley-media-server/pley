@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import type { Settings } from "@/api/types";
@@ -17,7 +17,9 @@ const SETTINGS = {
   hwaccel: "auto",
   hardware_decoding: true,
   tonemapping: "auto",
+  transcode_video: true,
   max_transcodes: 4,
+  max_remuxes: 8,
   transcode_preset: "veryfast",
   throttle_transcodes: true,
   transcode_in_memory: true,
@@ -350,5 +352,36 @@ describe("TranscoderSettings on this server's hardware", () => {
     mockApi({ "GET /api/settings": () => ({ ...SETTINGS, max_transcodes: 12 }), "GET /api/system": () => system(intel) });
     renderWithProviders(<TranscoderSettings />);
     expect(await screen.findByText(/The transcoder itself runs 8 at most/)).toBeInTheDocument();
+  });
+
+  it("turns video conversion off, and limits remuxes apart from transcodes", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => SETTINGS,
+      "GET /api/system": () => system(intel),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
+    });
+    renderWithProviders(<TranscoderSettings />);
+    const convert = await screen.findByRole("switch", { name: "Convert video" });
+    expect(convert).toBeChecked();
+    expect(screen.getByLabelText("Max simultaneous transcodes")).toBeEnabled();
+    expect(screen.getByLabelText("Max simultaneous remuxes")).toHaveValue(8);
+
+    await user.click(convert);
+    // No video is converted: how many at once says nothing.
+    expect(screen.getByLabelText("Max simultaneous transcodes")).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Max simultaneous remuxes"), { target: { value: "12" } });
+    expect(screen.getByText(/The transcoder itself runs 8 at most/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ transcode_video: false, max_remuxes: 12 }));
+  });
+
+  it("offers neither on a server before them", async () => {
+    const older = { ...SETTINGS, transcode_video: undefined, max_remuxes: undefined };
+    mockApi({ "GET /api/settings": () => older, "GET /api/system": () => system(intel) });
+    renderWithProviders(<TranscoderSettings />);
+    expect(await screen.findByLabelText("Max simultaneous transcodes")).toBeEnabled();
+    expect(screen.queryByRole("switch", { name: "Convert video" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Max simultaneous remuxes")).not.toBeInTheDocument();
   });
 });

@@ -180,6 +180,7 @@ Non-2xx answers carry:
 | `insufficient_scope` | `403` | an app's token on a route its scopes don't open |
 | `not_found` | `404` | also anything the user [may not see](#access-rules) |
 | `conflict` | `409` | |
+| `video_not_converted` | `409` | a play or a download that needs its video converted, on a server that [converts none](#a-server-that-converts-no-video) |
 | `session_stopped` | `410` | the playback session was [stopped from elsewhere](#stopping-a-stream); the body also has `"error": "session_stopped"`, and `message` is what the person who stopped it wrote, or `null` |
 | `too_many_requests` | `429` | attempt limits, below |
 | `internal` | `500` | |
@@ -497,6 +498,9 @@ interface PlaybackInfo {
   live_bitrate: boolean;            // the video is converted, and PUT …/bitrate changes its bitrate as it
                                     // plays. Not for a player that moves between sizes itself
                                     // (hls.variants; see Several sizes), nor for fMP4 segments
+  original_only?: boolean;          // true on a server that converts no video (`transcode_video` off): the
+                                    // player's Quality menu offers the original alone, and its Automatic
+                                    // stays there (QUALITY.md). Left out otherwise
   pts_offset_ms?: number | null;    // how far the stream's timestamps run ahead of the file's (its start
                                     // taken off, as `.mks` subtitles are timed): 1400 for HLS in MPEG-TS,
                                     // wherever it started, 0 in fMP4 (fMP4 segments); null for a direct
@@ -2249,7 +2253,13 @@ Rules:
   the video.
 - A session started with a `client_id` ends that user's previous sessions
   on the same client (a quality or audio switch, the next episode) before
-  the transcode limit is checked.
+  the limits are checked.
+- Streams the transcoder makes are limited by kind: those that convert
+  video by `max_transcodes`, those that copy it or have none (a remux,
+  with the sound converted or not, and music) by `max_remuxes`. With every
+  slot of its kind taken, a play request answers `503 unavailable`
+  ("the server is already running its maximum of 4 transcodes", or
+  "… of 8 remuxes"). A direct play counts against neither.
 - If the transcoder loses a job (restart, expiry), the server recreates it
   with the same segment layout. When it can't, segments answer `404
   not_found` ("playback session expired"): start a new session at the
@@ -2258,6 +2268,28 @@ Rules:
   the server restarts FFmpeg at the right segment on seeks.
 - Audio-only items (tracks) use the same endpoint and get a direct URL or an
   audio-only HLS stream.
+
+#### A server that converts no video
+
+With `transcode_video` off in Settings → Transcoder, the server copies
+video or doesn't play it:
+
+- Direct plays and remuxes are as ever, and so is converted sound: a file
+  whose video the player plays gets its audio converted in a remux.
+- A quality asked for (`max_bitrate`, `max_height`) plays the original:
+  the limits are left out. `mode: "transcode"` copies the video into HLS,
+  as `"remux"` does, rather than play the file as it is, so a player
+  whose decoder gave up on the file isn't sent it again. `reasons` then
+  has "This server doesn't convert video."
+- A play that needs new frames (a codec, profile or HDR format the player
+  can't play, picture subtitles to burn in, a file not analyzed yet, a
+  picture turned on its side) answers `409 video_not_converted`, with the
+  reasons in `message`. What the client plays goes on. `POST
+  /api/conversions` answers the same for a download that would be
+  converted.
+- Every play answer has `original_only: true`, and remotes are listed the
+  original alone as the player's qualities.
+- Live TV follows its own settings (Settings → Live TV).
 
 **Reporting.** The player sends `POST /api/items/{id}/progress` (with
 `session_id`) every ~10 s while playing, on pause, every ~30 s while
@@ -4367,7 +4399,12 @@ interface Settings {
   hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR
-  max_transcodes: number;
+  transcode_video: boolean;         // convert video for players that can't play a file's as it is, or
+                                    // that ask for a lower quality (default true). Off: video is only
+                                    // copied (see "A server that converts no video")
+  max_transcodes: number;           // streams that convert video, at once (1 to 64, default 4)
+  max_remuxes: number;              // streams that copy the video or have none, at once (1 to 64,
+                                    // default 8)
   transcode_preset: "ultrafast" | "superfast" | "veryfast" | "faster" | "fast" | "medium";
   throttle_transcodes: boolean;     // real time once a 120 s buffer is built; paused 90 s ahead of the player
   transcode_in_memory: boolean;     // keep throttled transcodes' segments in RAM where the transcoder can

@@ -376,6 +376,12 @@ pub struct PlaybackRequest {
     /// player: set by the server, never read from the player.
     #[serde(skip)]
     pub download: bool,
+    /// The server converts no video (its `transcode_video` setting is off):
+    /// the video is copied or the play is refused, and a quality asked for
+    /// plays the original ([`decide`]). Set by the server, never read from
+    /// the player.
+    #[serde(skip)]
+    pub copy_video_only: bool,
 }
 
 /// A command a remote sends a player (`POST /api/sessions/{id}/command`),
@@ -513,7 +519,17 @@ pub struct PlaybackInfo {
     /// this; its media time alone may be off by the stream's B-frame delay
     /// and more (docs/API.md, "Types": `pts_offset_ms`).
     pub pts_offset_ms: Option<i64>,
+    /// The server converts no video (its `transcode_video` setting is off):
+    /// the player's Quality menu offers the original alone, and its
+    /// Automatic stays there (docs/QUALITY.md, "A server that converts no
+    /// video"). Left out otherwise.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub original_only: bool,
 }
+
+/// The reason a play has when it asked for a quality or a conversion of a
+/// server that converts no video ([`PlaybackRequest::copy_video_only`]).
+pub const NOT_CONVERTED: &str = "This server doesn't convert video.";
 
 /// What FFmpeg's MPEG-TS muxer adds to every timestamp of the transcoder's
 /// HLS segments, which otherwise keep the file's times from whatever point
@@ -1373,6 +1389,22 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     let caps = &req.caps;
     let container = file.container.as_deref().unwrap_or_default();
     let mut reasons = Vec::new();
+    // A server that converts no video has no lower quality of a video to
+    // give: one asked for plays the original. Asked to convert, it copies
+    // the video into a stream rather than play the file as it is, which a
+    // player whose decoder gave up on the file would only ask for again.
+    // Music is converted as ever.
+    let copy_only = req.copy_video_only && info.is_none_or(|i| i.video().is_some());
+    let unconverted =
+        copy_only && (req.mode == PlaybackMode::Transcode || req.max_bitrate.or(req.max_height).is_some());
+    let (mode, max_bitrate, max_height) = match req.mode {
+        PlaybackMode::Transcode if copy_only => (PlaybackMode::Remux, None, None),
+        mode if copy_only => (mode, None, None),
+        mode => (mode, req.max_bitrate, req.max_height),
+    };
+    if unconverted {
+        reasons.push(NOT_CONVERTED.into());
+    }
     // A download is one file, whatever the player streams.
     let segment_format = if req.download { SegmentFormat::Ts } else { caps.segment_format(req.fmp4_segments) };
     // A player that takes only H.264 from MPEG-TS (one that lists fMP4
@@ -1383,7 +1415,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
 
     let Some(info) = info else {
         // Never probed (transcoder was unavailable during the scan).
-        let direct = match req.mode {
+        let direct = match mode {
             PlaybackMode::Direct => true,
             PlaybackMode::Auto => caps.container(container) || web_container(container),
             PlaybackMode::Remux | PlaybackMode::Transcode => false,
@@ -1501,8 +1533,8 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     if !audio_is_default {
         reasons.push("Audio track switching not supported.".into());
     }
-    let bitrate_ok = req.max_bitrate.is_none_or(|max| file.bitrate.unwrap_or(0) <= max as i64 * 1000);
-    let size_ok = req.max_height.is_none_or(|max| {
+    let bitrate_ok = max_bitrate.is_none_or(|max| file.bitrate.unwrap_or(0) <= max as i64 * 1000);
+    let size_ok = max_height.is_none_or(|max| {
         let (w, h) = video.map_or((None, None), |v| (v.width, v.height));
         h.unwrap_or(0) <= i64::from(max) && w.unwrap_or(0) <= box_width(i64::from(max))
     });
@@ -1512,7 +1544,7 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
 
     let audio_index = audio.map(|a| a.index);
     let direct_ok = container_ok && video_ok && audio_ok && audio_is_default && bitrate_ok && size_ok && burn.is_none();
-    let direct = match req.mode {
+    let direct = match mode {
         PlaybackMode::Auto => direct_ok,
         // The user knows better (e.g. a browser that plays more than it
         // admits); image subtitles and alternate audio are lost.
@@ -1542,21 +1574,21 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
         };
     }
 
-    match req.mode {
-        PlaybackMode::Remux if direct_ok => reasons.push("Remux requested.".into()),
+    match mode {
+        // Not what was asked for, when a conversion was.
+        PlaybackMode::Remux if direct_ok && !unconverted => reasons.push("Remux requested.".into()),
         PlaybackMode::Transcode => reasons.push("Transcode requested.".into()),
         _ => {}
     }
     // HEVC the player would take copied, in fMP4.
-    if ts_h264_only && req.mode != PlaybackMode::Transcode && video_copy_ok && video.is_some_and(|v| v.codec == "hevc")
-    {
+    if ts_h264_only && mode != PlaybackMode::Transcode && video_copy_ok && video.is_some_and(|v| v.codec == "hevc") {
         reasons.push("HEVC not supported in MPEG-TS.".into());
     }
     let mut quality = None;
     let video_req = video.map(|v| {
         // Whatever the client plays as it is goes through untouched, like
         // Plex's Direct Stream: only the audio or the container changes.
-        let copy = req.mode != PlaybackMode::Transcode
+        let copy = mode != PlaybackMode::Transcode
             && video_copy_ok
             && hls_copyable(&v.codec, segment_format, ts_h264_only)
             && v.interlaced != Some(true)
@@ -1578,13 +1610,13 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
             (Some(most), Some(screen)) => Some(most.min(screen)),
             (most, screen) => most.or(screen),
         };
-        let (max_height, max_bitrate) = if copy || req.max_bitrate.is_some() || req.max_height.is_some() {
-            let max_height = match (req.max_height, most_lines) {
+        let (max_height, max_bitrate) = if copy || max_bitrate.is_some() || max_height.is_some() {
+            let max_height = match (max_height, most_lines) {
                 (Some(asked), Some(most)) => Some(asked.min(most)),
                 (None, Some(most)) if v.height.is_some_and(|h| h > i64::from(most)) => Some(most),
                 (asked, _) => asked,
             };
-            (max_height, req.max_bitrate)
+            (max_height, max_bitrate)
         } else {
             let (id, kbps, lines) = closest_quality_within(v.width, v.height, file.bitrate, most_lines);
             quality = Some(id);
@@ -2114,9 +2146,9 @@ impl CommandWindow {
 #[derive(Default)]
 pub struct Sessions {
     map: Mutex<HashMap<String, Arc<Session>>>,
-    /// Transcode slots of play requests still creating their job (see
+    /// Slots of play requests still creating their job, by [`Pool`] (see
     /// [`Sessions::reserve_transcode`]). Only raised while `map` is locked.
-    reserved: AtomicUsize,
+    reserved: [AtomicUsize; 2],
     /// Sessions started so far (see [`Sessions::started_since`]), and play
     /// requests begun.
     starts: AtomicU64,
@@ -2172,16 +2204,42 @@ const STOPPED_KEPT_SECS: i64 = 30 * 60;
 /// How many stopped sessions are remembered at most (the oldest go first).
 const STOPPED_KEPT: usize = 1_000;
 
-/// A transcode slot, held while the job is created. It counts against the
-/// limit until the session takes it over ([`Sessions::insert_transcode`]) or
-/// it is dropped: the request failed, or the client went away.
+/// Which limit a stream the transcoder makes counts against: a video
+/// conversion costs many times what a copy does, so each has its own
+/// (`max_transcodes` and `max_remuxes` in Settings → Transcoder), and
+/// people whose players only need the sound converted aren't kept out by
+/// those whose video is.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Pool {
+    /// The video is converted.
+    Transcodes,
+    /// The video is copied, or there is none: a remux, with the sound
+    /// converted or not, and music.
+    Remuxes,
+}
+
+impl Pool {
+    /// The pool of a stream with this video.
+    pub fn of(video: Option<&VideoRequest>) -> Pool {
+        match video {
+            Some(v) if v.mode == VideoMode::Transcode => Pool::Transcodes,
+            _ => Pool::Remuxes,
+        }
+    }
+}
+
+/// A slot of a [`Pool`], held while the job is created. It counts against
+/// the pool's limit until the session takes it over
+/// ([`Sessions::insert_transcode`]) or it is dropped: the request failed, or
+/// the client went away.
 pub struct TranscodeSlot<'a> {
     sessions: &'a Sessions,
+    pool: Pool,
 }
 
 impl Drop for TranscodeSlot<'_> {
     fn drop(&mut self) {
-        self.sessions.reserved.fetch_sub(1, Ordering::SeqCst);
+        self.sessions.reserved[self.pool as usize].fetch_sub(1, Ordering::SeqCst);
     }
 }
 
@@ -2271,18 +2329,21 @@ impl Sessions {
         session
     }
 
-    /// Take one of `max` transcode slots, or `None` when live transcodes and
-    /// the play requests still creating their job use them all. Creating a
-    /// job takes seconds: checking and taking happen under one lock, so play
-    /// requests arriving together can't all pass the check before any of
-    /// them has a session.
-    pub fn reserve_transcode(&self, max: usize) -> Option<TranscodeSlot<'_>> {
+    /// Take one of the `max` slots of `pool`, or `None` when its live
+    /// streams and the play requests still creating their job use them all.
+    /// Creating a job takes seconds: checking and taking happen under one
+    /// lock, so play requests arriving together can't all pass the check
+    /// before any of them has a session. A session counts in the pool of
+    /// the stream the transcoder really makes (a copy it had to convert
+    /// counts as a conversion), whichever slot it was started with.
+    pub fn reserve_transcode(&self, pool: Pool, max: usize) -> Option<TranscodeSlot<'_>> {
         let map = self.map.lock();
-        if live_transcodes(&map) + self.reserved.load(Ordering::SeqCst) >= max {
+        let reserved = &self.reserved[pool as usize];
+        if live_transcodes(&map, Some(pool)) + reserved.load(Ordering::SeqCst) >= max {
             return None;
         }
-        self.reserved.fetch_add(1, Ordering::SeqCst);
-        Some(TranscodeSlot { sessions: self })
+        reserved.fetch_add(1, Ordering::SeqCst);
+        Some(TranscodeSlot { sessions: self, pool })
     }
 
     /// Add a transcode session, which takes over the slot reserved for it.
@@ -2497,11 +2558,12 @@ impl Sessions {
         sweep
     }
 
-    /// Transcode sessions with recent activity (segment requests or progress
-    /// reports). Abandoned sessions (closed tabs) stop counting quickly even
-    /// though they are only reaped later.
+    /// Sessions the transcoder makes a stream for (conversions and remuxes)
+    /// with recent activity (segment requests or progress reports).
+    /// Abandoned sessions (closed tabs) stop counting quickly even though
+    /// they are only reaped later.
     pub fn active_transcodes(&self) -> usize {
-        live_transcodes(&self.map.lock())
+        live_transcodes(&self.map.lock(), None)
     }
 
     /// Every [`REAP_EVERY`]: sessions whose player went quiet leave "Now
@@ -2534,10 +2596,14 @@ pub struct Sweep {
     pub quieted: Vec<Arc<Session>>,
 }
 
-/// See [`Sessions::active_transcodes`].
-fn live_transcodes(map: &HashMap<String, Arc<Session>>) -> usize {
+/// See [`Sessions::active_transcodes`]: those of `pool`, or of both.
+fn live_transcodes(map: &HashMap<String, Arc<Session>>, pool: Option<Pool>) -> usize {
     let now = now();
-    map.values().filter(|s| s.transcode.is_some() && s.is_active(now)).count()
+    let counts = |s: &Session| match (&s.transcode, pool) {
+        (Some(spec), Some(pool)) => Pool::of(spec.request.video.as_ref()) == pool,
+        (spec, _) => spec.is_some(),
+    };
+    map.values().filter(|s| counts(s) && s.is_active(now)).count()
 }
 
 // ------------------------------------------------------------------ status mapping
@@ -2887,6 +2953,7 @@ mod tests {
             hdr_transcodes: false,
             fmp4_segments: false,
             download: false,
+            copy_video_only: false,
         }
     }
 
@@ -2896,6 +2963,51 @@ mod tests {
         let d = decide(&file("mp4", 5_000_000), Some(&i), &i.streams, &request());
         assert_eq!(d.method, Method::Direct);
         assert!(d.reasons.is_empty());
+    }
+
+    #[test]
+    fn a_server_that_converts_no_video_copies_it_whatever_is_asked() {
+        let off = || PlaybackRequest { copy_video_only: true, ..request() };
+        let i = info("h264", &["aac"], DynamicRange::Sdr);
+        let f = file("mp4", 20_000_000);
+        // A quality asked for: the original, copied into a stream.
+        let mut req = off();
+        (req.mode, req.max_bitrate, req.max_height) = (PlaybackMode::Transcode, Some(2_000), Some(480));
+        let d = decide(&f, Some(&i), &i.streams, &req);
+        let video = d.video.unwrap();
+        assert_eq!((d.method, video.mode), (Method::Remux, VideoMode::Copy));
+        assert_eq!((video.max_height, video.max_bitrate_kbps, d.quality), (None, None, None));
+        assert_eq!(d.reasons, [NOT_CONVERTED]);
+        // A limit alone leaves the file as it is.
+        req.mode = PlaybackMode::Auto;
+        assert_eq!(decide(&f, Some(&i), &i.streams, &req).method, Method::Direct);
+        // The same request of a server that converts video.
+        req.copy_video_only = false;
+        assert_eq!(decide(&f, Some(&i), &i.streams, &req).video.unwrap().mode, VideoMode::Transcode);
+
+        // Only the sound is converted, as ever.
+        let dts = info("h264", &["dts"], DynamicRange::Sdr);
+        let d = decide(&file("mkv", 20_000_000), Some(&dts), &dts.streams, &off());
+        assert_eq!((d.method, d.video.unwrap().mode), (Method::Remux, VideoMode::Copy));
+        assert_eq!(d.audio.unwrap().mode, AudioMode::Transcode);
+        assert!(!d.reasons.iter().any(|r| r == NOT_CONVERTED), "nothing was asked for that it doesn't do");
+
+        // Video the player can't play still comes out as a conversion,
+        // which the play request then refuses.
+        let hevc = info("hevc", &["aac"], DynamicRange::Sdr);
+        let d = decide(&file("mkv", 20_000_000), Some(&hevc), &hevc.streams, &off());
+        assert_eq!(d.video.unwrap().mode, VideoMode::Transcode);
+
+        // Music has no video: a lower bitrate asked for is still made.
+        let mp3 = track("mp3");
+        let mut req = off();
+        req.caps.containers.push("mp3".into());
+        let f = file("mp3", 320_000);
+        assert_eq!(decide(&f, Some(&mp3), &mp3.streams, &req).method, Method::Direct);
+        req.max_bitrate = Some(128);
+        let d = decide(&f, Some(&mp3), &mp3.streams, &req);
+        assert_ne!(d.method, Method::Direct, "the limit still counts");
+        assert!(!d.reasons.iter().any(|r| r == NOT_CONVERTED));
     }
 
     #[test]
@@ -3718,9 +3830,18 @@ mod tests {
     }
 
     fn session(user_id: i64, client: Option<&str>, transcode: bool) -> Session {
-        let spec =
-            transcode.then(|| TranscodeSpec { request: JobRequest::default(), segment_count: 1, duration_ms: 1 });
+        let spec = transcode.then(|| stream_of(VideoMode::Transcode));
         Session::new(user_id, "u".into(), client.map(str::to_owned), 1, 1, Method::Transcode, 1, spec, None, 0)
+    }
+
+    fn stream_of(mode: VideoMode) -> TranscodeSpec {
+        let video = Some(VideoRequest { mode, ..Default::default() });
+        TranscodeSpec { request: JobRequest { video, ..Default::default() }, segment_count: 1, duration_ms: 1 }
+    }
+
+    /// A session whose video is copied.
+    fn remux_session() -> Session {
+        Session::new(1, "u".into(), None, 1, 1, Method::Remux, 1, Some(stream_of(VideoMode::Copy)), None, 0)
     }
 
     #[test]
@@ -3947,17 +4068,41 @@ mod tests {
     #[test]
     fn transcode_slots_are_taken_before_the_job_exists() {
         let sessions = Sessions::default();
-        let first = sessions.reserve_transcode(2).expect("a free slot");
-        let second = sessions.reserve_transcode(2).expect("another one");
-        assert!(sessions.reserve_transcode(2).is_none(), "both are taken while their jobs are created");
+        let reserve = |max| sessions.reserve_transcode(Pool::Transcodes, max);
+        let first = reserve(2).expect("a free slot");
+        let second = reserve(2).expect("another one");
+        assert!(reserve(2).is_none(), "both are taken while their jobs are created");
         drop(second);
-        let third = sessions.reserve_transcode(2).expect("a failed request gives its slot back");
+        let third = reserve(2).expect("a failed request gives its slot back");
         sessions.insert_transcode(session(1, None, true), first);
         assert_eq!(sessions.active_transcodes(), 1);
-        assert!(sessions.reserve_transcode(2).is_none(), "the session keeps the slot it took over");
+        assert!(reserve(2).is_none(), "the session keeps the slot it took over");
         drop(third);
-        assert!(sessions.reserve_transcode(2).is_some());
-        assert!(sessions.reserve_transcode(1).is_none(), "a lower limit counts the live session");
+        assert!(reserve(2).is_some());
+        assert!(reserve(1).is_none(), "a lower limit counts the live session");
+    }
+
+    #[test]
+    fn copies_and_conversions_have_their_own_slots() {
+        let sessions = Sessions::default();
+        let video = sessions.reserve_transcode(Pool::Transcodes, 1).expect("a free slot");
+        assert!(sessions.reserve_transcode(Pool::Transcodes, 1).is_none());
+        let copy = sessions.reserve_transcode(Pool::Remuxes, 1).expect("a conversion takes no copy's slot");
+        assert!(sessions.reserve_transcode(Pool::Remuxes, 1).is_none());
+        sessions.insert_transcode(session(1, None, true), video);
+        sessions.insert_transcode(remux_session(), copy);
+        assert_eq!(sessions.active_transcodes(), 2, "both are the transcoder's");
+        assert!(sessions.reserve_transcode(Pool::Transcodes, 1).is_none());
+        assert!(sessions.reserve_transcode(Pool::Remuxes, 1).is_none());
+        assert!(sessions.reserve_transcode(Pool::Remuxes, 2).is_some(), "the conversion isn't counted with the copies");
+        // A copy the transcoder had to convert counts as what it is,
+        // whichever slot its request took.
+        let slot = sessions.reserve_transcode(Pool::Remuxes, 2).expect("a free slot");
+        sessions.insert_transcode(session(1, None, true), slot);
+        assert!(sessions.reserve_transcode(Pool::Remuxes, 2).is_some());
+        assert!(sessions.reserve_transcode(Pool::Transcodes, 2).is_none());
+        // Music has no video: a copy's slot.
+        assert_eq!(Pool::of(None), Pool::Remuxes);
     }
 
     #[test]
