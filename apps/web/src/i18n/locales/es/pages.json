@@ -272,7 +272,8 @@
       "requests": "Pedir películas y series que no están en las bibliotecas, y seguir las solicitudes de {{profile}}.",
       "approvals": "Aprobar y rechazar lo que piden los demás, donde la cuenta es de administrador.",
       "activity": "Ver lo que se está reproduciendo y detenerlo: las reproducciones de {{profile}}.",
-      "activityEveryone": "Ver lo que se está reproduciendo y detenerlo: las reproducciones de {{profile}}, y las de todos donde la cuenta es de administrador."
+      "activityEveryone": "Ver lo que se está reproduciendo y detenerlo: las reproducciones de {{profile}}, y las de todos donde la cuenta es de administrador.",
+      "server": "Ver el panel del servidor y gestionar sus bibliotecas, cuentas e invitaciones, donde la cuenta es de administrador."
     },
     "cantChange": "No puede cambiar tu contraseña, tus ajustes de inicio de sesión ni tus dispositivos.",
     "cantChangeNoAdmin": "No puede cambiar tu contraseña, tus ajustes de inicio de sesión ni tus dispositivos, y nunca obtiene derechos de administrador.",
@@ -282,6 +283,8 @@
       "activity": "ver y detener las reproducciones de todos"
     },
     "adminStays": "Tus derechos de administrador se quedan en la aplicación web de Pley.",
+    "managesServer": "Gestiona las bibliotecas y las cuentas de este servidor como lo haces en la aplicación web de Pley. Nombrar administradores, los ajustes y las claves del servidor, la TV en vivo, tu contraseña, tu PIN, tu inicio de sesión en dos pasos y tus dispositivos se quedan allí.",
+    "managesServerToo": "También obtiene {{rights}}.",
     "overTv": "Esta solicitud ha terminado: vuelve a empezar en tu TV",
     "overApp": "Esta solicitud ha terminado: vuelve a empezar desde la aplicación",
     "deny": "No permitir",

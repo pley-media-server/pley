@@ -832,7 +832,9 @@ mod tests {
                 name: Some("Pley for Android".into()),
                 first_party: true,
                 redirect_uris: vec!["app.pley.android:/oauth/callback".into()],
-                scope_cap: Some("library play playlists profiles requests approvals".into()),
+                // The phones manage the server too (never Android TV, which
+                // signs in with a code).
+                scope_cap: Some("library play playlists profiles requests approvals server".into()),
                 refresh: true,
                 // The same app runs on phones, Android TV and Fire TV.
                 device: true,

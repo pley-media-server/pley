@@ -1778,6 +1778,67 @@ async fn a_freer_profile_casts_to_another_profiles_device_only_with_its_pin() {
 }
 
 #[tokio::test]
+async fn a_cast_switches_an_app_to_an_administrator_without_their_rights_over_others() {
+    let w = world().await;
+    let app = &w.app;
+    let admin_id = id_of(&w, &w.admin).await;
+    let pinned = app.put("/api/me/pin", &w.admin, json!({"pin": "2468", "password": "secret-one"})).await;
+    assert_eq!(pinned.status, StatusCode::NO_CONTENT, "{}", pinned.text());
+    // The app's switch-profile grant: its new access and refresh tokens.
+    let switch = async |refresh: &str, profile: i64, with: Option<(&str, &str)>| {
+        let profile = profile.to_string();
+        let mut pairs = vec![
+            ("grant_type", SWITCH),
+            ("client_id", common::ANDROID_APP),
+            ("refresh_token", refresh),
+            ("profile", profile.as_str()),
+        ];
+        pairs.extend(with);
+        let reply = app.form_post("/api/oauth/token", &form(&pairs), &[]).await;
+        assert_eq!(reply.status, StatusCode::OK, "{}", reply.text());
+        let token = |name: &str| reply.body[name].as_str().unwrap().to_owned();
+        (token("access_token"), token("refresh_token"))
+    };
+    // Whether the app is told it manages the server, and does.
+    let manages = async |access: &str| {
+        let told = app.get("/api/auth/me", access).await.body["account_admin"].clone();
+        let users = app.get("/api/users", access).await.status;
+        assert_eq!(told == json!(true), users == StatusCode::OK, "{told} {users}");
+        users == StatusCode::OK
+    };
+
+    // The viewer's phone, which the administrator signed in themselves,
+    // allowing it to manage the server, and left on the viewer's profile.
+    let (own, refresh) = app.app_token(admin_id, "library play profiles approvals server").await;
+    assert!(manages(&own).await, "on their profile, as they signed in");
+    let (viewers, refresh) = switch(&refresh, w.viewer_id, None).await;
+    assert_eq!(id_of(&w, &viewers).await, w.viewer_id);
+    assert!(!manages(&viewers).await);
+
+    // The administrator casts to it, their PIN given on their own device:
+    // the phone plays as them, and whoever holds it manages nothing.
+    let mut phone = stream(&w, &viewers, "receiver=phone-1&casts=item,switch").await;
+    let body = json!({"item_id": w.film, "profile_id": w.viewer_id, "pin": "2468"});
+    let sent = cast(&w, &w.admin, "phone-1", body).await;
+    assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    let ticket = heard_cast(&mut phone).await["switch_ticket"].as_str().unwrap().to_owned();
+    let (cast_to, refresh) = switch(&refresh, admin_id, Some(("ticket", &ticket))).await;
+    assert_eq!(id_of(&w, &cast_to).await, admin_id, "the app acts as the caster's profile");
+    assert_eq!(app.get("/api/libraries", &cast_to).await.status, StatusCode::OK, "and plays as it");
+    assert!(!manages(&cast_to).await, "a cast gives none of the role's rights over others");
+    // Nor after a refresh.
+    let pairs = [("grant_type", "refresh_token"), ("client_id", common::ANDROID_APP), ("refresh_token", &refresh)];
+    let refreshed = app.form_post("/api/oauth/token", &form(&pairs), &[]).await;
+    assert_eq!(refreshed.status, StatusCode::OK, "{}", refreshed.text());
+    assert!(!manages(refreshed.body["access_token"].as_str().unwrap()).await);
+    let refresh = refreshed.body["refresh_token"].as_str().unwrap().to_owned();
+
+    // The administrator picks their profile on the phone, with their PIN.
+    let (picked, _) = switch(&refresh, admin_id, Some(("pin", "2468"))).await;
+    assert!(manages(&picked).await, "picked on the device: theirs again");
+}
+
+#[tokio::test]
 async fn a_cast_goes_to_the_device_listed_or_not_at_all() {
     let w = world().await;
     let mut tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item,switch").await;

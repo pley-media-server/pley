@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Managing the server: the dashboard (apps/web/src/pages/settings/DashboardSettings.tsx, ResourcesSection.tsx, StorageSection.tsx). -->
+    <string name="admin_dashboard_now_playing">Now playing</string>
+    <string name="admin_dashboard_nobody_watching">Nobody is watching anything right now.</string>
+    <string name="admin_dashboard_method_direct">Direct Play</string>
+    <string name="admin_dashboard_method_remux">Remux</string>
+    <string name="admin_dashboard_method_transcode">Transcode</string>
+    <string name="admin_dashboard_pipeline_gpu">GPU</string>
+    <string name="admin_dashboard_pipeline_gpu_title">Decoded, filtered and encoded on the GPU without copies</string>
+    <string name="admin_dashboard_pipeline_hybrid">Hybrid</string>
+    <string name="admin_dashboard_pipeline_hybrid_title">Part GPU, part CPU</string>
+    <string name="admin_dashboard_pipeline_cpu">CPU</string>
+    <string name="admin_dashboard_pipeline_cpu_title">Software decoding and encoding</string>
+    <string name="admin_dashboard_pipeline_copy">Copy</string>
+    <string name="admin_dashboard_pipeline_copy_title">Video stream copied, not re-encoded</string>
+    <string name="admin_dashboard_job_starting">Starting</string>
+    <string name="admin_dashboard_job_running">Running</string>
+    <string name="admin_dashboard_job_idle">Idle</string>
+    <string name="admin_dashboard_job_finished">Finished</string>
+    <string name="admin_dashboard_job_failed">Failed</string>
+    <string name="admin_dashboard_waits_playing">waits while something plays</string>
+    <string name="admin_dashboard_waits_busy">waits while other programs keep the processors busy</string>
+    <string name="admin_dashboard_waits_auto">what\'s likely to be watched soon first, the rest in quieter hours</string>
+    <string name="admin_dashboard_waits_auto_from">what\'s likely to be watched soon first, the rest in quieter hours (from %1$s)</string>
+    <string name="admin_dashboard_waits_hours">waits for its hours</string>
+    <string name="admin_dashboard_waits_hours_from">waits for its hours (from %1$s)</string>
+    <string name="admin_dashboard_stop_title">Stop playback</string>
+    <string name="admin_dashboard_stopped">Playback stopped</string>
+    <string name="admin_dashboard_stop">Stop</string>
+    <string name="admin_dashboard_stops_for">%1$s stops for %2$s right away.</string>
+    <string name="admin_dashboard_stop_message">Message</string>
+    <string name="admin_dashboard_stop_message_hint">Optional. Shown on their screen.</string>
+    <string name="admin_dashboard_stop_label">Stop %1$s for %2$s</string>
+    <string name="admin_dashboard_stop_label_on">Stop %1$s for %2$s on %3$s</string>
+    <string name="admin_dashboard_preparing">Preparing…</string>
+    <!-- Counts beside their totals, which the web writes without plurals. -->
+    <string name="admin_dashboard_segments" tools:ignore="PluralsCandidate">%1$s/%2$s seg</string>
+    <string name="admin_dashboard_size">size %1$d of %2$d</string>
+    <string name="admin_dashboard_transcoder">Transcoder</string>
+    <string name="admin_dashboard_available">Available</string>
+    <string name="admin_dashboard_unavailable">Unavailable</string>
+    <string name="admin_dashboard_managed">Managed by Pley</string>
+    <string name="admin_dashboard_external">External</string>
+    <string name="admin_dashboard_status">Status</string>
+    <string name="admin_dashboard_version">Version</string>
+    <string name="admin_dashboard_url">URL</string>
+    <string name="admin_dashboard_ffmpeg">ffmpeg</string>
+    <string name="admin_dashboard_encoders">Encoders</string>
+    <string name="admin_dashboard_active_encoder">Active encoder</string>
+    <string name="admin_dashboard_hw_accel">HW acceleration</string>
+    <string name="admin_dashboard_tone_mapping">Tone mapping</string>
+    <string name="admin_dashboard_not_available">Not available</string>
+    <string name="admin_dashboard_dolby_vision">Dolby Vision</string>
+    <string name="admin_dashboard_supported">Supported</string>
+    <string name="admin_dashboard_not_supported">Not supported</string>
+    <string name="admin_dashboard_jobs">Jobs</string>
+    <string name="admin_dashboard_job_count" tools:ignore="PluralsCandidate">%1$d active / %2$d max</string>
+    <string name="admin_dashboard_transcoder_unavailable">Transcoder status unavailable: %1$s</string>
+    <string name="admin_dashboard_none">None</string>
+    <string name="admin_dashboard_no_jobs">No transcode jobs right now.</string>
+    <string name="admin_dashboard_job_video">Video</string>
+    <string name="admin_dashboard_job_audio">Audio</string>
+    <string name="admin_dashboard_job_codecs">Encoder / decoder</string>
+    <string name="admin_dashboard_job_tone_map">Tone map</string>
+    <string name="admin_dashboard_job_speed">Speed</string>
+    <string name="admin_dashboard_job_fps">FPS</string>
+    <string name="admin_dashboard_job_segments">Segments</string>
+    <plurals name="admin_dashboard_restarts">
+        <item quantity="one">%1$d restart</item>
+        <item quantity="other">%1$d restarts</item>
+    </plurals>
+    <string name="admin_dashboard_burn_in">burn-in subs</string>
+    <string name="admin_dashboard_copied">%1$s (copy)</string>
+    <string name="admin_dashboard_preset">preset %1$s</string>
+    <string name="admin_dashboard_running_jobs">Running jobs</string>
+    <plurals name="admin_dashboard_created">
+        <item quantity="one">%1$s created</item>
+        <item quantity="other">%1$s created</item>
+    </plurals>
+    <string name="admin_dashboard_hw_sessions">HW sessions</string>
+    <string name="admin_dashboard_segments_served">Segments served</string>
+    <plurals name="admin_dashboard_produced">
+        <item quantity="one">%1$s produced</item>
+        <item quantity="other">%1$s produced</item>
+    </plurals>
+    <string name="admin_dashboard_data_served">Data served</string>
+    <string name="admin_dashboard_on_disk">%1$s on disk</string>
+    <string name="admin_dashboard_probes">Probes</string>
+    <string name="admin_dashboard_average">avg %1$d ms</string>
+    <string name="admin_dashboard_failures">Failures</string>
+    <string name="admin_dashboard_thumbs_and_subs">%1$s thumbs · %2$s subs</string>
+    <string name="admin_dashboard_recently_played">Recently played</string>
+    <string name="admin_dashboard_nothing_played">Nothing has been played to the end yet.</string>
+    <string name="admin_dashboard_show_more">Show more</string>
+    <string name="admin_dashboard_remove">Remove from history</string>
+    <string name="admin_dashboard_library_scans">Library scans</string>
+    <string name="admin_dashboard_scan_queued">Queued</string>
+    <string name="admin_dashboard_scan_walking">Finding files</string>
+    <string name="admin_dashboard_scan_probing">Analyzing media</string>
+    <string name="admin_dashboard_scan_metadata">Fetching metadata</string>
+    <string name="admin_dashboard_scan_done">Finished</string>
+    <string name="admin_dashboard_finding_markers">Finding intros and credits</string>
+    <string name="admin_dashboard_fingerprints" tools:ignore="PluralsCandidate">%1$d / %2$d audio fingerprints</string>
+    <plurals name="admin_dashboard_seasons_left">
+        <item quantity="one">%1$s season left</item>
+        <item quantity="other">%1$s seasons left</item>
+    </plurals>
+    <string name="admin_dashboard_making_previews">Making seek previews</string>
+    <plurals name="admin_dashboard_files_left">
+        <item quantity="one">%1$s file left</item>
+        <item quantity="other">%1$s files left</item>
+    </plurals>
+    <string name="admin_dashboard_at_a_time">%1$d at a time</string>
+    <string name="admin_dashboard_system">System</string>
+    <string name="admin_dashboard_couldnt_load_system">Couldn\'t load system info</string>
+    <string name="admin_dashboard_platform">Platform</string>
+    <string name="admin_dashboard_uptime">Uptime</string>
+    <string name="admin_dashboard_data_directory">Data directory</string>
+    <string name="admin_dashboard_movies">Movies</string>
+    <string name="admin_dashboard_shows">Shows</string>
+    <plurals name="admin_dashboard_episodes">
+        <item quantity="one">%1$s episode</item>
+        <item quantity="other">%1$s episodes</item>
+    </plurals>
+    <string name="admin_dashboard_artists">Artists</string>
+    <plurals name="admin_dashboard_albums">
+        <item quantity="one">%1$s album</item>
+        <item quantity="other">%1$s albums</item>
+    </plurals>
+    <string name="admin_dashboard_tracks">Tracks</string>
+    <string name="admin_dashboard_files">Files</string>
+    <string name="admin_dashboard_users">Users</string>
+    <plurals name="admin_dashboard_libraries">
+        <item quantity="one">%1$s library</item>
+        <item quantity="other">%1$s libraries</item>
+    </plurals>
+    <string name="admin_dashboard_resources">Resources</string>
+    <string name="admin_dashboard_pley_hint">The server, its transcoder and their FFmpegs</string>
+    <string name="admin_dashboard_machine">System</string>
+    <string name="admin_dashboard_summary">%1$s: %2$s</string>
+    <string name="admin_dashboard_no_readings">%1$s: no readings yet</string>
+    <string name="admin_dashboard_five_minutes_ago">5 min ago</string>
+    <string name="admin_dashboard_right_now">now</string>
+    <string name="admin_dashboard_couldnt_read">Couldn\'t read the processors and memory: %1$s</string>
+    <string name="admin_dashboard_unmeasurable">The processors and memory can\'t be measured on this system.</string>
+    <string name="admin_dashboard_cpu">CPU</string>
+    <plurals name="admin_dashboard_processors">
+        <item quantity="one">%1$d processor</item>
+        <item quantity="other">%1$d processors</item>
+    </plurals>
+    <string name="admin_dashboard_memory">Memory</string>
+    <string name="admin_dashboard_in_all">%1$s in all</string>
+    <string name="admin_dashboard_storage">Storage</string>
+    <string name="admin_dashboard_clean_up">Clean up</string>
+    <string name="admin_dashboard_clean_up_title">Clean up storage?</string>
+    <string name="admin_dashboard_clean_up_body">Pictures and seek previews nothing uses any more, and old cache files, are deleted.</string>
+    <plurals name="admin_dashboard_removed">
+        <item quantity="one">Removed %1$s unused file (%2$s)</item>
+        <item quantity="other">Removed %1$s unused files (%2$s)</item>
+    </plurals>
+    <string name="admin_dashboard_nothing_to_clean">Nothing to clean up</string>
+    <string name="admin_dashboard_damaged">The database is damaged</string>
+    <string name="admin_dashboard_damaged_hint">%1$s. Stop Pley, move pley.db and its -wal and -shm files aside, and copy the latest backup in their place.</string>
+    <string name="admin_dashboard_pictures">Pictures</string>
+    <plurals name="admin_dashboard_stored_once">
+        <item quantity="one">%1$s stored once each</item>
+        <item quantity="other">%1$s stored once each</item>
+    </plurals>
+    <string name="admin_dashboard_generated">Generated</string>
+    <plurals name="admin_dashboard_previews_of">
+        <item quantity="one">previews of %1$s file</item>
+        <item quantity="other">previews of %1$s files</item>
+    </plurals>
+    <string name="admin_dashboard_cache">Cache</string>
+    <string name="admin_dashboard_safe_to_delete">safe to delete</string>
+</resources>

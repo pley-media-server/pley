@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Settings → Libraries (apps/web/src/pages/settings/LibrariesSettings.tsx, LibraryFormModal.tsx), in the web's words. -->
+    <string name="admin_libraries_title">Libraries</string>
+    <string name="admin_libraries_description">Folders Pley watches for movies, shows and music.</string>
+    <string name="admin_libraries_shared_order">Everyone sees them in this order, unless they sort their own.</string>
+    <plurals name="admin_libraries_items_movies">
+        <item quantity="one">%1$,d movie</item>
+        <item quantity="other">%1$,d movies</item>
+    </plurals>
+    <plurals name="admin_libraries_items_shows">
+        <item quantity="one">%1$,d show</item>
+        <item quantity="other">%1$,d shows</item>
+    </plurals>
+    <plurals name="admin_libraries_items_music">
+        <item quantity="one">%1$,d artist</item>
+        <item quantity="other">%1$,d artists</item>
+    </plurals>
+    <string name="admin_libraries_scanned">scanned %1$s</string>
+    <string name="admin_libraries_never_scanned">never scanned</string>
+    <string name="admin_libraries_scanning">Scanning</string>
+    <string name="admin_libraries_move_up">Move %1$s up</string>
+    <string name="admin_libraries_move_down">Move %1$s down</string>
+    <string name="admin_libraries_scan">Scan</string>
+    <string name="admin_libraries_force_rescan">Force full rescan</string>
+    <string name="admin_libraries_rescan_started">Full rescan of “%1$s” started</string>
+    <string name="admin_libraries_scan_started">Scanning “%1$s”</string>
+    <string name="admin_libraries_scanning_all">Scanning all libraries</string>
+    <string name="admin_libraries_scan_all">Scan all</string>
+    <string name="admin_libraries_add">Add library</string>
+    <string name="admin_libraries_couldnt_load">Couldn\'t load libraries</string>
+    <string name="admin_libraries_empty_title">Add your first library</string>
+    <string name="admin_libraries_empty_description">Choose a type and the folders that contain your media. Pley scans them and keeps them up to date.</string>
+    <string name="admin_libraries_delete_title">Delete library?</string>
+    <string name="admin_libraries_delete_message">%1$s and its watch history will be removed from Pley. Your media files are not touched.</string>
+    <string name="admin_libraries_deleted">Deleted “%1$s”</string>
+    <string name="admin_libraries_kind_movies">Movies</string>
+    <string name="admin_libraries_kind_shows">TV Shows</string>
+    <string name="admin_libraries_kind_music">Music</string>
+    <string name="admin_libraries_layout_movies">Movie Name (Year)/Movie Name (Year).mkv</string>
+    <string name="admin_libraries_layout_shows">Show Name/Season 01/Show Name - S01E01.mkv</string>
+    <string name="admin_libraries_layout_music">Artist/Album/01 - Track.flac</string>
+    <string name="admin_libraries_default_movies">Movies</string>
+    <string name="admin_libraries_default_shows">TV Shows</string>
+    <string name="admin_libraries_default_music">Music</string>
+    <string name="admin_libraries_add_title">Add library</string>
+    <string name="admin_libraries_edit_title">Edit %1$s</string>
+    <string name="admin_libraries_save_changes">Save changes</string>
+    <string name="admin_libraries_at_least_one_folder">Add at least one folder.</string>
+    <string name="admin_libraries_updated">Library updated</string>
+    <string name="admin_libraries_added">“%1$s” added — scanning now</string>
+    <string name="admin_libraries_type">Type</string>
+    <string name="admin_libraries_name">Name</string>
+    <string name="admin_libraries_folders">Folders</string>
+    <string name="admin_libraries_browse">Browse…</string>
+    <string name="admin_libraries_remove_path">Remove %1$s</string>
+    <string name="admin_libraries_type_path">…or type a folder path</string>
+    <string name="admin_libraries_folder_path">Folder path</string>
+    <string name="admin_libraries_layout">Recommended layout: %1$s</string>
+    <string name="admin_libraries_phase_queued">Queued</string>
+    <string name="admin_libraries_phase_walking">Finding files</string>
+    <string name="admin_libraries_phase_probing">Analyzing media</string>
+    <string name="admin_libraries_phase_metadata">Fetching metadata</string>
+    <string name="admin_libraries_phase_done">Finished</string>
+    <string name="admin_libraries_delete">Delete</string>
+    <string name="admin_libraries_add_path">Add</string>
+    <string name="admin_libraries_progress">%1$,d / %2$,d</string>
+    <string name="admin_libraries_delete_library">Delete library</string>
+</resources>

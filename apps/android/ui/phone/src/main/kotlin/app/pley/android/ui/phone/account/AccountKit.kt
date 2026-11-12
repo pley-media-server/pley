@@ -142,7 +142,11 @@ internal fun SettingsRow(
     }
 }
 
-/** A row with a switch; the whole row toggles it. */
+/**
+ * A row with a switch; the whole row toggles it. One that isn't [enabled]
+ * shows dimmed and does nothing (managing the server: what the server
+ * wouldn't take).
+ */
 @Composable
 internal fun SwitchRow(
     title: String,
@@ -151,36 +155,51 @@ internal fun SwitchRow(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     icon: PleyIcon? = null,
+    enabled: Boolean = true,
 ) {
+    val ink = if (enabled) PleyColors.Fg else PleyColors.Disabled
+    val muted = if (enabled) PleyColors.Muted else PleyColors.Disabled
     Row(
         modifier
             .fillMaxWidth()
             .heightIn(min = 56.dp)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onChange)
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, size = 24.dp, tint = PleyColors.Muted)
+            Icon(icon, contentDescription = null, size = 24.dp, tint = muted)
             Spacer(Modifier.width(16.dp))
         }
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.bodyLarge, color = PleyColors.Fg)
-            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = PleyColors.Muted)
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = ink)
+            if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodyMedium, color = muted)
         }
         Spacer(Modifier.width(12.dp))
-        Switch(
-            checked = checked,
-            onCheckedChange = null,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = PleyColors.OnAccent,
-                checkedTrackColor = PleyColors.Accent,
-                uncheckedThumbColor = PleyColors.Control,
-                uncheckedTrackColor = PleyColors.Surface3,
-                uncheckedBorderColor = PleyColors.Control,
-            ),
-        )
+        RowSwitch(checked, enabled)
     }
+}
+
+/** The switch of a row the whole of which toggles it, so the switch itself takes no touch. */
+@Composable
+internal fun RowSwitch(checked: Boolean, enabled: Boolean = true) {
+    Switch(
+        checked = checked,
+        onCheckedChange = null,
+        enabled = enabled,
+        colors = SwitchDefaults.colors(
+            checkedThumbColor = PleyColors.OnAccent,
+            checkedTrackColor = PleyColors.Accent,
+            uncheckedThumbColor = PleyColors.Control,
+            uncheckedTrackColor = PleyColors.Surface3,
+            uncheckedBorderColor = PleyColors.Control,
+            disabledCheckedTrackColor = PleyColors.Accent.copy(alpha = 0.38f),
+            disabledCheckedThumbColor = PleyColors.OnAccent.copy(alpha = 0.6f),
+            disabledUncheckedTrackColor = PleyColors.Surface3,
+            disabledUncheckedThumbColor = PleyColors.Disabled,
+            disabledUncheckedBorderColor = PleyColors.Disabled,
+        ),
+    )
 }
 
 /** One choice of a [ChoiceSheet]: its value, its label and an optional line under it. */

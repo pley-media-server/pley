@@ -270,7 +270,8 @@
       "requests": "Ask for movies and shows the libraries don't have, and follow {{profile}}'s requests.",
       "approvals": "Approve and decline what people ask for, where the account is an administrator.",
       "activity": "See what's playing and stop it: {{profile}}'s streams.",
-      "activityEveryone": "See what's playing and stop it: {{profile}}'s streams, and everyone's where the account is an administrator."
+      "activityEveryone": "See what's playing and stop it: {{profile}}'s streams, and everyone's where the account is an administrator.",
+      "server": "See the server's dashboard and manage its libraries, accounts and invitations, where the account is an administrator."
     },
     "cantChange": "It can't change your password, sign-in settings or devices.",
     "cantChangeNoAdmin": "It can't change your password, sign-in settings or devices, and it never gets administrator rights.",
@@ -280,6 +281,8 @@
       "activity": "seeing and stopping everyone's streams"
     },
     "adminStays": "Your administrator rights stay in Pley's web app.",
+    "managesServer": "It manages this server's libraries and accounts as you do in Pley's web app. Making administrators, the server's settings and keys, Live TV, and your own password, PIN, two-step sign-in and devices stay there.",
+    "managesServerToo": "It also gets {{rights}}.",
     "overTv": "This request is over: start again on your TV",
     "overApp": "This request is over: start again from the app",
     "deny": "Don't allow",

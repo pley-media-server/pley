@@ -401,10 +401,10 @@ pub async fn holder(db: &Db, token: &str, client_id: &str, two_step_required: bo
     let now = now();
     let mut tx = db.write.begin().await?;
     #[allow(clippy::type_complexity)]
-    let row: Option<(i64, i64, Option<i64>, String, String, i64, i64, Option<i64>, bool, bool, bool)> =
+    let row: Option<(i64, i64, Option<i64>, String, String, i64, bool, i64, Option<i64>, bool, bool, bool)> =
         sqlx::query_as(sqlx::AssertSqlSafe(format!(
-            "SELECT t.grant_id, t.expires_at, t.used_at, g.client_id, g.scope, g.approved_by, g.expires_at,
-                    g.ends_at, u.disabled, a.disabled, {} OR {}
+            "SELECT t.grant_id, t.expires_at, t.used_at, g.client_id, g.scope, g.approved_by, g.by_cast,
+                    g.expires_at, g.ends_at, u.disabled, a.disabled, {} OR {}
              FROM app_tokens t
              JOIN app_grants g ON g.id = t.grant_id
              JOIN users u ON u.id = g.user_id
@@ -423,6 +423,7 @@ pub async fn holder(db: &Db, token: &str, client_id: &str, two_step_required: bo
         owner,
         scope,
         approved_by,
+        by_cast,
         grant_expires,
         ends_at,
         user_off,
@@ -479,6 +480,7 @@ pub async fn holder(db: &Db, token: &str, client_id: &str, two_step_required: bo
             client_id: owner.as_str().into(),
             scopes,
             approved_by,
+            by_cast,
         })),
         compatibility: None,
     };
@@ -494,6 +496,9 @@ pub struct SwitchInput {
     pub grant_id: i64,
     /// The profile the app acts as from now on.
     pub user_id: i64,
+    /// Whether a cast's ticket allowed the switch, in place of a PIN given
+    /// on the device ([`super::AppAccess::by_cast`]).
+    pub by_cast: bool,
     pub user_agent: Option<String>,
     pub ip: Option<String>,
 }
@@ -501,9 +506,10 @@ pub struct SwitchInput {
 /// Moves a grant to another profile in one transaction: the refresh token
 /// shown is spent (one spent meanwhile means two holders, and ends the
 /// grant), the grant acts as the new profile (whoever allowed it, its app
-/// and its scope stay), every access token it had stops working, and a new
-/// pair is issued. The new profile's grants past [`MAX_GRANTS_PER_USER`]
-/// end (the least recently used): their ids come second.
+/// and its scope stay) and keeps whether a cast moved it there, every
+/// access token it had stops working, and a new pair is issued. The new
+/// profile's grants past [`MAX_GRANTS_PER_USER`] end (the least recently
+/// used): their ids come second.
 pub async fn switch_profile(db: &Db, input: SwitchInput) -> Result<(Issued, Vec<i64>), RefreshError> {
     let key = hash_token(&input.token);
     let now = now();
@@ -534,10 +540,11 @@ pub async fn switch_profile(db: &Db, input: SwitchInput) -> Result<(Issued, Vec<
         return Err(RefreshError::Reused { grant_id });
     }
     let row: Option<(String, Option<i64>)> = sqlx::query_as(
-        "UPDATE app_grants SET user_id = ?, last_used_at = ?, expires_at = ?, user_agent = ?, last_ip = ?
+        "UPDATE app_grants SET user_id = ?, by_cast = ?, last_used_at = ?, expires_at = ?, user_agent = ?, last_ip = ?
          WHERE id = ? RETURNING scope, ends_at",
     )
     .bind(input.user_id)
+    .bind(input.by_cast)
     .bind(now)
     .bind(now + GRANT_IDLE_SECS)
     .bind(agent(input.user_agent.as_deref()))
@@ -602,8 +609,9 @@ pub async fn find_grant_of_token(db: &Db, token: &str) -> Result<Option<(i64, St
 /// its approver not disabled; `None` otherwise. For requests that carry a
 /// session's key instead of the app's token (keyed playback URLs).
 pub async fn access_of(db: &Db, grant_id: i64) -> Result<Option<super::AppAccess>, AppError> {
-    let row: Option<(i64, String, String, i64)> = sqlx::query_as(
-        "SELECT g.id, g.client_id, g.scope, g.approved_by FROM app_grants g JOIN users a ON a.id = g.approved_by
+    let row: Option<(i64, String, String, i64, bool)> = sqlx::query_as(
+        "SELECT g.id, g.client_id, g.scope, g.approved_by, g.by_cast
+           FROM app_grants g JOIN users a ON a.id = g.approved_by
           WHERE g.id = ? AND g.expires_at > ? AND (g.ends_at IS NULL OR g.ends_at > ?) AND NOT a.disabled",
     )
     .bind(grant_id)
@@ -611,11 +619,12 @@ pub async fn access_of(db: &Db, grant_id: i64) -> Result<Option<super::AppAccess
     .bind(now())
     .fetch_optional(&db.read)
     .await?;
-    Ok(row.map(|(grant_id, client_id, scope, approved_by)| super::AppAccess {
+    Ok(row.map(|(grant_id, client_id, scope, approved_by, by_cast)| super::AppAccess {
         grant_id,
         client_id: client_id.into(),
         scopes: Scopes::parse(&scope).unwrap_or_default(),
         approved_by,
+        by_cast,
     }))
 }
 
@@ -1128,9 +1137,35 @@ mod tests {
             token: token.into(),
             grant_id,
             user_id,
+            by_cast: false,
             user_agent: Some("okhttp/5".into()),
             ip: Some("10.0.0.4".into()),
         }
+    }
+
+    #[tokio::test]
+    async fn a_switch_by_a_casts_ticket_is_kept_until_the_profile_is_picked_on_the_device() {
+        let dir = crate::testing::tempdir();
+        let db = database(dir.path()).await;
+        let (first, _) = issue(&db, grant(ANDROID, "library profiles")).await.unwrap();
+        let by_cast = async |token: &str| {
+            holder(&db, token, ANDROID, false).await.unwrap().user.app.as_ref().is_some_and(|app| app.by_cast)
+        };
+        let token = first.refresh_token.unwrap();
+        assert!(!by_cast(&token).await, "signed in on the device");
+        let cast = SwitchInput { by_cast: true, ..moving(&token, first.grant_id, 2) };
+        let (moved, _) = switch_profile(&db, cast).await.unwrap();
+        let token = moved.refresh_token.unwrap();
+        assert!(by_cast(&token).await);
+        // A refresh keeps it: the cast is how the app got to the profile.
+        let fresh = refresh(&db, exchange(&token, ANDROID), false).await.unwrap();
+        let token = fresh.refresh_token.unwrap();
+        assert!(by_cast(&token).await);
+        let access = access_of(&db, first.grant_id).await.unwrap().unwrap();
+        assert!(access.by_cast);
+        // Picked on the device since, by a switch's own rules.
+        let (picked, _) = switch_profile(&db, moving(&token, first.grant_id, 1)).await.unwrap();
+        assert!(!by_cast(&picked.refresh_token.unwrap()).await);
     }
 
     #[tokio::test]

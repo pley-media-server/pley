@@ -561,6 +561,11 @@ async fn channels_by_group_a_page_at_a_time() {
     assert_eq!(page["channels"][0]["name"], "Two HD");
     let page = app.get("/api/live/lineup/page?state=no-guide&q=ten", &admin).await.body;
     assert_eq!(page["total"], 1, "{page}");
+    // A source's, as the web's source filter asks.
+    let page = app.get("/api/live/lineup/page?source_id=1&group=Sport", &admin).await;
+    assert_eq!((page.status, page.body["total"].as_i64()), (StatusCode::OK, Some(2)), "{:?}", page.body);
+    let page = app.get("/api/live/lineup/page?source_id=2", &admin).await;
+    assert_eq!((page.status, page.body["total"].as_i64()), (StatusCode::OK, Some(0)), "{:?}", page.body);
     assert_eq!(app.get("/api/live/lineup/page", &bob).await.status, StatusCode::FORBIDDEN);
     let hidden =
         app.patch("/api/live/lineup", &admin, json!({"filter": {"group": "Sport", "q": "two"}, "hidden": true})).await;

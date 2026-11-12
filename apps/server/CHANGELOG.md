@@ -9,6 +9,23 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A new app permission, "Manage the server", lets Pley's own apps manage
+  libraries, accounts and invitations and show the dashboard. It is never
+  given with a TV's code. Settings, network, transcoder, backups and Live
+  TV stay in the web app.
+- An administrator's rights in an app hold only in an app that
+  administrator allowed, on their profile picked at the device, not one a
+  cast switched to.
+
+### Fixed
+
+- Settings → Live TV → Channels lists a source's channels when one is
+  picked, where the server answered with an error.
+- Clean up counts the old cache files and subtitles it removes, where it
+  could say there was nothing to clean up.
+
 ## [0.1.10] - 2026-11-12
 
 ### Added

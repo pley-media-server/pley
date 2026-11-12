@@ -489,6 +489,11 @@ async fn only_pleys_own_apps_sign_in_with_a_code() {
     for scope in ["openid", "library admin", "Library"] {
         assert_eq!(oauth_error(&ask(&app, ANDROID_APP, Some(scope), &[]).await).1, "invalid_scope", "{scope}");
     }
+    // Managing the server is never allowed with a code, which anyone in
+    // front of the screen can pass on, even to the app whose phones may.
+    let server = ask(&app, ANDROID_APP, Some("library play server"), &[]).await;
+    assert_eq!(oauth_error(&server).1, "invalid_scope");
+    assert!(server.text().contains("managing the server"), "{}", server.text());
     let everything = ask(&app, ANDROID_APP, Some("library play playlists profiles"), &[]).await;
     assert_eq!(everything.status, StatusCode::OK, "{}", everything.text());
     let unsaid = ask(&app, ANDROID_APP, Some(""), &[]).await;

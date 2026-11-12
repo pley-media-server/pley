@@ -105,6 +105,9 @@ class SignInTest {
     fun requestsAreAskedForOnlyWhereTheServerListsThem() = runBlocking {
         scopes = listOf("library", "play", "playlists", "profiles", "requests", "approvals", "admin")
         assertEquals("library play playlists profiles requests approvals", query(signIn.start(server.url("/").toString()))["scope"])
+        // Managing the server, where the server can let apps do it.
+        scopes = listOf("library", "play", "playlists", "profiles", "requests", "approvals", "activity", "server")
+        assertEquals("library play playlists profiles requests approvals server", query(signIn.start(server.url("/").toString()))["scope"])
         scopes = listOf("library", "play", "playlists", "profiles", "requests")
         assertEquals("library play playlists profiles requests", query(signIn.start(server.url("/").toString()))["scope"])
     }

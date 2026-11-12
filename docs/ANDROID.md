@@ -832,6 +832,61 @@ list every 30 s. Download progress sends no events: a list, a title's
 page, a library title or Discover's requests showing a download are read
 again every 10 s while they show.
 
+### Managing the server
+
+On phones and tablets, an administrator manages the server's libraries,
+accounts and invitations, and sees its dashboard, as Settings in the web
+app does: Me → **Manage server** lists those parts, in the web's order,
+and each does what its web page does. The server's settings, its network,
+the transcoder and Live TV's sources hold its keys and passwords, and stay
+in the web app: the server doesn't let apps read or change them. Requests'
+settings and Live TV's channels and tuners are managed there too, and the
+page says where they are. The app asks for the `server` scope as it signs
+in, where the server offers it ([API.md](API.md#scopes)); an
+administrator signed in before then is offered to sign in again, and
+anyone else sees nothing of it. Nor does a phone that a cast switched to
+an administrator's profile, whoever signed it in: the caster gave their
+PIN on their own phone, and the server gives such a phone none of their
+rights over others. Manage server is back once the administrator
+switches to their profile on the phone itself, which takes their PIN, or
+signs in to it again. TVs don't manage
+the server: they sign in with a code, and the server never gives the
+scope to a code.
+
+- **Dashboard**: what plays, with its transcode, and stopping a stream
+  with a message; the server's and the machine's CPU and memory over the
+  last minutes; recently played, by everyone, with removing a play; the
+  transcoder's jobs; scans, intro detection and seek previews under way;
+  the server, its storage and the database's health, and cleaning up.
+- **Libraries**: the libraries in everyone's order, dragged to reorder,
+  scanned one or all with their progress; a library's page with its kind,
+  name and folders, picked on the server or typed, then scanning, a full
+  rescan and deleting it.
+- **Users** and **Invitations**: the accounts and profiles; an account's
+  page with what an administrator changes on the web (name, password,
+  disabled, household, requests, libraries, age limit, label exceptions,
+  PIN, two-step sign-in, devices, apps, deleting, and taking the
+  administrator's role away); making accounts and profiles; invitation
+  links, made, copied, shared and deleted. Making an administrator, and
+  another administrator's password, PIN and two-step sign-in, stay in the
+  web app, as the server requires: either would let whoever holds the
+  phone into it as an administrator. An administrator's page has no age
+  limit or label exceptions, which don't apply to one. An age limit is set
+  as on the web: by a country's rating, by age, or (for an account) by
+  birthday, and titles with some labels are always or never shown.
+  Without a TMDB key on the server, the page says that unrated movies are
+  hidden; the key itself is added in the web app. The administrator's own
+  name, password, PIN, two-step sign-in, devices and apps stay in Account
+  in the web app, as the server requires.
+
+A value is sent as it is chosen, as the phone's own Settings save theirs;
+what is made or set together (a library, an account, an invitation) has
+one button. What can't be undone asks first. The server's refusals show
+in its own words, and the page then shows what the server has. Lists that
+change (what plays, scans, the machine's load) are read again
+every few seconds while they show, and a list is read again as it shows
+after a page above it.
+
 ### Offline and downloads
 
 The app needs no internet. On a phone whose Wi-Fi has no internet, traffic
@@ -1242,6 +1297,9 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 ## Known limits
 
 - Downloads are on phones and tablets only; TVs stream everything.
+- Managing the server is on phones and tablets only, and leaves the
+  server's settings, network, transcoder, requests and Live TV to the web
+  app.
 - No Watch Next row on phones or Fire TV.
 - Live TV has no picture in picture, and the TV's display mode isn't
   matched for live channels.

@@ -116,6 +116,9 @@ pub async fn reset_user(
     if id == admin.id {
         return Err(AppError::bad_request("turn your own two-step sign-in off in Account"));
     }
+    if admin.app.is_some() && crate::accounts::user(&state.db, id).await?.is_some_and(|user| user.is_admin) {
+        return Err(AppError::forbidden(super::accounts::ADMINS_SIGN_IN_IN_THE_WEB_APP));
+    }
     if !state.two_step.turn_off(id).await? {
         return Err(AppError::not_found("this user doesn't use two-step sign-in"));
     }

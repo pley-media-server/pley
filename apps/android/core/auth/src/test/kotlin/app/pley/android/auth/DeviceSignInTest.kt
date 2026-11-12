@@ -123,7 +123,8 @@ class DeviceSignInTest {
     @Test
     fun aCodeAsksForTheScopesOfRequestsWhereTheServerListsThem() = runTest {
         // Phones' and TVs' alike: both ask for movies and shows, and approve them on an administrator's account.
-        scopes = listOf("library", "play", "playlists", "profiles", "requests", "approvals", "admin")
+        // Never managing the server, which the server never allows with a code.
+        scopes = listOf("library", "play", "playlists", "profiles", "requests", "approvals", "admin", "server")
         grant().start(server.url("/").toString())
         assertEquals("library play playlists profiles requests approvals", codeRequests.single()["scope"])
     }

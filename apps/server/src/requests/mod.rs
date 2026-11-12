@@ -1356,7 +1356,8 @@ impl Requests {
     /// administrator's account asks without limits: approved as it asks
     /// from pley's own sign-in and apps, and for a manager to approve from
     /// other publishers' apps. Other accounts ask as their `request_access`
-    /// says.
+    /// says, and so does an administrator's from an app someone else
+    /// allowed ([`AuthUser::role_holds`]).
     pub async fn caller<'a>(&self, user: &'a AuthUser, headers: Option<&HeaderMap>) -> sqlx::Result<Caller<'a>> {
         let manager = user.manages_requests();
         let (access, own): (Option<String>, Option<String>) =
@@ -1366,7 +1367,7 @@ impl Requests {
                 .await?
                 .unwrap_or_default();
         let language = i18n::of_account(own.as_deref(), &self.settings.get().language, headers);
-        if user.account_admin {
+        if user.role_holds() {
             let access = if user.first_party() { RequestAccess::Auto } else { RequestAccess::Ask };
             return Ok(Caller { user, access, limited: false, manager, language });
         }
@@ -1575,7 +1576,7 @@ impl Requests {
         // An administrator's app of pley's own that was signed in before it
         // could manage requests.
         let approvals =
-            user.account_admin && user.app.is_some() && user.first_party() && !user.allowed(Scope::Approvals);
+            user.role_holds() && user.app.is_some() && user.first_party() && !user.allowed(Scope::Approvals);
         Ok(Summary {
             enabled,
             access: caller.access,

@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Administrators manage the server's dashboard, libraries, users and
+  invitations from a phone or tablet, in Me → Manage server. A phone
+  signed in before asks to sign in again for it.
+
 ## [0.1.12] - 2026-11-12
 
 ### Added

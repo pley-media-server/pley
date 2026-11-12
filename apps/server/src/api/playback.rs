@@ -489,7 +489,7 @@ pub async fn status(
 /// last words name the media file, an administrator's (as in `for_viewer`).
 pub(super) fn transcode_seen_by(user: &AuthUser, job: &JobStatus) -> TranscodeInfo {
     let mut info = transcode_info(job);
-    if !user.is_admin && info.last_error.is_some() {
+    if !user.administers() && info.last_error.is_some() {
         info.last_error = Some("the conversion failed".to_owned());
     }
     info

@@ -480,10 +480,18 @@ pub async fn admin_channels(
     Ok(Json(state.live.admin_channels(query.source_id).await?))
 }
 
+/// The filter's fields side by side, not flattened: a query string's
+/// values are text, and a flattened `source_id` isn't read as a number.
 #[derive(Deserialize)]
 pub struct LineupPageQuery {
-    #[serde(flatten)]
-    filter: LineupFilter,
+    #[serde(default)]
+    source_id: Option<i64>,
+    #[serde(default)]
+    group: Option<String>,
+    #[serde(default)]
+    state: crate::livetv::LineupState,
+    #[serde(default)]
+    q: Option<String>,
     #[serde(default)]
     offset: Option<usize>,
     #[serde(default)]
@@ -496,7 +504,8 @@ pub async fn admin_page(
     _admin: AdminUser,
     Query(query): Query<LineupPageQuery>,
 ) -> ApiResult<Json<AdminPage>> {
-    Ok(Json(state.live.admin_page(&query.filter, query.offset.unwrap_or(0), query.limit.unwrap_or(100)).await?))
+    let filter = LineupFilter { source_id: query.source_id, group: query.group, state: query.state, q: query.q };
+    Ok(Json(state.live.admin_page(&filter, query.offset.unwrap_or(0), query.limit.unwrap_or(100)).await?))
 }
 
 pub async fn admin_groups(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<AdminGroup>>> {

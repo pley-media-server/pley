@@ -49,11 +49,18 @@ val SCOPES = listOf("library", "play", "playlists", "profiles")
 
 /**
  * What the app asks for too, only where the server lists it in
- * `scopes_supported`: asking for movies and shows, and approving them on
- * an administrator's account. A server that doesn't know a scope refuses
- * the whole sign-in for it.
+ * `scopes_supported`: asking for movies and shows, and on an
+ * administrator's account approving them and managing the server. A server
+ * that doesn't know a scope refuses the whole sign-in for it.
  */
-val LISTED_SCOPES = listOf("requests", "approvals")
+val LISTED_SCOPES = listOf("requests", "approvals", "server")
+
+/**
+ * What only the browser's sign-in asks for: managing the server, which the
+ * server never allows with a code (anyone in front of a TV could pass its
+ * code to an administrator).
+ */
+val BROWSER_SCOPES = setOf("server")
 
 /** The extension grant for switching profiles (pley servers with profiles). */
 const val SWITCH_PROFILE_GRANT = "urn:pley:params:oauth:grant-type:switch-profile"
@@ -265,14 +272,16 @@ class SignIn(
 
         /**
          * The scopes to ask [metadata]'s server for: all of [SCOPES] it
-         * offers, and those of [LISTED_SCOPES] it lists. Servers without
+         * offers, and those of [LISTED_SCOPES] it lists, but for
+         * [BROWSER_SCOPES] when signing in [withCode]. Servers without
          * profile switching don't know "profiles", nor older ones
          * "requests", and would refuse the whole sign-in for them.
          */
-        fun scopeFor(metadata: ServerMetadata): String {
+        fun scopeFor(metadata: ServerMetadata, withCode: Boolean = false): String {
             val offered = metadata.scopesSupported
             val base = SCOPES.filter { offered == null || it in offered }.ifEmpty { listOf("library") }
-            return (base + LISTED_SCOPES.filter { offered != null && it in offered }).joinToString(" ")
+            val listed = LISTED_SCOPES.filter { offered != null && it in offered && !(withCode && it in BROWSER_SCOPES) }
+            return (base + listed).joinToString(" ")
         }
 
         /** The sign-in page's address for [flow] (OAuth 2.1 §4.1.1). */

@@ -70,6 +70,9 @@ interface DataGraph {
     /** The account's language, and what decides the one shown (nothing unless the graph has it). */
     val language: LanguageRepository get() = LanguageRepository.None
 
+    /** Managing the server, for an administrator's phone (nothing unless the graph has it, nor on TVs). */
+    val admin: ServerAdmin get() = ServerAdmin.None
+
     companion object {
         /**
          * The data side of the app over [network] and [auth]. Making it
@@ -221,6 +224,7 @@ class AppDataGraph(private val env: DataEnvironment) : DataGraph {
         ServerRemote(cache, live, env.scope, env.clock, ownReceiver = serversImpl::clientId, hasPin = { sessionImpl.meState.value?.value?.hasPin == true })
     }
     override val language: LanguageRepository by lazy { SessionLanguage(sessionImpl) { if (cacheLazy.isInitialized()) cache else null } }
+    override val admin: ServerAdmin by lazy { if (env.profile.isTv) ServerAdmin.None else SessionServerAdmin(sessionImpl, cache) }
     override val requests: RequestsRepository by lazy {
         ServerRequests(
             cache, live, env.foreground, sessionImpl.session.map { it?.scopes }, preferences(ServerRequests.FILE), env.scope, tv = env.profile.isTv,

@@ -38,12 +38,15 @@ export function StorageSection() {
             loading={clean.isPending}
             onClick={() =>
               clean.mutate(undefined, {
-                onSuccess: (r) =>
+                onSuccess: (r) => {
+                  const count = r.blobs_removed + r.media_folders_removed + r.subtitles_removed + r.cache_files_removed;
+                  const freed = r.bytes_freed + r.cache_bytes_freed;
                   toast.success(
-                    r.bytes_freed > 0
-                      ? t("storage.removed", { count: r.blobs_removed + r.media_folders_removed, size: formatBytes(r.bytes_freed) })
+                    count > 0 || freed > 0
+                      ? t("storage.removed", { count, size: formatBytes(freed) })
                       : t("storage.nothingToClean"),
-                  ),
+                  );
+                },
                 onError: (e) => toast.error(errorMessage(e)),
               })
             }

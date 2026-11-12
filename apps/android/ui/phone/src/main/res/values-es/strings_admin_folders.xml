@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="admin_folders_title">Elegir una carpeta</string>
+    <string name="admin_folders_select">Seleccionar esta carpeta</string>
+    <string name="admin_folders_up">Subir un nivel</string>
+    <string name="admin_folders_placeholder">Escribe una ruta, p. ej. D:\\Medios\\Películas o /mnt/media</string>
+    <string name="admin_folders_path_label">Ruta de la carpeta</string>
+    <string name="admin_folders_go">Ir</string>
+    <string name="admin_folders_back_to_top">Volver a la raíz</string>
+    <string name="admin_folders_empty">No hay subcarpetas aquí.</string>
+</resources>

@@ -433,6 +433,10 @@ fn asked_scopes(scope: Option<&str>, client: &clients::Client) -> Result<Scopes,
         // Deciding what everyone asks for: pley's own apps only.
         return Err(fail("only Pley's own apps can approve requests (approvals): ask the app's publisher to fix it"));
     }
+    if asked.contains(Scope::Server) && !client.first_party {
+        // Administration: pley's own apps only.
+        return Err(fail("only Pley's own apps can manage the server (server): ask the app's publisher to fix it"));
+    }
     if client.scope_cap.as_deref().is_some_and(|cap| !asked.is_subset_of(Scopes::from_stored(cap))) {
         return Err(fail("this app asked for more than its description allows: ask the app's publisher to fix it"));
     }
@@ -873,6 +877,12 @@ fn start_on_device(
         return Err(OAuthError::new("unauthorized_client", "this app doesn't sign in with a code"));
     }
     let scopes = asked_scopes(form.get("scope"), client).map_err(|err| OAuthError::new(err.error, err.description))?;
+    if scopes.contains(Scope::Server) {
+        // A code shown on a screen can be passed to an administrator by
+        // anyone in front of it: managing the server is allowed only to an
+        // app signing in on the device it runs on.
+        return Err(OAuthError::new("invalid_scope", "managing the server can't be allowed with a code"));
+    }
     let issuer = issuer(headers).map_err(|_| OAuthError::invalid_request("the Host header is missing or wrong"))?;
     let app = AppSnapshot::from(client);
     // What the device says it is, so the person typing the code can tell
@@ -1142,7 +1152,10 @@ async fn issue_for_device(
 /// Profiles that need their password are picked in the browser, where the
 /// app signs in again: apps never see passwords or two-step codes. A
 /// refusal spends nothing. A switch keeps the app, what it was allowed and
-/// whoever allowed it, and ends the tokens it had at once.
+/// whoever allowed it, and ends the tokens it had at once. One a cast's
+/// ticket allowed is kept as such, so the app has none of an
+/// administrator's rights over others on the profile it lands on
+/// ([`AuthUser::role_holds`]) until a profile is picked on the device.
 ///
 /// A switch to the profile the app acts as checks that profile's PIN ("Who's
 /// watching?" as a TV starts) and, when it is right, answers as a switch
@@ -1194,6 +1207,8 @@ async fn switch_profile(
         token: token.to_owned(),
         grant_id: holder.grant_id,
         user_id: profile,
+        // The ticket stood for a PIN given on the caster's device, not here.
+        by_cast: form.get("ticket").is_some(),
         user_agent: user_agent(headers),
         ip,
     };
@@ -1536,18 +1551,20 @@ pub async fn sign_out_my_app(
 /// `GET /api/users/{id}/apps` (administrators).
 pub async fn user_apps(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    AdminUser(admin): AdminUser,
     Path(id): Path<i64>,
 ) -> ApiResult<Json<Vec<AppGrant>>> {
+    super::accounts::not_ones_own_from_an_app(&admin, id, "see your own apps in Pley's web app")?;
     Ok(Json(apps_of(&state, id).await?))
 }
 
 /// `DELETE /api/users/{id}/apps/{grant}` (administrators).
 pub async fn sign_out_user_app(
     State(state): State<AppState>,
-    _admin: AdminUser,
+    AdminUser(admin): AdminUser,
     Path((id, grant)): Path<(i64, i64)>,
 ) -> ApiResult<StatusCode> {
+    super::accounts::not_ones_own_from_an_app(&admin, id, "sign your own apps out in Pley's web app")?;
     sign_out_app(&state, id, grant).await
 }
 

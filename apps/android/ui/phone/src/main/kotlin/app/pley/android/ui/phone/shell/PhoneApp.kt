@@ -85,6 +85,7 @@ import app.pley.android.screens.ScreensGraph
 import app.pley.android.screens.requests.RequestsEntry
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.account.accountEntries
+import app.pley.android.ui.phone.admin.adminEntries
 import app.pley.android.ui.phone.home.homeEntries
 import app.pley.android.ui.phone.item.itemEntries
 import app.pley.android.ui.phone.kit.FittedLabel
@@ -306,6 +307,7 @@ private fun shellEntries(): (NavKey) -> NavEntry<NavKey> {
         playlistsEntries()
         liveTvEntries()
         accountEntries()
+        adminEntries()
         musicEntries()
         requestsEntries()
     }

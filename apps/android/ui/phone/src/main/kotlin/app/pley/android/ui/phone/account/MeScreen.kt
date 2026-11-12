@@ -46,7 +46,9 @@ import app.pley.android.designsystem.text.formatWords
 import app.pley.android.model.SubtitleMode
 import app.pley.android.model.format.formatBytes
 import app.pley.android.screens.PleyKey
+import app.pley.android.data.AdminAccess
 import app.pley.android.screens.account.MeEvent
+import app.pley.android.screens.admin.ManageServerViewModel
 import app.pley.android.screens.account.MeProfile
 import app.pley.android.screens.account.MeViewModel
 import app.pley.android.screens.account.SUBTITLE_MODES
@@ -71,9 +73,10 @@ import app.pley.android.ui.phone.theme.LocalPhoneMetrics
  * in, with Switch profile; Discover and the person's requests, where the
  * server takes requests; the profile's audio and subtitle defaults,
  * saved on the server and read-only (to change on the web) where the server
- * doesn't let apps change them; watch history; this device's downloads,
- * settings and diagnostics; the account on the web, linking a TV, another
- * server; and Sign out, asked first.
+ * doesn't let apps change them; watch history; for an administrator,
+ * managing the server; this device's downloads, settings and diagnostics;
+ * the account on the web, linking a TV, another server; and Sign out,
+ * asked first.
  */
 @Composable
 internal fun MeScreen() {
@@ -83,6 +86,8 @@ internal fun MeScreen() {
     val downloaded by downloads.byItem.collectAsStateWithLifecycle()
     val entry: RequestsEntryViewModel = viewModel(factory = RequestsEntryViewModel.factory)
     val requests by entry.entry.collectAsStateWithLifecycle()
+    val manage: ManageServerViewModel = viewModel(factory = ManageServerViewModel.factory)
+    val adminAccess by manage.access.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     val context = LocalContext.current
@@ -137,6 +142,20 @@ internal fun MeScreen() {
             item(key = "activity", contentType = "group") {
                 Group(stringResource(R.string.account_activity)) {
                     SettingsRow(stringResource(R.string.account_history), icon = PleyIcons.History, onClick = { navigator.open(PleyKey.History) })
+                }
+            }
+            if (adminAccess != null && adminAccess != AdminAccess.None) {
+                item(key = "server", contentType = "group") {
+                    Group(stringResource(R.string.admin_me_group)) {
+                        val manages = adminAccess == AdminAccess.Manages
+                        SettingsRow(
+                            stringResource(R.string.admin_title),
+                            value = stringResource(if (manages) R.string.admin_me_value else R.string.admin_me_sign_in),
+                            icon = PleyIcons.Server,
+                            onClick = { if (manages) navigator.open(PleyKey.ManageServer) else shell.signInAgain() },
+                            modifier = Modifier.testTag(ME_MANAGE_SERVER),
+                        )
+                    }
                 }
             }
             item(key = "device", contentType = "group") {
@@ -386,3 +405,4 @@ internal fun versionOf(context: Context): String = AppBuild.label(context)
 private val MAX_WIDTH = 640.dp
 
 internal const val ME_PAGE = "pley.me.page"
+internal const val ME_MANAGE_SERVER = "pley.me.manage-server"

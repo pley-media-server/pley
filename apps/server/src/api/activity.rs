@@ -67,8 +67,8 @@ pub struct Activity {
 
 /// `GET /api/activity`: what plays and what the server is busy with. Who
 /// oversees playback ([`AuthUser::oversees_playback`]) sees everyone's
-/// sessions, anyone else their own. The library work's counters go by
-/// administrator rights, which an app's token never has.
+/// sessions, anyone else their own. The library work's counters are for
+/// who manages the server ([`AuthUser::administers`]).
 pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResult<Json<Activity>> {
     let everyone = user.oversees_playback();
     let sessions: Vec<_> = state.sessions.active().into_iter().filter(|s| everyone || s.user_id == user.id).collect();
@@ -104,10 +104,10 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
                 .map(|job| super::playback::transcode_seen_by(&user, job)),
         });
     }
-    let analysis = if user.is_admin { state.markers.status() } else { None };
-    let seasons_pending = if user.is_admin { state.markers.pending() } else { 0 };
-    let previews_pending = if user.is_admin { state.trickplay.pending() } else { 0 };
-    let previews_running = if user.is_admin { state.trickplay.running() } else { 0 };
+    let analysis = if user.administers() { state.markers.status() } else { None };
+    let seasons_pending = if user.administers() { state.markers.pending() } else { 0 };
+    let previews_pending = if user.administers() { state.trickplay.pending() } else { 0 };
+    let previews_running = if user.administers() { state.trickplay.running() } else { 0 };
     let library_work = (seasons_pending + previews_pending > 0).then(|| state.schedule.status());
     // Scans of libraries the user can't open stay private (their names too).
     let libraries = access::library_ids(&state.db, &user).await?;

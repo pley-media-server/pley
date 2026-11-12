@@ -168,7 +168,9 @@ protect your server.
   takes its PIN and,
   without one, can't cast there, so a child's device never becomes an
   administrator's without that PIN. An administrator's profile is cast
-  only to Pley's apps, whose tokens never carry administrator rights,
+  only to Pley's apps, whose tokens never carry administrator rights and
+  which a cast leaves without those an administrator allowed them
+  ([Apps signing in](#apps-signing-in)),
   never to a browser's or the desktop app's sign-in, which would stay one
   with those rights, and such a sign-in never switches to an
   administrator with a ticket. When the profile has a PIN, the remote
@@ -203,19 +205,47 @@ Apps sign in on Pley's own page with OAuth 2.1.
   one used twice ends the app's access.
 - People are asked every time, Pley's own apps included, on a page that
   shows the app's address first and can't be framed.
-- Apps never get administrator rights but two, which only Pley's own apps
-  get, on an administrator's account and when the administrator allows
-  them: approving requests (`approvals`), and seeing and stopping
+- Apps never get administrator rights but three, which only Pley's own
+  apps get, on an administrator's account and when the administrator
+  allows them: approving requests (`approvals`), seeing and stopping
   everyone's streams (`activity`, which only Pley for Home Assistant asks
-  for). Whatever holds such a token can do as much, so whoever controls a
-  Home Assistant an administrator signed in can see what everyone plays and
-  stop it. Other apps, and apps on other accounts, see and stop only their
-  profile's own streams. Every route apps may use is listed with the scope
-  it needs, anything else is refused, and the compatibility APIs refuse
-  their tokens.
+  for), and managing the server's libraries, accounts and invitations, with
+  its dashboard (`server`, which Android's phones ask for). Whatever holds
+  such a token can do as much, so whoever controls a Home Assistant an
+  administrator signed in can see what everyone plays and stop it, and
+  whoever holds an administrator's phone signed in with `server` can change
+  who may sign in and what they see. No app reads or changes what holds the
+  server's keys and passwords: its settings, network and transcoder, Radarr
+  and Sonarr, backups and Live TV's sources stay with the web app, as does
+  Live TV's lineup, and no answer an app can reach carries a key, a
+  password or a provider's address (tests/app_tokens.rs checks every one).
+  Such a token can't change the account's own name, password, PIN or
+  two-step sign-in, nor see or sign out its devices and apps. Nor can it
+  make an administrator, or change another administrator's password, PIN
+  or two-step sign-in, either of which would take whoever holds it into the
+  web app as an administrator. `server` is never allowed with a TV's code,
+  which anyone in front of a screen could pass to an administrator. Each
+  is checked against the account at every request, so a role taken away
+  takes them at once, and holds only for an app that administrator
+  allowed, on a profile picked at the device. An app someone else allowed
+  never has them on an administrator's profile. Nor does a phone or TV
+  that a cast switched to one, whoever signed it in: the caster gave
+  their PIN on their own device, so it plays as them with none of the
+  three until their profile is picked on it with that PIN, or they sign in
+  to it again. Other apps, and apps on other accounts, see and stop only
+  their profile's own streams. Every route apps may use is listed with the
+  scope it needs, anything else is refused, and the compatibility APIs
+  refuse their tokens.
+- Android's app is answered at a private-use address
+  (`app.pley.android:/oauth/callback`), as RFC 8252 allows. Another app on
+  the phone that claims that scheme can start a sign-in as Pley for Android
+  and get its token, `server` included, if the person allows it; PKCE
+  doesn't stop that, only the consent page does, so allow a sign-in only
+  when you started it.
 - Apps, and people who aren't administrators, don't see library folders or
   file paths on either API (only a file's name), the transcoder's error
-  messages included.
+  messages included, except Pley's own apps allowed `server` on an
+  administrator's account, which change those folders.
 - Pley's own apps are built in and sign in without internet access.
 - Descriptions of other publishers' apps are read only when an administrator
   allows those apps, for someone signed in, from public addresses only,
@@ -275,9 +305,9 @@ other apps (`pley_ct_…`), never with a session's
   are) and `manage` (refreshes, edits, collections, stopping anyone's
   playback) only for an administrator, checked at every request, so a role
   taken away takes them at once. Each is checked by name where it applies:
-  no token is ever an administrator. No scope administers accounts, sign-in
-  or the server's settings, and the Jellyfin-compatible API takes every token
-  for what `play` allows, and one with `manage` for collections and editing
+  no such token is ever an administrator. No scope administers accounts,
+  sign-in or the server's settings, and the Jellyfin-compatible API takes
+  every token for what `play` allows, and one with `manage` for collections and editing
   metadata: it lists no one but the caller, a user id in a path must be its
   own, and a playlist is its owner's alone. A picture it is sent to fetch
   must be on one of the hosts Pley takes pictures from, as on the

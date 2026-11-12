@@ -544,4 +544,9 @@ interface PleyApi {
 
     /** GET /api/requests/options: Radarr's and Sonarr's quality profiles and folders, for the approve dialog. */
     suspend fun requestOptions(): RequestOptions
+
+    // ---------------------------------------------------------------- managing the server
+
+    /** The administrators' routes, for an app allowed `server` on an administrator's account. */
+    val admin: AdminApi get() = AdminApi.Unavailable
 }

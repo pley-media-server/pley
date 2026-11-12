@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
  * Who the app acts as: GET /api/auth/me with an app's token, the server's
  * user (apps/server/src/accounts.rs, `UserDto`) with the [scope] the app
  * was allowed. [isAdmin], [allLibraries] and [maxAge] are the app's
- * rights, not the account's: [isAdmin] is always false for an app.
+ * rights, not the account's: [isAdmin] is always false for an app, and
+ * [accountAdmin] says whether the account is an administrator.
  *
  * Times are unix seconds.
  */
@@ -45,6 +46,12 @@ data class Me(
     val scope: String? = null,
     /** The language Pley is in for the profile ("en", "fr", "es"); `null`: the server's. */
     val language: String? = null,
+    /**
+     * Whether the account is an administrator, which the server tells
+     * Pley's own apps; `null` from servers that can't let apps manage them.
+     * Allowed `server`, the app manages the server.
+     */
+    val accountAdmin: Boolean? = null,
 ) {
     /** [scope] as a list: "library", "play", "playlists", "profiles". */
     val scopes: List<String> get() = scope?.split(' ')?.filter { it.isNotEmpty() }.orEmpty()

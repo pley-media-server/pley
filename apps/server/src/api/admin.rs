@@ -549,7 +549,7 @@ pub struct TranscoderSummary {
     error: Option<String>,
 }
 
-pub async fn system(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<serde_json::Value>> {
+pub async fn system(State(state): State<AppState>, AdminUser(admin): AdminUser) -> ApiResult<Json<serde_json::Value>> {
     let info = state.transcoder.info();
     let settings = state.settings.get();
     let active_jobs = match &info {
@@ -559,7 +559,8 @@ pub async fn system(State(state): State<AppState>, _admin: AdminUser) -> ApiResu
     let transcoder = TranscoderSummary {
         available: info.is_some(),
         managed: state.transcoder.is_managed(),
-        url: state.transcoder.base_url(),
+        // An app is told where the transcoder is, never a password in its address.
+        url: state.transcoder.base_url().map(|url| if admin.app.is_some() { without_credentials(&url) } else { url }),
         version: info.as_ref().map(|i| i.version.clone()),
         commit: info.as_ref().and_then(|i| i.commit.clone()),
         license: info.as_ref().map(|i| i.license.clone()),
@@ -652,9 +653,25 @@ pub async fn system(State(state): State<AppState>, _admin: AdminUser) -> ApiResu
         "database": state.backups.health(),
         // Without it, authenticator apps can't be set up or checked.
         "secret_key_ok": state.two_step.can_set_up(),
+        // Whether movies get ratings from TMDB, which an age limit needs: an
+        // app can say so without reading the key, which stays in the web app.
+        "tmdb_key": !settings.tmdb_api_key.trim().is_empty(),
         "transcoder": transcoder,
         "counts": counts,
     })))
+}
+
+/// `url` without the user name and password it may carry.
+fn without_credentials(url: &str) -> String {
+    match url::Url::parse(url) {
+        Ok(mut parsed) if !parsed.username().is_empty() || parsed.password().is_some() => {
+            let _ = parsed.set_username("");
+            let _ = parsed.set_password(None);
+            parsed.to_string()
+        }
+        Ok(_) => url.to_owned(),
+        Err(_) => String::new(),
+    }
 }
 
 #[derive(Serialize)]
@@ -863,4 +880,16 @@ pub async fn browse_fs(_admin: AdminUser, Json(query): Json<FsQuery>) -> ApiResu
     .await
     .map_err(|e| AppError::bad_request(e.to_string()))?;
     Ok(Json(listing))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn an_address_loses_its_credentials() {
+        assert_eq!(without_credentials("http://me:pass@10.0.0.2:7600/"), "http://10.0.0.2:7600/");
+        assert_eq!(without_credentials("http://127.0.0.1:7600"), "http://127.0.0.1:7600");
+        assert_eq!(without_credentials("not an address"), "");
+    }
 }

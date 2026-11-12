@@ -112,7 +112,7 @@ class DeviceGrant(
         val metadata = ServerMetadata.fetch(http, home)
         val endpoint = metadata.deviceAuthorizationEndpoint?.takeIf { metadata.signsInWithCodes }
             ?: throw AuthException(NO_CODES)
-        val scope = SignIn.scopeFor(metadata)
+        val scope = SignIn.scopeFor(metadata, withCode = true)
         val answer = TokenEndpoint.post(http, endpoint, listOf("client_id" to CLIENT_ID, "scope" to scope))
         return parse(answer, home, metadata, scope, clock())
     }

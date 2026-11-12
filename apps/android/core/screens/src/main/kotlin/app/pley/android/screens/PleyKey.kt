@@ -2,6 +2,7 @@ package app.pley.android.screens
 
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.model.TitleKind
+import app.pley.android.screens.admin.AdminSection
 import kotlinx.serialization.Serializable
 
 /**
@@ -126,6 +127,21 @@ sealed interface PleyKey : NavKey {
     /** What this device decodes and shows, for when something doesn't play. */
     @Serializable
     data object Diagnostics : PleyKey
+
+    /** Managing the server, for an administrator's phone allowed to: its parts, as Settings in the web app. */
+    @Serializable
+    data object ManageServer : PleyKey
+
+    /**
+     * A part of managing the server; [id]: one thing of it on a page of its
+     * own (a library, an account, an invitation), [NEW] for a new one.
+     */
+    @Serializable
+    data class Manage(val section: AdminSection, val id: String? = null) : PleyKey {
+        companion object {
+            const val NEW = "new"
+        }
+    }
 
     /** Music playing now, with its queue. */
     @Serializable

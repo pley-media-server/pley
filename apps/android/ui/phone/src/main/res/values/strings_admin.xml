@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Managing the server (apps/web/src/pages/settings): the page that lists its parts, Me's row, and the kit's words. -->
+    <string name="admin_title">Manage server</string>
+    <string name="admin_me_group">Server</string>
+    <string name="admin_me_value">Libraries, accounts and the dashboard</string>
+    <string name="admin_me_sign_in">Sign in again to manage it from this phone</string>
+    <string name="admin_section_dashboard">Dashboard</string>
+    <string name="admin_section_dashboard_value">What\'s playing, the server\'s load and storage</string>
+    <string name="admin_section_libraries">Libraries</string>
+    <string name="admin_section_libraries_value">Folders, scans and order</string>
+    <string name="admin_section_users">Users</string>
+    <string name="admin_section_users_value">Accounts, profiles and what they see</string>
+    <string name="admin_section_invitations">Invitations</string>
+    <string name="admin_section_invitations_value">Links that make an account</string>
+    <string name="admin_web_only">The server\'s settings, network, transcoder, requests and Live TV are changed in Pley\'s web app.</string>
+    <string name="admin_sign_in_title">Sign in again to manage the server</string>
+    <string name="admin_sign_in_body">This phone signed in before Pley could let it manage the server. Sign in again and allow it.</string>
+    <string name="admin_sign_in_action">Sign in again</string>
+    <string name="admin_not_admin_title">Only administrators manage the server</string>
+    <string name="admin_not_admin_body">Sign in with an administrator\'s account to manage it from this phone.</string>
+    <string name="admin_load_failed">Couldn\'t load this page</string>
+    <string name="admin_loading">Loading…</string>
+    <string name="admin_save">Save</string>
+    <string name="admin_cancel">Cancel</string>
+    <string name="admin_number_range">From %1$d to %2$d</string>
+</resources>
