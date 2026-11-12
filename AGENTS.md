@@ -213,6 +213,26 @@ anywhere else people can see.
   "Generated with …" line. Don't repeat the diff or the docs; point to
   the doc.
 
+## Labels
+
+Every pull request and issue gets labels when it's opened (`gh pr create
+--label`, `gh issue create --label`), and one that came without them is
+labelled when it's picked up. `gh label list` has them all.
+
+- One kind: `bug`, `enhancement`, `documentation` for a change to docs
+  alone, or `release` for a release's pull request.
+- Every area it touches: `area: playback`, `area: live tv`,
+  `area: library`, `area: interface`, `area: integrations` (Plex sync,
+  the compatibility APIs, Requests), `area: languages`, `area: accounts`,
+  `area: remote` (the remote and casting), `area: install` (Docker,
+  Unraid, Synology, Windows, services), `area: build and CI` (tests,
+  builds, workflows, releasing).
+- `security` as well for hardening, or a fix to something that could be
+  abused.
+
+The apps aren't labels: the title names them. Make a new label only when
+no area fits, and say why in the pull request.
+
 ## Platform notes
 
 - On Windows, run `cargo` from PowerShell: Git Bash's `link` can shadow
