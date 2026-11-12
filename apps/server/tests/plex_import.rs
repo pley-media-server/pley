@@ -1108,6 +1108,64 @@ async fn a_library_in_pley_holding_more_than_plex_shared_stays_closed_to_a_new_p
 }
 
 #[tokio::test]
+async fn a_stopped_import_leaves_its_libraries_waiting_for_plex_labels() {
+    let plex = fake_plex().await;
+    let (transcoder, tv_held) = holding_transcoder().await;
+    let app = TestApp::with_config(|c| {
+        c.plex_tv = plex.clone();
+        c.transcoder_url = Some(transcoder);
+    })
+    .await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979).mkv", 1024);
+    app.media_file("tv/Show (2015)/Season 01/Show - S01E01.mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    tv_held.store(true, Ordering::SeqCst);
+    sign_in(&app, &admin).await;
+    let r = app
+        .post(
+            "/api/import/plex/start",
+            &admin,
+            json!({
+                "libraries": [
+                    {"key": "1", "library_id": movies},
+                    {"key": "2", "new": {"name": "TV", "paths": [app.media_path("tv")]}},
+                ],
+                "folders": [
+                    {"plex": "/plexdata/movies", "pley": app.media_path("movies")},
+                    {"plex": "/plexdata/tv", "pley": app.media_path("tv")},
+                ],
+                "users": [{"id": 885}],
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    // Stopped while TV's files are read, the kid's profile made.
+    for _ in 0..400 {
+        if one(&app, "SELECT COUNT(*) FROM import_accounts WHERE user_id > ?", 0).await == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM import_accounts WHERE user_id > ?", 0).await, 1);
+    assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);
+    let done = finished(&app, &admin).await;
+    tv_held.store(false, Ordering::SeqCst);
+    assert_eq!((&done["state"], &done["report"]["outcome"]), (&json!("cancelled"), &json!("cancelled")), "{done:?}");
+    // Plex's labels never came: the libraries stay hidden from the kid.
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM libraries WHERE labels_pending = ?", 1).await, 2);
+    let kid: i64 =
+        sqlx::query_scalar("SELECT user_id FROM import_accounts").fetch_one(&app.state.db.read).await.unwrap();
+    let (token, _) = app.app_token(kid, "library play").await;
+    let seen = app.app_call(Method::GET, "/api/libraries", &token, None).await;
+    assert_eq!(seen.body, json!([]), "{}", seen.text());
+    assert_eq!(done["report"]["libraries"][0]["labels_pending"], json!(true), "the report says so");
+    // And the sign-in is forgotten.
+    let r = app.get("/api/import/plex/plan", &admin).await;
+    assert_eq!(r.body["code"], "plex_signed_out");
+}
+
+#[tokio::test]
 async fn an_import_the_server_restarted_during_says_so() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
