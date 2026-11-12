@@ -719,6 +719,11 @@ pub struct Capabilities {
     /// shaders are kept on disk, so tone mapping starts sooner.
     #[serde(default)]
     pub placebo_shader_cache: bool,
+    /// `tonemap_opencl` has BT.2390's curve (jellyfin-ffmpeg's and Pley's
+    /// FFmpeg): it then tone maps by the stream's own metadata and applies
+    /// Dolby Vision's reshaping, and is given that curve.
+    #[serde(default)]
+    pub opencl_bt2390: bool,
     /// AMF encoders get frames FFmpeg uploaded to the AMD GPU (Direct3D 11)
     /// rather than frames in system memory, which AMF copies over itself
     /// several times slower (Windows).

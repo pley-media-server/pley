@@ -197,7 +197,22 @@ pub fn qsv_tonemap(w: i64, h: i64) -> String {
     }
 }
 
-const OPENCL_TONEMAP: &str = "format=p010,hwupload,tonemap_opencl=tonemap=hable:desat=0:t=bt709:m=bt709:p=bt709:format=nv12,hwdownload,format=nv12";
+/// OpenCL's tone mapping from memory and back, with `curve`.
+fn opencl_tonemap(curve: &str) -> String {
+    format!("format=p010,hwupload,tonemap_opencl={curve}:t=bt709:m=bt709:p=bt709:format=nv12,hwdownload,format=nv12")
+}
+
+/// The curve of FFmpeg's own `tonemap_opencl`, which measures each frame's
+/// peak.
+const OPENCL_HABLE: &str = "tonemap=hable:desat=0";
+
+/// The curve where `tonemap_opencl` has BT.2390 ([`Capabilities::opencl_bt2390`]),
+/// which tone maps by the stream's metadata: Hable comes out a fifth too
+/// dark there. Against a film's SDR grade (Sol Levante's) BT.2390 on the
+/// brightest channel came out as bright as the grade, with the fewest
+/// highlights clipped (7.5 % of pixels against 16 to 19 % for the other
+/// modes; the grade clips 2 %).
+const OPENCL_BT2390: &str = "tonemap=bt2390:tonemap_mode=max:desat=0";
 
 /// The last filter before a VAAPI encoder, which takes frames in VAAPI's
 /// memory only. A plain `hwupload` uploads to the filters' device, which a
@@ -306,6 +321,8 @@ pub struct VideoOut {
     /// time for that layer ([`Plan::fel_input`]). Decoded on the CPU, and
     /// HDR10 after it.
     pub fel_compose: bool,
+    /// OpenCL's tone mapper has BT.2390 ([`Capabilities::opencl_bt2390`]).
+    pub opencl_bt2390: bool,
     /// FFmpeg uploads the frames to the AMD GPU for AMF ([`AMF_D3D11_DEVICE`]),
     /// which copies them from memory itself several times slower.
     pub amf_upload: bool,
@@ -643,6 +660,7 @@ impl Plan {
                         qsv_base_layer: false,
                         base_layer_only: false,
                         fel_compose: false,
+                        opencl_bt2390: false,
                         amf_upload: false,
                         vui_primaries: None,
                         hw_decode: None,
@@ -858,6 +876,7 @@ impl Plan {
                         qsv_base_layer,
                         base_layer_only: fel_base,
                         fel_compose,
+                        opencl_bt2390: ff.caps.opencl_bt2390,
                         amf_upload,
                         // BT.709 out of every tone mapper; the source's otherwise.
                         vui_primaries: (ff.caps.h264_metadata
@@ -1751,7 +1770,7 @@ impl Plan {
             }
             Some(Tonemapper::Opencl) => {
                 pre.extend(v.tonemap_input.clone());
-                pre.push(OPENCL_TONEMAP.into());
+                pre.push(opencl_tonemap(if v.opencl_bt2390 { OPENCL_BT2390 } else { OPENCL_HABLE }));
                 if scale_needed {
                     pre.push(format!("scale={}:{}:flags=bicubic", v.width, v.height));
                 }
@@ -2948,6 +2967,14 @@ mod tests {
         let args = args_string(&plan, 0, 2);
         assert!(!args.contains("hwaccel_output_format") && !args.contains("scale_vaapi"), "{args}");
         assert!(args.contains("tonemap_opencl=") && args.contains("scale=1920:1080:flags=bicubic"), "{args}");
+        // FFmpeg's own tonemap_opencl gets Hable; one that has BT.2390
+        // (jellyfin's, Pley's) goes by the stream's metadata and gets BT.2390.
+        assert!(args.contains("tonemap_opencl=tonemap=hable:desat=0:t=bt709"), "{args}");
+        let mut patched = intel(HwAccel::Vaapi, false);
+        patched.caps.opencl_bt2390 = true;
+        let plan = Plan::build(&request(), &ten_bit(media(DynamicRange::Hdr10, None)), &patched, None).unwrap();
+        let args = args_string(&plan, 0, 2);
+        assert!(args.contains("tonemap_opencl=tonemap=bt2390:tonemap_mode=max:desat=0:t=bt709"), "{args}");
         // SDR with burned-in subtitles: scaled by VAAPI, uploaded back for its encoder.
         let mut req = request();
         req.subtitle = Some(SubtitleBurnRequest { stream_index: Some(3), external_path: None });

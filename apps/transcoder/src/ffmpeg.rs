@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 24;
+const DETECTION_REVISION: u32 = 25;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -596,7 +596,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         ..Default::default()
     };
     let timeout = Duration::from_secs(30);
-    let (version, probe, encoders, hwaccels, filters, muxers, bsfs, placebo_help) = tokio::join!(
+    let (version, probe, encoders, hwaccels, filters, muxers, bsfs, placebo_help, opencl_help) = tokio::join!(
         run(ffmpeg, &["-hide_banner", "-version"], timeout),
         run(ffprobe, &["-hide_banner", "-version"], timeout),
         run(ffmpeg, &["-hide_banner", "-encoders"], timeout),
@@ -605,6 +605,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         run(ffmpeg, &["-hide_banner", "-muxers"], timeout),
         run(ffmpeg, &["-hide_banner", "-bsfs"], timeout),
         run(ffmpeg, &["-hide_banner", "-h", "filter=libplacebo"], timeout),
+        run(ffmpeg, &["-hide_banner", "-h", "filter=tonemap_opencl"], timeout),
     );
     let Some(version) = version.filter(|o| o.success) else {
         return (caps, true);
@@ -751,6 +752,9 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     // FFmpeg 7.1 (Debian 13's) has no `shader_cache`, and a graph naming
     // it fails: the tests above leave it out, so they can't tell.
     caps.placebo_shader_cache = libplacebo && placebo_help.is_some_and(|o| lists_option(&o.text, "shader_cache"));
+    // jellyfin-ffmpeg's tonemap_opencl (Pley's FFmpeg carries it) lists
+    // BT.2390 among its curves; FFmpeg's own doesn't.
+    caps.opencl_bt2390 = opencl_help.is_some_and(|o| lists_option(&o.text, "bt2390"));
     caps.subtitle_burn_image = has("overlay");
     caps.subtitle_burn_text = has("subtitles");
     caps.readrate = readrate;
@@ -1217,6 +1221,17 @@ fn lists_option(help: &str, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tells_a_tonemap_opencl_with_bt2390() {
+        // jellyfin-ffmpeg's (and Pley's) `-h filter=tonemap_opencl`, cut down.
+        let patched = "tonemap_opencl AVOptions:\n   tonemap           <int>        ..FV....... Tonemap algorithm selection (from 0 to 7) (default bt2390)\n     \
+            mobius          6            ..FV.......\n     bt2390          7            ..FV.......\n";
+        assert!(lists_option(patched, "bt2390"));
+        let own = "tonemap_opencl AVOptions:\n   tonemap           <int>        ..FV....... tonemap algorithm selection (from 0 to 6) (default none)\n     \
+            mobius          6            ..FV.......\n";
+        assert!(!lists_option(own, "bt2390"));
+    }
 
     #[test]
     fn finds_libplacebo_options() {

@@ -408,6 +408,7 @@ mod tests {
             qsv_base_layer: false,
             base_layer_only: false,
             fel_compose: false,
+            opencl_bt2390: false,
             amf_upload: false,
             vui_primaries: None,
             hw_decode: None,

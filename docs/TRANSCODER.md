@@ -206,6 +206,7 @@ before using what it names:
 | `qsv_tonemap` | Quick Sync's scaler (VAAPI's `tonemap_vaapi` on Linux) tone maps HDR10 its decoder decoded into `h264_qsv` ([Sharing the GPU](#sharing-the-gpu)) |
 | `vaapi_tonemappers` | tone mappers whose frames reach a VAAPI encoder ([VAAPI encoders](#vaapi-encoders)) |
 | `vaapi_vulkan_decode` | `vulkan_decode` on the Vulkan device made from the VAAPI one |
+| `opencl_bt2390` | `tonemap_opencl` has BT.2390 (pley-ffmpeg, jellyfin-ffmpeg), and is given it ([Tone mapping](#tone-mapping)) |
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
 | `h264_metadata` | FFmpeg has the `h264_metadata` bitstream filter, which writes the colour primaries `h264_amf` leaves out |
@@ -948,7 +949,11 @@ available tone mapper:
   the peak frame by frame, which can't be turned off, so its brightness can
   jump between processes; pley-ffmpeg's
   ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) goes by the stream's
-  metadata, and applies Dolby Vision's reshaping.
+  metadata, and applies Dolby Vision's reshaping. Where it lists BT.2390
+  (`opencl_bt2390`, also jellyfin-ffmpeg's), OpenCL tone maps with
+  `tonemap=bt2390:tonemap_mode=max`: Hable came out a fifth too dark
+  there, and on Sol Levante this mode was as bright as the SDR grade
+  with the fewest highlights clipped. FFmpeg's own keeps Hable.
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
   and work with any tone mapper. Profile 5 without libplacebo plays with off
   colours, with a warning. Profile 7 with a full enhancement layer is tone
