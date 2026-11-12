@@ -58,7 +58,7 @@ describes how they are made.
   it ended (and why, if it failed, or that a restart of the server cut it
   short), with Import again when it didn't finish, and its report, which
   says how long the import and each of its steps took, until that's
-  closed. The browser tab's title says how far the import is, and how it
+  closed or for a week. The browser tab's title says how far the import is, and how it
   ended if that was while the tab was out of sight. Running it again adds
   what's new and never takes anything away (docs/MOVING_FROM_PLEX.md).
 - Home tells administrators how far new libraries are, first on the page,

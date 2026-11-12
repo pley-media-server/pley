@@ -141,7 +141,7 @@ Import from Plex.
    any page, and how it ended if that was while the tab was out of sight.
    You can watch, or close the page, at any time; the import goes on. Once it
    ends, Home says how it went, why if it failed, and has **See what came
-   over**, its report, until you close it; Settings › Libraries keeps
+   over**, its report, until you close it or for a week; Settings › Libraries keeps
    saying when it ran. An import that failed or was stopped, or that a
    restart of the server cut short, has **Import again**, which picks up
    where it left off: what came over stays (see below).
