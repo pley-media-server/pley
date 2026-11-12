@@ -11,88 +11,33 @@ describes how they are made.
 
 ### Added
 
-- A new setup, on one card with how far it is along its top. After the
-  administrator account, Your server shows what Pley will use, each on a
-  row of its own to confirm or change: the server's name, Pley's language,
-  the language of titles and summaries (the browser's to start with), the
-  country, a TMDB key (optional, checked before it's saved), and whether
-  Apple devices find the server by Bonjour. Then it asks how to start:
-  bring over a Plex server (below), or start fresh, with a row each for
-  Movies, TV Shows and Music to give folders for and more of any type
-  (Kids Movies) under their own names, any of them removable; Start
-  watching adds each one given a folder and starts its scan, or Later
-  leaves with none. From how to start onwards, Back goes a step back.
-  Start fresh used to leave people in Settings › Libraries. In a container
-  with no media folder mounted, adding a library says so and how to mount
-  one, and Browse starts from the folders mounted into it. Settings ›
-  Server calls its languages the same way, Pley's language and Titles and
-  summaries, and names the latter rather than showing codes.
-- Moving from Plex: setup offers to bring over a Plex server, and Settings
-  › Libraries has Import from Plex. Sign in on Plex's own page and pick
-  the server; Pley pairs each Plex library with its own (or makes one),
-  finding Plex's folders where it sees them under another path (Docker) by
-  a file in them, or from one folder given, and says how much each library
-  holds and whether Plex's files are in each folder given; it shows each
-  Plex Home user with their picture, and makes a profile for each one
-  chosen with their picture and their restrictions as an age limit and
-  label rules, gives the administrator their Plex name when they have no
-  display name, and brings over the titles' labels and dates added, and
-  each person's watched titles, resume points, ratings and plays, then
-  shows what came over. Collections and playlists come too, and Plex's
-  matches and the fields edited in Plex as Fix Match and edits in Pley; a
-  "What to bring" step turns any of these off. What's found by its file
-  comes over before any posters or details are fetched, so watch history
-  is there within minutes, and Plex's matches mean titles are fetched by
-  their ids rather than searched for by name. Titles found by their files
-  show with Plex's names, years, summaries and dates added as soon as
-  their library is scanned, until Pley's own details replace them; posters
-  come from Pley's own fetch. A profile with labels it's never allowed
-  sees the libraries the import brings once it finishes, when Plex's
-  labels are on Pley's titles; Settings › Libraries can show one sooner.
-  A library already in Pley that holds more than Plex shared with someone
-  stays closed to their new profile, and the report says so.
-  Home goes to the import as soon as it starts, and shows it while it
-  runs, as Settings › Libraries does: how far the whole import is, every
-  step it goes through, ticked off with what each brought, which library
-  is being scanned and how many of its files are read, and Stop; then how
-  it ended (and why, if it failed, or that a restart of the server cut it
-  short), with Import again when it didn't finish, and its report, which
-  says how long the import and each of its steps took, until that's
-  closed or for a week. The browser tab's title says how far the import
-  is, and how it ended if that was while the tab was out of sight.
-  Running it again adds what's new and never takes anything away
-  (docs/MOVING_FROM_PLEX.md).
-- Home tells administrators how far new libraries are, first on the page,
-  above the banner: the Plex import (above); after Start fresh, which of
-  the new libraries is being scanned, how far they all are, and each
-  ticked off once done; or a library's first scan (its files found, read,
-  then its details fetched). Reading files and fetching details say about
-  how long they have left. Screen readers hear each step as it starts,
-  not every count.
-- Settings › Server has a Country, used for titles' age ratings (TMDB's
-  and TheTVDB's), profiles' age limits and Discover's Coming to cinemas
-  list. It was the metadata language's country, and still is until one
-  is chosen: Australia, New Zealand, Canada and Ireland can now have
-  their own ratings, and a server can have summaries in one language and
-  another country's ratings.
-- Settings › Network says when Pley runs in a container on Docker's own
-  network, where devices can't find it by themselves, and how to put it on
-  the home network instead.
+- Setup asks for the server's name, languages, country, TMDB key and
+  whether Apple devices find it by Bonjour, then whether to bring over a
+  Plex server or start fresh with Movies, TV Shows and Music libraries.
+- Moving from Plex: setup and Settings → Libraries can import a Plex
+  server's libraries, its Home users as profiles with their restrictions,
+  and each person's watch history, ratings, labels, collections,
+  playlists and matches (docs/MOVING_FROM_PLEX.md).
+- Home and Settings → Libraries show a Plex import step by step while it
+  runs, and its report once it ends.
+- Home shows administrators how far new libraries' first scans are.
+- Settings → Server has a Country, for age ratings, age limits and Coming
+  to cinemas.
+- Settings → Network says when Pley is on Docker's own network, where
+  devices can't find it, and how to fix that.
+- In a container with no media folder mounted, adding a library says how
+  to mount one.
 
 ### Changed
 
-- Seek previews, intro detection and fingerprinting wait while a library
-  is scanned for the first time and while a Plex import runs, and the
-  dashboard says so. They used to start as soon as the first library was
-  scanned, reading the same disks as the next one's scan and slowing its
-  details down. A show's episodes are written a season at a time rather
-  than one by one.
-- A video that has to be remuxed or converted starts without waiting for
-  a library scan's reads of other files, when the transcoder has to read
-  it first. The log says how long each playback took to start, and the
-  transcoder's part of it.
+- Settings → Server calls its languages Pley's language and Titles and
+  summaries, and names them instead of showing codes.
+- Seek previews, intro detection and fingerprinting wait until first
+  scans and Plex imports are done.
+- A video that has to be remuxed or converted starts sooner while a
+  library is being scanned.
 - Home and a library's page show a new library's titles as its files are
-  read, every few seconds, instead of only once all of them have been.
+  read.
 
 ## [0.1.10] - 2026-11-12
 
