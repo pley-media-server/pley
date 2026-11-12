@@ -774,21 +774,25 @@ fn backdrop_owner(row: &ItemRow) -> Option<(i64, i64)> {
     }
 }
 
-pub fn user_data(jellyfin: &Jellyfin, row: &ItemRow, favorite: bool, duration_ms: Option<i64>) -> UserData {
-    let summary_watched = match row.kind.as_str() {
+/// `Played`: a show or season is once every episode is.
+pub fn played(row: &ItemRow) -> bool {
+    match row.kind.as_str() {
         "show" | "season" => {
             let leaves = row.leaf_count.unwrap_or(0);
             leaves > 0 && row.viewed_leaf_count.unwrap_or(0) >= leaves
         }
         _ => row.watched,
-    };
+    }
+}
+
+pub fn user_data(jellyfin: &Jellyfin, row: &ItemRow, favorite: bool, duration_ms: Option<i64>) -> UserData {
     let in_progress = row.position_ms > 0 && !row.watched;
     let id = jellyfin.ids.of(Kind::Item, row.id);
     UserData {
         playback_position_ticks: if in_progress { row.position_ms * TICKS_PER_MS } else { 0 },
         play_count: crate::listing::view_count(row),
         is_favorite: favorite,
-        played: summary_watched,
+        played: played(row),
         key: id.clone(),
         item_id: id,
         last_played_date: row.last_played_at.map(iso),

@@ -38,6 +38,9 @@ describes how they are made.
 - A movie titled with a number, such as "300", takes its year from its
   file's name, like other movies, rather than its folder's. A full rescan
   merges copies that show twice.
+- Sync tools such as WatchState copy partly watched videos to Pley
+  through the Jellyfin-compatible API: the place they send becomes the
+  resume point, with the time it was played on the other server.
 
 ## [0.1.9] - 2026-11-08
 
