@@ -138,10 +138,10 @@ class TvRailTest {
         pressNow(Key.DirectionLeft)
         compose.mainClock.advanceTimeByFrame()
         compose.mainClock.advanceTimeByFrame()
-        // Two frames in, the panel is still narrow: 250 dp across is the page.
-        assertFalse(isPanel(panelAt(250)))
+        // Two frames in, the panel is still narrow: 200 dp across is the page.
+        assertFalse(isPanel(panelAt(200)))
         compose.mainClock.advanceTimeBy(300)
-        assertTrue(isPanel(panelAt(250)))
+        assertTrue(isPanel(panelAt(200)))
         compose.onNodeWithTag("${TestTags.TV_RAIL}.home").assertIsFocused()
     }
 
@@ -156,7 +156,7 @@ class TvRailTest {
         val search = compose.onNodeWithText("Search", useUnmergedTree = true)
         val sliding = search.getBoundsInRoot().left
         compose.mainClock.advanceTimeBy(300)
-        // In place 56 dp into the pill, 8 dp into the rail; on its way, short of it.
+        // In place 56 dp into the pill, 8 dp into the rail, 16 after the icon; on its way, short of it.
         val rest = search.getBoundsInRoot().left
         assertEquals(64f, rest.value, 0.5f)
         assertTrue("$sliding", sliding.value < rest.value - 1f)
@@ -169,13 +169,13 @@ class TvRailTest {
         pressNow(Key.DirectionLeft)
         compose.mainClock.advanceTimeByFrame()
         compose.mainClock.advanceTimeByFrame()
-        assertTrue(isPanel(panelAt(250)))
+        assertTrue(isPanel(panelAt(200)))
         compose.onNodeWithTag("${TestTags.TV_RAIL}.home").assertIsFocused()
         // Right goes back to the page, and the panel is gone with it.
         pressNow(Key.DirectionRight)
         compose.mainClock.advanceTimeByFrame()
         compose.mainClock.advanceTimeByFrame()
-        assertFalse(isPanel(panelAt(250)))
+        assertFalse(isPanel(panelAt(200)))
         compose.onNodeWithTag(FAR).assertIsFocused()
     }
 
@@ -247,6 +247,44 @@ class TvRailTest {
         assertEquals(ENTRIES_TOP + 88f, top("playlists"), 0.5f)
         assertEquals(473f, top("settings"), 0.5f)
         assertEquals(513f, bottom("settings"), 0.5f)
+    }
+
+    @Test
+    fun entriesKeepTheSameRoomAtEitherSideClosedAndOpen() {
+        shell(reduced = true)
+        // Closed, an entry is 40 dp from x = 8: its icon's middle is at 28, the middle of the 56 dp
+        // the pages keep dark under the rail.
+        val closed = entry("search").getBoundsInRoot()
+        assertEquals(8f, closed.left.value, 0.5f)
+        assertEquals(48f, closed.right.value, 0.5f)
+        pressNow(Key.DirectionLeft)
+        compose.waitForIdle()
+        entry("home").assertIsFocused()
+        // Short names: the panel is at its narrowest, 240 dp, and an entry at rest 8 dp from each of its edges.
+        assertTrue(isPanel(panelAt(232)))
+        assertFalse(isPanel(panelAt(330)))
+        val rest = entry("search").getBoundsInRoot()
+        assertEquals(8f, rest.left.value, 0.5f)
+        assertEquals(232f, rest.right.value, 0.5f)
+        // Focused, it is 1.05 as large about its icon's middle, x = 28: the icon stays in the rail's
+        // column, and the pill is 7 dp from the screen's edge and from the panel's, as wide as at rest
+        // but for the dp it grows at each end.
+        val focused = entry("home").getBoundsInRoot()
+        assertEquals(7f, focused.left.value, 0.5f)
+        assertEquals(233f, focused.right.value, 0.5f)
+    }
+
+    @Test
+    fun aLongNameWidensTheOpenRailAsFarAsItGoes() {
+        val long = Library(1, "Documentaries and concert films from the family archive, all of them", LibraryKind.Movies)
+        shell(reduced = true, items = railItems(listOf(long)))
+        pressNow(Key.DirectionLeft)
+        compose.waitForIdle()
+        // The panel is as wide as it gets, 320 dp, its entries 8 dp from each edge still.
+        assertTrue(isPanel(panelAt(312)))
+        val rest = entry("search").getBoundsInRoot()
+        assertEquals(8f, rest.left.value, 0.5f)
+        assertEquals(312f, rest.right.value, 0.5f)
     }
 
     /**

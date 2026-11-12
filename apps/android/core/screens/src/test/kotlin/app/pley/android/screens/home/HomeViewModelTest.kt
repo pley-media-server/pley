@@ -252,4 +252,28 @@ class HomeViewModelTest {
         assertEquals(listOf(501L to true), sources.listed)
         assertTrue((vm.state.value as HomeState.Ready).featured.single().info.inList)
     }
+
+    @Test
+    fun withTheBannerOffNothingIsFeaturedOrAskedForIt() = runTest(dispatcher) {
+        sources.bannerOn.value = false
+        val vm = home()
+        val film = ItemSummary(id = 501, libraryId = 1, kind = ItemKind.Movie, title = "Lantern", backdropUrl = "/api/items/501/images/backdrop")
+        sources.libraryList.value = Loadable.Ready(listOf(MOVIES), fresh = true)
+        sources.home.value = Loadable.Ready(Hubs(listOf(Hub("recently_added:1", "Recently Added in Movies", 1, listOf(film)))), fresh = true)
+        val off = vm.state.value as HomeState.Ready
+        assertFalse(off.banner)
+        assertNull(off.hero)
+        assertTrue(off.featured.isEmpty())
+        assertEquals(listOf("recently_added:1"), off.rows.map { it.key })
+        // Neither the libraries' Top Rated rows nor the banner's details are asked for.
+        assertTrue(sources.libraryHubs.isEmpty())
+        assertTrue(sources.details.isEmpty())
+
+        // Turned back on, the banner comes back without leaving Home.
+        sources.bannerOn.value = true
+        val on = vm.state.value as HomeState.Ready
+        assertTrue(on.banner)
+        assertEquals("Lantern", on.featured.single().info.title)
+        assertEquals(setOf(MOVIES.id), sources.libraryHubs.keys)
+    }
 }

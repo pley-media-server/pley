@@ -351,6 +351,15 @@ public class QualityTests
     }
 
     [Fact]
+    public void A_server_that_converts_no_video_offers_the_original_alone()
+    {
+        var film = new MediaFile { Bitrate = 60_000_000, Width = 3840, Height = 2160 };
+        Assert.Equal(new[] { Qualities.Original }, Qualities.Offered(film, originalOnly: true));
+        Assert.Equal(new[] { Qualities.Original }, Qualities.Offered(null, originalOnly: true));
+        Assert.Equal(Qualities.ForFile(film), Qualities.Offered(film, originalOnly: false));
+    }
+
+    [Fact]
     public void A_files_lines_are_the_servers_so_a_scope_film_is_1080p()
     {
         Assert.Equal(1080, Qualities.LinesClassOf(new MediaFile { Width = 1920, Height = 800 }));

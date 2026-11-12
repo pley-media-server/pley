@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-11-12
+
+### Added
+
+- When the server has video transcoding turned off, the Quality menu
+  offers only Original.
+
 ## [0.1.8] - 2026-11-08
 
 ### Added
@@ -499,7 +506,8 @@ describes how they are made.
 
 - The version of the builds made by hand before the app had releases.
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-08...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-12...HEAD
+[0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08
 [0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06
 [0.1.6]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05

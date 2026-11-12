@@ -4,9 +4,11 @@ Each app (a "unit") has its own version and changelog. A release takes the
 units whose versions went up since the last release, each at its own
 version, under one tag named after the day it was prepared
 (`release-2026-11-02`, then `release-2026-11-02.2` for a second that day),
-and one GitHub release with each unit's notes. With several units, each
+and one GitHub release, named after that day and what it holds ("Pley
+2026-11-02.2: Media Server, Android", by the [units](#units)' short
+names), with each unit's notes. Each
 unit's notes are folded under its name and version, so readers open only
-their app's. The first release is `release-2026-11-01`, for 0.1.1; the
+their app's; a release of one unit shows them open. The first release is `release-2026-11-01`, for 0.1.1; the
 versions before it have no tag, and the changelogs link them to the source
 at their commit.
 
@@ -14,7 +16,15 @@ at their commit.
 
 1. As you work, write what changed under `## [Unreleased]` in the unit's
    `CHANGELOG.md` (Added, Changed, Fixed, Removed), or draft it from the
-   commits with `bun scripts/release.mjs <unit> draft` and edit.
+   commits with `bun scripts/release.mjs <unit> draft` and edit. The
+   entries become the release's notes, so they are short and plain, one
+   sentence where it can be: what people see or can now do, not how Pley
+   does it, what it did before or why. A server setting's place and what
+   it does are in the server's entry alone, not repeated in each app's.
+   They read as a list: an entry doesn't open with the app or the device
+   it is for ("On Android TV, …"). Entries for one device alone follow the
+   others in their section, under one line that names it ("On Android
+   TV:").
 2. On GitHub: **Actions → Prepare release → Run workflow**, or
    `gh workflow run prepare-release.yml`. Leave **Units** blank for every
    unit with Unreleased entries but the web Samsung app (`samsung`), or name
@@ -78,15 +88,18 @@ bun scripts/release.mjs kodi patch --dry-run
 bun scripts/release.mjs kodi patch --commit
 bun scripts/release.mjs kodi notes 0.0.2 # a version's notes
 bun scripts/release.mjs pending          # the release HEAD waits for: its tag, units, and what stops it
-bun scripts/release.mjs check            # no unit below the version it had at the last release (CI runs it)
+bun scripts/release.mjs check            # no unit below the version it had at the last release, the README's latest releases right (CI runs it)
+bun scripts/release.mjs readme           # writes the README's latest releases from the CHANGELOGs
 bun test ./scripts                       # the scripts' tests
 ```
 
 `release.mjs <unit> <patch|minor|major|X.Y.Z>` sets the version in the
 unit's manifests and moves its Unreleased entries under the new version,
 dated today and linked to the release's tag: the one the units bumped before
-it wait for, else the day's first free one. For Kodi it also writes the notes
-into `addon.xml`'s `<news>`. The release's tag and the units waiting come from
+it wait for, else the day's first free one. It puts the version, linked to
+that release, among the pills of each unit's latest release at the top of
+the [README](../README.md), which `check` holds to the CHANGELOGs and
+`readme` writes again. For Kodi it also writes the notes into `addon.xml`'s `<news>`. The release's tag and the units waiting come from
 the tags, so fetch them first (`git fetch --tags`).
 
 - `--draft` first adds the commits since the unit's version was set, as
@@ -109,6 +122,9 @@ the tags, so fetch them first (`git fetch --tags`).
 | `kodi` | The Kodi add-on | `apps/kodi/plugin.video.pley/addon.xml` | `plugin.video.pley-<version>.zip` |
 | `roku` | The Roku app | `apps/roku/manifest` (major, minor, build), `apps/roku/package.json` | `pley-roku-<version>.zip` |
 
+- In a release's name the units are Media Server, Desktop, Android,
+  Samsung (the native app; the web one is Samsung (web)), LG, Kodi and
+  Roku, in that order.
 - The lock files record the versions too; `version.mjs set` updates them.
 - The transcoder, the protocol crate and the web app carry the server's
   version: they ship only inside the server's release files. The server and
@@ -146,7 +162,7 @@ workflow's `on.paths` has the exact list.
 | Kodi | `apps/kodi`, and the server's Rust code: its end-to-end test runs against a server built from the same commit |
 | Roku | `apps/roku`, the root `package.json` (Bun's version) |
 | FFmpeg | `deploy/ffmpeg` on master: publishes the Docker image's FFmpeg ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) |
-| Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, a unit's version (the first file in its "Version in") |
+| Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, `README.md`, a unit's version (the first file in its "Version in") |
 | Release | A unit's version on master (the first file in its "Version in") |
 
 Repository also fails a pull request whose merge would leave a unit's

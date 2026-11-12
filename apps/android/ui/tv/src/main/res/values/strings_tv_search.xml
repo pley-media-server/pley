@@ -5,7 +5,7 @@
     <string name="tv_search_recent">Recent searches</string>
     <string name="tv_search_recent_clear">Clear</string>
     <string name="tv_search_empty_title">Search your libraries</string>
-    <string name="tv_search_empty_body">Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels. Press OK on the field to type, or use your keyboard\'s microphone.</string>
+    <string name="tv_search_empty_body">Find movies, shows, episodes, people, artists, albums, tracks and Live TV channels.</string>
     <string name="tv_search_none_title">No results for “%1$s”</string>
     <string name="tv_search_none_body">Try a different spelling or fewer words.</string>
     <string name="tv_search_failed">Search failed</string>

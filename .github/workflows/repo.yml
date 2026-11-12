@@ -2,8 +2,8 @@ name: Repository
 
 # What belongs to no single app: the workflows themselves, and the scripts
 # that version and release the apps (docs/RELEASING.md), with every unit's
-# manifests and CHANGELOG checked against each other, and its version against
-# the last release's.
+# manifests and CHANGELOG checked against each other, its version against
+# the last release's, and README.md's latest releases against the CHANGELOGs.
 on:
   push:
     branches: [master]
@@ -15,6 +15,7 @@ on:
       - scripts/release.mjs
       - scripts/release.test.mjs
       - "**/CHANGELOG.md"
+      - README.md
       - apps/server/Cargo.toml
       - apps/desktop/package.json
       - apps/android/app/build.gradle.kts
@@ -31,6 +32,7 @@ on:
       - scripts/release.mjs
       - scripts/release.test.mjs
       - "**/CHANGELOG.md"
+      - README.md
       - apps/server/Cargo.toml
       - apps/desktop/package.json
       - apps/android/app/build.gradle.kts
@@ -80,7 +82,8 @@ jobs:
           bun-version-file: package.json
       - run: bun test ./scripts
       - run: bun scripts/version.mjs check
-      # No unit below the version it had at the last release tag. What else
+      # No unit below the version it had at the last release tag, and
+      # README.md's latest releases as the CHANGELOGs have them. What else
       # waits for the next release is normal here, so pending isn't run.
       - run: bun scripts/release.mjs check
       - run: bun scripts/release.mjs

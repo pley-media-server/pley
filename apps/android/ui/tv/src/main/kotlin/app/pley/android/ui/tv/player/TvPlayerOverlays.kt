@@ -78,6 +78,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyFocus
 import app.pley.android.designsystem.PleyMotion
 import app.pley.android.designsystem.PleyShape
+import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.PleyType
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.designsystem.icon.Icon
@@ -180,7 +181,8 @@ internal fun BoxScope.TvSkipButton(
         Button(
             onClick = onSkip,
             modifier = Modifier
-                .heightIn(min = 40.dp)
+                // Set, as a pill's is: tv-material's Row would keep it at 40.
+                .height(PleyTv.ButtonHeight)
                 .testTag(TAG_SKIP)
                 .focusRequester(ui.requester(PlayerFocus.Skip))
                 .onFocusChanged { if (it.isFocused) ui.focused = PlayerFocus.Skip else if (ui.focused == PlayerFocus.Skip) ui.focused = null }
@@ -264,7 +266,7 @@ internal fun BoxScope.TvUpNextCard(card: UpNextUi?, ui: TvPlayerUi, onPlay: () -
                         onClick = onCancel,
                         modifier = Modifier
                             // As tall as Play now beside it.
-                            .heightIn(min = 48.dp)
+                            .heightIn(min = UP_NEXT_BUTTON)
                             .onFocusChanged { if (it.isFocused) ui.focused = PlayerFocus.UpNext }
                             .focusProperties {
                                 up = FocusRequester.Cancel
@@ -288,7 +290,7 @@ private fun PlayNowButton(secondsLeft: Int?, reduced: Boolean, ui: TvPlayerUi, o
         onClick = onPlay,
         interactionSource = interactions,
         modifier = Modifier
-            .heightIn(min = 48.dp)
+            .heightIn(min = UP_NEXT_BUTTON)
             .testTag(TAG_PLAY_NOW)
             .focusRequester(ui.requester(PlayerFocus.UpNext))
             .onFocusChanged { if (it.isFocused) ui.focused = PlayerFocus.UpNext }
@@ -534,6 +536,9 @@ private const val BUFFERING_DELAY_MS = 500L
 private const val UP_NEXT_IMAGE_WIDTH = 640
 private val UP_NEXT_WIDTH = 300.dp
 private val UP_NEXT_IMAGE_HEIGHT = 169.dp
+
+/** Play now and Cancel: taller than a page's buttons, as the controls' Play is. */
+private val UP_NEXT_BUTTON = 44.dp
 
 /** Skip's fill: the picture shows through, as Skip asks for little of the eye. */
 private val SkipFill = Color.Black.copy(alpha = 0.45f)

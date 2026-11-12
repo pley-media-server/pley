@@ -83,6 +83,14 @@ public static class Qualities
         return new[] { Original, Automatic }.Concat(sorted).ToList();
     }
 
+    /// <summary>
+    /// The qualities the menu offers for <paramref name="file"/>: those worth offering
+    /// (<see cref="ForFile"/>), or the original alone on a server that converts no video
+    /// (<see cref="PlaybackInfo.OriginalOnly"/>), which has no other to give.
+    /// </summary>
+    public static IReadOnlyList<QualityPreset> Offered(MediaFile? file, bool originalOnly) =>
+        originalOnly ? new[] { Original } : ForFile(file);
+
     /// <summary>The lines <paramref name="preset"/> gives a file of <paramref name="fileLines"/>: never more than the file's.</summary>
     public static int? LinesFor(QualityPreset preset, int? fileLines)
     {

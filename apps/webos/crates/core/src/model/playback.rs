@@ -188,6 +188,10 @@ pub struct PlaybackInfo {
     pub live_bitrate: bool,
     /// 1400 for HLS sessions: segment timestamps are file time plus this.
     pub pts_offset_ms: Option<i64>,
+    /// The server converts no video: the Quality menu offers the original
+    /// alone, and Automatic stays there.
+    #[serde(default, deserialize_with = "nd")]
+    pub original_only: bool,
 }
 
 wire_enum! {

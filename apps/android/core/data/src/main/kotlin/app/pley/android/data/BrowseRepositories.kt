@@ -111,6 +111,22 @@ interface ItemRepository {
 
     /** Loads [itemId]'s details ahead (a likely next tap), at low priority. */
     fun prefetch(itemId: Long)
+
+    /** Asks for [itemId]'s children ahead, unless they are kept already (a season's episodes, before it is shown). */
+    suspend fun warmChildren(itemId: Long) {}
+
+    /**
+     * [itemId]'s details as held in memory now, without asking for them:
+     * a page seen before, or one asked for ahead. A page that finds them
+     * draws itself at once, with no outline first.
+     */
+    fun held(itemId: Long): ItemDetail? = null
+
+    /** [itemId]'s children as held in memory now. */
+    fun heldChildren(itemId: Long): List<ItemSummary>? = null
+
+    /** The episode [itemId] plays next as held in memory now; `null` when that isn't held. */
+    fun heldOnDeck(itemId: Long): Loadable<ItemSummary?>? = null
 }
 
 interface SearchRepository {

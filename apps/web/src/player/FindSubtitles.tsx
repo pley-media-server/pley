@@ -40,7 +40,7 @@ function LanguageSelect({ value, onChange, label }: { value: string; onChange: (
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-md border border-white/15 bg-white/10 px-2 py-1.5 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60 [&>option]:bg-neutral-900"
+      className="w-full rounded-md border border-white/15 bg-white/10 py-1.5 pl-2 pr-8 text-sm text-white outline-none focus-visible:ring-2 focus-visible:ring-white/60 [&>option]:bg-neutral-900"
     >
       {known ? null : <option value={value}>{languageName(value) ?? value}</option>}
       {LANGUAGES.map((l) => (

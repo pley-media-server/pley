@@ -198,6 +198,29 @@ class TvRowFocusTest {
     private fun keyUp(key: Key) = compose.onRoot().performKeyInput { keyUp(key) }
 
     @Test
+    fun aPageShownAgainLandsOnTheTileItRemembersNotOnTheRowsEntry() {
+        prefetchAsOnATv()
+        // As a page comes back after Back: it remembers the row's fourth tile, and the row would be
+        // entered on its second (an episode row's episode to watch).
+        val memory = FocusMemory("a/4")
+        compose.setContent {
+            view = LocalView.current
+            TvTheme(reducedMotion = true) {
+                CompositionLocalProvider(LocalTvRailFocus provides rail, LocalKeyRepeatGate provides gate) {
+                    TvRowColumn(state = rememberTvRowColumnState(), contentPadding = PaddingValues(top = 172.dp), modifier = Modifier.fillMaxSize()) {
+                        item("a") { TvRow("a", "Row A", tiles("A", 8), TileKind.Landscape, onOpen = {}, memory = memory, enterOn = 2) }
+                    }
+                }
+            }
+        }
+        showWindow(view)
+        compose.waitForIdle()
+        compose.focused().assertContentDescriptionEquals("A 4")
+        // Without anything remembered in it, the row is entered on its entry.
+        assertEquals("a/4", memory.key)
+    }
+
+    @Test
     fun theFirstTileTakesFocusFirst() {
         page()
         compose.focused().assertContentDescriptionEquals("A 1")

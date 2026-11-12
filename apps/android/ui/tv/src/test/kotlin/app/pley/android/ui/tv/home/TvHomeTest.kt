@@ -28,6 +28,10 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.data.Loadable
 import app.pley.android.model.HubKeys
@@ -67,10 +71,11 @@ import org.robolectric.annotation.Config
 
 /**
  * Home on TV with key events: initial focus on the featured title's Play,
- * Right through the hero's buttons on to the next title, the hero turning
+ * Right through the hero's buttons stopping on the last, the hero turning
  * by itself while nothing is pressed, Down into the rows, the focused tile coming back after the page was away, Back from
- * the rows going to the rail with the page back at its hero, and the
- * states drawn from what was saved without the network.
+ * the rows going to the rail with the page back at its hero, Home opening
+ * on its rows with the banner turned off, and the states drawn from what
+ * was saved without the network.
  */
 @OptIn(ExperimentalTestApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -143,6 +148,23 @@ class TvHomeTest {
     }
 
     @Test
+    fun withTheBannerOffHomeOpensOnItsRows() {
+        sources.bannerOn.value = false
+        show()
+        compose.waitForIdle()
+        // No hero: focus starts on the first row's first tile.
+        compose.onNodeWithText("Play").assertDoesNotExist()
+        compose.onNodeWithText("NEW").assertDoesNotExist()
+        assertTrue(focusedDescription(), focusedDescription().startsWith("Half Loop"))
+
+        press(Key.DirectionRight)
+        assertTrue(focusedDescription(), focusedDescription().startsWith("Arrival"))
+        press(Key.DirectionDown)
+        assertEquals("See all", focusedDescription())
+        compose.onNodeWithText("Play").assertDoesNotExist()
+    }
+
+    @Test
     fun savedRowsWithTheServerAwaySaySoAWhileAndStayMarkedUntilItAnswers() {
         val saved = Fixtures.decode<Hubs>("hubs/home.json")
         sources.home.value = Loadable.Failed(OfflineException(IOException("no answer in time")), saved)
@@ -204,18 +226,19 @@ class TvHomeTest {
     }
 
     @Test
-    fun rightFromTheLastButtonGoesOnToTheNextTitle() {
+    fun rightFromTheLastButtonStaysOnIt() {
         sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
         show()
         compose.waitForIdle()
         compose.onNodeWithText("Dune: Part Two").assertExists()
         compose.onNodeWithText("Play").assertIsFocused()
-        // Play, Info, My List; then the next title, from its Play.
+        // Play, Info, My List; Right again turns nothing and goes nowhere, the dashes above included.
         press(Key.DirectionRight, times = 2)
         assertEquals("Add to My List", focusedDescription())
-        press(Key.DirectionRight)
-        compose.onNodeWithText("Severance").assertExists()
-        compose.onNodeWithText("Play").assertIsFocused()
+        press(Key.DirectionRight, times = 2)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.onNodeWithText("Severance").assertDoesNotExist()
+        assertEquals("Add to My List", focusedDescription())
     }
 
     @Test
@@ -228,6 +251,23 @@ class TvHomeTest {
         compose.mainClock.advanceTimeBy(9_000)
         compose.onNodeWithText("Severance").assertExists()
         compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun theTitleOnStaysOnWhenTheBannersTitlesChange() {
+        val two = twoFeatured()
+        sources.home.value = Loadable.Ready(two, fresh = false)
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.mainClock.advanceTimeBy(10_000)
+        compose.onNodeWithText("Severance").assertExists()
+        // Another title takes its place among them, as the top rated ones do a moment after the newest.
+        val other = ItemSummary(id = 901, libraryId = 2, kind = ItemKind.Show, title = "Driftline", backdropUrl = "/api/items/901/images/backdrop")
+        val three = Hubs(two.hubs.map { if (it.key == "recently_added:2") it.copy(items = listOf(other) + it.items) else it })
+        sources.home.value = Loadable.Ready(three, fresh = true)
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onNodeWithText("Severance").assertExists()
+        compose.onNodeWithText("Driftline").assertDoesNotExist()
     }
 
     @Test
@@ -244,6 +284,80 @@ class TvHomeTest {
         compose.mainClock.advanceTimeBy(3_500)
         compose.onNodeWithText("Severance").assertExists()
         compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun upFromTheButtonsReachesTheDashesWhichTurnTheTitles() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        show()
+        compose.waitForIdle()
+        press(Key.DirectionRight)
+        assertEquals("Info", focusedDescription())
+        press(Key.DirectionUp)
+        assertEquals("Title 1 of 2", focusedDescription())
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Severance").assertExists()
+        assertEquals("Title 2 of 2", focusedDescription())
+        // On from the last title is the first, and back from the first the last.
+        press(Key.DirectionRight)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        press(Key.DirectionLeft)
+        compose.onNodeWithText("Severance").assertExists()
+        assertEquals("Title 2 of 2", focusedDescription())
+        // Down is Play, though the dashes are over none of the buttons.
+        press(Key.DirectionDown)
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun theDashesKeepFocusWhenTheHeroTurnsByItself() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        compose.mainClock.autoAdvance = false
+        show()
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
+        compose.mainClock.advanceTimeBy(1_000)
+        assertEquals("Title 1 of 2", focusedDescription())
+        compose.mainClock.advanceTimeBy(9_000)
+        compose.onNodeWithText("Severance").assertExists()
+        assertEquals("Title 2 of 2", focusedDescription())
+    }
+
+    @Test
+    fun focusOnTheDashesGoesToPlayWhenTheyGo() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        show()
+        compose.waitForIdle()
+        press(Key.DirectionUp)
+        assertEquals("Title 1 of 2", focusedDescription())
+        // One title left to feature: no dashes.
+        sources.home.value = Loadable.Ready(Fixtures.decode<Hubs>("hubs/home.json"), fresh = false)
+        compose.waitForIdle()
+        compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun theHeroWaitsUnderAnotherPage() {
+        sources.home.value = Loadable.Ready(twoFeatured(), fresh = false)
+        compose.mainClock.autoAdvance = false
+        val page = object : LifecycleOwner {
+            val registry = LifecycleRegistry(this)
+            override val lifecycle: Lifecycle get() = registry
+        }
+        page.registry.currentState = Lifecycle.State.RESUMED
+        val vm = HomeViewModel(sources, Dispatchers.Unconfined)
+        compose.setContent { CompositionLocalProvider(LocalLifecycleOwner provides page) { Page(vm) } }
+        compose.mainClock.advanceTimeBy(1_000)
+        // Covered, as the shell keeps the page under the one on top.
+        compose.runOnUiThread { page.registry.currentState = Lifecycle.State.CREATED }
+        compose.mainClock.advanceTimeBy(12_000)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        // In front again, the title's time starts over.
+        compose.runOnUiThread { page.registry.currentState = Lifecycle.State.RESUMED }
+        compose.mainClock.advanceTimeBy(8_000)
+        compose.onNodeWithText("Dune: Part Two").assertExists()
+        compose.mainClock.advanceTimeBy(1_500)
+        compose.onNodeWithText("Severance").assertExists()
     }
 
     @Test

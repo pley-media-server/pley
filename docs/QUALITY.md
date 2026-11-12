@@ -8,7 +8,9 @@ for Kodi and Pley for Roku; each app's own doc covers only where it differs.
 Contents: [The menu](#the-menu) · [Original](#original) ·
 [Automatic](#automatic) ·
 [Players that go black between streams](#players-that-go-black-between-streams) ·
-[Several sizes](#several-sizes-adaptive-bitrate) · [The server](#the-server)
+[Several sizes](#several-sizes-adaptive-bitrate) ·
+[A server that converts no video](#a-server-that-converts-no-video) ·
+[The server](#the-server)
 
 ## The menu
 
@@ -275,6 +277,25 @@ picked quality plays its own size whenever the connection allows. The menu
 shows the size playing ("Automatic · 720p"), and the dashboard which of the
 sizes ("size 2 of 4").
 
+## A server that converts no video
+
+An administrator can turn video transcoding off (Settings → Transcoder,
+"Allow video transcoding"): the server then copies video, transcodes sound
+where a player needs it, and has no lower quality to give. Its play
+answers say so (`original_only`), and every player follows:
+
+- The menu offers Original alone, and shows it as what plays.
+- Automatic plays the Original and takes no steps: nothing is asked of the
+  network memory, no speed test runs, and a slow network waits.
+- The quality kept on the device stays as it is, for servers that convert.
+  A title started at it before the server's first answer plays the
+  Original, as the answer says.
+- A player that would suggest a lower quality for a slow server doesn't.
+- A file whose video the device can't play doesn't play there: the player
+  shows the server's message, which says why.
+
+Kodi's quality is a setting: it keeps its choice, and the Original plays.
+
 ## The server
 
 | Player asks for | Request |
@@ -289,6 +310,11 @@ sizes ("size 2 of 4").
   quality of its lines.
 - The response's `auto_quality` is what the server would choose for the
   file, and `adaptive` says whether the stream comes in several sizes.
+- Streams are limited twice (Settings → Transcoder): all of them by
+  `max_transcodes`, and those that transcode video by
+  `max_video_transcodes` within it, never more than it. A video transcode
+  costs many times what a copy does, so a lower limit for them leaves room
+  for people whose players only need the sound transcoded.
 - `GET /api/playback/network` reads the network memory,
   `GET /api/playback/speedtest` is the speed test, and
   `PUT /api/playback/network` reports both

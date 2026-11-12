@@ -140,6 +140,8 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   along the programme is, its times and what's next, with a channel
   rocker in place of the seek bar and skips. A device playing nothing says
   "Send something here with Play on…"
+- When the server has video transcoding turned off, the Quality menu
+  offers only Original.
 
 ### Changed
 

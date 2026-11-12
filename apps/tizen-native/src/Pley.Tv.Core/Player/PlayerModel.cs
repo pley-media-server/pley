@@ -103,6 +103,8 @@ public sealed class PlayerModel : IDisposable
     QualityPreset picked = Qualities.Automatic;
     /// <summary>What plays: the original or a transcode; the original while Automatic is chosen.</summary>
     QualityPreset quality = Qualities.Original;
+    /// <summary>The server converts no video, as its last play answer had it: only the original is offered, and plays.</summary>
+    bool originalOnly;
     IReadOnlyList<Marker> markers = new Marker[0];
     /// <summary>The mode a Dolby Vision guard asked for, for this item's later sessions too.</summary>
     string? guardMode;
@@ -271,7 +273,7 @@ public sealed class PlayerModel : IDisposable
         audio = PlaybackPlan.InitialAudio(chosen, request.AudioIndex);
         audioPicked = audio != null;
         subtitle = PlaybackPlan.InitialSubtitle(chosen, request.SubtitleIndex);
-        picked = Qualities.Choose(chosen, source.Settings.Quality);
+        picked = originalOnly ? Qualities.Original : Qualities.Choose(chosen, source.Settings.Quality);
         quality = picked.Automatic ? Qualities.Original : picked;
         offset = chosen != null ? offsets.Get(source.Server, chosen.Id) : 0;
         markers = Markers.ForFile(detail, chosen?.Id);
@@ -400,6 +402,13 @@ public sealed class PlayerModel : IDisposable
             return;
         }
         info = started;
+        originalOnly = started.OriginalOnly;
+        if (originalOnly)
+        {
+            // Whatever was asked for, the original plays: the panel says so, and the quality kept stays for servers that convert.
+            picked = Qualities.Original;
+            quality = Qualities.Original;
+        }
         sessionEnded = false;
         live = null;
         // Automatic: the track the server chose plays, switched to by the engine in direct play.
@@ -771,6 +780,9 @@ public sealed class PlayerModel : IDisposable
                     else Act(recovery.AfterServerCheck(null, starving), starving);
                 });
                 break;
+            // Not where there is none to choose.
+            case RecoveryAction.SuggestLowerQuality when originalOnly:
+                break;
             case RecoveryAction.SuggestLowerQuality:
                 Update(st => st with { SuggestLowerQuality = true, Note = SessionText.SlowServer });
                 Say(new PlayerToast(PlayerText.SlowServerToast(SessionText.SlowServer), PlayerText.ErrorToastMs, Error: true));
@@ -1125,7 +1137,7 @@ public sealed class PlayerModel : IDisposable
     /// </summary>
     void ObeyQuality(PlaybackInfo s, ServerEvent command)
     {
-        var offered = source.Local ? new List<string>() : Qualities.ForFile(file).Select(q => q.Id).ToList();
+        var offered = source.Local ? new List<string>() : Qualities.Offered(file, originalOnly).Select(q => q.Id).ToList();
         var action = Remote.Quality(new QualityPlayer(s.SessionId, offered, picked.Id), command);
         if (action.Id == null)
         {
@@ -1328,7 +1340,7 @@ public sealed class PlayerModel : IDisposable
     public void SelectQuality(string id)
     {
         var wanted = Qualities.ByIdOrLabel(id);
-        var choice = Qualities.ForFile(file).FirstOrDefault(q => q.Id == wanted.Id);
+        var choice = Qualities.Offered(file, originalOnly).FirstOrDefault(q => q.Id == wanted.Id);
         if (choice == null || choice.Id == picked.Id) return;
         var before = quality;
         picked = choice;
@@ -1768,7 +1780,7 @@ public sealed class PlayerModel : IDisposable
         var automatic = picked.Automatic;
         var fileHint = Qualities.FileHint(chosenFile);
         // Nothing converts a file on a drive: it plays as it is.
-        var qualities = (source.Local ? new List<QualityPreset>() : Qualities.ForFile(chosenFile)).Select(p => new QualityChoice(
+        var qualities = (source.Local ? new List<QualityPreset>() : Qualities.Offered(chosenFile, originalOnly)).Select(p => new QualityChoice(
             p.Id,
             Label(p),
             p.Automatic ? (automatic && (auto != null || !quality.Original) ? SessionText.AutomaticNow(playing) : SessionText.AutomaticHint)

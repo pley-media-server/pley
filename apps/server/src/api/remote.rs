@@ -249,7 +249,7 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
         let Some(row) = catalog::item(&state.db, user.id, session.item_id).await? else { continue };
         let file = catalog::file(&state.db, session.file_id).await?;
         let tracks = track_options(&file.as_ref().map(|f| f.streams()).unwrap_or_default());
-        let qualities = file_qualities(file.as_ref());
+        let qualities = file_qualities(file.as_ref(), state.settings.get().transcode_video);
         // Markers belong to a file: another version of the title can be another cut.
         let mut markers = crate::markers::for_item(&state.db, row.id).await?;
         markers.retain(|m| m.file_id == session.file_id);
@@ -285,10 +285,15 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
 }
 
 /// The qualities a player's menu offers for a file: none for one without
-/// video (music), or once the file is gone.
-fn file_qualities(file: Option<&catalog::FileRow>) -> Vec<QualityOption> {
+/// video (music), or once the file is gone, and the original alone when
+/// the server converts no video (`converts` is its `transcode_video`).
+fn file_qualities(file: Option<&catalog::FileRow>, converts: bool) -> Vec<QualityOption> {
     match file {
-        Some(f) if f.video_codec.is_some() => offered_qualities(f.width, f.height, f.bitrate),
+        Some(f) if f.video_codec.is_some() => {
+            let mut offered = offered_qualities(f.width, f.height, f.bitrate);
+            offered.retain(|quality| converts || quality.id == "original");
+            offered
+        }
         _ => Vec::new(),
     }
 }
@@ -356,7 +361,8 @@ pub async fn command(
         Controlled::Item(session) if matches!(body.command, Control::Audio | Control::Subtitles | Control::Quality) => {
             let file = catalog::file(&state.db, session.file_id).await?;
             let streams = file.as_ref().map(|f| f.streams()).unwrap_or_default();
-            Some(Choices { streams, qualities: file_qualities(file.as_ref()) })
+            let qualities = file_qualities(file.as_ref(), state.settings.get().transcode_video);
+            Some(Choices { streams, qualities })
         }
         Controlled::Item(_) => Some(Choices { streams: Vec::new(), qualities: Vec::new() }),
         Controlled::Live(_) => None,

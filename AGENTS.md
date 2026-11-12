@@ -156,7 +156,15 @@ anywhere else people can see.
   and how. Update the doc a change affects in the same commit (a new route
   goes in [docs/API.md](docs/API.md)).
 - **Changelogs**: a line under `## [Unreleased]` in each changed app's
-  `CHANGELOG.md`, saying what changed as a user sees it.
+  `CHANGELOG.md`, saying what changed as a user sees it. Keep it short and
+  plain, one sentence where it can be: what people see or can now do, not
+  how Pley does it, what it did before or why. Where a setting is and what
+  it does are said once, in the server's line, not again in each app's
+  ("When the server has video transcoding turned off, the Quality menu
+  offers only Original."). Don't open each line with the app or the
+  device ("On Android TV, …"): lines for one device alone follow the
+  others in their section, under one line that names it ("On Android
+  TV:"). Add to a line about the same thing rather than writing another.
 - **Formatting**: `cargo fmt` (max width 120) for Rust; ESLint and the
   existing style for TypeScript. The repository doesn't use Prettier: don't
   run it.

@@ -4,4 +4,6 @@
     <string name="home_featured_new_in">New in %1$s</string>
     <string name="home_featured_new">New</string>
     <string name="home_featured_on_list">On your list</string>
+    <string name="home_featured_top_rated_in">Top rated in %1$s</string>
+    <string name="home_featured_top_rated">Top rated</string>
 </resources>

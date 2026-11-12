@@ -138,9 +138,13 @@ end function
 ' The player's Quality menu for a file: Original, Automatic and the
 ' qualities offered for it ([{ id, label }]), a quality taller than the
 ' file named by the file's own lines ("8 Mbps 720p" for a 720p file).
-function aqMenuFor(file as dynamic) as object
+' Original alone on a server that converts no video (originalOnly, the
+' play answer's original_only), which has no other to give.
+function aqMenuFor(file as dynamic, originalOnly = false as boolean) as object
+    original = { id: "original", label: aqLabel("original") }
+    if originalOnly then return [original]
     named = aqNamedLines(aqFileWidth(file), aqFileLines(file))
-    menu = [{ id: "original", label: aqLabel("original") }, { id: "auto", label: aqLabel("auto") }]
+    menu = [original, { id: "auto", label: aqLabel("auto") }]
     for each id in aqOffered(aqFileKbps(file), aqFileLines(file))
         lines = aqLines(id)
         if named > 0 and lines > named then lines = named
@@ -151,7 +155,8 @@ end function
 
 ' The ids of the player's Quality menu for a file (aqMenuFor), in its
 ' order: asked with each progress report, so without their words.
-function aqMenuIds(file as dynamic) as object
+function aqMenuIds(file as dynamic, originalOnly = false as boolean) as object
+    if originalOnly then return ["original"]
     ids = ["original", "auto"]
     ids.Append(aqOffered(aqFileKbps(file), aqFileLines(file)))
     return ids
@@ -161,8 +166,8 @@ end function
 ' as progress reports and the user's remotes say it: the choice (Settings'
 ' or the menu's), else Original, which a file that doesn't offer the
 ' choice plays.
-function aqPicked(choice as string, file as dynamic) as string
-    if aqHas(aqMenuIds(file), choice) then return choice
+function aqPicked(choice as string, file as dynamic, originalOnly = false as boolean) as string
+    if aqHas(aqMenuIds(file, originalOnly), choice) then return choice
     return "original"
 end function
 

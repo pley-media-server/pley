@@ -231,7 +231,7 @@ private fun RemoveButton(title: String, focus: FocusRequester, onRemove: () -> U
     Box(
         Modifier
             .focusRequester(focus)
-            .size(40.dp)
+            .size(PleyTv.ButtonHeight)
             .clip(PleyShape.Circle)
             .background(if (focused) PleyColors.Accent else PleyColors.Surface3)
             .combinedClickable(interactionSource = interactions, indication = null, role = Role.Button, onClickLabel = label, onClick = onRemove),

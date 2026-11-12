@@ -67,6 +67,10 @@ class QualityTest {
         assertEquals(listOf("original", "auto", "8m", "4m", "2m"), ids(12_000_000, 720))
         assertEquals(Qualities.ALL.size, ids(null, null).size)
         assertEquals(Qualities.ALL.size, Qualities.forFile(null).size)
+        // A server that converts no video has only the original to give.
+        val film = MediaFile(id = 1, path = "a", bitrate = 60_000_000, height = 2160)
+        assertEquals(listOf(Qualities.ORIGINAL), Qualities.offered(film, originalOnly = true))
+        assertEquals(Qualities.forFile(film), Qualities.offered(film, originalOnly = false))
     }
 
     @Test

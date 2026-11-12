@@ -34,6 +34,7 @@ import app.pley.android.model.format.qualityBadges
 import app.pley.android.model.format.resolutionLabel
 import app.pley.android.model.format.seasonTitle
 import app.pley.android.model.format.streamLabel
+import app.pley.android.model.format.unwatchedCount
 import app.pley.android.model.format.versionDescription
 import app.pley.android.model.format.versionLabel
 import app.pley.android.screens.R
@@ -65,7 +66,7 @@ data class PageInput(
     val pick: StreamPick = StreamPick(),
     /** Shows and seasons: the episode Play plays; `null` while not asked. */
     val onDeck: Loadable<ItemSummary?>? = null,
-    /** The show's seasons (a show's own, a season's siblings); `null` while they load. */
+    /** The show's seasons (a show's own, a season's siblings) as they are listed ([seasonOrder]); `null` while they load. */
     val seasons: List<ItemSummary>? = null,
     val selectedSeason: Long? = null,
     /** The selected season's episodes; `null` while they load. */
@@ -355,7 +356,12 @@ private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale, word
     val d = input.detail
     val tabs = when (d.kind) {
         ItemKind.Show, ItemKind.Season -> input.seasons.orEmpty().map { season ->
-            SeasonTab(season.id, seasonTitle(season.title, season.index, words), season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) })
+            SeasonTab(
+                season.id,
+                seasonTitle(season.title, season.index, words),
+                season.leafCount?.let { UiText.plural(R.plurals.item_episode_count, it) },
+                season,
+            )
         }
         ItemKind.Episode -> emptyList()
         else -> return null
@@ -369,8 +375,18 @@ private fun seasons(input: PageInput, onDeck: ItemSummary?, locale: Locale, word
         selected = input.selectedSeason,
         episodes = input.episodes?.distinctBy { it.id }?.map { episodeLine(it, locale, words) },
         focus = focus,
+        posters = seasonPosters(input.seasons.orEmpty()),
     )
 }
+
+/**
+ * Whether a show's seasons are shown by their posters: some season has
+ * one of its own. The server gives a season without one its show's
+ * poster, the same address for each, so the seasons' addresses all match
+ * (or are all missing) only when none has its own.
+ */
+fun seasonPosters(seasons: List<ItemSummary>): Boolean =
+    seasons.size > 1 && seasons.mapTo(HashSet()) { it.posterUrl?.takeIf(String::isNotEmpty) }.size > 1
 
 /** An episode's words for lists and rows, its dates in [locale], its runtime and numbers in [words]. */
 fun episodeLine(e: ItemSummary, locale: Locale = AppLanguage.locale, words: FormatWords = AppLanguage.formatWords()): EpisodeLine {
@@ -391,11 +407,44 @@ fun episodeLine(e: ItemSummary, locale: Locale = AppLanguage.locale, words: Form
     )
 }
 
-/** The season a show page opens on: the next episode's, else the first that isn't Specials, else the first. */
+/**
+ * The order a show's seasons are listed in: the server's, the first season
+ * first. A show with more than [MANY_SEASONS] lists the newest first, so
+ * the seasons still coming out aren't a long way along the row, and
+ * Specials, which the server puts first, go last.
+ */
+fun seasonOrder(seasons: List<ItemSummary>): List<ItemSummary> {
+    val (numbered, specials) = seasons.partition { (it.index ?: 1) > 0 }
+    return if (numbered.size > MANY_SEASONS) numbered.asReversed() + specials else seasons
+}
+
+/** The most numbered seasons a show lists first season first ([seasonOrder]). */
+const val MANY_SEASONS = 12
+
+/**
+ * The season a show page opens on: the next episode's while the show is
+ * being watched ([underway]), else the first listed that isn't Specials
+ * (the newest of a long show, [seasonOrder]), else the first.
+ */
 fun defaultSeason(seasons: List<ItemSummary>, onDeck: ItemSummary?): Long? =
-    onDeck?.parentId?.takeIf { id -> seasons.any { it.id == id } }
+    onDeck?.takeIf { underway(seasons, it) }?.parentId?.takeIf { id -> seasons.any { it.id == id } }
         ?: seasons.firstOrNull { (it.index ?: 1) > 0 }?.id
         ?: seasons.firstOrNull()?.id
+
+/**
+ * Whether [next] is an episode the profile has got to: one it started, or
+ * the next of a show it has watched some of and not all. For a show not
+ * started, or watched to its end, the server answers with the first
+ * episode, which Play starts but which says nothing of where the seasons
+ * open: a long show's would open on Season 1, at the far end of its row.
+ * Seasons that don't say how many of their episodes are watched leave
+ * nothing to tell by, and the server's answer stands.
+ */
+private fun underway(seasons: List<ItemSummary>, next: ItemSummary): Boolean {
+    if (next.userState.positionMs > 0) return true
+    val counted = seasons.filter { it.leafCount != null }
+    return counted.isEmpty() || (counted.any { (it.viewedLeafCount ?: 0) > 0 } && counted.any { unwatchedCount(it) > 0 })
+}
 
 private val EXTRA_LABELS = mapOf(
     ExtraType.Trailer to R.string.item_extra_trailer,

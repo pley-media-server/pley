@@ -21,7 +21,8 @@ import app.pley.android.caps.DecoderPolicy
  * doesn't come out as Dolby Vision, so Media3 falls back to the HEVC (or
  * AVC, AV1) decoder of the base layer, and come first when it does
  * ([dolbyVisionDecoders]). A repackaged stream's samples are named Dolby
- * Vision as their track is ([named]). Profiles 5 and 7 have no base layer
+ * Vision as their track is ([named]), and come with their Dolby Vision
+ * metadata ([DolbyVisionSegments]). Profiles 5 and 7 have no base layer
  * another decoder plays: their Dolby Vision decoders stay, as Media3 keeps
  * them, but for profile 7 on a drive ([profile7BaseLayer]), which goes to
  * the HEVC decoder. Audio decoders are never limited.

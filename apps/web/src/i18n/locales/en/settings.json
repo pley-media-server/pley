@@ -191,8 +191,13 @@
     },
     "load": {
       "title": "Load",
-      "description": "How many transcodes run at once, and how far ahead of the player they work.",
-      "max": "Max simultaneous transcodes",
+      "description": "What the transcoder takes on, how much of it at once, and how far ahead of the player it works.",
+      "allowVideo": "Allow video transcoding",
+      "allowVideoHint": "Off: only sound is transcoded, and video is copied as it is.",
+      "maxVideo": "Max simultaneous video transcodes",
+      "maxVideoHint": "How many of the transcodes can be full video transcodes.",
+      "max": "Max simultaneous <total>total</total> transcodes",
+      "maxHint": "Video transcodes, remuxes and sound transcodes together.",
       "maxJobsManaged": "The transcoder itself runs {{max}} at most (transcoder_max_jobs in pley.toml).",
       "maxJobsExternal": "The transcoder itself runs {{max}} at most (its --max-jobs).",
       "throttle": "Throttle transcodes",
@@ -201,7 +206,7 @@
       "memory": "Transcode in memory",
       "memoryHint": "Keeps segments in RAM instead of on disk.",
       "memoryHintUpTo": "Keeps segments in RAM instead of on disk. Up to {{size}}.",
-      "toDisk": "{{reason}}: segments go to disk."
+      "notInMemory": "{{reason}}."
     }
   },
   "choices": {

@@ -19,9 +19,13 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.NavKey
 import app.pley.android.common.TestTags
 import app.pley.android.common.Tier
+import app.pley.android.designsystem.PleyTv
+import app.pley.android.designsystem.TvSafeArea
+import app.pley.android.designsystem.tile.TileKind
 import app.pley.android.model.Credit
 import app.pley.android.model.CreditRole
 import app.pley.android.model.ItemKind
@@ -30,6 +34,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.RequestList
 import app.pley.android.model.TitleKind
 import app.pley.android.model.TitleStatus
+import app.pley.android.model.UserState
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemViewModel
 import app.pley.android.testing.Fixtures
@@ -54,7 +59,7 @@ import org.robolectric.annotation.Config
  * the page glides to a row and back to its buttons as a page of rows does.
  * A movie or show from a request shows its stage, and a show with seasons
  * left to ask for offers Request more seasons. Up from a show's episodes
- * goes to the shown season's tab.
+ * goes to the shown season's tab, and tabs past the screen's edge scroll in.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w960dp-h540dp-xhdpi")
@@ -65,8 +70,8 @@ class TvItemPageTest {
 
     private val stack = mutableListOf<NavKey>(PleyKey.Home, PleyKey.Item(1))
 
-    private fun show(data: ItemData, reduced: Boolean = true) {
-        val model = ItemViewModel(data, data.launcher, 1, compute = Dispatchers.Main.immediate)
+    private fun show(data: ItemData, reduced: Boolean = true, id: Long = 1) {
+        val model = ItemViewModel(data, data.launcher, id, compute = Dispatchers.Main.immediate)
         val navigator = TvNavigator(stack, RailState()) {}
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = reduced) {
@@ -147,7 +152,7 @@ class TvItemPageTest {
         val requests = FakeRequests()
         val downloading = Fixtures.decode<RequestList>("requests/list.json").requests.first { it.id == 42L }
         requests.api.answer("itemRequest", ItemRequest(TitleKind.Show, 1396, TitleStatus.Requested, downloading, askable = listOf(3)))
-        val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = 20)
+        val show = movie().copy(kind = ItemKind.Show, title = "Driftline", files = emptyList(), leafCount = 20)
         show(ItemData(show, requests = requests))
         // Asked once the page has drawn.
         compose.waitUntil(5_000) { compose.onAllNodes(hasText("Downloading 42%", substring = true)).fetchSemanticsNodes().isNotEmpty() }
@@ -158,10 +163,38 @@ class TvItemPageTest {
         assertEquals(PleyKey.DiscoverTitle(TitleKind.Show, 1396, pick = true), stack.last())
     }
 
-    @Test
-    fun upFromAnEpisodeGoesToItsSeasonsTab() {
-        val show = movie().copy(kind = ItemKind.Show, title = "Breaking Bad", files = emptyList(), leafCount = 12)
-        val seasons = (1..3).map { s -> ItemSummary(id = 10L + s, libraryId = 1, kind = ItemKind.Season, title = "Season $s", index = s, parentId = 1) }
+    /**
+     * A show of [count] seasons of four episodes each; with [posters], the first season has a poster of
+     * its own. [next] is the season of the episode to watch, its first: one the profile [started], or
+     * the one the server names when nothing of the show has been watched.
+     */
+    private fun showOf(count: Int, posters: Boolean = false, next: Int? = null, started: Boolean = true, wordy: Boolean = false): ItemData {
+        val plain = movie().copy(kind = ItemKind.Show, title = "Driftline", files = emptyList(), leafCount = count * 4)
+        // With [wordy], a hero that asks for all its room: a summary past three lines, genres and credits.
+        val show = if (!wordy) {
+            plain
+        } else {
+            plain.copy(
+                summary = "Three salt traders cross the Danakil in the last caravan of the season. ".repeat(8),
+                genres = listOf("Drama", "Adventure"),
+                cast = listOf(Credit(1, "Idris Vale", CreditRole.Actor, character = "Ras"), Credit(2, "Mara Holt", CreditRole.Actor, character = "Ines")),
+            )
+        }
+        val children = seasonsOf(count, posters)
+        val onDeck = next?.let { children.getValue(100L + it).first() }
+            ?.let { if (started) it.copy(userState = UserState(positionMs = 60_000)) else it }
+        return ItemData(show, children = children, onDeck = listOfNotNull(onDeck?.let { 1L to it }).toMap())
+    }
+
+    /** Show 1's [count] seasons, and each season's four episodes, by the item they are under. */
+    private fun seasonsOf(count: Int, posters: Boolean): Map<Long, List<ItemSummary>> {
+        val seasons = (1..count).map { s ->
+            val poster = if (s == 1) "/api/items/${100 + s}/images/poster?v=2" else "/api/items/1/images/poster?v=1"
+            ItemSummary(
+                id = 100L + s, libraryId = 1, kind = ItemKind.Season, title = "Season $s", index = s, parentId = 1, leafCount = 4,
+                posterUrl = poster.takeIf { posters },
+            )
+        }
         val episodes = seasons.associate { season ->
             season.id to (1..4).map { e ->
                 ItemSummary(
@@ -170,7 +203,12 @@ class TvItemPageTest {
                 )
             }
         }
-        show(ItemData(show, children = mapOf(1L to seasons) + episodes))
+        return mapOf(1L to seasons) + episodes
+    }
+
+    @Test
+    fun upFromAnEpisodeGoesToItsSeasonsTab() {
+        show(showOf(3))
         val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
         while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
         compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
@@ -182,6 +220,231 @@ class TvItemPageTest {
         compose.onNode(hasTestTag(TV_SEASON_TABS)).assertExists()
         compose.onNode(hasText("Season 1") and isSelected()).assertExists()
         compose.onNode(hasText("Season 2") and isSelected()).assertDoesNotExist()
+    }
+
+    @Test
+    fun seasonTabsPastTheScreenScrollIntoViewAndShowTheirSeason() {
+        // More than the screen holds, even with Robolectric's narrow text; that many are listed newest first.
+        show(showOf(25))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 25"))
+        for (s in 24 downTo 1) {
+            press(Key.DirectionRight)
+            compose.onNode(isFocused()).assert(hasText("Season $s"))
+            // Each tab keeps its own size, a pill one line tall and wider than that, and comes on screen.
+            val tab = compose.onNode(isFocused()).getBoundsInRoot()
+            assertTrue("Season $s: $tab", tab.left.value >= 0f && tab.right.value <= 960f)
+            assertTrue("Season $s: $tab", tab.bottom - tab.top < 50.dp && tab.right - tab.left > tab.bottom - tab.top)
+        }
+        // Focus resting on Season 1 shows it, and Down goes to its episodes, captions on screen.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        compose.onNode(hasText("Season 1") and isSelected()).assertExists()
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        assertEquals(TabbedEpisodeTilesTop.value, focusedTop(), 1f)
+        // Back to the first tab: the row scrolls back with it.
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        press(Key.DirectionLeft, 24)
+        compose.onNode(isFocused()).assert(hasText("Season 25"))
+        assertTrue(compose.onNode(isFocused()).getBoundsInRoot().left.value >= 0f)
+    }
+
+    @Test
+    fun aLongShowsTabsOpenWithTheSeasonToWatchInSight() {
+        // The newest season is the first tab, so the first season, the one to watch, is the last.
+        show(showOf(25, next = 1))
+        val shown = compose.onNode(hasText("Season 1") and isSelected()).getBoundsInRoot()
+        assertTrue("$shown", shown.left.value >= 0f && shown.right.value <= 960f - TvSafeArea.Horizontal.value + 1f)
+        // Up from its episodes goes to its tab, which stays where it is.
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        press(Key.DirectionLeft)
+        compose.onNode(isFocused()).assert(hasText("Season 2"))
+    }
+
+    @Test
+    fun aLongShowNotStartedOpensOnItsNewestSeason() {
+        // The server's next episode is the show's first: Season 1, the last poster of fourteen.
+        show(showOf(14, posters = true, next = 1, started = false))
+        press(Key.DirectionDown)
+        val season = hasAnyAncestor(hasTestTag(TV_SEASON_TABS)) and isFocused()
+        compose.onNode(season).assert(hasContentDescription("Season 14, 4 episodes", substring = true))
+        assertEquals(PleyTv.Gutter.value, compose.onNode(isFocused()).getBoundsInRoot().left.value, 1f)
+        // Its episodes are the ones under the row.
+        press(Key.Enter)
+        compose.onNode(hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()).assert(hasContentDescription("Episode 1", substring = true))
+        assertTrue(compose.onAllNodes(hasText("Season 14")).fetchSemanticsNodes().isNotEmpty())
+    }
+
+    @Test
+    fun aLongShowsSeasonPostersOpenAtTheSeasonToWatch() {
+        show(showOf(14, posters = true, next = 1))
+        // Down from the buttons lands on the season shown, the last poster of fourteen, on screen.
+        press(Key.DirectionDown)
+        val season = hasAnyAncestor(hasTestTag(TV_SEASON_TABS)) and isFocused()
+        compose.onNode(season).assert(hasContentDescription("Season 1, 4 episodes", substring = true))
+        val tile = compose.onNode(isFocused()).getBoundsInRoot()
+        assertTrue("$tile", tile.left.value >= 0f && tile.right.value <= 960f)
+        // Resting there leaves Season 1 shown; the seasons before it are the newer ones.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        press(Key.DirectionLeft)
+        compose.onNode(season).assert(hasContentDescription("Season 2, 4 episodes", substring = true))
+        press(Key.DirectionLeft, 12)
+        compose.onNode(season).assert(hasContentDescription("Season 14, 4 episodes", substring = true))
+    }
+
+    @Test
+    fun aSeasonWithItsOwnPosterShowsTheSeasonsAsPosterTiles() {
+        show(showOf(12, posters = true))
+        // Down from the buttons comes to the seasons, on the season shown.
+        press(Key.DirectionDown)
+        val season = hasAnyAncestor(hasTestTag(TV_SEASON_TABS)) and isFocused()
+        compose.onNode(season).assert(hasContentDescription("Season 1, 4 episodes", substring = true))
+        assertEquals(TabsTop.value, focusedTop(), 2f)
+        for (s in 2..12) {
+            press(Key.DirectionRight)
+            // Every season a poster tile, those without a poster of their own too, and on screen.
+            compose.onNode(season).assert(hasContentDescription("Season $s, 4 episodes", substring = true))
+            val tile = compose.onNode(isFocused()).getBoundsInRoot()
+            assertTrue("Season $s: $tile", tile.left.value >= 0f && tile.right.value <= 960f)
+            assertEquals("Season $s: $tile", TileKind.Poster.tvHeight.value, (tile.bottom - tile.top).value, 14f)
+        }
+        // Focus resting on Season 12 shows it, named over its episodes.
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.waitForIdle()
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 12 Episode 1", substring = true))
+        compose.onNode(hasText("Season 12")).assertExists()
+        // The episodes sit under the season's name, as a single season's do.
+        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
+        // Up comes back to the season shown. Select on another, before focus has rested there, shows
+        // it and goes down into its episodes: no other page opens.
+        press(Key.DirectionUp)
+        compose.onNode(season).assert(hasContentDescription("Season 12", substring = true))
+        compose.mainClock.autoAdvance = false
+        compose.onRoot().performKeyInput { pressKey(Key.DirectionLeft, 1) }
+        compose.onRoot().performKeyInput { pressKey(Key.Enter, 1) }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 11 Episode 1", substring = true))
+        compose.onNode(hasText("Season 11")).assertExists()
+        assertEquals(listOf<NavKey>(PleyKey.Home, PleyKey.Item(1)), stack)
+        // Select on the season shown goes down too.
+        press(Key.DirectionUp)
+        press(Key.Enter)
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 11 Episode 1", substring = true))
+    }
+
+    @Test
+    fun aShowsSeasonPostersShowWithTheirNamesAboveTheScreensEdge() = seasonNamesAreOnScreen(wordy = false)
+
+    @Test
+    fun aShowWithALongSummaryAndCreditsStillShowsItsSeasonsNames() = seasonNamesAreOnScreen(wordy = true)
+
+    private fun seasonNamesAreOnScreen(wordy: Boolean) {
+        show(showOf(3, posters = true, wordy = wordy))
+        // Focus is on Play, the page at rest: the posters and the two lines under them are on screen.
+        val poster = compose.onNode(hasContentDescription("Season 1, 4 episodes", substring = true)).getBoundsInRoot()
+        val names = poster.bottom.value + PleyTv.TilesToCaption.value + PleyTv.CaptionHeight.value
+        assertTrue("$poster", names <= PleyTv.CanvasHeight.value)
+        // Never nearer the buttons than a round button's label needs.
+        val play = compose.onNodeWithTag(TestTags.ITEM_PLAY).getBoundsInRoot()
+        assertTrue("$poster under $play", poster.top.value - play.bottom.value >= PleyTv.ButtonLabelRoom.value + 8f - 0.5f)
+    }
+
+    @Test
+    fun aShowWithoutSeasonPostersKeepsItsWordTabs() {
+        show(showOf(3))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        assertEquals(TabbedEpisodeTilesTop.value, focusedTop(), 1f)
+        press(Key.DirectionUp)
+        compose.onNode(isFocused()).assert(hasText("Season 1"))
+        compose.onNode(hasText("4 episodes")).assertDoesNotExist()
+    }
+
+    @Test
+    fun aSeasonsPageOfAShowWithSeasonPostersShowsItsEpisodesUnderTheButtons() {
+        val season = movie().copy(
+            id = 102, kind = ItemKind.Season, title = "Season 2", index = 2, parentId = 1, parentTitle = "Driftline",
+            files = emptyList(), leafCount = 4,
+        )
+        show(ItemData(season, children = seasonsOf(3, posters = true)), id = 102)
+        // The page Select on Season 2's poster opens: no row of posters between its buttons and its episodes.
+        compose.onNode(hasTestTag(TV_SEASON_TABS)).assertDoesNotExist()
+        compose.onNodeWithTag(TestTags.ITEM_PLAY).assertIsFocused()
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Season 2 Episode 1", substring = true))
+        assertEquals(EpisodeTilesTop.value, focusedTop(), 1f)
+        press(Key.DirectionUp)
+        compose.onNodeWithTag(TestTags.ITEM_PLAY).assertIsFocused()
+    }
+
+    @Test
+    fun anEpisodesPageShowsItsSeasonsEpisodesWithTheirTitlesAboveTheScreensEdge() {
+        // The line under the show's name ("S1 · E2 · Episode 2") takes its room too.
+        val episode = movie().copy(
+            id = 1012, kind = ItemKind.Episode, title = "Episode 2", index = 2, parentId = 101, parentIndex = 1,
+            grandparentId = 1, grandparentTitle = "Driftline",
+            summary = "Three salt traders cross the Danakil in the last caravan of the season. ".repeat(8),
+            cast = listOf(Credit(1, "Idris Vale", CreditRole.Actor, character = "Ras"), Credit(2, "Mara Holt", CreditRole.Actor, character = "Ines")),
+        )
+        show(ItemData(episode, children = seasonsOf(2, posters = false)), id = 1012)
+        val tile = compose.onNode(hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and hasContentDescription("Episode 2", substring = true)).getBoundsInRoot()
+        val titles = tile.bottom.value + PleyTv.TilesToCaption.value + PleyTv.CaptionHeight.value
+        assertTrue("$tile", titles <= PleyTv.CanvasHeight.value)
+    }
+
+    @Test
+    fun onAnEpisodesPageSelectOnItPlaysItAndAnotherEpisodeTakesThePagesPlace() {
+        val episodes = seasonsOf(2, posters = false)
+        val episode = movie().copy(
+            id = 1012, kind = ItemKind.Episode, title = "Episode 2", index = 2, parentId = 101, parentIndex = 1,
+            grandparentId = 1, grandparentTitle = "Driftline",
+        )
+        val data = ItemData(episode, children = episodes)
+        stack.clear()
+        stack += listOf(PleyKey.Home, PleyKey.Item(1), PleyKey.Item(1012))
+        show(data, id = 1012)
+        // Its own episode is marked among its season's, before focus is anywhere near.
+        compose.onNode(hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isSelected()).assert(hasContentDescription("Episode 2", substring = true))
+        // Down from Play: its season's row, on the page's own episode.
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 2", substring = true))
+        compose.onNode(isFocused()).assert(isSelected())
+        // Select there plays it; the page stays.
+        press(Key.Enter)
+        assertEquals(1012L, data.played.single().itemId)
+        assertEquals(listOf<NavKey>(PleyKey.Home, PleyKey.Item(1), PleyKey.Item(1012)), stack)
+        // Another episode's page takes this one's place: Back is still the show.
+        press(Key.DirectionRight)
+        press(Key.Enter)
+        assertEquals(listOf<NavKey>(PleyKey.Home, PleyKey.Item(1), PleyKey.Item(1013)), stack)
+    }
+
+    @Test
+    fun selectOnASeasonsTabShowsItsEpisodesWithoutTheRest() {
+        show(showOf(3))
+        val episode = hasAnyAncestor(hasTestTag(TV_EPISODE_ROW)) and isFocused()
+        while (compose.onAllNodes(episode).fetchSemanticsNodes().isEmpty()) press(Key.DirectionDown)
+        press(Key.DirectionUp)
+        compose.mainClock.autoAdvance = false
+        // Short presses: the clock stays well short of the rest.
+        compose.onRoot().performKeyInput { repeat(2) { pressKey(Key.DirectionRight, 1) } }
+        compose.onNode(isFocused()).assert(hasText("Season 3"))
+        compose.onRoot().performKeyInput { pressKey(Key.Enter, 1) }
+        compose.mainClock.advanceTimeBy(32)
+        compose.onNode(hasText("Season 3") and isSelected()).assertExists()
+        compose.mainClock.autoAdvance = true
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Episode 1", substring = true))
     }
 
     @Test
@@ -201,13 +464,36 @@ class TvItemPageTest {
         assertTrue("$partway", partway > 0.5f && partway < 1f)
         compose.mainClock.advanceTimeBy(80)
         assertEquals(to, focusedTop(), 0.25f)
-        // Up glides back to the top the same way.
+        // Up glides back to the top the same way: from where the buttons went with the page, back to where they were.
+        val away = compose.onNodeWithTag(TestTags.ITEM_PLAY).getBoundsInRoot().top.value
+        assertEquals(play - (from - to), away, 0.25f)
         compose.onRoot().performKeyInput { pressKey(Key.DirectionUp) }
         compose.onNodeWithTag(TestTags.ITEM_PLAY).assertIsFocused()
         compose.mainClock.advanceTimeBy(80)
-        val back = (focusedTop() - to) / (play - to)
+        val back = (focusedTop() - away) / (play - away)
         assertTrue("$back", back > 0.5f && back < 1f)
         compose.mainClock.advanceTimeBy(80)
         assertEquals(play, focusedTop(), 0.25f)
+    }
+
+    @Test
+    fun whoMadeItAndTheFactsSitUnderTheCastInSight() {
+        val cast = listOf(Credit(1, "Idris Vale", CreditRole.Actor, character = "Ras"), Credit(2, "Mara Holt", CreditRole.Actor, character = "Ines"))
+        val crew = listOf(
+            Credit(3, "Ada Brook", CreditRole.Director),
+            Credit(4, "Theo Lane", CreditRole.Writer),
+            Credit(5, "June Park", CreditRole.Writer),
+        )
+        val movie = movie().copy(cast = cast, crew = crew, originalTitle = "Le Phare", releaseDate = "2023-04-01", studio = "Northlight")
+        show(ItemData(movie))
+        press(Key.DirectionDown)
+        compose.onNode(isFocused()).assert(hasContentDescription("Idris Vale"))
+        val facts = compose.onNodeWithTag(TAG_FACTS)
+        facts.assert(hasText("Director", substring = true)).assert(hasText("Ada Brook", substring = true))
+        facts.assert(hasText("Theo Lane, June Park", substring = true)).assert(hasText("Northlight", substring = true))
+        // Under the cast's names, and above the safe area while the cast has focus.
+        val tile = compose.onNode(isFocused()).getBoundsInRoot()
+        val bounds = facts.getBoundsInRoot()
+        assertTrue("$bounds", bounds.top > tile.bottom && bounds.bottom <= 540.dp - TvSafeArea.Vertical)
     }
 }

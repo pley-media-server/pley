@@ -5,6 +5,7 @@ import app.pley.android.model.Credit
 import app.pley.android.model.CreditRole
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
 import app.pley.android.model.MediaStream
 import app.pley.android.model.StreamKind
 import app.pley.android.model.UserState
@@ -199,6 +200,53 @@ class ItemPagesTest {
         val seasons = listOf(summary(30, ItemKind.Season, index = 0), summary(31, ItemKind.Season, index = 1), summary(32, ItemKind.Season, index = 2))
         assertEquals(32L, defaultSeason(seasons, summary(40, ItemKind.Episode, parentId = 32)))
         assertEquals(31L, defaultSeason(seasons, null))
+    }
+
+    @Test
+    fun `more than twelve seasons are listed newest first, Specials last`() {
+        fun seasons(count: Int) = (0..count).map { summary(30L + it, ItemKind.Season, index = it) }
+        // Twelve and Specials: the server's order.
+        assertEquals((0..12).toList(), seasonOrder(seasons(12)).map { it.index })
+        assertEquals((13 downTo 1).toList() + 0, seasonOrder(seasons(13)).map { it.index })
+        // Specials aren't counted, and a show without them is turned round the same.
+        assertEquals((13 downTo 1).toList(), seasonOrder(seasons(13).drop(1)).map { it.index })
+        // The page opens on the next episode's season wherever it is listed, else on the newest.
+        val long = seasonOrder(seasons(13))
+        assertEquals(31L, defaultSeason(long, summary(40, ItemKind.Episode, parentId = 31)))
+        assertEquals(43L, defaultSeason(long, null))
+    }
+
+    @Test
+    fun `a show not being watched opens on its first season listed, not on the first episode's`() {
+        fun seasons(watched: (Int) -> Int) = seasonOrder((1..13).map { summary(30L + it, ItemKind.Season, index = it).copy(leafCount = 4, viewedLeafCount = watched(it)) })
+        val first = summary(40, ItemKind.Episode, parentId = 31)
+        // Not started: the server's next episode is the first, which isn't where the profile is.
+        assertEquals(43L, defaultSeason(seasons { 0 }, first))
+        // Watched to the end: the first again.
+        assertEquals(43L, defaultSeason(seasons { 4 }, first.copy(userState = UserState(watched = true))))
+        // Started, even at its first episode: there.
+        assertEquals(31L, defaultSeason(seasons { 0 }, first.copy(userState = UserState(positionMs = 60_000))))
+        // Some of it watched: the season of the next one.
+        assertEquals(35L, defaultSeason(seasons { if (it < 5) 4 else 0 }, summary(41, ItemKind.Episode, parentId = 35)))
+        // A show listed first season first opens on Season 1 either way, after Specials.
+        val short = listOf(0, 1, 2).map { summary(30L + it, ItemKind.Season, index = it).copy(leafCount = 4, viewedLeafCount = 0) }
+        assertEquals(31L, defaultSeason(short, summary(42, ItemKind.Episode, parentId = 30)))
+    }
+
+    @Test
+    fun `a show's tabs are posters once one season has a poster of its own, else words`() {
+        val show = ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", childCount = 3)
+        fun season(id: Long, poster: String?) = summary(id, ItemKind.Season, index = (id - 29).toInt()).copy(posterUrl = poster)
+        fun tabs(vararg seasons: ItemSummary) = page(show) { copy(seasons = seasons.toList(), selectedSeason = 30) }.seasons!!
+        val shows = "/api/items/10/images/poster?v=5"
+
+        assertFalse("none has its own: each has the show's", tabs(season(30, shows), season(31, shows)).posters)
+        assertFalse("no posters at all", tabs(season(30, null), season(31, null)).posters)
+        assertFalse("one season shows no tabs", tabs(season(30, "/api/items/30/images/poster?v=7")).posters)
+
+        val mixed = tabs(season(30, "/api/items/30/images/poster?v=7"), season(31, shows), season(32, null))
+        assertTrue(mixed.posters)
+        assertEquals(listOf("/api/items/30/images/poster?v=7", shows, null), mixed.seasons.map { it.item?.posterUrl })
     }
 
     @Test

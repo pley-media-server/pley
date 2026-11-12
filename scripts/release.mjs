@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 // Prepares a release (docs/RELEASING.md): bumps a unit's version in every
-// manifest and moves its CHANGELOG's Unreleased entries under the new version.
+// manifest, moves its CHANGELOG's Unreleased entries under the new version and
+// puts it among README.md's latest releases.
 // A release takes every unit whose version went up since the last release tag,
 // under one tag, release-<date>. Merging the bumps to master starts the
 // Release workflow, which builds those units, tags the commit and publishes
@@ -11,7 +12,9 @@
 //   bun scripts/release.mjs <unit> draft                      add its commits since its version was set to Unreleased
 //   bun scripts/release.mjs <unit> notes [X.Y.Z]              print a version's notes (default: the current one)
 //   bun scripts/release.mjs pending                           the release HEAD waits for: its tag, units and notes
-//   bun scripts/release.mjs check                             fails when a unit's version is below its last release's
+//   bun scripts/release.mjs check                             fails when a unit's version is below its last release's,
+//                                                             or README.md's latest releases aren't the CHANGELOGs'
+//   bun scripts/release.mjs readme                            write README.md's latest releases from the CHANGELOGs
 //
 //   --dry-run      show what would change and write nothing
 //   --draft        with a bump: add the commits since its version was set to Unreleased first
@@ -25,7 +28,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { addEntries, entryOf, findSection, notes, plainText, release } from "./changelog.mjs";
+import { addEntries, entryOf, findSection, notes, plainText, release, sections } from "./changelog.mjs";
 import {
   REPOSITORY,
   ROOT,
@@ -128,8 +131,8 @@ export function lowered(root = ROOT) {
 
 /**
  * The release HEAD waits for: every unit whose version isn't the one it had
- * at the last release tag. { since, tag, title, units: [{ unit, title, from,
- * to, notes, later }], notes, problems }. A unit's `later` are its commits
+ * at the last release tag. { since, tag, title, units: [{ unit, title, short,
+ * from, to, notes, later }], notes, problems }. A unit's `later` are its commits
  * after its version was set, which its notes may not tell.
  */
 export function pending(root = ROOT) {
@@ -140,7 +143,7 @@ export function pending(root = ROOT) {
     const from = versionAt(unit, since, root);
     const to = versionOf(unit, root);
     if (from === to) continue;
-    const { title, changelog } = UNITS[unit];
+    const { title, short, changelog } = UNITS[unit];
     const text = read(root, changelog);
     wrong.push(...problems(unit, root).map((p) => `${unit}: ${p}`));
     const down = wentDown(unit, from, to);
@@ -157,24 +160,76 @@ export function pending(root = ROOT) {
       wrong.push(`${changelog}: ${e.message}`);
     }
     const set = versionCommit(unit, to, root);
-    units.push({ unit, title, from, to, tag, notes: body, later: set ? commitsSince(unit, set, root, "%h %s") : [] });
+    units.push({ unit, title, short, from, to, tag, notes: body, later: set ? commitsSince(unit, set, root, "%h %s") : [] });
   }
   const tags = [...new Set(units.map((u) => u.tag).filter(Boolean))];
   if (tags.length > 1) wrong.push(`the units waiting link their versions to different tags: ${tags.join(", ")}`);
   const tag = tags[0] ?? null;
   if (tag && tagExists(tag, root)) wrong.push(`the tag ${tag} exists already`);
-  const title = units.length === 1 ? `${units[0].title} ${units[0].to}` : `Pley ${tag?.replace(/^release-/, "") ?? ""}`.trim();
-  const body = units.length === 1 ? units[0].notes : units.map(folded).join("\n\n");
+  const title = releaseTitle(tag, units);
+  const body = units.map((u) => folded(u, units.length === 1)).join("\n\n");
   return { since, tag, title, units, notes: body, problems: wrong };
 }
 
 /**
- * A unit's notes in a release of several, folded under its name and version:
- * each reader opens their app's rather than scrolling past every other's.
- * GitHub renders Markdown in <details> only after a blank line.
+ * A release's name: its day and what it holds, by the units' short names, as
+ * "Pley 2026-11-10.2: Media Server, Android", so the list of releases shows
+ * which have a reader's app.
  */
-function folded(u) {
-  return `<details>\n<summary><strong>${u.title} ${u.to}</strong></summary>\n\n${u.notes}\n\n</details>`;
+function releaseTitle(tag, units) {
+  const day = `Pley ${tag?.replace(/^release-/, "") ?? ""}`.trim();
+  const holds = units.map((u) => u.short).join(", ");
+  return holds ? `${day}: ${holds}` : day;
+}
+
+/**
+ * A unit's notes in a release, folded under its name and version: each
+ * reader opens their app's rather than scrolling past every other's. The
+ * only unit's are open, there being nothing to scroll past. GitHub
+ * renders Markdown in <details> only after a blank line.
+ */
+function folded(u, open = false) {
+  return `<details${open ? " open" : ""}>\n<summary><strong>${u.title} ${u.to}</strong></summary>\n\n${u.notes}\n\n</details>`;
+}
+
+/** README.md's pills of each unit's latest release sit between these marks. */
+const README = "README.md";
+const LATEST = /(<!-- latest releases:[^\n]*-->\n)[\s\S]*?(\n<!-- \/latest releases -->)/;
+
+/**
+ * Each released unit's latest release, as README.md's pills: its short name
+ * and its version, linked to the release that has it, in HTML as the badges
+ * over them are. A unit with no release yet (the web Samsung app) has none. `texts` has a unit's CHANGELOG where it
+ * isn't the one on disk: the unit being bumped.
+ */
+export function latestReleases(root = ROOT, texts = {}) {
+  const pills = [];
+  for (const unit of UNIT_NAMES) {
+    const { short, changelog } = UNITS[unit];
+    const text = texts[unit] ?? read(root, changelog);
+    const newest = sections(text).find((s) => s.name !== "Unreleased");
+    const tag = newest ? linkedTag(text, newest.name) : null;
+    if (!RELEASE_TAG.test(tag ?? "")) continue;
+    pills.push(`<a href="${REPOSITORY}/releases/tag/${tag}"><img src="${pill(short, newest.name)}" alt="${short} ${newest.name}"></a>`);
+  }
+  return pills.join("\n");
+}
+
+/** A shields.io badge's address: in its path a dash and an underscore are doubled. */
+function pill(label, message) {
+  const part = (s) => encodeURIComponent(s.replace(/-/g, "--").replace(/_/g, "__"));
+  return `https://img.shields.io/badge/${part(label)}-${part(message)}-${PILL_COLOR}`;
+}
+
+/** Pley's blue, the deep one of its logo (--color-brand-deep in the web app), which white letters read on. */
+const PILL_COLOR = "0284C7";
+
+/** README.md with those pills between its marks: { before, after }; null without the file or the marks. */
+export function readmeWith(root = ROOT, texts = {}) {
+  if (!existsSync(join(root, README))) return null;
+  const before = read(root, README);
+  if (!LATEST.test(before)) return null;
+  return { before, after: before.replace(LATEST, (_, open, close) => `${open}${latestReleases(root, texts)}${close}`) };
 }
 
 /** The tag for a release prepared on `date`: the one HEAD waits for, else that day's first free one. */
@@ -257,6 +312,10 @@ export function plan({ unit, how, date = today(), withDraft = false, since = nul
     const c = changes.find((x) => x.path.endsWith("addon.xml"));
     c.after = kodiNews(c.after, to, date, body);
     c.what += ", <news>";
+  }
+  const readme = readmeWith(root, { [unit]: text });
+  if (readme && readme.after !== readme.before) {
+    changes.push({ path: README, before: readme.before, after: readme.after, what: `${UNITS[unit].short} ${to} among the latest releases` });
   }
   return { unit, from, to, tag, date, drafted, changes, notes: body };
 }
@@ -367,11 +426,26 @@ function pendingCommand(opts) {
 }
 
 function checkCommand() {
+  const readme = readmeWith();
+  if (readme && readme.after !== readme.before) {
+    console.error(`${README}'s latest releases aren't the CHANGELOGs': write them with \`bun scripts/release.mjs readme\`.`);
+    process.exitCode = 1;
+  } else if (readme) console.log(`${README} has each unit's latest release.`);
   const { since, problems: wrong } = lowered();
   if (!since) return console.log(yellow("No release tag here yet: git fetch --tags brings GitHub's."));
   if (!wrong.length) return console.log(`No unit is below the version it had at ${since}.`);
   console.error(`${wrong.join("\n")}\nA unit's version never goes below the one it had at ${since}: put back its manifests and CHANGELOG from master.`);
   process.exitCode = 1;
+}
+
+/** Writes README.md's latest releases: what a bump does, for a README edited by hand. */
+function readmeCommand(opts) {
+  const readme = readmeWith();
+  if (!readme) throw new UsageError(`${README} has no "<!-- latest releases: ... -->" and "<!-- /latest releases -->" marks to write between`);
+  if (readme.after === readme.before) return console.log(`${README} has each unit's latest release already.`);
+  if (opts.dryRun) return console.log(`${latestReleases()}\n\n${yellow("Dry run: nothing was written.")}`);
+  writeFileSync(join(ROOT, README), readme.after);
+  console.log(`${green("Written")} ${README}.`);
 }
 
 /** Each unit's version, the tag it waits for, its commits since its version was set and its Unreleased entries. */
@@ -433,7 +507,9 @@ const USAGE = `usage:
   bun scripts/release.mjs <unit> draft [--since <ref>] [--dry-run]
   bun scripts/release.mjs <unit> notes [X.Y.Z]
   bun scripts/release.mjs pending [--json]                  the release HEAD waits for
-  bun scripts/release.mjs check                             fails when a unit's version is below its last release's
+  bun scripts/release.mjs check                             fails when a unit's version is below its last release's,
+                                                            or README.md's latest releases aren't the CHANGELOGs'
+  bun scripts/release.mjs readme [--dry-run]                write README.md's latest releases from the CHANGELOGs
 units: ${UNIT_NAMES.join(", ")}`;
 
 function main(argv) {
@@ -448,6 +524,10 @@ function main(argv) {
   if (unit === "check") {
     if (action) throw new UsageError(`unexpected ${action}\n${USAGE}`);
     return checkCommand();
+  }
+  if (unit === "readme") {
+    if (action) throw new UsageError(`unexpected ${action}\n${USAGE}`);
+    return readmeCommand(opts);
   }
   unitOf(unit);
   if (!action) throw new UsageError(`${USAGE}\n\nWhat for ${unit}? A bump (patch, minor, major or X.Y.Z), draft or notes.`);

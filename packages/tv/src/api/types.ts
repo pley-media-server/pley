@@ -306,6 +306,8 @@ export interface PlaybackInfo {
   reasons?: string[];
   reason: string | null;
   auto_quality?: string | null;
+  /** The server converts no video: the Quality menu offers the original alone, and Automatic stays there. Absent otherwise. */
+  original_only?: boolean;
   /** What the screen gets of HDR video, by name: "Dolby Vision P8.1", "HDR10 (Dolby Vision base layer)", "SDR (tone-mapped)"… */
   video_range?: string | null;
   /** The stream comes in several sizes the TV's player moves between by itself: Automatic leaves the session be. */

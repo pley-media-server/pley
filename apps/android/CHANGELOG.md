@@ -19,6 +19,129 @@ describes how they are made.
   set as in the web app: by a country's rating, by age or by birthday,
   with titles always or never shown by their labels.
 
+## [0.1.12] - 2026-11-12
+
+### Added
+
+- When the server has video transcoding turned off, the Quality menu
+  offers only Original.
+
+### Changed
+
+On Android TV:
+
+- Home's banner of featured titles is off unless turned on in Settings →
+  Subtitles and display.
+
+## [0.1.11] - 2026-11-10
+
+### Fixed
+
+- Dolby Vision the server repackages (a file that also carries HDR10+,
+  profile 7 made 8.1, one whose sound or container is changed) shows as
+  Dolby Vision. Since 0.1.10 it went to the Dolby Vision decoder, but
+  without its Dolby Vision metadata, so the screen still showed HDR10.
+
+## [0.1.10] - 2026-11-10
+
+### Added
+
+On Android TV:
+
+- A show whose seasons have posters of their own shows them as a row of
+  posters over its episodes, each with the season's name and episode
+  count under it, as the web app does. A season without one shows the
+  show's poster. Resting on a season shows its episodes, Down from the
+  buttons comes to the seasons, and Select on a season goes down into
+  its episodes, on the one to watch.
+- Home's banner shows a dash for each title it turns through, at the top
+  right: the one on is longer and fills as its time runs. Up from the
+  banner's buttons reaches the dashes, where Left and Right turn to the
+  title before or after.
+- An episode's page marks its own episode in its season's row, with a
+  thin ring and its title in bold, so it is found among the others
+  before focus is on it.
+
+### Changed
+
+- Home's banner mixes in top rated titles you haven't watched: one in
+  three, among the newest, with "Top rated in Movies" over its name. They
+  are the same all day and others the next day.
+- A show with more than 12 seasons lists them newest first, with Specials
+  last, so the seasons still coming out are the first ones.
+- A show you haven't started, or have watched to its end, opens on the
+  first season listed: the newest of a show with more than 12, which
+  opened on Season 1, at the far end of its seasons. A show you are
+  part-way through still opens on the season of the next episode.
+- A title's page that is already held in memory (seen before, or asked
+  for ahead) opens whole at once, where it showed an empty outline for a
+  moment first.
+- The seasons beside the one shown have their episodes loaded ahead, so
+  moving along a show's seasons keeps up.
+
+On Android TV:
+
+- A title's page starts higher and gives its title and its description
+  more of the screen's width, a long title up to three lines. What
+  follows the buttons shows whole where the screen's edge cut it: a
+  show's season posters with their names and episode counts, its
+  episodes with their titles, a movie's Cast & Crew with their names. For
+  that the room under the buttons closes up first, then the description
+  gives up a line, and the line of who made it goes before the
+  description's second. A movie's page leaves "Directed by" and
+  "Starring" to that row.
+- Who made a title and its facts (director, writers, release, studio or
+  network) sit under the cast, each a small label over its value, where
+  they were in Details at the end of the page.
+- The title and the picture behind the page change as soon as focus
+  moves to another tile, on Home, Discover and a show's episodes, where
+  they waited for focus to rest. Under a held key they change where it
+  lands. The words at the top of a show's page no longer show an episode
+  of another season, or the show's description, while focus is on the
+  seasons.
+- Home's banner sits higher and is shorter: the line over its title (New
+  in Movies) is level with the dashes at the top right, and Continue
+  Watching shows whole under it, its pictures and the titles under them,
+  where the screen's edge cut them. A title and its description have
+  more of the screen's width there too, so a long title seldom takes two
+  lines; when one does, the description keeps two of its three lines,
+  where it kept one. The banner's words fade in as it turns to the next
+  title.
+- Coming down from Home's banner to the rows, the words at the top are
+  the focused title's at once. They used to stay the banner's title for a
+  moment first. Going back up, and each time the banner turns, its
+  picture changes with its words, where the last picture stayed under
+  them for a moment.
+- Right on the last button of Home's banner (My List) stays there. It
+  used to turn to the next title, which the dashes at the top right and
+  the banner's own time still do.
+- A library opens on Recommended the first time; after that, on the tab
+  it was left on, as before. A library left on its Library tab before
+  this version, with no sort or filter of its own, opens on Recommended
+  once more.
+- Buttons are a little smaller, those of Home's banner smaller again.
+  Chips and tabs are smaller too, as tall as the buttons: a show's
+  season tabs, the tabs at the top of a library (Recommended, Library,
+  Collections), of Live TV and of Requests, and the chips over a
+  library's grid (the sort, Filter, Unwatched, Genre, Year), Discover's
+  and Search's. The player's Skip and Play now, History's Remove and the
+  music player's Play are smaller with them.
+- Posters in a row are a little larger: seven fill the row to the
+  screen's edge, where a sliver of an eighth showed beside them.
+- The rail's icons sit in the middle of its dark strip, with the same
+  room at either side, where they stood nearer the page. Open, the
+  current entry and the focused one are as wide as each other and as far
+  from the panel's edge as from the screen's, and the panel is narrower,
+  widening only for a name that needs it. The focused entry grows from
+  its icon, so the icons stay in line, and it no longer reaches the edge
+  of the screen or of the panel. The dark under the closed rail thins
+  out softly into the page, where it ended in a hard edge.
+- A show's seasons open at the one shown, wherever it is in the row.
+  Resting on a season shows its episodes sooner, and the episodes sit
+  further below the season tabs, so the focused episode no longer crowds
+  them.
+- Search's empty page no longer explains how to type.
+
 ### Fixed
 
 - Dolby Vision the server repackages stays Dolby Vision: a file that also
@@ -27,6 +150,24 @@ describes how they are made.
   changed. On a Dolby Vision screen these played as their HDR10 or HLG
   base layer, and profile 5, which has none, in wrong colours; only files
   played as they are came out as Dolby Vision.
+
+On Android TV:
+
+- A show with more seasons than fit across the screen showed its later
+  season tabs squeezed into a thin column that pushed the episodes'
+  lengths off the bottom, and the seasons after it couldn't be chosen.
+  The tabs now keep their size and slide along as focus moves, so every
+  season can be chosen.
+- Back from an episode's page returns to the episode it was opened from,
+  in its season. Focus used to land on the season's first episode, or
+  the one to watch.
+- On an episode's page, Select on that episode in its season's row plays
+  it, where it did nothing and took a second Back to leave; Select on
+  another episode shows that one in the page's place, so Back still
+  returns to the show.
+- The line over a title in Home's banner (New in Movies) reached the top
+  of the screen when the title took two lines. It now keeps its place
+  and the title grows down.
 
 ## [0.1.9] - 2026-11-08
 
@@ -688,7 +829,10 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-08...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-12...HEAD
+[0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
+[0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2
+[0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06
 [0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05

@@ -39,6 +39,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -82,6 +83,11 @@ import kotlinx.coroutines.launch
  *
  * [focusModifier] goes on the focusable itself: a FocusRequester,
  * [initialFocus] or [rememberedFocus].
+ *
+ * A [current] tile is the one its page is about (an episode's page, in
+ * its season's row): at rest it has a thin ring in the text's colour at
+ * the well's edge and its caption in bold, so it is found without focus;
+ * with focus it looks like any focused tile.
  */
 @Composable
 fun TvTile(
@@ -91,6 +97,7 @@ fun TvTile(
     modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     focusModifier: Modifier = Modifier,
+    current: Boolean = false,
 ) {
     TvTileFrame(
         kind = kind,
@@ -98,7 +105,8 @@ fun TvTile(
         onLongClick = onLongClick,
         modifier = modifier,
         focusModifier = focusModifier,
-        caption = { focused -> TileCaption(model.title, model.subtitle, TileStyle.Tv, emphasized = focused) },
+        current = current,
+        caption = { focused -> TileCaption(model.title, model.subtitle, TileStyle.Tv, emphasized = focused || current) },
     ) {
         ArtworkTile(model, kind, TileStyle.Tv, Modifier.tvTileSize(kind))
     }
@@ -138,7 +146,8 @@ fun TvSeeAllTile(
  * A focusable well of [kind]'s size with the TV's focus look, and a
  * caption under it that [caption] draws (told whether it is emphasized:
  * focused, and not quiet). In a row sliding or a grid gliding under a held
- * key the tile keeps its resting look ([TileQuiet], [LocalTileQuiet]).
+ * key the tile keeps its resting look ([TileQuiet], [LocalTileQuiet]),
+ * which for a [current] tile has its ring ([drawCurrentRing]).
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -148,6 +157,7 @@ fun TvTileFrame(
     onLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     focusModifier: Modifier = Modifier,
+    current: Boolean = false,
     caption: @Composable (focused: Boolean) -> Unit,
     well: @Composable () -> Unit,
 ) {
@@ -170,6 +180,7 @@ fun TvTileFrame(
             focusModifier
                 .onFocusChanged { look.focus(it.isFocused) }
                 .menuKey(onLongClick)
+                .semantics { if (current) selected = true }
                 .combinedClickable(
                     interactionSource = presses,
                     indication = null,
@@ -179,8 +190,11 @@ fun TvTileFrame(
                 // The ring outside the well's layer: a focus animation's frames draw it again, not the well.
                 .drawWithCache {
                     val ring = Stroke(PleyFocus.RingStroke.toPx())
+                    val mark = if (current) Stroke(CurrentRingStroke.toPx()) else null
                     onDrawWithContent {
                         drawContent()
+                        // The current tile's ring gives way to the focus ring as it comes in.
+                        if (mark != null) drawCurrentRing(kind, 1f - look.shown(), look.scale(), mark)
                         drawFocusRing(kind, look.shown(), look.scale(), ring)
                     }
                 }
@@ -322,6 +336,32 @@ internal fun DrawScope.drawFocusRing(kind: TileKind, alpha: Float, scale: Float,
         style = stroke,
     )
 }
+
+/**
+ * The ring of a [current][TvTile] tile, around a well scaled by [scale]:
+ * a 2 dp stroke ([stroke], made once) in the text's colour, its inner
+ * edge on the well's, so it frames the picture where the focus ring
+ * stands off it.
+ */
+internal fun DrawScope.drawCurrentRing(kind: TileKind, alpha: Float, scale: Float, stroke: Stroke) {
+    if (alpha <= 0f) return
+    val offset = stroke.width / 2f
+    val width = size.width * scale
+    val height = size.height * scale
+    val radius = if (kind.round) minOf(width, height) / 2f + offset else PleyShape.TileTvRadius.toPx() * scale + offset
+    drawRoundRect(
+        color = PleyColors.Fg,
+        topLeft = Offset((size.width - width) / 2f - offset, (size.height - height) / 2f - offset),
+        size = Size(width + 2 * offset, height + 2 * offset),
+        cornerRadius = CornerRadius(radius, radius),
+        alpha = alpha.coerceIn(0f, 1f) * CURRENT_RING_ALPHA,
+        style = stroke,
+    )
+}
+
+/** The current tile's ring: thinner and quieter than the focus ring, which is the accent's. */
+private val CurrentRingStroke = 2.dp
+private const val CURRENT_RING_ALPHA = 0.85f
 
 /**
  * The focus ring around a resting well of [kind] whose top left is at

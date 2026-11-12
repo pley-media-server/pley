@@ -53,7 +53,7 @@ import {
 import { AutoQuality, FIRST_MINUTE_MS, type AutoMemory, type AutoStep, type LiveStream, type Remembered } from "./autoquality";
 import type { NetworkMemory } from "./network";
 import { PREPARE_LEAD_MS, warmStream, type StreamFetch } from "./prepare";
-import { AUTO, autoLadder, chooseQuality, fileHint, liveFloor, liveLabel, modeOf, namedFor, ORIGINAL, presetById, PRESETS, qualitiesFor, streamLines, type QualityPreset } from "./quality";
+import { AUTO, autoLadder, chooseQuality, fileHint, liveFloor, liveLabel, modeOf, namedFor, offeredQualities, ORIGINAL, presetById, PRESETS, qualitiesFor, streamLines, type QualityPreset } from "./quality";
 import { failureText, Recovery, StruggleMeter, type EngineError, type RecoveryAction } from "./recovery";
 import { qualityAction, remoteAction, trackAction, videoControls, type PlayerCommand } from "./remote";
 import type { Reporter } from "./reporter";
@@ -334,6 +334,8 @@ export class PlaybackController {
   private reportBegun = false;
   /** The quality chosen in the menu: Automatic, the original, or one of the conversions. */
   private quality: QualityPreset = ORIGINAL;
+  /** The server converts no video, as its last play answer had it (`original_only`): only the original is offered, and plays. */
+  private originalOnly = false;
   /** Automatic, when chosen: where it plays now, and when it changes. */
   private auto: AutoQuality | null = null;
   private markers: Marker[] = [];
@@ -482,7 +484,7 @@ export class PlaybackController {
    */
   private networkStart(): Promise<Remembered | null | undefined> {
     const network = this.env.network;
-    if (!network || chooseQuality(this.env.quality.remembered(), PRESETS).id !== AUTO.id) return Promise.resolve(undefined);
+    if (!network || this.originalOnly || chooseQuality(this.env.quality.remembered(), PRESETS).id !== AUTO.id) return Promise.resolve(undefined);
     return network.start().catch(() => undefined);
   }
 
@@ -495,7 +497,7 @@ export class PlaybackController {
     this.audio = initialAudio(chosen, req.audioIndex);
     this.audioPicked = this.audio !== null;
     this.subtitle = initialSubtitle(chosen, req.subtitleIndex);
-    this.quality = chooseQuality(this.env.quality.remembered(), qualitiesFor(chosen));
+    this.quality = this.originalOnly ? ORIGINAL : chooseQuality(this.env.quality.remembered(), qualitiesFor(chosen));
     this.titlePlayedMs = 0;
     this.movingAt = null;
     this.startAuto(known);
@@ -683,6 +685,12 @@ export class PlaybackController {
     }
     if (this.preparing === preparing) this.preparing = null;
     this.info = info;
+    this.originalOnly = info.original_only === true;
+    if (this.originalOnly) {
+      // Whatever was asked for, the original plays: the menu says so, and the quality kept stays for servers that convert.
+      this.quality = ORIGINAL;
+      this.auto = null;
+    }
     // No track picked: the one the server chose for this TV plays, and the menu says so.
     this.audio = audio ?? playingAudio(chosen, info);
     this.playingTracks = this.chosenTracks();
@@ -935,7 +943,8 @@ export class PlaybackController {
         break;
       }
       case "suggest_lower_quality":
-        this.update({ suggestLowerQuality: true, note: t("player.errors.slowServer") });
+        // Not where there is none to choose.
+        if (!this.originalOnly) this.update({ suggestLowerQuality: true, note: t("player.errors.slowServer") });
         break;
       case "fail":
         this.fail(failureText(action.failure, action.detail), action.failure !== "unplayable", action.failure === "network" ? t("common.server.cantReach") : undefined);
@@ -1296,7 +1305,7 @@ export class PlaybackController {
    * said for a moment, as the menu names it.
    */
   private obeyQuality(info: PlaybackInfo, command: PlayerCommand): void {
-    const offered = qualitiesFor(this.file);
+    const offered = offeredQualities(this.file, this.originalOnly);
     const action = qualityAction({ session: info.session_id, offered: offered.map((p) => p.id), picked: this.quality.id }, command);
     if (action.act === "none") {
       if (action.report) this.report(this.wantPlay ? "playing" : "paused");
@@ -1499,7 +1508,7 @@ export class PlaybackController {
    * session starts again only when it would ask for something else.
    */
   selectQuality(id: string): void {
-    const chosen = qualitiesFor(this.file).filter((p) => p.id === presetById(id)?.id)[0];
+    const chosen = offeredQualities(this.file, this.originalOnly).filter((p) => p.id === presetById(id)?.id)[0];
     if (!chosen) return;
     if (chosen.id === this.quality.id && !(this.auto && (this.auto.playing !== ORIGINAL.id || this.auto.liveLowered))) return;
     const before = this.playingPreset.id;
@@ -1974,7 +1983,7 @@ export class PlaybackController {
     const stream = auto && auto.liveLowered && info ? this.streamPreset(info) : null;
     const eased = stream ? liveLabel(file, stream, auto!.liveKbps!) : null;
     const autoNow = eased ?? (playing.id === ORIGINAL.id ? convertedLabel ?? ORIGINAL.label : playing.label);
-    const qualities: QualityChoice[] = qualitiesFor(file).map((p) => ({
+    const qualities: QualityChoice[] = offeredQualities(file, this.originalOnly).map((p) => ({
       id: p.id,
       label: p.label,
       hint:

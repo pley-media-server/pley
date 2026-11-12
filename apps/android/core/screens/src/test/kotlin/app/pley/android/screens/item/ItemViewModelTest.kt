@@ -185,6 +185,83 @@ class ItemViewModelTest {
     }
 
     @Test
+    fun `the seasons beside the one shown have their episodes asked for ahead`() = runTest(dispatcher) {
+        val model = model(10)
+        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 12, childCount = 6))
+        data.setChildren(10, (30L..35L).map { summary(it, ItemKind.Season, index = (it - 29).toInt()) })
+        // Not before the season shown is known.
+        assertTrue(data.warmed.isEmpty())
+        data.setOnDeck(10, null)
+        assertEquals(30L, model.page.seasons?.selected)
+        assertEquals(listOf(31L, 32L), data.warmed)
+        data.warmed.clear()
+        model.selectSeason(33)
+        // The nearest first, the next ones before the ones passed.
+        assertEquals(listOf(34L, 32L, 35L, 31L), data.warmed)
+    }
+
+    @Test
+    fun `a show with more than twelve seasons lists the newest first`() = runTest(dispatcher) {
+        val model = model(10)
+        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 28, childCount = 13))
+        // Specials, then seasons 1 to 13, as the server lists them.
+        data.setChildren(10, (30L..43L).map { summary(it, ItemKind.Season, index = (it - 30).toInt()) })
+        val next = summary(60, ItemKind.Episode, parentId = 42, parentIndex = 12, index = 1)
+        data.setOnDeck(10, next)
+        val seasons = model.page.seasons!!
+        assertEquals((43L downTo 31L).toList() + 30L, seasons.seasons.map { it.id })
+        assertEquals((13 downTo 1).toList() + 0, seasons.seasons.map { it.item?.index })
+        // It opens on the next episode's season, and asks ahead for the seasons beside it as they are listed.
+        assertEquals(42L, seasons.selected)
+        assertEquals(listOf(41L, 43L, 40L), data.warmed)
+        // A season's own page lists its show's seasons the same way.
+        val season = model(42)
+        data.set(ItemDetail(id = 42, libraryId = 2, kind = ItemKind.Season, title = "Season 12", index = 12, parentId = 10))
+        assertEquals(seasons.seasons.map { it.id }, season.page.seasons?.seasons?.map { it.id })
+    }
+
+    @Test
+    fun `a held show's page is whole at once, on the season its next episode is in`() = runTest(dispatcher) {
+        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 6, childCount = 2))
+        data.setChildren(10, listOf(summary(30, ItemKind.Season, index = 1), summary(31, ItemKind.Season, index = 2)))
+        val next = summary(41, ItemKind.Episode, parentId = 31, parentIndex = 2, index = 1)
+        data.setChildren(31, listOf(next))
+
+        // The next episode isn't held: no season is picked yet, as on the page made later.
+        val early = (ItemViewModel(data, launcher, 10, compute = dispatcher).state.value as ItemUiState.Ready).page
+        assertEquals(listOf(30L, 31L), early.seasons?.seasons?.map { it.id })
+        assertEquals(null, early.seasons?.selected)
+
+        data.setOnDeck(10, next)
+        val held = ItemViewModel(data, launcher, 10, compute = dispatcher)
+        val first = (held.state.value as ItemUiState.Ready).page
+        assertEquals(31L, first.seasons?.selected)
+        assertEquals(listOf(41L), first.seasons?.episodes?.map { it.item.id })
+        // The page made from the answers is the same one: nothing moves as it takes over.
+        backgroundScope.launch(dispatcher) { held.state.collect { } }
+        assertEquals(first, held.page)
+        // A season's page, held too, is its show's seasons and its own episodes at once.
+        data.set(ItemDetail(id = 31, libraryId = 2, kind = ItemKind.Season, title = "", index = 2, parentId = 10, parentTitle = "Driftline"))
+        val season = (ItemViewModel(data, launcher, 31, compute = dispatcher).state.value as ItemUiState.Ready).page
+        assertEquals("Driftline", season.context?.showTitle)
+        assertEquals(31L, season.seasons?.selected)
+        assertEquals(listOf(41L), season.seasons?.episodes?.map { it.item.id })
+        // Music and extras have other pages: theirs go the usual way.
+        data.set(ItemDetail(id = 50, libraryId = 3, kind = ItemKind.Album, title = "Low Tide"))
+        assertEquals(ItemUiState.Loading, ItemViewModel(data, launcher, 50, compute = dispatcher).state.value)
+    }
+
+    @Test
+    fun `a show with one season asks for nothing ahead`() = runTest(dispatcher) {
+        val model = model(10)
+        data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Driftline", leafCount = 2, childCount = 1))
+        data.setChildren(10, listOf(summary(30, ItemKind.Season, index = 1)))
+        data.setOnDeck(10, null)
+        assertEquals(30L, model.page.seasons?.selected)
+        assertTrue(data.warmed.isEmpty())
+    }
+
+    @Test
     fun `nothing to play is told, not played`() = runTest(dispatcher) {
         val model = model(10)
         data.set(ItemDetail(id = 10, libraryId = 2, kind = ItemKind.Show, title = "Empty", leafCount = 0))

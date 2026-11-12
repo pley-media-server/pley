@@ -34,6 +34,8 @@ const KEYS = [
   "hardware_decoding",
   "tonemapping",
   "transcode_preset",
+  "transcode_video",
+  "max_video_transcodes",
   "max_transcodes",
   "throttle_transcodes",
   "transcode_in_memory",
@@ -126,6 +128,14 @@ function TranscodeFolder({ dir }: { dir: TranscodeDir }) {
       />
     </Row>
   );
+}
+
+/** The most streams at once a server takes for a limit. */
+const MOST = 64;
+
+/** A limit as typed: a whole number from 1 to `most`. */
+function limit(typed: string, most: number): number {
+  return Math.min(Math.max(1, Math.floor(Number(typed)) || 1), most);
 }
 
 export function TranscoderSettings() {
@@ -286,14 +296,36 @@ export function TranscoderSettings() {
             </Group>
 
             <Group title={t("transcoder.load.title")} description={t("transcoder.load.description")}>
-              <Row label={t("transcoder.load.max")} htmlFor="max-transcodes">
+              <Row label={t("transcoder.load.allowVideo")} hint={t("transcoder.load.allowVideoHint")}>
+                <Toggle checked={form.transcode_video} onChange={(v) => set("transcode_video", v)} label={t("transcoder.load.allowVideo")} />
+              </Row>
+              <Row label={t("transcoder.load.maxVideo")} htmlFor="max-video-transcodes" hint={t("transcoder.load.maxVideoHint")}>
+                <TextInput
+                  id="max-video-transcodes"
+                  type="number"
+                  min={1}
+                  max={form.max_transcodes}
+                  disabled={!form.transcode_video}
+                  value={form.max_video_transcodes}
+                  onChange={(e) => set("max_video_transcodes", limit(e.target.value, form.max_transcodes))}
+                  className="w-28"
+                />
+              </Row>
+              <Row
+                // "total" stands out: it is what tells this limit from the one above it.
+                label={<Trans t={t} i18nKey="transcoder.load.max" components={{ total: <strong className="font-bold" /> }} />}
+                htmlFor="max-transcodes"
+                hint={t("transcoder.load.maxHint")}
+              >
                 <TextInput
                   id="max-transcodes"
                   type="number"
                   min={1}
-                  max={64}
+                  max={MOST}
                   value={form.max_transcodes}
-                  onChange={(e) => set("max_transcodes", Math.max(1, Number(e.target.value) || 1))}
+                  onChange={(e) => set("max_transcodes", limit(e.target.value, MOST))}
+                  // Once the total is typed: video transcodes are some of the streams, never more than all of them.
+                  onBlur={() => draft.setForm((f) => (f ? { ...f, max_video_transcodes: Math.min(f.max_video_transcodes, f.max_transcodes) } : f))}
                   className="w-28"
                 />
                 {tc?.available && tc.max_jobs > 0 && form.max_transcodes > tc.max_jobs ? (
@@ -319,7 +351,7 @@ export function TranscoderSettings() {
                   onChange={(v) => set("transcode_in_memory", v)}
                   label={t("transcoder.load.memory")}
                 />
-                {memoryProblem ? <Note>{t("transcoder.load.toDisk", { reason: capitalize(memoryProblem) })}</Note> : null}
+                {memoryProblem ? <Note>{t("transcoder.load.notInMemory", { reason: capitalize(memoryProblem) })}</Note> : null}
               </Row>
             </Group>
           </>

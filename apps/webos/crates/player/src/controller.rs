@@ -64,8 +64,8 @@ use crate::plan::{
 };
 use crate::prepare::{PREPARE_LEAD_MS, PREPARE_MAX_MS, warm_stream};
 use crate::quality::{
-    AUTO_ID, ORIGINAL_ID, Quality, auto_ladder, choose_quality, file_hint, live_floor, live_label, named_for, preset,
-    presets, qualities_for, stream_lines,
+    AUTO_ID, ORIGINAL_ID, Quality, auto_ladder, choose_quality, file_hint, live_floor, live_label, named_for,
+    offered_qualities, preset, presets, qualities_for, stream_lines,
 };
 use crate::recovery::{EngineError, Failure, FallbackReason, Recovery, RecoveryAction, StruggleMeter, failure_text};
 use crate::remote::{self, Command, RemoteAction, RemoteKind, RemotePlayer, remote_action, video_controls_with_tracks};
@@ -578,6 +578,9 @@ pub struct PlaybackController {
     tracks_now: PlayingTracks,
     /// The quality chosen in the menu: Automatic, the original, or a conversion.
     quality: Quality,
+    /// The server converts no video, as its last play answer had it
+    /// (`original_only`): only the original is offered, and plays.
+    original_only: bool,
     /// Automatic, when chosen.
     auto: Option<AutoQuality>,
     /// Bumped for each Automatic made: answers for an older one are dropped.
@@ -688,6 +691,7 @@ impl PlaybackController {
             subtitle: None,
             tracks_now: PlayingTracks::NONE,
             quality: Quality::original(),
+            original_only: false,
             auto: None,
             auto_id: 0,
             markers: Vec::new(),
@@ -977,7 +981,8 @@ impl PlaybackController {
     /// Asks the server's memory of networks for Automatic's start; none for a quality picked.
     fn network_start(&mut self, g: u64) {
         let remembered = self.env.quality.remembered();
-        let auto = choose_quality(remembered.as_deref(), &presets()).id == AUTO_ID && !self.local();
+        let auto =
+            choose_quality(remembered.as_deref(), &presets()).id == AUTO_ID && !self.local() && !self.original_only;
         match self.env.network.clone().filter(|_| auto) {
             Some(network) => self.spawn(move || Done::Known { g, known: network.start() }),
             None => {
@@ -1022,8 +1027,9 @@ impl PlaybackController {
         self.audio = initial_audio(chosen.as_ref(), req.audio_index);
         self.audio_picked = self.audio.is_some();
         self.subtitle = initial_subtitle(chosen.as_ref(), req.subtitle_index);
-        // Nothing converts a file on a drive: it plays as it is, without Automatic.
-        self.quality = if self.local() {
+        // Nothing converts a file on a drive, nor a server that converts no
+        // video: it plays as it is, without Automatic.
+        self.quality = if self.local() || self.original_only {
             Quality::original()
         } else {
             choose_quality(self.env.quality.remembered().as_deref(), &qualities_for(chosen.as_ref()))
@@ -1392,6 +1398,13 @@ impl PlaybackController {
         self.session_ended = false;
         self.live = None;
         self.info = Some(info.clone());
+        self.original_only = info.original_only;
+        if self.original_only {
+            // Whatever was asked for, the original plays: the menu says so,
+            // and the quality kept stays for servers that convert.
+            self.quality = Quality::original();
+            self.auto = None;
+        }
         if self.auto.is_some() {
             let live = self.auto_began(&info, asked.original);
             // A new stream of the same quality (a recovery, a track) goes on at the bitrate the last one had come to.
@@ -1832,6 +1845,8 @@ impl PlaybackController {
                     self.ask_session(&session, Check::Server { starving });
                 }
             }
+            // Not where there is none to choose.
+            RecoveryAction::SuggestLowerQuality if self.original_only => {}
             RecoveryAction::SuggestLowerQuality => {
                 self.state.suggest_lower_quality = true;
                 self.state.note = Some(details::slow_server().into());
@@ -2243,7 +2258,7 @@ impl PlaybackController {
     /// already, or one the same stream plays on with, is reported at once; one that needs a new
     /// session is reported as that session begins.
     fn pick_quality(&mut self, id: &'static str) {
-        if self.local() || !qualities_for(self.file.as_ref()).iter().any(|q| q.id == id) {
+        if self.local() || !offered_qualities(self.file.as_ref(), self.original_only).iter().any(|q| q.id == id) {
             return;
         }
         let g = self.current_generation();
@@ -2539,7 +2554,8 @@ impl PlaybackController {
     /// again while it plays lower starts afresh at the original. The session
     /// starts again only when it would ask for something else.
     pub fn select_quality(&mut self, id: &str) {
-        let Some(chosen) = qualities_for(self.file.as_ref()).into_iter().find(|p| p.id == id) else { return };
+        let offered = offered_qualities(self.file.as_ref(), self.original_only);
+        let Some(chosen) = offered.into_iter().find(|p| p.id == id) else { return };
         let lowered = self.auto.as_ref().is_some_and(|a| a.playing != ORIGINAL_ID || a.live_lowered());
         if chosen.id == self.quality.id && !lowered {
             return;
@@ -3318,7 +3334,7 @@ impl PlaybackController {
             }
         });
         // Nothing converts a file on a drive: no Quality to choose.
-        let qualities = qualities_for(file)
+        let qualities = offered_qualities(file, self.original_only)
             .into_iter()
             .filter(|_| !self.local())
             .map(|p| QualityChoice {

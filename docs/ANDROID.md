@@ -215,20 +215,38 @@ rates as the decoder gives them, the same in every language.
   held key's slide or glide stops, the still ring goes at once and the
   tile's look comes in that way. Elsewhere under a held key a tile's focus
   look changes evenly from one tile to the next, and backdrops and info
-  blocks wait until focus has rested 400 ms. With Reduce motion a held key
+  blocks wait until the key comes up; after a press they follow focus
+  at once, and only what costs a request (a title's details, for the
+  block's summary and badges) waits for focus to rest 400 ms. With Reduce motion a held key
   steps focus a tile or a row at a time and nothing slides.
   Search's recent searches move only when the next chip would pass the
   gutter or the safe area's edge, and then glide as a row does.
-- Home's hero features what the web's banner does: the newest movies and
-  shows not yet watched that have a backdrop, a library's at a time, then
-  My List's (the newest watched ones once everything has been). It takes
-  turns through them: Right from its last button (My List) goes on to the
-  next title, focus back on Play, and it turns by itself every 9 s while
-  no key is pressed, each press starting the time over; with Reduce
-  motion only Right turns it. With nothing to feature, the hero is
+- Home's hero features mostly what the web's banner does: the newest
+  movies and shows not yet watched that have a backdrop, a library's at a
+  time, then My List's (the newest watched ones once everything has
+  been). Every third title is one of the libraries' Top Rated not yet
+  watched, the same ones all day and others the next; the first two are
+  always the newest, so the title Home opens on never changes as the top
+  rated ones come in. On a phone's banner too. It takes
+  turns through them: it turns by itself every 9 s while no key is
+  pressed, each press starting the time over, and Right from its last
+  button (My List) stays there. Dashes at the
+  top right, one per title, show which is on, its dash longer and
+  filling with its time. Up from the buttons reaches them: they take
+  focus as one button, Left and Right turn to the title before or after
+  (round the ends), Select goes on, and Down comes back to Play; a turn
+  made there, or by itself while focus is there, leaves focus on them.
+  With Reduce motion the hero never turns by itself, and the dashes
+  still turn it. With nothing to feature, the hero is
   Continue Watching's first and stays. On a phone the same titles are a
   banner under a clear top bar, swiped between and turning by themselves
   (not while touched, scrolled away, or with Reduce motion).
+- On a TV the hero is off unless Settings → Subtitles and display →
+  Home banner turns it on. Without it, Home opens on its rows, focus on
+  the first tile, the backdrop and the info block following focus as they
+  do in the rows, and Back goes to the rail. Nothing is featured, so
+  neither the featured titles' details nor the libraries' Top Rated rows
+  are asked for. A phone always shows its banner.
 - A held key never leaves its list, as on a TV's home screen: it stops
   on a row's first or last tile, on a page's first or last row, and at a
   grid's edges, wherever the list is (Home, a show's page, search, a
@@ -240,7 +258,32 @@ rates as the decoder gives them, the same in every language.
   the chips) lands on the tile focus left.
 - On a show's page, Up from the episodes and Down from the buttons go to
   the tab of the season shown; another season shows once focus rests on
-  its tab.
+  its tab, 150 ms. The two seasons on each side of the one shown have
+  their episodes asked for ahead, the next ones first, so a season shows
+  with them. Seasons with posters of their own are a row of posters in
+  the tabs' place: resting on one shows its episodes under the row, and
+  Select goes down into them, on the episode to watch. An episode opens
+  its own page, whose season row starts on it and marks it, with a thin
+  ring and its title in bold, while focus is elsewhere; there, Select on
+  the same episode plays it and another episode's page takes the page's
+  place, so Back is where the first was opened from: the show, on the
+  season and the episode it was opened from. A title's page
+  whose details are held in memory (seen before, or asked for ahead)
+  draws itself whole in its first frame, and one that isn't shows its
+  outline only after 150 ms. A show with more than 12
+  seasons lists them newest first, Specials last (the phone's season
+  picker too), and the tabs or posters open with the season shown in
+  sight, wherever it is along them. The season shown first is the next
+  episode's while the show is being watched (an episode started, or some
+  watched and some not); a show not started, or watched to its end,
+  opens on the first season listed, the newest of a long show, since
+  the server's next episode is then only its first.
+- What follows a title's buttons shows whole above the screen's bottom
+  edge with the page at rest: a show's season posters with their names
+  and episode counts, the episodes with their titles, or the first row
+  with its names. For that the room under the buttons closes up, by 28
+  dp at the most; then the description gives up its third line; then
+  the line of who made it goes, before the description's second.
 - Pictures wait while a key is held: the tiles a row slides past or a
   page glides past ask for none, unless the memory cache has them, and
   no backdrop is fetched ahead; where the key comes up, the tiles on
@@ -275,7 +318,11 @@ rates as the decoder gives them, the same in every language.
   so: its playlist does ([API.md](API.md#dolby-vision-remuxes)), and
   Media3 reads that for the track but not for the samples it hands the
   decoder. The player names those samples as their track, so they go to
-  the Dolby Vision decoder as a file played as it is does.
+  the Dolby Vision decoder as a file played as it is does. Media3's
+  MPEG-TS reader also leaves each frame's Dolby Vision metadata out of
+  its sample (the RPU, a NAL unit of its own after the frame's slices),
+  and the decoder then shows the base layer alone, HDR10: the player
+  ends each sample after the RPU, as a file's samples end.
 
 ### Remote control
 
@@ -558,6 +605,8 @@ its best file, a show by its best episode.
 - Clear filters clears them all, Save as… keeps them in the smart playlist
   (`resolution=4k&dynamicRange=hdr`), and a library opens as it was left,
   filters included; a stored value the server wouldn't take is dropped.
+  A library never opened on the device starts on its Library tab on a
+  phone, as on the web, and on Recommended on a TV.
 - Posters carry their quality badges ("4K", "DV", "HDR") only while the
   grid is sorted by bitrate or filtered by resolution or dynamic range;
   sorted by bitrate, each also shows its bitrate and size. Recommended
