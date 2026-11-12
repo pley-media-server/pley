@@ -153,7 +153,7 @@ workflow's `on.paths` has the exact list.
 
 | Workflow | Runs for changes in |
 |---|---|
-| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,ffmpeg,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license and source scripts |
+| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,ffmpeg,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license, test watchdog and source scripts |
 | Desktop | `apps/desktop`, the root `package.json` |
 | Android | `apps/android`, `scripts/check-android.ps1` |
 | Samsung TV | `apps/tizen`, `packages/tv`, the root `package.json` and `bun.lock`, `scripts/commit.mjs` |
@@ -171,6 +171,13 @@ A branch carrying a unit's manifests and CHANGELOG from before that release
 passes `version.mjs check`, since they agree with each other, yet would take
 the release back. What waits for the next release, a higher version or
 entries under Unreleased, passes.
+
+Server's Windows job runs its tests under `scripts/test-watchdog.ps1`. A
+test program that runs over 5 minutes is stuck: the watchdog prints its
+threads' stacks when cdb (Debugging Tools for Windows) is there, keeps a
+minidump of it with its program and symbols as the `stuck-test-windows`
+artifact, and ends it, so the job fails at once and names the program
+instead of waiting for its time limit.
 
 A CHANGELOG change alone runs only Repository. Prepare release and Audit
 (known vulnerabilities in the lock files) run only by hand.
