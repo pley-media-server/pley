@@ -307,8 +307,9 @@ impl Scanner {
     async fn worker(self: Arc<Self>, mut rx: mpsc::UnboundedReceiver<ScanRequest>) {
         let mut pending: Vec<ScanRequest> = Vec::new();
         // A new library's files and metadata go before other library work,
-        // and so do the scans queued behind it: released between two, the
-        // seek previews of the first would start beside the next.
+        // and so do other first scans queued behind it: released between
+        // two, the seek previews of the first would start beside the next.
+        // A later scan, with no first scan to come, lets it go.
         let mut hold = None;
         loop {
             // One queued while the last ran keeps the hold; only an empty

@@ -2819,8 +2819,9 @@ minute (Pley and the transcoder it starts don't count; a transcoder run
 separately on the same machine does).
 
 They wait, with fingerprinting, while new libraries fill in: from the
-start of a library's first scan until the scans queued behind it are
-done, and while a Plex import runs (`waiting: "scanning"`). They would
+start of a library's first scan until no other first scan is queued (a
+later scan of a library queued behind it doesn't hold them), and while a
+Plex import runs (`waiting: "scanning"`). They would
 read the same disks and write the same database as the scans and the
 metadata fetch. Work already under way finishes, and what plays or is
 opened doesn't wait. Then `library_work` decides:
@@ -4696,9 +4697,11 @@ interface ImportProgress {
 
 - **Libraries.** `pairing` looks for a few of each Plex library's files
   among Pley's, by name and size. Every choice is checked before anything
-  is made. Libraries made with `new` are scanned before anything is
-  matched, and the import waits for them. A Plex library's titles are
-  looked for only in the Pley library it's paired with.
+  is made. Libraries made with `new` are scanned for their files a
+  library at a time; each library's titles are looked for as soon as its
+  files are in, while the others are scanned, and the import waits for
+  them all. A Plex library's titles are looked for only in the Pley
+  library it's paired with.
 - **People.** The Plex account comes as the administrator who starts the
   import. Each Home user listed becomes a managed profile of the home
   with their name, or the one an earlier import made for them, before
@@ -4707,7 +4710,9 @@ interface ImportProgress {
   `users` doesn't give is skipped (`pin_needed`). A new profile opens all
   of Pley's libraries only when Plex let them open all of its own and
   every Pley library is one of those brought; otherwise just the ones
-  they could open. Plex refusing one person's lists marks theirs
+  they could open. A library already in Pley that holds more than that
+  (folders beyond theirs, or another Plex library brought to it) stays
+  closed to a new profile, and is named in its `closed`. Plex refusing one person's lists marks theirs
   `incomplete` (`playlists_incomplete` for playlists) and the import goes
   on.
 - **Restrictions.** The profile of a Home user Plex limits (a managed
