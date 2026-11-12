@@ -1074,7 +1074,7 @@
       "done": "Importado de Plex el {{date}}",
       "failed": "La importación de Plex falló el {{date}}",
       "cancelled": "Se detuvo la importación de Plex el {{date}}",
-      "interrupted": "La importación de Plex se interrumpió al reiniciarse Pley el {{date}}",
+      "interrupted": "La importación de Plex que empezó el {{date}} se interrumpió al reiniciarse Pley",
       "showSteps": "Mostrar los pasos",
       "hideSteps": "Ocultar los pasos",
       "report": "Ver lo que se trajo"

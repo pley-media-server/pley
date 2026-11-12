@@ -147,7 +147,7 @@ describe("PlexImportStatus", () => {
     mockApi({ "GET /api/import/plex": () => progress });
     const onAgain = vi.fn();
     const { client } = renderWithProviders(<PlexImportStatus onReport={() => {}} onAgain={onAgain} />);
-    expect(await screen.findByText("The Plex import was cut short when Pley restarted on Nov 8, 2026")).toBeInTheDocument();
+    expect(await screen.findByText("The Plex import started on Nov 8, 2026 was cut short when Pley restarted")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "See what came over" })).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Import again" }));
     expect(onAgain).toHaveBeenCalled();

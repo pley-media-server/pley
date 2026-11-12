@@ -261,7 +261,7 @@ describe("HomePage", () => {
     const startedAt = Math.floor(Date.now() / 1000) - 3600;
     serve({ progress: { ...importing, state: "interrupted", step: null, started_at: startedAt, first_pass_done: false } });
     renderWithProviders(<HomePage />);
-    expect(await screen.findByText(/^The Plex import was cut short when Pley restarted on/)).toBeInTheDocument();
+    expect(await screen.findByText(/^The Plex import started on .* was cut short when Pley restarted$/)).toBeInTheDocument();
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "Import again" }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
