@@ -11,6 +11,17 @@ describes how they are made.
 
 ### Added
 
+- Settings → Transcoder has "Allow video transcoding". Turned off, Pley
+  only copies video: files play as they are or with just their sound
+  transcoded, a quality asked for plays the Original, and a file whose
+  video a device can't play doesn't play there, with a message that says
+  why. Players offer the Original quality alone, and the Plex- and
+  Jellyfin-compatible APIs follow the same rule.
+- "Max simultaneous video transcodes" limits the streams that transcode
+  video within "Max simultaneous total transcodes" (the limit there
+  before, which still counts every stream), so room can be kept for
+  streams that only need their sound transcoded. It starts at the total a
+  server already had, and is never more than it.
 - Settings → Transcoder has a Dolby Vision FEL choice. Dolby Vision profile
   7 with a full enhancement layer (many UHD Blu-rays) is now transcoded
   from its HDR10 base layer alone, since no transcoder can read that layer:
@@ -20,6 +31,13 @@ describes how they are made.
 
 ### Changed
 
+- In Settings → Transcoder, the note under "Transcode in memory" says
+  only why it is off.
+- Dropdowns' carets stand in from their right edge instead of sitting
+  against it, and a dropdown that can't be changed is greyed out.
+- Number fields in Settings (the transcode and request limits, ports, the
+  scan interval) and in a title's Edit are as wide as their numbers need,
+  no longer the whole column. So is the server's `.local` name.
 - Intel graphics on Windows: HDR10 is tone mapped with OpenCL on the GPU,
   without copying frames, when the FFmpeg build supports it. 4K HDR to 1080p
   transcodes about twice as fast, with fewer blown-out highlights.
@@ -54,9 +72,14 @@ describes how they are made.
 
 ### Fixed
 
+- A movie titled with a number, such as "300", takes its year from its
+  file's name, like other movies, rather than its folder's. A full rescan
+  merges copies that show twice.
+- Sync tools such as WatchState copy partly watched videos to Pley
+  through the Jellyfin-compatible API: the place they send becomes the
+  resume point, with the time it was played on the other server.
 - Intel graphics on Linux: Quick Sync uses the Intel GPU when an NVIDIA or
   AMD card comes first, instead of trying that one and failing.
-
 - Intel graphics: transcodes no longer fail when the CPU encoder takes over
   (all Quick Sync sessions busy, or the Quick Sync encoder failing to
   start).

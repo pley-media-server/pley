@@ -31,9 +31,10 @@ public class PlayerApiTests
         server.On("POST", Home + "/api/playback", 200, @"{""session_id"":""s1"",""method"":""transcode"",""url"":""/api/media/k/playback/s1/master.m3u8"",""hls"":true,
             ""file_id"":7,""duration_ms"":5000,""audio_index"":1,""subtitle_index"":null,""burn_subtitles"":false,""audio_converted"":true,
             ""subtitles"":[{""index"":3,""codec"":""subrip"",""language"":""eng"",""title"":null,""default"":false,""forced"":false,""external"":false,""text_based"":true,""url"":""/api/files/7/subtitles/3.vtt""}],
-            ""reasons"":[""HEVC 10-bit isn't supported.""],""reason"":""HEVC 10-bit isn't supported."",""auto_quality"":""8m"",""video_range"":null,""adaptive"":false,""live_bitrate"":true}");
+            ""reasons"":[""HEVC 10-bit isn't supported.""],""reason"":""HEVC 10-bit isn't supported."",""auto_quality"":""8m"",""video_range"":null,""adaptive"":false,""live_bitrate"":true,""original_only"":true}");
         var info = await api.StartPlayback(new Dictionary<string, object?> { ["item_id"] = 1 });
         Assert.Equal(("s1", true, "8m", true), (info.SessionId, info.AudioConverted, info.AutoQuality, info.LiveBitrate));
+        Assert.True(info.OriginalOnly);
         Assert.Equal("/api/files/7/subtitles/3.vtt", info.Subtitles.Single().Url);
         Assert.True(info.Subtitles.Single().TextBased);
     }

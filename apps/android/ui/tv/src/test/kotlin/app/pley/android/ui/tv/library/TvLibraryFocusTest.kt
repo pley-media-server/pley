@@ -7,7 +7,10 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isFocused
+import androidx.compose.ui.test.isNotSelected
+import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.navigation3.runtime.NavKey
@@ -84,6 +87,8 @@ class TvLibraryFocusTest {
     /** Movies' grid, in the frame, with focus on its first tile. */
     private fun library() {
         val sources = graph.sources
+        // Left on its Library tab, the grid these are about: a library never opened shows Recommended.
+        graph.left[1] = "tab=library"
         sources.libraryList.value = Loadable.Ready(listOf(movies), fresh = true)
         graph.listing.value = Loadable.Ready(LibraryItems(total = items.size, items = items), fresh = true)
         // The tiles' actions are worked out from the items' details.
@@ -212,6 +217,22 @@ class TvLibraryFocusTest {
         ?.config?.getOrElse(SemanticsProperties.Text) { emptyList() }?.joinToString().orEmpty()
 
     private fun focusedBounds() = compose.onAllNodes(isFocused()).fetchSemanticsNodes().single().boundsInRoot
+
+    @Test
+    fun aLibraryNeverOpenedShowsRecommended() {
+        graph.sources.libraryList.value = Loadable.Ready(listOf(movies), fresh = true)
+        graph.listing.value = Loadable.Ready(LibraryItems(total = items.size, items = items), fresh = true)
+        val key = PleyKey.Library(1)
+        val navigator = TvNavigator(mutableListOf<NavKey>(key), RailState()) {}
+        compose.setContent {
+            TvTheme(reducedMotion = true) {
+                CompositionLocalProvider(LocalTvNavigator provides navigator) { TvLibraryScreen(key) }
+            }
+        }
+        // Its rows, not the whole grid; left on the Library tab, it opens there ([library]).
+        waitUntil { exists(hasText("Recommended") and isSelected()) }
+        assertTrue(exists(hasText("Library") and isNotSelected()))
+    }
 
     @Test
     fun chipsThatDontAllFitGoToTheirEndAndBackWithFocus() {

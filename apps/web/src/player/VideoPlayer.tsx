@@ -60,7 +60,7 @@ import { playUrl } from "@/lib/usePlayItem";
 import { nextInQueue, queuePlayUrl, type QueuePosition } from "@/lib/videoQueue";
 import { AutoQuality, ORIGINAL_ID, storedMemory, type AutoMemory, type AutoStep } from "./autoQuality";
 import { autoLadder, chooseQuality, modeFor, namedFor, ORIGINAL, qualitiesFor, qualityById, qualityLabel } from "./quality";
-import { networkStart, reportCeiling } from "./network";
+import { heardOriginalOnly, networkStart, reportCeiling, serverOriginalOnly } from "./network";
 import { ChaptersMenu } from "./ChaptersMenu";
 import type { SubtitleSources } from "./FindSubtitles";
 import { SeekBar } from "./SeekBar";
@@ -378,8 +378,11 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
   // plays it unless it doesn't play well, every other quality is a
   // transcode. A remembered quality this file doesn't need (an 8 Mbps cap
   // on a 5 Mbps file) plays the original.
-  const qualities = useMemo(() => qualitiesFor(file), [file]);
-  const selectedQuality = chooseQuality(quality, qualities);
+  // A server that converts no video (`original_only`, as its last answer
+  // had it) has only the original to give: the choice kept stays as it is.
+  const [originalOnly, setOriginalOnly] = useState(serverOriginalOnly);
+  const qualities = useMemo(() => (originalOnly ? [ORIGINAL] : qualitiesFor(file)), [file, originalOnly]);
+  const selectedQuality = originalOnly ? ORIGINAL : chooseQuality(quality, qualities);
   // Automatic, when chosen: one for each file (Up Next's starts where the
   // network last allowed), and a fresh one when picked again.
   const [autoRun, setAutoRun] = useState(0);
@@ -857,6 +860,8 @@ export function VideoPlayer({ item, startMs, fileId, audio: initialAudio, sub: i
         const pinfo = await acquired;
         if (!pinfo || cancelled) return;
         setInfo(pinfo);
+        heardOriginalOnly(pinfo.original_only === true);
+        setOriginalOnly(pinfo.original_only === true);
         setFellBack(requestMode !== mode);
         autoBegan(pinfo);
 

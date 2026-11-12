@@ -4,6 +4,7 @@
     <string name="tv_home_play">Reproducir</string>
     <string name="tv_home_from_start">Desde el principio</string>
     <string name="tv_home_info">Información</string>
+    <string name="tv_home_turns">Título %1$d de %2$d</string>
     <string name="tv_home_mark_watched">Marcar como visto</string>
     <string name="tv_home_mark_unwatched">Marcar como no visto</string>
     <string name="tv_home_see_all">Ver todo</string>

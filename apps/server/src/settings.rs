@@ -67,6 +67,18 @@ pub struct Settings {
     pub hwaccel: HwAccel,
     pub hardware_decoding: bool,
     pub tonemapping: TonemapMode,
+    /// Transcode video for a player that can't play a file's as it is, or
+    /// that asks for a lower quality. Off: video is only ever copied, with
+    /// the sound transcoded where the player needs it, a quality asked for
+    /// plays the original, and a file whose video the player can't play
+    /// isn't played there ([`crate::playback::PlaybackRequest::copy_video_only`]).
+    pub transcode_video: bool,
+    /// Streams that transcode video, at once: counted within
+    /// `max_transcodes` and never more than it, so a lower number leaves
+    /// room for streams that only need their sound transcoded.
+    pub max_video_transcodes: u32,
+    /// Streams the transcoder makes at once, of every kind (video
+    /// transcodes, remuxes, sound transcodes, music).
     pub max_transcodes: u32,
     pub transcode_preset: String,
     pub throttle_transcodes: bool,
@@ -209,6 +221,8 @@ impl Default for Settings {
             hwaccel: HwAccel::Auto,
             hardware_decoding: true,
             tonemapping: TonemapMode::Auto,
+            transcode_video: true,
+            max_video_transcodes: 4,
             max_transcodes: 4,
             // Chosen by the transcoder from its load and lead (crate::transcoder).
             transcode_preset: "auto".into(),
@@ -314,6 +328,18 @@ pub(crate) fn arr_url(value: &str) -> Result<String, AppError> {
 }
 
 impl Settings {
+    /// Settings as they were saved. Ones saved before video transcodes had
+    /// a limit of their own take the limit of every stream for it, so
+    /// nothing changes on those servers.
+    fn saved(json: &str) -> Option<Settings> {
+        let mut settings: Settings = serde_json::from_str(json).ok()?;
+        let written: serde_json::Value = serde_json::from_str(json).ok()?;
+        if written.get("max_video_transcodes").is_none() {
+            settings.max_video_transcodes = settings.max_transcodes;
+        }
+        Some(settings)
+    }
+
     pub fn transcode_options(&self) -> TranscodeOptions {
         TranscodeOptions {
             hwaccel: self.hwaccel,
@@ -571,6 +597,8 @@ pub struct SettingsPatch {
     pub hwaccel: Option<HwAccel>,
     pub hardware_decoding: Option<bool>,
     pub tonemapping: Option<TonemapMode>,
+    pub transcode_video: Option<bool>,
+    pub max_video_transcodes: Option<u32>,
     pub max_transcodes: Option<u32>,
     pub transcode_preset: Option<String>,
     pub throttle_transcodes: Option<bool>,
@@ -624,7 +652,7 @@ impl SettingsStore {
     pub async fn load(db: &Db) -> anyhow::Result<Self> {
         let stored: Option<String> =
             sqlx::query_scalar("SELECT value FROM settings WHERE key = ?").bind(KEY).fetch_optional(&db.read).await?;
-        let settings = stored.and_then(|json| serde_json::from_str(&json).ok()).unwrap_or_default();
+        let settings = stored.and_then(|json| Settings::saved(&json)).unwrap_or_default();
         Ok(Self { current: watch::Sender::new(Arc::new(settings)) })
     }
 
@@ -708,6 +736,17 @@ impl SettingsStore {
                 return Err(AppError::bad_request("max transcodes must be between 1 and 64"));
             }
             next.max_transcodes = v;
+        }
+        if let Some(v) = patch.max_video_transcodes {
+            if !(1..=64).contains(&v) {
+                return Err(AppError::bad_request("max video transcodes must be between 1 and 64"));
+            }
+            next.max_video_transcodes = v;
+        }
+        // Video transcodes are some of the streams: never more than all of them.
+        next.max_video_transcodes = next.max_video_transcodes.min(next.max_transcodes);
+        if let Some(v) = patch.transcode_video {
+            next.transcode_video = v;
         }
         if let Some(v) = patch.transcode_preset {
             if !matches!(v.as_str(), "auto" | "ultrafast" | "superfast" | "veryfast" | "faster" | "fast" | "medium") {
@@ -962,6 +1001,8 @@ mod tests {
         assert!(bad(serde_json::json!({"language": "fr-FR"})).await);
         assert!(bad(serde_json::json!({"max_transcodes": 0})).await);
         assert!(bad(serde_json::json!({"max_transcodes": 65})).await);
+        assert!(bad(serde_json::json!({"max_video_transcodes": 0})).await);
+        assert!(bad(serde_json::json!({"max_video_transcodes": 65})).await);
         assert!(bad(serde_json::json!({"transcode_preset": "placebo"})).await);
         assert!(bad(serde_json::json!({"library_work_from": 24})).await);
         assert!(bad(serde_json::json!({"library_work_max_cpu": 5})).await);
@@ -976,6 +1017,8 @@ mod tests {
                     "tmdb_api_key": "  abc  ",
                     "metadata_language": " fr-FR ",
                     "max_transcodes": 64,
+                    "max_video_transcodes": 2,
+                    "transcode_video": false,
                     "transcode_preset": "medium",
                     "scan_interval_minutes": 1_000_000,
                     "seek_previews": false,
@@ -988,6 +1031,21 @@ mod tests {
         assert_eq!(s.tmdb_api_key, "abc");
         assert_eq!(s.metadata_language, "fr-FR");
         assert_eq!((s.max_transcodes, s.transcode_preset.as_str()), (64, "medium"));
+        assert_eq!((s.max_video_transcodes, s.transcode_video), (2, false));
+        let unset = Settings::default();
+        assert_eq!((unset.max_video_transcodes, unset.max_transcodes), (4, 4), "four streams of any kind, as ever");
+        assert!(unset.transcode_video, "video is transcoded unless turned off");
+        // Video transcodes are never more than all the streams: a limit above the total comes down to it.
+        let both = serde_json::json!({"max_transcodes": 3, "max_video_transcodes": 5});
+        let lowered = store.update(&db, patch(both)).await.unwrap();
+        assert_eq!((lowered.max_video_transcodes, lowered.max_transcodes), (3, 3));
+        let lowered = store.update(&db, patch(serde_json::json!({"max_transcodes": 2}))).await.unwrap();
+        assert_eq!(
+            (lowered.max_video_transcodes, lowered.max_transcodes),
+            (2, 2),
+            "also when only the total is lowered"
+        );
+        let s = store.update(&db, patch(serde_json::json!({"max_transcodes": 64}))).await.unwrap();
         assert_eq!(s.scan_interval_minutes, 7 * 24 * 60, "at most a week");
         assert_eq!(Settings::default().transcode_preset, "auto", "the transcoder chooses by default");
         assert!(!s.seek_previews);
@@ -1047,6 +1105,7 @@ mod tests {
             .unwrap();
         let s = SettingsStore::load(&db).await.unwrap().get();
         assert_eq!((s.server_name.as_str(), s.max_transcodes, s.hwaccel), ("Attic", 2, HwAccel::Nvenc));
+        assert_eq!(s.max_video_transcodes, 2, "saved before video had a limit of its own: the one it had");
         assert_eq!(s.tv_metadata, TvMetadata::Auto);
         assert!(s.music_metadata && s.read_nfo && s.seek_previews && s.previews_in_background && s.detect_markers);
         assert_eq!((s.library_work, s.library_work_max_cpu), (LibraryWork::Auto, 50));

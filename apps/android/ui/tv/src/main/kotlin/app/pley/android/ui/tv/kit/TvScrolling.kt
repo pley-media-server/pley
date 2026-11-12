@@ -47,6 +47,14 @@ object TvScrolling {
      */
     fun ends(state: ScrollState, start: Float, end: Float): BringIntoViewSpec = EndsSpec(state, start, end)
 
+    /**
+     * A row of pills longer than the screen (a show's season tabs): the
+     * focused element is moved just far enough to show [start] from the
+     * viewport's leading edge and [end] from its trailing one, as the LG
+     * app's tabs slide; what shows there doesn't move.
+     */
+    fun inView(start: Float, end: Float): BringIntoViewSpec = InViewSpec(start, end)
+
     /** Whether every tile of [state]'s row fits on screen unscrolled, short of [endRoom]; null before its first layout. */
     fun fits(state: LazyListState, endRoom: Float): Boolean? {
         val info = state.layoutInfo
@@ -117,6 +125,18 @@ object TvScrolling {
                 else -> scrolled
             }
             return target - scrolled
+        }
+    }
+
+    @Stable
+    private class InViewSpec(private val start: Float, private val end: Float) : BringIntoViewSpec {
+        override fun calculateScrollDistance(offset: Float, size: Float, containerSize: Float): Float {
+            val last = containerSize - end
+            return when {
+                offset < start -> offset - start
+                offset + size > last -> offset + size - last
+                else -> 0f
+            }
         }
     }
 

@@ -54,6 +54,11 @@ sealed interface HomeState {
         val hero: HomeInfo?,
         /** The banner's titles ([featuredOf]), in turn; empty without a backdrop to show. */
         val featured: List<Featured> = emptyList(),
+        /**
+         * Whether Home opens on its banner (the device's setting, TVs only).
+         * Without it there is no [hero] and nothing [featured]: Home opens on its rows.
+         */
+        val banner: Boolean = true,
     ) : HomeState
 }
 
@@ -138,21 +143,60 @@ data class Featured(
     val label: UiText,
 )
 
-/** A title [featuredOf] picked: new in its library, or on My List ([fromList]). */
-data class FeaturedPick(val item: ItemSummary, val fromList: Boolean)
+/** A title [featuredOf] picked: new in its library, on My List ([fromList]), or one of its library's top rated ([topRated]). */
+data class FeaturedPick(val item: ItemSummary, val fromList: Boolean, val topRated: Boolean = false)
 
 /** How many titles the banner takes turns showing. */
 const val FEATURED_COUNT = 6
 
+/** One place in this many of the banner's is a top rated title's ([featuredOf]): the third and the sixth of six. */
+const val TOP_RATED_EVERY = 3
+
 /**
- * The titles Home's banner features, as the web picks them
- * (apps/web/src/lib/featured.ts): the newest unwatched movies and shows
- * with a backdrop, taken in turn from each library's Recently Added (so
- * movies and shows alternate), then from My List when that is too few.
+ * The titles Home's banner features. Mostly what is new, picked as the web
+ * picks it (apps/web/src/lib/featured.ts): the newest unwatched movies and
+ * shows with a backdrop, taken in turn from each library's Recently Added
+ * (so movies and shows alternate), then from My List when that is too few.
  * When everything has been watched, the newest are featured all the same.
+ *
+ * Among them, in every third place, comes a title of the libraries' Top
+ * Rated not yet watched ([topRated]), while there are some. Which ones
+ * depends on [day] and on nothing else that changes, so the banner shows
+ * the same titles all day, and a title watched or added moves no other.
+ * The first two places are always the newest, which Home has at once: the
+ * top rated come from the libraries a moment later, and never change the
+ * title the banner opens on.
  */
-fun featuredOf(rows: List<HomeRow>, count: Int = FEATURED_COUNT): List<FeaturedPick> =
-    pickFeatured(rows, count) { hasArt(it) && !it.userState.watched }.ifEmpty { pickFeatured(rows, count, ::hasArt) }
+fun featuredOf(rows: List<HomeRow>, topRated: List<ItemSummary> = emptyList(), day: Long = 0, count: Int = FEATURED_COUNT): List<FeaturedPick> {
+    val unwatched = pickFeatured(rows, count) { hasArt(it) && !it.userState.watched }
+    val newest = unwatched.ifEmpty { pickFeatured(rows, count, ::hasArt) }
+    val taken = newest.mapTo(HashSet()) { it.item.id }
+    val rated = topRated.asSequence()
+        .filter { hasArt(it) && !it.userState.watched && it.id !in taken }
+        .distinctBy { it.id }
+        .sortedBy { dayOrder(it.id, day) }
+        .iterator()
+    if (!rated.hasNext()) return newest
+    val fresh = newest.iterator()
+    val picked = ArrayList<FeaturedPick>(count)
+    while (picked.size < count && (fresh.hasNext() || rated.hasNext())) {
+        val itsPlace = picked.size % TOP_RATED_EVERY == TOP_RATED_EVERY - 1
+        picked += if (rated.hasNext() && (itsPlace || !fresh.hasNext())) FeaturedPick(rated.next(), fromList = false, topRated = true) else fresh.next()
+    }
+    return picked
+}
+
+/**
+ * Where [id] comes among the top rated on [day]: an order that looks
+ * shuffled, is the same all day, and in which a title's place doesn't
+ * depend on which other titles there are (SplitMix64's mixing).
+ */
+private fun dayOrder(id: Long, day: Long): Long {
+    var x = id * -0x61c8864680b583ebL + day * -0x4b47d0c5ae7e0c4bL
+    x = (x xor (x ushr 30)) * -0x40a7b892e31b1a47L
+    x = (x xor (x ushr 27)) * -0x6b2fb644ecceee15L
+    return x xor (x ushr 31)
+}
 
 private fun hasArt(item: ItemSummary): Boolean = item.kind.listable && !item.backdropUrl.isNullOrEmpty()
 
@@ -172,11 +216,19 @@ private fun pickFeatured(rows: List<HomeRow>, count: Int, featurable: (ItemSumma
     return picked
 }
 
-/** What the banner says about why [pick] is there: "New in Movies" with its library's name ([libraries]), "New" without it. */
+/**
+ * What the banner says about why [pick] is there: "New in Movies" or "Top
+ * rated in Movies" with its library's name ([libraries]), "New" or "Top
+ * rated" without it.
+ */
 fun featuredLabel(pick: FeaturedPick, libraries: List<Library>?): UiText {
     if (pick.fromList) return UiText.res(R.string.home_featured_on_list)
     val library = libraries?.firstOrNull { it.id == pick.item.libraryId }?.name
-    return if (library.isNullOrEmpty()) UiText.res(R.string.home_featured_new) else UiText.res(R.string.home_featured_new_in, library)
+    return when {
+        pick.topRated -> if (library.isNullOrEmpty()) UiText.res(R.string.home_featured_top_rated) else UiText.res(R.string.home_featured_top_rated_in, library)
+        library.isNullOrEmpty() -> UiText.res(R.string.home_featured_new)
+        else -> UiText.res(R.string.home_featured_new_in, library)
+    }
 }
 
 /** A library in the list of libraries (phone's Libraries tab, the TV's Libraries page). */

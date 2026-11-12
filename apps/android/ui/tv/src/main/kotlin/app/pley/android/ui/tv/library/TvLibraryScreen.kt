@@ -90,14 +90,16 @@ import kotlinx.coroutines.launch
  * grid of six posters a row with the A to Z jump beside it; the
  * Recommended tab's rows; the Collections tab's grid. Sort and filters
  * open in a side panel. The first tile has focus, or the one focused last
- * when coming back.
+ * when coming back. A library opens on the tab it was left on, on
+ * Recommended the first time.
  */
 @Composable
 internal fun TvLibraryScreen(key: PleyKey.Library) {
     var saved by rememberSaveable { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val vm: LibraryViewModel<ArtworkTileModel> = viewModel {
-        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), TvTiles(context), key.view)
+        // On TV a library first opens on Recommended, its rows, rather than on the whole grid.
+        LibraryViewModel(key.libraryId, key.tab, saved, LibraryDeps.of(screensGraph()), TvTiles(context), key.view, first = LibraryTab.Recommended)
     }
     LaunchedEffect(vm) {
         vm.state.map { it.params.toQueryString() }.distinctUntilChanged().collect { saved = it }
@@ -333,7 +335,7 @@ private fun TvLibraryTab(
                 )
             }
         }
-        Spacer(Modifier.height(GridTop - ChipsTop - 40.dp - TileRoom))
+        Spacer(Modifier.height(GridTop - ChipsTop - ChipHeight - TileRoom))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             val failed = state.grid.cells as? Loadable.Failed
             ReportOffline(state.grid.cells)
@@ -431,7 +433,7 @@ private fun ChipRow(modifier: Modifier, content: @Composable RowScope.() -> Unit
                 .railFade { scroll.value > 0 }
                 .horizontalScroll(scroll)
                 .padding(start = PleyTv.Gutter, end = TvSafeArea.Horizontal)
-                .height(40.dp)
+                .height(ChipHeight)
                 .then(modifier),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -458,7 +460,7 @@ private fun TvCollectionsTab(
     val list = collections.valueOrNull
     Column(Modifier.fillMaxSize()) {
         Spacer(Modifier.height(ChipsTop))
-        Box(Modifier.padding(start = PleyTv.Gutter).height(40.dp), contentAlignment = Alignment.CenterStart) {
+        Box(Modifier.padding(start = PleyTv.Gutter).height(ChipHeight), contentAlignment = Alignment.CenterStart) {
             if (list != null) {
                 BasicText(
                     tvCount(resources, R.plurals.tv_library_count_collections, list.size),
@@ -466,7 +468,7 @@ private fun TvCollectionsTab(
                 )
             }
         }
-        Spacer(Modifier.height(GridTop - ChipsTop - 40.dp - TileRoom))
+        Spacer(Modifier.height(GridTop - ChipsTop - ChipHeight - TileRoom))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 list == null && collections is Loadable.Failed -> TvMessage(

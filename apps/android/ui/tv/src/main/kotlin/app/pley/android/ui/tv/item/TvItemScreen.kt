@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyListState
@@ -45,6 +46,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -74,10 +76,12 @@ import app.pley.android.screens.item.ItemEvent
 import app.pley.android.screens.item.ItemPage
 import app.pley.android.screens.item.ItemUiState
 import app.pley.android.screens.item.ItemViewModel
+import app.pley.android.screens.item.SeasonsSection
 import app.pley.android.screens.item.extraSubtitle
 import app.pley.android.ui.tv.R
 import app.pley.android.ui.tv.kit.BackdropScrim
 import app.pley.android.ui.tv.kit.HeldEnds
+import app.pley.android.ui.tv.kit.KeyRepeatGate
 import app.pley.android.ui.tv.kit.LocalTvRowColumn
 import app.pley.android.ui.tv.kit.TvBackdrop
 import app.pley.android.ui.tv.kit.TvRow
@@ -96,6 +100,7 @@ import app.pley.android.ui.tv.shell.TvNavigator
 import app.pley.android.ui.tv.shell.failedBody
 import app.pley.android.ui.tv.shell.failedTitle
 import app.pley.android.ui.tv.theme.LocalTvTier
+import kotlinx.coroutines.delay
 
 /**
  * An item's page on TV (design spec §4.3, §4.4; mockups tv-movie and
@@ -103,7 +108,11 @@ import app.pley.android.ui.tv.theme.LocalTvTier
  * backdrop. Focus starts on Resume or Play. Down goes to the episodes
  * (shows, seasons, episodes) and the rows (Extras, Cast, More Like
  * This), then Details; once focus has left the buttons, an info block
- * stays at the top, for the focused episode in the episode row.
+ * stays at the top, for the focused episode in the episode row. An
+ * episode opens its own page; on that page Select on the same episode in
+ * its season's row plays it, and another episode's page takes the page's
+ * place, so Back is where the first was opened from: the show, on the
+ * episode opened from it, or Home, or a search.
  * Artists, albums and tracks open their music pages instead, an extra
  * its movie's or show's page.
  */
@@ -128,7 +137,16 @@ internal fun TvItemScreen(model: ItemViewModel) {
     }
     Box(Modifier.fillMaxSize().testTag(TV_ITEM_PAGE)) {
         when (val s = state) {
-            ItemUiState.Loading -> TvItemSkeleton()
+            ItemUiState.Loading -> {
+                // A page whose details aren't held in memory is often made within a frame or two all the
+                // same (its snapshot, a quick answer): the outline waits, so it doesn't flash before the page.
+                var late by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    delay(SKELETON_AFTER_MS)
+                    late = true
+                }
+                if (late) TvItemSkeleton()
+            }
             ItemUiState.NotFound -> TvMessage(
                 title = stringResource(R.string.tv_item_not_found),
                 body = stringResource(R.string.tv_item_not_found_body),
@@ -197,6 +215,7 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
     var focusedEpisode by remember { mutableStateOf<EpisodeLine?>(null) }
     val buttons = remember { HeroButtons() }
     val episodesRow = remember { FocusRequester() }
+    val seasonsRow = remember { FocusRequester() }
     val sections = remember { SectionFocus() }
     val backdrop = remember(page.item, page.origin, tier) { ArtworkCandidates.backdrop(page.item, page.origin, tier) }
     val actions = remember(model, navigator) { TvPageActions(model, navigator) }
@@ -205,14 +224,19 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
 
     Box(Modifier.fillMaxSize()) {
         TvBackdrop(backdrop, page.context?.showTitle ?: page.title, scrim = BackdropScrim.Item)
-        ItemColumn(list, focus) {
+        ItemColumn(list, focus, episodesTop = episodeTilesTop(page.seasons)) {
             item(key = "hero", contentType = "hero") {
                 TvHero(
                     page = page,
                     focus = focus,
                     memory = memory,
                     buttons = buttons,
-                    down = if (page.seasons?.episodes?.isNotEmpty() == true) episodesRow else null,
+                    down = when {
+                        // Season posters are a row of their own: Down comes to it, as to any row.
+                        seasonPosterRow(page) -> seasonsRow
+                        page.seasons?.episodes?.isNotEmpty() == true -> episodesRow
+                        else -> null
+                    },
                     actions = actions,
                     onTracks = { panel = Panel.Tracks },
                     onMore = { panel = Panel.More },
@@ -228,15 +252,26 @@ private fun TvItemPage(page: ItemPage, model: ItemViewModel, navigator: TvNaviga
                         focus = focus,
                         memory = memory,
                         rowRequester = episodesRow,
+                        seasonsRequester = seasonsRow,
                         onSelectSeason = model::selectSeason,
                         onFocusEpisode = { focusedEpisode = it },
-                        onOpen = { actions.open(it.id) },
+                        onOpen = { episode ->
+                            when {
+                                // The page's own episode, in its season's row: Select plays it, as Play does.
+                                episode.id == page.id -> model.play()
+                                // Another episode, from an episode's page: its page takes this one's place,
+                                // so Back is still the show, however many episodes were looked at.
+                                page.kind == ItemKind.Episode -> actions.replace(episode.id)
+                                else -> actions.open(episode.id)
+                            }
+                        },
                         onActions = { panel = Panel.Actions(it, episodesRow) },
+                        onSeasonActions = { panel = Panel.Actions(it, seasonsRow) },
                     )
                 }
             }
             rowsOf(page, focus, memory, sections, actions) { item, returnTo -> panel = Panel.Actions(item, returnTo) }
-            if (!page.details.isEmpty || page.mediaInfo.isNotEmpty()) {
+            if (page.details.versions.isNotEmpty() || page.mediaInfo.isNotEmpty()) {
                 item(key = DETAILS_KEY, contentType = DETAILS_KEY) {
                     TvDetails(page, onChooseVersion = model::chooseVersion, modifier = Modifier.onFocusChanged { if (it.hasFocus) focus.area = Area.Details })
                 }
@@ -300,12 +335,15 @@ internal class SectionFocus {
 internal class TvPageActions(val model: ItemViewModel, private val navigator: TvNavigator) {
     fun open(id: Long) = navigator.open(PleyKey.Item(id))
 
+    /** [id]'s page in this page's place. */
+    fun replace(id: Long) = navigator.replace(PleyKey.Item(id))
+
     fun openPerson(id: Long) = navigator.open(PleyKey.Person(id))
 
     fun open(key: PleyKey) = navigator.open(key)
 }
 
-/** The rows under the episodes: Extras, Cast or Guest Stars, More Like This. */
+/** The rows under the episodes: Extras, Cast or Guest Stars, who made it and the facts, More Like This. */
 private fun LazyListScope.rowsOf(
     page: ItemPage,
     focus: ItemPageFocus,
@@ -363,6 +401,10 @@ private fun LazyListScope.rowsOf(
             }
         }
     }
+    // Who made it and the facts, under the cast, in sight while it has focus.
+    if (page.details.hasFacts) {
+        item(key = "facts", contentType = "facts") { TvFacts(page) }
+    }
     if (page.related.isNotEmpty()) {
         item(key = "related", contentType = TileKind.Poster) {
             val words = formatWords()
@@ -388,7 +430,7 @@ private fun LazyListScope.rowsOf(
  * The page's column (design spec §2.4, §4.4): one list from the hero down,
  * which scrolls so that what has focus sits where the spec puts it — the
  * hero at the top; the season tabs at y = 218 and the episodes under them
- * at 272; other rows' tiles at 210, their header at 172; the details'
+ * at 286 (a single season's at 272, under its name, as under season posters); other rows' tiles at 210, their header at 172; the details'
  * header there too — and, once focus has left the hero, draws nothing
  * above that line, so the rows pass under the info block. It moves itself
  * to a row's tile, and back to the hero, as a page of rows does
@@ -399,11 +441,12 @@ private fun LazyListScope.rowsOf(
  * steps aside then and the text has the screen down from the safe area.
  */
 @Composable
-private fun ItemColumn(state: LazyListState, focus: ItemPageFocus, content: LazyListScope.() -> Unit) {
+private fun ItemColumn(state: LazyListState, focus: ItemPageFocus, episodesTop: Dp, content: LazyListScope.() -> Unit) {
     val density = LocalDensity.current
     val column = rememberTvRowColumnFocus(state, with(density) { RowTilesTop.toPx() })
-    column.tileTops[EPISODE_ROW] = with(density) { EpisodeTilesTop.toPx() }
-    val spec = remember(density, state, focus, column) { column.spec(ItemPageSpec(density, state, focus)) }
+    column.tileTops[EPISODE_ROW] = with(density) { episodesTop.toPx() }
+    column.tileTops[SEASON_ROW] = with(density) { TabsTop.toPx() }
+    val spec = remember(density, state, focus, column, episodesTop) { column.spec(ItemPageSpec(density, state, focus, episodesTop)) }
     CompositionLocalProvider(LocalBringIntoViewSpec provides spec, LocalTvRowColumn provides column) {
         LazyColumn(
             state = state,
@@ -436,9 +479,10 @@ private class ItemPageSpec(
     density: Density,
     private val state: LazyListState,
     private val focus: ItemPageFocus,
+    episodesTop: Dp,
 ) : BringIntoViewSpec {
     private val tabs = with(density) { TabsTop.toPx() }
-    private val episodes = with(density) { EpisodeTilesTop.toPx() }
+    private val episodes = with(density) { episodesTop.toPx() }
     private val rows = with(density) { RowTilesTop.toPx() }
     private val header = with(density) { PleyTv.FocusedRowHeaderY.toPx() }
     private val bottom = with(density) { TvSafeArea.Vertical.toPx() }
@@ -465,10 +509,15 @@ private class ItemPageSpec(
 
 /**
  * The info block (design spec §4.1, §4.4; mockup tv-show) once focus has
- * left the hero: the title and metadata line, then the focused episode's
+ * left the hero: the title, on one line with the hero's room for it
+ * ([HeroColumn]), and the metadata line, then the focused episode's
  * title, line and two lines of summary in the episode row, or the item's
- * own summary by the other rows. It follows the focused episode once
- * focus has rested ([rememberRested]).
+ * own summary by the other rows. On the seasons it says no more than the
+ * title and the metadata line: neither the show's summary nor an episode
+ * of the season focus has left. It follows the focused episode at once
+ * after a press, and where a held key lands ([KeyRepeatGate.FOLLOW_MS]),
+ * and shows at once an episode focus comes to from elsewhere than its own
+ * season's row.
  */
 @Composable
 private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: EpisodeLine?) {
@@ -479,40 +528,48 @@ private fun InfoBlock(page: ItemPage, focus: ItemPageFocus, focusedEpisode: Epis
     // Read through derivedStateOf, the fade's frames recompose nothing: only its end does.
     val gone by remember { derivedStateOf { (focus.area == Area.Hero || focus.reading) && visible.value == 0f } }
     if (gone) return
-    val episode = rememberRested(focusedEpisode)
+    val rested = rememberRested(focusedEpisode, KeyRepeatGate.FOLLOW_MS)
+    // In the episodes only, and never one of another season than the episode focused: coming into a
+    // season's row, its episode shows at once rather than the one last shown.
+    val episode = when {
+        area != Area.Episodes -> null
+        rested?.item?.parentId == focusedEpisode?.item?.parentId -> rested
+        else -> focusedEpisode
+    }
     Column(
         Modifier
             .padding(start = PleyTv.Gutter, top = 28.dp, end = TvSafeArea.Horizontal)
-            .width(TextColumn)
             .graphicsLayer { alpha = visible.value },
     ) {
+        // The title has the hero's room for it; the rest keeps to the text column.
         BasicText(
             heroTitle(page),
             style = PleyType.Tv.HeroTitle.copy(color = PleyColors.Fg),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = HeroColumn),
         )
         Spacer(Modifier.height(10.dp))
         TvMetaLine(page.meta)
-        val showEpisode = (area == Area.Episodes || area == Area.Tabs) && episode != null
-        if (showEpisode && episode != null) {
+        if (episode != null) {
             Spacer(Modifier.height(14.dp))
-            BasicText(episode.item.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            BasicText(episode.item.title, style = PleyType.Tv.Title.copy(color = PleyColors.Fg), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             Spacer(Modifier.height(4.dp))
             val aired = episode.aired?.let { stringResource(R.string.tv_item_aired, it) }
             BasicText(
                 listOfNotNull(episode.longLabel.ifEmpty { null }, episode.runtime.ifEmpty { null }, aired).joinToString(" · "),
                 style = PleyType.Tv.Caption.copy(color = PleyColors.Muted),
                 maxLines = 1,
+                modifier = Modifier.width(TextColumn),
             )
             episode.summary?.let {
                 Spacer(Modifier.height(6.dp))
-                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             }
-        } else {
+        } else if (area != Area.Tabs && area != Area.Episodes) {
             page.summary?.let {
                 Spacer(Modifier.height(8.dp))
-                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis)
+                BasicText(it, style = PleyType.Tv.Body.copy(color = PleyColors.Fg.copy(alpha = 0.85f)), maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.width(TextColumn))
             }
         }
     }
@@ -524,10 +581,14 @@ internal fun heroTitle(page: ItemPage): String = when (page.kind) {
     else -> page.title
 }
 
-/** The loading page (design spec §8): still blocks where the hero's text and buttons will be. No spinner. */
+/**
+ * The loading page (design spec §8): still blocks where the hero's text
+ * and buttons will be, once the page has been [SKELETON_AFTER_MS] coming.
+ * No spinner.
+ */
 @Composable
 private fun TvItemSkeleton() {
-    Column(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 82.dp)) {
+    Column(Modifier.fillMaxSize().padding(start = PleyTv.Gutter, top = 42.dp)) {
         Block(320.dp, 40.dp)
         Spacer(Modifier.height(14.dp))
         Block(220.dp, 18.dp)
@@ -550,11 +611,30 @@ private fun Block(width: androidx.compose.ui.unit.Dp, height: androidx.compose.u
     Box(Modifier.size(width, height).background(PleyColors.Surface2, PleyShape.Badge))
 }
 
+/** How long a page loads before its outline shows: longer than a held page takes to be made. */
+private const val SKELETON_AFTER_MS = 150L
+
 /** The season tabs' top once focus is in the episodes (mockup tv-show). */
 internal val TabsTop = 218.dp
 
-/** The episode tiles' top, under the tabs. */
+/** The episode tiles' top under a single season's name. */
 internal val EpisodeTilesTop = 272.dp
+
+/** From the season tabs to the episode tiles: room for the focused tile's growth and ring, and a gap past them. */
+internal val TabsToTiles = 28.dp
+
+/** The episode tiles' top under the season tabs. */
+internal val TabbedEpisodeTilesTop = TabsTop + TabHeight + TabsToTiles
+
+/**
+ * Where the episode tiles sit with focus in them: under the season tabs, or
+ * under the season's name, which is where they sit under season posters
+ * too, the posters gone above.
+ */
+private fun episodeTilesTop(seasons: SeasonsSection?): Dp = when {
+    seasons == null || seasons.seasons.size <= 1 || seasons.posters -> EpisodeTilesTop
+    else -> TabbedEpisodeTilesTop
+}
 
 /** Other rows' tiles' top: their header at y = 172. */
 internal val RowTilesTop = PleyTv.FocusedRowHeaderY + PleyTv.RowHeaderHeight + PleyTv.HeaderToTiles

@@ -257,4 +257,19 @@ class KeyRepeatGateTest {
         runCurrent()
         assertTrue(waited.isCompleted)
     }
+
+    @Test
+    fun awaitRestWaitsAsLongAsItIsAsked() = runTest {
+        val clock = testScheduler
+        val gate = KeyRepeatGate { clock.currentTime }
+        gate.admit(KeyEvent(NativeKeyEvent(0, 0, NativeKeyEvent.ACTION_DOWN, NativeKeyEvent.KEYCODE_DPAD_RIGHT, 0)))
+        gate.admit(KeyEvent(NativeKeyEvent(0, 0, NativeKeyEvent.ACTION_UP, NativeKeyEvent.KEYCODE_DPAD_RIGHT, 0)))
+        val waited = async { gate.awaitRest(afterMs = 150) }
+        advanceTimeBy(149)
+        runCurrent()
+        assertFalse(waited.isCompleted)
+        advanceTimeBy(2)
+        runCurrent()
+        assertTrue(waited.isCompleted)
+    }
 }

@@ -21,6 +21,7 @@ import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.home.HomeSources
 import java.util.Collections
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -53,7 +54,7 @@ class TestHomeSources : HomeSources {
 
     override val hubs = object : HubsRepository {
         override fun home(): Flow<Loadable<Hubs>> = this@TestHomeSources.home
-        override fun library(libraryId: Long): Flow<Loadable<Hubs>> = error("not on Home")
+        override fun library(libraryId: Long): Flow<Loadable<Hubs>> = flowOf(Loadable.Loading)
         override suspend fun refresh() {
             hubRefreshes++
         }

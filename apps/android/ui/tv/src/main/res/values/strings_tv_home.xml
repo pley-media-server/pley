@@ -5,6 +5,7 @@
     <string name="tv_home_play">Play</string>
     <string name="tv_home_from_start">From start</string>
     <string name="tv_home_info">Info</string>
+    <string name="tv_home_turns">Title %1$d of %2$d</string>
     <string name="tv_home_mark_watched">Mark as watched</string>
     <string name="tv_home_mark_unwatched">Mark as unwatched</string>
     <string name="tv_home_see_all">See all</string>

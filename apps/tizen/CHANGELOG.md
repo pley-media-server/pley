@@ -29,6 +29,9 @@ describes how they are made.
   "Subtitles off") and doesn't bring up the player's controls. Controls
   already up hide as they do while it plays, even once it is paused, until
   a key is pressed on the TV.
+- On a server with video transcoding turned off (Settings → Transcoder),
+  the Quality menu offers Original alone and Automatic plays it, rather
+  than ask for qualities the server would only answer with the Original.
 
 ### Changed
 

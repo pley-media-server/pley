@@ -190,10 +190,14 @@ fn rel_components(path: &Path, root: &Path) -> Vec<String> {
 }
 
 fn is_generic_name(stem: &str) -> bool {
+    is_generic_word(stem) || stem.chars().all(|c| c.is_ascii_digit() || c == '_' || c == '-')
+}
+
+/// A name a disc rip or a camera gives every file: never a film's title.
+fn is_generic_word(stem: &str) -> bool {
     let lower = stem.to_ascii_lowercase();
     matches!(lower.as_str(), "movie" | "video" | "film" | "main" | "feature" | "title" | "untitled")
         || lower.starts_with("title_t")
-        || lower.chars().all(|c| c.is_ascii_digit() || c == '_' || c == '-')
 }
 
 pub fn parse_movie(path: &Path, root: &Path) -> MovieName {
@@ -211,7 +215,9 @@ pub fn parse_movie(path: &Path, root: &Path) -> MovieName {
     let from_file = title_and_year(&stem);
     let from_folder = folder.as_deref().map(title_and_year);
     let (title, year) = match (from_file, from_folder) {
-        ((t, Some(y)), _) if !t.is_empty() && !is_generic_name(&t) => (t, Some(y)),
+        // A title of digits alone ("300", "1917") is the film's when the
+        // name gives its year too, as a renamed file's does.
+        ((t, Some(y)), _) if !t.is_empty() && !is_generic_word(&t) => (t, Some(y)),
         (_, Some((t, Some(y)))) if !t.is_empty() => (t, Some(y)),
         ((t, None), Some((ft, None))) if (t.is_empty() || is_generic_name(&stem)) && !ft.is_empty() => (ft, None),
         ((t, y), _) => (if t.is_empty() { clean_title(&stem) } else { t }, y),
@@ -523,6 +529,11 @@ mod tests {
         assert_eq!((m.title.as_str(), m.year), ("Blade Runner 2049", Some(2017)));
         let m = movie("1917 (2019)/1917 (2019).mp4");
         assert_eq!((m.title.as_str(), m.year), ("1917", Some(2019)));
+        // The file's year wins over a folder's that is out of date.
+        let m = movie("300 (2006)/300 (2007) Remux-1080p.mkv");
+        assert_eq!((m.title.as_str(), m.year), ("300", Some(2007)));
+        let m = movie("Some Movie (2019)/01.mkv");
+        assert_eq!((m.title.as_str(), m.year), ("Some Movie", Some(2019)));
         let m = movie("2001 A Space Odyssey (1968).mkv");
         assert_eq!((m.title.as_str(), m.year), ("2001 A Space Odyssey", Some(1968)));
         let m = movie("Some Movie/movie.mkv");

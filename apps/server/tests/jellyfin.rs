@@ -701,6 +701,118 @@ async fn watch_state_favorites_and_ratings_are_pleys() {
 }
 
 #[tokio::test]
+async fn sync_tools_copy_a_place_in_a_video() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let (film, me) = (app.jf_item(w.film), app.jf_user(admin).await);
+    let user_data = format!("/Users/{me}/Items/{film}/UserData");
+    let pley_state = || async { app.get(&format!("/api/items/{}", w.film), admin).await.body["user_state"].clone() };
+
+    // As WatchState sends it: the ticks as text, the time with its zone.
+    let body = json!({"PlaybackPositionTicks": "450000000", "LastPlayedDate": "2024-05-01T14:00:00+02:00"});
+    let set = app.jf(Method::POST, &user_data, admin, Some(body)).await;
+    assert_eq!(set.status, StatusCode::OK, "{}", set.text());
+    assert_eq!(set.body["PlaybackPositionTicks"], json!(450_000_000_i64));
+    assert_eq!(set.body["LastPlayedDate"], json!("2024-05-01T12:00:00.0000000Z"));
+    let state = pley_state().await;
+    assert_eq!((&state["position_ms"], &state["watched"]), (&json!(45_000), &json!(false)));
+    let resume = app.jf_json("/UserItems/Resume", admin).await;
+    assert_eq!(jf_names(&resume), ["Alpha"]);
+    let item = app.jf_json(&format!("/Users/{me}/Items/{film}"), admin).await;
+    assert_eq!(item["UserData"]["PlaybackPositionTicks"], json!(450_000_000_i64));
+
+    // An app posting back what it was given, to change something else,
+    // leaves the place and its time alone.
+    let mut echoed = item["UserData"].clone();
+    echoed["IsFavorite"] = json!(true);
+    app.jf(Method::POST, &user_data, admin, Some(echoed)).await;
+    let again = app.jf_json(&format!("/Users/{me}/Items/{film}"), admin).await;
+    assert_eq!(again["UserData"]["LastPlayedDate"], json!("2024-05-01T12:00:00.0000000Z"));
+    assert_eq!(again["UserData"]["PlaybackPositionTicks"], json!(450_000_000_i64));
+    assert_eq!(again["UserData"]["IsFavorite"], json!(true));
+
+    // Watched elsewhere and started over: unplayed, with the new place.
+    app.jf(Method::POST, &format!("/UserPlayedItems/{film}"), admin, None).await;
+    let body = json!({"PlaybackPositionTicks": 300_000_000_i64, "Played": false});
+    let restarted = app.jf(Method::POST, &user_data, admin, Some(body)).await;
+    assert_eq!(
+        (&restarted.body["Played"], &restarted.body["PlaybackPositionTicks"]),
+        (&json!(false), &json!(300_000_000_i64))
+    );
+
+    // A time to come is today at the latest, and keys go in any case, as
+    // Jellyfin reads them.
+    let body = json!({"playbackPositionTicks": 600_000_000_i64, "lastPlayedDate": "2999-01-01T00:00:00Z"});
+    let later = app.jf(Method::POST, &user_data, admin, Some(body)).await;
+    assert!(later.body["LastPlayedDate"].as_str().unwrap() < "2999", "{}", later.text());
+    assert_eq!(later.body["PlaybackPositionTicks"], json!(600_000_000_i64));
+    // What can't be read is refused, as Jellyfin does, and changes nothing.
+    for wrong in [
+        json!({"PlaybackPositionTicks": "soon"}),
+        json!({"PlaybackPositionTicks": 6.5e8}),
+        json!({"PlaybackPositionTicks": 650_000_000_i64, "LastPlayedDate": "yesterday"}),
+    ] {
+        let refused = app.jf(Method::POST, &user_data, admin, Some(wrong.clone())).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{wrong}");
+    }
+    let nulls = json!({"PlaybackPositionTicks": null, "LastPlayedDate": null, "IsFavorite": true});
+    assert_eq!(app.jf(Method::POST, &user_data, admin, Some(nulls)).await.status, StatusCode::OK);
+    assert_eq!(pley_state().await["position_ms"], json!(60_000));
+
+    // Only what plays has a place.
+    let show_data = format!("/Users/{me}/Items/{}/UserData", app.jf_item(w.show));
+    let refused = app.jf(Method::POST, &show_data, admin, Some(json!({"PlaybackPositionTicks": "450000000"}))).await;
+    assert_eq!(refused.body["PlaybackPositionTicks"], json!(0));
+
+    // Past 90 % it is watched, and leaves My List, which devices hear of;
+    // the play counts at the time given.
+    let mut events = app.state.events.subscribe();
+    let body = json!({"PlaybackPositionTicks": "950000000", "LastPlayedDate": "2024-05-02T08:00:00Z"});
+    let finished = app.jf(Method::POST, &user_data, admin, Some(body)).await;
+    assert_eq!((&finished.body["Played"], &finished.body["PlaybackPositionTicks"]), (&json!(true), &json!(0)));
+    assert!(common::titles(&app.get("/api/watchlist", admin).await.body["items"]).is_empty());
+    let heard: Vec<_> = std::iter::from_fn(|| events.try_recv().ok()).collect();
+    assert!(heard.iter().any(|e| matches!(e, pley::events::ServerEvent::WatchlistChanged { .. })), "{heard:?}");
+    let viewed: i64 = sqlx::query_scalar("SELECT viewed_at FROM play_history WHERE item_id = ? ORDER BY id DESC")
+        .bind(w.film)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(viewed, pley::util::iso_secs("2024-05-02T08:00:00Z").unwrap());
+
+    // A place in a watched item is kept for a rewatch, which nothing shows:
+    // sent again, as sync tools do each time, it changes nothing more.
+    let again = json!({"PlaybackPositionTicks": "450000000", "LastPlayedDate": "2024-05-02T09:00:00Z"});
+    app.jf(Method::POST, &user_data, admin, Some(again.clone())).await;
+    let mut events = app.state.events.subscribe();
+    app.jf(Method::POST, &user_data, admin, Some(again)).await;
+    assert!(events.try_recv().is_err(), "nothing changed");
+
+    // Marked watched as an app posts back what it was given: what it held
+    // (in My List) doesn't put the movie back there.
+    app.jf(Method::DELETE, &format!("/UserPlayedItems/{film}"), admin, None).await;
+    app.jf(Method::POST, &format!("/UserFavoriteItems/{film}"), admin, None).await;
+    let body = json!({"Played": true, "IsFavorite": true, "PlaybackPositionTicks": 0});
+    let marked = app.jf(Method::POST, &user_data, admin, Some(body)).await;
+    assert_eq!((&marked.body["Played"], &marked.body["IsFavorite"]), (&json!(true), &json!(false)));
+
+    // A show marked with a time: its episodes were played then.
+    let body = json!({"Played": true, "LastPlayedDate": "2024-05-03T08:00:00Z"});
+    app.jf(Method::POST, &show_data, admin, Some(body)).await;
+    let pilot = app.jf_json(&format!("/Users/{me}/Items/{}", app.jf_item(w.pilot)), admin).await;
+    assert_eq!(pilot["UserData"]["LastPlayedDate"], json!("2024-05-03T08:00:00.0000000Z"));
+
+    // Only the user's own, of what they may see.
+    let (bob, _) = app.user(admin, "bob", json!({"all_libraries": false, "library_ids": [w.tv]})).await;
+    let bobs = app.jf_user(&bob).await;
+    let body = json!({"PlaybackPositionTicks": "450000000"});
+    let theirs = app.jf(Method::POST, &format!("/Users/{bobs}/Items/{film}/UserData"), admin, Some(body.clone())).await;
+    assert_eq!(theirs.status, StatusCode::NOT_FOUND);
+    let unseen = app.jf(Method::POST, &format!("/Users/{bobs}/Items/{film}/UserData"), &bob, Some(body)).await;
+    assert_eq!(unseen.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn jellyfin_apps_make_and_change_their_own_playlists() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());

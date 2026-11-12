@@ -94,6 +94,13 @@ class QualityTest(unittest.TestCase):
         playback.remember_ceiling("srv-1", None)
         self.assertEqual(playback.ask()["quality"], "original", "forgotten")
 
+    def test_a_server_that_converts_no_video_offers_the_original_alone(self):
+        file = {"id": 3, "bitrate": 24_000_000, "streams": [{"kind": "video", "height": 2160}]}
+        self.assertEqual(playback.qualities(file, True), ["original"])
+        self.assertEqual(playback.qualities(None, True), ["original"])
+        self.assertEqual(playback.qualities(file)[:2], ["original", "auto"])
+        self.assertGreater(len(playback.qualities(file)), 2)
+
     def test_what_automatic_is_told_of_a_playback(self):
         file = {"id": 3, "bitrate": 24_000_000, "streams": [{"kind": "video", "height": 2160}]}
         asked = playback.ask("8m")

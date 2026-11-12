@@ -5,7 +5,9 @@ import android.os.Handler
 import androidx.annotation.OptIn
 import androidx.media3.common.Format
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.DecoderReuseEvaluation
 import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.FormatHolder
 import androidx.media3.exoplayer.Renderer
 import androidx.media3.exoplayer.audio.AudioSink
 import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter
@@ -76,7 +78,9 @@ class PleyRenderersFactory(
 /**
  * Media3's video renderer, asking the decoder lists through a selector that
  * knows the format, with Dolby Vision decoders first for Dolby Vision that
- * comes out as Dolby Vision ([DecoderRules.dolbyVisionDecoders]), weighing
+ * comes out as Dolby Vision ([DecoderRules.dolbyVisionDecoders]), naming
+ * as Dolby Vision the samples of a track that is ([DecoderRules.named]: a
+ * repackaged stream's MPEG-TS segments don't say), weighing
  * profile 7 played as its base layer as HEVC ([DecoderRules.decoded]), and
  * saying which MIME type each decoder it starts was chosen for (a Dolby
  * Vision stream's base layer goes to an HEVC decoder): the same renderer
@@ -97,6 +101,11 @@ internal class PolicyVideoRenderer(
     ) {
         onCodec(name, configuration.codecInfo.mimeType)
         super.onCodecInitialized(name, configuration, initializedTimestampMs, initializationDurationMs)
+    }
+
+    override fun onInputFormatChanged(formatHolder: FormatHolder): DecoderReuseEvaluation? {
+        formatHolder.format = formatHolder.format?.let { rules.named(it, streamFormats) }
+        return super.onInputFormatChanged(formatHolder)
     }
 
     override fun supportsFormat(mediaCodecSelector: MediaCodecSelector, format: Format): Int =

@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -112,7 +113,45 @@ class ItemViewModel(
     val state: StateFlow<ItemUiState> = retries
         .flatMapLatest { pageStates() }
         .flowOn(compute)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_MS), ItemUiState.Loading)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_MS), heldPage())
+
+    /**
+     * The page as what is held in memory makes it, there for its first
+     * frame: an item seen before, or one asked for ahead, opens whole,
+     * with no outline and no empty frame first. Loading when its details aren't held; its
+     * seasons, episodes and next episode are in it when they are held
+     * too, as the first page made from the server's answers has them.
+     * The one page made on the calling thread: nothing is waited for.
+     */
+    private fun heldPage(): ItemUiState {
+        val d = data.items.held(itemId) ?: return ItemUiState.Loading
+        val container = d.kind == ItemKind.Show || d.kind == ItemKind.Season
+        if (!container && d.kind != ItemKind.Movie && d.kind != ItemKind.Episode) return ItemUiState.Loading
+        val next = if (container) data.items.heldOnDeck(itemId) else null
+        val seasons = when (d.kind) {
+            ItemKind.Show -> data.items.heldChildren(itemId)
+            ItemKind.Season -> d.parentId?.let(data.items::heldChildren)
+            else -> null
+        }?.let(::seasonOrder)
+        val selected = when (d.kind) {
+            // As the page made later picks it: not before the next episode is known.
+            ItemKind.Show -> if (seasons != null && next != null) defaultSeason(seasons, next.valueOrNull) else null
+            ItemKind.Season -> itemId
+            else -> d.parentId
+        }
+        shown = d
+        val page = itemPage(
+            PageInput(
+                detail = d,
+                origin = data.servers.active.value.orEmpty(),
+                onDeck = next ?: Loadable.Loading.takeIf { container },
+                seasons = seasons,
+                selectedSeason = selected,
+                episodes = selected?.let(data.items::heldChildren),
+            ),
+        )
+        return ItemUiState.Ready(page, Loadable.Ready(Unit, fresh = false))
+    }
 
     private fun pageStates(): Flow<ItemUiState> {
         val detail = data.items.detail(itemId)
@@ -152,12 +191,12 @@ class ItemViewModel(
             ItemKind.Show, ItemKind.Season -> data.items.onDeck(itemId)
             else -> flowOf(null)
         }
-        // The tabs: a show's seasons, or a season's and its siblings.
+        // The tabs: a show's seasons, or a season's and its siblings, in the order they are listed.
         val seasons: Flow<List<ItemSummary>?> = when (shape.kind) {
-            ItemKind.Show -> data.items.children(itemId).map { it.valueOrNull }
-            ItemKind.Season -> shape.parentId?.let { show -> data.items.children(show).map { it.valueOrNull } } ?: flowOf(null)
-            else -> flowOf(null)
-        }
+            ItemKind.Show -> data.items.children(itemId)
+            ItemKind.Season -> shape.parentId?.let { show -> data.items.children(show) }
+            else -> null
+        }?.map { load -> load.valueOrNull?.let(::seasonOrder) } ?: flowOf(null)
         val selected: Flow<Long?> = when (shape.kind) {
             ItemKind.Show -> combine(chosenSeason, seasons, onDeck) { chosen, list, next ->
                 chosen ?: when {
@@ -171,9 +210,15 @@ class ItemViewModel(
             ItemKind.Episode -> flowOf(shape.parentId)
             else -> flowOf(null)
         }.distinctUntilChanged()
-        val episodes: Flow<Pair<Long?, List<ItemSummary>?>> = selected.flatMapLatest { season ->
+        val shownEpisodes: Flow<Pair<Long?, List<ItemSummary>?>> = selected.flatMapLatest { season ->
             if (season == null) flowOf(null to null) else data.items.children(season).map { season to it.valueOrNull }
         }
+        // The seasons beside the one shown have their episodes asked for ahead, while the page is
+        // shown: moving along the seasons, each has its episodes when focus rests on it.
+        val warming = flow<Nothing> {
+            combine(selected, seasons) { season, list -> season to list }.collectLatest { (season, list) -> warmBeside(season, list) }
+        }
+        val episodes = merge(shownEpisodes, warming)
         val beside = combine(onDeck, seasons, episodes, related, partOf) { next, list, (season, eps), rel, part ->
             Beside(next, list, season, eps, rel, part)
         }
@@ -402,6 +447,25 @@ class ItemViewModel(
         chosenSeason.value = seasonId
     }
 
+    /**
+     * Asks for the episodes of the seasons beside [season] ahead, the
+     * nearest first, one at a time. Only those: each is an answer kept, and
+     * the next ones are asked for when focus gets to this one's neighbour.
+     */
+    private suspend fun warmBeside(season: Long?, seasons: List<ItemSummary>?) {
+        val at = seasons?.indexOfFirst { it.id == season }?.takeIf { it >= 0 } ?: return
+        for (by in WARM_BESIDE) {
+            val beside = seasons.getOrNull(at + by) ?: continue
+            try {
+                data.items.warmChildren(beside.id)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // Asked again when shown.
+            }
+        }
+    }
+
     override fun onCleared() {
         endTrace()
     }
@@ -420,6 +484,9 @@ class ItemViewModel(
     companion object {
         /** Keeps loading this long after the page stops showing (rotation, a quick look elsewhere). */
         const val STOP_MS = 5_000L
+
+        /** The seasons whose episodes are asked for ahead, from the one shown: the next ones first. */
+        private val WARM_BESIDE = intArrayOf(1, -1, 2, -2)
 
         /** Request events gathered before the item's request is read again. */
         const val REQUEST_CHANGES_MS = 500L

@@ -36,6 +36,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.viewmodel.CreationExtras
+import app.pley.android.designsystem.PleyTv
 import app.pley.android.designsystem.TvSafeArea
 import app.pley.android.model.LiveChannel
 import app.pley.android.model.LiveProgram
@@ -192,9 +193,9 @@ class TvLiveTvScreenTest {
         val star = compose.onNodeWithContentDescription(string(R.string.tv_livetv_favorite_add)).getUnclippedBoundsInRoot()
         val text = compose.onNodeWithTag(TV_LIVE_PROGRAM_TEXT).getUnclippedBoundsInRoot()
         val root = compose.onRoot().getUnclippedBoundsInRoot()
-        assertEquals(40f, watch.height.value, 0.5f)
-        assertEquals(40f, star.width.value, 0.5f)
-        assertEquals(40f, star.height.value, 0.5f)
+        assertEquals(PleyTv.ButtonHeight.value, watch.height.value, 0.5f)
+        assertEquals(PleyTv.ButtonHeight.value, star.width.value, 0.5f)
+        assertEquals(PleyTv.ButtonHeight.value, star.height.value, 0.5f)
         assertEquals("the star beside Watch", watch.top.value, star.top.value, 0.5f)
         assertTrue("the star after Watch", star.left >= watch.right)
         assertTrue("the text above the buttons", text.bottom <= watch.top)

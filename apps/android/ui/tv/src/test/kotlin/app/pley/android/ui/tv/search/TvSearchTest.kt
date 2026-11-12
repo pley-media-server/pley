@@ -32,7 +32,6 @@ import app.pley.android.ui.tv.kit.press
 import app.pley.android.ui.tv.theme.TvTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assert.fail
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -231,28 +230,32 @@ class TvSearchTest {
     @OptIn(ExperimentalTestApi::class)
     @Test
     fun recentChipsGlideOver150MsEasedOutWhenTheyMove() {
-        show(SearchUiState("", List(12) { "a longer search $it" }, SearchResultsState.Idle), reduced = false)
+        show(SearchUiState("", List(18) { "a longer search $it" }, SearchResultsState.Idle), reduced = false)
         compose.press(Key.DirectionDown)
-        val first = compose.onNodeWithText("a longer search 0")
-        val start = first.getBoundsInRoot().left.value
         compose.mainClock.autoAdvance = false
-        // Right until a chip would pass the edge: that press moves the row as rows move, over
-        // 150 ms eased out, so over several frames, each moving it less than the one before.
-        for (chip in 1..12) {
+        // Right until a chip would pass the edge: that press moves the row as rows move, eased out,
+        // each frame moving it no more than the one before. The first chip to pass the edge may pass
+        // it by a few dp only, a move soon over; the next ones are a chip's width, 150 ms and so
+        // several frames.
+        var glides = 0
+        for (chip in 1..17) {
+            // Where the chip focus goes to is drawn says how far the row has moved: the first chip
+            // leaves the row as it goes.
+            val next = compose.onNodeWithText("a longer search $chip")
+            var at = next.getBoundsInRoot().left.value
             compose.onRoot().performKeyInput { pressKey(Key.DirectionRight) }
-            var at = start - first.getBoundsInRoot().left.value
             val steps = mutableListOf<Float>()
             repeat(20) {
                 compose.mainClock.advanceTimeByFrame()
-                val now = start - first.getBoundsInRoot().left.value
-                if (now != at) steps += now - at
+                val now = next.getBoundsInRoot().left.value
+                if (now != at) steps += at - now
                 at = now
             }
             if (steps.isEmpty()) continue
-            assertTrue("$steps at chip $chip", steps.size >= 5 && steps.zipWithNext().all { (a, b) -> b <= a + 0.5f })
-            return
+            assertTrue("$steps at chip $chip", steps.zipWithNext().all { (a, b) -> b <= a + 0.5f })
+            if (steps.size >= 5) glides++
         }
-        fail("The chips never moved")
+        assertTrue("The chips never glided", glides > 0)
     }
 
     @Test

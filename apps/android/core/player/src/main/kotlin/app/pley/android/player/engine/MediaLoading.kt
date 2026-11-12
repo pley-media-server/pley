@@ -11,6 +11,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.LoadEventInfo
 import androidx.media3.exoplayer.source.MediaSource
@@ -46,11 +47,18 @@ class MediaLoading(
 
     private val dataSources = DefaultDataSource.Factory(context.applicationContext, http)
 
+    private val retries = MediaRetries(now)
+
     val sources: MediaSource.Factory = DefaultMediaSourceFactory(dataSources)
-        .setLoadErrorHandlingPolicy(MediaRetries(now))
+        .setLoadErrorHandlingPolicy(retries)
+
+    /** HLS as [sources] makes it, but for its extractors: a Dolby Vision stream's samples come whole ([DolbyVisionSegments]). */
+    private val hls: MediaSource.Factory = HlsMediaSource.Factory(dataSources)
+        .setExtractorFactory(DolbyVisionSegments())
+        .setLoadErrorHandlingPolicy(retries)
 
     /** The media source for [source], its type told by the source rather than guessed from the address. */
-    fun mediaSource(source: EngineSource): MediaSource = sources.createMediaSource(mediaItem(source))
+    fun mediaSource(source: EngineSource): MediaSource = (if (source.hls) hls else sources).createMediaSource(mediaItem(source))
 
     companion object {
         fun mediaItem(source: EngineSource): MediaItem = MediaItem.Builder()

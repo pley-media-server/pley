@@ -4,6 +4,7 @@
     <string name="tv_home_play">Lire</string>
     <string name="tv_home_from_start">Depuis le début</string>
     <string name="tv_home_info">Infos</string>
+    <string name="tv_home_turns">Titre %1$d sur %2$d</string>
     <string name="tv_home_mark_watched">Marquer comme vu</string>
     <string name="tv_home_mark_unwatched">Marquer comme non vu</string>
     <string name="tv_home_see_all">Tout voir</string>

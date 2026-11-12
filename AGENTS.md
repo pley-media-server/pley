@@ -151,7 +151,11 @@ anywhere else people can see.
   and how. Update the doc a change affects in the same commit (a new route
   goes in [docs/API.md](docs/API.md)).
 - **Changelogs**: a line under `## [Unreleased]` in each changed app's
-  `CHANGELOG.md`, saying what changed as a user sees it.
+  `CHANGELOG.md`, saying what changed as a user sees it. Don't open each
+  line with the app or the device ("On Android TV, …"): lines for one
+  device alone follow the others in their section, under one line that
+  names it ("On Android TV:"). Add to a line about the same thing rather
+  than writing another.
 - **Formatting**: `cargo fmt` (max width 120) for Rust; ESLint and the
   existing style for TypeScript. The repository doesn't use Prettier: don't
   run it.

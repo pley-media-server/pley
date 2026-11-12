@@ -37,11 +37,8 @@ object PleyTv {
     val CanvasWidth = 960.dp
     val CanvasHeight = 540.dp
 
-    /** The collapsed rail: 8 + a 56 dp item + 8. */
+    /** The collapsed rail: 8, a 40 dp item, and room after it; the pages' dark under it thins out from [RailFadeSolidUntil] to [RailFadeClearFrom]. Open, it is as wide as its labels need. */
     val RailCollapsed = 72.dp
-
-    /** The expanded rail: 8 + a 256 dp item + 8. */
-    val RailExpanded = 272.dp
 
     /** Every page's left edge: the rail and 24. Rows keep their focused tile here. */
     val Gutter = 96.dp
@@ -77,8 +74,8 @@ object PleyTv {
     val ButtonGap = 10.dp
     val ButtonLabelRoom = 24.dp
 
-    /** Pills and round buttons. tv-material's buttons lay their content in a row at least this tall, so labels sit centred. */
-    val ButtonHeight = 40.dp
+    /** Pills, round buttons, chips and tabs. */
+    val ButtonHeight = 36.dp
 
     /** The least height of a row in a list, a side panel or settings. */
     val ListRowHeight = 44.dp
@@ -91,10 +88,10 @@ object PleyTv {
     val ScrubThumbFocused = 12.dp
 
     /** The rows' fade under the collapsed rail: [Bg][PleyColors.Bg] to this x… */
-    val RailFadeSolidUntil = 56.dp
+    val RailFadeSolidUntil = 44.dp
 
     /** …and clear from this x. */
-    val RailFadeClearFrom = 72.dp
+    val RailFadeClearFrom = 92.dp
 }
 
 /** The phone's layout values (design spec §1.3, §3.2). */

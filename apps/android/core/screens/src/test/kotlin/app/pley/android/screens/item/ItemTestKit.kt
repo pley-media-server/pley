@@ -23,6 +23,7 @@ import app.pley.android.data.SnapshotStore
 import app.pley.android.data.TrackDefaultsRepository
 import app.pley.android.data.WatchStateRepository
 import app.pley.android.data.WatchlistRepository
+import app.pley.android.data.valueOrNull
 import app.pley.android.model.CollectionSummary
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
@@ -57,6 +58,9 @@ class FakeData : DataGraph {
     val streams = mutableListOf<StreamWrite>()
     val hidden = mutableListOf<Long>()
 
+    /** The items whose children were asked for ahead, in order. */
+    val warmed = mutableListOf<Long>()
+
     /** My List's writes: the item, and whether it went in. */
     val listed = mutableListOf<Pair<Long, Boolean>>()
 
@@ -88,6 +92,15 @@ class FakeData : DataGraph {
         override fun collectionsOf(itemId: Long): Flow<Loadable<List<CollectionSummary>>> = flowOf(Loadable.Ready(emptyList(), true))
         override suspend fun next(itemId: Long): ItemSummary? = null
         override fun prefetch(itemId: Long) = Unit
+        override suspend fun warmChildren(itemId: Long) {
+            warmed += itemId
+        }
+
+        override fun held(itemId: Long): ItemDetail? = details[itemId]?.value?.valueOrNull
+
+        override fun heldChildren(itemId: Long): List<ItemSummary>? = children[itemId]?.value?.valueOrNull
+
+        override fun heldOnDeck(itemId: Long): Loadable<ItemSummary?>? = onDecks[itemId]?.value?.takeIf { it is Loadable.Ready }
     }
 
     override val watchState: WatchStateRepository = object : WatchStateRepository {

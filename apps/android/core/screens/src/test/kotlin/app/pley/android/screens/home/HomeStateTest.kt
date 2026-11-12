@@ -197,6 +197,32 @@ class HomeStateTest {
     }
 
     @Test
+    fun theBannerMixesTopRatedTitlesAmongTheNewestTheSameOnesAllDay() {
+        val movies = Hub("recently_added:1", "Recently Added in Movies", 1, (10L..15L).map { art(it) })
+        val rows = homeRows(listOf(movies), null)
+        val rated = (30L..39L).map { art(it) } + art(10) + art(40, watched = true) + art(41).copy(backdropUrl = null)
+        val today = featuredOf(rows, rated, day = 20_000)
+        // Six titles: the newest in order, a top rated one in the third and the sixth place.
+        assertEquals(listOf(10L, 11L, 12L, 13L), today.filter { !it.topRated }.map { it.item.id })
+        assertEquals(listOf(2, 5), today.indices.filter { today[it].topRated })
+        // Not one that is new already, watched, or without a backdrop.
+        assertTrue(today.filter { it.topRated }.all { it.item.id in 30L..39L })
+        // The same all day, whatever order the libraries give them in, and whatever else is watched or added.
+        assertEquals(today, featuredOf(rows, rated.reversed(), day = 20_000))
+        val kept = today.filter { it.topRated }.map { it.item.id }
+        val others = rated.filter { it.id !in kept }.drop(3)
+        assertEquals(kept, featuredOf(rows, rated.filter { it.id in kept } + others, day = 20_000).filter { it.topRated }.map { it.item.id })
+        // Another day, other ones (of ten, two: the days differ somewhere in a week).
+        assertTrue((20_001L..20_007L).any { day -> featuredOf(rows, rated, day).filter { it.topRated }.map { it.item.id } != kept })
+        // Without top rated titles, the newest alone; with little that is new, the top rated fill up.
+        assertEquals(listOf(10L, 11L, 12L, 13L, 14L, 15L), featuredOf(rows, emptyList(), day = 20_000).map { it.item.id })
+        val few = homeRows(listOf(Hub("recently_added:1", "Recently Added in Movies", 1, listOf(art(10)))), null)
+        assertEquals(listOf(false, true, true, true, true, true), featuredOf(few, rated, day = 20_000).map { it.topRated })
+        assertEquals(UiText.res(R.string.home_featured_top_rated_in, "Movies"), featuredLabel(today[2], libraries.value))
+        assertEquals(UiText.res(R.string.home_featured_top_rated), featuredLabel(today[2], null))
+    }
+
+    @Test
     fun theBannerLeavesOutWhatWasWatchedHasNoBackdropOrIsNotAMovieOrShow() {
         val added = Hub(
             "recently_added:1", "Recently Added", 1,

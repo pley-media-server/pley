@@ -177,6 +177,17 @@ internal class CachedItems(private val cache: ResourceCache) : ItemRepository {
 
     override suspend fun next(itemId: Long): ItemSummary? = cache.api(cache.profile()).next(itemId).item
 
+    override suspend fun warmChildren(itemId: Long) {
+        val resource = childrenOf(itemId)
+        if (cache.peek(resource) == null) cache.refreshQuietly(resource)
+    }
+
+    override fun held(itemId: Long): ItemDetail? = cache.peek(detailOf(itemId))
+
+    override fun heldChildren(itemId: Long): List<ItemSummary>? = cache.peek(childrenOf(itemId))?.items
+
+    override fun heldOnDeck(itemId: Long): Loadable<ItemSummary?>? = cache.peek(onDeckOf(itemId))?.let { Loadable.Ready(it.item, fresh = false) }
+
     /** Loads [itemId]'s page ahead, unless it is held: never every visible card (asking queues work on the server). */
     override fun prefetch(itemId: Long) {
         prefetching

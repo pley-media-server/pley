@@ -99,7 +99,9 @@ import kotlin.math.roundToInt
  *
  * - The row is one focus group that comes back to the tile focused last
  *   (focusRestorer), the first time to [enterOn] when given; [memory]
- *   keeps that tile across leaving the page, so Back lands on it.
+ *   keeps that tile across leaving the page, so Back lands on it: the
+ *   tile the page remembers is then what the row is entered on, before
+ *   [enterOn].
  * - Left from the first tile enters the rail, on a press of its own: a
  *   held Left stops there. Right stops at the end.
  * - Keys are the tiles' ids, and the content type their kind.
@@ -119,7 +121,8 @@ import kotlin.math.roundToInt
  * row's item key. [initialFocus] makes the first tile the page's initial
  * focus. [seeAll] adds the "See all" tile at the end. [onFocus] hears
  * each tile that takes focus (an info block follows it once it rests,
- * [rememberRested]); [onActions] is the long press of Select.
+ * [rememberRested]); [onActions] is the long press of Select. [current]
+ * is the tile the page is about, marked as such ([TvTile]).
  */
 @Composable
 fun TvRow(
@@ -136,6 +139,7 @@ fun TvRow(
     seeAll: SeeAll? = null,
     enterOn: Long? = null,
     state: LazyListState = rememberTvRowState(),
+    current: Long? = null,
 ) {
     val density = LocalDensity.current
     val gate = LocalKeyRepeatGate.current
@@ -178,6 +182,12 @@ fun TvRow(
         }
     }
     val enter = remember { FocusRequester() }
+    // The tile the row is entered on: the one the page remembers focus on when it is one of this
+    // row's (the page shown again after Back), else [enterOn]. The remembered tile asks for focus
+    // itself, and coming into the row its request is answered by this entry: it must be that tile.
+    val entry = memory?.key?.takeIf { it.startsWith("$rowKey/") }?.substring(rowKey.length + 1)?.toLongOrNull()
+        ?.takeIf { id -> tiles.any { it.id == id } }
+        ?: enterOn
     Column(
         modifier
             .fillMaxWidth()
@@ -207,7 +217,7 @@ fun TvRow(
                     .bleed(TileBleed)
                     .testTag("$ROW_TAG$rowKey")
                     .railOnLeftStopOnRight(rail)
-                    .focusRestorer(if (enterOn != null) enter else FocusRequester.Default)
+                    .focusRestorer(if (entry != null) enter else FocusRequester.Default)
                     .onPreviewKeyEvent(motion::onKey)
                     .drawWithCache { motion.drawRing(this, kind) },
                 contentPadding = PaddingValues(
@@ -226,6 +236,7 @@ fun TvRow(
                         kind = kind,
                         onClick = { onOpen(tile) },
                         onLongClick = onActions?.let { { it(tile) } },
+                        current = tile.id == current,
                         modifier = Modifier.onFocusChanged {
                             if (it.hasFocus) {
                                 row.focusedIndex = index
@@ -238,7 +249,7 @@ fun TvRow(
                         focusModifier = remembered
                             .focusSlot(motion.slots, index)
                             .then(if (tile.id == heir) Modifier.focusRequester(heirFocus) else Modifier)
-                            .then(if (tile.id == enterOn) Modifier.focusRequester(enter) else Modifier),
+                            .then(if (tile.id == entry) Modifier.focusRequester(enter) else Modifier),
                     )
                 }
                 if (seeAll != null) {
@@ -890,7 +901,7 @@ private fun Modifier.focusedRowOnTop(row: RowFocus): Modifier = layout { measura
 
 /**
  * Hides what scrolls under the collapsed rail (design spec §2.4): [Bg][PleyColors.Bg]
- * up to x = 56, clear from x = 72, drawn once over the content, while
+ * up to x = 44, thinning softly to clear at x = 92, drawn once over the content, while
  * [shown] (read as it draws: a row that has scrolled). The focused tile's
  * ring sits right of it.
  */
@@ -901,11 +912,23 @@ fun Modifier.railFade(shown: () -> Boolean = { true }): Modifier = drawWithConte
     if (shown()) drawStretched(RailFade, Offset.Zero, Size(PleyTv.RailFadeClearFrom.toPx(), size.height))
 }
 
-/** Bg to x = 56 of its 72 dp, then clear at 72. */
+/**
+ * Bg to x = 44 of its 92 dp, then thinning to clear at 92 along an S-shaped
+ * curve (smoothstep), gently at both ends: the dark has no edge where it
+ * starts to go, nor where the page shows through whole, 4 dp short of the
+ * gutter and the focused tile.
+ */
 private val RailFade by lazy {
     val solid = PleyTv.RailFadeSolidUntil.value / PleyTv.RailFadeClearFrom.value
-    GradientBitmaps.horizontal(0f to PleyColors.Bg, solid to PleyColors.Bg, 1f to Color.Transparent)
+    val stops = (0..FADE_STEPS).map { i ->
+        val t = i / FADE_STEPS.toFloat()
+        (solid + (1f - solid) * t) to PleyColors.Bg.copy(alpha = 1f - t * t * (3f - 2f * t))
+    }
+    GradientBitmaps.horizontal(0f to PleyColors.Bg, *stops.toTypedArray())
 }
+
+/** The straight pieces the fade's curve is made of. */
+private const val FADE_STEPS = 12
 
 /**
  * Lays this out [vertical] taller above and below than the room it takes,

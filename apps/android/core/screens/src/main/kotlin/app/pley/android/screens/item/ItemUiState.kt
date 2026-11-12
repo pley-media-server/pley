@@ -184,7 +184,10 @@ data class ItemDetails(
     /** Each version in the web's long form, "4K · HEVC · Dolby Vision P8.1 · TrueHD Atmos 7.1 · 62.0 GB", the one that plays checked. */
     val versions: List<TrackChoice>,
 ) {
-    val isEmpty: Boolean get() = crew.isEmpty() && originalTitle == null && released == null && studio == null && plays == null && versions.isEmpty()
+    val isEmpty: Boolean get() = !hasFacts && versions.isEmpty()
+
+    /** Who made it or a fact about it: the TV shows these under the cast. */
+    val hasFacts: Boolean get() = crew.isNotEmpty() || originalTitle != null || released != null || studio != null || plays != null
 }
 
 /** "Directors: A, B, C, D and 2 more": [role], [people] (four at most) and how many more. */
@@ -236,13 +239,20 @@ data class SeasonsSection(
     val episodes: List<EpisodeLine>?,
     /** The episode to start from: the one Play plays, or the page's own episode. */
     val focus: Long?,
+    /**
+     * The TV shows the seasons as a row of posters, as the web's seasons
+     * do, rather than tabs: at least one season has a poster of its own
+     * (the others show the show's). Decided for the whole show, so it is
+     * all posters or all tabs.
+     */
+    val posters: Boolean = false,
 ) {
     /** The season shown, as a tab. */
     val selectedTab: SeasonTab? get() = seasons.firstOrNull { it.id == selected }
 }
 
-/** A season among a show's: "Season 2", "Specials", with "8 episodes". */
-data class SeasonTab(val id: Long, val title: String, val episodes: UiText?)
+/** A season among a show's: "Season 2", "Specials", with "8 episodes", and the season itself for its poster tile. */
+data class SeasonTab(val id: Long, val title: String, val episodes: UiText?, val item: ItemSummary? = null)
 
 /** An episode in a list or row, its words worked out. */
 data class EpisodeLine(
