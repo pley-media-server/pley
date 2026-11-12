@@ -1,0 +1,21 @@
+# CodeQL looks at the code Pley ships. Tests and their fixtures and helpers
+# run only on developers' machines and in CI, so their findings aren't
+# reported. Languages CodeQL reads while they compile (Kotlin, Swift) see
+# what the build compiles, which leaves their tests out already.
+name: Pley
+
+paths-ignore:
+  - "**/test"
+  - "**/tests"
+  - "**/androidTest"
+  - "**/fixtures"
+  - "**/tests.rs"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.test.js"
+  - "**/*.test.mjs"
+  - apps/android/core/testing
+  - apps/android/testing
+  - apps/apple/PleyKit/Tests
+  - apps/apple/UITests
+  - apps/apple/TVUITests

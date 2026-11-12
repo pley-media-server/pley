@@ -4,7 +4,8 @@ name: CodeQL
 # repository's default setup can't build the Android app, whose Gradle
 # project isn't at the root, so this workflow replaces it. Kotlin and Swift
 # are read while they compile; the other languages from their sources.
-# Findings go to Security -> Code scanning.
+# Findings go to Security -> Code scanning; tests are left out
+# (.github/codeql/codeql-config.yml).
 on:
   push:
     branches: [master]
@@ -74,6 +75,7 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
+          config-file: ./.github/codeql/codeql-config.yml
       # Kotlin is extracted from the compiler as it runs: no Gradle daemon,
       # no build cache to skip the compile, and the compiler in Gradle's
       # process rather than in a Kotlin daemon. The app's sources pull in
