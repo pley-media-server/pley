@@ -246,8 +246,8 @@ async fn token_user(
     }
 }
 
-/// A token's user as this API takes it: never as an administrator, whatever
-/// its scopes allow on the Plex-compatible API.
+/// A token's user as this API takes it: never with administrator
+/// privileges, regardless of the compatibility policy advertised to clients.
 pub(crate) fn this_apis(user: AuthUser) -> AuthUser {
     AuthUser { is_admin: false, ..user }
 }
@@ -292,8 +292,8 @@ impl FromRequestParts<AppState> for JfUser {
 /// A caller that changes what only administrators change in Pley
 /// (collections, metadata): a token that may manage libraries (`manage`),
 /// on an account that is an administrator now, as on the Plex-compatible
-/// API. It acts with an administrator's rights for that change alone, and
-/// `Policy.IsAdministrator` stays `false`.
+/// API. It acts with administrator rights for that change alone.
+/// The advertised `Policy.IsAdministrator` flag is independent of this check.
 pub struct JfManager(pub AuthUser);
 
 impl FromRequestParts<AppState> for JfManager {

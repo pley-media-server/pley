@@ -617,11 +617,15 @@ Apps send the token as Jellyfin's apps do:
 - `api_key` or `ApiKey` in the query.
 
 A token sees what Pley's [access rules](API.md#access-rules) let its
-account see, with the account's own watch state, and never acts as an
-administrator, whatever its scopes: `Policy.IsAdministrator` is `false` for
-everyone, and nothing administers through this API. A token with `manage`
-changes collections and edits metadata, as administrators do in Pley, and
-`Policy.EnableCollectionManagement` says so. `/Users` lists the
+account see, with the account's own watch state. Tokens with the
+`activity` scope advertise `Policy.IsAdministrator: true` for compatibility
+with read-only monitoring applications such as Tracearr. This is a
+compatibility signal, not unrestricted administrative access: endpoint
+permissions are still enforced independently.
+
+Other tokens advertise `Policy.IsAdministrator: false`. A token with
+`manage` changes collections and edits metadata, as administrators do in
+Pley, and `Policy.EnableCollectionManagement` says so. `/Users` lists the
 caller alone and `/Users/Public` no one, so no names are shown before
 signing in; a user id in a path (`/Users/{id}/Items`) must be the caller's
 (`404` otherwise).
@@ -812,8 +816,9 @@ apps do, by Pley's rules ([API.md](API.md#playlists)):
 A token with `manage` (an administrator's, made in Account) edits titles'
 metadata and pictures as Pley's own editor does
 ([API.md](API.md#items)); other tokens get `403`. Jellyfin's apps that
-have an editor show it only to administrators, which no token is here, so
-this is for scripts and tools.
+have an editor show it only to administrators. Activity-scoped tokens
+may advertise administrator status for monitoring compatibility, but
+editing still requires the separate `manage` scope.
 
 - `POST /Items/{id}` takes a `BaseItemDto`, as apps send back the one they
   were given with their changes. The fields Pley keeps that differ from
@@ -879,11 +884,12 @@ Run against Pley with the API on Pley's port and on a port of its own:
 
 - Quick Connect, and so signing in from an app with an account that uses
   two-step sign-in.
-- Administration: the dashboard, users, libraries, plugins, scheduled
-  tasks, logs and activity.
-- Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
-  none), and finding the server on the network (UDP 7359): apps are given
-  its address.
+- Jellyfin administration: the dashboard, user management, library
+  administration, plugins, scheduled tasks and server logs. Read-only
+  playback monitoring is supported through `GET /Sessions` for tokens
+  with `activity` permission; other tokens receive an empty session list.
+- Live TV, SyncPlay, remote control of other sessions, and finding the
+  server on the network (UDP 7359): apps are given its address.
 - Shared and public playlists: Pley's are their owner's alone.
 - Editing cast and crew, ratings and countries, which Pley takes from the
   metadata source, and searching other sources than TMDB.

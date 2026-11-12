@@ -333,9 +333,10 @@ async fn each_scope_sees_and_changes_what_it_allows() {
     assert_eq!(count(&app.plex_json(&listed, &manage).await), 1);
     assert_eq!(count(&app.plex_json(&listed, &activity).await), 0, "seeing isn't managing");
 
-    // On the Jellyfin-compatible API, none of them administers.
+    // Jellyfin activity tokens advertise administrator compatibility
+    // for read-only monitoring clients, without granting manage permission.
     let policy = &app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &activity)], None).await.body["Policy"];
-    assert_eq!(policy["IsAdministrator"], json!(false));
+    assert_eq!(policy["IsAdministrator"], json!(true));
     let users = app.jf_raw(Method::GET, "/Users", &[("x-emby-token", &activity)], None).await.body;
     assert_eq!(users.as_array().map(Vec::len), Some(1), "the caller alone");
 }

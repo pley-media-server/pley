@@ -1150,3 +1150,104 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         assert!(theirs(&reply), "{path}: {} {}", reply.status, reply.text());
     }
 }
+
+#[tokio::test]
+async fn tracearr_monitoring_permissions() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+
+    let watch = app.compatibility_token(&admin, "play").await;
+    let activity = app.compatibility_token(&admin, "activity").await;
+    let manage = app.compatibility_token(&admin, "manage").await;
+
+    // Regular playback tokens must not appear to be administrators.
+    let me = app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &watch)], None).await;
+    assert_eq!(me.status, StatusCode::OK);
+    assert_eq!(me.body["Policy"]["IsAdministrator"], json!(false));
+
+    // Management permission alone must not advertise administrator status.
+    let me = app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &manage)], None).await;
+    assert_eq!(me.status, StatusCode::OK);
+    assert_eq!(me.body["Policy"]["IsAdministrator"], json!(false));
+
+    // Monitoring tokens advertise administrator compatibility.
+    let me = app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &activity)], None).await;
+    assert_eq!(me.status, StatusCode::OK);
+    assert_eq!(me.body["Policy"]["IsAdministrator"], json!(true));
+
+    // Watch-only tokens cannot access the monitoring endpoint.
+    let denied = app.jf_raw(Method::GET, "/Sessions", &[("x-emby-token", &watch)], None).await;
+    assert_eq!(denied.status, StatusCode::OK);
+    assert_eq!(denied.body, json!([]));
+
+    // Activity tokens can access the session endpoint.
+    let sessions = app.jf_raw(Method::GET, "/Sessions", &[("x-emby-token", &activity)], None).await;
+    assert_eq!(sessions.status, StatusCode::OK);
+    assert!(sessions.body.is_array());
+
+    // Activity permission must not enable library management.
+    let denied = app.jf_raw(Method::POST, "/Collections?name=Unauthorized", &[("x-emby-token", &activity)], None).await;
+    assert_eq!(denied.status, StatusCode::FORBIDDEN);
+}
+
+#[tokio::test]
+async fn tracearr_reports_active_playback() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+
+    // Create a read-only monitoring token.
+    let activity = app.compatibility_token(admin, "activity").await;
+
+    // Simulate playback through Jellyfin's API.
+    let film = app.jf_item(w.film);
+    let report = json!({
+        "ItemId": film,
+        "PositionTicks": 600_000_000_i64,
+        "IsPaused": false
+    });
+
+    let started = app.jf(Method::POST, "/Sessions/Playing", admin, Some(report)).await;
+
+    assert_eq!(started.status, StatusCode::NO_CONTENT);
+
+    // Query active sessions using the monitoring token.
+    let response = app.jf_raw(Method::GET, "/Sessions", &[("x-emby-token", &activity)], None).await;
+
+    assert_eq!(response.status, StatusCode::OK);
+
+    let sessions = response.body.as_array().expect("sessions array");
+
+    assert_eq!(sessions.len(), 1, "one active playback session");
+
+    // A playback-only token must not see active monitoring sessions.
+    let watch = app.compatibility_token(admin, "play").await;
+    let hidden = app.jf_raw(
+        Method::GET,
+        "/Sessions",
+        &[("x-emby-token", &watch)],
+        None,
+    ).await;
+
+    assert_eq!(hidden.status, StatusCode::OK);
+    assert_eq!(hidden.body, json!([]));
+
+    let session = &sessions[0];
+
+    // User identity.
+    assert_eq!(session["UserName"], json!("admin"));
+    assert_eq!(session["UserId"], json!(app.jf_user(admin).await));
+
+    // Media identification.
+    assert_eq!(session["NowPlayingItem"]["Name"], json!("Alpha"));
+    assert_eq!(session["NowPlayingItem"]["Type"], json!("Movie"));
+    assert_eq!(session["NowPlayingItem"]["Id"], json!(film));
+    assert!(session["NowPlayingItem"]["ImageTags"].is_object());
+
+    // Playback progress.
+    assert_eq!(session["PlayState"]["PositionTicks"], json!(600_000_000_i64));
+
+    // Device and session identification.
+    assert!(session["Id"].is_string());
+    assert!(session["DeviceId"].is_string());
+    assert!(session["NowPlayingItemId"].is_string());
+}

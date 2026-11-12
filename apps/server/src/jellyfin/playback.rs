@@ -855,10 +855,59 @@ async fn ping(_user: JfUser) -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-/// `/Sessions`: the caller's own devices' sessions are Pley's to show; none
-/// are listed here.
-async fn sessions(_user: JfUser) -> Json<[(); 0]> {
-    Json([])
+/// `/Sessions`: expose active playback sessions to authorized
+/// monitoring applications using the compatibility API.
+async fn sessions(
+    State(state): State<AppState>,
+    Extension(jellyfin): Extension<Arc<Jellyfin>>,
+    JfUser { user, .. }: JfUser,
+) -> JfResult<Json<Vec<serde_json::Value>>> {
+    use crate::auth::compatibility::Scope;
+
+    // Preserve the existing response for ordinary Jellyfin clients.
+    // Only activity-scoped tokens can see cross-user sessions.
+    if !user.compatibility_allows(Scope::Activity) {
+        return Ok(Json(Vec::new()));
+    }
+
+    let mut results = Vec::new();
+
+    for session in state.sessions.active() {
+        let Some(row) = catalog::item(&state.db, session.user_id, session.item_id).await? else {
+            continue;
+        };
+
+        let play = session.play.lock().clone();
+
+        results.push(serde_json::json!({
+            "Id": session.id,
+            "UserId": jellyfin.ids.of(Kind::User, session.user_id),
+            "UserName": session.username,
+            "Client": "Pley",
+            "DeviceId": session.device_id,
+            "DeviceName": session.device,
+            "NowPlayingItem": {
+                "Id": jellyfin.ids.of(Kind::Item, row.id),
+                "Name": row.title,
+                "Type": dto::item_type(&row),
+                "RunTimeTicks": session.duration_ms * TICKS_PER_MS,
+                "ImageTags": if row.has_poster || row.kind == "episode" {
+                    serde_json::json!({
+                        "Primary": format!("{:x}", row.updated_at)
+                    })
+                } else {
+                    serde_json::json!({})
+                }
+            },
+            "NowPlayingItemId": jellyfin.ids.of(Kind::Item, row.id),
+            "PlayState": {
+                "PositionTicks": play.position_ms * TICKS_PER_MS
+            },
+            "PositionTicks": play.position_ms * TICKS_PER_MS
+        }));
+    }
+
+    Ok(Json(results))
 }
 
 // ------------------------------------------------------------------ bitrate test
