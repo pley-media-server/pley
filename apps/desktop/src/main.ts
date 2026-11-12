@@ -258,6 +258,12 @@ async function refreshDownloads(): Promise<void> {
   if (downloads.some(coming)) pollTimer = window.setTimeout(() => void refreshDownloads(), 1000);
 }
 
+/** Shows the server's web app in this window; its notifications go by the computer's languages. */
+function showServer(url: string): Promise<void> {
+  const languages = navigator.languages.length ? [...navigator.languages] : [navigator.language];
+  return invoke("open_server", { url, languages });
+}
+
 function notEncrypted(url: string): string {
   return t("picker.notEncrypted", { address: displayAddress(url) });
 }
@@ -274,7 +280,7 @@ async function openServer(url: string, id: string | null): Promise<void> {
     const info = await invoke<ServerInfo>("check_server", { url });
     reachable.set(url, true);
     await invoke("save_server", { server: { url, name: info.name, id } });
-    await invoke("open_server", { url });
+    await showServer(url);
   } catch (err) {
     reachable.set(url, false);
     busy = null;
@@ -330,7 +336,7 @@ async function openLastUsed(server: SavedServer): Promise<void> {
     const info = await invoke<ServerInfo>("check_server", { url: server.url });
     if (cancelled.signal.aborted) return;
     await invoke("save_server", { server: { ...server, name: info.name } });
-    await invoke("open_server", { url: server.url });
+    await showServer(server.url);
   } catch (err) {
     if (cancelled.signal.aborted) return;
     reachable.set(server.url, false);

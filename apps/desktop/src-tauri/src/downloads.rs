@@ -5,8 +5,9 @@
 //! goes on where it stopped. On a Mac, whose player (QuickTime) opens no
 //! Matroska, the server is asked for the file QuickTime plays: the original
 //! when it plays as it is, else an MP4 it makes (`POST /api/conversions`),
-//! looked at every few seconds while others come. The server's page hears
-//! how its own downloads go (`pley:download` events,
+//! looked at every few seconds while others come; a server that makes none
+//! (too old, or with video transcoding off) sends the original. The
+//! server's page hears how its own downloads go (`pley:download` events,
 //! apps/web/src/lib/appDownloads.ts); the picker lists them all, to play in
 //! the system's player or show in their folder.
 
@@ -687,7 +688,8 @@ async fn for_quicktime<R: Runtime>(
     d: &Download,
 ) -> Result<Option<Url>, Problem> {
     let made = match made_for_quicktime(client, server, cookie, d).await {
-        // A server too old to make MP4: the original, for a player that opens it (IINA, VLC).
+        // A server too old to make MP4, or one that converts no video: the
+        // original, for a player that opens it (IINA, VLC).
         Err(Problem::CantMake) => {
             return server.join(&format!("/api/files/{}/stream", d.file_id)).map(Some).map_err(|_| Problem::Gone);
         }
@@ -772,6 +774,12 @@ async fn made_for_quicktime(
     ask(client.post(url).json(&body), cookie).await
 }
 
+/// A refusal the server tells apart by its code (`{ code, message }`).
+#[derive(Debug, Deserialize)]
+struct Refusal {
+    code: String,
+}
+
 /// Sends `request` with the session, and reads the server's `DownloadInfo`.
 async fn ask(request: reqwest::RequestBuilder, cookie: Option<&str>) -> Result<Made, Problem> {
     let request = match cookie {
@@ -787,6 +795,12 @@ async fn ask(request: reqwest::RequestBuilder, cookie: Option<&str>) -> Result<M
         401 | 403 => Err(Problem::SignedOut),
         404 | 410 => Err(Problem::Gone),
         501 => Err(Problem::CantMake),
+        // Video transcoding is off on the server, and the file needs it to
+        // play in QuickTime (docs/API.md "A server that converts no video").
+        409 => match response.json::<Refusal>().await {
+            Ok(refusal) if refusal.code == "video_not_converted" => Err(Problem::CantMake),
+            _ => Err(Problem::Network(Said::NoReply)),
+        },
         503 => Err(Problem::Network(Said::Busy)),
         _ => Err(Problem::Network(Said::NoReply)),
     }
@@ -848,7 +862,8 @@ enum Problem {
     /// The server can't be reached or broke off: try again later.
     Network(Said),
     Disk(std::io::Error),
-    /// The server can't make files for this computer's player (too old).
+    /// The server makes no files for this computer's player: it is too old,
+    /// or converts no video.
     CantMake,
     /// The server failed to make the file, for this reason.
     Failed(Said),
@@ -1439,6 +1454,22 @@ mod tests {
         let client = reqwest::Client::new();
         assert!(matches!(made_for_quicktime(&client, &server, None, &of_title()).await, Err(Problem::CantMake)));
         assert!(matches!(made_for_quicktime(&client, &server, None, &of_title()).await, Err(Problem::Network(_))));
+    }
+
+    #[tokio::test]
+    async fn a_server_that_converts_no_video_is_one_that_cant_make_mp4() {
+        let not_converted = br#"{"code":"video_not_converted","message":"video transcoding is off on this server"}"#;
+        let (server, _) = serve_whole(vec![
+            answer("409 Conflict", &["Content-Type: application/json"], not_converted),
+            answer("409 Conflict", &["Content-Type: application/json"], br#"{"code":"conflict","message":"no"}"#),
+        ])
+        .await;
+        let client = reqwest::Client::new();
+        assert!(matches!(made_for_quicktime(&client, &server, None, &of_title()).await, Err(Problem::CantMake)));
+        assert!(
+            matches!(made_for_quicktime(&client, &server, None, &of_title()).await, Err(Problem::Network(_))),
+            "another conflict is tried again later"
+        );
     }
 
     #[tokio::test]

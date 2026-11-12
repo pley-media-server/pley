@@ -6,7 +6,9 @@
  *
  * These pages show before any server is chosen, so they are in the
  * desktop's language: the first of its languages that Pley has, else
- * English. A server's web app, once open, picks its own.
+ * English. A server's web app, once open, picks its own. The `notices` are
+ * the system's notifications, which the Rust side says in the language the
+ * server's pages are in (src-tauri/src/words.rs).
  */
 import i18next from "i18next";
 import en from "./locales/en.json";
