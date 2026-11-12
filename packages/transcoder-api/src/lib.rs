@@ -568,6 +568,12 @@ pub struct EncoderInfo {
     /// transcodes that keep HDR need.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub main10: bool,
+    /// Quick Sync's encoder passed its test encodes in low-power mode
+    /// (Intel's fixed-function encoder, VDEnc), Main 10 too for HEVC: jobs
+    /// then encode that way, which leaves the GPU's shader cores to tone
+    /// mapping and runs faster at the same picture quality.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub low_power: bool,
 }
 
 /// A hardware pipeline that keeps frames in GPU memory from decode to encode.

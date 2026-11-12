@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 22;
+const DETECTION_REVISION: u32 = 23;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -282,8 +282,9 @@ fn leak(s: String) -> &'static str {
 }
 
 /// A test encode with `name`; `main10`: 10-bit HEVC (Main 10), as
-/// transcodes that keep HDR encode it ([`crate::plan`]'s encoder arguments).
-async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool) -> bool {
+/// transcodes that keep HDR encode it ([`crate::plan`]'s encoder arguments);
+/// `low_power`: Quick Sync's low-power mode, which older Intel GPUs lack.
+async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, low_power: bool) -> bool {
     let mut args: Vec<&str> = vec!["-hide_banner", "-nostdin", "-loglevel", "error"];
     if accel == HwAccel::Vaapi {
         args.extend(["-vaapi_device", devices::vaapi_device()]);
@@ -301,6 +302,9 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool) -
         (_, true) => args.extend(["-pix_fmt", crate::plan::ten_bit_format(accel)]),
     }
     args.extend(["-c:v", name]);
+    if low_power {
+        args.extend(crate::plan::QSV_LOW_POWER);
+    }
     // Rate control as jobs ask for it.
     match accel {
         HwAccel::Qsv => args.extend(crate::plan::QSV_VBR.iter().chain(&["-b:v", "1000k", "-maxrate", "1000001"])),
@@ -639,8 +643,13 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         let limiter = limiter.clone();
         async move {
             let _permit = limiter.acquire().await.ok();
-            let ok = test_encoder(ffmpeg, name, *accel, false).await;
-            let main10 = ok && *codec == VideoCodec::Hevc && test_encoder(ffmpeg, name, *accel, true).await;
+            let ok = test_encoder(ffmpeg, name, *accel, false, false).await;
+            let main10 = ok && *codec == VideoCodec::Hevc && test_encoder(ffmpeg, name, *accel, true, false).await;
+            // Low power where every mode jobs use passes in it, Main 10 included.
+            let low_power = ok
+                && *accel == HwAccel::Qsv
+                && test_encoder(ffmpeg, name, *accel, false, true).await
+                && (!main10 || test_encoder(ffmpeg, name, *accel, true, true).await);
             (
                 EncoderInfo {
                     name: (*name).to_owned(),
@@ -648,6 +657,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
                     hardware: *accel != HwAccel::None,
                     accel: *accel,
                     main10,
+                    low_power,
                 },
                 ok,
             )
@@ -1280,6 +1290,7 @@ mod tests {
             hardware: accel != HwAccel::None,
             accel,
             main10: false,
+            low_power: false,
         }
     }
 

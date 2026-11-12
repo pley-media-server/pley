@@ -796,6 +796,22 @@ Each candidate encoder is test-encoded at start, not just listed:
 |---|---|
 | NVENC, QSV (Quick Sync), AMF | Windows and Linux |
 | VAAPI | Linux, on the first Intel or AMD render node (`PLEY_VAAPI_DEVICE` names another) |
+| VideoToolbox | macOS |
+| libx264, libx265 | everywhere (software fallback) |
+
+- `hwaccel = auto` picks the first hardware encoder that works.
+- Forced keyframes are IDR frames, so every segment decodes on its own.
+- Results are cached in `capabilities.json`, keyed by the FFmpeg binary's
+  size and modification time and by the GPUs present (render nodes and their
+  drivers, NVIDIA's driver), so a GPU added later is tested. `--redetect`
+  ignores the cache.
+- Quick Sync's encoders are also test-encoded in low-power mode (Intel's
+  fixed-function encoder, `-low_power 1`), Main 10 too for HEVC; where that
+  passes (`EncoderInfo.low_power`), jobs and Live TV encode that way. It
+  leaves the GPU's shader cores to tone mapping: on an Iris Xe, 4K HDR10
+  made 1080p went 13 to 25 % faster and 4K SDR 17 % faster, and a film
+  scored as high on VMAF at the same bitrate. Older Intel GPUs lack the mode
+  and encode as before.
 
 #### Quick Sync on Linux
 
@@ -815,15 +831,6 @@ Quick Sync's device is made from VAAPI's on the first Intel render node
   Docker image has only the first (Debian 13 dropped `libmfx1`), so older
   Intel graphics fail Quick Sync's encoder test there and transcode with
   VAAPI.
-| VideoToolbox | macOS |
-| libx264, libx265 | everywhere (software fallback) |
-
-- `hwaccel = auto` picks the first hardware encoder that works.
-- Forced keyframes are IDR frames, so every segment decodes on its own.
-- Results are cached in `capabilities.json`, keyed by the FFmpeg binary's
-  size and modification time and by the GPUs present (render nodes and their
-  drivers, NVIDIA's driver), so a GPU added later is tested. `--redetect`
-  ignores the cache.
 
 Every encoder is capped at the job's bitrate (`-maxrate`, with a two-second
 buffer) and may spend less on easy content. The start-up test uses the same

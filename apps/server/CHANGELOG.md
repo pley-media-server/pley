@@ -21,6 +21,8 @@ describes how they are made.
   the CPU, and two at once each keep up better.
 - Intel graphics: HDR kept as HDR and burned-in picture subtitles stay on the
   GPU, and Dolby Vision and HDR10+ do where the CPU would decode them.
+- Intel graphics: transcodes run up to a quarter faster where the GPU has a
+  low-power encoder.
 - Intel graphics on Linux and in Docker get the same faster transcodes as on
   Windows.
 

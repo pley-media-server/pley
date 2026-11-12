@@ -440,6 +440,7 @@ pub fn vulkan_encoder() -> EncoderInfo {
         hardware: true,
         accel: HwAccel::Vulkan,
         main10: false,
+        low_power: false,
     }
 }
 
@@ -1870,6 +1871,11 @@ pub fn qsv_gpu_devices(windows: &[&str], node: &str) -> Vec<String> {
 /// Quick Sync's rate control besides the bitrates: bitrate control per
 /// macroblock, for the picture's sake.
 pub const QSV_VBR: [&str; 2] = ["-mbbrc", "1"];
+/// Quick Sync's low-power encoder (VDEnc), where its start-up test passed
+/// ([`EncoderInfo::low_power`]). On an Iris Xe, 4K HDR10 made 1080p went
+/// 13 to 25 % faster beside libplacebo, which it leaves the shader cores
+/// to, and 4K SDR 17 % faster; a film scored as high on VMAF or higher.
+pub const QSV_LOW_POWER: [&str; 2] = ["-low_power", "1"];
 /// VAAPI's rate control: variable, capped by `-maxrate`.
 pub const VAAPI_VBR: [&str; 2] = ["-rc_mode", "VBR"];
 
@@ -1906,6 +1912,9 @@ fn encoder_args(enc: &EncoderInfo, v: &VideoOut, preset: Option<&str>) -> Vec<St
         }
         HwAccel::Qsv => {
             s.extend(["-preset", "veryfast", "-look_ahead", "0", "-forced_idr", "1", "-g", "9999"].map(String::from));
+            if enc.low_power {
+                s.extend(QSV_LOW_POWER.map(String::from));
+            }
             s.extend(QSV_VBR.iter().map(|o| o.to_string()));
             // A maxrate equal to the bitrate is CBR to FFmpeg (qsvenc.c's
             // select_rc_mode), which spends the bitrate on still pictures
@@ -2282,6 +2291,7 @@ mod tests {
             hardware: false,
             accel: HwAccel::None,
             main10: false,
+            low_power: false,
         }
     }
 
@@ -2292,6 +2302,7 @@ mod tests {
             hardware: true,
             accel: HwAccel::Nvenc,
             main10: false,
+            low_power: false,
         }
     }
 
@@ -2695,11 +2706,41 @@ mod tests {
         assert_eq!(plan.video.as_ref().unwrap().pipeline, Pipeline::Software);
     }
 
+    /// Quick Sync encodes in low-power mode where its start-up test passed.
+    #[test]
+    fn quick_sync_encodes_in_low_power_mode_where_it_passed() {
+        let args = |low_power: bool| {
+            let enc = EncoderInfo {
+                name: "h264_qsv".into(),
+                codec: VideoCodec::H264,
+                hardware: true,
+                accel: HwAccel::Qsv,
+                main10: false,
+                low_power,
+            };
+            let plan = Plan::build(&request(), &media(DynamicRange::Sdr, None), &ffmpeg_with(vec![enc], vec![]), None)
+                .unwrap();
+            args_string(&plan, 0, 2)
+        };
+        assert!(
+            args(true)
+                .contains("-c:v h264_qsv -preset veryfast -look_ahead 0 -forced_idr 1 -g 9999 -low_power 1 -mbbrc 1")
+        );
+        assert!(!args(false).contains("-low_power"));
+    }
+
     /// Each encoder's rate control: capped at the bitrate, variable below it.
     #[test]
     fn hardware_encoders_vary_their_bitrate_under_the_cap() {
         let line = |name: &str, accel: HwAccel| {
-            let enc = EncoderInfo { name: name.into(), codec: VideoCodec::H264, hardware: true, accel, main10: false };
+            let enc = EncoderInfo {
+                name: name.into(),
+                codec: VideoCodec::H264,
+                hardware: true,
+                accel,
+                main10: false,
+                low_power: false,
+            };
             let plan = Plan::build(&request(), &media(DynamicRange::Sdr, None), &ffmpeg_with(vec![enc], vec![]), None)
                 .unwrap();
             assert_eq!(plan.video.as_ref().unwrap().bitrate_kbps, 8000);
@@ -2911,6 +2952,7 @@ mod tests {
             hardware: true,
             accel,
             main10,
+            low_power: false,
         };
         let mappers = [Tonemapper::Libplacebo, Tonemapper::Opencl, Tonemapper::Zscale];
         let mappers = mappers.into_iter().filter(|m| vulkan || *m != Tonemapper::Libplacebo).collect();
@@ -3611,6 +3653,7 @@ mod tests {
             hardware: true,
             accel: HwAccel::Amf,
             main10: false,
+            low_power: false,
         };
         let mut ff = ffmpeg_with(vec![amf, x264()], vec![Tonemapper::Libplacebo, Tonemapper::Opencl]);
         ff.caps.hwaccels = ["d3d11va", "vulkan"].map(String::from).to_vec();
@@ -3640,6 +3683,7 @@ mod tests {
             hardware: true,
             accel: HwAccel::Amf,
             main10: false,
+            low_power: false,
         }
     }
 

@@ -3179,6 +3179,7 @@ mod tests {
             hardware,
             accel,
             main10: false,
+            low_power: false,
         };
         let ff = Ffmpeg {
             ffmpeg: "ffmpeg".into(),
@@ -3273,6 +3274,7 @@ mod tests {
             hardware: false,
             accel: HwAccel::None,
             main10: false,
+            low_power: false,
         };
         let caps = pley_transcoder_api::Capabilities {
             ffmpeg_available: true,
@@ -3656,6 +3658,7 @@ mod tests {
             hardware: true,
             accel: HwAccel::Nvenc,
             main10: false,
+            low_power: false,
         };
         let ff = Ffmpeg {
             ffmpeg: "ffmpeg".into(),
@@ -4379,6 +4382,7 @@ mod tests {
             hardware: false,
             accel: HwAccel::None,
             main10: false,
+            low_power: false,
         };
         let caps = pley_transcoder_api::Capabilities {
             ffmpeg_available: true,
