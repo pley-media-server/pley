@@ -1,8 +1,9 @@
 # Verifies the licensing rules (see LICENSING.md):
-#  * the server (pley-server), the transcoder (pley-transcoder) and Pley for
-#    LG TV (pley-lg, the workspace in apps/webos), all under LICENSE
-#    (AGPL-3.0-only), must not depend on any crate that is only available
-#    under a copyleft license ((L/A)GPL and the like);
+#  * the server (pley-server), the transcoder (pley-transcoder), Pley for
+#    LG TV (pley-lg, the workspace in apps/webos) and Pley Desktop
+#    (pley-desktop, the workspace in apps/desktop/src-tauri), all under
+#    LICENSE (AGPL-3.0-only), must not depend on any crate that is only
+#    available under a copyleft license ((L/A)GPL and the like);
 #  * the server must not depend on the transcoder crate: it is a separate
 #    program, spoken to only over HTTP.
 # Walks each workspace's resolved dependency graph from `cargo metadata`
@@ -61,7 +62,8 @@ $workspaces = @(
     @{ Dir = $root; Programs = "pley-server", "pley-transcoder"; Features = @() },
     # A workspace of its own (see the root Cargo.toml), resolved with the TV's
     # features as well as the simulator's defaults, as `cargo xtask` does.
-    @{ Dir = Join-Path $root "apps/webos"; Programs = @("pley-lg"); Features = @("--features", "pley-lg/tv") }
+    @{ Dir = Join-Path $root "apps/webos"; Programs = @("pley-lg"); Features = @("--features", "pley-lg/tv") },
+    @{ Dir = Join-Path $root "apps/desktop/src-tauri"; Programs = @("pley-desktop"); Features = @() }
 )
 
 $failed = $false

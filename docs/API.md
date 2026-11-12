@@ -717,10 +717,12 @@ Radarr, Sonarr or the network said goes in those as it came. Apps send
 `Accept-Language` with the language they show, and write the rest
 themselves. Error messages (`message`) are in English. The web app loads
 a language's words when it is first shown, and remembers the last one on
-the device so the next visit starts in it. The tray of a server on a
-desktop is in the server language once an administrator has chosen one,
-else the desktop's; its menu takes a new one when Pley starts again (on
-Linux, the next time it opens).
+the device so the next visit starts in it. The desktop app's notifications
+follow the same order, with the computer's languages in step 2: a language
+picked with the globe in its window isn't one they see. The tray of a
+server on a desktop is in the server language once an administrator has
+chosen one, else the desktop's; its menu takes a new one when Pley starts
+again (on Linux, the next time it opens).
 
 ## Compatibility tokens
 

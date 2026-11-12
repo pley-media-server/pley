@@ -8,6 +8,20 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Notifications about requests are in French and Spanish too, in the
+  language the server's pages are in.
+
+### Fixed
+
+- A notification that a show's specials are ready says they "are" ready.
+
+On a Mac:
+
+- A download from a server with video transcoding turned off comes as the
+  original file, for a player such as IINA or VLC.
+
 ## [0.1.4] - 2026-11-06
 
 ### Added
