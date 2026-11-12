@@ -19,7 +19,9 @@ never changes anything on Plex.
   closed to a new profile, and the report says so: you can open it in
   Settings › Users. Plex's picture for each comes too, where the profile has none in
   Pley: one chosen on Plex or a Gravatar. A Plex picture that's only an
-  initial brings its colour instead, for Pley's own initial.
+  initial brings its colour instead, for Pley's own initial. Plex's PINs
+  don't come: a profile starts with none, so give one in Settings › Users
+  to anyone whose Plex profile had one.
 - **Restrictions.** The profile of a Plex Home user with restrictions (a
   managed user's, or those on what you share with a member who has their
   own Plex account) gets an age limit from the ratings Plex allows them,

@@ -901,7 +901,7 @@
       "leftOver_other": "A profile keeps 50 labels of up to 120 characters; these are left out: {{labels}}",
       "notKept": "Pley can't keep these rules of Plex's, so it hides more instead:",
       "pin": "Plex PIN",
-      "pinHint": "If Plex asks for it. Pley doesn't keep it."
+      "pinHint": "If Plex asks for it. Pley doesn't keep it: their profile has no PIN until you give it one."
     },
     "bring": {
       "title": "What to bring",

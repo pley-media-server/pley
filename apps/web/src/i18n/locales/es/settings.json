@@ -928,7 +928,7 @@
       "leftOver_other": "Un perfil guarda 50 etiquetas de hasta 120 caracteres; estas quedan fuera: {{labels}}",
       "notKept": "Pley no puede guardar estas reglas de Plex, así que oculta más:",
       "pin": "PIN de Plex",
-      "pinHint": "Si Plex lo pide. Pley no lo guarda."
+      "pinHint": "Si Plex lo pide. Pley no lo guarda: su perfil no tiene PIN hasta que le des uno."
     },
     "bring": {
       "title": "Qué traer",

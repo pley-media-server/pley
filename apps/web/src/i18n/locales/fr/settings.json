@@ -928,7 +928,7 @@
       "leftOver_other": "Un profil garde 50 étiquettes de 120 caractères au plus ; celles-ci sont laissées de côté : {{labels}}",
       "notKept": "Pley ne peut pas garder ces règles de Plex, alors il masque davantage :",
       "pin": "Code PIN Plex",
-      "pinHint": "Si Plex le demande. Pley ne le garde pas."
+      "pinHint": "Si Plex le demande. Pley ne le garde pas : leur profil n'a pas de PIN tant que vous ne lui en donnez pas."
     },
     "bring": {
       "title": "Quoi transférer",
