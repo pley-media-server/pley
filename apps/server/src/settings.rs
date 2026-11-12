@@ -53,6 +53,11 @@ pub struct Settings {
     pub language: String,
     pub tmdb_api_key: String,
     pub metadata_language: String,
+    /// The country whose ratings Pley reads (ISO 3166-1 alpha-2, "NZ"):
+    /// which rating is taken from TMDB, how one without a country is read,
+    /// and the systems profiles' age limits are chosen from. Empty: the
+    /// metadata language's ([`crate::ratings::region_in`]).
+    pub country: String,
     pub tv_metadata: TvMetadata,
     pub tvdb_api_key: String,
     /// Subscriber PIN, for TheTVDB keys that need one.
@@ -208,6 +213,7 @@ impl Default for Settings {
             language: String::new(),
             tmdb_api_key: String::new(),
             metadata_language: "en-US".into(),
+            country: String::new(),
             tv_metadata: TvMetadata::Auto,
             tvdb_api_key: String::new(),
             tvdb_pin: String::new(),
@@ -584,6 +590,8 @@ pub struct SettingsPatch {
     pub language: Option<String>,
     pub tmdb_api_key: Option<String>,
     pub metadata_language: Option<String>,
+    /// Empty: the metadata language's.
+    pub country: Option<String>,
     pub tv_metadata: Option<TvMetadata>,
     pub tvdb_api_key: Option<String>,
     pub tvdb_pin: Option<String>,
@@ -691,6 +699,13 @@ impl SettingsStore {
                 return Err(AppError::bad_request("metadata language must look like 'en-US'"));
             }
             next.metadata_language = v;
+        }
+        if let Some(v) = patch.country {
+            let v = v.trim().to_ascii_uppercase();
+            if !(v.is_empty() || (v.len() == 2 && v.chars().all(|c| c.is_ascii_alphabetic()))) {
+                return Err(AppError::bad_request("country must be a two-letter code, like 'NZ'"));
+            }
+            next.country = v;
         }
         if let Some(v) = patch.tv_metadata {
             next.tv_metadata = v;
@@ -935,9 +950,9 @@ impl SettingsStore {
         .bind(json)
         .execute(&db.write)
         .await?;
-        // Ratings without a country of their own are read as the metadata
-        // region's: a new region can change their ages.
-        if crate::ratings::region_of(&next.metadata_language) != crate::ratings::region_of(&current.metadata_language) {
+        // Ratings without a country of their own are read as the server's
+        // country's: a new country can change their ages.
+        if crate::ratings::region_in(&next) != crate::ratings::region_in(&current) {
             crate::ratings::backfill(db).await?;
         }
         let next = Arc::new(next);
@@ -988,6 +1003,8 @@ mod tests {
         assert!(bad(serde_json::json!({"server_name": "x".repeat(65)})).await);
         assert!(bad(serde_json::json!({"metadata_language": "e"})).await);
         assert!(bad(serde_json::json!({"metadata_language": "en-US-x-twelve"})).await);
+        assert!(bad(serde_json::json!({"country": "NZL"})).await);
+        assert!(bad(serde_json::json!({"country": "N1"})).await);
         assert!(bad(serde_json::json!({"language": "de"})).await);
         assert!(bad(serde_json::json!({"language": "fr-FR"})).await);
         assert!(bad(serde_json::json!({"max_transcodes": 0})).await);
@@ -1007,6 +1024,7 @@ mod tests {
                     "language": " fr ",
                     "tmdb_api_key": "  abc  ",
                     "metadata_language": " fr-FR ",
+                    "country": " nz ",
                     "max_transcodes": 64,
                     "max_video_transcodes": 2,
                     "transcode_video": false,
@@ -1021,6 +1039,9 @@ mod tests {
         assert_eq!(s.language, "fr");
         assert_eq!(s.tmdb_api_key, "abc");
         assert_eq!(s.metadata_language, "fr-FR");
+        assert_eq!((s.country.as_str(), crate::ratings::region_in(&s).as_str()), ("NZ", "NZ"));
+        let s = store.update(&db, patch(serde_json::json!({"country": ""}))).await.unwrap();
+        assert_eq!(crate::ratings::region_in(&s), "FR", "the metadata language's again");
         assert_eq!((s.max_transcodes, s.transcode_preset.as_str()), (64, "medium"));
         assert_eq!((s.max_video_transcodes, s.transcode_video), (2, false));
         let unset = Settings::default();

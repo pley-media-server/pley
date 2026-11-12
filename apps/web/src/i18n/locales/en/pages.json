@@ -41,7 +41,70 @@
     "passwordHint": "At least {{min}} characters. A few words that don't go together are easy to remember and hard to guess.",
     "setupCode": "Setup code",
     "setupCodeHint": "Open Pley from its tray icon and it's filled in for you. On a server without one, it's in Pley's log (with Docker, run docker logs pley).",
-    "createAccount": "Create account"
+    "createAccount": "Create account",
+    "progress": "How far setup is"
+  },
+  "setupServer": {
+    "title": "Your server",
+    "subtitle": "Pley will use these. Change any that's wrong; each is in Settings afterwards.",
+    "change": "Change",
+    "changeWhat": "Change: {{what}}",
+    "name": "Server name",
+    "nameHint": "Apps and devices list the server by it.",
+    "languageHint": "The default for everyone, and for devices in a language Pley doesn't have. Each person can choose their own.",
+    "movieDetails": "Movie details",
+    "noKey": "No TMDB key",
+    "keyAdded": "From TMDB",
+    "addKey": "Add a key",
+    "keyNeeded": "Needed for movie posters and summaries.",
+    "getKey": "Get a free API key",
+    "tmdbHint": "With a key, TV shows come from TMDB too, in the language of titles and summaries. <a>Get a free API key</a>",
+    "keyRefused": "TMDB didn't take this key. Check it, or continue without it.",
+    "withoutKey": "Continue without the key",
+    "keyUnchecked": "Pley couldn't reach TMDB to check this key. Keep it unchecked, or try again.",
+    "keepUnchecked": "Keep the key unchecked",
+    "appleDevices": "Apple devices",
+    "findIt": "Find this server by themselves",
+    "needAddress": "Need its address",
+    "bonjour": "Apple devices find this server",
+    "bonjourHint": "iPhones, iPads, Macs and Apple TVs on your network find it by themselves. Without it, they need its address."
+  },
+  "setupStart": {
+    "title": "How would you like to start?",
+    "fromPlex": "Bring over my Plex server",
+    "fromPlexHint": "Libraries, profiles, watch history, collections and playlists.",
+    "fresh": "Start fresh",
+    "freshHint": "Add your media folders."
+  },
+  "setupLibrary": {
+    "title": "Your libraries",
+    "subtitle": "Show Pley where your movies, shows and music are. Leave out any you don't have.",
+    "added": "Added",
+    "toAdd": "Libraries to add",
+    "nameOf": "Name of this {{type}} library",
+    "namePlaceholder": {
+      "movies": "Name, such as Kids Movies",
+      "shows": "Name, such as Kids Shows",
+      "music": "Name, such as Kids Music"
+    },
+    "folderOf": "Folder for {{name}}",
+    "where": {
+      "movies": "Where are your movies?",
+      "shows": "Where are your shows?",
+      "music": "Where is your music?"
+    },
+    "browseFor": "Browse for {{name}}",
+    "addFolder": "Add another folder",
+    "thisFolder": "this folder",
+    "remove": "Remove {{name}}",
+    "addAnother": "Add another library:",
+    "problem": {
+      "noFolder": "Choose a folder for this library, or remove it.",
+      "noName": "Give this library a name.",
+      "nameTaken": "Another library already has this name."
+    },
+    "pickOne": "Choose a folder for at least one library, or press Later.",
+    "later": "Later"
   },
   "invite": {
     "documentTitle": "Invitation",
@@ -332,6 +395,23 @@
     "scanningHint": "New items will show up here as soon as they're found.",
     "emptyHint": "Your libraries are empty. Add media to the library folders and run a scan.",
     "manage": "Manage libraries",
+    "firstScan": {
+      "queued": "{{library}}: waiting to start",
+      "walking": "Scanning {{library}}: finding files",
+      "probing": "Scanning {{library}}: reading files",
+      "metadata": "{{library}}: fetching details"
+    },
+    "firstScans": {
+      "title": "Scanning your libraries, {{at}} of {{count}}: {{library}}",
+      "overall": "All your libraries",
+      "show": "Show the libraries",
+      "hide": "Hide the libraries",
+      "phases": {
+        "walking": "Finding files",
+        "probing": "Reading files",
+        "metadata": "Fetching posters and details"
+      }
+    },
     "banner": {
       "label": "Featured",
       "new": "New",

@@ -41,7 +41,70 @@
     "passwordHint": "Au moins {{min}} caractères. Quelques mots sans rapport entre eux sont faciles à retenir et difficiles à deviner.",
     "setupCode": "Code de configuration",
     "setupCodeHint": "Ouvrez Pley depuis son icône dans la zone de notification : le code est rempli pour vous. Sur un serveur qui n’en a pas, il se trouve dans le journal de Pley (avec Docker, lancez docker logs pley).",
-    "createAccount": "Créer le compte"
+    "createAccount": "Créer le compte",
+    "progress": "Avancement de la configuration"
+  },
+  "setupServer": {
+    "title": "Votre serveur",
+    "subtitle": "Pley utilisera ces réglages. Changez ceux qui ne conviennent pas ; vous les retrouverez tous dans les Paramètres.",
+    "change": "Changer",
+    "changeWhat": "Changer : {{what}}",
+    "name": "Nom du serveur",
+    "nameHint": "Les apps et les appareils affichent le serveur sous ce nom.",
+    "languageHint": "La langue par défaut de chacun, et celle des appareils dans une langue que Pley n’a pas. Chacun peut choisir la sienne.",
+    "movieDetails": "Détails des films",
+    "noKey": "Pas de clé TMDB",
+    "keyAdded": "Depuis TMDB",
+    "addKey": "Ajouter une clé",
+    "keyNeeded": "Nécessaire pour les affiches et les résumés des films.",
+    "getKey": "Obtenir une clé API gratuite",
+    "tmdbHint": "Avec une clé, les séries viennent aussi de TMDB, dans la langue des titres et résumés. <a>Obtenir une clé API gratuite</a>",
+    "keyRefused": "TMDB n’a pas accepté cette clé. Vérifiez-la, ou continuez sans.",
+    "withoutKey": "Continuer sans la clé",
+    "keyUnchecked": "Pley n’a pas pu joindre TMDB pour vérifier cette clé. Gardez-la sans vérification, ou réessayez.",
+    "keepUnchecked": "Garder la clé sans la vérifier",
+    "appleDevices": "Appareils Apple",
+    "findIt": "Trouvent ce serveur d’eux-mêmes",
+    "needAddress": "Ont besoin de son adresse",
+    "bonjour": "Les appareils Apple trouvent ce serveur",
+    "bonjourHint": "Les iPhone, iPad, Mac et Apple TV de votre réseau le trouvent d’eux-mêmes. Sinon, il leur faut son adresse."
+  },
+  "setupStart": {
+    "title": "Comment voulez-vous commencer ?",
+    "fromPlex": "Importer mon serveur Plex",
+    "fromPlexHint": "Bibliothèques, profils, historique de visionnage, collections et listes de lecture.",
+    "fresh": "Partir de zéro",
+    "freshHint": "Ajoutez vos dossiers de médias."
+  },
+  "setupLibrary": {
+    "title": "Vos bibliothèques",
+    "subtitle": "Montrez à Pley où sont vos films, séries et musique. Laissez vide ce que vous n’avez pas.",
+    "added": "Ajoutées",
+    "toAdd": "Bibliothèques à ajouter",
+    "nameOf": "Nom de cette bibliothèque ({{type}})",
+    "namePlaceholder": {
+      "movies": "Nom, par exemple Films pour enfants",
+      "shows": "Nom, par exemple Séries pour enfants",
+      "music": "Nom, par exemple Musique pour enfants"
+    },
+    "folderOf": "Dossier de {{name}}",
+    "where": {
+      "movies": "Où sont vos films ?",
+      "shows": "Où sont vos séries ?",
+      "music": "Où est votre musique ?"
+    },
+    "browseFor": "Parcourir pour {{name}}",
+    "addFolder": "Ajouter un autre dossier",
+    "thisFolder": "ce dossier",
+    "remove": "Retirer {{name}}",
+    "addAnother": "Ajouter une autre bibliothèque :",
+    "problem": {
+      "noFolder": "Choisissez un dossier pour cette bibliothèque, ou retirez-la.",
+      "noName": "Donnez un nom à cette bibliothèque.",
+      "nameTaken": "Une autre bibliothèque porte déjà ce nom."
+    },
+    "pickOne": "Choisissez un dossier pour au moins une bibliothèque, ou appuyez sur Plus tard.",
+    "later": "Plus tard"
   },
   "invite": {
     "documentTitle": "Invitation",
@@ -334,6 +397,23 @@
     "scanningHint": "Les nouveaux éléments apparaîtront ici dès qu’ils seront trouvés.",
     "emptyHint": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse.",
     "manage": "Gérer les bibliothèques",
+    "firstScan": {
+      "queued": "{{library}} : en attente",
+      "walking": "Analyse de {{library}} : recherche des fichiers",
+      "probing": "Analyse de {{library}} : lecture des fichiers",
+      "metadata": "{{library}} : récupération des détails"
+    },
+    "firstScans": {
+      "title": "Analyse de vos bibliothèques, {{at}} sur {{count}} : {{library}}",
+      "overall": "Toutes vos bibliothèques",
+      "show": "Afficher les bibliothèques",
+      "hide": "Masquer les bibliothèques",
+      "phases": {
+        "walking": "Recherche des fichiers",
+        "probing": "Lecture des fichiers",
+        "metadata": "Récupération des affiches et des détails"
+      }
+    },
     "banner": {
       "label": "À la une",
       "new": "Nouveau",

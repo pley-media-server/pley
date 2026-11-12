@@ -12,6 +12,8 @@ on:
       - bun.lock
       - bunfig.toml
       - rustfmt.toml
+      - deny.toml
+      - scripts/check-licenses.ps1
       - .github/workflows/desktop.yml
       - "!**/CHANGELOG.md"
   pull_request:
@@ -21,6 +23,8 @@ on:
       - bun.lock
       - bunfig.toml
       - rustfmt.toml
+      - deny.toml
+      - scripts/check-licenses.ps1
       - .github/workflows/desktop.yml
       - "!**/CHANGELOG.md"
   workflow_dispatch:
@@ -94,6 +98,18 @@ jobs:
         run: cargo clippy --manifest-path apps/desktop/src-tauri/Cargo.toml --all-targets --locked -- -D warnings
       - name: Test
         run: cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml --locked
+      # The crates of every platform, so one job is enough.
+      - name: No copyleft-only crates
+        if: matrix.name == 'linux-x86_64'
+        shell: pwsh
+        run: ./scripts/check-licenses.ps1
+      # cargo-deny finds the root deny.toml above apps/desktop.
+      - name: Third-party licenses
+        if: matrix.name == 'linux-x86_64'
+        uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25 # v2.1.1
+        with:
+          manifest-path: apps/desktop/src-tauri/Cargo.toml
+          command: check licenses
 
   # ---- Release (called by release.yml) ---------------------------------------
 

@@ -1857,20 +1857,31 @@ impl Requests {
         Ok(found)
     }
 
-    /// Of library titles `items`, those with a label `user` never sees.
+    /// Of library titles `items`, those with a label `user` never sees, and,
+    /// when it has such labels, those of a library Plex's labels are still
+    /// on their way to (`crate::access`): the label may be among them.
     async fn hidden_by_labels(&self, user: &AuthUser, items: &[i64]) -> sqlx::Result<HashSet<i64>> {
-        if user.is_admin || items.is_empty() {
+        // By the account, as the library's own lists go (`catalog::VISIBLE`).
+        if user.is_admin || user.account_admin || items.is_empty() {
             return Ok(HashSet::new());
         }
+        let list = vec!["?"; items.len()].join(",");
         let sql = format!(
-            "SELECT DISTINCT l.item_id FROM user_label_rules r JOIN item_labels l ON l.label = r.label
-             WHERE r.user_id = ? AND r.kind = 'hide' AND l.item_id IN ({})",
-            vec!["?"; items.len()].join(",")
+            "SELECT l.item_id FROM user_label_rules r JOIN item_labels l ON l.label = r.label
+             WHERE r.user_id = ? AND r.kind = 'hide' AND l.item_id IN ({list})
+             UNION
+             SELECT i.id FROM items i JOIN libraries lib ON lib.id = i.library_id
+             WHERE lib.labels_pending AND i.id IN ({list})
+               AND EXISTS (SELECT 1 FROM user_label_rules WHERE user_id = ? AND kind = 'hide')"
         );
         let mut query = sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(sql.as_str())).bind(user.id);
         for id in items {
             query = query.bind(id);
         }
+        for id in items {
+            query = query.bind(id);
+        }
+        query = query.bind(user.id);
         Ok(query.fetch_all(&self.db.read).await?.into_iter().collect())
     }
 

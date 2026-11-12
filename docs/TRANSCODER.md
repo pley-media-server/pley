@@ -226,7 +226,13 @@ before using what it names:
 ### Media
 
 `POST /v1/probe` takes `{path}` and returns `MediaInfo`, cached per file
-version (path, size, modification time).
+version (path, size, modification time). Probes share `--probe-concurrency`
+with extractions, except a job's own probe of its file (when the server's
+`media` lacks what the job needs, such as the start time a remux needs):
+a playback waits for it, so it runs on two slots of its own rather than in
+line behind a library scan's. The log says how long each job took to make,
+of it probing and reading keyframes, and how long after it its first
+segment was out.
 
 `POST /v1/thumbnail` returns `image/jpeg`:
 

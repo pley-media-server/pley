@@ -1,5 +1,5 @@
 use std::path::Path;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 /// When this server process started (unix ms): part of tags that a newer
 /// version may answer differently.
@@ -48,6 +48,40 @@ pub fn now() -> i64 {
 /// Current unix time in milliseconds.
 pub fn now_ms() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as i64).unwrap_or_default()
+}
+
+/// How fast a count goes up, from where it was first seen, to tell about
+/// how long the rest of it takes.
+#[derive(Debug, Clone, Copy)]
+pub struct Pace {
+    since: Instant,
+    from: u64,
+}
+
+impl Pace {
+    /// A pace measured from now, with `done` done.
+    pub fn new(done: u64) -> Self {
+        Pace { since: Instant::now(), from: done }
+    }
+
+    /// A pace measured since `since`, from `done` done.
+    #[cfg(test)]
+    pub fn measured_since(since: Instant, done: u64) -> Self {
+        Pace { since, from: done }
+    }
+
+    /// About how many seconds the rest of `total` takes, with `done` done.
+    pub fn left(&self, done: u64, total: u64) -> Option<u64> {
+        time_left(self.since.elapsed().as_secs_f64(), done.saturating_sub(self.from), total.saturating_sub(done))
+    }
+}
+
+/// How long `left` more take at the pace of `done` in `elapsed_secs`,
+/// rounded to the second: none before the pace can be told.
+fn time_left(elapsed_secs: f64, done: u64, left: u64) -> Option<u64> {
+    /// The time a pace is measured over before it's trusted.
+    const MEASURED_FOR: f64 = 10.0;
+    (elapsed_secs >= MEASURED_FOR && done > 0).then(|| (left as f64 * elapsed_secs / done as f64).round() as u64)
 }
 
 pub fn system_time_secs(t: SystemTime) -> i64 {
@@ -459,6 +493,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn time_left_is_told_from_the_pace_once_it_was_measured_long_enough() {
+        // 500 files in 50 seconds: 1,500 more take 150.
+        assert_eq!(time_left(50.0, 500, 1500), Some(150));
+        assert_eq!(time_left(5.0, 500, 1500), None, "too soon to tell");
+        assert_eq!(time_left(50.0, 0, 1500), None, "none done yet");
+        assert_eq!(time_left(50.0, 500, 0), Some(0));
+    }
 
     #[test]
     fn utc_times_are_read() {

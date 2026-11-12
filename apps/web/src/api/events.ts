@@ -2,13 +2,16 @@ import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { connectionLost, eventsLive, serverAnswers, setConnectionLost, setEventsLive } from "@/lib/connection";
 import { isApiError } from "./client";
-import { keys } from "./hooks";
+import { ACTIVITY_POLL_MS, keys } from "./hooks";
 import { liveKeys } from "./livetv";
 import { patchBadges, patchTitles, refetchBadges, requestKeys, requestQueries, titleShown, type TitleKind } from "./requests";
 import type { Activity, Id, Library, ServerEvent } from "./types";
 
 /** How long the stream may be down before the pages say the server is out of reach: a restart takes a moment. */
 export const LOST_AFTER_MS = 5_000;
+
+/** How often what lists a library's titles is fetched again while its files are read, and its titles go in. */
+export const READING_REFRESH_MS = 5_000;
 
 type Listener = (ev: ServerEvent) => void;
 const listeners = new Set<Listener>();
@@ -148,6 +151,8 @@ export function useServerEvents(userId: Id | null) {
     let connectedBefore = false;
     let lostTimer: number | undefined;
     const pendingLibraries = new Set<Id>();
+    // When each library being read was last fetched again.
+    const readFetched = new Map<Id, number>();
     let pendingWatchState: WatchStateChange | null = null;
     let summaryTimer: number | undefined;
     let requestsTimer: number | undefined;
@@ -279,6 +284,21 @@ export function useServerEvents(userId: Id | null) {
       schedule(300);
     };
 
+    // A scan adds titles as it reads their files, but says the library
+    // changed only once it has read them all: Home and the library's page
+    // fetch them again now and then meanwhile, not the rest a library
+    // change refreshes.
+    const reading = (id: Id) => {
+      const now = Date.now();
+      const last = readFetched.get(id);
+      if (last !== undefined && now - last < READING_REFRESH_MS) return;
+      readFetched.set(id, now);
+      // The first event is the reading's start: nothing's in yet.
+      if (last === undefined) return;
+      void qc.invalidateQueries({ queryKey: keys.library(id) });
+      void qc.invalidateQueries({ queryKey: ["hubs"] });
+    };
+
     const setScanning = (id: Id, scanning: boolean) => {
       // The user's order and the shared one (Settings) alike.
       qc.setQueriesData<Library[]>({ queryKey: keys.libraries }, (old) =>
@@ -289,43 +309,65 @@ export function useServerEvents(userId: Id | null) {
     const handle = (ev: ServerEvent) => {
       switch (ev.type) {
         case "scan_started":
+          readFetched.delete(ev.library_id);
           setScanning(ev.library_id, true);
           void qc.invalidateQueries({ queryKey: keys.activity });
           break;
         case "scan_progress": {
           setScanning(ev.library_id, ev.phase !== "done");
-          qc.setQueryData<Activity>(keys.activity, (old) => {
-            const base: Activity = old ?? { scans: [], sessions: [] };
-            const existing = base.scans.find((s) => s.library_id === ev.library_id);
-            if (existing) {
+          if (ev.phase === "probing") reading(ev.library_id);
+          // Kept as fetched when it was: an event says less than the server
+          // (whether it's a first scan, those done, the time left), and an
+          // event never makes one up.
+          const fetched = qc.getQueryState<Activity>(keys.activity)?.dataUpdatedAt;
+          const before = qc.getQueryData<Activity>(keys.activity);
+          qc.setQueryData<Activity>(
+            keys.activity,
+            (old) => {
+              if (!old) return old;
+              const existing = old.scans.find((s) => s.library_id === ev.library_id);
+              if (existing) {
+                return {
+                  ...old,
+                  scans: old.scans.map((s) =>
+                    s.library_id === ev.library_id
+                      ? // Time left is for the phase it was told for.
+                        { ...s, phase: ev.phase, processed: ev.processed, total: ev.total, left_secs: s.phase === ev.phase ? s.left_secs : null }
+                      : s,
+                  ),
+                };
+              }
+              const name = qc.getQueryData<Library[]>(keys.libraries)?.find((l) => l.id === ev.library_id)?.name ?? "";
               return {
-                ...base,
-                scans: base.scans.map((s) =>
-                  s.library_id === ev.library_id
-                    ? { ...s, phase: ev.phase, processed: ev.processed, total: ev.total }
-                    : s,
-                ),
+                ...old,
+                scans: [
+                  ...old.scans,
+                  {
+                    library_id: ev.library_id,
+                    library_name: name,
+                    phase: ev.phase,
+                    processed: ev.processed,
+                    total: ev.total,
+                    started_at: Math.floor(Date.now() / 1000),
+                  },
+                ],
               };
-            }
-            const name = qc.getQueryData<Library[]>(keys.libraries)?.find((l) => l.id === ev.library_id)?.name ?? "";
-            return {
-              ...base,
-              scans: [
-                ...base.scans,
-                {
-                  library_id: ev.library_id,
-                  library_name: name,
-                  phase: ev.phase,
-                  processed: ev.processed,
-                  total: ev.total,
-                  started_at: Math.floor(Date.now() / 1000),
-                },
-              ],
-            };
-          });
+            },
+            { updatedAt: fetched },
+          );
+          // A scan not heard of yet: what the server says of it is fetched.
+          if (before && !before.scans.some((s) => s.library_id === ev.library_id)) {
+            void qc.invalidateQueries({ queryKey: keys.activity });
+          } else if (fetched && Date.now() - fetched >= ACTIVITY_POLL_MS) {
+            // Each patch restarts the poll's timer, and events come more
+            // often than it: the activity is fetched here once it's due,
+            // joining a fetch under way rather than cancelling it.
+            void qc.refetchQueries({ queryKey: keys.activity, exact: true, type: "active" }, { cancelRefetch: false });
+          }
           break;
         }
         case "scan_finished":
+          readFetched.delete(ev.library_id);
           setScanning(ev.library_id, false);
           void qc.invalidateQueries({ queryKey: keys.activity });
           scheduleLibrary(ev.library_id);

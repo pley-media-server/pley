@@ -663,13 +663,14 @@ impl TrickplayService {
                 waiting = self.dispatch(&mut runs, &mut rounds).await;
             }
             // Until something is queued, a file is done, a playback starts or
-            // ends, or a look again (the start is over, playback may have
+            // ends, new libraries are done filling in, or a look again (the start is over, playback may have
             // ended, the transcoder may have room).
             let busy = waiting || !self.queues.lock().running.is_empty();
             let wait = if busy { self.pace.look } else { starting.map_or(IDLE_LOOK, |left| left.min(IDLE_LOOK)) };
             tokio::select! {
                 Some(done) = runs.join_next_with_id() => self.ended(done, &mut rounds),
                 () = self.sessions.changed() => {}
+                () = self.schedule.let_go() => {}
                 _ = tokio::time::timeout(wait, self.queued.notified()) => {}
             }
         }

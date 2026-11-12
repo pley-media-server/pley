@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use axum::Json;
@@ -170,6 +170,9 @@ pub struct TestRequest {
 pub struct TestResult {
     ok: bool,
     message: String,
+    /// The service answered and refused the key (or account), rather than
+    /// not being reached.
+    refused: bool,
     /// How long the answer took.
     ms: u64,
 }
@@ -193,7 +196,7 @@ pub async fn test_service(
     let key = req.api_key.as_deref().unwrap_or(saved).trim().to_owned();
     let pin = req.pin.as_deref().unwrap_or(&settings.tvdb_pin).trim().to_owned();
     let name = req.service.name();
-    let fail = |message: String, ms: u64| Json(TestResult { ok: false, message, ms });
+    let fail = |message: String, ms: u64| Json(TestResult { ok: false, message, refused: false, ms });
     if matches!(req.service, Service::Tmdb | Service::Tvdb) && key.is_empty() {
         return fail(format!("Enter a {name} API key first."), 0);
     }
@@ -223,6 +226,7 @@ pub async fn test_service(
     match outcome {
         Ok(Ok(detail)) => Json(TestResult {
             ok: true,
+            refused: false,
             message: match (req.service, detail) {
                 (Service::Tmdb, _) => "TMDB accepted the key.".into(),
                 (Service::Tvdb, _) if !pin.is_empty() => "TheTVDB accepted the key and PIN.".into(),
@@ -232,8 +236,10 @@ pub async fn test_service(
             },
             ms,
         }),
-        Ok(Err(ProviderError::Unauthorized(_))) => fail(
-            match req.service {
+        Ok(Err(ProviderError::Unauthorized(_))) => Json(TestResult {
+            ok: false,
+            refused: true,
+            message: match req.service {
                 Service::Tvdb if pin.is_empty() => {
                     "TheTVDB rejected this key. A user-supported key also needs your subscriber PIN.".into()
                 }
@@ -243,7 +249,7 @@ pub async fn test_service(
                 ),
             },
             ms,
-        ),
+        }),
         Ok(Err(ProviderError::NotFound)) => fail(format!("{name} answered, but not as expected (HTTP 404)."), ms),
         Ok(Err(ProviderError::Other(err))) => fail(format!("Couldn't reach {}: {err:#}", object(name)), ms),
         Err(_) => fail(format!("{name} didn't answer within {} seconds.", TEST_TIMEOUT.as_secs()), ms),
@@ -263,14 +269,20 @@ async fn test_opensubtitles(state: &AppState, req: &TestRequest) -> TestResult {
         None => String::new(),
     };
     if key.is_empty() {
-        return TestResult { ok: false, message: "Enter an OpenSubtitles API key first.".into(), ms: 0 };
+        return TestResult {
+            ok: false,
+            message: "Enter an OpenSubtitles API key first.".into(),
+            refused: false,
+            ms: 0,
+        };
     }
     if !username.is_empty() && password.is_empty() {
-        return TestResult { ok: false, message: "Enter the account's password too.".into(), ms: 0 };
+        return TestResult { ok: false, message: "Enter the account's password too.".into(), refused: false, ms: 0 };
     }
     let started = Instant::now();
     let outcome = tokio::time::timeout(TEST_TIMEOUT, state.opensubtitles.check(&key, &username, &password)).await;
     let ms = started.elapsed().as_millis() as u64;
+    let refused = matches!(outcome, Ok(Err(SearchError::Rejected(_))));
     let (ok, message) = match outcome {
         Ok(Ok(message)) => (true, message),
         Ok(Err(SearchError::Rejected(what))) => (false, format!("OpenSubtitles rejected {what}.")),
@@ -278,7 +290,7 @@ async fn test_opensubtitles(state: &AppState, req: &TestRequest) -> TestResult {
         Ok(Err(err)) => (false, format!("{err}.")),
         Err(_) => (false, format!("OpenSubtitles didn't answer within {} seconds.", TEST_TIMEOUT.as_secs())),
     };
-    TestResult { ok, message, ms }
+    TestResult { ok, message, refused, ms }
 }
 
 /// "The transcoder" in the middle of a sentence.
@@ -348,6 +360,10 @@ pub struct NetworkInfo {
     adapters: Vec<Adapter>,
     /// Bonjour's host name when none is chosen.
     bonjour_host_default: String,
+    /// Pley runs in a container on a network of Docker's own, which the
+    /// apps' search and Bonjour don't reach from the home network (a guess:
+    /// see [`network::on_container_network`]).
+    container_network: bool,
     /// Where a change is saved.
     config_file: String,
     /// Windows Firewall decides which kinds of network reach pley.
@@ -355,8 +371,11 @@ pub struct NetworkInfo {
 }
 
 async fn network_info(state: &AppState) -> ApiResult<NetworkInfo> {
-    let adapters = tokio::task::spawn_blocking(network::adapters).await.map_err(anyhow::Error::from)?;
+    let (adapters, contained) = tokio::task::spawn_blocking(|| (network::adapters(), network::in_container()))
+        .await
+        .map_err(anyhow::Error::from)?;
     Ok(NetworkInfo {
+        container_network: network::on_container_network(contained, &adapters),
         listen: state.network.wanted(),
         fixed: state.network.fixed,
         listeners: state.network.listeners(),
@@ -796,29 +815,12 @@ pub struct Listing {
     path: Option<String>,
     parent: Option<String>,
     entries: Vec<DirEntry>,
-}
-
-fn roots() -> Vec<DirEntry> {
-    let mut out = Vec::new();
-    if cfg!(windows) {
-        for letter in b'A'..=b'Z' {
-            let root = format!("{}:\\", letter as char);
-            if Path::new(&root).exists() {
-                out.push(DirEntry { name: format!("{}:", letter as char), path: root });
-            }
-        }
-    } else {
-        out.push(DirEntry { name: "/".into(), path: "/".into() });
-        for candidate in ["/mnt", "/media", "/srv", "/Volumes"] {
-            if Path::new(candidate).is_dir() {
-                out.push(DirEntry { name: candidate.into(), path: candidate.into() });
-            }
-        }
-    }
-    if let Some(home) = dirs::home_dir() {
-        out.push(DirEntry { name: "Home".into(), path: home.to_string_lossy().into_owned() });
-    }
-    out
+    /// With the roots only: whether Pley runs in a container, and the
+    /// folders mounted into it, so the web app can say when no media is.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    container: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    mounts: Option<Vec<String>>,
 }
 
 #[derive(Deserialize)]
@@ -833,9 +835,30 @@ pub struct FsQuery {
 /// a GET, so another site's link or picture could have the server open a
 /// folder of its choosing (on Windows, a share of its own, signing in to
 /// it). A POST's `Origin` says.
-pub async fn browse_fs(_admin: AdminUser, Json(query): Json<FsQuery>) -> ApiResult<Json<Listing>> {
+///
+/// The roots also say whether Pley runs in a container and what's mounted
+/// into it, and those folders are among the roots.
+pub async fn browse_fs(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Json(query): Json<FsQuery>,
+) -> ApiResult<Json<Listing>> {
     let Some(raw) = query.path.as_deref().map(str::trim).filter(|p| !p.is_empty()) else {
-        return Ok(Json(Listing { path: None, parent: None, entries: roots() }));
+        let data_dir = state.config.data_dir.clone();
+        let listing = crate::util::blocking(move || {
+            let mounts = crate::folders::mounts(&data_dir);
+            let mut entries: Vec<DirEntry> =
+                crate::folders::roots().into_iter().map(|r| DirEntry { name: r.name, path: r.path }).collect();
+            for mount in &mounts {
+                if !entries.iter().any(|e| &e.path == mount) {
+                    entries.push(DirEntry { name: mount.clone(), path: mount.clone() });
+                }
+            }
+            let container = Some(network::in_container());
+            Ok(Listing { path: None, parent: None, entries, container, mounts: Some(mounts) })
+        })
+        .await?;
+        return Ok(Json(listing));
     };
     let path = PathBuf::from(raw);
     if !path.is_absolute() {
@@ -858,6 +881,8 @@ pub async fn browse_fs(_admin: AdminUser, Json(query): Json<FsQuery>) -> ApiResu
             parent: path.parent().map(|p| p.to_string_lossy().into_owned()),
             path: Some(path.to_string_lossy().into_owned()),
             entries,
+            container: None,
+            mounts: None,
         })
     })
     .await

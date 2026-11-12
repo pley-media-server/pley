@@ -51,6 +51,14 @@ export function formatRemaining(positionMs: number, durationMs: number | null | 
   return left ? t("format.left", { time: left }) : "";
 }
 
+/** About how long is left, said as people would: in minutes up to an hour and a half, then in hours. */
+export function formatTimeLeft(seconds: number): string {
+  if (seconds < 60) return t("format.timeLeft.underAMinute");
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 90) return t("format.timeLeft.minutes", { count: minutes });
+  return t("format.timeLeft.hours", { count: Math.round(minutes / 60) });
+}
+
 const BYTE_UNITS = ["B", "KB", "MB", "GB", "TB"] as const;
 
 export function formatBytes(bytes: number | null | undefined): string {

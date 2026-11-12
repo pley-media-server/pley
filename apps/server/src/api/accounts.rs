@@ -48,7 +48,7 @@ const AGE_SYSTEM: &str = "age";
 
 #[derive(Serialize)]
 pub struct RatingSystems {
-    /// The metadata region (ISO 3166-1 alpha-2): its system, when it has
+    /// The server's country (ISO 3166-1 alpha-2): its system, when it has
     /// one, is where an age limit is picked first.
     region: String,
     systems: Vec<RatingSystem>,
@@ -266,7 +266,7 @@ pub struct UserPatch {
     library_ids: Option<Vec<i64>>,
     #[serde(default, deserialize_with = "nullable")]
     max_age: Option<Option<i64>>,
-    /// `null`: the metadata region's.
+    /// `null`: the server's country's.
     #[serde(default, deserialize_with = "nullable")]
     max_age_system: Option<Option<String>>,
     /// "2015-03": the age limit follows the profile's age from now on;
@@ -817,16 +817,7 @@ pub async fn upload_avatar(State(state): State<AppState>, user: AuthUser, body: 
     let jpeg = tokio::task::spawn_blocking(move || accounts::process_avatar(&body))
         .await
         .map_err(|e| AppError::Internal(e.into()))??;
-    let dir = accounts::avatars_dir(&state.config.data_dir);
-    tokio::fs::create_dir_all(&dir).await.map_err(|e| AppError::Internal(e.into()))?;
-    let file = format!("{}-{}.jpg", user.id, now());
-    tokio::fs::write(dir.join(&file), jpeg).await.map_err(|e| AppError::Internal(e.into()))?;
-    let old: Option<String> =
-        sqlx::query_scalar("SELECT avatar FROM users WHERE id = ?").bind(user.id).fetch_one(&state.db.read).await?;
-    sqlx::query("UPDATE users SET avatar = ? WHERE id = ?").bind(&file).bind(user.id).execute(&state.db.write).await?;
-    if let Some(old) = old.filter(|o| *o != file) {
-        let _ = tokio::fs::remove_file(dir.join(old)).await;
-    }
+    accounts::set_avatar(&state.db, &state.config.data_dir, user.id, jpeg).await?;
     Ok(Json(accounts::user(&state.db, user.id).await?.ok_or(AppError::Unauthorized)?))
 }
 

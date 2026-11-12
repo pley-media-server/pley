@@ -70,7 +70,7 @@ export function splitAddress(address: string): { ip: string; port: number } {
 }
 
 const joinAddress = (ip: string, port: number) => (ip.includes(":") ? `[${ip}]:${port}` : `${ip}:${port}`);
-const isLoopback = (ip: string) => ip.startsWith("127.") || ip === "::1";
+export const isLoopback = (ip: string) => ip.startsWith("127.") || ip === "::1";
 const isAny = (ip: string) => ip === "0.0.0.0" || ip === "::";
 
 /** An API's form from its addresses of its own and whether it answers on pley's port. */
@@ -538,7 +538,9 @@ export function NetworkSettings() {
               ? t("network.discovery.fixed")
               : form.mode === "local"
                 ? t("network.localOnly")
-                : t("network.discovery.hint")
+                : data.container_network
+                  ? t("network.containerNetwork")
+                  : t("network.discovery.hint")
           }
         >
           <Toggle
@@ -558,7 +560,9 @@ export function NetworkSettings() {
               ? t("network.bonjour.fixed")
               : form.mode === "local"
                 ? t("network.localOnly")
-                : t("network.bonjour.hint")
+                : data.container_network
+                  ? t("network.containerNetwork")
+                  : t("network.bonjour.hint")
           }
         >
           <Toggle

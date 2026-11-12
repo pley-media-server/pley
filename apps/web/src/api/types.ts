@@ -24,7 +24,7 @@ export interface User {
   library_ids: Id[];
   /** Age limit for movies and shows; `null` = none. */
   max_age: number | null;
-  /** The rating system the limit is shown in (`GB`, or `age`); `null`: the metadata region's. Only in administrators' lists. */
+  /** The rating system the limit is shown in (`GB`, or `age`); `null`: the server's country's. Only in administrators' lists. */
   max_age_system?: string | null;
   /** "2015-03": the limit follows this birthday (only in administrators' lists). */
   birth_month?: string | null;
@@ -106,7 +106,7 @@ export interface LabelUse {
 
 /** `GET /api/ratings/systems`: what an age limit is picked and shown in. */
 export interface RatingSystems {
-  /** The metadata region (`GB`): its system is offered first. */
+  /** The server's country (`GB`): its system is offered first. */
   region: string;
   systems: RatingSystem[];
 }
@@ -193,6 +193,8 @@ export interface Library {
   created_at: Timestamp;
   scanned_at: Timestamp | null;
   scanning: boolean;
+  /** A Plex import is bringing Plex's labels to it: profiles with labels they never see don't see it yet. */
+  labels_pending?: boolean;
 }
 
 export type ItemKind = "movie" | "show" | "season" | "episode" | "artist" | "album" | "track" | "extra";
@@ -256,7 +258,7 @@ export interface ItemDetail extends ItemSummary {
   genres: string[];
   studio: string | null;
   content_rating: string | null;
-  /** The country `content_rating` is from ("GB"), when known: read with its ratings, else the metadata region's. */
+  /** The country `content_rating` is from ("GB"), when known: read with its ratings, else the server's country's. */
   content_rating_country?: string;
   tmdb_id: number | null;
   imdb_id: string | null;
@@ -636,6 +638,10 @@ export interface ScanStatus {
   processed: number;
   total: number;
   started_at: Timestamp;
+  /** The library's first scan; absent from servers before it, and from scans heard of only by their events. */
+  first?: boolean;
+  /** About how many seconds its files have left to be read, or its details to be fetched, once that can be told; absent from servers before it. */
+  left_secs?: number | null;
 }
 
 export type TranscodeJobState = "starting" | "running" | "idle" | "finished" | "failed";
@@ -806,6 +812,8 @@ export interface CastRequest {
 
 export interface Activity {
   scans: ScanStatus[];
+  /** Libraries' first scans done while others are queued or running; empty once the last is done. Absent from servers before it. */
+  first_scans_done?: ScanStatus[];
   sessions: SessionInfo[];
   /** Intro/credits detection in progress (admins only). */
   analysis?: AnalysisStatus | null;
@@ -819,8 +827,8 @@ export interface Activity {
   library_work?: LibraryWorkStatus | null;
 }
 
-/** Why library work waits: something plays (or did a minute ago), other programs keep the processors busy, or these hours aren't its own. */
-export type LibraryWorkWait = "playing" | "busy" | "hours";
+/** Why library work waits: something plays (or did a minute ago), other programs keep the processors busy, these hours aren't its own, or new libraries are being scanned for the first time or imported. */
+export type LibraryWorkWait = "playing" | "busy" | "hours" | "scanning";
 
 export interface LibraryWorkStatus {
   mode: LibraryWork;
@@ -871,6 +879,8 @@ export type ServerEvent =
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean }
   /** A playback session was ended on the server (`DELETE /api/sessions/{id}`): the device playing it stops. */
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean }
+  /** The Plex import moved on or ended (administrators): `GET /api/import/plex` says where. */
+  | { type: "import_changed" }
   /**
    * The user's remote sent their player of `session_id` a command: `seek`
    * has `position_ms`, `skip` has `offset_ms` (back when negative), `audio`
@@ -980,6 +990,8 @@ export interface Settings {
   language: string;
   tmdb_api_key: string;
   metadata_language: string;
+  /** Whose ratings are read ("NZ"); `""`: the metadata language's country. */
+  country: string;
   tv_metadata: TvMetadata;
   tvdb_api_key: string;
   /** Subscriber PIN, for TheTVDB keys that need one. */
@@ -1102,6 +1114,8 @@ export interface ServiceTest {
 export interface ServiceTestResult {
   ok: boolean;
   message: string;
+  /** The service answered and refused the key or account, rather than not being reached. */
+  refused: boolean;
   /** How long the answer took. */
   ms: number;
 }
@@ -1249,6 +1263,8 @@ export interface NetworkSettings extends ListenChoice {
   adapters: NetworkAdapter[];
   /** Bonjour's host name when none is chosen (`pley-` and the server id's start). */
   bonjour_host_default: string;
+  /** In a container on a network of Docker's own, which the apps' search and Bonjour don't reach (a guess). */
+  container_network: boolean;
   /** Where a change is saved. */
   config_file: string;
   /** Windows Firewall decides which kinds of network reach pley. */
@@ -1327,6 +1343,9 @@ export interface FsListing {
   path: string | null;
   parent: string | null;
   entries: FsEntry[];
+  /** With the roots only: whether Pley runs in a container, and the folders mounted into it. */
+  container?: boolean;
+  mounts?: string[];
 }
 
 export type LibrarySort =

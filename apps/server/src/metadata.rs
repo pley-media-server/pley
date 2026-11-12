@@ -825,9 +825,9 @@ impl MetadataAgent {
         Err(TmdbError::Other(anyhow::anyhow!("TMDB rate limit")))
     }
 
-    /// The country of `metadata_language` ("US" for "en-US"; "US" without one).
+    /// The server's country ([`crate::ratings::region_in`]).
     pub(crate) fn region(&self) -> String {
-        crate::ratings::region_of(&self.settings.get().metadata_language)
+        crate::ratings::region_in(&self.settings.get())
     }
 
     async fn find_by_imdb(&self, imdb: &str, tv: bool) -> Result<Option<i64>, TmdbError> {
@@ -1039,24 +1039,9 @@ impl MetadataAgent {
             let poster = self.artwork(season_poster.as_deref(), season.poster_path.as_deref(), "w780").await;
             let name = season
                 .name
+                .clone()
                 .filter(|n| !n.is_empty())
                 .unwrap_or_else(|| if number == 0 { "Specials".into() } else { format!("Season {number}") });
-            sqlx::query(
-                "UPDATE items SET title = ?, sort_title = ?, summary = ?, release_date = ?, year = ?, poster = COALESCE(?, poster),
-                    metadata_at = ?, updated_at = ? WHERE id = ?",
-            )
-            .bind(&name)
-            .bind(format!("{number:04}"))
-            .bind(season.overview.filter(|s| !s.is_empty()))
-            .bind(season.air_date.clone().filter(|d| !d.is_empty()))
-            .bind(season.air_date.as_deref().and_then(year_of))
-            .bind(poster)
-            .bind(now())
-            .bind(now())
-            .bind(season_id)
-            .execute(&self.db.write)
-            .await
-            .map_err(|e| TmdbError::Other(e.into()))?;
 
             #[allow(clippy::type_complexity)]
             let episodes: Vec<(i64, Option<i64>, String, Option<i64>, Option<String>)> = sqlx::query_as(
@@ -1069,11 +1054,35 @@ impl MetadataAgent {
             .map_err(|e| TmdbError::Other(e.into()))?;
             // Numbers the season's files have, which no other may take by its title.
             let taken: HashSet<i64> = episodes.iter().filter_map(|e| e.1).collect();
+            // The stills first, then the season and its episodes in one
+            // transaction: a commit each kept the database's one writer
+            // busy, and the rest of a new library's fetch waiting for it.
+            let mut found = Vec::new();
             for (episode_id, number, file_title, duration_ms, thumb) in episodes {
                 let item = SeasonItem { number, title: &file_title, duration_ms };
                 let Some(ep) = season_episode(&season.episodes, &item, &taken) else { continue };
-                let ep_number = ep.episode_number;
                 let still = self.artwork(thumb.as_deref(), ep.still_path.as_deref(), "w780").await;
+                found.push((episode_id, ep, still));
+            }
+            let mut tx = self.db.write.begin().await.map_err(|e| TmdbError::Other(e.into()))?;
+            sqlx::query(
+                "UPDATE items SET title = ?, sort_title = ?, summary = ?, release_date = ?, year = ?, poster = COALESCE(?, poster),
+                    metadata_at = ?, updated_at = ? WHERE id = ?",
+            )
+            .bind(&name)
+            .bind(format!("{number:04}"))
+            .bind(season.overview.clone().filter(|s| !s.is_empty()))
+            .bind(season.air_date.clone().filter(|d| !d.is_empty()))
+            .bind(season.air_date.as_deref().and_then(year_of))
+            .bind(poster)
+            .bind(now())
+            .bind(now())
+            .bind(season_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| TmdbError::Other(e.into()))?;
+            for (episode_id, ep, still) in found {
+                let ep_number = ep.episode_number;
                 let title = ep.name.clone().filter(|n| !n.is_empty()).unwrap_or_else(|| format!("Episode {ep_number}"));
                 sqlx::query(
                     "UPDATE items SET idx = ?, title = ?, sort_title = ?, summary = ?, release_date = ?, year = ?, rating = ?,
@@ -1090,13 +1099,14 @@ impl MetadataAgent {
                 .bind(now())
                 .bind(now())
                 .bind(episode_id)
-                .execute(&self.db.write)
+                .execute(&mut *tx)
                 .await
                 .map_err(|e| TmdbError::Other(e.into()))?;
-                people::replace(&self.db, episode_id, &people::episode_credits(&ep.guest_stars, &ep.crew))
+                people::replace_in(&mut tx, episode_id, &people::episode_credits(&ep.guest_stars, &ep.crew))
                     .await
                     .map_err(|e| TmdbError::Other(e.into()))?;
             }
+            tx.commit().await.map_err(|e| TmdbError::Other(e.into()))?;
         }
         Ok(())
     }

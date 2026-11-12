@@ -484,6 +484,49 @@ other apps (`pley_ct_…`), never with a session's
 - TMDB's pictures are fetched 8 at once, 10 MB each at most, and kept up
   to 256 MB in all.
 
+### Moving from Plex
+
+- Only administrators import, and none of the import's routes are open to
+  apps.
+- The Plex token, from Plex's own sign-in page or pasted, is kept in
+  memory only: never saved, logged or sent to the browser, and forgotten
+  when the import ends, however it ends, or the server stops. Home users' tokens
+  are made from it as the import needs them, and kept no longer. Plex
+  PINs given for Home users are sent to plex.tv only.
+- Pley reads Plex's answers 8 MB at most each, follows no redirects, and
+  sends tokens in headers, never in addresses. Home users' pictures are
+  the one exception to redirects: asked for without a token, followed by
+  hand three times at most and only to plex.tv, assets.plex.tv and
+  secure.gravatar.com over HTTPS, taken only as an image, and squared to
+  Pley's size as an uploaded picture is. It connects only to the
+  server's addresses plex.tv lists, or one the administrator types, never
+  to a link-local address (neither one typed in nor one a name resolves
+  to), and checks that the server answering is the one chosen. It falls
+  back to plain HTTP only for the server's addresses on the home network,
+  never one across the internet.
+- A Home user's profile is made with Plex's restrictions in the same
+  step, so it's never open to everything while the import runs, or if it
+  stops. A restriction Pley can't keep is made stricter, never dropped.
+  A new profile opens a library already in Pley only when it holds no
+  more than the Plex libraries shared with them: every one brought to it,
+  and folders within theirs.
+  A profile with labels it never sees doesn't see the libraries a run
+  brings until the run finishes, since Plex's labels reach Pley's titles
+  later in it: the run marks each of them (`labels_pending`) before it
+  brings anything, a library it makes as it's made, and only a run that
+  finishes clears the marks, so one that stops or a restart leaves them
+  hidden until an administrator shows them. Profiles' own library choices
+  aren't touched, and the profile can sign in meanwhile, so apps stay
+  signed in. One that gets its first such label in this run has its new
+  rules only once the run reaches its profile.
+  Titles the import can't find on Plex don't get Plex's labels, and the
+  report says so for the profiles that rely on them.
+- What Plex sends is checked as any input: labels and label rules as
+  Settings checks them, at most 50 rules of each kind on a profile, and
+  the import's choices bounded (libraries, folders, people, PINs).
+- Profiles the import makes are managed profiles with no password, as
+  those made in Settings; Plex's PINs aren't copied to them.
+
 ### The desktop app
 
 - Its window shows the server's own pages only; other sites open in the
