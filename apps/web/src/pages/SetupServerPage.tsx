@@ -105,11 +105,13 @@ function ServerForm({
   // Each row shows what Pley will use; Change opens its field in place.
   const [open, setOpen] = useState<ReadonlySet<RowKey>>(new Set());
   const openRow = (row: RowKey) => setOpen((rows) => new Set(rows).add(row));
-  const [refused, setRefused] = useState(false);
+  // Why the key typed couldn't be used: TMDB refused it, or wasn't reached.
+  const [keyProblem, setKeyProblem] = useState<"refused" | "unchecked" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const go = async (withoutKey: boolean) => {
+  /** `without`: the key typed is left out; `unchecked`: saved without a check. */
+  const go = async (tmdb: "check" | "without" | "unchecked") => {
     setError(null);
     const trimmed = name.trim();
     if (!trimmed) {
@@ -120,10 +122,10 @@ function ServerForm({
     const newKey = key !== "" && key !== settings.tmdb_api_key;
     setBusy(true);
     try {
-      if (newKey && !withoutKey) {
-        const result = await test.mutateAsync({ service: "tmdb", api_key: key }).catch(() => ({ ok: false }));
+      if (newKey && tmdb === "check") {
+        const result = await test.mutateAsync({ service: "tmdb", api_key: key }).catch(() => ({ ok: false, refused: false }));
         if (!result.ok) {
-          setRefused(true);
+          setKeyProblem(result.refused ? "refused" : "unchecked");
           openRow("tmdb");
           return;
         }
@@ -133,7 +135,7 @@ function ServerForm({
         language,
         metadata_language: metadataLanguage,
         country,
-        tmdb_api_key: withoutKey ? settings.tmdb_api_key : key,
+        tmdb_api_key: tmdb === "without" ? settings.tmdb_api_key : key,
       });
       if (askBonjour && network && bonjour !== network.bonjour) await saveNetwork.mutateAsync({ ...choiceOf(network), bonjour });
       void navigate("/setup/start");
@@ -146,7 +148,7 @@ function ServerForm({
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    void go(false);
+    void go("check");
   };
 
   const hasKey = tmdbKey.trim() !== "";
@@ -216,7 +218,7 @@ function ServerForm({
             action={hasKey ? undefined : t("setupServer.addKey")}
             open={open.has("tmdb")}
             onOpen={() => openRow("tmdb")}
-            error={refused ? t("setupServer.keyRefused") : null}
+            error={keyProblem === "refused" ? t("setupServer.keyRefused") : keyProblem === "unchecked" ? t("setupServer.keyUnchecked") : null}
             hint={<Trans t={t} i18nKey="setupServer.tmdbHint" components={{ a: <Link href="https://www.themoviedb.org/settings/api" /> }} />}
           >
             <SecretInput
@@ -225,7 +227,7 @@ function ServerForm({
               value={tmdbKey}
               onChange={(v) => {
                 setTmdbKey(v);
-                setRefused(false);
+                setKeyProblem(null);
               }}
             />
           </Row>
@@ -252,9 +254,13 @@ function ServerForm({
         ) : null}
         {/* The account is made: there's no way back from here. */}
         <SetupActions>
-          {refused ? (
-            <Button type="button" variant="ghost" disabled={busy} onClick={() => void go(true)}>
+          {keyProblem === "refused" ? (
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void go("without")}>
               {t("setupServer.withoutKey")}
+            </Button>
+          ) : keyProblem === "unchecked" ? (
+            <Button type="button" variant="ghost" disabled={busy} onClick={() => void go("unchecked")}>
+              {t("setupServer.keepUnchecked")}
             </Button>
           ) : null}
           <Button type="submit" variant="primary" loading={busy}>

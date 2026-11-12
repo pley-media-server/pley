@@ -170,6 +170,9 @@ pub struct TestRequest {
 pub struct TestResult {
     ok: bool,
     message: String,
+    /// The service answered and refused the key (or account), rather than
+    /// not being reached.
+    refused: bool,
     /// How long the answer took.
     ms: u64,
 }
@@ -193,7 +196,7 @@ pub async fn test_service(
     let key = req.api_key.as_deref().unwrap_or(saved).trim().to_owned();
     let pin = req.pin.as_deref().unwrap_or(&settings.tvdb_pin).trim().to_owned();
     let name = req.service.name();
-    let fail = |message: String, ms: u64| Json(TestResult { ok: false, message, ms });
+    let fail = |message: String, ms: u64| Json(TestResult { ok: false, message, refused: false, ms });
     if matches!(req.service, Service::Tmdb | Service::Tvdb) && key.is_empty() {
         return fail(format!("Enter a {name} API key first."), 0);
     }
@@ -223,6 +226,7 @@ pub async fn test_service(
     match outcome {
         Ok(Ok(detail)) => Json(TestResult {
             ok: true,
+            refused: false,
             message: match (req.service, detail) {
                 (Service::Tmdb, _) => "TMDB accepted the key.".into(),
                 (Service::Tvdb, _) if !pin.is_empty() => "TheTVDB accepted the key and PIN.".into(),
@@ -232,8 +236,10 @@ pub async fn test_service(
             },
             ms,
         }),
-        Ok(Err(ProviderError::Unauthorized(_))) => fail(
-            match req.service {
+        Ok(Err(ProviderError::Unauthorized(_))) => Json(TestResult {
+            ok: false,
+            refused: true,
+            message: match req.service {
                 Service::Tvdb if pin.is_empty() => {
                     "TheTVDB rejected this key. A user-supported key also needs your subscriber PIN.".into()
                 }
@@ -243,7 +249,7 @@ pub async fn test_service(
                 ),
             },
             ms,
-        ),
+        }),
         Ok(Err(ProviderError::NotFound)) => fail(format!("{name} answered, but not as expected (HTTP 404)."), ms),
         Ok(Err(ProviderError::Other(err))) => fail(format!("Couldn't reach {}: {err:#}", object(name)), ms),
         Err(_) => fail(format!("{name} didn't answer within {} seconds.", TEST_TIMEOUT.as_secs()), ms),
@@ -263,14 +269,20 @@ async fn test_opensubtitles(state: &AppState, req: &TestRequest) -> TestResult {
         None => String::new(),
     };
     if key.is_empty() {
-        return TestResult { ok: false, message: "Enter an OpenSubtitles API key first.".into(), ms: 0 };
+        return TestResult {
+            ok: false,
+            message: "Enter an OpenSubtitles API key first.".into(),
+            refused: false,
+            ms: 0,
+        };
     }
     if !username.is_empty() && password.is_empty() {
-        return TestResult { ok: false, message: "Enter the account's password too.".into(), ms: 0 };
+        return TestResult { ok: false, message: "Enter the account's password too.".into(), refused: false, ms: 0 };
     }
     let started = Instant::now();
     let outcome = tokio::time::timeout(TEST_TIMEOUT, state.opensubtitles.check(&key, &username, &password)).await;
     let ms = started.elapsed().as_millis() as u64;
+    let refused = matches!(outcome, Ok(Err(SearchError::Rejected(_))));
     let (ok, message) = match outcome {
         Ok(Ok(message)) => (true, message),
         Ok(Err(SearchError::Rejected(what))) => (false, format!("OpenSubtitles rejected {what}.")),
@@ -278,7 +290,7 @@ async fn test_opensubtitles(state: &AppState, req: &TestRequest) -> TestResult {
         Ok(Err(err)) => (false, format!("{err}.")),
         Err(_) => (false, format!("OpenSubtitles didn't answer within {} seconds.", TEST_TIMEOUT.as_secs())),
     };
-    TestResult { ok, message, ms }
+    TestResult { ok, message, refused, ms }
 }
 
 /// "The transcoder" in the middle of a sentence.

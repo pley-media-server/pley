@@ -1101,6 +1101,8 @@ export interface ServiceTest {
 export interface ServiceTestResult {
   ok: boolean;
   message: string;
+  /** The service answered and refused the key or account, rather than not being reached. */
+  refused: boolean;
   /** How long the answer took. */
   ms: number;
 }

@@ -61,6 +61,8 @@
     "tmdbHint": "Avec une clé, les séries viennent aussi de TMDB, dans la langue des titres et résumés. <a>Obtenir une clé API gratuite</a>",
     "keyRefused": "TMDB n’a pas accepté cette clé. Vérifiez-la, ou continuez sans.",
     "withoutKey": "Continuer sans la clé",
+    "keyUnchecked": "Pley n’a pas pu joindre TMDB pour vérifier cette clé. Gardez-la sans vérification, ou réessayez.",
+    "keepUnchecked": "Garder la clé sans la vérifier",
     "appleDevices": "Appareils Apple",
     "findIt": "Trouvent ce serveur d’eux-mêmes",
     "needAddress": "Ont besoin de son adresse",

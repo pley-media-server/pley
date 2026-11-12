@@ -61,6 +61,8 @@
     "tmdbHint": "With a key, TV shows come from TMDB too, in the language of titles and summaries. <a>Get a free API key</a>",
     "keyRefused": "TMDB didn't take this key. Check it, or continue without it.",
     "withoutKey": "Continue without the key",
+    "keyUnchecked": "Pley couldn't reach TMDB to check this key. Keep it unchecked, or try again.",
+    "keepUnchecked": "Keep the key unchecked",
     "appleDevices": "Apple devices",
     "findIt": "Find this server by themselves",
     "needAddress": "Need its address",

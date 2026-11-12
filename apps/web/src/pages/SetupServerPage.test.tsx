@@ -51,7 +51,7 @@ function renderStep({
     "GET /api/settings": () => settings,
     "GET /api/network": () => network,
     "GET /api/ratings/systems": () => SYSTEMS,
-    "POST /api/settings/test": () => tmdb ?? { ok: true, message: "TMDB answered", ms: 40 },
+    "POST /api/settings/test": () => tmdb ?? { ok: true, message: "TMDB answered", refused: false, ms: 40 },
     "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
     "PUT /api/network": (req) => ({ ...network, ...(req.body as object) }),
   });
@@ -161,7 +161,7 @@ describe("SetupServerPage", () => {
 
   it("says when TMDB refuses the key, and goes on without it when asked", async () => {
     const user = userEvent.setup();
-    const requests = renderStep({ tmdb: { ok: false, message: "Invalid API key", ms: 0 } });
+    const requests = renderStep({ tmdb: { ok: false, message: "Invalid API key", refused: true, ms: 0 } });
     await user.click(await screen.findByRole("button", { name: "Change: Movie details" }));
     await user.type(screen.getByLabelText("Movie details"), "nope");
     await user.click(screen.getByRole("button", { name: "Continue" }));
@@ -171,6 +171,20 @@ describe("SetupServerPage", () => {
     await user.click(screen.getByRole("button", { name: "Continue without the key" }));
     expect(await screen.findByTestId("location")).toHaveTextContent("/setup/start");
     expect(puts(requests, "/api/settings")[0]?.body).toMatchObject({ tmdb_api_key: "" });
+  });
+
+  it("keeps a key TMDB couldn't be reached to check when asked", async () => {
+    const user = userEvent.setup();
+    const requests = renderStep({ tmdb: { ok: false, message: "Couldn't reach TMDB", refused: false, ms: 0 } });
+    await user.click(await screen.findByRole("button", { name: "Change: Movie details" }));
+    await user.type(screen.getByLabelText("Movie details"), "abc123");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Pley couldn't reach TMDB to check this key. Keep it unchecked, or try again.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Continue without the key" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Keep the key unchecked" }));
+    expect(await screen.findByTestId("location")).toHaveTextContent("/setup/start");
+    expect(puts(requests, "/api/settings")[0]?.body).toMatchObject({ tmdb_api_key: "abc123" });
   });
 
   it("saves a key TMDB takes", async () => {

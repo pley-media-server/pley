@@ -4265,7 +4265,7 @@ interface LiveTuner {                  // a connection in use
 | GET | `/api/transcoder` | `admin` | `TranscoderStatus`: the transcoder's live metrics (all jobs, counters) |
 | GET | `/api/settings` | `admin` | `Settings` (never with `opensubtitles_password`, `radarr_api_key` or `sonarr_api_key`) |
 | PUT | `/api/settings` | `admin` | partial `Settings` → `Settings` |
-| POST | `/api/settings/test` | `admin` | `{ service, api_key?, pin?, username?, password? }` → `{ ok, message, ms }` |
+| POST | `/api/settings/test` | `admin` | `{ service, api_key?, pin?, username?, password? }` → `{ ok, message, refused, ms }` |
 | POST | `/api/settings/arr` | `admin` | `{ service: "radarr" \| "sonarr", url?, api_key? }` → `ArrOptions`: what Radarr or Sonarr offers requests |
 | POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives, with `container`, whether Pley runs in one, and `mounts`, the folders mounted into it, which are among the roots). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
@@ -4313,7 +4313,8 @@ interface LiveTuner {                  // a connection in use
   key and PIN given (not saved), else the saved ones. OpenSubtitles: its
   key, or with a `username`, a sign-in of that account (`password` left
   out: the saved one, for the saved username). `message` says what
-  happened, for people.
+  happened, for people; `refused` is `true` when the service answered and
+  refused the key or account, `false` when it wasn't reached.
 - **`settings/arr`** asks Radarr or Sonarr at `url` with `api_key` (not
   saved), else the saved ones, for what [requests](#requests) can be sent
   with. The saved key goes only to the saved address: a new `url` needs its

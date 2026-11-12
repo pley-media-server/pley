@@ -278,7 +278,7 @@ describe("ServerSettings", () => {
       "GET /api/settings": () => ({ ...SETTINGS, opensubtitles_api_key: "key", opensubtitles_username: "ana", opensubtitles_password_set: true }),
       "GET /api/system": () => ({}),
       "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>), opensubtitles_password: undefined, opensubtitles_password_set: true }),
-      "POST /api/settings/test": (): ServiceTestResult => ({ ok: true, message: "OpenSubtitles accepted the key and signed the account in.", ms: 240 }),
+      "POST /api/settings/test": (): ServiceTestResult => ({ ok: true, message: "OpenSubtitles accepted the key and signed the account in.", refused: false, ms: 240 }),
     });
     renderWithProviders(<ServerSettings />);
     const password = await screen.findByLabelText("OpenSubtitles password");
@@ -320,8 +320,8 @@ describe("TestButton", () => {
     const requests = mockApi({
       "POST /api/settings/test": ({ body }): ServiceTestResult =>
         (body as { api_key: string }).api_key === "good"
-          ? { ok: true, message: "TMDB accepted the key.", ms: 182 }
-          : { ok: false, message: "TMDB rejected this key.", ms: 95 },
+          ? { ok: true, message: "TMDB accepted the key.", refused: false, ms: 182 }
+          : { ok: false, message: "TMDB rejected this key.", refused: true, ms: 95 },
     });
     const { rerender } = renderWithProviders(<TestButton label="Test the TMDB key" test={{ service: "tmdb", api_key: "good" }} />);
 
