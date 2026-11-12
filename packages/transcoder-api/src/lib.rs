@@ -743,6 +743,12 @@ pub struct Capabilities {
     /// tone map it by its Dolby Vision metadata, whatever is asked.
     #[serde(default)]
     pub dolby_vision_fel: bool,
+    /// FFmpeg can rebuild Dolby Vision profile 7's full picture from its
+    /// base layer, its full enhancement layer and their metadata, as a
+    /// Dolby Vision player does (Pley's FFmpeg). Experimental: what
+    /// [`TranscodeOptions::dolby_vision_fel_full`] turns on.
+    #[serde(default)]
+    pub dolby_vision_fel_full: bool,
     /// The version of the seek previews this transcoder makes
     /// ([`TrickplayInfo::version`]). Older transcoders lack it (0).
     #[serde(default)]
@@ -1207,6 +1213,12 @@ pub struct TranscodeOptions {
     /// enhancement layer ([`Capabilities::dolby_vision_fel`]).
     #[serde(default)]
     pub dolby_vision_fel: DolbyVisionFel,
+    /// Experimental: Dolby Vision profile 7 with a full enhancement layer
+    /// is transcoded from the full picture both layers make, where the
+    /// transcoder can ([`Capabilities::dolby_vision_fel_full`]), rather
+    /// than as [`TranscodeOptions::dolby_vision_fel`] says.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dolby_vision_fel_full: bool,
 }
 
 impl Default for TranscodeOptions {
@@ -1219,6 +1231,7 @@ impl Default for TranscodeOptions {
             throttle: true,
             in_memory: true,
             dolby_vision_fel: DolbyVisionFel::BaseLayer,
+            dolby_vision_fel_full: false,
         }
     }
 }

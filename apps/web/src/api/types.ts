@@ -1019,6 +1019,11 @@ export interface Settings {
    * metadata. Absent from servers before it.
    */
   dolby_vision_fel?: DolbyVisionFel;
+  /**
+   * Experimental: that layer is used, the full picture rebuilt from both,
+   * where the transcoder's FFmpeg can. Absent from servers before it.
+   */
+  dolby_vision_fel_full?: boolean;
   scan_interval_minutes: number;
   watch_libraries: boolean;
   detect_markers: boolean;
@@ -1143,6 +1148,8 @@ export interface TranscoderInfo {
   throttling: boolean;
   /** Transcodes do what the `dolby_vision_fel` setting asks. Absent from servers before it. */
   dolby_vision_fel?: boolean;
+  /** The transcoder's FFmpeg can rebuild Dolby Vision FEL's full picture. Absent from servers before it. */
+  dolby_vision_fel_full?: boolean;
   /** Whether segments can be kept in memory, and how much; `null` while the transcoder is unavailable. */
   memory?: TranscoderMemory | null;
   max_jobs: number;

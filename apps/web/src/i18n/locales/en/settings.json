@@ -190,6 +190,10 @@
       "felBaseLayerNote": "Tone mapped as HDR10: the right picture for every title, and it stays on the GPU with Quick Sync.",
       "felMetadataNote": "Tone mapped scene by scene from the Dolby Vision metadata. Right for most titles; too dark or too bright for those whose enhancement layer holds part of the brightness.",
       "felOlderTranscoder": "This transcoder is too old to choose: it always uses the Dolby Vision metadata.",
+      "felFull": "Use the full enhancement layer",
+      "felFullHint": "Rebuilds the whole Dolby Vision picture from both layers, as a Dolby Vision player does, instead of using the base layer alone. Slower: it runs on the CPU.",
+      "felFullUnavailable": "Needs Pley's own FFmpeg, which can read the enhancement layer.",
+      "experimental": "Experimental",
       "builds": {
         "windows": "<gyan>gyan.dev's full build</gyan> or <jellyfin>jellyfin-ffmpeg</jellyfin>",
         "macos": "Homebrew's ffmpeg-full",

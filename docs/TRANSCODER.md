@@ -223,6 +223,7 @@ before using what it names:
 | `live` | `/v1/live` works |
 | `fmp4_segments` | jobs make fMP4 segments when `segment_format` asks for them, except jobs without video ([fMP4 segments](#fmp4-segments)) |
 | `dolby_vision_fel` | transcodes do what `TranscodeOptions.dolby_vision_fel` asks ([Profile 7's full enhancement layer](#profile-7s-full-enhancement-layer)) |
+| `dolby_vision_fel_full` | FFmpeg can rebuild profile 7's full picture from both layers (Pley's FFmpeg; [Profile 7's full enhancement layer](#profile-7s-full-enhancement-layer)) |
 | `trickplay_version` | the version of the seek previews it makes (`TrickplayInfo.version`); `0` from older transcoders |
 | `trickplay_runs` | how many seek-preview sets it makes at once; `0` from older transcoders, which make one at a time and give a set up after an hour of running |
 
@@ -428,6 +429,7 @@ variants, segment_format}`. See [How HLS jobs work](#how-hls-jobs-work).
 | `throttle` | on | hold FFmpeg to real time after a burst ([Throttling](#throttling)) |
 | `in_memory` | on | keep segments in memory when possible ([Segments in memory](#segments-in-memory)) |
 | `dolby_vision_fel` | `base_layer` | what a transcode makes of Dolby Vision profile 7 with a full enhancement layer: `base_layer` or `metadata` ([Profile 7's full enhancement layer](#profile-7s-full-enhancement-layer)) |
+| `dolby_vision_fel_full` | off | experimental: profile 7 with a full enhancement layer is transcoded from the full picture both layers make, where FFmpeg can (`dolby_vision_fel_full`) |
 
 Playlists and segments:
 
@@ -991,6 +993,12 @@ libplacebo tone maps or converts it:
 - Thumbnails and seek previews aren't concerned either: libplacebo reads
   the metadata for them.
 - Capability `dolby_vision_fel`. A transcoder without it does `metadata`.
+- **Experimental: the full layer.** With `dolby_vision_fel_full` asked for,
+  and an FFmpeg that can (capability `dolby_vision_fel_full`, Pley's own
+  FFmpeg), the full picture is rebuilt from the base layer, the enhancement
+  layer and their metadata, as a Dolby Vision player does, on the CPU, and
+  then transcoded as HDR10. Elsewhere it is ignored and `dolby_vision_fel`
+  applies.
 
 #### libplacebo quality
 

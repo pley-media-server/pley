@@ -544,6 +544,9 @@ pub struct TranscoderSummary {
     /// Transcodes do what the `dolby_vision_fel` setting asks (an older
     /// transcoder tone maps by the Dolby Vision metadata whatever it says).
     dolby_vision_fel: bool,
+    /// The transcoder's FFmpeg can rebuild Dolby Vision FEL's full picture
+    /// (the experimental `dolby_vision_fel_full` setting).
+    dolby_vision_fel_full: bool,
     /// Whether segments can be kept in memory, and how much (`null` while
     /// the transcoder is unavailable, or from one too old to say).
     memory: Option<pley_transcoder_api::MemoryInfo>,
@@ -618,6 +621,7 @@ pub async fn system(State(state): State<AppState>, _admin: AdminUser) -> ApiResu
         chromaprint: info.as_ref().is_some_and(|i| i.capabilities.chromaprint),
         throttling: info.as_ref().is_some_and(|i| i.capabilities.readrate),
         dolby_vision_fel: info.as_ref().is_some_and(|i| i.capabilities.dolby_vision_fel),
+        dolby_vision_fel_full: info.as_ref().is_some_and(|i| i.capabilities.dolby_vision_fel_full),
         memory: info.as_ref().map(|i| {
             i.memory.clone().unwrap_or_else(|| pley_transcoder_api::MemoryInfo {
                 reason: crate::settings::memory_problem(Some(i)),

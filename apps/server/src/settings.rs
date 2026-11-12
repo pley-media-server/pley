@@ -89,6 +89,9 @@ pub struct Settings {
     /// enhancement layer (FEL): its HDR10 base layer alone, or that with
     /// its Dolby Vision metadata ([`DolbyVisionFel`]).
     pub dolby_vision_fel: DolbyVisionFel,
+    /// Experimental: that layer is used, the full picture rebuilt from
+    /// both, where the transcoder's FFmpeg can (Pley's own).
+    pub dolby_vision_fel_full: bool,
     pub scan_interval_minutes: u32,
     pub watch_libraries: bool,
     /// Find intros and credits (Skip Intro / Skip Credits) in the background.
@@ -229,6 +232,7 @@ impl Default for Settings {
             throttle_transcodes: true,
             transcode_in_memory: true,
             dolby_vision_fel: DolbyVisionFel::BaseLayer,
+            dolby_vision_fel_full: false,
             scan_interval_minutes: 360,
             watch_libraries: true,
             detect_markers: true,
@@ -349,6 +353,7 @@ impl Settings {
             throttle: self.throttle_transcodes,
             in_memory: self.transcode_in_memory,
             dolby_vision_fel: self.dolby_vision_fel,
+            dolby_vision_fel_full: self.dolby_vision_fel_full,
         }
     }
 }
@@ -604,6 +609,7 @@ pub struct SettingsPatch {
     pub throttle_transcodes: Option<bool>,
     pub transcode_in_memory: Option<bool>,
     pub dolby_vision_fel: Option<DolbyVisionFel>,
+    pub dolby_vision_fel_full: Option<bool>,
     pub scan_interval_minutes: Option<u32>,
     pub watch_libraries: Option<bool>,
     pub detect_markers: Option<bool>,
@@ -762,6 +768,9 @@ impl SettingsStore {
         }
         if let Some(v) = patch.dolby_vision_fel {
             next.dolby_vision_fel = v;
+        }
+        if let Some(v) = patch.dolby_vision_fel_full {
+            next.dolby_vision_fel_full = v;
         }
         if let Some(v) = patch.scan_interval_minutes {
             next.scan_interval_minutes = v.min(7 * 24 * 60);
@@ -1246,6 +1255,12 @@ mod tests {
         let patch: SettingsPatch = serde_json::from_str(r#"{"dolby_vision_fel":"metadata"}"#).unwrap();
         assert_eq!(patch.dolby_vision_fel, Some(DolbyVisionFel::Metadata));
         assert!(serde_json::from_str::<SettingsPatch>(r#"{"dolby_vision_fel":"enhanced"}"#).is_err());
+        // The full layer, experimental: off unless turned on, and passed on to every job.
+        assert!(!before.dolby_vision_fel_full && !Settings::default().transcode_options().dolby_vision_fel_full);
+        let full = Settings { dolby_vision_fel_full: true, ..Settings::default() };
+        assert!(full.transcode_options().dolby_vision_fel_full);
+        let patch: SettingsPatch = serde_json::from_str(r#"{"dolby_vision_fel_full":true}"#).unwrap();
+        assert_eq!(patch.dolby_vision_fel_full, Some(true));
     }
 
     #[test]

@@ -4430,6 +4430,9 @@ interface Settings {
                                     // layer (FEL), which no FFmpeg reads: from its HDR10 base layer alone
                                     // (default), or that tone mapped by the Dolby Vision metadata's
                                     // brightness (TRANSCODER.md)
+  dolby_vision_fel_full: boolean;   // experimental: that layer is used, the full picture rebuilt from both
+                                    // layers, where the transcoder's FFmpeg can (`transcoder.dolby_vision_fel_full`);
+                                    // default false
   scan_interval_minutes: number;    // 0 disables periodic scans
   watch_libraries: boolean;         // pick up file changes automatically
   detect_markers: boolean;          // find intros and credits in the background (default true)
@@ -4535,6 +4538,7 @@ interface SystemInfo {
     chromaprint: boolean;           // audio fingerprints find intros and credits; without, only chapters
     throttling: boolean;            // FFmpeg can throttle transcodes (6.1 and newer)
     dolby_vision_fel: boolean;      // transcodes do what the `dolby_vision_fel` setting asks
+    dolby_vision_fel_full: boolean; // FFmpeg can rebuild Dolby Vision FEL's full picture (`dolby_vision_fel_full`)
     memory: { available: boolean; reason?: string; path?: string; budget_bytes: number } | null;
                                     // segments can be kept in RAM (`transcode_in_memory`), and at most how
                                     // much; reason: why not ("works on Linux only"); null while unavailable

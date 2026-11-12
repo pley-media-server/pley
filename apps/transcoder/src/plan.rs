@@ -300,6 +300,12 @@ pub struct VideoOut {
     /// every choice of decoder and tone mapper, and libplacebo leaves its
     /// Dolby Vision metadata unread.
     pub base_layer_only: bool,
+    /// Experimental: Dolby Vision profile 7's full picture, rebuilt from its
+    /// base layer and its full enhancement layer by FFmpeg's `dovi_compose`
+    /// ([`TranscodeOptions::dolby_vision_fel_full`]), the file opened a second
+    /// time for that layer ([`Plan::fel_input`]). Decoded on the CPU, and
+    /// HDR10 after it.
+    pub fel_compose: bool,
     /// FFmpeg uploads the frames to the AMD GPU for AMF ([`AMF_D3D11_DEVICE`]),
     /// which copies them from memory itself several times slower.
     pub amf_upload: bool,
@@ -636,6 +642,7 @@ impl Plan {
                         libplacebo_asked: false,
                         qsv_base_layer: false,
                         base_layer_only: false,
+                        fel_compose: false,
                         amf_upload: false,
                         vui_primaries: None,
                         hw_decode: None,
@@ -671,10 +678,15 @@ impl Plan {
                     // default), the video is HDR10 to every choice below,
                     // its Dolby Vision metadata left unread. That metadata's
                     // brightness is of the picture with the layer.
-                    let fel_base = range == DynamicRange::DolbyVision
+                    let fel = range == DynamicRange::DolbyVision
                         && src.dv_profile == Some(7)
-                        && src.dv_el == Some(DolbyVisionLayer::Fel)
-                        && req.options.dolby_vision_fel == DolbyVisionFel::BaseLayer;
+                        && src.dv_el == Some(DolbyVisionLayer::Fel);
+                    // Experimental: the full picture rebuilt from both layers,
+                    // where FFmpeg can (Pley's own). `dovi_compose` takes
+                    // frames from memory, so the CPU decodes both layers.
+                    let fel_compose = fel && req.options.dolby_vision_fel_full && ff.caps.dolby_vision_fel_full;
+                    let fel_base = fel && (fel_compose || req.options.dolby_vision_fel == DolbyVisionFel::BaseLayer);
+                    let hardware_decoding = req.options.hardware_decoding && !fel_compose;
                     let tonemap = match hdr {
                         // libplacebo converts between HDR formats; nothing
                         // is needed for frames in the output's already.
@@ -725,7 +737,7 @@ impl Plan {
                         && src.bit_depth.unwrap_or(8) <= 8
                         && burn.as_ref().is_some_and(|b| !matches!(b, Burn::Text { .. }));
                     // Turned frames stay in memory, where FFmpeg turns them.
-                    let pipeline = if !req.options.hardware_decoding || deinterlace || turned {
+                    let pipeline = if !hardware_decoding || deinterlace || turned {
                         Pipeline::Software
                     } else if tonemap == Some(Tonemapper::Libplacebo) && vulkan_decode.contains(&key) {
                         // Encoding on Vulkan too only when asked for: browsers
@@ -791,7 +803,7 @@ impl Plan {
                         && pipeline == Pipeline::Software
                         && hdr.is_none()
                         && src.has_hdr10_base()
-                        && req.options.hardware_decoding
+                        && hardware_decoding
                         && qsv_decodes(encoder.accel)
                         && !deinterlace
                         && !turned;
@@ -799,8 +811,8 @@ impl Plan {
                         Pipeline::Vulkan { .. } => Some("vulkan".to_owned()),
                         Pipeline::D3d11 { .. } => Some("d3d11va".to_owned()),
                         Pipeline::Gpu(accel) => Some(gpu_decoder_name(accel).to_owned()),
-                        Pipeline::Software if req.options.hardware_decoding && qsv_first => Some("qsv".to_owned()),
-                        Pipeline::Software if req.options.hardware_decoding => pick_hw_decoder(ff, &encoder),
+                        Pipeline::Software if hardware_decoding && qsv_first => Some("qsv".to_owned()),
+                        Pipeline::Software if hardware_decoding => pick_hw_decoder(ff, &encoder),
                         Pipeline::Software => None,
                     };
                     // Frames that come to memory are scaled by the GPU that
@@ -845,6 +857,7 @@ impl Plan {
                         libplacebo_asked: req.options.tonemap == TonemapMode::Libplacebo,
                         qsv_base_layer,
                         base_layer_only: fel_base,
+                        fel_compose,
                         amf_upload,
                         // BT.709 out of every tone mapper; the source's otherwise.
                         vui_primaries: (ff.caps.h264_metadata
@@ -1109,6 +1122,12 @@ impl Plan {
                         || (v.gpu_scale == Some(HwAccel::Qsv)
                             && (src.dynamic_range() == DynamicRange::Hdr10 || v.base_layer_only)))
             })
+    }
+
+    /// The input the full enhancement layer comes from: after the picture
+    /// subtitles' file where there is one.
+    fn fel_input(&self) -> usize {
+        if matches!(self.burn, Some(Burn::ImageFile { .. })) { 2 } else { 1 }
     }
 
     /// Whether Quick Sync could decode this video's HDR10 base layer in
@@ -1511,6 +1530,17 @@ impl Plan {
             a.push("-i");
             a.push_os(input_arg(path));
         }
+        // Dolby Vision's full enhancement layer: the file again, its video
+        // split down to that layer, seeking where the first input does.
+        if let Some(v) = self.video.as_ref().filter(|v| v.fel_compose && !v.copy) {
+            if seek_ms > 0 {
+                a.push_all(["-ss", &secs(seek_ms)]);
+            }
+            a.push_all([format!("-bsf:{}", v.stream_index).as_str(), "dovi_split=mode=el"]);
+            a.push_all(MEDIA_INPUT_OPTIONS);
+            a.push("-i");
+            a.push_os(input_arg(ctx.input));
+        }
 
         if seek_ms > 0 {
             a.push_all(["-output_ts_offset", &secs(seek_ms)]);
@@ -1592,7 +1622,13 @@ impl Plan {
         start_ms: i64,
         shader_cache: Option<&Path>,
     ) -> String {
-        let input = format!("[0:{}]", v.stream_index);
+        // With the full enhancement layer, the picture both layers make.
+        let input = if v.fel_compose {
+            let si = v.stream_index;
+            format!("[0:{si}][{}:{si}]dovi_compose[fel];[fel]", self.fel_input())
+        } else {
+            format!("[0:{}]", v.stream_index)
+        };
         let (w, h) = (v.width, v.height);
         // The pixel format the encoder gets (from the CPU, or downloaded).
         let ten_bit = v.hdr.map(|_| ten_bit_format(encoder.map_or(HwAccel::None, |e| e.accel)));
@@ -3321,6 +3357,55 @@ mod tests {
             let plan = Plan::build(&request(), &bare, &ff, None).unwrap();
             assert!(!plan.quick_sync_could_tonemap(&bare, true), "{metadata:?}");
         }
+    }
+
+    /// Experimental: with the full layer asked for and an FFmpeg that has
+    /// `dovi_compose`, the file is opened again for the enhancement layer and
+    /// the full picture rebuilt on the CPU, then tone mapped as HDR10.
+    #[test]
+    fn profile_7s_full_enhancement_layer_is_composed_where_ffmpeg_can() {
+        let mut ff = intel(HwAccel::Qsv, true);
+        ff.caps.qsv_tonemap = true;
+        let mut fel = ten_bit(media(DynamicRange::DolbyVision, Some(7)));
+        fel.streams[0].dv_bl_compat = Some(6);
+        fel.streams[0].dv_el = Some(DolbyVisionLayer::Fel);
+        fel.streams[0].hdr10_metadata = Some(true);
+        let mut req = request();
+        req.options.dolby_vision_fel_full = true;
+
+        // Not without the filter: the base layer, as before.
+        let plan = Plan::build(&req, &fel, &ff, None).unwrap();
+        assert!(!plan.video.as_ref().unwrap().fel_compose);
+        assert!(!args_string(&plan, 0, 2).contains("dovi_split"));
+
+        ff.caps.dolby_vision_fel_full = true;
+        let plan = Plan::build(&req, &fel, &ff, None).unwrap();
+        let v = plan.video.as_ref().unwrap();
+        assert!(v.fel_compose && v.base_layer_only);
+        assert_eq!((v.pipeline, v.hw_decode.as_deref(), v.gpu_scale), (Pipeline::Software, None, None));
+        let args = args_string(&plan, 2, 4);
+        // Both inputs seek to the same place.
+        assert!(args.contains(" -bsf:0 dovi_split=mode=el -format_whitelist"), "{args}");
+        assert_eq!(args.matches("-i file:/media/movie.mkv").count(), 2, "{args}");
+        assert_eq!(args.matches("-ss ").count(), 2, "{args}");
+        assert!(args.contains("[0:0][1:0]dovi_compose[fel];[fel]libplacebo=w=1920:h=1080"), "{args}");
+        assert!(args.contains(":apply_dolbyvision=0"), "{args}");
+        // Never handed to Quick Sync's tone mapping: its frames are in memory.
+        assert!(!plan.quick_sync_could_tonemap(&fel, true));
+
+        // After a picture subtitles' file, the third input.
+        let mut burned = req.clone();
+        burned.subtitle =
+            Some(SubtitleBurnRequest { stream_index: None, external_path: Some("/media/movie.sup".into()) });
+        let args = args_string(&Plan::build(&burned, &fel, &ff, None).unwrap(), 0, 2);
+        assert!(args.contains("[0:0][2:0]dovi_compose[fel];[fel]"), "{args}");
+
+        // Not asked for, or a minimal layer: as before.
+        let plan = Plan::build(&request(), &fel, &ff, None).unwrap();
+        assert!(!plan.video.as_ref().unwrap().fel_compose);
+        let mut mel = fel.clone();
+        mel.streams[0].dv_el = Some(DolbyVisionLayer::Mel);
+        assert!(!Plan::build(&req, &mel, &ff, None).unwrap().video.as_ref().unwrap().fel_compose);
     }
 
     /// Dolby Vision profile 7 with a full enhancement layer is made from its

@@ -191,6 +191,10 @@
       "felBaseLayerNote": "Mapeo de tonos como HDR10: la imagen correcta para todos los títulos, y se queda en la GPU con Quick Sync.",
       "felMetadataNote": "Mapeo de tonos escena por escena según los metadatos de Dolby Vision. Correcto para la mayoría de los títulos; demasiado oscuro o demasiado claro en aquellos cuya capa de mejora lleva parte del brillo.",
       "felOlderTranscoder": "Este transcodificador es demasiado antiguo para elegir: siempre usa los metadatos de Dolby Vision.",
+      "felFull": "Usar la capa de mejora completa",
+      "felFullHint": "Reconstruye toda la imagen Dolby Vision a partir de ambas capas, como un reproductor Dolby Vision, en lugar de usar solo la capa base. Más lento: se calcula en el procesador.",
+      "felFullUnavailable": "Necesita el FFmpeg propio de Pley, que sabe leer la capa de mejora.",
+      "experimental": "Experimental",
       "builds": {
         "windows": "<gyan>la versión completa de gyan.dev</gyan> o <jellyfin>jellyfin-ffmpeg</jellyfin>",
         "macos": "ffmpeg-full de Homebrew",

@@ -518,6 +518,7 @@ mod tests {
             libplacebo_asked: false,
             qsv_base_layer: false,
             base_layer_only: false,
+            fel_compose: false,
             amf_upload: false,
             vui_primaries: None,
             hw_decode: None,

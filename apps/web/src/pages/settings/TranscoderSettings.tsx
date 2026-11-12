@@ -6,7 +6,7 @@ import { useSaveTranscodeDir, useSystemInfo } from "@/api/hooks";
 import type { DolbyVisionFel, HwAccel, Settings, ToneMapping, TranscodeDir, TranscodePreset } from "@/api/types";
 import { FolderPicker } from "@/components/FolderPicker";
 import { useToast } from "@/components/Toast";
-import { Button, Select, TextInput, Toggle } from "@/components/ui";
+import { Badge, Button, Select, TextInput, Toggle } from "@/components/ui";
 import { formatBytes } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { Group, Link, Note, Row, SettingsForm, TestButton, useSettingsForm } from "./SettingsForm";
@@ -34,6 +34,7 @@ const KEYS = [
   "hardware_decoding",
   "tonemapping",
   "dolby_vision_fel",
+  "dolby_vision_fel_full",
   "transcode_preset",
   "transcode_video",
   "max_video_transcodes",
@@ -178,6 +179,8 @@ export function TranscoderSettings() {
         const fel = form.dolby_vision_fel ?? "base_layer";
         // A transcoder from before the choice tone maps by the metadata, whatever is saved.
         const felTooOld = tc?.available === true && tc.dolby_vision_fel === false;
+        // Only FFmpeg builds that can rebuild the full picture offer it (Pley's own).
+        const felFullAvailable = tc?.available === true && tc.dolby_vision_fel_full === true;
         const memoryBudget = tc?.memory?.available ? tc.memory.budget_bytes : 0;
 
         return (
@@ -313,6 +316,23 @@ export function TranscoderSettings() {
                 ) : (
                   <Note>{t(fel === "metadata" ? "transcoder.video.felMetadataNote" : "transcoder.video.felBaseLayerNote")}</Note>
                 )}
+              </Row>
+              <Row
+                label={
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    {t("transcoder.video.felFull")}
+                    <Badge tone="warning">{t("transcoder.video.experimental")}</Badge>
+                  </span>
+                }
+                hint={t("transcoder.video.felFullHint")}
+              >
+                <Toggle
+                  checked={(form.dolby_vision_fel_full ?? false) && felFullAvailable}
+                  disabled={!felFullAvailable}
+                  onChange={(v) => set("dolby_vision_fel_full", v)}
+                  label={t("transcoder.video.felFull")}
+                />
+                {!felFullAvailable ? <Note>{t("transcoder.video.felFullUnavailable")}</Note> : null}
               </Row>
             </Group>
 

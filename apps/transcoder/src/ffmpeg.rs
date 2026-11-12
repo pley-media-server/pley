@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 23;
+const DETECTION_REVISION: u32 = 24;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -783,6 +783,8 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.gpu_pipelines = gpu.pipelines;
     caps.qsv_tonemap = gpu.qsv_tonemap;
     caps.qsv_overlay = gpu.qsv_overlay;
+    // Pley's FFmpeg rebuilds Dolby Vision FEL's full picture (experimental).
+    caps.dolby_vision_fel_full = filter_names.contains("dovi_compose");
     if libplacebo && libplacebo_on_gpu {
         caps.tonemap_speed = measure_tonemap_speed(ffmpeg).await;
     }

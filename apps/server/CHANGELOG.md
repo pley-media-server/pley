@@ -13,7 +13,8 @@ describes how they are made.
 
 - Settings → Transcoder has a Dolby Vision FEL choice: profile 7 with a full
   enhancement layer is transcoded from its HDR10 base layer, or with its
-  Dolby Vision brightness.
+  Dolby Vision brightness. An experimental toggle uses the full enhancement
+  layer itself, where the transcoder has Pley's own FFmpeg.
 
 ### Changed
 
