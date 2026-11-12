@@ -214,6 +214,32 @@ const OPENCL_HABLE: &str = "tonemap=hable:desat=0";
 /// modes; the grade clips 2 %).
 const OPENCL_BT2390: &str = "tonemap=bt2390:tonemap_mode=max:desat=0";
 
+/// OpenCL's tone mapping of Dolby Vision at `w×h` by its own metadata
+/// (`apply_dovi`, the filter's default), between FFmpeg's decoder on
+/// Direct3D 11 and Quick Sync's encoder
+/// ([`Capabilities::qsv_opencl_dovi`]): the frames are mapped to Quick
+/// Sync, scaled there in 10 bits, mapped to OpenCL, tone mapped to NV12 and
+/// mapped back, never copied. `on_gpu` into Quick Sync's encoder; else
+/// copied to memory once tone mapped, for subtitles to burn in or a
+/// software encoder standing in.
+///
+/// FFmpeg's own decoder brings the frames: Quick Sync's passes none of the
+/// metadata on, and profile 5 has no picture without it. Its scaler makes
+/// every frame anew (`passthrough=0`), one kept at its size too: OpenCL
+/// takes the frames of the scaler's own pool.
+///
+/// The filter tone maps by the brightness the metadata gives each scene,
+/// from a process's second frame on: its first goes by the title's peak,
+/// and can come out darker than the same frame made mid-process (12 % on a
+/// test clip). Every other frame is the same whichever process makes it.
+pub fn qsv_opencl_dovi(w: i64, h: i64, on_gpu: bool) -> String {
+    let end = if on_gpu { "hwmap=derive_device=qsv:mode=write:reverse=1,format=qsv" } else { "hwdownload,format=nv12" };
+    format!(
+        "hwmap=derive_device=qsv,vpp_qsv=w={w}:h={h}:format=p010le:passthrough=0,hwmap=derive_device=opencl:mode=read,\
+         tonemap_opencl={OPENCL_BT2390}:t=bt709:m=bt709:p=bt709:r=tv:format=nv12,{end}"
+    )
+}
+
 /// The last filter before a VAAPI encoder, which takes frames in VAAPI's
 /// memory only. A plain `hwupload` uploads to the filters' device, which a
 /// tone mapper makes Vulkan's or OpenCL's: it uploads to VAAPI's device
@@ -1890,6 +1916,27 @@ pub const QSV_D3D11_DEVICES: [&str; 12] = [
     "qs",
     "-hwaccel_output_format",
     "qsv",
+];
+
+/// The devices where OpenCL tone maps Dolby Vision ([`qsv_opencl_dovi`]):
+/// Quick Sync's and OpenCL's both made from the Direct3D 11 one on Intel's
+/// GPU, so that frames map between the three, and FFmpeg's own decoder on
+/// that one, its frames kept there.
+pub const QSV_OPENCL_DEVICES: [&str; 14] = [
+    "-init_hw_device",
+    "d3d11va=dx:,vendor_id=0x8086",
+    "-init_hw_device",
+    "qsv=qs@dx",
+    "-init_hw_device",
+    "opencl=ocl@dx",
+    "-filter_hw_device",
+    "qs",
+    "-hwaccel",
+    "d3d11va",
+    "-hwaccel_device",
+    "dx",
+    "-hwaccel_output_format",
+    "d3d11",
 ];
 
 /// Whether Quick Sync's device is made from VAAPI's (Linux) rather than

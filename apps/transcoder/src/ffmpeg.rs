@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 25;
+const DETECTION_REVISION: u32 = 26;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -207,6 +207,9 @@ fn gpu_summary(caps: &Capabilities) -> String {
     if caps.amf_upload {
         parts.push("AMF fed from the GPU".to_owned());
     }
+    if caps.qsv_opencl_dovi {
+        parts.push("Dolby Vision on OpenCL".to_owned());
+    }
     parts.iter().map(|p| format!(", {p}")).collect()
 }
 
@@ -324,6 +327,10 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, l
 }
 
 const HDR_TAGS: &str = "setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc";
+
+/// Frames without colour properties, as Dolby Vision profile 5's come:
+/// what tone maps them goes by their metadata, or fails.
+const UNTAGGED: &str = "setparams=color_trc=unknown:color_primaries=unknown:colorspace=unknown";
 
 /// The tone mappers' start-up tests, on HDR-tagged frames.
 fn libplacebo_test_graph() -> String {
@@ -787,6 +794,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.gpu_pipelines = gpu.pipelines;
     caps.qsv_tonemap = gpu.qsv_tonemap;
     caps.qsv_overlay = gpu.qsv_overlay;
+    caps.qsv_opencl_dovi = gpu.qsv_opencl_dovi;
     // Pley's FFmpeg rebuilds Dolby Vision FEL's full picture (experimental).
     caps.dolby_vision_fel_full = filter_names.contains("dovi_compose");
     if libplacebo && libplacebo_on_gpu {
@@ -807,6 +815,7 @@ struct GpuDetection {
     pipelines: Vec<GpuPipeline>,
     qsv_tonemap: bool,
     qsv_overlay: bool,
+    qsv_opencl_dovi: bool,
 }
 
 /// x265's options for the 10-bit test clip: a 1000-nit P3 mastering display
@@ -1133,6 +1142,26 @@ async fn detect_gpu_pipelines(
         );
         run_test(args).await
     };
+    // Dolby Vision tone mapped by OpenCL between FFmpeg's decoder on
+    // Direct3D 11 and Quick Sync's encoder, the frames mapped all the way
+    // (Windows; see `plan::qsv_opencl_dovi`). Its clip carries a profile 5
+    // RPU on every frame, and its frames come untagged, as profile 5's do:
+    // OpenCL's tone mapper refuses such frames without the metadata, so the
+    // test passes only where it arrives. FFmpeg's own builds aren't tried:
+    // their tone mapper has no BT.2390 and reads no Dolby Vision, and they
+    // map no 10-bit Quick Sync frames to OpenCL.
+    let qsv_opencl_dovi_test = async {
+        let Some((_, clip)) = clips.iter().find(|(k, _)| *k == "hevc10") else { return false };
+        if !(cfg!(windows) && qsv_h264 && caps.opencl_bt2390 && hwaccel("d3d11va")) {
+            return false;
+        }
+        let Some(clip) = dolby_vision_clip(ffmpeg, clip, &dir).await else { return false };
+        let mut args = base("error", &crate::plan::QSV_OPENCL_DEVICES, &clip);
+        let vf = format!("{UNTAGGED},{}", crate::plan::qsv_opencl_dovi(160, 120, true));
+        args.extend(["-vf".to_string(), vf]);
+        args.extend(["-c:v", "h264_qsv", "-f", "null", "-"].map(String::from));
+        run_test(args).await
+    };
     let (
         vulkan_results,
         vaapi_vulkan_results,
@@ -1141,6 +1170,7 @@ async fn detect_gpu_pipelines(
         main10_results,
         qsv_tonemap,
         qsv_overlay,
+        qsv_opencl_dovi,
     ) = tokio::join!(
         vulkan_tests,
         vaapi_vulkan_tests,
@@ -1148,7 +1178,8 @@ async fn detect_gpu_pipelines(
         pipeline_tests,
         main10_tests,
         qsv_tonemap_test,
-        qsv_overlay_test
+        qsv_overlay_test,
+        qsv_opencl_dovi_test
     );
     let _ = std::fs::remove_dir_all(&dir);
 
@@ -1173,7 +1204,24 @@ async fn detect_gpu_pipelines(
             .collect(),
         qsv_tonemap,
         qsv_overlay,
+        qsv_opencl_dovi,
     }
+}
+
+/// `clip` (HEVC in Matroska) as a bare stream in `dir`, a Dolby Vision
+/// profile 5 RPU after each of its frames ([`crate::dovi::test_rpu`]):
+/// FFmpeg's encoders write RPUs only from metadata a decoder read, so a
+/// clip made from nothing gets its own. FFmpeg tells the profile from the
+/// RPUs where a stream has no Dolby Vision configuration.
+async fn dolby_vision_clip(ffmpeg: &Path, clip: &Path, dir: &Path) -> Option<PathBuf> {
+    let (plain, out) = (dir.join("plain.hevc"), dir.join("dolby-vision.hevc"));
+    let (from, to) = (clip.to_string_lossy(), plain.to_string_lossy());
+    let args = ["-hide_banner", "-nostdin", "-loglevel", "error", "-y", "-i", &from, "-c:v", "copy", "-f", "hevc", &to];
+    run(ffmpeg, &args, Duration::from_secs(30)).await.filter(|o| o.success)?;
+    let stream = tokio::fs::read(&plain).await.ok()?;
+    let rpu = crate::dovi::test_rpu().ok()?;
+    tokio::fs::write(&out, crate::dovi::with_rpus(&stream, &rpu)).await.ok()?;
+    Some(out)
 }
 
 /// The test clips HDR comes in: 10-bit HEVC and AV1 (10 bits from SVT-AV1).

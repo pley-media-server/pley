@@ -204,6 +204,7 @@ before using what it names:
 | `vulkan_encode` | `h264_vulkan` encodes libplacebo's output on the GPU |
 | `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept) |
 | `qsv_tonemap` | Quick Sync's scaler (VAAPI's `tonemap_vaapi` on Linux) tone maps HDR10 its decoder decoded into `h264_qsv` ([Sharing the GPU](#sharing-the-gpu)) |
+| `qsv_opencl_dovi` | OpenCL tone maps Dolby Vision by its metadata between FFmpeg's decoder on Direct3D 11 and `h264_qsv`, the frames mapped rather than copied (Windows, pley-ffmpeg and jellyfin-ffmpeg; [Sharing the GPU](#sharing-the-gpu)) |
 | `vaapi_tonemappers` | tone mappers whose frames reach a VAAPI encoder ([VAAPI encoders](#vaapi-encoders)) |
 | `vaapi_vulkan_decode` | `vulkan_decode` on the Vulkan device made from the VAAPI one |
 | `opencl_bt2390` | `tonemap_opencl` has BT.2390 (pley-ffmpeg, jellyfin-ffmpeg), and is given it ([Tone mapping](#tone-mapping)) |

@@ -651,6 +651,13 @@ pub struct Capabilities {
     /// Windows. A start-up test.
     #[serde(default)]
     pub qsv_overlay: bool,
+    /// OpenCL tone maps Dolby Vision by its own metadata between FFmpeg's
+    /// decoder on Direct3D 11 and Quick Sync's encoder, the frames never
+    /// copied (Windows, with Pley's FFmpeg or jellyfin-ffmpeg): where Dolby
+    /// Vision goes when libplacebo can't keep up. A start-up test, on a clip
+    /// that carries the metadata.
+    #[serde(default)]
+    pub qsv_opencl_dovi: bool,
     /// Tone mappers whose frames reach a VAAPI encoder (Linux): libplacebo
     /// on a Vulkan device and OpenCL on a device made from the VAAPI one,
     /// the frames uploaded back to it. A start-up test; zimg always does.
