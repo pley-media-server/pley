@@ -92,8 +92,18 @@ internal fun downloadDescription(entry: DownloadEntry?, title: String): String =
     null -> stringResource(R.string.downloads_download_item, title)
     DownloadState.Done -> stringResource(R.string.downloads_downloaded_item, title)
     DownloadState.Failed -> stringResource(R.string.downloads_failed_toast, entry.error?.asString().orEmpty())
-    else -> entry.converting?.let { stringResource(R.string.downloads_preparing_item, title, (it * 100).toInt()) }
-        ?: stringResource(R.string.downloads_downloading_item, title, (entry.fraction * 100).toInt())
+    // Waiting is not downloading at 0 %: what it waits for, as its label and menu say.
+    DownloadState.Waiting -> stringResource(
+        R.string.downloads_status_item,
+        title,
+        stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting),
+    )
+    DownloadState.Queued, DownloadState.Downloading -> entry.converting?.let { stringResource(R.string.downloads_preparing_item, title, (it * 100).toInt()) }
+        ?: if (entry.state == DownloadState.Queued) {
+            stringResource(R.string.downloads_status_item, title, stringResource(R.string.downloads_queued))
+        } else {
+            stringResource(R.string.downloads_downloading_item, title, (entry.fraction * 100).toInt())
+        }
 }
 
 /**

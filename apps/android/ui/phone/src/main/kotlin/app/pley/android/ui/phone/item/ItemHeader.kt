@@ -313,7 +313,7 @@ internal fun primaryLabel(primary: PrimaryAction): String {
 /**
  * The actions under Play (design spec §3.3): From start, Watched, My List,
  * Playlist, Download (a movie or an episode, where downloads are) and
- * Trailer, sharing the width (a quarter each at least), as in the mockup,
+ * Trailer, sharing the width (no more than a quarter each), as in the mockup,
  * their labels one size ([rememberActionFit]).
  */
 @Composable
@@ -346,8 +346,10 @@ private fun ActionRow(page: ItemPage, actions: PageActions) {
         if (downloadable) add(DownloadSlot)
         page.trailer?.let { trailer -> add(HeaderAction(PleyIcons.Film, stringResource(R.string.item_trailer)) { actions.play(trailer) }) }
     }
-    // Download makes room for its longest label, so the row stays as it is while one comes.
-    val labels = items.flatMap { slot -> if (slot is HeaderAction) listOf(slot.label) else downloadLabels() }
+    // Download is measured as "Download", so the row doesn't change while one comes; a longer
+    // label it shows later ("Downloaded") shrinks on its own in its slot rather than shrink the row.
+    val downloadLabel = stringResource(R.string.downloads_download)
+    val labels = items.map { slot -> if (slot is HeaderAction) slot.label else downloadLabel }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val fit = rememberActionFit(labels, constraints.maxWidth, items.size)
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -383,12 +385,13 @@ private fun ActionRow(page: ItemPage, actions: PageActions) {
 private class ActionFit(val columns: Int, val labelStyle: TextStyle)
 
 /**
- * The action row's columns and one label size for all of them: a quarter
- * of the width each at least, or a slot each when there are more, with
- * the labels as large as lets every one keep its words whole, down to
- * three quarters of the reader's text size. When even that doesn't fit
- * (the largest fonts, a small phone), fewer columns: the actions go on
- * two rows rather than shrink their labels away or break "Playlist" in two.
+ * The action row's columns and one label size for all of them: a slot
+ * each, no wider than a quarter of the row, with the labels as large as
+ * lets every one keep its words whole, down to 9 sp (about two thirds of
+ * labelMedium, and growing with the system's font size). When even that
+ * doesn't fit (the largest fonts, a small phone), fewer columns: the
+ * actions go on evened-out rows rather than shrink their labels away or
+ * break "Playlist" in two.
  */
 @Composable
 private fun rememberActionFit(labels: List<String>, width: Int, count: Int): ActionFit {

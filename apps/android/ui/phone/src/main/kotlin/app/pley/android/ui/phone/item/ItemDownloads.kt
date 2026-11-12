@@ -143,15 +143,3 @@ internal fun DownloadAction(itemId: Long, title: String, labelStyle: TextStyle, 
         )
     }
 }
-
-/** Every label [DownloadAction] can show, so its row makes room for the longest before it is needed. */
-@Composable
-internal fun downloadLabels(): List<String> = listOf(
-    stringResource(R.string.downloads_download),
-    stringResource(R.string.downloads_downloaded),
-    stringResource(R.string.downloads_failed_short),
-    stringResource(R.string.downloads_queued_short),
-    stringResource(R.string.downloads_preparing_short),
-    stringResource(R.string.downloads_waiting_short),
-    stringResource(R.string.downloads_percent, 100),
-)

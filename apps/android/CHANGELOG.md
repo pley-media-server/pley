@@ -16,6 +16,9 @@ describes how they are made.
   far it is or what it waits for.
 - The actions under Play share one label size. With the system's largest
   text they go on two or three rows instead of breaking words in two.
+- With the system's largest text, labels under icons and titles under
+  posters get smaller rather than break inside a word, and a hyphenated
+  word ("Bande-annonce") can go on two lines at its hyphen.
 
 ## [0.1.12] - 2026-11-12
 

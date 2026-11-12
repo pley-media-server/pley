@@ -228,6 +228,7 @@ class ItemPageTest {
     fun aWaitingDownloadsMenuSaysWhatItWaitsFor() {
         downloadsByItem.value = mapOf(1L to download(DownloadState.Waiting))
         show(movie(), withDownloads = true)
+        compose.onNodeWithContentDescription("Saltwind, Waiting for Wi-Fi").assertExists()
         compose.onNodeWithText("Waiting").performClick()
         compose.waitForIdle()
         compose.onNodeWithText("Waiting for Wi-Fi").assertExists()
@@ -261,5 +262,13 @@ class ItemPageTest {
         assertEquals(top("From start"), top("Watched"))
         assertTrue(top("Trailer") > top("Watched"))
         assertEquals(top("Download"), top("Trailer"))
+    }
+
+    @Test
+    @Config(qualifiers = "fr-w360dp-h780dp-xxhdpi")
+    fun fiveFrenchActionsShareOneRowOnASmallPhone() {
+        show(withTrailer(movie()), withDownloads = true)
+        // "Bande-annonce" goes on two lines at its hyphen rather than push the row onto two.
+        assertEquals(top("Vu"), top("Bande-annonce"))
     }
 }

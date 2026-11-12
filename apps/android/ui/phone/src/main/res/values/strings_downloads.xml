@@ -47,6 +47,8 @@
     <string name="downloads_download_item">Download %1$s</string>
     <string name="downloads_downloaded_item">%1$s is downloaded</string>
     <string name="downloads_downloading_item">%1$s is downloading, %2$d%%</string>
+    <!-- For screen readers while it waits: "Saltwind, Waiting for Wi-Fi". -->
+    <string name="downloads_status_item">%1$s, %2$s</string>
     <string name="downloads_failed_toast">Couldn\'t download: %1$s</string>
     <string name="downloads_started">Downloading. It\'s in Downloads, under Me.</string>
     <string name="downloads_started_action">Downloads</string>

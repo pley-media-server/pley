@@ -26,7 +26,8 @@ import androidx.compose.ui.unit.sp
  * unless one of its words is wider than the slot, then as much smaller as
  * that word needs, down to [MinSize] as drawn. With a large system font,
  * "Libraries" was "Librarie" over "s" and "The Glasshouse" "The Gla" over
- * "sshouse"; Android hyphenates neither. The floor is the drawn size, not
+ * "sshouse"; Android hyphenates neither. A line may end after a hyphen
+ * ([breakable]). The floor is the drawn size, not
  * sp: at 200 % a 9 sp floor draws about 18 dp, too big for "Playlist" in
  * a fifth of a small phone. Measured and drawn in one layout, so a
  * navigation bar can ask for its intrinsic size.
@@ -47,7 +48,7 @@ fun WholeWordsText(
     ) { _, constraints ->
         val fitted = fitted(measurer, text, style, constraints.maxWidth, this)
         val result = measurer.measure(
-            text,
+            breakable(text),
             fitted,
             overflow = TextOverflow.Ellipsis,
             maxLines = maxLines,
@@ -67,7 +68,7 @@ fun WholeWordsText(
  */
 private fun fitted(measurer: TextMeasurer, text: String, style: TextStyle, width: Int, density: Density): TextStyle {
     if (!style.fontSize.isSpecified || width <= 0 || width == Constraints.Infinity) return style
-    val words = text.split(' ', '\n', '\t').filter { it.isNotEmpty() }.sortedByDescending { it.length }.take(3)
+    val words = words(text).sortedByDescending { it.length }.take(3)
     val max = style.fontSize.value
     var size = max
     fun fits(s: Float) = words.all { measurer.measure(it, style.copy(fontSize = s.sp), maxLines = 1, softWrap = false).size.width <= width }
@@ -94,9 +95,9 @@ fun sharedFit(
     width: Int,
     minSize: TextUnit = MinSharedSize,
 ): TextStyle? {
-    if (!style.fontSize.isSpecified || width <= 0) return null
+    if (!style.fontSize.isSpecified || !minSize.isSpecified || width <= 0) return null
     val max = style.fontSize.value
-    val words = texts.flatMap { text -> text.split(' ', '\n', '\t').filter { it.isNotEmpty() } }.distinct()
+    val words = texts.flatMap(::words).distinct()
     fun at(s: Float) = if (s == max) style else style.copy(fontSize = s.sp, lineHeight = style.lineHeight.scaled(s / max))
     fun fits(s: Float): Boolean {
         val sized = at(s)
@@ -112,6 +113,16 @@ fun sharedFit(
 
 /** The smallest a shared size gets: 9 sp, the size [WholeWordsText] stopped at before its floor was drawn dp. */
 private val MinSharedSize = 9.sp
+
+/**
+ * [text] with a place to break after each hyphen: the layout here doesn't
+ * take one on its own ("Bande-annonc" over "e"), so "Bande-" over
+ * "annonce" needed a zero-width space. Screen readers get [text] as it is.
+ */
+private fun breakable(text: String) = text.replace("-", "-​")
+
+/** The pieces of [text] a line can't break inside. */
+private fun words(text: String) = breakable(text).split(' ', '\n', '\t', '​').filter { it.isNotEmpty() }
 
 private fun TextUnit.scaled(ratio: Float): TextUnit = if (isSpecified) (value * ratio).sp else this
 
