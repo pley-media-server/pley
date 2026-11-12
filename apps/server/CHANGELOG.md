@@ -47,10 +47,6 @@ describes how they are made.
   and uses much less CPU.
 - HDR passthrough in HEVC stays on Intel graphics from decode to encode,
   when Quick Sync passes a 10-bit check at startup.
-- HDR tone mapped to SDR is brighter. libplacebo now uses the BT.2390 curve
-  instead of its default, which made films about 20% darker, and brightens
-  the picture slightly first, which keeps more colour. New thumbnails and
-  seek previews match.
 - Intel graphics on Windows: when several HDR transcodes would fall behind,
   Quick Sync tone maps them instead of libplacebo, which is much lighter on
   the GPU. Two 4K HDR to 1080p transcodes at once went from about 1x to 2x

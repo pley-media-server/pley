@@ -932,15 +932,12 @@ available tone mapper:
   profile 5 picks it.
 - libplacebo tone maps by the stream's own metadata (`peak_detect=0`), so
   segments from different FFmpeg processes match at the seams. Thumbnails and
-  seek previews do the same. Its curve is BT.2390's (`tonemapping=bt.2390`):
-  libplacebo's default, a spline, made two HDR10 films about a fifth darker
-  in SDR, with nothing gained in colour. Made SDR, the picture is lifted
-  first (`brightness=0.03`): BT.2390 puts HDR's reference white at SDR's,
-  which looks dim on an SDR screen. Lifted, the two films scored higher on
-  TMQI (the tone mapping quality index) than mapping a lower white, with
-  more of their saturation and blacks as deep. FFmpeg's own `tonemap_opencl`
-  detects each frame's peak and can't be told not to, so its brightness can
-  jump between processes.
+  seek previews do the same. Its curve is libplacebo's default
+  (`tonemapping=auto`, a spline). Measured against a film's own SDR grade
+  (Sol Levante's), it came closer than BT.2390's curve, which made bright
+  scenes a third too bright and clipped 10 to 15 % of their pixels where the
+  grade clips 1 to 2 %. `tonemap_opencl`'s peak detection can't be turned
+  off, so its brightness can jump between processes.
 - On Windows with Intel graphics, HDR10 made SDR goes from Quick Sync's
   decoder to OpenCL's tone mapper and back to its H.264 encoder without
   leaving the GPU, where the FFmpeg build can map Quick Sync's 10-bit frames

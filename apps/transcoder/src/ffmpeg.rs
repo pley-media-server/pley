@@ -324,8 +324,7 @@ const HDR_TAGS: &str = "setparams=color_trc=smpte2084:color_primaries=bt2020:col
 /// The tone mappers' start-up tests, on HDR-tagged frames.
 fn libplacebo_test_graph() -> String {
     format!(
-        "{HDR_TAGS},libplacebo=w=160:h=120:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:{}:{}",
-        crate::plan::PLACEBO_CURVE,
+        "{HDR_TAGS},libplacebo=w=160:h=120:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:tonemapping=auto:{}",
         crate::plan::PLACEBO_STATIC_PEAK
     )
 }
@@ -438,8 +437,7 @@ const TONEMAP_MEASURE_BUDGET: Duration = Duration::from_secs(20);
 async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
     let time = |quality: TonemapQuality, frames: u32| async move {
         let vf = format!(
-            "{HDR_TAGS},libplacebo=w=3840:h=2160:format=nv12:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{}:{}{}",
-            crate::plan::PLACEBO_CURVE,
+            "{HDR_TAGS},libplacebo=w=3840:h=2160:format=nv12:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:{}{}",
             crate::plan::PLACEBO_STATIC_PEAK,
             crate::plan::placebo_quality_options(quality, (3840, 2160), (3840, 2160), true)
         );

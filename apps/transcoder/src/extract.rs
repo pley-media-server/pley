@@ -23,9 +23,7 @@ use crate::ffmpeg::Ffmpeg;
 use crate::matroska;
 use crate::metrics::Metrics;
 use crate::mks;
-use crate::plan::{
-    MAX_DURATION_MS, PLACEBO_CURVE, PLACEBO_SDR_LIFT, PLACEBO_STATIC_PEAK, TextSource, ZSCALE_TONEMAP, untagged_hdr_fix,
-};
+use crate::plan::{MAX_DURATION_MS, PLACEBO_STATIC_PEAK, TextSource, ZSCALE_TONEMAP, untagged_hdr_fix};
 use crate::probe::Prober;
 use crate::util::{MEDIA_INPUT_OPTIONS, file_key, input_arg, secs, touch, write_atomically};
 use crate::webvtt::{self, Event};
@@ -1786,7 +1784,7 @@ impl Picture {
             return Self {
                 init: &VULKAN_DEVICE,
                 vf: format!(
-                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}:{PLACEBO_SDR_LIFT}"
+                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:{PLACEBO_STATIC_PEAK}"
                 ),
                 tone_mapped: true,
             };
