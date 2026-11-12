@@ -284,7 +284,9 @@ impl Scanner {
 
     pub fn statuses(&self) -> Vec<ScanStatus> {
         let mut list: Vec<_> = self.status.lock().values().cloned().collect();
-        list.sort_by_key(|s| s.started_at);
+        // Seconds tie often, and the map has no order of its own: the
+        // library added first goes first, so the list doesn't reshuffle.
+        list.sort_by_key(|s| (s.started_at, s.library_id));
         list
     }
 
