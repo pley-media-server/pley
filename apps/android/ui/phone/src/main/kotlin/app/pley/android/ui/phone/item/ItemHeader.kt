@@ -3,6 +3,7 @@ package app.pley.android.ui.phone.item
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -37,7 +38,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -50,6 +53,7 @@ import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.text.asString
+import app.pley.android.designsystem.text.sharedFit
 import app.pley.android.designsystem.tile.QualityBadge
 import app.pley.android.designsystem.tile.TileStyle
 import app.pley.android.model.ItemKind
@@ -271,9 +275,8 @@ internal fun MetaLine(parts: List<MetaPart>, modifier: Modifier = Modifier) {
 
 /**
  * Play or Resume across the width, or "Unavailable", with Play on… beside
- * it while another device takes titles, and Download under it for a movie
- * or an episode; what is left of a title being watched is under the
- * metadata.
+ * it while another device takes titles; what is left of a title being
+ * watched is under the metadata.
  */
 @Composable
 private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) {
@@ -293,10 +296,6 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
         // Where the page's Play starts it, with the tracks picked here: a title being watched resumes there too.
         CastTarget.page(page.item, page.tracks)?.let { PlayOnButton(it, Modifier.padding(start = 8.dp)) }
     }
-    if (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode) {
-        Spacer(Modifier.height(8.dp))
-        DownloadButton(page.id, page.title, width)
-    }
 }
 
 /** "Resume", "Play S1 · E3", … */
@@ -313,14 +312,16 @@ internal fun primaryLabel(primary: PrimaryAction): String {
 
 /**
  * The actions under Play (design spec §3.3): From start, Watched, My List,
- * Playlist and Trailer, sharing the width (a quarter each at least), as in
- * the mockup.
+ * Playlist, Download (a movie or an episode, where downloads are) and
+ * Trailer, sharing the width (no more than a quarter each), as in the mockup,
+ * their labels one size ([rememberActionFit]).
  */
 @Composable
 private fun ActionRow(page: ItemPage, actions: PageActions) {
     val watchedLabel = stringResource(if (page.watched) R.string.item_mark_unwatched else R.string.item_mark_watched)
     val listLabel = stringResource(if (page.myList == true) R.string.item_in_my_list else R.string.item_not_in_my_list)
-    val items = buildList {
+    val downloadable = (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode) && LocalItemDownloads.current != null
+    val items = buildList<ActionSlot> {
         if (page.fromStart) add(HeaderAction(PleyIcons.RotateCcw, stringResource(R.string.item_from_start)) { actions.play(fromStart = true) })
         add(
             HeaderAction(
@@ -342,27 +343,81 @@ private fun ActionRow(page: ItemPage, actions: PageActions) {
             )
         }
         add(HeaderAction(PleyIcons.ListPlus, stringResource(R.string.item_playlist)) { actions.addToPlaylist(page.id) })
+        if (downloadable) add(DownloadSlot)
         page.trailer?.let { trailer -> add(HeaderAction(PleyIcons.Film, stringResource(R.string.item_trailer)) { actions.play(trailer) }) }
     }
-    Row(Modifier.fillMaxWidth()) {
-        items.forEach { action ->
-            Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                ActionButton(
-                    icon = action.icon,
-                    label = action.label,
-                    onClick = action.onClick,
-                    selected = action.selected,
-                    // The whole slot: a large font's label has the room before it shrinks.
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(action.state?.let { s -> Modifier.semantics { stateDescription = s } } ?: Modifier)
-                        .then(action.tag?.let { Modifier.testTag(it) } ?: Modifier),
-                )
+    // Download is measured as "Download", so the row doesn't change while one comes; a longer
+    // label it shows later ("Downloaded") shrinks on its own in its slot rather than shrink the row.
+    val downloadLabel = stringResource(R.string.downloads_download)
+    val labels = items.map { slot -> if (slot is HeaderAction) slot.label else downloadLabel }
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val fit = rememberActionFit(labels, constraints.maxWidth, items.size)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items.chunked(fit.columns).forEach { row ->
+                Row(Modifier.fillMaxWidth()) {
+                    row.forEach { slot ->
+                        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                            // The whole slot: a large font's label has the room before it shrinks.
+                            when (slot) {
+                                DownloadSlot -> DownloadAction(page.id, page.title, fit.labelStyle, Modifier.fillMaxWidth())
+                                is HeaderAction -> ActionButton(
+                                    icon = slot.icon,
+                                    label = slot.label,
+                                    onClick = slot.onClick,
+                                    selected = slot.selected,
+                                    labelStyle = fit.labelStyle,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .then(slot.state?.let { s -> Modifier.semantics { stateDescription = s } } ?: Modifier)
+                                        .then(slot.tag?.let { Modifier.testTag(it) } ?: Modifier),
+                                )
+                            }
+                        }
+                    }
+                    repeat(fit.columns - row.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
-        repeat((ACTION_SLOTS - items.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
     }
 }
+
+/** How the action row lays out: [columns] slots a row, every label in [labelStyle]. */
+private class ActionFit(val columns: Int, val labelStyle: TextStyle)
+
+/**
+ * The action row's columns and one label size for all of them: a slot
+ * each, no wider than a quarter of the row, with the labels as large as
+ * lets every one keep its words whole, down to 9 sp (about two thirds of
+ * labelMedium, and growing with the system's font size). When even that
+ * doesn't fit (the largest fonts, a small phone), fewer columns: the
+ * actions go on evened-out rows rather than shrink their labels away or
+ * break "Playlist" in two.
+ */
+@Composable
+private fun rememberActionFit(labels: List<String>, width: Int, count: Int): ActionFit {
+    val measurer = rememberTextMeasurer()
+    val base = MaterialTheme.typography.labelMedium
+    return remember(labels, width, count, base, measurer) {
+        val widest = maxOf(count, ACTION_SLOTS)
+        val fit = (widest downTo 1)
+            .filter { it == widest || it <= count }
+            .firstNotNullOfOrNull { columns -> sharedFit(measurer, labels, base, width / columns)?.let { ActionFit(columns, it) } }
+            ?: ActionFit(1, base)
+        if (fit.columns >= count) {
+            fit
+        } else {
+            // As many rows as it takes, evened out (three and three, not five and one): wider slots fit too.
+            val rows = (count + fit.columns - 1) / fit.columns
+            val columns = (count + rows - 1) / rows
+            ActionFit(columns, sharedFit(measurer, labels, base, width / columns) ?: fit.labelStyle)
+        }
+    }
+}
+
+/** A place in the action row: a [HeaderAction], or Download with its ring and menu. */
+private sealed interface ActionSlot
+
+private data object DownloadSlot : ActionSlot
 
 /** A button of the action row: [selected] tints it, [state] is what screen readers hear it is. */
 private class HeaderAction(
@@ -372,7 +427,7 @@ private class HeaderAction(
     val state: String? = null,
     val tag: String? = null,
     val onClick: () -> Unit,
-)
+) : ActionSlot
 
 /** The summary in four lines, "More" to read it all (Summary of shared.tsx). */
 @Composable

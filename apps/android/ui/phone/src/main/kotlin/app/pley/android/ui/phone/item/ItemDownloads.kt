@@ -1,17 +1,7 @@
 package app.pley.android.ui.phone.item
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -22,19 +12,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.TextStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.errorText
@@ -42,10 +26,6 @@ import app.pley.android.common.resolve
 import app.pley.android.data.DownloadEntry
 import app.pley.android.data.DownloadState
 import app.pley.android.data.Downloads
-import app.pley.android.designsystem.PleyColors
-import app.pley.android.designsystem.PleyShape
-import app.pley.android.designsystem.text.formatWords
-import app.pley.android.model.format.formatBytes
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.downloads.DownloadMessage
@@ -55,6 +35,7 @@ import app.pley.android.ui.phone.downloads.DownloadGlyph
 import app.pley.android.ui.phone.downloads.DownloadMenu
 import app.pley.android.ui.phone.downloads.downloadDescription
 import app.pley.android.ui.phone.downloads.rememberDownloadStarter
+import app.pley.android.ui.phone.kit.ActionButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 
@@ -120,14 +101,15 @@ internal fun rememberItemDownloads(): ItemDownloads? {
 }
 
 /**
- * Download under Play (design spec §3.3's secondary button, as streaming
- * apps put it): "Download", "Downloading · 45 %" over a bar filling the
- * button, "Waiting for Wi-Fi", "Downloaded" (its menu plays or deletes
- * it) or "Didn't download" (its menu says why, tries it again or deletes
- * it).
+ * Download among the actions under Play, beside Playlist: the arrow, a
+ * ring filling as it comes, a tick once it is here (its menu plays or
+ * deletes it) or a warning when it failed (its menu says why, tries it
+ * again or deletes it). Its label says the same in a word or two:
+ * "Queued", "Preparing", "45%", "Waiting" (its menu says for what),
+ * "Downloaded".
  */
 @Composable
-internal fun DownloadButton(itemId: Long, title: String, modifier: Modifier = Modifier) {
+internal fun DownloadAction(itemId: Long, title: String, labelStyle: TextStyle, modifier: Modifier = Modifier) {
     val downloads = LocalItemDownloads.current ?: return
     val entry = downloads.of(itemId)
     var menu by remember { mutableStateOf(false) }
@@ -135,34 +117,21 @@ internal fun DownloadButton(itemId: Long, title: String, modifier: Modifier = Mo
         null -> stringResource(R.string.downloads_download)
         DownloadState.Done -> stringResource(R.string.downloads_downloaded)
         DownloadState.Failed -> stringResource(R.string.downloads_failed_short)
-        DownloadState.Queued -> entry.converting?.let { stringResource(R.string.downloads_preparing, (it * 100).toInt()) }
-            ?: stringResource(R.string.downloads_queued)
-        DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
-        DownloadState.Downloading -> stringResource(R.string.downloads_progress, (entry.fraction * 100).toInt(), formatBytes(entry.sizeBytes, formatWords()))
+        DownloadState.Queued -> stringResource(if (entry.converting != null) R.string.downloads_preparing_short else R.string.downloads_queued_short)
+        DownloadState.Waiting -> stringResource(R.string.downloads_waiting_short)
+        DownloadState.Downloading -> stringResource(R.string.downloads_percent, (entry.fraction * 100).toInt())
     }
     val description = downloadDescription(entry, title)
-    val fraction = entry?.converting ?: if (entry?.state == DownloadState.Downloading) entry.fraction else 0f
     Box(modifier) {
-        Row(
-            Modifier
+        ActionButton(
+            label = label,
+            onClick = { if (entry == null) downloads.download(listOf(itemId)) else menu = true },
+            modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 48.dp)
-                .clip(PleyShape.Control)
-                .background(PleyColors.Surface3)
-                .drawBehind {
-                    if (fraction > 0f) drawRect(PleyColors.Accent.copy(alpha = 0.22f), size = Size(size.width * fraction, size.height))
-                }
-                .clickable(role = Role.Button) {
-                    if (entry == null) downloads.download(listOf(itemId)) else menu = true
-                }
-                .semantics(mergeDescendants = true) { contentDescription = description }
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+                .semantics { contentDescription = description },
+            labelStyle = labelStyle,
         ) {
-            DownloadGlyph(entry, size = 20.dp)
-            Spacer(Modifier.width(8.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            DownloadGlyph(entry)
         }
         DownloadMenu(
             entry,
