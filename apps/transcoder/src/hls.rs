@@ -406,6 +406,7 @@ mod tests {
             tonemap_input: None,
             libplacebo_asked: false,
             qsv_base_layer: false,
+            opencl_dovi: false,
             base_layer_only: false,
             fel_compose: false,
             opencl_bt2390: false,
