@@ -29,6 +29,9 @@ describes how they are made.
   only why it is off.
 - Dropdowns' carets stand in from their right edge instead of sitting
   against it, and a dropdown that can't be changed is greyed out.
+- Number fields in Settings (the transcode and request limits, ports, the
+  scan interval) and in a title's Edit are as wide as their numbers need,
+  no longer the whole column.
 
 ### Fixed
 

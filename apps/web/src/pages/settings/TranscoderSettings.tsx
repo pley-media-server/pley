@@ -311,7 +311,12 @@ export function TranscoderSettings() {
                   className="w-28"
                 />
               </Row>
-              <Row label={t("transcoder.load.max")} htmlFor="max-transcodes" hint={t("transcoder.load.maxHint")}>
+              <Row
+                // "total" stands out: it is what tells this limit from the one above it.
+                label={<Trans t={t} i18nKey="transcoder.load.max" components={{ total: <strong className="font-bold" /> }} />}
+                htmlFor="max-transcodes"
+                hint={t("transcoder.load.maxHint")}
+              >
                 <TextInput
                   id="max-transcodes"
                   type="number"

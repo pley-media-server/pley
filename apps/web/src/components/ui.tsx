@@ -92,11 +92,14 @@ export const TextInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
   { className, ...rest },
   ref,
 ) {
+  // A width asked for replaces the full one: with both classes, the stylesheet's order decides.
+  const asksWidth = /(^|\s)w-/.test(className ?? "");
   return (
     <input
       ref={ref}
       className={cn(
-        "h-10 w-full rounded-md border border-border bg-surface-2 px-3 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent focus:outline-none disabled:opacity-60",
+        "h-10 rounded-md border border-border bg-surface-2 px-3 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent focus:outline-none disabled:opacity-60",
+        !asksWidth && "w-full",
         className,
       )}
       {...rest}

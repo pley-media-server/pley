@@ -368,7 +368,11 @@ describe("TranscoderSettings on this server's hardware", () => {
     const total = screen.getByLabelText("Max simultaneous total transcodes");
     expect(video).toHaveValue(4);
     expect(total).toHaveValue(4);
-    expect(screen.getByText("How many of the total below can be full video transcodes.")).toBeInTheDocument();
+    expect(screen.getByText("How many of the transcodes can be full video transcodes.")).toBeInTheDocument();
+    // "total" stands out in its label, and the numbers are in fields no wider than they need.
+    expect(screen.getByText("total", { selector: "strong" })).toHaveClass("font-bold");
+    expect(total).toHaveClass("w-28");
+    expect(total).not.toHaveClass("w-full");
 
     // Never more video transcodes than streams in all: typed above the total, it stops there...
     fireEvent.change(video, { target: { value: "9" } });
