@@ -3034,6 +3034,11 @@ mod tests {
         let through_hls = PlaybackRequest { stream_only: true, ..req.clone() };
         let d = decide(&f, Some(&i), &i.streams, &through_hls);
         assert_eq!((d.method, d.video.unwrap().mode), (Method::Remux, VideoMode::Copy));
+        // A file never analysed is decided as when its original is asked
+        // for: as it is where the player opens it, and else not copied.
+        assert_eq!(decide(&f, None, &[], &req).method, Method::Direct);
+        let d = decide(&file("mkv", 20_000_000), None, &[], &req);
+        assert_eq!((d.method, d.video.unwrap().mode), (Method::Transcode, VideoMode::Transcode));
         // A limit alone leaves the file as it is.
         req.mode = PlaybackMode::Auto;
         assert_eq!(decide(&f, Some(&i), &i.streams, &req).method, Method::Direct);

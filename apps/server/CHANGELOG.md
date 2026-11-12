@@ -31,7 +31,7 @@ describes how they are made.
   against it, and a dropdown that can't be changed is greyed out.
 - Number fields in Settings (the transcode and request limits, ports, the
   scan interval) and in a title's Edit are as wide as their numbers need,
-  no longer the whole column.
+  no longer the whole column. So is the server's `.local` name.
 
 ### Fixed
 
