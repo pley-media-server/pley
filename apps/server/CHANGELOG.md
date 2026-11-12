@@ -11,6 +11,25 @@ describes how they are made.
 
 ### Added
 
+- Activity monitors such as Tracearr can connect through the
+  Jellyfin-compatible API with a token that sees everyone's activity, and
+  show what everyone is playing.
+- Setup asks for the server's name, languages, country, TMDB key and
+  whether Apple devices find it by Bonjour, then whether to bring over a
+  Plex server or start fresh with Movies, TV Shows and Music libraries.
+- Moving from Plex: setup and Settings → Libraries can import a Plex
+  server's libraries, its Home users as profiles with their restrictions
+  and the PINs typed for them, and each person's watch history, ratings,
+  labels, collections, playlists and matches (docs/MOVING_FROM_PLEX.md).
+- Home and Settings → Libraries show a Plex import step by step while it
+  runs, and its report once it ends.
+- Home shows administrators how far new libraries' first scans are.
+- Settings → Server has a Country, for age ratings, age limits and Coming
+  to cinemas.
+- Settings → Network says when Pley is on Docker's own network, where
+  devices can't find it, and how to fix that.
+- In a container with no media folder mounted, adding a library says how
+  to mount one.
 - Settings → Transcoder has a Dolby Vision FEL choice: profile 7 with a full
   enhancement layer is transcoded from its HDR10 base layer, or with its
   Dolby Vision brightness. An experimental toggle uses the full enhancement
@@ -18,6 +37,14 @@ describes how they are made.
 
 ### Changed
 
+- Settings → Server calls its languages Pley's language and Titles and
+  summaries, and names them instead of showing codes.
+- Seek previews, intro detection and fingerprinting wait until first
+  scans and Plex imports are done.
+- A video that has to be remuxed or converted starts sooner while a
+  library is being scanned.
+- Home and a library's page show a new library's titles as its files are
+  read.
 - Intel graphics: 4K HDR made SDR transcodes about twice as fast, on less of
   the CPU, and two at once each keep up better.
 - Intel graphics: HDR kept as HDR and burned-in picture subtitles stay on the

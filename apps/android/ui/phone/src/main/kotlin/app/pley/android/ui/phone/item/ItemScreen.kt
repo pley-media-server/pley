@@ -125,10 +125,18 @@ internal fun ItemScreen(itemId: Long) {
     }
 }
 
-/** The page, with its downloads (phones and tablets) for Download and the episodes' buttons. */
+/**
+ * The page, with its [downloads] (phones and tablets) for Download and the
+ * episodes' buttons: the app's own, or a test's.
+ */
 @Composable
-internal fun ItemPageContent(page: ItemPage, model: ItemViewModel, navigator: Navigator) {
-    CompositionLocalProvider(LocalItemDownloads provides rememberItemDownloads()) {
+internal fun ItemPageContent(
+    page: ItemPage,
+    model: ItemViewModel,
+    navigator: Navigator,
+    downloads: ItemDownloads? = rememberItemDownloads(),
+) {
+    CompositionLocalProvider(LocalItemDownloads provides downloads) {
         ItemPageBody(page, model, navigator)
     }
 }

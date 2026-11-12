@@ -15,6 +15,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
   episode for lack of a number.
   [deploy/docker/media](../deploy/docker/media/README.md) shows a layout.
 - Each profile can order its libraries, on every app.
+- Moving from Plex: its libraries, its Home users as profiles with their
+  restrictions, labels, dates added, and what everyone watched
+  ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)).
 
 ## Metadata
 

@@ -364,7 +364,8 @@ async fn shows_from_tvmaze_then_thetvdb() {
     let (status, body) =
         app.call(Method::PUT, "/api/settings", Some(&token), Some(json!({"tv_metadata": "tvdb"}))).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
-    let settings = json!({"tv_metadata": "tvdb", "tvdb_api_key": "test-key"});
+    // In the UK, with titles in US English: the ratings are the UK's.
+    let settings = json!({"tv_metadata": "tvdb", "tvdb_api_key": "test-key", "country": "GB"});
     let (status, body) = app.call(Method::PUT, "/api/settings", Some(&token), Some(settings)).await;
     assert_eq!(status, StatusCode::OK, "{body}");
     assert_eq!(body["tv_metadata"], "tvdb");
@@ -372,8 +373,8 @@ async fn shows_from_tvmaze_then_thetvdb() {
 
     let show = app.single_item(&token, lib).await;
     assert_eq!(show["summary"], "Mine.");
-    // TVmaze has no content ratings; TheTVDB does.
-    assert_eq!(show["content_rating"], "TV-14");
+    // TVmaze has no content ratings; TheTVDB does, the server's country's.
+    assert_eq!(show["content_rating"], "12");
     assert_eq!(names(&show["cast"])[0], ("Mara Quinn".to_owned(), "actor".to_owned(), Some("Nell Ward".to_owned())));
     assert_eq!(names(&show["crew"]), [("Owen Tregarthen".to_owned(), "creator".to_owned(), None)]);
     let seasons = app.children(&token, &show["id"]).await;

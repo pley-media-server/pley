@@ -20,10 +20,15 @@
 //! on only in the evening), it goes on whenever nothing plays. Where this
 //! hour and the next are rarely watched, not only quiet by that rule,
 //! seek previews go several files at once ([`Scheduler::wide`]).
+//!
+//! While a library is scanned for the first time, or a Plex import runs,
+//! library work waits altogether ([`LibraryHold`]): it would read the same
+//! disks and write the same database as the scan and the metadata fetch,
+//! and make the new libraries take much longer to fill in.
 
 use std::collections::HashSet;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI64, Ordering::Relaxed};
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering::Relaxed};
 use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
@@ -87,6 +92,57 @@ pub enum Wait {
     /// These hours aren't library work's: people watch then, or they are
     /// outside the hours set.
     Hours,
+    /// New libraries are being scanned for the first time, or imported.
+    Scanning,
+}
+
+/// Library work held back while new libraries fill in: a library's first
+/// scan and a Plex import each hold it until they end.
+#[derive(Debug, Default)]
+pub struct LibraryHold {
+    holders: AtomicUsize,
+    released: tokio::sync::Notify,
+}
+
+impl LibraryHold {
+    /// Holds library work until the guard is dropped.
+    pub fn take(self: &Arc<Self>) -> HoldGuard {
+        self.holders.fetch_add(1, Relaxed);
+        HoldGuard(self.clone())
+    }
+
+    pub fn held(&self) -> bool {
+        self.holders.load(Relaxed) > 0
+    }
+
+    /// Returns the next time library work is let go: not straight away
+    /// when nothing holds it (see [`Self::released`] for that).
+    pub async fn let_go(&self) {
+        self.released.notified().await;
+    }
+
+    /// Returns once nothing holds library work.
+    pub async fn released(&self) {
+        loop {
+            let released = self.released.notified();
+            if !self.held() {
+                return;
+            }
+            released.await;
+        }
+    }
+}
+
+/// Holds library work while it lives ([`LibraryHold::take`]).
+#[derive(Debug)]
+pub struct HoldGuard(Arc<LibraryHold>);
+
+impl Drop for HoldGuard {
+    fn drop(&mut self) {
+        if self.0.holders.fetch_sub(1, Relaxed) == 1 {
+            self.0.released.notify_waiters();
+        }
+    }
 }
 
 /// What [`decide`] goes by, from the settings.
@@ -370,19 +426,38 @@ pub struct Scheduler {
     offset: AtomicI64,
     /// What someone is likely to watch soon, and when it was looked up.
     soon: tokio::sync::Mutex<Option<(Instant, Arc<Soon>)>>,
+    hold: Arc<LibraryHold>,
 }
 
 impl Scheduler {
-    pub fn new(db: Db, settings: Arc<SettingsStore>, sessions: Arc<Sessions>, monitor: Arc<Monitor>) -> Arc<Self> {
+    pub fn new(
+        db: Db,
+        settings: Arc<SettingsStore>,
+        sessions: Arc<Sessions>,
+        monitor: Arc<Monitor>,
+        hold: Arc<LibraryHold>,
+    ) -> Arc<Self> {
         Arc::new(Self {
             db,
             settings,
             sessions,
             monitor,
+            hold,
             profile: Mutex::default(),
             offset: AtomicI64::new(0),
             soon: tokio::sync::Mutex::new(None),
         })
+    }
+
+    /// Holds library work until the guard is dropped (see [`LibraryHold`]).
+    pub fn hold(&self) -> HoldGuard {
+        self.hold.take()
+    }
+
+    /// Returns the next time held library work is let go, so that it
+    /// starts then rather than at its next look.
+    pub async fn let_go(&self) {
+        self.hold.let_go().await;
     }
 
     /// Learns until `stopping`: each minute, whether something plays; the
@@ -488,8 +563,12 @@ impl Scheduler {
         (quiet, looks)
     }
 
-    /// Whether library work of `class` may begin now (see [`decide`]).
+    /// Whether library work of `class` may begin now (see [`decide`]),
+    /// unless new libraries are filling in.
     pub fn turn(&self, class: Class) -> Result<(), Wait> {
+        if self.hold.held() {
+            return Err(Wait::Scanning);
+        }
         let (quiet, looks) = self.looks(now());
         decide(class, Rules::from(&*self.settings.get()), quiet.as_ref(), looks)
     }
@@ -550,7 +629,11 @@ impl Scheduler {
         let settings = self.settings.get();
         let rules = Rules::from(&*settings);
         let (quiet, looks) = self.looks(now);
-        let waiting = decide(Class::Later, rules, quiet.as_ref(), looks).err();
+        let waiting = if self.hold.held() {
+            Some(Wait::Scanning)
+        } else {
+            decide(Class::Later, rules, quiet.as_ref(), looks).err()
+        };
         let offset = self.offset.load(Relaxed);
         // The next hour whose work may begin, were nothing playing.
         let resumes_at = (waiting == Some(Wait::Hours))
@@ -591,6 +674,28 @@ mod tests {
     use super::*;
 
     const AUTO: Rules = Rules { mode: LibraryWork::Auto, from: 1, to: 7, max_cpu: 50 };
+
+    #[tokio::test]
+    async fn library_work_is_held_until_its_last_holder_lets_go() {
+        let hold = Arc::new(LibraryHold::default());
+        assert!(!hold.held());
+        let (scan, import) = (hold.take(), hold.take());
+        assert!(hold.held());
+
+        let released = tokio::spawn({
+            let hold = hold.clone();
+            async move { hold.released().await }
+        });
+        drop(scan);
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert!(hold.held() && !released.is_finished());
+
+        drop(import);
+        tokio::time::timeout(Duration::from_secs(5), released).await.expect("released").unwrap();
+        assert!(!hold.held());
+        // Nothing holds it: it doesn't wait at all.
+        hold.released().await;
+    }
 
     fn looks(hour: usize) -> Looks {
         Looks { quiet_for: 3600, others_cpu: Some(5.0), hour, overdue: false }

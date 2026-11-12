@@ -36,6 +36,7 @@ on:
       - scripts/build-installer.ps1
       - scripts/build-spk.sh
       - scripts/check-licenses.ps1
+      - scripts/test-watchdog.ps1
       - scripts/commit.mjs
       - scripts/commit.d.mts
       - .github/workflows/server.yml
@@ -71,6 +72,7 @@ on:
       - scripts/build-installer.ps1
       - scripts/build-spk.sh
       - scripts/check-licenses.ps1
+      - scripts/test-watchdog.ps1
       - scripts/commit.mjs
       - scripts/commit.d.mts
       - .github/workflows/server.yml
@@ -164,7 +166,21 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - name: Test
+        if: runner.os != 'Windows'
         run: cargo test --workspace --locked
+      # Tests have frozen on Windows runners only (docs/RELEASING.md, CI).
+      - name: Test
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/test-watchdog.ps1 -Minutes 5 -Dumps test-dumps -- cargo test --workspace --locked
+      - name: Keep what a stuck test was doing
+        if: failure() && runner.os == 'Windows'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stuck-test-windows
+          path: test-dumps
+          if-no-files-found: ignore
+          retention-days: 7
 
   msrv:
     name: Rust 1.95 (minimum supported)

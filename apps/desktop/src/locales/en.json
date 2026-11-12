@@ -91,5 +91,25 @@
     "downloadGone": "This download is gone.",
     "notWhole": "This download isn't whole.",
     "other": "{{detail}}"
+  },
+  "notices": {
+    "quoted": "“{{title}}”",
+    "seasonList_one": "Season {{list}}",
+    "seasonList_other": "Seasons {{list}}",
+    "andSpecials": "{{seasons}} and specials",
+    "specials": "Specials",
+    "ready": "{{title}} is ready to watch.",
+    "seasonsReady_one": "{{seasons}} of {{title}} is ready to watch.",
+    "seasonsReady_other": "{{seasons}} of {{title}} are ready to watch.",
+    "specialsReady": "Specials of {{title}} are ready to watch.",
+    "approved": "{{title}} was approved.",
+    "declined": "{{title}} was declined.",
+    "declinedBecause": "{{title}} was declined: {{reason}}.",
+    "created": "{{name}} asked for {{title}}.",
+    "createdSeasons": "{{name}} asked for {{title}} ({{seasons}}).",
+    "notSent": "{{title}} couldn't be sent to {{service}}.",
+    "notSentBecause": "{{title}} couldn't be sent to {{service}}: {{reason}}",
+    "news_one": "{{count}} of your requests has news.",
+    "news_other": "{{count}} of your requests have news."
   }
 }

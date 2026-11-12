@@ -444,12 +444,14 @@ impl MarkerService {
                     Some(next) => next,
                     None => {
                         // Until something is queued, a season is watched, a
-                        // playback starts or ends, or a look again (the hours,
-                        // the processors).
+                        // playback starts or ends, new libraries are done
+                        // filling in, or a look again (the hours, the
+                        // processors).
                         tokio::select! {
                             () = self.more.notified() => {}
                             () = self.wake.notified() => {}
                             () = self.sessions.changed() => {}
+                            () = self.schedule.let_go() => {}
                             () = tokio::time::sleep(schedule::LOOK) => {}
                         }
                         continue;
@@ -780,13 +782,14 @@ impl MarkerService {
     /// Background work: playback has the machine to itself, except for the
     /// markers of what plays (which the transcoder holds back while a
     /// playback starts). Transcodes come first, even for those. A season
-    /// whose hours end is put off until its next turn (other programs busy
+    /// whose hours end, or that new libraries filling in hold back, is put
+    /// off until its next turn (other programs busy
     /// meanwhile only keep the next one from beginning: an external
     /// transcoder on this machine counts as one, fingerprinting this one).
     async fn wait_turn(&self, watched: bool) -> Result<(), FpError> {
         loop {
             let class = if watched { None } else { *self.class.lock() };
-            if let Some(Err(schedule::Wait::Hours)) = class.map(|c| self.schedule.turn(c)) {
+            if let Some(Err(schedule::Wait::Hours | schedule::Wait::Scanning)) = class.map(|c| self.schedule.turn(c)) {
                 return Err(FpError::Preempted);
             }
             let quiet = watched || self.sessions.quiet_for() >= QUIET_BEFORE_BACKGROUND_SECS;

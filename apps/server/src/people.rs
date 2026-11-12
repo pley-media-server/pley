@@ -299,8 +299,15 @@ pub fn episode_credits(guests: &[CastCredit], crew_credits: &[CrewCredit]) -> Ve
 /// Replace the credits of an item. People are found by the id of the
 /// provider the credit comes from.
 pub async fn replace(db: &Db, item_id: i64, credits: &[NewCredit]) -> sqlx::Result<()> {
-    let now = now();
     let mut tx = db.write.begin().await?;
+    replace_in(&mut tx, item_id, credits).await?;
+    tx.commit().await
+}
+
+/// [`replace`], in a transaction of the caller's: a season's episodes are
+/// written together.
+pub async fn replace_in(tx: &mut sqlx::SqliteConnection, item_id: i64, credits: &[NewCredit]) -> sqlx::Result<()> {
+    let now = now();
     sqlx::query("DELETE FROM item_people WHERE item_id = ?").bind(item_id).execute(&mut *tx).await?;
     for (position, credit) in credits.iter().enumerate() {
         let (column, id) = credit.person.column();
@@ -329,7 +336,7 @@ pub async fn replace(db: &Db, item_id: i64, credits: &[NewCredit]) -> sqlx::Resu
         .await?;
     }
     sqlx::query("UPDATE items SET credits_at = ? WHERE id = ?").bind(now).bind(item_id).execute(&mut *tx).await?;
-    tx.commit().await
+    Ok(())
 }
 
 // ------------------------------------------------------------------ reading

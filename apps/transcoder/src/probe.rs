@@ -41,8 +41,14 @@ pub struct Prober {
     ff: Arc<Ffmpeg>,
     metrics: Arc<Metrics>,
     limiter: Semaphore,
+    /// Slots of their own for probes a playback waits for, so that they
+    /// don't wait behind a library scan's.
+    urgent: Semaphore,
     cache: Mutex<ProbeCache>,
 }
+
+/// Probes a playback waits for, read at the same time beside the others.
+const URGENT_PROBES: usize = 2;
 
 #[derive(Default)]
 struct ProbeCache {
@@ -52,15 +58,31 @@ struct ProbeCache {
 
 impl Prober {
     pub fn new(ff: Arc<Ffmpeg>, metrics: Arc<Metrics>, concurrency: usize) -> Self {
-        Self { ff, metrics, limiter: Semaphore::new(concurrency.max(1)), cache: Mutex::default() }
+        Self {
+            ff,
+            metrics,
+            limiter: Semaphore::new(concurrency.max(1)),
+            urgent: Semaphore::new(URGENT_PROBES),
+            cache: Mutex::default(),
+        }
     }
 
     pub async fn probe(&self, path: &Path) -> anyhow::Result<Arc<MediaInfo>> {
+        self.probe_with(path, &self.limiter).await
+    }
+
+    /// [`Self::probe`] for a playback waiting for it: on slots of its own,
+    /// not in line behind the others.
+    pub async fn probe_now(&self, path: &Path) -> anyhow::Result<Arc<MediaInfo>> {
+        self.probe_with(path, &self.urgent).await
+    }
+
+    async fn probe_with(&self, path: &Path, slots: &Semaphore) -> anyhow::Result<Arc<MediaInfo>> {
         let key = file_key(path).with_context(|| format!("cannot access {}", path.display()))?;
         if let Some(hit) = self.cache.lock().map.get(&key) {
             return Ok(hit.clone());
         }
-        let _permit = self.limiter.acquire().await?;
+        let _permit = slots.acquire().await?;
         let started = Instant::now();
         Metrics::inc(&self.metrics.probes);
         let result = self.run_ffprobe(path).await;
@@ -805,6 +827,27 @@ fn leak_ext(ext: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn a_probe_a_playback_waits_for_doesnt_wait_behind_the_others() {
+        let dir = tempfile::tempdir().unwrap();
+        let movie = dir.path().join("movie.mkv");
+        std::fs::write(&movie, b"frames").unwrap();
+        let ff = Ffmpeg {
+            ffmpeg: dir.path().join("no-ffmpeg"),
+            ffprobe: dir.path().join("no-ffprobe"),
+            caps: Default::default(),
+            segment_times_relative: true,
+        };
+        let prober = Prober::new(Arc::new(ff), Arc::new(Metrics::default()), 1);
+        // A scan's probe takes the only slot.
+        let _busy = prober.limiter.acquire().await.unwrap();
+        let waits = Duration::from_millis(200);
+        assert!(tokio::time::timeout(waits, prober.probe(&movie)).await.is_err(), "in line");
+        // Run at once (and fail: there's no ffprobe here).
+        let urgent = tokio::time::timeout(waits, prober.probe_now(&movie)).await;
+        assert!(urgent.is_ok_and(|r| r.is_err()), "not in line");
+    }
 
     const SAMPLE: &str = r#"{
       "streams": [

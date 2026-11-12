@@ -8,8 +8,8 @@ APIs, so that apps and tools written for them work with Pley:
   library tools such as Kometa, activity monitors such as Tautulli, and
   direct-play clients. It is on by default, on Pley's own port.
 - the **Jellyfin-compatible API**, for Jellyfin's apps and others built on
-  its API (Findroid, JellyCon, Plezy, Infuse). It is off until an
-  administrator turns it on.
+  its API (Findroid, JellyCon, Plezy, Infuse), and activity monitors such
+  as Tracearr. It is off until an administrator turns it on.
 
 Both use the same libraries, users, watch state and playback sessions as
 Pley's own API, so what is watched or changed in one shows up in the others.
@@ -117,7 +117,7 @@ may be used from, and where and with what it was last used, and revokes it.
 | Scope | In Pley | What it allows |
 |---|---|---|
 | `play` | Watch | Every token has it. Browsing what the account may open, playing, its own watch state, ratings, sessions, history, playlists and play queues, and notifications about its own sessions and the libraries it may open. |
-| `activity` | See everyone's activity | Every account's sessions, history and accounts, notifications about everyone's sessions, and where files are, as activity monitors such as Tautulli need. It changes nothing. |
+| `activity` | See everyone's activity | Every account's sessions, history and accounts, notifications about everyone's sessions, and where files are, as activity monitors such as Tautulli and Tracearr need. It changes nothing. |
 | `manage` | Manage libraries | Refreshing libraries and items, editing metadata, artwork and collections (those still empty listed too), stopping anyone's session and deleting anyone's history, as library tools such as Kometa need. It shows no one else's sessions or history, nor where files are: a tool that reads them, as Kometa does, needs `activity` too. |
 
 A token is never an administrator: each scope allows what it says, checked
@@ -134,11 +134,12 @@ and its tokens do what `play` allows. On the Plex-compatible API, a token
 without `manage` gets `403` for a change only administrators make, and one
 without `activity` sees what a viewer would: its account's own sessions and
 history, and files' names rather than where they are. The
-Jellyfin-compatible API takes every token for what `play` allows, and one
+Jellyfin-compatible API takes every token for what `play` allows, one
 with `manage` for changing collections and editing metadata too
 ([Playlists and collections](#playlists-and-collections),
-[Editing metadata](#editing-metadata)); it never acts as an administrator
-otherwise.
+[Editing metadata](#editing-metadata)), and one with `activity` for
+seeing what everyone is playing ([Activity monitors](#activity-monitors));
+it never acts as an administrator otherwise.
 
 ### Origins
 
@@ -618,13 +619,16 @@ Apps send the token as Jellyfin's apps do:
 
 A token sees what Pley's [access rules](API.md#access-rules) let its
 account see, with the account's own watch state, and never acts as an
-administrator, whatever its scopes: `Policy.IsAdministrator` is `false` for
-everyone, and nothing administers through this API. A token with `manage`
-changes collections and edits metadata, as administrators do in Pley, and
-`Policy.EnableCollectionManagement` says so. `/Users` lists the
-caller alone and `/Users/Public` no one, so no names are shown before
-signing in; a user id in a path (`/Users/{id}/Items`) must be the caller's
-(`404` otherwise).
+administrator, whatever its scopes: nothing administers through this API.
+`Policy.IsAdministrator` is `true` only for a token with `activity`, because
+activity monitors such as Tracearr refuse a key that isn't an
+administrator's ([Activity monitors](#activity-monitors)). Apps' sign-ins
+never have `activity`, so apps don't offer a dashboard that would fail. A
+token with `manage` changes collections and edits metadata, as
+administrators do in Pley, and `Policy.EnableCollectionManagement` says
+so. `/Users` lists the caller alone and `/Users/Public` no one, so no
+names are shown before signing in; a user id in a path
+(`/Users/{id}/Items`) must be the caller's (`404` otherwise).
 
 ### Ids, streams and pictures
 
@@ -812,8 +816,9 @@ apps do, by Pley's rules ([API.md](API.md#playlists)):
 A token with `manage` (an administrator's, made in Account) edits titles'
 metadata and pictures as Pley's own editor does
 ([API.md](API.md#items)); other tokens get `403`. Jellyfin's apps that
-have an editor show it only to administrators, which no token is here, so
-this is for scripts and tools.
+have an editor show it only to administrators, which apps' sign-ins never
+are here, so this is for scripts and tools. A token with `activity` says it
+is an administrator, but edits nothing without `manage` too.
 
 - `POST /Items/{id}` takes a `BaseItemDto`, as apps send back the one they
   were given with their changes. The fields Pley keeps that differ from
@@ -848,6 +853,28 @@ this is for scripts and tools.
 - `POST /Items/{id}/Refresh` fetches a title's metadata again, or scans a
   library.
 
+### Activity monitors
+
+Tracearr, and other activity monitors that speak Jellyfin's API, connect
+to Pley as a Jellyfin server with a token that has `activity` (See
+everyone's activity), made by an administrator in Account. Give the
+monitor Pley's address and the token as its API key.
+
+- `GET /Sessions` lists what everyone is playing: who, on which device,
+  the title (with its show, season and episode), how far in it is, whether
+  it is paused, and whether it plays as it is (`DirectPlay`), remuxed
+  (`DirectStream`) or converted (`Transcode`). Other tokens get an empty
+  list.
+- `/Users/Me` says the token is an administrator
+  (`Policy.IsAdministrator`), because monitors take only an
+  administrator's key. That is all it does: the token still can't change
+  anything without `manage`, nor administer anything at all.
+- `/Users` lists the token's own account; monitors add other people when
+  they start playing.
+- Monitors don't get players' addresses, so they can't show where someone
+  watches from. They can't stop a session or send it a message, and see
+  no history from before they were connected.
+
 ### Jellyfin endpoints
 
 | Area | Endpoints |
@@ -861,7 +888,7 @@ this is for scripts and tools.
 | Pictures | `GET|HEAD /Items/{id}/Images/{type}[/0]` (`Primary`, `Backdrop`, `Thumb`; `maxWidth`, `fillWidth`, `width`, `tag`) |
 | Watch state | `POST|DELETE /UserPlayedItems/{id}`, `/UserFavoriteItems/{id}`, `/UserItems/{id}/Rating`; `GET|POST /UserItems/{id}/UserData`, and the `/Users/{id}/…` forms |
 | Playback | `GET|POST /Items/{id}/PlaybackInfo`, `/Videos/{id}/stream[.{container}]`, `/Audio/{id}/stream`, `/Audio/{id}/universal`, `/Items/{id}/Download`, `/Videos/{id}/master.m3u8`, `/Audio/{id}/master.m3u8`, `/Videos/{id}/{source}/Subtitles/{index}[/{ticks}]/Stream.{vtt|srt}`, `/Videos/{id}/Trickplay/{width}/{n}.jpg`, `/Videos/{id}/Trickplay/{width}/tiles.m3u8`, `DELETE /Videos/ActiveEncodings`, `/MediaSegments/{id}` |
-| Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping`; `GET /Sessions` (none listed) |
+| Reports | `POST /Sessions/Playing`, `/Sessions/Playing/Progress`, `/Sessions/Playing/Stopped`, `/Sessions/Playing/Ping`; `GET /Sessions` (everyone's with `activity`, none otherwise) |
 | Socket | `GET /socket` |
 
 ### Jellyfin apps tested
@@ -880,10 +907,10 @@ Run against Pley with the API on Pley's port and on a port of its own:
 - Quick Connect, and so signing in from an app with an account that uses
   two-step sign-in.
 - Administration: the dashboard, users, libraries, plugins, scheduled
-  tasks, logs and activity.
-- Live TV, SyncPlay, remote control of other sessions (`/Sessions` lists
-  none), and finding the server on the network (UDP 7359): apps are given
-  its address.
+  tasks and logs. Activity monitors see what is playing
+  ([Activity monitors](#activity-monitors)).
+- Live TV, SyncPlay, remote control of other sessions, and finding the
+  server on the network (UDP 7359): apps are given its address.
 - Shared and public playlists: Pley's are their owner's alone.
 - Editing cast and crew, ratings and countries, which Pley takes from the
   metadata source, and searching other sources than TMDB.

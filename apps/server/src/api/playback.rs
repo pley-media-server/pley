@@ -164,6 +164,7 @@ pub async fn start(
     CurrentToken(token): CurrentToken,
     Json(mut req): Json<PlaybackRequest>,
 ) -> ApiResult<Json<PlaybackInfo>> {
+    let began = Instant::now();
     let row = item_or_404(&state, user.id, req.item_id).await?;
     // A transcoder older than master playlists can't name Dolby Vision
     // (or anything else) in one: the player gets what older servers gave.
@@ -280,6 +281,7 @@ pub async fn start(
             Some(key) => format!("/api/media/{key}/file.{}", container_extension(file.container.as_deref())),
             None => format!("/api/files/{}/stream", file.id),
         };
+        tracing::info!("playback of item {} starts directly, answered in {} ms", row.id, began.elapsed().as_millis());
         return Ok(Json(PlaybackInfo {
             session_id: session.id.clone(),
             method: Method::Direct,
@@ -404,6 +406,12 @@ pub async fn start(
         Some(key) => format!("/api/media/{key}/{playlist}"),
         None => format!("/api/playback/{}/{playlist}", session.id),
     };
+    tracing::info!(
+        "playback of item {} starts by {method:?} (job {}), answered in {} ms",
+        row.id,
+        created.id,
+        began.elapsed().as_millis()
+    );
     Ok(Json(PlaybackInfo {
         session_id: session.id.clone(),
         method,

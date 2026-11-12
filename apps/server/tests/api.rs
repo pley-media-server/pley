@@ -602,6 +602,8 @@ async fn settings_validation_and_folder_browser() {
 
     let roots = app.post("/api/fs", &token, json!({})).await;
     assert!(!roots.body["entries"].as_array().unwrap().is_empty());
+    // Whether the tests run in a container depends on the machine.
+    assert!(roots.body["container"].is_boolean() && roots.body["mounts"].is_array());
     std::fs::create_dir_all(app.media.path().join("Alpha")).unwrap();
     std::fs::create_dir_all(app.media.path().join("beta")).unwrap();
     std::fs::write(app.media.path().join("file.txt"), b"x").unwrap();

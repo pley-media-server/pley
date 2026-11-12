@@ -47,6 +47,10 @@ struct Fake {
     created_json: Arc<Mutex<Vec<Value>>>,
     deleted: Arc<Mutex<Vec<String>>>,
     probes: Arc<Mutex<Vec<String>>>,
+    /// Probes wait while this is set.
+    probes_held: Arc<AtomicBool>,
+    /// How long each probe takes.
+    probe_delay: Arc<Mutex<Duration>>,
     subtitles: Arc<Mutex<Vec<SubtitleRequest>>>,
     thumbnails: Arc<AtomicUsize>,
     /// Paths seek previews were asked for.
@@ -383,6 +387,13 @@ async fn start_fake() -> (Fake, String) {
             "/v1/probe",
             post(|State(fake): State<Fake>, Json(req): Json<ProbeRequest>| async move {
                 fake.probes.lock().push(req.path.clone());
+                while fake.probes_held.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                let delay = *fake.probe_delay.lock();
+                if !delay.is_zero() {
+                    tokio::time::sleep(delay).await;
+                }
                 match probe_result(&req.path) {
                     Some(info) => Json(info).into_response(),
                     None => error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed"),
@@ -925,6 +936,196 @@ async fn eventually(check: impl Fn() -> bool) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     panic!("condition not reached");
+}
+
+#[tokio::test]
+async fn a_librarys_first_scan_holds_library_work_and_says_so() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let turn = || app.state.schedule.turn(pley::schedule::Class::Later);
+    let scan = |activity: &Value| activity["scans"].as_array().and_then(|s| s.first()).cloned().unwrap_or_default();
+
+    // A new library: its files are read while library work waits, and its
+    // scan says it's its first.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("more/New (2022).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "More", "kind": "movies", "paths": [app.media_path("more")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let library = r.body["id"].as_i64().unwrap();
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("New (2022)"))).await;
+    let first = scan(&app.get("/api/activity", admin).await.body);
+    assert_eq!(
+        (&first["library_id"], &first["phase"], &first["first"]),
+        (&json!(library), &json!("probing"), &json!(true))
+    );
+    assert_eq!(turn(), Err(pley::schedule::Wait::Scanning));
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    assert_ne!(turn(), Err(pley::schedule::Wait::Scanning));
+
+    // A rescan neither holds nor says so.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.post(&format!("/api/libraries/{library}/scan"), admin, json!({"force": true})).await;
+    eventually(|| w.fake.probes.lock().iter().filter(|p| p.contains("New (2022)")).count() == 2).await;
+    let again = scan(&app.get("/api/activity", admin).await.body);
+    assert_eq!((&again["phase"], &again["first"]), (&json!("probing"), &json!(false)));
+    assert_ne!(turn(), Err(pley::schedule::Wait::Scanning));
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+}
+
+#[tokio::test]
+async fn first_scans_done_stay_listed_until_the_last_is_done() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let add = |name: &'static str| async move {
+        let r = app
+            .post("/api/libraries", admin, json!({"name": name, "kind": "movies", "paths": [app.media_path(name)]}))
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+        r.body["id"].as_i64().unwrap()
+    };
+    let listed = |activity: &Value, list: &str| -> Vec<(i64, String, bool)> {
+        activity[list]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| (s["library_id"].as_i64().unwrap(), s["phase"].as_str().unwrap().to_owned(), s["first"] == true))
+            .collect()
+    };
+
+    // Empty's scan finishes at once; Held's waits on its file, and Next's
+    // waits behind it, a first scan from the moment it's queued.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    std::fs::create_dir_all(app.media_path("empty")).unwrap();
+    app.media_file("held/Held (2020).mkv", 5000);
+    app.media_file("next/Next (2021).mkv", 5000);
+    let empty = add("empty").await;
+    let held = add("held").await;
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("Held (2020)"))).await;
+    let next = add("next").await;
+    let activity = app.get("/api/activity", admin).await.body;
+    assert_eq!(listed(&activity, "first_scans_done"), [(empty, "done".to_owned(), true)]);
+    assert_eq!(listed(&activity, "scans"), [(held, "probing".to_owned(), true), (next, "queued".to_owned(), true)]);
+
+    // Once the last is done, none is listed.
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    let activity = app.get("/api/activity", admin).await.body;
+    assert_eq!(listed(&activity, "first_scans_done"), []);
+    assert_eq!(listed(&activity, "scans"), []);
+}
+
+#[tokio::test]
+async fn first_scans_one_behind_another_hold_library_work_until_the_last() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let add = |name: &'static str| async move {
+        let r = app
+            .post("/api/libraries", admin, json!({"name": name, "kind": "movies", "paths": [app.media_path(name)]}))
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    };
+    // Next is queued while Held's scan runs.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("held/Held (2020).mkv", 5000);
+    app.media_file("next/Next (2021).mkv", 5000);
+    add("held").await;
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("Held (2020)"))).await;
+    add("next").await;
+
+    let let_go = Arc::new(AtomicUsize::new(0));
+    let watcher = tokio::spawn({
+        let (state, let_go) = (app.state.clone(), let_go.clone());
+        async move {
+            loop {
+                state.schedule.let_go().await;
+                let_go.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    eventually(|| let_go.load(Ordering::SeqCst) > 0).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    watcher.abort();
+    assert_eq!(let_go.load(Ordering::SeqCst), 1, "let go once, after Next");
+}
+
+#[tokio::test]
+async fn a_rescan_after_a_first_scan_lets_library_work_go() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.media_file("old/Old (2019).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "Old", "kind": "movies", "paths": [app.media_path("old")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let old = r.body["id"].as_i64().unwrap();
+    app.wait_for_scans().await;
+
+    // Old's rescan is queued while New's first scan runs.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("new/New (2021).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "New", "kind": "movies", "paths": [app.media_path("new")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("New (2021)"))).await;
+    let r = app.post(&format!("/api/libraries/{old}/scan"), admin, json!({"force": true})).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let held = || app.state.schedule.turn(pley::schedule::Class::Soon) == Err(pley::schedule::Wait::Scanning);
+    assert!(held());
+
+    // Old reads its file again slowly: New's done, so nothing holds.
+    *w.fake.probe_delay.lock() = Duration::from_secs(2);
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    // New's file read first, slowly too.
+    for _ in 0..1000 {
+        if w.fake.probes.lock().iter().filter(|p| p.contains("Old (2019)")).count() == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(app.state.scanner.is_scanning(old));
+    assert!(!held(), "a rescan holds nothing back");
+    *w.fake.probe_delay.lock() = Duration::ZERO;
+    app.wait_for_scans().await;
+}
+
+#[tokio::test]
+async fn a_first_scan_says_how_long_its_files_have_left_once_it_has_read_for_a_while() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // 120 files read 6 at a time, a second each: about 20 seconds.
+    *w.fake.probe_delay.lock() = Duration::from_secs(1);
+    for n in 0..120 {
+        app.media_file(&format!("slow/Film {n} ({}).mkv", 1950 + n), 5000);
+    }
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "Slow", "kind": "movies", "paths": [app.media_path("slow")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let id = r.body["id"].as_i64().unwrap();
+    let scan = || async move {
+        let activity = app.get("/api/activity", admin).await.body;
+        activity["scans"].as_array().unwrap().iter().find(|s| s["library_id"] == id).cloned()
+    };
+
+    tokio::time::sleep(Duration::from_secs(4)).await;
+    let early = scan().await.expect("still scanning");
+    assert_eq!((early["phase"].as_str(), &early["left_secs"]), (Some("probing"), &Value::Null), "too soon to tell");
+    tokio::time::sleep(Duration::from_secs(8)).await;
+    let later = scan().await.expect("still scanning");
+    assert_eq!(later["phase"], "probing");
+    let left = later["left_secs"].as_u64().unwrap_or_else(|| panic!("no time left: {later}"));
+    assert!((1..=20).contains(&left), "{left} seconds left of about 8: {later}");
+
+    *w.fake.probe_delay.lock() = Duration::ZERO;
+    app.wait_for_scans().await;
 }
 
 #[tokio::test]
@@ -2633,6 +2834,25 @@ async fn an_older_transcoder_makes_previews_one_at_a_time() {
     eventually(|| app.state.trickplay.pending() == 0).await;
     assert_eq!(w.fake.previews.lock().len(), 4, "each once");
     assert_eq!(w.fake.previews_most.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn library_previews_wait_while_new_libraries_fill_in() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    library_work(app, admin).await;
+    // A library's first scan, or an import, holds the rest of library work.
+    let hold = app.state.schedule.hold();
+    app.state.trickplay.request_all().await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(w.fake.previews.lock().is_empty(), "nothing made meanwhile");
+    let activity = app.get("/api/activity", admin).await;
+    assert_eq!(activity.body["library_work"]["waiting"], json!("scanning"));
+
+    drop(hold);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 4, "each once");
 }
 
 #[tokio::test]

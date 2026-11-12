@@ -216,6 +216,8 @@ pub struct Job {
     waiting: Mutex<Vec<u32>>,
     /// Set when the job is removed; no process may be started afterwards.
     closed: AtomicBool,
+    /// Its first segment has been handed out (and its wait logged).
+    started: AtomicBool,
     notify: Notify,
     process: tokio::sync::Mutex<Option<Proc>>,
     runtime: Mutex<Runtime>,
@@ -706,6 +708,7 @@ impl JobManager {
             return Err(ApiError::Failed("ffmpeg is not available on the transcoder host".into()));
         }
         self.note_creation();
+        let creating = Instant::now();
         // Until its process takes over (see `spawn`).
         let _starting = self.background.start();
         let input = PathBuf::from(&req.input);
@@ -719,6 +722,9 @@ impl JobManager {
         // seeking is relative to it); media info from older servers lacks it.
         // An implausible duration (stored from an older transcoder's probe) is
         // probed again: the probe now looks past it.
+        // A playback waits for this probe: it doesn't wait in line behind
+        // library scans' (`Prober::probe_now`).
+        let probing = Instant::now();
         let media = match req
             .media
             .clone()
@@ -726,7 +732,9 @@ impl JobManager {
             .filter(|m| !wants_copy || m.start_ms.is_some())
         {
             Some(media) => Arc::new(media),
-            None => self.prober.probe(&input).await.map_err(|e| ApiError::Failed(format!("probe failed: {e:#}")))?,
+            None => {
+                self.prober.probe_now(&input).await.map_err(|e| ApiError::Failed(format!("probe failed: {e:#}")))?
+            }
         };
         // Media info from before probes looked for HDR10's static metadata:
         // Quick Sync's tone mapping does nothing without it (see
@@ -739,6 +747,8 @@ impl JobManager {
         } else {
             media
         };
+        let probed = probing.elapsed();
+        let indexing = Instant::now();
         let keyframes = if wants_copy {
             let index = self.keyframes.get_or_read(&input).await;
             if index.is_none() {
@@ -748,6 +758,7 @@ impl JobManager {
         } else {
             None
         };
+        let indexed = indexing.elapsed();
         let mut plan = Plan::build(&req, &media, &self.ff, keyframes.as_deref().map(Vec::as_slice))
             .map_err(ApiError::BadRequest)?;
         // libplacebo shares the GPU with the jobs tone mapping on it now.
@@ -812,10 +823,13 @@ impl JobManager {
         Metrics::inc(&self.metrics.jobs_created);
         tracing::info!(
             job = %id,
-            "new job '{}' for {}: {}",
+            "new job '{}' for {}: {} (made in {} ms: {} probing, {} reading keyframes)",
             job.request.label.as_deref().unwrap_or("-"),
             job.request.owner.as_deref().unwrap_or("-"),
-            describe(&created)
+            describe(&created),
+            creating.elapsed().as_millis(),
+            probed.as_millis(),
+            indexed.as_millis()
         );
 
         // Start producing right away so the first segment request is fast.
@@ -979,11 +993,11 @@ impl JobManager {
             tokio::pin!(notified);
             notified.as_mut().enable();
             if job.is_ready(n) {
-                return Ok(job.segment_path(n));
+                return Ok(job.first_out(n));
             }
             self.ensure_producing(job, n).await?;
             if job.is_ready(n) {
-                return Ok(job.segment_path(n));
+                return Ok(job.first_out(n));
             }
             let now = Instant::now();
             if now >= deadline {
@@ -1771,6 +1785,7 @@ impl Job {
             ready_count: AtomicU32::new(0),
             waiting: Mutex::default(),
             closed: AtomicBool::new(false),
+            started: AtomicBool::new(false),
             notify: Notify::new(),
             process: tokio::sync::Mutex::new(None),
             runtime: Mutex::new(Runtime::default()),
@@ -1972,6 +1987,17 @@ impl Job {
     fn lead_secs(&self, next: u32) -> f64 {
         let asked = self.last_requested.load(Relaxed);
         (f64::from(next) - f64::from(asked) - 1.0) * self.plan.segment_seconds
+    }
+
+    /// [`Self::segment_path`] of segment `n`, made and handed out, saying
+    /// how long the first took from the job's creation: how long a
+    /// playback waited for its picture, but for the player's own part.
+    fn first_out(&self, n: u32) -> PathBuf {
+        if !self.started.swap(true, Relaxed) {
+            let waited = (now_ms() - self.created_at_ms).max(0);
+            tracing::info!(job = %self.id, "first segment ({n}) out {waited} ms after the job was made");
+        }
+        self.segment_path(n)
     }
 
     /// Where segment `n` is, when made; else where it would be on disk.

@@ -207,6 +207,8 @@ pub struct Config {
     /// Where TVmaze, TheTVDB, MusicBrainz and the Cover Art Archive are
     /// reached. `None` (tests) never contacts them.
     pub metadata_endpoints: Option<crate::providers::Endpoints>,
+    /// Where plex.tv is, for the Plex import (tests give a fake one).
+    pub plex_tv: String,
     /// See [`SHUTDOWN_GRACE`] (tests shorten it).
     pub shutdown_grace: Duration,
     /// Answer apps looking for servers on the local network (see
@@ -302,6 +304,7 @@ impl Config {
             transcoder_token: cli.transcoder_token.clone().or(file.transcoder_token),
             transcoder_max_jobs: file.transcoder_max_jobs.unwrap_or(8).max(1),
             metadata_endpoints: Some(crate::providers::Endpoints::default()),
+            plex_tv: crate::import::plex::PLEX_TV.to_owned(),
             shutdown_grace: SHUTDOWN_GRACE,
             discovery: !cli.no_discovery && file.discovery.unwrap_or(true),
             bonjour: !cli.no_discovery && !cli.no_bonjour && file.bonjour.unwrap_or(false),
@@ -352,6 +355,7 @@ impl Config {
             transcoder_token: None,
             transcoder_max_jobs: 8,
             metadata_endpoints: None,
+            plex_tv: crate::import::plex::PLEX_TV.to_owned(),
             shutdown_grace: SHUTDOWN_GRACE,
             discovery: false,
             bonjour: false,

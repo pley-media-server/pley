@@ -51,6 +51,9 @@ pub struct SessionInfo {
 #[derive(Serialize)]
 pub struct Activity {
     scans: Vec<ScanStatus>,
+    /// Libraries' first scans that are done while others are still queued
+    /// or running, for Home to tick off; empty once the last is done.
+    first_scans_done: Vec<ScanStatus>,
     sessions: Vec<SessionInfo>,
     /// Intro/credits detection in progress.
     analysis: Option<AnalysisStatus>,
@@ -111,14 +114,12 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
     let library_work = (seasons_pending + previews_pending > 0).then(|| state.schedule.status());
     // Scans of libraries the user can't open stay private (their names too).
     let libraries = access::library_ids(&state.db, &user).await?;
-    let scans = state
-        .scanner
-        .statuses()
-        .into_iter()
-        .filter(|s| libraries.as_ref().is_none_or(|ids| ids.contains(&s.library_id)))
-        .collect();
+    let visible = |s: &ScanStatus| libraries.as_ref().is_none_or(|ids| ids.contains(&s.library_id));
+    let scans = state.scanner.statuses().into_iter().filter(visible).collect();
+    let first_scans_done = state.scanner.first_scans_done().into_iter().filter(visible).collect();
     Ok(Json(Activity {
         scans,
+        first_scans_done,
         sessions: out,
         analysis,
         seasons_pending,

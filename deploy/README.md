@@ -12,8 +12,10 @@ Pick the guide for where Pley will run:
 | macOS | The release archive and a launch agent | [below](#macos-launchd) |
 
 Whichever you pick, Pley prints a link with a one-time setup code when it
-first starts. Open it, create the administrator account and add your
-libraries. Until then, anyone with the code can claim the server.
+first starts. Open it and create the administrator account; setup then asks
+about your server, and whether to bring over a Plex server or add your
+libraries ([First start](../docs/CONFIGURATION.md#first-start)). Until the
+account exists, anyone with the code can claim the server.
 
 ## What Pley needs
 

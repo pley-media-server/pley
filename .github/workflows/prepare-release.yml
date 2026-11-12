@@ -102,4 +102,8 @@ jobs:
             url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/compare/$DEFAULT_BRANCH...release/next?expand=1"
             echo "::warning::This workflow may not open pull requests (Settings -> Actions -> General -> Allow GitHub Actions to create and approve pull requests). Open it at $url"
           fi
+          # The label tells release pull requests apart; one that can't be added doesn't hold the release back.
+          case "$url" in
+            */pull/*) gh pr edit "$url" --add-label release || echo "::warning::The release label couldn't be added to $url" ;;
+          esac
           echo "$title: $url" >> "$GITHUB_STEP_SUMMARY"

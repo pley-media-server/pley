@@ -10,7 +10,9 @@ import { CastReceiver } from "@/components/CastReceiver";
 import { Logo } from "@/components/Logo";
 import { RequestNotices } from "@/components/RequestNotices";
 import { Button, EmptyState, Spinner } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import { rememberProfile } from "@/lib/lastProfile";
+import { useSetupFrame } from "@/lib/setupFrame";
 import { TriangleAlert } from "lucide-react";
 
 const AuthContext = createContext<User | null>(null);
@@ -32,6 +34,14 @@ export function useAuth(): User {
 }
 
 export function Splash() {
+  // In setup's card, between its steps: the card stays, and waits in place.
+  if (useSetupFrame()) {
+    return (
+      <div className="flex justify-center py-16">
+        <Spinner className="size-6" />
+      </div>
+    );
+  }
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-6">
       <Logo className="h-9" />
@@ -42,8 +52,9 @@ export function Splash() {
 
 export function ErrorScreen({ title, message, onRetry }: { title?: string; message: string; onRetry?: () => void }) {
   const { t } = useTranslation();
+  const inSetup = useSetupFrame() !== null;
   return (
-    <div className="flex min-h-screen items-center justify-center">
+    <div className={cn("flex items-center justify-center", inSetup ? "py-6" : "min-h-screen")}>
       <EmptyState
         icon={<TriangleAlert />}
         title={title ?? t("states.somethingWentWrong")}

@@ -33,6 +33,8 @@
     "general": "General",
     "serverName": "Server name",
     "serverNameHint": "Shown on the sign-in screen.",
+    "country": "Country",
+    "countryHint": "Used for titles' age ratings, profiles' age limits and Discover's Coming to cinemas list.",
     "metadata": {
       "title": "Metadata",
       "description": "Posters, summaries, ratings, cast and episode titles.",
@@ -57,7 +59,7 @@
       "nfo": "NFO files",
       "nfoHint": "The NFO files Kodi, Jellyfin, Radarr and Sonarr keep next to movies and shows: their ids decide the match, and their details win over the metadata source's. Your edits win over them. Pley never changes them.",
       "nfoToggle": "Read NFO files",
-      "language": "Metadata language",
+      "language": "Titles and summaries",
       "languageHint": "For TMDB and TheTVDB. TVmaze is in English.",
       "attribution": "This product uses the TMDB API but is not endorsed or certified by TMDB. TV metadata from <tvdb>TheTVDB</tvdb>. TV data from TVmaze is licensed <license>CC BY-SA</license>; music data from MusicBrainz is public domain."
     },
@@ -325,6 +327,7 @@
     "port": "Port",
     "portHint": "The web app's and the Pley apps'.",
     "localOnly": "On networks only: devices can't reach this computer's own address.",
+    "containerNetwork": "Pley runs on Docker's own network, where devices on yours can't find it: they need its address. Host networking, or br0 on Unraid, puts Pley on your network.",
     "discovery": {
       "label": "Found by the Pley apps",
       "fixed": "Turned off by --no-discovery or PLEY_NO_DISCOVERY.",
@@ -390,6 +393,8 @@
     "scan": "Scan",
     "moreActions": "More actions",
     "forceRescan": "Force full rescan",
+    "labelsPending": "Waiting for Plex's labels: profiles with labels they never see don't see this library until an import that brings it finishes.",
+    "showNow": "Show it now",
     "rescanStarted": "Full rescan of “{{name}}” started",
     "scanStarted": "Scanning “{{name}}”",
     "moved": "{{name}} moved to position {{position}} of {{total}}",
@@ -435,7 +440,8 @@
       "removePath": "Remove {{path}}",
       "typePath": "…or type a folder path",
       "folderPath": "Folder path",
-      "layout": "Recommended layout: <path>{{layout}}</path>"
+      "layout": "Recommended layout: <path>{{layout}}</path>",
+      "nothingMounted": "Pley runs in a container, and no media folder is mounted into it yet. Mount yours at <path>/media</path> (with Docker, <path>-v /your/media:/media:ro</path>), then restart the container."
     }
   },
   "users": {
@@ -676,6 +682,7 @@
     "waits": {
       "playing": "waits while something plays",
       "busy": "waits while other programs keep the processors busy",
+      "scanning": "waits while new libraries are scanned or imported",
       "auto": "what's likely to be watched soon first, the rest in quieter hours",
       "autoFrom": "what's likely to be watched soon first, the rest in quieter hours (from {{time}})",
       "hours": "waits for its hours",
@@ -816,5 +823,235 @@
     "backUpNow": "Back up now",
     "backedUp": "Backed up ({{size}})",
     "noBackups": "No backups yet."
+  },
+  "plexImport": {
+    "title": "Import from Plex",
+    "setupTitle": "Moving from Plex",
+    "stepOf": "Step {{step}} of {{total}}",
+    "signIn": {
+      "title": "Sign in with Plex",
+      "description": "Pley reads your Plex server through Plex's own sign-in. It sees what you allow and keeps nothing once the import is over.",
+      "button": "Sign in with Plex",
+      "waiting": "Waiting for Plex…",
+      "noWindow": "No window opened?",
+      "openPage": "Open Plex's sign-in page",
+      "expired": "Plex's sign-in page has expired. Sign in again.",
+      "again": "Sign in again",
+      "withToken": "Use a Plex token instead",
+      "token": "Plex token",
+      "tokenHint": "For a server you sign in to another way. Pley forgets it with the rest of the sign-in.",
+      "useToken": "Use this token"
+    },
+    "server": {
+      "title": "Which server?",
+      "description": "The Plex servers your account owns.",
+      "none": "This Plex account doesn't own a Plex server. Sign in with the account that owns yours.",
+      "sharedOnly": "The Plex servers this account can open belong to someone else ({{servers}}). Only the account that owns a server can bring everyone's watch history and the Home's restrictions over, so sign in with that one. On Plex's page, switch to it first if Plex signs you straight in.",
+      "otherAccount": "Sign in with another account",
+      "finding": "Finding your Plex servers…",
+      "connecting": "Connecting to {{name}}…",
+      "version": "Version {{version}}",
+      "address": "Or its address",
+      "addressHint": "When Pley can't reach your server at the addresses Plex gives."
+    },
+    "plan": {
+      "reading": "Reading your Plex libraries…",
+      "couldntRead": "Pley couldn't read your Plex server"
+    },
+    "libraries": {
+      "title": "Libraries on {{server}}",
+      "description": "Choose which libraries come over.",
+      "none": "This server has no movie, show or music libraries.",
+      "status": {
+        "matched": "In Pley",
+        "unsure": "Check this",
+        "not_in_pley": "Not in Pley"
+      },
+      "folders_one": "{{count, number}} folder",
+      "folders_other": "{{count, number}} folders",
+      "plexSees": "Plex sees <path>{{folder}}</path>. Where does Pley see it?",
+      "browseFor": "Browse for where Pley finds {{folder}}",
+      "unsureHint": "Some of its files aren't in this library, so what Plex knows of them won't come over.",
+      "problem": {
+        "no_folders": "Say where at least one of its folders is for Pley."
+      },
+      "pickOne": "Choose at least one library to bring.",
+      "goesInto": "Goes into <name>{{name}}</name>",
+      "bring": "Bring {{name}}",
+      "check": {
+        "found": "Plex's files are here",
+        "none_found": "None of Plex's files are here",
+        "missing": "Pley can't open this folder"
+      },
+      "size": {
+        "movies_one": "{{count, number}} movie",
+        "movies_other": "{{count, number}} movies",
+        "shows_one": "{{count, number}} show",
+        "shows_other": "{{count, number}} shows",
+        "episodes_one": "{{count, number}} episode",
+        "episodes_other": "{{count, number}} episodes",
+        "artists_one": "{{count, number}} artist",
+        "artists_other": "{{count, number}} artists",
+        "tracks_one": "{{count, number}} track",
+        "tracks_other": "{{count, number}} tracks"
+      }
+    },
+    "people": {
+      "title": "Who comes over",
+      "description": "Each person in your Plex Home becomes a profile, with what they watched and the limits Plex set for them.",
+      "you": "Your account: comes as you",
+      "found": "Their profile from an earlier import",
+      "newProfile": "A new profile",
+      "bring": "Bring {{name}}",
+      "hasPin": "Has a Plex PIN",
+      "noLimits": "No limits: sees everything.",
+      "anyAge": "Any age",
+      "showLabel": "Always: {{label}}",
+      "hideLabel": "Never: {{label}}",
+      "leftOver_one": "A profile keeps 50 labels of up to 120 characters; this one is left out: {{labels}}",
+      "leftOver_other": "A profile keeps 50 labels of up to 120 characters; these are left out: {{labels}}",
+      "notKept": "Pley can't keep these rules of Plex's, so it hides more instead:",
+      "pin": "Plex PIN",
+      "pinHint": "Their profile in Pley gets the same PIN, unless it already has one. Left empty, it has none until you give it one."
+    },
+    "bring": {
+      "title": "What to bring",
+      "description": "Libraries and people come over whatever you choose. Turn off what you'd rather start over in Pley.",
+      "watchHistory": "Watch history",
+      "watchHistoryHint": "Watched titles, resume points, ratings and every play.",
+      "collections": "Collections and playlists",
+      "collectionsHint": "Collections in their order, with their labels, and each person's playlists. Smart ones stay behind.",
+      "edits": "Matches and edits",
+      "editsHint": "Titles matched as Plex has them, and fields edited in Plex as edits in Pley. Kometa locks the fields it sets, so its changes come too.",
+      "start": "Start the import"
+    },
+    "progress": {
+      "title": "Importing from Plex",
+      "description": "This can take a while on a big server. You can close this and come back: it goes on.",
+      "starting": "Starting…",
+      "scan": {
+        "queued": "{{library}}: waiting to start",
+        "walking": "{{library}}: finding files",
+        "probing": "{{library}}: reading files"
+      },
+      "steps": {
+        "scanning": "Scanning the new libraries",
+        "profiles": "Making profiles",
+        "matching": "Finding Plex's titles in Pley",
+        "labels": "Bringing labels and dates added",
+        "watch_state": "Bringing what everyone watched",
+        "history": "Bringing everyone's plays",
+        "edits": "Bringing matches and edits",
+        "collections": "Bringing collections",
+        "playlists": "Bringing playlists",
+        "fetching": "Fetching posters and details",
+        "matching_again": "Finding the rest of Plex's titles"
+      },
+      "stop": "Stop the import",
+      "stopTitle": "Stop the import?",
+      "stopMessage": "What's already come over stays. Pley also forgets your Plex sign-in, so importing again starts by signing in.",
+      "inTitle": "Your Plex data is in",
+      "inDescription": "What everyone watched is in Pley. It's fetching posters and details, then looking for the rest of Plex's titles. You can start watching now: the report will be under Import from Plex in Settings › Libraries.",
+      "counts": {
+        "profiles_one": "{{count, number}} profile",
+        "profiles_other": "{{count, number}} profiles",
+        "edits_one": "{{count, number}} edit",
+        "edits_other": "{{count, number}} edits"
+      },
+      "moreSteps_one": "{{count, number}} more step",
+      "moreSteps_other": "{{count, number}} more steps",
+      "library": {
+        "walking": "Finding files",
+        "probing": "Reading files",
+        "matching": "Finding Plex's titles"
+      }
+    },
+    "report": {
+      "done": "Your Plex library is in Pley",
+      "failed": "The import failed",
+      "cancelled": "The import was stopped",
+      "lost": "The import was interrupted",
+      "lostHint": "Pley restarted while it ran, so there's no report. What came over before stays; importing again brings the rest and nothing twice. Settings › Libraries marks libraries still waiting for Plex's labels.",
+      "doneHint": "Here's what came over. Importing again later brings what's new and nothing twice.",
+      "partHint": "What came over before it stopped stays. Importing again brings the rest and nothing twice.",
+      "took": "Took {{time}}",
+      "again": "Import again",
+      "labelsAdded_one": "{{count, number}} label added",
+      "labelsAdded_other": "{{count, number}} labels added",
+      "datesMoved_one": "{{count, number}} date added moved earlier",
+      "datesMoved_other": "{{count, number}} dates added moved earlier",
+      "libraries": "Libraries",
+      "created": "New",
+      "matched_one": "{{count, number}} title found",
+      "matched_other": "{{count, number}} titles found",
+      "missed_one": "{{count, number}} not found",
+      "missed_other": "{{count, number}} not found",
+      "missedTitles": "Some it didn't find",
+      "people": "People",
+      "profileCreated": "New profile",
+      "pinKept": "PIN from Plex",
+      "pinNone": "No PIN in Pley, though Plex had one for them. You can give their profile one in Settings › Users.",
+      "watched_one": "{{count, number}} watched",
+      "watched_other": "{{count, number}} watched",
+      "resumed_one": "{{count, number}} to resume",
+      "resumed_other": "{{count, number}} to resume",
+      "rated_one": "{{count, number}} rated",
+      "rated_other": "{{count, number}} rated",
+      "plays_one": "{{count, number}} play",
+      "plays_other": "{{count, number}} plays",
+      "skipped": {
+        "pin_needed": "Not brought: Plex asked for their PIN.",
+        "refused": "Not brought: Plex didn't let Pley in as them.",
+        "no_access": "Not brought: they can't open this Plex server."
+      },
+      "incomplete": "Plex refused some of their lists, so some of what they watched didn't come over.",
+      "playlistsIncomplete": "Plex refused some of their playlists, so not all of them came over.",
+      "notKept": "Rules Pley couldn't keep, so it hides more instead:",
+      "notKeptOwnLimit": "Rules Pley couldn't keep; the profile keeps the age limit it has in Pley:",
+      "closed_one": "{{libraries}} stays closed to this profile: it holds more than Plex shared with them. You can open it in Settings › Users.",
+      "closed_other": "{{libraries}} stay closed to this profile: they hold more than Plex shared with them. You can open them in Settings › Users.",
+      "labelsPending": "Still waiting for Plex's labels, so profiles with labels they never see don't see it. Importing this library again brings them, or you can show it now in Settings › Libraries.",
+      "missedUnlabelled": "Titles Pley couldn't find don't have Plex's labels, so the labels this profile never sees don't hide them.",
+      "matchesFixed_one": "{{count, number}} title matched as in Plex",
+      "matchesFixed_other": "{{count, number}} titles matched as in Plex",
+      "collectionsMade_one": "{{count, number}} collection made",
+      "collectionsMade_other": "{{count, number}} collections made",
+      "collectionItems_one": "{{count, number}} title put in collections",
+      "collectionItems_other": "{{count, number}} titles put in collections",
+      "smartLeft_one": "{{count, number}} smart collection or playlist left behind",
+      "smartLeft_other": "{{count, number}} smart collections and playlists left behind",
+      "playlists_one": "{{count, number}} playlist",
+      "playlists_other": "{{count, number}} playlists",
+      "edits": "Edits from Plex",
+      "editsHint": "Tools such as Kometa lock the fields they set, so a field edited on most titles is likely theirs.",
+      "fields": {
+        "title": "Title",
+        "sort_title": "Sort title",
+        "original_title": "Original title",
+        "summary": "Summary",
+        "tagline": "Tagline",
+        "year": "Year",
+        "release_date": "Release date",
+        "content_rating": "Content rating",
+        "studio": "Studio",
+        "genres": "Genres"
+      }
+    },
+    "startWatching": "Start watching",
+    "status": {
+      "fillingIn": "Titles fill in with their details and posters as Pley fetches them.",
+      "running": "Importing from Plex: {{step}}",
+      "runningStep": "Importing from Plex, step {{at}} of {{steps}}: {{step}}",
+      "runningAt": "Importing from Plex, step {{at}} of {{steps}}",
+      "overall": "The whole import",
+      "count": "{{done}} of {{total}}",
+      "done": "Imported from Plex on {{date}}",
+      "failed": "The Plex import failed on {{date}}",
+      "cancelled": "The Plex import was stopped on {{date}}",
+      "interrupted": "The Plex import started on {{date}} was cut short when Pley restarted",
+      "showSteps": "Show the steps",
+      "hideSteps": "Hide the steps",
+      "report": "See what came over"
+    }
   }
 }

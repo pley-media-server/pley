@@ -14,7 +14,7 @@ use crate::db::Db;
 use crate::error::AppError;
 
 /// Longest label kept, in characters.
-const MAX_LEN: usize = 120;
+pub const MAX_LEN: usize = 120;
 
 /// The kinds of item the web app labels: titles and what holds them.
 pub const LABELLED: &[&str] = &["movie", "show", "season", "episode", "artist", "album"];
@@ -27,7 +27,7 @@ pub fn shown_to(user: &AuthUser) -> bool {
 }
 
 /// Most labels an item takes from the edit dialog.
-const MAX_PER_ITEM: usize = 100;
+pub const MAX_PER_ITEM: usize = 100;
 
 /// `labels` as they're kept: trimmed, without empty ones or the same label
 /// twice (whatever the case of its letters A to Z, as the database matches

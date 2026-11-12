@@ -33,6 +33,8 @@ pub struct Inner {
     pub auth: AuthService,
     pub settings: Arc<SettingsStore>,
     pub events: EventBus,
+    /// The Plex import (see [`crate::import`]).
+    pub plex_import: Arc<crate::import::Importer>,
     pub transcoder: Arc<Transcoder>,
     pub metadata: Arc<MetadataAgent>,
     /// Subtitle search and downloads (see [`crate::subtitles`]).
@@ -114,7 +116,12 @@ impl AppState {
         let settings = Arc::new(SettingsStore::load(&db).await?);
         let events = EventBus::new();
         let transcoder = Transcoder::new(&config);
-        let store = Arc::new(Store::new(db.clone(), &config.metadata_dir(), &config.media_dir(), &config.cache_dir()));
+        // Library work waits while new libraries fill in (see `schedule`).
+        let hold = Arc::new(crate::schedule::LibraryHold::default());
+        let store = Arc::new(
+            Store::new(db.clone(), &config.metadata_dir(), &config.media_dir(), &config.cache_dir())
+                .with_hold(hold.clone()),
+        );
         if let Err(err) = store.migrate_legacy(&config.metadata_dir()).await {
             tracing::warn!("moving pictures into the blob store failed: {err:#}");
         }
@@ -128,8 +135,15 @@ impl AppState {
             settings.clone(),
             config.metadata_endpoints.as_ref().map(|e| e.opensubtitles.clone()),
         ));
-        let scanner =
-            Scanner::new(db.clone(), transcoder.clone(), events.clone(), metadata.clone(), store.clone(), &config);
+        let scanner = Scanner::new(
+            db.clone(),
+            transcoder.clone(),
+            events.clone(),
+            metadata.clone(),
+            store.clone(),
+            hold.clone(),
+            &config,
+        );
         // Discover's pictures, from TMDB's picture server (none in tests
         // without endpoints).
         let pictures = crate::discover::pictures::Pictures::new(
@@ -143,7 +157,7 @@ impl AppState {
         let sessions = Arc::new(Sessions::default());
         let stopping = CancellationToken::new();
         let resources = crate::resources::Monitor::new();
-        let schedule = Scheduler::new(db.clone(), settings.clone(), sessions.clone(), resources.clone());
+        let schedule = Scheduler::new(db.clone(), settings.clone(), sessions.clone(), resources.clone(), hold.clone());
         let markers = MarkerService::new(
             db.clone(),
             transcoder.clone(),
@@ -209,6 +223,7 @@ impl AppState {
                 identity,
                 oauth,
                 started_at: Instant::now(),
+                plex_import: Arc::new(crate::import::Importer::new(&config.plex_tv)),
                 stopping,
                 config,
                 db,
@@ -286,6 +301,10 @@ impl AppState {
         });
         let watcher = self.watcher.clone();
         tokio::spawn(async move { watcher.reload().await });
+        let state = self.clone();
+        tokio::spawn(async move {
+            state.plex_import.after_restart(&state).await;
+        });
         let state = self.clone();
         tokio::spawn(async move {
             let mut tick = tokio::time::interval(Duration::from_secs(3600));

@@ -83,7 +83,8 @@ export function HomeBanner({ featured }: { featured: Featured[] }) {
       data-hero
       aria-roledescription="carousel"
       aria-label={t("home.banner.label")}
-      className={cn("relative -mt-16 touch-pan-y overflow-hidden bg-bg select-none", HEIGHT)}
+      // Under the top bar, unless Home's progress is above it.
+      className={cn("relative -mt-16 touch-pan-y overflow-hidden bg-bg select-none [[data-home-progress]:not(:empty)+&]:mt-0", HEIGHT)}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setFocused(true)}

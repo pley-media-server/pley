@@ -8,6 +8,18 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- On phones and tablets, Download on a movie's or an episode's page is
+  one of the actions under Play, beside Playlist, instead of a wide
+  button. Its ring fills as the download comes, and its label says how
+  far it is or what it waits for.
+- The actions under Play share one label size. With the system's largest
+  text they go on two or three rows instead of breaking words in two.
+- With the system's largest text, labels under icons and titles under
+  posters get smaller rather than break inside a word, and a hyphenated
+  word ("Bande-annonce") can go on two lines at its hyphen.
+
 ## [0.1.12] - 2026-11-12
 
 ### Added

@@ -35,6 +35,23 @@ describe("Modal", () => {
     expect(onClose).toHaveBeenCalledTimes(3);
   });
 
+  it("closes only the dialog on top on Escape", async () => {
+    const user = userEvent.setup();
+    const outer = vi.fn();
+    const inner = vi.fn();
+    const both = (confirming: boolean) => (
+      <Modal open onClose={outer} title="Import">
+        <ConfirmModal open={confirming} onClose={inner} onConfirm={() => {}} title="Stop?" message="Sure?" />
+      </Modal>
+    );
+    // The confirmation opens over the dialog, as a button in it opens it.
+    const { rerender } = render(both(false));
+    rerender(both(true));
+    await user.keyboard("{Escape}");
+    expect(inner).toHaveBeenCalledTimes(1);
+    expect(outer).not.toHaveBeenCalled();
+  });
+
   it("stays open while locked", async () => {
     const user = userEvent.setup();
     const { onClose, baseElement } = renderModal({ locked: true });

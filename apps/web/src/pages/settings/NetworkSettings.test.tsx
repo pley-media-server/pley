@@ -16,6 +16,7 @@ const NETWORK: Network = {
   bonjour_adapters: [],
   bonjour_host_name: "",
   bonjour_host_default: "pley-0123456789ab",
+  container_network: false,
   fixed: { web: false, jellyfin: false, plex: false, discovery: false, bonjour: false },
   listeners: [{ kind: "web", address: "127.0.0.1:7539", error: null }],
   adapters: [
@@ -361,6 +362,21 @@ describe("NetworkSettings", () => {
     renderWithProviders(<NetworkSettings />);
     expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).toBeDisabled();
     expect(screen.getByText(/Turned off by --no-bonjour/)).toBeInTheDocument();
+  });
+
+  it("says when Docker's own network hides Pley, and still lets the search and Bonjour be turned on", async () => {
+    mockApi({
+      "GET /api/network": () => ({
+        ...NETWORK,
+        web: ["0.0.0.0:7539"],
+        container_network: true,
+        adapters: [{ name: "eth0", description: null, up: true, addresses: ["172.17.0.2"], network: null }],
+      }),
+    });
+    renderWithProviders(<NetworkSettings />);
+    expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Found by the Pley apps" })).toBeEnabled();
+    expect(screen.getAllByText(/Pley runs on Docker's own network/)).toHaveLength(2);
   });
 
   it("leaves what the command line sets alone, and says which addresses wait", async () => {

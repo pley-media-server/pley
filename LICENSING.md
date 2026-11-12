@@ -100,12 +100,13 @@ licence's terms too, and some of them, the GPL version 2 only for one,
 can't be combined with the AGPL at all.
 
 - **No copyleft code in Pley's own programs.** `scripts/check-licenses.ps1`
-  walks the real dependency graphs of the server, the transcoder and the LG
-  TV app and fails on any crate that is only available under a copyleft
-  licence (GPL, LGPL, AGPL and the like), and on the server depending on
-  the transcoder crate (they are separate programs that talk over HTTP,
-  `docs/TRANSCODER.md`). `cargo deny check licenses` allows only permissive
-  licences for third-party crates (`deny.toml`). CI runs both.
+  walks the real dependency graphs of the server, the transcoder, the LG
+  TV app and the desktop app and fails on any crate that is only available
+  under a copyleft licence (GPL, LGPL, AGPL and the like), and on the
+  server depending on the transcoder crate (they are separate programs
+  that talk over HTTP, `docs/TRANSCODER.md`). `cargo deny check licenses`
+  allows only permissive licences for third-party crates (`deny.toml`). CI
+  runs both.
 - **Nothing of the TV's in the LG TV app.** It plays through the TV's own
   media pipeline, with no FFmpeg. The TV's libraries it uses (SDL2, EGL and
   GLES, luna-service2, GLib, LG's media libraries) are part of the TV's
@@ -155,9 +156,9 @@ can't be combined with the AGPL at all.
 
 What each build contains of others' work, and where its notices are:
 
-- The server's and the transcoder's Rust dependencies are permissive (MIT,
-  Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, MPL-2.0 unmodified).
-  `scripts/check-licenses.ps1` prints the full list.
+- The server's, the transcoder's and the desktop app's Rust dependencies
+  are permissive (MIT, Apache-2.0, BSD, ISC, Zlib, Unicode-3.0, MPL-2.0
+  unmodified). `scripts/check-licenses.ps1` prints the full list.
 - The web UI uses React, React Router, TanStack Query and Virtual,
   i18next and react-i18next, and Tailwind (all MIT), hls.js and mpegts.js
   (Apache-2.0) and lucide (ISC). The desktop app's own pages use i18next

@@ -14,7 +14,10 @@ installing it, use the release's `.zip` instead
    **More info → Run anyway**.
 3. Keep the defaults, or change them ([Setup's choices](#setups-choices)).
 4. On the last page, open the setup link to create the administrator
-   account. If you started from existing data, sign in as before.
+   account; setup then asks about your server and your libraries, or
+   brings over a Plex server
+   ([First start](../../docs/CONFIGURATION.md#first-start)). If you started
+   from existing data, sign in as before.
 
 Later, the Start menu's **Pley Media Server** opens Pley, and
 **Pley Media Server logs** opens its logs. A service has no icon in the

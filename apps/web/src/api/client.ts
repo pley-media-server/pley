@@ -52,6 +52,15 @@ export function setUnauthorizedHandler(handler: (() => void) | null) {
   unauthorizedHandler = handler;
 }
 
+/**
+ * Whether an expired session at `pathname` sends the person to sign in:
+ * not from the pages that come before one (signing in, making the first
+ * account, an invitation), but from setup's steps after that.
+ */
+export function signInAgainFrom(pathname: string): boolean {
+  return !(pathname.startsWith("/login") || /^\/setup\/?$/.test(pathname) || pathname.startsWith("/invite/"));
+}
+
 export interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   body?: unknown;

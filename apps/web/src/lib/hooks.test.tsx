@@ -6,6 +6,7 @@ import {
   useDebouncedValue,
   useDismiss,
   useDocumentTitle,
+  useTitleNote,
   useElementWidth,
   useLatest,
   useLocalStorage,
@@ -148,6 +149,19 @@ describe("useDocumentTitle", () => {
     const { unmount } = renderHook(() => useDocumentTitle("Heat"));
     expect(document.title).toBe("Heat · Pley");
     unmount();
+    expect(document.title).toBe("Pley");
+  });
+
+  it("comes after a note, which outlasts the pages", () => {
+    document.title = "Pley";
+    const note = renderHook(({ text }) => useTitleNote(text), { initialProps: { text: "22% · Importing from Plex" } });
+    const page = renderHook(() => useDocumentTitle("Heat"));
+    expect(document.title).toBe("22% · Importing from Plex · Heat · Pley");
+    note.rerender({ text: "23% · Importing from Plex" });
+    expect(document.title).toBe("23% · Importing from Plex · Heat · Pley");
+    page.unmount();
+    expect(document.title).toBe("23% · Importing from Plex · Pley");
+    note.unmount();
     expect(document.title).toBe("Pley");
   });
 });

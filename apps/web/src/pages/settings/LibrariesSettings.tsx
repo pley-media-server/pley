@@ -2,9 +2,9 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Pencil, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Import, Pencil, Plus, RefreshCw, ScanSearch, Trash2, TriangleAlert } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { keys, useActivity, useDeleteLibrary, useReorderLibraries, useScanAll, useScanLibrary, useSharedLibraries } from "@/api/hooks";
+import { keys, useActivity, useDeleteLibrary, useReorderLibraries, useScanAll, useScanLibrary, useSharedLibraries, useUpdateLibrary } from "@/api/hooks";
 import type { Id, Library, ScanStatus } from "@/api/types";
 import { moved, useDragReorder } from "@/components/lists/reorder";
 import { Menu, MenuItem, MenuSeparator } from "@/components/Menu";
@@ -16,6 +16,8 @@ import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { formatRelative } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
+import { PlexImportModal } from "@/pages/plexImport/PlexImportModal";
+import { PlexImportStatus } from "@/pages/plexImport/PlexImportStatus";
 import { LibraryFormModal } from "./LibraryFormModal";
 import { libraryUrl } from "@/lib/urls";
 
@@ -45,6 +47,7 @@ function LibraryRow({
   const { t } = useTranslation(["settings", "common"]);
   const toast = useToast();
   const scanMut = useScanLibrary();
+  const update = useUpdateLibrary();
   const running = lib.scanning || (scan && scan.phase !== "done");
 
   const startScan = (force: boolean) =>
@@ -93,6 +96,21 @@ function LibraryRow({
               </li>
             ))}
           </ul>
+          {lib.labels_pending ? (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-warning">
+              <span className="flex items-center gap-1.5">
+                <TriangleAlert className="size-3.5 shrink-0" />
+                {t("libraries.labelsPending")}
+              </span>
+              <Button
+                size="sm"
+                loading={update.isPending}
+                onClick={() => update.mutate({ id: lib.id, labels_pending: false }, { onError: (e) => toast.error(errorMessage(e)) })}
+              >
+                {t("libraries.showNow")}
+              </Button>
+            </div>
+          ) : null}
           {running ? (
             <div className="mt-3 max-w-md">
               <div className="mb-1 flex items-center justify-between text-xs">
@@ -202,6 +220,8 @@ export function LibrariesSettings() {
   const reorder = useReorderLibraries();
   const [params, setParams] = useSearchParams();
   const adding = params.get("add") === "1";
+  // The Plex import's steps, or its last report.
+  const [importing, setImporting] = useState<{ report: boolean } | null>(null);
   const [editing, setEditing] = useState<Library | null>(null);
   const [deleting, setDeleting] = useState<Library | null>(null);
   // Read out to screen readers after each move.
@@ -286,7 +306,7 @@ export function LibrariesSettings() {
             {reorderable ? ` ${t("libraries.sharedOrder")}` : null}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {libs.data && libs.data.length > 0 ? (
             <Button
               icon={<RefreshCw className="size-4" />}
@@ -301,11 +321,16 @@ export function LibrariesSettings() {
               {t("libraries.scanAll")}
             </Button>
           ) : null}
+          <Button icon={<Import className="size-4" />} onClick={() => setImporting({ report: false })}>
+            {t("plexImport.title")}
+          </Button>
           <Button variant="primary" icon={<Plus className="size-4" />} onClick={openAdd}>
             {t("libraries.add")}
           </Button>
         </div>
       </div>
+
+      <PlexImportStatus onReport={() => setImporting({ report: true })} onAgain={() => setImporting({ report: false })} />
 
       {/* A list once loaded stays up when fetching it again fails. */}
       {!libs.data ? (
@@ -368,6 +393,7 @@ export function LibrariesSettings() {
       )}
 
       <LibraryFormModal open={adding} onClose={closeAdd} />
+      <PlexImportModal open={importing !== null} report={importing?.report} onClose={() => setImporting(null)} />
       <LibraryFormModal open={!!editing} onClose={() => setEditing(null)} library={editing} />
       <ConfirmModal
         open={!!deleting}
