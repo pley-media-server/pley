@@ -1201,6 +1201,12 @@ struct Paired {
     report: usize,
 }
 
+/// Where `library` is in `paired`, and so its row: by the Plex library,
+/// since two may be brought to one Pley library.
+fn row_of(paired: &[Paired], library: &Paired) -> Option<usize> {
+    paired.iter().position(|p| p.report == library.report)
+}
+
 /// A Pley library already there that Plex libraries are brought to.
 struct Existing {
     id: i64,
@@ -1716,7 +1722,7 @@ impl Run {
 
     /// Says Plex's titles are looked for in `library`, of the libraries `rows` are for.
     fn matching(&self, rows: &mut [LibraryRow], paired: &[Paired], library: &Paired) {
-        if let Some(row) = paired.iter().position(|p| p.library_id == library.library_id).map(|i| &mut rows[i]) {
+        if let Some(row) = row_of(paired, library).map(|i| &mut rows[i]) {
             *row = LibraryRow { phase: LibraryPhase::Matching, left_secs: None, ..row.clone() };
         }
         let rows = rows.to_vec();
@@ -1725,7 +1731,7 @@ impl Run {
 
     /// Says `library` is done, with the titles found in it.
     fn found(&self, rows: &mut [LibraryRow], paired: &[Paired], library: &Paired) {
-        if let Some(row) = paired.iter().position(|p| p.library_id == library.library_id).map(|i| &mut rows[i]) {
+        if let Some(row) = row_of(paired, library).map(|i| &mut rows[i]) {
             let found = self.report.libraries[library.report].matched;
             *row = LibraryRow { phase: LibraryPhase::Done, found: Some(found), ..row.clone() };
         }
@@ -2949,6 +2955,14 @@ mod tests {
         // Anything else still fails.
         let other = sqlx::query("INSERT INTO nowhere VALUES (1)").execute(&db.write).await;
         assert!(unless_gone(other).is_err());
+    }
+
+    #[test]
+    fn two_plex_libraries_brought_to_one_have_a_row_each() {
+        let paired = |key: &str, report| Paired { key: key.into(), kind: LibraryKind::Movies, library_id: 7, report };
+        let both = [paired("1", 0), paired("2", 1)];
+        assert_eq!(row_of(&both, &both[1]), Some(1));
+        assert_eq!(row_of(&both, &both[0]), Some(0));
     }
 
     #[test]
