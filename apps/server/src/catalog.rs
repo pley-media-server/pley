@@ -1321,13 +1321,23 @@ async fn state_changed(db: &Db, events: &EventBus, user_id: i64, item_id: i64, c
 
 /// When the user last played an item, as a sync tool copying it from
 /// another server says (playing or marking it stamps the present time).
-pub async fn set_last_played(db: &Db, user_id: i64, item_id: i64, at: i64) -> sqlx::Result<()> {
-    sqlx::query("UPDATE user_item_state SET last_played_at = ? WHERE user_id = ? AND item_id = ?")
-        .bind(at)
-        .bind(user_id)
-        .bind(item_id)
-        .execute(&db.write)
-        .await?;
+/// Devices are told again: one told of the play may have fetched the
+/// present time already.
+pub async fn set_last_played(db: &Db, events: &EventBus, user_id: i64, item_id: i64, at: i64) -> sqlx::Result<()> {
+    let changed = sqlx::query(
+        "UPDATE user_item_state SET last_played_at = ?
+         WHERE user_id = ? AND item_id = ? AND last_played_at IS NOT ?",
+    )
+    .bind(at)
+    .bind(user_id)
+    .bind(item_id)
+    .bind(at)
+    .execute(&db.write)
+    .await?
+    .rows_affected();
+    if changed > 0 {
+        state_changed(db, events, user_id, item_id, false).await?;
+    }
     Ok(())
 }
 

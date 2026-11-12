@@ -740,14 +740,30 @@ async fn sync_tools_copy_a_place_in_a_video() {
         (&json!(false), &json!(300_000_000_i64))
     );
 
-    // A time to come is today at the latest; no number is no change.
-    let body = json!({"PlaybackPositionTicks": 600_000_000.0, "LastPlayedDate": "2999-01-01T00:00:00Z"});
+    // A time to come is today at the latest; keys go in any case, as
+    // Jellyfin reads them, and what isn't a number changes nothing.
+    let body = json!({"playbackPositionTicks": 600_000_000_i64, "lastPlayedDate": "2999-01-01T00:00:00Z"});
     let later = app.jf(Method::POST, &user_data, admin, Some(body)).await;
     assert!(later.body["LastPlayedDate"].as_str().unwrap() < "2999", "{}", later.text());
     assert_eq!(later.body["PlaybackPositionTicks"], json!(600_000_000_i64));
     let wrong = app.jf(Method::POST, &user_data, admin, Some(json!({"PlaybackPositionTicks": "soon"}))).await;
-    assert!(wrong.status.is_client_error(), "{}", wrong.status);
+    assert_eq!(wrong.body["PlaybackPositionTicks"], json!(600_000_000_i64));
     assert_eq!(pley_state().await["position_ms"], json!(60_000));
+
+    // Only what plays has a place.
+    let show = format!("/Users/{me}/Items/{}/UserData", app.jf_item(w.show));
+    let refused = app.jf(Method::POST, &show, admin, Some(json!({"PlaybackPositionTicks": "450000000"}))).await;
+    assert_eq!(refused.body["PlaybackPositionTicks"], json!(0));
+
+    // Past 90 % it is watched, and leaves My List, which devices hear of.
+    app.jf(Method::POST, &format!("/UserFavoriteItems/{film}"), admin, None).await;
+    let mut events = app.state.events.subscribe();
+    let body = json!({"PlaybackPositionTicks": "950000000"});
+    let finished = app.jf(Method::POST, &user_data, admin, Some(body)).await;
+    assert_eq!((&finished.body["Played"], &finished.body["PlaybackPositionTicks"]), (&json!(true), &json!(0)));
+    assert!(common::titles(&app.get("/api/watchlist", admin).await.body["items"]).is_empty());
+    let heard: Vec<_> = std::iter::from_fn(|| events.try_recv().ok()).collect();
+    assert!(heard.iter().any(|e| matches!(e, pley::events::ServerEvent::WatchlistChanged { .. })), "{heard:?}");
 }
 
 #[tokio::test]

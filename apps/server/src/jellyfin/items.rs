@@ -11,11 +11,11 @@ use axum::http::{HeaderMap, Uri};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Extension, Json, Router};
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::dto::{self, Batch, Fields, Item, NameId};
 use super::ids::Kind;
-use super::{Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
+use super::{Body, Jellyfin, JfError, JfResult, JfUser, Q, QueryResult};
 use crate::auth::{AuthUser, SourceIp};
 use crate::catalog::{self, ItemRow};
 use crate::events::ServerEvent;
@@ -1529,38 +1529,6 @@ async fn user_unfavorite(
     set_favorite(&s, &j, &user, &id, false).await
 }
 
-#[derive(Deserialize)]
-#[serde(rename_all = "PascalCase")]
-struct UserDataUpdate {
-    #[serde(default)]
-    played: Option<bool>,
-    #[serde(default)]
-    is_favorite: Option<bool>,
-    #[serde(default, deserialize_with = "number_or_text")]
-    playback_position_ticks: Option<i64>,
-    #[serde(default)]
-    last_played_date: Option<String>,
-}
-
-/// Jellyfin reads a number sent as text too, and sync tools send ticks so.
-fn number_or_text<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Option<i64>, D::Error> {
-    #[derive(Deserialize)]
-    #[serde(untagged)]
-    enum Loose {
-        Int(i64),
-        Float(f64),
-        Text(String),
-    }
-    let number = |f: f64| f.is_finite().then_some(f as i64);
-    let parsed = match Option::<Loose>::deserialize(d)? {
-        None => return Ok(None),
-        Some(Loose::Int(n)) => Some(n),
-        Some(Loose::Float(f)) => number(f),
-        Some(Loose::Text(t)) => t.trim().parse().ok().or_else(|| t.trim().parse().ok().and_then(number)),
-    };
-    parsed.map(Some).ok_or_else(|| serde::de::Error::custom("PlaybackPositionTicks is not a number"))
-}
-
 async fn get_user_data(
     State(s): State<AppState>,
     Extension(j): Extension<Arc<Jellyfin>>,
@@ -1582,42 +1550,49 @@ async fn user_get_user_data(
 
 /// `POST /UserItems/{id}/UserData`: played, favorite, or the resume point
 /// set or cleared (`PlaybackPositionTicks`). Sync tools such as WatchState
-/// copy a place in a video from another server this way, with when it was
-/// played (`LastPlayedDate`), which Pley keeps.
+/// copy a place in a video from another server this way, sending the ticks
+/// as text, with when it was played (`LastPlayedDate`), which Pley keeps.
 async fn update_user_data(
     state: &AppState,
     jellyfin: &Jellyfin,
     user: &AuthUser,
     id: &str,
-    body: UserDataUpdate,
+    body: Body,
 ) -> JfResult<Response> {
     let row = visible_item(state, jellyfin, user, id).await?;
+    let played = body.flag("Played");
     // Apps that post back the whole UserData they were given, to change one
     // thing, send what it holds too: only what differs changes. (Marking
     // unplayed clears the place, which `Played: false` as given mustn't.)
-    let marked = body.played.filter(|played| *played != dto::played(&row));
+    let marked = played.filter(|played| *played != dto::played(&row));
     if let Some(played) = marked {
         mark(state, jellyfin, user, id, played).await?;
     }
-    if let Some(favorite) = body.is_favorite
+    if let Some(favorite) = body.flag("IsFavorite")
         && matches!(row.kind.as_str(), "movie" | "show")
     {
         set_favorite(state, jellyfin, user, id, favorite).await?;
     }
-    // A watched item has no place, nor has one just marked either way.
+    // Only what plays has a place, as with players' reports. A watched item
+    // has none, nor has one just marked either way.
     let shown_ms = if row.watched || marked.is_some() { 0 } else { row.position_ms };
-    let position_ms = body.playback_position_ticks.map(|t| t.max(0) / dto::TICKS_PER_MS);
-    let moved = position_ms.filter(|ms| *ms != shown_ms && body.played != Some(true));
+    let position_ms = body.number("PlaybackPositionTicks").map(|t| t.max(0) / dto::TICKS_PER_MS);
+    let moved = position_ms.filter(|ms| *ms != shown_ms && played != Some(true) && dto::is_playable(&row.kind));
     if let Some(ms) = moved {
         let duration = row.duration_ms.unwrap_or(0);
-        catalog::record_progress(&state.db, &state.events, user.id, row.id, ms, duration, None, "stopped").await?;
+        let recorded =
+            catalog::record_progress(&state.db, &state.events, user.id, row.id, ms, duration, None, "stopped").await?;
+        if recorded.left_watchlist {
+            state.events.send(ServerEvent::WatchlistChanged { user_id: user.id });
+        }
     }
     // Clocks run ahead, and a time to come would keep the item first in
     // Continue Watching: it is today at the latest.
     if marked.is_some() || moved.is_some() {
-        let at = body.last_played_date.as_deref().and_then(crate::util::iso_secs).filter(|at| *at > 0);
+        let at = body.str("LastPlayedDate").and_then(crate::util::iso_secs).filter(|at| *at > 0);
         if let Some(at) = at {
-            catalog::set_last_played(&state.db, user.id, row.id, at.min(crate::util::now())).await?;
+            let at = at.min(crate::util::now());
+            catalog::set_last_played(&state.db, &state.events, user.id, row.id, at).await?;
         }
     }
     Ok(Json(user_data_of(state, jellyfin, user, id).await?).into_response())
@@ -1628,7 +1603,7 @@ async fn set_user_data(
     Extension(j): Extension<Arc<Jellyfin>>,
     JfUser { user, .. }: JfUser,
     Path(id): Path<String>,
-    Json(body): Json<UserDataUpdate>,
+    body: Body,
 ) -> JfResult<Response> {
     update_user_data(&s, &j, &user, &id, body).await
 }
@@ -1638,7 +1613,7 @@ async fn user_set_user_data(
     Extension(j): Extension<Arc<Jellyfin>>,
     JfUser { user, .. }: JfUser,
     Path((u, id)): Path<(String, String)>,
-    Json(body): Json<UserDataUpdate>,
+    body: Body,
 ) -> JfResult<Response> {
     own(&j, &user, &u)?;
     update_user_data(&s, &j, &user, &id, body).await
