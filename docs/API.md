@@ -3990,6 +3990,10 @@ type ServerEvent =
   | { type: "sessions_changed" }                     // a session of the user's started, ended or changed (their
                                                      // streams, and administrators', whose dashboard lists all,
                                                      // and administrators' Pley apps allowed activity)
+  | { type: "import_changed" }                       // the Plex import moved on or ended: fetch GET
+                                                     // /api/import/plex again (the streams of the
+                                                     // administrator who started it, other administrators',
+                                                     // and administrators' Pley apps allowed activity)
   | { type: "watchlist_changed" }                    // the user's My List changed (their streams only)
   | { type: "user_state_changed"; item_ids: Id[]; children: boolean } // their watch state (their streams only)
   | { type: "session_stopped"; session_id: string; message: string | null; by_admin: boolean } // theirs only
