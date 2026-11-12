@@ -120,9 +120,10 @@ burn-in). Until releases are signed, downloaded binaries may need
 
 `pley-server-<version>-windows-<arch>-setup.exe` installs Pley with FFmpeg
 and a firewall rule, as a locked-down service or in the notification area:
-[windows/README.md](windows/README.md). Or extract the archive, install
-FFmpeg (`winget install Gyan.FFmpeg`, whose "full" build has NVENC, QSV, AMF
-and Vulkan tone mapping) and run `pley.exe`.
+[windows/README.md](windows/README.md); its FFmpeg is pley-ffmpeg's
+Windows build, with the Docker image's patches for Intel GPUs. Or extract
+the archive, install FFmpeg (`winget install Gyan.FFmpeg`, whose "full"
+build has NVENC, QSV, AMF and Vulkan tone mapping) and run `pley.exe`.
 
 ## Synology
 

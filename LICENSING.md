@@ -69,22 +69,21 @@ ships FFmpeg beside it, FFmpeg keeps its own licence:
   (`intel-media-va-driver-non-free`, redistributable, with GPU shaders that
   come without source), its licence in
   `/usr/share/doc/intel-media-va-driver-non-free/copyright`.
-- **The Windows installer** carries an FFmpeg build (gyan.dev's "full",
-  `--enable-gpl --enable-version3`, so GPLv3) with its `LICENSE` and
-  `README.txt`, and, for a patched build, its patch and build script
-  ([deploy/windows/README.md](deploy/windows/README.md)). Whoever
-  distributes the installer must also offer that build's source and build
-  configuration (GPLv3 §6; <https://ffmpeg.org/legal.html>). Alternatively,
-  ship without FFmpeg and let users install it: the transcoder finds it on
-  `PATH` or via `--ffmpeg`/`--ffprobe`.
-- **pley-ffmpeg for Windows** ([deploy/ffmpeg](deploy/ffmpeg/README.md)),
-  the same FFmpeg and patches with its libraries built in (`--enable-gpl
-  --enable-version3`, so GPLv3), comes with its source, which an installer
-  made with it carries: in its `source` folder, FFmpeg's release source,
-  the patches and the script that builds it, its configuration, and the
-  libraries built in with their versions and the image they come from
-  (BtbN/FFmpeg-Builds, whose scripts name each library's source; libzvbi's
-  source, which the script builds itself, is there too).
+- **The Windows installer** carries pley-ffmpeg's Windows build
+  ([deploy/ffmpeg](deploy/ffmpeg/README.md)): the same FFmpeg and patches as
+  the Docker image's, with its libraries built in (`--enable-gpl
+  --enable-version3`, so GPLv3). It comes with its `LICENSE.txt`,
+  `README.txt` and source, which the installer carries in `ffmpeg\source`:
+  FFmpeg's release source, the patches and the script that builds it, its
+  configuration, and the libraries built in with their versions and the
+  image they come from (BtbN/FFmpeg-Builds, whose scripts name each
+  library's source; libzvbi's source, which the script builds itself, is
+  there too). Whoever distributes the installer must also offer that source
+  (GPLv3 §6; <https://ffmpeg.org/legal.html>), which the installer does.
+  An installer can be built with another FFmpeg
+  ([deploy/windows/README.md](deploy/windows/README.md)), with that build's
+  licence and source; or ship without FFmpeg and let users install it: the
+  transcoder finds it on `PATH` or via `--ffmpeg`/`--ffprobe`.
 - **The Synology package** carries no FFmpeg: it runs the one in
   SynoCommunity's `ffmpeg7` or `ffmpeg8` package, which the user installs
   from SynoCommunity's package source under that package's own licence

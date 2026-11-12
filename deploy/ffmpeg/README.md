@@ -17,7 +17,9 @@ built for two places:
   `ffprobe.exe` for x64, with their libraries built in, so they need no DLL
   beside them. They come in a folder the installer takes as it is: `bin`,
   FFmpeg's licence, a [README](windows/README.txt) and `source`, what they
-  were built from.
+  were built from, published as a files-only image,
+  `ghcr.io/pley-media-server/pley-ffmpeg-windows:<tag>`. Releases' Windows
+  installers carry it.
 
 `ffmpeg -version` names both `9.0.2-pley`.
 
@@ -103,7 +105,9 @@ makes an installer with it ([../windows/README.md](../windows/README.md)).
 
 The image's tag is FFmpeg's version and the hash of its recipe, the
 [Dockerfile](Dockerfile) and the patches (`sh tag.sh`), so a changed
-recipe is a new image.
+recipe is a new image. The Windows build's is the same of
+[Dockerfile.windows](Dockerfile.windows), the patches and `windows/`
+(`sh tag.sh windows`).
 
 1. Change the versions, hashes or options in the Dockerfiles, or the
    patches. A patch for a new FFmpeg version is made to apply exactly
@@ -111,10 +115,19 @@ recipe is a new image.
 2. Set `FFMPEG_IMAGE` in [../docker/Dockerfile](../docker/Dockerfile) to the
    new tag (`sh deploy/ffmpeg/tag.sh`). CI fails until they match.
 3. Open a pull request. Its Docker image job builds pley-ffmpeg itself and
-   tests the Pley image with it.
+   tests the Pley image with it; its Windows FFmpeg job builds the Windows
+   build when its tag isn't published.
 4. On merge, the FFmpeg workflow (`.github/workflows/ffmpeg.yml`) publishes
-   the new tag for amd64 and arm64, with build provenance. Published tags
-   are never rebuilt.
+   the new tag for amd64 and arm64, and the Windows build's, with build
+   provenance. Published tags are never rebuilt. A release waits for both:
+   the Windows installers take the Windows build for the recipe they are
+   made from.
 
-GitHub makes the package private when it is first published: make it
-public in its settings, so that anyone can build the Pley image.
+The Windows build's dependency image, BtbN's, is pinned by digest and
+copied once to `ghcr.io/pley-media-server/ffmpeg-builds-win64-gpl`, which
+CI builds from, since BtbN's registry doesn't keep every digest.
+
+GitHub makes a package private when it is first published: make
+`pley-ffmpeg`, `pley-ffmpeg-windows` and `ffmpeg-builds-win64-gpl` public
+in their settings, so that anyone can build the Pley image and the
+installers.

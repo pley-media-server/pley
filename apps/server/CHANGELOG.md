@@ -29,8 +29,8 @@ describes how they are made.
   low-power encoder.
 - Intel graphics on Linux and in Docker get the same faster transcodes as on
   Windows.
-- The Docker image's FFmpeg has jellyfin-ffmpeg's improvements for Intel
-  graphics.
+- The Docker image and the Windows installer carry Pley's own FFmpeg, with
+  jellyfin-ffmpeg's improvements for Intel graphics.
 
 ### Fixed
 
