@@ -15,8 +15,9 @@ describes how they are made.
   libraries, accounts and invitations and show the dashboard. It is never
   given with a TV's code. Settings, network, transcoder, backups and Live
   TV stay in the web app.
-- An administrator's rights in an app hold only on a profile picked at the
-  device, not on one a cast switched to.
+- An administrator's rights in an app hold only in an app that
+  administrator allowed, on their profile picked at the device, not one a
+  cast switched to.
 
 ### Fixed
 

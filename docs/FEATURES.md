@@ -130,7 +130,8 @@ What Pley does, in full. The [README](../README.md) has the short version.
   optional, or required of everyone by an administrator, in which case each
   person sets it up at their next sign-in (for a TV, on their phone).
 - Apps sign in on Pley's own page and get only what you allow (browsing,
-  playing, playlists), never administration: OAuth 2.1 with client metadata
+  playing, playlists, and for an administrator's Android phone, managing
+  the server), never its settings or keys: OAuth 2.1 with client metadata
   documents. Pley's own apps work without internet access; apps by other
   publishers are off until an administrator allows them. TVs show a code to
   type on Pley's `/link` page ([API.md](API.md#apps-oauth-21)).
@@ -151,6 +152,11 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - Settings with a Test button for each API key and service, a live dashboard
   (playback, transcoder, scans, and charts of Pley's and the computer's CPU
   and memory) and daily database backups ([STORAGE.md](STORAGE.md)).
+- On an Android phone or tablet, Me → Manage server has the dashboard,
+  libraries, users and invitations; the server's settings, network,
+  transcoder, backups and Live TV stay in the web app
+  ([ANDROID.md](ANDROID.md)). TVs, signed in with a code, never manage the
+  server.
 
 ## Compatibility APIs
 

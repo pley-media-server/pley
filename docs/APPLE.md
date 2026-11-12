@@ -2393,6 +2393,9 @@ Delete the folder afterwards.
 ## Known limits
 
 - No seek-bar previews.
+- No Manage server on iPhone, iPad or Mac, as Android phones have: the app
+  doesn't ask for the `server` permission, so the server is managed in the
+  web app.
 - Subtitles aren't shown over AirPlay, nor in Picture in Picture: the app
   draws them over its own view of the video, which neither shows.
 - Downloads are on iPhone, iPad and Mac only, as Android's are on phones
