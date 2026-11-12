@@ -15,9 +15,9 @@ describes how they are made.
   whether Apple devices find it by Bonjour, then whether to bring over a
   Plex server or start fresh with Movies, TV Shows and Music libraries.
 - Moving from Plex: setup and Settings → Libraries can import a Plex
-  server's libraries, its Home users as profiles with their restrictions,
-  and each person's watch history, ratings, labels, collections,
-  playlists and matches (docs/MOVING_FROM_PLEX.md).
+  server's libraries, its Home users as profiles with their restrictions
+  and the PINs typed for them, and each person's watch history, ratings,
+  labels, collections, playlists and matches (docs/MOVING_FROM_PLEX.md).
 - Home and Settings → Libraries show a Plex import step by step while it
   runs, and its report once it ends.
 - Home shows administrators how far new libraries' first scans are.

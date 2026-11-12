@@ -92,7 +92,7 @@ function Person({ user, choice, onChange }: { user: PlanUser; choice: { bring: b
               type="password"
               inputMode="numeric"
               autoComplete="off"
-              maxLength={16}
+              maxLength={8}
               value={choice.pin}
               onChange={(e) => onChange({ ...choice, pin: e.target.value.replace(/\D/g, "") })}
               className="h-8 font-mono"

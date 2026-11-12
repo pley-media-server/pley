@@ -231,8 +231,13 @@ async fn fake_plex() -> String {
         )
         .route(
             "/api/v2/home/users/{uuid}/switch",
-            post(|Path(uuid): Path<String>| async move {
-                if uuid == "u-kid" {
+            // The administrator switches to a managed user without their
+            // PIN, but a wrong one is refused, as Plex does.
+            post(|Path(uuid): Path<String>, Query(q): Query<HashMap<String, String>>| async move {
+                if q.get("pin").is_some_and(|pin| pin != "1234") {
+                    let errors = json!({"errors": [{"code": 1041, "message": "A valid PIN is required"}]});
+                    (StatusCode::FORBIDDEN, axum::Json(errors)).into_response()
+                } else if uuid == "u-kid" {
                     axum::Json(json!({"authToken": KID})).into_response()
                 } else {
                     StatusCode::FORBIDDEN.into_response()
@@ -727,6 +732,9 @@ async fn brings_libraries_people_and_what_they_watched() {
     // The Home user's profile, with Plex's limits and libraries.
     let kid_id = report["profiles"][1]["user_id"].as_i64().unwrap();
     assert_eq!(report["profiles"][1]["created"], true);
+    // A PIN on Plex, none typed: none in Pley, and the report says so.
+    assert_eq!(report["profiles"][1]["pin"], "none");
+    assert_eq!(one(&app, "SELECT pin_hash IS NULL FROM users WHERE id = ?", kid_id).await, 1);
     let (name, managed, home, all, max_age, system): (String, bool, bool, bool, Option<i64>, Option<String>) =
         sqlx::query_as(
             "SELECT username, managed, home, all_libraries, max_age, max_age_system FROM users WHERE id = ?",
@@ -924,13 +932,14 @@ async fn brings_libraries_people_and_what_they_watched() {
         .await
         .unwrap();
 
-    // Again: nothing twice, and the same profile.
+    // Again: nothing twice, and the same profile, which takes the PIN
+    // typed for it this time.
     sign_in(&app, &admin).await;
     let users_before = one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await;
     let choices = json!({
         "libraries": [{"key": "1", "library_id": movies}],
         "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("movies")}],
-        "users": [{"id": 885}],
+        "users": [{"id": 885, "pin": "1234"}],
     });
     let r = app.post("/api/import/plex/start", &admin, choices).await;
     assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
@@ -938,6 +947,13 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(done["state"], "done", "{done:?}");
     assert_eq!(done["report"]["profiles"][1]["user_id"], kid_id);
     assert_eq!(done["report"]["profiles"][1]["created"], false);
+    assert_eq!(done["report"]["profiles"][1]["pin"], "kept");
+    let hash: String = sqlx::query_scalar("SELECT pin_hash FROM users WHERE id = ?")
+        .bind(kid_id)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    assert!(pley::auth::verify_password("1234".into(), hash).await.unwrap(), "Plex's PIN");
     assert_eq!(done["report"]["profiles"][1]["kept_limit"], true, "its age limit, set by the first");
     assert_eq!(done["report"]["libraries"][1]["library_id"], Value::Null, "TV left out this time");
     assert_eq!(one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await, users_before);
@@ -1001,7 +1017,7 @@ async fn brings_libraries_people_and_what_they_watched() {
             json!({
                 "libraries": [{"key": "1", "new": {"name": "Films", "paths": [app.media_path("films")]}}],
                 "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("films")}],
-                "users": [{"id": 885}],
+                "users": [{"id": 885, "pin": "1234"}],
             }),
         )
         .await;
@@ -1011,6 +1027,7 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(done["report"]["profiles"][1]["left_over"], json!(["Scary"]));
     assert_eq!(done["report"]["profiles"][1]["max_age"], 0);
     assert_eq!(done["report"]["profiles"][1]["kept_limit"], false, "none of its own");
+    assert_eq!(done["report"]["profiles"][1]["pin"], Value::Null, "it has its own PIN, which it keeps");
     assert_eq!(one(&app, "SELECT max_age FROM users WHERE id = ?", kid_id).await, 0);
     let films = done["report"]["libraries"][0]["library_id"].as_i64().unwrap();
     let opened: Vec<i64> =
@@ -1075,6 +1092,33 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(app.delete("/api/import/plex", &admin).await.status, StatusCode::NO_CONTENT);
     let r = app.get("/api/import/plex/plan", &admin).await;
     assert_eq!(r.body["code"], "plex_signed_out");
+}
+
+#[tokio::test]
+async fn a_wrong_plex_pin_brings_nobody_and_gives_no_profile_a_pin() {
+    let plex = fake_plex().await;
+    let app = TestApp::with_config(|c| c.plex_tv = plex.clone()).await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979).mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    sign_in(&app, &admin).await;
+    let r = app
+        .post(
+            "/api/import/plex/start",
+            &admin,
+            json!({
+                "libraries": [{"key": "1", "library_id": movies}],
+                "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("movies")}],
+                "users": [{"id": 885, "pin": "4321"}],
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let done = finished(&app, &admin).await;
+    assert_eq!(done["state"], "done", "{done:?}");
+    let kid = &done["report"]["profiles"][1];
+    assert_eq!((&kid["skipped"], &kid["user_id"], &kid["pin"]), (&json!("pin_needed"), &Value::Null, &Value::Null));
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM users WHERE pin_hash IS NOT NULL AND id > ?", 0).await, 0);
 }
 
 #[tokio::test]

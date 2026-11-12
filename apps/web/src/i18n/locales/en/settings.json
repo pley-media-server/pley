@@ -901,7 +901,7 @@
       "leftOver_other": "A profile keeps 50 labels of up to 120 characters; these are left out: {{labels}}",
       "notKept": "Pley can't keep these rules of Plex's, so it hides more instead:",
       "pin": "Plex PIN",
-      "pinHint": "If Plex asks for it. Pley doesn't keep it: their profile has no PIN until you give it one."
+      "pinHint": "Their profile in Pley gets the same PIN, unless it already has one. Left empty, it has none until you give it one."
     },
     "bring": {
       "title": "What to bring",
@@ -978,6 +978,8 @@
       "missedTitles": "Some it didn't find",
       "people": "People",
       "profileCreated": "New profile",
+      "pinKept": "PIN from Plex",
+      "pinNone": "No PIN in Pley, though Plex had one for them. You can give their profile one in Settings › Users.",
       "watched_one": "{{count, number}} watched",
       "watched_other": "{{count, number}} watched",
       "resumed_one": "{{count, number}} to resume",

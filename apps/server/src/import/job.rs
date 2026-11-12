@@ -386,6 +386,22 @@ pub struct ProfileReport {
     /// than Plex shared with them.
     #[serde(default)]
     pub closed: Vec<String>,
+    /// A PIN on Plex, and what the profile has: `None` with no PIN on
+    /// Plex, or when the profile has its own.
+    #[serde(default)]
+    pub pin: Option<PinOutcome>,
+}
+
+/// What became of a protected Home user's Plex PIN.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PinOutcome {
+    /// The profile took the PIN typed for them.
+    Kept,
+    /// The profile has no PIN in Pley: none was typed, or it couldn't be
+    /// kept.
+    #[serde(rename = "none")]
+    Missing,
 }
 
 // ---- The plan ----
@@ -552,7 +568,7 @@ pub struct FolderChoice {
 #[derive(Debug, Deserialize)]
 pub struct UserChoice {
     pub id: i64,
-    /// Their Plex PIN, when Plex asked for it.
+    /// Their Plex PIN, for the switch to them and then their profile.
     pub pin: Option<String>,
 }
 
@@ -1861,6 +1877,7 @@ impl Run {
                     let open: Vec<i64> = open.iter().map(|p| p.library_id).collect();
                     let (user_id, created) = self.profile(user, &limits, everything, &open, &made, &mut report).await?;
                     self.picture(user_id, user).await?;
+                    report.pin = self.pin(user_id, user, pin).await?;
                     report.user_id = Some(user_id);
                     report.created = created;
                     people.push(Person {
@@ -1900,6 +1917,46 @@ impl Run {
         .execute(&self.state.db.write)
         .await?;
         Ok(())
+    }
+
+    /// A protected Home user's profile takes the PIN typed for them, which
+    /// Plex has just accepted for the switch (it refuses a wrong one, even
+    /// where it needs none), unless it has one in Pley.
+    async fn pin(&self, user_id: i64, user: &HomeUser, pin: Option<&str>) -> ImportResult<Option<PinOutcome>> {
+        if !user.protected {
+            return Ok(None);
+        }
+        let db = &self.state.db;
+        // Plex's PINs are 4 digits, within Pley's 4 to 8. A hash that can't
+        // be made now leaves the profile as if none was typed, which the
+        // report says, rather than failing the import.
+        let hash = match pin.filter(|p| accounts::validate_pin(p).is_ok()) {
+            Some(pin) => match crate::auth::hash_password(pin.to_owned()).await {
+                Ok(hash) => Some(hash),
+                Err(e) => {
+                    tracing::warn!("the Plex import couldn't give profile {user_id} its PIN: {e}");
+                    None
+                }
+            },
+            None => None,
+        };
+        // Only where it has none, still: a PIN set while the import ran stays.
+        if let Some(hash) = hash {
+            let set = sqlx::query("UPDATE users SET pin_hash = ?, pin_failures = 0 WHERE id = ? AND pin_hash IS NULL")
+                .bind(hash)
+                .bind(user_id)
+                .execute(&db.write)
+                .await?;
+            if set.rows_affected() > 0 {
+                self.state.auth.forget_user(user_id);
+                return Ok(Some(PinOutcome::Kept));
+            }
+        }
+        let has: bool = sqlx::query_scalar("SELECT pin_hash IS NOT NULL FROM users WHERE id = ?")
+            .bind(user_id)
+            .fetch_one(&db.write)
+            .await?;
+        Ok((!has).then_some(PinOutcome::Missing))
     }
 
     /// Home user `user`'s Plex picture and colour for profile `user_id`,

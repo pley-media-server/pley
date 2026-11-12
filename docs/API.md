@@ -4678,7 +4678,7 @@ interface ImportChoices {
   // `new`; one not listed is left out.
   libraries: { key: string; library_id?: Id; new?: { name: string; paths: string[] } }[];
   folders?: { plex: string; pley: string }[];   // where Plex's folders are for Pley
-  users?: { id: number; pin?: string }[];       // Home users; a PIN only when Plex asked for it
+  users?: { id: number; pin?: string }[];       // Home users; a PIN Plex accepts becomes a new or PIN-less profile's
   // What comes besides the libraries and people; each true when left out.
   bring?: { watch_history?: boolean; collections?: boolean; edits?: boolean };
 }
@@ -4734,7 +4734,8 @@ interface ImportProgress {
                 incomplete: boolean;       // Plex refused some of their watch history
                 playlists_incomplete: boolean;       // Plex refused some of their playlists
                 kept_limit: boolean;       // found again, it kept its own age limit: not_kept made nothing stricter
-                closed: string[] }[];      // libraries already in Pley, by name, not opened: they hold more than Plex shared
+                closed: string[];          // libraries already in Pley, by name, not opened: they hold more than Plex shared
+                pin: "kept" | "none" | null }[];   // a PIN on Plex: the profile took the one typed, or has none in Pley
     labels_added: number;
     dates_moved: number;
     matches_fixed: number;                // titles matched again to Plex's TMDB entry

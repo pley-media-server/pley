@@ -534,6 +534,15 @@ describe("PlexImport", () => {
     expect(await screen.findByText(/^Everything stays closed to this profile/)).toBeInTheDocument();
   });
 
+  it("says which profiles took their Plex PIN, and which have none in Pley", async () => {
+    const kept = { ...report.profiles[0]!, title: "Kid", pin: "kept" as const };
+    const none = { ...report.profiles[0]!, title: "Teen", pin: "none" as const };
+    serve({ progress: () => ({ ...idle, state: "done", report: { ...report, profiles: [kept, none] } }) });
+    renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
+    expect(await screen.findByText("PIN from Plex")).toBeInTheDocument();
+    expect(screen.getAllByText(/^No PIN in Pley, though Plex had one for them/)).toHaveLength(1);
+  });
+
   it("says a profile found again kept its own age limit rather than hiding more", async () => {
     const found = { ...report.profiles[0]!, not_kept: ["genre=Kids"], kept_limit: true };
     serve({ progress: () => ({ ...idle, state: "done", report: { ...report, profiles: [found] } }) });

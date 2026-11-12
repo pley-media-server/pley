@@ -460,6 +460,7 @@ function ProfileLine({
         <span className="font-medium">{p.title}</span>
         {p.created ? <Badge tone="accent">{t("plexImport.report.profileCreated")}</Badge> : null}
         {age ? <Badge tone="info">{age}</Badge> : null}
+        {p.pin === "kept" ? <Badge>{t("plexImport.report.pinKept")}</Badge> : null}
       </div>
       {p.skipped ? (
         <p className="mt-0.5 flex items-center gap-1 text-xs text-warning">
@@ -476,6 +477,7 @@ function ProfileLine({
           {t(p.kept_limit ? "plexImport.report.notKeptOwnLimit" : "plexImport.report.notKept")} <span className="font-mono">{p.not_kept.join(", ")}</span>
         </p>
       ) : null}
+      {p.pin === "none" ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.pinNone")}</p> : null}
       {p.closed?.length ? (
         <p className="mt-0.5 text-xs text-warning">
           {t("plexImport.report.closed", {

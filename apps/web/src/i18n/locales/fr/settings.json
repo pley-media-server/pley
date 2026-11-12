@@ -928,7 +928,7 @@
       "leftOver_other": "Un profil garde 50 étiquettes de 120 caractères au plus ; celles-ci sont laissées de côté : {{labels}}",
       "notKept": "Pley ne peut pas garder ces règles de Plex, alors il masque davantage :",
       "pin": "Code PIN Plex",
-      "pinHint": "Si Plex le demande. Pley ne le garde pas : leur profil n'a pas de PIN tant que vous ne lui en donnez pas."
+      "pinHint": "Son profil dans Pley aura le même, sauf s’il en a déjà un. Si vous le laissez vide, le profil n’aura pas de PIN tant que vous ne lui en aurez pas donné un."
     },
     "bring": {
       "title": "Quoi transférer",
@@ -1012,6 +1012,8 @@
       "missedTitles": "Quelques titres introuvables",
       "people": "Personnes",
       "profileCreated": "Nouveau profil",
+      "pinKept": "Code PIN repris de Plex",
+      "pinNone": "Pas de PIN dans Pley, alors que Plex en avait un pour cette personne. Vous pouvez en donner un à son profil dans Paramètres › Utilisateurs.",
       "watched_one": "{{count, number}} vu",
       "watched_many": "{{count, number}} de vus",
       "watched_other": "{{count, number}} vus",

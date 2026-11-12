@@ -148,6 +148,8 @@ export interface ProfileReport {
   kept_limit?: boolean;
   /** Libraries already in Pley, by name, not opened to a new profile: they hold more than Plex shared with them. */
   closed?: string[];
+  /** A PIN on Plex: "kept", the profile took the one typed for them; "none", it has no PIN in Pley. Absent with no PIN on Plex, or when the profile has its own. */
+  pin?: "kept" | "none" | null;
 }
 
 export interface ImportReport {

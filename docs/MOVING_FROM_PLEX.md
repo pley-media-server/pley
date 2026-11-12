@@ -19,9 +19,11 @@ never changes anything on Plex.
   closed to a new profile, and the report says so: you can open it in
   Settings › Users. Plex's picture for each comes too, where the profile has none in
   Pley: one chosen on Plex or a Gravatar. A Plex picture that's only an
-  initial brings its colour instead, for Pley's own initial. Plex's PINs
-  don't come: a profile starts with none, so give one in Settings › Users
-  to anyone whose Plex profile had one.
+  initial brings its colour instead, for Pley's own initial. Pley can't
+  read a Plex PIN, so a protected user's profile gets the PIN you type
+  for them (step 4), which Plex checks, unless it already has one in
+  Pley. Without one typed, their profile has no PIN, and the report says
+  so: give it one in Settings › Users.
 - **Restrictions.** The profile of a Plex Home user with restrictions (a
   managed user's, or those on what you share with a member who has their
   own Plex account) gets an age limit from the ratings Plex allows them,
@@ -127,8 +129,10 @@ Import from Plex.
    Libraries. On a server with no libraries yet, the badges aren't shown:
    every library would be Not in Pley.
 4. **People.** Each Home user shows the profile they'll get and its limits.
-   Turn off anyone who shouldn't come. Plex sometimes asks for a protected
-   user's PIN; type it there, or they're skipped.
+   Turn off anyone who shouldn't come. Type a protected user's Plex PIN
+   for their profile to have the same one. Plex sometimes needs it to
+   bring them; without it then, they're skipped. A wrong PIN skips them
+   too.
 5. **What to bring.** Watch history, collections and playlists, matches
    and edits: turn off what you'd rather start over in Pley.
 6. **Import.** Once started, Pley goes to Home (or back to Settings ›
