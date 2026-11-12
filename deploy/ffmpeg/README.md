@@ -1,15 +1,25 @@
 # pley-ffmpeg
 
-FFmpeg 9 and libplacebo for the Docker image: FFmpeg's release source with
-the [patches](patches) from
+FFmpeg 9 for Pley's transcoder: FFmpeg's release source with the
+[patches](patches) from
 [jellyfin-ffmpeg](https://github.com/jellyfin/jellyfin-ffmpeg) that keep an
-Intel GPU's transcodes on the GPU, built on Debian 13 against its
-libraries: `ghcr.io/pley-media-server/pley-ffmpeg:<tag>`. The Pley image
-copies them ([../docker/Dockerfile](../docker/Dockerfile)) instead of
-compiling them on every build. The image holds files only: `/usr` (the
-programs, libplacebo, their licences and sources, the patches among them)
-and `/packages`, the Debian packages they link. `ffmpeg -version` names it
-`9.0.2-pley`.
+Intel GPU's transcodes on the GPU. One source and one set of patches,
+built for two places:
+
+- **The Docker image** ([Dockerfile](Dockerfile)): FFmpeg and libplacebo,
+  built on Debian 13 against its libraries,
+  `ghcr.io/pley-media-server/pley-ffmpeg:<tag>`. The Pley image copies them
+  ([../docker/Dockerfile](../docker/Dockerfile)) instead of compiling them
+  on every build. The image holds files only: `/usr` (the programs,
+  libplacebo, their licences and sources, the patches among them) and
+  `/packages`, the Debian packages they link.
+- **Windows** ([Dockerfile.windows](Dockerfile.windows)): `ffmpeg.exe` and
+  `ffprobe.exe` for x64, with their libraries built in, so they need no DLL
+  beside them. They come in a folder the installer takes as it is: `bin`,
+  FFmpeg's licence, a [README](windows/README.txt) and `source`, what they
+  were built from.
+
+`ffmpeg -version` names both `9.0.2-pley`.
 
 ## The patches
 
@@ -63,11 +73,21 @@ its transcoder asks for.
 
 ```
 docker build -t pley-ffmpeg deploy/ffmpeg
+docker build -f deploy/ffmpeg/Dockerfile.windows --output dist/pley-ffmpeg-windows-x86_64 deploy/ffmpeg
 ```
 
-It downloads FFmpeg's release source, checks it against the hash in the
-Dockerfile, and stops at a patch that doesn't apply exactly. `--build-arg
+Both download FFmpeg's release source, check it against the hash in the
+Dockerfile, and stop at a patch that doesn't apply exactly. `--build-arg
 JOBS=8` limits the compilers run at once.
+
+The Windows build is cross-compiled with mingw-w64 in
+[BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds)' image, pinned
+by digest, which has the compiler and the libraries built for Windows
+(libzvbi, for teletext subtitles, is built with FFmpeg). It names what it
+builds in, checks that the programs load nothing but Windows' own
+libraries, and writes the folder out:
+`scripts\build-installer.ps1 -Ffmpeg dist\pley-ffmpeg-windows-x86_64\bin`
+makes an installer with it ([../windows/README.md](../windows/README.md)).
 
 ## Updating FFmpeg, libplacebo or the patches
 
@@ -75,7 +95,7 @@ The image's tag is FFmpeg's version and the hash of its recipe, the
 [Dockerfile](Dockerfile) and the patches (`sh tag.sh`), so a changed
 recipe is a new image.
 
-1. Change the versions, hashes or options in the Dockerfile, or the
+1. Change the versions, hashes or options in the Dockerfiles, or the
    patches. A patch for a new FFmpeg version is made to apply exactly
    (`patch -p1 -F0`), and its header says what changed.
 2. Set `FFMPEG_IMAGE` in [../docker/Dockerfile](../docker/Dockerfile) to the

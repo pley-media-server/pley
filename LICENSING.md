@@ -77,6 +77,14 @@ ships FFmpeg beside it, FFmpeg keeps its own licence:
   configuration (GPLv3 §6; <https://ffmpeg.org/legal.html>). Alternatively,
   ship without FFmpeg and let users install it: the transcoder finds it on
   `PATH` or via `--ffmpeg`/`--ffprobe`.
+- **pley-ffmpeg for Windows** ([deploy/ffmpeg](deploy/ffmpeg/README.md)),
+  the same FFmpeg and patches with its libraries built in (`--enable-gpl
+  --enable-version3`, so GPLv3), comes with its source, which an installer
+  made with it carries: in its `source` folder, FFmpeg's release source,
+  the patches and the script that builds it, its configuration, and the
+  libraries built in with their versions and the image they come from
+  (BtbN/FFmpeg-Builds, whose scripts name each library's source; libzvbi's
+  source, which the script builds itself, is there too).
 - **The Synology package** carries no FFmpeg: it runs the one in
   SynoCommunity's `ffmpeg7` or `ffmpeg8` package, which the user installs
   from SynoCommunity's package source under that package's own licence
