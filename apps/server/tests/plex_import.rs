@@ -1183,8 +1183,8 @@ async fn an_import_the_server_restarted_during_says_so() {
     assert_eq!(progress["report"], Value::Null);
 
     // The libraries it made fetch their details, which it would have done
-    // last, once; one made otherwise doesn't. One whose first scan was cut
-    // short is scanned again first.
+    // last, once; one removed since doesn't (999). One whose first scan was
+    // cut short is scanned again first.
     let made = |name: &str, at: i64, scanned: Option<i64>| {
         sqlx::query_scalar::<_, i64>(
             "INSERT INTO libraries (id, name, kind, paths, created_at, scanned_at, position)
@@ -1195,10 +1195,8 @@ async fn an_import_the_server_restarted_during_says_so() {
         .bind(scanned)
         .fetch_one(&app.state.db.write)
     };
-    made("Before", 1_794_000_000, Some(5)).await.unwrap();
     let tv = made("TV", 1_794_100_001, Some(5)).await.unwrap();
     let films = made("Films", 1_794_100_005, None).await.unwrap();
-    made("Since", 1_794_100_010, Some(5)).await.unwrap();
     sqlx::query("INSERT INTO settings (key, value) VALUES ('plex_import_made', ?)")
         .bind(format!("[{tv}, {films}, 999]"))
         .execute(&app.state.db.write)
