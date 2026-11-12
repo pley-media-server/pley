@@ -178,7 +178,6 @@ fn steps(bring: Bring) -> Vec<StepRow> {
         .collect()
 }
 
-/// What step `step` brought, from the report so far.
 /// How long each of `steps` that ran took, the one running until now.
 fn step_times(steps: &[StepRow]) -> Vec<StepTime> {
     steps
@@ -194,6 +193,7 @@ fn step_times(steps: &[StepRow]) -> Vec<StepTime> {
         .collect()
 }
 
+/// What step `step` brought, from the report so far.
 fn step_count(report: &Report, step: Step) -> Option<u64> {
     let profiles = || report.profiles.iter().filter(|p| p.user_id.is_some() && p.skipped.is_none());
     match step {

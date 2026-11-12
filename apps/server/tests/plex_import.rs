@@ -417,7 +417,6 @@ fn steps(progress: &Value) -> Vec<(String, String)> {
     rows.iter().map(|r| (r["step"].as_str().unwrap().to_owned(), r["state"].as_str().unwrap().to_owned())).collect()
 }
 
-/// A number `sql` answers, with `bind` for its `?`.
 /// Signs in to Plex with the owner's token and picks the fake server: each
 /// run needs a sign-in.
 async fn sign_in(app: &TestApp, admin: &str) {
@@ -427,6 +426,7 @@ async fn sign_in(app: &TestApp, admin: &str) {
     assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
 }
 
+/// A number `sql` answers, with `bind` for its `?`.
 async fn one(app: &TestApp, sql: &'static str, bind: i64) -> i64 {
     sqlx::query_scalar(sql).bind(bind).fetch_one(&app.state.db.read).await.unwrap()
 }
