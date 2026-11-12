@@ -717,6 +717,14 @@ tells the device's socket (`Playstate` `Stop`), and its reports don't start
 it again until it stops. `/MediaSegments/{id}` gives the intro and credits
 Pley found as `Intro` and `Outro`, for Skip buttons.
 
+`POST /UserItems/{id}/UserData` sets what it is given that differs from
+the item's state: `Played`, `IsFavorite`, and `PlaybackPositionTicks`,
+which moves the resume point (to 90 % or more, the item is watched) and
+clears it at `0`. When the item is marked or its place moves,
+`LastPlayedDate` is kept as when it was played, today at the latest. Sync tools such as WatchState copy a
+place in a video from another server this way, sending the ticks as text,
+which Pley reads as Jellyfin does.
+
 Seek-bar previews are the sprite sheets Pley makes for its own players
 ([API.md](API.md#playback)), at the one width it makes them. An item's
 `Trickplay` (in its details, and in lists with `Fields=Trickplay`) gives
