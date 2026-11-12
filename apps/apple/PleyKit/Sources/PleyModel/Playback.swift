@@ -175,6 +175,9 @@ public struct PlaybackInfo: Codable, Hashable, Sendable {
     /// How much later than the file's times the stream's timestamps are;
     /// `nil` when the file plays as it is.
     public var ptsOffsetMs: Int?
+    /// The server converts no video: the Quality menu offers the original
+    /// alone, and Automatic stays there.
+    public var originalOnly: Bool
 
     public init(sessionId: String, method: PlaybackMethod, url: String, hls: Bool, fileId: Int, durationMs: Int = 0) {
         self.sessionId = sessionId
@@ -189,6 +192,7 @@ public struct PlaybackInfo: Codable, Hashable, Sendable {
         reasons = []
         adaptive = false
         liveBitrate = false
+        originalOnly = false
     }
 
     public init(from decoder: any Decoder) throws {
@@ -211,6 +215,7 @@ public struct PlaybackInfo: Codable, Hashable, Sendable {
         adaptive = try c.value(.adaptive, or: false)
         liveBitrate = try c.value(.liveBitrate, or: false)
         ptsOffsetMs = try c.decodeIfPresent(Int.self, forKey: .ptsOffsetMs)
+        originalOnly = try c.value(.originalOnly, or: false)
     }
 }
 

@@ -123,6 +123,8 @@ class SettingsViewModel(
 
     fun setReduceMotion(on: Boolean) = update { it.copy(reduceMotion = on) }
 
+    fun setHomeBanner(on: Boolean) = update { it.copy(homeBanner = on) }
+
     fun setAlwaysStartAs(profileId: Long?) = update { it.copy(alwaysStartAs = profileId) }
 
     fun setSoftwareVideo(on: Boolean) = update { it.copy(allowSoftwareVideo = on) }

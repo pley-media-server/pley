@@ -150,13 +150,16 @@ def prepare(
         playing["tracks"] = tracks.layout(info, file)
         # The Quality menu (Kodi's setting) as the file offers it, and its
         # pick, which reports say and the user's remote changes.
-        playing["qualities"] = qualities(file)
+        only = info.get("original_only") is True
+        playing["qualities"] = qualities(file, only)
         playing["quality"] = autoquality.picked(chosen_quality(), playing["qualities"])
         if given:
             # Played again (another quality, Automatic) with them too.
             playing["given"] = given
-        if asked["automatic"]:
-            # What the service's Automatic watches the playback with.
+        if asked["automatic"] and not only:
+            # What the service's Automatic watches the playback with: nothing
+            # on a server that converts no video, which has no other quality
+            # to step to.
             playing["auto"] = automatic(asked, info, file)
     kodi.set_property(kodi.PLAYING, json.dumps(playing))
     reason = info.get("reason")
@@ -188,10 +191,13 @@ def obeys(item_id: int, kind=None, file=None) -> list:
     return remote.controls("video", has_next=has_next, audio=audio, subtitles=subtitles, quality=True)
 
 
-def qualities(file) -> list:
+def qualities(file, original_only: bool = False) -> list:
     """The ids of the Quality menu as the file offers it (`file`, its
     details; the whole menu when they couldn't be had), as the server lists
-    them to the user's remotes."""
+    them to the user's remotes: the original alone on a server that
+    converts no video (`original_only` in its play answer)."""
+    if original_only:
+        return [autoquality.ORIGINAL]
     file = file or {}
     video = next((s for s in file.get("streams") or [] if s.get("kind") == "video"), None) or {}
     width, height = file.get("width") or video.get("width"), file.get("height") or video.get("height")

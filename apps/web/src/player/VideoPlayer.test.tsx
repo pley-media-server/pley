@@ -663,6 +663,7 @@ describe("VideoPlayer in Automatic", () => {
     requests.filter((r) => r.method === "POST" && r.path === "/api/playback").map((r) => r.body as Record<string, unknown>);
 
   beforeEach(() => forgetNetwork());
+  afterEach(() => forgetNetwork());
 
   /** A 20 Mbps 1080p file, played as it is (`remux`: into HLS, its audio converted); `more`: other answers of the server's. */
   function render20(more: Parameters<typeof mockApi>[0] = {}, remux = false) {
@@ -765,6 +766,44 @@ describe("VideoPlayer in Automatic", () => {
     await sleep(3_100);
     expect(starts(requests)).toHaveLength(1);
   }, 15_000);
+
+  it("offers the original alone on a server that converts no video, and stays there on a slow network", async () => {
+    const item = detail();
+    item.files[0]!.bitrate = 20_000_000;
+    const requests = serve([session("r1", { method: "remux", original_only: true }), session("t2")], { "DELETE /api/playback/r1": () => undefined });
+    const { container } = renderWithProviders(<VideoPlayer item={item} startMs={60_000} fileId={null} audio={null} sub={null} />);
+    const video = container.querySelector("video")!;
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    playing(video, 0);
+    segments(16);
+    act(() => {
+      video.dispatchEvent(new Event("waiting"));
+    });
+    await sleep(3_100);
+    expect(starts(requests)).toHaveLength(1);
+    await userEvent.click(screen.getByRole("button", { name: "Playback settings" }));
+    await userEvent.click(screen.getByRole("button", { name: /Quality/ }));
+    expect(screen.getAllByRole("menuitemradio").map((option) => option.textContent)).toEqual([expect.stringMatching(/^Original/)]);
+    // The choice kept is for servers that do convert.
+    expect(window.localStorage.getItem("pley.quality")).toBeNull();
+  }, 15_000);
+
+  it("starts the next title as the original on a server that said it converts no video", async () => {
+    window.localStorage.setItem("pley.quality", JSON.stringify("4m"));
+    const answers = [session("r1", { method: "remux", original_only: true }), session("d2", { method: "direct", hls: false, url: "/api/files/3/stream", original_only: true })];
+    const requests = serve(answers, { "DELETE /api/playback/r1": () => undefined, "DELETE /api/playback/d2": () => undefined });
+    const item = detail();
+    item.files[0]!.bitrate = 20_000_000;
+    const first = renderWithProviders(<VideoPlayer item={item} startMs={0} fileId={null} audio={null} sub={null} />);
+    // The quality kept is asked for, until the server says; then the original is.
+    await waitFor(() => expect(starts(requests)).toHaveLength(2));
+    expect(starts(requests).map((s) => s.mode)).toEqual(["transcode", "auto"]);
+    first.unmount();
+    renderWithProviders(<VideoPlayer item={item} startMs={0} fileId={null} audio={null} sub={null} />);
+    await waitFor(() => expect(starts(requests)).toHaveLength(3));
+    expect(starts(requests)[2]).toMatchObject({ mode: "auto", max_bitrate: null });
+    expect(JSON.parse(window.localStorage.getItem("pley.quality")!)).toBe("4m");
+  });
 
   it("keeps a quality picked before, Original included: a slow network waits", async () => {
     window.localStorage.setItem("pley.quality", JSON.stringify("original"));

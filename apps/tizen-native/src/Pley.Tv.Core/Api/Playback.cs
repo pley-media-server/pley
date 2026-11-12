@@ -35,6 +35,8 @@ public sealed record PlaybackInfo
     public bool Adaptive { get; init; }
     /// <summary>The video is converted, and PUT /api/playback/{id}/bitrate changes its bitrate as it plays.</summary>
     public bool LiveBitrate { get; init; }
+    /// <summary>The server converts no video: the Quality menu offers the original alone, and Automatic stays there.</summary>
+    public bool OriginalOnly { get; init; }
 }
 
 /// <summary>

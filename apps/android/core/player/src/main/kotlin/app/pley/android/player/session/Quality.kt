@@ -86,6 +86,13 @@ object Qualities {
         )
     }
 
+    /**
+     * The qualities the menu offers for [file]: those worth offering
+     * ([forFile]), or the original alone on a server that converts no video
+     * (`PlaybackInfo.originalOnly`), which has no other to give.
+     */
+    fun offered(file: MediaFile?, originalOnly: Boolean): List<QualityPreset> = if (originalOnly) listOf(ORIGINAL) else forFile(file)
+
     /** The lines [preset] gives a file of [fileLines]: never more than the file's. */
     fun linesFor(preset: QualityPreset, fileLines: Int?): Int? {
         val most = preset.maxHeight ?: return fileLines

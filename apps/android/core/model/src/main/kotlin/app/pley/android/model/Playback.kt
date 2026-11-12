@@ -448,6 +448,11 @@ data class PlaybackInfo(
      */
     val autoQuality: String? = null,
     /**
+     * The server converts no video: the Quality menu offers the original
+     * alone, and Automatic stays there.
+     */
+    val originalOnly: Boolean = false,
+    /**
      * What the screen gets of HDR video, by name: "Dolby Vision P8.1",
      * "HDR10 (Dolby Vision base layer)", "Dolby Vision P8.1 (converted from
      * P7 FEL)", "SDR (tone-mapped)"… `null` for SDR video and older servers.

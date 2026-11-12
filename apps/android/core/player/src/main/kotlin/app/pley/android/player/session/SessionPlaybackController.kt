@@ -202,6 +202,9 @@ class SessionPlaybackController(
 
     /** What plays: the original or a transcode, Automatic's choice while [picked] is Automatic. */
     private var quality: QualityPreset = Qualities.ORIGINAL
+
+    /** The server converts no video, as its last play answer had it: only the original is offered, and plays. */
+    private var originalOnly = false
     private var markers: List<Marker> = emptyList()
 
     /** The mode a Dolby Vision guard asked for, for this item's later sessions too. */
@@ -381,7 +384,7 @@ class SessionPlaybackController(
         } catch (_: Exception) {
             null
         }
-        if (Qualities.choose(null, remembered).automatic) network.lookUp() else null
+        if (!originalOnly && Qualities.choose(null, remembered).automatic) network.lookUp() else null
     }
 
     /** Where Automatic starts for this file: the server's ceiling ([lookup], with a speed test if it asks), else the device's memory. */
@@ -417,7 +420,7 @@ class SessionPlaybackController(
         } catch (_: Exception) {
             null
         }
-        picked = Qualities.choose(chosen, remembered)
+        picked = if (originalOnly) Qualities.ORIGINAL else Qualities.choose(chosen, remembered)
         val streams = chosen != null && localFile(chosen.id) == null
         quality = playedFor(picked, if (picked.automatic && streams) startCeiling(lookup) else StartCeiling.Device)
         lookup?.cancel()
@@ -690,6 +693,13 @@ class SessionPlaybackController(
         playingLocal = false
         playingConvertedSound = serverDecodes
         val info = started.info
+        originalOnly = info.originalOnly
+        if (originalOnly) {
+            // Whatever was asked for, the original plays: the menu says so, and the quality kept stays for servers that convert.
+            picked = Qualities.ORIGINAL
+            quality = playedFor(picked)
+            streamingPicked = false
+        }
         // Automatic: the track the server chose plays, switched to by the engine in direct play.
         if (audio == null) audio = PlaybackPlan.playedAudio(chosen, info.audioIndex)
         playedTracks = tracksNow()
@@ -1086,7 +1096,12 @@ class SessionPlaybackController(
             Recovery.Action.SuggestLowerQuality -> {
                 // Automatic goes lower by itself; otherwise the person is offered a lower quality.
                 val step = if (automatic) autoQuality.serverTooSlow(env.now()) else null
-                if (step != null) applyAuto(step) else ui.update { it.copy(suggestLowerQuality = true, note = texts.slowServer) }
+                // Nothing is suggested where there is none to choose.
+                if (step != null) {
+                    applyAuto(step)
+                } else if (!originalOnly) {
+                    ui.update { it.copy(suggestLowerQuality = true, note = texts.slowServer) }
+                }
             }
             is Recovery.Action.Fail -> fail(
                 texts.failure(action.failure, action.detail),
@@ -1836,7 +1851,7 @@ class SessionPlaybackController(
     /** The menu's quality choice, and the remote's: kept as the pick, and played from where it is when it plays otherwise. */
     private fun changeQuality(name: String): TrackChange {
         val wanted = Qualities.byIdOrLabel(name)
-        val choice = Qualities.forFile(file).firstOrNull { it.id == wanted.id } ?: return TrackChange.Unchanged
+        val choice = Qualities.offered(file, originalOnly).firstOrNull { it.id == wanted.id } ?: return TrackChange.Unchanged
         if (choice.id == picked.id) return TrackChange.Unchanged
         val before = quality
         picked = choice
@@ -2165,7 +2180,7 @@ class SessionPlaybackController(
         }
         // A download plays as it is: there is nothing to convert, and the server may be away.
         val downloaded = info?.url?.startsWith("file:") == true
-        val qualities = if (downloaded) emptyList() else Qualities.forFile(chosenFile).map { preset ->
+        val qualities = if (downloaded) emptyList() else Qualities.offered(chosenFile, originalOnly).map { preset ->
             QualityChoice(
                 id = preset.id,
                 label = label(preset),

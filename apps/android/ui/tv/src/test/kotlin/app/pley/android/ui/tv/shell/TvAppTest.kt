@@ -23,6 +23,7 @@ import androidx.test.core.app.ApplicationProvider
 import app.pley.android.common.TestTags
 import app.pley.android.data.Loadable
 import app.pley.android.data.RequestNotice
+import app.pley.android.data.Settings
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
 import app.pley.android.model.Me
@@ -125,8 +126,10 @@ class TvAppTest {
         }
     }
 
+    private val testGraph get() = ApplicationProvider.getApplicationContext<TvTestApplication>().screensGraph as TvTestGraph
+
     /** Home's data in the test graph, which a test can hold back. */
-    private val homeData get() = (ApplicationProvider.getApplicationContext<TvTestApplication>().screensGraph as TvTestGraph).sources.home
+    private val homeData get() = testGraph.sources.home
 
     /** Waits for [text], which a screen shows once its state is worked out off the main thread. */
     private fun waitFor(text: String, ofContentDescription: Boolean = false) {
@@ -192,6 +195,14 @@ class TvAppTest {
     fun homeStartsFocused() {
         app()
         compose.onNodeWithText("Play").assertIsFocused()
+    }
+
+    @Test
+    fun homeStartsOnItsRowsWithTheBannerOffAsItIsByDefault() {
+        testGraph.settingsFlow.value = Settings()
+        app()
+        compose.onNodeWithText("Play").assertDoesNotExist()
+        compose.onNode(isFocused()).assert(hasContentDescription("Half Loop", substring = true))
     }
 
     @Test

@@ -194,8 +194,13 @@
     },
     "load": {
       "title": "Charge",
-      "description": "Combien de transcodages tournent à la fois, et quelle avance ils prennent sur le lecteur.",
-      "max": "Transcodages simultanés au maximum",
+      "description": "Ce dont le transcodeur se charge, combien à la fois, et quelle avance il prend sur le lecteur.",
+      "allowVideo": "Autoriser le transcodage vidéo",
+      "allowVideoHint": "Désactivé : seul le son est transcodé, la vidéo est copiée.",
+      "maxVideo": "Maximum de transcodages vidéo simultanés",
+      "maxVideoHint": "Combien de transcodages peuvent être des transcodages vidéo complets.",
+      "max": "Maximum de transcodages simultanés <total>au total</total>",
+      "maxHint": "Transcodages vidéo, remux et transcodages du son réunis.",
       "maxJobsManaged": "Le transcodeur lui-même en exécute {{max}} au plus (transcoder_max_jobs dans pley.toml).",
       "maxJobsExternal": "Le transcodeur lui-même en exécute {{max}} au plus (son --max-jobs).",
       "throttle": "Limiter les transcodages",
@@ -204,7 +209,7 @@
       "memory": "Transcoder en mémoire",
       "memoryHint": "Garde les segments en RAM plutôt que sur le disque.",
       "memoryHintUpTo": "Garde les segments en RAM plutôt que sur le disque. Jusqu’à {{size}}.",
-      "toDisk": "{{reason}} : les segments vont sur le disque."
+      "notInMemory": "{{reason}}."
     }
   },
   "choices": {

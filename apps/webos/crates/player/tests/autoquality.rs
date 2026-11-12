@@ -6,7 +6,8 @@ use std::sync::{Arc, Mutex};
 use pley_core::model::{MediaFile, PlaybackMode};
 use pley_player::autoquality::{AutoMemory, AutoOptions, AutoQuality, AutoStep, Lowered, MEMORY_MS, Remembered};
 use pley_player::quality::{
-    Quality, auto_ladder, choose_quality, named_for, preset, presets, qualities_for, qualities_in, server_quality,
+    Quality, auto_ladder, choose_quality, named_for, offered_qualities, preset, presets, qualities_for, qualities_in,
+    server_quality,
 };
 
 fn file(width: Option<i64>, height: Option<i64>, mbps: Option<f64>) -> MediaFile {
@@ -31,6 +32,14 @@ fn f(w: i64, h: i64, mbps: f64) -> MediaFile {
 
 fn ids(list: &[Quality]) -> Vec<&str> {
     list.iter().map(|q| q.id).collect()
+}
+
+#[test]
+fn a_server_that_converts_no_video_offers_the_original_alone() {
+    let film = f(3840, 2160, 60.0);
+    assert_eq!(offered_qualities(Some(&film), true), [Quality::original()]);
+    assert_eq!(offered_qualities(None, true), [Quality::original()]);
+    assert_eq!(offered_qualities(Some(&film), false), qualities_for(Some(&film)));
 }
 
 #[test]

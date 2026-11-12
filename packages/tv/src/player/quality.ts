@@ -126,6 +126,15 @@ export function qualitiesFor(file: MediaFile | null, table: QualityPreset[] = PR
 }
 
 /**
+ * The qualities the menu offers for `file`: those worth offering
+ * (`qualitiesFor`), or the original alone on a server that converts no
+ * video (`PlaybackInfo.original_only`), which has no other to give.
+ */
+export function offeredQualities(file: MediaFile | null, originalOnly: boolean): QualityPreset[] {
+  return originalOnly ? [ORIGINAL] : qualitiesFor(file);
+}
+
+/**
  * The quality to start with: the remembered one when this file offers it;
  * the original when it doesn't need that one (an 8 Mbps cap on a 5 Mbps
  * file); Automatic when none was ever chosen.

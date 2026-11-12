@@ -31,6 +31,13 @@ struct QualityTests {
         #expect(Qualities.byIdOrLabel("auto") == Qualities.automatic)
     }
 
+    @Test func aServerThatConvertsNoVideoIsOfferedTheOriginalAlone() {
+        let film = mediaFile(bitrate: 60_000_000, height: 2160)
+        #expect(Qualities.offered(film, originalOnly: true) == [Qualities.original])
+        #expect(Qualities.offered(nil, originalOnly: true) == [Qualities.original])
+        #expect(Qualities.offered(film, originalOnly: false) == Qualities.forFile(film))
+    }
+
     @Test func theMenusOrderIsTheSameOnEveryApp() {
         #expect(Qualities.all.map(\.id) == ["original", "auto", "30m", "15m", "20m", "12m", "8m", "4m", "2m"])
         // 15 Mbps 4K under 30 Mbps 4K, then 1080p and below.

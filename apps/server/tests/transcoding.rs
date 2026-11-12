@@ -210,6 +210,9 @@ fn probe_result(path: &str) -> Option<MediaInfo> {
             titled(3, "aac", "Stereo", false),
             subtitle(4, "subrip", "eng", true),
         ]
+    } else if path.contains("Turned") {
+        // A phone's video, held upright: landscape frames, shown turned.
+        vec![MediaStream { rotation: Some(90), ..video("h264") }, audio(1, "ac3", "eng", true)]
     } else if mkv {
         vec![
             video("h264"),
@@ -231,7 +234,15 @@ fn probe_result(path: &str) -> Option<MediaInfo> {
     })
 }
 
+/// Whether `req` asks for a copy of a picture shown turned, which the
+/// transcoder makes new frames of: HLS segments can't say the turn.
+fn turned_copy(req: &JobRequest) -> bool {
+    let turned = req.media.as_ref().and_then(|m| m.video()).is_some_and(|v| v.rotation_degrees() != 0);
+    turned && req.video.as_ref().is_some_and(|v| v.mode == VideoMode::Copy)
+}
+
 fn job_status(id: &str, req: &JobRequest, segments: u32) -> JobStatus {
+    let turned = turned_copy(req);
     JobStatus {
         id: id.into(),
         label: req.label.clone(),
@@ -241,7 +252,7 @@ fn job_status(id: &str, req: &JobRequest, segments: u32) -> JobStatus {
         segment_seconds: 4.0,
         segment_count: segments,
         video: req.video.as_ref().map(|v| VideoPlan {
-            mode: v.mode,
+            mode: if turned { VideoMode::Transcode } else { v.mode },
             codec_in: "h264".into(),
             codec_out: "h264".into(),
             width_in: Some(1920),
@@ -410,6 +421,11 @@ async fn start_fake() -> (Fake, String) {
                 let status = job_status(&id, &req, segments);
                 // fMP4 as asked, but for jobs without video.
                 let segment_format = if req.video.is_some() { req.segment_format } else { SegmentFormat::Ts };
+                let warnings = if turned_copy(&req) {
+                    vec!["the picture is turned, which HLS segments can't say: transcoding instead of remuxing".into()]
+                } else {
+                    vec![]
+                };
                 fake.created.lock().push(req.clone());
                 fake.jobs.lock().insert(id.clone(), (req, segments));
                 Json(JobCreated {
@@ -419,7 +435,7 @@ async fn start_fake() -> (Fake, String) {
                     segment_count: segments,
                     video: status.video,
                     audio: status.audio,
-                    warnings: vec![],
+                    warnings,
                     variants: 0,
                     segment_format,
                 })
@@ -1374,35 +1390,257 @@ async fn players_that_put_fmp4_first_stream_fmp4_segments() {
 }
 
 #[tokio::test]
-async fn the_transcode_limit_counts_live_hls_sessions() {
+async fn the_transcode_limits_count_live_hls_sessions() {
     let w = world().await;
     let (app, admin) = (&w.app, w.admin.as_str());
-    app.put("/api/settings", admin, json!({"max_transcodes": 1})).await;
+    app.put("/api/settings", admin, json!({"max_transcodes": 2, "max_video_transcodes": 1})).await;
     let feature = w.movies["Feature"];
     let start = |client: &str| json!({"item_id": feature, "caps": browser(), "client_id": client});
+    let small = |client: &str| json!({"item_id": feature, "caps": browser(), "client_id": client, "max_height": 720});
+    let stop = |session: &Value| {
+        let stop = json!({"position_ms": 1_000, "state": "stopped", "session_id": session});
+        async move { app.post(&format!("/api/items/{feature}/progress"), admin, stop).await }
+    };
 
     let tab = play(app, admin, start("tab")).await;
-    assert_eq!(tab.status, StatusCode::OK);
+    assert_eq!((tab.status, &tab.body["method"]), (StatusCode::OK, &json!("remux")));
     let tv = play(app, admin, start("tv")).await;
-    assert_eq!(tv.status, StatusCode::SERVICE_UNAVAILABLE);
-    assert_eq!(tv.body["code"], json!("unavailable"));
-    assert!(tv.body["message"].as_str().unwrap().contains("maximum of 1"));
+    assert_eq!(tv.status, StatusCode::OK);
+    let phone = play(app, admin, start("phone")).await;
+    assert_eq!(phone.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(phone.body["code"], json!("unavailable"));
+    assert!(phone.body["message"].as_str().unwrap().contains("maximum of 2 transcodes"));
     // Direct play never counts.
-    let clip = play(app, admin, json!({"item_id": w.movies["Clip"], "caps": browser(), "client_id": "tv"})).await;
+    let clip = play(app, admin, json!({"item_id": w.movies["Clip"], "caps": browser(), "client_id": "phone"})).await;
     assert_eq!((clip.status, clip.body["method"].clone()), (StatusCode::OK, json!("direct")));
 
     // The same client switching quality replaces its own session.
-    let switched =
-        play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": "tab", "max_height": 720})).await;
+    let switched = play(app, admin, small("tab")).await;
     assert_eq!(switched.status, StatusCode::OK, "{:?}", switched.body);
     assert_eq!(switched.body["method"], json!("transcode"));
     eventually(|| w.fake.deleted.lock().contains(&"job1".to_owned())).await;
 
+    // Video transcodes have a limit of their own within the total: with
+    // room for another stream, a second one is refused and a remux starts.
+    stop(&tv.body["session_id"]).await;
+    let second = play(app, admin, small("desk")).await;
+    assert_eq!(second.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(second.body["message"].as_str().unwrap().contains("maximum of 1 video transcodes"), "{:?}", second.body);
+    assert_eq!(play(app, admin, start("desk")).await.status, StatusCode::OK);
+
     // A stopped player frees its slot.
-    let session = switched.body["session_id"].as_str().unwrap();
-    let stop = json!({"position_ms": 1_000, "state": "stopped", "session_id": session});
-    app.post(&format!("/api/items/{feature}/progress"), admin, stop).await;
-    assert_eq!(play(app, admin, start("tv")).await.status, StatusCode::OK);
+    stop(&switched.body["session_id"]).await;
+    assert_eq!(play(app, admin, small("tv")).await.status, StatusCode::OK);
+}
+
+/// A Plex or Jellyfin app that opened a stream's address gets a stream
+/// from a server that transcodes no video too: the video copied, whatever
+/// quality it asked for, never the file as it is.
+#[tokio::test]
+async fn compatibility_apps_streams_stay_streams_with_video_transcoding_off() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.put("/api/settings", admin, json!({"transcode_video": false})).await;
+    // The clip plays as it is in a browser: only a stream's address makes one of it.
+    let clip = w.movies["Clip"];
+
+    let path = encode(&format!("/library/metadata/{clip}"));
+    let start = format!(
+        "/video/:/transcode/universal/start.m3u8?path={path}&directStream=0&maxVideoBitrate=2000&videoResolution=1280x720"
+    );
+    let master = app.plex(Method::GET, &start, admin, &[("x-plex-client-identifier", "living-room")]).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    assert!(master.text().lines().any(|l| l.starts_with("session/")), "{}", master.text());
+    let video = w.fake.last_request().video.unwrap();
+    assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Copy, None, None));
+
+    let item = app.jf_item(clip);
+    let info = app.jf(Method::POST, &format!("/Items/{item}/PlaybackInfo"), admin, Some(json!({}))).await;
+    let source = info.body["MediaSources"][0]["Id"].as_str().unwrap().to_owned();
+    let stream = format!(
+        "/Videos/{item}/master.m3u8?MediaSourceId={source}&AllowVideoStreamCopy=false&MaxStreamingBitrate=2000000"
+    );
+    let master = app.jf(Method::GET, &stream, admin, None).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    assert!(master.text().contains("#EXTM3U"), "{}", master.text());
+    let video = w.fake.last_request().video.unwrap();
+    assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Copy, None, None));
+}
+
+/// Music has no video: a server that transcodes none still makes a stream
+/// of a track it never analysed, as it does with video transcoding on.
+#[tokio::test]
+async fn music_never_analysed_plays_with_video_transcoding_off() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // Not analysed (the stand-in can't read a "Broken" file), and in a
+    // container no browser plays without knowing more.
+    app.media_file("music/Band/Record (2001)/01 - Broken Song.wma", 512);
+    let music = app.library(admin, "Music", "music", "music").await;
+    let mut found = app.get(&format!("/api/libraries/{music}/items"), admin).await.body["items"].clone();
+    let track = loop {
+        let first = &found[0];
+        let id = first["id"].as_i64().expect("an artist, an album or a track");
+        if first["kind"] == json!("track") {
+            break id;
+        }
+        found = app.get(&format!("/api/items/{id}/children"), admin).await.body["items"].clone();
+    };
+    let start = json!({"item_id": track, "caps": browser(), "client_id": "tab"});
+
+    let on = play(app, admin, start.clone()).await;
+    assert_eq!((on.status, &on.body["method"]), (StatusCode::OK, &json!("transcode")), "{:?}", on.body);
+    app.put("/api/settings", admin, json!({"transcode_video": false})).await;
+    let off = play(app, admin, start).await;
+    assert_eq!((off.status, &off.body["method"]), (StatusCode::OK, &json!("transcode")), "{:?}", off.body);
+}
+
+#[tokio::test]
+async fn a_server_that_converts_no_video_copies_it_or_refuses() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let saved = app.put("/api/settings", admin, json!({"transcode_video": false})).await;
+    assert_eq!((saved.status, &saved.body["transcode_video"]), (StatusCode::OK, &json!(false)));
+    let feature = w.movies["Feature"];
+    let start = |more: Value| {
+        let mut body = json!({"item_id": feature, "caps": browser(), "client_id": "tab"});
+        body.as_object_mut().unwrap().extend(more.as_object().unwrap().clone());
+        body
+    };
+
+    // Only the sound is converted, and the player is told there is no
+    // other quality to ask for.
+    let remux = play(app, admin, start(json!({}))).await;
+    assert_eq!((remux.status, &remux.body["method"]), (StatusCode::OK, &json!("remux")));
+    assert_eq!((&remux.body["audio_converted"], &remux.body["original_only"]), (&json!(true), &json!(true)));
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Copy);
+
+    // A quality asked for plays the original.
+    let low = play(app, admin, start(json!({"mode": "transcode", "max_bitrate": 2_000, "max_height": 480}))).await;
+    assert_eq!((low.status, &low.body["method"]), (StatusCode::OK, &json!("remux")), "{:?}", low.body);
+    let video = w.fake.last_request().video.unwrap();
+    assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Copy, None, None));
+    assert!(low.body["reason"].as_str().unwrap().contains("transcoding is off"), "{:?}", low.body["reason"]);
+    assert_eq!(low.body["auto_quality"], Value::Null);
+
+    // Where the player opens the file, a quality kept on the device plays
+    // it as it is, as the original asked for does: no stream is made of it.
+    let made = w.fake.created();
+    let clip = w.movies["Clip"];
+    let kept = json!({"item_id": clip, "caps": browser(), "client_id": "phone", "mode": "transcode", "max_bitrate": 2_000, "max_height": 480});
+    let kept = play(app, admin, kept).await;
+    assert_eq!((kept.status, &kept.body["method"]), (StatusCode::OK, &json!("direct")), "{:?}", kept.body);
+    assert_eq!((&kept.body["original_only"], w.fake.created()), (&json!(true), made));
+    // Asked to convert with no quality (a decoder that gave up on the
+    // file): a copy in a stream, not the file again.
+    let again =
+        play(app, admin, json!({"item_id": clip, "caps": browser(), "client_id": "phone", "mode": "transcode"})).await;
+    assert_eq!((again.status, &again.body["method"]), (StatusCode::OK, &json!("remux")), "{:?}", again.body);
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Copy);
+
+    // What needs new frames isn't played: no job is made, and what the
+    // client plays goes on.
+    let made = w.fake.created();
+    let playing = low.body["session_id"].as_str().unwrap();
+    for (more, why) in [
+        (json!({"subtitle_index": 3}), "subtitles burned in"),
+        (json!({"caps": {"containers": ["mp4"], "video_codecs": ["vp9"], "audio_codecs": ["aac"]}}), "not supported"),
+    ] {
+        let refused = play(app, admin, start(more)).await;
+        assert_eq!(refused.status, StatusCode::CONFLICT, "{:?}", refused.body);
+        assert_eq!(refused.body["code"], json!("video_not_converted"));
+        let message = refused.body["message"].as_str().unwrap();
+        assert!(message.contains("transcoding is off") && message.contains(why), "{message}");
+    }
+    assert_eq!(w.fake.created(), made);
+    assert_eq!(app.get(&format!("/api/playback/{playing}/index.m3u8"), admin).await.status, StatusCode::OK);
+
+    // A file that plays as it is does, and a download is made the same way.
+    let clip = play(app, admin, json!({"item_id": w.movies["Clip"], "caps": browser()})).await;
+    assert_eq!((&clip.body["method"], &clip.body["original_only"]), (&json!("direct"), &json!(true)));
+    let hevc_only = json!({"containers": ["mp4"], "video_codecs": ["hevc"], "audio_codecs": ["aac"]});
+    let download = app.post("/api/conversions", admin, json!({"item_id": feature, "caps": hevc_only})).await;
+    assert_eq!((download.status, &download.body["code"]), (StatusCode::CONFLICT, &json!("video_not_converted")));
+
+    // Converting again, players aren't told anything.
+    app.put("/api/settings", admin, json!({"transcode_video": true})).await;
+    let burned = play(app, admin, start(json!({"subtitle_index": 3}))).await;
+    assert_eq!((burned.status, &burned.body["method"]), (StatusCode::OK, &json!("transcode")));
+    assert!(burned.body.get("original_only").is_none(), "{:?}", burned.body);
+}
+
+/// A movie library of one phone video, shown turned: "Turned".
+async fn turned_video(w: &World) -> i64 {
+    w.app.media_file("phone/Turned (2023).mkv", 6144);
+    let library = w.app.library(&w.admin, "Phone", "movies", "phone").await;
+    w.app.ids(library, &w.admin).await["Turned"]
+}
+
+#[tokio::test]
+async fn a_copy_the_transcoder_transcodes_takes_a_video_transcodes_slot() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let (feature, turned) = (w.movies["Feature"], turned_video(&w).await);
+    app.put("/api/settings", admin, json!({"max_transcodes": 3, "max_video_transcodes": 1})).await;
+    let start = |item: i64, client: &str| json!({"item_id": item, "caps": browser(), "client_id": client});
+
+    // Copied, as far as Pley knows; the transcoder makes new frames of it.
+    let first = play(app, admin, start(turned, "phone")).await;
+    assert_eq!((first.status, &first.body["method"]), (StatusCode::OK, &json!("transcode")), "{:?}", first.body);
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Copy);
+    assert!(first.body["reason"].as_str().unwrap().contains("turned"), "{:?}", first.body["reason"]);
+
+    // It is the one video transcode: no other starts, asked for as one...
+    let mut small = start(feature, "tab");
+    small["max_height"] = json!(720);
+    let asked = play(app, admin, small).await;
+    assert_eq!(asked.status, StatusCode::SERVICE_UNAVAILABLE);
+    assert!(asked.body["message"].as_str().unwrap().contains("maximum of 1 video transcodes"), "{:?}", asked.body);
+    // ...or found to be one once its job is made, which is then let go.
+    let made = w.fake.created();
+    let another = play(app, admin, start(turned, "tv")).await;
+    assert_eq!(another.status, StatusCode::SERVICE_UNAVAILABLE, "{:?}", another.body);
+    assert!(another.body["message"].as_str().unwrap().contains("maximum of 1 video transcodes"), "{:?}", another.body);
+    assert_eq!(w.fake.created(), made + 1);
+    assert!(w.fake.deleted.lock().contains(&format!("job{}", made + 1)));
+
+    // The slot it had is free again: copies start in the room left.
+    assert_eq!(play(app, admin, start(feature, "tv")).await.status, StatusCode::OK);
+    assert_eq!(play(app, admin, start(feature, "tab")).await.status, StatusCode::OK);
+    let full = play(app, admin, start(feature, "desk")).await;
+    assert!(full.body["message"].as_str().unwrap().contains("maximum of 3 transcodes"), "{:?}", full.body);
+}
+
+#[tokio::test]
+async fn a_server_that_converts_no_video_refuses_a_turned_picture_before_anything_ends() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let (feature, turned) = (w.movies["Feature"], turned_video(&w).await);
+    app.put("/api/settings", admin, json!({"transcode_video": false})).await;
+
+    let playing = play(app, admin, json!({"item_id": feature, "caps": browser(), "client_id": "tab"})).await;
+    assert_eq!((playing.status, &playing.body["method"]), (StatusCode::OK, &json!("remux")));
+    let session = playing.body["session_id"].as_str().unwrap();
+
+    // A copy of it would come out transcoded: no job is asked for, and
+    // what the client plays goes on.
+    let made = w.fake.created();
+    let refused = play(app, admin, json!({"item_id": turned, "caps": browser(), "client_id": "tab"})).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::CONFLICT, &json!("video_not_converted")));
+    let message = refused.body["message"].as_str().unwrap();
+    assert!(message.contains("transcoding is off") && message.contains("turned"), "{message}");
+    assert_eq!(w.fake.created(), made);
+    assert_eq!(app.get(&format!("/api/playback/{session}/index.m3u8"), admin).await.status, StatusCode::OK);
+
+    // A download of it is one file made the same way.
+    let download = app.post("/api/conversions", admin, json!({"item_id": turned, "caps": browser()})).await;
+    assert_eq!((download.status, &download.body["code"]), (StatusCode::CONFLICT, &json!("video_not_converted")));
+    assert!(w.fake.conversions.lock().is_empty());
+
+    // As it is, it plays: the player turns it.
+    let plays_it = json!({"containers": ["mkv"], "video_codecs": ["h264"], "audio_codecs": ["ac3"]});
+    let direct = play(app, admin, json!({"item_id": turned, "caps": plays_it})).await;
+    assert_eq!((direct.status, &direct.body["method"]), (StatusCode::OK, &json!("direct")), "{:?}", direct.body);
 }
 
 #[tokio::test]

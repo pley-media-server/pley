@@ -127,6 +127,9 @@ sub init()
     m.watchItem = invalid
     m.autoQuality = ""
     m.autoNotice = ""
+    ' The server converts no video, as its last play answer had it
+    ' (original_only): only Original is offered, and plays.
+    m.originalOnly = false
     m.toast = m.top.findNode("toast")
     m.toastText = m.top.findNode("toastText")
     m.toastTimer = m.top.findNode("toastTimer")
@@ -347,13 +350,13 @@ end sub
 ' names it for a moment. The quality picked already is said again at
 ' once, and shows nothing.
 sub obeyQuality(command as object)
-    player = { session: m.sessionId, qualities: aqMenuIds(playingFile()), quality: qualityPicked() }
+    player = { session: m.sessionId, qualities: aqMenuIds(playingFile(), m.originalOnly), quality: qualityPicked() }
     action = remoteQualityAction(player, command)
     if action.act = "none"
         if action.report then report(reportedState())
         return
     end if
-    remoteSays(remoteQualityNotice(action, aqMenuFor(playingFile())))
+    remoteSays(remoteQualityNotice(action, aqMenuFor(playingFile(), m.originalOnly)))
     m.reportAtPlay = true
     chooseQuality(action.quality)
 end sub
@@ -361,7 +364,7 @@ end sub
 ' The Quality menu's pick for the file playing, as it ticks it and as the
 ' reports say it.
 function qualityPicked() as string
-    return aqPicked(aqChoice(playbackSection()), playingFile())
+    return aqPicked(aqChoice(playbackSection()), playingFile(), m.originalOnly)
 end function
 
 ' The subtitles showing, as the reports and the remote name them: those
@@ -470,6 +473,10 @@ end sub
 ' Automatic asks the server what it knows of the network first.
 sub askPlayback()
     choice = aqChoice(playbackSection())
+    ' Where only the original plays it is asked for, whatever is kept:
+    ' there is nothing to ask the network for, and a quality would be
+    ' answered with the original copied into a stream.
+    if m.originalOnly then choice = "original"
     if choice = "auto" and m.autoQuality = ""
         startAutomatic()
         return
@@ -629,6 +636,7 @@ sub onPlayback(event as object)
         return
     end if
     m.info = answer.data
+    m.originalOnly = httpTrue(m.info.original_only)
     m.sessionId = httpString(m.info.session_id)
     begin()
 end sub
@@ -671,7 +679,9 @@ end sub
 ' the file, the lines the stream is named by, whether its bitrate changes
 ' as it is sent (live_bitrate) and whether it comes in several sizes.
 sub watchPlayback()
-    if m.asked = invalid or not m.asked.automatic or httpString(m.item.kind) = "track"
+    ' Automatic has no other quality to step to on a server that converts
+    ' no video.
+    if m.asked = invalid or not m.asked.automatic or m.originalOnly or httpString(m.item.kind) = "track"
         newTitle()
         return
     end if
@@ -1727,8 +1737,9 @@ end function
 ' Automatic plays, else the one chosen, named for the file.
 function qualityShown() as string
     choice = aqChoice(playbackSection())
+    if m.originalOnly then choice = "original"
     labels = {}
-    for each quality in aqMenuFor(playingFile())
+    for each quality in aqMenuFor(playingFile(), m.originalOnly)
         labels[quality.id] = quality.label
     end for
     if choice = "auto"
@@ -1836,10 +1847,11 @@ sub openQualities()
     m.menuKind = "quality"
     m.menuTitle.text = t("player.menu.quality")
     choice = aqChoice(playbackSection())
+    if m.originalOnly then choice = "original"
     items = []
     m.menuValues = []
     current = 0
-    for each quality in aqMenuFor(playingFile())
+    for each quality in aqMenuFor(playingFile(), m.originalOnly)
         if quality.id = choice then current = items.Count()
         items.Push({ title: quality.label })
         m.menuValues.Push(quality.id)
@@ -1919,7 +1931,9 @@ sub onMenuChoice(event as object)
         setSleep(value)
         return
     end if
-    if value = aqChoice(playbackSection()) then return
+    ' Original alone is offered where it alone plays: the quality kept stays
+    ' as it is, for servers that convert.
+    if m.originalOnly or value = aqChoice(playbackSection()) then return
     chooseQuality(value)
 end sub
 

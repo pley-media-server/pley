@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MediaFile } from "../../src/api/types";
 import { AutoQuality, MEMORY_MS, storedMemory, type AutoMemory, type Remembered } from "../../src/player/autoquality";
-import { AUTO, autoLadder, chooseQuality, modeOf, namedFor, ORIGINAL, presetById, PRESETS, qualitiesFor, serverQuality } from "../../src/player/quality";
+import { AUTO, autoLadder, chooseQuality, modeOf, namedFor, offeredQualities, ORIGINAL, presetById, PRESETS, qualitiesFor, serverQuality } from "../../src/player/quality";
 
 function file(width: number | null, height: number | null, mbps: number | null): MediaFile {
   return {
@@ -79,6 +79,13 @@ describe("the Quality menu", () => {
     expect(chooseQuality("8m", offered).id).toBe("8m");
     // A quality this file doesn't need plays the original.
     expect(chooseQuality("20m", offered)).toBe(ORIGINAL);
+  });
+
+  it("offers the original alone on a server that converts no video", () => {
+    const film = file(3840, 2160, 60);
+    expect(offeredQualities(film, true)).toEqual([ORIGINAL]);
+    expect(offeredQualities(null, true)).toEqual([ORIGINAL]);
+    expect(offeredQualities(film, false)).toEqual(qualitiesFor(film));
   });
 
   it("asks the server to choose for the original and Automatic, and to convert the rest", () => {

@@ -316,8 +316,25 @@ export function reportCeiling(kbps: number | null): void {
     });
 }
 
+/**
+ * Whether the server's last play answer said it converts no video
+ * (`original_only`): the next title starts as the original, rather than at
+ * a quality the server would only answer with the original again.
+ */
+let originalOnly = false;
+
+export function serverOriginalOnly(): boolean {
+  return originalOnly;
+}
+
+/** A play answer came: whether it said the server converts no video. */
+export function heardOriginalOnly(only: boolean): void {
+  originalOnly = only;
+}
+
 /** Forgets what was heard of the server (tests). */
 export function forgetNetwork(): void {
+  originalOnly = false;
   olderServer = false;
   lastProbe = -Infinity;
   kept = null;

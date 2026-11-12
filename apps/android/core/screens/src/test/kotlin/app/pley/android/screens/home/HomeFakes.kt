@@ -58,6 +58,10 @@ class FakeHomeSources : HomeSources {
     /** Each library's Recommended rows (the banner's top rated come from them): loading, until a test says. */
     val libraryHubs = HashMap<Long, MutableStateFlow<Loadable<Hubs>>>()
 
+    /** The device's Home banner setting: on, until a test turns it off. */
+    val bannerOn = MutableStateFlow(true)
+    override val banner: Flow<Boolean> = bannerOn
+
     override val hubs = object : HubsRepository {
         override fun home(): Flow<Loadable<Hubs>> = this@FakeHomeSources.home
         override fun library(libraryId: Long): Flow<Loadable<Hubs>> = libraryHubs.getOrPut(libraryId) { MutableStateFlow(Loadable.Loading) }

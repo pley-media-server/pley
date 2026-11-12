@@ -8,6 +8,19 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- On a server with video transcoding turned off (Settings → Transcoder),
+  the Quality menu offers Original alone and Automatic plays it, rather
+  than ask for qualities the server would only answer with the Original.
+
+### Changed
+
+On Android TV:
+
+- Home opens on its rows. The banner of featured titles above them is
+  off unless Settings → Subtitles and display → Home banner turns it on.
+
 ## [0.1.11] - 2026-11-10
 
 ### Fixed

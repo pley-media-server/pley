@@ -77,6 +77,9 @@ interface HomeSources {
     val watchlist: WatchlistRepository
     val launcher: PlayerLauncher
 
+    /** Whether Home opens on its banner: on a TV as its settings say ([app.pley.android.data.Settings.homeBanner]), always on a phone. */
+    val banner: Flow<Boolean> get() = flowOf(true)
+
     companion object {
         /** The app's, each part asked for only when first used (off the main thread). */
         fun of(graph: ScreensGraph): HomeSources = object : HomeSources {
@@ -89,6 +92,8 @@ interface HomeSources {
             override val watchState get() = graph.data.watchState
             override val watchlist get() = graph.data.watchlist
             override val launcher get() = graph.playerLauncher
+            override val banner
+                get() = if (graph.device.isTv) graph.data.settings.settings.map { it.homeBanner }.distinctUntilChanged() else flowOf(true)
         }
     }
 }
@@ -123,7 +128,9 @@ data class HomeProfile(
  *   a refresh under way [refreshing].
  * - The banner's titles ([HomeState.Ready.featured]) and the hero come
  *   with their details (plot, genres, content rating, My List), all asked
- *   for at once, so turning to a title shows it whole.
+ *   for at once, so turning to a title shows it whole. With the banner
+ *   turned off ([HomeSources.banner]) none of it is asked for, nor the
+ *   libraries' Top Rated rows.
  * - After the first content, the details of the first three Continue
  *   Watching items are asked for ahead: that warms the server's keyframe
  *   index, so playing from Home can remux instead of transcoding
@@ -159,7 +166,7 @@ class HomeViewModel(
     @Volatile
     private var lastTopRated: List<ItemSummary> = emptyList()
 
-    private val topRated: Flow<List<ItemSummary>> = flow { emitAll(sources.libraries.libraries()) }
+    private val libraryTopRated: Flow<List<ItemSummary>> = flow { emitAll(sources.libraries.libraries()) }
         .map { load -> load.valueOrNull.orEmpty().filter { it.kind == LibraryKind.Movies || it.kind == LibraryKind.Shows }.map { it.id }.take(TOP_RATED_LIBRARIES) }
         .distinctUntilChanged()
         .flatMapLatest { ids ->
@@ -178,6 +185,12 @@ class HomeViewModel(
         .onStart { emit(lastTopRated) }
         .distinctUntilChanged()
 
+    private val banner: Flow<Boolean> = flow { emitAll(sources.banner) }.distinctUntilChanged()
+
+    /** [libraryTopRated] while the banner is on; nothing, and no request, while it is off. */
+    private val topRated: Flow<Pair<Boolean, List<ItemSummary>>> =
+        banner.flatMapLatest { on -> if (on) libraryTopRated.map { true to it } else flowOf(false to emptyList()) }
+
     /** What the repositories hold, worked out once for [state] and [status]. */
     private val loaded: SharedFlow<HomeLoad> = combine(
         combine(
@@ -189,8 +202,8 @@ class HomeViewModel(
             AppLanguage.shown,
         ) { hubs, libraries, scanning, origin, _ -> HomeHeld(hubs, libraries, scanning, origin) },
         topRated,
-    ) { held, rated ->
-        val state = homeState(held.hubs, held.libraries, held.scanning, held.origin, rated, day())
+    ) { held, (banner, rated) ->
+        val state = homeState(held.hubs, held.libraries, held.scanning, held.origin, rated, day(), banner)
         HomeLoad(state, homeStatus(held.hubs, state))
     }
         .flowOn(compute)
@@ -397,7 +410,8 @@ class HomeViewModel(
 /**
  * Home from what the repositories hold: the rows when there are some, an
  * empty state when there are none, a skeleton or an error only when
- * nothing was saved. [topRated] and [day] are the banner's ([featuredOf]).
+ * nothing was saved. [topRated] and [day] are the banner's ([featuredOf]);
+ * without the [banner], Home has no hero and features nothing.
  */
 fun homeState(
     hubs: Loadable<Hubs>,
@@ -406,6 +420,7 @@ fun homeState(
     origin: String,
     topRated: List<ItemSummary> = emptyList(),
     day: Long = 0,
+    banner: Boolean = true,
 ): HomeState {
     val libs = libraries.valueOrNull
     val value = hubs.valueOrNull
@@ -421,8 +436,9 @@ fun homeState(
     return HomeState.Ready(
         origin = origin,
         rows = rows,
-        hero = heroOf(rows)?.let { homeInfo(it, null) },
-        featured = featuredOf(rows, topRated, day).map { Featured(homeInfo(it.item, null), featuredLabel(it, libs)) },
+        hero = if (banner) heroOf(rows)?.let { homeInfo(it, null) } else null,
+        featured = if (banner) featuredOf(rows, topRated, day).map { Featured(homeInfo(it.item, null), featuredLabel(it, libs)) } else emptyList(),
+        banner = banner,
     )
 }
 

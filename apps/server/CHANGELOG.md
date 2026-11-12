@@ -58,9 +58,10 @@ describes how they are made.
   it ended (and why, if it failed, or that a restart of the server cut it
   short), with Import again when it didn't finish, and its report, which
   says how long the import and each of its steps took, until that's
-  closed or for a week. The browser tab's title says how far the import is, and how it
-  ended if that was while the tab was out of sight. Running it again adds
-  what's new and never takes anything away (docs/MOVING_FROM_PLEX.md).
+  closed or for a week. The browser tab's title says how far the import
+  is, and how it ended if that was while the tab was out of sight.
+  Running it again adds what's new and never takes anything away
+  (docs/MOVING_FROM_PLEX.md).
 - Home tells administrators how far new libraries are, first on the page,
   above the banner: the Plex import (above); after Start fresh, which of
   the new libraries is being scanned, how far they all are, and each
@@ -77,6 +78,17 @@ describes how they are made.
 - Settings › Network says when Pley runs in a container on Docker's own
   network, where devices can't find it by themselves, and how to put it on
   the home network instead.
+- Settings → Transcoder has "Allow video transcoding". Turned off, Pley
+  only copies video: files play as they are or with just their sound
+  transcoded, a quality asked for plays the Original, and a file whose
+  video a device can't play doesn't play there, with a message that says
+  why. Players offer the Original quality alone, and the Plex- and
+  Jellyfin-compatible APIs follow the same rule.
+- "Max simultaneous video transcodes" limits the streams that transcode
+  video within "Max simultaneous total transcodes" (the limit there
+  before, which still counts every stream), so room can be kept for
+  streams that only need their sound transcoded. It starts at the total a
+  server already had, and is never more than it.
 
 ### Changed
 
@@ -92,6 +104,22 @@ describes how they are made.
   transcoder's part of it.
 - Home and a library's page show a new library's titles as its files are
   read, every few seconds, instead of only once all of them have been.
+- In Settings → Transcoder, the note under "Transcode in memory" says
+  only why it is off.
+- Dropdowns' carets stand in from their right edge instead of sitting
+  against it, and a dropdown that can't be changed is greyed out.
+- Number fields in Settings (the transcode and request limits, ports, the
+  scan interval) and in a title's Edit are as wide as their numbers need,
+  no longer the whole column. So is the server's `.local` name.
+
+### Fixed
+
+- A movie titled with a number, such as "300", takes its year from its
+  file's name, like other movies, rather than its folder's. A full rescan
+  merges copies that show twice.
+- Sync tools such as WatchState copy partly watched videos to Pley
+  through the Jellyfin-compatible API: the place they send becomes the
+  resume point, with the time it was played on the other server.
 
 ## [0.1.9] - 2026-11-08
 

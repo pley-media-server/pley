@@ -1321,6 +1321,18 @@ async fn state_changed(db: &Db, events: &EventBus, user_id: i64, item_id: i64, c
     Ok(())
 }
 
+/// When the user last played an item, as a sync tool copying it from
+/// another server says (playing or marking it stamps the present time).
+pub async fn set_last_played(db: &Db, user_id: i64, item_id: i64, at: i64) -> sqlx::Result<()> {
+    sqlx::query("UPDATE user_item_state SET last_played_at = ? WHERE user_id = ? AND item_id = ?")
+        .bind(at)
+        .bind(user_id)
+        .bind(item_id)
+        .execute(&db.write)
+        .await?;
+    Ok(())
+}
+
 /// Set (0-10) or clear the user's star rating of an item.
 pub async fn set_rating(db: &Db, user_id: i64, item_id: i64, rating: Option<f64>) -> sqlx::Result<()> {
     let now = now();

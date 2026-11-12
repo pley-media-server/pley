@@ -156,6 +156,13 @@ pub fn qualities_in(file: Option<&MediaFile>, table: &[Quality]) -> Vec<Quality>
     out
 }
 
+/// The qualities the menu offers for `file`: those worth offering
+/// ([`qualities_for`]), or the original alone on a server that converts no
+/// video (`PlaybackInfo::original_only`), which has no other to give.
+pub fn offered_qualities(file: Option<&MediaFile>, original_only: bool) -> Vec<Quality> {
+    if original_only { vec![Quality::original()] } else { qualities_for(file) }
+}
+
 /// The quality to start with: the remembered one when this file offers it;
 /// the original when it doesn't need that one (an 8 Mbps cap on a 5 Mbps
 /// file); Automatic when none was ever chosen.

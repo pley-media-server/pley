@@ -98,6 +98,13 @@ public enum Qualities {
         return [original, automatic] + sorted
     }
 
+    /// The qualities the menu offers for `file`: those worth offering
+    /// (`forFile`), or the original alone on a server that converts no video
+    /// (`PlaybackInfo.originalOnly`), which has no other to give.
+    public static func offered(_ file: MediaFile?, originalOnly: Bool) -> [QualityPreset] {
+        originalOnly ? [original] : forFile(file)
+    }
+
     /// The lines `preset` gives a file of `fileLines`: never more than the file's.
     public static func linesFor(_ preset: QualityPreset, fileLines: Int?) -> Int? {
         guard let most = preset.maxHeight else { return fileLines }

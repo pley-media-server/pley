@@ -302,6 +302,37 @@ async fn folders_that_go_offline_keep_their_items() {
     assert_eq!(rescan().await, ["Alien", "Brazil", "Dune"]);
 }
 
+#[tokio::test]
+async fn copies_of_a_film_in_two_folders_are_versions_of_one_movie() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    // The HD copy's folder still has the year the film had when it came;
+    // its file has been renamed since.
+    app.media_file("hd/300 (2006)/300 (2007) Remux-1080p.mkv", 1024);
+    app.media_file("uhd/300 (2007)/300 (2007) Bluray-2160p.mkv", 1024);
+    app.media_file("hd/Blade Runner (1982)/Blade Runner (1982) {edition-Theatrical}.mkv", 1024);
+    app.media_file("uhd/Blade Runner (1982)/Blade Runner (1982) {edition-Final Cut}.mkv", 1024);
+    let paths = [app.media_path("hd"), app.media_path("uhd")];
+    let created = app.post("/api/libraries", &admin, json!({"name": "Movies", "kind": "movies", "paths": paths})).await;
+    let lib = created.body["id"].as_i64().unwrap();
+    app.wait_for_scans().await;
+
+    let items = app.get(&format!("/api/libraries/{lib}/items"), &admin).await.body["items"].clone();
+    assert_eq!(titles(&items), ["300", "Blade Runner"]);
+    let id = |n: usize| items[n]["id"].as_i64().unwrap();
+    assert_eq!(editions(&app, &admin, id(0)).await, [Value::Null, Value::Null]);
+    assert_eq!(editions(&app, &admin, id(1)).await, [json!("Final Cut"), json!("Theatrical")]);
+}
+
+/// The editions of an item's versions, sorted.
+async fn editions(app: &TestApp, token: &str, item: i64) -> Vec<Value> {
+    let item = app.get(&format!("/api/items/{item}"), token).await;
+    let mut editions: Vec<Value> =
+        item.body["files"].as_array().unwrap().iter().map(|f| f["edition"].clone()).collect();
+    editions.sort_by_key(|e| e.to_string());
+    editions
+}
+
 /// Languages of the sidecar subtitles of an item's first file.
 async fn sidecar_languages(app: &TestApp, token: &str, item: i64) -> Vec<String> {
     let item = app.get(&format!("/api/items/{item}"), token).await;
