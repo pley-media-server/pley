@@ -2036,7 +2036,7 @@ checksum = "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
 
 [[package]]
 name = "pley-server"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "anyhow",
  "argon2",
@@ -2100,7 +2100,7 @@ dependencies = [
 
 [[package]]
 name = "pley-transcoder"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "anyhow",
  "axum",
@@ -2127,7 +2127,7 @@ dependencies = [
 
 [[package]]
 name = "pley-transcoder-api"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "serde",
  "serde_json",

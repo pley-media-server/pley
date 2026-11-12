@@ -11,78 +11,54 @@ describes how they are made.
 
 ### Added
 
-- Settings → Transcoder has "Allow video transcoding". Turned off, Pley
-  only copies video: files play as they are or with just their sound
-  transcoded, a quality asked for plays the Original, and a file whose
-  video a device can't play doesn't play there, with a message that says
-  why. Players offer the Original quality alone, and the Plex- and
-  Jellyfin-compatible APIs follow the same rule.
-- "Max simultaneous video transcodes" limits the streams that transcode
-  video within "Max simultaneous total transcodes" (the limit there
-  before, which still counts every stream), so room can be kept for
-  streams that only need their sound transcoded. It starts at the total a
-  server already had, and is never more than it.
-- Settings → Transcoder has a Dolby Vision FEL choice. Dolby Vision profile
-  7 with a full enhancement layer (many UHD Blu-rays) is now transcoded
-  from its HDR10 base layer alone, since no transcoder can read that layer:
-  the right picture for every title, where the Dolby Vision brightness made
-  some too dark or too bright. On Intel graphics it then stays on the GPU.
-  The choice brings the Dolby Vision brightness back.
+- Settings → Transcoder has a Dolby Vision FEL choice: profile 7 with a full
+  enhancement layer is transcoded from its HDR10 base layer, or with its
+  Dolby Vision brightness.
 
 ### Changed
 
-- In Settings → Transcoder, the note under "Transcode in memory" says
-  only why it is off.
-- Dropdowns' carets stand in from their right edge instead of sitting
-  against it, and a dropdown that can't be changed is greyed out.
-- Number fields in Settings (the transcode and request limits, ports, the
-  scan interval) and in a title's Edit are as wide as their numbers need,
-  no longer the whole column. So is the server's `.local` name.
-- Intel graphics on Windows: HDR that Vulkan can't decode is decoded and
-  scaled by Quick Sync before tone mapping, instead of being copied to
-  memory at full size or decoded on the CPU. 4K HDR transcodes twice as fast
-  and uses much less CPU.
-- HDR passthrough in HEVC stays on Intel graphics from decode to encode,
-  when Quick Sync passes a 10-bit check at startup.
-- Intel graphics on Windows: when several HDR transcodes would fall behind,
-  Quick Sync tone maps them instead of libplacebo, which is much lighter on
-  the GPU. Two 4K HDR to 1080p transcodes at once went from about 1x to 2x
-  realtime each. A single transcode still uses libplacebo.
-- Intel graphics on Windows: picture subtitles (PGS, VobSub, DVB) burned
-  into SDR video are overlaid by Quick Sync on the GPU. These transcodes use
-  a quarter to a sixth of the CPU they did, and run faster.
-- Intel graphics on Linux and in Docker: Quick Sync does what it does on
-  Windows, where its startup checks pass: it decodes and scales HDR before
-  tone mapping, tone maps with Intel's VAAPI driver when several HDR
-  transcodes would fall behind, and overlays picture subtitles on the GPU.
-- Intel graphics: Dolby Vision with an HDR10 base layer (profiles 7 and
-  8.1) and HDR10+ are decoded by Quick Sync where the GPU can't decode them
-  otherwise, instead of by the CPU. A 4K60 Dolby Vision clip went from 1.2x
-  real time on nearly three CPU cores to 2.2x on half a core.
-- Intel graphics: when the computer can't keep up with Dolby Vision
-  (profiles 7 and 8.1) or HDR10+, Quick Sync decodes, scales and tone maps
-  their HDR10 picture on the GPU, at 3.4x real time for that clip.
+- Intel graphics: 4K HDR made SDR transcodes about twice as fast, on less of
+  the CPU, and two at once each keep up better.
+- Intel graphics: HDR kept as HDR and burned-in picture subtitles stay on the
+  GPU, and Dolby Vision and HDR10+ do where the CPU would decode them.
+- Intel graphics on Linux and in Docker get the same faster transcodes as on
+  Windows.
 
 ### Fixed
 
-- A movie titled with a number, such as "300", takes its year from its
-  file's name, like other movies, rather than its folder's. A full rescan
-  merges copies that show twice.
-- Sync tools such as WatchState copy partly watched videos to Pley
-  through the Jellyfin-compatible API: the place they send becomes the
-  resume point, with the time it was played on the other server.
-- Intel graphics on Linux: Quick Sync uses the Intel GPU when an NVIDIA or
-  AMD card comes first, instead of trying that one and failing.
-- Intel graphics: transcodes no longer fail when the CPU encoder takes over
-  (all Quick Sync sessions busy, or the Quick Sync encoder failing to
-  start).
-- 4:2:2 and 4:4:4 H.264 (some cameras, screen recordings) no longer fails on
-  GPUs that can't decode it, such as Intel's.
-- HDR tone mapping quality is no longer chosen from a slow first startup
-  benchmark, which made Intel GPUs pick a quality too slow to keep up.
-- Intel graphics: HDR10 video that carries no mastering metadata is no
-  longer left washed out when Quick Sync tone maps it. Quick Sync needs that
-  metadata, so such video stays with libplacebo.
+- Intel graphics on Linux: Quick Sync works when an NVIDIA or AMD card comes
+  first.
+- Intel graphics: transcodes no longer fail when every Quick Sync session is
+  busy.
+- 4:2:2 and 4:4:4 H.264, from some cameras and screen recordings, plays on
+  Intel graphics.
+- HDR transcodes no longer pick a picture quality too slow to keep up after
+  the server starts.
+
+## [0.1.10] - 2026-11-12
+
+### Added
+
+- Settings → Transcoder can turn video transcoding off. Videos then play
+  as they are or with only their sound transcoded, and one a device can't
+  play says why. The Plex- and Jellyfin-compatible APIs follow it too.
+- "Max simultaneous video transcodes" limits how many streams transcode
+  video at once, within the total limit.
+
+### Changed
+
+- The note under "Transcode in memory" is shorter.
+- Dropdowns' carets sit in from the edge, and a dropdown that can't be
+  changed is greyed out.
+- Number fields in Settings and a title's Edit are only as wide as their
+  numbers need.
+
+### Fixed
+
+- A movie titled with a number takes its year from its file name, like
+  other movies. A full rescan merges any that showed twice.
+- Sync tools such as WatchState copy resume points to Pley through the
+  Jellyfin-compatible API.
 
 ## [0.1.9] - 2026-11-08
 
@@ -944,7 +920,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-08...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-12...HEAD
+[0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06
 [0.1.7]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05

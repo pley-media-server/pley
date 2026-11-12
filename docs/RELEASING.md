@@ -17,10 +17,14 @@ at their commit.
 1. As you work, write what changed under `## [Unreleased]` in the unit's
    `CHANGELOG.md` (Added, Changed, Fixed, Removed), or draft it from the
    commits with `bun scripts/release.mjs <unit> draft` and edit. The
-   entries become the release's notes, so they read as a list: an entry
-   doesn't open with the app or the device it is for ("On Android TV, …").
-   Entries for one device alone follow the others in their section, under
-   one line that names it ("On Android TV:").
+   entries become the release's notes, so they are short and plain, one
+   sentence where it can be: what people see or can now do, not how Pley
+   does it, what it did before or why. A server setting's place and what
+   it does are in the server's entry alone, not repeated in each app's.
+   They read as a list: an entry doesn't open with the app or the device
+   it is for ("On Android TV, …"). Entries for one device alone follow the
+   others in their section, under one line that names it ("On Android
+   TV:").
 2. On GitHub: **Actions → Prepare release → Run workflow**, or
    `gh workflow run prepare-release.yml`. Leave **Units** blank for every
    unit with Unreleased entries but the web Samsung app (`samsung`), or name

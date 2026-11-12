@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<addon id="plugin.video.pley" name="Pley" version="0.1.7" provider-name="the Pley authors">
+<addon id="plugin.video.pley" name="Pley" version="0.1.8" provider-name="the Pley authors">
   <requires>
     <import addon="xbmc.python" version="3.0.1"/>
   </requires>
@@ -30,15 +30,9 @@
       <fanart>resources/fanart.jpg</fanart>
     </assets>
     <!-- The version's CHANGELOG entries (scripts/release.mjs writes them). -->
-    <news>0.1.7 (2026-11-06)
+    <news>0.1.8 (2026-11-12)
 Added:
 
-- The add-on is in French and Spanish too: in your profile's language, else the one chosen in the add-on's settings (Screens → Language), else Kodi's, else the server's. Profile language, in the profile's menu and the add-on's settings, sets it for your profile on all your devices; on a server from before languages it is kept on this device. Dates, numbers and counts are written in the language shown, and what the server writes itself, such as Home's rows, comes in it.
-- Sent from a device on another profile of your household, Kodi switches to that profile first, and plays it as that profile. Needs a server from the same release.
-
-Changed:
-
-- Pley's window opens straight on Home as the profile Kodi was left on when it has no PIN, where a household of several profiles was asked "Who's watching?" each time Kodi started. A profile with a PIN still asks first, and Switch profile still shows every profile.
-- What your phone, the web or another device does to a film or episode playing on Kodi shows for a moment as a quiet Kodi notification: "Paused", "Playing", "+30 s", "Jumped to 12:34", or the audio, subtitles or quality picked.</news>
+- When the server has video transcoding turned off, Automatic plays the Original and the remote offers only Original.</news>
   </extension>
 </addon>
