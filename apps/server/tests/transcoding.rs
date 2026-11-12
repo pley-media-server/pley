@@ -1232,6 +1232,68 @@ async fn the_transcode_limits_count_live_hls_sessions() {
     assert_eq!(play(app, admin, small("tv")).await.status, StatusCode::OK);
 }
 
+/// A Plex or Jellyfin app that opened a stream's address gets a stream
+/// from a server that transcodes no video too: the video copied, whatever
+/// quality it asked for, never the file as it is.
+#[tokio::test]
+async fn compatibility_apps_streams_stay_streams_with_video_transcoding_off() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.put("/api/settings", admin, json!({"transcode_video": false})).await;
+    // The clip plays as it is in a browser: only a stream's address makes one of it.
+    let clip = w.movies["Clip"];
+
+    let path = encode(&format!("/library/metadata/{clip}"));
+    let start = format!(
+        "/video/:/transcode/universal/start.m3u8?path={path}&directStream=0&maxVideoBitrate=2000&videoResolution=1280x720"
+    );
+    let master = app.plex(Method::GET, &start, admin, &[("x-plex-client-identifier", "living-room")]).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    assert!(master.text().lines().any(|l| l.starts_with("session/")), "{}", master.text());
+    let video = w.fake.last_request().video.unwrap();
+    assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Copy, None, None));
+
+    let item = app.jf_item(clip);
+    let info = app.jf(Method::POST, &format!("/Items/{item}/PlaybackInfo"), admin, Some(json!({}))).await;
+    let source = info.body["MediaSources"][0]["Id"].as_str().unwrap().to_owned();
+    let stream = format!(
+        "/Videos/{item}/master.m3u8?MediaSourceId={source}&AllowVideoStreamCopy=false&MaxStreamingBitrate=2000000"
+    );
+    let master = app.jf(Method::GET, &stream, admin, None).await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    assert!(master.text().contains("#EXTM3U"), "{}", master.text());
+    let video = w.fake.last_request().video.unwrap();
+    assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Copy, None, None));
+}
+
+/// Music has no video: a server that transcodes none still makes a stream
+/// of a track it never analysed, as it does with video transcoding on.
+#[tokio::test]
+async fn music_never_analysed_plays_with_video_transcoding_off() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // Not analysed (the stand-in can't read a "Broken" file), and in a
+    // container no browser plays without knowing more.
+    app.media_file("music/Band/Record (2001)/01 - Broken Song.wma", 512);
+    let music = app.library(admin, "Music", "music", "music").await;
+    let mut found = app.get(&format!("/api/libraries/{music}/items"), admin).await.body["items"].clone();
+    let track = loop {
+        let first = &found[0];
+        let id = first["id"].as_i64().expect("an artist, an album or a track");
+        if first["kind"] == json!("track") {
+            break id;
+        }
+        found = app.get(&format!("/api/items/{id}/children"), admin).await.body["items"].clone();
+    };
+    let start = json!({"item_id": track, "caps": browser(), "client_id": "tab"});
+
+    let on = play(app, admin, start.clone()).await;
+    assert_eq!((on.status, &on.body["method"]), (StatusCode::OK, &json!("transcode")), "{:?}", on.body);
+    app.put("/api/settings", admin, json!({"transcode_video": false})).await;
+    let off = play(app, admin, start).await;
+    assert_eq!((off.status, &off.body["method"]), (StatusCode::OK, &json!("transcode")), "{:?}", off.body);
+}
+
 #[tokio::test]
 async fn a_server_that_converts_no_video_copies_it_or_refuses() {
     let w = world().await;
@@ -1259,6 +1321,21 @@ async fn a_server_that_converts_no_video_copies_it_or_refuses() {
     assert_eq!((video.mode, video.max_height, video.max_bitrate_kbps), (VideoMode::Copy, None, None));
     assert!(low.body["reason"].as_str().unwrap().contains("transcoding is off"), "{:?}", low.body["reason"]);
     assert_eq!(low.body["auto_quality"], Value::Null);
+
+    // Where the player opens the file, a quality kept on the device plays
+    // it as it is, as the original asked for does: no stream is made of it.
+    let made = w.fake.created();
+    let clip = w.movies["Clip"];
+    let kept = json!({"item_id": clip, "caps": browser(), "client_id": "phone", "mode": "transcode", "max_bitrate": 2_000, "max_height": 480});
+    let kept = play(app, admin, kept).await;
+    assert_eq!((kept.status, &kept.body["method"]), (StatusCode::OK, &json!("direct")), "{:?}", kept.body);
+    assert_eq!((&kept.body["original_only"], w.fake.created()), (&json!(true), made));
+    // Asked to convert with no quality (a decoder that gave up on the
+    // file): a copy in a stream, not the file again.
+    let again =
+        play(app, admin, json!({"item_id": clip, "caps": browser(), "client_id": "phone", "mode": "transcode"})).await;
+    assert_eq!((again.status, &again.body["method"]), (StatusCode::OK, &json!("remux")), "{:?}", again.body);
+    assert_eq!(w.fake.last_request().video.unwrap().mode, VideoMode::Copy);
 
     // What needs new frames isn't played: no job is made, and what the
     // client plays goes on.

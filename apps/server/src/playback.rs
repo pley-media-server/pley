@@ -382,6 +382,11 @@ pub struct PlaybackRequest {
     /// the player.
     #[serde(skip)]
     pub copy_video_only: bool,
+    /// The player opened a stream's address (the compatibility APIs' HLS
+    /// routes), so the answer is a stream, never the file as it is. Set by
+    /// the server, never read from the player.
+    #[serde(skip)]
+    pub stream_only: bool,
 }
 
 /// A command a remote sends a player (`POST /api/sessions/{id}/command`),
@@ -1390,14 +1395,17 @@ pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream],
     let container = file.container.as_deref().unwrap_or_default();
     let mut reasons = Vec::new();
     // A server that converts no video has no lower quality of a video to
-    // give: one asked for plays the original. Asked to convert, it copies
-    // the video into a stream rather than play the file as it is, which a
-    // player whose decoder gave up on the file would only ask for again.
-    // Music is converted as ever.
+    // give: one asked for plays the original, as it plays best (a player
+    // that kept a quality gets the file as it is where it plays so, not a
+    // stream with its sound converted). Asked to convert with no quality
+    // (a decoder that gave up on the file), it copies the video into a
+    // stream rather than play the file as it is, which that player would
+    // only ask for again. Music is converted as ever.
     let copy_only = req.copy_video_only && info.is_none_or(|i| i.video().is_some());
-    let unconverted =
-        copy_only && (req.mode == PlaybackMode::Transcode || req.max_bitrate.or(req.max_height).is_some());
+    let quality_asked = req.max_bitrate.or(req.max_height).is_some();
+    let unconverted = copy_only && (req.mode == PlaybackMode::Transcode || quality_asked);
     let (mode, max_bitrate, max_height) = match req.mode {
+        PlaybackMode::Transcode if copy_only && quality_asked && !req.stream_only => (PlaybackMode::Auto, None, None),
         PlaybackMode::Transcode if copy_only => (PlaybackMode::Remux, None, None),
         mode if copy_only => (mode, None, None),
         mode => (mode, req.max_bitrate, req.max_height),
@@ -2988,6 +2996,7 @@ mod tests {
             fmp4_segments: false,
             download: false,
             copy_video_only: false,
+            stream_only: false,
         }
     }
 
@@ -3004,14 +3013,27 @@ mod tests {
         let off = || PlaybackRequest { copy_video_only: true, ..request() };
         let i = info("h264", &["aac"], DynamicRange::Sdr);
         let f = file("mp4", 20_000_000);
-        // A quality asked for: the original, copied into a stream.
+        // A quality asked for: the original, as it plays best. Here the
+        // file as it is, as when the original is asked for.
         let mut req = off();
         (req.mode, req.max_bitrate, req.max_height) = (PlaybackMode::Transcode, Some(2_000), Some(480));
-        let d = decide(&f, Some(&i), &i.streams, &req);
+        assert_eq!(decide(&f, Some(&i), &i.streams, &req).method, Method::Direct);
+        // In a container the player doesn't open: copied into a stream.
+        let d = decide(&file("mkv", 20_000_000), Some(&i), &i.streams, &req);
         let video = d.video.unwrap();
         assert_eq!((d.method, video.mode), (Method::Remux, VideoMode::Copy));
         assert_eq!((video.max_height, video.max_bitrate_kbps, d.quality), (None, None, None));
+        assert!(d.reasons.iter().any(|r| r == NOT_CONVERTED), "{:?}", d.reasons);
+        // Asked to convert with no quality (a decoder that gave up on the
+        // file), or through a stream's address: a stream, never the file
+        // that was just refused.
+        let fallback = PlaybackRequest { mode: PlaybackMode::Transcode, ..off() };
+        let d = decide(&f, Some(&i), &i.streams, &fallback);
+        assert_eq!((d.method, d.video.unwrap().mode), (Method::Remux, VideoMode::Copy));
         assert_eq!(d.reasons, [NOT_CONVERTED]);
+        let through_hls = PlaybackRequest { stream_only: true, ..req.clone() };
+        let d = decide(&f, Some(&i), &i.streams, &through_hls);
+        assert_eq!((d.method, d.video.unwrap().mode), (Method::Remux, VideoMode::Copy));
         // A limit alone leaves the file as it is.
         req.mode = PlaybackMode::Auto;
         assert_eq!(decide(&f, Some(&i), &i.streams, &req).method, Method::Direct);

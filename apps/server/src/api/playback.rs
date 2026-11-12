@@ -176,7 +176,9 @@ pub async fn start(
     // fMP4 segments only from a transcoder that makes them.
     req.fmp4_segments = state.transcoder.info().is_some_and(|info| info.capabilities.fmp4_segments);
     let settings = state.settings.get();
-    req.copy_video_only = !settings.transcode_video;
+    // Music has no video: a track is converted as ever, also one never
+    // analysed, whose streams aren't known to be sound alone.
+    req.copy_video_only = !settings.transcode_video && row.kind != "track";
     if !matches!(row.kind.as_str(), "movie" | "episode" | "track" | "extra") {
         return Err(AppError::bad_request("this item cannot be played directly"));
     }

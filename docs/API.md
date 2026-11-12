@@ -2279,12 +2279,17 @@ With `transcode_video` off ("Allow video transcoding" in Settings →
 Transcoder), the server copies video or doesn't play it:
 
 - Direct plays and remuxes are as ever, and so is converted sound: a file
-  whose video the player plays gets its audio converted in a remux.
-- A quality asked for (`max_bitrate`, `max_height`) plays the original:
-  the limits are left out. `mode: "transcode"` copies the video into HLS,
-  as `"remux"` does, rather than play the file as it is, so a player
-  whose decoder gave up on the file isn't sent it again. `reasons` then
-  has "Video transcoding is off on this server."
+  whose video the player plays gets its audio converted in a remux. Music
+  is converted as ever, a track never analysed too.
+- A quality asked for (`max_bitrate`, `max_height`) plays the original as
+  it plays best: the limits are left out, and `mode: "transcode"` asked
+  with them is answered as `"auto"` is, so a device that kept a quality
+  plays the file as it is where it can, with no stream made of it.
+- `mode: "transcode"` with no quality (a player whose decoder gave up on
+  the file) copies the video into HLS, as `"remux"` does, rather than send
+  the file again. So do the stream addresses of the Plex- and
+  Jellyfin-compatible APIs, whatever quality they name: their apps opened
+  a stream. `reasons` then has "Video transcoding is off on this server."
 - A play that needs new frames (a codec, profile or HDR format the player
   can't play, picture subtitles to burn in, a file not analyzed yet, a
   picture turned on its side) answers `409 video_not_converted`, with the

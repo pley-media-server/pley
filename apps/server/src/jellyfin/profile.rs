@@ -798,6 +798,7 @@ mod tests {
             fmp4_segments: true,
             download: false,
             copy_video_only: false,
+            stream_only: false,
         };
         decide(&file(), Some(&info), &info.streams, &req)
     }
