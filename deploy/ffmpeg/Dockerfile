@@ -1,9 +1,9 @@
 # syntax=docker/dockerfile:1.7
-# pley-ffmpeg: FFmpeg 9, as the Windows installer carries (Debian 13's is
-# 7.1), and the newer libplacebo it needs, built against Debian 13's
-# libraries from the release sources pinned below. The Pley image copies it
+# pley-ffmpeg: FFmpeg 9 (Debian 13's is 7.1) with the patches in patches/,
+# and the newer libplacebo it needs, built against Debian 13's libraries
+# from the release sources pinned below. The Pley image copies it
 # (deploy/docker/Dockerfile); the FFmpeg workflow publishes it
-# (README.md).
+# (README.md). Dockerfile.windows builds the same FFmpeg for Windows.
 #
 #   docker build -t pley-ffmpeg deploy/ffmpeg
 
@@ -12,6 +12,8 @@ ARG FFMPEG_VERSION=9.0.2
 ARG FFMPEG_SHA256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
 ARG LIBPLACEBO_VERSION=7.360.1
 ARG LIBPLACEBO_COMMIT=cee9b076f2c63104ccfd497fa79c39a867293ec4
+# How many compilers run at once: all the processors, unless set.
+ARG JOBS
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential ca-certificates clang curl git meson nasm ninja-build pkg-config xz-utils \
@@ -36,12 +38,16 @@ RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.vid
     && meson setup libplacebo/build libplacebo --prefix=/usr/local --libdir=lib --buildtype=release \
         -Dvulkan=enabled -Dshaderc=enabled -Dglslang=disabled -Dlcms=enabled -Dlibdovi=enabled \
         -Dxxhash=enabled -Dopengl=disabled -Dd3d11=disabled -Dunwind=disabled -Ddemos=false \
-    && ninja -C libplacebo/build install \
+    && ninja -C libplacebo/build ${JOBS:+-j "$JOBS"} install \
     && ldconfig \
     && rm -rf libplacebo
-# Quick Sync (oneVPL) and NVIDIA's are named on amd64, where the image's
-# check (.github/workflows/server.yml) expects them; elsewhere FFmpeg takes
-# NVIDIA's when it finds them.
+# The patches are applied in the order of their series file, and the build
+# stops at one that doesn't apply exactly. Quick Sync (oneVPL) and NVIDIA's
+# are named on amd64, where the image's check (.github/workflows/server.yml)
+# expects them; elsewhere FFmpeg takes NVIDIA's when it finds them. There
+# too, FFmpeg must have found how Quick Sync's frames are shared with
+# OpenCL, which it leaves out silently otherwise.
+COPY patches/ patches/
 RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" \
     && echo "$FFMPEG_SHA256  ffmpeg-$FFMPEG_VERSION.tar.xz" | sha256sum -c - \
     && tar -xJf "ffmpeg-$FFMPEG_VERSION.tar.xz" \
@@ -49,6 +55,9 @@ RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_
         set -- --enable-libvpl --enable-ffnvcodec --enable-nvenc --enable-nvdec --enable-cuvid --enable-cuda-llvm; \
     fi \
     && cd "ffmpeg-$FFMPEG_VERSION" \
+    && while read -r patch; do \
+        patch -p1 --no-backup-if-mismatch -F0 -i "../patches/$patch" || exit 1; \
+    done < ../patches/series \
     && ./configure --prefix=/usr/local --extra-version=pley \
         --disable-debug --disable-doc --disable-ffplay \
         --enable-gpl \
@@ -58,16 +67,19 @@ RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_
         --enable-libplacebo --enable-libzimg --enable-chromaprint \
         --enable-vaapi --enable-libdrm --enable-vulkan --enable-opencl \
         "$@" \
-    && make -j"$(nproc)" \
+    && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
+        grep -qx '#define HAVE_OPENCL_VAAPI_INTEL_MEDIA 1' config.h; \
+    fi \
+    && make -j"${JOBS:-$(nproc)}" \
     && make install \
     && install -d /out/usr/local/bin /out/usr/local/lib /out/usr/share/doc/ffmpeg \
     && install -m755 /usr/local/bin/ffmpeg /usr/local/bin/ffprobe /out/usr/local/bin/ \
     && cp -a /usr/local/lib/libplacebo.so.* /out/usr/local/lib/ \
     && install -m644 LICENSE.md COPYING.GPLv2 COPYING.GPLv3 COPYING.LGPLv2.1 COPYING.LGPLv3 /out/usr/share/doc/ffmpeg/ \
-    && cp "../ffmpeg-$FFMPEG_VERSION.tar.xz" /out/usr/share/doc/ffmpeg/ \
+    && cp -r "../ffmpeg-$FFMPEG_VERSION.tar.xz" ../patches /out/usr/share/doc/ffmpeg/ \
     && /usr/local/bin/ffmpeg -hide_banner -buildconf > /out/usr/share/doc/ffmpeg/buildconf.txt \
     && cd .. \
-    && rm -rf "ffmpeg-$FFMPEG_VERSION" "ffmpeg-$FFMPEG_VERSION.tar.xz" /usr/local/include /usr/local/lib/*.a
+    && rm -rf "ffmpeg-$FFMPEG_VERSION" "ffmpeg-$FFMPEG_VERSION.tar.xz" patches /usr/local/include /usr/local/lib/*.a
 # The Debian packages whose libraries FFmpeg and libplacebo link, which the
 # Pley image installs.
 RUN set -eu; \

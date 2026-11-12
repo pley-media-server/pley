@@ -23,6 +23,8 @@ describes how they are made.
   GPU, and Dolby Vision and HDR10+ do where the CPU would decode them.
 - Intel graphics on Linux and in Docker get the same faster transcodes as on
   Windows.
+- The Docker image's FFmpeg has jellyfin-ffmpeg's improvements for Intel
+  graphics.
 
 ### Fixed
 
