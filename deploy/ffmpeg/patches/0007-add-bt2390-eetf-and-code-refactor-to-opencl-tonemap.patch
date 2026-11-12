@@ -15,6 +15,12 @@ and transfer helpers in libavfilter/colorspace.c and colorspace.h (from
 0004-add-cuda-tonemap-impl.patch). The NV15 input is left out: that
 pixel format comes with the Rockchip patch (0042).
 
+Changed in pley-ffmpeg: the first frame of Dolby Vision took the title's
+peak (L0) and every later frame its scene's (L1), because the first
+frame's peak was decided before init settled on tradeoffs. That frame
+came out about 12 % darker, at every start, seek and restart of a
+transcode. Without tradeoffs it now takes its scene's peak too.
+
 From jellyfin-ffmpeg 8.1.3-2, where the patch has no header: its authors
 are in that repository's history. Under FFmpeg's licence, as the files
 it changes.
@@ -3682,7 +3688,7 @@ diff --git a/libavfilter/vf_tonemap_opencl.c b/libavfilter/vf_tonemap_opencl.c
  
      ctx->trc_in = input->color_trc;
      ctx->trc_out = output->color_trc;
-@@ -386,72 +1221,50 @@ static int tonemap_opencl_filter_frame(A
+@@ -386,72 +1221,59 @@ static int tonemap_opencl_filter_frame(A
      ctx->range_out = output->color_range;
      ctx->chroma_loc = output->chroma_location;
  
@@ -3708,6 +3714,15 @@ diff --git a/libavfilter/vf_tonemap_opencl.c b/libavfilter/vf_tonemap_opencl.c
              goto fail;
 +
 +        ctx->init_with_dovi = !!ctx->dovi;
++
++        // The first frame's peak was taken before init settled on
++        // tradeoffs. Without them every frame goes by its scene's
++        // brightness (L1), so the first one does too: else it comes out
++        // darker than the rest, at every start, seek and restart.
++        if (!ctx->peak && dovi_sd && ctx->tradeoff != 1) {
++            ctx->src_peak = ff_determine_dovi_signal_peak((AVDOVIMetadata *) dovi_sd->data, 0);
++            ctx->src_peak *= REF_WHITE_SCALE;
++        }
      }
  
 -    switch(input_frames_ctx->sw_format) {
