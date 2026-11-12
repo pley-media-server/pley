@@ -952,7 +952,7 @@
     },
     "report": {
       "done": "Your Plex library is in Pley",
-      "failed": "The import stopped",
+      "failed": "The import failed",
       "cancelled": "The import was stopped",
       "lost": "The import was interrupted",
       "lostHint": "Pley restarted while it ran, so there's no report. What came over before stays; importing again brings the rest and nothing twice. Settings › Libraries marks libraries still waiting for Plex's labels.",
