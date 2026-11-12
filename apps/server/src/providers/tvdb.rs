@@ -496,6 +496,11 @@ const COUNTRIES: &[(&str, &str)] = &[
     ("KR", "kor"),
     ("CN", "chn"),
     ("TW", "twn"),
+    ("AR", "arg"),
+    ("HK", "hkg"),
+    ("PH", "phl"),
+    ("SG", "sgp"),
+    ("ZA", "zaf"),
 ];
 
 /// The country TheTVDB files content ratings under (ISO 3166 alpha-3) for
@@ -706,6 +711,15 @@ fn to_meta(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_country_pley_has_ratings_for_has_its_code() {
+        for system in crate::ratings::SYSTEMS {
+            let code = country(system.country);
+            assert!(system.country == "US" || code != "usa", "{} has no code", system.country);
+            assert_eq!(alpha2(code), Some(system.country));
+        }
+    }
 
     const SERIES: &str = include_str!("../../tests/fixtures/providers/tvdb_series.json");
     const EPISODES: &str = include_str!("../../tests/fixtures/providers/tvdb_episodes.json");
