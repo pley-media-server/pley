@@ -121,17 +121,18 @@ pub fn utc_secs(time: &str) -> Option<i64> {
 }
 
 /// An ISO 8601 time in UTC (`Z` or no zone) or with an offset
-/// (`2024-05-01T14:30:45+02:00`, `…-0500`) → unix seconds.
+/// (`2024-05-01T14:30:45+02:00`, `…-0500`, `…-05`) → unix seconds.
 pub fn iso_secs(time: &str) -> Option<i64> {
     let Some(at) = time.get(10..)?.rfind(['+', '-']).map(|at| at + 10) else {
         return utc_secs(time);
     };
     let (clock, zone) = time.split_at(at);
     let digits: String = zone[1..].chars().filter(|c| *c != ':').collect();
-    if digits.len() != 4 || !digits.bytes().all(|b| b.is_ascii_digit()) {
+    if !matches!(digits.len(), 2 | 4) || !digits.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
-    let (h, m): (i64, i64) = (digits[..2].parse().ok()?, digits[2..].parse().ok()?);
+    let h: i64 = digits[..2].parse().ok()?;
+    let m: i64 = if digits.len() == 4 { digits[2..].parse().ok()? } else { 0 };
     if h > 23 || m > 59 {
         return None;
     }
@@ -521,6 +522,7 @@ mod tests {
         assert_eq!(iso_secs("2024-05-01T14:00:00+02:00"), Some(noon));
         assert_eq!(iso_secs("2024-05-01T07:30:00-04:30"), Some(noon));
         assert_eq!(iso_secs("2024-05-01T07:00:00.123-0500"), Some(noon));
+        assert_eq!(iso_secs("2024-05-01T07:00:00-05"), Some(noon));
         for wrong in ["2024-05-01", "2024-05-01T12:00:00+2", "2024-05-01T12:00:00+25:00", "2024-05-01T12:00+02:00", ""]
         {
             assert_eq!(iso_secs(wrong), None, "{wrong}");

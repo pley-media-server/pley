@@ -6,7 +6,7 @@ plugins {
 
 // The app's version, its own (scripts/version.mjs sets it; docs/RELEASING.md),
 // and the commit the build is made from: PLEY_COMMIT, else git's, else "unknown".
-val appVersion = "0.1.11"
+val appVersion = "0.1.12"
 val pleyCommit: String = providers.environmentVariable("PLEY_COMMIT").orNull?.trim()?.take(9)?.ifEmpty { null }
     ?: providers.exec {
         commandLine("git", "rev-parse", "--short=9", "HEAD")

@@ -34,7 +34,7 @@
     },
     "apps/web": {
       "name": "pley-web",
-      "version": "0.1.9",
+      "version": "0.1.10",
       "dependencies": {
         "@tanstack/react-query": "^5.105.0",
         "@tanstack/react-virtual": "^3.14.23",

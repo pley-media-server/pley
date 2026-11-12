@@ -8,18 +8,19 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-11-12
+
 ### Added
 
-- On a server with video transcoding turned off (Settings → Transcoder),
-  the Quality menu offers Original alone and Automatic plays it, rather
-  than ask for qualities the server would only answer with the Original.
+- When the server has video transcoding turned off, the Quality menu
+  offers only Original.
 
 ### Changed
 
 On Android TV:
 
-- Home opens on its rows. The banner of featured titles above them is
-  off unless Settings → Subtitles and display → Home banner turns it on.
+- Home's banner of featured titles is off unless turned on in Settings →
+  Subtitles and display.
 
 ## [0.1.11] - 2026-11-10
 
@@ -817,7 +818,8 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-10.2...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-12...HEAD
+[0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08
