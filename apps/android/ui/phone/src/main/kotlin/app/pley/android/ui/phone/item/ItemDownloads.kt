@@ -2,14 +2,9 @@ package app.pley.android.ui.phone.item
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,8 +20,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
@@ -120,49 +113,30 @@ internal fun rememberItemDownloads(): ItemDownloads? {
 }
 
 /**
- * Download under Play (design spec §3.3's secondary button, as streaming
- * apps put it): "Download", "Downloading · 45 %" over a bar filling the
- * button, "Waiting for Wi-Fi", "Downloaded" (its menu plays or deletes
- * it) or "Didn't download" (its menu says why, tries it again or deletes
- * it).
+ * Download beside Play, a 48 dp square like Play on…: the arrow, a ring
+ * filling as it comes, a tick once it is here (its menu plays or deletes
+ * it) or a warning when it failed (its menu says why, tries it again or
+ * deletes it). [DownloadStatus] says the rest under Play.
  */
 @Composable
 internal fun DownloadButton(itemId: Long, title: String, modifier: Modifier = Modifier) {
     val downloads = LocalItemDownloads.current ?: return
     val entry = downloads.of(itemId)
     var menu by remember { mutableStateOf(false) }
-    val label = when (entry?.state) {
-        null -> stringResource(R.string.downloads_download)
-        DownloadState.Done -> stringResource(R.string.downloads_downloaded)
-        DownloadState.Failed -> stringResource(R.string.downloads_failed_short)
-        DownloadState.Queued -> entry.converting?.let { stringResource(R.string.downloads_preparing, (it * 100).toInt()) }
-            ?: stringResource(R.string.downloads_queued)
-        DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
-        DownloadState.Downloading -> stringResource(R.string.downloads_progress, (entry.fraction * 100).toInt(), formatBytes(entry.sizeBytes, formatWords()))
-    }
     val description = downloadDescription(entry, title)
-    val fraction = entry?.converting ?: if (entry?.state == DownloadState.Downloading) entry.fraction else 0f
     Box(modifier) {
-        Row(
+        Box(
             Modifier
-                .fillMaxWidth()
-                .heightIn(min = 48.dp)
+                .size(48.dp)
                 .clip(PleyShape.Control)
                 .background(PleyColors.Surface3)
-                .drawBehind {
-                    if (fraction > 0f) drawRect(PleyColors.Accent.copy(alpha = 0.22f), size = Size(size.width * fraction, size.height))
-                }
                 .clickable(role = Role.Button) {
                     if (entry == null) downloads.download(listOf(itemId)) else menu = true
                 }
-                .semantics(mergeDescendants = true) { contentDescription = description }
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
+                .semantics { contentDescription = description },
+            contentAlignment = Alignment.Center,
         ) {
-            DownloadGlyph(entry, size = 20.dp)
-            Spacer(Modifier.width(8.dp))
-            Text(label, style = MaterialTheme.typography.labelLarge, color = PleyColors.Fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            DownloadGlyph(entry)
         }
         DownloadMenu(
             entry,
@@ -173,4 +147,30 @@ internal fun DownloadButton(itemId: Long, title: String, modifier: Modifier = Mo
             onRemove = { downloads.remove(it.itemId) },
         )
     }
+}
+
+/**
+ * One line under Play while a download is coming or failed: "Downloading ·
+ * 45 % of 1.4 GB", "Waiting for Wi-Fi", "Didn't download". None when there
+ * is no download or it is here: the button's tick says that.
+ */
+@Composable
+internal fun DownloadStatus(itemId: Long) {
+    val entry = LocalItemDownloads.current?.of(itemId) ?: return
+    val label = when (entry.state) {
+        DownloadState.Done -> return
+        DownloadState.Failed -> stringResource(R.string.downloads_failed_short)
+        DownloadState.Queued -> entry.converting?.let { stringResource(R.string.downloads_preparing, (it * 100).toInt()) }
+            ?: stringResource(R.string.downloads_queued)
+        DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
+        DownloadState.Downloading -> stringResource(R.string.downloads_progress, (entry.fraction * 100).toInt(), formatBytes(entry.sizeBytes, formatWords()))
+    }
+    Text(
+        label,
+        style = MaterialTheme.typography.bodySmall,
+        color = if (entry.state == DownloadState.Failed) PleyColors.DangerText else PleyColors.Muted,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier.padding(top = 8.dp),
+    )
 }

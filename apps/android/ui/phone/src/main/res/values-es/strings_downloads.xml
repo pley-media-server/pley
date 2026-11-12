@@ -24,11 +24,7 @@
     <string name="downloads_cancel">Cancelar la descarga</string>
     <string name="downloads_open">Ir a la página</string>
 
-    <string name="downloads_download">Descargar</string>
-    <string name="downloads_downloaded">Descargado</string>
     <string name="downloads_failed_short">No se descargó</string>
-    <string name="downloads_queued_short">En cola</string>
-    <string name="downloads_waiting_short">Esperando</string>
     <string name="downloads_download_season">Descargar la temporada</string>
     <string name="downloads_download_item">Descargar %1$s</string>
     <string name="downloads_downloaded_item">Descargado: %1$s</string>

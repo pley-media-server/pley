@@ -33,13 +33,8 @@
     <string name="downloads_open">Go to the page</string>
 
     <!-- Item pages. -->
-    <string name="downloads_download">Download</string>
-    <string name="downloads_downloaded">Downloaded</string>
-    <!-- Its button when it failed: tapping says why, and tries it again or deletes it. -->
+    <!-- Under Play when it failed: its button's menu says why, and tries it again or deletes it. -->
     <string name="downloads_failed_short">Didn\'t download</string>
-    <!-- Under the item page's button while it waits. -->
-    <string name="downloads_queued_short">Queued</string>
-    <string name="downloads_waiting_short">Waiting</string>
     <string name="downloads_download_season">Download season</string>
     <!-- "Download Episode 2", for screen readers. -->
     <string name="downloads_download_item">Download %1$s</string>

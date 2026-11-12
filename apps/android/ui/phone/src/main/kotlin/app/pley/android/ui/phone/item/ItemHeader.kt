@@ -271,9 +271,9 @@ internal fun MetaLine(parts: List<MetaPart>, modifier: Modifier = Modifier) {
 
 /**
  * Play or Resume across the width, or "Unavailable", with Play on… beside
- * it while another device takes titles, and Download under it for a movie
- * or an episode; what is left of a title being watched is under the
- * metadata.
+ * it while another device takes titles and Download beside it for a movie
+ * or an episode (how a download is coming goes under them); what is left
+ * of a title being watched is under the metadata.
  */
 @Composable
 private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) {
@@ -283,6 +283,7 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
         TonalButton(stringResource(R.string.item_unavailable), onClick = {}, enabled = false, modifier = width.height(48.dp))
         return
     }
+    val downloadable = page.kind == ItemKind.Movie || page.kind == ItemKind.Episode
     Row(if (fullWidth) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.CenterVertically) {
         PrimaryButton(
             text = primaryLabel(primary),
@@ -292,11 +293,9 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
         )
         // Where the page's Play starts it, with the tracks picked here: a title being watched resumes there too.
         CastTarget.page(page.item, page.tracks)?.let { PlayOnButton(it, Modifier.padding(start = 8.dp)) }
+        if (downloadable) DownloadButton(page.id, page.title, Modifier.padding(start = 8.dp))
     }
-    if (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode) {
-        Spacer(Modifier.height(8.dp))
-        DownloadButton(page.id, page.title, width)
-    }
+    if (downloadable) DownloadStatus(page.id)
 }
 
 /** "Resume", "Play S1 · E3", … */

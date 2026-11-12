@@ -13,11 +13,15 @@ import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemViewModel
 import app.pley.android.screens.item.ItemUiState
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import app.pley.android.ui.phone.theme.PhoneTheme
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.onNodeWithContentDescription
+import app.pley.android.data.DownloadEntry
+import app.pley.android.data.DownloadState
 import app.pley.android.data.OtherDevice
+import app.pley.android.model.ItemKind
 import app.pley.android.model.CastKind
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.RemoteDevice
@@ -35,8 +39,9 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 /**
- * The phone's item page: Play, Resume and From start, Unavailable, the
- * summary clamped to four lines with More, and where its links go.
+ * The phone's item page: Play, Resume and From start, Unavailable,
+ * Download beside Play, the summary clamped to four lines with More, and
+ * where its links go.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w412dp-h915dp-xxhdpi")
@@ -60,7 +65,12 @@ class ItemPageTest {
     /** Play on…'s chooser asked for, by what. */
     private val castsAsked = mutableListOf<CastTarget>()
 
-    private fun show(detail: ItemDetail, devices: List<OtherDevice> = emptyList()): ItemData {
+    /** The downloads the page shows, by item, and what was asked of them. */
+    private val downloadsByItem = mutableStateOf(emptyMap<Long, DownloadEntry>())
+    private val downloadsAsked = mutableListOf<List<Long>>()
+    private val downloads = ItemDownloads(downloadsByItem, download = { downloadsAsked += it }, retry = {}, remove = {}, play = {})
+
+    private fun show(detail: ItemDetail, devices: List<OtherDevice> = emptyList(), withDownloads: Boolean = false): ItemData {
         val data = ItemData(detail)
         val model = ItemViewModel(data, data.launcher, detail.id, compute = Dispatchers.Main.immediate)
         val host = object : PlayOnHost {
@@ -74,7 +84,7 @@ class ItemPageTest {
             PhoneTheme {
                 CompositionLocalProvider(LocalPlayOn provides host) {
                     val state by model.state.collectAsState()
-                    (state as? ItemUiState.Ready)?.let { ItemPageContent(it.page, model, navigator) }
+                    (state as? ItemUiState.Ready)?.let { ItemPageContent(it.page, model, navigator, downloads.takeIf { withDownloads }) }
                 }
             }
         }
@@ -180,5 +190,49 @@ class ItemPageTest {
         compose.waitForIdle()
         compose.onNodeWithTag(ITEM_PAGE).performScrollToNode(hasText("Saltwind.mkv"))
         compose.onNodeWithText("Saltwind.mkv").assertExists()
+    }
+
+    private fun download(state: DownloadState, downloadedBytes: Long = 0) = DownloadEntry(
+        itemId = 1,
+        fileId = 1,
+        kind = ItemKind.Movie,
+        title = "Saltwind",
+        // 1.5 GB as the app counts them, 1024 to a step.
+        sizeBytes = 1_610_612_736,
+        downloadedBytes = downloadedBytes,
+        state = state,
+        addedAt = 0,
+    )
+
+    @Test
+    fun downloadIsASquareBesidePlayThatDownloadsTheTitle() {
+        show(movie(), withDownloads = true)
+        compose.onNodeWithText("Download").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Download Saltwind").performClick()
+        compose.waitForIdle()
+        assertEquals(listOf(listOf(1L)), downloadsAsked)
+    }
+
+    @Test
+    fun aComingDownloadSaysHowFarUnderPlay() {
+        downloadsByItem.value = mapOf(1L to download(DownloadState.Downloading, downloadedBytes = 725_000_000))
+        show(movie(), withDownloads = true)
+        compose.onNodeWithText("Downloading · 45% of 1.5 GB").assertExists()
+        compose.onNodeWithContentDescription("Saltwind is downloading, 45%").assertExists()
+    }
+
+    @Test
+    fun aDownloadWaitingForWiFiSaysSo() {
+        downloadsByItem.value = mapOf(1L to download(DownloadState.Waiting))
+        show(movie(), withDownloads = true)
+        compose.onNodeWithText("Waiting for Wi-Fi").assertExists()
+    }
+
+    @Test
+    fun aWholeDownloadSaysNothingUnderPlay() {
+        downloadsByItem.value = mapOf(1L to download(DownloadState.Done, downloadedBytes = 1_610_612_736))
+        show(movie(), withDownloads = true)
+        compose.onNodeWithContentDescription("Saltwind is downloaded").assertExists()
+        compose.onNodeWithText("Downloaded").assertDoesNotExist()
     }
 }
