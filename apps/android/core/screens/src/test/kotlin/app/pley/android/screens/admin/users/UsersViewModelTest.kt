@@ -194,9 +194,13 @@ class UsersViewModelTest {
         assertEquals("""{"pin":null}""", body(server, "PATCH /api/users/2").toString())
 
         assertTrue(done.isEmpty())
+        assertEquals(1, server.callsTo("GET /api/users/2/devices").size)
         page.setPassword("a long new one")
         assertEquals("""{"password":"a long new one"}""", body(server, "PATCH /api/users/2").toString())
         assertEquals(listOf(AdminDone(UserViewModel.SAVED, listOf("Bea"))), done)
+        // The server signed Bea out everywhere: her devices and apps are read again.
+        assertEquals(2, server.callsTo("GET /api/users/2/devices").size)
+        assertEquals(2, server.callsTo("GET /api/users/2/apps").size)
     }
 
     @Test

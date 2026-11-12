@@ -99,8 +99,15 @@ class UserViewModel(
         buildJsonObject { if (name.isEmpty()) put("display_name", JsonNull) else put("display_name", name) },
     )
 
-    /** A new password, which signs the account out everywhere; a managed profile's makes it an account. */
-    fun setPassword(password: String) = patch(buildJsonObject { put("password", password) }, said = SAVED)
+    /**
+     * A new password, which signs the account out everywhere; a managed
+     * profile's makes it an account. Its devices and apps are read again,
+     * as the server has just signed them out.
+     */
+    fun setPassword(password: String) = patch(buildJsonObject { put("password", password) }, said = SAVED) {
+        devices.reload()
+        apps.reload()
+    }
 
     /**
      * No longer an administrator (the web app makes one). The account is
