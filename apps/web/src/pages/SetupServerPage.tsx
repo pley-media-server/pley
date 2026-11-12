@@ -242,7 +242,7 @@ function ServerForm({
             >
               <div className="flex items-center justify-between gap-4">
                 <span className="text-sm">{t("setupServer.bonjour")}</span>
-                <Toggle checked={bonjour} onChange={setBonjour} label={t("setupServer.bonjour")} />
+                <Toggle id="setup-server-bonjour" checked={bonjour} onChange={setBonjour} label={t("setupServer.bonjour")} />
               </div>
             </Row>
           ) : null}

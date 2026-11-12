@@ -142,6 +142,16 @@ describe("SetupServerPage", () => {
     }
   });
 
+  it("turns Bonjour on from the row's label too", async () => {
+    const user = userEvent.setup();
+    renderStep();
+    await user.click(await screen.findByRole("button", { name: "Change: Apple devices" }));
+    const toggle = screen.getByRole("switch", { name: "Apple devices find this server" });
+    const before = toggle.getAttribute("aria-checked");
+    await user.click(screen.getByText("Apple devices", { selector: "label" }));
+    expect(toggle.getAttribute("aria-checked")).not.toBe(before);
+  });
+
   it("keeps what was chosen when setup comes back to it", async () => {
     const user = userEvent.setup();
     const languages = vi.spyOn(navigator, "languages", "get").mockReturnValue(["de-DE"]);
