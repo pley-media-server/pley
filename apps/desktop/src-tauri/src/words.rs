@@ -108,7 +108,7 @@ impl Language {
             Self::Fr | Self::Es => {
                 if count == 1 || (self == Self::Fr && count == 0) {
                     "one"
-                } else if count != 0 && count % 1_000_000 == 0 {
+                } else if count != 0 && count.is_multiple_of(1_000_000) {
                     "many"
                 } else {
                     "other"
