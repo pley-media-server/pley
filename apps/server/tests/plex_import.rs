@@ -1051,6 +1051,7 @@ async fn brings_libraries_people_and_what_they_watched() {
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM libraries WHERE labels_pending = ?", 1).await, 2, "both it makes");
     assert_eq!(sees().await, ["Movies", "TV", "Films"], "not those the run made");
     // An administrator can show one sooner.
     let more_tv: i64 = sqlx::query_scalar("SELECT id FROM libraries WHERE name = 'More TV'")

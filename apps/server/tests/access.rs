@@ -335,6 +335,15 @@ async fn a_library_waiting_for_plex_labels_does_not_exist_for_a_profile_with_lab
         let films = app.jf_json("/Items?Recursive=true&IncludeItemTypes=Movie", token).await;
         assert!(!jf_names(&films).contains(&"Family Film".to_owned()));
     }
+    // An order of their own lists what they see, and not the waiting library.
+    for (token, open) in [(w.kid.as_str(), vec![w.music, w.tv]), (&teen, vec![w.private, w.music, w.tv])] {
+        let mine = app.put("/api/me/libraries/order", token, json!({"ids": open})).await;
+        assert_eq!(mine.status, StatusCode::OK, "{}", mine.text());
+        let with_it = [open.clone(), vec![w.movies]].concat();
+        let refused = app.put("/api/me/libraries/order", token, json!({"ids": with_it})).await;
+        assert_eq!(refused.status, StatusCode::CONFLICT, "{}", refused.text());
+    }
+
     // Without such a label, nothing waits; nor for the administrator, even
     // with one, from an app as from the web.
     let admin_id: i64 =
