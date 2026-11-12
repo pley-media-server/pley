@@ -8,7 +8,14 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Notifications about requests are in French and Spanish too, in the
+  language the server's pages are in.
+
 ### Fixed
+
+- A notification that a show's specials are ready says they "are" ready.
 
 On a Mac:
 

@@ -7,9 +7,13 @@
 //! While the window is in front, the page tells of them itself. After a
 //! dropped stream (the computer slept, the network went), the news of the
 //! account's requests that came meanwhile (ready to watch, all of it or
-//! more of a show's seasons, or declined) is told of in one notice.
+//! more of a show's seasons, or declined) is told of in one notice. Notices
+//! are in the language the server's pages are in: the account's, else the
+//! computer's, else the server's (`words`), looked at each time the stream
+//! opens.
 
 use std::collections::HashMap;
+use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Deserialize;
@@ -18,6 +22,8 @@ use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_notification::NotificationExt;
 use tokio::sync::watch;
 use url::Url;
+
+use crate::words::Language;
 
 /// How long the server has to start answering.
 const ANSWER_TIMEOUT: Duration = Duration::from_secs(30);
@@ -30,24 +36,41 @@ const RETRY_FIRST: Duration = Duration::from_secs(5);
 const RETRY_MAX: Duration = Duration::from_secs(60);
 /// An event longer than this isn't one the app knows: skipped.
 const MAX_EVENT: usize = 64 * 1024;
+/// The computer's languages kept, at most, and their tags' length.
+const MAX_LANGUAGES: usize = 16;
+const MAX_TAG: usize = 35;
 
-/// The server the window shows, which the notices follow.
-pub struct Notices(watch::Sender<Option<Url>>);
+/// The server the window shows, which the notices follow, and the
+/// computer's languages, as the picker's web view has them.
+pub struct Notices {
+    shown: watch::Sender<Option<Url>>,
+    languages: Mutex<Vec<String>>,
+}
 
 impl Default for Notices {
     fn default() -> Self {
-        Self(watch::channel(None).0)
+        Self { shown: watch::channel(None).0, languages: Mutex::default() }
     }
 }
 
 impl Notices {
     /// The window shows `server` now (`None`: the picker).
     pub fn follow(&self, server: Option<Url>) {
-        self.0.send_if_modified(|shown| {
+        self.shown.send_if_modified(|shown| {
             let changed = *shown != server;
             *shown = server;
             changed
         });
+    }
+
+    /// The computer's languages, preferred first (`navigator.languages`).
+    pub fn languages_are(&self, tags: Vec<String>) {
+        let tags = tags.into_iter().filter(|tag| tag.len() <= MAX_TAG).take(MAX_LANGUAGES).collect();
+        *self.languages.lock().unwrap() = tags;
+    }
+
+    fn languages(&self) -> Vec<String> {
+        self.languages.lock().unwrap().clone()
     }
 }
 
@@ -112,58 +135,78 @@ fn heard(data: &str) -> Heard {
     serde_json::from_str(data).unwrap_or(Heard::Other)
 }
 
-/// `reason` as notices quote it: none when it's blank.
-fn quoted(reason: Option<&str>) -> Option<&str> {
+/// `reason` as notices give it: none when it's blank.
+fn given(reason: Option<&str>) -> Option<&str> {
     reason.map(str::trim).filter(|r| !r.is_empty())
 }
 
-/// "“Heat” is ready to watch.", or for a show's first seasons, "Season 2 of
-/// “The Expanse” is ready to watch.".
-fn ready_words(title: &str, seasons: Option<&[i64]>) -> String {
-    match seasons_label(seasons) {
-        Some(label) if seasons.is_some_and(|s| s.len() > 1) => format!("{label} of “{title}” are ready to watch."),
-        Some(label) => format!("{label} of “{title}” is ready to watch."),
-        None => format!("“{title}” is ready to watch."),
-    }
+/// A title, or a reason, as running text quotes it: “Heat” (« Heat » in French).
+fn quoted(language: Language, text: &str) -> String {
+    language.say("quoted", &[("title", text)])
 }
 
-fn declined_words(title: &str, reason: Option<&str>) -> String {
-    match quoted(reason) {
-        Some(reason) => format!("“{title}” was declined: “{reason}”."),
-        None => format!("“{title}” was declined."),
+/// `text` ending as a sentence does.
+fn sentence(text: &str) -> String {
+    if text.ends_with(['.', '!', '?']) { text.to_owned() } else { format!("{text}.") }
+}
+
+/// "“Heat” is ready to watch.", or for a show's first seasons, "Season 2 of
+/// “The Expanse” is ready to watch." (`readyText` in apps/web/src/lib/requests.ts).
+fn ready_words(language: Language, title: &str, seasons: Option<&[i64]>) -> String {
+    let title = quoted(language, title);
+    let Some(seasons) = seasons.filter(|s| !s.is_empty()) else {
+        return language.say("ready", &[("title", &title)]);
+    };
+    // Specials alone have words of their own: they agree as a plural in French and Spanish.
+    if seasons.iter().all(|&n| n == 0) {
+        return language.say("specialsReady", &[("title", &title)]);
+    }
+    let label = seasons_label(language, Some(seasons)).unwrap_or_default();
+    language.say_counted("seasonsReady", seasons.len(), &[("seasons", &label), ("title", &title)])
+}
+
+fn declined_words(language: Language, title: &str, reason: Option<&str>) -> String {
+    let title = quoted(language, title);
+    match given(reason) {
+        Some(reason) => language.say("declinedBecause", &[("title", &title), ("reason", &quoted(language, reason))]),
+        None => language.say("declined", &[("title", &title)]),
     }
 }
 
 /// What the notice for `heard` says, if there is one (the words every
 /// client uses, docs/API.md "Requests").
-fn notice(heard: &Heard) -> Option<String> {
+fn notice(language: Language, heard: &Heard) -> Option<String> {
     Some(match heard {
         Heard::RequestAvailable { title, seasons, complete, .. } => {
-            ready_words(title, if *complete { None } else { seasons.as_deref() })
+            ready_words(language, title, if *complete { None } else { seasons.as_deref() })
         }
         Heard::RequestDecided { title, status, reason, .. } => match status.as_str() {
-            "approved" => format!("“{title}” was approved."),
-            "declined" => declined_words(title, reason.as_deref()),
+            "approved" => language.say("approved", &[("title", &quoted(language, title))]),
+            "declined" => declined_words(language, title, reason.as_deref()),
             _ => return None,
         },
         Heard::RequestCreated { title, seasons, requested_by, status } => {
             if status.as_deref().is_some_and(|s| s != "pending") {
                 return None;
             }
-            let who = &requested_by.name;
-            match seasons_label(seasons.as_deref()) {
-                Some(seasons) => format!("{who} asked for “{title}” ({seasons})."),
-                None => format!("{who} asked for “{title}”."),
+            let (name, title) = (requested_by.name.as_str(), quoted(language, title));
+            match seasons_label(language, seasons.as_deref()) {
+                Some(seasons) => {
+                    language.say("createdSeasons", &[("name", name), ("title", &title), ("seasons", &seasons)])
+                }
+                None => language.say("created", &[("name", name), ("title", &title)]),
             }
         }
         Heard::RequestFailed { title, kind, reason, retry_at } => {
             if retry_at.is_some() {
                 return None;
             }
+            let title = quoted(language, title);
             let service = if kind == "show" { "Sonarr" } else { "Radarr" };
-            match quoted(reason.as_deref()) {
-                Some(reason) => format!("“{title}” couldn't be sent to {service}: {reason}"),
-                None => format!("“{title}” couldn't be sent to {service}."),
+            match given(reason.as_deref()) {
+                Some(reason) => language
+                    .say("notSentBecause", &[("title", &title), ("service", service), ("reason", &sentence(reason))]),
+                None => language.say("notSent", &[("title", &title), ("service", service)]),
             }
         }
         Heard::Other => return None,
@@ -171,9 +214,9 @@ fn notice(heard: &Heard) -> Option<String> {
 }
 
 /// A show's seasons as the web says them (`seasonsLabel` in
-/// apps/web/src/pages/requests/shared.tsx): "Season 2", "Seasons 1–3, 5",
+/// apps/web/src/lib/requests.ts): "Season 2", "Seasons 1–3, 5",
 /// "Seasons 1–2 and specials", "Specials"; `None` for none (a movie).
-fn seasons_label(seasons: Option<&[i64]>) -> Option<String> {
+fn seasons_label(language: Language, seasons: Option<&[i64]>) -> Option<String> {
     let seasons = seasons.filter(|s| !s.is_empty())?;
     let mut numbers: Vec<i64> = seasons.iter().copied().filter(|&n| n > 0).collect();
     numbers.sort_unstable();
@@ -190,10 +233,10 @@ fn seasons_label(seasons: Option<&[i64]>) -> Option<String> {
         i += 1;
     }
     if ranges.is_empty() {
-        return Some("Specials".to_owned());
+        return Some(language.say("specials", &[]));
     }
-    let label = format!("{} {}", if numbers.len() == 1 { "Season" } else { "Seasons" }, ranges.join(", "));
-    Some(if seasons.contains(&0) { format!("{label} and specials") } else { label })
+    let label = language.say_counted("seasonList", numbers.len(), &[("list", &ranges.join(", "))]);
+    Some(if seasons.contains(&0) { language.say("andSpecials", &[("seasons", &label)]) } else { label })
 }
 
 /// Splits a `text/event-stream` into the data of its events.
@@ -272,15 +315,19 @@ struct Listed {
 impl Listed {
     /// Its news, as a notice tells it: all of it ready to watch, some of a
     /// show's seasons (while others still download, too), or declined.
-    fn news(&self) -> Option<String> {
+    fn news(&self, language: Language) -> Option<String> {
         match self.status.as_str() {
-            "available" if self.stage != "gone" => Some(ready_words(&self.title, None)),
+            "available" if self.stage != "gone" => Some(ready_words(language, &self.title, None)),
             "approved" if !self.available_seasons.is_empty() => {
-                Some(ready_words(&self.title, Some(&self.available_seasons)))
+                Some(ready_words(language, &self.title, Some(&self.available_seasons)))
             }
-            "declined" => Some(declined_words(&self.title, self.reason.as_deref())),
+            "declined" => Some(declined_words(language, &self.title, self.reason.as_deref())),
             _ => None,
         }
+    }
+
+    fn has_news(&self) -> bool {
+        self.news(Language::En).is_some()
     }
 }
 
@@ -334,7 +381,7 @@ impl Told {
             Some(newest) => listed
                 .iter()
                 .copied()
-                .filter(|r| r.updated_at > newest && r.news().is_some())
+                .filter(|r| r.updated_at > newest && r.has_news())
                 .filter(|r| !self.known.get(&r.id).is_some_and(|known| known.covers(r)))
                 .collect(),
         };
@@ -359,11 +406,11 @@ impl Told {
 
 /// The notice for what came while the stream was down: the request's own
 /// words when there is one, else how many have news.
-fn caught_up(news: &[&Listed]) -> Option<String> {
+fn caught_up(language: Language, news: &[&Listed]) -> Option<String> {
     match news {
         [] => None,
-        [one] => one.news(),
-        several => Some(format!("{} of your requests have news.", several.len())),
+        [one] => one.news(language),
+        several => Some(language.say_counted("news", several.len(), &[])),
     }
 }
 
@@ -400,6 +447,8 @@ trait Shell: Send + Sync {
     fn proofs(&self) -> &crate::proofs::Proofs;
     /// Another device answers at `server`'s address now.
     fn not_yours(&self, server: &Url);
+    /// The computer's languages, preferred first.
+    fn languages(&self) -> Vec<String>;
 }
 
 struct App<R: Runtime>(AppHandle<R>);
@@ -428,6 +477,10 @@ impl<R: Runtime> Shell for App<R> {
 
     fn not_yours(&self, server: &Url) {
         crate::not_yours(&self.0, server);
+    }
+
+    fn languages(&self) -> Vec<String> {
+        self.0.state::<Notices>().languages()
     }
 }
 
@@ -471,6 +524,25 @@ async fn listed_news(client: &reqwest::Client, server: &Url, session: Option<&st
     Some(list.requests)
 }
 
+/// An account's or a server's language (`User.language`, `/api/server`'s
+/// `language`): none for Automatic.
+#[derive(Deserialize)]
+struct LanguageOf {
+    #[serde(default)]
+    language: Option<String>,
+}
+
+/// The language the account sees `server`'s pages in: its own, else the
+/// computer's (`device`), else the server's, which is asked for only then.
+async fn language_of(client: &reqwest::Client, server: &Url, session: Option<&str>, device: &[String]) -> Language {
+    let account = get_json::<LanguageOf>(client, server, "/api/auth/me", session).await.and_then(|me| me.language);
+    if account.as_deref().and_then(Language::of).is_some() || Language::of_device(device).is_some() {
+        return Language::pick(account.as_deref(), device, None);
+    }
+    let theirs = get_json::<LanguageOf>(client, server, "/api/server", None).await.and_then(|s| s.language);
+    Language::pick(None, device, theirs.as_deref())
+}
+
 /// Listens to `server`'s events once, telling of them, until the stream ends.
 async fn listen(client: &reqwest::Client, server: &Url, shell: &dyn Shell, name: &str, told: &mut Told) -> Ended {
     let Ok(url) = server.join("/api/events") else { return Ended::Refused };
@@ -482,7 +554,10 @@ async fn listen(client: &reqwest::Client, server: &Url, shell: &dyn Shell, name:
             return Ended::Refused;
         }
     };
-    let request = get(client, url, session.as_deref()).header(reqwest::header::ACCEPT, "text/event-stream");
+    let language = language_of(client, server, session.as_deref(), &shell.languages()).await;
+    let request = get(client, url, session.as_deref())
+        .header(reqwest::header::ACCEPT, "text/event-stream")
+        .header(reqwest::header::ACCEPT_LANGUAGE, language.code());
     let mut response = match tokio::time::timeout(ANSWER_TIMEOUT, request.send()).await {
         Ok(Ok(response)) => response,
         _ => return Ended::Dropped,
@@ -494,7 +569,7 @@ async fn listen(client: &reqwest::Client, server: &Url, shell: &dyn Shell, name:
     }
     // What came while the stream was down (nothing, the first time).
     let news = match listed_news(client, server, session.as_deref()).await {
-        Some(listed) => caught_up(&told.catch_up(&listed)),
+        Some(listed) => caught_up(language, &told.catch_up(&listed)),
         None => None,
     };
     if let Some(body) = news.filter(|_| !shell.in_front()) {
@@ -508,7 +583,7 @@ async fn listen(client: &reqwest::Client, server: &Url, shell: &dyn Shell, name:
         };
         for data in stream.read(&chunk) {
             let heard = heard(&data);
-            match notice(&heard) {
+            match notice(language, &heard) {
                 Some(body) if !shell.in_front() => shell.show(name, &body),
                 _ => {}
             }
@@ -570,7 +645,7 @@ pub async fn run(app: AppHandle) {
             return;
         }
     };
-    let mut shown = app.state::<Notices>().0.subscribe();
+    let mut shown = app.state::<Notices>().shown.subscribe();
     let shell = App(app.clone());
     loop {
         let server = shown.borrow_and_update().clone();
@@ -644,7 +719,7 @@ mod tests {
 
     #[test]
     fn notices_use_the_words_every_client_uses() {
-        let say = |json: &str| notice(&heard(json));
+        let say = |json: &str| notice(Language::En, &heard(json));
         assert_eq!(
             say(r#"{"type":"request_available","request_id":2,"title":"Heat","item_id":null}"#).as_deref(),
             Some("“Heat” is ready to watch.")
@@ -710,7 +785,7 @@ mod tests {
         assert_eq!(
             say(r#"{"type":"request_failed","request_id":3,"title":"Heat","kind":"movie","reason":"HTTP 500","retry_at":null}"#)
                 .as_deref(),
-            Some("“Heat” couldn't be sent to Radarr: HTTP 500")
+            Some("“Heat” couldn't be sent to Radarr: HTTP 500.")
         );
         assert_eq!(
             say(r#"{"type":"request_failed","request_id":3,"title":"Ran","kind":"show","reason":null}"#).as_deref(),
@@ -724,6 +799,34 @@ mod tests {
             "the server tries again by itself"
         );
         assert_eq!(say(r#"{"type":"requests_changed","request_id":3,"kind":"movie","tmdb_id":949}"#), None);
+        assert_eq!(
+            say(r#"{"type":"request_available","request_id":2,"title":"Dark","seasons":[0],"complete":false}"#)
+                .as_deref(),
+            Some("Specials of “Dark” are ready to watch.")
+        );
+    }
+
+    #[test]
+    fn notices_are_in_french_and_spanish_too() {
+        let fr = |json: &str| notice(Language::Fr, &heard(json));
+        let es = |json: &str| notice(Language::Es, &heard(json));
+        let dark = r#"{"type":"request_available","request_id":2,"title":"Dark","seasons":[1,2],"complete":false}"#;
+        // French puts no-break spaces inside its quotes and before a colon.
+        assert_eq!(fr(dark).as_deref(), Some("Saisons 1–2 de «\u{a0}Dark\u{a0}» sont prêtes à regarder."));
+        assert_eq!(es(dark).as_deref(), Some("Temporadas 1–2 de «Dark» ya están listas para ver."));
+        let one = r#"{"type":"request_available","request_id":2,"title":"Dark","seasons":[3],"complete":false}"#;
+        assert_eq!(fr(one).as_deref(), Some("Saison 3 de «\u{a0}Dark\u{a0}» est prête à regarder."));
+        let declined =
+            r#"{"type":"request_decided","request_id":2,"title":"Heat","status":"declined","reason":"Déjà là"}"#;
+        assert_eq!(fr(declined).as_deref(), Some("«\u{a0}Heat\u{a0}» a été refusé\u{a0}: «\u{a0}Déjà là\u{a0}»."));
+        let sam = r#""requested_by":{"id":4,"name":"Sam"}"#;
+        assert_eq!(
+            es(&format!(r#"{{"type":"request_created","request_id":3,"title":"Dark","seasons":[0,1],{sam}}}"#))
+                .as_deref(),
+            Some("Sam solicitó «Dark» (Temporada 1 y especiales).")
+        );
+        let failed = r#"{"type":"request_failed","request_id":3,"title":"Ran","kind":"show","reason":null}"#;
+        assert_eq!(es(failed).as_deref(), Some("No se pudo enviar «Ran» a Sonarr."));
     }
 
     #[test]
@@ -739,14 +842,16 @@ mod tests {
 
     #[test]
     fn seasons_read_as_on_the_web() {
-        let label = |s: &[i64]| seasons_label(Some(s));
+        let label = |s: &[i64]| seasons_label(Language::En, Some(s));
         assert_eq!(label(&[2]).as_deref(), Some("Season 2"));
         assert_eq!(label(&[3, 1, 2, 5]).as_deref(), Some("Seasons 1–3, 5"));
         assert_eq!(label(&[0, 1, 2]).as_deref(), Some("Seasons 1–2 and specials"));
         assert_eq!(label(&[0]).as_deref(), Some("Specials"));
         assert_eq!(label(&[4, 4]).as_deref(), Some("Season 4"));
         assert_eq!(label(&[]), None);
-        assert_eq!(seasons_label(None), None);
+        assert_eq!(seasons_label(Language::En, None), None);
+        assert_eq!(seasons_label(Language::Fr, Some(&[0])).as_deref(), Some("Épisodes spéciaux"));
+        assert_eq!(seasons_label(Language::Fr, Some(&[0, 2, 3])).as_deref(), Some("Saisons 2–3 et épisodes spéciaux"));
     }
 
     /// A request with news, as listed: its status, and its stage the same.
@@ -822,6 +927,7 @@ mod tests {
     #[test]
     fn what_came_meanwhile_is_one_notice() {
         let heat = news(1, "Heat", "available", 100);
+        let caught_up = |news: &[&Listed]| caught_up(Language::En, news);
         assert_eq!(caught_up(&[&heat]).as_deref(), Some("“Heat” is ready to watch."));
         let expanse = partly(2, "The Expanse", &[1, 2], 100);
         assert_eq!(caught_up(&[&expanse]).as_deref(), Some("Seasons 1–2 of “The Expanse” are ready to watch."));
@@ -835,6 +941,10 @@ mod tests {
         assert_eq!(caught_up(&[&searching]), None);
         let gone = Listed { stage: "gone".into(), ..news(5, "Big", "available", 100) };
         assert_eq!(caught_up(&[&gone]), None);
+        assert_eq!(
+            super::caught_up(Language::Es, &[&heat, &ran]).as_deref(),
+            Some("2 de tus solicitudes tienen novedades.")
+        );
     }
 
     #[test]
@@ -857,16 +967,19 @@ mod tests {
         shown: Mutex<Vec<(String, String)>>,
         proofs: crate::proofs::Proofs,
         not_yours: Mutex<Vec<Url>>,
+        languages: Vec<String>,
     }
 
     impl Window {
-        /// On `server`, which proved itself a moment ago (or not).
+        /// On `server`, which proved itself a moment ago (or not), on a
+        /// computer in American English.
         fn at(server: &Url, proved: bool) -> Self {
             Self {
                 in_front: Mutex::default(),
                 shown: Mutex::default(),
                 proofs: crate::proofs::Proofs::for_tests(server, proved),
                 not_yours: Mutex::default(),
+                languages: vec!["en-US".to_owned()],
             }
         }
     }
@@ -890,6 +1003,10 @@ mod tests {
 
         fn not_yours(&self, server: &Url) {
             self.not_yours.lock().unwrap().push(server.clone());
+        }
+
+        fn languages(&self) -> Vec<String> {
+            self.languages.clone()
         }
     }
 
@@ -938,6 +1055,11 @@ mod tests {
         pieces
     }
 
+    /// The account, in `language` (`None`: Automatic).
+    fn me(language: Option<&str>) -> Vec<Vec<u8>> {
+        whole("200 OK", &serde_json::json!({ "id": 1, "username": "sam", "language": language }).to_string())
+    }
+
     #[tokio::test]
     async fn the_stream_is_heard_with_the_windows_session_and_heard_again_after_it_drops() {
         let list =
@@ -949,12 +1071,14 @@ mod tests {
         };
         let (ran, heat, alien) = (ready(1, "Ran", 100), ready(2, "Heat", 140), ready(3, "Alien", 150));
         let (server, mut asked) = serve(vec![
+            me(None),
             events(&[
                 ": hello\n\n",
                 "data: {\"type\":\"request_available\",\"request_id\":2,\"title\":\"Heat\",\"item_id\":9}\n\n",
             ]),
             list(&ran),
             // Dropped: the second stream catches up.
+            me(None),
             events(&["data: {\"type\":\"request_created\",\"request_id\":5,\"title\":\"Up\",\"seasons\":null,\
                  \"requested_by\":{\"id\":4,\"name\":\"Sam\"},\"status\":\"pending\"}\n\n"]),
             list(&[alien, heat, ran].join(",")),
@@ -965,10 +1089,14 @@ mod tests {
         let mut told = Told::default();
         assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Dropped);
         assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Dropped);
+        let account = asked.recv().await.unwrap().to_ascii_lowercase();
+        assert!(account.starts_with("get /api/auth/me "), "{account}");
+        assert!(account.contains("cookie: pley_token=abc\r\n"), "{account}");
         let first = asked.recv().await.unwrap().to_ascii_lowercase();
         assert!(first.starts_with("get /api/events "), "{first}");
         assert!(first.contains("cookie: pley_token=abc\r\n"), "{first}");
         assert!(first.contains("accept: text/event-stream\r\n"), "{first}");
+        assert!(first.contains("accept-language: en\r\n"), "{first}");
         let listing = asked.recv().await.unwrap().to_ascii_lowercase();
         assert!(listing.starts_with("get /api/requests?unseen=1&limit=20 "), "{listing}");
         assert!(listing.contains("cookie: pley_token=abc\r\n"), "{listing}");
@@ -996,15 +1124,18 @@ mod tests {
             )
         };
         let (server, mut asked) = serve(vec![
+            me(None),
             events(&["data: {\"type\":\"request_available\",\"request_id\":7,\"title\":\"Dark\",\"kind\":\"show\",\
                  \"tmdb_id\":70523,\"item_id\":9,\"poster_url\":null,\"seasons\":[2],\"complete\":false}\n\n"]),
             list(""),
             // Season 1 was ready before: the request as it is now says so.
             whole("200 OK", &dark("1,2", 200)),
             // Dropped, with nothing new meanwhile: Season 2 was told of.
+            me(None),
             events(&[]),
             list(&dark("1,2", 200)),
             // Dropped again, and Season 3 came meanwhile.
+            me(None),
             events(&[]),
             list(&dark("1,2,3", 300)),
         ])
@@ -1018,17 +1149,20 @@ mod tests {
         let paths: Vec<String> = std::iter::from_fn(|| asked.try_recv().ok())
             .map(|request| request.split(' ').nth(1).unwrap_or_default().to_owned())
             .collect();
-        assert_eq!(paths[2], "/api/requests/7");
+        assert_eq!(paths[3], "/api/requests/7");
         let shown: Vec<String> = window.shown.lock().unwrap().iter().map(|(_, body)| body.clone()).collect();
         assert_eq!(shown, ["Season 2 of “Dark” is ready to watch.", "Seasons 1–3 of “Dark” are ready to watch."]);
     }
 
     #[tokio::test]
     async fn nothing_is_shown_while_the_window_is_in_front_and_a_refusal_waits() {
+        let signed_out = || whole("401 Unauthorized", r#"{"code":"unauthorized","message":"sign in"}"#);
         let (server, _asked) = serve(vec![
+            me(None),
             events(&["data: {\"type\":\"request_available\",\"request_id\":2,\"title\":\"Heat\",\"item_id\":9}\n\n"]),
             whole("503 Service Unavailable", r#"{"code":"unavailable","message":"requests are off"}"#),
-            whole("401 Unauthorized", r#"{"code":"unauthorized","message":"sign in"}"#),
+            signed_out(),
+            signed_out(),
         ])
         .await;
         let window = Window::at(&server, true);
@@ -1038,6 +1172,38 @@ mod tests {
         assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Dropped);
         assert!(window.shown.lock().unwrap().is_empty());
         assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Refused);
+    }
+
+    #[tokio::test]
+    async fn notices_are_in_the_accounts_language_else_the_computers_else_the_servers() {
+        let heat =
+            "data: {\"type\":\"request_decided\",\"request_id\":2,\"title\":\"Heat\",\"status\":\"approved\"}\n\n";
+        let (server, mut asked) = serve(vec![
+            // The account chose French, on a computer in Spanish.
+            me(Some("fr")),
+            events(&[heat]),
+            whole("200 OK", r#"{"requests":[]}"#),
+            // Automatic, on a computer in German: the server's language.
+            me(None),
+            whole("200 OK", r#"{"id":"x","name":"Den","language":"es","version":"0.1.10","setup_required":false}"#),
+            events(&[heat]),
+            whole("200 OK", r#"{"requests":[]}"#),
+        ])
+        .await;
+        let mut window = Window::at(&server, true);
+        window.languages = vec!["es-MX".to_owned()];
+        let client = reqwest::Client::new();
+        let mut told = Told::default();
+        assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Dropped);
+        window.languages = vec!["de-DE".to_owned()];
+        assert_eq!(listen(&client, &server, &window, "Den", &mut told).await, Ended::Dropped);
+        let shown: Vec<String> = window.shown.lock().unwrap().iter().map(|(_, body)| body.clone()).collect();
+        assert_eq!(shown, ["«\u{a0}Heat\u{a0}» a été approuvé.", "«Heat» se aprobó."]);
+        let asked: Vec<String> = std::iter::from_fn(|| asked.try_recv().ok()).collect();
+        assert!(asked[1].to_ascii_lowercase().contains("accept-language: fr\r\n"), "{}", asked[1]);
+        assert!(asked[4].starts_with("GET /api/server "), "{}", asked[4]);
+        assert!(!asked[4].contains("pley_token"), "{}", asked[4]);
+        assert!(asked[5].to_ascii_lowercase().contains("accept-language: es\r\n"), "{}", asked[5]);
     }
 
     #[tokio::test]
