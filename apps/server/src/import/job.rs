@@ -21,7 +21,7 @@ use crate::library::{LibraryKind, get_library};
 use crate::state::AppState;
 use crate::util::{Pace, now, sort_title};
 
-use super::matching::{Folder, Index, Matches, folder_for, map_path, named};
+use super::matching::{Folder, Index, Matches, folder_for, map_path, named, within};
 use futures::StreamExt;
 
 use super::plex::{HomeUser, Item, Plex, PlexError, Resource, Section, Server, UserFilters};
@@ -382,6 +382,10 @@ pub struct ProfileReport {
     /// kept didn't make it stricter.
     #[serde(default)]
     pub kept_limit: bool,
+    /// Libraries already in Pley it isn't given, by name: they hold more
+    /// than Plex shared with them.
+    #[serde(default)]
+    pub closed: Vec<String>,
 }
 
 // ---- The plan ----
@@ -1193,6 +1197,27 @@ struct Paired {
     report: usize,
 }
 
+/// A Pley library already there that Plex libraries are brought to.
+struct Existing {
+    id: i64,
+    name: String,
+    /// Its folders.
+    paths: Vec<String>,
+    /// The Plex libraries brought to it.
+    keys: Vec<String>,
+    /// Their folders, as Pley sees them.
+    covered: Vec<String>,
+}
+
+impl Existing {
+    /// Whether it holds no more than Plex libraries `sections` hold: they
+    /// include every one brought to it, and their folders all of its own.
+    fn within(&self, sections: &HashSet<String>) -> bool {
+        self.keys.iter().all(|k| sections.contains(k))
+            && self.paths.iter().all(|p| self.covered.iter().any(|c| within(p, c).is_some()))
+    }
+}
+
 /// What "Matches and edits" needs of a library's movies, shows and
 /// seasons, by Plex's `ratingKey`.
 #[derive(Default)]
@@ -1383,7 +1408,7 @@ impl Run {
         self.paired = paired.iter().map(|p| p.library_id).collect();
         // Profiles come with their limits before anything else, so a
         // child's is never open while the rest runs, or if it stops.
-        let people = self.people(&choices, &sections, &paired).await?;
+        let people = self.people(&choices, &sections, &paired, &folders).await?;
         let bring = choices.bring;
         self.report.bring = bring;
 
@@ -1761,8 +1786,10 @@ impl Run {
         choices: &Choices,
         sections: &[Section],
         paired: &[Paired],
+        folders: &[Folder],
     ) -> ImportResult<Vec<Person>> {
         self.step(Step::Profiles, choices.users.len() as u64 + 1);
+        let existing = self.existing(sections, paired, folders).await?;
         let home = self.plex.home_users(&self.token).await?;
         let owner = home.iter().find(|u| u.admin);
         let mut people = vec![Person {
@@ -1800,11 +1827,25 @@ impl Run {
             match theirs {
                 Ok((server, sections)) => {
                     let limits = limits_of(&filters, user.id, &region);
+                    // A library already in Pley may hold more than the Plex
+                    // libraries brought to it, or than those they could
+                    // open: it stays closed to them.
+                    let wider: Vec<&Existing> = existing.iter().filter(|e| !e.within(&sections)).collect();
+                    for library in &wider {
+                        if paired.iter().any(|p| p.library_id == library.id && sections.contains(&p.key)) {
+                            report.closed.push(library.name.clone());
+                        }
+                    }
                     // Every Plex library, and every Pley library one of
-                    // them: only then may the profile open all of Pley's.
-                    let everything =
-                        all_sections.iter().all(|k| sections.contains(*k)) && self.all_paired(paired).await?;
-                    let open: Vec<&Paired> = paired.iter().filter(|p| sections.contains(&p.key)).collect();
+                    // them and no more: only then may the profile open all
+                    // of Pley's.
+                    let everything = all_sections.iter().all(|k| sections.contains(*k))
+                        && wider.is_empty()
+                        && self.all_paired(paired).await?;
+                    let open: Vec<&Paired> = paired
+                        .iter()
+                        .filter(|p| sections.contains(&p.key) && !wider.iter().any(|w| w.id == p.library_id))
+                        .collect();
                     let made: Vec<i64> =
                         open.iter().filter(|p| self.report.libraries[p.report].created).map(|p| p.library_id).collect();
                     let open: Vec<i64> = open.iter().map(|p| p.library_id).collect();
@@ -1889,6 +1930,41 @@ impl Run {
     }
 
     /// Whether every Pley library is one of those paired.
+    /// The Pley libraries already there that Plex libraries are brought
+    /// to, with what those cover.
+    async fn existing(
+        &self,
+        sections: &[Section],
+        paired: &[Paired],
+        folders: &[Folder],
+    ) -> ImportResult<Vec<Existing>> {
+        let mut existing: Vec<Existing> = Vec::new();
+        for p in paired.iter().filter(|p| !self.report.libraries[p.report].created) {
+            if existing.iter().any(|e| e.id == p.library_id) {
+                continue;
+            }
+            let Some(library) = get_library(&self.state.db, p.library_id).await? else { continue };
+            let keys: Vec<String> =
+                paired.iter().filter(|q| q.library_id == p.library_id).map(|q| q.key.clone()).collect();
+            // Plex's folders as Pley sees them: through the folders chosen,
+            // else the same path on both.
+            let covered = sections
+                .iter()
+                .filter(|s| keys.contains(&s.key))
+                .flat_map(|s| &s.location)
+                .map(|l| map_path(folders, &l.path).unwrap_or_else(|| l.path.clone()))
+                .collect();
+            existing.push(Existing {
+                id: p.library_id,
+                name: library.name,
+                paths: serde_json::from_str(&library.paths).unwrap_or_default(),
+                keys,
+                covered,
+            });
+        }
+        Ok(existing)
+    }
+
     async fn all_paired(&self, paired: &[Paired]) -> ImportResult<bool> {
         let ids: Vec<i64> = sqlx::query_scalar("SELECT id FROM libraries").fetch_all(&self.state.db.read).await?;
         Ok(ids.iter().all(|id| paired.iter().any(|p| p.library_id == *id)))
@@ -2835,6 +2911,28 @@ impl Pager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_library_in_pley_is_within_what_plex_shared_only_when_it_holds_no_more() {
+        let library = |paths: &[&str], keys: &[&str], covered: &[&str]| Existing {
+            id: 1,
+            name: "Movies".into(),
+            paths: paths.iter().map(|p| p.to_string()).collect(),
+            keys: keys.iter().map(|k| k.to_string()).collect(),
+            covered: covered.iter().map(|c| c.to_string()).collect(),
+        };
+        let shared = |keys: &[&str]| keys.iter().map(|k| k.to_string()).collect::<HashSet<String>>();
+        // The same folder, or one inside Plex's.
+        assert!(library(&["/media/movies"], &["1"], &["/media/movies"]).within(&shared(&["1"])));
+        assert!(library(&["/media/movies/kids"], &["1"], &["/media/movies/"]).within(&shared(&["1"])));
+        // A folder around Plex's, or beside it.
+        assert!(!library(&["/media/movies"], &["1"], &["/media/movies/kids"]).within(&shared(&["1"])));
+        assert!(!library(&["/media/movies2"], &["1"], &["/media/movies"]).within(&shared(&["1"])));
+        // Two Plex libraries brought to it: only for someone who had both.
+        let two = library(&["/media/kids", "/media/films"], &["1", "2"], &["/media/kids", "/media/films"]);
+        assert!(!two.within(&shared(&["1"])));
+        assert!(two.within(&shared(&["1", "2", "3"])));
+    }
 
     #[test]
     fn the_report_times_the_steps_that_ran_and_the_one_it_stopped_in() {

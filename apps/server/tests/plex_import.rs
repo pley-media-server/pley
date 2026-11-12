@@ -1076,6 +1076,38 @@ async fn brings_libraries_people_and_what_they_watched() {
 }
 
 #[tokio::test]
+async fn a_library_in_pley_holding_more_than_plex_shared_stays_closed_to_a_new_profile() {
+    let plex = fake_plex().await;
+    let app = TestApp::with_config(|c| c.plex_tv = plex.clone()).await;
+    let admin = app.setup_admin().await;
+    // Pley's library holds Plex's Films and more.
+    app.media_file("all/movies/Alien (1979).mkv", 1024);
+    app.media_file("all/grown-up/Other (2001).mkv", 1024);
+    let everything = app.library(&admin, "Everything", "movies", "all").await;
+    sign_in(&app, &admin).await;
+    let r = app
+        .post(
+            "/api/import/plex/start",
+            &admin,
+            json!({
+                "libraries": [{"key": "1", "library_id": everything}],
+                "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("all/movies")}],
+                "users": [{"id": 885}],
+            }),
+        )
+        .await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let done = finished(&app, &admin).await;
+    assert_eq!(done["state"], "done", "{done:?}");
+    let kid = &done["report"]["profiles"][1];
+    assert_eq!(kid["created"], true);
+    assert_eq!(kid["closed"], json!(["Everything"]), "the report says so");
+    let kid_id = kid["user_id"].as_i64().unwrap();
+    assert_eq!(one(&app, "SELECT all_libraries FROM users WHERE id = ?", kid_id).await, 0);
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM user_libraries WHERE user_id = ?", kid_id).await, 0);
+}
+
+#[tokio::test]
 async fn an_import_the_server_restarted_during_says_so() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;

@@ -56,7 +56,7 @@ pub fn map_path(folders: &[Folder], file: &str) -> Option<String> {
 
 /// What's after `folder` in `path`, without the separator; `None` when
 /// `path` isn't in it ("/movies2" isn't in "/movies").
-fn within<'a>(path: &'a str, folder: &str) -> Option<&'a str> {
+pub fn within<'a>(path: &'a str, folder: &str) -> Option<&'a str> {
     let folder = folder.trim_end_matches(['/', '\\']);
     let rest = path.strip_prefix(folder)?;
     if rest.is_empty() {

@@ -507,6 +507,9 @@ other apps (`pley_ct_…`), never with a session's
 - A Home user's profile is made with Plex's restrictions in the same
   step, so it's never open to everything while the import runs, or if it
   stops. A restriction Pley can't keep is made stricter, never dropped.
+  A new profile opens a library already in Pley only when it holds no
+  more than the Plex libraries shared with them: every one brought to it,
+  and folders within theirs.
   A profile with labels it never sees doesn't see the libraries a run
   brings until the run finishes, since Plex's labels reach Pley's titles
   later in it: the run marks each of them (`labels_pending`) before it

@@ -14,7 +14,10 @@ never changes anything on Plex.
   administrator, with its Plex name as your display name if you haven't
   set one. Each person in your Plex Home you choose becomes a
   profile of Pley's household, opening the libraries they could open on
-  Plex. Plex's picture for each comes too, where the profile has none in
+  Plex. A library already in Pley that holds more than Plex shared with
+  them (more folders, or other Plex libraries brought to it too) stays
+  closed to a new profile, and the report says so: you can open it in
+  Settings › Users. Plex's picture for each comes too, where the profile has none in
   Pley: one chosen on Plex or a Gravatar. A Plex picture that's only an
   initial brings its colour instead, for Pley's own initial.
 - **Restrictions.** The profile of a Plex Home user with restrictions (a

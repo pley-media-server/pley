@@ -49,6 +49,8 @@ describes how they are made.
   come from Pley's own fetch. A profile with labels it's never allowed
   sees the libraries the import brings once it finishes, when Plex's
   labels are on Pley's titles; Settings › Libraries can show one sooner.
+  A library already in Pley that holds more than Plex shared with someone
+  stays closed to their new profile, and the report says so.
   Home goes to the import as soon as it starts, and shows it while it
   runs, as Settings › Libraries does: how far the whole import is, every
   step it goes through, ticked off with what each brought, which library

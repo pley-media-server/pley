@@ -990,6 +990,8 @@
       "playlistsIncomplete": "Plex refused some of their playlists, so not all of them came over.",
       "notKept": "Rules Pley couldn't keep, so it hides more instead:",
       "notKeptOwnLimit": "Rules Pley couldn't keep; the profile keeps the age limit it has in Pley:",
+      "closed_one": "{{libraries}} stays closed to this profile: it holds more than Plex shared with them. You can open it in Settings › Users.",
+      "closed_other": "{{libraries}} stay closed to this profile: they hold more than Plex shared with them. You can open them in Settings › Users.",
       "labelsPending": "Still waiting for Plex's labels, so profiles with labels they never see don't see it. Importing this library again brings them, or you can show it now in Settings › Libraries.",
       "missedUnlabelled": "Titles Pley couldn't find don't have Plex's labels, so the labels this profile never sees don't hide them.",
       "matchesFixed_one": "{{count, number}} title matched as in Plex",

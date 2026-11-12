@@ -476,6 +476,14 @@ function ProfileLine({
           {t(p.kept_limit ? "plexImport.report.notKeptOwnLimit" : "plexImport.report.notKept")} <span className="font-mono">{p.not_kept.join(", ")}</span>
         </p>
       ) : null}
+      {p.closed?.length ? (
+        <p className="mt-0.5 text-xs text-warning">
+          {t("plexImport.report.closed", {
+            count: p.closed.length,
+            libraries: new Intl.ListFormat(currentLocale(), { type: "conjunction" }).format(p.closed),
+          })}
+        </p>
+      ) : null}
       {/* Titles not found have none of Plex's labels to hide them by. */}
       {missed && p.hide_labels.length > 0 ? <p className="mt-0.5 text-xs text-warning">{t("plexImport.report.missedUnlabelled")}</p> : null}
     </>

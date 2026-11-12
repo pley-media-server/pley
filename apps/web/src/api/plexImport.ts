@@ -146,6 +146,8 @@ export interface ProfileReport {
   playlists_incomplete?: boolean;
   /** Found again with an age limit of its own, which it kept: rules not kept didn't make it stricter. */
   kept_limit?: boolean;
+  /** Libraries already in Pley, by name, not opened to a new profile: they hold more than Plex shared with them. */
+  closed?: string[];
 }
 
 export interface ImportReport {
