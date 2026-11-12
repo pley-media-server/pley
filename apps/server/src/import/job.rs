@@ -1941,12 +1941,18 @@ impl Run {
             None => None,
         };
         // Only where it has none, still: a PIN set while the import ran stays.
+        // And only on a managed profile, as the import makes: one given a
+        // password or made an administrator since would take a 4-digit PIN
+        // in place of its password and two-step check when switched to.
         if let Some(hash) = hash {
-            let set = sqlx::query("UPDATE users SET pin_hash = ?, pin_failures = 0 WHERE id = ? AND pin_hash IS NULL")
-                .bind(hash)
-                .bind(user_id)
-                .execute(&db.write)
-                .await?;
+            let set = sqlx::query(
+                "UPDATE users SET pin_hash = ?, pin_failures = 0
+                 WHERE id = ? AND pin_hash IS NULL AND managed = 1 AND is_admin = 0",
+            )
+            .bind(hash)
+            .bind(user_id)
+            .execute(&db.write)
+            .await?;
             if set.rows_affected() > 0 {
                 self.state.auth.forget_user(user_id);
                 return Ok(Some(PinOutcome::Kept));

@@ -1122,6 +1122,39 @@ async fn a_wrong_plex_pin_brings_nobody_and_gives_no_profile_a_pin() {
 }
 
 #[tokio::test]
+async fn a_profile_given_a_password_since_takes_no_plex_pin() {
+    let plex = fake_plex().await;
+    let app = TestApp::with_config(|c| c.plex_tv = plex.clone()).await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979).mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    let choices = |pin: Option<&str>| {
+        json!({
+            "libraries": [{"key": "1", "library_id": movies}],
+            "folders": [{"plex": "/plexdata/movies", "pley": app.media_path("movies")}],
+            "users": [{"id": 885, "pin": pin}],
+        })
+    };
+    sign_in(&app, &admin).await;
+    let r = app.post("/api/import/plex/start", &admin, choices(None)).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let done = finished(&app, &admin).await;
+    let kid_id = done["report"]["profiles"][1]["user_id"].as_i64().unwrap();
+
+    // Made a full account: a PIN would stand in for its password.
+    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"password": "grown-up"})).await;
+    assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+    sign_in(&app, &admin).await;
+    let r = app.post("/api/import/plex/start", &admin, choices(Some("1234"))).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let done = finished(&app, &admin).await;
+    assert_eq!(done["state"], "done", "{done:?}");
+    assert_eq!(done["report"]["profiles"][1]["user_id"], kid_id);
+    assert_eq!(done["report"]["profiles"][1]["pin"], "none");
+    assert_eq!(one(&app, "SELECT pin_hash IS NULL FROM users WHERE id = ?", kid_id).await, 1);
+}
+
+#[tokio::test]
 async fn a_library_in_pley_holding_more_than_plex_shared_stays_closed_to_a_new_profile() {
     let plex = fake_plex().await;
     let app = TestApp::with_config(|c| c.plex_tv = plex.clone()).await;
