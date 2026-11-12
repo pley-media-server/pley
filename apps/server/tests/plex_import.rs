@@ -378,13 +378,15 @@ async fn fake_plex() -> String {
 
 /// A transcoder that reads no file, as tests have none, and holds the TV
 /// library's until its flag is lowered, so that library is still scanned.
+/// Windows' paths come with JSON's escaped backslashes.
 async fn holding_transcoder() -> (String, Arc<AtomicBool>) {
     let held = Arc::new(AtomicBool::new(true));
     let app = Router::new()
         .route(
             "/v1/probe",
             post(|State(held): State<Arc<AtomicBool>>, body: String| async move {
-                while body.contains("/tv/") && held.load(Ordering::SeqCst) {
+                let tv = body.replace("\\\\", "/").contains("/tv/");
+                while tv && held.load(Ordering::SeqCst) {
                     tokio::time::sleep(Duration::from_millis(10)).await;
                 }
                 let error = json!({"code": "unavailable", "message": "no ffprobe here"});
