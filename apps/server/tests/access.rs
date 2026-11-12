@@ -335,11 +335,24 @@ async fn a_library_waiting_for_plex_labels_does_not_exist_for_a_profile_with_lab
         let films = app.jf_json("/Items?Recursive=true&IncludeItemTypes=Movie", token).await;
         assert!(!jf_names(&films).contains(&"Family Film".to_owned()));
     }
-    // Without such a label, nothing waits; nor for the administrator.
+    // Without such a label, nothing waits; nor for the administrator, even
+    // with one, from an app as from the web.
+    let admin_id: i64 =
+        sqlx::query_scalar("SELECT id FROM users WHERE is_admin").fetch_one(&app.state.db.read).await.unwrap();
+    sqlx::query("INSERT INTO user_label_rules (user_id, label, kind) VALUES (?, 'Scary', 'hide')")
+        .bind(admin_id)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
     for token in [grown.as_str(), &w.admin] {
         assert!(app.get("/api/libraries", token).await.mentions("Movies"));
         assert_eq!(app.get(&format!("/api/items/{family}"), token).await.status, StatusCode::OK);
     }
+    let (admin_app, _) = app.app_token(admin_id, "library play").await;
+    let libraries = app.app_call(Method::GET, "/api/libraries", &admin_app, None).await;
+    assert!(libraries.mentions("Movies"), "{}", libraries.text());
+    let items = app.app_call(Method::GET, &format!("/api/libraries/{}/items", w.movies), &admin_app, None).await;
+    assert_eq!(items.status, StatusCode::OK, "{}", items.text());
 
     // The administrator shows it sooner.
     let shown = app.patch(&format!("/api/libraries/{}", w.movies), &w.admin, json!({"labels_pending": false})).await;

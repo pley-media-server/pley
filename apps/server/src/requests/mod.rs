@@ -1861,7 +1861,8 @@ impl Requests {
     /// when it has such labels, those of a library Plex's labels are still
     /// on their way to (`crate::access`): the label may be among them.
     async fn hidden_by_labels(&self, user: &AuthUser, items: &[i64]) -> sqlx::Result<HashSet<i64>> {
-        if user.is_admin || items.is_empty() {
+        // By the account, as the library's own lists go (`catalog::VISIBLE`).
+        if user.is_admin || user.account_admin || items.is_empty() {
             return Ok(HashSet::new());
         }
         let list = vec!["?"; items.len()].join(",");

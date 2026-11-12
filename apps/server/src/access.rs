@@ -19,6 +19,12 @@ use crate::auth::AuthUser;
 use crate::db::Db;
 use crate::library::{LibraryRow, list_libraries};
 
+/// The account is an administrator's, whatever the token: every library,
+/// with nothing withheld, as `catalog::VISIBLE` goes by the account too.
+fn sees_all(user: &AuthUser) -> bool {
+    user.is_admin || user.account_admin
+}
+
 /// The libraries a non-administrator `user_id` may open (`all`: every
 /// library they may), binding `all` then the user id twice.
 const OPEN: &str = "SELECT id FROM libraries
@@ -41,7 +47,7 @@ pub async fn limited(db: &Db, user: &AuthUser) -> sqlx::Result<bool> {
 
 /// Library ids the user may open; `None` means all of them.
 pub async fn library_ids(db: &Db, user: &AuthUser) -> sqlx::Result<Option<Vec<i64>>> {
-    if user.is_admin {
+    if sees_all(user) {
         return Ok(None);
     }
     if user.all_libraries {
@@ -93,7 +99,7 @@ pub async fn set_own_order(db: &Db, user: &AuthUser, ids: &[i64]) -> sqlx::Resul
     // Checked and written under the one writer: no library comes or goes,
     // and no access changes, in between.
     let mut tx = db.write.begin().await?;
-    let mut current: Vec<i64> = if user.is_admin {
+    let mut current: Vec<i64> = if sees_all(user) {
         sqlx::query_scalar("SELECT id FROM libraries").fetch_all(&mut *tx).await?
     } else {
         sqlx::query_scalar(OPEN).bind(user.all_libraries).bind(user.id).bind(user.id).fetch_all(&mut *tx).await?
