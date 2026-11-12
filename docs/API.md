@@ -1532,7 +1532,11 @@ the Plex-compatible API):
 - `hide_labels`: a title with one of these never shows, whatever its
   rating, also to an account without an age limit. Discover leaves out a
   title whose library copy has one, and asking for it is refused
-  (`restricted`, without the label);
+  (`restricted`, without the label). A profile with any of these doesn't
+  see a library a Plex import is bringing Plex's labels to
+  (`labels_pending`), nor find its titles in Discover, until a run that
+  brings it finishes or an administrator shows it
+  (`PATCH /api/libraries/{id}`);
 - "never" wins over "always". A label counts on the title or on what it's
   part of (a show for its seasons and episodes, an album or artist for its
   tracks), and is matched whatever its case;
