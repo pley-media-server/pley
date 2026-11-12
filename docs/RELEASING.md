@@ -67,7 +67,8 @@ provenance (`gh attestation verify <file> --repo pley-media-server/pley`).
   Actions to create and approve pull requests**; without it, it pushes the
   branch and links to where you open the pull request. Checks don't run on a
   pull request it opens (GitHub's rule for its token); the units' workflows
-  run on the merge.
+  run on the merge. It labels the pull request `release`; one you open by
+  hand needs the label from you.
 - The Android release key comes from the secrets `ANDROID_KEYSTORE_BASE64`,
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`
   ([ANDROID.md](ANDROID.md#releases)). Without them, a release has Android's
