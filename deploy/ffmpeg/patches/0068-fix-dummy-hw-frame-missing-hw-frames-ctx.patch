@@ -1,0 +1,38 @@
+From: the jellyfin-ffmpeg contributors
+Subject: fix dummy hw frame missing hw frames ctx
+Origin: https://github.com/jellyfin/jellyfin-ffmpeg/blob/v8.1.3-2/debian/patches/0068-fix-dummy-hw-frame-missing-hw-frames-ctx.patch
+
+The stand-in frame ffmpeg gives an encoder whose filter graph produced
+nothing carries the hardware frames context a hardware encoder needs.
+
+Rebased onto FFmpeg 9.0.2: the same change, at 9.0.2's line numbers.
+
+From jellyfin-ffmpeg 8.1.3-2, where the patch has no header: its authors
+are in that repository's history. Under FFmpeg's licence, as the files
+it changes.
+---
+diff --git a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
+--- a/fftools/ffmpeg_filter.c
++++ b/fftools/ffmpeg_filter.c
+@@ -2653,10 +2653,21 @@ static int close_output(OutputFilterPriv
+     if (!fgt->got_frame) {
+         AVFrame *frame = fgt->frame;
+         FrameData *fd;
++        const AVPixFmtDescriptor *ofp_fmt_desc;
+ 
+         frame->time_base   = ofp->tb_out;
+         frame->format      = ofp->format;
+ 
++        ofp_fmt_desc = av_pix_fmt_desc_get(ofp->format);
++        // a dummy frame with HW pixel format requires a valid hw_frames_ctx
++        if (ofp_fmt_desc->flags & AV_PIX_FMT_FLAG_HWACCEL) {
++            AVFilterContext *sink = ofp->ofilter.filter;
++            AVBufferRef *hwfc = av_buffersink_get_hw_frames_ctx(sink);
++            ret = av_buffer_replace(&frame->hw_frames_ctx, hwfc);
++            if (ret < 0)
++                return ret;
++        }
++
+         frame->width               = ofp->width;
+         frame->height              = ofp->height;
+         frame->sample_aspect_ratio = ofp->sample_aspect_ratio;

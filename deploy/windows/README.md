@@ -198,6 +198,9 @@ Or, from a release folder you already built:
   beside `bin`, its `LICENSE*`, `README.txt` and `source\` (a patched build's
   patch and script, which the GPL requires). Releases use gyan.dev's full
   build, at the version and checksum in `.github/workflows/server.yml`.
+  pley-ffmpeg's Windows build, the Docker image's FFmpeg with its patches
+  for Intel GPUs, comes as such a folder
+  ([../ffmpeg/README.md](../ffmpeg/README.md)).
 - **`-Flavor <name>`** names an installer built with a different FFmpeg:
   `-Flavor custom` makes `pley-server-<version>-custom-windows-x86_64-setup.exe`.
 - `scripts\build.ps1 -Installer` passes `-Ffmpeg` and `-Flavor` on.

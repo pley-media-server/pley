@@ -944,8 +944,11 @@ available tone mapper:
   (`tonemapping=auto`, a spline). Measured against a film's own SDR grade
   (Sol Levante's), it came closer than BT.2390's curve, which made bright
   scenes a third too bright and clipped 10 to 15 % of their pixels where the
-  grade clips 1 to 2 %. `tonemap_opencl`'s peak detection can't be turned
-  off, so its brightness can jump between processes.
+  grade clips 1 to 2 %. `tonemap_opencl` as FFmpeg releases it measures
+  the peak frame by frame, which can't be turned off, so its brightness can
+  jump between processes; pley-ffmpeg's
+  ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) goes by the stream's
+  metadata, and applies Dolby Vision's reshaping.
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
   and work with any tone mapper. Profile 5 without libplacebo plays with off
   colours, with a warning. Profile 7 with a full enhancement layer is tone
