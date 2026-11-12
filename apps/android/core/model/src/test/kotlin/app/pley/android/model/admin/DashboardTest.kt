@@ -146,7 +146,9 @@ class DashboardTest {
             StorageCleanReport.serializer(),
             """{ "blobs_removed": 2, "media_folders_removed": 1, "subtitles_removed": 0, "bytes_freed": 3000, "cache_files_removed": 4, "cache_bytes_freed": 10 }""",
         )
-        assertEquals(StorageCleanReport(2, 1, 3000), report)
+        assertEquals(StorageCleanReport(2, 1, 3000, 0, 4, 10), report)
+        assertEquals(7, report.filesRemoved)
+        assertEquals(3010L, report.allBytesFreed)
 
         val damaged = PleyJson.decodeFromString(
             DashboardSystem.serializer(),

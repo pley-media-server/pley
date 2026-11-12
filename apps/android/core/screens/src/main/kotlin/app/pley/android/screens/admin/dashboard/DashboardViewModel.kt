@@ -222,8 +222,8 @@ class DashboardViewModel(
     fun cleanUp() = change(after = storage::reload) {
         val report = send("POST", StorageCleanReport.serializer(), CLEAN)
         reports.send(
-            if (report.bytesFreed > 0) {
-                AdminDone(CLEANED, listOf(report.blobsRemoved + report.mediaFoldersRemoved, report.bytesFreed))
+            if (report.filesRemoved > 0 || report.allBytesFreed > 0) {
+                AdminDone(CLEANED, listOf(report.filesRemoved, report.allBytesFreed))
             } else {
                 AdminDone(NOTHING_TO_CLEAN)
             },

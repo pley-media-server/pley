@@ -253,5 +253,14 @@ data class StorageUsage(
 data class StorageCleanReport(
     val blobsRemoved: Int = 0,
     val mediaFoldersRemoved: Int = 0,
+    /** By the blobs, media folders and added subtitles. */
     val bytesFreed: Long = 0,
-)
+    /** Added subtitles whose media file went. */
+    val subtitlesRemoved: Int = 0,
+    /** Old files of the caches, freeing [cacheBytesFreed]. */
+    val cacheFilesRemoved: Int = 0,
+    val cacheBytesFreed: Long = 0,
+) {
+    val filesRemoved: Int get() = blobsRemoved + mediaFoldersRemoved + subtitlesRemoved + cacheFilesRemoved
+    val allBytesFreed: Long get() = bytesFreed + cacheBytesFreed
+}

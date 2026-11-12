@@ -22,6 +22,8 @@ describes how they are made.
 
 - Settings → Live TV → Channels lists a source's channels when one is
   picked, where the server answered with an error.
+- Clean up counts the old cache files and subtitles it removes, where it
+  could say there was nothing to clean up.
 
 ## [0.1.10] - 2026-11-12
 

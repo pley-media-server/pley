@@ -201,7 +201,18 @@ class DashboardViewModelTest {
         assertEquals(2, server.callsTo("GET /api/system/storage").size)
         assertNull(server.callsTo("POST /api/system/storage/clean").single().body)
 
-        server.answer("POST /api/system/storage/clean", """{ "blobs_removed": 0, "media_folders_removed": 0, "bytes_freed": 0 }""")
+        // Old cache files and added subtitles count as what it removed.
+        server.answer(
+            "POST /api/system/storage/clean",
+            """{ "blobs_removed": 0, "media_folders_removed": 0, "subtitles_removed": 1, "bytes_freed": 100, "cache_files_removed": 5, "cache_bytes_freed": 2000 }""",
+        )
+        page.cleanUp().join()
+        assertEquals(AdminDone(DashboardViewModel.CLEANED, listOf<Any>(6, 2100L)), results.last())
+
+        server.answer(
+            "POST /api/system/storage/clean",
+            """{ "blobs_removed": 0, "media_folders_removed": 0, "subtitles_removed": 0, "bytes_freed": 0, "cache_files_removed": 0, "cache_bytes_freed": 0 }""",
+        )
         page.cleanUp().join()
         assertEquals(AdminDone(DashboardViewModel.NOTHING_TO_CLEAN), results.last())
     }

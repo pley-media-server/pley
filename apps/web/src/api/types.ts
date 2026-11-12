@@ -349,7 +349,12 @@ export interface StorageUsage {
 export interface CleanReport {
   blobs_removed: number;
   media_folders_removed: number;
+  /** By the blobs, media folders and added subtitles. */
   bytes_freed: number;
+  subtitles_removed: number;
+  /** Old files of the caches, freeing `cache_bytes_freed`. */
+  cache_files_removed: number;
+  cache_bytes_freed: number;
 }
 
 export interface DatabaseHealth {
