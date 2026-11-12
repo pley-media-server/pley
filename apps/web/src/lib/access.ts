@@ -79,7 +79,7 @@ export function limitMode(
   return shownSystem(systems, value.max_age_system, value.max_age) === AGE_SYSTEM ? "age" : "rating";
 }
 
-/** The country to pick a rating in: the one stored, else the metadata region, else the US. */
+/** The country to pick a rating in: the one stored, else the server's country, else the US. */
 export function ratingSystem(systems: RatingSystems | undefined, stored: string | null): string | null {
   const countries = systems?.systems ?? [];
   const has = (code: string | null) => !!code && countries.some((s) => s.country === code);
@@ -105,7 +105,7 @@ export function writtenCountry(systems: RatingSystems | undefined, rating: strin
 }
 
 /**
- * The system a limit shows in: the one stored, else the metadata region's,
+ * The system a limit shows in: the one stored, else the server's country's,
  * else Age; and Age when the system has no rating for the limit (8 in the
  * US), so that it never reads as no limit.
  */

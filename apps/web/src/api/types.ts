@@ -24,7 +24,7 @@ export interface User {
   library_ids: Id[];
   /** Age limit for movies and shows; `null` = none. */
   max_age: number | null;
-  /** The rating system the limit is shown in (`GB`, or `age`); `null`: the metadata region's. Only in administrators' lists. */
+  /** The rating system the limit is shown in (`GB`, or `age`); `null`: the server's country's. Only in administrators' lists. */
   max_age_system?: string | null;
   /** "2015-03": the limit follows this birthday (only in administrators' lists). */
   birth_month?: string | null;
@@ -106,7 +106,7 @@ export interface LabelUse {
 
 /** `GET /api/ratings/systems`: what an age limit is picked and shown in. */
 export interface RatingSystems {
-  /** The metadata region (`GB`): its system is offered first. */
+  /** The server's country (`GB`): its system is offered first. */
   region: string;
   systems: RatingSystem[];
 }
@@ -258,7 +258,7 @@ export interface ItemDetail extends ItemSummary {
   genres: string[];
   studio: string | null;
   content_rating: string | null;
-  /** The country `content_rating` is from ("GB"), when known: read with its ratings, else the metadata region's. */
+  /** The country `content_rating` is from ("GB"), when known: read with its ratings, else the server's country's. */
   content_rating_country?: string;
   tmdb_id: number | null;
   imdb_id: string | null;

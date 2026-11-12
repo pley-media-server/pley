@@ -130,8 +130,8 @@
       "locked": "Verrouillé : cliquez pour déverrouiller",
       "willUnlock": "Sera déverrouillé",
       "ratingCountry": "Pays : {{country}}",
-      "ratingRegion": "Lue selon les classifications de la région des métadonnées",
-      "ratingCommon": "Lue selon les classifications américaines et d’autres d’usage courant : la région des métadonnées n’en a pas ici",
+      "ratingRegion": "Lue selon les classifications du pays du serveur, choisi dans Paramètres › Serveur",
+      "ratingCommon": "Lue selon les classifications américaines et d’autres d’usage courant : le pays du serveur n’en a pas ici",
       "fromNfo": "Du fichier NFO",
       "fields": {
         "title": "Titre",
