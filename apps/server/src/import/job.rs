@@ -2257,7 +2257,7 @@ impl Run {
         for (id, mut labels) in on {
             labels.truncate(crate::labels::MAX_PER_ITEM);
             let Ok(labels) = crate::labels::check(&labels) else { continue };
-            crate::labels::edit(&self.state.db, id, &labels, &[]).await?;
+            unless_gone(crate::labels::edit(&self.state.db, id, &labels, &[]).await)?;
         }
         let after = count(crate::labels::for_items(&self.state.db, &ids).await?);
         self.report.labels_added += after.saturating_sub(before) as u64;
@@ -2364,7 +2364,9 @@ impl Run {
             if changes.is_empty() {
                 continue;
             }
-            crate::overrides::set(&db, id, &changes).await?;
+            if unless_gone(crate::overrides::set(&db, id, &changes).await)?.is_none() {
+                continue;
+            }
             for (field, _) in &changes {
                 *self.report.edits.entry(field.clone()).or_default() += 1;
             }
@@ -2503,7 +2505,7 @@ impl Run {
                 }
                 None => {
                     let stamp = now();
-                    sqlx::query_scalar(
+                    let made = sqlx::query_scalar(
                         "INSERT INTO playlists (user_id, title, kind, created_at, updated_at) VALUES (?, ?, ?, ?, ?)
                          RETURNING id",
                     )
@@ -2513,7 +2515,9 @@ impl Run {
                     .bind(stamp)
                     .bind(stamp)
                     .fetch_one(&db.write)
-                    .await?
+                    .await;
+                    let Some(id) = unless_gone(made)? else { continue };
+                    id
                 }
             };
             let added = crate::playlists::append_leaves(&db, id, &ids).await?;
@@ -2578,7 +2582,7 @@ impl Run {
                     continue;
                 }
                 let device = item.device_id.and_then(|d| devices.get(&d)).filter(|d| !d.is_empty());
-                plays += sqlx::query(
+                let added = sqlx::query(
                     "INSERT INTO play_history (user_id, item_id, viewed_at, device)
                      SELECT ?, ?, ?, ? WHERE NOT EXISTS
                         (SELECT 1 FROM play_history WHERE user_id = ? AND item_id = ? AND viewed_at = ?)",
@@ -2591,13 +2595,23 @@ impl Run {
                 .bind(id)
                 .bind(viewed)
                 .execute(&mut *tx)
-                .await?
-                .rows_affected();
+                .await;
+                plays += unless_gone(added)?.map_or(0, |r| r.rows_affected());
             }
             tx.commit().await?;
             self.report.profiles[person.report].plays += plays;
         }
         Ok(())
+    }
+}
+
+/// A write's result, `None` when it wrote to a title or profile the run
+/// found that is gone since (a scan removed its file, an administrator the
+/// profile): that one is skipped rather than the run failing.
+fn unless_gone<T>(result: sqlx::Result<T>) -> sqlx::Result<Option<T>> {
+    match result {
+        Err(sqlx::Error::Database(e)) if e.kind() == sqlx::error::ErrorKind::ForeignKeyViolation => Ok(None),
+        other => other.map(Some),
     }
 }
 
@@ -2636,7 +2650,7 @@ async fn merge(db: &Db, user_id: i64, list: &str, found: &[(i64, Item)]) -> sqlx
                 .bind(viewed)
                 .bind(viewed.unwrap_or(stamp))
                 .execute(&mut *tx)
-                .await?
+                .await
             }
             "resume" => {
                 let (Some(offset), Some(viewed)) = (item.view_offset.filter(|o| *o > 0), viewed) else { continue };
@@ -2657,7 +2671,7 @@ async fn merge(db: &Db, user_id: i64, list: &str, found: &[(i64, Item)]) -> sqlx
                 .bind(viewed)
                 .bind(viewed)
                 .execute(&mut *tx)
-                .await?
+                .await
             }
             _ => {
                 let Some(rating) = item.user_rating.and_then(crate::catalog::valid_rating) else { continue };
@@ -2674,10 +2688,10 @@ async fn merge(db: &Db, user_id: i64, list: &str, found: &[(i64, Item)]) -> sqlx
                 .bind(rating)
                 .bind(rated_at)
                 .execute(&mut *tx)
-                .await?
+                .await
             }
         };
-        changed += result.rows_affected();
+        changed += unless_gone(result)?.map_or(0, |r| r.rows_affected());
     }
     tx.commit().await?;
     Ok(changed)
@@ -2911,6 +2925,27 @@ impl Pager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn a_title_or_profile_gone_since_is_skipped() {
+        let dir = crate::testing::tempdir();
+        let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
+        let user: i64 = sqlx::query_scalar(
+            "INSERT INTO users (username, password_hash, is_admin, created_at) VALUES ('kid', '!', 0, 0) RETURNING id",
+        )
+        .fetch_one(&db.write)
+        .await
+        .unwrap();
+        let item = || Item { view_count: Some(1), ..Default::default() };
+        // No title 999: a scan removed it since the run found it.
+        assert_eq!(merge(&db, user, "watched", &[(999, item())]).await.unwrap(), 0);
+        assert!(unless_gone(crate::labels::edit(&db, 999, &["Scary".into()], &[]).await).unwrap().is_none());
+        // Nor profile 999.
+        assert_eq!(merge(&db, 999, "watched", &[(999, item())]).await.unwrap(), 0);
+        // Anything else still fails.
+        let other = sqlx::query("INSERT INTO nowhere VALUES (1)").execute(&db.write).await;
+        assert!(unless_gone(other).is_err());
+    }
 
     #[test]
     fn a_library_in_pley_is_within_what_plex_shared_only_when_it_holds_no_more() {
