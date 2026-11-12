@@ -35,7 +35,8 @@ never changes anything on Plex.
   another list of ratings, say); otherwise it's one of the rules Pley
   can't keep. A list of disallowed ratings with a gap
   (PG-13 disallowed but R allowed) hides everything above the youngest of
-  them: an age limit can't have gaps. Disallowing unrated titles is what
+  them, and a list of allowed ones with a gap (G and R, not PG) everything
+  above the oldest under it: an age limit can't have gaps. Disallowing unrated titles is what
   any age limit does, so on its own it gives the oldest. A managed user's Plex preset becomes an
   age limit alone: 5 for Little kid, 11 for Older kid and 14 for Teen. A
   managed user without restrictions sees everything, as on Plex. Until

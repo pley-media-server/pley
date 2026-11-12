@@ -246,7 +246,7 @@ async fn fake_plex() -> String {
                     [(header::CONTENT_TYPE, "application/xml")],
                     r#"<?xml version="1.0"?><MediaContainer><User id="885" title="Kid One" home="1"
                         filterMovies="contentRating=G%2CPG|label=Family&amp;label!=Scary"
-                        filterTelevision="contentRating=TV-Y%2CTV-PG|label=Family" filterMusic=""/>
+                        filterTelevision="contentRating=TV-Y%2CTV-Y7%2CTV-PG|label=Family" filterMusic=""/>
                         <User id="549" title="Teen" home="1" filterMovies="label!=Scary" filterTelevision="label!=Scary"
                         filterMusic=""/>
                         <User id="612" title="Sam" home="1" filterMovies="" filterTelevision="" filterMusic=""/>

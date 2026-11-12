@@ -70,10 +70,10 @@ pub fn limits(movies: &str, television: &str, music: &str, region: &str) -> Limi
         .iter()
         .filter_map(|(rule, kind)| {
             // An empty list allows nothing rated, so the youngest age, 0.
-            let allowed = rule
-                .ratings
-                .as_ref()
-                .map(|list| list.iter().filter_map(|r| age_of(r, country, *kind)).max().unwrap_or(0));
+            let allowed = rule.ratings.as_ref().map(|list| {
+                let oldest = list.iter().filter_map(|r| age_of(r, country, *kind)).max().unwrap_or(0);
+                below_gap(list, country, by_age, *kind, &mut out.not_kept).map_or(oldest, |gap| gap.min(oldest))
+            });
             let below = below_denied(rule, country, by_age, *kind, &mut out.not_kept);
             match (allowed, below) {
                 (Some(a), Some(b)) => Some(a.min(b)),
@@ -159,6 +159,29 @@ fn below_denied(rule: &Rule, country: &str, by_age: bool, kind: Kind, not_kept: 
         push_unique(not_kept, &format!("contentRating!={}", rule.denied.join(",")));
     }
     Some(of_kind().map(|r| r.age).filter(|age| *age < youngest).max().unwrap_or(0))
+}
+
+/// The age a rule's allowed ratings limit it to when they leave a gap:
+/// Plex hides a rating between two it allows (G and R, not PG), and an age
+/// limit can't have gaps, so Pley limits to the oldest allowed under it,
+/// and says so. `None` without a gap. Ratings younger than every one
+/// allowed are left alone: no age limit hides them anyway.
+fn below_gap(list: &[String], country: &str, by_age: bool, kind: Kind, not_kept: &mut Vec<String>) -> Option<i64> {
+    if by_age {
+        return None;
+    }
+    let system = ratings::system(country)?;
+    let of_kind = || system.ratings.iter().filter(|r| r.kind.is_none_or(|k| k == kind));
+    let allowed = |r: &ratings::Rating| r.names.iter().any(|n| list.iter().any(|a| same(without_country(a), n)));
+    let ages: Vec<i64> = of_kind().filter(|r| allowed(r)).map(|r| r.age).collect();
+    let (youngest, oldest) = (*ages.iter().min()?, *ages.iter().max()?);
+    // One of an allowed one's age isn't a gap (X beside NC-17).
+    let gap = of_kind()
+        .filter(|r| r.age > youngest && r.age < oldest && !allowed(r) && !ages.contains(&r.age))
+        .map(|r| r.age)
+        .min()?;
+    push_unique(not_kept, &format!("contentRating={}", list.join(",")));
+    Some(ages.into_iter().filter(|age| *age < gap).max().unwrap_or(0))
 }
 
 /// Plex's names for no rating at all.
@@ -380,6 +403,18 @@ mod tests {
         let l = limits("contentRating!=PG-13", "", "", "US");
         assert_eq!(l.max_age, Some(10));
         assert_eq!(l.not_kept, ["contentRating!=PG-13"]);
+    }
+
+    #[test]
+    fn allowed_ratings_with_a_gap_are_kept_strictly_and_said() {
+        // G and R, not PG or PG-13: Pley hides R too, which Plex showed.
+        let l = limits("contentRating=G,R", "", "", "US");
+        assert_eq!(l.max_age, Some(0));
+        assert_eq!(l.not_kept, ["contentRating=G,R"]);
+        // Without a gap, or with only younger ratings left out, nothing.
+        let l = limits("contentRating=PG,PG-13", "contentRating=TV-14", "", "US");
+        assert_eq!(l.max_age, Some(13));
+        assert!(l.not_kept.is_empty(), "{:?}", l.not_kept);
     }
 
     #[test]
