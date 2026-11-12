@@ -271,9 +271,8 @@ internal fun MetaLine(parts: List<MetaPart>, modifier: Modifier = Modifier) {
 
 /**
  * Play or Resume across the width, or "Unavailable", with Play on… beside
- * it while another device takes titles and Download beside it for a movie
- * or an episode (how a download is coming goes under them); what is left
- * of a title being watched is under the metadata.
+ * it while another device takes titles; what is left of a title being
+ * watched is under the metadata.
  */
 @Composable
 private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) {
@@ -283,7 +282,6 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
         TonalButton(stringResource(R.string.item_unavailable), onClick = {}, enabled = false, modifier = width.height(48.dp))
         return
     }
-    val downloadable = page.kind == ItemKind.Movie || page.kind == ItemKind.Episode
     Row(if (fullWidth) Modifier.fillMaxWidth() else Modifier, verticalAlignment = Alignment.CenterVertically) {
         PrimaryButton(
             text = primaryLabel(primary),
@@ -293,9 +291,7 @@ private fun PlayBlock(page: ItemPage, actions: PageActions, fullWidth: Boolean) 
         )
         // Where the page's Play starts it, with the tracks picked here: a title being watched resumes there too.
         CastTarget.page(page.item, page.tracks)?.let { PlayOnButton(it, Modifier.padding(start = 8.dp)) }
-        if (downloadable) DownloadButton(page.id, page.title, Modifier.padding(start = 8.dp))
     }
-    if (downloadable) DownloadStatus(page.id)
 }
 
 /** "Resume", "Play S1 · E3", … */
@@ -312,14 +308,15 @@ internal fun primaryLabel(primary: PrimaryAction): String {
 
 /**
  * The actions under Play (design spec §3.3): From start, Watched, My List,
- * Playlist and Trailer, sharing the width (a quarter each at least), as in
- * the mockup.
+ * Playlist, Download (a movie or an episode, where downloads are) and
+ * Trailer, sharing the width (a quarter each at least), as in the mockup.
  */
 @Composable
 private fun ActionRow(page: ItemPage, actions: PageActions) {
     val watchedLabel = stringResource(if (page.watched) R.string.item_mark_unwatched else R.string.item_mark_watched)
     val listLabel = stringResource(if (page.myList == true) R.string.item_in_my_list else R.string.item_not_in_my_list)
-    val items = buildList {
+    val downloadable = (page.kind == ItemKind.Movie || page.kind == ItemKind.Episode) && LocalItemDownloads.current != null
+    val items = buildList<ActionSlot> {
         if (page.fromStart) add(HeaderAction(PleyIcons.RotateCcw, stringResource(R.string.item_from_start)) { actions.play(fromStart = true) })
         add(
             HeaderAction(
@@ -341,27 +338,36 @@ private fun ActionRow(page: ItemPage, actions: PageActions) {
             )
         }
         add(HeaderAction(PleyIcons.ListPlus, stringResource(R.string.item_playlist)) { actions.addToPlaylist(page.id) })
+        if (downloadable) add(DownloadSlot)
         page.trailer?.let { trailer -> add(HeaderAction(PleyIcons.Film, stringResource(R.string.item_trailer)) { actions.play(trailer) }) }
     }
     Row(Modifier.fillMaxWidth()) {
-        items.forEach { action ->
+        items.forEach { slot ->
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                ActionButton(
-                    icon = action.icon,
-                    label = action.label,
-                    onClick = action.onClick,
-                    selected = action.selected,
-                    // The whole slot: a large font's label has the room before it shrinks.
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(action.state?.let { s -> Modifier.semantics { stateDescription = s } } ?: Modifier)
-                        .then(action.tag?.let { Modifier.testTag(it) } ?: Modifier),
-                )
+                // The whole slot: a large font's label has the room before it shrinks.
+                when (slot) {
+                    DownloadSlot -> DownloadAction(page.id, page.title, Modifier.fillMaxWidth())
+                    is HeaderAction -> ActionButton(
+                        icon = slot.icon,
+                        label = slot.label,
+                        onClick = slot.onClick,
+                        selected = slot.selected,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(slot.state?.let { s -> Modifier.semantics { stateDescription = s } } ?: Modifier)
+                            .then(slot.tag?.let { Modifier.testTag(it) } ?: Modifier),
+                    )
+                }
             }
         }
         repeat((ACTION_SLOTS - items.size).coerceAtLeast(0)) { Spacer(Modifier.weight(1f)) }
     }
 }
+
+/** A place in the action row: a [HeaderAction], or Download with its ring and menu. */
+private sealed interface ActionSlot
+
+private data object DownloadSlot : ActionSlot
 
 /** A button of the action row: [selected] tints it, [state] is what screen readers hear it is. */
 private class HeaderAction(
@@ -371,7 +377,7 @@ private class HeaderAction(
     val state: String? = null,
     val tag: String? = null,
     val onClick: () -> Unit,
-)
+) : ActionSlot
 
 /** The summary in four lines, "More" to read it all (Summary of shared.tsx). */
 @Composable

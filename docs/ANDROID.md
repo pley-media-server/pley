@@ -842,12 +842,12 @@ to the home server still goes over the Wi-Fi (`LocalRoute`).
   own. A home address gets 3 s to connect.
 - **Playback that loses the server** plays what it has, then retries for
   90 s.
-- **Downloads** (phones and tablets): Download is a square beside Play
-  (its ring fills as it comes, one line under Play says how far or what
-  it waits for), beside each episode and on a season; they are listed
-  under Me → Downloads. A
-  download is the original file (of several versions, the sharpest up to
-  1080p the device plays as it is) with its text subtitles. A file the
+- **Downloads** (phones and tablets): Download is among the actions
+  under Play, beside Playlist (its ring fills as it comes, and its label
+  says how far or what it waits for), beside each episode and on a
+  season; they are listed under Me → Downloads. A download is the original file (of several
+  versions, the sharpest up to 1080p the device plays as it is) with its
+  text subtitles. A file the
   device can't play, or any file when Settings → Downloads → Quality picks
   a smaller size, is converted by the server first
   ([API.md](API.md#downloads)). Downloads wait for Wi-Fi or Ethernet

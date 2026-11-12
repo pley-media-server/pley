@@ -133,7 +133,7 @@ fun PleyIconButton(
 
 /**
  * One of the item page's actions (design spec §3.3): From start, Watched,
- * Playlist, Trailer. A column 72 dp wide at least (the page gives it its
+ * Playlist, Download, Trailer. A column 72 dp wide at least (the page gives it its
  * slot), a 24 dp [icon] over a labelMedium [label] that shrinks rather than
  * break a word ([FittedLabel]), no container; pressed, a [surface3][PleyColors.Surface3]
  * circle shows behind the icon. The touch target is 72 by 56 at least. [selected]
@@ -147,6 +147,25 @@ fun ActionButton(
     modifier: Modifier = Modifier,
     selected: Boolean = false,
     enabled: Boolean = true,
+) {
+    ActionButton(label, onClick, modifier, enabled) {
+        val tint = when {
+            !enabled -> PleyColors.Disabled
+            selected -> PleyColors.AccentBright
+            else -> PleyColors.Fg
+        }
+        Icon(icon, contentDescription = null, size = 24.dp, tint = tint)
+    }
+}
+
+/** An action whose [glyph], 24 dp, is drawn by the caller: Download's ring. */
+@Composable
+fun ActionButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    glyph: @Composable () -> Unit,
 ) {
     val interactions = remember { MutableInteractionSource() }
     val pressed by interactions.collectIsPressedAsState()
@@ -164,12 +183,7 @@ fun ActionButton(
                 .drawBehind { if (pressed) drawCircle(PleyColors.Surface3) },
             contentAlignment = Alignment.Center,
         ) {
-            val tint = when {
-                !enabled -> PleyColors.Disabled
-                selected -> PleyColors.AccentBright
-                else -> PleyColors.Fg
-            }
-            Icon(icon, contentDescription = null, size = 24.dp, tint = tint)
+            glyph()
         }
         Spacer(Modifier.height(2.dp))
         FittedLabel(

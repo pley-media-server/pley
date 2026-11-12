@@ -33,8 +33,15 @@
     <string name="downloads_open">Go to the page</string>
 
     <!-- Item pages. -->
-    <!-- Under Play when it failed: its button's menu says why, and tries it again or deletes it. -->
+    <string name="downloads_download">Download</string>
+    <string name="downloads_downloaded">Downloaded</string>
+    <!-- Its action when it failed: tapping says why, and tries it again or deletes it. -->
     <string name="downloads_failed_short">Didn\'t download</string>
+    <!-- Under its ring while it waits (its menu says for what), while the server prepares it, and while it comes: "45%". -->
+    <string name="downloads_queued_short">Queued</string>
+    <string name="downloads_waiting_short">Waiting</string>
+    <string name="downloads_preparing_short">Preparing</string>
+    <string name="downloads_percent">%1$d%%</string>
     <string name="downloads_download_season">Download season</string>
     <!-- "Download Episode 2", for screen readers. -->
     <string name="downloads_download_item">Download %1$s</string>

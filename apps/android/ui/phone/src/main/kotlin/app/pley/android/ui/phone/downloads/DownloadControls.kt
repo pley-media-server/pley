@@ -156,7 +156,8 @@ internal fun rememberDownloadStarter(download: (List<Long>) -> Unit): (List<Long
 /**
  * What can be done with a download there is, under its button: play it
  * when whole, try it again when it failed, then delete it (or cancel it
- * while it comes); [onOpen], where given, goes to its page.
+ * while it comes); [onOpen], where given, goes to its page. Why it failed,
+ * or what it waits for, is over them.
  */
 @Composable
 internal fun DownloadMenu(
@@ -171,11 +172,15 @@ internal fun DownloadMenu(
     if (entry == null) return
     val coming = entry.state != DownloadState.Done && entry.state != DownloadState.Failed
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss, containerColor = PleyColors.Surface3) {
-        // Why it failed, above what can be done about it.
-        val error = entry.error?.takeIf { entry.state == DownloadState.Failed }?.asString()
-        if (error != null) {
+        // Why it failed, or what it waits for, above what can be done about it.
+        val note = when (entry.state) {
+            DownloadState.Failed -> entry.error?.asString()
+            DownloadState.Waiting -> stringResource(if (entry.serverAway) R.string.downloads_waiting_server else R.string.downloads_waiting)
+            else -> null
+        }
+        if (note != null) {
             Text(
-                error,
+                note,
                 style = MaterialTheme.typography.bodySmall,
                 color = PleyColors.Muted,
                 modifier = Modifier.widthIn(max = 280.dp).padding(horizontal = 16.dp, vertical = 8.dp),

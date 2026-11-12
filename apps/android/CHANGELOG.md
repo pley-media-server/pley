@@ -10,10 +10,10 @@ describes how they are made.
 
 ### Changed
 
-- On phones and tablets, Download on a movie's or an episode's page is a
-  small square beside Play instead of a wide button under it. Its ring
-  fills as the download comes, and one line under Play says how far it
-  is or what it waits for.
+- On phones and tablets, Download on a movie's or an episode's page is
+  one of the actions under Play, beside Playlist, instead of a wide
+  button. Its ring fills as the download comes, and its label says how
+  far it is or what it waits for.
 
 ## [0.1.12] - 2026-11-12
 

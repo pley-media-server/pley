@@ -40,7 +40,7 @@ import org.robolectric.annotation.GraphicsMode
 
 /**
  * The phone's item page: Play, Resume and From start, Unavailable,
- * Download beside Play, the summary clamped to four lines with More, and
+ * Download beside Playlist, the summary clamped to four lines with More, and
  * where its links go.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -197,42 +197,44 @@ class ItemPageTest {
         fileId = 1,
         kind = ItemKind.Movie,
         title = "Saltwind",
-        // 1.5 GB as the app counts them, 1024 to a step.
-        sizeBytes = 1_610_612_736,
+        sizeBytes = 1_400_000_000,
         downloadedBytes = downloadedBytes,
         state = state,
         addedAt = 0,
     )
 
     @Test
-    fun downloadIsASquareBesidePlayThatDownloadsTheTitle() {
+    fun downloadIsAnActionThatDownloadsTheTitle() {
         show(movie(), withDownloads = true)
-        compose.onNodeWithText("Download").assertDoesNotExist()
+        compose.onNodeWithText("Download").assertExists()
         compose.onNodeWithContentDescription("Download Saltwind").performClick()
         compose.waitForIdle()
         assertEquals(listOf(listOf(1L)), downloadsAsked)
     }
 
     @Test
-    fun aComingDownloadSaysHowFarUnderPlay() {
-        downloadsByItem.value = mapOf(1L to download(DownloadState.Downloading, downloadedBytes = 725_000_000))
+    fun aComingDownloadSaysHowFar() {
+        downloadsByItem.value = mapOf(1L to download(DownloadState.Downloading, downloadedBytes = 630_000_000))
         show(movie(), withDownloads = true)
-        compose.onNodeWithText("Downloading · 45% of 1.5 GB").assertExists()
+        compose.onNodeWithText("45%").assertExists()
         compose.onNodeWithContentDescription("Saltwind is downloading, 45%").assertExists()
     }
 
     @Test
-    fun aDownloadWaitingForWiFiSaysSo() {
+    fun aWaitingDownloadsMenuSaysWhatItWaitsFor() {
         downloadsByItem.value = mapOf(1L to download(DownloadState.Waiting))
         show(movie(), withDownloads = true)
+        compose.onNodeWithText("Waiting").performClick()
+        compose.waitForIdle()
         compose.onNodeWithText("Waiting for Wi-Fi").assertExists()
+        compose.onNodeWithText("Cancel download").assertExists()
     }
 
     @Test
-    fun aWholeDownloadSaysNothingUnderPlay() {
-        downloadsByItem.value = mapOf(1L to download(DownloadState.Done, downloadedBytes = 1_610_612_736))
+    fun aWholeDownloadSaysSo() {
+        downloadsByItem.value = mapOf(1L to download(DownloadState.Done, downloadedBytes = 1_400_000_000))
         show(movie(), withDownloads = true)
         compose.onNodeWithContentDescription("Saltwind is downloaded").assertExists()
-        compose.onNodeWithText("Downloaded").assertDoesNotExist()
+        compose.onNodeWithText("Downloaded").assertExists()
     }
 }
