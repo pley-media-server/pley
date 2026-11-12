@@ -1125,25 +1125,36 @@ async fn an_import_the_server_restarted_during_says_so() {
     assert_eq!(progress["report"], Value::Null);
 
     // The libraries it made fetch their details, which it would have done
-    // last, once; one made otherwise doesn't.
-    let made = |name: &str, at: i64| {
+    // last, once; one made otherwise doesn't. One whose first scan was cut
+    // short is scanned again first.
+    let made = |name: &str, at: i64, scanned: Option<i64>| {
         sqlx::query_scalar::<_, i64>(
-            "INSERT INTO libraries (id, name, kind, paths, created_at, position)
-             VALUES ((SELECT last + 1 FROM library_ids), ?, 'movies', '[]', ?, 0) RETURNING id",
+            "INSERT INTO libraries (id, name, kind, paths, created_at, scanned_at, position)
+             VALUES ((SELECT last + 1 FROM library_ids), ?, 'movies', '[]', ?, ?, 0) RETURNING id",
         )
         .bind(name.to_owned())
         .bind(at)
+        .bind(scanned)
         .fetch_one(&app.state.db.write)
     };
-    made("Before", 1_794_000_000).await.unwrap();
-    let films = made("Films", 1_794_100_005).await.unwrap();
-    made("Since", 1_794_100_010).await.unwrap();
+    made("Before", 1_794_000_000, Some(5)).await.unwrap();
+    let tv = made("TV", 1_794_100_001, Some(5)).await.unwrap();
+    let films = made("Films", 1_794_100_005, None).await.unwrap();
+    made("Since", 1_794_100_010, Some(5)).await.unwrap();
     sqlx::query("INSERT INTO settings (key, value) VALUES ('plex_import_made', ?)")
-        .bind(format!("[{films}, 999]"))
+        .bind(format!("[{tv}, {films}, 999]"))
         .execute(&app.state.db.write)
         .await
         .unwrap();
-    assert_eq!(app.state.plex_import.after_restart(&app.state).await, [films]);
+    assert_eq!(app.state.plex_import.after_restart(&app.state).await, [tv, films]);
+    for _ in 0..400 {
+        if one(&app, "SELECT scanned_at IS NOT NULL FROM libraries WHERE id = ?", films).await == 1 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    }
+    assert_eq!(one(&app, "SELECT scanned_at IS NOT NULL FROM libraries WHERE id = ?", films).await, 1, "scanned");
+    assert_eq!(one(&app, "SELECT scanned_at FROM libraries WHERE id = ?", tv).await, 5, "its details only");
     assert_eq!(app.state.plex_import.after_restart(&app.state).await, Vec::<i64>::new(), "at one restart only");
     let progress = app.get("/api/import/plex", &admin).await.body;
     assert_eq!(progress["state"], "interrupted", "still said");

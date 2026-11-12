@@ -858,7 +858,8 @@ impl Importer {
     }
 
     /// After a restart that cut a run short: the libraries it made fetch
-    /// their details, which the run would have done last. The ones queued.
+    /// their details, which the run would have done last, and one whose
+    /// first scan didn't finish is scanned again first. The ones queued.
     pub async fn after_restart(&self, state: &AppState) -> Vec<i64> {
         let made: Option<String> = sqlx::query_scalar("DELETE FROM settings WHERE key = ? RETURNING value")
             .bind(MADE_KEY)
@@ -869,10 +870,13 @@ impl Importer {
         let made: Vec<i64> = made.and_then(|m| serde_json::from_str(&m).ok()).unwrap_or_default();
         let mut queued = Vec::new();
         for id in made {
-            if get_library(&state.db, id).await.ok().flatten().is_some() {
+            let Some(library) = get_library(&state.db, id).await.ok().flatten() else { continue };
+            if library.scanned_at.is_none() {
+                state.scanner.enqueue_new(id);
+            } else {
                 state.scanner.enqueue_metadata(id);
-                queued.push(id);
             }
+            queued.push(id);
         }
         queued
     }
