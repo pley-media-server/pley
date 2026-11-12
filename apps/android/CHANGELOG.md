@@ -14,6 +14,8 @@ describes how they are made.
   one of the actions under Play, beside Playlist, instead of a wide
   button. Its ring fills as the download comes, and its label says how
   far it is or what it waits for.
+- The actions under Play share one label size. With the system's largest
+  text they go on two or three rows instead of breaking words in two.
 
 ## [0.1.12] - 2026-11-12
 

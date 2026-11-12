@@ -26,7 +26,7 @@
 
     <string name="downloads_download">Télécharger</string>
     <string name="downloads_downloaded">Téléchargé</string>
-    <string name="downloads_failed_short">Échec du téléchargement</string>
+    <string name="downloads_failed_short">Échec</string>
     <string name="downloads_queued_short">En file d’attente</string>
     <string name="downloads_waiting_short">En attente</string>
     <string name="downloads_preparing_short">Préparation</string>

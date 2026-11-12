@@ -6,6 +6,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import app.pley.android.common.TestTags
 import app.pley.android.model.ItemDetail
 import app.pley.android.screens.Navigator
@@ -22,6 +23,8 @@ import app.pley.android.data.DownloadEntry
 import app.pley.android.data.DownloadState
 import app.pley.android.data.OtherDevice
 import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
+import app.pley.android.model.ExtraType
 import app.pley.android.model.CastKind
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.RemoteDevice
@@ -31,6 +34,7 @@ import app.pley.android.ui.phone.remote.PLAY_ON
 import app.pley.android.ui.phone.remote.PlayOnHost
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -236,5 +240,26 @@ class ItemPageTest {
         show(movie(), withDownloads = true)
         compose.onNodeWithContentDescription("Saltwind is downloaded").assertExists()
         compose.onNodeWithText("Downloaded").assertExists()
+    }
+
+    private fun withTrailer(detail: ItemDetail) =
+        detail.copy(extras = listOf(ItemSummary(9, 1, ItemKind.Movie, "Trailer", extraType = ExtraType.Trailer)))
+
+    private fun top(label: String) = compose.onNodeWithText(label).getUnclippedBoundsInRoot().top
+
+    @Test
+    fun sixActionsShareOneRow() {
+        show(withTrailer(movie(positionMs = 3_480_000)), withDownloads = true)
+        assertEquals(top("From start"), top("Trailer"))
+    }
+
+    @Test
+    @Config(qualifiers = "w320dp-h640dp-xhdpi", fontScale = 2.0f)
+    fun atTheLargestFontTheActionsWrapRatherThanBreakAWord() {
+        show(withTrailer(movie(positionMs = 3_480_000)), withDownloads = true)
+        // Two a row: "From start" and "Watched" above, "Download" and "Trailer" at the bottom.
+        assertEquals(top("From start"), top("Watched"))
+        assertTrue(top("Trailer") > top("Watched"))
+        assertEquals(top("Download"), top("Trailer"))
     }
 }

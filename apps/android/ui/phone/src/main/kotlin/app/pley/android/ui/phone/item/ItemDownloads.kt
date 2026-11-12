@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.errorText
@@ -108,7 +109,7 @@ internal fun rememberItemDownloads(): ItemDownloads? {
  * "Downloaded".
  */
 @Composable
-internal fun DownloadAction(itemId: Long, title: String, modifier: Modifier = Modifier) {
+internal fun DownloadAction(itemId: Long, title: String, labelStyle: TextStyle, modifier: Modifier = Modifier) {
     val downloads = LocalItemDownloads.current ?: return
     val entry = downloads.of(itemId)
     var menu by remember { mutableStateOf(false) }
@@ -128,6 +129,7 @@ internal fun DownloadAction(itemId: Long, title: String, modifier: Modifier = Mo
             modifier = Modifier
                 .fillMaxWidth()
                 .semantics { contentDescription = description },
+            labelStyle = labelStyle,
         ) {
             DownloadGlyph(entry)
         }
@@ -141,3 +143,15 @@ internal fun DownloadAction(itemId: Long, title: String, modifier: Modifier = Mo
         )
     }
 }
+
+/** Every label [DownloadAction] can show, so its row makes room for the longest before it is needed. */
+@Composable
+internal fun downloadLabels(): List<String> = listOf(
+    stringResource(R.string.downloads_download),
+    stringResource(R.string.downloads_downloaded),
+    stringResource(R.string.downloads_failed_short),
+    stringResource(R.string.downloads_queued_short),
+    stringResource(R.string.downloads_preparing_short),
+    stringResource(R.string.downloads_waiting_short),
+    stringResource(R.string.downloads_percent, 100),
+)
