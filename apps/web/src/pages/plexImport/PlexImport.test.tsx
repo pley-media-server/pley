@@ -542,12 +542,14 @@ describe("PlexImport", () => {
     expect(screen.queryByText(/so it hides more instead/)).not.toBeInTheDocument();
   });
 
-  it("says nothing of waiting once the labels are on", async () => {
-    serve({ progress: () => ({ ...idle, state: "done", report }) });
+  it("says nothing of waiting once the labels are on, though titles not found still miss them", async () => {
+    const hiding = { ...report.profiles[0]!, hide_labels: ["Scary"] };
+    const labelled = { ...report.libraries[0]!, labels_pending: false };
+    serve({ progress: () => ({ ...idle, state: "done", report: { ...report, libraries: [labelled], profiles: [hiding] } }) });
     renderWithProviders(<PlexImport onLeave={() => {}} onFinish={() => {}} leaveLabel="Cancel" goOnLabel="Close" report />);
     expect(await screen.findByText("Sam")).toBeInTheDocument();
     expect(screen.queryByText(/waiting for Plex's labels/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Titles Pley couldn't find/)).not.toBeInTheDocument();
+    expect(screen.getByText(/^Titles Pley couldn't find/)).toBeInTheDocument();
   });
 
   it("signs in again to import again, since a run forgets the sign-in", async () => {
