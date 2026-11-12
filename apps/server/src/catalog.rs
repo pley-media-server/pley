@@ -1193,6 +1193,11 @@ pub async fn count_matching(db: &Db, user_id: i64, q: &ItemsQuery<'_>) -> sqlx::
 pub const WATCHED_THRESHOLD: f64 = 0.9;
 const MIN_RESUME_MS: i64 = 15_000;
 
+/// The place kept for one at `position_ms`: none until 15 s in.
+pub fn resume_point(position_ms: i64) -> i64 {
+    if position_ms >= MIN_RESUME_MS { position_ms } else { 0 }
+}
+
 /// What a progress report did besides keeping the place.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Recorded {
@@ -1275,7 +1280,7 @@ pub async fn record_progress(
         }
         return Ok(Recorded { counted: !counted, left_watchlist: left > 0 });
     }
-    let stored = if position_ms >= MIN_RESUME_MS { position_ms } else { 0 };
+    let stored = resume_point(position_ms);
     let was_at: i64 = sqlx::query_scalar("SELECT position_ms FROM user_item_state WHERE user_id = ? AND item_id = ?")
         .bind(user_id)
         .bind(item_id)
@@ -1319,24 +1324,45 @@ async fn state_changed(db: &Db, events: &EventBus, user_id: i64, item_id: i64, c
     Ok(())
 }
 
-/// When the user last played an item, as a sync tool copying it from
-/// another server says (playing or marking it stamps the present time).
-/// Devices are told again: one told of the play may have fetched the
-/// present time already.
-pub async fn set_last_played(db: &Db, events: &EventBus, user_id: i64, item_id: i64, at: i64) -> sqlx::Result<()> {
-    let changed = sqlx::query(
-        "UPDATE user_item_state SET last_played_at = ?
-         WHERE user_id = ? AND item_id = ? AND last_played_at IS NOT ?",
-    )
-    .bind(at)
+/// When the user last played an item and what it covers (a show's
+/// episodes, …), as a sync tool copying it from another server says:
+/// playing or marking it stamps the present time. With `counted`, the play
+/// just recorded is dated so too. Devices are told again, as one told of
+/// the play may have fetched the present time already.
+pub async fn set_last_played(
+    db: &Db,
+    events: &EventBus,
+    user_id: i64,
+    item_id: i64,
+    kind: &str,
+    at: i64,
+    counted: bool,
+) -> sqlx::Result<()> {
+    let leaves = leaves_clause(kind);
+    let changed = sqlx::query(sqlx::AssertSqlSafe(format!(
+        "UPDATE user_item_state SET last_played_at = ?2
+         WHERE user_id = ?1 AND item_id IN ({leaves}) AND last_played_at IS NOT ?2"
+    )))
     .bind(user_id)
-    .bind(item_id)
     .bind(at)
+    .bind(item_id)
     .execute(&db.write)
     .await?
     .rows_affected();
+    if counted {
+        sqlx::query(
+            "UPDATE play_history SET viewed_at = ?2
+             WHERE id = (SELECT MAX(id) FROM play_history WHERE user_id = ?1 AND item_id = ?3)",
+        )
+        .bind(user_id)
+        .bind(at)
+        .bind(item_id)
+        .execute(&db.write)
+        .await?;
+    }
     if changed > 0 {
-        state_changed(db, events, user_id, item_id, false).await?;
+        let children = matches!(kind, "show" | "season" | "album" | "artist");
+        state_changed(db, events, user_id, item_id, children).await?;
     }
     Ok(())
 }

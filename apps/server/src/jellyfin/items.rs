@@ -1560,24 +1560,47 @@ async fn update_user_data(
     body: Body,
 ) -> JfResult<Response> {
     let row = visible_item(state, jellyfin, user, id).await?;
-    let played = body.flag("Played");
+    // What can't be read is refused, as Jellyfin does: a sync tool told it
+    // worked would not send it again.
+    let given = |name: &str| body.get(name).is_some_and(|v| !v.is_null());
+    let ticks = match body.number("PlaybackPositionTicks") {
+        None if given("PlaybackPositionTicks") => {
+            return Err(JfError::BadRequest("PlaybackPositionTicks is not a whole number".into()));
+        }
+        ticks => ticks,
+    };
+    let last_played = match body.str("LastPlayedDate").and_then(crate::util::iso_secs) {
+        None if given("LastPlayedDate") => return Err(JfError::BadRequest("LastPlayedDate is not a date".into())),
+        at => at,
+    };
     // Apps that post back the whole UserData they were given, to change one
     // thing, send what it holds too: only what differs changes. (Marking
-    // unplayed clears the place, which `Played: false` as given mustn't.)
+    // unplayed clears the place, which `Played: false` as given mustn't, and
+    // watched takes a movie off My List, which `IsFavorite: true` as given
+    // mustn't put back.)
+    let played = body.flag("Played");
     let marked = played.filter(|played| *played != dto::played(&row));
+    let favorite = match body.flag("IsFavorite") {
+        Some(favorite) if matches!(row.kind.as_str(), "movie" | "show") => {
+            Some((favorite, catalog::in_watchlist(&state.db, user.id, row.id).await?))
+        }
+        _ => None,
+    };
     if let Some(played) = marked {
         mark(state, jellyfin, user, id, played).await?;
     }
-    if let Some(favorite) = body.flag("IsFavorite")
-        && matches!(row.kind.as_str(), "movie" | "show")
+    if let Some((favorite, listed)) = favorite
+        && favorite != listed
     {
         set_favorite(state, jellyfin, user, id, favorite).await?;
     }
-    // Only what plays has a place, as with players' reports. A watched item
-    // has none, nor has one just marked either way.
-    let shown_ms = if row.watched || marked.is_some() { 0 } else { row.position_ms };
-    let position_ms = body.number("PlaybackPositionTicks").map(|t| t.max(0) / dto::TICKS_PER_MS);
-    let moved = position_ms.filter(|ms| *ms != shown_ms && played != Some(true) && dto::is_playable(&row.kind));
+    // Only what plays has a place, as with players' reports, and only a
+    // place other than the one kept moves it (one just marked has none).
+    let kept_ms = if marked.is_some() { 0 } else { row.position_ms };
+    let moved = ticks
+        .map(|t| t.max(0) / dto::TICKS_PER_MS)
+        .filter(|ms| played != Some(true) && dto::is_playable(&row.kind) && catalog::resume_point(*ms) != kept_ms);
+    let mut counted = false;
     if let Some(ms) = moved {
         let duration = row.duration_ms.unwrap_or(0);
         let recorded =
@@ -1585,15 +1608,15 @@ async fn update_user_data(
         if recorded.left_watchlist {
             state.events.send(ServerEvent::WatchlistChanged { user_id: user.id });
         }
+        counted = recorded.counted;
     }
     // Clocks run ahead, and a time to come would keep the item first in
     // Continue Watching: it is today at the latest.
-    if marked.is_some() || moved.is_some() {
-        let at = body.str("LastPlayedDate").and_then(crate::util::iso_secs).filter(|at| *at > 0);
-        if let Some(at) = at {
-            let at = at.min(crate::util::now());
-            catalog::set_last_played(&state.db, &state.events, user.id, row.id, at).await?;
-        }
+    if (marked.is_some() || moved.is_some())
+        && let Some(at) = last_played.filter(|at| *at > 0)
+    {
+        let at = at.min(crate::util::now());
+        catalog::set_last_played(&state.db, &state.events, user.id, row.id, &row.kind, at, counted).await?;
     }
     Ok(Json(user_data_of(state, jellyfin, user, id).await?).into_response())
 }

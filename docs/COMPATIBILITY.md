@@ -721,10 +721,12 @@ Pley found as `Intro` and `Outro`, for Skip buttons.
 the item's state: `Played`, `IsFavorite`, and `PlaybackPositionTicks`,
 which moves the resume point of a movie, episode, track or extra (to 90 %
 or more, the item is watched) and clears it at `0`. When the item is
-marked or its place moves, `LastPlayedDate` is kept as when it was
-played, today at the latest. Its keys go in any case, and numbers as text,
-as Jellyfin reads them: sync tools such as WatchState copy a place in a
-video from another server this way, sending the ticks as text.
+marked or its place moves, `LastPlayedDate` is kept as when it, or a
+show's or season's episodes, were played, today at the latest; a play it
+counts is dated so in the history. Its keys go in any case, and numbers as
+text, as Jellyfin reads them: sync tools such as WatchState copy a place
+in a video from another server this way, sending the ticks as text. Ticks
+that aren't a whole number, or a date that isn't one, are refused (`400`).
 
 Seek-bar previews are the sprite sheets Pley makes for its own players
 ([API.md](API.md#playback)), at the one width it makes them. An item's
