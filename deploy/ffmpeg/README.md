@@ -45,7 +45,9 @@ hwmap=derive_device=qsv:mode=write:reverse=1,format=qsv
 - Dolby Vision's reshaping needs FFmpeg's own decoder, which reads it
   (`-hwaccel d3d11va` or `vaapi`, then `hwmap=derive_device=qsv`): Quick
   Sync's decoder (`-hwaccel qsv`) passes none on, and profile 5 then has
-  nothing to be tone mapped by.
+  nothing to be tone mapped by. On Windows the transcoder takes that route
+  for Dolby Vision where libplacebo can't keep up
+  ([TRANSCODER.md](../../docs/TRANSCODER.md#sharing-the-gpu)).
 
 [patches/series](patches/series) lists them in the order they apply. Each
 keeps jellyfin-ffmpeg's number and name, and says at its top what it does

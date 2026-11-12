@@ -187,7 +187,13 @@ pub struct JobManager {
     /// The videos ([`pley_transcoder_api::decode_key`]) FFmpeg's own
     /// hardware decoder failed on, of jobs Quick Sync could decode in its
     /// place ([`Plan::quick_sync_would_decode`]): the next ones start there.
+    /// OpenCL takes none of them, which needs that decoder's frames
+    /// ([`Plan::opencl_could_tonemap`]).
     decode_failed: Mutex<HashSet<String>>,
+    /// The jobs whose process tone mapping Dolby Vision on OpenCL failed
+    /// before its first segment ([`Runtime::opencl_failed`]): after
+    /// [`OPENCL_FAILURES`] of them, no job goes there again.
+    opencl_failed: Mutex<HashSet<String>>,
     /// Whether the CPU may decode for a GPU that falls behind (see
     /// [`crate::share`]).
     cpu_decode: AtomicBool,
@@ -454,6 +460,9 @@ struct Runtime {
     /// FFmpeg said the GPU couldn't decode the video, and decodes it on the
     /// CPU instead.
     decoded_in_software: bool,
+    /// A process tone mapping on OpenCL ([`Share::opencl`]) failed before
+    /// its first segment: libplacebo tone maps again, as planned.
+    opencl_failed: bool,
     failures: HashMap<u32, u32>,
     /// The automatic preset of the running process (index in
     /// [`adaptive::LADDER`]), and when it started or moved.
@@ -466,6 +475,12 @@ struct Runtime {
     start_cost: Option<Duration>,
     stop_cost: Option<Duration>,
 }
+
+/// Jobs whose tone mapping on OpenCL failed before its first segment after
+/// which no job is tone mapped there, until the transcoder starts again.
+/// One alone goes back to libplacebo: a file that fails every way isn't
+/// OpenCL's doing.
+const OPENCL_FAILURES: usize = 3;
 
 /// What a job warns of once FFmpeg said its GPU couldn't decode the video.
 const GPU_DECODING_FAILED: &str = "GPU decoding failed, using the CPU";
@@ -614,6 +629,7 @@ impl JobManager {
             memory_available: AtomicU64::new(u64::MAX),
             lessons: Mutex::default(),
             decode_failed: Mutex::default(),
+            opencl_failed: Mutex::default(),
             cpu_decode: AtomicBool::new(true),
         })
     }
@@ -1133,31 +1149,44 @@ impl JobManager {
             foreign: if decoding { 0.0 } else { self.cpu.foreign().unwrap_or(0.0) },
         };
         let takes = job.plan.source_rate(&job.media).map_or(0.0, |(pixels, fps)| share::decode_cores(pixels, fps));
+        // Dolby Vision goes to OpenCL where it can, its metadata applied
+        // without a frame leaving the GPU, where libplacebo gets them whole
+        // through memory: where the GPU falls behind or the CPU has no time
+        // to spare, before Quick Sync's tone mapping of the base layer and
+        // the CPU's decoding. Not once FFmpeg's decoder, whose frames it
+        // takes, failed on the GPU, nor once it failed itself.
+        let own_decoder_failed = self.own_decoder_failed(job);
+        let opencl = (gpu.behind || held.cpu_busy)
+            && job.plan.opencl_could_tonemap()
+            && !own_decoder_failed
+            && !self.opencl_fails(job);
         // Where Quick Sync decodes and scales, its scaler tone maps instead,
         // several times cheaper: where the GPU falls behind, and where the
         // CPU has no time to spare for video Quick Sync would decode in its
         // place (Dolby Vision and HDR10+, as their HDR10 base layer).
         let relieved = gpu.behind || (held.cpu_busy && job.plan.quick_sync_would_decode());
-        let quick_sync = relieved && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap);
-        let base_layer = self.quick_sync_decodes(job);
-        // Quick Sync decodes what it tone maps, and what it took over.
-        let cpu_decode = !quick_sync
+        let quick_sync = !opencl && relieved && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap);
+        let base_layer = !opencl && own_decoder_failed && job.plan.quick_sync_would_decode();
+        // Quick Sync decodes what it tone maps, and what it took over;
+        // FFmpeg's decoder on the GPU what OpenCL tone maps.
+        let cpu_decode = !opencl
+            && !quick_sync
             && !base_layer
             && self.cpu_decode.load(Relaxed)
             && !held.cpu_busy
             && share::cpu_decodes(gpu, cpu, takes);
-        Some(Share { quality, cpu_decode, quick_sync, base_layer })
+        Some(Share { quality, cpu_decode, quick_sync, base_layer, opencl })
     }
 
-    /// Whether Quick Sync decodes the HDR10 base layer of `job`'s Dolby
-    /// Vision or HDR10+ for libplacebo, in place of FFmpeg's own decoder:
-    /// where that one's GPU decoding failed on this job, or on an earlier
-    /// one's video of the same kind (some Intel drivers give Direct3D 11 no
-    /// HEVC). The CPU would decode it otherwise, 4K HEVC taking cores of
-    /// it; the metadata goes unread, and libplacebo tone maps the HDR10
-    /// picture under it.
-    fn quick_sync_decodes(&self, job: &Job) -> bool {
-        if !job.plan.quick_sync_would_decode() {
+    /// Whether FFmpeg's own decoder failed on the GPU for `job`'s Dolby
+    /// Vision or HDR10+, on this job or on an earlier one's video of the
+    /// same kind (some Intel drivers give Direct3D 11 no HEVC). Quick Sync
+    /// then decodes the HDR10 base layer for libplacebo in its place, where
+    /// there is one ([`Plan::quick_sync_would_decode`]): the CPU would
+    /// decode it otherwise, 4K HEVC taking cores of it; the metadata goes
+    /// unread, and libplacebo tone maps the HDR10 picture under it.
+    fn own_decoder_failed(&self, job: &Job) -> bool {
+        if !job.plan.quick_sync_would_decode() && !job.plan.opencl_could_tonemap() {
             return false;
         }
         let Some(key) = job.plan.decode_key(&job.media) else { return false };
@@ -1169,6 +1198,24 @@ impl JobManager {
             );
         }
         failed.contains(&key)
+    }
+
+    /// Whether OpenCL failed to tone map `job`'s Dolby Vision, or that of
+    /// [`OPENCL_FAILURES`] jobs before it: a driver or an FFmpeg that passed
+    /// the start-up test and fails real videos, say. libplacebo tone maps it
+    /// then, as planned.
+    fn opencl_fails(&self, job: &Job) -> bool {
+        let mut failed = self.opencl_failed.lock();
+        let given_up = failed.len() >= OPENCL_FAILURES;
+        let this = job.runtime.lock().opencl_failed;
+        if this && !given_up && failed.insert(job.id.clone()) {
+            let from_here_on = if failed.len() >= OPENCL_FAILURES { ", and every job from here on" } else { "" };
+            tracing::warn!(
+                job = %job.id,
+                "OpenCL failed to tone map Dolby Vision before its first segment: libplacebo tone maps this job{from_here_on}"
+            );
+        }
+        this || given_up
     }
 
     /// What the jobs tone mapping on the GPU now need together (see
@@ -1210,7 +1257,11 @@ impl JobManager {
             if !self.lessons.lock().learn(verdict, share, load, now) {
                 continue;
             }
+            let opencl = job.plan.opencl_could_tonemap() && !self.opencl_fails(job);
             let learned = match verdict {
+                share::Verdict::CpuBound if opencl => {
+                    "the CPU has no time to spare: OpenCL tone maps Dolby Vision on the GPU".to_owned()
+                }
                 share::Verdict::CpuBound
                     if job.plan.quick_sync_would_decode()
                         && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap) =>
@@ -1219,6 +1270,10 @@ impl JobManager {
                 }
                 share::Verdict::CpuBound => "the CPU has no time to spare: the GPU decodes".to_owned(),
                 _ if share.quick_sync => "the GPU falls behind even with Quick Sync tone mapping".to_owned(),
+                _ if share.opencl => "the GPU falls behind even with OpenCL tone mapping".to_owned(),
+                _ if share.quality == TonemapQuality::Fast && opencl => {
+                    "the GPU falls behind even at fast: OpenCL tone maps Dolby Vision".to_owned()
+                }
                 _ if share.quality == TonemapQuality::Fast
                     && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap) =>
                 {
@@ -1252,11 +1307,7 @@ impl JobManager {
                 (rt.share, rt.process.as_ref().is_some_and(|p| p.hardware))
             };
             let Some(have) = have else { continue };
-            // On Quick Sync's scaler, libplacebo's quality changes nothing.
-            let same = |want: &Share| {
-                *want == have || (want.quick_sync && have.quick_sync && want.cpu_decode == have.cpu_decode)
-            };
-            let Some(want) = self.gpu_share(&job, hardware).filter(|want| !same(want)) else { continue };
+            let Some(want) = self.gpu_share(&job, hardware).filter(|want| !want.same_work(have)) else { continue };
             let Ok(mut guard) = job.process.try_lock() else { continue };
             // A paused process is far ahead already: it moves once it goes on.
             let Some(proc) = guard.as_ref().filter(|p| p.running() && !p.paused()) else { continue };
@@ -1274,7 +1325,11 @@ impl JobManager {
                 (false, true) => "Quick Sync",
                 (false, false) => "GPU",
             };
-            let mapper = |s: Share| if s.quick_sync { "Quick Sync" } else { s.quality.as_str() };
+            let mapper = |s: Share| match (s.quick_sync, s.opencl) {
+                (true, _) => "Quick Sync",
+                (false, true) => "OpenCL",
+                (false, false) => s.quality.as_str(),
+            };
             tracing::info!(
                 job = %job.id,
                 "the GPU's load changed: tone mapping {} → {}, decoding on the {} → {}",
@@ -2064,12 +2119,21 @@ impl Job {
             tracing::warn!(job = %self.id, "ffmpeg failed at segment {next}: {message}");
             rt.last_error = Some(message);
             rt.state = JobState::Failed;
-            *rt.failures.entry(next).or_insert(0) += 1;
-            // A hardware encoder failing before it made anything (a driver
-            // update, a GPU gone, a session refused) won't do better at the
-            // next try.
-            if process.is_some_and(|p| p.hardware && next == p.start_segment) {
-                rt.hardware_failed = true;
+            let made_nothing = process.as_ref().is_some_and(|p| next == p.start_segment);
+            if made_nothing && !rt.opencl_failed && rt.share.is_some_and(|s| s.opencl) {
+                // OpenCL's tone mapping failing before it made anything is
+                // taken for its own failure, not the encoder's or the
+                // video's: the next process tone maps as planned, and this
+                // one doesn't count against the segment.
+                rt.opencl_failed = true;
+            } else {
+                *rt.failures.entry(next).or_insert(0) += 1;
+                // A hardware encoder failing before it made anything (a
+                // driver update, a GPU gone, a session refused) won't do
+                // better at the next try.
+                if made_nothing && process.is_some_and(|p| p.hardware) {
+                    rt.hardware_failed = true;
+                }
             }
         }
         true
@@ -2243,8 +2307,9 @@ impl Job {
             if quick_sync_decodes {
                 v.decoder = Some("qsv".into());
             }
-            // Tone mapped by Quick Sync's scaler, maybe without leaving the GPU.
-            if share.quick_sync
+            // Tone mapped by Quick Sync's scaler or by OpenCL, maybe without
+            // leaving the GPU.
+            if (share.quick_sync || share.opencl)
                 && let Some(intel) = self.plan.with_share(share).video_plan(&self.media, rt.encoder_override.as_ref())
             {
                 (v.tonemap, v.tonemap_quick_sync, v.tonemap_quality) = (intel.tonemap, intel.tonemap_quick_sync, None);
@@ -3693,6 +3758,198 @@ mod tests {
 
         job.decoded_in_software();
         assert_eq!(shown(&job), (Some("cpu".into()), Some("hybrid".into())));
+    }
+
+    /// What an Iris Xe passes at start-up on Windows with Pley's FFmpeg:
+    /// Quick Sync's encoder, its pipeline and its tone mapping, libplacebo
+    /// at the speeds it measures, and OpenCL's tone mapping of Dolby Vision.
+    fn iris_xe(dir: &Path) -> Ffmpeg {
+        use pley_transcoder_api::{Capabilities, GpuPipeline, HwAccel, TonemapSpeed, Tonemapper};
+        let qsv = EncoderInfo {
+            name: "h264_qsv".into(),
+            codec: VideoCodec::H264,
+            hardware: true,
+            accel: HwAccel::Qsv,
+            main10: false,
+            low_power: false,
+        };
+        Ffmpeg {
+            ffmpeg: dir.join("no-ffmpeg"),
+            ffprobe: dir.join("no-ffprobe"),
+            caps: Capabilities {
+                ffmpeg_available: true,
+                encoders: vec![qsv],
+                hwaccels: vec!["d3d11va".into(), "qsv".into()],
+                tonemappers: vec![Tonemapper::Libplacebo, Tonemapper::Zscale],
+                gpu_pipelines: vec![GpuPipeline {
+                    accel: HwAccel::Qsv,
+                    codecs: vec!["hevc10".into()],
+                    ..Default::default()
+                }],
+                qsv_tonemap: true,
+                qsv_opencl_dovi: true,
+                opencl_bt2390: true,
+                tonemap_speed: Some(TonemapSpeed { high: 54.0, balanced: 79.0, fast: 118.0 }),
+                ..Default::default()
+            },
+            segment_times_relative: true,
+        }
+    }
+
+    /// A job making a 4K Dolby Vision video of `profile` (5, or 8.1) at
+    /// `fps` 1080p SDR.
+    fn dolby_vision_job(dir: &Path, ff: &Ffmpeg, profile: i64, fps: f64) -> Job {
+        use pley_transcoder_api::{DynamicRange, StreamKind, VideoRequest};
+        let video = MediaStream {
+            kind: StreamKind::Video,
+            codec: "hevc".into(),
+            width: Some(3840),
+            height: Some(2160),
+            bit_depth: Some(10),
+            frame_rate: Some(fps),
+            dynamic_range: Some(DynamicRange::DolbyVision),
+            dv_profile: Some(profile),
+            dv_bl_compat: Some(if profile == 5 { 0 } else { 1 }),
+            hdr10_metadata: Some(profile != 5),
+            ..Default::default()
+        };
+        let media = MediaInfo { duration_ms: Some(8_000), streams: vec![video], ..Default::default() };
+        let video = VideoRequest { max_height: Some(1080), ..Default::default() };
+        let req = JobRequest { input: "/media/movie.mkv".into(), video: Some(video), ..Default::default() };
+        let mut job = job(dir, vec![0, 4_000, 8_000]);
+        job.plan = Plan::build(&req, &media, ff, None).unwrap();
+        job.media = Arc::new(media);
+        job
+    }
+
+    /// libplacebo's share, the GPU decoding, at `fast`.
+    const FAST: Share =
+        Share { quality: TonemapQuality::Fast, cpu_decode: false, quick_sync: false, base_layer: false, opencl: false };
+
+    /// Dolby Vision that libplacebo tone maps goes to OpenCL, its metadata
+    /// still applied, where the GPU falls behind: profile 5 too, which
+    /// Quick Sync has no base layer of to tone map. 4K at 60 frames a
+    /// second starts there, its whole frames being more than libplacebo
+    /// gets in time.
+    #[tokio::test]
+    async fn dolby_vision_goes_to_opencl_where_the_gpu_falls_behind() {
+        use pley_transcoder_api::Tonemapper;
+        // Direct3D 11's decoder brings OpenCL the frames.
+        if !cfg!(windows) {
+            return;
+        }
+        let dir = crate::testing::tempdir();
+        let ff = iris_xe(dir.path());
+        let films = [5, 8].map(|profile| dolby_vision_job(dir.path(), &ff, profile, 24.0));
+        let sports = [5, 8].map(|profile| dolby_vision_job(dir.path(), &ff, profile, 60.0));
+        let jobs = manager_with(dir.path(), ff);
+        for job in &sports {
+            assert_eq!(jobs.gpu_share(job, true), Some(Share { opencl: true, ..FAST }));
+        }
+        for job in &films {
+            // Alone on the GPU: libplacebo, at its best.
+            let share = jobs.gpu_share(job, true).unwrap();
+            assert_eq!((share.opencl, share.quick_sync, share.quality), (false, false, TonemapQuality::High));
+            let v = job.status().video.unwrap();
+            assert_eq!((v.tonemap, v.decoder.as_deref()), (Some(Tonemapper::Libplacebo), Some("d3d11va")));
+        }
+        // It fell behind even at fast, another program on the GPU, say.
+        let need = films[0].plan.tonemap_need(&films[0].media).unwrap();
+        jobs.lessons.lock().learn(share::Verdict::GpuBound, FAST, need, Instant::now());
+        for job in &films {
+            let share = jobs.gpu_share(job, true).unwrap();
+            assert_eq!(share, Share { opencl: true, ..FAST });
+            assert!(FAST.moves_at_once(share, false));
+            job.runtime.lock().share = Some(share);
+            let status = job.status();
+            let v = status.video.unwrap();
+            assert_eq!((v.tonemap, v.tonemap_quick_sync, v.tonemap_quality), (Some(Tonemapper::Opencl), false, None));
+            assert_eq!((v.decoder.as_deref(), v.pipeline.as_deref()), (Some("d3d11va"), Some("gpu")));
+            assert!(status.warnings.is_empty(), "{:?}", status.warnings);
+        }
+        // A CPU with no time to spare is relieved the same way.
+        let jobs = manager_with(dir.path(), iris_xe(dir.path()));
+        jobs.lessons.lock().learn(share::Verdict::CpuBound, FAST, need, Instant::now());
+        for job in &films {
+            let share = jobs.gpu_share(job, true).unwrap();
+            assert_eq!((share.opencl, share.cpu_decode, share.quality), (true, false, TonemapQuality::High));
+        }
+    }
+
+    /// OpenCL takes its frames from FFmpeg's decoder on the GPU: once that
+    /// one failed, Quick Sync takes the base layer as before. A process on
+    /// OpenCL that fails before its first segment hands its job back to
+    /// libplacebo: not the segment's failure nor the encoder's. After three
+    /// such jobs, none goes there.
+    #[tokio::test]
+    async fn opencl_gives_way_where_it_or_the_gpus_decoder_fails() {
+        if !cfg!(windows) {
+            return;
+        }
+        let dir = crate::testing::tempdir();
+        let ff = iris_xe(dir.path());
+        let [failing, next, p5, other, third, fourth] = [8, 8, 5, 5, 8, 5].map(|profile| {
+            let job = dolby_vision_job(dir.path(), &ff, profile, 60.0);
+            Job { id: format!("p{profile}-{}", uuid::Uuid::new_v4().simple()), ..job }
+        });
+        let jobs = manager_with(dir.path(), ff);
+        assert!(jobs.gpu_share(&failing, true).unwrap().opencl);
+        failing.decoded_in_software();
+        for job in [&failing, &next] {
+            let share = jobs.gpu_share(job, true).unwrap();
+            assert_eq!((share.opencl, share.quick_sync), (false, true), "this job, and the next of its kind");
+        }
+        let share = jobs.gpu_share(&p5, true).unwrap();
+        assert_eq!((share.opencl, share.quick_sync, share.base_layer), (false, false, false), "no base layer");
+
+        // Another transcoder, whose decoder works.
+        let jobs = manager_with(dir.path(), iris_xe(dir.path()));
+        let share = jobs.gpu_share(&p5, true).unwrap();
+        assert!(share.opencl);
+        let started = |job: &Job, share: Option<Share>| {
+            let mut rt = job.runtime.lock();
+            rt.share = share;
+            rt.process = Some(ProcessStatus { start_segment: 1, hardware: true, ..Default::default() });
+        };
+        let (tail, metrics) = (Mutex::new(VecDeque::new()), Metrics::default());
+        started(&p5, Some(share));
+        p5.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        assert_eq!(p5.status().state, JobState::Failed);
+        {
+            let rt = p5.runtime.lock();
+            assert!(rt.opencl_failed && !rt.hardware_failed);
+            assert_eq!(rt.failures.get(&1), None, "the segment is tried again");
+        }
+        // libplacebo from here on, for this job.
+        let share = jobs.gpu_share(&p5, true).unwrap();
+        assert!(!share.opencl);
+        assert!(jobs.gpu_share(&other, true).unwrap().opencl);
+        // Failing there too is the encoder's, as before.
+        started(&p5, Some(share));
+        p5.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        {
+            let rt = p5.runtime.lock();
+            assert!(rt.hardware_failed);
+            assert_eq!(rt.failures.get(&1), Some(&1));
+        }
+
+        // One that made segments before it failed isn't OpenCL's doing.
+        started(&other, Some(Share { opencl: true, ..FAST }));
+        other.on_exit(0, 2, 2, Ok(exit(1)), false, None, &tail, &metrics);
+        {
+            let rt = other.runtime.lock();
+            assert!(!rt.opencl_failed && !rt.hardware_failed);
+            assert_eq!(rt.failures.get(&2), Some(&1));
+        }
+
+        // The third job to fail there is the last to try.
+        for job in [&other, &third] {
+            assert!(jobs.gpu_share(job, true).unwrap().opencl);
+            started(job, Some(Share { opencl: true, ..FAST }));
+            job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+            assert!(!jobs.gpu_share(job, true).unwrap().opencl);
+        }
+        assert!(!jobs.gpu_share(&fourth, true).unwrap().opencl);
     }
 
     #[test]
