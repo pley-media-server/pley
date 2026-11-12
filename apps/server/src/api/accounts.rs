@@ -417,11 +417,6 @@ pub async fn update_user(
             state.oauth.forget_user(id);
         }
     }
-    // The libraries the administrator gives are theirs: none waits for an
-    // import any more (`crate::import`).
-    if body.all_libraries.is_some() || body.library_ids.is_some() {
-        crate::import::stop_waiting(&state.db, id).await?;
-    }
     if let Some(all) = body.all_libraries {
         sqlx::query("UPDATE users SET all_libraries = ? WHERE id = ?")
             .bind(all)

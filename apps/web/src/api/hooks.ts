@@ -534,7 +534,7 @@ export function useCreateLibrary() {
 export function useUpdateLibrary() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: Id; name?: string; paths?: string[] }) =>
+    mutationFn: ({ id, ...body }: { id: Id; name?: string; paths?: string[]; labels_pending?: false }) =>
       api.patch<Library>(`/api/libraries/${id}`, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.libraries });

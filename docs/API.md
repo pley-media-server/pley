@@ -221,8 +221,6 @@ interface User {
   show_labels?: string[];           // in /api/users only: labels whose titles it sees above its age limit
   hide_labels?: string[];           // in /api/users only: labels whose titles it never sees (see Access rules)
   disabled: boolean;
-  import_waiting?: boolean;         // in /api/users, when true: waits for libraries a Plex import gave it,
-                                    // until a run of them finishes (see Moving from Plex)
   created_at: Timestamp;
   // Default tracks for titles without a remembered choice (see Your account):
   audio_language: string | null;    // ISO 639 code ("eng", "fr"); null = the file's default track
@@ -250,6 +248,8 @@ interface Library {
   created_at: Timestamp;
   scanned_at: Timestamp | null;
   scanning: boolean;                // a scan is queued or running
+  labels_pending?: boolean;         // when true: a Plex import is bringing Plex's labels to it, and profiles
+                                    // with labels they never see don't see it until a run finishes
 }
 
 type ItemKind = "movie" | "show" | "season" | "episode" | "artist" | "album" | "track"
@@ -1574,8 +1574,8 @@ Invitations have fixed limits only.
 | PUT | `/api/me/libraries/order` | `play` | `{ ids: Id[] }` (every library the user may open, once) → `Library[]` in the user's own new order |
 | DELETE | `/api/me/libraries/order` | `play` | `Library[]` in the shared order, which the user sees again |
 | GET | `/api/libraries/{id}` | `library` | `Library` |
-| PATCH | `/api/libraries/{id}` | `admin` | `{ name?, paths? }` → `Library` |
-| DELETE | `/api/libraries/{id}` | `admin` | `204`; a profile waiting only for it to be open to every library again (see Moving from Plex) is, unless an import runs |
+| PATCH | `/api/libraries/{id}` | `admin` | `{ name?, paths?, labels_pending? }` → `Library`; `labels_pending: false` shows it sooner than a Plex import would |
+| DELETE | `/api/libraries/{id}` | `admin` | `204` |
 | POST | `/api/libraries/{id}/scan` | `admin` | `{ force?: boolean }` → `202`. `force` re-probes files and refreshes metadata |
 | POST | `/api/libraries/scan` | `admin` | `202`: scans every library |
 | GET | `/api/libraries/{id}/items` | `library` | `{ total, items: ItemSummary[] }`: top-level items, paged |
@@ -4235,11 +4235,6 @@ interface LiveTuner {                  // a connection in use
   `requests_settings_changed`, so they fetch the request summary again.
 - An age limit added to an account whose `request_access` is `"ask"` makes
   it `"off"`, unless the same change sets `request_access`.
-- `all_libraries` or `library_ids` ends the waiting for libraries a Plex
-  import gave the profile (`import_waiting`, see Moving from Plex): it has
-  the libraries sent, and a profile listed library by library while it
-  waited to be open to every library keeps that list unless
-  `all_libraries` is `true`.
 
 ## Invitations
 
@@ -4666,7 +4661,8 @@ interface ImportProgress {
     outcome: "done" | "failed" | "cancelled";   // kept with the report, so it's known after a restart
     error: string | null;
     libraries: { title: string; library_id: Id | null; created: boolean;
-                 matched: number; missed: number; missed_titles: string[] }[];
+                 matched: number; missed: number; missed_titles: string[];
+                 labels_pending: boolean }[];   // still waiting for Plex's labels, as it is now
     profiles: { title: string; user_id: Id | null; created: boolean;
                 skipped: "pin_needed" | "refused" | "no_access" | null;
                 max_age: number | null; show_labels: string[]; hide_labels: string[];
@@ -4675,7 +4671,6 @@ interface ImportProgress {
                 playlists: number;         // their playlists, made or added to
                 incomplete: boolean;       // Plex refused some of their watch history
                 playlists_incomplete: boolean;       // Plex refused some of their playlists
-                waiting: string[];         // libraries, by name, it waits for now (labels it never sees)
                 kept_limit: boolean }[];   // found again, it kept its own age limit: not_kept made nothing stricter
     labels_added: number;
     dates_moved: number;

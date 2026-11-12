@@ -643,8 +643,14 @@ async fn brings_libraries_people_and_what_they_watched() {
         .await
         .unwrap();
     assert_eq!(made, Some(format!("[{tv}]")), "the library it made, for a restart");
-    // The Home user's profile, which never sees a label, can sign in, but
-    // its library waits until the labels are on Pley's titles.
+    // Plex's labels are on their way to both libraries the run brings.
+    let pending: Vec<String> = sqlx::query_scalar("SELECT name FROM libraries WHERE labels_pending ORDER BY name")
+        .fetch_all(&app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(pending, ["Movies", "TV"]);
+    // The Home user's profile, which never sees a label, can sign in and has
+    // its library, but doesn't see it until the labels are on Pley's titles.
     let (kid, disabled, all): (i64, bool, bool) = sqlx::query_as(
         "SELECT u.id, u.disabled, u.all_libraries FROM users u JOIN import_accounts i ON i.user_id = u.id",
     )
@@ -652,20 +658,19 @@ async fn brings_libraries_people_and_what_they_watched() {
     .await
     .unwrap();
     assert!(!disabled && !all);
-    assert_eq!(one(&app, "SELECT COUNT(*) FROM user_libraries WHERE user_id = ?", kid).await, 0);
-    let waiting: Vec<String> = sqlx::query_scalar(
-        "SELECT l.name FROM import_waiting_libraries w JOIN libraries l ON l.id = w.library_id WHERE w.user_id = ?",
-    )
-    .bind(kid)
-    .fetch_all(&app.state.db.read)
-    .await
-    .unwrap();
-    assert_eq!(waiting, ["Movies"]);
-    let waiting_in_users = || async {
-        let users = app.get("/api/users", &admin).await.body;
-        users.as_array().unwrap().iter().find(|u| u["id"] == kid).unwrap()["import_waiting"].clone()
+    assert_eq!(one(&app, "SELECT library_id FROM user_libraries WHERE user_id = ?", kid).await, movies);
+    // A token each time: disabling the profile, as a later run does, ends them.
+    let sees = || async {
+        let (token, _) = app.app_token(kid, "library play").await;
+        let r = app.app_call(Method::GET, "/api/libraries", &token, None).await;
+        assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
+        r.body.as_array().unwrap().iter().map(|l| l["name"].as_str().unwrap().to_string()).collect::<Vec<_>>()
     };
-    assert_eq!(waiting_in_users().await, json!(true), "Users says so");
+    assert!(sees().await.is_empty(), "nothing it would see unlabelled");
+    let pending_in_report = || async {
+        let report = app.get("/api/import/plex", &admin).await.body["report"]["libraries"].clone();
+        report.as_array().unwrap().iter().map(|l| l["labels_pending"].clone()).collect::<Vec<_>>()
+    };
     tv_held.store(false, Ordering::SeqCst);
 
     let done = finished(&app, &admin).await;
@@ -740,10 +745,10 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(opened, [movies]);
     assert_eq!(pley::accounts::label_rules(&app.state.db, kid_id, "hide").await.unwrap(), ["Scary"]);
     assert_eq!(pley::accounts::label_rules(&app.state.db, kid_id, "show").await.unwrap(), ["Family"]);
-    // Its library opened once the import finished.
-    assert_eq!(report["profiles"][1]["waiting"], json!([]));
-    assert_eq!(one(&app, "SELECT COUNT(*) FROM import_waiting_libraries WHERE user_id = ?", kid_id).await, 0);
-    assert_eq!(waiting_in_users().await, Value::Null);
+    // It sees its library once the import finished, the labels on.
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM libraries WHERE labels_pending = ?", 1).await, 0);
+    assert_eq!(sees().await, ["Movies"]);
+    assert_eq!(pending_in_report().await, [json!(false), json!(false)]);
 
     // Pictures: the account's own, squared to Pley's size; Plex's default,
     // an initial on a colour, brings only its colour.
@@ -931,7 +936,6 @@ async fn brings_libraries_people_and_what_they_watched() {
     assert_eq!(done["state"], "done", "{done:?}");
     assert_eq!(done["report"]["profiles"][1]["user_id"], kid_id);
     assert_eq!(done["report"]["profiles"][1]["created"], false);
-    assert_eq!(done["report"]["profiles"][1]["waiting"], json!([]), "no library new to it");
     assert_eq!(done["report"]["profiles"][1]["kept_limit"], true, "its age limit, set by the first");
     assert_eq!(done["report"]["libraries"][1]["library_id"], Value::Null, "TV left out this time");
     assert_eq!(one(&app, "SELECT COUNT(*) FROM users WHERE id > ?", 0).await, users_before);
@@ -1001,7 +1005,6 @@ async fn brings_libraries_people_and_what_they_watched() {
         .await;
     assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
     let done = finished(&app, &admin).await;
-    assert_eq!(done["report"]["profiles"][1]["waiting"], json!([]));
     assert_eq!(one(&app, "SELECT disabled FROM users WHERE id = ?", kid_id).await, 1);
     assert_eq!(done["report"]["profiles"][1]["left_over"], json!(["Scary"]));
     assert_eq!(done["report"]["profiles"][1]["max_age"], 0);
@@ -1016,9 +1019,9 @@ async fn brings_libraries_people_and_what_they_watched() {
             .unwrap();
     assert_eq!(opened, [movies, films]);
 
-    // Open to every library, the kid opens those it had while it waits for
-    // a new one, and every library again once the import finished.
-    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"all_libraries": true})).await;
+    // Open to every library, the kid doesn't see those a run brings while
+    // their labels are on their way, and sees them once it finished.
+    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"all_libraries": true, "disabled": false})).await;
     assert!(r.status.is_success(), "{:?}", r.body);
     app.media_file("more/Alien (1979).mkv", 1024);
     app.media_file("more tv/Show (2015)/Season 01/Show - S01E01.mkv", 1024);
@@ -1042,90 +1045,27 @@ async fn brings_libraries_people_and_what_they_watched() {
         )
         .await;
     assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
-    // Its TV held: the kid has the libraries there were, and waits for both
-    // the run made, More TV too, which it couldn't open on Plex: given every
-    // library, it gets that too, but once its labels are on.
     for _ in 0..400 {
-        if one(&app, "SELECT COUNT(*) FROM import_waiting_libraries WHERE user_id = ?", kid_id).await > 0 {
+        if one(&app, "SELECT COUNT(*) FROM libraries WHERE labels_pending = ?", 1).await == 2 {
             break;
         }
         tokio::time::sleep(Duration::from_millis(25)).await;
     }
-    assert_eq!(one(&app, "SELECT all_libraries FROM users WHERE id = ?", kid_id).await, 0);
-    assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 1);
-    let waiting: Vec<String> = sqlx::query_scalar(
-        "SELECT l.name FROM import_waiting_libraries w JOIN libraries l ON l.id = w.library_id
-         WHERE w.user_id = ? ORDER BY l.name",
-    )
-    .bind(kid_id)
-    .fetch_all(&app.state.db.read)
-    .await
-    .unwrap();
-    assert_eq!(waiting, ["More TV", "More films"]);
-    let opened: Vec<i64> =
-        sqlx::query_scalar("SELECT library_id FROM user_libraries WHERE user_id = ? ORDER BY library_id")
-            .bind(kid_id)
-            .fetch_all(&app.state.db.read)
-            .await
-            .unwrap();
-    let mut before = vec![movies, tv, films];
-    before.sort();
-    assert_eq!(opened, before);
-    tv_held.store(false, Ordering::SeqCst);
-    let done = finished(&app, &admin).await;
-    assert_eq!(done["state"], "done", "{done:?}");
-    assert_eq!(done["report"]["profiles"][1]["waiting"], json!([]));
-    assert_eq!(one(&app, "SELECT all_libraries FROM users WHERE id = ?", kid_id).await, 1);
-    assert_eq!(
-        one(&app, "SELECT COUNT(*) FROM user_libraries WHERE user_id = ?", kid_id).await,
-        one(&app, "SELECT COUNT(*) FROM libraries WHERE id > ?", 0).await,
-        "each library given on its own while it waited"
-    );
-    assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 0);
-
-    // Libraries the administrator chooses end the waiting.
-    sqlx::query("INSERT INTO import_waiting_libraries (user_id, library_id) VALUES (?, ?)")
-        .bind(kid_id)
-        .bind(films)
-        .execute(&app.state.db.write)
-        .await
-        .unwrap();
-    sqlx::query("UPDATE import_accounts SET waits_for_all = 1 WHERE user_id = ?")
-        .bind(kid_id)
-        .execute(&app.state.db.write)
-        .await
-        .unwrap();
-    let waiting_in_report =
-        || async { app.get("/api/import/plex", &admin).await.body["report"]["profiles"][1]["waiting"].clone() };
-    assert_eq!(waiting_in_report().await, json!(["Films"]));
-    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"library_ids": [movies]})).await;
-    assert!(r.status.is_success(), "{:?}", r.body);
-    assert_eq!(one(&app, "SELECT COUNT(*) FROM import_waiting_libraries WHERE user_id = ?", kid_id).await, 0);
-    assert_eq!(waiting_in_report().await, json!([]), "the report says so too");
-
-    // Waiting to be open to every library, for a library removed since: it
-    // is again.
-    let r = app.patch(&format!("/api/users/{kid_id}"), &admin, json!({"all_libraries": false})).await;
-    assert!(r.status.is_success(), "{:?}", r.body);
+    assert_eq!(sees().await, ["Movies", "TV", "Films"], "not those the run made");
+    // An administrator can show one sooner.
     let more_tv: i64 = sqlx::query_scalar("SELECT id FROM libraries WHERE name = 'More TV'")
         .fetch_one(&app.state.db.read)
         .await
         .unwrap();
-    sqlx::query("INSERT INTO import_waiting_libraries (user_id, library_id) VALUES (?, ?)")
-        .bind(kid_id)
-        .bind(more_tv)
-        .execute(&app.state.db.write)
-        .await
-        .unwrap();
-    sqlx::query("UPDATE import_accounts SET waits_for_all = 1 WHERE user_id = ?")
-        .bind(kid_id)
-        .execute(&app.state.db.write)
-        .await
-        .unwrap();
-    assert_eq!(app.delete(&format!("/api/libraries/{more_tv}"), &admin).await.status, StatusCode::NO_CONTENT);
-    assert_eq!(one(&app, "SELECT all_libraries FROM users WHERE id = ?", kid_id).await, 1);
-    assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 0);
-    assert_eq!(one(&app, "SELECT waits_for_all FROM import_accounts WHERE user_id = ?", kid_id).await, 0);
+    let r = app.patch(&format!("/api/libraries/{more_tv}"), &admin, json!({"labels_pending": false})).await;
+    assert!(r.status.is_success(), "{:?}", r.body);
+    assert_eq!(sees().await, ["Movies", "TV", "Films", "More TV"]);
+    tv_held.store(false, Ordering::SeqCst);
+    let done = finished(&app, &admin).await;
+    assert_eq!(done["state"], "done", "{done:?}");
+    assert_eq!(one(&app, "SELECT all_libraries FROM users WHERE id = ?", kid_id).await, 1, "its choice kept");
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM libraries WHERE labels_pending = ?", 1).await, 0);
+    assert_eq!(sees().await.len(), 5);
 
     // Forgetting the sign-in, before a run.
     sign_in(&app, &admin).await;

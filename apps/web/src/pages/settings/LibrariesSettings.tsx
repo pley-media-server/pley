@@ -2,9 +2,9 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Import, Pencil, Plus, RefreshCw, ScanSearch, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, EllipsisVertical, FolderPlus, GripVertical, Import, Pencil, Plus, RefreshCw, ScanSearch, Trash2, TriangleAlert } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { keys, useActivity, useDeleteLibrary, useReorderLibraries, useScanAll, useScanLibrary, useSharedLibraries } from "@/api/hooks";
+import { keys, useActivity, useDeleteLibrary, useReorderLibraries, useScanAll, useScanLibrary, useSharedLibraries, useUpdateLibrary } from "@/api/hooks";
 import type { Id, Library, ScanStatus } from "@/api/types";
 import { moved, useDragReorder } from "@/components/lists/reorder";
 import { Menu, MenuItem, MenuSeparator } from "@/components/Menu";
@@ -47,6 +47,7 @@ function LibraryRow({
   const { t } = useTranslation(["settings", "common"]);
   const toast = useToast();
   const scanMut = useScanLibrary();
+  const update = useUpdateLibrary();
   const running = lib.scanning || (scan && scan.phase !== "done");
 
   const startScan = (force: boolean) =>
@@ -95,6 +96,21 @@ function LibraryRow({
               </li>
             ))}
           </ul>
+          {lib.labels_pending ? (
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-warning">
+              <span className="flex items-center gap-1.5">
+                <TriangleAlert className="size-3.5 shrink-0" />
+                {t("libraries.labelsPending")}
+              </span>
+              <Button
+                size="sm"
+                loading={update.isPending}
+                onClick={() => update.mutate({ id: lib.id, labels_pending: false }, { onError: (e) => toast.error(errorMessage(e)) })}
+              >
+                {t("libraries.showNow")}
+              </Button>
+            </div>
+          ) : null}
           {running ? (
             <div className="mt-3 max-w-md">
               <div className="mb-1 flex items-center justify-between text-xs">

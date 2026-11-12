@@ -2054,7 +2054,15 @@ mod tests {
     }
 
     fn library(id: i64, scanned_at: Option<i64>) -> LibraryRow {
-        LibraryRow { id, name: "Movies".into(), kind: "movies".into(), paths: "[]".into(), created_at: 0, scanned_at }
+        LibraryRow {
+            id,
+            name: "Movies".into(),
+            kind: "movies".into(),
+            paths: "[]".into(),
+            created_at: 0,
+            scanned_at,
+            labels_pending: false,
+        }
     }
 
     fn ids(tmdb: Option<i64>, imdb: Option<&str>, tvdb: Option<i64>, tvmaze: Option<i64>) -> ItemIds {

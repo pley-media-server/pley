@@ -120,6 +120,8 @@ export interface LibraryReport {
   matched: number;
   missed: number;
   missed_titles: string[];
+  /** Still waiting for Plex's labels: profiles with labels they never see don't see it until a run finishes. */
+  labels_pending?: boolean;
 }
 
 export interface ProfileReport {
@@ -142,8 +144,6 @@ export interface ProfileReport {
   incomplete: boolean;
   /** Plex refused some of their playlists. */
   playlists_incomplete?: boolean;
-  /** Libraries it waits for, by name: they open to a profile with labels it never sees once a run finishes. */
-  waiting?: string[];
   /** Found again with an age limit of its own, which it kept: rules not kept didn't make it stricter. */
   kept_limit?: boolean;
 }

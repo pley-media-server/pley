@@ -6,4 +6,4 @@ pub mod matching;
 pub mod plex;
 pub mod restrictions;
 
-pub use job::{Importer, stop_waiting};
+pub use job::Importer;

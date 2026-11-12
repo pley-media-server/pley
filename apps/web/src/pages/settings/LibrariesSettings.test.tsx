@@ -103,6 +103,28 @@ function dataTransfer() {
 }
 
 describe("LibrariesSettings", () => {
+  it("shows a library waiting for Plex's labels now when asked", async () => {
+    const user = userEvent.setup();
+    const pending = { ...libraries[0]!, labels_pending: true };
+    let shown = false;
+    const requests = mockApi({
+      "GET /api/libraries": () => [shown ? libraries[0] : pending, ...libraries.slice(1)],
+      "GET /api/activity": () => ({ scans: [], sessions: [] }),
+      "GET /api/import/plex": () => ({ state: "idle", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false }),
+      "GET /api/playlists": () => ({ playlists: [] }),
+      "PATCH /api/libraries/1": () => {
+        shown = true;
+        return libraries[0];
+      },
+    });
+    renderWithProviders(<LibrariesSettings />);
+    expect(await screen.findByText(/^Waiting for Plex's labels/)).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Show it now" })).toHaveLength(1);
+    await user.click(screen.getByRole("button", { name: "Show it now" }));
+    expect(requests.find((r) => r.method === "PATCH")?.body).toEqual({ labels_pending: false });
+    await waitFor(() => expect(screen.queryByText(/^Waiting for Plex's labels/)).not.toBeInTheDocument());
+  });
+
   it("moves a library with its buttons and keeps the focus on it", async () => {
     const user = userEvent.setup();
     const requests = serve();

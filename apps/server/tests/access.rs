@@ -305,6 +305,52 @@ async fn a_library_the_user_may_not_open_does_not_exist_for_them() {
 }
 
 #[tokio::test]
+async fn a_library_waiting_for_plex_labels_does_not_exist_for_a_profile_with_labels_it_never_sees() {
+    let w = world().await;
+    let app = &w.app;
+    let family = app.ids(w.movies, &w.admin).await["Family Film"];
+    let file = app.file_of(family).await;
+    // The kid, given its libraries, and a profile given every library, each
+    // with a label it never sees; and one without.
+    let patched = app.patch(&format!("/api/users/{}", w.kid_id), &w.admin, json!({"hide_labels": ["Scary"]})).await;
+    assert_eq!(patched.status, StatusCode::OK, "{:?}", patched.body);
+    let (teen, _) = app.user(&w.admin, "teen", json!({"all_libraries": true, "hide_labels": ["Scary"]})).await;
+    let (grown, _) = app.user(&w.admin, "grown", json!({"all_libraries": true})).await;
+    // A Plex import brings its labels to Movies.
+    sqlx::query("UPDATE libraries SET labels_pending = 1 WHERE id = ?")
+        .bind(w.movies)
+        .execute(&app.state.db.write)
+        .await
+        .unwrap();
+
+    for (token, names) in [(w.kid.as_str(), vec!["TV", "Music"]), (&teen, vec!["TV", "Music", "Private"])] {
+        let libraries = app.get("/api/libraries", token).await;
+        let shown: Vec<&str> = libraries.body.as_array().unwrap().iter().map(|l| l["name"].as_str().unwrap()).collect();
+        assert_eq!(shown, names);
+        assert_eq!(app.get(&format!("/api/libraries/{}/items", w.movies), token).await.status, StatusCode::NOT_FOUND);
+        all_hidden(app, token, family, file, "Family Film").await;
+        assert!(!app.get("/api/hubs/home", token).await.mentions("Family Film"));
+        assert_eq!(app.get("/api/search?q=family", token).await.body["items"], json!([]));
+        assert_eq!(jf_names(&app.jf_json("/UserViews", token).await), names);
+        let films = app.jf_json("/Items?Recursive=true&IncludeItemTypes=Movie", token).await;
+        assert!(!jf_names(&films).contains(&"Family Film".to_owned()));
+    }
+    // Without such a label, nothing waits; nor for the administrator.
+    for token in [grown.as_str(), &w.admin] {
+        assert!(app.get("/api/libraries", token).await.mentions("Movies"));
+        assert_eq!(app.get(&format!("/api/items/{family}"), token).await.status, StatusCode::OK);
+    }
+
+    // The administrator shows it sooner.
+    let shown = app.patch(&format!("/api/libraries/{}", w.movies), &w.admin, json!({"labels_pending": false})).await;
+    assert_eq!(shown.status, StatusCode::OK, "{:?}", shown.body);
+    for token in [w.kid.as_str(), &teen] {
+        assert!(app.get("/api/libraries", token).await.mentions("Movies"));
+        assert_eq!(app.get(&format!("/api/items/{family}"), token).await.status, StatusCode::OK);
+    }
+}
+
+#[tokio::test]
 async fn titles_that_become_hidden_leave_continue_watching_and_history() {
     let w = world().await;
     let (app, kid) = (&w.app, w.kid.as_str());

@@ -6,10 +6,12 @@
 //! own, when that is stricter) and unrated titles are hidden. A profile's
 //! label rules make exceptions: titles with a label it always sees show
 //! above its age limit, and titles with a label it never sees don't show at
-//! all, whatever their rating ("never" wins). Item queries apply the same
-//! rules in SQL (see `catalog::VISIBLE`); this module answers them for
-//! whole libraries, and lists them in the user's own order when they chose
-//! one.
+//! all, whatever their rating ("never" wins). A profile with labels it
+//! never sees doesn't see a library a Plex import is bringing Plex's labels
+//! to (`labels_pending`) until it's done: its rules would hide nothing there
+//! yet. Item queries apply the same rules in SQL (see `catalog::VISIBLE`);
+//! this module answers them for whole libraries, and lists them in the
+//! user's own order when they chose one.
 
 use std::collections::HashMap;
 
@@ -17,10 +19,12 @@ use crate::auth::AuthUser;
 use crate::db::Db;
 use crate::library::{LibraryRow, list_libraries};
 
-/// The user may open every library.
-fn sees_all(user: &AuthUser) -> bool {
-    user.is_admin || user.all_libraries
-}
+/// The libraries a non-administrator `user_id` may open (`all`: every
+/// library they may), binding `all` then the user id twice.
+const OPEN: &str = "SELECT id FROM libraries
+     WHERE (? OR id IN (SELECT library_id FROM user_libraries WHERE user_id = ?))
+       AND NOT (labels_pending
+                AND EXISTS (SELECT 1 FROM user_label_rules WHERE user_id = ? AND kind = 'hide'))";
 
 /// Whether some titles of the libraries the user opens may be hidden from
 /// them: an age limit, or labels it never sees. Their counts are then made
@@ -37,13 +41,22 @@ pub async fn limited(db: &Db, user: &AuthUser) -> sqlx::Result<bool> {
 
 /// Library ids the user may open; `None` means all of them.
 pub async fn library_ids(db: &Db, user: &AuthUser) -> sqlx::Result<Option<Vec<i64>>> {
-    if sees_all(user) {
+    if user.is_admin {
         return Ok(None);
     }
-    let ids = sqlx::query_scalar("SELECT library_id FROM user_libraries WHERE user_id = ?")
+    if user.all_libraries {
+        let waiting: bool = sqlx::query_scalar(
+            "SELECT EXISTS (SELECT 1 FROM libraries WHERE labels_pending)
+                AND EXISTS (SELECT 1 FROM user_label_rules WHERE user_id = ? AND kind = 'hide')",
+        )
         .bind(user.id)
-        .fetch_all(&db.read)
+        .fetch_one(&db.read)
         .await?;
+        if !waiting {
+            return Ok(None);
+        }
+    }
+    let ids = sqlx::query_scalar(OPEN).bind(user.all_libraries).bind(user.id).bind(user.id).fetch_all(&db.read).await?;
     Ok(Some(ids))
 }
 
@@ -80,13 +93,10 @@ pub async fn set_own_order(db: &Db, user: &AuthUser, ids: &[i64]) -> sqlx::Resul
     // Checked and written under the one writer: no library comes or goes,
     // and no access changes, in between.
     let mut tx = db.write.begin().await?;
-    let mut current: Vec<i64> = if sees_all(user) {
+    let mut current: Vec<i64> = if user.is_admin {
         sqlx::query_scalar("SELECT id FROM libraries").fetch_all(&mut *tx).await?
     } else {
-        sqlx::query_scalar("SELECT library_id FROM user_libraries WHERE user_id = ?")
-            .bind(user.id)
-            .fetch_all(&mut *tx)
-            .await?
+        sqlx::query_scalar(OPEN).bind(user.all_libraries).bind(user.id).bind(user.id).fetch_all(&mut *tx).await?
     };
     let mut listed = ids.to_vec();
     current.sort_unstable();

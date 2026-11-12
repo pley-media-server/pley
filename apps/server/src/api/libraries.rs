@@ -29,6 +29,10 @@ pub struct LibraryDto {
     created_at: i64,
     scanned_at: Option<i64>,
     scanning: bool,
+    /// A Plex import is bringing Plex's labels to it: profiles with labels
+    /// they never see don't see it until then.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    labels_pending: bool,
 }
 
 /// `lib` as `viewer` sees it: its count leaves out the titles their age
@@ -69,6 +73,7 @@ async fn to_dto(state: &AppState, lib: &LibraryRow, viewer: Option<&AuthUser>) -
         created_at: lib.created_at,
         scanned_at: lib.scanned_at,
         scanning: state.scanner.is_scanning(lib.id),
+        labels_pending: lib.labels_pending,
     })
 }
 
@@ -172,21 +177,22 @@ pub async fn create(
 
 /// Adds a library and starts its first scan.
 pub(crate) async fn add(state: &AppState, name: &str, kind: LibraryKind, paths: &[String]) -> ApiResult<i64> {
-    let id = insert(state, name, kind, paths).await?;
+    let id = insert(state, name, kind, paths, false).await?;
     state.scanner.enqueue_new(id);
     announce(state).await;
     Ok(id)
 }
 
 /// Adds a library whose first scan finds its files only: the Plex import
-/// asks for the metadata once Plex's matches are in.
+/// asks for the metadata once Plex's matches are in. Plex's labels are on
+/// their way to it from the start.
 pub(crate) async fn add_files_first(
     state: &AppState,
     name: &str,
     kind: LibraryKind,
     paths: &[String],
 ) -> ApiResult<i64> {
-    let id = insert(state, name, kind, paths).await?;
+    let id = insert(state, name, kind, paths, true).await?;
     state.scanner.enqueue_files(id);
     announce(state).await;
     Ok(id)
@@ -197,7 +203,13 @@ async fn announce(state: &AppState) {
     state.events.send(ServerEvent::LibrariesChanged);
 }
 
-async fn insert(state: &AppState, name: &str, kind: LibraryKind, paths: &[String]) -> ApiResult<i64> {
+async fn insert(
+    state: &AppState,
+    name: &str,
+    kind: LibraryKind,
+    paths: &[String],
+    labels_pending: bool,
+) -> ApiResult<i64> {
     let name = name.trim();
     if name.is_empty() || name.chars().count() > 100 {
         return Err(AppError::bad_request("library name must be 1-100 characters"));
@@ -205,14 +217,15 @@ async fn insert(state: &AppState, name: &str, kind: LibraryKind, paths: &[String
     let paths = validate_paths(paths)?;
     // Listed last, with an id no library has had (migrations/0021).
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO libraries (id, name, kind, paths, created_at, position)
-         VALUES ((SELECT last + 1 FROM library_ids), ?, ?, ?, ?, (SELECT COALESCE(MAX(position) + 1, 0) FROM libraries))
+        "INSERT INTO libraries (id, name, kind, paths, created_at, position, labels_pending)
+         VALUES ((SELECT last + 1 FROM library_ids), ?, ?, ?, ?, (SELECT COALESCE(MAX(position) + 1, 0) FROM libraries), ?)
          RETURNING id",
     )
     .bind(name)
     .bind(kind.as_str())
     .bind(serde_json::to_string(&paths).map_err(|e| AppError::Internal(e.into()))?)
     .bind(now())
+    .bind(labels_pending)
     .fetch_one(&state.db.write)
     .await?;
     Ok(id)
@@ -222,6 +235,7 @@ async fn insert(state: &AppState, name: &str, kind: LibraryKind, paths: &[String
 pub struct UpdateLibrary {
     name: Option<String>,
     paths: Option<Vec<String>>,
+    labels_pending: Option<bool>,
 }
 
 pub async fn update(
@@ -249,6 +263,14 @@ pub async fn update(
             state.scanner.enqueue(id, false);
             state.watcher.reload().await;
         }
+    }
+    // Shown sooner than a Plex import would: the administrator's choice.
+    if let Some(pending) = body.labels_pending {
+        sqlx::query("UPDATE libraries SET labels_pending = ? WHERE id = ?")
+            .bind(pending)
+            .bind(id)
+            .execute(&state.db.write)
+            .await?;
     }
     state.events.send(ServerEvent::LibrariesChanged);
     let lib = library_or_404(&state, id).await?;
@@ -318,7 +340,6 @@ pub async fn remove(State(state): State<AppState>, _admin: AdminUser, Path(id): 
     if result.rows_affected() == 0 {
         return Err(AppError::not_found(format!("library {id} not found")));
     }
-    state.plex_import.after_library_removed(&state).await;
     state.watcher.reload().await;
     state.events.send(ServerEvent::LibrariesChanged);
     Ok(StatusCode::NO_CONTENT)

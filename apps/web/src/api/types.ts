@@ -33,8 +33,6 @@ export interface User {
   /** Labels whose titles it never sees (only in administrators' lists). */
   hide_labels?: string[];
   disabled: boolean;
-  /** Waits for libraries a Plex import gave it, until a run of them finishes. */
-  import_waiting?: boolean;
   created_at: Timestamp;
   /** Default tracks for titles without a remembered choice. ISO 639 code; `null`: the file's default track. */
   audio_language: string | null;
@@ -195,6 +193,8 @@ export interface Library {
   created_at: Timestamp;
   scanned_at: Timestamp | null;
   scanning: boolean;
+  /** A Plex import is bringing Plex's labels to it: profiles with labels they never see don't see it yet. */
+  labels_pending?: boolean;
 }
 
 export type ItemKind = "movie" | "show" | "season" | "episode" | "artist" | "album" | "track" | "extra";

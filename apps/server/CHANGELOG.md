@@ -47,8 +47,8 @@ describes how they are made.
   show with Plex's names, years, summaries and dates added as soon as
   their library is scanned, until Pley's own details replace them; posters
   come from Pley's own fetch. A profile with labels it's never allowed
-  gets its libraries when the import finishes, once Plex's labels are on
-  Pley's titles.
+  sees the libraries the import brings once it finishes, when Plex's
+  labels are on Pley's titles; Settings › Libraries can show one sooner.
   Home goes to the import as soon as it starts, and shows it while it
   runs, as Settings › Libraries does: how far the whole import is, every
   step it goes through, ticked off with what each brought, which library
