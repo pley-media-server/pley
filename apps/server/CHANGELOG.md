@@ -38,9 +38,6 @@ describes how they are made.
 - Number fields in Settings (the transcode and request limits, ports, the
   scan interval) and in a title's Edit are as wide as their numbers need,
   no longer the whole column. So is the server's `.local` name.
-- Intel graphics on Windows: HDR10 is tone mapped with OpenCL on the GPU,
-  without copying frames, when the FFmpeg build supports it. 4K HDR to 1080p
-  transcodes about twice as fast, with fewer blown-out highlights.
 - Intel graphics on Windows: HDR that Vulkan can't decode is decoded and
   scaled by Quick Sync before tone mapping, instead of being copied to
   memory at full size or decoded on the CPU. 4K HDR transcodes twice as fast

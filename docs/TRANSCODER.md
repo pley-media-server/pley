@@ -204,7 +204,6 @@ before using what it names:
 | `vulkan_encode` | `h264_vulkan` encodes libplacebo's output on the GPU |
 | `gpu_pipelines` | GPU-only decode → scale → encode pipelines, with the codecs each passed for, and `main10`: those Quick Sync's keeps in 10 bits into its HEVC Main 10 encoder (HDR kept) |
 | `qsv_tonemap` | Quick Sync's scaler (VAAPI's `tonemap_vaapi` on Linux) tone maps HDR10 its decoder decoded into `h264_qsv` ([Sharing the GPU](#sharing-the-gpu)) |
-| `qsv_opencl_tonemap` | OpenCL tone maps HDR10 between Quick Sync's decoder and `h264_qsv` with BT.2390's curve, the frames mapped rather than copied (Windows; [Tone mapping](#tone-mapping)) |
 | `vaapi_tonemappers` | tone mappers whose frames reach a VAAPI encoder ([VAAPI encoders](#vaapi-encoders)) |
 | `vaapi_vulkan_decode` | `vulkan_decode` on the Vulkan device made from the VAAPI one |
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
@@ -938,17 +937,6 @@ available tone mapper:
   scenes a third too bright and clipped 10 to 15 % of their pixels where the
   grade clips 1 to 2 %. `tonemap_opencl`'s peak detection can't be turned
   off, so its brightness can jump between processes.
-- On Windows with Intel graphics, HDR10 made SDR goes from Quick Sync's
-  decoder to OpenCL's tone mapper and back to its H.264 encoder without
-  leaving the GPU, where the FFmpeg build can map Quick Sync's 10-bit frames
-  to OpenCL and has BT.2390's curve there (`qsv_opencl_tonemap`, a start-up
-  test; FFmpeg's own builds can't). It takes libplacebo's place, and that of
-  OpenCL's copies when `tonemap=opencl` is asked for: on an Iris Xe a 4K60
-  film made 1080p went at 4.6 times real time rather than 2.2, two at once
-  at 2.4 each, and it scores about as high on TMQI with fewer highlights
-  clipped. It tone maps by the stream's metadata, so a frame comes out the
-  same whichever process makes it. libplacebo keeps HDR10+, Dolby Vision,
-  HLG, burned-in subtitles and `tonemap=libplacebo`.
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
   and work with any tone mapper. Profile 5 without libplacebo plays with off
   colours, with a warning. Profile 7 with a full enhancement layer is tone
@@ -984,8 +972,7 @@ libplacebo tone maps or converts it:
   too dark or too bright. `base_layer` leaves it unread, for the picture
   the title's HDR10 grade gives.
 - As HDR10, the stream takes HDR10's paths: Quick Sync decodes and scales
-  it, OpenCL tone maps it between Quick Sync's decoder and encoder where
-  that passed its test, and Quick Sync's scaler does where the GPU falls
+  it, and its scaler tone maps it where the GPU falls
   behind ([Sharing the GPU](#sharing-the-gpu)). With `metadata`, FFmpeg's
   own decoder brings libplacebo the frames
   ([Hardware decoding](#hardware-decoding)).

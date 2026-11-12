@@ -645,12 +645,6 @@ pub struct Capabilities {
     /// Windows. A start-up test.
     #[serde(default)]
     pub qsv_overlay: bool,
-    /// Quick Sync hands HDR10 its decoder decoded to OpenCL's tone mapper
-    /// (BT.2390) and takes it back for its H.264 encoder, the frames never
-    /// copied, on Windows. FFmpeg's own builds can't map Quick Sync's 10-bit
-    /// frames to OpenCL: builds that add it can. A start-up test.
-    #[serde(default)]
-    pub qsv_opencl_tonemap: bool,
     /// Tone mappers whose frames reach a VAAPI encoder (Linux): libplacebo
     /// on a Vulkan device and OpenCL on a device made from the VAAPI one,
     /// the frames uploaded back to it. A start-up test; zimg always does.

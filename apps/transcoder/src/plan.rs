@@ -197,27 +197,6 @@ pub fn qsv_tonemap(w: i64, h: i64) -> String {
     }
 }
 
-/// OpenCL's tone mapping of HDR10 at `w×h` between Quick Sync's decoder and
-/// encoder (`qsv_opencl_tonemap`): scaled by Quick Sync in 10 bits, mapped to
-/// OpenCL, tone mapped into NV12 with BT.2390's curve, and mapped back, the
-/// frames never copied.
-pub fn qsv_opencl_tonemap(w: i64, h: i64) -> String {
-    format!(
-        "vpp_qsv=w={w}:h={h}:format=p010le,hwmap=derive_device=opencl:mode=read,\
-         tonemap_opencl={OPENCL_BT2390}:format=nv12:p=bt709:t=bt709:m=bt709:r=tv,\
-         hwmap=derive_device=qsv:mode=write:reverse=1,format=qsv"
-    )
-}
-
-/// The BT.2390 tone mapping of OpenCL's builds that have it, by the stream's
-/// own metadata: a frame comes out the same whichever process starts where.
-/// Curved on luminance: on two HDR10 films it scored as high or higher on
-/// TMQI than the builds' default (0.617 and 0.501 against 0.617 and 0.490),
-/// with more of the colour kept; against libplacebo's, about as high (0.621
-/// and 0.493) with a third of the highlights clipped (0.7 % of pixels
-/// against 2.4 %).
-const OPENCL_BT2390: &str = "tonemap=bt2390:tonemap_mode=lum:desat=0";
-
 const OPENCL_TONEMAP: &str = "format=p010,hwupload,tonemap_opencl=tonemap=hable:desat=0:t=bt709:m=bt709:p=bt709:format=nv12,hwdownload,format=nv12";
 
 /// The last filter before a VAAPI encoder, which takes frames in VAAPI's
@@ -376,14 +355,6 @@ impl VideoOut {
     pub fn scales_on_gpu(&self, pipeline: Pipeline) -> Option<HwAccel> {
         let resized = self.width != self.src_width || self.height != self.src_height;
         self.gpu_scale.filter(|accel| pipeline == Pipeline::Software && (resized || *accel == HwAccel::Qsv))
-    }
-
-    /// Whether OpenCL tone maps Quick Sync's frames mapped to it
-    /// ([`qsv_opencl_tonemap`]): into Quick Sync's encoder, or downloaded
-    /// after for a software encoder standing in, which so gets the same
-    /// picture.
-    fn maps_qsv_to_opencl(&self) -> bool {
-        self.tonemap == Some(Tonemapper::Opencl) && self.pipeline == Pipeline::Gpu(HwAccel::Qsv)
     }
 }
 
@@ -736,28 +707,6 @@ impl Plan {
                     let vaapi = encoder.accel == HwAccel::Vaapi;
                     let deinterlace = src.interlaced == Some(true);
                     let key = decode_key(&src.codec, src.bit_depth, src.pix_fmt.as_deref());
-                    // HDR10 made SDR by OpenCL between Quick Sync's decoder
-                    // and encoder, where FFmpeg maps Quick Sync's frames to
-                    // OpenCL and back (`qsv_opencl_tonemap`), in libplacebo's
-                    // place, or OpenCL's that copies: the frames never leave
-                    // the GPU or wait for one another. Not HDR10+ or Dolby
-                    // Vision, whose metadata only libplacebo reads, nor with
-                    // subtitles to lay on, nor where libplacebo is asked for.
-                    let qsv_opencl = cfg!(windows)
-                        && ff.caps.qsv_opencl_tonemap
-                        && matches!(tonemap, Some(Tonemapper::Libplacebo | Tonemapper::Opencl))
-                        && req.options.tonemap != TonemapMode::Libplacebo
-                        && hdr.is_none()
-                        && (range == DynamicRange::Hdr10 || fel_base)
-                        && src.hdr10plus != Some(true)
-                        && burn.is_none()
-                        && encoder.accel == HwAccel::Qsv
-                        && encoder.hardware
-                        && req.options.hardware_decoding
-                        && !deinterlace
-                        && !turned
-                        && ff.caps.gpu_pipelines.iter().any(|p| p.accel == HwAccel::Qsv && p.codecs.contains(&key));
-                    let tonemap = if qsv_opencl { Some(Tonemapper::Opencl) } else { tonemap };
                     let tonemap_input = match tonemap {
                         Some(Tonemapper::Zscale | Tonemapper::Opencl | Tonemapper::Libplacebo) => untagged_hdr_fix(src),
                         _ => None,
@@ -777,8 +726,6 @@ impl Plan {
                     // Turned frames stay in memory, where FFmpeg turns them.
                     let pipeline = if !req.options.hardware_decoding || deinterlace || turned {
                         Pipeline::Software
-                    } else if qsv_opencl {
-                        Pipeline::Gpu(HwAccel::Qsv)
                     } else if tonemap == Some(Tonemapper::Libplacebo) && vulkan_decode.contains(&key) {
                         // Encoding on Vulkan too only when asked for: browsers
                         // don't play what h264_vulkan makes of 4K (and of
@@ -1482,7 +1429,6 @@ impl Plan {
                 // Direct3D 11's: on the one FFmpeg makes itself, the upload
                 // fails to synchronise.
                 Pipeline::Gpu(HwAccel::Qsv) if self.burn.is_some() => a.push_all(QSV_D3D11_DEVICES),
-                Pipeline::Gpu(HwAccel::Qsv) if v.maps_qsv_to_opencl() => a.push_all(QSV_OPENCL_DEVICES),
                 Pipeline::Gpu(HwAccel::Qsv) => a.push_all(QSV_DECODE),
                 Pipeline::Gpu(HwAccel::Videotoolbox) => {
                     a.push_all(["-hwaccel", "videotoolbox", "-hwaccel_output_format", "videotoolbox_vld"])
@@ -1490,7 +1436,6 @@ impl Plan {
                 Pipeline::Gpu(_) => {
                     a.push_all(["-hwaccel", "cuda", "-hwaccel_output_format", "cuda", "-extra_hw_frames", "8"])
                 }
-                Pipeline::Software if v.maps_qsv_to_opencl() => a.push_all(QSV_OPENCL_DEVICES),
                 Pipeline::Software => {
                     // AMF's frames are uploaded to the AMD GPU by FFmpeg: its
                     // device is the filters' then, and libplacebo makes a
@@ -1676,13 +1621,10 @@ impl Plan {
             let format = if v.hdr.is_some() { "p010le" } else { "nv12" };
             let scaler = match accel {
                 HwAccel::Vaapi => format!("scale_vaapi=w={w}:h={h}:format={format}"),
-                // Tagged first where the source isn't: OpenCL refuses frames
-                // of unknown colours, and Quick Sync leaves them as they are.
+                // Tagged first where the source isn't: Quick Sync leaves
+                // frames of unknown colours as they are.
                 HwAccel::Qsv if v.tonemap == Some(Tonemapper::QuickSync) => {
                     v.tonemap_input.iter().map(|f| format!("{f},")).chain([qsv_tonemap(w, h)]).collect()
-                }
-                HwAccel::Qsv if v.maps_qsv_to_opencl() => {
-                    v.tonemap_input.iter().map(|f| format!("{f},")).chain([qsv_opencl_tonemap(w, h)]).collect()
                 }
                 HwAccel::Qsv => format!("vpp_qsv=w={w}:h={h}:format={format}"),
                 HwAccel::Videotoolbox => format!("scale_vt=w={w}:h={h}"),
@@ -1719,11 +1661,6 @@ impl Plan {
             Some(HwAccel::Qsv) if v.tonemap == Some(Tonemapper::QuickSync) => {
                 pre.extend(v.tonemap_input.clone());
                 pre.push(format!("{},hwdownload,format=nv12", qsv_tonemap(w, h)));
-                false
-            }
-            Some(HwAccel::Qsv) if v.maps_qsv_to_opencl() => {
-                pre.extend(v.tonemap_input.clone());
-                pre.push(format!("{},hwdownload,format=nv12", qsv_opencl_tonemap(w, h)));
                 false
             }
             Some(accel) => {
@@ -1775,8 +1712,6 @@ impl Plan {
                     _ => {}
                 }
             }
-            // Done as Quick Sync scaled.
-            Some(Tonemapper::Opencl) if v.maps_qsv_to_opencl() => {}
             Some(Tonemapper::Opencl) => {
                 pre.extend(v.tonemap_input.clone());
                 pre.push(OPENCL_TONEMAP.into());
@@ -1891,26 +1826,6 @@ pub const QSV_D3D11_DEVICES: [&str; 12] = [
     "d3d11va=dx:,vendor_id=0x8086",
     "-init_hw_device",
     "qsv=qs@dx",
-    "-filter_hw_device",
-    "qs",
-    "-hwaccel",
-    "qsv",
-    "-hwaccel_device",
-    "qs",
-    "-hwaccel_output_format",
-    "qsv",
-];
-
-/// Quick Sync's devices where OpenCL tone maps its frames (see
-/// [`qsv_opencl_tonemap`]): Quick Sync's and OpenCL's made from Direct3D
-/// 11's, on Intel's GPU, so that frames map between them.
-pub const QSV_OPENCL_DEVICES: [&str; 14] = [
-    "-init_hw_device",
-    "d3d11va=dx:,vendor_id=0x8086",
-    "-init_hw_device",
-    "qsv=qs@dx",
-    "-init_hw_device",
-    "opencl=ocl@dx",
     "-filter_hw_device",
     "qs",
     "-hwaccel",
@@ -3525,86 +3440,6 @@ mod tests {
         let mut req = request();
         req.options.tonemap = TonemapMode::Libplacebo;
         assert!(!Plan::build(&req, &p81, &ff, None).unwrap().quick_sync_could_tonemap(&p81, true));
-    }
-
-    /// HDR10 made SDR goes from Quick Sync's decoder through OpenCL's tone
-    /// mapper to its encoder, mapped both ways, where FFmpeg can
-    /// (`qsv_opencl_tonemap`); libplacebo tone maps it otherwise.
-    #[test]
-    fn opencl_tone_maps_quick_syncs_frames_where_ffmpeg_maps_them() {
-        let mut ff = intel(HwAccel::Qsv, true);
-        let m = ten_bit(media(DynamicRange::Hdr10, None));
-        let placebo = |plan: &Plan| plan.video.as_ref().unwrap().tonemap == Some(Tonemapper::Libplacebo);
-        assert!(placebo(&Plan::build(&request(), &m, &ff, None).unwrap()));
-        ff.caps.qsv_opencl_tonemap = true;
-        let plan = Plan::build(&request(), &m, &ff, None).unwrap();
-        if !cfg!(windows) {
-            assert!(placebo(&plan));
-            return;
-        }
-        let v = plan.video.as_ref().unwrap();
-        assert_eq!((v.pipeline, v.tonemap), (Pipeline::Gpu(HwAccel::Qsv), Some(Tonemapper::Opencl)));
-        let args = args_string(&plan, 0, 2);
-        assert!(args.contains(&QSV_OPENCL_DEVICES.join(" ")), "{args}");
-        assert!(!args.contains("vulkan") && !args.contains("libplacebo"), "{args}");
-        assert!(
-            args.contains(
-                "vpp_qsv=w=1920:h=1080:format=p010le,hwmap=derive_device=opencl:mode=read,tonemap_opencl=tonemap=bt2390"
-            ),
-            "{args}"
-        );
-        assert!(args.contains("hwmap=derive_device=qsv:mode=write:reverse=1,format=qsv[vout]"), "{args}");
-        let shown = plan.video_plan(&m, None).unwrap();
-        assert_eq!((shown.tonemap, shown.pipeline.as_deref()), (Some(Tonemapper::Opencl), Some("gpu")));
-
-        // x264 standing in: tone mapped the same, then downloaded.
-        let x264 = x264();
-        let ctx = ArgsContext {
-            input: Path::new("/media/movie.mkv"),
-            encoder: Some(&x264),
-            relative_split_times: true,
-            preset: None,
-            shader_cache: None,
-        };
-        let stand_in: Vec<String> =
-            plan.ffmpeg_args(&ctx, 0, 2).iter().map(|a| a.to_string_lossy().into_owned()).collect();
-        let stand_in = stand_in.join(" ");
-        assert!(stand_in.contains(&QSV_OPENCL_DEVICES.join(" ")), "{stand_in}");
-        assert!(stand_in.contains("tonemap_opencl=tonemap=bt2390:tonemap_mode=lum"), "{stand_in}");
-        assert!(stand_in.contains("reverse=1,format=qsv,hwdownload,format=nv12,format=yuv420p[vout]"), "{stand_in}");
-        assert!(!stand_in.contains("hwupload") && !stand_in.contains("hable"), "{stand_in}");
-
-        // Untagged HDR10 is tagged first (OpenCL refuses unknown colours);
-        // tagged, it goes to the scaler as it is.
-        assert!(
-            args.contains("[0:0]setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc,vpp_qsv=")
-        );
-        let mut tagged = m.clone();
-        tagged.streams[0].color_transfer = Some("smpte2084".into());
-        tagged.streams[0].color_primaries = Some("bt2020".into());
-        tagged.streams[0].color_space = Some("bt2020nc".into());
-        let args = args_string(&Plan::build(&request(), &tagged, &ff, None).unwrap(), 0, 2);
-        assert!(args.contains("[0:0]vpp_qsv=w=1920:h=1080:format=p010le,hwmap="), "{args}");
-
-        // libplacebo's: subtitles burned in, HDR10+ and HLG, libplacebo asked
-        // for, and HDR kept.
-        let mut req = request();
-        req.subtitle = Some(SubtitleBurnRequest { stream_index: Some(2), external_path: None });
-        assert!(placebo(&Plan::build(&req, &m, &ff, None).unwrap()));
-        let mut plus = m.clone();
-        plus.streams[0].hdr10plus = Some(true);
-        assert!(placebo(&Plan::build(&request(), &plus, &ff, None).unwrap()));
-        let hlg = ten_bit(media(DynamicRange::Hlg, None));
-        assert!(placebo(&Plan::build(&request(), &hlg, &ff, None).unwrap()));
-        let mut req = request();
-        req.options.tonemap = TonemapMode::Libplacebo;
-        assert!(placebo(&Plan::build(&req, &m, &ff, None).unwrap()));
-        // OpenCL asked for: mapped, not copied.
-        req.options.tonemap = TonemapMode::Opencl;
-        let asked = Plan::build(&req, &m, &ff, None).unwrap();
-        assert_eq!(asked.video.as_ref().unwrap().pipeline, Pipeline::Gpu(HwAccel::Qsv));
-        let kept = Plan::build(&hdr_request(pley_transcoder_api::OutputRange::Hdr10), &m, &ff, None).unwrap();
-        assert_ne!(kept.video.as_ref().unwrap().tonemap, Some(Tonemapper::Opencl));
     }
 
     /// HDR kept on Quick Sync stays on the GPU in 10 bits where its start-up
