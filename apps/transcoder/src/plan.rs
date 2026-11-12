@@ -1906,7 +1906,14 @@ impl Plan {
             Some(Tonemapper::Opencl) if v.maps_to_opencl() => {}
             Some(Tonemapper::Opencl) => {
                 pre.extend(v.tonemap_input.clone());
-                pre.push(opencl_tonemap(if v.opencl_bt2390 { OPENCL_BT2390 } else { OPENCL_HABLE }));
+                // With BT.2390 it reads Dolby Vision's metadata, which the
+                // base layer alone leaves unread (as libplacebo is told).
+                let curve = match (v.opencl_bt2390, v.base_layer_only) {
+                    (true, true) => format!("{OPENCL_BT2390}:apply_dovi=0"),
+                    (true, false) => OPENCL_BT2390.to_owned(),
+                    (false, _) => OPENCL_HABLE.to_owned(),
+                };
+                pre.push(opencl_tonemap(&curve));
                 if scale_needed {
                     pre.push(format!("scale={}:{}:flags=bicubic", v.width, v.height));
                 }
@@ -3132,6 +3139,13 @@ mod tests {
         let plan = Plan::build(&request(), &ten_bit(media(DynamicRange::Hdr10, None)), &patched, None).unwrap();
         let args = args_string(&plan, 0, 2);
         assert!(args.contains("tonemap_opencl=tonemap=bt2390:tonemap_mode=max:desat=0:t=bt709"), "{args}");
+        // It reads Dolby Vision's metadata: a full enhancement layer's base
+        // layer alone (the default) is told to leave it unread.
+        let mut fel = ten_bit(media(DynamicRange::DolbyVision, Some(7)));
+        fel.streams[0].dv_bl_compat = Some(6);
+        fel.streams[0].dv_el = Some(DolbyVisionLayer::Fel);
+        let args = args_string(&Plan::build(&request(), &fel, &patched, None).unwrap(), 0, 2);
+        assert!(args.contains("tonemap=bt2390:tonemap_mode=max:desat=0:apply_dovi=0:t=bt709"), "{args}");
         // SDR with burned-in subtitles: scaled by VAAPI, uploaded back for its encoder.
         let mut req = request();
         req.subtitle = Some(SubtitleBurnRequest { stream_index: Some(3), external_path: None });

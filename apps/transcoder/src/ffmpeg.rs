@@ -183,7 +183,10 @@ impl Ffmpeg {
         if choice.is_none() && mode != TonemapMode::None {
             warnings.push("no tone mapper available".into());
         }
-        if dolby_vision_p5 && choice.is_some() && choice != Some(Tonemapper::Libplacebo) {
+        // OpenCL with BT.2390 (Pley's FFmpeg) applies Dolby Vision's reshaping too.
+        let reshapes =
+            |t: Tonemapper| t == Tonemapper::Libplacebo || (t == Tonemapper::Opencl && self.caps.opencl_bt2390);
+        if dolby_vision_p5 && choice.is_some_and(|t| !reshapes(t)) {
             warnings.push("Dolby Vision P5 needs libplacebo".into());
         }
         (choice, warnings)
@@ -1412,6 +1415,11 @@ mod tests {
         let (choice, warnings) = ff.pick_tonemapper(TonemapMode::Auto, true, false);
         assert_eq!(choice, Some(Tonemapper::Zscale));
         assert!(warnings.iter().any(|w| w.contains("Dolby Vision")));
+        // OpenCL with BT.2390 (Pley's FFmpeg) reshapes profile 5 itself.
+        let mut ff = fake(vec![], vec![Tonemapper::Opencl]);
+        assert!(ff.pick_tonemapper(TonemapMode::Auto, true, false).1.iter().any(|w| w.contains("Dolby Vision")));
+        ff.caps.opencl_bt2390 = true;
+        assert_eq!(ff.pick_tonemapper(TonemapMode::Auto, true, false), (Some(Tonemapper::Opencl), vec![]));
     }
 
     #[test]

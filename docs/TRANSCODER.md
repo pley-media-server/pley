@@ -956,8 +956,8 @@ available tone mapper:
   there, and on Sol Levante this mode was as bright as the SDR grade
   with the fewest highlights clipped. FFmpeg's own keeps Hable.
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
-  and work with any tone mapper. Profile 5 without libplacebo plays with off
-  colours, with a warning. Profile 7 with a full enhancement layer is tone
+  and work with any tone mapper. Profile 5 without libplacebo, or Pley's
+  FFmpeg's OpenCL, plays with off colours, with a warning. Profile 7 with a full enhancement layer is tone
   mapped from its base layer alone unless asked otherwise
   ([Profile 7's full enhancement layer](#profile-7s-full-enhancement-layer)).
 - libplacebo caches compiled shaders in `libplacebo/` (saving about 0.2 s at
@@ -998,8 +998,10 @@ libplacebo tone maps or converts it:
 - HDR10+ in the base layer is the base layer's own: still read.
 - A minimal layer, a layer not known (probed by an older transcoder) and
   the other profiles aren't concerned: their metadata is read.
-- zimg and OpenCL never read profile 7's metadata, and HDR kept as HDR10
-  is the base layer already: both values give them the same picture.
+- zimg and FFmpeg's own OpenCL tone mapper never read profile 7's
+  metadata, and HDR kept as HDR10 is the base layer already: both values
+  give them the same picture. Pley's FFmpeg's OpenCL reads it, and is
+  told not to (`apply_dovi=0`) for `base_layer`.
 - Thumbnails and seek previews aren't concerned either: libplacebo reads
   the metadata for them.
 - Capability `dolby_vision_fel`. A transcoder without it does `metadata`.
