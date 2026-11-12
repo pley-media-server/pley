@@ -20,8 +20,7 @@ describes how they are made.
 On a Mac:
 
 - A download from a server with video transcoding turned off comes as the
-  original file, for a player such as IINA or VLC, instead of waiting for
-  the server.
+  original file, for a player such as IINA or VLC.
 
 ## [0.1.4] - 2026-11-06
 
