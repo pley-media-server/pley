@@ -11,6 +11,9 @@ describes how they are made.
 
 ### Added
 
+- Activity monitors such as Tracearr can connect through the
+  Jellyfin-compatible API with a token that sees everyone's activity, and
+  show what everyone is playing.
 - Setup asks for the server's name, languages, country, TMDB key and
   whether Apple devices find it by Bonjour, then whether to bring over a
   Plex server or start fresh with Movies, TV Shows and Music libraries.

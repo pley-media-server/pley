@@ -166,9 +166,12 @@ pub async fn user_dto(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser) ->
             enable_next_episode_auto_play: true,
         },
         policy: UserPolicy {
-            // Experimental Tracearr compatibility:
-            // Advertise administrator status to tokens with activity scope.
-            // This does not grant underlying administrative permissions.
+            // Activity monitors such as Tracearr take only an
+            // administrator's key: a token with `activity` (an
+            // administrator's) says it is one, and sees everyone's sessions.
+            // It administers nothing here all the same ([`super::JfUser`]),
+            // and apps' sign-ins never have it, so they offer no dashboard
+            // that fails.
             is_administrator: user.compatibility_allows(crate::auth::compatibility::Scope::Activity),
             is_hidden: true,
             // As Pley lets the token: with `manage`, collections change here.

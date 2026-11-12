@@ -855,59 +855,94 @@ async fn ping(_user: JfUser) -> StatusCode {
     StatusCode::NO_CONTENT
 }
 
-/// `/Sessions`: expose active playback sessions to authorized
-/// monitoring applications using the compatibility API.
+/// A playback session as `/Sessions` lists it to activity monitors.
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct SessionInfo {
+    id: String,
+    user_id: String,
+    user_name: String,
+    client: &'static str,
+    device_id: String,
+    device_name: String,
+    last_activity_date: String,
+    now_playing_item: dto::Item,
+    play_state: SessionPlayState,
+    supports_remote_control: bool,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "PascalCase")]
+struct SessionPlayState {
+    position_ticks: i64,
+    is_paused: bool,
+    play_method: &'static str,
+    media_source_id: String,
+    can_seek: bool,
+}
+
+/// `/Sessions`: what everyone is playing, for a token with `activity` on an
+/// administrator's account (as Tautulli sees it on the Plex-compatible API),
+/// so that activity monitors such as Tracearr work. Other tokens get none:
+/// remote control of other sessions isn't offered here.
 async fn sessions(
     State(state): State<AppState>,
     Extension(jellyfin): Extension<Arc<Jellyfin>>,
     JfUser { user, .. }: JfUser,
-) -> JfResult<Json<Vec<serde_json::Value>>> {
-    use crate::auth::compatibility::Scope;
-
-    // Preserve the existing response for ordinary Jellyfin clients.
-    // Only activity-scoped tokens can see cross-user sessions.
-    if !user.compatibility_allows(Scope::Activity) {
+) -> JfResult<Json<Vec<SessionInfo>>> {
+    if !user.compatibility_allows(crate::auth::compatibility::Scope::Activity) {
         return Ok(Json(Vec::new()));
     }
-
-    let mut results = Vec::new();
-
+    let mut playing = Vec::new();
     for session in state.sessions.active() {
-        let Some(row) = catalog::item(&state.db, session.user_id, session.item_id).await? else {
-            continue;
-        };
-
-        let play = session.play.lock().clone();
-
-        results.push(serde_json::json!({
-            "Id": session.id,
-            "UserId": jellyfin.ids.of(Kind::User, session.user_id),
-            "UserName": session.username,
-            "Client": "Pley",
-            "DeviceId": session.device_id,
-            "DeviceName": session.device,
-            "NowPlayingItem": {
-                "Id": jellyfin.ids.of(Kind::Item, row.id),
-                "Name": row.title,
-                "Type": dto::item_type(&row),
-                "RunTimeTicks": session.duration_ms * TICKS_PER_MS,
-                "ImageTags": if row.has_poster || row.kind == "episode" {
-                    serde_json::json!({
-                        "Primary": format!("{:x}", row.updated_at)
-                    })
-                } else {
-                    serde_json::json!({})
-                }
-            },
-            "NowPlayingItemId": jellyfin.ids.of(Kind::Item, row.id),
-            "PlayState": {
-                "PositionTicks": play.position_ms * TICKS_PER_MS
-            },
-            "PositionTicks": play.position_ms * TICKS_PER_MS
-        }));
+        if let Some(row) = catalog::item(&state.db, session.user_id, session.item_id).await? {
+            playing.push((session, row));
+        }
     }
+    let rows: Vec<ItemRow> = playing.iter().map(|(_, row)| row.clone()).collect();
+    // Provider ids let monitors tell a title from its trailers, and the
+    // media sources give them its resolution and bitrate.
+    let fields = dto::Fields { provider_ids: true, media_sources: true, ..Default::default() };
+    let items = super::items::dtos(&state, &jellyfin, &user, &rows, fields).await?;
+    let token_id = user.compatibility.map(|c| c.token_id).unwrap_or(0);
+    let list = playing
+        .into_iter()
+        .zip(items)
+        .map(|((session, _), item)| {
+            let play = session.play.lock().clone();
+            SessionInfo {
+                // A Pley session's id opens its stream, and a device's id is
+                // made from it until the device is known: monitors get their
+                // hashes, which name the session and device as well.
+                id: opaque(&session.id),
+                user_id: jellyfin.ids.of(Kind::User, session.user_id),
+                user_name: session.username.clone(),
+                client: "Pley",
+                device_id: opaque(&session.device_id),
+                device_name: session.device.clone().unwrap_or_else(|| "Pley".into()),
+                last_activity_date: super::users::iso(play.updated_at),
+                now_playing_item: item,
+                play_state: SessionPlayState {
+                    position_ticks: play.position_ms * TICKS_PER_MS,
+                    is_paused: play.state == "paused",
+                    play_method: match session.method {
+                        Method::Direct => "DirectPlay",
+                        Method::Remux => "DirectStream",
+                        Method::Transcode => "Transcode",
+                    },
+                    media_source_id: jellyfin.ids.source(session.file_id, token_id),
+                    can_seek: true,
+                },
+                supports_remote_control: false,
+            }
+        })
+        .collect();
+    Ok(Json(list))
+}
 
-    Ok(Json(results))
+/// An id that names `text` without revealing it.
+fn opaque(text: &str) -> String {
+    crate::auth::hash_token(text)[..32].to_owned()
 }
 
 // ------------------------------------------------------------------ bitrate test
