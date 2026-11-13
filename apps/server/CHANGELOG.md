@@ -41,6 +41,8 @@ describes how they are made.
   library is being scanned.
 - Home and a library's page show a new library's titles as its files are
   read.
+- The dashboard's Now playing shows whether each stream is playing or
+  paused, and its time moves on while it plays.
 
 ### Fixed
 

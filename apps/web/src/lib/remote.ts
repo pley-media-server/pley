@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import type { CastKind, Control, DeviceKind, PlayingSession, RemoteDevice, TrackOption } from "@/api/types";
+import type { CastKind, Control, DeviceKind, PlayingSession, RemoteDevice, SessionInfo, TrackOption } from "@/api/types";
 import { t } from "@/i18n";
 import { streamLabel } from "./format";
 
@@ -33,6 +33,18 @@ export function estimatedPosition(session: RemoteSession, nowMs: number): number
   if (session.state !== "playing") return session.position_ms;
   const at = session.position_ms + Math.max(0, nowMs - session.reported_at_ms);
   return session.duration_ms != null ? Math.min(at, session.duration_ms) : at;
+}
+
+/**
+ * Where a session of `/api/activity` is at `nowMs`: its report, moved on as a
+ * remote's is while it plays, from `age_ms` when the list came at
+ * `receivedAtMs` (this browser's clock), never past its end. Before its
+ * first report, and from servers that don't say, the place it has.
+ */
+export function activityPosition(session: SessionInfo, receivedAtMs: number, nowMs: number): number {
+  if (session.state !== "playing" || session.age_ms == null) return session.position_ms;
+  const at = session.position_ms + session.age_ms + Math.max(0, nowMs - receivedAtMs);
+  return session.item.duration_ms ? Math.min(at, session.item.duration_ms) : at;
 }
 
 /**

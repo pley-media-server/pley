@@ -474,6 +474,9 @@ async fn a_report_after_a_seek_says_sessions_changed() {
     let session = play(&w, &w.viewer).await;
     let progress = format!("/api/items/{}/progress", w.film);
     let report = |position_ms: i64| json!({"position_ms": position_ms, "duration_ms": LENGTH_MS, "state": "playing", "session_id": session});
+    // The dashboard's list says it the same way, and nothing before a report.
+    let dashboard_age = || async { app.get("/api/activity", &w.viewer).await.body["sessions"][0]["age_ms"].clone() };
+    assert_eq!(dashboard_age().await, Value::Null, "no report yet");
 
     // Playing on as it was: nothing for remotes to show.
     let mut events = app.state.events.subscribe();
@@ -494,6 +497,8 @@ async fn a_report_after_a_seek_says_sessions_changed() {
     let age = listed[0]["age_ms"].as_i64().unwrap();
     assert!((10_000..15_000).contains(&age), "reported ten seconds ago: {age}");
     assert_eq!(listed[0]["position_ms"], json!(60_000), "the place is still the report's");
+    let age = dashboard_age().await.as_i64().unwrap();
+    assert!((10_000..15_000).contains(&age), "the dashboard's: {age}");
 }
 
 #[tokio::test]
