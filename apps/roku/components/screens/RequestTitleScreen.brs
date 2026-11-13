@@ -179,8 +179,9 @@ sub showDetail()
     hasButtons = m.shown.buttons.Count() > 0
     if hasButtons
         focused = m.buttons.buttonFocused
+        hadFocus = m.buttons.isInFocusChain()
         if FormatJson(m.buttons.buttons) <> FormatJson(m.shown.buttons) then m.buttons.buttons = m.shown.buttons
-        if focused > 0 and focused < m.shown.buttons.Count() then m.buttons.focusButton = focused
+        uiKeepButton(m.buttons, focused, hadFocus)
     else if m.buttons.isInFocusChain()
         m.top.setFocus(true)
     end if

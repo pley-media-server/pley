@@ -23,6 +23,8 @@ sub apiRun()
     m.transfers = {}
     m.waiting = []
     m.later = []
+    ' The ticket of the request taken last (apiAccept).
+    m.lastTicket = ""
     ' Servers (issuers) with a refresh under way.
     m.refreshing = {}
     ' The access token the last refresh gave, and when: { token, at }.
@@ -142,6 +144,14 @@ end sub
 
 sub apiAccept(request as dynamic)
     if request = invalid then return
+    ' A Roku tells of the request field again when the node it holds
+    ' changes (its result, its content, a sign-in's updates): taken a
+    ' second time, a request would go again with each answer, without end.
+    ' The screens hand over a new node for each request, with its own
+    ' ticket.
+    ticket = request.ticket
+    if ticket <> "" and ticket = m.lastTicket then return
+    m.lastTicket = ticket
     spec = request.spec
     if spec = invalid then spec = {}
     op = httpString(spec.op)
