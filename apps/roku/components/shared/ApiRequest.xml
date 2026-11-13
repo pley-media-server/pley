@@ -12,5 +12,8 @@
         <!-- Set by the player that asked, once it no longer wants the answer:
              a playback session that comes after is closed at once. -->
         <field id="abandoned" type="boolean" />
+        <!-- Unique to the request (uiRequest), so the task takes it once
+             (ApiTask.brs's apiAccept). -->
+        <field id="ticket" type="string" />
     </interface>
 </component>

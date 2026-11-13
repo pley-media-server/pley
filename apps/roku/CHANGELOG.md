@@ -8,6 +8,16 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- The remote works on the screen that opens, such as a show's Episodes,
+  where on some Rokus it kept moving the page underneath.
+- On some Rokus, lists no longer skip presses, such as Down through a
+  season's episodes, and pages no longer stall on Loading or say the
+  server can't be reached while it can.
+- Home's rows scroll to the row you move to, and on some Rokus the title
+  you're on in a row is highlighted again.
+
 ## [0.1.8] - 2026-11-12
 
 ### Added

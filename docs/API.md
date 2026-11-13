@@ -3536,7 +3536,9 @@ they may open, with no `analysis` or `library_work`, and the counts 0; a
 session's `transcode.last_error` is "the conversion failed" for them. An
 app allowed `activity` gets the same, but that one of Pley's own on an
 administrator's account sees everyone's sessions
-([What apps see](#scopes)).
+([What apps see](#scopes)). A session's `age_ms` is how long ago its
+player reported `position_ms`, as `GET /api/sessions` gives it: the
+dashboard moves a playing session's time on from it.
 
 `/api/events`: each stream gets the events of the libraries its user may
 open, and the user's own events; an administrator's gets everyone's
@@ -3941,7 +3943,8 @@ interface SessionInfo {
   item: ItemSummary;
   method: "direct" | "remux" | "transcode";
   position_ms: number;
-  state: "playing" | "paused" | "stopped";
+  state: "playing" | "paused" | "buffering" | "stopped";
+  age_ms: number | null;        // how long ago position_ms was reported; null before the first report
   started_at: Timestamp;
   updated_at: Timestamp;
   transcode: null | TranscodeInfo;

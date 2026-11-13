@@ -34,8 +34,9 @@ sub relabel()
     m.title.text = t("signin.servers.title")
     m.hint.text = t("signin.servers.forgetHint")
     focused = m.actions.buttonFocused
+    hadFocus = m.actions.isInFocusChain()
     m.actions.buttons = [t("signin.servers.enterAddress"), t("signin.servers.searchNetwork")]
-    if focused > 0 then m.actions.focusButton = focused
+    uiKeepButton(m.actions, focused, hadFocus)
     m.globe.language = m.global.language
     showStatus()
     if m.rows.Count() > 0 then render()

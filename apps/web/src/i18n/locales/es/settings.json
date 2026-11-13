@@ -657,6 +657,12 @@
   },
   "dashboard": {
     "title": "Panel",
+    "states": {
+      "playing": "Reproduciendo",
+      "paused": "En pausa",
+      "buffering": "Cargando",
+      "stopped": "Detenido"
+    },
     "methods": {
       "direct": "Reproducción directa",
       "remux": "Remux",

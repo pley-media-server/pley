@@ -45,6 +45,8 @@ describes how they are made.
   library is being scanned.
 - Home and a library's page show a new library's titles as its files are
   read.
+- The dashboard's Now playing shows whether each stream is playing or
+  paused, and its time moves on while it plays.
 - Intel graphics: 4K HDR made SDR transcodes about twice as fast, on less of
   the CPU, and two at once each keep up better.
 - Intel graphics: HDR kept as HDR and burned-in picture subtitles stay on the
@@ -59,8 +61,17 @@ describes how they are made.
 - The Docker image and the Windows installer carry Pley's own FFmpeg, with
   jellyfin-ffmpeg's improvements for Intel graphics.
 
+### Changed
+
+
+
 ### Fixed
 
+- Infuse opens a Pley server through the Jellyfin-compatible API instead
+  of saying "An error occurred" after signing in.
+- Live TV channels with AC-3 audio, such as US broadcast channels, and
+  channels whose stream breaks off as they start, play in the browser and
+  the desktop app instead of tuning forever.
 - Intel graphics on Linux: Quick Sync works when an NVIDIA or AMD card comes
   first.
 - Intel graphics: transcodes no longer fail when every Quick Sync session is

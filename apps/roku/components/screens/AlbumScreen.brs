@@ -171,8 +171,9 @@ sub showButtons()
     m.actions = actions
     if FormatJson(labels) <> FormatJson(m.buttons.buttons)
         focused = m.buttons.buttonFocused
+        hadFocus = m.buttons.isInFocusChain()
         m.buttons.buttons = labels
-        if focused > 0 and focused < labels.Count() then m.buttons.focusButton = focused
+        uiKeepButton(m.buttons, focused, hadFocus)
     end if
 end sub
 

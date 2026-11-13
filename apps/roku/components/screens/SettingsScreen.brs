@@ -78,8 +78,9 @@ sub relabel()
     m.webHint.text = t("settings.webHint")
     if m.profileUnreachable then m.profile.text = t("settings.unreachable")
     focused = m.about.buttonFocused
+    hadFocus = m.about.isInFocusChain()
     m.about.buttons = [t("settings.diagnostics"), t("settings.licences")]
-    if focused > 0 then m.about.focusButton = focused
+    uiKeepButton(m.about, focused, hadFocus)
     showWords()
     if m.panel.visible then closeChoices()
     showRows()
@@ -176,7 +177,7 @@ sub showRows()
     m.actions = actions
     m.buttons.buttons = labels
     for i = 0 to actions.Count() - 1
-        if actions[i] = focused then m.buttons.focusButton = i
+        if actions[i] = focused then uiKeepButton(m.buttons, i, hadFocus)
     end for
     if hadFocus then m.buttons.setFocus(true)
 end sub

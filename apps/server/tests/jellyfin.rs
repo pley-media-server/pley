@@ -280,6 +280,34 @@ async fn libraries_list_with_filters_sorts_and_pages() {
     assert_eq!(hints["SearchHints"][0]["ItemId"], json!(app.jf_item(w.film)));
 }
 
+/// What Infuse asks for as it loads its home screen, after the views: without
+/// an answer, it shows "An error occurred". Its library mode looks for its
+/// own plugin too.
+#[tokio::test]
+async fn apps_loading_their_home_screen_get_grouping_options_and_no_folders_or_plugins() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let music = app.library(admin, "Albums", "music", "music").await;
+    let options = app.jf_json("/UserViews/GroupingOptions", admin).await;
+    assert_eq!(jf_names(&options), ["Movies", "TV"], "movies and shows, by name: music isn't grouped");
+    assert_eq!(options[0]["Id"], json!(app.jf_library(w.movies)));
+    let views = jf_names(&app.jf_json("/UserViews", admin).await);
+    assert!(views.contains(&"Albums".to_owned()), "{views:?}: {music}");
+    let mine = app.jf_user(admin).await;
+    assert_eq!(app.jf_json(&format!("/Users/{mine}/GroupingOptions"), admin).await, options);
+
+    // Libraries' folders on disk are for administrators, which no one is here.
+    let folders = app.jf(Method::GET, "/Library/VirtualFolders", admin, None).await;
+    assert_eq!(folders.status, StatusCode::FORBIDDEN);
+    assert_eq!(folders.text(), "");
+    let unsigned = app.jf(Method::GET, "/Library/VirtualFolders", "", None).await;
+    assert_eq!(unsigned.status, StatusCode::UNAUTHORIZED);
+    // Its library mode looks for its own plugin, installed or to install.
+    for path in ["/Plugins", "/Packages"] {
+        assert_eq!(app.jf_json(path, admin).await, json!([]), "{path}");
+    }
+}
+
 #[tokio::test]
 async fn ids_are_this_servers_own_and_cant_be_guessed() {
     let w = world().await;
@@ -987,6 +1015,8 @@ async fn a_user_id_in_a_path_is_the_callers_own() {
         (format!("/Users/{bobs}/Items/Latest"), false),
         (format!("/Users/{bobs}/Suggestions"), false),
         (format!("/Users/{bobs}/Items/Resume"), false),
+        (format!("/Users/{mine}/GroupingOptions"), true),
+        (format!("/Users/{bobs}/GroupingOptions"), false),
     ] {
         let status = app.jf(Method::GET, &uri, admin, None).await.status;
         assert_eq!(status == StatusCode::OK, ok, "{uri}: {status}");
@@ -1113,6 +1143,7 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
     // Every first segment of its routes, as players send them: no header.
     for path in [
         "/UserViews".to_owned(),
+        "/UserViews/GroupingOptions".to_owned(),
         "/Users/Me".to_owned(),
         "/Items".to_owned(),
         "/UserItems/Resume".to_owned(),
@@ -1133,6 +1164,7 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         "/Branding/Configuration".to_owned(),
         "/QuickConnect/Enabled".to_owned(),
         "/Plugins".to_owned(),
+        "/Packages".to_owned(),
         "/Localization/Cultures".to_owned(),
         "/DisplayPreferences/usersettings".to_owned(),
         "/Years".to_owned(),
@@ -1143,7 +1175,9 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         assert!(theirs(&reply), "{path}: {} {}", reply.status, reply.text());
     }
     // Paths the web app has too: with a token only.
-    for path in ["/Search/Hints?SearchTerm=x".to_owned(), format!("/Playlists/{x}/Items")] {
+    for path in
+        ["/Search/Hints?SearchTerm=x".to_owned(), format!("/Playlists/{x}/Items"), "/Library/VirtualFolders".to_owned()]
+    {
         let page = app.call(Method::GET, &path, None, None, &[]).await;
         assert!(!theirs(&page), "{path} without a token is the web app's");
         let reply = app.call(Method::GET, &path, None, None, &[("x-emby-token", token.as_str())]).await;
