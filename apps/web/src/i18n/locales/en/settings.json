@@ -641,6 +641,7 @@
     "states": {
       "playing": "Playing",
       "paused": "Paused",
+      "buffering": "Buffering",
       "stopped": "Stopped"
     },
     "methods": {

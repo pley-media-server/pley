@@ -689,7 +689,8 @@ export interface SessionInfo {
   item: ItemSummary;
   method: PlaybackMethod;
   position_ms: number;
-  state: PlaybackState;
+  /** As its player last reported: other apps also say `buffering`. */
+  state: PlaybackState | "buffering";
   /**
    * How long ago its player reported `position_ms`, by the server's clock as
    * it answered; null before the first report. Absent from servers before it.

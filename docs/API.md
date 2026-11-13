@@ -3941,7 +3941,7 @@ interface SessionInfo {
   item: ItemSummary;
   method: "direct" | "remux" | "transcode";
   position_ms: number;
-  state: "playing" | "paused" | "stopped";
+  state: "playing" | "paused" | "buffering" | "stopped";
   age_ms: number | null;        // how long ago position_ms was reported; null before the first report
   started_at: Timestamp;
   updated_at: Timestamp;

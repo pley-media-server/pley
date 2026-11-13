@@ -649,6 +649,7 @@
     "states": {
       "playing": "En lecture",
       "paused": "En pause",
+      "buffering": "Chargement",
       "stopped": "Arrêté"
     },
     "methods": {

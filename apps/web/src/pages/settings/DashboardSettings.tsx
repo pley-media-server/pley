@@ -8,6 +8,7 @@ import {
   FastForward,
   History,
   Images,
+  LoaderCircle,
   MonitorPlay,
   Pause,
   Play,
@@ -169,7 +170,7 @@ function SessionCard({ s, receivedAtMs, onStop }: { s: SessionInfo; receivedAtMs
   const tc = s.transcode;
   const nowMs = useNow(1_000) * 1000;
   const position = activityPosition(s, receivedAtMs, nowMs);
-  const StateIcon = s.state === "playing" ? Play : s.state === "paused" ? Pause : Square;
+  const StateIcon = s.state === "playing" ? Play : s.state === "paused" ? Pause : s.state === "buffering" ? LoaderCircle : Square;
   return (
     <div className="flex gap-4 rounded-lg border border-border bg-surface p-3">
       <Link to={itemUrl(s.item.id)} className="w-32 shrink-0 sm:w-40">
@@ -199,7 +200,7 @@ function SessionCard({ s, receivedAtMs, onStop }: { s: SessionInfo; receivedAtMs
         {/* Wraps rather than overflowing the card: squeezed, the state's icon would shrink away and Stop spill out. */}
         <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted">
           <span role="img" aria-label={t(`dashboard.states.${s.state}`)} title={t(`dashboard.states.${s.state}`)} className="shrink-0">
-            <StateIcon className={cn("size-3 fill-current", s.state === "playing" && "text-success")} />
+            <StateIcon className={cn("size-3", s.state === "buffering" ? "animate-spin" : "fill-current", s.state === "playing" && "text-success")} />
           </span>
           <span className="min-w-0 truncate font-medium text-fg/85">{s.username}</span>
           <span>·</span>
