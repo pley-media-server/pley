@@ -48,6 +48,9 @@ describes how they are made.
 
 - Infuse opens a Pley server through the Jellyfin-compatible API instead
   of saying "An error occurred" after signing in.
+- Live TV channels with AC-3 audio, such as US broadcast channels, and
+  channels whose stream breaks off as they start, play in the browser and
+  the desktop app instead of tuning forever.
 
 ## [0.1.10] - 2026-11-12
 
