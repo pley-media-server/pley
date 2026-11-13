@@ -489,27 +489,30 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
     let _ = time(TonemapQuality::Fast, 6).await;
     let mut speed = TonemapSpeed::default();
     for quality in [TonemapQuality::Fast, TonemapQuality::Balanced, TonemapQuality::High] {
-        // Twice where the time allows, the faster run counting: other work
-        // on the GPU (seek previews being made, say) only ever slows a run
-        // down. Measured alone, balanced read 37 frames a second beside a
-        // library's seek previews against 53 to 56 without.
+        // Twice where the time allows, the faster short and the faster long
+        // run counting, each on its own: other work on the GPU (seek
+        // previews being made, say) and a process's start only ever slow a
+        // run down. Measured alone, balanced read 37 frames a second beside a
+        // library's seek previews against 53 to 56 without. Pairing the runs
+        // instead, a slow short run read as a fast quality: `high` at 172
+        // and 283 frames a second where it makes 52.
+        let (mut short, mut long) = (f64::INFINITY, f64::INFINITY);
         for attempt in 0..2 {
             let limit = if attempt == 0 { TONEMAP_MEASURE_BUDGET } else { TONEMAP_MEASURE_BUDGET * 3 / 4 };
             if started.elapsed() > limit {
                 break;
             }
-            // A long run no slower than the short one measured nothing.
-            if let (Some(short), Some(long)) = (time(quality, 6).await, time(quality, 42).await)
-                && long > short + 0.05
-            {
-                let fps = 36.0 / (long - short);
-                let best = match quality {
-                    TonemapQuality::Fast => &mut speed.fast,
-                    TonemapQuality::Balanced => &mut speed.balanced,
-                    TonemapQuality::High => &mut speed.high,
-                };
-                *best = best.max(fps);
+            if let (Some(s), Some(l)) = (time(quality, 6).await, time(quality, 42).await) {
+                (short, long) = (short.min(s), long.min(l));
             }
+        }
+        if let Some(fps) = frames_a_second(short, long) {
+            let measured = match quality {
+                TonemapQuality::Fast => &mut speed.fast,
+                TonemapQuality::Balanced => &mut speed.balanced,
+                TonemapQuality::High => &mut speed.high,
+            };
+            *measured = fps;
         }
     }
     // Each quality does less than the one above it: one that read slower was
@@ -519,6 +522,13 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
     speed.balanced = speed.balanced.max(speed.high);
     speed.fast = speed.fast.max(speed.balanced);
     (speed.fast > 0.0 || speed.balanced > 0.0 || speed.high > 0.0).then_some(speed)
+}
+
+/// The frames a second the 36 frames between a 6-frame run of `short`
+/// seconds and a 42-frame one of `long` show; none where the long run was
+/// no slower than the short one, which measured nothing.
+fn frames_a_second(short: f64, long: f64) -> Option<f64> {
+    (short.is_finite() && long.is_finite() && long > short + 0.05).then(|| 36.0 / (long - short))
 }
 
 async fn test_filter(ffmpeg: &Path, pre: &[&str], vf: &str) -> bool {
@@ -1272,6 +1282,19 @@ fn lists_option(help: &str, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn tone_mapping_speed_takes_the_fastest_short_and_long_runs() {
+        // Runs paired as they came, the slow short one would read 36 / 0.2.
+        let (shorts, longs) = ([0.9_f64, 0.6], [1.1_f64, 1.3]);
+        let short = shorts.iter().copied().fold(f64::INFINITY, f64::min);
+        let long = longs.iter().copied().fold(f64::INFINITY, f64::min);
+        let fps = frames_a_second(short, long).unwrap();
+        assert!((fps - 72.0).abs() < 1e-9, "{fps}");
+        // A long run no slower than the short one, or none at all: nothing.
+        assert_eq!(frames_a_second(0.6, 0.62), None);
+        assert_eq!(frames_a_second(f64::INFINITY, f64::INFINITY), None);
+    }
 
     #[test]
     fn tells_a_tonemap_opencl_with_bt2390() {

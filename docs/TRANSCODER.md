@@ -1031,9 +1031,13 @@ video plan):
 
 - At start, each quality is timed on synthetic 4K PQ frames made 4K SDR
   (`tonemap_speed`), from `fast` to `high`, for 20 s at most, after one
-  untimed run (the first libplacebo process starts slower than the rest). A
-  quality not reached in that time is never used, and none reads slower than
-  a dearer one: each does less than the one above it.
+  untimed run (the first libplacebo process starts slower than the rest).
+  Each is 36 frames' difference between a 6-frame and a 42-frame run, tried
+  twice where the time allows, the fastest of each length counting: a slow
+  start only ever slows a run, and a short run paired with its own long one
+  could read several times too fast. A quality not reached in that time is
+  never used, and none reads slower than a dearer one: each does less than
+  the one above it.
 - A process takes the best quality that measured at least twice what the jobs
   tone mapping with libplacebo need together, itself included; when none
   did, the fastest. Each job needs its frame rate × (0.6 × the source's
