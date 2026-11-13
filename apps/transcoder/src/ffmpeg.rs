@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 26;
+const DETECTION_REVISION: u32 = 27;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -771,7 +771,11 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.dolby_vision = libplacebo;
     // FFmpeg 7.1 (Debian 13's) has no `shader_cache`, and a graph naming
     // it fails: the tests above leave it out, so they can't tell.
-    caps.placebo_shader_cache = libplacebo && placebo_help.is_some_and(|o| lists_option(&o.text, "shader_cache"));
+    caps.placebo_shader_cache =
+        libplacebo && placebo_help.as_ref().is_some_and(|o| lists_option(&o.text, "shader_cache"));
+    // Pley's FFmpeg (patch 1002): a peak for HDR10 that says none.
+    caps.placebo_fallback_peak =
+        libplacebo && placebo_help.as_ref().is_some_and(|o| lists_option(&o.text, "fallback_peak"));
     // jellyfin-ffmpeg's tonemap_opencl (Pley's FFmpeg carries it) lists
     // BT.2390 among its curves; FFmpeg's own doesn't.
     caps.opencl_bt2390 = opencl_help.is_some_and(|o| lists_option(&o.text, "bt2390"));

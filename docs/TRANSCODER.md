@@ -207,6 +207,7 @@ before using what it names:
 | `qsv_opencl_dovi` | OpenCL tone maps Dolby Vision by its metadata between FFmpeg's decoder on Direct3D 11 and `h264_qsv`, the frames mapped rather than copied (Windows, pley-ffmpeg and jellyfin-ffmpeg; [Sharing the GPU](#sharing-the-gpu)) |
 | `vaapi_tonemappers` | tone mappers whose frames reach a VAAPI encoder ([VAAPI encoders](#vaapi-encoders)) |
 | `vaapi_vulkan_decode` | `vulkan_decode` on the Vulkan device made from the VAAPI one |
+| `placebo_fallback_peak` | libplacebo takes `fallback_peak` (Pley's FFmpeg): HDR10 without metadata of its brightness is tone mapped from 1000 cd/m² ([Tone mapping](#tone-mapping)) |
 | `opencl_bt2390` | `tonemap_opencl` has BT.2390 (pley-ffmpeg, jellyfin-ffmpeg), and is given it ([Tone mapping](#tone-mapping)) |
 | `tonemap_speed?` | `{high, balanced, fast}`: frames a second libplacebo tone maps 4K to 4K at each quality ([libplacebo quality](#libplacebo-quality)) |
 | `amf_upload` | FFmpeg uploads AMF's frames to the AMD GPU ([AMF on Windows](#amf-on-windows)) |
@@ -955,7 +956,12 @@ available tone mapper:
   keeps the shadows the spline alone crushes (SSIM 0.96 and 0.88 against
   0.94 and 0.69), and BT.2390's curve, lifted or not, made bright scenes a
   third too bright and clipped 10 to 15 % of their pixels where the grade
-  clips 1 to 2 %. `tonemap_opencl` as FFmpeg releases it measures
+  clips 1 to 2 %. HDR10 that carries no metadata of its brightness (no
+  mastering display, no content light levels) is taken by libplacebo for
+  PQ's own 10000 cd/m² peak and comes out far too dark; with Pley's FFmpeg
+  (`placebo_fallback_peak`) it is tone mapped from 1000 cd/m², what most
+  HDR10 films are mastered to (`fallback_peak=1000`), in transcodes and
+  seek previews. `tonemap_opencl` as FFmpeg releases it measures
   the peak frame by frame, which can't be turned off, so its brightness can
   jump between processes; pley-ffmpeg's
   ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) goes by the stream's

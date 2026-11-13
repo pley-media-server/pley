@@ -84,6 +84,13 @@ pub const PLACEBO_STATIC_PEAK: &str = "peak_detect=0";
 /// not.
 pub const PLACEBO_SDR_LIFT: &str = "brightness=0.03";
 
+/// The peak libplacebo assumes for HDR10 that carries no metadata of its
+/// brightness, where FFmpeg takes it ([`Capabilities::placebo_fallback_peak`]):
+/// the 1000 cd/m² most HDR10 films are mastered to, rather than PQ's own
+/// 10000, which made a clip peaking at 344 a fifth darker than OpenCL's
+/// picture of it. Frames that say their brightness are left as they are.
+pub const PLACEBO_FALLBACK_PEAK: &str = "fallback_peak=1000";
+
 /// libplacebo's options at each [`TonemapQuality`], besides its defaults,
 /// for a picture made `out` (width, height) from `src`, SDR or not (`sdr`).
 /// On a Ryzen 5 5600G's Radeon (Vega 7), 4K HDR10 to 4K SDR into AMF ran
@@ -396,6 +403,9 @@ pub struct VideoOut {
     pub fel_compose: bool,
     /// OpenCL's tone mapper has BT.2390 ([`Capabilities::opencl_bt2390`]).
     pub opencl_bt2390: bool,
+    /// libplacebo takes a peak for HDR10 without metadata
+    /// ([`Capabilities::placebo_fallback_peak`]).
+    pub placebo_fallback_peak: bool,
     /// FFmpeg uploads the frames to the AMD GPU for AMF ([`AMF_D3D11_DEVICE`]),
     /// which copies them from memory itself several times slower.
     pub amf_upload: bool,
@@ -743,6 +753,7 @@ impl Plan {
                         base_layer_only: false,
                         fel_compose: false,
                         opencl_bt2390: false,
+                        placebo_fallback_peak: false,
                         amf_upload: false,
                         vui_primaries: None,
                         hw_decode: None,
@@ -984,6 +995,7 @@ impl Plan {
                         base_layer_only: fel_base,
                         fel_compose,
                         opencl_bt2390: ff.caps.opencl_bt2390,
+                        placebo_fallback_peak: ff.caps.placebo_fallback_peak,
                         amf_upload,
                         // BT.709 out of every tone mapper; the source's otherwise.
                         vui_primaries: (ff.caps.h264_metadata
@@ -1902,8 +1914,10 @@ impl Plan {
                 let unread = if v.base_layer_only { ":apply_dolbyvision=0" } else { "" };
                 // Made SDR, lifted first; HDR kept or converted as it is.
                 let lift = if v.hdr.is_none() { format!(":{PLACEBO_SDR_LIFT}") } else { String::new() };
+                let fallback =
+                    if v.placebo_fallback_peak { format!(":{PLACEBO_FALLBACK_PEAK}") } else { String::new() };
                 pre.push(format!(
-                    "libplacebo=w={w}:h={h}:format={format}:{target}:range=tv:tonemapping=auto:{PLACEBO_STATIC_PEAK}{lift}{unread}{quality}{cache}"
+                    "libplacebo=w={w}:h={h}:format={format}:{target}:range=tv:tonemapping=auto:{PLACEBO_STATIC_PEAK}{fallback}{lift}{unread}{quality}{cache}"
                 ));
                 match pipeline {
                     // Frames stay in Vulkan memory all the way into h264_vulkan.
@@ -2833,6 +2847,20 @@ mod tests {
         assert!(args.contains("-segment_start_number 3"));
         assert!(args.contains("-t 20.000"));
         assert!(args.contains("-readrate 1 -readrate_initial_burst 120"));
+    }
+
+    /// HDR10 that says nothing of its brightness is tone mapped from 1000
+    /// cd/m², where libplacebo takes a fallback peak (Pley's FFmpeg); HDR kept
+    /// isn't tone mapped, and other FFmpeg builds don't get the option.
+    #[test]
+    fn libplacebo_gets_a_peak_for_hdr10_without_metadata_where_it_takes_one() {
+        let mut ff = ffmpeg_with(vec![x264(), x265()], vec![Tonemapper::Libplacebo, Tonemapper::Zscale]);
+        let m = ten_bit(media(DynamicRange::Hdr10, None));
+        let args = args_string(&Plan::build(&request(), &m, &ff, None).unwrap(), 0, 2);
+        assert!(!args.contains("fallback_peak"), "{args}");
+        ff.caps.placebo_fallback_peak = true;
+        let args = args_string(&Plan::build(&request(), &m, &ff, None).unwrap(), 0, 2);
+        assert!(args.contains("tonemapping=auto:peak_detect=0:fallback_peak=1000:brightness=0.03"), "{args}");
     }
 
     #[test]

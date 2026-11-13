@@ -63,10 +63,6 @@ describes how they are made.
 - The Docker image and the Windows installer carry Pley's own FFmpeg, with
   jellyfin-ffmpeg's improvements for Intel graphics.
 
-### Changed
-
-
-
 ### Fixed
 
 - Infuse opens a Pley server through the Jellyfin-compatible API instead
@@ -82,6 +78,8 @@ describes how they are made.
   Intel graphics.
 - HDR transcodes no longer pick a picture quality too slow to keep up after
   the server starts.
+- HDR10 that doesn't say how bright it is no longer comes out far too dark
+  where the transcoder has Pley's own FFmpeg.
 
 ## [0.1.10] - 2026-11-12
 

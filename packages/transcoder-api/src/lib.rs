@@ -726,6 +726,10 @@ pub struct Capabilities {
     /// shaders are kept on disk, so tone mapping starts sooner.
     #[serde(default)]
     pub placebo_shader_cache: bool,
+    /// libplacebo takes `fallback_peak` (Pley's FFmpeg): HDR10 without its
+    /// metadata is tone mapped from that peak rather than PQ's 10000 cd/m².
+    #[serde(default)]
+    pub placebo_fallback_peak: bool,
     /// `tonemap_opencl` has BT.2390's curve (jellyfin-ffmpeg's and Pley's
     /// FFmpeg): it then tone maps by the stream's own metadata and applies
     /// Dolby Vision's reshaping, and is given that curve.
