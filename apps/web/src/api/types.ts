@@ -690,6 +690,11 @@ export interface SessionInfo {
   method: PlaybackMethod;
   position_ms: number;
   state: PlaybackState;
+  /**
+   * How long ago its player reported `position_ms`, by the server's clock as
+   * it answered; null before the first report. Absent from servers before it.
+   */
+  age_ms?: number | null;
   started_at: Timestamp;
   updated_at: Timestamp;
   transcode: TranscodeInfo | null;

@@ -43,6 +43,11 @@ pub struct SessionInfo {
     method: Method,
     position_ms: i64,
     state: String,
+    /// How long ago its player reported `position_ms` (ms, by the server's
+    /// clock, as the answer is made); none before its first report. The
+    /// dashboard moves a playing session's time on from it, as remotes do,
+    /// without comparing its own clock with the server's.
+    age_ms: Option<i64>,
     started_at: i64,
     updated_at: i64,
     transcode: Option<TranscodeInfo>,
@@ -84,6 +89,7 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
         HashMap::new()
     };
     let mut out = Vec::new();
+    let now_ms = crate::util::now_ms();
     for session in sessions {
         let Some(row) = catalog::item(&state.db, session.user_id, session.item_id).await? else { continue };
         let play = session.play.lock().clone();
@@ -99,6 +105,7 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
             method: session.method,
             position_ms: play.position_ms,
             state: play.state,
+            age_ms: play.reported_at_ms.map(|at| (now_ms - at).max(0)),
             started_at: session.started_at,
             updated_at: play.updated_at,
             transcode: session

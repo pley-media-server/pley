@@ -638,6 +638,11 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "states": {
+      "playing": "Playing",
+      "paused": "Paused",
+      "stopped": "Stopped"
+    },
     "methods": {
       "direct": "Direct Play",
       "remux": "Remux",
