@@ -42,6 +42,11 @@ describes how they are made.
 - Home and a library's page show a new library's titles as its files are
   read.
 
+### Fixed
+
+- Infuse opens a Pley server through the Jellyfin-compatible API instead
+  of saying "An error occurred" after signing in.
+
 ## [0.1.10] - 2026-11-12
 
 ### Added

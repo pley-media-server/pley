@@ -784,6 +784,14 @@ closes once it ends.
 | Continue Watching | `Resume` (in progress) and `NextUp` (next episodes), with titles taken out of Continue Watching left out |
 | Cast and crew | `People`, and `Person` items |
 
+Jellyfin's grouping of libraries into views isn't offered: apps asking
+which libraries could be grouped (`/UserViews/GroupingOptions`) are given
+the user's movie and TV libraries, as Jellyfin gives them, and Pley's
+views stay as they are. `/Library/VirtualFolders`, the libraries' folders
+on disk, is Jellyfin's for administrators and answers `403` here, as
+Jellyfin answers everyone else. `/Plugins` and `/Packages`, where apps
+look for a plugin of their own (Infuse's library mode does), list none.
+
 ### Playlists and collections
 
 Jellyfin's apps make and change playlists and collections as Pley's own

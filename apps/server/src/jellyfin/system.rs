@@ -26,6 +26,7 @@ pub fn routes() -> Router<AppState> {
         .route("/quickconnect/initiate", get(quick_connect_off).post(quick_connect_off))
         .route("/quickconnect/connect", get(quick_connect_off))
         .route("/plugins", get(none))
+        .route("/packages", get(none))
         .route("/localization/cultures", get(none))
 }
 
@@ -153,8 +154,9 @@ async fn quick_connect_off() -> JfError {
     JfError::Unauthorized
 }
 
-/// Lists Pley has nothing in (plugins, cultures), answered empty so clients
-/// that look don't stop there.
+/// Lists Pley has nothing in (plugins and the catalog of them, cultures),
+/// answered empty so clients that look (Infuse, for its own plugin) don't
+/// stop there.
 async fn none(_user: JfUser) -> Json<[(); 0]> {
     Json([])
 }
