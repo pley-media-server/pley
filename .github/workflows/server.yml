@@ -246,14 +246,21 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # A fork's pull request can't see the package while it is private, nor
+      # build what it can't publish: it is left to the run on master.
       - name: Published?
         id: ffmpeg
+        env:
+          FORK: ${{ github.event.pull_request.head.repo.fork }}
         run: |
           image="ghcr.io/pley-media-server/pley-ffmpeg-windows:$(sh deploy/ffmpeg/tag.sh windows)"
           echo "image=$image" >> "$GITHUB_OUTPUT"
           if docker buildx imagetools inspect "$image" >/dev/null 2>&1; then
             echo "published=true" >> "$GITHUB_OUTPUT"
             echo "$image is published"
+          elif [ "$FORK" = true ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$image isn't visible from a fork: not built here"
           fi
       - if: inputs.release && steps.ffmpeg.outputs.published != 'true'
         env:
@@ -267,12 +274,12 @@ jobs:
           IMAGE: ${{ steps.ffmpeg.outputs.image }}
         run: echo "FROM $IMAGE" | docker buildx build --output type=local,dest=pley-ffmpeg -
       # The dependency image is about 9 GB: room for it beside the build.
-      - if: ${{ !inputs.release && steps.ffmpeg.outputs.published != 'true' }}
+      - if: ${{ !inputs.release && steps.ffmpeg.outputs.published != 'true' && steps.ffmpeg.outputs.skip != 'true' }}
         name: Build it
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
           docker buildx build -f deploy/ffmpeg/Dockerfile.windows --output type=local,dest=pley-ffmpeg deploy/ffmpeg
-      - if: inputs.release || steps.ffmpeg.outputs.published != 'true'
+      - if: inputs.release || (steps.ffmpeg.outputs.published != 'true' && steps.ffmpeg.outputs.skip != 'true')
         name: Check it
         run: |
           for exe in ffmpeg ffprobe; do
