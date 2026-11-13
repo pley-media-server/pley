@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use parking_lot::Mutex;
 use pley_transcoder_api::{
@@ -194,6 +194,10 @@ pub struct JobManager {
     /// before its first segment ([`Runtime::opencl_failed`]): after
     /// [`OPENCL_FAILURES`] of them, no job goes there again.
     opencl_failed: Mutex<HashSet<String>>,
+    /// Whether the video of files probed before probes looked for HDR10's
+    /// static metadata carries it, as their first frames said, by path, size
+    /// and time of change: read once a file rather than at each job's start.
+    hdr10_metadata: Mutex<HashMap<PathBuf, (FileStamp, Option<bool>)>>,
     /// Whether the CPU may decode for a GPU that falls behind (see
     /// [`crate::share`]).
     cpu_decode: AtomicBool,
@@ -484,6 +488,9 @@ struct Runtime {
 /// OpenCL's doing.
 const OPENCL_FAILURES: usize = 3;
 
+/// A file's size and time of change: what tells it changed.
+type FileStamp = (u64, Option<SystemTime>);
+
 /// What a job warns of once FFmpeg said its GPU couldn't decode the video.
 const GPU_DECODING_FAILED: &str = "GPU decoding failed, using the CPU";
 
@@ -632,6 +639,7 @@ impl JobManager {
             lessons: Mutex::default(),
             decode_failed: Mutex::default(),
             opencl_failed: Mutex::default(),
+            hdr10_metadata: Mutex::default(),
             cpu_decode: AtomicBool::new(true),
         })
     }
@@ -741,9 +749,7 @@ impl JobManager {
         // `Plan::quick_sync_could_tonemap`), so the first frames say now.
         let unknown = |v: &MediaStream| v.has_hdr10_base() && v.hdr10_metadata.is_none();
         let media = if self.ff.caps.qsv_tonemap && !wants_copy && media.video().is_some_and(unknown) {
-            let mut known = (*media).clone();
-            self.prober.read_first_frames(&input, &mut known).await;
-            Arc::new(known)
+            Arc::new(self.with_hdr10_metadata(&input, &media).await)
         } else {
             media
         };
@@ -821,6 +827,19 @@ impl JobManager {
         self.jobs.lock().insert(id.clone(), job.clone());
         unmade.made();
         Metrics::inc(&self.metrics.jobs_created);
+
+        // Start producing right away so the first segment request is fast.
+        if let Err(err) = self.ensure_producing(&job, start_segment).await {
+            if matches!(err, ApiError::Busy(_)) {
+                self.remove(&id).await;
+                return Err(err);
+            }
+            tracing::warn!(job = %id, "could not pre-start transcode: {err:?}");
+        }
+        // As its first process runs: the GPU's share may have moved its tone
+        // mapping (OpenCL or Quick Sync for 4K Dolby Vision, say).
+        let mut created = created;
+        created.video = job.own_status().video;
         tracing::info!(
             job = %id,
             "new job '{}' for {}: {} (made in {} ms: {} probing, {} reading keyframes)",
@@ -831,15 +850,6 @@ impl JobManager {
             probed.as_millis(),
             indexed.as_millis()
         );
-
-        // Start producing right away so the first segment request is fast.
-        if let Err(err) = self.ensure_producing(&job, start_segment).await {
-            if matches!(err, ApiError::Busy(_)) {
-                self.remove(&id).await;
-                return Err(err);
-            }
-            tracing::warn!(job = %id, "could not pre-start transcode: {err:?}");
-        }
         // The jobs already on the GPU make room for it now.
         self.share_gpu().await;
         Ok(created)
@@ -1190,6 +1200,39 @@ impl JobManager {
             && !held.cpu_busy
             && share::cpu_decodes(gpu, cpu, takes);
         Some(Share { quality, cpu_decode, quick_sync, base_layer, opencl })
+    }
+
+    /// `media` with whether its video carries HDR10's static metadata, from
+    /// its first frames: read once a file (as long as it doesn't change),
+    /// since the server keeps the media info it was given.
+    async fn with_hdr10_metadata(&self, input: &Path, media: &MediaInfo) -> MediaInfo {
+        let mut known = media.clone();
+        let stamp = tokio::fs::metadata(input).await.ok().map(|m| (m.len(), m.modified().ok()));
+        let read_before = stamp.and_then(|stamp| {
+            let cache = self.hdr10_metadata.lock();
+            cache.get(input).filter(|(was, _)| *was == stamp).map(|(_, has)| *has)
+        });
+        match read_before {
+            Some(has) => {
+                if let Some(video) = known.streams.iter_mut().find(|s| s.kind == pley_transcoder_api::StreamKind::Video)
+                {
+                    video.hdr10_metadata = has;
+                }
+            }
+            None => {
+                self.prober.read_first_frames(input, &mut known).await;
+                if let Some(stamp) = stamp {
+                    let has = known.video().and_then(|v| v.hdr10_metadata);
+                    let mut cache = self.hdr10_metadata.lock();
+                    // A library's worth, then started again.
+                    if cache.len() >= 4096 {
+                        cache.clear();
+                    }
+                    cache.insert(input.to_path_buf(), (stamp, has));
+                }
+            }
+        }
+        known
     }
 
     /// Whether FFmpeg's own decoder failed on the GPU for `job`'s Dolby
@@ -3137,6 +3180,32 @@ mod tests {
             limits,
             background,
         )
+    }
+
+    /// HDR10's static metadata, read from a file's first frames where the
+    /// server's media info predates it, is read once a file: later jobs take
+    /// it from what was read, until the file changes.
+    #[tokio::test]
+    async fn a_files_hdr10_metadata_is_read_once_until_it_changes() {
+        let dir = tempfile::tempdir().unwrap();
+        let mgr = manager(dir.path());
+        let input = dir.path().join("film.mkv");
+        std::fs::write(&input, b"not really a film").unwrap();
+        let mut media = MediaInfo::default();
+        media.streams.push(MediaStream { kind: pley_transcoder_api::StreamKind::Video, ..Default::default() });
+
+        // No ffprobe here: read, nothing known, and remembered as such.
+        let read = mgr.with_hdr10_metadata(&input, &media).await;
+        assert_eq!(read.video().unwrap().hdr10_metadata, None);
+        assert_eq!(mgr.hdr10_metadata.lock().len(), 1);
+        // What a read would have said is what the next job gets, unread.
+        mgr.hdr10_metadata.lock().values_mut().for_each(|(_, has)| *has = Some(true));
+        let again = mgr.with_hdr10_metadata(&input, &media).await;
+        assert_eq!(again.video().unwrap().hdr10_metadata, Some(true));
+        // A changed file is read again.
+        std::fs::write(&input, b"another film, longer than the first").unwrap();
+        let changed = mgr.with_hdr10_metadata(&input, &media).await;
+        assert_eq!(changed.video().unwrap().hdr10_metadata, None);
     }
 
     #[tokio::test]
