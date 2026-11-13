@@ -47,6 +47,8 @@ describes how they are made.
   read.
 - The dashboard's Now playing shows whether each stream is playing or
   paused, and its time moves on while it plays.
+- HDR made SDR keeps more detail in the shadows, closer to films' own SDR
+  versions.
 - Intel graphics: 4K HDR made SDR transcodes about twice as fast, on less of
   the CPU, and two at once each keep up better.
 - Intel graphics: HDR kept as HDR and burned-in picture subtitles stay on the

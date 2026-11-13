@@ -949,10 +949,13 @@ available tone mapper:
 - libplacebo tone maps by the stream's own metadata (`peak_detect=0`), so
   segments from different FFmpeg processes match at the seams. Thumbnails and
   seek previews do the same. Its curve is libplacebo's default
-  (`tonemapping=auto`, a spline). Measured against a film's own SDR grade
-  (Sol Levante's), it came closer than BT.2390's curve, which made bright
-  scenes a third too bright and clipped 10 to 15 % of their pixels where the
-  grade clips 1 to 2 %. `tonemap_opencl` as FFmpeg releases it measures
+  (`tonemapping=auto`, a spline), and HDR made SDR is lifted slightly first
+  (`brightness=0.03`). Measured against two films' own SDR grades (Sol
+  Levante's and Sparks'), that came closest of what was tried: the lift
+  keeps the shadows the spline alone crushes (SSIM 0.96 and 0.88 against
+  0.94 and 0.69), and BT.2390's curve, lifted or not, made bright scenes a
+  third too bright and clipped 10 to 15 % of their pixels where the grade
+  clips 1 to 2 %. `tonemap_opencl` as FFmpeg releases it measures
   the peak frame by frame, which can't be turned off, so its brightness can
   jump between processes; pley-ffmpeg's
   ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) goes by the stream's
