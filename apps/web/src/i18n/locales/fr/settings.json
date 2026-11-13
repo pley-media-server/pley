@@ -130,6 +130,42 @@
       "title": "Applications",
       "thirdParty": "Applications d’autres éditeurs",
       "thirdPartyHint": "Les applications de Pley peuvent toujours se connecter. Activez cette option pour permettre d’autoriser les applications d’autres éditeurs ; la désactiver les déconnecte."
+    },
+    "sso": {
+      "title": "Authentification unique",
+      "description": "Connexion avec un fournisseur OpenID Connect : Authentik, Keycloak, Authelia, Pocket ID, Google, Microsoft, etc. Chacun lie son compte au fournisseur depuis la page de son compte.",
+      "enabled": "Se connecter avec un fournisseur",
+      "enabledHint": "La page de connexion le propose à côté du mot de passe, dans le navigateur, où les applications se connectent aussi. La fenêtre de l’application de bureau se connecte avec un mot de passe.",
+      "publicUrl": "Adresse publique",
+      "publicUrlHint": "L’adresse où l’on ouvre Pley, comme https://pley.example.com. Les connexions s’y font : le fournisseur y renvoie les personnes.",
+      "name": "Nom du fournisseur",
+      "nameHint": "Sur le bouton : Se connecter avec Authentik.",
+      "issuer": "Émetteur",
+      "issuerHint": "L’URL de l’émetteur, exactement telle que le fournisseur l’affiche, barre oblique finale comprise. Celle de Google est https://accounts.google.com.",
+      "test": "Tester le fournisseur",
+      "clientId": "ID client",
+      "clientIdHint": "Obtenu en enregistrant Pley auprès du fournisseur. Laissez-le vide pour les fournisseurs qui acceptent les documents de métadonnées client : ils lisent celui de Pley, et il n’y a rien à enregistrer.",
+      "secret": "Secret client",
+      "secretHint": "Pour les clients confidentiels. Les clients publics n’en ont pas : PKCE les protège.",
+      "secretSaved": "Enregistré (saisissez-en un autre pour le remplacer)",
+      "secretNone": "Aucun",
+      "removeSecret": "Supprimer le secret enregistré",
+      "redirectUri": "URI de redirection",
+      "redirectUriHint": "À enregistrer auprès du fournisseur.",
+      "metadataDocument": "ID client (document de métadonnées)",
+      "metadataDocumentHint": "Le fournisseur lit ici le document de métadonnées client de Pley : Pley doit être joignable à une adresse https.",
+      "group": "Seulement ce groupe",
+      "groupHint": "Seuls les membres de ce groupe chez le fournisseur peuvent se connecter (il les envoie dans la revendication groups). Vide : toute personne qu’il laisse passer.",
+      "newAccounts": "Nouveaux comptes",
+      "newAccountsHint": "Les personnes que le fournisseur laisse passer et qui n’ont pas de compte ici en reçoivent un, sans bibliothèques ni demandes tant que vous ne leur en donnez pas.",
+      "anyoneWarning": "Toute personne pouvant se connecter chez ce fournisseur obtient un compte ici. Avec un fournisseur ouvert à tous (Google, Microsoft), laissez cette option désactivée et liez plutôt les comptes, ou définissez un groupe s’il envoie les groupes.",
+      "twoStep": "Se connecter avec le fournisseur remplace la connexion en deux étapes de Pley : activez celle du fournisseur.",
+      "scopes": "Pley ne demande au fournisseur que l’identité de la personne qui se connecte : les portées openid et email, profile quand il crée des comptes et groups quand il vérifie un groupe. Il ne conserve aucun jeton du fournisseur.",
+      "adminClaim": "Administrateurs d’après une revendication",
+      "adminClaimHint": "La revendication qui dit qui administre Pley : groups, roles, une revendication imbriquée comme realm_access.roles, ou une revendication avec espace de noms. À chaque connexion par le fournisseur, un compte devient administrateur quand elle contient la valeur ci-dessous, et cesse de l’être sinon. Vide : vous choisissez les administrateurs ici.",
+      "adminValue": "Valeur des administrateurs",
+      "adminValueHint": "Le groupe ou le rôle qui fait un administrateur. Vide : la revendication doit valoir true.",
+      "adminWarning": "Toute personne à qui le fournisseur la donne obtient tous les droits d’administrateur ici, et se connecte sans la connexion en deux étapes de Pley. Se connecter sans elle retire ces droits, mais jamais au dernier administrateur."
     }
   },
   "watchingHours": {
@@ -451,7 +487,8 @@
       "disabled": "Désactivé",
       "pin": "PIN",
       "twoStep": "2FA",
-      "twoStepMissing": "2FA non configurée"
+      "twoStepMissing": "2FA non configurée",
+      "sso": "SSO"
     },
     "deleteTitle": "Supprimer l’utilisateur ?",
     "deleteMessage": "<name>{{name}}</name> perdra son accès, et son historique de visionnage et ses paramètres seront supprimés.",
@@ -531,7 +568,16 @@
         "access": "Accès",
         "devices": "Appareils"
       },
-      "tabNeedsLook": "Un point à revoir ici"
+      "tabNeedsLook": "Un point à revoir ici",
+      "adminFromProvider": "Suit la revendication {{claim}} du fournisseur : redéfini à chaque connexion de ce compte par celui-ci."
+    },
+    "sso": {
+      "title": "Authentification unique",
+      "withPassword": "Se connecte aussi avec un mot de passe.",
+      "withoutPassword": "Pas de mot de passe : se connecte uniquement avec le fournisseur.",
+      "passwordFirst": "Donnez d’abord un mot de passe au compte, sinon il ne pourra plus se connecter",
+      "unlink": "Délier",
+      "unlinked": "{{name}} ne se connecte plus avec l’authentification unique et est déconnecté partout"
     }
   },
   "invites": {

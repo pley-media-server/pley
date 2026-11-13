@@ -129,6 +129,42 @@
       "title": "Apps",
       "thirdParty": "Apps by other publishers",
       "thirdPartyHint": "Pley's own apps can always sign in. Turn this on to let people allow other publishers' apps; turning it off signs them out."
+    },
+    "sso": {
+      "title": "Single sign-on",
+      "description": "Sign in with an OpenID Connect provider: Authentik, Keycloak, Authelia, Pocket ID, Google, Microsoft and the like. People link their account to it on their account page.",
+      "enabled": "Sign in with a provider",
+      "enabledHint": "The sign-in page offers it beside the password, in the browser, where the apps sign in too. The desktop app's window signs in with a password.",
+      "publicUrl": "Public address",
+      "publicUrlHint": "Where people open Pley, such as https://pley.example.com. Sign-ins happen there: the provider sends people back to it.",
+      "name": "Provider's name",
+      "nameHint": "On the button: Sign in with Authentik.",
+      "issuer": "Issuer",
+      "issuerHint": "The issuer URL exactly as the provider shows it, trailing slash and all. Google's is https://accounts.google.com.",
+      "test": "Test the provider",
+      "clientId": "Client ID",
+      "clientIdHint": "From registering Pley with the provider. Leave it empty for providers that take client metadata documents: they read Pley's instead, and nothing needs registering.",
+      "secret": "Client secret",
+      "secretHint": "For confidential clients. Public clients have none: PKCE protects them.",
+      "secretSaved": "Saved (type to replace it)",
+      "secretNone": "None",
+      "removeSecret": "Remove the saved secret",
+      "redirectUri": "Redirect URI",
+      "redirectUriHint": "Register this with the provider.",
+      "metadataDocument": "Client ID (metadata document)",
+      "metadataDocumentHint": "The provider reads Pley's client metadata document here: Pley must be reachable at an https address.",
+      "group": "Only this group",
+      "groupHint": "Only members of this group at the provider can sign in (it sends them in the groups claim). Empty: everyone it lets through.",
+      "newAccounts": "New accounts",
+      "newAccountsHint": "People the provider lets in who have no account here get one, without libraries or requests until you give them some.",
+      "anyoneWarning": "Anyone who can sign in at this provider gets an account here. With a provider anyone can join (Google, Microsoft), leave this off and link accounts instead, or set a group if it sends groups.",
+      "twoStep": "Signing in with the provider stands in for Pley's two-step sign-in: turn on the provider's own.",
+      "scopes": "Pley asks the provider only who signs in: the scopes openid and email, profile when it makes new accounts and groups when it checks a group. It keeps none of the provider's tokens.",
+      "adminClaim": "Administrators from a claim",
+      "adminClaimHint": "The claim that says who administers Pley: groups, roles, a nested one such as realm_access.roles, or a namespaced one. At each sign-in through the provider, an account becomes an administrator when it holds the value below, and stops being one when it doesn't. Empty: you choose administrators here.",
+      "adminValue": "Value for administrators",
+      "adminValueHint": "The group or role that makes an administrator. Empty: the claim must be true.",
+      "adminWarning": "Whoever the provider gives this gets every administrator's right here, and signs in without Pley's two-step sign-in. Signing in without it takes the right away, but never from the last administrator."
     }
   },
   "watchingHours": {
@@ -447,7 +483,8 @@
       "disabled": "Disabled",
       "pin": "PIN",
       "twoStep": "2FA",
-      "twoStepMissing": "2FA not set up"
+      "twoStepMissing": "2FA not set up",
+      "sso": "SSO"
     },
     "deleteTitle": "Delete user?",
     "deleteMessage": "<name>{{name}}</name> will lose access, and their watch history and settings will be deleted.",
@@ -527,7 +564,16 @@
         "access": "Access",
         "devices": "Devices"
       },
-      "tabNeedsLook": "Something here needs a look"
+      "tabNeedsLook": "Something here needs a look",
+      "adminFromProvider": "Follows the {{claim}} claim at the provider: set again each time this account signs in through it."
+    },
+    "sso": {
+      "title": "Single sign-on",
+      "withPassword": "Also signs in with a password.",
+      "withoutPassword": "No password: signs in only with the provider.",
+      "passwordFirst": "Give the account a password first, or it can't sign in",
+      "unlink": "Unlink",
+      "unlinked": "{{name}} no longer signs in with single sign-on, and is signed out everywhere"
     }
   },
   "invites": {

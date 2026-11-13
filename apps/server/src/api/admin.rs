@@ -134,6 +134,8 @@ pub enum Service {
     Musicbrainz,
     Transcoder,
     Opensubtitles,
+    /// The single sign-on provider.
+    Sso,
 }
 
 impl Service {
@@ -145,6 +147,7 @@ impl Service {
             Service::Musicbrainz => "MusicBrainz",
             Service::Transcoder => "The transcoder",
             Service::Opensubtitles => "OpenSubtitles",
+            Service::Sso => "The provider",
         }
     }
 }
@@ -164,6 +167,14 @@ pub struct TestRequest {
     username: Option<String>,
     #[serde(default)]
     password: Option<String>,
+    /// The single sign-on provider's issuer, client ID and pley's public
+    /// address, likewise.
+    #[serde(default)]
+    issuer: Option<String>,
+    #[serde(default)]
+    client_id: Option<String>,
+    #[serde(default)]
+    public_url: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -192,6 +203,9 @@ pub async fn test_service(
     if req.service == Service::Opensubtitles {
         return Json(test_opensubtitles(&state, &req).await);
     }
+    if req.service == Service::Sso {
+        return Json(test_sso(&state, &req).await);
+    }
     let saved = if req.service == Service::Tvdb { &settings.tvdb_api_key } else { &settings.tmdb_api_key };
     let key = req.api_key.as_deref().unwrap_or(saved).trim().to_owned();
     let pin = req.pin.as_deref().unwrap_or(&settings.tvdb_pin).trim().to_owned();
@@ -208,7 +222,7 @@ pub async fn test_service(
             Service::Tvdb => state.metadata.check_provider(Check::Tvdb { key: &key, pin: &pin }).await.map(|()| None),
             Service::Tvmaze => state.metadata.check_provider(Check::Tvmaze).await.map(|()| None),
             Service::Musicbrainz => state.metadata.check_provider(Check::MusicBrainz).await.map(|()| None),
-            Service::Opensubtitles => unreachable!("tested above"),
+            Service::Opensubtitles | Service::Sso => unreachable!("tested above"),
             Service::Transcoder => match state.transcoder.status().await {
                 Ok(status) => Ok(Some(match status.ffmpeg_version {
                     Some(ffmpeg) => format!("pley-transcoder {} with ffmpeg {ffmpeg}", status.version),
@@ -291,6 +305,38 @@ async fn test_opensubtitles(state: &AppState, req: &TestRequest) -> TestResult {
         Err(_) => (false, format!("OpenSubtitles didn't answer within {} seconds.", TEST_TIMEOUT.as_secs())),
     };
     TestResult { ok, message, refused, ms }
+}
+
+/// The single sign-on provider typed in (or saved): whether it answers as
+/// an OpenID Connect provider, and how pley would sign in with it.
+async fn test_sso(state: &AppState, req: &TestRequest) -> TestResult {
+    let settings = state.settings.get();
+    let issuer = req.issuer.as_deref().unwrap_or(&settings.sso_issuer).trim();
+    let client_id = req.client_id.as_deref().unwrap_or(&settings.sso_client_id).trim();
+    let public_url = req.public_url.as_deref().unwrap_or(&settings.public_url).trim().trim_end_matches('/');
+    if issuer.is_empty() {
+        return TestResult { ok: false, message: "Enter the provider's issuer first.".into(), refused: false, ms: 0 };
+    }
+    if public_url.is_empty() {
+        return TestResult { ok: false, message: "Enter Pley's public address first.".into(), refused: false, ms: 0 };
+    }
+    let started = Instant::now();
+    let outcome = tokio::time::timeout(TEST_TIMEOUT, state.sso.check(issuer, client_id, public_url)).await;
+    let ms = started.elapsed().as_millis() as u64;
+    let (ok, message) = match outcome {
+        Ok(Ok(message)) => (true, message),
+        Ok(Err(err)) => (false, capitalized(&format!("{err}."))),
+        Err(_) => (false, format!("The provider didn't answer within {} seconds.", TEST_TIMEOUT.as_secs())),
+    };
+    // The test sends the provider no secret, so there is nothing for it to
+    // refuse: a wrong client ID shows only when someone signs in.
+    TestResult { ok, message, refused: false, ms }
+}
+
+/// A sentence from an error message ("couldn't reach…" → "Couldn't reach…").
+fn capitalized(message: &str) -> String {
+    let mut chars = message.chars();
+    chars.next().map(|first| first.to_uppercase().chain(chars).collect()).unwrap_or_default()
 }
 
 /// "The transcoder" in the middle of a sentence.

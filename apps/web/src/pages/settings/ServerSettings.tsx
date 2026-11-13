@@ -13,6 +13,7 @@ import { formatTimestamp } from "@/lib/format";
 import { metadataLanguageChoices } from "@/lib/metadataLanguages";
 import { useDocumentTitle } from "@/lib/hooks";
 import { Group, Link, Note, Row, SecretInput, SettingsForm, TestButton, useSettingsForm } from "./SettingsForm";
+import { SingleSignOnGroup, SSO_KEYS } from "./SingleSignOnSettings";
 import { knownTranscoder } from "./transcodeChoices";
 import { hourOfDay, WatchingHoursChart } from "./WatchingHoursChart";
 
@@ -42,6 +43,7 @@ const KEYS = [
   "opensubtitles_api_key",
   "opensubtitles_username",
   "opensubtitles_password",
+  ...SSO_KEYS,
 ] as const satisfies readonly (keyof Settings)[];
 
 const TV_SOURCES: Record<Exclude<TvMetadata, "auto">, string> = { tmdb: "TMDB", tvdb: "TheTVDB", tvmaze: "TVmaze" };
@@ -76,6 +78,11 @@ export function ServerSettings() {
     }
     // The pages before signing in, and accounts without their own, show the server's language.
     if (changes.language !== undefined) void qc.invalidateQueries({ queryKey: keys.server });
+    // The sign-in page's button follows single sign-on's settings.
+    if (Object.keys(changes).some((k) => k.startsWith("sso_") || k === "public_url")) {
+      void qc.invalidateQueries({ queryKey: keys.server });
+      void qc.invalidateQueries({ queryKey: keys.mySso });
+    }
     // Requiring two-step sign-in signed out everyone without it.
     if (changes.require_two_step !== undefined) {
       void qc.invalidateQueries({ queryKey: keys.server });
@@ -288,6 +295,8 @@ ${form.opensubtitles_password ?? ""}`}
                 known={form.require_two_step !== undefined}
               />
             </Group>
+
+            <SingleSignOnGroup form={form} setForm={setForm} />
 
             <Group title={t("server.apps.title")}>
               <Row label={t("server.apps.thirdParty")} hint={t("server.apps.thirdPartyHint")}>

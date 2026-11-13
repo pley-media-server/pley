@@ -30,6 +30,12 @@ describes how they are made.
   devices can't find it, and how to fix that.
 - In a container with no media folder mounted, adding a library says how
   to mount one.
+- Single sign-on: people can sign in in the browser with an OpenID
+  Connect provider such as Authentik, Keycloak or Google, set up in
+  Settings → Server → Single sign-on. Each person links their account on
+  their Account page with their password; an administrator can let only
+  one group in, give new people accounts without libraries, and let a
+  group or role at the provider decide who administers Pley.
 
 ### Changed
 

@@ -47,6 +47,7 @@ import { useDocumentTitle } from "@/lib/hooks";
 import { passwordProblem } from "@/lib/passwords";
 import { LanguageCard } from "./LanguageCard";
 import { CompatibilityTokensCard } from "./CompatibilityTokensCard";
+import { SingleSignOnCard } from "./SingleSignOnCard";
 import { TwoStepCard } from "./TwoStepCard";
 
 const MAX_AVATAR_BYTES = 10 * 1024 * 1024;
@@ -664,6 +665,7 @@ export function AccountPage() {
       <LanguageCard />
       <PlaybackCard />
       <PinCard />
+      <SingleSignOnCard />
       {user.managed ? null : user.has_password === false ? <NoPasswordCard /> : <PasswordCard />}
       <TwoStepCard />
       <HistoryCard />

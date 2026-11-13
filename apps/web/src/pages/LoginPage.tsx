@@ -6,10 +6,12 @@ import { errorMessage, isApiError } from "@/api/client";
 import { fetchProfiles, useLogin, useMe, useServer } from "@/api/hooks";
 import type { TwoStepSetup, User } from "@/api/types";
 import { Splash } from "@/auth";
-import { Button, Field, TextInput } from "@/components/ui";
+import { Button, buttonClass, Field, TextInput } from "@/components/ui";
+import { cn } from "@/lib/cn";
 import { useDocumentTitle } from "@/lib/hooks";
 import { asksWhoIsWatching, lastProfile } from "@/lib/lastProfile";
 import { appShell, SWITCH_SERVER_PATH } from "@/lib/shell";
+import { ssoNotice, ssoStartUrl } from "@/lib/sso";
 import { codeKind, isTwoStepError, twoStepSetupOf } from "@/lib/twoStep";
 import { AuthLayout } from "./AuthLayout";
 import { safeNext } from "./ProfilesPage";
@@ -214,6 +216,12 @@ export function LoginPage() {
     );
   }
 
+  const sso = server.data?.sso ?? null;
+  // Back from the provider without being signed in.
+  const notice = ssoNotice(params.get("sso"), sso?.name ?? t("sso.theProvider"));
+  // The apps' windows don't show the provider's pages: they open them in the browser.
+  const inApp = appShell() !== null;
+
   return (
     <AuthLayout
       title={t("login.signIn")}
@@ -224,6 +232,17 @@ export function LoginPage() {
       }
     >
       <form onSubmit={onSubmit} className="space-y-4">
+        {notice ? (
+          <p
+            role="alert"
+            className={cn(
+              "rounded-md border px-3 py-2 text-sm",
+              notice.tone === "success" ? "border-success/40 bg-success/10 text-success" : "border-danger/40 bg-danger/10 text-danger",
+            )}
+          >
+            {notice.text}
+          </p>
+        ) : null}
         <Field label={t("fields.username")} htmlFor="username">
           <TextInput
             id="username"
@@ -252,7 +271,21 @@ export function LoginPage() {
         <Button type="submit" variant="primary" size="lg" className="w-full" loading={login.isPending || (signingIn && !login.isError)}>
           {t("login.signIn")}
         </Button>
-        {appShell() ? (
+        {sso && inApp ? (
+          <p className="text-center text-xs text-subtle">{t("sso.inBrowser", { provider: sso.name })}</p>
+        ) : sso ? (
+          <>
+            <div className="flex items-center gap-3 text-xs text-subtle" aria-hidden>
+              <span className="h-px flex-1 bg-border" />
+              {t("sso.or")}
+              <span className="h-px flex-1 bg-border" />
+            </div>
+            <a href={ssoStartUrl(sso.start, next)} className={buttonClass("outline", "lg", "w-full")}>
+              {t("sso.signInWith", { provider: sso.name })}
+            </a>
+          </>
+        ) : null}
+        {inApp ? (
           <p className="text-center text-xs text-subtle">
             <a href={SWITCH_SERVER_PATH} className="font-medium text-accent hover:text-accent-hover">
               {t("login.otherServer")}

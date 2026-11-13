@@ -105,6 +105,82 @@ describe("ServerSettings", () => {
     expect(screen.getByRole("switch", { name: "Read NFO files" })).not.toBeChecked();
   });
 
+  describe("single sign-on", () => {
+    const SSO = {
+      ...SETTINGS,
+      public_url: "https://pley.example.com",
+      sso_enabled: true,
+      sso_name: "Authentik",
+      sso_issuer: "https://auth.example.com/application/o/pley/",
+      sso_client_id: "pley",
+      sso_client_secret_set: true,
+      sso_new_accounts: false,
+      sso_group: "",
+    } satisfies Settings;
+
+    function serveSso(settings: Settings = SSO) {
+      return mockApi({
+        "GET /api/settings": () => settings,
+        "GET /api/system": () => ({}),
+        "PUT /api/settings": (req) => ({ ...settings, ...(req.body as Partial<Settings>) }),
+      });
+    }
+
+    it("shows where the provider sends people back, and keeps the saved secret unless one is typed", async () => {
+      const user = userEvent.setup();
+      const requests = serveSso();
+      renderWithProviders(<ServerSettings />);
+      expect(await screen.findByText("https://pley.example.com/api/auth/sso/callback")).toBeInTheDocument();
+      expect(screen.getByLabelText("Client secret")).toHaveAttribute("placeholder", "Saved (type to replace it)");
+
+      await user.type(screen.getByLabelText("Provider's name"), " Home");
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ sso_name: "Authentik Home" }));
+    });
+
+    it("forgets the saved secret for another issuer", async () => {
+      const user = userEvent.setup();
+      serveSso();
+      renderWithProviders(<ServerSettings />);
+      const issuer = await screen.findByLabelText("Issuer");
+      await user.type(issuer, "x");
+      expect(screen.getByLabelText("Client secret")).toHaveAttribute("placeholder", "None");
+    });
+
+    it("warns when anyone at the provider would get an account", async () => {
+      const user = userEvent.setup();
+      serveSso();
+      renderWithProviders(<ServerSettings />);
+      await user.click(await screen.findByRole("switch", { name: "New accounts" }));
+      expect(screen.getByText(/Anyone who can sign in at this provider gets an account here/)).toBeInTheDocument();
+      await user.type(screen.getByLabelText("Only this group"), "pley-users");
+      expect(screen.queryByText(/Anyone who can sign in at this provider/)).not.toBeInTheDocument();
+    });
+
+    it("chooses administrators by a claim, with a warning", async () => {
+      const user = userEvent.setup();
+      const requests = serveSso({ ...SSO, sso_admin_claim: "", sso_admin_value: "" });
+      renderWithProviders(<ServerSettings />);
+      const claim = await screen.findByLabelText("Administrators from a claim");
+      expect(screen.queryByLabelText("Value for administrators")).not.toBeInTheDocument();
+
+      await user.type(claim, "realm_access.roles");
+      await user.type(screen.getByLabelText("Value for administrators"), "pley-admin");
+      expect(screen.getByText(/gets every administrator's right here/)).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Save" }));
+      await waitFor(() =>
+        expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ sso_admin_claim: "realm_access.roles", sso_admin_value: "pley-admin" }),
+      );
+    });
+
+    it("isn't there for a server before it", async () => {
+      serveSso(SETTINGS);
+      renderWithProviders(<ServerSettings />);
+      expect(await screen.findByLabelText("Server name")).toHaveValue("Den");
+      expect(screen.queryByText("Single sign-on")).not.toBeInTheDocument();
+    });
+  });
+
   it("has no NFO switch for a server that doesn't read NFO files", async () => {
     mockApi({ "GET /api/settings": () => SETTINGS, "GET /api/system": () => ({}) });
     renderWithProviders(<ServerSettings />);

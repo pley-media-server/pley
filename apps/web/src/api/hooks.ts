@@ -28,6 +28,7 @@ import type {
   LibraryKind,
   ListenChoice,
   LoginResponse,
+  MySingleSignOn,
   NetworkSettings,
   PersonDetail,
   PlayingSession,
@@ -87,6 +88,7 @@ export const keys = {
   settings: ["settings"] as const,
   network: ["network"] as const,
   twoStep: ["me", "two-step"] as const,
+  mySso: ["me", "sso"] as const,
   system: ["system"] as const,
   storage: ["system", "storage"] as const,
   resources: ["system", "resources"] as const,
@@ -158,6 +160,41 @@ export function useLogout() {
     onSettled: () => {
       qc.clear();
     },
+  });
+}
+
+/** Single sign-on for the signed-in user: on or off, and the linked identity. */
+export function useMySso(enabled = true) {
+  return useQuery({ queryKey: keys.mySso, queryFn: () => api.get<MySingleSignOn>("/api/me/sso"), enabled });
+}
+
+/** Asks for the next sign-in at the provider to link to this account; the browser goes there next. */
+export function useRequestSsoLink() {
+  return useMutation({
+    /** `code`: with two-step sign-in, signing in through the provider skips it, so linking takes it. */
+    mutationFn: (body: { password: string; code?: string }) =>
+      api.post<void>("/api/auth/sso/link", body, { noAuthRedirect: true }),
+  });
+}
+
+export function useUnlinkSso() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (password: string) =>
+      request<void>("/api/me/sso", { method: "DELETE", body: { password }, noAuthRedirect: true }),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: keys.mySso });
+      void qc.invalidateQueries({ queryKey: keys.me });
+    },
+  });
+}
+
+/** An administrator unlinks a user's identity at the provider. */
+export function useUnlinkUserSso() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: Id) => api.del<void>(`/api/users/${id}/sso`),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: keys.users }),
   });
 }
 

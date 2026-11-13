@@ -41,8 +41,10 @@ export interface User {
   subtitle_mode: SubtitleMode;
   /** The language Pley is in for this account (`en`, `fr`, `es`); `null`: automatic (the device's, else the server language). Absent from servers before it. */
   language?: string | null;
-  /** `false`: a managed profile, or an account without a password. */
+  /** `false`: a managed profile, or an account without a password (one made by single sign-on). */
   has_password: boolean;
+  /** Linked to an identity at the single sign-on provider. Absent from servers before it. */
+  sso?: boolean;
   /** Signs in with a code from an authenticator app after the password. */
   two_step: boolean;
   /** Requests: may not ask, asks an administrator, or approved as made ("auto" for administrators). Absent from servers before requests. */
@@ -142,6 +144,27 @@ export interface ServerStatus {
    * without it sets it up as it signs in. Absent from servers before it.
    */
   two_step_required?: boolean;
+  /** Single sign-on, when it is on: the provider's name and where sign-ins start. Absent from servers before it. */
+  sso?: SingleSignOn | null;
+}
+
+export interface SingleSignOn {
+  name: string;
+  /** `https://pley.example.com/api/auth/sso/start`: the page browsers are sent to. */
+  start: string;
+}
+
+/** `GET /api/me/sso`: single sign-on for the signed-in user. */
+export interface MySingleSignOn {
+  enabled: boolean;
+  name?: string;
+  linked?: boolean;
+  /** The linked identity's e-mail address, when the provider said. */
+  email?: string | null;
+  has_password?: boolean;
+  /** Pley's public address: linking happens there. */
+  public_url?: string;
+  start?: string;
 }
 
 /** `GET /api/me/two-step`: two-step sign-in for the signed-in user. */
@@ -1100,12 +1123,34 @@ export interface Settings {
   sonarr_season_folders?: boolean;
   /** Search for the seasons asked for as soon as they're added. */
   sonarr_search?: boolean;
+  /** Where people reach Pley in a browser (`https://pley.example.com`): single sign-on runs there. */
+  public_url?: string;
+  sso_enabled?: boolean;
+  /** The provider's name, on the sign-in button. */
+  sso_name?: string;
+  sso_issuer?: string;
+  /** Empty: Pley's client metadata document is its client ID (for providers that take those). */
+  sso_client_id?: string;
+  /** Never sent back; sent only when typed (`sso_client_secret_set` says whether one is saved). */
+  sso_client_secret?: string;
+  sso_client_secret_set?: boolean;
+  /** People the provider knows but Pley doesn't get an account (without libraries). */
+  sso_new_accounts?: boolean;
+  /** Only members of this group at the provider may sign in; empty: anyone it lets through. */
+  sso_group?: string;
+  /**
+   * The claim that makes administrators (`groups`, `realm_access.roles`…): at each sign-in through
+   * the provider, an account is one when it holds `sso_admin_value`. Empty: the provider doesn't decide.
+   */
+  sso_admin_claim?: string;
+  /** The group or role in `sso_admin_claim` that makes an administrator; empty: the claim `true`. */
+  sso_admin_value?: string;
 }
 
 export type MinimumAvailability = "announced" | "in_cinemas" | "released";
 
 /** A service the settings can test (`POST /api/settings/test`). */
-export type TestedService = "tmdb" | "tvdb" | "tvmaze" | "musicbrainz" | "transcoder" | "opensubtitles";
+export type TestedService = "tmdb" | "tvdb" | "tvmaze" | "musicbrainz" | "transcoder" | "opensubtitles" | "sso";
 
 export interface ServiceTest {
   service: TestedService;
@@ -1115,6 +1160,10 @@ export interface ServiceTest {
   /** An OpenSubtitles account typed in; the saved password when left out. */
   username?: string;
   password?: string;
+  /** Single sign-on, likewise: the provider's issuer, the client ID, Pley's public address. */
+  issuer?: string;
+  client_id?: string;
+  public_url?: string;
 }
 
 export interface ServiceTestResult {

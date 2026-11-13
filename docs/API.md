@@ -80,8 +80,9 @@ details.
 
 ## Authentication
 
-`POST /api/auth/login` signs in (so do `/api/setup`, `/api/auth/switch` and
-accepting an invitation). The answer sets an `HttpOnly` cookie named
+`POST /api/auth/login` signs in (so do `/api/setup`, `/api/auth/switch`,
+accepting an invitation and [single sign-on](#single-sign-on)). The answer
+sets an `HttpOnly` cookie named
 `pley_token`. Clients that send no `Origin` header (not browsers) also get
 the token in the body; a browser keeps it in the cookie only, so no script
 on the page sees it.
@@ -229,6 +230,7 @@ interface User {
   subtitle_mode: "off" | "forced" | "foreign" | "always";
   language: "en" | "fr" | "es" | null; // the language Pley is in for the account; null = automatic (see Language)
   has_password: boolean;            // false: a managed profile, or an account without a password
+  sso: boolean;                     // linked to an identity at the single sign-on provider
   two_step: boolean;                // two-step sign-in is on
   request_access: "off" | "ask" | "auto"; // Requests: may not ask, asks an administrator, or approved as
                                     // made. Administrators: "auto" (in /api/auth/me, "ask" for an app by
@@ -526,10 +528,13 @@ lists carry (Kodi).
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/health` | `public` | `{ "status": "ok" }` |
-| GET | `/api/server` | `public` | `{ id, name, language, version, commit, source, setup_required, setup_code_required, two_step_required, proof? }` |
+| GET | `/api/server` | `public` | `{ id, name, language, version, commit, source, setup_required, setup_code_required, two_step_required, sso, proof? }` |
 | GET | `/api/oauth/device/qr?code=` | `public` | where to type a TV's code, as a QR code (PNG): see [TVs](#tvs) |
 | POST | `/api/setup` | `public` | `{ username, password, setup_code }` → `{ user: User, token? }`: creates the first (admin) account and signs in |
 | POST | `/api/auth/login` | `public` | `{ username, password, code?, setup_id? }` → `{ user: User, token?, recovery_codes? }` |
+| GET | `/api/auth/sso/start?next=/page` | `public` | a page browsers are sent to: `303` to the provider, from Pley's public address (from elsewhere, first to that) |
+| GET | `/api/auth/sso/callback` | `public` | where the provider sends people back (`code`, `state`): `303` to `next` (or `/profiles?next=…` for a household), signed in; or `/login?sso=<code>`, `/account?sso=<code>` |
+| GET | `/api/auth/sso/client` | `public` | Pley's client metadata document, without a client ID: `{ client_id, client_name, redirect_uris, grant_types, response_types, token_endpoint_auth_method: "none", scope }` |
 
 - `/api/server`: `id` is the one [discovery](#discovery) answers with.
   `language` is the server [language](#language), for devices in a
@@ -542,7 +547,9 @@ lists carry (Kodi).
   the server's log. `two_step_required`: the server requires two-step
   sign-in of every account with a password
   ([Two-step sign-in](#two-step-sign-in)), so signing in may set it up
-  first.
+  first. `sso` is `{ name, start }` while [single sign-on](#single-sign-on)
+  is on, else `null`: `start` is where browsers go to sign in
+  (`?next=/page`).
 - `/api/setup`: `409` once a user exists; `403` without the right
   `setup_code`. 5 tries per 15 minutes from each address and 1000 from all
   addresses, then `429`.
@@ -596,6 +603,71 @@ lists carry (Kodi).
   `429` after 5 wrong tries in 15 minutes. A PIN refused is `403` with
   `code` `wrong_pin` (missing or wrong) or `pin_locked`, as the apps'
   [switch-profile grant](#tokens) says by its `reason`.
+
+### Single sign-on
+
+With `sso_enabled`, people sign in in a browser with an OpenID Connect
+provider (Authentik, Keycloak, Authelia, Pocket ID, Google…): the
+authorization code flow with PKCE, the `state` bound to the browser by a
+cookie, and the ID token's signature, issuer, audience, nonce and times
+checked. Pley checks ID tokens itself, with ring; times sent as anything
+but numbers are refused. It asks for the scopes `openid email`, plus
+`profile` when it makes new accounts and `groups` when it checks a group,
+and keeps none of the provider's tokens.
+
+An identity (the issuer and the ID token's `sub`) signs in to the account it
+was linked to; names and e-mail addresses never match accounts. With
+`sso_new_accounts`, someone new gets an account without a password,
+libraries or requests; with `sso_group`, only members of that group get in
+at all. Signing in through the provider skips Pley's two-step sign-in (the
+provider asks for its own), so linking an account with it takes its code.
+While the server requires two-step sign-in, an account with a password that
+doesn't use it yet signs in with its password first, to set it up.
+
+With `sso_admin_claim`, the provider decides who administers Pley: at each
+sign-in through it, the account is an administrator when that claim holds
+`sso_admin_value`, and isn't one otherwise, the last enabled administrator
+excepted. The claim is the ID token's, else the userinfo endpoint's (about
+the same `sub`); its name is a claim's own (`roles`,
+`https://example.com/roles`), else a path through nested claims
+(`realm_access.roles`). It matches a string equal to the value, or a list
+holding it, a leading `/` left out of both; with no value, the claim `true`.
+Claims that say who someone is (`email`, `email_verified`,
+`preferred_username`, `name`, `sub` and the others of OpenID Connect Core
+§2 and §5.1, or a path through one) are refused (`400`): people choose many
+of them, and nearly everyone's address is verified.
+A claim named `groups` (or under it) adds the `groups` scope. A change ends
+the account's cached sessions' rights at once and sends
+`libraries_changed`, as an administrator's change would.
+
+It runs in a browser, where the apps sign in too ([Apps](#apps-oauth-21)):
+Pley's sign-in page offers the provider when an app opens it, and a TV is
+allowed on `/link` from a browser signed in either way. The desktop app's
+window shows the web app itself and keeps to the server's own pages,
+sending others to the browser, the provider's included: there the sign-in
+page says to sign in with the provider in a browser instead.
+
+| Method | Path | Who | What |
+|---|---|---|---|
+| POST | `/api/auth/sso/link` | `user` | `{ password, code? }` → `204`: the next single sign-on (`/api/auth/sso/start`, which the web app opens next) links that identity to this account |
+| GET | `/api/me/sso` | `user` | `{ enabled, name?, linked?, email?, has_password?, public_url?, start? }`: single sign-on for this account |
+| DELETE | `/api/me/sso` | `user` | `{ password }` → `204`: unlinks the identity, and signs the account out everywhere but here |
+
+- `POST /api/auth/sso/link` works from Pley's public address only (`409`
+  elsewhere), and not for managed profiles or accounts without a password
+  (`403`). With two-step sign-in it takes a `code` too.
+- `DELETE /api/me/sso`: `403` for an account without a password, which
+  would be locked out.
+
+`?sso=` codes: `linked` (done), `off`, `expired` (took too long, or started
+in another browser), `denied` (cancelled at the provider), `provider` (the
+provider couldn't be reached or refused; the log says why), `invalid` (the
+ID token was refused), `unknown` (no account is linked to that identity),
+`disabled`, `group` (not in the group that may sign in), `two_step` (the
+account has to set up two-step sign-in, which the server requires),
+`signin` (linking: not signed in as the user who asked any more), `taken`
+(linked to another account), `busy` (5 codes the provider refused from this
+address in 15 minutes: Pley doesn't ask it about more until then), `error`.
 
 ### Two-step sign-in
 
@@ -4279,6 +4351,7 @@ interface LiveTuner {                  // a connection in use
 | GET | `/api/users/{id}/apps` | `admin` | `AppGrant[]` ([Signed-in apps](#signed-in-apps)) |
 | DELETE | `/api/users/{id}/apps/{grant}` | `admin` | `204`: signs that app out; `404` unless it acts as that user or they allowed it |
 | DELETE | `/api/users/{id}/two-step` | `admin` | `204`: turns two-step sign-in off (for someone who lost their phone and recovery codes). While the server requires it, they are signed out everywhere and set it up again at their next sign-in |
+| DELETE | `/api/users/{id}/sso` | `admin` | `204`: unlinks the user's identity at the [single sign-on](#single-sign-on) provider (an account lost or taken over there), and signs the user out everywhere; `404` when none is linked; `409` for an account without a password, which would have no way in |
 
 `PATCH /api/users/{id}`:
 
@@ -4316,9 +4389,9 @@ interface LiveTuner {                  // a connection in use
 | GET | `/api/system/backups` | `admin` | `{ health: { ok, problem?, checked_at }, backups: { name, path, bytes, created_at }[] }`, newest first (`ok` and `checked_at` `null` until checked) |
 | POST | `/api/system/backups` | `admin` | the new backup: a checked `VACUUM INTO` copy; the last 3 are kept |
 | GET | `/api/transcoder` | `admin` | `TranscoderStatus`: the transcoder's live metrics (all jobs, counters) |
-| GET | `/api/settings` | `admin` | `Settings` (never with `opensubtitles_password`, `radarr_api_key` or `sonarr_api_key`) |
+| GET | `/api/settings` | `admin` | `Settings` (never with `opensubtitles_password`, `radarr_api_key`, `sonarr_api_key` or `sso_client_secret`) |
 | PUT | `/api/settings` | `admin` | partial `Settings` → `Settings` |
-| POST | `/api/settings/test` | `admin` | `{ service, api_key?, pin?, username?, password? }` → `{ ok, message, refused, ms }` |
+| POST | `/api/settings/test` | `admin` | `{ service, api_key?, pin?, username?, password?, issuer?, client_id?, public_url? }` → `{ ok, message, refused, ms }` |
 | POST | `/api/settings/arr` | `admin` | `{ service: "radarr" \| "sonarr", url?, api_key? }` → `ArrOptions`: what Radarr or Sonarr offers requests |
 | POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives, with `container`, whether Pley runs in one, and `mounts`, the folders mounted into it, which are among the roots). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
@@ -4362,12 +4435,15 @@ interface LiveTuner {                  // a connection in use
   `"auto"` and turns `hardware_decoding` on; a combination saved before
   stays.
 - **`settings/test`** makes one request to `service` (`"tmdb"`, `"tvdb"`,
-  `"tvmaze"`, `"musicbrainz"`, `"transcoder"` or `"opensubtitles"`) with the
-  key and PIN given (not saved), else the saved ones. OpenSubtitles: its
-  key, or with a `username`, a sign-in of that account (`password` left
-  out: the saved one, for the saved username). `message` says what
-  happened, for people; `refused` is `true` when the service answered and
-  refused the key or account, `false` when it wasn't reached.
+  `"tvmaze"`, `"musicbrainz"`, `"transcoder"`, `"opensubtitles"` or
+  `"sso"`) with the key and PIN given (not saved), else the saved ones.
+  OpenSubtitles: its key, or with a `username`, a sign-in of that account
+  (`password` left out: the saved one, for the saved username). `sso`: the
+  provider at `issuer`, its discovery document and keys, and how Pley would
+  sign in with it with `client_id` at `public_url` (each the saved one when
+  left out). `message` says what happened, for people; `refused` is `true`
+  when the service answered and refused the key or account, `false` when
+  it wasn't reached (always `false` for `sso`, which sends no secret).
 - **`settings/arr`** asks Radarr or Sonarr at `url` with `api_key` (not
   saved), else the saved ones, for what [requests](#requests) can be sent
   with. The saved key goes only to the saved address: a new `url` needs its
@@ -4514,6 +4590,21 @@ interface Settings {
   sonarr_anime_root_folder: string;
   sonarr_season_folders: boolean;   // a folder for each season (default true)
   sonarr_search: boolean;           // search for the seasons asked for as soon as they're added (default true)
+  // Single sign-on (see Single sign-on):
+  public_url: string;               // where people reach Pley in a browser ("https://pley.example.com"); sign-ins run there
+  sso_enabled: boolean;             // needs sso_issuer and public_url (https without a client ID)
+  sso_name: string;                 // on the sign-in button; "" = the issuer's host
+  sso_issuer: string;               // the provider's issuer, exactly; https (http only to localhost)
+  sso_client_id: string;            // "" = Pley's client metadata document (CIMD), for providers that take those
+  sso_client_secret?: string;       // PUT only, never sent back. Left out: the saved one stays; "" = none. A new
+                                    // sso_issuer or sso_client_id without it forgets the saved one
+  sso_client_secret_set: boolean;   // GET: a secret is saved
+  sso_new_accounts: boolean;        // identities Pley doesn't know get an account, without libraries (default false)
+  sso_group: string;                // only members of this group (the `groups` claim) may sign in; "" = anyone
+  sso_admin_claim: string;          // the claim that makes administrators ("groups", "realm_access.roles");
+                                    // never one that says who someone is ("email", "preferred_username"…);
+                                    // "" (default) = administrators are chosen in Pley only
+  sso_admin_value: string;          // the group or role in it that does; "" = the claim must be true
 }
 
 interface ArrOptions {

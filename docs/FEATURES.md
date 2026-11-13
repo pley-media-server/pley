@@ -132,6 +132,13 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - Two-step sign-in with an authenticator app, with recovery codes:
   optional, or required of everyone by an administrator, in which case each
   person sets it up at their next sign-in (for a TV, on their phone).
+- Single sign-on with an OpenID Connect provider (Authentik, Keycloak,
+  Authelia, Pocket ID, Google…), in the browser: people link their account
+  to it with their password, and an administrator can let only one group in,
+  give new people accounts without libraries, and have a group or role at
+  the provider make administrators. Providers that take client
+  metadata documents need no registration
+  ([deploy/README.md](../deploy/README.md#single-sign-on)).
 - Apps sign in on Pley's own page and get only what you allow (browsing,
   playing, playlists), never administration: OAuth 2.1 with client metadata
   documents. Pley's own apps work without internet access; apps by other

@@ -19,6 +19,7 @@ pub(crate) mod playback;
 mod playlists;
 pub(crate) mod remote;
 mod requests;
+mod sso;
 mod subtitles;
 mod two_step;
 mod watchlist;
@@ -52,6 +53,11 @@ pub fn router(state: AppState) -> Router {
         .route("/auth/password", put(auth::change_password))
         .route("/auth/profiles", get(auth::profiles))
         .route("/auth/switch", post(auth::switch))
+        .route("/auth/sso/start", get(sso::start))
+        .route("/auth/sso/callback", get(sso::callback))
+        .route("/auth/sso/client", get(sso::client))
+        .route("/auth/sso/link", post(sso::request_link))
+        .route("/me/sso", get(sso::mine).delete(sso::unlink))
         .route("/me/two-step", get(two_step::status).post(two_step::enable).delete(two_step::disable))
         .route("/me/two-step/setup", post(two_step::setup))
         .route("/me/two-step/recovery-codes", post(two_step::recovery_codes))
@@ -215,6 +221,7 @@ pub fn router(state: AppState) -> Router {
         .route("/users/{id}/devices", get(accounts::user_devices).delete(accounts::sign_out_everywhere))
         .route("/users/{id}/apps", get(oauth::user_apps))
         .route("/users/{id}/apps/{grant}", delete(oauth::sign_out_user_app))
+        .route("/users/{id}/sso", delete(sso::unlink_user))
         .route("/users/{id}/two-step", delete(two_step::reset_user))
         .route("/invites", get(accounts::list_invites).post(accounts::create_invite))
         .route("/invites/{code}", get(accounts::check_invite).delete(accounts::delete_invite))
@@ -501,8 +508,8 @@ mod tests {
         let uri: axum::http::Uri =
             "/api/files/3/stream?token=secret&t=10&ApiKey=abc&api_key=k&X-Plex-Token=p".parse().unwrap();
         assert_eq!(loggable_uri(&uri), "/api/files/3/stream?token=…&t=10&ApiKey=…&api_key=…&X-Plex-Token=…");
-        let uri: axum::http::Uri = "/api/x?code=c0de&state=st4te".parse().unwrap();
-        assert_eq!(loggable_uri(&uri), "/api/x?code=…&state=…");
+        let uri: axum::http::Uri = "/api/auth/sso/callback?code=c0de&state=st4te".parse().unwrap();
+        assert_eq!(loggable_uri(&uri), "/api/auth/sso/callback?code=…&state=…");
         let uri =
             "/oauth/authorize?client_id=c&code_challenge=x&State=s&code_verifier=v&access_token=a&refresh_token=r"
                 .parse()

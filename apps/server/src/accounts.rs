@@ -40,6 +40,7 @@ struct UserRow {
     subtitle_mode: String,
     language: Option<String>,
     has_password: bool,
+    sso: bool,
     two_step: bool,
     request_access: String,
 }
@@ -92,6 +93,8 @@ pub struct UserDto {
     /// switching), and for an account without one until an administrator
     /// gives it one.
     pub has_password: bool,
+    /// Linked to an identity at the single sign-on provider (`crate::sso`).
+    pub sso: bool,
     /// Signs in with a code from an authenticator app after the password.
     pub two_step: bool,
     /// Whether it may ask for movies and shows (`crate::requests`):
@@ -102,6 +105,7 @@ pub struct UserDto {
 const USER_COLUMNS: &str = "id, username, display_name, is_admin, managed, home, pin_hash IS NOT NULL AS has_pin,
     avatar, avatar_color, all_libraries, max_age, max_age_system, disabled, created_at, audio_language, subtitle_language,
     subtitle_mode, language, password_hash NOT LIKE '!%' AS has_password,
+    EXISTS (SELECT 1 FROM user_identities i WHERE i.user_id = users.id) AS sso,
     EXISTS (SELECT 1 FROM two_step t WHERE t.user_id = users.id) AS two_step, request_access";
 
 impl UserRow {
@@ -131,6 +135,7 @@ impl UserRow {
             subtitle_mode: SubtitleMode::parse(&self.subtitle_mode),
             language: self.language,
             has_password: self.has_password,
+            sso: self.sso,
             two_step: self.two_step,
             request_access: if self.is_admin {
                 RequestAccess::Auto
@@ -943,6 +948,7 @@ mod tests {
             subtitle_mode: "foreign".into(),
             language: None,
             has_password: true,
+            sso: false,
             two_step: false,
             request_access: "off".into(),
         }

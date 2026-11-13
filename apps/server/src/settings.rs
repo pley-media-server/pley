@@ -168,6 +168,38 @@ pub struct Settings {
     pub sonarr_season_folders: bool,
     /// Sonarr searches for the seasons asked for as soon as they're added.
     pub sonarr_search: bool,
+    /// Where people reach pley in a browser (`https://pley.example.com`):
+    /// single sign-on runs there.
+    pub public_url: String,
+    /// Sign-in with an OpenID Connect provider (see [`crate::sso`]).
+    pub sso_enabled: bool,
+    /// The provider's name, on the sign-in button.
+    pub sso_name: String,
+    /// The provider's issuer URL (its discovery document is below it).
+    pub sso_issuer: String,
+    /// Empty: pley's client metadata document is its client ID (CIMD), for
+    /// providers that take those.
+    pub sso_client_id: String,
+    /// Saved, never sent back ([`Settings::for_admin`]).
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub sso_client_secret: String,
+    /// People the provider knows but pley doesn't get an account, which
+    /// starts without libraries until an administrator gives it some.
+    pub sso_new_accounts: bool,
+    /// Only members of this group at the provider may sign in (the ID
+    /// token's or userinfo's `groups` claim); empty: everyone the provider
+    /// lets through.
+    pub sso_group: String,
+    /// The claim that makes administrators (see [`crate::sso::admin`]):
+    /// `groups`, `roles`, a path through nested claims
+    /// (`realm_access.roles`) or a namespaced claim. At each sign-in through
+    /// the provider, an account is an administrator when the claim holds
+    /// `sso_admin_value`, and not one when it doesn't, unless it is the last
+    /// one. Empty: the provider doesn't decide who administers Pley.
+    pub sso_admin_claim: String,
+    /// The value in `sso_admin_claim` that makes an administrator (a group,
+    /// a role); empty: the claim `true`.
+    pub sso_admin_value: String,
 }
 
 /// When Radarr may take a release of a movie it was sent.
@@ -181,8 +213,8 @@ pub enum MinimumAvailability {
 }
 
 /// The settings as administrators see them: everything but the
-/// OpenSubtitles password and Radarr's and Sonarr's API keys, which only
-/// say whether one is saved.
+/// OpenSubtitles password, Radarr's and Sonarr's API keys and the single
+/// sign-on client secret, which only say whether one is saved.
 #[derive(Debug, Clone, Serialize)]
 pub struct AdminSettings {
     #[serde(flatten)]
@@ -190,6 +222,7 @@ pub struct AdminSettings {
     pub opensubtitles_password_set: bool,
     pub radarr_api_key_set: bool,
     pub sonarr_api_key_set: bool,
+    pub sso_client_secret_set: bool,
 }
 
 impl Settings {
@@ -200,9 +233,78 @@ impl Settings {
             opensubtitles_password_set: set(&mut settings.opensubtitles_password),
             radarr_api_key_set: set(&mut settings.radarr_api_key),
             sonarr_api_key_set: set(&mut settings.sonarr_api_key),
+            sso_client_secret_set: set(&mut settings.sso_client_secret),
             settings,
         }
     }
+}
+
+/// `https://pley.example.com/` → `https://pley.example.com`: an http(s)
+/// origin, or `None` when `value` isn't one.
+fn web_origin(value: &str) -> Option<String> {
+    let url = url::Url::parse(value).ok()?;
+    if !matches!(url.scheme(), "http" | "https") || url.host_str().is_none() || url.path() != "/" {
+        return None;
+    }
+    if url.query().is_some() || url.fragment().is_some() || !url.username().is_empty() || url.password().is_some() {
+        return None;
+    }
+    Some(url.origin().ascii_serialization())
+}
+
+/// The public address and the single sign-on provider from a patch. The
+/// client secret goes only to the provider it was saved for: a new issuer
+/// needs it typed again (`secret_given`).
+fn single_sign_on(
+    next: &mut Settings,
+    public_url: Option<String>,
+    enabled: Option<bool>,
+    name: Option<String>,
+    issuer: Option<String>,
+    secret_given: bool,
+) -> Result<(), AppError> {
+    if let Some(v) = public_url {
+        let v = v.trim().trim_end_matches('/');
+        next.public_url = if v.is_empty() {
+            String::new()
+        } else {
+            web_origin(v)
+                .ok_or_else(|| AppError::bad_request("the public address must look like https://pley.example.com"))?
+        };
+    }
+    if let Some(v) = enabled {
+        next.sso_enabled = v;
+    }
+    if let Some(v) = name {
+        let v = v.trim().to_owned();
+        if v.chars().count() > 40 {
+            return Err(AppError::bad_request("the provider's name must be at most 40 characters"));
+        }
+        next.sso_name = v;
+    }
+    if let Some(v) = issuer {
+        let v = v.trim().to_owned();
+        let ok = v.is_empty()
+            || (v.len() <= 512
+                && url::Url::parse(&v).is_ok_and(|u| {
+                    // Plain http only to this machine (see crate::sso::secure_address).
+                    crate::sso::secure_address(&u)
+                        && u.query().is_none()
+                        && u.fragment().is_none()
+                        && u.username().is_empty()
+                }));
+        if !ok {
+            return Err(AppError::bad_request("the issuer must be an https address, like https://auth.example.com"));
+        }
+        if v != next.sso_issuer && !secret_given {
+            next.sso_client_secret.clear();
+        }
+        next.sso_issuer = v;
+    }
+    if next.sso_enabled && next.sso_issuer.is_empty() {
+        return Err(AppError::bad_request("single sign-on needs the provider's issuer"));
+    }
+    Ok(())
 }
 
 impl Default for Settings {
@@ -264,6 +366,16 @@ impl Default for Settings {
             sonarr_anime_root_folder: String::new(),
             sonarr_season_folders: true,
             sonarr_search: true,
+            public_url: String::new(),
+            sso_enabled: false,
+            sso_name: String::new(),
+            sso_issuer: String::new(),
+            sso_client_id: String::new(),
+            sso_client_secret: String::new(),
+            sso_new_accounts: false,
+            sso_group: String::new(),
+            sso_admin_claim: String::new(),
+            sso_admin_value: String::new(),
         }
     }
 }
@@ -644,6 +756,17 @@ pub struct SettingsPatch {
     pub sonarr_anime_root_folder: Option<String>,
     pub sonarr_season_folders: Option<bool>,
     pub sonarr_search: Option<bool>,
+    pub public_url: Option<String>,
+    pub sso_enabled: Option<bool>,
+    pub sso_name: Option<String>,
+    pub sso_issuer: Option<String>,
+    pub sso_client_id: Option<String>,
+    /// Left out: the saved one stays; empty: none.
+    pub sso_client_secret: Option<String>,
+    pub sso_new_accounts: Option<bool>,
+    pub sso_group: Option<String>,
+    pub sso_admin_claim: Option<String>,
+    pub sso_admin_value: Option<String>,
 }
 
 pub struct SettingsStore {
@@ -940,6 +1063,75 @@ impl SettingsStore {
         ] {
             if let Some(v) = on {
                 *field = v;
+            }
+        }
+        let secret_given = patch.sso_client_secret.is_some();
+        single_sign_on(&mut next, patch.public_url, patch.sso_enabled, patch.sso_name, patch.sso_issuer, secret_given)?;
+        if let Some(v) = patch.sso_client_id {
+            let v = v.trim().to_owned();
+            // Another client's secret isn't this one's.
+            if v != next.sso_client_id && patch.sso_client_secret.is_none() {
+                next.sso_client_secret.clear();
+            }
+            next.sso_client_id = v;
+        }
+        if let Some(v) = patch.sso_client_secret {
+            next.sso_client_secret = v.trim().to_owned();
+        }
+        if next.sso_client_id.chars().count() > 512 || next.sso_client_secret.chars().count() > 512 {
+            return Err(AppError::bad_request("the client ID or secret is too long"));
+        }
+        if next.sso_client_id.is_empty() {
+            next.sso_client_secret.clear();
+        }
+        if let Some(v) = patch.sso_new_accounts {
+            next.sso_new_accounts = v;
+        }
+        if let Some(v) = patch.sso_group {
+            let v = v.trim().to_owned();
+            if v.chars().count() > 100 {
+                return Err(AppError::bad_request("the group must be at most 100 characters"));
+            }
+            next.sso_group = v;
+        }
+        if let Some(v) = patch.sso_admin_claim {
+            let v = v.trim().to_owned();
+            let ok = v.chars().count() <= 200
+                && !v.chars().any(|c| c.is_whitespace() || c.is_control())
+                && !v.starts_with('.')
+                && !v.ends_with('.')
+                && !v.contains("..");
+            if !ok {
+                return Err(AppError::bad_request(
+                    "the claim for administrators must be a claim's name, such as groups or realm_access.roles",
+                ));
+            }
+            if !v.is_empty() && !crate::sso::may_decide_admins(&v) {
+                return Err(AppError::bad_request(
+                    "that claim says who someone is, which they may choose, not what they may do: use groups or roles",
+                ));
+            }
+            next.sso_admin_claim = v;
+        }
+        if let Some(v) = patch.sso_admin_value {
+            let v = v.trim().to_owned();
+            if v.chars().count() > 200 {
+                return Err(AppError::bad_request("the value for administrators must be at most 200 characters"));
+            }
+            next.sso_admin_value = v;
+        }
+        if next.sso_enabled {
+            // The provider sends people back to one address, which it may
+            // have to know in advance: never one guessed from a request.
+            if next.public_url.is_empty() {
+                return Err(AppError::bad_request("single sign-on needs Pley's public address"));
+            }
+            // Without a registered client, the provider reads pley's client
+            // metadata document, which only works at a public https address.
+            if next.sso_client_id.is_empty() && !next.public_url.starts_with("https://") {
+                return Err(AppError::bad_request(
+                    "without a client ID, single sign-on needs Pley's public https address",
+                ));
             }
         }
         let json = serde_json::to_string(&next).map_err(|e| AppError::Internal(e.into()))?;
@@ -1438,38 +1630,50 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn old_single_sign_on_keys_are_ignored() {
-        let (_dir, db, _) = store().await;
-        // A row as single sign-on left it (upgrading removes these keys too).
-        let row = serde_json::json!({
-            "server_name": "Attic",
-            "public_url": "https://pley.example.com",
-            "sso_enabled": true,
-            "sso_issuer": "https://idp.example.com",
-            "sso_client_secret": "s3cret",
-        });
-        sqlx::query("INSERT INTO settings (key, value) VALUES ('server', ?)")
-            .bind(row.to_string())
-            .execute(&db.write)
-            .await
-            .unwrap();
-        let store = SettingsStore::load(&db).await.unwrap();
-        assert_eq!(store.get().server_name, "Attic", "the rest of the row loads");
-
-        // A web app from before still sends them.
-        let old = serde_json::json!({
-            "server_name": "Den",
-            "public_url": "https://pley.example.com",
-            "sso_issuer": "https://idp.example.com",
-            "sso_client_secret": "s3cret",
-        });
-        let s = store.update(&db, patch(old)).await.unwrap();
-        assert_eq!(s.server_name, "Den");
-        let saved: String =
-            sqlx::query_scalar("SELECT value FROM settings WHERE key = 'server'").fetch_one(&db.read).await.unwrap();
-        for gone in ["public_url", "sso_", "s3cret"] {
-            assert!(!saved.contains(gone), "{gone} is still saved: {saved}");
-        }
+    async fn single_sign_on_needs_a_provider_and_an_address() {
+        let (_dir, db, store) = store().await;
+        let set = |json: serde_json::Value| store.update(&db, patch(json));
+        assert!(set(serde_json::json!({"sso_enabled": true})).await.is_err(), "no issuer");
+        assert!(set(serde_json::json!({"sso_issuer": "ftp://auth"})).await.is_err());
+        assert!(set(serde_json::json!({"sso_issuer": "https://user@auth.example.com"})).await.is_err());
+        assert!(set(serde_json::json!({"sso_issuer": "http://auth.lan"})).await.is_err(), "http elsewhere");
+        assert!(set(serde_json::json!({"sso_issuer": "http://127.0.0.1:9000"})).await.is_ok(), "http here");
+        assert!(set(serde_json::json!({"public_url": "pley.example.com"})).await.is_err());
+        assert!(set(serde_json::json!({"public_url": "https://pley.example.com/library"})).await.is_err());
+        // Without a client ID: the client metadata document, at an https address only.
+        let cimd = serde_json::json!({"sso_enabled": true, "sso_issuer": "https://auth.example.com"});
+        assert!(set(cimd.clone()).await.is_err(), "no address");
+        assert!(set(serde_json::json!({"public_url": "http://pley.lan:7539"})).await.is_ok());
+        assert!(set(cimd.clone()).await.is_err(), "http isn't enough");
+        let s = set(serde_json::json!({"public_url": " https://pley.example.com/ "})).await.unwrap();
+        assert_eq!(s.public_url, "https://pley.example.com");
+        let s = set(cimd).await.unwrap();
+        assert!(s.sso_enabled && s.sso_client_id.is_empty());
+        // A registered client works at an http address, but needs one.
+        let registered = serde_json::json!({"sso_client_id": " pley ", "sso_client_secret": " s3cret "});
+        let s = set(registered).await.unwrap();
+        assert_eq!((s.sso_client_id.as_str(), s.sso_client_secret.as_str()), ("pley", "s3cret"));
+        assert!(set(serde_json::json!({"public_url": "http://pley.lan:7539"})).await.is_ok());
+        assert!(set(serde_json::json!({"public_url": ""})).await.is_err(), "no address");
+        assert!(!s.sso_new_accounts && s.sso_group.is_empty(), "new accounts stay off unless asked for");
+        let s = set(serde_json::json!({"sso_group": " pley-users "})).await.unwrap();
+        assert_eq!(s.sso_group, "pley-users");
+        // Administrators never see the secret again, only that there is one.
+        let shown = serde_json::to_value(s.for_admin()).unwrap();
+        assert_eq!(shown.get("sso_client_secret"), None);
+        assert_eq!(shown["sso_client_secret_set"], true);
+        // Saving the rest keeps it.
+        let s = set(serde_json::json!({"sso_name": "Authentik"})).await.unwrap();
+        assert_eq!(s.sso_client_secret, "s3cret");
+        // It goes only to the provider and client it was saved for.
+        let s = set(serde_json::json!({"sso_issuer": "https://other.example.com"})).await.unwrap();
+        assert_eq!(s.sso_client_secret, "", "another issuer");
+        let s = set(serde_json::json!({"sso_client_secret": "s3cret"})).await.unwrap();
+        assert_eq!(s.sso_client_secret, "s3cret");
+        let s = set(serde_json::json!({"sso_client_id": "another"})).await.unwrap();
+        assert_eq!(s.sso_client_secret, "", "another client");
+        let s = set(serde_json::json!({"sso_client_id": "pley", "sso_client_secret": "s3cret"})).await.unwrap();
+        assert_eq!(s.sso_client_secret, "s3cret", "typed with it");
         assert_eq!(*SettingsStore::load(&db).await.unwrap().get(), *s);
     }
 }

@@ -229,3 +229,61 @@ administrator turns them on in **Settings → Server → Apps**.
 
 Docker-specific setups (a proxy in Docker, Traefik labels, a proxy on another
 computer) are in [docker/README.md](docker/README.md#behind-a-reverse-proxy).
+
+## Single sign-on
+
+Pley signs people in with an OpenID Connect provider, such as Authentik,
+Keycloak, Authelia, Pocket ID or Google. In **Settings → Server → Single
+sign-on**:
+
+1. Enter Pley's **public address** (`https://pley.example.com`): sign-ins
+   happen there, and the provider sends people back to it.
+2. Enter the provider's **issuer** exactly as it shows it, and test it. It
+   must be an https address (plain http works only for a provider on the
+   same machine).
+3. Either register Pley with the provider as a client (redirect URI
+   `https://pley.example.com/api/auth/sso/callback`, shown in the settings)
+   and enter its client ID and secret, or leave the client ID empty if the
+   provider takes client metadata documents: it then reads Pley's at
+   `https://pley.example.com/api/auth/sso/client`.
+4. Turn it on. People link their account from their account page (with
+   their password) and then sign in with the provider.
+
+**Authentik:** add an OAuth2/OpenID provider with that redirect URI and an
+application for it. Its issuer is
+`https://auth.example.com/application/o/<application slug>/`, with the
+slash at its end. To let only some people in, add a `groups` scope mapping
+and set the group in Pley.
+
+**Google:** in the Google Cloud console, create an OAuth client ID of type
+*Web application* with that redirect URI. The issuer is
+`https://accounts.google.com`. Google sends no groups and lets anyone with a
+Google account sign in, so leave new accounts off and link accounts one by
+one.
+
+Optionally, let only members of one group in (the provider must send a
+`groups` claim), or give accounts to people the provider knows but Pley
+doesn't: they start without libraries or requests. Pley asks the provider
+only who signed in and keeps none of its tokens. Signing in through it
+skips Pley's two-step sign-in, so turn on the provider's own.
+
+The provider can also say who administers Pley. Under **Administrators
+from a claim**, name the claim and the value that makes an administrator:
+
+| Provider | Claim | Value |
+|---|---|---|
+| Authentik (with the `groups` scope mapping) | `groups` | the group's name |
+| Keycloak, realm roles | `realm_access.roles` | the role |
+| Keycloak, groups (a Group Membership mapper) | `groups` | the group's name or path |
+| Microsoft Entra, app roles | `roles` | the role's value |
+| A claim of your own, such as Auth0's | `https://example.com/roles` | the role |
+
+Leave the value empty for a claim that is `true` or `false`. At each
+sign-in through the provider the account becomes an administrator when the
+claim holds the value, and stops being one when it doesn't or is missing,
+whatever was set in **Settings → Users**; the last administrator always
+stays one. Accounts that sign in with a password keep the role they had.
+
+Single sign-on works in a browser, where Pley's apps sign in too: their
+sign-in page offers the provider, and TVs are allowed from the browser on
+`/link` as usual. The desktop app's window signs in with a password.
