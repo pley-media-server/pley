@@ -106,7 +106,7 @@ describe("TranscoderSettings' form", () => {
 
   it("greys the full enhancement layer out where FFmpeg can't read it", async () => {
     mockApi({
-      "GET /api/settings": () => ({ ...SETTINGS, dolby_vision_fel_full: true }),
+      "GET /api/settings": () => SETTINGS,
       "GET /api/system": () => ({ transcoder: { available: true, managed: true, encoders: [], hwaccels: [], tonemapping: [], dolby_vision_fel: true } }),
     });
     renderWithProviders(<TranscoderSettings />);
@@ -114,6 +114,35 @@ describe("TranscoderSettings' form", () => {
     const full = screen.getByRole("switch", { name: "Use the full enhancement layer" });
     expect(full).toBeDisabled();
     expect(full).not.toBeChecked();
+  });
+
+  it("lets the full enhancement layer be turned off where FFmpeg can't read it any more", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, dolby_vision_fel_full: true }),
+      "GET /api/system": () => ({ transcoder: { available: true, managed: true, encoders: [], hwaccels: [], tonemapping: [], dolby_vision_fel: true } }),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
+    });
+    renderWithProviders(<TranscoderSettings />);
+    expect(await screen.findByText(/Needs Pley's own FFmpeg/)).toBeInTheDocument();
+    const full = screen.getByRole("switch", { name: "Use the full enhancement layer" });
+    expect(full).toBeChecked();
+    expect(full).toBeEnabled();
+    await user.click(full);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ dolby_vision_fel_full: false }));
+  });
+
+  it("doesn't say what FFmpeg can't do before the transcoder says", async () => {
+    mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, dolby_vision_fel_full: true }),
+      "GET /api/system": () => ({ transcoder: { available: false, managed: true, encoders: [], hwaccels: [], tonemapping: [] } }),
+    });
+    renderWithProviders(<TranscoderSettings />);
+    const full = await screen.findByRole("switch", { name: "Use the full enhancement layer" });
+    await waitFor(() => expect(full).toBeChecked());
+    expect(full).toBeEnabled();
+    expect(screen.queryByText(/Needs Pley's own FFmpeg/)).not.toBeInTheDocument();
   });
 });
 

@@ -179,8 +179,10 @@ export function TranscoderSettings() {
         const fel = form.dolby_vision_fel ?? "base_layer";
         // A transcoder from before the choice tone maps by the metadata, whatever is saved.
         const felTooOld = tc?.available === true && tc.dolby_vision_fel === false;
-        // Only FFmpeg builds that can rebuild the full picture offer it (Pley's own).
-        const felFullAvailable = tc?.available === true && tc.dolby_vision_fel_full === true;
+        // Only FFmpeg builds that can rebuild the full picture offer it (Pley's own). One saved on
+        // before stays shown, so it can be turned off.
+        const felFull = form.dolby_vision_fel_full ?? false;
+        const felFullMissing = tc?.available === true && tc.dolby_vision_fel_full !== true;
         const memoryBudget = tc?.memory?.available ? tc.memory.budget_bytes : 0;
 
         return (
@@ -327,12 +329,12 @@ export function TranscoderSettings() {
                 hint={t("transcoder.video.felFullHint")}
               >
                 <Toggle
-                  checked={(form.dolby_vision_fel_full ?? false) && felFullAvailable}
-                  disabled={!felFullAvailable}
+                  checked={felFull}
+                  disabled={felFullMissing && !felFull}
                   onChange={(v) => set("dolby_vision_fel_full", v)}
                   label={t("transcoder.video.felFull")}
                 />
-                {!felFullAvailable ? <Note>{t("transcoder.video.felFullUnavailable")}</Note> : null}
+                {felFullMissing ? <Note notice={felFull}>{t("transcoder.video.felFullUnavailable")}</Note> : null}
               </Row>
             </Group>
 
