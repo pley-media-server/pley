@@ -417,6 +417,24 @@ async fn a_new_cast_takes_the_device_over_without_stopping_it() {
 }
 
 #[tokio::test]
+async fn two_casts_at_once_leave_one_playing() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices", &w.admin).await;
+    let (first, second) = tokio::join!(
+        w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})),
+        w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film, "start_ms": 600_000})),
+    );
+    assert_eq!((first.status, second.status), (StatusCode::NO_CONTENT, StatusCode::NO_CONTENT));
+    // One of the two plays, followed, and neither stopped the device.
+    tokio::time::sleep(Duration::from_secs(6)).await;
+    let listed = sessions(&w).await;
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    while let Ok((_, payload)) = w.sent.try_recv() {
+        assert_ne!(payload["type"], "STOP", "{payload}");
+    }
+}
+
+#[tokio::test]
 async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
     // A TV with Google TV: HEVC is tried first.
     let setup = setup_api(json!({"device_info": {

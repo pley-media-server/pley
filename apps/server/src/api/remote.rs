@@ -1039,7 +1039,12 @@ async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast)
         audio_index: body.audio_index,
         subtitle_index: body.subtitle_index,
     };
-    crate::cast::devices::start(state, user, device, cast).await?;
+    // Started apart from the request, which a client or a proxy may drop
+    // while the device loads: the cast then either plays and is followed,
+    // or ends its session.
+    let (state, user) = (state.clone(), user.clone());
+    let started = tokio::spawn(async move { crate::cast::devices::start(&state, &user, device, cast).await });
+    started.await.map_err(|err| AppError::Internal(anyhow::anyhow!("a cast's start failed: {err}")))??;
     Ok(StatusCode::NO_CONTENT)
 }
 
