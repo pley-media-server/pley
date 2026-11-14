@@ -5,4 +5,5 @@
 pub mod connection;
 pub mod crypto;
 pub mod pairing;
+pub mod pairings;
 pub mod tlv;
