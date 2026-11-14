@@ -11,25 +11,6 @@ describes how they are made.
 
 ### Added
 
-- Activity monitors such as Tracearr can connect through the
-  Jellyfin-compatible API with a token that sees everyone's activity, and
-  show what everyone is playing.
-- Setup asks for the server's name, languages, country, TMDB key and
-  whether Apple devices find it by Bonjour, then whether to bring over a
-  Plex server or start fresh with Movies, TV Shows and Music libraries.
-- Moving from Plex: setup and Settings → Libraries can import a Plex
-  server's libraries, its Home users as profiles with their restrictions
-  and the PINs typed for them, and each person's watch history, ratings,
-  labels, collections, playlists and matches (docs/MOVING_FROM_PLEX.md).
-- Home and Settings → Libraries show a Plex import step by step while it
-  runs, and its report once it ends.
-- Home shows administrators how far new libraries' first scans are.
-- Settings → Server has a Country, for age ratings, age limits and Coming
-  to cinemas.
-- Settings → Network says when Pley is on Docker's own network, where
-  devices can't find it, and how to fix that.
-- In a container with no media folder mounted, adding a library says how
-  to mount one.
 - Settings → Transcoder has a Dolby Vision FEL choice: profile 7 with a full
   enhancement layer is transcoded from its HDR10 base layer, or with its
   Dolby Vision brightness. An experimental toggle uses the full enhancement
@@ -37,16 +18,6 @@ describes how they are made.
 
 ### Changed
 
-- Settings → Server calls its languages Pley's language and Titles and
-  summaries, and names them instead of showing codes.
-- Seek previews, intro detection and fingerprinting wait until first
-  scans and Plex imports are done.
-- A video that has to be remuxed or converted starts sooner while a
-  library is being scanned.
-- Home and a library's page show a new library's titles as its files are
-  read.
-- The dashboard's Now playing shows whether each stream is playing or
-  paused, and its time moves on while it plays.
 - HDR made SDR keeps the master's brightness up to SDR's white, with the
   standard BT.2390 curve, instead of darkening the mid-tones; black and
   letterbox bars stay black.
@@ -70,11 +41,6 @@ On Intel graphics:
 
 ### Fixed
 
-- Infuse opens a Pley server through the Jellyfin-compatible API instead
-  of saying "An error occurred" after signing in.
-- Live TV channels with AC-3 audio, such as US broadcast channels, and
-  channels whose stream breaks off as they start, play in the browser and
-  the desktop app instead of tuning forever.
 - HDR transcodes no longer pick a picture quality too slow to keep up, or
   a lower one than the GPU has time for, after the server starts.
 - HDR10 that doesn't say how bright it is no longer comes out far too dark
@@ -105,6 +71,51 @@ On Intel graphics:
 - A file that couldn't be read no longer keeps Dolby Vision off OpenCL
   until the server restarts, nor one GPU decoding error keeps Dolby Vision
   and HDR10+ from being decoded by the GPU.
+
+## [0.1.11] - 2026-11-14
+
+### Added
+
+- Activity monitors such as Tracearr can connect through the
+  Jellyfin-compatible API with a token that sees everyone's activity, and
+  show what everyone is playing.
+- Setup asks for the server's name, languages, country, TMDB key and
+  whether Apple devices find it by Bonjour, then whether to bring over a
+  Plex server or start fresh with Movies, TV Shows and Music libraries.
+- Moving from Plex: setup and Settings → Libraries can import a Plex
+  server's libraries, its Home users as profiles with their restrictions
+  and the PINs typed for them, and each person's watch history, ratings,
+  labels, collections, playlists and matches (docs/MOVING_FROM_PLEX.md).
+- Home and Settings → Libraries show a Plex import step by step while it
+  runs, and its report once it ends.
+- Home shows administrators how far new libraries' first scans are.
+- Settings → Server has a Country, for age ratings, age limits and Coming
+  to cinemas.
+- Settings → Network says when Pley is on Docker's own network, where
+  devices can't find it, and how to fix that.
+- In a container with no media folder mounted, adding a library says how
+  to mount one.
+
+### Changed
+
+- Settings → Server calls its languages Pley's language and Titles and
+  summaries, and names them instead of showing codes.
+- Seek previews, intro detection and fingerprinting wait until first
+  scans and Plex imports are done.
+- A video that has to be remuxed or converted starts sooner while a
+  library is being scanned.
+- Home and a library's page show a new library's titles as its files are
+  read.
+- The dashboard's Now playing shows whether each stream is playing or
+  paused, and its time moves on while it plays.
+
+### Fixed
+
+- Infuse opens a Pley server through the Jellyfin-compatible API instead
+  of saying "An error occurred" after signing in.
+- Live TV channels with AC-3 audio, such as US broadcast channels, and
+  channels whose stream breaks off as they start, play in the browser and
+  the desktop app instead of tuning forever.
 
 ## [0.1.10] - 2026-11-12
 
@@ -991,7 +1002,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-12...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-14...HEAD
+[0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06
