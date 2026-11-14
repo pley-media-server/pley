@@ -1,50 +1,33 @@
-//! The Cast devices the household's remotes cast to, and the casts playing
-//! on them. A cast is a playback session like any other, started by the
-//! server for the device: its stream is keyed, as the device fetches it
-//! itself, and the server reports its place, as the device's player reports
-//! nothing to Pley. The remotes control it through the session, as they
-//! control Pley's own players.
+//! Casts to the devices on the server's network. A cast is a playback
+//! session like any other, started by the server for the device: its
+//! stream is keyed, as the device fetches it itself, and the server reports
+//! its place, as the device's player reports nothing to Pley. The remotes
+//! control it through the session, as they control Pley's own players.
 
-use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, SocketAddr};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderMap;
-use parking_lot::Mutex;
+use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
-use super::connection::Connection;
-use super::discovery::{self, Found};
 use super::player::{Ended, Event, Failure, Media, Player, State as Playing, Subtitle};
-use super::profile::{self, Hardware, Profile};
+use super::{Found, Protocol};
 use crate::auth::{AuthUser, CurrentToken};
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::playback::{Control, Method, PlaybackRequest};
 use crate::state::AppState;
 
-/// How long a look for devices waits for answers, how long one is good
-/// for, and how long a device that stops answering stays listed.
-const LOOK_FOR: Duration = Duration::from_millis(1500);
-const LOOK_AGAIN: Duration = Duration::from_secs(30);
-const KEEP_FOR: Duration = Duration::from_secs(5 * 60);
 /// How often the device is asked where it is, and its place kept.
 const ASK_EVERY: Duration = Duration::from_secs(5);
 const RECORD_EVERY: Duration = Duration::from_secs(10);
 /// How long a cast waits for its subtitles to be read whole before it
 /// starts (a large file on a network share takes a while).
 const PREPARE_WITHIN: Duration = Duration::from_secs(20);
-
-/// Devices whose setup API's answer is kept, and models remembered as
-/// refusing their profile, at most.
-const MAX_KNOWN: usize = 256;
-
-/// The prefix of a Cast device's id among the remotes' devices.
-pub const ID_PREFIX: &str = "cast:";
 
 /// What a cast is asked to play.
 #[derive(Debug, Clone)]
@@ -55,88 +38,24 @@ pub struct Cast {
     pub subtitle_index: Option<i64>,
 }
 
-#[derive(Default)]
-pub struct CastDevices {
-    found: Mutex<HashMap<String, (Found, Instant)>>,
-    looked: Mutex<Option<Instant>>,
-    looking: tokio::sync::Mutex<()>,
-    /// The cast playing on each device, by its id: a new one ends it.
-    playing: Mutex<HashMap<String, (u64, CancellationToken)>>,
-    /// Held, by device, while a cast starts its session, which ends the
-    /// device's last one: of two casts at once, the newer one's session is
-    /// the one that stays.
-    starting: Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>,
-    casts: AtomicU64,
-    /// What each device's setup API said, by its id, asked once (`None`:
-    /// it didn't answer).
-    hardware: Mutex<HashMap<String, Option<Hardware>>>,
-    /// The models ([`profile::identity`]) that refused their profile: they
-    /// get the basic one, until the server restarts.
-    refused: Mutex<HashSet<String>>,
-}
-
-impl CastDevices {
-    /// The devices that show video, looking again when the last look is
-    /// old. Pley looks on the local network only while `discovery` is on
-    /// (Settings → Network); turned off, the devices found are forgotten.
-    /// `fixed` is the device the server was told of, which is always listed.
-    pub async fn listed(&self, fixed: Option<Found>, discovery: bool) -> Vec<Found> {
-        if !discovery {
-            let fixed = fixed.as_ref().map(|f| f.id.as_str());
-            self.found.lock().retain(|id, _| Some(id.as_str()) == fixed);
-            *self.looked.lock() = None;
-        }
-        if (discovery || fixed.is_some()) && self.looked.lock().is_none_or(|at| at.elapsed() >= LOOK_AGAIN) {
-            let _one = self.looking.lock().await;
-            // Another request looked while this one waited.
-            if self.looked.lock().is_none_or(|at| at.elapsed() >= LOOK_AGAIN) {
-                self.look(fixed).await;
-            }
-        }
-        let mut found = self.found.lock();
-        found.retain(|_, (_, at)| at.elapsed() < KEEP_FOR);
-        found.values().map(|(device, _)| device.clone()).filter(|d| d.video).collect()
-    }
-
-    async fn look(&self, fixed: Option<Found>) {
-        let from: Vec<Ipv4Addr> =
-            crate::network::adapters().into_iter().filter(|a| a.up).flat_map(|a| a.addresses).collect();
-        let browse = async {
-            if from.is_empty() || fixed.is_some() {
-                return Ok(Vec::new());
-            }
-            discovery::browse(&from, LOOK_FOR).await
-        };
-        let mut seen = browse.await.unwrap_or_else(|err| {
-            tracing::warn!("couldn't look for Cast devices: {err}");
-            Vec::new()
-        });
-        seen.extend(fixed);
-        let now = Instant::now();
-        let mut found = self.found.lock();
-        for device in seen {
-            found.insert(device.id.clone(), (device, now));
-        }
-        *self.looked.lock() = Some(now);
-    }
-
-    /// The device of `id` (without [`ID_PREFIX`]) seen lately, while
-    /// `discovery` is on, as [`Self::listed`] lists it.
-    pub fn device(&self, id: &str, fixed: Option<Found>, discovery: bool) -> Option<Found> {
-        if !discovery && fixed.is_none_or(|f| f.id != id) {
-            return None;
-        }
-        let found = self.found.lock();
-        found.get(id).filter(|(d, at)| d.video && at.elapsed() < KEEP_FOR).map(|(d, _)| d.clone())
-    }
+/// The streams a device is tried with, as its protocol picks them.
+pub struct Choice {
+    /// What it is said to play (a [`PlaybackRequest`]'s `caps`), first.
+    pub caps: Value,
+    /// The narrower caps it gets when it refuses those: none when they are
+    /// the basic ones already.
+    pub basic: Option<Value>,
+    /// Its model, remembered when it refuses its stream and plays the
+    /// basic one, so that it gets the basic one at once next time.
+    pub model: Option<String>,
 }
 
 /// Plays `cast` on `device` as `user`: a session started as Pley's own
-/// players start one, Google's player started on the device and the
-/// stream loaded into it. Returns once it plays, or didn't start; then the
-/// server follows it until it ends. The stream is what the device's
-/// [profile] takes; one it refuses is started again with the basic
-/// profile, and its model remembered. A cast that a newer one to the same
+/// players start one, the device's player started and the stream loaded
+/// into it. Returns once it plays, or didn't start; then the server
+/// follows it until it ends. The stream is what the device's protocol
+/// picks for it ([`Choice`]); one it refuses is started again with the
+/// basic caps, and its model remembered. A cast that a newer one to the same
 /// device replaces while it starts gives way: it ends its session, leaves
 /// the device to the newer one, and returns as done, since the device
 /// plays what was last asked of it.
@@ -144,45 +63,47 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
     let base = base_url(state, device.address).ok_or_else(|| {
         AppError::ConflictAs("cast_unreachable", "Pley doesn't listen on an address the device can reach".to_owned())
     })?;
-    let hardware = hardware(state, &device).await;
-    let model = profile::identity(device.model.as_deref(), hardware.as_ref());
-    let refused = model.as_ref().is_some_and(|m| state.cast_devices.refused.lock().contains(m));
-    let picked = if refused { Profile::BASIC } else { profile::pick(device.model.as_deref(), hardware.as_ref()) };
+    let choice = match device.protocol {
+        Protocol::Cast => crate::cast::device::choose(state, &device).await,
+    };
+    let refused = choice.model.as_deref().is_some_and(|m| state.nearby.refused(m));
+    let (first, fallback) = match (refused, choice.basic) {
+        (true, Some(basic)) => (basic, None),
+        (_, basic) => (choice.caps, basic),
+    };
+    let key = device.key();
     // A cast playing there already leaves the device to this one, before
     // its session ends (this one's start ends it), so that it doesn't stop
     // the device on its way out.
     let ours = CancellationToken::new();
-    let cast_id = state.cast_devices.casts.fetch_add(1, Ordering::Relaxed);
-    if let Some((_, before)) = state.cast_devices.playing.lock().insert(device.id.clone(), (cast_id, ours.clone())) {
+    let cast_id = state.nearby.casts.fetch_add(1, Ordering::Relaxed);
+    if let Some((_, before)) = state.nearby.playing.lock().insert(key.clone(), (cast_id, ours.clone())) {
         before.cancel();
     }
     let attempt = Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours };
-    let played = match attempt.play(picked).await {
-        Err(Tried::Refused) if picked != Profile::BASIC => {
-            tracing::info!("a Cast device refused its profile ({picked:?}): it is sent the basic one");
-            let basic = attempt.play(Profile::BASIC).await;
-            // Its model is remembered only when the basic profile plays:
+    let played = match (attempt.play(&first).await, fallback) {
+        (Err(Tried::Refused), Some(basic)) => {
+            tracing::info!("a device refused its stream ({first}): it is sent the basic one");
+            let played = attempt.play(&basic).await;
+            // Its model is remembered only when the basic stream plays:
             // then the stream, not the device, was what failed.
-            if basic.is_ok()
-                && let Some(model) = model
+            if played.is_ok()
+                && let Some(model) = choice.model
             {
-                let mut refused = state.cast_devices.refused.lock();
-                if refused.len() < MAX_KNOWN {
-                    refused.insert(model);
-                }
+                state.nearby.remember_refused(model);
             }
-            basic
+            played
         }
-        played => played,
+        (played, _) => played,
     };
     let (player, events, session_id, duration_ms) = match played {
         Ok(started) => started,
         Err(Tried::Superseded) => {
-            tracing::info!("a cast to a Cast device gave way to a newer one");
+            tracing::info!("a cast to a device on the network gave way to a newer one");
             return Ok(());
         }
         Err(tried) => {
-            forget(state, &device.id, cast_id);
+            forget(state, &key, cast_id);
             return Err(match tried {
                 Tried::Superseded => unreachable!(),
                 Tried::Refused | Tried::Failed => {
@@ -192,32 +113,11 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
             });
         }
     };
-    tracing::info!("item {} is cast to a Cast device", cast.item_id);
+    tracing::info!("item {} is cast to a device on the network ({:?})", cast.item_id, device.protocol);
     let start_ms = cast.start_ms.unwrap_or(0);
     let cast = Following { state: state.clone(), user_id: user.id, device, session_id, duration_ms, start_ms, cast_id };
     tokio::spawn(cast.follow(player, events, ours));
     Ok(())
-}
-
-/// What `device`'s setup API said, asked the first time it is cast to.
-async fn hardware(state: &AppState, device: &Found) -> Option<Hardware> {
-    if let Some(known) = state.cast_devices.hardware.lock().get(&device.id) {
-        return known.clone();
-    }
-    let fixed = &state.config.cast_fixed;
-    let setup = match fixed.device {
-        Some(address) if address == device.address => fixed.setup,
-        _ => Some(SocketAddr::new(device.address.ip(), profile::SETUP_PORT)),
-    };
-    let answer = match setup {
-        Some(setup) => profile::ask(setup).await,
-        None => None,
-    };
-    let mut known = state.cast_devices.hardware.lock();
-    if known.len() < MAX_KNOWN {
-        known.insert(device.id.clone(), answer.clone());
-    }
-    answer
 }
 
 /// Why a cast's attempt didn't play.
@@ -232,7 +132,7 @@ enum Tried {
     Superseded,
 }
 
-/// One try at a cast, with one profile.
+/// One try at a cast, with one stream's caps.
 struct Attempt<'a> {
     state: &'a AppState,
     user: &'a AuthUser,
@@ -244,29 +144,29 @@ struct Attempt<'a> {
 }
 
 impl Attempt<'_> {
-    /// Starts the session and loads it into Google's player: the player,
-    /// its events, the session and its length. A session that doesn't play
-    /// is ended.
-    async fn play(&self, profile: Profile) -> Result<(Player, tokio::sync::mpsc::Receiver<Event>, String, i64), Tried> {
+    /// Starts the session and loads it into the device's player: the
+    /// player, its events, the session and its length. A session that
+    /// doesn't play is ended.
+    async fn play(&self, caps: &Value) -> Result<(Player, tokio::sync::mpsc::Receiver<Event>, String, i64), Tried> {
         let (state, user, device, cast) = (self.state, self.user, self.device, self.cast);
         let request: PlaybackRequest = serde_json::from_value(serde_json::json!({
             "item_id": cast.item_id,
             "start_ms": cast.start_ms,
             "audio_index": cast.audio_index,
             "subtitle_index": cast.subtitle_index,
-            "caps": profile.caps(),
+            "caps": caps,
             // One cast at a time on a device: a new one ends the last.
-            "client_id": format!("{ID_PREFIX}{}", device.id),
+            "client_id": device.key(),
             "keyed_urls": true,
-            "controls": ["play", "pause", "seek", "skip", "volume"],
+            "controls": device.protocol.controls(),
             "device_name": device.name,
             "device_kind": "tv",
         }))
         .map_err(|err| Tried::Error(AppError::bad_request(err.to_string())))?;
-        let request = PlaybackRequest { device_id: Some(format!("{ID_PREFIX}{}", device.id)), ..request };
+        let request = PlaybackRequest { device_id: Some(device.key()), ..request };
         // The session starts, ending the device's last one, only while no
         // newer cast has: otherwise this one would end the newer one's.
-        let one = state.cast_devices.starting.lock().entry(device.id.clone()).or_default().clone();
+        let one = state.nearby.starting.lock().entry(device.key()).or_default().clone();
         let started = {
             let _one = one.lock().await;
             if self.ours.is_cancelled() {
@@ -296,7 +196,7 @@ impl Attempt<'_> {
         }
     }
 
-    /// Loads the session `info` started into Google's player.
+    /// Loads the session `info` started into the device's player.
     async fn load(
         &self,
         info: &crate::playback::PlaybackInfo,
@@ -351,15 +251,14 @@ impl Attempt<'_> {
             }
         };
         let connect = async {
-            Connection::connect(device.address).await.map_err(|err| {
-                tracing::warn!("couldn't connect to the Cast device {}: {err}", device.address);
-                Failure::Lost
-            })
+            match device.protocol {
+                Protocol::Cast => crate::cast::device::connect(device).await,
+            }
         };
         let ((), connected) = tokio::join!(read, connect);
         drop(session);
         let started = match connected {
-            Ok((connection, incoming)) => Player::start(connection, incoming, &media).await,
+            Ok(connected) => connected.start(&media).await,
             Err(failure) => Err(failure),
         };
         match started {
@@ -367,8 +266,8 @@ impl Attempt<'_> {
             Err(failure) => {
                 tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
                 Err(match failure {
-                    Failure::Load(_) => Tried::Refused,
-                    Failure::Launch(_) | Failure::NotStarted(_) | Failure::Lost => Tried::Failed,
+                    Failure::Refused(_) => Tried::Refused,
+                    Failure::NotStarted(_) | Failure::Lost => Tried::Failed,
                 })
             }
         }
@@ -407,7 +306,7 @@ fn end_session(state: &AppState, id: &str) {
 
 /// Forgets the cast on `device` unless another took its place.
 fn forget(state: &AppState, device: &str, cast_id: u64) {
-    let mut playing = state.cast_devices.playing.lock();
+    let mut playing = state.nearby.playing.lock();
     if playing.get(device).is_some_and(|(id, _)| *id == cast_id) {
         playing.remove(device);
     }
@@ -534,8 +433,8 @@ impl Following {
             record(&state, user_id, item_id, position, duration_ms, &device.name, "stopped").await;
         }
         end_session(&state, &session_id);
-        forget(&state, &device.id, cast_id);
-        tracing::info!("a cast to a Cast device ended: {ended:?}");
+        forget(&state, &device.key(), cast_id);
+        tracing::info!("a cast to a device on the network ended: {ended:?}");
     }
 }
 
@@ -571,63 +470,5 @@ async fn record(
             }
         }
         Err(err) => tracing::warn!("couldn't keep a cast's place: {err}"),
-    }
-}
-
-/// A Cast device no look finds, to develop and test with: Android's Google
-/// TV emulator, its port 8009 forwarded (`adb forward tcp:8009 tcp:8009`),
-/// or a test's fake device. Debug builds read it from `PLEY_CAST_DEVICE`
-/// (its address) and `PLEY_CAST_SERVER` (Pley's address as the device
-/// reaches it: `http://10.0.2.2:7539` from the emulator); release builds
-/// have none.
-#[derive(Debug, Clone, Default)]
-pub struct Fixed {
-    pub device: Option<SocketAddr>,
-    pub server: Option<String>,
-    /// Where its setup API answers (`PLEY_CAST_SETUP`, else the device's
-    /// own on [`profile::SETUP_PORT`]); none, not asked.
-    pub setup: Option<SocketAddr>,
-}
-
-impl Fixed {
-    pub fn from_env() -> Fixed {
-        if !cfg!(debug_assertions) {
-            return Fixed::default();
-        }
-        let device: Option<SocketAddr> = std::env::var("PLEY_CAST_DEVICE").ok().and_then(|a| a.parse().ok());
-        let setup = std::env::var("PLEY_CAST_SETUP").ok().and_then(|a| a.parse().ok());
-        Fixed {
-            device,
-            server: std::env::var("PLEY_CAST_SERVER").ok().filter(|s| s.starts_with("http://")),
-            setup: setup.or_else(|| device.map(|d| SocketAddr::new(d.ip(), profile::SETUP_PORT))),
-        }
-    }
-
-    pub(crate) fn found(&self) -> Option<Found> {
-        let address = self.device?;
-        Some(Found { id: "dev".into(), name: "Cast emulator".into(), model: None, address, video: true })
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn turning_discovery_off_forgets_the_devices_found() {
-        let devices = CastDevices::default();
-        let tv = Found {
-            id: "tv".into(),
-            name: "Living room TV".into(),
-            model: None,
-            address: "192.168.1.20:8009".parse().unwrap(),
-            video: true,
-        };
-        devices.found.lock().insert(tv.id.clone(), (tv.clone(), Instant::now()));
-        *devices.looked.lock() = Some(Instant::now());
-        assert_eq!(devices.device("tv", None, true), Some(tv.clone()));
-        assert_eq!(devices.device("tv", None, false), None, "nor cast to");
-        assert!(devices.listed(None, false).await.is_empty());
-        assert_eq!(devices.device("tv", None, true), None, "forgotten");
     }
 }

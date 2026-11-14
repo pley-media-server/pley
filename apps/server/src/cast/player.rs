@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
 use super::connection::{Connection, Incoming, NS_CONNECTION, NS_MEDIA, NS_RECEIVER, PLATFORM};
+use crate::nearby::player::{Ended, Event, Failure, Media, State};
 
 /// Google's own player, which every Cast device has: it plays HLS and MP4
 /// from an address, with WebVTT subtitles beside.
@@ -18,78 +19,6 @@ pub const DEFAULT_MEDIA_RECEIVER: &str = "CC1AD845";
 /// start the stream (a transcode's first segment comes first).
 const LAUNCH_WITHIN: Duration = Duration::from_secs(20);
 const LOAD_WITHIN: Duration = Duration::from_secs(60);
-
-/// What to play.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Media {
-    /// Where the device fetches it: the session's keyed address, whole.
-    pub url: String,
-    /// `application/x-mpegurl` for HLS, the file's type for a direct play.
-    pub content_type: String,
-    pub start_ms: i64,
-    /// Shown by the player and by Google's own remotes.
-    pub title: String,
-    pub subtitle: Option<Subtitle>,
-    /// HLS of fMP4 segments, which Google's player is told of (it takes
-    /// MPEG-TS otherwise).
-    pub fmp4: bool,
-}
-
-/// A text track the player shows, as WebVTT.
-#[derive(Debug, Clone, PartialEq)]
-pub struct Subtitle {
-    pub url: String,
-    pub language: Option<String>,
-    pub name: String,
-}
-
-/// What the player is doing, at `position_ms`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum State {
-    Buffering,
-    Playing,
-    Paused,
-}
-
-/// Why playing on the device ended.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Ended {
-    /// It played to the end.
-    Finished,
-    /// Stopped: from Pley, or on the device (its remote, Google's apps).
-    Stopped,
-    /// Another app took the device over (someone cast something else).
-    TakenOver,
-    /// The player couldn't play it.
-    Failed,
-    /// The device went away, or stopped answering.
-    Lost,
-}
-
-/// What comes from the device as it plays.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Event {
-    Status {
-        state: State,
-        position_ms: i64,
-    },
-    /// The device's volume, 0 to 100 (0 while it is muted).
-    Volume(u8),
-    Ended(Ended),
-}
-
-/// Why a cast didn't start.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Failure {
-    /// The device didn't start Google's player.
-    Launch(String),
-    /// The player refused the stream: another may do.
-    Load(String),
-    /// The player didn't start the stream in time, or was closed.
-    NotStarted(String),
-    /// The connection ended.
-    Lost,
-}
 
 /// Google's player playing a stream on a device.
 pub struct Player {
@@ -130,14 +59,14 @@ impl Player {
                         }
                     }
                     Some("LAUNCH_ERROR" | "INVALID_REQUEST") if p["requestId"] == launch => {
-                        return Err(Failure::Launch(reason(p)));
+                        return Err(Failure::NotStarted(reason(p)));
                     }
                     _ => {}
                 }
             }
         })
         .await
-        .map_err(|_| Failure::Launch("the device didn't start the player".into()))??;
+        .map_err(|_| Failure::NotStarted("the device didn't start the player".into()))??;
 
         if !connection.open(&transport).await {
             return Err(Failure::Lost);
@@ -171,12 +100,12 @@ impl Player {
                                 return Ok(id);
                             }
                             if s["idleReason"] == "ERROR" {
-                                return Err(Failure::Load("the player couldn't play it".into()));
+                                return Err(Failure::Refused("the player couldn't play it".into()));
                             }
                         }
                     }
                     Some("LOAD_FAILED" | "LOAD_CANCELLED" | "INVALID_REQUEST" | "ERROR") if p["requestId"] == load => {
-                        return Err(Failure::Load(reason(p)));
+                        return Err(Failure::Refused(reason(p)));
                     }
                     _ => {}
                 }
@@ -357,6 +286,7 @@ async fn follow(mut incoming: mpsc::Receiver<Incoming>, events: mpsc::Sender<Eve
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::nearby::player::Subtitle;
 
     #[test]
     fn a_load_names_the_stream_where_it_starts_and_its_subtitles() {
@@ -599,7 +529,7 @@ mod tests {
             device.say("web-5", NS_MEDIA, json!({"type": "LOAD_FAILED", "requestId": load["requestId"]})).await;
         };
         let (started, ()) = tokio::join!(Player::start(connection, incoming, &m), refuse);
-        assert!(matches!(started, Err(Failure::Load(_))));
+        assert!(matches!(started, Err(Failure::Refused(_))));
 
         let (connection, incoming, device) = pair();
         drop(device);

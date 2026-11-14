@@ -39,6 +39,7 @@ pub mod logging;
 pub mod markers;
 pub mod mdns;
 pub mod metadata;
+pub mod nearby;
 pub mod network;
 pub mod oauth;
 pub mod overrides;

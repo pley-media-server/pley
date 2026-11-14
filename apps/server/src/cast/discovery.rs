@@ -14,6 +14,7 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::net::UdpSocket;
 
 use crate::mdns::{self, Data, Name};
+use crate::nearby::{self, Found};
 
 const SERVICE: [&str; 3] = ["_googlecast", "_tcp", "local"];
 const GROUP: SocketAddrV4 = SocketAddrV4::new(Ipv4Addr::new(224, 0, 0, 251), 5353);
@@ -23,22 +24,9 @@ const MAX_ID: usize = 64;
 /// Devices kept from one look at most.
 const MAX_FOUND: usize = 64;
 
-/// A Cast device that answered.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Found {
-    /// Its own id (`id` in its TXT record), the same at every look.
-    pub id: String,
-    /// The name its owner gave it ("Living room TV").
-    pub name: String,
-    /// "Chromecast", "Chromecast Ultra", "Google TV Streamer", a TV's.
-    pub model: Option<String>,
-    pub address: SocketAddr,
-    /// It shows video: a Cast speaker or a group of them doesn't.
-    pub video: bool,
-}
-
 /// Asks the local network, from each of `from` (this computer's IPv4
-/// addresses), and gathers the answers for `wait`.
+/// addresses), and gathers the answers for `wait`: Cast devices, by the
+/// `id` in their TXT record.
 pub async fn browse(from: &[Ipv4Addr], wait: Duration) -> std::io::Result<Vec<Found>> {
     let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
     socket.set_nonblocking(true)?;
@@ -134,6 +122,7 @@ fn read(packet: &[u8], source: IpAddr) -> Vec<Found> {
             model,
             address: SocketAddr::new(named.unwrap_or(source), port),
             video,
+            protocol: nearby::Protocol::Cast,
         });
     }
     out
@@ -187,6 +176,7 @@ mod tests {
                 model: Some("Chromecast".into()),
                 address: "192.168.1.30:8009".parse().unwrap(),
                 video: true,
+                protocol: nearby::Protocol::Cast,
             }]
         );
         // A speaker group: no video.

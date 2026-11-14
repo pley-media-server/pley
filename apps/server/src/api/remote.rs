@@ -944,15 +944,15 @@ pub async fn devices(
     if home && nearby {
         let taken: HashSet<IpAddr> =
             out.iter().filter(|d| d.casts.contains(&CastKind::Item)).filter_map(|d| d.address).collect();
-        let cast = state.cast_devices.listed(state.config.cast_fixed.found(), state.network.wanted().discovery).await;
-        out.extend(cast.into_iter().filter(|d| !taken.contains(&d.address.ip())).map(|d| RemoteDevice {
-            receiver_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
-            device_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
+        let found = state.nearby.listed(state.config.cast_fixed.found(), state.network.wanted().discovery).await;
+        out.extend(found.into_iter().filter(|d| !taken.contains(&d.address.ip())).map(|d| RemoteDevice {
+            receiver_id: d.key(),
+            device_id: d.key(),
             name: Some(d.name),
             kind: DeviceKind::Tv,
             casts: BTreeSet::from([CastKind::Item]),
             profile: None,
-            protocol: Some("cast"),
+            protocol: Some(d.protocol.word()),
             switches: false,
             address: None,
         }));
@@ -1019,7 +1019,7 @@ async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast)
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
     let discovery = state.network.wanted().discovery;
-    let device = state.cast_devices.device(id, state.config.cast_fixed.found(), discovery).filter(|_| home);
+    let device = state.nearby.device(id, state.config.cast_fixed.found(), discovery).filter(|_| home);
     let device = device.ok_or_else(|| AppError::not_found("no such device"))?;
     if body.profile_id.is_some_and(|p| p != user.id) || body.device_id.is_some() {
         return Err(AppError::not_found("no such device"));
@@ -1042,7 +1042,7 @@ async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast)
     if let Some(index) = body.subtitle_index {
         check_track(&streams, StreamKind::Subtitle, index, "subtitle_index")?;
     }
-    let cast = crate::cast::devices::Cast {
+    let cast = crate::nearby::casts::Cast {
         item_id,
         start_ms: body.start_ms,
         audio_index: body.audio_index,
@@ -1052,7 +1052,7 @@ async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast)
     // while the device loads: the cast then either plays and is followed,
     // or ends its session.
     let (state, user) = (state.clone(), user.clone());
-    let started = tokio::spawn(async move { crate::cast::devices::start(&state, &user, device, cast).await });
+    let started = tokio::spawn(async move { crate::nearby::casts::start(&state, &user, device, cast).await });
     started.await.map_err(|err| AppError::Internal(anyhow::anyhow!("a cast's start failed: {err}")))??;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -1074,8 +1074,8 @@ pub async fn cast(
     body: Result<Json<Cast>, JsonRejection>,
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
-    if let Some(cast_id) = id.strip_prefix(crate::cast::devices::ID_PREFIX) {
-        return cast_to_device(&state, &user, cast_id, body).await;
+    if crate::nearby::Protocol::of(&id).is_some() {
+        return cast_to_device(&state, &user, &id, body).await;
     }
     let owner = body.profile_id.unwrap_or(user.id);
     if owner != user.id && !reaches_household(&user) {
