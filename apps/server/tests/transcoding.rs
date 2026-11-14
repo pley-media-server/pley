@@ -348,7 +348,7 @@ async fn start_fake() -> (Fake, String) {
                             codec: VideoCodec::H264,
                             hardware: false,
                             accel: HwAccel::None,
-                            main10: false,
+                            main10: false, low_power: false
                         }],
                         subtitle_matroska: true,
                         subtitle_matroska_partial: true,

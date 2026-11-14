@@ -3,10 +3,10 @@ import { Trans, useTranslation } from "react-i18next";
 import { CircleAlert, FolderOpen } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useSaveTranscodeDir, useSystemInfo } from "@/api/hooks";
-import type { HwAccel, Settings, ToneMapping, TranscodeDir, TranscodePreset } from "@/api/types";
+import type { DolbyVisionFel, HwAccel, Settings, ToneMapping, TranscodeDir, TranscodePreset } from "@/api/types";
 import { FolderPicker } from "@/components/FolderPicker";
 import { useToast } from "@/components/Toast";
-import { Button, Select, TextInput, Toggle } from "@/components/ui";
+import { Badge, Button, Select, TextInput, Toggle } from "@/components/ui";
 import { formatBytes } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { Group, Link, Note, Row, SettingsForm, TestButton, useSettingsForm } from "./SettingsForm";
@@ -33,6 +33,8 @@ const KEYS = [
   "hwaccel",
   "hardware_decoding",
   "tonemapping",
+  "dolby_vision_fel",
+  "dolby_vision_fel_full",
   "transcode_preset",
   "transcode_video",
   "max_video_transcodes",
@@ -174,6 +176,13 @@ export function TranscoderSettings() {
         const fittedNote = (key: keyof AccelFit["notes"]) => (draft.dirty ? fitted[key] : undefined);
         const noThrottling = known?.throttling === false;
         const memoryProblem = memoryReason(system.data, form.throttle_transcodes);
+        const fel = form.dolby_vision_fel ?? "base_layer";
+        // A transcoder from before the choice tone maps by the metadata, whatever is saved.
+        const felTooOld = tc?.available === true && tc.dolby_vision_fel === false;
+        // Only FFmpeg builds that can rebuild the full picture offer it (Pley's own). One saved on
+        // before stays shown, so it can be turned off.
+        const felFull = form.dolby_vision_fel_full ?? false;
+        const felFullMissing = tc?.available === true && tc.dolby_vision_fel_full !== true;
         const memoryBudget = tc?.memory?.available ? tc.memory.budget_bytes : 0;
 
         return (
@@ -292,6 +301,40 @@ export function TranscoderSettings() {
                 ) : fittedNote("tonemapping") ? (
                   <Note>{fittedNote("tonemapping")}</Note>
                 ) : null}
+              </Row>
+              <Row label={t("transcoder.video.fel")} htmlFor="dolby-vision-fel" hint={t("transcoder.video.felHint")}>
+                <Select
+                  id="dolby-vision-fel"
+                  value={fel}
+                  disabled={felTooOld}
+                  onChange={(e) => set("dolby_vision_fel", e.target.value as DolbyVisionFel)}
+                  className="w-full"
+                >
+                  <option value="base_layer">{t("transcoder.video.felBaseLayer")}</option>
+                  <option value="metadata">{t("transcoder.video.felMetadata")}</option>
+                </Select>
+                {felTooOld ? (
+                  <Note notice>{t("transcoder.video.felOlderTranscoder")}</Note>
+                ) : (
+                  <Note>{t(fel === "metadata" ? "transcoder.video.felMetadataNote" : "transcoder.video.felBaseLayerNote")}</Note>
+                )}
+              </Row>
+              <Row
+                label={
+                  <span className="inline-flex flex-wrap items-center gap-2">
+                    {t("transcoder.video.felFull")}
+                    <Badge tone="warning">{t("transcoder.video.experimental")}</Badge>
+                  </span>
+                }
+                hint={t("transcoder.video.felFullHint")}
+              >
+                <Toggle
+                  checked={felFull}
+                  disabled={felFullMissing && !felFull}
+                  onChange={(v) => set("dolby_vision_fel_full", v)}
+                  label={t("transcoder.video.felFull")}
+                />
+                {felFullMissing ? <Note notice={felFull}>{t("transcoder.video.felFullUnavailable")}</Note> : null}
               </Row>
             </Group>
 

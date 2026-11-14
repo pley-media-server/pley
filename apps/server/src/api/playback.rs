@@ -324,7 +324,7 @@ pub async fn start(
         subtitle: decision.subtitle.clone(),
         segment_seconds: Some(SEGMENT_SECONDS),
         start_ms: Some(start_ms),
-        options: settings.transcode_options(),
+        options: settings.transcode_options_for(req.caps.shows_dolby_vision()),
         container: None,
         // A transcoder older than adaptive bitrate makes one size.
         variants: if state.transcoder.info().is_some_and(|t| t.capabilities.hls_variants) {
@@ -903,7 +903,7 @@ pub async fn convert(
         subtitle: decision.subtitle.clone(),
         segment_seconds: None,
         start_ms: None,
-        options: state.settings.get().transcode_options(),
+        options: state.settings.get().transcode_options_for(req.caps.shows_dolby_vision()),
         container: (container == FileContainer::Mp4).then_some(container),
         variants: Vec::new(),
         segment_format: SegmentFormat::Ts,

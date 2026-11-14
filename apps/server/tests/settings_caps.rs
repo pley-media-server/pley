@@ -20,7 +20,14 @@ use serde_json::json;
 use common::TestApp;
 
 fn encoder(name: &str, accel: HwAccel) -> EncoderInfo {
-    EncoderInfo { name: name.into(), codec: VideoCodec::H264, hardware: accel != HwAccel::None, accel, main10: false }
+    EncoderInfo {
+        name: name.into(),
+        codec: VideoCodec::H264,
+        hardware: accel != HwAccel::None,
+        accel,
+        main10: false,
+        low_power: false,
+    }
 }
 
 /// A transcoder elsewhere whose FFmpeg found `capabilities`.

@@ -223,6 +223,78 @@ jobs:
           Set-Content -Path "$release/pley.exe", "$release/pley-transcoder.exe", "$ffmpeg/ffmpeg.exe", "$ffmpeg/ffprobe.exe" -Value "stand-in"
           ./scripts/build-installer.ps1 -Release $release -Ffmpeg $ffmpeg
 
+  # pley-ffmpeg's Windows build, which the installers carry: the FFmpeg
+  # workflow publishes it from master when its recipe changes (deploy/ffmpeg,
+  # `tag.sh windows`). A release takes the published one, and waits for it;
+  # elsewhere a recipe not yet published is built here, so a change that
+  # breaks it fails before it reaches master.
+  windows-ffmpeg:
+    name: Windows FFmpeg
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read # see whether it is published, before it is public
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - if: ${{ !github.event.pull_request.head.repo.fork }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      # A fork's pull request can't see the package while it is private, nor
+      # build what it can't publish: it is left to the run on master.
+      - name: Published?
+        id: ffmpeg
+        env:
+          FORK: ${{ github.event.pull_request.head.repo.fork }}
+        run: |
+          image="ghcr.io/pley-media-server/pley-ffmpeg-windows:$(sh deploy/ffmpeg/tag.sh windows)"
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          if docker buildx imagetools inspect "$image" >/dev/null 2>&1; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+            echo "$image is published"
+          elif [ "$FORK" = true ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$image isn't visible from a fork: not built here"
+          fi
+      - if: inputs.release && steps.ffmpeg.outputs.published != 'true'
+        env:
+          IMAGE: ${{ steps.ffmpeg.outputs.image }}
+        run: |
+          echo "::error::$IMAGE isn't published: let the FFmpeg workflow finish on master, or run it"
+          exit 1
+      - if: inputs.release
+        name: Take the published build
+        env:
+          IMAGE: ${{ steps.ffmpeg.outputs.image }}
+        run: echo "FROM $IMAGE" | docker buildx build --output type=local,dest=pley-ffmpeg -
+      # The dependency image is about 9 GB: room for it beside the build.
+      - if: ${{ !inputs.release && steps.ffmpeg.outputs.published != 'true' && steps.ffmpeg.outputs.skip != 'true' }}
+        name: Build it
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker buildx build -f deploy/ffmpeg/Dockerfile.windows --output type=local,dest=pley-ffmpeg deploy/ffmpeg
+      - if: inputs.release || (steps.ffmpeg.outputs.published != 'true' && steps.ffmpeg.outputs.skip != 'true')
+        name: Check it
+        run: |
+          for exe in ffmpeg ffprobe; do
+            file "pley-ffmpeg/bin/$exe.exe" | grep -q 'PE32+ executable.*x86-64' || { echo "::error::no $exe.exe"; exit 1; }
+          done
+          test -s pley-ffmpeg/LICENSE.txt && test -s pley-ffmpeg/source/configuration.txt
+          grep -q -- '--enable-libvpl' pley-ffmpeg/source/configuration.txt
+      - if: inputs.release
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-ffmpeg
+          path: pley-ffmpeg
+          if-no-files-found: error
+          retention-days: 1
+
   synology-package:
     name: Synology package
     runs-on: ubuntu-latest
@@ -377,6 +449,12 @@ jobs:
             grep -qw "$name" <<<"$encoders" || fail "FFmpeg has no $name encoder"
           done
           grep -qw libdav1d <<<"$decoders" || fail "FFmpeg has no libdav1d decoder"
+          # pley-ffmpeg's patches (deploy/ffmpeg): without them an Intel GPU's
+          # HDR frames are copied to memory to be tone mapped.
+          opencl=$(ff -h filter=tonemap_opencl)
+          if ! grep -qw bt2390 <<<"$opencl" || ! grep -qw apply_dovi <<<"$opencl"; then
+            fail "FFmpeg's tonemap_opencl isn't pley-ffmpeg's"
+          fi
           if [ "$ARCH" = amd64 ]; then
             # Intel's full driver: the free one leaves older GPUs on the CPU (Dockerfile).
             docker run --rm --entrypoint dpkg pley:local -s intel-media-va-driver-non-free >/dev/null ||
@@ -555,7 +633,7 @@ jobs:
   installer:
     name: Windows installers
     if: inputs.release
-    needs: build
+    needs: [build, windows-ffmpeg]
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
@@ -567,23 +645,19 @@ jobs:
           pattern: release-*-pc-windows-msvc
           path: archives
           merge-multiple: true
+      # The FFmpeg the installers carry: pley-ffmpeg's Windows build (the
+      # windows-ffmpeg job; x64, which ARM64 Windows runs emulated), with its
+      # licence and sources beside bin.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: windows-ffmpeg
+          path: ffmpeg
       - name: Inno Setup
         run: choco install innosetup --version=6.7.1 --no-progress -y
-      # The FFmpeg the installers carry: gyan.dev's full build, the version
-      # and checksum set here (x64; ARM64 Windows runs it emulated).
-      - name: FFmpeg
-        shell: pwsh
-        env:
-          FFMPEG_URL: https://www.gyan.dev/ffmpeg/builds/packages/ffmpeg-9.0.2-full_build.7z
-          FFMPEG_SHA256: f0e46253c70dfe902bac915dfb4224f0cf1b7c6eeab9da2ccc9a5581f9a71b13
-        run: |
-          Invoke-WebRequest $env:FFMPEG_URL -OutFile ffmpeg.7z
-          if ((Get-FileHash ffmpeg.7z -Algorithm SHA256).Hash -ne $env:FFMPEG_SHA256) { throw "ffmpeg.7z isn't the build expected" }
-          7z x ffmpeg.7z -offmpeg | Out-Null
       - name: Build the installers
         shell: pwsh
         run: |
-          $ffmpeg = (Get-Item ffmpeg/*/bin).FullName
+          $ffmpeg = (Resolve-Path ffmpeg/bin).Path
           foreach ($zip in Get-ChildItem archives/pley-*-windows-*.zip) {
             Expand-Archive $zip -DestinationPath staging
             ./scripts/build-installer.ps1 -Release "staging/$($zip.BaseName)" -Ffmpeg $ffmpeg

@@ -75,17 +75,44 @@ pub struct Share {
     pub quality: TonemapQuality,
     /// The video is decoded by the CPU rather than the GPU planned.
     pub cpu_decode: bool,
+    /// Quick Sync's scaler tone maps rather than libplacebo
+    /// ([`pley_transcoder_api::Tonemapper::QuickSync`]): where the GPU falls
+    /// behind with jobs it decodes and scales.
+    pub quick_sync: bool,
+    /// Quick Sync decodes and scales the HDR10 base layer of Dolby Vision or
+    /// HDR10+ for libplacebo, its metadata unread, rather than FFmpeg's own
+    /// decoder, which reads it: where that one's GPU decoding failed, and
+    /// the CPU would decode in its place.
+    pub base_layer: bool,
+    /// OpenCL tone maps Dolby Vision by its metadata rather than libplacebo,
+    /// the frames never leaving the GPU ([`crate::plan::qsv_opencl_dovi`]):
+    /// where the GPU falls behind or the CPU has no time to spare, in place
+    /// of Quick Sync's tone mapping of the base layer, which leaves the
+    /// metadata unread, and for profile 5, which has no base layer.
+    pub opencl: bool,
 }
 
 impl Share {
     /// Whether a move from this to `to` happens at once: it gives the GPU
-    /// less to do (a cheaper quality, or the decoding moved to the CPU), or
+    /// less to do (a cheaper quality, the decoding moved to the CPU, or the
+    /// tone mapping to Quick Sync's scaler or to OpenCL), or
     /// the CPU, where it was found with no time to spare (`cpu_busy`, see
-    /// [`Lessons`]).
+    /// [`Lessons`]) or decodes what Quick Sync could (`base_layer`).
     pub fn moves_at_once(self, to: Share, cpu_busy: bool) -> bool {
         to.quality < self.quality
             || (to.cpu_decode && !self.cpu_decode)
+            || (to.quick_sync && !self.quick_sync)
+            || (to.opencl && !self.opencl)
+            || (to.base_layer && !self.base_layer)
             || (cpu_busy && self.cpu_decode && !to.cpu_decode)
+    }
+
+    /// Whether `other` makes the same picture the same way: on Quick Sync's
+    /// scaler and on OpenCL, libplacebo's quality changes nothing.
+    pub fn same_work(self, other: Share) -> bool {
+        self == other
+            || (self.quick_sync && other.quick_sync && self.cpu_decode == other.cpu_decode)
+            || (self.opencl && other.opencl)
     }
 }
 
@@ -188,8 +215,9 @@ pub fn verdict(m: Measured) -> Verdict {
 /// When a lesson was learned, last confirmed, and with how much on the GPU.
 #[derive(Debug, Clone, Copy)]
 struct Learned {
-    /// What the jobs tone mapping on the GPU needed in all
-    /// ([`crate::plan::Plan::tonemap_need`]).
+    /// What the jobs tone mapping with libplacebo needed in all
+    /// ([`crate::plan::Plan::tonemap_need`]), the job that taught it
+    /// included as if it were on libplacebo.
     load: f64,
     at: Instant,
 }
@@ -364,7 +392,13 @@ mod tests {
         let starved = Measured { others: 2.27 / 0.31, ..measured(0.31, 0.0, Some(0.22)) };
         assert_eq!(verdict(starved), Verdict::Starved);
         let mut lessons = Lessons::default();
-        let fast = Share { quality: TonemapQuality::Fast, cpu_decode: false };
+        let fast = Share {
+            quality: TonemapQuality::Fast,
+            cpu_decode: false,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
         assert!(!lessons.learn(Verdict::Starved, fast, 67.0, Instant::now()));
         assert_eq!(lessons.holding(67.0, Instant::now()), Held::default());
         // Three 4K films the GPU holds back: 0.47× beside 0.85×, together.
@@ -374,7 +408,13 @@ mod tests {
 
     #[test]
     fn only_jobs_tone_mapping_alike_tell_that_one_waits_for_its_input() {
-        let gpu = Share { quality: TonemapQuality::Fast, cpu_decode: false };
+        let gpu = Share {
+            quality: TonemapQuality::Fast,
+            cpu_decode: false,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
         let cpu = Share { cpu_decode: true, ..gpu };
         let balanced = Share { quality: TonemapQuality::Balanced, ..gpu };
         // Three 4K films as measured: two decoded on the GPU, at 0.56× and
@@ -399,7 +439,13 @@ mod tests {
     fn a_gpu_that_fell_behind_takes_a_cheaper_quality_then_leaves_the_decoding_to_the_cpu() {
         let now = Instant::now();
         let mut lessons = Lessons::default();
-        let balanced = Share { quality: TonemapQuality::Balanced, cpu_decode: false };
+        let balanced = Share {
+            quality: TonemapQuality::Balanced,
+            cpu_decode: false,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
         assert!(!lessons.learn(Verdict::KeepsUp, balanced, 100.0, now));
         assert_eq!(lessons.holding(100.0, now), Held::default());
 
@@ -430,7 +476,13 @@ mod tests {
     fn a_cpu_with_no_time_to_spare_decodes_no_more() {
         let now = Instant::now();
         let mut lessons = Lessons::default();
-        let decoding = Share { quality: TonemapQuality::Fast, cpu_decode: true };
+        let decoding = Share {
+            quality: TonemapQuality::Fast,
+            cpu_decode: true,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
         assert!(lessons.learn(Verdict::CpuBound, decoding, 100.0, now));
         assert!(!lessons.learn(Verdict::CpuBound, decoding, 120.0, now + Duration::from_secs(5)));
         let held = lessons.holding(100.0, now + Duration::from_secs(5));
@@ -443,8 +495,20 @@ mod tests {
 
     #[test]
     fn moves_relieving_the_gpu_or_a_busy_cpu_happen_at_once() {
-        let alone = Share { quality: TonemapQuality::Balanced, cpu_decode: false };
-        let shared = Share { quality: TonemapQuality::Fast, cpu_decode: true };
+        let alone = Share {
+            quality: TonemapQuality::Balanced,
+            cpu_decode: false,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
+        let shared = Share {
+            quality: TonemapQuality::Fast,
+            cpu_decode: true,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
         assert!(alone.moves_at_once(shared, false));
         assert!(alone.moves_at_once(Share { quality: TonemapQuality::Fast, ..alone }, false));
         assert!(alone.moves_at_once(Share { cpu_decode: true, ..alone }, false));
@@ -452,5 +516,44 @@ mod tests {
         assert!(!shared.moves_at_once(shared, false));
         // Back to the GPU at once where the CPU had no time to spare.
         assert!(shared.moves_at_once(Share { cpu_decode: false, ..shared }, true));
+        // To Quick Sync's tone mapping at once, back to libplacebo later.
+        let fast = Share {
+            quality: TonemapQuality::Fast,
+            cpu_decode: false,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
+        let intel = Share { quick_sync: true, ..fast };
+        assert!(fast.moves_at_once(intel, false));
+        assert!(!intel.moves_at_once(fast, false));
+        // To Quick Sync's decoder at once, from a CPU decoding in the GPU's place.
+        assert!(alone.moves_at_once(Share { base_layer: true, ..alone }, false));
+        // Dolby Vision to OpenCL at once, from libplacebo and from a CPU
+        // decoding for it; back to libplacebo later.
+        let opencl = Share { opencl: true, ..fast };
+        assert!(fast.moves_at_once(opencl, false));
+        assert!(shared.moves_at_once(opencl, false));
+        assert!(!opencl.moves_at_once(fast, false));
+        assert!(!opencl.moves_at_once(alone, false));
+    }
+
+    #[test]
+    fn libplacebos_quality_is_nothing_to_restart_for_where_it_doesnt_tone_map() {
+        let fast = Share {
+            quality: TonemapQuality::Fast,
+            cpu_decode: false,
+            quick_sync: false,
+            base_layer: false,
+            opencl: false,
+        };
+        let balanced = Share { quality: TonemapQuality::Balanced, ..fast };
+        assert!(fast.same_work(fast) && !fast.same_work(balanced));
+        for other in [Share { quick_sync: true, ..fast }, Share { opencl: true, ..fast }] {
+            assert!(other.same_work(Share { quality: TonemapQuality::Balanced, ..other }));
+            assert!(!other.same_work(fast) && !fast.same_work(other));
+        }
+        // Quick Sync's scaler or OpenCL: another picture.
+        assert!(!Share { quick_sync: true, ..fast }.same_work(Share { opencl: true, ..fast }));
     }
 }

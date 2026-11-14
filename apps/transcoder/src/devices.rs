@@ -24,6 +24,28 @@ pub fn vaapi_device() -> &'static str {
     })
 }
 
+/// The kernel drivers of Intel's GPUs, the only ones Quick Sync runs on.
+const INTEL_DRIVERS: [&str; 2] = ["i915", "xe"];
+
+/// The render node Quick Sync uses on Linux: `PLEY_VAAPI_DEVICE`, else the
+/// first Intel one, else VAAPI's. FFmpeg's own pick is the first render
+/// node, which is an NVIDIA or AMD GPU's on a computer that has one beside
+/// Intel's.
+pub fn qsv_device() -> &'static str {
+    static DEVICE: OnceLock<String> = OnceLock::new();
+    DEVICE.get_or_init(|| match std::env::var("PLEY_VAAPI_DEVICE") {
+        Ok(device) if !device.trim().is_empty() => device.trim().to_owned(),
+        _ => pick_intel_node(&render_nodes()).unwrap_or_else(|| vaapi_device().to_owned()),
+    })
+}
+
+fn pick_intel_node(nodes: &[(String, Option<String>)]) -> Option<String> {
+    nodes
+        .iter()
+        .find(|(_, driver)| driver.as_deref().is_some_and(|d| INTEL_DRIVERS.contains(&d)))
+        .map(|(node, _)| format!("/dev/dri/{node}"))
+}
+
 /// What detection's results depend on besides FFmpeg: the render nodes and
 /// their drivers, NVIDIA's driver, and WSL's GPU.
 pub fn stamp() -> String {
@@ -116,6 +138,17 @@ mod tests {
         // A container's one node, whatever its driver reads as.
         assert_eq!(pick_render_node(&nodes(&[("renderD128", None)])), "/dev/dri/renderD128");
         assert_eq!(pick_render_node(&[]), DEFAULT_RENDER_NODE);
+    }
+
+    #[test]
+    fn quick_sync_takes_the_intel_gpu() {
+        // AMD's first: VAAPI takes it, Quick Sync Intel's.
+        let both = nodes(&[("renderD128", Some("amdgpu")), ("renderD129", Some("i915"))]);
+        assert_eq!(pick_render_node(&both), "/dev/dri/renderD128");
+        assert_eq!(pick_intel_node(&both).as_deref(), Some("/dev/dri/renderD129"));
+        assert_eq!(pick_intel_node(&nodes(&[("renderD128", Some("xe"))])).as_deref(), Some("/dev/dri/renderD128"));
+        // None known: VAAPI's node.
+        assert_eq!(pick_intel_node(&nodes(&[("renderD128", None)])), None);
     }
 
     #[cfg(target_os = "linux")]

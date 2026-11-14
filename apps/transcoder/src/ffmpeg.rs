@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 14;
+const DETECTION_REVISION: u32 = 28;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -183,7 +183,10 @@ impl Ffmpeg {
         if choice.is_none() && mode != TonemapMode::None {
             warnings.push("no tone mapper available".into());
         }
-        if dolby_vision_p5 && choice.is_some() && choice != Some(Tonemapper::Libplacebo) {
+        // OpenCL with BT.2390 (Pley's FFmpeg) applies Dolby Vision's reshaping too.
+        let reshapes =
+            |t: Tonemapper| t == Tonemapper::Libplacebo || (t == Tonemapper::Opencl && self.caps.opencl_bt2390);
+        if dolby_vision_p5 && choice.is_some_and(|t| !reshapes(t)) {
             warnings.push("Dolby Vision P5 needs libplacebo".into());
         }
         (choice, warnings)
@@ -207,11 +210,15 @@ fn gpu_summary(caps: &Capabilities) -> String {
     if caps.amf_upload {
         parts.push("AMF fed from the GPU".to_owned());
     }
+    if caps.qsv_opencl_dovi {
+        parts.push("Dolby Vision on OpenCL".to_owned());
+    }
     parts.iter().map(|p| format!(", {p}")).collect()
 }
 
 fn tonemapper_names(caps: &Capabilities) -> String {
-    caps.tonemappers.iter().map(|t| t.as_str()).collect::<Vec<_>>().join(", ")
+    let quick_sync = caps.qsv_tonemap.then_some(Tonemapper::QuickSync);
+    caps.tonemappers.iter().copied().chain(quick_sync).map(|t| t.as_str()).collect::<Vec<_>>().join(", ")
 }
 
 fn cache_key(ffmpeg: &Path, ffprobe: &Path) -> String {
@@ -281,11 +288,17 @@ fn leak(s: String) -> &'static str {
 }
 
 /// A test encode with `name`; `main10`: 10-bit HEVC (Main 10), as
-/// transcodes that keep HDR encode it ([`crate::plan`]'s encoder arguments).
-async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool) -> bool {
+/// transcodes that keep HDR encode it ([`crate::plan`]'s encoder arguments);
+/// `low_power`: Quick Sync's low-power mode, which older Intel GPUs lack.
+async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool, low_power: bool) -> bool {
     let mut args: Vec<&str> = vec!["-hide_banner", "-nostdin", "-loglevel", "error"];
     if accel == HwAccel::Vaapi {
         args.extend(["-vaapi_device", devices::vaapi_device()]);
+    }
+    // On Intel's GPU, as jobs encode.
+    let qsv = crate::plan::qsv_vaapi_devices(devices::qsv_device());
+    if accel == HwAccel::Qsv && crate::plan::QSV_ON_VAAPI {
+        args.extend(qsv.iter().map(String::as_str));
     }
     args.extend(["-f", "lavfi", "-i", "color=black:s=320x240:r=25:d=0.2", "-frames:v", "3"]);
     match (accel, main10) {
@@ -295,6 +308,9 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool) -
         (_, true) => args.extend(["-pix_fmt", crate::plan::ten_bit_format(accel)]),
     }
     args.extend(["-c:v", name]);
+    if low_power {
+        args.extend(crate::plan::QSV_LOW_POWER);
+    }
     // Rate control as jobs ask for it.
     match accel {
         HwAccel::Qsv => args.extend(crate::plan::QSV_VBR.iter().chain(&["-b:v", "1000k", "-maxrate", "1000001"])),
@@ -315,10 +331,15 @@ async fn test_encoder(ffmpeg: &Path, name: &str, accel: HwAccel, main10: bool) -
 
 const HDR_TAGS: &str = "setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc";
 
+/// Frames without colour properties, as Dolby Vision profile 5's come:
+/// what tone maps them goes by their metadata, or fails.
+const UNTAGGED: &str = "setparams=color_trc=unknown:color_primaries=unknown:colorspace=unknown";
+
 /// The tone mappers' start-up tests, on HDR-tagged frames.
 fn libplacebo_test_graph() -> String {
     format!(
-        "{HDR_TAGS},libplacebo=w=160:h=120:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:tonemapping=auto:{}",
+        "{HDR_TAGS},libplacebo=w=160:h=120:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:{}:{}",
+        crate::plan::PLACEBO_CURVE,
         crate::plan::PLACEBO_STATIC_PEAK
     )
 }
@@ -431,7 +452,8 @@ const TONEMAP_MEASURE_BUDGET: Duration = Duration::from_secs(20);
 async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
     let time = |quality: TonemapQuality, frames: u32| async move {
         let vf = format!(
-            "{HDR_TAGS},libplacebo=w=3840:h=2160:format=nv12:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:{}{}",
+            "{HDR_TAGS},libplacebo=w=3840:h=2160:format=nv12:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{}:{}{}",
+            crate::plan::PLACEBO_CURVE,
             crate::plan::PLACEBO_STATIC_PEAK,
             crate::plan::placebo_quality_options(quality, (3840, 2160), (3840, 2160), true)
         );
@@ -462,29 +484,69 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
         ok.then(|| started.elapsed().as_secs_f64())
     };
     let started = Instant::now();
+    // The first libplacebo process starts slower than the rest (Vulkan's
+    // and the driver's first start, shaders compiled): timed, its 6 frames
+    // took as long as 42 after it, and `fast` read 720 frames a second on an
+    // Iris Xe that makes 150. It warms up untimed.
+    let _ = time(TonemapQuality::Fast, 6).await;
     let mut speed = TonemapSpeed::default();
+    // The qualities whose runs finished, though maybe too fast to time.
+    let (mut fast_ran, mut balanced_ran) = (false, false);
     for quality in [TonemapQuality::Fast, TonemapQuality::Balanced, TonemapQuality::High] {
-        // Twice where the time allows, the faster run counting: other work
-        // on the GPU (seek previews being made, say) only ever slows a run
-        // down. Measured alone, balanced read 37 frames a second beside a
-        // library's seek previews against 53 to 56 without.
+        // Twice where the time allows, the faster short and the faster long
+        // run counting, each on its own: other work on the GPU (seek
+        // previews being made, say) and a process's start only ever slow a
+        // run down. Measured alone, balanced read 37 frames a second beside a
+        // library's seek previews against 53 to 56 without. Pairing the runs
+        // instead, a slow short run read as a fast quality: `high` at 172
+        // and 283 frames a second where it makes 52.
+        let (mut short, mut long) = (f64::INFINITY, f64::INFINITY);
         for attempt in 0..2 {
             let limit = if attempt == 0 { TONEMAP_MEASURE_BUDGET } else { TONEMAP_MEASURE_BUDGET * 3 / 4 };
             if started.elapsed() > limit {
                 break;
             }
-            if let (Some(short), Some(long)) = (time(quality, 6).await, time(quality, 42).await) {
-                let fps = 36.0 / (long - short).max(0.05);
-                let best = match quality {
-                    TonemapQuality::Fast => &mut speed.fast,
-                    TonemapQuality::Balanced => &mut speed.balanced,
-                    TonemapQuality::High => &mut speed.high,
-                };
-                *best = best.max(fps);
+            if let (Some(s), Some(l)) = (time(quality, 6).await, time(quality, 42).await) {
+                (short, long) = (short.min(s), long.min(l));
             }
         }
+        let ran = short.is_finite() && long.is_finite();
+        match quality {
+            TonemapQuality::Fast => fast_ran = ran,
+            TonemapQuality::Balanced => balanced_ran = ran,
+            TonemapQuality::High => {}
+        }
+        if let Some(fps) = frames_a_second(short, long) {
+            let measured = match quality {
+                TonemapQuality::Fast => &mut speed.fast,
+                TonemapQuality::Balanced => &mut speed.balanced,
+                TonemapQuality::High => &mut speed.high,
+            };
+            *measured = fps;
+        }
     }
+    // Each quality does less than the one above it: one that read slower was
+    // slowed by something else (`fast` read 51 frames a second where
+    // `balanced` read 97, the first runs of a start on an Iris Xe). One that
+    // ran but measured nothing (too fast to time) is as fast as the one
+    // above; one whose runs failed, or that the time left no room for, stays
+    // unmeasured and is never used.
+    speed.balanced = clamp_to_dearer(speed.balanced, speed.high, balanced_ran);
+    speed.fast = clamp_to_dearer(speed.fast, speed.balanced, fast_ran);
     (speed.fast > 0.0 || speed.balanced > 0.0 || speed.high > 0.0).then_some(speed)
+}
+
+/// A quality's speed, at least that of the dearer one above it where its
+/// own runs finished (`ran`); unmeasured otherwise.
+fn clamp_to_dearer(measured: f64, dearer: f64, ran: bool) -> f64 {
+    if ran { measured.max(dearer) } else { measured }
+}
+
+/// The frames a second the 36 frames between a 6-frame run of `short`
+/// seconds and a 42-frame one of `long` show; none where the long run was
+/// no slower than the short one, which measured nothing.
+fn frames_a_second(short: f64, long: f64) -> Option<f64> {
+    (short.is_finite() && long.is_finite() && long > short + 0.05).then(|| 36.0 / (long - short))
 }
 
 async fn test_filter(ffmpeg: &Path, pre: &[&str], vf: &str) -> bool {
@@ -572,7 +634,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         ..Default::default()
     };
     let timeout = Duration::from_secs(30);
-    let (version, probe, encoders, hwaccels, filters, muxers, bsfs, placebo_help) = tokio::join!(
+    let (version, probe, encoders, hwaccels, filters, muxers, bsfs, placebo_help, opencl_help) = tokio::join!(
         run(ffmpeg, &["-hide_banner", "-version"], timeout),
         run(ffprobe, &["-hide_banner", "-version"], timeout),
         run(ffmpeg, &["-hide_banner", "-encoders"], timeout),
@@ -581,6 +643,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         run(ffmpeg, &["-hide_banner", "-muxers"], timeout),
         run(ffmpeg, &["-hide_banner", "-bsfs"], timeout),
         run(ffmpeg, &["-hide_banner", "-h", "filter=libplacebo"], timeout),
+        run(ffmpeg, &["-hide_banner", "-h", "filter=tonemap_opencl"], timeout),
     );
     let Some(version) = version.filter(|o| o.success) else {
         return (caps, true);
@@ -619,8 +682,13 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         let limiter = limiter.clone();
         async move {
             let _permit = limiter.acquire().await.ok();
-            let ok = test_encoder(ffmpeg, name, *accel, false).await;
-            let main10 = ok && *codec == VideoCodec::Hevc && test_encoder(ffmpeg, name, *accel, true).await;
+            let ok = test_encoder(ffmpeg, name, *accel, false, false).await;
+            let main10 = ok && *codec == VideoCodec::Hevc && test_encoder(ffmpeg, name, *accel, true, false).await;
+            // Low power where every mode jobs use passes in it, Main 10 included.
+            let low_power = ok
+                && *accel == HwAccel::Qsv
+                && test_encoder(ffmpeg, name, *accel, false, true).await
+                && (!main10 || test_encoder(ffmpeg, name, *accel, true, true).await);
             (
                 EncoderInfo {
                     name: (*name).to_owned(),
@@ -628,6 +696,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
                     hardware: *accel != HwAccel::None,
                     accel: *accel,
                     main10,
+                    low_power,
                 },
                 ok,
             )
@@ -718,9 +787,17 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         }
     }
     caps.dolby_vision = libplacebo;
+    caps.placebo_software = libplacebo && !libplacebo_on_gpu;
     // FFmpeg 7.1 (Debian 13's) has no `shader_cache`, and a graph naming
     // it fails: the tests above leave it out, so they can't tell.
-    caps.placebo_shader_cache = libplacebo && placebo_help.is_some_and(|o| lists_option(&o.text, "shader_cache"));
+    caps.placebo_shader_cache =
+        libplacebo && placebo_help.as_ref().is_some_and(|o| lists_option(&o.text, "shader_cache"));
+    // Pley's FFmpeg (patch 1002): a peak for HDR10 that says none.
+    caps.placebo_fallback_peak =
+        libplacebo && placebo_help.as_ref().is_some_and(|o| lists_option(&o.text, "fallback_peak"));
+    // jellyfin-ffmpeg's tonemap_opencl (Pley's FFmpeg carries it) lists
+    // BT.2390 among its curves; FFmpeg's own doesn't.
+    caps.opencl_bt2390 = opencl_help.is_some_and(|o| lists_option(&o.text, "bt2390"));
     caps.subtitle_burn_image = has("overlay");
     caps.subtitle_burn_text = has("subtitles");
     caps.readrate = readrate;
@@ -741,6 +818,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
                 Tonemapper::Libplacebo => placebo,
                 Tonemapper::Opencl => ocl,
                 Tonemapper::Zscale => true,
+                Tonemapper::QuickSync => false,
             })
             .collect();
     }
@@ -750,6 +828,11 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.vaapi_vulkan_decode = gpu.vaapi_vulkan_decode;
     caps.vulkan_encode = gpu.vulkan_encode;
     caps.gpu_pipelines = gpu.pipelines;
+    caps.qsv_tonemap = gpu.qsv_tonemap;
+    caps.qsv_overlay = gpu.qsv_overlay;
+    caps.qsv_opencl_dovi = gpu.qsv_opencl_dovi;
+    // Pley's FFmpeg rebuilds Dolby Vision FEL's full picture (experimental).
+    caps.dolby_vision_fel_full = filter_names.contains("dovi_compose");
     if libplacebo && libplacebo_on_gpu {
         caps.tonemap_speed = measure_tonemap_speed(ffmpeg).await;
     }
@@ -766,7 +849,15 @@ struct GpuDetection {
     vaapi_vulkan_decode: Vec<String>,
     vulkan_encode: bool,
     pipelines: Vec<GpuPipeline>,
+    qsv_tonemap: bool,
+    qsv_overlay: bool,
+    qsv_opencl_dovi: bool,
 }
+
+/// x265's options for the 10-bit test clip: a 1000-nit P3 mastering display
+/// and the content's light levels, HDR10's static metadata.
+const HDR10_TEST_PARAMS: &str = "log-level=error:max-cll=1000,400:\
+    master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1)";
 
 /// Encoder arguments for the tiny clips used to probe hardware decoding,
 /// keyed like [`pley_transcoder_api::decode_key`].
@@ -778,7 +869,13 @@ fn test_clip_specs(encoders: &HashSet<String>) -> Vec<(&'static str, Vec<&'stati
     if encoders.contains("libx265") {
         let x265 = ["-c:v", "libx265", "-preset", "ultrafast", "-x265-params", "log-level=error"];
         specs.push(("hevc", [x265.as_slice(), &["-pix_fmt", "yuv420p"]].concat()));
-        specs.push(("hevc10", [x265.as_slice(), &["-pix_fmt", "yuv420p10le"]].concat()));
+        // With HDR10's static metadata, as HDR10 video carries it: Quick
+        // Sync's scaler tone maps only frames that have it, and passes the
+        // others through, which would test nothing.
+        let hdr10 = ["-c:v", "libx265", "-preset", "ultrafast", "-x265-params", HDR10_TEST_PARAMS];
+        specs.push(("hevc10", [hdr10.as_slice(), &["-pix_fmt", "yuv420p10le"]].concat()));
+        // What cameras record: some GPUs decode it (Intel's), others don't.
+        specs.push(("hevc10-yuv422p10le", [x265.as_slice(), &["-pix_fmt", "yuv422p10le"]].concat()));
     }
     if encoders.contains("libsvtav1") {
         specs.push(("av1", vec!["-c:v", "libsvtav1", "-preset", "12", "-pix_fmt", "yuv420p10le"]));
@@ -810,6 +907,12 @@ async fn detect_gpu_pipelines(
 ) -> GpuDetection {
     let working = |name: &str| caps.encoders.iter().any(|e| e.name == name);
     let hwaccel = |name: &str| caps.hwaccels.iter().any(|h| h == name);
+    // Quick Sync's frames on the GPU: on Linux on Intel's render node, its
+    // device made from VAAPI's, as jobs make it.
+    let qsv_gpu = crate::plan::qsv_gpu_devices(&crate::plan::QSV_DECODE, devices::qsv_device());
+    let qsv_gpu: Vec<&str> = qsv_gpu.iter().map(String::as_str).collect();
+    let qsv_overlay_devices = crate::plan::qsv_gpu_devices(&crate::plan::QSV_D3D11_DEVICES, devices::qsv_device());
+    let qsv_overlay_devices: Vec<&str> = qsv_overlay_devices.iter().map(String::as_str).collect();
     let mut candidates: Vec<(HwAccel, Vec<&str>, &str, Vec<&str>)> = Vec::new();
     if working("h264_nvenc") && hwaccel("cuda") && filters.contains("scale_cuda") {
         candidates.push((
@@ -828,12 +931,7 @@ async fn detect_gpu_pipelines(
         ));
     }
     if working("h264_qsv") && hwaccel("qsv") && filters.contains("vpp_qsv") {
-        candidates.push((
-            HwAccel::Qsv,
-            vec!["-hwaccel", "qsv", "-hwaccel_output_format", "qsv"],
-            "vpp_qsv=w=160:h=120:format=nv12",
-            vec!["-c:v", "h264_qsv"],
-        ));
+        candidates.push((HwAccel::Qsv, qsv_gpu.clone(), "vpp_qsv=w=160:h=120:format=nv12", vec!["-c:v", "h264_qsv"]));
     }
     if cfg!(target_os = "macos")
         && working("h264_videotoolbox")
@@ -1012,23 +1110,158 @@ async fn detect_gpu_pipelines(
         }));
         async move { (*accel, tests.await) }
     }));
-    let (vulkan_results, vaapi_vulkan_results, vulkan_encode, pipeline_results) =
-        tokio::join!(vulkan_tests, vaapi_vulkan_tests, vulkan_encode_test, pipeline_tests);
+    // HDR kept on Quick Sync: the 10-bit sources' frames stay in 10 bits
+    // from its decoder through its scaler into its HEVC Main 10 encoder.
+    let qsv_main10 = candidates.iter().any(|(accel, ..)| *accel == HwAccel::Qsv)
+        && caps.encoders.iter().any(|e| e.name == "hevc_qsv" && e.main10);
+    let main10_tests = futures::future::join_all(
+        clips.iter().filter(|(key, _)| qsv_main10 && MAIN10_KEYS.contains(key)).map(|(key, clip)| {
+            let mut args = base("error", &qsv_gpu, clip);
+            args.extend(
+                [
+                    "-vf",
+                    "vpp_qsv=w=160:h=120:format=p010le",
+                    "-c:v",
+                    "hevc_qsv",
+                    "-profile:v",
+                    "main10",
+                    "-f",
+                    "null",
+                    "-",
+                ]
+                .map(String::from),
+            );
+            let test = run_test(args);
+            async move { (key.to_string(), test.await) }
+        }),
+    );
+    // Quick Sync into its H.264 encoder: what the next three tests need.
+    let qsv_h264 = candidates.iter().any(|(accel, ..)| *accel == HwAccel::Qsv) && working("h264_qsv");
+    // HDR10 tone mapped by Quick Sync's scaler (VAAPI's on Linux), from its
+    // decoder into its H.264 encoder (see `Tonemapper::QuickSync`).
+    let qsv_tonemap_test = async {
+        let Some((_, clip)) = clips.iter().find(|(k, _)| *k == "hevc10") else { return false };
+        if !qsv_h264 {
+            return false;
+        }
+        let mut args = base("error", &qsv_gpu, clip);
+        let vf = format!("{HDR_TAGS},{}", crate::plan::qsv_tonemap(160, 120));
+        args.extend(["-vf".to_string(), vf]);
+        args.extend(["-c:v", "h264_qsv", "-f", "null", "-"].map(String::from));
+        run_test(args).await
+    };
+    // Picture subtitles laid on by Quick Sync: a translucent picture
+    // uploaded to its device, made from Direct3D 11's (VAAPI's on Linux).
+    let qsv_overlay_test = async {
+        let Some((_, clip)) = clips.iter().find(|(k, _)| *k == "h264") else { return false };
+        if !qsv_h264 {
+            return false;
+        }
+        let mut args = base("error", &qsv_overlay_devices, clip);
+        args.extend(
+            [
+                "-f",
+                "lavfi",
+                "-i",
+                "color=c=white@0.5:s=160x40:r=25:d=0.4",
+                "-filter_complex",
+                "[1:0]format=bgra,hwupload=extra_hw_frames=16[subs];[0:0][subs]overlay_qsv=y=main_h-overlay_h[v]",
+                "-map",
+                "[v]",
+                "-c:v",
+                "h264_qsv",
+                "-f",
+                "null",
+                "-",
+            ]
+            .map(String::from),
+        );
+        run_test(args).await
+    };
+    // Dolby Vision tone mapped by OpenCL between FFmpeg's decoder on
+    // Direct3D 11 and Quick Sync's encoder, the frames mapped all the way
+    // (Windows; see `plan::qsv_opencl_dovi`). Its clip carries a profile 5
+    // RPU on every frame, and its frames come untagged, as profile 5's do:
+    // OpenCL's tone mapper refuses such frames without the metadata, so the
+    // test passes only where it arrives. FFmpeg's own builds aren't tried:
+    // their tone mapper has no BT.2390 and reads no Dolby Vision, and they
+    // map no 10-bit Quick Sync frames to OpenCL.
+    let qsv_opencl_dovi_test = async {
+        let Some((_, clip)) = clips.iter().find(|(k, _)| *k == "hevc10") else { return false };
+        if !(cfg!(windows) && qsv_h264 && caps.opencl_bt2390 && hwaccel("d3d11va")) {
+            return false;
+        }
+        let Some(clip) = dolby_vision_clip(ffmpeg, clip, &dir).await else { return false };
+        let mut args = base("error", &crate::plan::QSV_OPENCL_DEVICES, &clip);
+        let vf = format!("{UNTAGGED},{}", crate::plan::qsv_opencl_dovi(160, 120, true));
+        args.extend(["-vf".to_string(), vf]);
+        args.extend(["-c:v", "h264_qsv", "-f", "null", "-"].map(String::from));
+        run_test(args).await
+    };
+    let (
+        vulkan_results,
+        vaapi_vulkan_results,
+        vulkan_encode,
+        pipeline_results,
+        main10_results,
+        qsv_tonemap,
+        qsv_overlay,
+        qsv_opencl_dovi,
+    ) = tokio::join!(
+        vulkan_tests,
+        vaapi_vulkan_tests,
+        vulkan_encode_test,
+        pipeline_tests,
+        main10_tests,
+        qsv_tonemap_test,
+        qsv_overlay_test,
+        qsv_opencl_dovi_test
+    );
     let _ = std::fs::remove_dir_all(&dir);
 
     let ok_keys =
         |results: Vec<(String, bool)>| results.into_iter().filter(|(_, ok)| *ok).map(|(k, _)| k).collect::<Vec<_>>();
+    let main10 = ok_keys(main10_results);
     GpuDetection {
         vulkan_decode: ok_keys(vulkan_results),
         vaapi_vulkan_decode: ok_keys(vaapi_vulkan_results),
         vulkan_encode,
         pipelines: pipeline_results
             .into_iter()
-            .map(|(accel, results)| GpuPipeline { accel, codecs: ok_keys(results) })
+            .map(|(accel, results)| {
+                let codecs = ok_keys(results);
+                let main10 = match accel {
+                    HwAccel::Qsv => main10.iter().filter(|k| codecs.contains(k)).cloned().collect(),
+                    _ => Vec::new(),
+                };
+                GpuPipeline { accel, codecs, main10 }
+            })
             .filter(|p| !p.codecs.is_empty())
             .collect(),
+        qsv_tonemap,
+        qsv_overlay,
+        qsv_opencl_dovi,
     }
 }
+
+/// `clip` (HEVC in Matroska) as a bare stream in `dir`, a Dolby Vision
+/// profile 5 RPU after each of its frames ([`crate::dovi::test_rpu`]):
+/// FFmpeg's encoders write RPUs only from metadata a decoder read, so a
+/// clip made from nothing gets its own. FFmpeg tells the profile from the
+/// RPUs where a stream has no Dolby Vision configuration.
+async fn dolby_vision_clip(ffmpeg: &Path, clip: &Path, dir: &Path) -> Option<PathBuf> {
+    let (plain, out) = (dir.join("plain.hevc"), dir.join("dolby-vision.hevc"));
+    let (from, to) = (clip.to_string_lossy(), plain.to_string_lossy());
+    let args = ["-hide_banner", "-nostdin", "-loglevel", "error", "-y", "-i", &from, "-c:v", "copy", "-f", "hevc", &to];
+    run(ffmpeg, &args, Duration::from_secs(30)).await.filter(|o| o.success)?;
+    let stream = tokio::fs::read(&plain).await.ok()?;
+    let rpu = crate::dovi::test_rpu().ok()?;
+    tokio::fs::write(&out, crate::dovi::with_rpus(&stream, &rpu)).await.ok()?;
+    Some(out)
+}
+
+/// The test clips HDR comes in: 10-bit HEVC and AV1 (10 bits from SVT-AV1).
+const MAIN10_KEYS: [&str; 2] = ["hevc10", "av1"];
 
 /// Whether every frame came to the filters in `format`, by an FFmpeg log at
 /// `-loglevel verbose` (each filter graph input names its frames' format as
@@ -1072,6 +1305,40 @@ fn lists_option(help: &str, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_quality_whose_runs_failed_stays_unmeasured() {
+        // Slowed by something else: as fast as the dearer one.
+        assert_eq!(clamp_to_dearer(51.0, 97.0, true), 97.0);
+        // Too fast to time, its runs finished: as fast as the dearer one.
+        assert_eq!(clamp_to_dearer(0.0, 97.0, true), 97.0);
+        // Its runs failed, or weren't made: never used.
+        assert_eq!(clamp_to_dearer(0.0, 97.0, false), 0.0);
+    }
+
+    #[test]
+    fn tone_mapping_speed_takes_the_fastest_short_and_long_runs() {
+        // Runs paired as they came, the slow short one would read 36 / 0.2.
+        let (shorts, longs) = ([0.9_f64, 0.6], [1.1_f64, 1.3]);
+        let short = shorts.iter().copied().fold(f64::INFINITY, f64::min);
+        let long = longs.iter().copied().fold(f64::INFINITY, f64::min);
+        let fps = frames_a_second(short, long).unwrap();
+        assert!((fps - 72.0).abs() < 1e-9, "{fps}");
+        // A long run no slower than the short one, or none at all: nothing.
+        assert_eq!(frames_a_second(0.6, 0.62), None);
+        assert_eq!(frames_a_second(f64::INFINITY, f64::INFINITY), None);
+    }
+
+    #[test]
+    fn tells_a_tonemap_opencl_with_bt2390() {
+        // jellyfin-ffmpeg's (and Pley's) `-h filter=tonemap_opencl`, cut down.
+        let patched = "tonemap_opencl AVOptions:\n   tonemap           <int>        ..FV....... Tonemap algorithm selection (from 0 to 7) (default bt2390)\n     \
+            mobius          6            ..FV.......\n     bt2390          7            ..FV.......\n";
+        assert!(lists_option(patched, "bt2390"));
+        let own = "tonemap_opencl AVOptions:\n   tonemap           <int>        ..FV....... tonemap algorithm selection (from 0 to 6) (default none)\n     \
+            mobius          6            ..FV.......\n";
+        assert!(!lists_option(own, "bt2390"));
+    }
 
     #[test]
     fn finds_libplacebo_options() {
@@ -1147,6 +1414,7 @@ mod tests {
             hardware: accel != HwAccel::None,
             accel,
             main10: false,
+            low_power: false,
         }
     }
 
@@ -1203,6 +1471,11 @@ mod tests {
         let (choice, warnings) = ff.pick_tonemapper(TonemapMode::Auto, true, false);
         assert_eq!(choice, Some(Tonemapper::Zscale));
         assert!(warnings.iter().any(|w| w.contains("Dolby Vision")));
+        // OpenCL with BT.2390 (Pley's FFmpeg) reshapes profile 5 itself.
+        let mut ff = fake(vec![], vec![Tonemapper::Opencl]);
+        assert!(ff.pick_tonemapper(TonemapMode::Auto, true, false).1.iter().any(|w| w.contains("Dolby Vision")));
+        ff.caps.opencl_bt2390 = true;
+        assert_eq!(ff.pick_tonemapper(TonemapMode::Auto, true, false), (Some(Tonemapper::Opencl), vec![]));
     }
 
     #[test]

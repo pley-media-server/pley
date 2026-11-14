@@ -9,6 +9,70 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Settings → Transcoder has a Dolby Vision FEL choice for screens that show
+  Dolby Vision: profile 7 with a full enhancement layer is transcoded from
+  its HDR10 base layer, or with its Dolby Vision brightness. An
+  experimental toggle uses the full enhancement layer itself, with Pley's
+  own FFmpeg. Other screens always get the HDR10 base layer.
+
+### Changed
+
+- HDR made SDR keeps the master's brightness up to SDR's white, with the
+  standard BT.2390 curve, instead of darkening the mid-tones; black and
+  letterbox bars stay black.
+- Dolby Vision profile 7 with a full enhancement layer is transcoded from
+  its HDR10 base layer, where it was tone mapped by its Dolby Vision
+  brightness before; Settings → Transcoder brings that back.
+- The Docker image and the Windows installer carry Pley's own FFmpeg, with
+  jellyfin-ffmpeg's improvements for Intel graphics.
+
+On Intel graphics:
+
+- 4K HDR made SDR transcodes about twice as fast, on less of the CPU, and
+  two at once each keep up better. Transcodes run up to a quarter faster
+  again where the GPU has a low-power encoder, and Linux and Docker get the
+  same faster transcodes as Windows.
+- HDR kept as HDR and burned-in picture subtitles stay on the GPU, and Dolby
+  Vision and HDR10+ do where the CPU would decode them.
+- 4K Dolby Vision at 60 frames a second, or several at once, keeps up with
+  its Dolby Vision picture on Windows, profile 5 too, with Pley's own
+  FFmpeg.
+
+### Fixed
+
+- HDR transcodes no longer pick a picture quality too slow to keep up, or
+  a lower one than the GPU has time for, after the server starts.
+- HDR10 that doesn't say how bright it is no longer comes out far too dark
+  with Pley's own FFmpeg, in transcodes (OpenCL's too), seek previews and
+  thumbnails.
+- Dolby Vision profile 5 plays on a server without a graphics card instead
+  of failing to start.
+- With the experimental Dolby Vision full enhancement layer turned on, a
+  profile 7 file that keeps the layer's metadata but not the layer plays
+  from its base layer instead of never starting.
+- Seek previews and frame grabs of Dolby Vision profile 7 with a full
+  enhancement layer look like the video, made from the base layer.
+
+On Intel graphics:
+
+- Quick Sync works on Linux when an NVIDIA or AMD card comes first.
+- Transcodes no longer fail when every Quick Sync session is busy.
+- 4:2:2 and 4:4:4 H.264, from some cameras and screen recordings, plays.
+- Once HDR transcodes have moved to Quick Sync or OpenCL tone mapping,
+  another one started beside them gets the best picture the GPU keeps up
+  with, and one of them goes back when there is room.
+- 720p and 4K HDR transcodes in fMP4 keep playing when another stream
+  makes the GPU busy, instead of stopping.
+- A video Quick Sync can't decode plays, decoded another way, instead of
+  stopping.
+- Burned-in picture subtitles on films cropped to wide screen show at the
+  bottom.
+- A file that couldn't be read no longer keeps Dolby Vision off OpenCL
+  until the server restarts, nor one GPU decoding error keeps Dolby Vision
+  and HDR10+ from being decoded by the GPU.
+
 ## [0.1.11] - 2026-11-14
 
 ### Added

@@ -215,6 +215,12 @@ impl Caps {
         self.hdr_types.as_deref().is_some_and(|types| listed(types, range))
     }
 
+    /// The screen shows Dolby Vision: the Dolby Vision FEL setting is for
+    /// its transcodes ([`crate::settings::Settings::transcode_options_for`]).
+    pub fn shows_dolby_vision(&self) -> bool {
+        self.shows("dolby_vision")
+    }
+
     /// The version 2 player shows these subtitles itself.
     fn shows_subtitles(&self, codec: &str) -> bool {
         self.is_v2() && self.subtitle_codecs.as_deref().is_some_and(|list| listed(list, codec))
@@ -2791,7 +2797,9 @@ pub fn transcode_info(job: &JobStatus) -> TranscodeInfo {
         // (HLG to HDR10), which keeps the video HDR.
         tonemap: video
             .filter(|v| !v.dynamic_range_out.is_some_and(|r| r.is_hdr()))
-            .and_then(|v| v.tonemap)
+            .and_then(
+                |v| if v.tonemap_quick_sync { Some(pley_transcoder_api::Tonemapper::QuickSync) } else { v.tonemap },
+            )
             .map(|t| t.as_str().to_owned()),
         dolby_vision: video.and_then(|v| v.dolby_vision).and_then(|m| match m {
             DolbyVisionMode::Copy => None,
@@ -3883,6 +3891,8 @@ mod tests {
         let p7 = with(plan.clone());
         assert_eq!(p7.video_in.as_deref(), Some("HEVC 3840×2160 Dolby Vision P7 FEL + HDR10+"));
         assert_eq!(p7.tonemap.as_deref(), Some("libplacebo"));
+        let quick_sync = VideoPlan { tonemap: None, tonemap_quick_sync: true, ..plan.clone() };
+        assert_eq!(with(quick_sync).tonemap.as_deref(), Some("vpp_qsv"));
         plan.dynamic_range_out = Some(DynamicRange::Hdr10);
         assert_eq!(with(plan).tonemap, None);
         assert_eq!(transcode_info(&JobStatus { video: None, audio: None, ..job }).video, "none");
