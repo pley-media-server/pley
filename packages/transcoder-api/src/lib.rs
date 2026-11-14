@@ -527,8 +527,9 @@ pub enum TonemapMode {
 }
 
 /// What a transcode makes of Dolby Vision profile 7 whose enhancement layer
-/// is full (FEL, [`DolbyVisionLayer::Fel`]). No FFmpeg reads that layer, so
-/// the picture is always its HDR10 base layer's; what differs is whether
+/// is full (FEL, [`DolbyVisionLayer::Fel`]). FFmpeg as released doesn't
+/// read that layer, so the picture is its HDR10 base layer's
+/// ([`TranscodeOptions::dolby_vision_fel_full`] aside); what differs is whether
 /// the stream's Dolby Vision metadata is used with it. Its mapping never is
 /// (libplacebo applies none that needs the layer), but the brightness it
 /// gives each scene is, where libplacebo is built with libdovi. On most

@@ -33,7 +33,7 @@ describes how they are made.
 - Settings → Transcoder has a Dolby Vision FEL choice: profile 7 with a full
   enhancement layer is transcoded from its HDR10 base layer, or with its
   Dolby Vision brightness. An experimental toggle uses the full enhancement
-  layer itself, where the transcoder has Pley's own FFmpeg.
+  layer itself, with Pley's own FFmpeg.
 
 ### Changed
 
@@ -49,19 +49,23 @@ describes how they are made.
   paused, and its time moves on while it plays.
 - HDR made SDR keeps more detail in the shadows, closer to films' own SDR
   versions.
-- Intel graphics: 4K HDR made SDR transcodes about twice as fast, on less of
-  the CPU, and two at once each keep up better.
-- Intel graphics: HDR kept as HDR and burned-in picture subtitles stay on the
-  GPU, and Dolby Vision and HDR10+ do where the CPU would decode them.
-- Intel graphics on Windows: 4K Dolby Vision at 60 frames a second, or
-  several at once, keeps up with its Dolby Vision picture, profile 5 too,
-  where the transcoder has Pley's own FFmpeg.
-- Intel graphics: transcodes run up to a quarter faster where the GPU has a
-  low-power encoder.
-- Intel graphics on Linux and in Docker get the same faster transcodes as on
-  Windows.
+- Dolby Vision profile 7 with a full enhancement layer is transcoded from
+  its HDR10 base layer, where it was tone mapped by its Dolby Vision
+  brightness before; Settings → Transcoder brings that back.
 - The Docker image and the Windows installer carry Pley's own FFmpeg, with
   jellyfin-ffmpeg's improvements for Intel graphics.
+
+On Intel graphics:
+
+- 4K HDR made SDR transcodes about twice as fast, on less of the CPU, and
+  two at once each keep up better. Transcodes run up to a quarter faster
+  again where the GPU has a low-power encoder, and Linux and Docker get the
+  same faster transcodes as Windows.
+- HDR kept as HDR and burned-in picture subtitles stay on the GPU, and Dolby
+  Vision and HDR10+ do where the CPU would decode them.
+- 4K Dolby Vision at 60 frames a second, or several at once, keeps up with
+  its Dolby Vision picture on Windows, profile 5 too, with Pley's own
+  FFmpeg.
 
 ### Fixed
 
@@ -70,16 +74,16 @@ describes how they are made.
 - Live TV channels with AC-3 audio, such as US broadcast channels, and
   channels whose stream breaks off as they start, play in the browser and
   the desktop app instead of tuning forever.
-- Intel graphics on Linux: Quick Sync works when an NVIDIA or AMD card comes
-  first.
-- Intel graphics: transcodes no longer fail when every Quick Sync session is
-  busy.
-- 4:2:2 and 4:4:4 H.264, from some cameras and screen recordings, plays on
-  Intel graphics.
-- HDR transcodes no longer pick a picture quality too slow to keep up after
-  the server starts.
+- HDR transcodes no longer pick a picture quality too slow to keep up, or
+  a lower one than the GPU has time for, after the server starts.
 - HDR10 that doesn't say how bright it is no longer comes out far too dark
-  where the transcoder has Pley's own FFmpeg.
+  with Pley's own FFmpeg, in transcodes, seek previews and thumbnails.
+
+On Intel graphics:
+
+- Quick Sync works on Linux when an NVIDIA or AMD card comes first.
+- Transcodes no longer fail when every Quick Sync session is busy.
+- 4:2:2 and 4:4:4 H.264, from some cameras and screen recordings, plays.
 
 ## [0.1.10] - 2026-11-12
 

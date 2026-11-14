@@ -186,7 +186,7 @@
       "tonemapInstead": "{{reason}}: {{fallback}}",
       "tonemapWithAnother": "{{reason}}: transcodes tone map with another instead.",
       "fel": "Dolby Vision FEL",
-      "felHint": "Profile 7 with a full enhancement layer, as on many UHD Blu-rays. No FFmpeg reads that layer, so transcodes use the HDR10 picture under it.",
+      "felHint": "Profile 7 with a full enhancement layer, as on many UHD Blu-rays. FFmpeg as released doesn't read that layer, so transcodes use the HDR10 picture under it.",
       "felBaseLayer": "HDR10 base layer",
       "felMetadata": "Base layer with Dolby Vision brightness",
       "felBaseLayerNote": "Tone mapped as HDR10: the right picture for every title, and it stays on the GPU with Quick Sync.",

@@ -51,7 +51,8 @@ pley-transcoder [OPTIONS]
 Other environment variables:
 
 - `PLEY_VAAPI_DEVICE`: the VAAPI render node (default: the first Intel or
-  AMD one).
+  AMD one), and Quick Sync's on Linux (default: the first Intel one;
+  [Quick Sync on Linux](#quick-sync-on-linux)).
 
 ### Managed and external mode
 
@@ -956,13 +957,14 @@ available tone mapper:
   keeps the shadows the spline alone crushes (SSIM 0.96 and 0.88 against
   0.94 and 0.69), and BT.2390's curve, lifted or not, made bright scenes a
   third too bright and clipped 10 to 15 % of their pixels where the grade
-  clips 1 to 2 %. HDR10 that carries no metadata of its brightness (no
-  mastering display, no content light levels) is taken by libplacebo for
-  PQ's own 10000 cd/m² peak and comes out far too dark; with Pley's FFmpeg
-  (`placebo_fallback_peak`) it is tone mapped from 1000 cd/m², what most
-  HDR10 films are mastered to (`fallback_peak=1000`), in transcodes and
-  seek previews. `tonemap_opencl` as FFmpeg releases it measures
-  the peak frame by frame, which can't be turned off, so its brightness can
+  clips 1 to 2 %. The lift raises black with the rest: a letterboxed film's
+  bars come out at luma 19 rather than 16. HDR10 that carries no metadata
+  of its brightness (no mastering display, no content light levels) is
+  taken by libplacebo for PQ's own 10000 cd/m² peak and comes out far too
+  dark; with Pley's FFmpeg (`placebo_fallback_peak`) it is tone mapped from
+  1000 cd/m², what most HDR10 films are mastered to (`fallback_peak=1000`),
+  in transcodes, seek previews and frame grabs. `tonemap_opencl` as FFmpeg
+  releases it measures the peak frame by frame, which can't be turned off, so its brightness can
   jump between processes; pley-ffmpeg's
   ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) goes by the stream's
   metadata, and applies Dolby Vision's reshaping. Where it lists BT.2390
@@ -985,8 +987,9 @@ available tone mapper:
 
 Dolby Vision profile 7 carries a second layer over its HDR10 base layer. A
 minimal one (MEL) adds nothing to the picture; a full one (FEL) holds part
-of it, and on some titles part of its brightness. No FFmpeg reads that
-layer, so a transcode's picture is always the base layer's.
+of it, and on some titles part of its brightness. FFmpeg as released
+doesn't read that layer, so a transcode's picture is the base layer's
+(Pley's own FFmpeg can rebuild the full one, below).
 `TranscodeOptions.dolby_vision_fel` says what a transcode makes of a stream
 the probe found a full layer in (`MediaStream.dv_el: fel`), where
 libplacebo tone maps or converts it:

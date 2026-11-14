@@ -4012,7 +4012,8 @@ interface TranscodeInfo {
   preset: string | null;        // the software encoder's current preset (the automatic one changes)
   decoder: string | null;       // "cuda", "vulkan", "cpu", …
   pipeline: string | null;      // "gpu" (zero-copy), "hybrid", "cpu" or "copy"
-  tonemap: string | null;       // "libplacebo" | "opencl" | "zscale" when HDR/DV is tone-mapped to SDR
+  tonemap: string | null;       // "libplacebo" | "opencl" | "zscale" | "vpp_qsv" (Quick Sync's scaler, VAAPI's
+                                // on Linux) when HDR/DV is tone-mapped to SDR
   dolby_vision: string | null;  // remuxes: "kept" (named in master.m3u8), "converted to 8.1" (profile 7)
   hdr10plus_stripped: boolean;  // the remux leaves out HDR10+ (Dolby Vision + HDR10+ streams)
   subtitle_burn: boolean;
@@ -4467,7 +4468,7 @@ interface Settings {
                                     // Turning it on where `transcoder.memory.available` is false: 400;
                                     // saved on before, it stays
   dolby_vision_fel: "base_layer" | "metadata"; // transcodes of Dolby Vision profile 7 with a full enhancement
-                                    // layer (FEL), which no FFmpeg reads: from its HDR10 base layer alone
+                                    // layer (FEL), which FFmpeg as released doesn't read: from its HDR10 base layer alone
                                     // (default), or that tone mapped by the Dolby Vision metadata's
                                     // brightness (TRANSCODER.md)
   dolby_vision_fel_full: boolean;   // experimental: that layer is used, the full picture rebuilt from both
