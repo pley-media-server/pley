@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } from "react";
 import { Cast } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isApiError } from "@/api/client";
@@ -8,7 +8,7 @@ import { useAuth } from "@/auth";
 import { cn } from "@/lib/cn";
 import { useDismiss } from "@/lib/hooks";
 import { castTargets, openRemoteOn, type OtherDevice } from "@/lib/remote";
-import { Menu } from "./Menu";
+import { fitBeside, Menu } from "./Menu";
 import { PinPad, pinError } from "./PinPad";
 import { DeviceSummary, useOtherDevices } from "./Remote";
 import { useToast } from "./Toast";
@@ -97,7 +97,17 @@ export function PlayOn({
   // Every PIN not taken starts the pad over (clears the dots).
   const [failures, setFailures] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
-  const askRef = useRef<HTMLDivElement>(null);
+  const askRef = useRef<HTMLDivElement | null>(null);
+  // The PIN opens on the side with room for it, as the menu does, measured before it shows.
+  const [askSide, setAskSide] = useState(placement);
+  const placeAsk = useCallback(
+    (box: HTMLDivElement | null) => {
+      askRef.current = box;
+      const trigger = ref.current?.getBoundingClientRect();
+      if (box && trigger) setAskSide(fitBeside(box, trigger, placement));
+    },
+    [placement],
+  );
   const titleId = useId();
   const whyId = useId();
 
@@ -286,14 +296,14 @@ export function PlayOn({
       </Menu>
       {asking ? (
         <div
-          ref={askRef}
+          ref={placeAsk}
           role="dialog"
           aria-labelledby={titleId}
           aria-describedby={whyId}
           tabIndex={-1}
           className={cn(
-            "absolute z-40 max-h-[min(36rem,calc(100dvh-6rem))] w-72 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 p-4 shadow-xl shadow-black/50 outline-none",
-            placement === "below" ? "top-full mt-2" : "bottom-full mb-2",
+            "absolute z-40 max-h-[min(36rem,var(--room,calc(100dvh-6rem)))] w-72 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 p-4 shadow-xl shadow-black/50 outline-none",
+            askSide === "below" ? "top-full mt-2" : "bottom-full mb-2",
             align === "right" ? "right-0" : "left-0",
           )}
         >

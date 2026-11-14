@@ -61,6 +61,8 @@ describes how they are made.
 
 ### Fixed
 
+- In a short window, Play on… and the web app's other menus scroll within
+  it rather than running past its top or bottom.
 - Infuse opens a Pley server through the Jellyfin-compatible API instead
   of saying "An error occurred" after signing in.
 - Live TV channels with AC-3 audio, such as US broadcast channels, and
