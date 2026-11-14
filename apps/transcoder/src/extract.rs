@@ -2059,10 +2059,7 @@ mod tests {
         // mapped, where libplacebo takes a peak for it.
         let pleys = Capabilities { placebo_fallback_peak: true, ..caps(&[Tonemapper::Libplacebo]) };
         let picture = Picture::hdr(640, Some(&hdr10), &pleys);
-        assert!(
-            picture.vf.ends_with("tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0:fallback_peak=1000"),
-            "{picture:?}"
-        );
+        assert!(picture.vf.ends_with("tonemapping=bt.2390:peak_detect=0:fallback_peak=1000"), "{picture:?}");
     }
 
     /// An extractor whose FFmpeg is `ffmpeg` and whose ffprobe doesn't exist.
