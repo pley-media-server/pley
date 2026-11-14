@@ -244,6 +244,32 @@ class RemoteRepositoryTest {
     }
 
     @Test
+    fun `an AirPlay device asking for pairing shows its code, then pairs with the one typed`() = runTest {
+        val data = signedIn(folder.newFolder())
+        val remote = data.graph.remote
+        collect(remote.devices)
+        testScheduler.runCurrent()
+        val reads = data.api.calls("remoteDevices").size
+
+        data.api.fail("cast", ApiException(409, "pairing_needed", "the device wants a PIN"))
+        runCatching { remote.cast("airplay:a1b2c3d4e5f6", CastRequest(itemId = 204)) }
+        testScheduler.runCurrent()
+        // The device is still there: nothing to read again.
+        assertEquals(reads, data.api.calls("remoteDevices").size)
+
+        assertEquals(4, remote.showPairingCode("airplay:a1b2c3d4e5f6"))
+        assertEquals(listOf("airplay:a1b2c3d4e5f6"), data.api.calls("showPairingCode").single().args)
+        remote.pair("airplay:a1b2c3d4e5f6", "4821")
+        assertEquals(listOf("airplay:a1b2c3d4e5f6", "4821"), data.api.calls("pair").single().args)
+
+        // Gone from the network since: the lists are read again.
+        data.api.fail("showPairingCode", ApiException(404, "not_found", "no such device"))
+        runCatching { remote.showPairingCode("airplay:a1b2c3d4e5f6") }
+        testScheduler.runCurrent()
+        assertEquals(reads + 1, data.api.calls("remoteDevices").size)
+    }
+
+    @Test
     fun `while it plays the position moves on with this device's clock, never past the end`() {
         val playing = remote(session(state = ProgressState.Playing, positionMs = 60_000, durationMs = 100_000), reportedAt = 1_000)
         assertEquals(60_000L, playing.positionAt(1_000))

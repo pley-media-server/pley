@@ -63,12 +63,14 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.format.isInProgress
 import app.pley.android.network.CastRefusal
+import app.pley.android.network.PairingRefusal
 import app.pley.android.screens.item.TrackChoices
 import app.pley.android.screens.onboarding.PinEntry
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.PinPad
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
+import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.TonalButton
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -83,7 +85,8 @@ import kotlinx.coroutines.launch
  * [audioIndex] and [subtitleIndex] ([PlayingSession.SUBTITLES_OFF]: none)
  * the tracks a movie's or an episode's page picked, which the device plays
  * with. What can be shuffled ([shuffles]: an album, an artist, a playlist)
- * is offered shuffled too.
+ * is offered shuffled too. A movie or an episode ([video]) can go to a
+ * Google Cast or an AirPlay device too, which the server plays on itself.
  */
 @Immutable
 internal data class CastTarget(
@@ -94,9 +97,13 @@ internal data class CastTarget(
     val shuffles: Boolean = false,
     val audioIndex: Int? = null,
     val subtitleIndex: Int? = null,
+    val video: Boolean = false,
 ) {
     /** What a device must take to be offered: Live TV for a channel, titles for the rest. */
     val kind: CastKind get() = if (channelId != null) CastKind.Live else CastKind.Item
+
+    /** Whether [device] is offered: it takes [kind], and a device the server plays on itself takes a movie or an episode alone. */
+    fun goesTo(device: OtherDevice): Boolean = device.takes(kind) && (video || device.protocol == null)
 
     /** The body of the cast, [shuffle]d when asked. */
     fun request(shuffle: Boolean): CastRequest = CastRequest(
@@ -121,11 +128,13 @@ internal data class CastTarget(
          */
         fun of(item: ItemSummary): CastTarget? {
             if (item.kind !in CASTABLE) return null
-            val resumes = (item.kind == ItemKind.Movie || item.kind == ItemKind.Episode) && isInProgress(item)
+            val video = item.kind == ItemKind.Movie || item.kind == ItemKind.Episode
+            val resumes = video && isInProgress(item)
             return CastTarget(
                 itemId = item.id,
                 startMs = item.userState.positionMs.takeIf { resumes },
                 shuffles = item.kind == ItemKind.Album || item.kind == ItemKind.Artist,
+                video = video,
             )
         }
 
@@ -168,7 +177,11 @@ internal val LocalPlayOn = staticCompositionLocalOf<PlayOnHost?> { null }
 
 /** Whether another of the profile's devices that is on plays [kind] when cast to: Play on… shows only then. */
 @Composable
-internal fun canPlayOn(kind: CastKind): Boolean = LocalPlayOn.current?.devices.orEmpty().any { it.takes(kind) }
+internal fun canPlayOn(kind: CastKind): Boolean = canPlayOn(CastTarget(channelId = 0L.takeIf { kind == CastKind.Live }))
+
+/** Whether a device listed takes [target] ([CastTarget.goesTo]): Play on… shows only then. */
+@Composable
+internal fun canPlayOn(target: CastTarget): Boolean = LocalPlayOn.current?.devices.orEmpty().any { target.goesTo(it) }
 
 /** "Play on…", or "Watch on…" for a channel. */
 @Composable
@@ -192,7 +205,7 @@ internal fun PlayOnButton(
     onOpen: () -> Unit = {},
 ) {
     val host = LocalPlayOn.current ?: return
-    if (!canPlayOn(target.kind)) return
+    if (!canPlayOn(target)) return
     val label = playOnLabel(target.kind)
     val open = {
         onOpen()
@@ -221,10 +234,19 @@ internal fun PlayOnButton(
 /**
  * The PIN pad of a cast to a device of another profile ([deviceId]), while
  * it is asked for: [error] after a refusal ([shakes] counts the wrong
- * ones), [lockedOut] once the PIN is locked.
+ * ones), [lockedOut] once the PIN is locked. With [pairing], it asks for
+ * the code an AirPlay device shows, of [length] digits when the server
+ * knows (sent at the last one).
  */
 @Immutable
-private data class PinAsk(val deviceId: String, val error: String? = null, val shakes: Int = 0, val lockedOut: Boolean = false)
+private data class PinAsk(
+    val deviceId: String,
+    val error: String? = null,
+    val shakes: Int = 0,
+    val lockedOut: Boolean = false,
+    val pairing: Boolean = false,
+    val length: Int? = null,
+)
 
 /**
  * Play on…'s chooser, over the page it was asked on: the profile's other
@@ -242,6 +264,12 @@ private data class PinAsk(val deviceId: String, val error: String? = null, val s
  * shows in the list's place and the cast goes again with it. A wrong PIN
  * shakes and can be typed again; throttled, the server says how long to
  * wait; locked, the pad stops. Back, or the arrow, goes back to the list.
+ *
+ * An AirPlay device the server hasn't paired with answers the first cast
+ * `pairing_needed`: it is asked to show a code, the pad asks for it (sent at
+ * its last digit where the server knows how many it has, as on an Apple
+ * TV), and once paired, the cast goes again. The device can be asked to show
+ * its code again.
  */
 @Composable
 internal fun PlayOnSheet(
@@ -261,7 +289,7 @@ internal fun PlayOnSheet(
     val pin = remember(target) { PinEntry() }
     var digits by remember(target) { mutableIntStateOf(0) }
     val names = deviceNames(devices)
-    val choices = devices.filter { it.takes(target.kind) && it.receiver != null }
+    val choices = devices.filter { target.goesTo(it) && it.receiver != null }
     LaunchedEffect(choices.isEmpty()) { if (choices.isEmpty()) onDismiss() }
 
     fun ask(next: PinAsk?) {
@@ -270,44 +298,111 @@ internal fun PlayOnSheet(
         asking = next
     }
 
-    fun send(device: OtherDevice, name: String, typed: String?) {
-        val receiver = device.receiver ?: return
+    /** Runs [work] for [device], its row and the pad busy meanwhile. */
+    fun busyWith(device: OtherDevice, work: suspend () -> Unit) {
         error = null
         sending = device.deviceId
         scope.launch {
             try {
-                // Another profile's device goes as the one listed, or not at all.
-                val profile = device.profile
-                val request = target.request(shuffle)
-                    .copy(profileId = profile?.id, deviceId = receiver.deviceId.takeIf { profile != null }, pin = typed)
-                remote.cast(receiver.receiverId, request)
-                ask(null)
-                onCast(device, name)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                val pad = asking?.takeIf { it.deviceId == device.deviceId } ?: PinAsk(device.deviceId)
-                when (CastRefusal.of(e, pinSent = typed != null)) {
-                    // A PIN set since GET /api/auth/me said there was none.
-                    CastRefusal.PinNeeded -> ask(pad.copy(error = null))
-                    CastRefusal.WrongPin -> ask(pad.copy(error = resources.getString(R.string.play_on_wrong_pin), shakes = pad.shakes + 1))
-                    CastRefusal.PinLocked -> ask(pad.copy(error = resources.getString(R.string.play_on_pin_locked), lockedOut = true))
-                    // The server's sentence says how long to wait.
-                    CastRefusal.Throttled -> ask(pad.copy(error = errorSentence(e).resolve(resources)))
-                    else -> {
-                        ask(null)
-                        error = when (CastRefusal.of(e)) {
-                            CastRefusal.Gone -> resources.getString(R.string.play_on_gone, name)
-                            CastRefusal.NotCastable -> resources.getString(R.string.play_on_cant, name)
-                            CastRefusal.TooMany -> resources.getString(R.string.remote_too_many)
-                            else -> errorSentence(e).resolve(resources)
-                        }
-                    }
-                }
+                work()
             } finally {
                 sending = null
             }
         }
+    }
+
+    /** What the pad or the list says when pairing with [name] didn't go. */
+    fun pairingMessage(e: Exception, name: String): String = when (PairingRefusal.of(e)) {
+        PairingRefusal.WrongCode -> resources.getString(R.string.play_on_wrong_code, name)
+        PairingRefusal.Wait -> resources.getString(R.string.play_on_pairing_wait, name)
+        PairingRefusal.Gone -> resources.getString(R.string.play_on_gone, name)
+        PairingRefusal.Failed -> resources.getString(R.string.play_on_pairing_failed, name)
+        else -> errorSentence(e).resolve(resources)
+    }
+
+    /** Has [device] show its code, and asks for it; [pad] is the pad already asking, for "Show it again". */
+    suspend fun showCode(device: OtherDevice, name: String, pad: PinAsk?) {
+        val receiver = device.receiver ?: return
+        try {
+            val length = remote.showPairingCode(receiver.receiverId)
+            ask((pad ?: PinAsk(device.deviceId, pairing = true)).copy(error = null, length = length))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            if (pad != null) {
+                ask(pad.copy(error = pairingMessage(e, name)))
+            } else {
+                error = pairingMessage(e, name)
+            }
+        }
+    }
+
+    /** Sends [target] to [device]; [paired]: just paired with, so it asks for pairing no more. */
+    suspend fun cast(device: OtherDevice, name: String, typed: String?, paired: Boolean = false) {
+        val receiver = device.receiver ?: return
+        try {
+            // Another profile's device goes as the one listed, or not at all.
+            val profile = device.profile
+            val request = target.request(shuffle)
+                .copy(profileId = profile?.id, deviceId = receiver.deviceId.takeIf { profile != null }, pin = typed)
+            remote.cast(receiver.receiverId, request)
+            ask(null)
+            onCast(device, name)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            val pad = asking?.takeIf { it.deviceId == device.deviceId } ?: PinAsk(device.deviceId)
+            when (CastRefusal.of(e, pinSent = typed != null)) {
+                // A PIN set since GET /api/auth/me said there was none.
+                CastRefusal.PinNeeded -> ask(pad.copy(error = null))
+                CastRefusal.WrongPin -> ask(pad.copy(error = resources.getString(R.string.play_on_wrong_pin), shakes = pad.shakes + 1))
+                CastRefusal.PinLocked -> ask(pad.copy(error = resources.getString(R.string.play_on_pin_locked), lockedOut = true))
+                // The server's sentence says how long to wait.
+                CastRefusal.Throttled -> ask(pad.copy(error = errorSentence(e).resolve(resources)))
+                // An AirPlay device the server hasn't paired with: its code first. Asked again once paired, it didn't pair.
+                CastRefusal.PairingNeeded -> if (paired) {
+                    ask(null)
+                    error = resources.getString(R.string.play_on_pairing_failed, name)
+                } else {
+                    showCode(device, name, pad = null)
+                }
+                else -> {
+                    ask(null)
+                    error = when (CastRefusal.of(e)) {
+                        CastRefusal.Gone -> resources.getString(R.string.play_on_gone, name)
+                        CastRefusal.NotCastable -> resources.getString(R.string.play_on_cant, name)
+                        CastRefusal.TooMany -> resources.getString(R.string.remote_too_many)
+                        CastRefusal.Unreachable -> resources.getString(R.string.play_on_unreachable, name)
+                        CastRefusal.Failed -> resources.getString(R.string.play_on_failed, name)
+                        else -> errorSentence(e).resolve(resources)
+                    }
+                }
+            }
+        }
+    }
+
+    fun send(device: OtherDevice, name: String, typed: String?) = busyWith(device) { cast(device, name, typed) }
+
+    /** Pairs the server with [device] with the [code] it shows, then sends it [target]. */
+    fun pairWith(device: OtherDevice, name: String, pad: PinAsk, code: String) = busyWith(device) {
+        val receiver = device.receiver ?: return@busyWith
+        try {
+            remote.pair(receiver.receiverId, code)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            when (PairingRefusal.of(e)) {
+                // A code not the one shown, or tries to wait for: the pad says so, to type again.
+                PairingRefusal.WrongCode -> ask(pad.copy(error = pairingMessage(e, name), shakes = pad.shakes + 1))
+                PairingRefusal.Wait -> ask(pad.copy(error = pairingMessage(e, name)))
+                else -> {
+                    ask(null)
+                    error = pairingMessage(e, name)
+                }
+            }
+            return@busyWith
+        }
+        cast(device, name, typed = null, paired = true)
     }
 
     // The device the pad is for, while it is still there to cast to.
@@ -323,7 +418,7 @@ internal fun PlayOnSheet(
                 PleyIconButton(PleyIcons.ArrowLeft, stringResource(R.string.play_on_back), onClick = back)
                 Spacer(Modifier.width(4.dp))
                 Text(
-                    name,
+                    if (shown.pairing) stringResource(R.string.play_on_pair_title, name) else name,
                     style = MaterialTheme.typography.titleMedium,
                     color = PleyColors.Fg,
                     maxLines = 1,
@@ -331,21 +426,31 @@ internal fun PlayOnSheet(
                     modifier = Modifier.semantics { heading() },
                 )
             }
+            val length = shown.length.takeIf { shown.pairing }
+            val submit = {
+                if (!shown.lockedOut && sending == null && pin.complete && (length == null || pin.length == length)) {
+                    val typed = pin.take()
+                    digits = 0
+                    if (shown.pairing) pairWith(padFor, name, shown, typed) else send(padFor, name, typed)
+                }
+            }
             PinPad(
-                title = stringResource(R.string.play_on_pin_title),
-                body = padFor.profile?.let { stringResource(R.string.play_on_pin_body, name, it.name) },
+                title = stringResource(if (shown.pairing) R.string.play_on_code_title else R.string.play_on_pin_title),
+                body = if (shown.pairing) {
+                    stringResource(R.string.play_on_code_body)
+                } else {
+                    padFor.profile?.let { stringResource(R.string.play_on_pin_body, name, it.name) }
+                },
                 digits = digits,
                 onDigit = { d ->
-                    if (!shown.lockedOut && sending == null && pin.add(d)) digits = pin.length
-                },
-                onDelete = { if (pin.delete()) digits = pin.length },
-                onSubmit = {
-                    if (!shown.lockedOut && sending == null && pin.complete) {
-                        val typed = pin.take()
-                        digits = 0
-                        send(padFor, name, typed)
+                    if (!shown.lockedOut && sending == null && (length == null || pin.length < length) && pin.add(d)) {
+                        digits = pin.length
+                        // A code of a known length goes at its last digit.
+                        if (pin.length == length) submit()
                     }
                 },
+                onDelete = { if (pin.delete()) digits = pin.length },
+                onSubmit = submit,
                 onCancel = back,
                 lockedOutLabel = stringResource(R.string.play_on_back),
                 modifier = Modifier.fillMaxWidth().testTag(PLAY_ON_PIN),
@@ -353,9 +458,19 @@ internal fun PlayOnSheet(
                 shakes = shown.shakes,
                 lockedOut = shown.lockedOut,
                 busy = sending != null,
-            ) {
-                KindBadge(padFor.kind, playing = false)
-            }
+                length = length,
+                picture = { KindBadge(padFor.kind, playing = false) },
+                footer = {
+                    if (shown.pairing) {
+                        PleyTextButton(
+                            stringResource(R.string.play_on_show_code_again),
+                            onClick = { busyWith(padFor) { showCode(padFor, name, pad = shown) } },
+                            enabled = sending == null,
+                            modifier = Modifier.testTag(PLAY_ON_SHOW_CODE),
+                        )
+                    }
+                },
+            )
         } else {
             Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(horizontal = 24.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -505,5 +620,8 @@ internal const val PLAY_ON_SHEET = "pley.phone.play_on_sheet"
 internal const val PLAY_ON_SHUFFLE = "pley.phone.play_on_shuffle"
 internal const val PLAY_ON_DEVICE = "pley.phone.play_on_device."
 
-/** The PIN pad a cast to another profile's device asks first. */
+/** The PIN pad a cast to another profile's device asks first, or the code an AirPlay device shows. */
 internal const val PLAY_ON_PIN = "pley.phone.play_on_pin"
+
+/** "No code on the TV? Show it again", under the pad for an AirPlay device's code. */
+internal const val PLAY_ON_SHOW_CODE = "pley.phone.play_on_show_code"

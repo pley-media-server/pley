@@ -348,6 +348,10 @@ for the household's too (`?household=1`): for a home member, the
 receivers include the other profiles' devices that switch to the
 caster's profile, each with the profile it is on (`profile`); what those
 play stays their profile's, so they are listed as on it, not playing.
+It asks for the devices on the server's network too (`&nearby=1`):
+Google Cast and AirPlay devices the server plays on itself, each with
+its `protocol`, which their row says (**Google Cast**, **AirPlay**)
+while they play nothing.
 
 The button opens the remote, a sheet of **Your devices**: a row for
 each, those that play first, then the profile's own, then the other
@@ -486,8 +490,9 @@ pause the person's own, and the controls then stay.
 
 On the phone, what a page plays goes to another of the profile's devices
 that takes it ([API.md](API.md#casting)): a receiver whose `casts` names
-`item` for titles, music and playlists, or `live` for a channel. **Play
-on…** shows only while one does:
+`item` for titles, music and playlists, or `live` for a channel; a Google
+Cast or AirPlay device takes a movie or an episode alone. **Play on…**
+shows only while one does:
 
 - beside Play on a movie's, an episode's, a show's and a season's page,
   a square button as tall as Play: a title being watched starts there
@@ -513,8 +518,24 @@ once it is on its way the chooser closes, and the remote's bar says
 plays there; it opens the device's controls. The live player closes as
 its channel goes to the device, and the bar follows it the same way. A refusal is said under the
 devices, and another can be picked: the device **isn't on any more**
-(`404`), **can't play that** (`409`), **Too many at once** (`429`), else
+(`404`), **can't play that** (`409`), **Too many at once** (`429`), and
+for a Google Cast or AirPlay device, it **can't reach this server**
+(`409 cast_unreachable`) or **didn't play it** (`409 cast_failed`), else
 the server's own words.
+
+An AirPlay device the server hasn't paired with answers the cast `409
+pairing_needed`. The chooser asks it to show a code (`POST
+/api/remote/devices/{id}/pairing` with no `pin`) and shows the pad in the
+list's place: **Pair with** the device by its name, **Type the code shown
+on the TV**, and that everyone in the home can then play on it. Where the
+server says how many digits the code has (`digits`, 4 on an Apple TV), the
+pad shows that many dots and sends it at the last one; a TV can be set to
+use a password instead, so with no `digits` it waits for OK. The code
+goes as `pin`, and once paired the cast goes again. A wrong code shakes
+the dots and says so (`403 wrong_pin`), as does a device that takes no
+other try yet (`429`); **No code on the TV? Show it again** asks the
+device for a new one. Any other refusal goes back to the list and is said
+there.
 
 A device of another profile of the household plays as the phone's
 profile: the cast names that device's profile (`profile_id`), and the

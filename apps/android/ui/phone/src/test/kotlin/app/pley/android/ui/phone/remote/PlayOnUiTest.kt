@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteSession
 import app.pley.android.model.CastKind
+import app.pley.android.model.CastProtocol
 import app.pley.android.model.CastRequest
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.DeviceProfileName
@@ -274,9 +275,83 @@ class PlayOnUiTest {
 
     /** Types [digits] on the PIN pad, then OK. */
     private fun type(digits: String) {
-        digits.forEach { compose.onNodeWithTag("pley.pad.$it").performScrollTo().performClick() }
+        press(digits)
         compose.onNodeWithTag("pley.pad.ok").performScrollTo().performClick()
         compose.waitForIdle()
+    }
+
+    /** Types [digits] on the PIN pad, without OK. */
+    private fun press(digits: String) {
+        digits.forEach { compose.onNodeWithTag("pley.pad.$it").performScrollTo().performClick() }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun aGoogleCastOrAirPlayDeviceTakesMoviesAndEpisodesAloneAndSaysWhatItIs() {
+        shell(livingRoom(), appleTv(), castTv())
+        choose(CastTarget(itemId = 500, shuffles = true))
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).assertDoesNotExist()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).assertDoesNotExist()
+        choose(CastTarget(itemId = 101, video = true))
+        compose.onNodeWithText("AirPlay").assertExists()
+        compose.onNodeWithText("Google Cast").assertExists()
+        // One it can't reach, or that didn't play it, says so.
+        graph.castRefusals += ApiException(409, "cast_unreachable", "the device can't be reached")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Bedroom Chromecast can't reach this server.").assertExists()
+        graph.castRefusals += ApiException(409, "cast_failed", "the device didn't play it")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Bedroom Chromecast didn't play it.").assertExists()
+        assertTrue(graph.castsSent.isEmpty())
+    }
+
+    @Test
+    fun anAppleTvAskingForPairingShowsItsCodeWhichGoesAtItsFourthDigitThenTheCastGoesAgain() {
+        shell(appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertExists()
+        compose.onNodeWithText("Pair with Den Apple TV").assertExists()
+        compose.onNodeWithText("Type the code shown on the TV").assertExists()
+        assertEquals(listOf(APPLE_TV), graph.codesShown)
+
+        // A wrong code, sent at its fourth digit with no OK: the pad says so.
+        graph.pairingRefusals += ApiException(403, "wrong_pin", "that isn't the PIN the device shows")
+        press("1111")
+        compose.onNodeWithText("That isn't the code Den Apple TV shows.").assertExists()
+        // No code on the TV: it shows one again, and what was typed goes.
+        press("48")
+        compose.onNodeWithTag(PLAY_ON_SHOW_CODE).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(listOf(APPLE_TV, APPLE_TV), graph.codesShown)
+        compose.onNodeWithText("That isn't the code Den Apple TV shows.").assertDoesNotExist()
+
+        press("4821")
+        assertEquals(listOf(APPLE_TV to "4821"), graph.codesTyped)
+        assertEquals(listOf(APPLE_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+    }
+
+    @Test
+    fun aCodeOfALengthNotKnownGoesWithOkAndARefusalOtherThanAWrongCodeGoesBackToTheList() {
+        shell(appleTv())
+        graph.codeLength = null
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        press("482193")
+        assertTrue(graph.codesTyped.isEmpty())
+        graph.pairingRefusals += ApiException(409, "pairing_failed", "the device didn't pair")
+        compose.onNodeWithTag("pley.pad.ok").performScrollTo().performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithText("Den Apple TV didn't pair.").assertExists()
     }
 
     @Test
@@ -292,11 +367,11 @@ class PlayOnUiTest {
     @Test
     fun whatATitleSendsIsWhatItsPlayPlays() {
         val movie = ItemSummary(101, 1, ItemKind.Movie, "A Film", durationMs = 6_000_000)
-        assertEquals(CastTarget(itemId = 101), CastTarget.of(movie))
+        assertEquals(CastTarget(itemId = 101, video = true), CastTarget.of(movie))
         // Being watched: where Play resumes it.
-        assertEquals(CastTarget(itemId = 101, startMs = 600_000), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000))))
+        assertEquals(CastTarget(itemId = 101, startMs = 600_000, video = true), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000))))
         // Watched: from the start, as Play.
-        assertEquals(CastTarget(itemId = 101), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000, watched = true))))
+        assertEquals(CastTarget(itemId = 101, video = true), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000, watched = true))))
         // A show plays its next episode there, where that one was left.
         assertEquals(CastTarget(itemId = 201), CastTarget.of(ItemSummary(201, 2, ItemKind.Show, "A Show", userState = UserState(positionMs = 5_000))))
         assertEquals(CastTarget(itemId = 500, shuffles = true), CastTarget.of(ItemSummary(500, 3, ItemKind.Album, "An Album")))
@@ -319,12 +394,12 @@ class PlayOnUiTest {
             audioIndex = audio,
             subtitleIndex = subtitle,
         )
-        assertEquals(CastTarget(itemId = 101, audioIndex = 2, subtitleIndex = 3), CastTarget.page(movie, tracks(audio = 2, subtitle = 3)))
+        assertEquals(CastTarget(itemId = 101, audioIndex = 2, subtitleIndex = 3, video = true), CastTarget.page(movie, tracks(audio = 2, subtitle = 3)))
         // Automatic audio names no track, as Play here; subtitles off are -1.
-        assertEquals(CastTarget(itemId = 101, subtitleIndex = PlayingSession.SUBTITLES_OFF), CastTarget.page(movie, tracks(audio = null, subtitle = null)))
+        assertEquals(CastTarget(itemId = 101, subtitleIndex = PlayingSession.SUBTITLES_OFF, video = true), CastTarget.page(movie, tracks(audio = null, subtitle = null)))
         // A file without subtitles names none; a page with nothing to pick, nothing.
-        assertEquals(CastTarget(itemId = 101, audioIndex = 1), CastTarget.page(movie, tracks(audio = 1, subtitle = null, subtitles = false)))
-        assertEquals(CastTarget(itemId = 101), CastTarget.page(movie, null))
+        assertEquals(CastTarget(itemId = 101, audioIndex = 1, video = true), CastTarget.page(movie, tracks(audio = 1, subtitle = null, subtitles = false)))
+        assertEquals(CastTarget(itemId = 101, video = true), CastTarget.page(movie, null))
         // A show's page plays its next episode, with that one's own tracks.
         assertEquals(CastTarget(itemId = 201), CastTarget.page(ItemSummary(201, 2, ItemKind.Show, "A Show"), tracks(audio = 2, subtitle = 3)))
         assertEquals(
@@ -360,6 +435,15 @@ class PlayOnUiTest {
             "app-31",
             receiver = RemoteDevice("tv-3", "app-31", "Den TV", DeviceKind.Tv, listOf(CastKind.Item, CastKind.Live), profile = DeviceProfileName(3, "Sam")),
         )
+
+        const val APPLE_TV = "airplay:a1b2c3d4e5f6"
+        const val CAST_TV = "cast:5f1a8e0c"
+
+        /** An Apple TV the server plays on itself. */
+        fun appleTv() = OtherDevice(APPLE_TV, receiver = RemoteDevice(APPLE_TV, APPLE_TV, "Den Apple TV", DeviceKind.Tv, listOf(CastKind.Item), protocol = CastProtocol.AirPlay))
+
+        /** A Google Cast device the server plays on itself. */
+        fun castTv() = OtherDevice(CAST_TV, receiver = RemoteDevice(CAST_TV, CAST_TV, "Bedroom Chromecast", DeviceKind.Tv, listOf(CastKind.Item), protocol = CastProtocol.Cast))
 
         /** The Bedroom TV, on and playing nothing, taking [casts]. */
         fun bedroom(casts: List<CastKind>) = OtherDevice("app-20", receiver = RemoteDevice("tv-2", "app-20", "Bedroom TV", DeviceKind.Tv, casts))

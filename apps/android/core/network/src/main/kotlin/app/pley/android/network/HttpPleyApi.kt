@@ -15,6 +15,8 @@ import app.pley.android.model.DiscoverPage
 import app.pley.android.model.ItemRequest
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.NewRequest
+import app.pley.android.model.PairingCode
+import app.pley.android.model.PairingRequest
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestOptions
 import app.pley.android.model.RequestQuery
@@ -367,7 +369,13 @@ class HttpPleyApi(
     override suspend fun stopSession(sessionId: String) = call("DELETE", null, "api", "sessions", sessionId)
 
     override suspend fun remoteDevices(): List<RemoteDevice> =
-        get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices", query = listOf("household" to "1"))
+        get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices", query = listOf("household" to "1", "nearby" to "1"))
+
+    override suspend fun showPairingCode(receiverId: String): PairingCode =
+        send("POST", PairingCode.serializer(), "{}".toRequestBody(JSON), "api", "remote", "devices", receiverId, "pairing")
+
+    override suspend fun pair(receiverId: String, code: String) =
+        call("POST", json(PairingRequest.serializer(), PairingRequest(code)), "api", "remote", "devices", receiverId, "pairing")
 
     override suspend fun cast(receiverId: String, request: CastRequest) =
         call("POST", json(CastRequest.serializer(), request), "api", "remote", "devices", receiverId, "cast")

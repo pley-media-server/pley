@@ -68,4 +68,16 @@
     <string name="play_on_back">Retour aux appareils</string>
     <string name="play_on_wrong_pin">Code PIN incorrect. Réessayez.</string>
     <string name="play_on_pin_locked">Votre code PIN est bloqué après trop d’essais incorrects. Vous ou un administrateur pouvez le réinitialiser.</string>
+
+    <string name="remote_google_cast">Google Cast</string>
+    <string name="remote_airplay">AirPlay</string>
+    <string name="play_on_unreachable">%1$s n’arrive pas à joindre ce serveur.</string>
+    <string name="play_on_failed">%1$s ne l’a pas lu.</string>
+    <string name="play_on_pair_title">Associer %1$s</string>
+    <string name="play_on_code_title">Saisissez le code affiché sur la TV</string>
+    <string name="play_on_code_body">Tout votre foyer pourra ensuite y lire.</string>
+    <string name="play_on_show_code_again">Pas de code sur la TV ? L’afficher à nouveau</string>
+    <string name="play_on_wrong_code">Ce n’est pas le code affiché sur %1$s.</string>
+    <string name="play_on_pairing_wait">%1$s n’accepte pas d’autre essai pour l’instant : patientez un peu.</string>
+    <string name="play_on_pairing_failed">%1$s ne s’est pas associé.</string>
 </resources>

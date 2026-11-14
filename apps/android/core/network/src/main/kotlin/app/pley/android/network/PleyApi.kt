@@ -12,6 +12,7 @@ import app.pley.android.model.DiscoverPage
 import app.pley.android.model.ItemRequest
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.NewRequest
+import app.pley.android.model.PairingCode
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestOptions
 import app.pley.android.model.RequestQuery
@@ -357,12 +358,28 @@ interface PleyApi {
     suspend fun stopSession(sessionId: String)
 
     /**
-     * GET /api/remote/devices?household=1 (scope play): the profile's
-     * devices that take casts (docs/API.md, "Casting"), this one too, and
-     * those of the household's other profiles that switch to the caster's,
-     * one each, by name.
+     * GET /api/remote/devices?household=1&nearby=1 (scope play): the
+     * profile's devices that take casts (docs/API.md, "Casting"), this one
+     * too, those of the household's other profiles that switch to the
+     * caster's, one each, by name, and the Google Cast and AirPlay devices
+     * on the server's network, which the server plays on itself.
      */
     suspend fun remoteDevices(): List<RemoteDevice>
+
+    /**
+     * POST /api/remote/devices/{id}/pairing with no code (scope play): the
+     * AirPlay device [receiverId] shows a code to pair the server with it,
+     * once a cast to it answered `409` `pairing_needed`. Refusals are
+     * [ApiException]s; [PairingRefusal.of] says which.
+     */
+    suspend fun showPairingCode(receiverId: String): PairingCode
+
+    /**
+     * POST /api/remote/devices/{id}/pairing with the [code] the device shows:
+     * the server pairs with it, for everyone in the household. Refusals are
+     * [ApiException]s; [PairingRefusal.of] says which.
+     */
+    suspend fun pair(receiverId: String, code: String)
 
     /**
      * POST /api/remote/devices/{id}/cast (scope play): sends receiver

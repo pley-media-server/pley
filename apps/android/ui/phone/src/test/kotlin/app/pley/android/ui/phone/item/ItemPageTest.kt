@@ -108,7 +108,7 @@ class ItemPageTest {
         show(movie(positionMs = 3_480_000), listOf(tv))
         compose.onNodeWithContentDescription("Play on…").assertExists().performClick()
         // Automatic audio, and the file's subtitles off.
-        assertEquals(listOf(CastTarget(itemId = 1, startMs = 3_480_000, subtitleIndex = -1)), castsAsked)
+        assertEquals(listOf(CastTarget(itemId = 1, startMs = 3_480_000, subtitleIndex = -1, video = true)), castsAsked)
     }
 
     @Test

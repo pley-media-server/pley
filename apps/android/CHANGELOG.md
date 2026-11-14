@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Play on… lists Google Cast and AirPlay devices for movies and episodes.
+  An AirPlay device asks once for the code it shows; on an Apple TV the
+  code goes as its fourth digit is typed.
+
 ## [0.1.13] - 2026-11-14
 
 ### Changed

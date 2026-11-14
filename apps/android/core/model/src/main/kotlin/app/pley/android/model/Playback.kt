@@ -323,7 +323,39 @@ data class RemoteDevice(
      * plays stays that profile's.
      */
     val profile: DeviceProfileName? = null,
+    /**
+     * How the server plays on it itself, when no Pley app does: a Google
+     * Cast or an AirPlay device on the server's network (`nearby=1`).
+     * `null` for a Pley app.
+     */
+    val protocol: CastProtocol? = null,
 )
+
+/** How the server plays on a device no Pley app plays on (docs/API.md, "Casting"). */
+@Serializable(with = CastProtocol.Serializer::class)
+enum class CastProtocol(override val wire: String) : WireEnum {
+    Cast("cast"),
+    AirPlay("airplay"),
+    Unknown("unknown"),
+    ;
+
+    object Serializer : LenientEnumSerializer<CastProtocol>("CastProtocol", CastProtocol.entries, CastProtocol.Unknown)
+}
+
+/**
+ * The answer of POST /api/remote/devices/{id}/pairing without a code: the
+ * AirPlay device shows one, of [digits] digits when the server knows (4 on
+ * an Apple TV; a TV may be set to use a password instead).
+ */
+@Serializable
+data class PairingCode(val digits: Int? = null)
+
+/** The body of POST /api/remote/devices/{id}/pairing with the code the device shows. */
+@Serializable
+data class PairingRequest(val pin: String) {
+    // A code is never written out where a request is.
+    override fun toString(): String = "PairingRequest(pin=…)"
+}
 
 /** The profile another of the household's devices is on: its id, and its name as "Who's watching?" says it. */
 @Serializable

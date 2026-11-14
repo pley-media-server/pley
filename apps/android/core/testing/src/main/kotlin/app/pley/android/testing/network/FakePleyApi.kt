@@ -12,6 +12,8 @@ import app.pley.android.model.DiscoverPage
 import app.pley.android.model.ItemRequest
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.NewRequest
+import app.pley.android.model.PairingCode
+import app.pley.android.model.PairingRequest
 import app.pley.android.model.RequestAction
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestOptions
@@ -300,6 +302,11 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
     override suspend fun remoteDevices(): List<RemoteDevice> = respond("remoteDevices") { fixture("remote/devices.json") }
 
     override suspend fun cast(receiverId: String, request: CastRequest) = respond("cast", receiverId, request) { }
+
+    /** An Apple TV's code, of 4 digits. */
+    override suspend fun showPairingCode(receiverId: String): PairingCode = respond("showPairingCode", receiverId) { PairingCode(digits = 4) }
+
+    override suspend fun pair(receiverId: String, code: String) = respond("pair", receiverId, code) { }
 
     /** The server's own network: nothing known, no speed test. */
     override suspend fun playbackNetwork(clientId: String): PlaybackNetwork = respond("playbackNetwork", clientId) { PlaybackNetwork(local = true) }

@@ -91,6 +91,7 @@ import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.text.formatWords
 import app.pley.android.designsystem.tile.ChannelLogo
+import app.pley.android.model.CastProtocol
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
@@ -417,13 +418,18 @@ private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () 
 }
 
 /**
- * What a device that plays nothing here says: "Ready to play", and a
- * device of another of the household's profiles whose it is: "On Sam's
- * profile", never what it plays.
+ * What a device that plays nothing here says: "Ready to play", a device
+ * of another of the household's profiles whose it is: "On Sam's profile",
+ * never what it plays, and one the server plays on itself what it is:
+ * "Google Cast", "AirPlay".
  */
 @Composable
-internal fun readyLine(device: OtherDevice): String =
-    device.profile?.let { stringResource(R.string.remote_on_profile, it.name) } ?: stringResource(R.string.remote_ready)
+internal fun readyLine(device: OtherDevice): String = when (device.protocol) {
+    // A device the server plays on itself says what it is.
+    CastProtocol.Cast -> stringResource(R.string.remote_google_cast)
+    CastProtocol.AirPlay -> stringResource(R.string.remote_airplay)
+    else -> device.profile?.let { stringResource(R.string.remote_on_profile, it.name) } ?: stringResource(R.string.remote_ready)
+}
 
 /** A device's kind as an icon in a 40 dp circle: in the accent while it plays. */
 @Composable

@@ -92,6 +92,16 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
     val castRefusals = java.util.concurrent.ConcurrentLinkedQueue<Exception>()
     @Volatile var castNeedsPin = false
 
+    /**
+     * AirPlay pairing: the devices asked to show their code, by receiver id,
+     * a code of [codeLength] digits (`null`: not known); the codes typed;
+     * [pairingRefusals] refuse the next of either, one each.
+     */
+    val codesShown: MutableList<String> = Collections.synchronizedList(mutableListOf())
+    @Volatile var codeLength: Int? = 4
+    val codesTyped: MutableList<Pair<String, String>> = Collections.synchronizedList(mutableListOf())
+    val pairingRefusals = java.util.concurrent.ConcurrentLinkedQueue<Exception>()
+
     override val device = DeviceProfile(FormFactor.Phone, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 8L shl 30, lowRam = false)
 
     override val auth: AuthGraph
@@ -145,6 +155,15 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
                 castRefusals.poll()?.let { throw it }
                 castFailure?.let { throw it }
                 castsSent += receiverId to request
+            }
+            override suspend fun showPairingCode(receiverId: String): Int? {
+                pairingRefusals.poll()?.let { throw it }
+                codesShown += receiverId
+                return codeLength
+            }
+            override suspend fun pair(receiverId: String, code: String) {
+                pairingRefusals.poll()?.let { throw it }
+                codesTyped += receiverId to code
             }
             override val castNeedsPin: Boolean get() = this@TestGraph.castNeedsPin
             override fun here(player: Any, sessionId: String?) = Unit
