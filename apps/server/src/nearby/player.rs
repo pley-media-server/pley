@@ -72,6 +72,8 @@ pub enum Failure {
     NotStarted(String),
     /// The connection ended.
     Lost,
+    /// The device wants pairing again: it forgot Pley, or was reset.
+    NeedsPairing,
 }
 
 /// The player of a cast, in its protocol.

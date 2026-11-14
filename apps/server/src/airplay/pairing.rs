@@ -76,6 +76,9 @@ pub enum Failed {
     Wait(Duration),
     /// The device no longer knows Pley: it was unpaired on the device.
     Forgotten,
+    /// The device at the paired id signs with another key: it was reset,
+    /// or isn't the device paired with. Only a new pairing settles it.
+    OtherKey,
     /// The device refused, or answered in a way pairing doesn't go.
     Refused(&'static str),
     Io(io::Error),
@@ -94,6 +97,7 @@ impl std::fmt::Display for Failed {
             Failed::WrongPin => write!(f, "the PIN was wrong"),
             Failed::Wait(wait) => write!(f, "the device takes no other try for {}s", wait.as_secs()),
             Failed::Forgotten => write!(f, "the device no longer knows this server"),
+            Failed::OtherKey => write!(f, "the device isn't the one paired with"),
             Failed::Refused(why) => write!(f, "the device refused: {why}"),
             Failed::Io(err) => write!(f, "{err}"),
         }
@@ -229,9 +233,14 @@ pub async fn verify<S: AsyncRead + AsyncWrite + Unpin>(
         .map_err(|_| Failed::Refused("no key to agree with"))?;
     let our_public = ephemeral.compute_public_key().map_err(|_| Failed::Refused("no key to agree with"))?;
     let our_public = our_public.as_ref().to_vec();
+    // An error here proves nothing: the device hasn't signed anything yet,
+    // nor been told who Pley is.
     let m2 = exchange(channel, "/pair-verify", false, &[(tlv::STATE, &[1]), (tlv::PUBLIC_KEY, &our_public)])
         .await
-        .map_err(forgotten)?;
+        .map_err(|failed| match failed {
+            Failed::WrongPin => Failed::Refused("pair-verify refused"),
+            other => other,
+        })?;
     let (Some(their_public), Some(sealed)) = (tlv::get(&m2, tlv::PUBLIC_KEY), tlv::get(&m2, tlv::ENCRYPTED)) else {
         return Err(Failed::Refused("no public key"));
     };
@@ -250,7 +259,7 @@ pub async fn verify<S: AsyncRead + AsyncWrite + Unpin>(
     };
     signature::UnparsedPublicKey::new(&signature::ED25519, device_key)
         .verify(&[their_public, id, &our_public].concat(), signed)
-        .map_err(|_| Failed::Refused("not the device paired with"))?;
+        .map_err(|_| Failed::OtherKey)?;
     let signed = identity.keys().sign(&[&our_public[..], identity.id.as_bytes(), their_public].concat());
     let sub = tlv::write(&[(tlv::IDENTIFIER, identity.id.as_bytes()), (tlv::SIGNATURE, signed.as_ref())]);
     let sealed = crypto::seal(&sealing, crypto::named_nonce("PV-Msg03"), &[], &sub);
@@ -260,8 +269,8 @@ pub async fn verify<S: AsyncRead + AsyncWrite + Unpin>(
     Ok(shared)
 }
 
-/// In pair-verify, an authentication error means the device doesn't know
-/// Pley's key any more.
+/// In pair-verify, an authentication error once the device has proved who
+/// it is means it doesn't know Pley's key any more.
 fn forgotten(failed: Failed) -> Failed {
     match failed {
         Failed::WrongPin => Failed::Forgotten,
@@ -455,7 +464,7 @@ pub(crate) mod tests {
         let (mut channel, _device) = serve(device);
         assert!(matches!(verify(&mut channel, &identity(), &key).await, Err(Failed::Forgotten)));
         let other = Ed25519KeyPair::from_seed_unchecked(&[6; 32]).unwrap().public_key().as_ref().to_vec();
-        assert!(matches!(verify(&mut channel, &identity(), &other).await, Err(Failed::Refused(_))));
+        assert!(matches!(verify(&mut channel, &identity(), &other).await, Err(Failed::OtherKey)));
     }
 
     #[test]

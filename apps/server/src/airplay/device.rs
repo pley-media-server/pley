@@ -196,13 +196,16 @@ pub async fn connect(state: &AppState, device: &Found) -> Result<Connected, Fail
         None => pairing::transient(&mut channel).await,
     };
     if matches!(secret, Err(Failed::Forgotten)) {
-        // Unpaired on the device: the next cast asks for a PIN.
+        // Unpaired on the device, which proved who it is first.
         let _ = pairings::remove(&state.db, &device.id).await;
     }
     let secret = secret.map_err(|err| {
         tracing::warn!("couldn't pair with the AirPlay device {}: {err}", device.address);
         match err {
             Failed::Io(_) => Failure::Lost,
+            // A device that signs with another key keeps its pairing, since
+            // nothing proved it the same device: a new pairing replaces it.
+            Failed::Forgotten | Failed::OtherKey => Failure::NeedsPairing,
             other => Failure::NotStarted(other.to_string()),
         }
     })?;

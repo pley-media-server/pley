@@ -299,6 +299,10 @@ impl Attempt<'_> {
                 Err(match failure {
                     Failure::Refused(_) => Tried::Refused,
                     Failure::NotStarted(_) | Failure::Lost => Tried::Failed,
+                    Failure::NeedsPairing => Tried::Error(AppError::ConflictAs(
+                        PAIRING_NEEDED,
+                        "the device wants a PIN: pair with it first".to_owned(),
+                    )),
                 })
             }
         }
