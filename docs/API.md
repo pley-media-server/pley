@@ -3530,7 +3530,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number, quality?: string, volume?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
 | GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
-| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play; `204` once a Google Cast device plays it ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `scans` are the scans queued or running.
@@ -3864,9 +3864,12 @@ would.
   the Pley app stands for it. One whose Pley app is on a profile the
   caller can't cast to stays listed. A cast there names a movie or an episode,
   as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
-  above, never `profile_id`; it answers `204` once the device plays,
-  `404` for a device not listed or a caller who isn't a home member,
-  `409` `{ code: "not_castable" }` for anything else, `409` `{ code:
+  above; `profile_id`, if given, is the caller's own. It answers `204`
+  once the device plays; `404` for a device not listed lately, a caller
+  who isn't a home member, another profile's `profile_id`, a `device_id`
+  or an item the caller can't see; `400` for a `start_ms` out of range or
+  a track the item doesn't have; `409` `{ code: "not_castable" }` for
+  anything but a movie or an episode, `409` `{ code:
   "cast_failed" }` when the device didn't play it, and `409` `{ code:
   "cast_unreachable" }` when Pley doesn't listen on an address the device
   can reach. The server plays it on the device itself: it starts a
