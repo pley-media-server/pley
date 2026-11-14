@@ -308,7 +308,7 @@ fn obey(session: &Session, user: &str, command: Control, values: Values) -> Opti
         Control::Previous => json!({"Command": "PreviousTrack"}),
         Control::Audio => return Some(track("SetAudioStreamIndex")),
         Control::Subtitles => return Some(track("SetSubtitleStreamIndex")),
-        Control::Quality => return None,
+        Control::Quality | Control::Volume => return None,
     };
     Some(message("Playstate", data))
 }
@@ -349,6 +349,7 @@ mod tests {
             audio_index: None,
             subtitle_index: None,
             quality: None,
+            volume: None,
         };
         let skip = |offset| data(playstate(&session, Control::Skip, None, Some(offset)))["SeekPositionTicks"].clone();
         // Ten seconds on since its report, a second more should the clock tick.

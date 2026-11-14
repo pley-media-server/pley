@@ -3528,7 +3528,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/activity` | `activity` | `{ scans: ScanStatus[], first_scans_done: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
-| POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
+| POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number, quality?: string, volume?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
 | GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, a home member's Google Cast devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
@@ -3664,6 +3664,10 @@ profile of the remote that sent it something.
   report's `quality` (one of the menu's ids), `null` until its player
   says. A player that reports another quality sends `sessions_changed`.
   Music and Live TV have none: an empty list and `null`.
+- **Volume.** A player that sets its device's volume lists `volume` and
+  says the level: the session's `volume`, 0 to 100 (0 while muted). Only
+  the server's casts to Cast devices do for now, which follow the
+  device's own level, whatever sets it; a change sends `sessions_changed`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
   `kind: "live"`, its `channel` (with the programme on, when it started
@@ -3677,17 +3681,18 @@ profile of the remote that sent it something.
   or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
-  position_ms, offset_ms, stream_index, quality }`. `seek` needs `position_ms`,
+  position_ms, offset_ms, stream_index, quality, volume? }`. `seek` needs `position_ms`,
   from 0 to the title's length (a day when it isn't known); `skip` needs
   `offset_ms`, up to 10 minutes either way (back when negative); `audio`
   needs `stream_index`, the index of one of the session's audio `tracks`,
   and `subtitles` one of its subtitle `tracks` or `-1` to turn them off;
-  `quality` needs `quality`, the id of one of the session's `qualities`.
-  Live TV sessions take none of `audio`, `subtitles` and `quality`. The
-  other commands take none of these, and the event has them `null`. It
-  answers:
-  - `400` for an unknown command, or a place, offset, track or quality
-    missing or out of range, or a track or a quality on Live TV;
+  `quality` needs `quality`, the id of one of the session's `qualities`;
+  `volume` needs `volume`, from 0 to 100, which only Cast devices take
+  for now (the event has it for `volume` alone). Live TV sessions take
+  none of `audio`, `subtitles` and `quality`. The other commands take
+  none of these, and the event has them `null`. It answers:
+  - `400` for an unknown command, or a place, offset, track, quality or
+    volume missing or out of range, or a track or a quality on Live TV;
   - `403` for someone else's session, an administrator's request too;
   - `404` for a session unknown, stopped, or whose player is gone;
   - `409` `{ code: "not_controllable", message }` for a command the
@@ -3877,8 +3882,8 @@ would.
   subtitles go beside the stream as
   keyed WebVTT, read whole before the device asks (it asks once), and
   picture subtitles are burned in. The session has the device's
-  `device_id`, its name, and the controls `play`, `pause`, `seek` and
-  `skip`, which the server passes on; it asks the device where it is
+  `device_id`, its name, and the controls `play`, `pause`, `seek`, `skip`
+  and `volume` (the device's own), which the server passes on; it asks the device where it is
   every 5 seconds and keeps the place as a progress report would. The
   session ends when the device stops or finishes it, when another app
   takes the device over, or when it is stopped in Pley, which stops the
@@ -3999,7 +4004,7 @@ interface SessionInfo {
   transcode: null | TranscodeInfo;
 }
 
-type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality";
+type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality" | "volume";
 type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 interface PlayingSession {      // GET /api/sessions
@@ -4026,6 +4031,8 @@ interface PlayingSession {      // GET /api/sessions
   quality: string | null;       // the Quality menu's pick, by id ("auto", "8m"); null until its player says
   qualities: { id: string; label: string }[]; // what its menu offers for the file, which `quality`
                                 // picks from; empty for music and on live (Remote control, "Quality")
+  volume?: number;              // the device's volume, 0 to 100, for a player that takes `volume`
+                                // (a Cast device's), once it says; left out otherwise
   markers: Marker[];            // the intro and credits of the file it plays, for a remote's Skip Intro
                                 // and Skip Credits (a seek); empty on live
 }

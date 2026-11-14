@@ -225,7 +225,7 @@ impl Attempt<'_> {
             // One cast at a time on a device: a new one ends the last.
             "client_id": format!("{ID_PREFIX}{}", device.id),
             "keyed_urls": true,
-            "controls": ["play", "pause", "seek", "skip"],
+            "controls": ["play", "pause", "seek", "skip", "volume"],
             "device_name": device.name,
             "device_kind": "tv",
         }))
@@ -376,6 +376,9 @@ impl Following {
             player.stop().await;
             return;
         };
+        // Its volume, for the remotes' slider: the device says it again
+        // whenever it changes.
+        player.ask_volume().await;
         let mut last = (0i64, "buffering");
         let mut recorded = Instant::now();
         let ended = loop {
@@ -409,11 +412,16 @@ impl Following {
                         }
                         last = (position_ms, word);
                     }
+                    Some(Event::Volume(percent)) => {
+                        if state.sessions.get(&session_id).is_some_and(|s| s.report_volume(percent)) {
+                            state.events.send(ServerEvent::SessionsChanged { user_id });
+                        }
+                    }
                     Some(Event::Ended(ended)) => break Some(ended),
                     None => break Some(Ended::Lost),
                 },
                 command = commands.recv() => match command {
-                    Ok(ServerEvent::PlayerCommand { session_id: sid, command, position_ms, offset_ms, .. }) if sid == session_id => {
+                    Ok(ServerEvent::PlayerCommand { session_id: sid, command, position_ms, offset_ms, volume, .. }) if sid == session_id => {
                         match command {
                             Control::Play => { player.play().await; }
                             Control::Pause => { player.pause().await; }
@@ -421,6 +429,11 @@ impl Following {
                                 let at = position_ms.or_else(|| offset_ms.map(|offset| last.0 + offset));
                                 if let Some(at) = at {
                                     player.seek(at.clamp(0, duration_ms.max(0))).await;
+                                }
+                            }
+                            Control::Volume => {
+                                if let Some(volume) = volume {
+                                    player.set_volume(volume).await;
                                 }
                             }
                             _ => {}

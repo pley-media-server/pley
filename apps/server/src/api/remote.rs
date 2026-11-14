@@ -170,6 +170,10 @@ pub struct PlayingSession {
     /// The qualities its player's menu offers for the file, which `quality`
     /// picks from; none for music and on Live TV.
     qualities: Vec<QualityOption>,
+    /// The device's volume, 0 to 100, for a player that takes `volume`, as
+    /// it last said; left out until it does.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    volume: Option<u8>,
     /// The intro and credits of the file it plays, for a remote's Skip
     /// intro and Skip credits; none on Live TV.
     markers: Vec<Marker>,
@@ -234,6 +238,7 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             tracks: TrackOptions::default(),
             quality: None,
             qualities: Vec::new(),
+            volume: None,
             markers: Vec::new(),
             started_at: viewer.started_at,
             reported_at_ms: viewer.seen_at_ms,
@@ -277,6 +282,7 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
             tracks,
             quality: play.quality,
             qualities,
+            volume: play.volume,
             markers,
             started_at: session.started_at,
             reported_at_ms,
@@ -319,6 +325,8 @@ pub struct Command {
     stream_index: Option<i64>,
     #[serde(default)]
     quality: Option<String>,
+    #[serde(default)]
+    volume: Option<i64>,
 }
 
 /// What a command carries to its player, each `None` for the commands that
@@ -329,6 +337,7 @@ struct Values {
     offset_ms: Option<i64>,
     stream_index: Option<i64>,
     quality: Option<&'static str>,
+    volume: Option<u8>,
 }
 
 /// What a title's session picks from: its file's streams (for `audio` and
@@ -398,6 +407,7 @@ pub async fn command(
         offset_ms: values.offset_ms,
         stream_index: values.stream_index,
         quality: values.quality,
+        volume: values.volume,
     });
     Ok(StatusCode::ACCEPTED)
 }
@@ -501,6 +511,14 @@ fn command_values(body: &Command, duration_ms: i64, choices: Option<&Choices>) -
                 .ok_or_else(|| AppError::bad_request("quality must be one of the session's qualities"))?;
             Ok(Values { quality: Some(id), ..Values::default() })
         }
+        Control::Volume => {
+            let level = body.volume.ok_or_else(|| AppError::bad_request("volume needs volume"))?;
+            let level = u8::try_from(level)
+                .ok()
+                .filter(|l| *l <= 100)
+                .ok_or_else(|| AppError::bad_request("volume must be between 0 and 100"))?;
+            Ok(Values { volume: Some(level), ..Values::default() })
+        }
         Control::Play | Control::Pause | Control::Next | Control::Previous => Ok(Values::default()),
     }
 }
@@ -530,6 +548,7 @@ fn words(command: Control) -> &'static str {
         Control::Audio => "audio",
         Control::Subtitles => "subtitles",
         Control::Quality => "quality",
+        Control::Volume => "volume",
     }
 }
 

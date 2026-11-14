@@ -99,6 +99,15 @@ async fn serve(
             payload: payload.to_string(),
         };
         let mut at = 0.0;
+        let mut volume = 0.5;
+        // What the device says of itself: Google's player running, and its
+        // volume.
+        let receiver = |id: &Value, volume: f64| {
+            json!({"type": "RECEIVER_STATUS", "requestId": id, "status": {
+                "applications": [{"appId": "CC1AD845", "transportId": "web-5", "sessionId": "s-1"}],
+                "volume": {"level": volume, "muted": false},
+            }})
+        };
         loop {
             let message = tokio::select! {
                 read = frame::read(&mut reader) => match read {
@@ -117,13 +126,14 @@ async fn serve(
             let _ = sent_tx.send((message.destination.clone(), payload.clone()));
             let id = payload["requestId"].clone();
             let answer = match payload["type"].as_str() {
-                Some("LAUNCH") => Some(reply(
-                    "receiver-0",
-                    "receiver",
-                    json!({"type": "RECEIVER_STATUS", "requestId": id, "status": {"applications": [
-                        {"appId": "CC1AD845", "transportId": "web-5", "sessionId": "s-1"}
-                    ]}}),
-                )),
+                Some("LAUNCH") => Some(reply("receiver-0", "receiver", receiver(&id, volume))),
+                Some("GET_STATUS") if message.destination == "receiver-0" => {
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume)))
+                }
+                Some("SET_VOLUME") => {
+                    volume = payload["volume"]["level"].as_f64().unwrap();
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume)))
+                }
                 Some("LOAD") if refuse.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() => {
                     Some(reply("web-5", "media", json!({"type": "LOAD_FAILED", "requestId": id})))
                 }
@@ -327,7 +337,7 @@ async fn a_cast_plays_on_the_device_as_a_session_the_remotes_control() {
     let session = &listed[0];
     assert_eq!((session["device_id"].clone(), session["device"].clone()), (json!("cast:dev"), json!("Cast emulator")));
     assert_eq!((session["device_kind"].clone(), session["subtitle_index"].clone()), (json!("tv"), json!(2)));
-    assert_eq!(session["controls"], json!(["play", "pause", "seek", "skip"]));
+    assert_eq!(session["controls"], json!(["play", "pause", "seek", "skip", "volume"]));
     let id = session["session_id"].as_str().unwrap().to_owned();
 
     // Its commands go to the device.
@@ -432,4 +442,44 @@ async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
     let refused = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(refused.status, StatusCode::CONFLICT);
     assert_eq!(refused.body["code"], "cast_failed");
+}
+
+#[tokio::test]
+async fn the_remote_sets_the_devices_volume() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices", &w.admin).await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+    // The device's own level, as it says it.
+    let mut known = Value::Null;
+    for _ in 0..50 {
+        known = sessions(&w).await[0]["volume"].clone();
+        if !known.is_null() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    assert_eq!(known, json!(50));
+    let session = sessions(&w).await[0]["session_id"].as_str().unwrap().to_owned();
+    assert!(sessions(&w).await[0]["controls"].as_array().unwrap().contains(&json!("volume")));
+
+    let path = format!("/api/sessions/{session}/command");
+    for wrong in [
+        json!({"command": "volume"}),
+        json!({"command": "volume", "volume": 101}),
+        json!({"command": "volume", "volume": -1}),
+    ] {
+        assert_eq!(w.app.post(&path, &w.admin, wrong).await.status, StatusCode::BAD_REQUEST);
+    }
+    let set = w.app.post(&path, &w.admin, json!({"command": "volume", "volume": 30})).await;
+    assert_eq!(set.status, StatusCode::ACCEPTED, "{}", set.text());
+    let (to, payload) = next(&mut w.sent, "SET_VOLUME").await;
+    assert_eq!((to.as_str(), payload["volume"]["level"].as_f64()), ("receiver-0", Some(0.3)));
+    for _ in 0..50 {
+        if sessions(&w).await[0]["volume"] == json!(30) {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("the session's volume didn't follow the device's");
 }

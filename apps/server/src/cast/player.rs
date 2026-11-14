@@ -69,7 +69,12 @@ pub enum Ended {
 /// What comes from the device as it plays.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Event {
-    Status { state: State, position_ms: i64 },
+    Status {
+        state: State,
+        position_ms: i64,
+    },
+    /// The device's volume, 0 to 100 (0 while it is muted).
+    Volume(u8),
     Ended(Ended),
 }
 
@@ -200,6 +205,12 @@ impl Player {
         self.media(json!({"type": "SEEK", "currentTime": position_ms as f64 / 1000.0})).await
     }
 
+    /// Asks the device its volume: the answer comes as an
+    /// [`Event::Volume`], as it does whenever the volume changes.
+    pub async fn ask_volume(&self) -> bool {
+        self.connection.request(PLATFORM, NS_RECEIVER, json!({"type": "GET_STATUS"})).await.is_some()
+    }
+
     /// The device's own volume, 0 to 100.
     pub async fn set_volume(&self, percent: u8) -> bool {
         let level = f64::from(percent.min(100)) / 100.0;
@@ -290,6 +301,13 @@ async fn follow(mut incoming: mpsc::Receiver<Incoming>, events: mpsc::Sender<Eve
                     // Another app in its place, or none: closed on the device.
                     let other = apps.into_iter().any(|a| a["isIdleScreen"] != true);
                     break if other { Ended::TakenOver } else { Ended::Stopped };
+                }
+                if let Some(level) = p["status"]["volume"]["level"].as_f64() {
+                    let muted = p["status"]["volume"]["muted"] == true;
+                    let percent = if muted { 0 } else { (level.clamp(0.0, 1.0) * 100.0).round() as u8 };
+                    if events.send(Event::Volume(percent)).await.is_err() {
+                        return;
+                    }
                 }
             }
             (NS_CONNECTION, Some("CLOSE")) => break Ended::Stopped,
