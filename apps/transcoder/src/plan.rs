@@ -15,10 +15,10 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use pley_transcoder_api::{
-    AudioCodec, AudioMode, AudioPlan, DolbyVisionFel, DolbyVisionLayer, DolbyVisionMode, DynamicRange, EncoderInfo,
-    FileContainer, HwAccel, JobRequest, MediaInfo, MediaStream, SegmentFormat, StreamKind, TonemapMode, TonemapQuality,
-    TonemapSpeed, Tonemapper, VideoCodec, VideoMode, VideoPlan, VideoRequest, decode_key, default_video_kbps,
-    is_text_subtitle_codec,
+    AudioCodec, AudioMode, AudioPlan, Capabilities, DolbyVisionFel, DolbyVisionLayer, DolbyVisionMode, DynamicRange,
+    EncoderInfo, FileContainer, HwAccel, JobRequest, MediaInfo, MediaStream, SegmentFormat, StreamKind, TonemapMode,
+    TonemapQuality, TonemapSpeed, Tonemapper, VideoCodec, VideoMode, VideoPlan, VideoRequest, decode_key,
+    default_video_kbps, is_text_subtitle_codec,
 };
 
 use crate::devices::{qsv_device, vaapi_device};
@@ -214,9 +214,20 @@ fn need_of(src: &MediaStream, w: i64, h: i64, whole: bool) -> f64 {
 const WHOLE_FRAME_SECS_4K: f64 = 0.007;
 
 /// [`tonemap_quality`] for transcodes that `need` this together
-/// ([`need_of`]); `High` where nothing was measured.
-fn quality_for(speed: Option<&TonemapSpeed>, need: f64) -> TonemapQuality {
-    speed.map_or(TonemapQuality::High, |speed| tonemap_quality(speed, need))
+/// ([`need_of`]); where nothing was measured, `Fast` on a CPU's Vulkan and
+/// `High` elsewhere.
+///
+/// On a CPU's Vulkan (Mesa's llvmpipe, where no GPU is) only Dolby Vision
+/// profile 5 goes to libplacebo, and `High` made a 4K clip of it 1080p at 5
+/// frames a second (x264 included, 16 cores), so its first segment wasn't
+/// ready in time. `Fast` made it at 27, 4K at 8.8 and 720p at 35, with the
+/// picture within 3 of 255 of `High`'s on average.
+fn quality_for(caps: &Capabilities, need: f64) -> TonemapQuality {
+    match caps.tonemap_speed.as_ref() {
+        Some(speed) => tonemap_quality(speed, need),
+        None if caps.placebo_software => TonemapQuality::Fast,
+        None => TonemapQuality::High,
+    }
 }
 
 /// The Direct3D 11 device AMF encodes on: the AMD GPU, whichever adapter
@@ -987,10 +998,7 @@ impl Plan {
                         tonemap,
                         // Alone on the GPU: a job counts the others (see
                         // `Plan::share_tonemapping`).
-                        tonemap_quality: quality_for(
-                            ff.caps.tonemap_speed.as_ref(),
-                            need_of(src, width, height, opencl_dovi),
-                        ),
+                        tonemap_quality: quality_for(&ff.caps, need_of(src, width, height, opencl_dovi)),
                         tonemap_input,
                         libplacebo_asked: req.options.tonemap == TonemapMode::Libplacebo,
                         qsv_base_layer,
@@ -1188,8 +1196,8 @@ impl Plan {
     /// beside libplacebo transcodes needing `others` (see
     /// [`tonemap_quality`]): what its first process does. Later ones follow
     /// the GPU's load (see [`crate::share`]).
-    pub fn share_tonemapping(&mut self, speed: Option<&TonemapSpeed>, media: &MediaInfo, others: f64) {
-        if let Some(quality) = self.shared_quality(speed, media, others)
+    pub fn share_tonemapping(&mut self, caps: &Capabilities, media: &MediaInfo, others: f64) {
+        if let Some(quality) = self.shared_quality(caps, media, others)
             && let Some(v) = self.video.as_mut()
         {
             v.tonemap_quality = quality;
@@ -1198,14 +1206,9 @@ impl Plan {
 
     /// The quality [`Plan::share_tonemapping`] takes; `None` when
     /// libplacebo doesn't tone map the video.
-    pub fn shared_quality(
-        &self,
-        speed: Option<&TonemapSpeed>,
-        media: &MediaInfo,
-        others: f64,
-    ) -> Option<TonemapQuality> {
+    pub fn shared_quality(&self, caps: &Capabilities, media: &MediaInfo, others: f64) -> Option<TonemapQuality> {
         let (v, src) = self.placebo_source(media)?;
-        Some(quality_for(speed, need_of(src, v.width, v.height, v.opencl_dovi) + others))
+        Some(quality_for(caps, need_of(src, v.width, v.height, v.opencl_dovi) + others))
     }
 
     /// What libplacebo's tone mapping of this video asks of the GPU (see
@@ -2920,6 +2923,25 @@ mod tests {
     }
 
     #[test]
+    fn profile_5_on_a_cpus_vulkan_tone_maps_at_fast() {
+        // Where no GPU is: zscale first, libplacebo last for profile 5.
+        let mut ff = ffmpeg_with(vec![x264()], vec![Tonemapper::Zscale, Tonemapper::Libplacebo]);
+        ff.caps.dolby_vision = true;
+        ff.caps.placebo_software = true;
+        let p5 = ten_bit(media(DynamicRange::DolbyVision, Some(5)));
+        let plan = Plan::build(&request(), &p5, &ff, None).unwrap();
+        let v = plan.video.as_ref().unwrap();
+        assert_eq!((v.tonemap, v.tonemap_quality), (Some(Tonemapper::Libplacebo), TonemapQuality::Fast));
+        assert!(args_string(&plan, 0, 2).contains(":upscaler=bilinear:downscaler=bilinear:dithering=none"));
+        assert_eq!(plan.shared_quality(&ff.caps, &p5, 50.0), Some(TonemapQuality::Fast));
+
+        // A GPU that wasn't measured keeps libplacebo at its best.
+        ff.caps.placebo_software = false;
+        let plan = Plan::build(&request(), &p5, &ff, None).unwrap();
+        assert_eq!(plan.video.as_ref().unwrap().tonemap_quality, TonemapQuality::High);
+    }
+
+    #[test]
     fn hdr_tone_maps_on_vulkan_and_encodes_with_the_usual_encoder() {
         let mut ff = ffmpeg_with(vec![nvenc(), x264()], vec![Tonemapper::Libplacebo]);
         ff.caps.vulkan_decode = vec!["hevc10".into()];
@@ -4042,7 +4064,7 @@ mod tests {
         assert!((need - 33.6 / (1.0 - 1.2 * 24.0 * 0.007)).abs() < 1e-9, "{need}");
         assert!(!plan.tonemapping_falls_behind(Some(&iris), &film, need));
         assert_eq!(plan.video.as_ref().unwrap().tonemap_quality, TonemapQuality::High);
-        assert_eq!(plan.shared_quality(Some(&iris), &film, need), Some(TonemapQuality::Fast));
+        assert_eq!(plan.shared_quality(&ff.caps, &film, need), Some(TonemapQuality::Fast));
         // 1080p's frames are a quarter of the work to bring.
         let mut hd = at(60.0);
         (hd.streams[0].width, hd.streams[0].height) = (Some(1920), Some(1080));
@@ -4316,7 +4338,7 @@ mod tests {
         assert_eq!(plan.video_plan(&m, None).unwrap().tonemap_quality, Some(TonemapQuality::Balanced));
         // Another 4K film on the GPU.
         let film = plan.tonemap_need(&m).unwrap();
-        plan.share_tonemapping(ff.caps.tonemap_speed.as_ref(), &m, film);
+        plan.share_tonemapping(&ff.caps, &m, film);
         assert_eq!(plan.video.as_ref().unwrap().tonemap_quality, TonemapQuality::Fast);
         // Its renditions look the same.
         let mut lower = Plan::build(&request(), &m, &ff, None).unwrap();

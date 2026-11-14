@@ -768,7 +768,7 @@ impl JobManager {
         let mut plan = Plan::build(&req, &media, &self.ff, keyframes.as_deref().map(Vec::as_slice))
             .map_err(ApiError::BadRequest)?;
         // libplacebo shares the GPU with the jobs tone mapping on it now.
-        plan.share_tonemapping(self.ff.caps.tonemap_speed.as_ref(), &media, self.tonemapping_load());
+        plan.share_tonemapping(&self.ff.caps, &media, self.tonemapping_load());
 
         let id = uuid::Uuid::new_v4().simple().to_string();
         let dir = self.jobs_dir.join(&id);
@@ -1156,7 +1156,7 @@ impl JobManager {
             others.iter().filter(|j| j.tone_maps_on_gpu()).filter_map(|j| j.plan.tonemap_need(&j.media)).sum();
         let speed = self.ff.caps.tonemap_speed.as_ref();
         let held = self.lessons.lock().holding(need + around, Instant::now());
-        let quality = held.cap(job.plan.shared_quality(speed, &job.media, around)?);
+        let quality = held.cap(job.plan.shared_quality(&self.ff.caps, &job.media, around)?);
         let gpu = share::Gpu {
             engine_shared: hardware && job.plan.decodes_on_shared_engine(),
             behind: held.gpu_behind() || job.plan.tonemapping_falls_behind(speed, &job.media, around),

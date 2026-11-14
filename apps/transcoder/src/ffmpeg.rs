@@ -23,7 +23,7 @@ use crate::devices;
 use crate::util::{configure_child, resolve_executable};
 
 /// Bump when detection logic changes so stale caches are ignored.
-const DETECTION_REVISION: u32 = 27;
+const DETECTION_REVISION: u32 = 28;
 
 pub struct Ffmpeg {
     pub ffmpeg: PathBuf,
@@ -771,6 +771,7 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
         }
     }
     caps.dolby_vision = libplacebo;
+    caps.placebo_software = libplacebo && !libplacebo_on_gpu;
     // FFmpeg 7.1 (Debian 13's) has no `shader_cache`, and a graph naming
     // it fails: the tests above leave it out, so they can't tell.
     caps.placebo_shader_cache =

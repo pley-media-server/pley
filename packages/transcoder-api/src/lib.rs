@@ -723,6 +723,11 @@ pub struct Capabilities {
     /// a GPU, and from older transcoders, which tone map at `High`.
     #[serde(default)]
     pub tonemap_speed: Option<TonemapSpeed>,
+    /// libplacebo runs on a CPU's Vulkan (Mesa's llvmpipe), where no GPU
+    /// is: it tone maps at [`TonemapQuality::Fast`] there, which is several
+    /// times faster than `High` and looks almost the same.
+    #[serde(default)]
+    pub placebo_software: bool,
     /// libplacebo takes `shader_cache` (FFmpeg 8 and later): compiled
     /// shaders are kept on disk, so tone mapping starts sooner.
     #[serde(default)]

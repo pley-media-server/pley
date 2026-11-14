@@ -79,6 +79,8 @@ On Intel graphics:
   a lower one than the GPU has time for, after the server starts.
 - HDR10 that doesn't say how bright it is no longer comes out far too dark
   with Pley's own FFmpeg, in transcodes, seek previews and thumbnails.
+- Dolby Vision profile 5 plays on a server without a graphics card instead
+  of failing to start.
 
 On Intel graphics:
 
