@@ -170,6 +170,7 @@
     "castUnreachable": "{{device}} n’arrive pas à joindre ce serveur",
     "castFailed": "{{device}} ne l’a pas lu",
     "pairingFailed": "{{device}} ne s’est pas associé",
+    "pairFirst": "{{device}} doit d’abord être associé : choisissez-le à nouveau dans Lire sur…",
     "wrongDevicePin": "Ce n’est pas le code affiché sur {{device}}",
     "pairingWait": "{{device}} n’accepte pas d’autre essai pour l’instant : patientez un peu"
   },

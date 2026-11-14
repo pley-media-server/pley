@@ -155,6 +155,45 @@ describe("PlayOn", () => {
     expect(casts(requests)).toHaveLength(2);
   });
 
+  it("stays busy while an AirPlay device is asked for its PIN, and says to pick it again once it closed", async () => {
+    const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
+    let showPin = () => {};
+    let answerCast: (r: Response) => void = () => {};
+    let waits = false;
+    const requests = mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [appleTv],
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/cast": () =>
+        waits
+          ? new Promise<Response>((done) => {
+              answerCast = done;
+            })
+          : apiError(409, "pairing_needed", "the device wants a PIN"),
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/pairing": () =>
+        new Promise<undefined>((done) => {
+          showPin = () => done(undefined);
+        }),
+    });
+    const { rerender } = renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+    await choose("Play on…", "Den Apple TV");
+    // The device is asked to show its PIN: the button can't start another.
+    await waitFor(() => expect(requests.filter((r) => r.path.endsWith("/pairing"))).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "Starting on Den Apple TV…" })).toBeDisabled();
+    act(() => showPin());
+    expect(await screen.findByRole("dialog", { name: "Pair with Den Apple TV" })).toBeInTheDocument();
+    await userEvent.setup().keyboard("{Escape}");
+
+    // Gone from the page before the device asks for pairing: no PIN is
+    // asked for that no one could type.
+    waits = true;
+    await choose("Play on…", "Den Apple TV");
+    await waitFor(() => expect(casts(requests)).toHaveLength(2));
+    rerender(<></>);
+    act(() => answerCast(apiError(409, "pairing_needed", "the device wants a PIN")));
+    expect(await screen.findByText("Den Apple TV wants pairing first: choose it in Play on… again")).toBeInTheDocument();
+    expect(requests.filter((r) => r.path.endsWith("/pairing"))).toHaveLength(1);
+  });
+
   it("isn't there while no device takes it", async () => {
     serve(undefined, [phone]);
     const { client } = renderWithProviders(<PlayOn kind="live" label="Watch on…" cast={() => ({ channel_id: 3 })} />);

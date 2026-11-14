@@ -97,6 +97,15 @@ export function PlayOn({
   // Every PIN not taken starts the pad over (clears the dots).
   const [failures, setFailures] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
+  // Whether Play on… is still on the page: a cast outlives it, but its PIN
+  // can't be asked for once it's gone.
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const askRef = useRef<HTMLDivElement | null>(null);
   // The PIN opens on the side with room for it, as the menu does, measured before it shows.
   const [askSide, setAskSide] = useState(placement);
@@ -140,16 +149,20 @@ export function PlayOn({
     setAsking({ device, request, pairing });
   };
 
-  /** Has `device` show a PIN, and asks for it. */
+  /** Has `device` show a PIN, and asks for it: the button stays busy meanwhile. */
   const startPairing = (device: OtherDevice, request: CastRequest) => {
     if (!device.receiver) return;
+    setStarting(device.name);
     pair
       .mutateAsync({ receiverId: device.receiver.receiver_id })
       .then(
         () => ask(device, request, true),
         (err: unknown) => toast.error(pairingError(err, device.name)),
       )
-      .finally(() => pair.reset());
+      .finally(() => {
+        setStarting(null);
+        pair.reset();
+      });
   };
 
   /** Pairs the server with `device` with the `pin` it shows, then sends it `request`. */
@@ -186,6 +199,8 @@ export function PlayOn({
       : request;
     if (pin !== undefined) setPinMessage(null);
     setStarting(device.name);
+    // Busy on through the pairing it may need.
+    let pairing = false;
     // Its promise, not the mutation's callbacks, which the page dropping
     // the button (leaving it, or a player closing) would lose.
     send
@@ -199,7 +214,8 @@ export function PlayOn({
         },
         (err: unknown) => {
           // An AirPlay device the server hasn't paired with: its PIN first.
-          if (pin === undefined && isApiError(err, 409) && err.code === "pairing_needed") {
+          if (pin === undefined && isApiError(err, 409) && err.code === "pairing_needed" && mounted.current) {
+            pairing = true;
             startPairing(device, request);
             return;
           }
@@ -221,7 +237,7 @@ export function PlayOn({
         },
       )
       .finally(() => {
-        setStarting(null);
+        if (!pairing) setStarting(null);
         // The cast is done with: its PIN goes from the mutation's cache (`useCast`) with it.
         send.reset();
       });
