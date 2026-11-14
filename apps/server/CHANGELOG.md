@@ -15,7 +15,8 @@ describes how they are made.
 
 - Home members can cast movies and episodes to Chromecasts, Google TVs and
   TVs with Cast built in on the server's network, with their subtitles, and
-  control them from the remote as Pley's own players.
+  control them from the remote as Pley's own players. A TV running a Pley
+  app is listed once, as the app.
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.

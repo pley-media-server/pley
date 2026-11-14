@@ -14,6 +14,7 @@
 //! (`/api/playback`) or a Live TV viewer's (`/api/live/channels/{id}/watch`).
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -593,6 +594,10 @@ pub(crate) struct Receiver {
     pub casts: BTreeSet<CastKind>,
     /// It switches to a casting remote's profile ([`casts_switch`]).
     pub switches: bool,
+    /// The address its stream came from ([`crate::auth::SourceIp`]): a
+    /// Cast device at the same one is the same TV, which the Pley app
+    /// stands for in the device list.
+    pub address: Option<IpAddr>,
 }
 
 /// A receiver while one of its streams is open.
@@ -712,6 +717,7 @@ impl Receivers {
                 profile: None,
                 protocol: None,
                 switches: open.receiver.switches,
+                address: open.receiver.address,
             })
             .collect();
         out.sort_by_cached_key(listing_order);
@@ -837,6 +843,8 @@ pub struct RemoteDevice {
     protocol: Option<&'static str>,
     #[serde(skip)]
     switches: bool,
+    #[serde(skip)]
+    address: Option<IpAddr>,
 }
 
 /// The order remotes list devices in: by name, whatever its case, unnamed
@@ -885,10 +893,33 @@ pub async fn devices(
     let mut out = state.receivers.listed(user.id);
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
+    // A query that doesn't parse asks for nothing more.
+    let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
+    if asked && reaches_household(&user) {
+        for other in everyone.into_iter().filter(|u| home && u.home && !u.disabled && u.id != user.id) {
+            // Its name as "Who's watching?" says it: apps never see usernames.
+            let profile = DeviceProfile { id: other.id, name: other.name };
+            let theirs = state.receivers.listed(other.id).into_iter().filter(|d| d.switches);
+            out.extend(theirs.map(|d| RemoteDevice { profile: Some(profile.clone()), ..d }));
+        }
+        // A device on two profiles at once is the same one twice only while
+        // it switches: the caller's own wins, as its sessions say what it
+        // plays.
+        let mut seen = HashSet::new();
+        out.retain(|d| seen.insert(d.device_id.clone()));
+    }
     // The Cast devices on the server's network, for the household: they
-    // are the home's, as its TVs are.
+    // are the home's, as its TVs are. One that a Pley app listed here plays
+    // titles on, at the same address, is that TV, and the app stands for
+    // it. An app on another profile the caller can't cast to leaves the
+    // Cast device listed, as the only way to reach the TV. (An app on the
+    // local network can claim any address, and so hide a Cast device from
+    // the lists it is in, but do nothing more with it.)
     if home {
-        out.extend(state.cast_devices.listed(&state.config).await.into_iter().map(|d| RemoteDevice {
+        let taken: HashSet<IpAddr> =
+            out.iter().filter(|d| d.casts.contains(&CastKind::Item)).filter_map(|d| d.address).collect();
+        let cast = state.cast_devices.listed(&state.config).await;
+        out.extend(cast.into_iter().filter(|d| !taken.contains(&d.address.ip())).map(|d| RemoteDevice {
             receiver_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
             device_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
             name: Some(d.name),
@@ -897,24 +928,9 @@ pub async fn devices(
             profile: None,
             protocol: Some("cast"),
             switches: false,
+            address: None,
         }));
-        out.sort_by_cached_key(listing_order);
     }
-    // A query that doesn't parse asks for nothing more.
-    let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
-    if !asked || !reaches_household(&user) {
-        return Ok(Json(out));
-    }
-    for other in everyone.into_iter().filter(|u| home && u.home && !u.disabled && u.id != user.id) {
-        // Its name as "Who's watching?" says it: apps never see usernames.
-        let profile = DeviceProfile { id: other.id, name: other.name };
-        let theirs = state.receivers.listed(other.id).into_iter().filter(|d| d.switches);
-        out.extend(theirs.map(|d| RemoteDevice { profile: Some(profile.clone()), ..d }));
-    }
-    // A device on two profiles at once is the same one twice only while it
-    // switches: the caller's own wins, as its sessions say what it plays.
-    let mut seen = HashSet::new();
-    out.retain(|d| seen.insert(d.device_id.clone()));
     out.sort_by_cached_key(listing_order);
     Ok(Json(out))
 }
@@ -1292,6 +1308,7 @@ mod tests {
             kind: DeviceKind::Tv,
             casts: cast_kinds(casts),
             switches: casts_switch(casts),
+            address: None,
         }
     }
 

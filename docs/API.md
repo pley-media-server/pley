@@ -3852,7 +3852,10 @@ would.
   when the list is asked for and the last look is over 30 seconds old,
   and keeps one that stops answering for 5 minutes; it doesn't look with
   `--no-discovery`, nor from a Docker bridge network, which the
-  announcements don't reach. A cast there names a movie or an episode,
+  announcements don't reach. A Cast device at the address of a receiver
+  in the same list that takes `item` is left out: it is the same TV, and
+  the Pley app stands for it. One whose Pley app is on a profile the
+  caller can't cast to stays listed. A cast there names a movie or an episode,
   as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
   above, never `profile_id`; it answers `204` once the device plays,
   `404` for a device not listed or a caller who isn't a home member,

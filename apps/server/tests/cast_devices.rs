@@ -194,6 +194,53 @@ async fn home_members_see_cast_devices_and_others_dont() {
     assert_eq!(unknown.status, StatusCode::NOT_FOUND);
 }
 
+/// An event stream of `token`'s, as receiver `query` describes, connected
+/// from `peer`: the receiver lasts while it is kept.
+async fn receiver(w: &World, token: &str, query: &str, peer: &str) -> axum::body::Body {
+    let request = axum::http::Request::builder()
+        .uri(format!("/api/events?{query}"))
+        .header("authorization", format!("Bearer {token}"))
+        .extension(axum::extract::ConnectInfo(peer.parse::<SocketAddr>().unwrap()))
+        .body(axum::body::Body::empty())
+        .unwrap();
+    let response = tower::ServiceExt::oneshot(w.app.api.clone(), request).await.unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    response.into_body()
+}
+
+/// Whether `token`'s device list, at `uri`, has the Cast device.
+async fn lists_cast(w: &World, token: &str, uri: &str) -> bool {
+    let devices = w.app.get(uri, token).await;
+    devices.body.as_array().unwrap().iter().any(|d| d["receiver_id"] == "cast:dev")
+}
+
+#[tokio::test]
+async fn a_pley_app_on_the_tv_stands_for_its_cast_device() {
+    let w = world().await;
+    let mine = "/api/remote/devices";
+    let household = "/api/remote/devices?household=1";
+    // The fake device is at 127.0.0.1: an app there that takes titles is
+    // the same TV.
+    let elsewhere = receiver(&w, &w.admin, "receiver=phone&casts=item", "10.0.0.9:50000").await;
+    assert!(lists_cast(&w, &w.admin, mine).await);
+    let live_only = receiver(&w, &w.admin, "receiver=box&casts=live", "127.0.0.1:50001").await;
+    assert!(lists_cast(&w, &w.admin, mine).await, "an app that takes no titles leaves it");
+    let tv = receiver(&w, &w.admin, "receiver=tv&casts=item", "127.0.0.1:50002").await;
+    assert!(!lists_cast(&w, &w.admin, mine).await);
+    drop((tv, live_only, elsewhere));
+
+    // On another profile, the app stands for it only where the caller
+    // can cast to it: a TV that switches, in the household's list.
+    let (kid, _) = w.app.user(&w.admin, "kid", json!({"home": true})).await;
+    let theirs = receiver(&w, &kid, "receiver=tv&casts=item", "127.0.0.1:50003").await;
+    assert!(lists_cast(&w, &w.admin, household).await, "a TV that doesn't switch leaves it");
+    drop(theirs);
+    let switching = receiver(&w, &kid, "receiver=tv&casts=item,switch", "127.0.0.1:50004").await;
+    assert!(lists_cast(&w, &w.admin, mine).await);
+    assert!(!lists_cast(&w, &w.admin, household).await);
+    drop(switching);
+}
+
 #[tokio::test]
 async fn only_movies_and_episodes_are_cast() {
     let w = world().await;

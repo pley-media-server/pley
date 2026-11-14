@@ -18,7 +18,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use super::remote::{self, SessionKind};
 use crate::access;
 use crate::auth::scopes::Scope;
-use crate::auth::{AuthUser, CurrentToken};
+use crate::auth::{AuthUser, CurrentToken, SourceIp};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::i18n;
@@ -183,6 +183,7 @@ pub async fn events(
     State(state): State<AppState>,
     user: AuthUser,
     CurrentToken(token): CurrentToken,
+    SourceIp(address): SourceIp,
     headers: HeaderMap,
     query: Result<Query<EventsQuery>, QueryRejection>,
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
@@ -219,6 +220,7 @@ pub async fn events(
             // app's would take the household's casts, and their PINs, for
             // nothing.
             switches: query.casts.as_deref().is_some_and(remote::casts_switch) && remote::reaches_household(&user),
+            address,
         };
         state.receivers.open(&state.events, user.id, id, receiver)
     });

@@ -389,6 +389,11 @@ other apps (`pley_ct_…`), never with a session's
   open that session's media alone, and nothing else of Pley's; a cast
   plays as a session of the home member who sent it, by their profile's
   rules, and only home members see and cast to these devices.
+- A receiver keeps the address its event stream came from, in memory
+  while the stream lasts, so that a Cast device at the same address is
+  listed once, as the Pley app. Someone on the local network can make an
+  app claim any address, and so hide a Cast device from the lists that
+  app is in; it can't cast to the device or reach it that way.
 - Discovery is on and Bonjour off until Settings → Network changes them.
   `--no-bonjour` (`PLEY_NO_BONJOUR`) keeps Bonjour off, and
   `--no-discovery` (`PLEY_NO_DISCOVERY`) both; the Docker setup has them
