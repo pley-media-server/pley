@@ -162,6 +162,19 @@ describe("commandAnswered", () => {
     expect(commandAnswered(sent("next"), undefined, by)).toBe(true);
   });
 
+  it("sees a volume in a new level, or the one asked for already there", () => {
+    const volume = (level: number, before = 50): SentCommand => ({
+      command: "volume",
+      before: { ...tv, volume: before },
+      sentAt,
+      volume: level,
+    });
+    expect(commandAnswered(volume(30), { ...tv, volume: 50 }, by)).toBe(false);
+    expect(commandAnswered(volume(30), { ...tv, volume: 31 }, by)).toBe(true);
+    // The device said 30 before the list `before` came from was read.
+    expect(commandAnswered(volume(30, 30), { ...tv, volume: 30 }, by)).toBe(true);
+  });
+
   it("sees a seek or skip in a report from somewhere new", () => {
     // Only the usual report since, where it would be by then.
     expect(commandAnswered(sent("skip", 92_000), later(4, { position_ms: 64_000 }), by)).toBe(false);

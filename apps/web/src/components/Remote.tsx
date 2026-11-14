@@ -673,7 +673,8 @@ function PlayingControls({
                 max={100}
                 step={1}
                 valueText={(v) => new Intl.NumberFormat(currentLocale(), { style: "percent" }).format(v / 100)}
-                onCommit={(v) => send("volume", { volume: Math.round(v) })}
+                // A level the device has already: nothing would answer it.
+                onCommit={(v) => Math.round(v) !== volume && send("volume", { volume: Math.round(v) })}
                 className="w-24"
               />
             </div>

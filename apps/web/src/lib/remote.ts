@@ -263,8 +263,10 @@ export function commandAnswered(sent: SentCommand, now: RemoteSession | undefine
   if (sent.command === "audio") return now.audio_index === sent.track;
   if (sent.command === "subtitles") return now.subtitle_index === sent.track;
   if (sent.command === "quality") return now.quality === sent.quality;
-  // The device rounds a level to its own steps: any new level is its answer.
-  if (sent.command === "volume") return now.volume !== before.volume;
+  // The device rounds a level to its own steps: any new level is its answer,
+  // and so is the one asked for, which it may have reported before the list
+  // was read for `before`.
+  if (sent.command === "volume") return now.volume === sent.volume || now.volume !== before.volume;
   if (now.state !== before.state) return true;
   if (sent.command !== "seek" && sent.command !== "skip" && sent.command !== "previous") return false;
   const reportedSince = now.updated_at > before.updated_at || now.position_ms !== before.position_ms;

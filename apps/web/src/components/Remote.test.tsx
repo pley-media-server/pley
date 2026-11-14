@@ -364,6 +364,14 @@ describe("RemoteButton", () => {
     await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
     await waitFor(() => expect(within(panel).getByRole("slider", { name: "Volume on Bedroom TV" })).toHaveValue("27"));
     expect(within(panel).queryByRole("alert")).toBeNull();
+
+    // Dragged back to the level it has: nothing is sent.
+    const again = within(panel).getByRole("slider", { name: "Volume on Bedroom TV" });
+    fireEvent.change(again, { target: { value: "30" } });
+    fireEvent.change(again, { target: { value: "27" } });
+    fireEvent.pointerUp(again);
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    expect(commands(requests)).toHaveLength(1);
   });
 
   it("marks a Cast device ready to play as one", async () => {
