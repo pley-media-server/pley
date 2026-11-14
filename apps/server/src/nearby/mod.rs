@@ -120,8 +120,11 @@ pub struct NearbyDevices {
     found: Mutex<HashMap<String, (Found, Instant)>>,
     looked: Mutex<Option<Instant>>,
     looking: tokio::sync::Mutex<()>,
-    /// The cast playing on each device, by its key: a new one ends it.
+    /// The cast playing on each device, by its key: a new one ends it once
+    /// it plays.
     playing: Mutex<HashMap<String, (u64, CancellationToken)>>,
+    /// The cast starting on each device: a newer one replaces it.
+    pending: Mutex<HashMap<String, (u64, CancellationToken)>>,
     /// Held, by device, while a cast starts its session, which ends the
     /// device's last one: of two casts at once, the newer one's session is
     /// the one that stays.
@@ -175,12 +178,13 @@ impl NearbyDevices {
         });
         not_the_server(&mut seen, &from);
         seen.extend(fixed);
-        one_per_address(&mut seen);
         let now = Instant::now();
         let mut found = self.found.lock();
         for device in seen {
             found.insert(device.key(), (device, now));
         }
+        // Over all those kept, since a look may miss one of a TV's two.
+        one_per_address(&mut found);
         *self.looked.lock() = Some(now);
     }
 
@@ -217,10 +221,10 @@ fn not_the_server(seen: &mut Vec<Found>, own: &[Ipv4Addr]) {
 /// Keeps one device of those at one address: a TV with both Google Cast
 /// and AirPlay built in is listed once, as a Cast device, which plays
 /// subtitles and takes its volume.
-fn one_per_address(seen: &mut Vec<Found>) {
+fn one_per_address(found: &mut HashMap<String, (Found, Instant)>) {
     let cast: HashSet<std::net::IpAddr> =
-        seen.iter().filter(|d| d.protocol == Protocol::Cast && d.video).map(|d| d.address.ip()).collect();
-    seen.retain(|d| d.protocol == Protocol::Cast || !cast.contains(&d.address.ip()));
+        found.values().filter(|(d, _)| d.protocol == Protocol::Cast && d.video).map(|(d, _)| d.address.ip()).collect();
+    found.retain(|_, (d, _)| d.protocol == Protocol::Cast || !cast.contains(&d.address.ip()));
 }
 
 #[cfg(test)]
@@ -263,14 +267,23 @@ mod tests {
             video: true,
             protocol,
         };
-        let mut seen = vec![
-            device(Protocol::AirPlay, "192.168.1.20", 7000),
-            device(Protocol::Cast, "192.168.1.20", 8009),
-            device(Protocol::AirPlay, "192.168.1.21", 7000),
-        ];
-        one_per_address(&mut seen);
-        let left: Vec<_> = seen.iter().map(|d| (d.protocol, d.address.port())).collect();
-        assert_eq!(left, vec![(Protocol::Cast, 8009), (Protocol::AirPlay, 7000)]);
+        // The TV's AirPlay found in an earlier look, its Cast in this one.
+        let earlier = Instant::now() - Duration::from_secs(60);
+        let mut found: HashMap<String, (Found, Instant)> = [
+            (device(Protocol::AirPlay, "192.168.1.20", 7000), earlier),
+            (device(Protocol::Cast, "192.168.1.20", 8009), Instant::now()),
+            (device(Protocol::AirPlay, "192.168.1.21", 7000), earlier),
+        ]
+        .into_iter()
+        .map(|(d, at)| (d.key(), (d, at)))
+        .collect();
+        one_per_address(&mut found);
+        let mut left: Vec<_> = found.values().map(|(d, _)| (d.address.to_string(), d.protocol)).collect();
+        left.sort_by(|a, b| a.0.cmp(&b.0));
+        assert_eq!(
+            left,
+            vec![("192.168.1.20:8009".into(), Protocol::Cast), ("192.168.1.21:7000".into(), Protocol::AirPlay)]
+        );
     }
 
     #[test]

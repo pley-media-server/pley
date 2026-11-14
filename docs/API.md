@@ -3901,10 +3901,13 @@ would.
   picture subtitles are burned in. The session has the device's
   `device_id`, its name, and the controls `play`, `pause`, `seek`, `skip`
   and `volume` (the device's own), which the server passes on; it asks the device where it is
-  every 5 seconds and keeps the place as a progress report would. The
-  session ends when the device stops or finishes it, when another app
-  takes the device over, or when it is stopped in Pley, which stops the
-  device too. A new cast to the device ends the one before.
+  every 5 seconds and keeps the place as a progress report would, the
+  last one too however the cast ends. Commands sent while the cast loads
+  are passed on once it plays. The session ends when the device stops or
+  finishes it, when another app takes the device over, or when it is
+  stopped in Pley, which stops the device too. A new cast to the device
+  ends the one before once it plays: one that fails leaves it playing
+  (unless the server's limit on streams counted it, which ends it first).
 - **AirPlay devices.** Apple TVs and TVs with AirPlay 2 built in are
   listed the same way, with `receiver_id` and `device_id`
   `airplay:<its id>` and `protocol: "airplay"`. The server finds them by

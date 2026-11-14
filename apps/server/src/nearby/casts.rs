@@ -4,6 +4,7 @@
 //! its place, as the device's player reports nothing to Pley. The remotes
 //! control it through the session, as they control Pley's own players.
 
+use std::collections::HashMap;
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -11,6 +12,7 @@ use std::time::{Duration, Instant};
 use axum::Json;
 use axum::extract::State;
 use axum::http::HeaderMap;
+use parking_lot::Mutex;
 use serde_json::Value;
 use tokio_util::sync::CancellationToken;
 
@@ -58,10 +60,11 @@ pub struct Choice {
 /// into it. Returns once it plays, or didn't start; then the server
 /// follows it until it ends. The stream is what the device's protocol
 /// picks for it ([`Choice`]); one it refuses is started again with the
-/// basic caps, and its model remembered. A cast that a newer one to the same
-/// device replaces while it starts gives way: it ends its session, leaves
-/// the device to the newer one, and returns as done, since the device
-/// plays what was last asked of it.
+/// basic caps, and its model remembered. The cast playing on the device
+/// goes on until this one plays, so that one that fails leaves it be. A
+/// cast that a newer one to the same device replaces while it starts gives
+/// way: it ends its session, leaves the device to the newer one, and
+/// returns as done, since the device plays what was last asked of it.
 pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast) -> ApiResult<()> {
     let base = base_url(state, device.address).ok_or_else(|| {
         AppError::ConflictAs("cast_unreachable", "Pley doesn't listen on an address the device can reach".to_owned())
@@ -88,12 +91,12 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
         (_, basic) => (choice.caps, basic),
     };
     let key = device.key();
-    // A cast playing there already leaves the device to this one, before
-    // its session ends (this one's start ends it), so that it doesn't stop
-    // the device on its way out.
+    // The remotes may send commands while the cast loads: they're followed
+    // once it plays.
+    let commands = state.events.subscribe();
     let ours = CancellationToken::new();
     let cast_id = state.nearby.casts.fetch_add(1, Ordering::Relaxed);
-    if let Some((_, before)) = state.nearby.playing.lock().insert(key.clone(), (cast_id, ours.clone())) {
+    if let Some((_, before)) = state.nearby.pending.lock().insert(key.clone(), (cast_id, ours.clone())) {
         before.cancel();
     }
     let attempt = Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours };
@@ -112,6 +115,7 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
         }
         (played, _) => played,
     };
+    forget(&state.nearby.pending, &key, cast_id);
     let (player, events, session_id, duration_ms) = match played {
         Ok(started) => started,
         Err(Tried::Superseded) => {
@@ -119,7 +123,6 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
             return Ok(());
         }
         Err(tried) => {
-            forget(state, &key, cast_id);
             return Err(match tried {
                 Tried::Superseded => unreachable!(),
                 Tried::Refused | Tried::Failed => {
@@ -129,10 +132,15 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
             });
         }
     };
+    // The cast that played there leaves the device to this one, and ends
+    // its session.
+    if let Some((_, before)) = state.nearby.playing.lock().insert(key.clone(), (cast_id, ours.clone())) {
+        before.cancel();
+    }
     tracing::info!("item {} is cast to a device on the network ({:?})", cast.item_id, device.protocol);
     let start_ms = cast.start_ms.unwrap_or(0);
     let cast = Following { state: state.clone(), user_id: user.id, device, session_id, duration_ms, start_ms, cast_id };
-    tokio::spawn(cast.follow(player, events, ours));
+    tokio::spawn(cast.follow(player, events, commands, ours));
     Ok(())
 }
 
@@ -171,15 +179,17 @@ impl Attempt<'_> {
             "audio_index": cast.audio_index,
             "subtitle_index": cast.subtitle_index,
             "caps": caps,
-            // One cast at a time on a device: a new one ends the last.
+            // One cast at a time on a device: a new one ends the last, once
+            // it plays.
             "client_id": device.key(),
+            "keep_previous": true,
             "keyed_urls": true,
             "controls": device.protocol.controls(),
             "device_name": device.name,
             "device_kind": device.kind(),
         }))
         .map_err(|err| Tried::Error(AppError::bad_request(err.to_string())))?;
-        let request = PlaybackRequest { device_id: Some(device.key()), ..request };
+        let mut request = PlaybackRequest { device_id: Some(device.key()), ..request };
         // The session starts, ending the device's last one, only while no
         // newer cast has: otherwise this one would end the newer one's.
         let one = state.nearby.starting.lock().entry(device.key()).or_default().clone();
@@ -188,14 +198,27 @@ impl Attempt<'_> {
             if self.ours.is_cancelled() {
                 return Err(Tried::Superseded);
             }
-            crate::api::playback::start(
-                State(state.clone()),
-                user.clone(),
-                HeaderMap::new(),
-                CurrentToken(None),
-                Json(request),
-            )
-            .await
+            let start = |request| {
+                crate::api::playback::start(
+                    State(state.clone()),
+                    user.clone(),
+                    HeaderMap::new(),
+                    CurrentToken(None),
+                    Json(request),
+                )
+            };
+            match start(request.clone()).await {
+                // The server's limit on streams counts the cast playing
+                // there: it ends first, then, leaving the device to this one.
+                Err(AppError::Unavailable(_)) => {
+                    if let Some((_, before)) = state.nearby.playing.lock().get(&device.key()) {
+                        before.cancel();
+                    }
+                    request.keep_previous = false;
+                    start(request).await
+                }
+                started => started,
+            }
         };
         let Json(info) = started.map_err(Tried::Error)?;
         let end = |tried: Tried| {
@@ -339,11 +362,11 @@ fn end_session(state: &AppState, id: &str) {
     }
 }
 
-/// Forgets the cast on `device` unless another took its place.
-fn forget(state: &AppState, device: &str, cast_id: u64) {
-    let mut playing = state.nearby.playing.lock();
-    if playing.get(device).is_some_and(|(id, _)| *id == cast_id) {
-        playing.remove(device);
+/// Forgets the cast on `device` in `casts` unless another took its place.
+fn forget(casts: &Mutex<HashMap<String, (u64, CancellationToken)>>, device: &str, cast_id: u64) {
+    let mut casts = casts.lock();
+    if casts.get(device).is_some_and(|(id, _)| *id == cast_id) {
+        casts.remove(device);
     }
 }
 
@@ -361,9 +384,14 @@ struct Following {
 }
 
 impl Following {
-    async fn follow(self, player: Player, mut events: tokio::sync::mpsc::Receiver<Event>, ours: CancellationToken) {
+    async fn follow(
+        self,
+        player: Player,
+        mut events: tokio::sync::mpsc::Receiver<Event>,
+        mut commands: tokio::sync::broadcast::Receiver<ServerEvent>,
+        ours: CancellationToken,
+    ) {
         let Following { state, user_id, device, session_id, duration_ms, start_ms, cast_id } = self;
-        let mut commands = state.events.subscribe();
         let mut ask = tokio::time::interval(ASK_EVERY);
         let item_id = state.sessions.get(&session_id).map(|s| s.item_id);
         let Some(item_id) = item_id else {
@@ -380,6 +408,9 @@ impl Following {
         // A cast that ends before the device says where it is keeps the
         // place it started at, not the title's start.
         let mut last = (start_ms, "buffering");
+        // Whether the device said where it is: a cast that never did keeps
+        // no place.
+        let mut placed = false;
         let mut recorded = Instant::now();
         let ended = loop {
             tokio::select! {
@@ -391,6 +422,9 @@ impl Following {
                 }
                 event = events.recv() => match event {
                     Some(Event::Status { state: playing, position_ms }) => {
+                        // A place past the end is the device's mistake.
+                        let position_ms = position_ms.clamp(0, if duration_ms > 0 { duration_ms } else { i64::MAX });
+                        placed = true;
                         let word = match playing {
                             Playing::Playing => "playing",
                             Playing::Paused => "paused",
@@ -429,9 +463,10 @@ impl Following {
                             Control::Play => { player.play().await; }
                             Control::Pause => { player.pause().await; }
                             Control::Seek | Control::Skip => {
-                                let at = position_ms.or_else(|| offset_ms.map(|offset| last.0 + offset));
+                                let at = position_ms.or_else(|| offset_ms.map(|offset| last.0.saturating_add(offset)));
                                 if let Some(at) = at {
-                                    player.seek(at.clamp(0, duration_ms.max(0))).await;
+                                    let at = if duration_ms > 0 { at.clamp(0, duration_ms) } else { at.max(0) };
+                                    player.seek(at).await;
                                 }
                             }
                             Control::Volume => {
@@ -441,6 +476,13 @@ impl Following {
                             }
                             _ => {}
                         }
+                    }
+                    // Stopped in Pley: the device stops at once.
+                    Ok(ServerEvent::SessionStopped { session_id: sid, .. }) if sid == session_id => {
+                        if !ours.is_cancelled() {
+                            player.stop().await;
+                        }
+                        break None;
                     }
                     Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                         player.stop().await;
@@ -464,11 +506,13 @@ impl Following {
             Some(Ended::Finished) => duration_ms,
             _ => last.0,
         };
-        if ended.is_some() {
+        // Its place is kept however it ended: on the device, stopped in Pley,
+        // or given way to a newer cast.
+        if ended.is_some() || placed {
             record(&state, user_id, item_id, position, duration_ms, &device.name, "stopped").await;
         }
         end_session(&state, &session_id);
-        forget(&state, &device.key(), cast_id);
+        forget(&state.nearby.playing, &device.key(), cast_id);
         tracing::info!("a cast to a device on the network ended: {ended:?}");
     }
 }

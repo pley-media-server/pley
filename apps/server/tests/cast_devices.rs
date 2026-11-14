@@ -389,11 +389,33 @@ async fn a_cast_plays_on_the_device_as_a_session_the_remotes_control() {
     tokio::time::timeout(Duration::from_secs(5), place).await.expect("the place is kept");
     assert_eq!(sessions(&w).await[0]["state"], "playing");
 
-    // Stopped in Pley: stopped on the device, Google's player closed.
+    // It plays on: the session knows, the place kept every 10 s.
+    w.say.send(status(&json!(0), "PLAYING", 1900.0)).unwrap();
+    let moved = async {
+        while sessions(&w).await[0]["position_ms"] != 1_900_000 {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(5), moved).await.expect("the session moves on");
+
+    // Stopped in Pley: stopped on the device at once, Google's player
+    // closed, and its last place kept.
+    let asked = std::time::Instant::now();
     let stopped = w.app.delete(&format!("/api/sessions/{id}"), &w.admin).await;
     assert!(stopped.status.is_success(), "{}", stopped.text());
     let (to, _) = next(&mut w.sent, "STOP").await;
     assert_eq!(to, "web-5");
+    assert!(asked.elapsed() < Duration::from_secs(2), "stopped after {:?}", asked.elapsed());
+    let kept = async {
+        loop {
+            let item = w.app.get(&format!("/api/items/{}", w.film), &w.admin).await;
+            if item.body["user_state"]["position_ms"] == 1_900_000 {
+                return;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(5), kept).await.expect("the last place is kept");
     let (to, close) = next(&mut w.sent, "STOP").await;
     assert_eq!((to.as_str(), close["sessionId"].clone()), ("receiver-0", json!("s-1")));
 }
@@ -453,15 +475,38 @@ async fn a_new_cast_takes_the_device_over_without_stopping_it() {
         assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
         assert_eq!(next(&mut w.sent, "LOAD").await.1["currentTime"], start_ms as f64 / 1000.0);
     }
-    // The first cast's session is over; the second's plays, and nothing
+    // The first cast's session ends as the second plays, and nothing
     // stopped the device on the way (the first checks its session every 5 s).
-    let listed = sessions(&w).await;
-    assert_eq!(listed.len(), 1);
+    let one = async {
+        while sessions(&w).await.len() != 1 {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(5), one).await.expect("one session");
     tokio::time::sleep(Duration::from_secs(6)).await;
     while let Ok((_, payload)) = w.sent.try_recv() {
         assert_ne!(payload["type"], "STOP", "{payload}");
     }
     assert_eq!(sessions(&w).await.len(), 1);
+}
+
+#[tokio::test]
+async fn a_new_cast_that_fails_leaves_the_one_playing_be() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+    next(&mut w.sent, "LOAD").await;
+    let playing = sessions(&w).await[0]["session_id"].clone();
+    // The device refuses the next stream, and the basic one too.
+    w.refuse.store(2, Ordering::SeqCst);
+    let body = json!({"item_id": w.film, "start_ms": 600_000});
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body).await;
+    assert_eq!(failed.status, StatusCode::CONFLICT, "{}", failed.text());
+    tokio::time::sleep(Duration::from_secs(6)).await;
+    let listed = sessions(&w).await;
+    assert_eq!(listed.len(), 1, "{listed:?}");
+    assert_eq!(listed[0]["session_id"], playing);
 }
 
 #[tokio::test]
