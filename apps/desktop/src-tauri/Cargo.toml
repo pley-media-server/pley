@@ -1,6 +1,6 @@
 [package]
 name = "pley-desktop"
-version = "0.1.4"
+version = "0.1.5"
 edition = "2024"
 rust-version = "1.95"
 description = "Pley for Windows, macOS and Linux: a window on a Pley server's web app"
