@@ -793,8 +793,19 @@ export interface RemoteDevice {
    * switches it to the user's first. What it plays isn't listed.
    */
   profile?: { id: Id; name: string };
-  /** How the server plays on it when not through a Pley app: `cast` for a Google Cast device. */
-  protocol?: "cast";
+  /** How the server plays on it when not through a Pley app: on a Google Cast or an AirPlay device. */
+  protocol?: "cast" | "airplay";
+}
+
+/** An AirPlay device the server paired with (Settings → Network). */
+export interface AirPlayPairing {
+  device_id: string;
+  /** Its name when it was paired. */
+  name: string;
+  /** Who typed its PIN, while their account exists. */
+  paired_by: string | null;
+  /** Unix seconds. */
+  paired_at: number;
 }
 
 /**

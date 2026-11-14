@@ -1092,5 +1092,13 @@
       "hideSteps": "Ocultar los pasos",
       "report": "Ver lo que se trajo"
     }
+  },
+  "airplay": {
+    "title": "Dispositivos AirPlay",
+    "description": "El servidor está vinculado con estos. Si olvidas uno, el próximo envío a él volverá a pedir su PIN; quita también Pley de la lista del propio dispositivo.",
+    "pairedBy": "Vinculado por {{name}} el {{date}}",
+    "paired": "Vinculado el {{date}}",
+    "forget": "Olvidar {{device}}",
+    "forgotten": "{{device}} olvidado"
   }
 }

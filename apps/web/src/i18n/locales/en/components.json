@@ -181,7 +181,10 @@
     "playingOn": "Playing on {{device}}",
     "starting": "Starting on {{device}}…",
     "otherProfile": "{{device}} is on {{profile}}'s profile: it switches to yours first.",
-    "enterPin": "Enter your PIN"
+    "enterPin": "Enter your PIN",
+    "pairWith": "Pair with {{device}}",
+    "pairWhy": "Type the PIN {{device}} shows. Pley asks for it once.",
+    "enterDevicePin": "Enter the PIN on {{device}}"
   },
   "remote": {
     "readyToPlay": "Ready to play",
@@ -227,7 +230,8 @@
     "programme": "{{title}}, {{start}} to {{end}}",
     "next": "Next: {{title}}",
     "googleCast": "Google Cast",
-    "volumeOn": "Volume on {{device}}"
+    "volumeOn": "Volume on {{device}}",
+    "airPlay": "AirPlay"
   },
   "requestNotices": {
     "open": "Open"

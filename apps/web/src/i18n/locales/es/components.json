@@ -189,7 +189,10 @@
     "playingOn": "Reproduciendo en {{device}}",
     "starting": "Iniciando en {{device}}…",
     "otherProfile": "{{device}} está en el perfil de {{profile}}: primero cambia al tuyo.",
-    "enterPin": "Introduce tu PIN"
+    "enterPin": "Introduce tu PIN",
+    "pairWith": "Vincular {{device}}",
+    "pairWhy": "Escribe el PIN que muestra {{device}}. Pley solo lo pide una vez.",
+    "enterDevicePin": "Introduce el PIN de {{device}}"
   },
   "remote": {
     "readyToPlay": "Listo para reproducir",
@@ -237,7 +240,8 @@
     "programme": "{{title}}, de {{start}} a {{end}}",
     "next": "A continuación: {{title}}",
     "googleCast": "Google Cast",
-    "volumeOn": "Volumen en {{device}}"
+    "volumeOn": "Volumen en {{device}}",
+    "airPlay": "AirPlay"
   },
   "requestNotices": {
     "open": "Abrir"

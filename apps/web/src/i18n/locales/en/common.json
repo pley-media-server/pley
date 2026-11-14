@@ -162,7 +162,10 @@
     "cantPlay": "{{device}} can't play that",
     "tooMany": "Too many at once: try again in a moment",
     "castUnreachable": "{{device}} can't reach this server",
-    "castFailed": "{{device}} didn't play it"
+    "castFailed": "{{device}} didn't play it",
+    "pairingFailed": "{{device}} didn't pair",
+    "wrongDevicePin": "That isn't the PIN {{device}} shows",
+    "pairingWait": "{{device}} takes no other try yet: wait a moment"
   },
   "errors": {
     "unreachable": "Can't reach the server",

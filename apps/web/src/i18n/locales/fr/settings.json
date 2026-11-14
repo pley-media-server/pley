@@ -1092,5 +1092,13 @@
       "hideSteps": "Masquer les étapes",
       "report": "Voir ce qui a été transféré"
     }
+  },
+  "airplay": {
+    "title": "Appareils AirPlay",
+    "description": "Le serveur est associé à ces appareils. Oubliez-en un, et le prochain envoi vers lui redemandera son code ; retirez aussi Pley de la liste de l’appareil.",
+    "pairedBy": "Associé par {{name}} le {{date}}",
+    "paired": "Associé le {{date}}",
+    "forget": "Oublier {{device}}",
+    "forgotten": "{{device}} oublié"
   }
 }

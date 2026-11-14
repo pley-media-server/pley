@@ -168,7 +168,10 @@
     "cantPlay": "{{device}} no puede reproducir eso",
     "tooMany": "Demasiadas solicitudes a la vez: vuelve a intentarlo en un momento",
     "castUnreachable": "{{device}} no puede conectarse a este servidor",
-    "castFailed": "{{device}} no lo reprodujo"
+    "castFailed": "{{device}} no lo reprodujo",
+    "pairingFailed": "{{device}} no se vinculó",
+    "wrongDevicePin": "Ese no es el PIN que muestra {{device}}",
+    "pairingWait": "{{device}} aún no acepta otro intento: espera un momento"
   },
   "errors": {
     "unreachable": "No se puede conectar con el servidor",

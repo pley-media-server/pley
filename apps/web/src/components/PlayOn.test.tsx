@@ -121,6 +121,40 @@ describe("PlayOn", () => {
     expect(await screen.findByText("Playing on Bedroom TV")).toBeInTheDocument();
   });
 
+  it("pairs with an AirPlay device that asks for the PIN it shows, then plays it there", async () => {
+    const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
+    let paired = false;
+    const requests = mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [appleTv],
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/cast": () => (paired ? undefined : apiError(409, "pairing_needed", "the device wants a PIN")),
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/pairing": (req) => {
+        const pin = (req.body as { pin?: string }).pin;
+        if (pin === undefined) return undefined;
+        if (pin !== "4821") return apiError(403, "wrong_pin", "that isn't the PIN the device shows");
+        paired = true;
+        return undefined;
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+
+    await user.click(await screen.findByRole("button", { name: "Play on…" }));
+    const item = within(screen.getByRole("menu", { name: "Play on…" })).getByRole("menuitem", { name: "Den Apple TV" });
+    expect(item).toHaveAccessibleDescription("AirPlay");
+    await user.click(item);
+    const asking = await screen.findByRole("dialog", { name: "Pair with Den Apple TV" });
+    expect(asking).toHaveAccessibleDescription("Type the PIN Den Apple TV shows. Pley asks for it once.");
+    await user.keyboard("1111{Enter}");
+    await waitFor(() => expect(within(asking).getByRole("alert")).toHaveTextContent("That isn't the PIN Den Apple TV shows"));
+    await user.keyboard("4821{Enter}");
+    expect(await screen.findByText("Playing on Den Apple TV")).toBeInTheDocument();
+    expect(asking).not.toBeInTheDocument();
+    const pairings = requests.filter((r) => r.path.endsWith("/pairing")).map((r) => r.body);
+    expect(pairings).toEqual([{}, { pin: "1111" }, { pin: "4821" }]);
+    expect(casts(requests)).toHaveLength(2);
+  });
+
   it("isn't there while no device takes it", async () => {
     serve(undefined, [phone]);
     const { client } = renderWithProviders(<PlayOn kind="live" label="Watch on…" cast={() => ({ channel_id: 3 })} />);

@@ -119,8 +119,9 @@ export function DeviceIcon({ kind, className }: { kind: DeviceKind; className?: 
  */
 function playingLine(device: OtherDevice, t: TFunction<"components">): string {
   const s = device.session;
-  // A device the server plays on itself says what it is: "Google Cast".
+  // A device the server plays on itself says what it is: "Google Cast", "AirPlay".
   if (!s && device.protocol === "cast") return t("remote.googleCast");
+  if (!s && device.protocol === "airplay") return t("remote.airPlay");
   if (!s) return device.profile ? t("remote.onProfile", { name: device.profile.name }) : t("remote.readyToPlay");
   if (s.kind === "live") return s.channel ? [s.channel.number, s.channel.name].filter(Boolean).join(" ") : t("remote.liveTv");
   return s.item ? fullTitle(s.item) : "";

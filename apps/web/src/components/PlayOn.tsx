@@ -2,7 +2,7 @@ import { useEffect, useEffectEvent, useId, useRef, useState, type ReactNode } fr
 import { Cast } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { isApiError } from "@/api/client";
-import { castError, useCast } from "@/api/hooks";
+import { castError, pairingError, useCast, usePairDevice } from "@/api/hooks";
 import type { CastKind, CastRequest } from "@/api/types";
 import { useAuth } from "@/auth";
 import { cn } from "@/lib/cn";
@@ -46,10 +46,15 @@ export interface PlayOnProps {
   onCast?: () => void;
 }
 
-/** A cast waiting for the user's PIN: to a device on another profile, when the user's has one. */
+/**
+ * A cast waiting for a PIN: the user's, to a device on another profile when
+ * theirs has one; or with `pairing`, the one an AirPlay device shows, to pair
+ * the server with it first.
+ */
 interface PinAsk {
   device: OtherDevice;
   request: CastRequest;
+  pairing?: boolean;
 }
 
 /**
@@ -58,8 +63,9 @@ interface PinAsk {
  * Picking one plays it there, as that device's own Play would, says so, and
  * opens the remote on it. A device on another profile switches to the
  * user's first, after the user's PIN when their profile has one, which it
- * asks for in the menu's place. There is nothing to show while no device
- * takes it.
+ * asks for in the menu's place. An AirPlay device the server hasn't paired
+ * with shows a PIN, which it asks for the same way, once. There is nothing
+ * to show while no device takes it.
  */
 export function PlayOn({
   kind,
@@ -79,6 +85,7 @@ export function PlayOn({
   const targets = useCastTargets(kind, video);
   const label = given ?? t("playOn.label");
   const send = useCast();
+  const pair = usePairDevice();
   const toast = useToast();
   const me = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -117,10 +124,47 @@ export function PlayOn({
     if (asking) askRef.current?.focus();
   }, [asking]);
 
-  const ask = (device: OtherDevice, request: CastRequest) => {
+  const ask = (device: OtherDevice, request: CastRequest, pairing = false) => {
     setPinMessage(null);
     setPinLocked(false);
-    setAsking({ device, request });
+    setAsking({ device, request, pairing });
+  };
+
+  /** Has `device` show a PIN, and asks for it. */
+  const startPairing = (device: OtherDevice, request: CastRequest) => {
+    if (!device.receiver) return;
+    pair
+      .mutateAsync({ receiverId: device.receiver.receiver_id })
+      .then(
+        () => ask(device, request, true),
+        (err: unknown) => toast.error(pairingError(err, device.name)),
+      )
+      .finally(() => pair.reset());
+  };
+
+  /** Pairs the server with `device` with the `pin` it shows, then sends it `request`. */
+  const pairWith = (device: OtherDevice, request: CastRequest, pin: string) => {
+    if (!device.receiver) return;
+    setPinMessage(null);
+    pair
+      .mutateAsync({ receiverId: device.receiver.receiver_id, pin })
+      .then(
+        () => {
+          stopAsking(false);
+          sendTo(device, request);
+        },
+        (err: unknown) => {
+          // A wrong PIN, or tries to wait for: the pad says so, to try again.
+          if ((isApiError(err, 403) && err.code === "wrong_pin") || isApiError(err, 429)) {
+            setPinMessage(pairingError(err, device.name));
+            setFailures((n) => n + 1);
+            return;
+          }
+          stopAsking(true);
+          toast.error(pairingError(err, device.name));
+        },
+      )
+      .finally(() => pair.reset());
   };
 
   /** Sends `request` to `device`: to one on another profile, with that profile and the user's `pin` once given. */
@@ -144,6 +188,11 @@ export function PlayOn({
           onCast?.();
         },
         (err: unknown) => {
+          // An AirPlay device the server hasn't paired with: its PIN first.
+          if (pin === undefined && isApiError(err, 409) && err.code === "pairing_needed") {
+            startPairing(device, request);
+            return;
+          }
           // The user's profile has a PIN since it was loaded: the pad.
           if (pin === undefined && isApiError(err, 403) && err.code === "pin_needed") {
             ask(device, request);
@@ -176,7 +225,11 @@ export function PlayOn({
 
   if (!targets.length && !asking) return null;
 
-  const title = asking ? `${label.replace(/…$/, "")} ${asking.device.name}` : "";
+  const title = !asking
+    ? ""
+    : asking.pairing
+      ? t("playOn.pairWith", { device: asking.device.name })
+      : `${label.replace(/…$/, "")} ${asking.device.name}`;
   // One cast at a time: the button says where it is starting meanwhile.
   const busy = starting !== null && !asking;
   const shownLabel = busy ? t("playOn.starting", { device: starting }) : label;
@@ -248,19 +301,23 @@ export function PlayOn({
             {title}
           </h2>
           <p id={whyId} className="mb-4 mt-1 text-xs text-muted">
-            {t("playOn.otherProfile", { device: asking.device.name, profile: asking.device.profile?.name })}
+            {asking.pairing
+              ? t("playOn.pairWhy", { device: asking.device.name })
+              : t("playOn.otherProfile", { device: asking.device.name, profile: asking.device.profile?.name })}
           </p>
           <PinPad
             key={failures}
             small
-            busy={send.isPending}
+            busy={send.isPending || pair.isPending}
             locked={pinLocked}
             error={pinMessage}
-            prompt={t("playOn.enterPin")}
+            prompt={asking.pairing ? t("playOn.enterDevicePin", { device: asking.device.name }) : t("playOn.enterPin")}
             submitLabel={title}
             cancelLabel={t("common:actions.cancel")}
             cancelIcon={null}
-            onSubmit={(pin) => sendTo(asking.device, asking.request, pin)}
+            onSubmit={(pin) =>
+              asking.pairing ? pairWith(asking.device, asking.request, pin) : sendTo(asking.device, asking.request, pin)
+            }
             onCancel={() => stopAsking(true)}
           />
         </div>

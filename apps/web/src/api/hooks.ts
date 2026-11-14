@@ -6,6 +6,7 @@ import { t } from "@/i18n";
 import { received, type RemoteSession } from "@/lib/remote";
 import type {
   Activity,
+  AirPlayPairing,
   Backup,
   Backups,
   CastRequest,
@@ -86,6 +87,7 @@ export const keys = {
   invite: (code: string) => ["invite", code] as const,
   settings: ["settings"] as const,
   network: ["network"] as const,
+  airplayPairings: ["network", "airplay"] as const,
   twoStep: ["me", "two-step"] as const,
   system: ["system"] as const,
   storage: ["system", "storage"] as const,
@@ -1049,6 +1051,28 @@ export function useCast() {
   });
 }
 
+/** Has an AirPlay device show a PIN (without `pin`), or pairs the server with it. */
+export function usePairDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    gcTime: 0,
+    mutationFn: ({ receiverId, pin }: { receiverId: string; pin?: string }) =>
+      api.post<void>(`/api/remote/devices/${encodeURIComponent(receiverId)}/pairing`, pin === undefined ? {} : { pin }),
+    onSuccess: (_, { pin }) => {
+      if (pin !== undefined) void qc.invalidateQueries({ queryKey: keys.airplayPairings });
+    },
+  });
+}
+
+/** What "Play on…" says when pairing with `device` didn't go. */
+export function pairingError(err: unknown, device: string): string {
+  if (isApiError(err, 403) && err.code === "wrong_pin") return t("remote.wrongDevicePin", { device });
+  if (isApiError(err, 429)) return t("remote.pairingWait", { device });
+  if (isApiError(err, 404)) return t("remote.notOn", { device });
+  if (isApiError(err, 409)) return t("remote.pairingFailed", { device });
+  return errorMessage(err);
+}
+
 /** What "Play on…" says when `device` didn't take a cast. */
 export function castError(err: unknown, device: string): string {
   if (isApiError(err, 404)) return t("remote.notOn", { device });
@@ -1263,6 +1287,20 @@ export function useNetwork() {
   return useQuery({
     ...queries.network(),
     refetchInterval: (query) => (query.state.data?.listeners.some((l) => l.error) ? 5_000 : false),
+  });
+}
+
+/** The AirPlay devices the server paired with (administrators). */
+export function useAirPlayPairings() {
+  return useQuery({ queryKey: keys.airplayPairings, queryFn: () => api.get<AirPlayPairing[]>("/api/network/airplay") });
+}
+
+/** Forgets a pairing: the device asks for its PIN again at the next cast. */
+export function useForgetAirPlayPairing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) => api.del<void>(`/api/network/airplay/${encodeURIComponent(deviceId)}`),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.airplayPairings }),
   });
 }
 

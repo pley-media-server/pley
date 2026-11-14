@@ -168,7 +168,10 @@
     "cantPlay": "{{device}} ne peut pas lire ça",
     "tooMany": "Trop de demandes à la fois : réessayez dans un instant",
     "castUnreachable": "{{device}} n’arrive pas à joindre ce serveur",
-    "castFailed": "{{device}} ne l’a pas lu"
+    "castFailed": "{{device}} ne l’a pas lu",
+    "pairingFailed": "{{device}} ne s’est pas associé",
+    "wrongDevicePin": "Ce n’est pas le code affiché sur {{device}}",
+    "pairingWait": "{{device}} n’accepte pas d’autre essai pour l’instant : patientez un peu"
   },
   "errors": {
     "unreachable": "Impossible de joindre le serveur",
