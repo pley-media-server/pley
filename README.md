@@ -11,7 +11,7 @@
 <a href="https://ca.unraid.net/apps/pley-0qqukvc0gs8hmc"><img src="https://img.shields.io/badge/unraid-community%20apps-F15A2C?logo=unraid&logoColor=white" alt="Pley in Unraid's Community Apps"></a>
 <br>
 <!-- latest releases: written by scripts/release.mjs when an app is released -->
-<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12"><img src="https://img.shields.io/badge/Media%20Server-0.1.10-0284C7" alt="Media Server 0.1.10"></a>
+<a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14"><img src="https://img.shields.io/badge/Media%20Server-0.1.11-0284C7" alt="Media Server 0.1.11"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06"><img src="https://img.shields.io/badge/Desktop-0.1.4-0284C7" alt="Desktop 0.1.4"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12"><img src="https://img.shields.io/badge/Android-0.1.12-0284C7" alt="Android 0.1.12"></a>
 <a href="https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12"><img src="https://img.shields.io/badge/Samsung-0.1.9-0284C7" alt="Samsung 0.1.9"></a>
