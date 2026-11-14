@@ -3,8 +3,9 @@
 //! and the server uses Google's), so the profile comes from what Google
 //! publishes of its own devices, and from the device's local setup API,
 //! which tells the hardware apart and whether it runs Google TV or Android
-//! TV. That API is Google's own and undocumented: it is a hint, asked once
-//! a cast, briefly, and a device that doesn't answer is known by its mDNS
+//! TV. That API is Google's own and undocumented: it is a hint, asked
+//! briefly the first time a device is cast to (and again later when it
+//! didn't answer), and a device that doesn't answer is known by its mDNS
 //! model alone. A device that refuses what its profile sent is sent the
 //! basic profile instead ([`super::devices`]), and its model remembered.
 

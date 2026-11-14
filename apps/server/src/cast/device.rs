@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::net::SocketAddr;
+use std::time::{Duration, Instant};
 
 use parking_lot::Mutex;
 
@@ -16,13 +17,16 @@ use crate::state::AppState;
 
 /// Devices whose setup API's answer is kept, at most.
 const MAX_KNOWN: usize = 256;
+/// How long a setup API that didn't answer is left before it is asked
+/// again: it may only have been slow.
+const ASK_AGAIN: Duration = Duration::from_secs(10 * 60);
 
 /// What Pley learned of Cast devices.
 #[derive(Default)]
 pub struct Known {
-    /// What each device's setup API said, by its id, asked once (`None`:
-    /// it didn't answer).
-    hardware: Mutex<HashMap<String, Option<Hardware>>>,
+    /// What each device's setup API said, by its id, and when (`None`: it
+    /// didn't answer).
+    hardware: Mutex<HashMap<String, (Option<Hardware>, Instant)>>,
 }
 
 /// The stream `device` gets: the [profile] of its model, then the basic
@@ -48,10 +52,13 @@ pub async fn connect(device: &Found) -> Result<Connected, Failure> {
     }
 }
 
-/// What `device`'s setup API said, asked the first time it is cast to.
+/// What `device`'s setup API said, asked the first time it is cast to, and
+/// again later when it didn't answer.
 async fn hardware(state: &AppState, device: &Found) -> Option<Hardware> {
     let known = &state.nearby.cast.hardware;
-    if let Some(answer) = known.lock().get(&device.id) {
+    if let Some((answer, at)) = known.lock().get(&device.id)
+        && (answer.is_some() || at.elapsed() < ASK_AGAIN)
+    {
         return answer.clone();
     }
     let fixed = &state.config.cast_fixed;
@@ -64,8 +71,8 @@ async fn hardware(state: &AppState, device: &Found) -> Option<Hardware> {
         None => None,
     };
     let mut known = known.lock();
-    if known.len() < MAX_KNOWN {
-        known.insert(device.id.clone(), answer.clone());
+    if known.len() < MAX_KNOWN || known.contains_key(&device.id) {
+        known.insert(device.id.clone(), (answer.clone(), Instant::now()));
     }
     answer
 }
