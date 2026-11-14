@@ -5,6 +5,7 @@
 
 pub mod access;
 pub mod accounts;
+pub mod airplay;
 pub mod api;
 pub mod auth;
 pub mod backup;

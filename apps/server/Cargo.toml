@@ -42,7 +42,11 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 mime_guess = "2"
 mimalloc = { version = "0.1", default-features = false }
 notify = "8"
+# AirPlay pairing's SRP-6a (src/airplay): its 3072-bit numbers (MIT OR Apache-2.0).
+num-bigint = "0.4"
 parking_lot = "0.13"
+# AirPlay's messages are binary property lists (MIT).
+plist = { version = "1", default-features = false }
 # QR codes of authenticator secrets (two-step sign-in), no dependencies.
 qrcodegen = "1.8"
 # XMLTV guides, read as they stream (MIT), and gzipped ones (MIT OR Apache-2.0).
