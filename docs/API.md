@@ -2406,8 +2406,9 @@ URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
   (`subtitles-{index}-{n}.vtt`, `n` from 0). A segment holds the cues shown
   in its time, after the `X-TIMESTAMP-MAP` that lines them up with the
   session's stream (MPEG-TS segments start 1.4 s past the file's time, fMP4
-  segments on it). One still being read out of the file is waited for, up
-  to 8 seconds, so a cast starts before the whole track is read. `404` for
+  segments on it). A segment of a track still being read out of the file
+  waits, up to 20 seconds, until the read is past it, so a cast starts
+  before the whole track is read. `404` for
   a picture track, or a session playing its file as it is.
 - `/api/media/{key}/subtitles-{index}.json?at=` is the file's PGS track
   `index` as pictures, for a player that draws them without decoding PGS

@@ -1147,7 +1147,7 @@ pub async fn keyed_media(
                     return Err(AppError::not_found("unknown file"));
                 };
                 text_stream_track(&row, &session, index)?;
-                if n * SUBTITLE_SEGMENT_MS >= session.duration_ms.max(1) {
+                if n.checked_mul(SUBTITLE_SEGMENT_MS).is_none_or(|from| from >= session.duration_ms.max(1)) {
                     return Err(AppError::not_found("past the end"));
                 }
                 return text_segment(&state, &user, &row, index, n, stream_start_mpegts(&session)).await;
@@ -1822,11 +1822,17 @@ async fn track_text(
 
 /// How long a stream's subtitle segment is (`subtitles-{index}-{n}.vtt`).
 const SUBTITLE_SEGMENT_MS: i64 = 30_000;
+/// How long a subtitle segment waits for the track to be read past it: a
+/// cast resumed far into a big file asks for its first segments before
+/// the read gets there (which reads from the start), and never again.
+/// Later segments are asked for ahead of time, so the wait doesn't hold
+/// the picture up.
+const SEGMENT_WAIT: Duration = Duration::from_secs(20);
 
 /// Segment `n` of text track `index` of `file`, for a stream's subtitle
 /// playlist: its cues within the segment's time, timed to the stream by
 /// `mpegts`. A track still being read waits until it is read past the
-/// segment, up to [`KEYED_VTT_WAIT`]: the player fetches each segment once,
+/// segment, up to [`SEGMENT_WAIT`]: the player fetches each segment once,
 /// those it reaches first first, while the rest of the file is read.
 async fn text_segment(
     state: &AppState,
@@ -1836,9 +1842,10 @@ async fn text_segment(
     n: i64,
     mpegts: u64,
 ) -> ApiResult<Response> {
+    // `n` is checked against the length already: no overflow.
     let (from, to) = (n * SUBTITLE_SEGMENT_MS, (n + 1) * SUBTITLE_SEGMENT_MS);
     let read_past = |text: &str| webvtt::last_start_ms(text).is_some_and(|last| last >= to);
-    let (text, _) = track_text(state, user, file, index, KEYED_VTT_WAIT, read_past).await?;
+    let (text, _) = track_text(state, user, file, index, SEGMENT_WAIT, read_past).await?;
     Ok(vtt(webvtt::with_timestamp_map(&webvtt::between(&text, from, to), mpegts)))
 }
 

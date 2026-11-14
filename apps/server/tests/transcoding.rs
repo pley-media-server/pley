@@ -528,6 +528,7 @@ async fn start_fake() -> (Fake, String) {
                     return unreadable(&req.path);
                 }
                 let partial = req.partial;
+                let stream_index = req.stream_index;
                 let sidecar = req.stream_index.is_none();
                 fake.subtitles.lock().push(req);
                 if sidecar {
@@ -539,7 +540,11 @@ async fn start_fake() -> (Fake, String) {
                     return error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed");
                 }
                 if first_of_slow && partial {
-                    let so_far = "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n";
+                    // Track 4 is read past its first 30 s segment.
+                    let so_far = match stream_index {
+                        Some(4) => "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n00:45.000 --> 00:46.000\nread on\n\n",
+                        _ => "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n",
+                    };
                     let more = HeaderName::from_static(SUBTITLES_COMPLETE_HEADER);
                     return ([(header::CONTENT_TYPE, "text/vtt"), (more, "0")], so_far).into_response();
                 }
@@ -2100,12 +2105,13 @@ async fn a_text_track_comes_in_the_stream_s_playlist_for_a_keyed_player() {
     assert!(track.text().ends_with(".vtt\n#EXT-X-ENDLIST\n"), "{}", track.text());
 
     // A segment: the cues in its time, timed to the stream (MPEG-TS
-    // segments start 1.4 s past the file's time). The track, read out of a
-    // big file, is waited for until it's read past the segment's end.
+    // segments start 1.4 s past the file's time). A track still being read
+    // out of a big file comes once it's read past the segment's end: here
+    // at once, the first answer having a cue at 45 s.
     w.fake.slow_text_track.store(true, Ordering::SeqCst);
     let cues = bare("subtitles-4-0.vtt").await;
-    assert!(!cues.text().contains("so far"), "{}", cues.text());
-    assert_eq!(w.fake.subtitles.lock().iter().filter(|r| r.stream_index == Some(4)).count(), 2);
+    assert!(cues.text().contains("so far") && !cues.text().contains("read on"), "{}", cues.text());
+    assert_eq!(w.fake.subtitles.lock().iter().filter(|r| r.stream_index == Some(4)).count(), 1);
     assert_eq!(cues.status, StatusCode::OK, "{}", cues.text());
     assert!(cues.text().starts_with("WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:126000,LOCAL:00:00:00.000\n"), "{}", cues.text());
     assert!(cues.text().contains("00:00.000 --> 00:01.000"), "{}", cues.text());
@@ -2121,6 +2127,7 @@ async fn a_text_track_comes_in_the_stream_s_playlist_for_a_keyed_player() {
         "subtitles-3-0.vtt",
         "subtitles-4--1.vtt",
         "subtitles-4-999999.vtt",
+        "subtitles-4-9223372036854775807.vtt",
         "subtitles-4-x.vtt",
     ] {
         assert_eq!(bare(missing).await.status, StatusCode::NOT_FOUND, "{missing}");
