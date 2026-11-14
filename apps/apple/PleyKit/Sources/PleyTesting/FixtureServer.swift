@@ -258,6 +258,8 @@ public final class FixtureServer: Sendable {
         var subtitleIndex: Int?
         /// The Quality menu's pick, as its reports say; `nil` until one does.
         var quality: String?
+        /// The device's volume, as a Google Cast device's session says it; `nil` for other players.
+        var volume: Int?
     }
 
     /// NWListener is Sendable from iOS 17 only; it is safe to share, and only

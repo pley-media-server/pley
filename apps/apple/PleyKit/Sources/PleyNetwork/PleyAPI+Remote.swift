@@ -6,6 +6,11 @@ private struct StopBody: Encodable, Sendable {
     var message: String?
 }
 
+/// The body of a pairing: none to have the device show its code, the code it shows to pair.
+private struct PairingBody: Encodable, Sendable {
+    var pin: String?
+}
+
 /// Remote control (docs/API.md, "Remote control", "Casting" and "Stopping a
 /// stream"): what the profile's other devices play, commands to them, and
 /// what they are sent to play.
@@ -36,9 +41,32 @@ extension PleyAPI {
     }
 
     /// `GET /api/remote/devices`: the profile's own devices that take
-    /// casts, one each, by name, an administrator's too.
+    /// casts, one each, by name, an administrator's too, and for a home
+    /// member the Google Cast and AirPlay devices on the server's network
+    /// (`nearby=1`).
     public func remoteDevices() async throws -> [RemoteDevice] {
-        try await client.get("/api/remote/devices", as: [RemoteDevice].self)
+        try await client.get("/api/remote/devices", query: [URLQueryItem(name: "nearby", value: "1")],
+                             as: [RemoteDevice].self)
+    }
+
+    /// `POST /api/remote/devices/{id}/pairing` with no code: has the AirPlay
+    /// device of `receiverId` show its code, and answers how many digits it
+    /// has, where the server knows (4 on an Apple TV). It refuses with
+    /// `.api`: `404` for a device gone, `409` `pairing_failed`, `429` while
+    /// the device takes no other try yet.
+    public func showPairingCode(on receiverId: String) async throws -> Int? {
+        try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/pairing",
+                              body: PairingBody(), as: PairingCode.self).digits
+    }
+
+    /// `POST /api/remote/devices/{id}/pairing` with `code`, the one the
+    /// AirPlay device of `receiverId` shows: `204` once the server is paired
+    /// with it, for every home member's casts. It refuses with `.api`: `403`
+    /// `wrong_pin` (`wrongPairingCode`), `429` after too many, `404` and
+    /// `409` as above.
+    public func pair(with receiverId: String, code: String) async throws {
+        _ = try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/pairing",
+                                  body: PairingBody(pin: code), as: NoContent.self)
     }
 
     /// `POST /api/remote/devices/{id}/cast`: `202` once `target` is on its
@@ -46,12 +74,20 @@ extension PleyAPI {
     /// would. It refuses with `.api`: `404` for a device gone (or never the
     /// profile's) or what the profile can't see, `409` `not_castable` for
     /// what the device doesn't take, `403` for a channel without Live TV,
-    /// `429` past 10 a second.
+    /// `429` past 10 a second; for a Google Cast or an AirPlay device,
+    /// `409` `cast_failed`, `cast_unreachable`, or `pairing_needed`
+    /// (`pairingNeeded`) for an AirPlay device that wants its code first.
     public func cast(_ target: CastTarget, to receiverId: String) async throws {
-        guard let receiver = Self.receiverSegment(receiverId) else {
+        _ = try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/cast",
+                                  body: target, as: NoContent.self)
+    }
+
+    /// `receiverSegment`, else the server's own answer for a device it doesn't know.
+    private static func receiverPath(_ id: String) throws -> String {
+        guard let receiver = receiverSegment(id) else {
             throw PleyError.api(status: 404, code: "not_found", message: localized("no such device"))
         }
-        _ = try await client.send("POST", "/api/remote/devices/\(receiver)/cast", body: target, as: NoContent.self)
+        return receiver
     }
 
     /// A receiver's id as a path's segment: as the server allows one, 1 to
@@ -70,6 +106,18 @@ extension PleyError {
     /// command from a remote.
     public var notControllable: Bool {
         if case .api(409, "not_controllable", _) = self { return true }
+        return false
+    }
+
+    /// The server's `409 pairing_needed`: the AirPlay device wants its code first.
+    public var pairingNeeded: Bool {
+        if case .api(409, "pairing_needed", _) = self { return true }
+        return false
+    }
+
+    /// The server's `403 wrong_pin` from a pairing: not the code the device shows.
+    public var wrongPairingCode: Bool {
+        if case .api(403, "wrong_pin", _) = self { return true }
         return false
     }
 }

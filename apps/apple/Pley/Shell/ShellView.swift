@@ -64,6 +64,10 @@ struct ShellView: View {
             if empty { remote.presented = false }
         }
         #endif
+        // An AirPlay device's code, the first time something is cast there.
+        .sheet(item: Binding(get: { remote.pairing }, set: { if $0 == nil { remote.pairing = nil } })) { pairing in
+            PairingSheet(remote: remote, opened: pairing)
+        }
         // The profile's sessions are read again whenever they may have changed.
         .task(id: app.sessionsVersion) { await remote.reload() }
         .accessibilityHidden(app.player != nil || app.livePlayer != nil)

@@ -8,6 +8,10 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Play on… lists Google Cast and AirPlay devices for movies and episodes.
+  An AirPlay device asks once for the code it shows; on an Apple TV the
+  code goes as its fourth digit is typed.
+- The remote has a volume slider for a Google Cast device.
 - The remote offers Skip Intro and Skip Credits while what a device plays
   is in an intro or the credits, and its back button goes 30 seconds, as far
   as forward.

@@ -31,6 +31,9 @@ extension FixtureServer {
         var casts: [CastRecord] = []
         /// Casts answer this status and code from now on (`nil`: as the server would).
         var castRefusal: (status: Int, code: String)?
+        /// How many times an AirPlay device was asked to show its code, and the codes typed, in order.
+        var codesShown = 0
+        var codesTyped: [String] = []
     }
 
     /// A device that takes casts.
@@ -43,6 +46,11 @@ extension FixtureServer {
         /// Named by an event stream, which takes it with it; else a test's.
         var streamed: Bool
         var order: Int
+        /// "cast" or "airplay" for a device the server finds itself, listed with `nearby=1` alone.
+        var castProtocol: String?
+        /// The code an AirPlay device shows, until the server is paired with it; its length as the server knows it.
+        var pairingCode: String?
+        var digits: Int?
     }
 
     /// A command as it came: the session and the JSON body.
@@ -71,6 +79,12 @@ extension FixtureServer {
     /// The casts received, in order, whether or not they were refused.
     public var castsReceived: [CastRecord] { state.withLock { $0.remote.casts } }
 
+    /// How many times an AirPlay device was asked to show its code.
+    public var pairingCodesShown: Int { state.withLock { $0.remote.codesShown } }
+
+    /// The codes typed to pair with an AirPlay device, in order, right or wrong.
+    public var pairingCodesTyped: [String] { state.withLock { $0.remote.codesTyped } }
+
     /// Commands answer `status` with `code` from now on; `nil`: as the server would.
     public func refuseCommands(status: Int?, code: String = "not_controllable") {
         state.withLock { s in s.remote.refusal = status.map { ($0, code) } }
@@ -85,9 +99,10 @@ extension FixtureServer {
     /// on another device would; with `audioIndex` and `subtitleIndex`, the
     /// tracks it plays, with `quality` its Quality menu's pick.
     public func reportSession(_ id: String, state playing: String, positionMs: Int, audioIndex: Int? = nil,
-                              subtitleIndex: Int? = nil, quality: String? = nil) {
+                              subtitleIndex: Int? = nil, quality: String? = nil, volume: Int? = nil) {
         let events = state.withLock { s -> [String] in
             var report: [String: Any] = ["state": playing, "position_ms": positionMs]
+            if let volume { report["volume"] = volume }
             if let audioIndex { report["audio_index"] = audioIndex }
             if let subtitleIndex { report["subtitle_index"] = subtitleIndex }
             if let quality { report["quality"] = quality }
@@ -100,13 +115,19 @@ extension FixtureServer {
 
     /// Another of the profile's devices takes casts: receiver `id` of the
     /// device `deviceId`, named `name`, of `kind`, taking `casts`. The
-    /// remotes hear of it (`sessions_changed`).
+    /// remotes hear of it (`sessions_changed`). With `castProtocol`, it is
+    /// a Google Cast or an AirPlay device the server finds, listed for
+    /// `nearby=1` alone; with `pairingCode`, an AirPlay device that wants
+    /// that code (of `digits` digits as the server knows) before a cast.
     public func addReceiver(_ id: String, deviceId: String, name: String?, kind: String = "tv",
-                            casts: [String] = ["item", "live"]) {
+                            casts: [String] = ["item", "live"], castProtocol: String? = nil,
+                            pairingCode: String? = nil, digits: Int? = nil) {
         state.withLock { s in
             s.remote.named += 1
             s.remote.receivers[id] = FixtureReceiver(receiverId: id, deviceId: deviceId, name: name, kind: kind,
-                                                     casts: casts, streamed: false, order: s.remote.named)
+                                                     casts: casts, streamed: false, order: s.remote.named,
+                                                     castProtocol: castProtocol, pairingCode: pairingCode,
+                                                     digits: digits)
         }
         pushEvent(Self.sessionsChanged)
     }
@@ -160,9 +181,13 @@ extension FixtureServer {
         if parts.count >= 3, parts[1] == "remote", parts[2] == "devices" {
             switch (request.method, parts.count) {
             case ("GET", 3):
-                return withToken(&s, request, scope: "play") { s, _ in json(200, devices(s)) }
+                return withToken(&s, request, scope: "play") { s, _ in
+                    json(200, devices(s, nearby: request.query["nearby"] == "1"))
+                }
             case ("POST", 5) where parts[4] == "cast":
                 return withToken(&s, request, scope: "play") { s, _ in cast(&s, parts[3], request) }
+            case ("POST", 5) where parts[4] == "pairing":
+                return withToken(&s, request, scope: "play") { s, _ in pairing(&s, parts[3], request) }
             default:
                 return nil
             }
@@ -214,13 +239,15 @@ extension FixtureServer {
         // One of the menu's ids; another, or none, leaves what was known.
         let quality = (body["quality"] as? String).flatMap { id in menu.contains { $0.id == id } ? id : nil }
             ?? session.quality
+        let volume = body["volume"] as? Int ?? session.volume
         s.sessions[id]?.positionMs = position
         s.sessions[id]?.state = state
         s.sessions[id]?.audioIndex = audio
         s.sessions[id]?.subtitleIndex = subtitles
         s.sessions[id]?.quality = quality
+        s.sessions[id]?.volume = volume
         if state != session.state || jumped || audio != session.audioIndex || subtitles != session.subtitleIndex
-            || quality != session.quality {
+            || quality != session.quality || volume != session.volume {
             s.outbox.append(sessionsChanged)
         }
     }
@@ -304,6 +331,7 @@ extension FixtureServer {
             json["qualities"] = qualities(playable).map { ["id": $0.id, "label": $0.label] }
             // The intro and credits of the file it plays: another file's can be another cut.
             json["markers"] = playable.markers.filter { $0.fileId == playable.fileId }.map(marker)
+            json["volume"] = session.volume.map { $0 as Any } ?? NSNull()
             out.append((session.order, json))
         }
         for (id, session) in s.live.sessions where !session.deleted && session.stopped == nil {
@@ -350,10 +378,12 @@ extension FixtureServer {
         return json
     }
 
-    /// The devices that take casts: one per device, its newest receiver, by name.
-    private static func devices(_ s: State) -> [[String: Any]] {
+    /// The devices that take casts: one per device, its newest receiver, by
+    /// name; Google Cast and AirPlay devices only for `nearby`.
+    private static func devices(_ s: State, nearby: Bool) -> [[String: Any]] {
         var newest: [String: FixtureReceiver] = [:]
-        for receiver in s.remote.receivers.values where (newest[receiver.deviceId]?.order ?? 0) < receiver.order {
+        for receiver in s.remote.receivers.values
+        where (nearby || receiver.castProtocol == nil) && (newest[receiver.deviceId]?.order ?? 0) < receiver.order {
             newest[receiver.deviceId] = receiver
         }
         let sorted = newest.values.sorted { ($0.name ?? "", $0.receiverId) < ($1.name ?? "", $1.receiverId) }
@@ -361,8 +391,35 @@ extension FixtureServer {
             var json: [String: Any] = ["receiver_id": receiver.receiverId, "device_id": receiver.deviceId,
                                        "kind": receiver.kind, "casts": receiver.casts]
             json["name"] = receiver.name.map { $0 as Any } ?? NSNull()
+            if let via = receiver.castProtocol { json["protocol"] = via }
             return json
         }
+    }
+
+    /// An AirPlay device's pairing: without `pin` it shows its code (`{ digits }`); with the code it shows,
+    /// the server is paired with it (`204`), with another `403 wrong_pin`.
+    private static func pairing(_ s: inout State, _ receiverId: String, _ request: Request) -> Answer {
+        guard let receiver = s.remote.receivers[receiverId] else {
+            return json(404, ["code": "not_found", "message": "no such device"])
+        }
+        guard receiver.castProtocol == "airplay" else {
+            return json(409, ["code": "not_pairable", "message": "this device doesn't pair"])
+        }
+        let asked = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
+        guard let pin = asked["pin"] as? String else {
+            s.remote.codesShown += 1
+            return json(200, ["digits": receiver.digits.map { $0 as Any } ?? NSNull()])
+        }
+        s.remote.codesTyped.append(pin)
+        guard pin.count == 4, pin.allSatisfy(\.isNumber) else {
+            return json(400, ["code": "bad_request", "message": "a PIN is 4 digits"])
+        }
+        // A device open to everyone takes any code.
+        guard receiver.pairingCode == nil || receiver.pairingCode == pin else {
+            return json(403, ["code": "wrong_pin", "message": "wrong PIN"])
+        }
+        s.remote.receivers[receiverId]?.pairingCode = nil
+        return Answer(status: 204, headers: [:], body: Data())
     }
 
     /// Checks a cast as the server does, in its order, and passes it on to the event streams. The titles,
@@ -374,6 +431,9 @@ extension FixtureServer {
         }
         guard let receiver = s.remote.receivers[receiverId] else {
             return json(404, ["code": "not_found", "message": "no such device"])
+        }
+        if receiver.pairingCode != nil {
+            return json(409, ["code": "pairing_needed", "message": "this device wants its PIN first"])
         }
         let asked = (try? JSONSerialization.jsonObject(with: request.body)) as? [String: Any] ?? [:]
         let named = ["item_id", "playlist_id", "channel_id"].filter { asked[$0] as? Int != nil }
@@ -432,8 +492,16 @@ extension FixtureServer {
             return json(404, ["code": "not_found", "message": "no such session playing"])
         }
         guard let command = asked["command"] as? String,
-              ["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles", "quality"].contains(command)
+              ["play", "pause", "seek", "skip", "next", "previous", "audio", "subtitles", "quality", "volume"]
+                .contains(command)
         else { return json(400, ["code": "bad_request", "message": "unknown command"]) }
+        var volume: Int?
+        if command == "volume" {
+            guard let level = asked["volume"] as? Int, (0...100).contains(level) else {
+                return json(400, ["code": "bad_request", "message": "volume out of range"])
+            }
+            volume = level
+        }
         var position: Int?
         var offset: Int?
         var stream: Int?
@@ -469,7 +537,8 @@ extension FixtureServer {
         }
         let event: [String: Any] = ["type": "player_command", "session_id": id, "command": command,
                                     "position_ms": position ?? NSNull(), "offset_ms": offset ?? NSNull(),
-                                    "stream_index": stream ?? NSNull(), "quality": quality ?? NSNull()]
+                                    "stream_index": stream ?? NSNull(), "quality": quality ?? NSNull(),
+                                    "volume": volume ?? NSNull()]
         if let data = try? JSONSerialization.data(withJSONObject: event, options: [.sortedKeys]) {
             s.outbox.append(String(decoding: data, as: UTF8.self))
         }

@@ -1335,7 +1335,8 @@ the Mac, or start a film on the TV. iPhone, iPad and Mac are remotes and
 players; Apple TV is only a player, as the other TV apps are.
 
 **The remote** lists the profile's other devices that are on: those that
-take casts (`GET /api/remote/devices`), whose apps are open, and what
+take casts (`GET /api/remote/devices?nearby=1`), whose apps are open,
+the Google Cast and AirPlay devices the server finds, and what
 plays on each (`GET /api/sessions`), the two merged by `device_id`. This
 device is left out: the sessions it plays, its own receiver, and any
 session of its `device_id` whose end the server hasn't heard yet. A
@@ -1363,7 +1364,8 @@ TV, an iPhone, an iPad, a laptop, a globe for a browser, a question mark
 for the rest), its name ("Living room TV", numbered when two have the
 same, in the order of their ids so a number stays as they play and stop),
 and what it plays (the title, or the channel's number and name) with a
-thin line of how far, or "Ready to play". A device with several sessions
+thin line of how far, or "Ready to play" ("Google Cast" or "AirPlay" for
+a device the server plays on, its `protocol`). A device with several sessions
 shows its newest. Choosing a device shows its controls: on iPhone and
 iPad on a page of their own, which Back leaves; on the Mac below the
 list, the row marked. One device alone shows its controls at once. The choice is kept while the remote is open.
@@ -1411,7 +1413,12 @@ A playing device's controls, top to bottom:
    `{ command: "quality", quality }`. VoiceOver reads them "Audio on
    Living room TV", "Subtitles on …", "Quality on …", which the pointer's
    tooltip shows too, and Large Content names them;
-5. on the right, Stop, which every player obeys. It asks first, in the
+5. for a Google Cast device (a player that lists `volume`), a volume
+   slider with a speaker that shows the level, sent as it is let go
+   (`{ command: "volume", volume }`, 0 to 100); VoiceOver reads "Volume on
+   Kitchen TV" and its percentage, and its swipes go up and down by 10.
+   An AirPlay device keeps its volume to itself;
+6. on the right, Stop, which every player obeys. It asks first, in the
    system's confirmation dialog: "Stop playing on Living room TV?", with
    Stop (destructive) and Cancel; on iPad and the Mac it shows beside the
    button.
@@ -1457,6 +1464,23 @@ says it went, and the remote opens on that device, whose controls show
 once its session does. A refusal says why: "Living room TV isn't on any more" (`404`),
 "Living room TV can't play that" (`409`), "Too many at once: try again
 in a moment" (`429`), and the server's own words otherwise.
+
+A movie or an episode goes to a Google Cast or an AirPlay device too,
+which the server plays on itself; an album, a show, a playlist or a
+channel goes to Pley's own apps alone. A cast there can also say
+"Kitchen TV can't reach this server" (`409` `cast_unreachable`) or
+"Kitchen TV didn't play it" (`409` `cast_failed`). An AirPlay device the
+server hasn't paired with answers `409` `pairing_needed`: the app has it
+show its code (`POST /api/remote/devices/{id}/pairing` with no `pin`),
+and a sheet asks for it, "Pair with Den Apple TV", with "Type the code
+shown on the TV" and "Everyone in your home can then play on it." The
+field takes digits alone, 4 at most (all the server takes); where the
+server says how many the code has (`digits`, 4 on an Apple TV), it goes
+as the last is typed, else with Pair. "No code on the TV? Show it again"
+has the device show a new one. A wrong code shakes the field and says
+"That isn't the code Den Apple TV shows." to type again, and a device
+that takes no other try yet says so; any other refusal closes the sheet
+and says why. Once paired, the cast goes again; Cancel leaves it unsent.
 
 **Taking casts.** Every Apple app, Apple TV included, opens its event
 stream as a receiver
