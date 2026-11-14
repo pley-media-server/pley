@@ -187,6 +187,7 @@
   "playOn": {
     "label": "Reproducir en…",
     "playingOn": "Reproduciendo en {{device}}",
+    "starting": "Iniciando en {{device}}…",
     "otherProfile": "{{device}} está en el perfil de {{profile}}: primero cambia al tuyo.",
     "enterPin": "Introduce tu PIN"
   },

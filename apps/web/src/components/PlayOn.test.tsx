@@ -99,6 +99,28 @@ describe("PlayOn", () => {
     expect(await screen.findByText("Bedroom TV can't reach this server")).toBeInTheDocument();
   });
 
+  it("says where a cast is starting, and that it plays, however long the device takes", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item"], protocol: "cast" });
+    let answer = () => {};
+    mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [castDevice],
+      "POST /api/remote/devices/cast%3A9f8e/cast": () =>
+        new Promise<undefined>((done) => {
+          answer = () => done(undefined);
+        }),
+    });
+    const { rerender } = renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+    await choose("Play on…", "Bedroom TV");
+    const starting = await screen.findByRole("button", { name: "Starting on Bedroom TV…" });
+    expect(starting).toBeDisabled();
+
+    // The page drops the button (a player closing) before the device answers.
+    rerender(<></>);
+    act(() => answer());
+    expect(await screen.findByText("Playing on Bedroom TV")).toBeInTheDocument();
+  });
+
   it("isn't there while no device takes it", async () => {
     serve(undefined, [phone]);
     const { client } = renderWithProviders(<PlayOn kind="live" label="Watch on…" cast={() => ({ channel_id: 3 })} />);

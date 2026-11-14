@@ -82,6 +82,8 @@ export function PlayOn({
   const toast = useToast();
   const me = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  // The device a cast is starting on: a Cast device takes seconds to answer.
+  const [starting, setStarting] = useState<string | null>(null);
   const [asking, setAsking] = useState<PinAsk | null>(null);
   const [pinMessage, setPinMessage] = useState<string | null>(null);
   const [pinLocked, setPinLocked] = useState(false);
@@ -129,16 +131,19 @@ export function PlayOn({
       ? { ...request, profile_id: device.profile.id, device_id: device.receiver.device_id, ...(pin === undefined ? {} : { pin }) }
       : request;
     if (pin !== undefined) setPinMessage(null);
-    send.mutate(
-      { receiverId: device.receiver.receiver_id, cast: body },
-      {
-        onSuccess: () => {
+    setStarting(device.name);
+    // Its promise, not the mutation's callbacks, which the page dropping
+    // the button (leaving it, or a player closing) would lose.
+    send
+      .mutateAsync({ receiverId: device.receiver.receiver_id, cast: body })
+      .then(
+        () => {
           if (pin !== undefined) stopAsking(false);
           toast.success(t("playOn.playingOn", { device: device.name }));
           openRemoteOn(device.id);
           onCast?.();
         },
-        onError: (err) => {
+        (err: unknown) => {
           // The user's profile has a PIN since it was loaded: the pad.
           if (pin === undefined && isApiError(err, 403) && err.code === "pin_needed") {
             ask(device, request);
@@ -155,10 +160,12 @@ export function PlayOn({
           if (pin !== undefined) stopAsking(true);
           toast.error(castError(err, device.name));
         },
+      )
+      .finally(() => {
+        setStarting(null);
         // The cast is done with: its PIN goes from the mutation's cache (`useCast`) with it.
-        onSettled: () => send.reset(),
-      },
-    );
+        send.reset();
+      });
   };
 
   const pick = (device: OtherDevice) => {
@@ -170,6 +177,9 @@ export function PlayOn({
   if (!targets.length && !asking) return null;
 
   const title = asking ? `${label.replace(/…$/, "")} ${asking.device.name}` : "";
+  // One cast at a time: the button says where it is starting meanwhile.
+  const busy = starting !== null && !asking;
+  const shownLabel = busy ? t("playOn.starting", { device: starting }) : label;
   return (
     <div ref={ref} className="relative">
       <Menu
@@ -184,17 +194,18 @@ export function PlayOn({
         className="w-72"
         trigger={({ open, toggle }) =>
           trigger ? (
-            trigger({ open, toggle, label })
+            trigger({ open, toggle: busy ? () => {} : toggle, label: shownLabel })
           ) : (
             <Button
               variant="secondary"
               size={size}
               icon={icon}
+              loading={busy}
               onClick={toggle}
-              aria-label={label}
+              aria-label={shownLabel}
               aria-haspopup="menu"
               aria-expanded={open}
-              title={label}
+              title={shownLabel}
               className={compact ? "max-sm:w-11 max-sm:px-0" : undefined}
             >
               <span className={compact ? "hidden sm:inline" : undefined}>{label}</span>

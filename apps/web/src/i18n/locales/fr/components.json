@@ -187,6 +187,7 @@
   "playOn": {
     "label": "Lire sur…",
     "playingOn": "Lecture sur {{device}}",
+    "starting": "Lancement sur {{device}}…",
     "otherProfile": "{{device}} est sur le profil de {{profile}} : il passe d’abord au vôtre.",
     "enterPin": "Saisissez votre code PIN"
   },

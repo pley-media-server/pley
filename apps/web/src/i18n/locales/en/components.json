@@ -179,6 +179,7 @@
   "playOn": {
     "label": "Play on…",
     "playingOn": "Playing on {{device}}",
+    "starting": "Starting on {{device}}…",
     "otherProfile": "{{device}} is on {{profile}}'s profile: it switches to yours first.",
     "enterPin": "Enter your PIN"
   },
