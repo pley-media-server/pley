@@ -115,13 +115,16 @@ build takes it from two environment variables:
 
 ```sh
 adb forward tcp:8009 tcp:8009
+adb forward tcp:8008 tcp:8008
 PLEY_CAST_DEVICE=127.0.0.1:8009 PLEY_CAST_SERVER=http://10.0.2.2:7539 ./target/debug/pley
 ```
 
 `PLEY_CAST_DEVICE` is where the server connects to the device, and
 `PLEY_CAST_SERVER` where the device reaches the server (`10.0.2.2` is the
 computer, from the emulator). Home members' remotes then list "Cast
-emulator". Release builds ignore both. `tests/cast_devices.rs` plays against
+emulator". The server asks the device's setup API, which picks what it
+streams, at the device's address on port 8008 (forwarded above), or at
+`PLEY_CAST_SETUP`. Release builds ignore all three. `tests/cast_devices.rs` plays against
 a fake device instead.
 
 The README's screenshot (`docs/images/web-home.jpg`) shows a demo library of

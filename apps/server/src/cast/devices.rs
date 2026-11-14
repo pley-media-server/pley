@@ -5,7 +5,7 @@
 //! nothing to Pley. The remotes control it through the session, as they
 //! control Pley's own players.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::{Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{Duration, Instant};
@@ -19,6 +19,7 @@ use tokio_util::sync::CancellationToken;
 use super::connection::Connection;
 use super::discovery::{self, Found};
 use super::player::{Ended, Event, Failure, Media, Player, State as Playing, Subtitle};
+use super::profile::{self, Hardware, Profile};
 use crate::auth::{AuthUser, CurrentToken};
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
@@ -36,6 +37,10 @@ const RECORD_EVERY: Duration = Duration::from_secs(10);
 /// How long a cast waits for its subtitles to be read whole before it
 /// starts (a large file on a network share takes a while).
 const PREPARE_WITHIN: Duration = Duration::from_secs(20);
+
+/// Devices whose setup API's answer is kept, and models remembered as
+/// refusing their profile, at most.
+const MAX_KNOWN: usize = 256;
 
 /// The prefix of a Cast device's id among the remotes' devices.
 pub const ID_PREFIX: &str = "cast:";
@@ -57,6 +62,12 @@ pub struct CastDevices {
     /// The cast playing on each device, by its id: a new one ends it.
     playing: Mutex<HashMap<String, (u64, CancellationToken)>>,
     casts: AtomicU64,
+    /// What each device's setup API said, by its id, asked once (`None`:
+    /// it didn't answer).
+    hardware: Mutex<HashMap<String, Option<Hardware>>>,
+    /// The models ([`profile::identity`]) that refused their profile: they
+    /// get the basic one, until the server restarts.
+    refused: Mutex<HashSet<String>>,
 }
 
 impl CastDevices {
@@ -108,26 +119,17 @@ impl CastDevices {
 /// Plays `cast` on `device` as `user`: a session started as Pley's own
 /// players start one, Google's player started on the device and the
 /// stream loaded into it. Returns once it plays, or didn't start; then the
-/// server follows it until it ends.
+/// server follows it until it ends. The stream is what the device's
+/// [profile] takes; one it refuses is started again with the basic
+/// profile, and its model remembered.
 pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast) -> ApiResult<()> {
     let base = base_url(state, device.address).ok_or_else(|| {
         AppError::ConflictAs("cast_unreachable", "Pley doesn't listen on an address the device can reach".to_owned())
     })?;
-    let request: PlaybackRequest = serde_json::from_value(serde_json::json!({
-        "item_id": cast.item_id,
-        "start_ms": cast.start_ms,
-        "audio_index": cast.audio_index,
-        "subtitle_index": cast.subtitle_index,
-        "caps": caps(),
-        // One cast at a time on a device: a new one ends the last.
-        "client_id": format!("{ID_PREFIX}{}", device.id),
-        "keyed_urls": true,
-        "controls": ["play", "pause", "seek", "skip"],
-        "device_name": device.name,
-        "device_kind": "tv",
-    }))
-    .map_err(|err| AppError::bad_request(err.to_string()))?;
-    let request = PlaybackRequest { device_id: Some(format!("{ID_PREFIX}{}", device.id)), ..request };
+    let hardware = hardware(state, &device).await;
+    let model = profile::identity(device.model.as_deref(), hardware.as_ref());
+    let refused = model.as_ref().is_some_and(|m| state.cast_devices.refused.lock().contains(m));
+    let picked = if refused { Profile::BASIC } else { profile::pick(device.model.as_deref(), hardware.as_ref()) };
     // A cast playing there already leaves the device to this one, before
     // its session ends (this one's start ends it), so that it doesn't stop
     // the device on its way out.
@@ -136,115 +138,183 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
     if let Some((_, before)) = state.cast_devices.playing.lock().insert(device.id.clone(), (cast_id, ours.clone())) {
         before.cancel();
     }
-    let started = crate::api::playback::start(
-        State(state.clone()),
-        user.clone(),
-        HeaderMap::new(),
-        CurrentToken(None),
-        Json(request),
-    )
-    .await;
-    let Ok(Json(info)) = started else {
-        forget(state, &device.id, cast_id);
-        return started.map(|_| ());
-    };
-    let end = |state: &AppState| {
-        end_session(state, &info.session_id);
-        forget(state, &device.id, cast_id);
-    };
-    let Some(session) = state.sessions.get(&info.session_id) else {
-        end(state);
-        return Err(AppError::not_found("the session ended"));
-    };
-    let Some(key) = session.media_key.clone() else {
-        end(state);
-        return Err(AppError::Conflict("the session has no keyed address".to_owned()));
-    };
-    // The subtitles it shows: picked by the remote, else by the user's
-    // choices. Text ones go beside the stream, as WebVTT; picture ones the
-    // stream has burned in.
-    let shown = cast.subtitle_index.or(session.play.lock().subtitle_index).filter(|i| *i >= 0);
-    let subtitle = shown.filter(|_| !info.burn_subtitles).and_then(|index| {
-        let track = info.subtitles.iter().find(|t| t.index == index && t.text_based)?;
-        let name = track.title.clone().or_else(|| track.language.clone()).unwrap_or_else(|| format!("{index}"));
-        let url = format!("{base}/api/media/{key}/subtitles-{index}.vtt");
-        Some(Subtitle { url, language: track.language.clone(), name })
-    });
-    // What it shows, for the remotes: none when the track isn't one it can.
-    if session.report_tracks(None, Some(subtitle.as_ref().and(shown).unwrap_or(-1))) {
-        state.events.send(ServerEvent::SessionsChanged { user_id: user.id });
-    }
-    let content_type = match info.method {
-        Method::Direct => "video/mp4",
-        _ => "application/x-mpegurl",
-    };
-    let title =
-        crate::api::items::item_or_404(state, user.id, cast.item_id).await.map(|row| row.title).unwrap_or_default();
-    let media = Media {
-        url: format!("{base}{}", info.url),
-        content_type: content_type.to_owned(),
-        start_ms: cast.start_ms.unwrap_or(0),
-        title,
-        subtitle,
-    };
-
-    // The device asks for the subtitles once, as the stream loads, and
-    // never again: the track is read whole first (the first read out of a
-    // large file takes a while), as the device is connected to.
-    let read = async {
-        if media.subtitle.is_some()
-            && let Some(index) = shown
-            && !crate::api::playback::prepare_text_track(state, user, session.file_id, index, PREPARE_WITHIN).await
-        {
-            tracing::warn!("a cast's subtitles weren't read whole in time: they start where they are");
+    let attempt = Attempt { state, user, device: &device, cast: &cast, base: &base };
+    let played = match attempt.play(picked).await {
+        Err(Tried::Refused) if picked != Profile::BASIC => {
+            tracing::info!("a Cast device refused its profile ({picked:?}): it is sent the basic one");
+            if let Some(model) = model {
+                let mut refused = state.cast_devices.refused.lock();
+                if refused.len() < MAX_KNOWN {
+                    refused.insert(model);
+                }
+            }
+            attempt.play(Profile::BASIC).await
         }
+        played => played,
     };
-    let connect = async {
-        Connection::connect(device.address).await.map_err(|err| {
-            tracing::warn!("couldn't connect to the Cast device {}: {err}", device.address);
-            Failure::Lost
-        })
-    };
-    let ((), connected) = tokio::join!(read, connect);
-    let started = match connected {
-        Ok((connection, incoming)) => Player::start(connection, incoming, &media).await,
-        Err(failure) => Err(failure),
-    };
-    let (player, events) = match started {
+    let (player, events, session_id, duration_ms) = match played {
         Ok(started) => started,
-        Err(failure) => {
-            end(state);
-            tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
-            return Err(AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned()));
+        Err(tried) => {
+            forget(state, &device.id, cast_id);
+            return Err(match tried {
+                Tried::Refused | Tried::Failed => {
+                    AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned())
+                }
+                Tried::Error(err) => err,
+            });
         }
     };
     tracing::info!("item {} is cast to a Cast device", cast.item_id);
-    let cast = Following {
-        state: state.clone(),
-        user_id: user.id,
-        device,
-        session_id: info.session_id,
-        duration_ms: info.duration_ms,
-        cast_id,
-    };
+    let cast = Following { state: state.clone(), user_id: user.id, device, session_id, duration_ms, cast_id };
     tokio::spawn(cast.follow(player, events, ours));
     Ok(())
 }
 
-/// What Cast devices play, all of them: H.264 and AAC, as an MP4 file or
-/// HLS of MPEG-TS, at 1080p. Text subtitles come beside, as WebVTT, and
-/// picture ones are burned in.
-fn caps() -> serde_json::Value {
-    serde_json::json!({
-        "containers": ["mp4"],
-        "video_codecs": ["h264"],
-        "audio_codecs": ["aac", "mp3"],
-        "audio_channels": 2,
-        "subtitle_codecs": ["subrip", "webvtt", "ass", "ssa", "mov_text", "text"],
-        "picture_subtitles_sideload": false,
-        "hls": {"segments": ["ts"]},
-        "display": {"width": 1920, "height": 1080, "refresh_rates": [60.0]},
-    })
+/// What `device`'s setup API said, asked the first time it is cast to.
+async fn hardware(state: &AppState, device: &Found) -> Option<Hardware> {
+    if let Some(known) = state.cast_devices.hardware.lock().get(&device.id) {
+        return known.clone();
+    }
+    let fixed = &state.config.cast_fixed;
+    let setup = match fixed.device {
+        Some(address) if address == device.address => fixed.setup,
+        _ => Some(SocketAddr::new(device.address.ip(), profile::SETUP_PORT)),
+    };
+    let answer = match setup {
+        Some(setup) => profile::ask(setup).await,
+        None => None,
+    };
+    let mut known = state.cast_devices.hardware.lock();
+    if known.len() < MAX_KNOWN {
+        known.insert(device.id.clone(), answer.clone());
+    }
+    answer
+}
+
+/// Why a cast's attempt didn't play.
+enum Tried {
+    /// The device refused the stream: another profile may do.
+    Refused,
+    /// It didn't answer, or went away.
+    Failed,
+    /// The session didn't start.
+    Error(AppError),
+}
+
+/// One try at a cast, with one profile.
+struct Attempt<'a> {
+    state: &'a AppState,
+    user: &'a AuthUser,
+    device: &'a Found,
+    cast: &'a Cast,
+    base: &'a str,
+}
+
+impl Attempt<'_> {
+    /// Starts the session and loads it into Google's player: the player,
+    /// its events, the session and its length. A session that doesn't play
+    /// is ended.
+    async fn play(&self, profile: Profile) -> Result<(Player, tokio::sync::mpsc::Receiver<Event>, String, i64), Tried> {
+        let (state, user, device, cast, base) = (self.state, self.user, self.device, self.cast, self.base);
+        let request: PlaybackRequest = serde_json::from_value(serde_json::json!({
+            "item_id": cast.item_id,
+            "start_ms": cast.start_ms,
+            "audio_index": cast.audio_index,
+            "subtitle_index": cast.subtitle_index,
+            "caps": profile.caps(),
+            // One cast at a time on a device: a new one ends the last.
+            "client_id": format!("{ID_PREFIX}{}", device.id),
+            "keyed_urls": true,
+            "controls": ["play", "pause", "seek", "skip"],
+            "device_name": device.name,
+            "device_kind": "tv",
+        }))
+        .map_err(|err| Tried::Error(AppError::bad_request(err.to_string())))?;
+        let request = PlaybackRequest { device_id: Some(format!("{ID_PREFIX}{}", device.id)), ..request };
+        let started = crate::api::playback::start(
+            State(state.clone()),
+            user.clone(),
+            HeaderMap::new(),
+            CurrentToken(None),
+            Json(request),
+        )
+        .await;
+        let Json(info) = started.map_err(Tried::Error)?;
+        let end = |tried: Tried| {
+            end_session(state, &info.session_id);
+            tried
+        };
+        let Some(session) = state.sessions.get(&info.session_id) else {
+            return Err(end(Tried::Error(AppError::not_found("the session ended"))));
+        };
+        let Some(key) = session.media_key.clone() else {
+            return Err(end(Tried::Error(AppError::Conflict("the session has no keyed address".to_owned()))));
+        };
+        // The subtitles it shows: picked by the remote, else by the user's
+        // choices. Text ones go beside the stream, as WebVTT; picture ones
+        // the stream has burned in.
+        let shown = cast.subtitle_index.or(session.play.lock().subtitle_index).filter(|i| *i >= 0);
+        let subtitle = shown.filter(|_| !info.burn_subtitles).and_then(|index| {
+            let track = info.subtitles.iter().find(|t| t.index == index && t.text_based)?;
+            let name = track.title.clone().or_else(|| track.language.clone()).unwrap_or_else(|| format!("{index}"));
+            let url = format!("{base}/api/media/{key}/subtitles-{index}.vtt");
+            Some(Subtitle { url, language: track.language.clone(), name })
+        });
+        // What it shows, for the remotes: none when the track isn't one it
+        // can.
+        if session.report_tracks(None, Some(subtitle.as_ref().and(shown).unwrap_or(-1))) {
+            state.events.send(ServerEvent::SessionsChanged { user_id: user.id });
+        }
+        let content_type = match info.method {
+            Method::Direct => "video/mp4",
+            _ => "application/x-mpegurl",
+        };
+        let fmp4 = session.transcode.as_ref().is_some_and(|spec| !spec.request.segment_format.is_ts());
+        let title =
+            crate::api::items::item_or_404(state, user.id, cast.item_id).await.map(|row| row.title).unwrap_or_default();
+        let media = Media {
+            url: format!("{base}{}", info.url),
+            content_type: content_type.to_owned(),
+            start_ms: cast.start_ms.unwrap_or(0),
+            title,
+            subtitle,
+            fmp4,
+        };
+
+        // The device asks for the subtitles once, as the stream loads, and
+        // never again: the track is read whole first (the first read out of
+        // a large file takes a while), as the device is connected to.
+        let read = async {
+            if media.subtitle.is_some()
+                && let Some(index) = shown
+                && !crate::api::playback::prepare_text_track(state, user, session.file_id, index, PREPARE_WITHIN).await
+            {
+                tracing::warn!("a cast's subtitles weren't read whole in time: they start where they are");
+            }
+        };
+        let connect = async {
+            Connection::connect(device.address).await.map_err(|err| {
+                tracing::warn!("couldn't connect to the Cast device {}: {err}", device.address);
+                Failure::Lost
+            })
+        };
+        let ((), connected) = tokio::join!(read, connect);
+        drop(session);
+        let started = match connected {
+            Ok((connection, incoming)) => Player::start(connection, incoming, &media).await,
+            Err(failure) => Err(failure),
+        };
+        match started {
+            Ok((player, events)) => Ok((player, events, info.session_id, info.duration_ms)),
+            Err(failure) => {
+                tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
+                Err(end(match failure {
+                    Failure::Load(_) => Tried::Refused,
+                    Failure::Launch(_) | Failure::Lost => Tried::Failed,
+                }))
+            }
+        }
+    }
 }
 
 /// Where the device reaches Pley's web port: the address of this computer
@@ -432,6 +502,9 @@ async fn record(
 pub struct Fixed {
     pub device: Option<SocketAddr>,
     pub server: Option<String>,
+    /// Where its setup API answers (`PLEY_CAST_SETUP`, else the device's
+    /// own on [`profile::SETUP_PORT`]); none, not asked.
+    pub setup: Option<SocketAddr>,
 }
 
 impl Fixed {
@@ -439,9 +512,12 @@ impl Fixed {
         if !cfg!(debug_assertions) {
             return Fixed::default();
         }
+        let device: Option<SocketAddr> = std::env::var("PLEY_CAST_DEVICE").ok().and_then(|a| a.parse().ok());
+        let setup = std::env::var("PLEY_CAST_SETUP").ok().and_then(|a| a.parse().ok());
         Fixed {
-            device: std::env::var("PLEY_CAST_DEVICE").ok().and_then(|a| a.parse().ok()),
+            device,
             server: std::env::var("PLEY_CAST_SERVER").ok().filter(|s| s.starts_with("http://")),
+            setup: setup.or_else(|| device.map(|d| SocketAddr::new(d.ip(), profile::SETUP_PORT))),
         }
     }
 

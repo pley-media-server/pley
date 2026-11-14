@@ -8,3 +8,4 @@ pub mod devices;
 pub mod discovery;
 pub mod frame;
 pub mod player;
+pub mod profile;

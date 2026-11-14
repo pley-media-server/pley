@@ -30,6 +30,9 @@ pub struct Media {
     /// Shown by the player and by Google's own remotes.
     pub title: String,
     pub subtitle: Option<Subtitle>,
+    /// HLS of fMP4 segments, which Google's player is told of (it takes
+    /// MPEG-TS otherwise).
+    pub fmp4: bool,
 }
 
 /// A text track the player shows, as WebVTT.
@@ -229,6 +232,10 @@ fn load_request(media: &Media) -> Value {
         "streamType": "BUFFERED",
         "metadata": {"metadataType": 0, "title": media.title},
     });
+    if media.fmp4 {
+        info["hlsSegmentFormat"] = json!("fmp4");
+        info["hlsVideoSegmentFormat"] = json!("fmp4");
+    }
     let mut active = Vec::new();
     if let Some(subtitle) = &media.subtitle {
         info["tracks"] = json!([{
@@ -333,6 +340,7 @@ mod tests {
                 language: Some("eng".into()),
                 name: "English".into(),
             }),
+            fmp4: false,
         };
         let load = load_request(&media);
         assert_eq!(load["media"]["contentId"], media.url);
@@ -340,9 +348,14 @@ mod tests {
         assert_eq!(load["currentTime"], 600.5);
         assert_eq!(load["media"]["tracks"][0]["trackContentId"], media.subtitle.as_ref().unwrap().url);
         assert_eq!(load["activeTrackIds"], json!([1]));
-        let plain = load_request(&Media { subtitle: None, ..media });
+        assert!(load["media"].get("hlsSegmentFormat").is_none());
+        let plain = load_request(&Media { subtitle: None, fmp4: true, ..media });
         assert!(plain["media"].get("tracks").is_none());
         assert_eq!(plain["activeTrackIds"], json!([]));
+        assert_eq!(
+            (plain["media"]["hlsSegmentFormat"].clone(), plain["media"]["hlsVideoSegmentFormat"].clone()),
+            (json!("fmp4"), json!("fmp4"))
+        );
     }
 
     use super::super::frame::{self, Message};
@@ -411,6 +424,7 @@ mod tests {
             start_ms: 10_000,
             title: "Heat".into(),
             subtitle: None,
+            fmp4: false,
         }
     }
 

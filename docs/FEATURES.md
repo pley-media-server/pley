@@ -74,7 +74,8 @@ What Pley does, in full. The [README](../README.md) has the short version.
   doesn't, as a browser won't start sound in a tab in the background.
 - Chromecasts, Google TVs and TVs with Cast built in on the server's
   network take casts of movies and episodes from the household: the server
-  plays them there itself, with the subtitles picked, keeps their place,
+  plays them there itself, in HEVC, 4K and HDR on models that play them,
+  with the subtitles picked, keeps their place,
   and the remote controls them as it does Pley's own players
   ([API.md](API.md#casting)).
 

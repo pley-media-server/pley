@@ -3863,9 +3863,18 @@ would.
   "cast_failed" }` when the device didn't play it, and `409` `{ code:
   "cast_unreachable" }` when Pley doesn't listen on an address the device
   can reach. The server plays it on the device itself: it starts a
-  session of the caller's as a player would (H.264 and AAC, as an MP4 or
-  HLS of MPEG-TS, up to 1080p), with keyed addresses, which it gives to
-  Google's own player on the device; the subtitles go beside the stream as
+  session of the caller's as a player would, with keyed addresses, which it
+  gives to Google's own player on the device. What the stream carries goes
+  by the device's model, as Cast devices don't say what they decode: every
+  one plays H.264 up to 1080p with stereo AAC, as an MP4 or HLS of
+  MPEG-TS; Chromecast Ultra, Chromecast with Google TV and Google TV
+  Streamer also take HEVC, 4K and HDR10, Chromecast with Google TV (HD)
+  HEVC at 1080p, and TVs with Google TV or Android TV HEVC up to 4K
+  without HDR, in HLS of fMP4. The server tells the models apart by mDNS
+  and by the device's local setup API (port 8008), asked once per device.
+  A device that refuses its stream gets a new session with the basic one,
+  and its model gets the basic one until the server restarts. The
+  subtitles go beside the stream as
   keyed WebVTT, read whole before the device asks (it asks once), and
   picture subtitles are burned in. The session has the device's
   `device_id`, its name, and the controls `play`, `pause`, `seek` and

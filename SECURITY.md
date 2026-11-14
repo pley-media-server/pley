@@ -389,6 +389,14 @@ other apps (`pley_ct_…`), never with a session's
   open that session's media alone, and nothing else of Pley's; a cast
   plays as a session of the home member who sent it, by their profile's
   rules, and only home members see and cast to these devices.
+- Before its first cast to a device, Pley asks the device's own setup API
+  (`http://<its address>:8008/setup/eureka_info`, an address one of the
+  answers above named) which hardware it is, waiting a second at most and
+  reading 64 KiB at most, without proxies or redirects. It keeps the
+  model, the hardware's name and two flags, in memory, and neither keeps
+  nor logs the rest (the device's keys and addresses). A device that
+  lies about its model gets a stream it may not play, and then the basic
+  one.
 - A receiver keeps the address its event stream came from, in memory
   while the stream lasts, so that a Cast device at the same address is
   listed once, as the Pley app. Someone on the local network can make an
