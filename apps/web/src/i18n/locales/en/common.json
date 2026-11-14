@@ -165,7 +165,7 @@
     "castFailed": "{{device}} didn't play it",
     "pairingFailed": "{{device}} didn't pair",
     "pairFirst": "{{device}} wants pairing first: choose it in Play on… again",
-    "wrongDevicePin": "That isn't the PIN {{device}} shows",
+    "wrongDevicePin": "That isn't the code {{device}} shows",
     "pairingWait": "{{device}} takes no other try yet: wait a moment"
   },
   "errors": {

@@ -107,6 +107,16 @@ fn caps(kind: Kind) -> Value {
     })
 }
 
+/// How many digits the PIN `device` shows has, where that is known: an
+/// Apple TV's are 4. A TV with AirPlay built in may ask for a password set
+/// in its settings instead.
+pub fn pin_digits(device: &Found) -> Option<u8> {
+    match kind(device.model.as_deref()) {
+        Kind::AppleTv4k | Kind::AppleTvHd => Some(4),
+        Kind::Other => None,
+    }
+}
+
 /// The stream `device` gets: its kind's, then the basic one.
 pub fn choose(device: &Found) -> Choice {
     let kind = kind(device.model.as_deref());
@@ -235,5 +245,21 @@ mod tests {
         let other = caps(Kind::Other);
         assert_eq!((other["video_codecs"].clone(), other["audio_codecs"].clone()), (json!(["h264"]), json!(["aac"])));
         assert_eq!(other["hls"]["segments"], json!(["ts"]));
+    }
+
+    #[test]
+    fn an_apple_tv_s_pin_has_4_digits_and_another_tv_s_isnt_known() {
+        let device = |model: Option<&str>| Found {
+            id: "a1b2c3d4e5f6".into(),
+            name: "TV".into(),
+            model: model.map(str::to_owned),
+            address: "192.168.1.20:7000".parse().unwrap(),
+            video: true,
+            protocol: crate::nearby::Protocol::AirPlay,
+        };
+        assert_eq!(pin_digits(&device(Some("AppleTV5,3"))), Some(4));
+        assert_eq!(pin_digits(&device(Some("AppleTV14,1"))), Some(4));
+        assert_eq!(pin_digits(&device(Some("UN55TU8000"))), None);
+        assert_eq!(pin_digits(&device(None)), None);
     }
 }

@@ -19,8 +19,8 @@ describes how they are made.
   players. They show subtitles, and Cast devices take their volume from
   the remote. Chromecast Ultra, Chromecast with Google TV, Google TV
   Streamer, TVs with Google TV and Apple TV 4K get HEVC, and 4K and HDR
-  where they play them. An AirPlay device that asks for a PIN is paired
-  once, with the PIN it shows, and administrators can forget pairings in
+  where they play them. An AirPlay device that asks for a code is paired
+  once, with the code it shows, and administrators can forget pairings in
   Settings → Network. A TV running a Pley app is listed once, as the app.
   Macs are listed as computers, and the server's own Mac isn't listed.
   They're listed while discovery is on in Settings → Network.

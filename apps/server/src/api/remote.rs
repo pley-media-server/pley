@@ -1032,16 +1032,18 @@ pub struct Pairing {
 
 /// `POST /api/remote/devices/{id}/pairing`: pairs the server with an
 /// AirPlay device that wants a PIN, which a cast to it answered `409
-/// pairing_needed`. Without a `pin`, the device shows one; with it, the
-/// server pairs, for every home member's casts. Wrong PINs are counted as
-/// a profile PIN's are (`403 wrong_pin`, then `429`).
+/// pairing_needed`. Without a `pin`, the device shows one, and the answer
+/// says how many digits it has where that is known (an Apple TV's are 4);
+/// with it, the server pairs, for every home member's casts. Wrong PINs are
+/// counted as a profile PIN's are (`403 wrong_pin`, then `429`).
 pub async fn pair(
     State(state): State<AppState>,
     user: AuthUser,
     Path(id): Path<String>,
     body: Result<Json<Pairing>, JsonRejection>,
-) -> ApiResult<StatusCode> {
+) -> ApiResult<axum::response::Response> {
     use crate::airplay::pairing::Failed;
+    use axum::response::IntoResponse;
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
     let device = nearby_device(&state, &user, &id).await?;
     if device.protocol != crate::nearby::Protocol::AirPlay {
@@ -1058,7 +1060,8 @@ pub async fn pair(
     };
     let Some(CastPin(pin)) = body.pin else {
         crate::airplay::device::ask_for_pin(&state, &device).await.map_err(failed)?;
-        return Ok(StatusCode::NO_CONTENT);
+        let digits = crate::airplay::device::pin_digits(&device);
+        return Ok(Json(serde_json::json!({ "digits": digits })).into_response());
     };
     if pin.len() != 4 || !pin.bytes().all(|b| b.is_ascii_digit()) {
         return Err(AppError::bad_request("the PIN is the 4 digits the device shows"));
@@ -1067,7 +1070,7 @@ pub async fn pair(
     match crate::airplay::device::pair(&state, user.id, &device, &pin).await {
         Ok(()) => {
             attempt.succeeded();
-            Ok(StatusCode::NO_CONTENT)
+            Ok(StatusCode::NO_CONTENT.into_response())
         }
         Err(Failed::WrongPin) => {
             attempt.failed();

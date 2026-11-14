@@ -33,6 +33,8 @@ export function PinPad({
   cancelLabel,
   cancelIcon = <ArrowLeft className="size-4" />,
   small,
+  length,
+  extra,
 }: {
   /** Whose PIN it is, shown above the pad; left out where what is around the pad says it. */
   target?: User;
@@ -40,11 +42,11 @@ export function PinPad({
   /** The PIN is locked after too many wrong ones: the keys stop. */
   locked: boolean;
   error: string | null;
-  /** Called with the PIN once it has at least 4 digits. */
+  /** Called with the PIN once it has at least 4 digits, or `length`. */
   onSubmit: (pin: string) => void;
   onCancel: () => void;
-  /** What the pad asks for: "Enter the profile PIN" by default. */
-  prompt?: string;
+  /** What the pad asks for: "Enter the profile PIN" by default; null for nothing, where what is around the pad says it. */
+  prompt?: string | null;
   /** What OK does, for screen readers: "Switch" by default. */
   submitLabel?: string;
   /** "Back to profiles" by default. */
@@ -52,12 +54,17 @@ export function PinPad({
   cancelIcon?: ReactNode;
   /** Smaller keys, for a pad in a menu's place rather than a page of its own. */
   small?: boolean;
+  /** How many digits the PIN has, when that is known: no more are taken, and the last one sends it. */
+  length?: number;
+  /** Shown under the keys, above Cancel. */
+  extra?: ReactNode;
 }) {
   const { t } = useTranslation("pages");
   const [pin, setPinState] = useState("");
   // Keys can arrive faster than renders (quick typing, password managers):
   // the ref always holds what was typed so far.
   const pinRef = useRef("");
+  const least = length ?? 4;
   const setPin = useCallback((next: string) => {
     pinRef.current = next;
     setPinState(next);
@@ -69,10 +76,14 @@ export function PinPad({
       const current = pinRef.current;
       if (key === "back") setPin(current.slice(0, -1));
       else if (key === "ok") {
-        if (current.length >= 4) onSubmit(current);
-      } else if (current.length < 8) setPin(current + key);
+        if (current.length >= least) onSubmit(current);
+      } else if (current.length < (length ?? 8)) {
+        const next = current + key;
+        setPin(next);
+        if (next.length === length) onSubmit(next);
+      }
     },
-    [busy, locked, onSubmit, setPin],
+    [busy, locked, least, length, onSubmit, setPin],
   );
 
   useEffect(() => {
@@ -99,11 +110,13 @@ export function PinPad({
           <div className="mt-3 text-lg font-semibold">{target.name}</div>
         </>
       ) : null}
-      <div className={cn("flex items-center gap-1.5 text-sm text-muted", target && "mt-1")}>
-        <Lock className="size-3.5" /> {prompt ?? t("profiles.enterPin")}
-      </div>
-      <div className={cn("flex h-4 items-center gap-3", small ? "mt-4" : "mt-5")} aria-label={t("profiles.digitsEntered", { count: pin.length })}>
-        {Array.from({ length: Math.max(4, pin.length) }, (_, i) => (
+      {prompt !== null ? (
+        <div className={cn("flex items-center gap-1.5 text-sm text-muted", target && "mt-1")}>
+          <Lock className="size-3.5" /> {prompt ?? t("profiles.enterPin")}
+        </div>
+      ) : null}
+      <div className={cn("flex h-4 items-center gap-3", prompt === null ? "mt-1" : small ? "mt-4" : "mt-5")} aria-label={t("profiles.digitsEntered", { count: pin.length })}>
+        {Array.from({ length: Math.max(least, pin.length) }, (_, i) => (
           <span
             key={i}
             className={cn("size-3 rounded-full border transition-colors", i < pin.length ? "border-accent bg-accent" : "border-border-strong")}
@@ -118,7 +131,7 @@ export function PinPad({
           <button
             key={key}
             type="button"
-            disabled={busy || locked || (key === "ok" && pin.length < 4)}
+            disabled={busy || locked || (key === "ok" && pin.length < least)}
             onClick={() => press(key)}
             aria-label={key === "back" ? t("profiles.deleteDigit") : key === "ok" ? (submitLabel ?? t("profiles.switch")) : key}
             className={cn(
@@ -131,6 +144,7 @@ export function PinPad({
           </button>
         ))}
       </div>
+      {extra}
       <Button variant="ghost" className={small ? "mt-3" : "mt-6"} icon={cancelIcon} onClick={onCancel}>
         {cancelLabel ?? t("profiles.backToProfiles")}
       </Button>

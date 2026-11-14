@@ -121,7 +121,7 @@ describe("PlayOn", () => {
     expect(await screen.findByText("Playing on Bedroom TV")).toBeInTheDocument();
   });
 
-  it("pairs with an AirPlay device that asks for the PIN it shows, then plays it there", async () => {
+  it("pairs with an AirPlay device that asks for the code it shows, sent with OK when its length isn't known, then plays it there", async () => {
     const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
     let paired = false;
     const requests = mockApi({
@@ -144,15 +144,46 @@ describe("PlayOn", () => {
     expect(item).toHaveAccessibleDescription("AirPlay");
     await user.click(item);
     const asking = await screen.findByRole("dialog", { name: "Pair with Den Apple TV" });
-    expect(asking).toHaveAccessibleDescription("Type the PIN Den Apple TV shows. Pley asks for it once.");
+    expect(asking).toHaveAccessibleDescription("Type the code shown on the TV. Everyone in your home can then play on it.");
     await user.keyboard("1111{Enter}");
-    await waitFor(() => expect(within(asking).getByRole("alert")).toHaveTextContent("That isn't the PIN Den Apple TV shows"));
+    await waitFor(() => expect(within(asking).getByRole("alert")).toHaveTextContent("That isn't the code Den Apple TV shows"));
     await user.keyboard("4821{Enter}");
     expect(await screen.findByText("Playing on Den Apple TV")).toBeInTheDocument();
     expect(asking).not.toBeInTheDocument();
     const pairings = requests.filter((r) => r.path.endsWith("/pairing")).map((r) => r.body);
     expect(pairings).toEqual([{}, { pin: "1111" }, { pin: "4821" }]);
     expect(casts(requests)).toHaveLength(2);
+  });
+
+  it("sends an Apple TV's code at its fourth digit, and has the TV show it again", async () => {
+    const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
+    let paired = false;
+    const requests = mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [appleTv],
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/cast": () => (paired ? undefined : apiError(409, "pairing_needed", "the device wants a PIN")),
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/pairing": (req) => {
+        const pin = (req.body as { pin?: string }).pin;
+        if (pin === undefined) return { digits: 4 };
+        if (pin !== "4821") return apiError(403, "wrong_pin", "that isn't the PIN the device shows");
+        paired = true;
+        return undefined;
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+
+    await user.click(await screen.findByRole("button", { name: "Play on…" }));
+    await user.click(within(screen.getByRole("menu", { name: "Play on…" })).getByRole("menuitem", { name: "Den Apple TV" }));
+    const asking = await screen.findByRole("dialog", { name: "Pair with Den Apple TV" });
+    await user.keyboard("12");
+    await user.click(within(asking).getByRole("button", { name: "No code on the TV? Show it again" }));
+    await waitFor(() => expect(requests.filter((r) => r.path.endsWith("/pairing"))).toHaveLength(2));
+    expect(await within(asking).findByLabelText("0 digits entered")).toBeInTheDocument();
+    await user.keyboard("4821");
+    expect(await screen.findByText("Playing on Den Apple TV")).toBeInTheDocument();
+    const pairings = requests.filter((r) => r.path.endsWith("/pairing")).map((r) => r.body);
+    expect(pairings).toEqual([{}, {}, { pin: "4821" }]);
   });
 
   it("stays busy while an AirPlay device is asked for its PIN, and says to pick it again once it closed", async () => {

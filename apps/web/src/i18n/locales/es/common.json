@@ -171,7 +171,7 @@
     "castFailed": "{{device}} no lo reprodujo",
     "pairingFailed": "{{device}} no se vinculó",
     "pairFirst": "Primero hay que vincular {{device}}: elígelo de nuevo en Reproducir en…",
-    "wrongDevicePin": "Ese no es el PIN que muestra {{device}}",
+    "wrongDevicePin": "Ese no es el código que muestra {{device}}",
     "pairingWait": "{{device}} aún no acepta otro intento: espera un momento"
   },
   "errors": {

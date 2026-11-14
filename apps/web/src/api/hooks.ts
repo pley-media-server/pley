@@ -1057,7 +1057,8 @@ export function usePairDevice() {
   return useMutation({
     gcTime: 0,
     mutationFn: ({ receiverId, pin }: { receiverId: string; pin?: string }) =>
-      api.post<void>(`/api/remote/devices/${encodeURIComponent(receiverId)}/pairing`, pin === undefined ? {} : { pin }),
+      // Asked to show its code, the server says how many digits it has, when it knows.
+      api.post<{ digits: number | null } | undefined>(`/api/remote/devices/${encodeURIComponent(receiverId)}/pairing`, pin === undefined ? {} : { pin }),
     onSuccess: (_, { pin }) => {
       if (pin !== undefined) void qc.invalidateQueries({ queryKey: keys.airplayPairings });
     },

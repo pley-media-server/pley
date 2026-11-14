@@ -3543,7 +3543,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number, quality?: string, volume?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
 | GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast and AirPlay devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play; `204` once a Google Cast or AirPlay device plays it ([Casting](#casting)) |
-| POST | `/api/remote/devices/{id}/pairing` | `play` | `{ pin?: string }` → `204`: has an AirPlay device show a PIN (without `pin`), or pairs the server with it (with the 4 digits it shows) ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/pairing` | `play` | `{ pin?: string }` → `{ digits: number \| null }`: has an AirPlay device show a PIN (without `pin`), with how many digits it has where known (`4` on an Apple TV); `204`: pairs the server with it (with the 4 digits it shows) ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `scans` are the scans queued or running.
@@ -3919,13 +3919,15 @@ would.
   server runs on isn't listed. A cast there answers as a
   Cast device's does, and `409` `{ code: "pairing_needed" }` when the
   device wants a PIN: the remote then has the device show one, with
-  `POST /api/remote/devices/{id}/pairing` and no `pin`, asks for it, and
-  sends it there; once that answers `204` the cast is sent again. The
+  `POST /api/remote/devices/{id}/pairing` and no `pin` (which answers
+  `{ digits }`, the PIN's length where known: `4` on an Apple TV, `null`
+  on a TV that may ask for a password set in its settings), asks for it,
+  and sends it there; once that answers `204` the cast is sent again. The
   pairing is the server's, for every home member's casts, and stays
   until an administrator forgets it (`DELETE
-  /api/network/airplay/{device_id}`) or the device is unpaired on the
-  device (its next cast then answers `409` `cast_failed`, and the one
-  after asks for a PIN). A device open to everyone on its network needs no PIN.
+  /api/network/airplay/{device_id}`) or the device is unpaired or reset
+  (its next cast then answers `409` `pairing_needed`, and the new pairing
+  replaces the old). A device open to everyone on its network needs no PIN.
   The pairing route answers `404` as a cast does, `409` `{ code:
   "not_pairable" }` for a device that isn't AirPlay, `400` for a PIN
   that isn't 4 digits, `403` `{ code: "wrong_pin" }` for a wrong one

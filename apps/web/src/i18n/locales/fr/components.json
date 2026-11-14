@@ -191,8 +191,8 @@
     "otherProfile": "{{device}} est sur le profil de {{profile}} : il passe d’abord au vôtre.",
     "enterPin": "Saisissez votre code PIN",
     "pairWith": "Associer {{device}}",
-    "pairWhy": "Saisissez le code affiché sur {{device}}. Pley ne le demande qu’une fois.",
-    "enterDevicePin": "Saisissez le code de {{device}}"
+    "pairWhy": "Saisissez le code affiché sur la TV. Tout votre foyer pourra ensuite y lire.",
+    "showCodeAgain": "Pas de code sur la TV ? L’afficher à nouveau"
   },
   "remote": {
     "readyToPlay": "Prêt pour la lecture",

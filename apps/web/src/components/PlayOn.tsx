@@ -48,13 +48,15 @@ export interface PlayOnProps {
 
 /**
  * A cast waiting for a PIN: the user's, to a device on another profile when
- * theirs has one; or with `pairing`, the one an AirPlay device shows, to pair
+ * theirs has one; or with `pairing`, the code an AirPlay device shows, to pair
  * the server with it first.
  */
 interface PinAsk {
   device: OtherDevice;
   request: CastRequest;
   pairing?: boolean;
+  /** How many digits the device's code has, when the server knows. */
+  digits?: number;
 }
 
 /**
@@ -143,26 +145,39 @@ export function PlayOn({
     if (asking) askRef.current?.focus();
   }, [asking]);
 
-  const ask = (device: OtherDevice, request: CastRequest, pairing = false) => {
+  const ask = (device: OtherDevice, request: CastRequest, pairing = false, digits?: number) => {
     setPinMessage(null);
     setPinLocked(false);
-    setAsking({ device, request, pairing });
+    setAsking({ device, request, pairing, digits });
   };
 
-  /** Has `device` show a PIN, and asks for it: the button stays busy meanwhile. */
+  /** Has `device` show its code, and asks for it: the button stays busy meanwhile. */
   const startPairing = (device: OtherDevice, request: CastRequest) => {
     if (!device.receiver) return;
     setStarting(device.name);
     pair
       .mutateAsync({ receiverId: device.receiver.receiver_id })
       .then(
-        () => ask(device, request, true),
+        (answer) => ask(device, request, true, answer?.digits ?? undefined),
         (err: unknown) => toast.error(pairingError(err, device.name)),
       )
       .finally(() => {
         setStarting(null);
         pair.reset();
       });
+  };
+
+  /** Has `device` show its code again, when it didn't or it went before it was typed. */
+  const showCodeAgain = (device: OtherDevice) => {
+    if (!device.receiver) return;
+    setPinMessage(null);
+    pair
+      .mutateAsync({ receiverId: device.receiver.receiver_id })
+      .then(
+        () => setFailures((n) => n + 1),
+        (err: unknown) => setPinMessage(pairingError(err, device.name)),
+      )
+      .finally(() => pair.reset());
   };
 
   /** Pairs the server with `device` with the `pin` it shows, then sends it `request`. */
@@ -328,7 +343,7 @@ export function PlayOn({
           </h2>
           <p id={whyId} className="mb-4 mt-1 text-xs text-muted">
             {asking.pairing
-              ? t("playOn.pairWhy", { device: asking.device.name })
+              ? t("playOn.pairWhy")
               : t("playOn.otherProfile", { device: asking.device.name, profile: asking.device.profile?.name })}
           </p>
           <PinPad
@@ -337,7 +352,20 @@ export function PlayOn({
             busy={send.isPending || pair.isPending}
             locked={pinLocked}
             error={pinMessage}
-            prompt={asking.pairing ? t("playOn.enterDevicePin", { device: asking.device.name }) : t("playOn.enterPin")}
+            prompt={asking.pairing ? null : t("playOn.enterPin")}
+            length={asking.pairing ? asking.digits : undefined}
+            extra={
+              asking.pairing ? (
+                <button
+                  type="button"
+                  disabled={pair.isPending}
+                  onClick={() => showCodeAgain(asking.device)}
+                  className="mt-3 text-xs text-muted underline-offset-2 hover:text-fg hover:underline disabled:opacity-40"
+                >
+                  {t("playOn.showCodeAgain")}
+                </button>
+              ) : null
+            }
             submitLabel={title}
             cancelLabel={t("common:actions.cancel")}
             cancelIcon={null}
