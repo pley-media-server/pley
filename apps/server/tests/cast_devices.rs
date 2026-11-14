@@ -233,7 +233,9 @@ async fn sessions(w: &World) -> Vec<Value> {
 #[tokio::test]
 async fn home_members_see_cast_devices_and_others_dont() {
     let w = world().await;
-    let devices = w.app.get("/api/remote/devices", &w.admin).await;
+    // Only remotes that ask for them, which know what they are.
+    assert!(!lists_cast(&w, &w.admin, "/api/remote/devices").await);
+    let devices = w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     assert_eq!(devices.status, StatusCode::OK);
     let cast = devices.body.as_array().unwrap().iter().find(|d| d["receiver_id"] == "cast:dev").cloned();
     let cast = cast.expect("the Cast device is listed");
@@ -241,7 +243,7 @@ async fn home_members_see_cast_devices_and_others_dont() {
     assert_eq!((cast["kind"].clone(), cast["casts"].clone()), (json!("tv"), json!(["item"])));
 
     let (friend, _) = w.app.user(&w.admin, "friend", json!({"home": false})).await;
-    let theirs = w.app.get("/api/remote/devices", &friend).await;
+    let theirs = w.app.get("/api/remote/devices?nearby=1", &friend).await;
     assert!(theirs.body.as_array().unwrap().iter().all(|d| d["protocol"].is_null()), "{}", theirs.text());
     let refused = w.app.post("/api/remote/devices/cast:dev/cast", &friend, json!({"item_id": w.film})).await;
     assert_eq!(refused.status, StatusCode::NOT_FOUND);
@@ -273,8 +275,8 @@ async fn lists_cast(w: &World, token: &str, uri: &str) -> bool {
 #[tokio::test]
 async fn a_pley_app_on_the_tv_stands_for_its_cast_device() {
     let w = world().await;
-    let mine = "/api/remote/devices";
-    let household = "/api/remote/devices?household=1";
+    let mine = "/api/remote/devices?nearby=1";
+    let household = "/api/remote/devices?household=1&nearby=1";
     // The fake device is at 127.0.0.1: an app there that takes titles is
     // the same TV.
     let elsewhere = receiver(&w, &w.admin, "receiver=phone&casts=item", "10.0.0.9:50000").await;
@@ -300,7 +302,7 @@ async fn a_pley_app_on_the_tv_stands_for_its_cast_device() {
 #[tokio::test]
 async fn only_movies_and_episodes_are_cast() {
     let w = world().await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     let playlist = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"playlist_id": 1})).await;
     assert_eq!((playlist.status, playlist.body["code"].clone()), (StatusCode::CONFLICT, json!("not_castable")));
     let track = w
@@ -313,7 +315,7 @@ async fn only_movies_and_episodes_are_cast() {
 #[tokio::test]
 async fn a_cast_plays_on_the_device_as_a_session_the_remotes_control() {
     let mut w = world().await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     let body = json!({"item_id": w.film, "start_ms": 60_000, "subtitle_index": 2});
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body).await;
     assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
@@ -379,7 +381,7 @@ async fn a_cast_plays_on_the_device_as_a_session_the_remotes_control() {
 #[tokio::test]
 async fn a_cast_that_finishes_on_the_device_ends_its_session_watched() {
     let mut w = world().await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
     next(&mut w.sent, "LOAD").await;
@@ -402,7 +404,7 @@ async fn a_cast_that_finishes_on_the_device_ends_its_session_watched() {
 #[tokio::test]
 async fn a_cast_stopped_before_its_first_report_keeps_its_place() {
     let mut w = world().await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     let body = json!({"item_id": w.film, "start_ms": 600_000});
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body).await;
     assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
@@ -424,7 +426,7 @@ async fn a_cast_stopped_before_its_first_report_keeps_its_place() {
 #[tokio::test]
 async fn a_new_cast_takes_the_device_over_without_stopping_it() {
     let mut w = world().await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     for start_ms in [0, 600_000] {
         let body = json!({"item_id": w.film, "start_ms": start_ms});
         let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body).await;
@@ -445,7 +447,7 @@ async fn a_new_cast_takes_the_device_over_without_stopping_it() {
 #[tokio::test]
 async fn two_casts_at_once_leave_one_playing() {
     let mut w = world().await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     let (first, second) = tokio::join!(
         w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})),
         w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film, "start_ms": 600_000})),
@@ -471,7 +473,7 @@ async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
     }}))
     .await;
     let mut w = world_with(Some(setup)).await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     w.refuse.store(1, Ordering::SeqCst);
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
@@ -491,7 +493,7 @@ async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
 #[tokio::test]
 async fn the_remote_sets_the_devices_volume() {
     let mut w = world().await;
-    w.app.get("/api/remote/devices", &w.admin).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
     // The device's own level, as it says it.

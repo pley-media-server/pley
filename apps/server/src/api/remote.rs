@@ -887,6 +887,10 @@ pub struct DevicesQuery {
     /// `1`: the household's other profiles' receivers too. Remotes that
     /// don't know them (older apps) leave it out, and get their own.
     household: Option<String>,
+    /// `1`: the Cast devices on the server's network too, which play only
+    /// movies and episodes and are told apart by `protocol`. Remotes that
+    /// don't know them (older apps, other apps) leave it out.
+    nearby: Option<String>,
 }
 
 /// Whether the request may list and cast to the household's other profiles'
@@ -901,7 +905,8 @@ pub(crate) fn reaches_household(user: &AuthUser) -> bool {
 /// `GET /api/remote/devices`: the devices that take casts, one each: the
 /// caller's own, and with `household=1`, for a home member, those of the
 /// household's other profiles that switch to a casting remote's profile,
-/// each with the profile it is on (what they play stays theirs).
+/// each with the profile it is on (what they play stays theirs), and with
+/// `nearby=1`, for a home member, the Cast devices on the server's network.
 /// Administrators get only the household's too, and an app only when it
 /// [reaches the household](reaches_household).
 pub async fn devices(
@@ -913,7 +918,9 @@ pub async fn devices(
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
     // A query that doesn't parse asks for nothing more.
-    let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
+    let query = query.map(|Query(q)| q).unwrap_or_default();
+    let yes = |v: Option<String>| v.is_some_and(|v| v == "1" || v == "true");
+    let (asked, nearby) = (yes(query.household), yes(query.nearby));
     if asked && reaches_household(&user) {
         for other in everyone.into_iter().filter(|u| home && u.home && !u.disabled && u.id != user.id) {
             // Its name as "Who's watching?" says it: apps never see usernames.
@@ -934,7 +941,7 @@ pub async fn devices(
     // Cast device listed, as the only way to reach the TV. (An app on the
     // local network can claim any address, and so hide a Cast device from
     // the lists it is in, but do nothing more with it.)
-    if home {
+    if home && nearby {
         let taken: HashSet<IpAddr> =
             out.iter().filter(|d| d.casts.contains(&CastKind::Item)).filter_map(|d| d.address).collect();
         let cast = state.cast_devices.listed(state.config.cast_fixed.found(), state.network.wanted().discovery).await;

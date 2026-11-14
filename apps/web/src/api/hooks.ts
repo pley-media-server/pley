@@ -371,12 +371,13 @@ export const queries = {
   /**
    * The devices that take casts, which a remote lists: the user's own, with
    * what they play, and those of the household's other profiles that switch
-   * to the user's for a cast (`household=1`).
+   * to the user's for a cast (`household=1`), and the Cast devices on the
+   * server's network, which the server plays on (`nearby=1`).
    */
   remoteDevices: () =>
     queryOptions({
       queryKey: keys.remoteDevices,
-      queryFn: () => api.get<RemoteDevice[]>("/api/remote/devices?household=1"),
+      queryFn: () => api.get<RemoteDevice[]>("/api/remote/devices?household=1&nearby=1"),
       staleTime: 2_000,
     }),
   item: (id: Id) => queryOptions({ queryKey: keys.item(id), queryFn: ({ signal }) => api.get<ItemDetail>(`/api/items/${id}`, { signal }) }),
