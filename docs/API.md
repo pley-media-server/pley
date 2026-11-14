@@ -3855,9 +3855,10 @@ would.
   `["item"]` and `protocol: "cast"`, which remotes show under the name.
   The server finds them by mDNS (`_googlecast._tcp`) on its own network,
   when the list is asked for and the last look is over 30 seconds old,
-  and keeps one that stops answering for 5 minutes; it doesn't look with
-  `--no-discovery`, nor from a Docker bridge network, which the
-  announcements don't reach. A Cast device at the address of a receiver
+  and keeps one that stops answering for 5 minutes. It doesn't look
+  while discovery is off (Settings → Network, `--no-discovery`), and then
+  lists none, nor from a Docker bridge network, which the announcements
+  don't reach. A Cast device at the address of a receiver
   in the same list that takes `item` is left out: it is the same TV, and
   the Pley app stands for it. One whose Pley app is on a profile the
   caller can't cast to stays listed. A cast there names a movie or an episode,

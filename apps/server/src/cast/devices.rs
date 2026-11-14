@@ -77,10 +77,16 @@ pub struct CastDevices {
 
 impl CastDevices {
     /// The devices that show video, looking again when the last look is
-    /// old and Pley may look on the local network (its `discovery`).
-    pub async fn listed(&self, config: &crate::config::Config) -> Vec<Found> {
-        let fixed = config.cast_fixed.found();
-        if (config.discovery || fixed.is_some()) && self.looked.lock().is_none_or(|at| at.elapsed() >= LOOK_AGAIN) {
+    /// old. Pley looks on the local network only while `discovery` is on
+    /// (Settings → Network); turned off, the devices found are forgotten.
+    /// `fixed` is the device the server was told of, which is always listed.
+    pub async fn listed(&self, fixed: Option<Found>, discovery: bool) -> Vec<Found> {
+        if !discovery {
+            let fixed = fixed.as_ref().map(|f| f.id.as_str());
+            self.found.lock().retain(|id, _| Some(id.as_str()) == fixed);
+            *self.looked.lock() = None;
+        }
+        if (discovery || fixed.is_some()) && self.looked.lock().is_none_or(|at| at.elapsed() >= LOOK_AGAIN) {
             let _one = self.looking.lock().await;
             // Another request looked while this one waited.
             if self.looked.lock().is_none_or(|at| at.elapsed() >= LOOK_AGAIN) {
@@ -114,8 +120,12 @@ impl CastDevices {
         *self.looked.lock() = Some(now);
     }
 
-    /// The device of `id` (without [`ID_PREFIX`]) seen lately.
-    pub fn device(&self, id: &str) -> Option<Found> {
+    /// The device of `id` (without [`ID_PREFIX`]) seen lately, while
+    /// `discovery` is on, as [`Self::listed`] lists it.
+    pub fn device(&self, id: &str, fixed: Option<Found>, discovery: bool) -> Option<Found> {
+        if !discovery && fixed.is_none_or(|f| f.id != id) {
+            return None;
+        }
         let found = self.found.lock();
         found.get(id).filter(|(d, at)| d.video && at.elapsed() < KEEP_FOR).map(|(d, _)| d.clone())
     }
@@ -593,8 +603,31 @@ impl Fixed {
         }
     }
 
-    fn found(&self) -> Option<Found> {
+    pub(crate) fn found(&self) -> Option<Found> {
         let address = self.device?;
         Some(Found { id: "dev".into(), name: "Cast emulator".into(), model: None, address, video: true })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn turning_discovery_off_forgets_the_devices_found() {
+        let devices = CastDevices::default();
+        let tv = Found {
+            id: "tv".into(),
+            name: "Living room TV".into(),
+            model: None,
+            address: "192.168.1.20:8009".parse().unwrap(),
+            video: true,
+        };
+        devices.found.lock().insert(tv.id.clone(), (tv.clone(), Instant::now()));
+        *devices.looked.lock() = Some(Instant::now());
+        assert_eq!(devices.device("tv", None, true), Some(tv.clone()));
+        assert_eq!(devices.device("tv", None, false), None, "nor cast to");
+        assert!(devices.listed(None, false).await.is_empty());
+        assert_eq!(devices.device("tv", None, true), None, "forgotten");
     }
 }

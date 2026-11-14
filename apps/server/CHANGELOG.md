@@ -18,7 +18,8 @@ describes how they are made.
   control them from the remote as Pley's own players, their volume too.
   Chromecast Ultra, Chromecast with Google TV, Google TV Streamer and TVs
   with Google TV get HEVC, and 4K and HDR where they play them. A TV
-  running a Pley app is listed once, as the app.
+  running a Pley app is listed once, as the app. They're listed while
+  discovery is on in Settings → Network.
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.

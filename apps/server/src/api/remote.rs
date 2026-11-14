@@ -937,7 +937,7 @@ pub async fn devices(
     if home {
         let taken: HashSet<IpAddr> =
             out.iter().filter(|d| d.casts.contains(&CastKind::Item)).filter_map(|d| d.address).collect();
-        let cast = state.cast_devices.listed(&state.config).await;
+        let cast = state.cast_devices.listed(state.config.cast_fixed.found(), state.network.wanted().discovery).await;
         out.extend(cast.into_iter().filter(|d| !taken.contains(&d.address.ip())).map(|d| RemoteDevice {
             receiver_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
             device_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
@@ -1011,7 +1011,9 @@ const CASTABLE: [&str; 7] = ["movie", "episode", "show", "season", "track", "alb
 async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast) -> ApiResult<StatusCode> {
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
-    let device = state.cast_devices.device(id).filter(|_| home).ok_or_else(|| AppError::not_found("no such device"))?;
+    let discovery = state.network.wanted().discovery;
+    let device = state.cast_devices.device(id, state.config.cast_fixed.found(), discovery).filter(|_| home);
+    let device = device.ok_or_else(|| AppError::not_found("no such device"))?;
     if body.profile_id.is_some_and(|p| p != user.id) || body.device_id.is_some() {
         return Err(AppError::not_found("no such device"));
     }

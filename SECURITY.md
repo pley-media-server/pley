@@ -376,7 +376,9 @@ other apps (`pley_ct_…`), never with a session's
   make it hold more.
 - Pley looks for Google Cast devices (`_googlecast._tcp`) only when a home
   member's remote lists devices, at most every 30 seconds, by one mDNS
-  query from a port of its own; with `--no-discovery` it doesn't look.
+  query from a port of its own, and only while discovery is on: turned
+  off in Settings → Network (or with `--no-discovery`), it doesn't look,
+  and forgets the devices it found, which can't be cast to.
   Only answers from private and link-local addresses count, read within
   bounds: 64 devices a look, names cut to 100 characters, ids of letters
   and digits. Pley connects to a device only as one of these answered,
