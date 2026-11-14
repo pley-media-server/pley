@@ -6,6 +6,7 @@
 //! protocol's own ([`crate::cast`]).
 
 pub mod casts;
+pub mod discovery;
 pub mod player;
 
 use std::collections::{HashMap, HashSet};
@@ -136,7 +137,7 @@ impl NearbyDevices {
             if from.is_empty() || fixed.is_some() {
                 return Ok(Vec::new());
             }
-            crate::cast::discovery::browse(&from, LOOK_FOR).await
+            discovery::browse(&[crate::cast::discovery::SERVICE], &from, LOOK_FOR).await
         };
         let mut seen = browse.await.unwrap_or_else(|err| {
             tracing::warn!("couldn't look for devices on the network: {err}");
