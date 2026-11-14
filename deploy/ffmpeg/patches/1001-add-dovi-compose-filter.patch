@@ -149,10 +149,10 @@ index 402b843..66df38b 100644
  extern const FFFilter ff_vf_drawgrid;
 diff --git a/libavfilter/vf_dovi_compose.c b/libavfilter/vf_dovi_compose.c
 new file mode 100644
-index 0000000..b07b746
+index 0000000..4a01dc0
 --- /dev/null
 +++ b/libavfilter/vf_dovi_compose.c
-@@ -0,0 +1,1043 @@
+@@ -0,0 +1,1050 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -277,6 +277,7 @@ index 0000000..b07b746
 +    int nb_bufs;
 +
 +    int64_t nb_frames, nb_composed, nb_no_rpu, nb_no_el;
++    int l1_max, l1_avg;         ///< the last level 1 seen, 12-bit PQ
 +    int warned_no_rpu, warned_no_el, warned_signal, logged_mode, logged_peak;
 +} DoviComposeContext;
 +
@@ -848,18 +849,24 @@ index 0000000..b07b746
 + * maxRGB: what a tone mapper reads from either, which it could no longer
 + * read from the RPU the output leaves out.
 + */
-+static int set_scene_brightness(AVFrame *out, const AVDOVIMetadata *dovi)
++static int set_scene_brightness(DoviComposeContext *s, AVFrame *out,
++                                const AVDOVIMetadata *dovi)
 +{
 +    const AVDOVIDmData *dm = av_dovi_find_level(dovi, 1);
 +    AVDynamicHDRPlus *hdr;
 +    AVHDRPlusColorTransformParams *w;
 +    int max, avg;
 +
-+    if (!dm || !dm->l1.max_pq)
++    /* An RPU without it keeps the scene's: the last one given. */
++    if (dm && dm->l1.max_pq) {
++        s->l1_max = dm->l1.max_pq;
++        s->l1_avg = FFMIN(dm->l1.avg_pq, dm->l1.max_pq);
++    }
++    if (!s->l1_max)
 +        return 0;
 +    /* cd/m2 in steps of 0.1, of 10000 cd/m2 */
-+    max = lrint(pq_to_nits(dm->l1.max_pq) * 10);
-+    avg = lrint(pq_to_nits(FFMIN(dm->l1.avg_pq, dm->l1.max_pq)) * 10);
++    max = lrint(pq_to_nits(s->l1_max) * 10);
++    avg = lrint(pq_to_nits(s->l1_avg) * 10);
 +
 +    av_frame_remove_side_data(out, AV_FRAME_DATA_DYNAMIC_HDR_PLUS);
 +    hdr = av_dynamic_hdr_plus_create_side_data(out);
@@ -891,7 +898,7 @@ index 0000000..b07b746
 +    av_frame_remove_side_data(out, AV_FRAME_DATA_DOVI_METADATA);
 +    av_frame_remove_side_data(out, AV_FRAME_DATA_DOVI_RPU_BUFFER);
 +    if (s->scene && dovi) {
-+        int ret = set_scene_brightness(out, dovi);
++        int ret = set_scene_brightness(s, out, dovi);
 +        if (ret < 0)
 +            return ret;
 +    }
