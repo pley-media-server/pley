@@ -53,7 +53,9 @@ impl Player {
                 }
                 let p = &message.payload;
                 match p["type"].as_str() {
-                    Some("RECEIVER_STATUS") => {
+                    // The answer to this LAUNCH: an earlier status may name
+                    // the player a cast before this one is closing.
+                    Some("RECEIVER_STATUS") if p["requestId"] == launch => {
                         if let Some(app) = running(p) {
                             return Ok(app);
                         }
@@ -352,14 +354,30 @@ mod tests {
             json!({"type": "RECEIVER_STATUS", "requestId": 0, "status": {"applications": apps}})
         }
 
+        /// Answers the connection and the launch: Google's player runs.
+        async fn launched(&mut self) {
+            self.next().await;
+            let launch: Value = serde_json::from_str(&self.next().await.payload).unwrap();
+            let app = json!([{"appId": DEFAULT_MEDIA_RECEIVER, "transportId": "web-5", "sessionId": "s-1"}]);
+            let mut answer = Device::status(app);
+            answer["requestId"] = launch["requestId"].clone();
+            self.say(PLATFORM, NS_RECEIVER, answer).await;
+        }
+
         /// Answers a launch and a load as a Chromecast does, then is
         /// playing at 10 s.
         async fn starts_playing(&mut self) -> Value {
             assert_eq!(self.next().await.payload, r#"{"type":"CONNECT"}"#);
             let launch: Value = serde_json::from_str(&self.next().await.payload).unwrap();
             assert_eq!(launch["appId"], DEFAULT_MEDIA_RECEIVER);
+            // The player of a cast before this one, closing, then the
+            // answer to the launch.
+            let closing = json!([{"appId": DEFAULT_MEDIA_RECEIVER, "transportId": "web-4", "sessionId": "s-0"}]);
+            self.say(PLATFORM, NS_RECEIVER, Device::status(closing)).await;
             let app = json!([{"appId": DEFAULT_MEDIA_RECEIVER, "transportId": "web-5", "sessionId": "s-1"}]);
-            self.say(PLATFORM, NS_RECEIVER, Device::status(app)).await;
+            let mut answer = Device::status(app);
+            answer["requestId"] = launch["requestId"].clone();
+            self.say(PLATFORM, NS_RECEIVER, answer).await;
             let connect = self.next().await;
             assert_eq!((connect.destination.as_str(), connect.payload.as_str()), ("web-5", r#"{"type":"CONNECT"}"#));
             let load = self.next().await;
@@ -476,10 +494,7 @@ mod tests {
         let m = media();
         let (connection, incoming, mut device) = pair();
         let answer = async {
-            device.next().await;
-            device.next().await;
-            let app = json!([{"appId": DEFAULT_MEDIA_RECEIVER, "transportId": "web-5", "sessionId": "s-1"}]);
-            device.say(PLATFORM, NS_RECEIVER, Device::status(app)).await;
+            device.launched().await;
             device.next().await;
             let load: Value = serde_json::from_str(&device.next().await.payload).unwrap();
             // The stream a cast before this one left, ending as it is replaced.
@@ -520,10 +535,7 @@ mod tests {
         let m = media();
         let (connection, incoming, mut device) = pair();
         let refuse = async {
-            device.next().await;
-            device.next().await;
-            let app = json!([{"appId": DEFAULT_MEDIA_RECEIVER, "transportId": "web-5", "sessionId": "s-1"}]);
-            device.say(PLATFORM, NS_RECEIVER, Device::status(app)).await;
+            device.launched().await;
             device.next().await;
             let load: Value = serde_json::from_str(&device.next().await.payload).unwrap();
             device.say("web-5", NS_MEDIA, json!({"type": "LOAD_FAILED", "requestId": load["requestId"]})).await;
