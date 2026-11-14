@@ -320,20 +320,25 @@ internal fun PlayOnSheet(
         else -> errorSentence(e).resolve(resources)
     }
 
-    /** Has [device] show its code, and asks for it; [pad] is the pad already asking, for "Show it again". */
+    /** Whether [pad] still shows: Back may have closed it while a request was out. */
+    fun stillAsking(pad: PinAsk): Boolean = asking?.deviceId == pad.deviceId
+
+    /**
+     * Has [device] show its code, and asks for it; [pad] is the pad already
+     * asking, for "Show it again", which says a refusal there, while it
+     * still shows.
+     */
     suspend fun showCode(device: OtherDevice, name: String, pad: PinAsk?) {
         val receiver = device.receiver ?: return
         try {
             val length = remote.showPairingCode(receiver.receiverId)
-            ask((pad ?: PinAsk(device.deviceId, pairing = true)).copy(error = null, length = length))
+            if (pad == null) ask(PinAsk(device.deviceId, pairing = true, length = length))
+            else if (stillAsking(pad)) ask(pad.copy(error = null, length = length))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            if (pad != null) {
-                ask(pad.copy(error = pairingMessage(e, name)))
-            } else {
-                error = pairingMessage(e, name)
-            }
+            if (pad == null) error = pairingMessage(e, name)
+            else if (stillAsking(pad)) ask(pad.copy(error = pairingMessage(e, name)))
         }
     }
 
@@ -391,10 +396,12 @@ internal fun PlayOnSheet(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            when (PairingRefusal.of(e)) {
-                // A code not the one shown, or tries to wait for: the pad says so, to type again.
-                PairingRefusal.WrongCode -> ask(pad.copy(error = pairingMessage(e, name), shakes = pad.shakes + 1))
-                PairingRefusal.Wait -> ask(pad.copy(error = pairingMessage(e, name)))
+            val refusal = PairingRefusal.of(e)
+            when {
+                // A code not the one shown, or tries to wait for: the pad says so, to type again, while it still shows.
+                refusal == PairingRefusal.WrongCode && stillAsking(pad) ->
+                    ask(pad.copy(error = pairingMessage(e, name), shakes = pad.shakes + 1))
+                refusal == PairingRefusal.Wait && stillAsking(pad) -> ask(pad.copy(error = pairingMessage(e, name)))
                 else -> {
                     ask(null)
                     error = pairingMessage(e, name)
@@ -427,6 +434,8 @@ internal fun PlayOnSheet(
                 )
             }
             val length = shown.length.takeIf { shown.pairing }
+            // A device's code is 4 digits at most, all the server takes; a profile's PIN up to 8.
+            val most = if (shown.pairing) length ?: PAIRING_CODE_MAX else PinEntry.MAX
             val submit = {
                 if (!shown.lockedOut && sending == null && pin.complete && (length == null || pin.length == length)) {
                     val typed = pin.take()
@@ -443,7 +452,7 @@ internal fun PlayOnSheet(
                 },
                 digits = digits,
                 onDigit = { d ->
-                    if (!shown.lockedOut && sending == null && (length == null || pin.length < length) && pin.add(d)) {
+                    if (!shown.lockedOut && sending == null && pin.length < most && pin.add(d)) {
                         digits = pin.length
                         // A code of a known length goes at its last digit.
                         if (pin.length == length) submit()
@@ -622,6 +631,9 @@ internal const val PLAY_ON_DEVICE = "pley.phone.play_on_device."
 
 /** The PIN pad a cast to another profile's device asks first, or the code an AirPlay device shows. */
 internal const val PLAY_ON_PIN = "pley.phone.play_on_pin"
+
+/** The longest code an AirPlay device's pad takes: the server takes 4 digits. */
+private const val PAIRING_CODE_MAX = 4
 
 /** "No code on the TV? Show it again", under the pad for an AirPlay device's code. */
 internal const val PLAY_ON_SHOW_CODE = "pley.phone.play_on_show_code"

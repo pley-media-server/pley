@@ -533,12 +533,14 @@ list's place: **Pair with** the device by its name, **Type the code shown
 on the TV**, and that everyone in the home can then play on it. Where the
 server says how many digits the code has (`digits`, 4 on an Apple TV), the
 pad shows that many dots and sends it at the last one; a TV can be set to
-use a password instead, so with no `digits` it waits for OK. The code
-goes as `pin`, and once paired the cast goes again. A wrong code shakes
-the dots and says so (`403 wrong_pin`), as does a device that takes no
-other try yet (`429`); **No code on the TV? Show it again** asks the
-device for a new one. Any other refusal goes back to the list and is said
-there.
+use a password instead, so with no `digits` it waits for OK, taking 4
+digits at most, as the server does. The code goes as `pin`, and once
+paired the cast goes again. A wrong code shakes the dots and says so
+(`403 wrong_pin`); a device that takes no other try yet (`429`) says so
+on the pad too. **No code on the TV? Show it again** asks the device for
+a new one, and a refusal of that is said on the pad. Any other refusal of
+the code goes back to the list and is said there. An answer that comes
+after Back closed the pad doesn't open it again.
 
 A device of another profile of the household plays as the phone's
 profile: the cast names that device's profile (`profile_id`), and the

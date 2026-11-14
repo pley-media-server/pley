@@ -262,11 +262,20 @@ class RemoteRepositoryTest {
         remote.pair("airplay:a1b2c3d4e5f6", "4821")
         assertEquals(listOf("airplay:a1b2c3d4e5f6", "4821"), data.api.calls("pair").single().args)
 
-        // Gone from the network since: the lists are read again.
+        // Gone from the network since: the lists are read again, whether asked for its code or given it.
         data.api.fail("showPairingCode", ApiException(404, "not_found", "no such device"))
         runCatching { remote.showPairingCode("airplay:a1b2c3d4e5f6") }
         testScheduler.runCurrent()
         assertEquals(reads + 1, data.api.calls("remoteDevices").size)
+        data.api.fail("pair", ApiException(404, "not_found", "no such device"))
+        runCatching { remote.pair("airplay:a1b2c3d4e5f6", "4821") }
+        testScheduler.runCurrent()
+        assertEquals(reads + 2, data.api.calls("remoteDevices").size)
+        // A wrong code changes nothing listed.
+        data.api.fail("pair", ApiException(403, "wrong_pin", "that isn't the PIN the device shows"))
+        runCatching { remote.pair("airplay:a1b2c3d4e5f6", "1111") }
+        testScheduler.runCurrent()
+        assertEquals(reads + 2, data.api.calls("remoteDevices").size)
     }
 
     @Test

@@ -503,7 +503,13 @@ internal class ServerRemote(
         throw e
     }
 
-    override suspend fun pair(receiverId: String, code: String) = api().pair(receiverId, code)
+    override suspend fun pair(receiverId: String, code: String) = try {
+        api().pair(receiverId, code)
+    } catch (e: ApiException) {
+        // Gone from the network: the lists say what is left.
+        if (e.status == 404) asks.tryEmit(Unit)
+        throw e
+    }
 
     override val castNeedsPin: Boolean get() = hasPin()
 

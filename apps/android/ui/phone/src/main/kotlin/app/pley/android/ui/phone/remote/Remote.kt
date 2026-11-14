@@ -1046,7 +1046,14 @@ private fun Volume(level: Int, device: String, onSet: (Int) -> Unit, modifier: M
     val label = stringResource(R.string.remote_volume_on, device)
     val percent = NumberFormat.getPercentInstance(shownLocale()).format((dragged ?: level.toFloat()).roundToInt() / 100.0)
     Row(modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(PleyIcons.Volume2, contentDescription = null, size = 20.dp, tint = PleyColors.Muted)
+        val shown = (dragged ?: level.toFloat()).roundToInt()
+        // As loud as it is: muted, low, or high.
+        val icon = when {
+            shown == 0 -> PleyIcons.VolumeX
+            shown < 50 -> PleyIcons.Volume1
+            else -> PleyIcons.Volume2
+        }
+        Icon(icon, contentDescription = null, size = 20.dp, tint = PleyColors.Muted)
         Spacer(Modifier.width(8.dp))
         Slider(
             value = dragged ?: level.toFloat(),

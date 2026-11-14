@@ -332,24 +332,46 @@ class PlayOnUiTest {
         compose.onNodeWithText("That isn't the code Den Apple TV shows.").assertDoesNotExist()
 
         press("4821")
-        assertEquals(listOf(APPLE_TV to "4821"), graph.codesTyped)
+        assertEquals(listOf(APPLE_TV to "1111", APPLE_TV to "4821"), graph.codesTyped)
         assertEquals(listOf(APPLE_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
         compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
     }
 
     @Test
-    fun aCodeOfALengthNotKnownGoesWithOkAndARefusalOtherThanAWrongCodeGoesBackToTheList() {
+    fun anAnswerAfterBackClosedThePadDoesntOpenItAgain() {
+        shell(appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.pairingGate = gate
+        graph.pairingRefusals += ApiException(403, "wrong_pin", "that isn't the PIN the device shows")
+        press("1111")
+        compose.onNodeWithContentDescription("Back to the devices").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).assertExists()
+    }
+
+    @Test
+    fun aCodeOfALengthNotKnownGoesWithOkAt4DigitsAtMostAndARefusalOtherThanAWrongCodeGoesBackToTheList() {
         shell(appleTv())
         graph.codeLength = null
         choose(CastTarget(itemId = 101, video = true))
         graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
         compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
         compose.waitForIdle()
+        // The server takes 4 digits: no more are typed, and nothing goes without OK.
         press("482193")
         assertTrue(graph.codesTyped.isEmpty())
         graph.pairingRefusals += ApiException(409, "pairing_failed", "the device didn't pair")
         compose.onNodeWithTag("pley.pad.ok").performScrollTo().performClick()
         compose.waitForIdle()
+        assertEquals(listOf(APPLE_TV to "4821"), graph.codesTyped)
         compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
         compose.onNodeWithText("Den Apple TV didn't pair.").assertExists()
     }
