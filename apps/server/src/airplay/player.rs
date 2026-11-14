@@ -88,14 +88,15 @@ pub struct Session<S> {
     session_id: String,
     stream_id: String,
     rtsp_url: String,
-    /// Answers the device's clock: ends with the session.
-    _timing: Option<Timing>,
+    /// Answers the device's clock, and reads its events: both end with the
+    /// session.
+    _tasks: Vec<Task>,
 }
 
-/// The task answering a session's clock, ended when it is dropped.
-struct Timing(tokio::task::JoinHandle<()>);
+/// A task of a session's, ended when it is dropped.
+struct Task(tokio::task::JoinHandle<()>);
 
-impl Drop for Timing {
+impl Drop for Task {
     fn drop(&mut self) {
         self.0.abort();
     }
@@ -115,7 +116,7 @@ impl Session<TcpStream> {
         ]);
         let timing = UdpSocket::bind(SocketAddr::new(local, 0)).await?;
         let timing_port = timing.local_addr()?.port();
-        let timing = Timing(tokio::spawn(answer_clock(timing)));
+        let timing = Task(tokio::spawn(answer_clock(timing)));
         let session_id = uuid();
         let mac = sender_mac(id);
         let rtsp_url = format!("rtsp://{local}/{}", rand_u64() as u32);
@@ -151,7 +152,7 @@ impl Session<TcpStream> {
         let mut events = Channel::over(events);
         events.encrypt(secret, Keyed::Events);
         let (notices, received) = mpsc::channel(32);
-        tokio::spawn(read_events(events, notices));
+        let reading = Task(tokio::spawn(read_events(events, notices)));
         expect_ok(control.request("RECORD", &rtsp_url, true, &[], &[]).await?)?;
         // Apple's senders ask its info and record again before the
         // remote-control stream. An Apple TV answers the second RECORD with
@@ -180,7 +181,7 @@ impl Session<TcpStream> {
             })
             .filter(|_| answer.status() == 200)
             .ok_or_else(|| invalid("the device set up no remote-control stream"))?;
-        Ok(Session { control, notices: received, session_id, stream_id, rtsp_url, _timing: Some(timing) })
+        Ok(Session { control, notices: received, session_id, stream_id, rtsp_url, _tasks: vec![timing, reading] })
     }
 }
 
@@ -436,6 +437,9 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
                     let told = read_notice(&notice);
                     tracing::debug!("an AirPlay device said {told:?}");
                     match playing.update(told) {
+                        // Loading is no start: a stream the device can't
+                        // play fails while it loads, and is refused.
+                        Some(Update::Status(State::Buffering)) if started.is_some() => {}
                         Some(Update::Status(state)) => {
                             if let Some(started) = started.take() {
                                 let _ = started.send(Ok(()));
@@ -652,7 +656,7 @@ mod tests {
             session_id: "S".into(),
             stream_id: "7".into(),
             rtsp_url: "rtsp://pley/1".into(),
-            _timing: None,
+            _tasks: Vec::new(),
         };
         let mut device = Channel::over(theirs);
         let media = Media {
@@ -671,6 +675,11 @@ mod tests {
         for _ in 0..3 {
             next_command(&mut device).await;
         }
+        let mut loading = info(30.0, 100.0, 1.0);
+        if let Some(Value::Dictionary(info)) = loading.get_mut("info") {
+            info.insert("readyToPlay".into(), false.into());
+        }
+        tell.send(Some(loading)).await.unwrap();
         tell.send(Some(info(30.0, 100.0, 1.0))).await.unwrap();
         // Asked where it is while it starts, and told the sender is there.
         let answering = tokio::spawn(async move {
