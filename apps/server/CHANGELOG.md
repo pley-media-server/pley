@@ -90,6 +90,15 @@ On Intel graphics:
 - Once HDR transcodes have moved to Quick Sync or OpenCL tone mapping,
   another one started beside them gets the best picture the GPU keeps up
   with, and one of them goes back when there is room.
+- 720p and 4K HDR transcodes in fMP4 keep playing when another stream
+  makes the GPU busy, instead of stopping.
+- A video Quick Sync can't decode plays, decoded another way, instead of
+  stopping.
+- Burned-in picture subtitles on films cropped to wide screen show at the
+  bottom.
+- A file that couldn't be read no longer keeps Dolby Vision off OpenCL
+  until the server restarts, nor one GPU decoding error keeps Dolby Vision
+  and HDR10+ from being decoded by the GPU.
 
 ## [0.1.10] - 2026-11-12
 

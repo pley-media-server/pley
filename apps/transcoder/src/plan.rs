@@ -1298,6 +1298,30 @@ impl Plan {
         Some(decode_key(&src.codec, src.bit_depth, src.pix_fmt.as_deref()))
     }
 
+    /// Whether this plan's frames come to memory from Quick Sync's own
+    /// decoder (`-hwaccel qsv`), which has no software fallback: a video it
+    /// can't decode fails the process.
+    pub fn decodes_on_quick_sync(&self) -> bool {
+        self.video
+            .as_ref()
+            .is_some_and(|v| !v.copy && v.pipeline == Pipeline::Software && v.hw_decode.as_deref() == Some("qsv"))
+    }
+
+    /// This plan with FFmpeg's decoder paired with the encoder in place of
+    /// Quick Sync's own, where that one failed on the video
+    /// ([`Plan::decodes_on_quick_sync`]): FFmpeg decodes on the CPU what
+    /// that decoder can't, and the frames come to memory whole.
+    pub fn without_quick_sync_decoding(&self, ff: &Ffmpeg) -> Plan {
+        let mut plan = self.clone();
+        if plan.decodes_on_quick_sync()
+            && let Some(v) = plan.video.as_mut()
+        {
+            v.hw_decode = v.encoder.as_ref().and_then(|e| pick_hw_decoder(ff, e));
+            v.gpu_scale = None;
+        }
+        plan
+    }
+
     /// The pixels a frame of the source has and its frame rate: what
     /// decoding it takes (see [`crate::share::decode_cores`]).
     pub fn source_rate(&self, media: &MediaInfo) -> Option<(u64, f64)> {
@@ -1311,13 +1335,21 @@ impl Plan {
     pub fn with_share(&self, share: Share) -> Plan {
         let mut plan = self.clone();
         let burn = plan.burn.is_some();
+        let fmp4 = plan.segment_format == SegmentFormat::Fmp4;
         if let Some(v) = plan.video.as_mut() {
             v.tonemap_quality = share.quality;
+            // The frames stay on the GPU into Quick Sync's encoder unless
+            // subtitles are burned in, or the encoder would code them at
+            // another size than from memory: an fMP4 job's processes must
+            // all write the init segment its first one wrote, whichever
+            // share each has.
+            let codec = v.encoder.as_ref().map_or(VideoCodec::H264, |e| e.codec);
+            let on_gpu = !burn && (!fmp4 || qsv_codes_alike(codec, v.width, v.height));
             // Dolby Vision by its metadata on OpenCL, from the decoder
             // planned: into Quick Sync's encoder without leaving the GPU.
             if share.opencl && v.opencl_dovi {
                 v.tonemap = Some(Tonemapper::Opencl);
-                if !burn {
+                if on_gpu {
                     v.pipeline = Pipeline::Gpu(HwAccel::Qsv);
                 }
                 return plan;
@@ -1334,7 +1366,7 @@ impl Plan {
             if share.quick_sync {
                 v.tonemap = Some(Tonemapper::QuickSync);
                 // Into Quick Sync's encoder without leaving the GPU.
-                if !burn && v.encoder.as_ref().is_some_and(|e| e.accel == HwAccel::Qsv && e.hardware) {
+                if on_gpu && v.encoder.as_ref().is_some_and(|e| e.accel == HwAccel::Qsv && e.hardware) {
                     v.pipeline = Pipeline::Gpu(HwAccel::Qsv);
                 }
             }
@@ -1816,10 +1848,16 @@ impl Plan {
                 } else {
                     String::new()
                 };
+                // A canvas taller than the frame (a film cropped to 2.40:1
+                // with a 16:9 canvas) is cut to the frame's height, its
+                // bottom kept, as the CPU's overlay clips it: Quick Sync's
+                // takes no position above the frame.
                 return format!(
-                    "{subs}scale={}:-1,format=bgra,hwupload=extra_hw_frames=16[subs];{input}[subs]overlay_qsv=\
+                    "{subs}scale={w_src}:-1,crop=iw:'min(ih,{h_src})':0:'ih-oh',format=bgra,\
+                     hwupload=extra_hw_frames=16[subs];{input}[subs]overlay_qsv=\
                      x=(main_w-overlay_w)/2:y=main_h-overlay_h:eof_action=repeat:repeatlast=1{scale}[vout]",
-                    v.src_width
+                    w_src = v.src_width,
+                    h_src = v.src_height,
                 );
             }
             let format = if v.hdr.is_some() { "p010le" } else { "nv12" };
@@ -2125,6 +2163,18 @@ pub const QSV_VBR: [&str; 2] = ["-mbbrc", "1"];
 /// 13 to 25 % faster beside libplacebo, which it leaves the shader cores
 /// to, and 4K SDR 17 % faster; a film scored as high on VMAF or higher.
 pub const QSV_LOW_POWER: [&str; 2] = ["-low_power", "1"];
+
+/// Whether Quick Sync's encoder codes `w×h` frames at the same size from
+/// memory as from its scaler's surfaces, and so writes the same parameter
+/// sets either way. From memory it rounds the width up to 16 and an H.264
+/// picture's height to 16 (HEVC's to 32); its scaler's surfaces are rounded
+/// up to 32 both ways, and the encoder codes at their size (FFmpeg's
+/// qsvenc.c and qsvvpp.c). 1080 lines are 1088 either way, 720 are 720 or
+/// 736.
+pub fn qsv_codes_alike(codec: VideoCodec, w: i64, h: i64) -> bool {
+    let up = |n: i64, to: i64| (n.max(1) + to - 1) / to * to;
+    up(w, 16) == up(w, 32) && (codec == VideoCodec::Hevc || up(h, 16) == up(h, 32))
+}
 /// VAAPI's rate control: variable, capped by `-maxrate`.
 pub const VAAPI_VBR: [&str; 2] = ["-rc_mode", "VBR"];
 
@@ -3475,8 +3525,8 @@ mod tests {
         assert!(args.contains(&format!("{devices} {decode}")), "{args}");
         assert!(
             args.contains(
-                "[0:2]scale=1920:-1,format=bgra,hwupload=extra_hw_frames=16[subs];[0:0][subs]overlay_qsv=\
-                 x=(main_w-overlay_w)/2:y=main_h-overlay_h:eof_action=repeat:repeatlast=1,\
+                "[0:2]scale=1920:-1,crop=iw:'min(ih,1080)':0:'ih-oh',format=bgra,hwupload=extra_hw_frames=16[subs];\
+                 [0:0][subs]overlay_qsv=x=(main_w-overlay_w)/2:y=main_h-overlay_h:eof_action=repeat:repeatlast=1,\
                  vpp_qsv=w=1280:h=720:format=nv12[vout]"
             ),
             "{args}"
@@ -3484,6 +3534,14 @@ mod tests {
         // Kept at its size: no scaler after.
         let args = args_string(&burn(1080), 0, 2);
         assert!(args.contains("eof_action=repeat:repeatlast=1[vout]"), "{args}");
+        // A film cropped to 2.40:1: a 16:9 canvas is cut to its 800 lines,
+        // from the bottom, where Quick Sync can place it.
+        let mut cropped = m.clone();
+        cropped.streams[0].height = Some(800);
+        let mut req = request();
+        req.subtitle = Some(SubtitleBurnRequest { stream_index: Some(2), external_path: None });
+        let args = args_string(&Plan::build(&req, &cropped, &ff, None).unwrap(), 0, 2);
+        assert!(args.contains("[0:2]scale=1920:-1,crop=iw:'min(ih,800)':0:'ih-oh',format=bgra"), "{args}");
 
         // x264 standing in: scaled by Quick Sync, laid on in memory.
         let x264 = x264();
@@ -3623,6 +3681,53 @@ mod tests {
             bare.streams[0].hdr10_metadata = metadata;
             let plan = Plan::build(&request(), &bare, &ff, None).unwrap();
             assert!(!plan.quick_sync_could_tonemap(&bare, true), "{metadata:?}");
+        }
+    }
+
+    /// An fMP4 job keeps the init segment its first process wrote: where
+    /// Quick Sync's encoder would code frames from its scaler at another
+    /// size than from memory (720 lines are 736 from the scaler, 720 from
+    /// memory), a job moved to Quick Sync's tone mapping still feeds it from
+    /// memory, as libplacebo's processes do.
+    #[test]
+    fn an_fmp4_job_moved_to_quick_sync_keeps_its_init_segment() {
+        assert!(qsv_codes_alike(VideoCodec::H264, 1920, 1080));
+        assert!(!qsv_codes_alike(VideoCodec::H264, 1280, 720));
+        assert!(!qsv_codes_alike(VideoCodec::H264, 3840, 2160));
+        assert!(qsv_codes_alike(VideoCodec::Hevc, 1280, 720), "HEVC's height is rounded to 32 either way");
+        assert!(!qsv_codes_alike(VideoCodec::Hevc, 720, 404), "720 is 720 or 736 wide");
+
+        let mut ff = intel(HwAccel::Qsv, true);
+        ff.caps.vulkan_decode = vec!["h264".into(), "hevc".into()];
+        ff.caps.qsv_tonemap = true;
+        let mut m = ten_bit(media(DynamicRange::Hdr10, None));
+        m.streams[0].hdr10_metadata = Some(true);
+        let share = Share {
+            quality: TonemapQuality::Fast,
+            cpu_decode: false,
+            quick_sync: true,
+            base_layer: false,
+            opencl: false,
+        };
+        let moved = |height: u32, format: SegmentFormat| {
+            let mut req = request();
+            req.video.as_mut().unwrap().max_height = Some(height);
+            req.segment_format = format;
+            let plan = Plan::build(&req, &m, &ff, None).unwrap();
+            assert!(plan.quick_sync_could_tonemap(&m, true));
+            plan.with_share(share)
+        };
+        // 720p in fMP4: tone mapped by Quick Sync, then to memory.
+        let plan = moved(720, SegmentFormat::Fmp4);
+        assert_eq!(plan.segment_format, SegmentFormat::Fmp4);
+        let v = plan.video.as_ref().unwrap();
+        assert_eq!((v.pipeline, v.tonemap), (Pipeline::Software, Some(Tonemapper::QuickSync)));
+        let args = args_string(&plan, 0, 2);
+        assert!(args.contains(&format!("{},hwdownload,format=nv12", qsv_tonemap(1280, 720))), "{args}");
+        // 1080p in fMP4, and 720p in transport stream segments, which have
+        // no init segment: on the GPU all the way.
+        for plan in [moved(1080, SegmentFormat::Fmp4), moved(720, SegmentFormat::Ts)] {
+            assert_eq!(plan.video.as_ref().unwrap().pipeline, Pipeline::Gpu(HwAccel::Qsv));
         }
     }
 

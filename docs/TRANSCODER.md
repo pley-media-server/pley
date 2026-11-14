@@ -892,7 +892,10 @@ the VPS, SPS and PPS with every forced keyframe.
   when the GPU doesn't decode the codec. Quick Sync's own decoders (`qsv`)
   decode for its zero-copy pipeline, and for some frames that go to memory
   (below); they have no software fallback, so they decode only what their
-  pipeline's start-up test passed.
+  pipeline's start-up test passed. Where one still fails on a video before
+  its job's first segment, the job's next process decodes with FFmpeg's
+  decoder paired with the encoder, which does fall back, and the job warns
+  of it; the failure doesn't count against the segment.
 - A job whose hardware decoder failed to start shows `cpu` as its decoder,
   with a warning.
 - **Scaling on the GPU first.** Frames that go to system memory (for
@@ -919,7 +922,8 @@ the VPS, SPS and PPS with every forced keyframe.
   and FFmpeg then decodes on the CPU. For Dolby Vision over an HDR10 base
   layer (profiles 7 and 8.1) and for HDR10+, Quick Sync decodes and scales
   that base layer instead, from the job's next segment on and from the start
-  of the jobs that follow with video of the same kind, and libplacebo tone
+  of the jobs that follow with video of the same kind for half an hour
+  after it last failed, and libplacebo tone
   maps the HDR10 picture, the metadata unread. The job's status then says
   `decoder: qsv`, without the warning. On an Iris Xe, a 4K60 profile 8.1
   clip made 1080p went from 1.2 times real time on 2.8 cores to 2.2 times
@@ -1131,7 +1135,12 @@ Several jobs tone mapping with libplacebo share the GPU (`src/share.rs`):
   metadata. The route: scaled in 10 bits, then brightness 16 up and tone
   mapped to NV12 at the output's size, each in a pass of its own (Quick Sync
   does each at the size it is given), into `h264_qsv` without leaving the
-  GPU (to memory for x264 standing in, or for burned-in subtitles). It costs
+  GPU (to memory for x264 standing in, or for burned-in subtitles). An fMP4
+  job's frames go through memory to `h264_qsv` too where its encoder would
+  code them at another size from its scaler's surfaces than from memory
+  (720 lines as 736, say: the surfaces are rounded up to 32, H.264 from
+  memory to 16), so that every process writes the init segment the first
+  one did; 1080p and transport stream segments aren't concerned. It costs
   the GPU a fraction of libplacebo's work: a 4K60 film made 1080p went at
   about 225 frames a second rather than 99 to 127 on an Iris Xe on Windows,
   and two at once at 120 each. The picture is as bright, with highlights
@@ -1190,8 +1199,9 @@ Several jobs tone mapping with libplacebo share the GPU (`src/share.rs`):
   - Frames come to memory once tone mapped (`hwdownload`, status `pipeline:
     hybrid`) for burned-in subtitles and for x264 standing in.
   - A process that fails there before its first segment hands its job back
-    to libplacebo. After three such jobs, none goes there until the
-    transcoder restarts.
+    to libplacebo. After three such jobs within half an hour, none goes
+    there until half an hour after the last of them: a file that can't be
+    read fails there too.
   - On an Iris Xe, a 4K60 profile 8.1 clip made 1080p goes at 330 to 350
     frames a second (5.5 to 5.9 times real time), a fifth of a core's work
     at real time, and a profile 5 one the same, where libplacebo makes 70
@@ -1296,7 +1306,10 @@ that went away, say), the frame is grabbed as it is.
   ([Quick Sync on Linux](#quick-sync-on-linux)). A 1080p film took a sixth of
   the CPU it took blended in memory on Windows, a 720p one a quarter.
   The last subtitle picture is kept to the end (`eof_action=repeat`): with
-  `pass`, Quick Sync drops the video's last frame.
+  `pass`, Quick Sync drops the video's last frame. A canvas taller than the
+  frame (a 16:9 one over a film cropped to 2.40:1) is cut to the frame's
+  height, its bottom kept, as the CPU's overlay clips it: Quick Sync's
+  takes no position above the frame.
 - **Text subtitles** (SRT, ASS) are rendered by libass from an `.ass` file
   extracted into the job folder when the job is created. Extracting an
   embedded track reads the whole file and gives up after 20 minutes (the

@@ -9,7 +9,7 @@
 //! (seeking). Idle processes are stopped, idle jobs expire, and segments far
 //! behind the playhead are pruned.
 
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use std::process::{ExitStatus, Stdio};
 use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU32, AtomicU64, Ordering::Relaxed};
@@ -188,12 +188,15 @@ pub struct JobManager {
     /// hardware decoder failed on, of jobs Quick Sync could decode in its
     /// place ([`Plan::quick_sync_would_decode`]): the next ones start there.
     /// OpenCL takes none of them, which needs that decoder's frames
-    /// ([`Plan::opencl_could_tonemap`]).
-    decode_failed: Mutex<HashSet<String>>,
+    /// ([`Plan::opencl_could_tonemap`]). Each for [`LATCH_HOLDS`] after it
+    /// last failed: a driver reset is no reason to give the decoder up for
+    /// good.
+    decode_failed: Mutex<HashMap<String, Instant>>,
     /// The jobs whose process tone mapping Dolby Vision on OpenCL failed
-    /// before its first segment ([`Runtime::opencl_failed`]): after
-    /// [`OPENCL_FAILURES`] of them, no job goes there again.
-    opencl_failed: Mutex<HashSet<String>>,
+    /// before its first segment ([`Runtime::opencl_failed`]), and when:
+    /// while [`OPENCL_FAILURES`] of them are within [`LATCH_HOLDS`], no job
+    /// goes there. A file that can't be read fails there too.
+    opencl_failed: Mutex<HashMap<String, Instant>>,
     /// Whether the video of files probed before probes looked for HDR10's
     /// static metadata carries it, as their first frames said, by path, size
     /// and time of change: read once a file rather than at each job's start.
@@ -469,6 +472,11 @@ struct Runtime {
     /// A process tone mapping on OpenCL ([`Share::opencl`]) failed before
     /// its first segment: libplacebo tone maps again, as planned.
     opencl_failed: bool,
+    /// A process whose frames came from Quick Sync's own decoder
+    /// ([`Plan::decodes_on_quick_sync`]), which has no software fallback,
+    /// failed before its first segment: FFmpeg's decoder paired with the
+    /// encoder takes the video from then on.
+    qsv_decode_failed: bool,
     failures: HashMap<u32, u32>,
     /// The automatic preset of the running process (index in
     /// [`adaptive::LADDER`]), and when it started or moved.
@@ -483,16 +491,24 @@ struct Runtime {
 }
 
 /// Jobs whose tone mapping on OpenCL failed before its first segment after
-/// which no job is tone mapped there, until the transcoder starts again.
-/// One alone goes back to libplacebo: a file that fails every way isn't
-/// OpenCL's doing.
+/// which no job is tone mapped there, while they are within
+/// [`LATCH_HOLDS`]. One alone goes back to libplacebo: a file that fails
+/// every way isn't OpenCL's doing.
 const OPENCL_FAILURES: usize = 3;
+
+/// How long a decoder or OpenCL failure keeps other jobs off it
+/// ([`JobManager::own_decoder_failed`], [`JobManager::opencl_fails`]).
+/// Trying again costs a job one process that fails or decodes on the CPU.
+const LATCH_HOLDS: Duration = Duration::from_secs(30 * 60);
 
 /// A file's size and time of change: what tells it changed.
 type FileStamp = (u64, Option<SystemTime>);
 
 /// What a job warns of once FFmpeg said its GPU couldn't decode the video.
 const GPU_DECODING_FAILED: &str = "GPU decoding failed, using the CPU";
+
+/// What a job warns of once Quick Sync's own decoder failed on the video.
+const QSV_DECODING_FAILED: &str = "Quick Sync's decoder failed, using FFmpeg's";
 
 impl Runtime {
     /// Whether the latest process decodes with Quick Sync what FFmpeg's own
@@ -1180,6 +1196,9 @@ impl JobManager {
         // the CPU's decoding. Not once FFmpeg's decoder, whose frames it
         // takes, failed on the GPU, nor once it failed itself.
         let own_decoder_failed = self.own_decoder_failed(job);
+        // Quick Sync's own decoder failed on this video: it neither decodes
+        // the base layer nor tone maps (it decodes what it tone maps).
+        let qsv_decode_failed = job.runtime.lock().qsv_decode_failed;
         let opencl = (gpu.behind || held.cpu_busy)
             && job.plan.opencl_could_tonemap()
             && !own_decoder_failed
@@ -1189,8 +1208,11 @@ impl JobManager {
         // CPU has no time to spare for video Quick Sync would decode in its
         // place (Dolby Vision and HDR10+, as their HDR10 base layer).
         let relieved = gpu.behind || (held.cpu_busy && job.plan.quick_sync_would_decode());
-        let quick_sync = !opencl && relieved && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap);
-        let base_layer = !opencl && own_decoder_failed && job.plan.quick_sync_would_decode();
+        let quick_sync = !opencl
+            && !qsv_decode_failed
+            && relieved
+            && job.plan.quick_sync_could_tonemap(&job.media, self.ff.caps.qsv_tonemap);
+        let base_layer = !opencl && !qsv_decode_failed && own_decoder_failed && job.plan.quick_sync_would_decode();
         // Quick Sync decodes what it tone maps, and what it took over;
         // FFmpeg's decoder on the GPU what OpenCL tone maps.
         let cpu_decode = !opencl
@@ -1249,14 +1271,16 @@ impl JobManager {
             return false;
         }
         let Some(key) = job.plan.decode_key(&job.media) else { return false };
+        let now = Instant::now();
         let mut failed = self.decode_failed.lock();
-        if job.runtime.lock().decoded_in_software && failed.insert(key.clone()) {
+        failed.retain(|_, at| now.duration_since(*at) < LATCH_HOLDS);
+        if job.runtime.lock().decoded_in_software && failed.insert(key.clone(), now).is_none() {
             tracing::info!(
                 job = %job.id,
                 "FFmpeg's own decoder failed on the GPU for {key}: Quick Sync decodes the HDR10 base layer of Dolby Vision and HDR10+"
             );
         }
-        failed.contains(&key)
+        failed.contains_key(&key)
     }
 
     /// Whether OpenCL failed to tone map `job`'s Dolby Vision, or that of
@@ -1264,11 +1288,14 @@ impl JobManager {
     /// the start-up test and fails real videos, say. libplacebo tone maps it
     /// then, as planned.
     fn opencl_fails(&self, job: &Job) -> bool {
+        let now = Instant::now();
         let mut failed = self.opencl_failed.lock();
+        failed.retain(|_, at| now.duration_since(*at) < LATCH_HOLDS);
         let given_up = failed.len() >= OPENCL_FAILURES;
         let this = job.runtime.lock().opencl_failed;
-        if this && !given_up && failed.insert(job.id.clone()) {
-            let from_here_on = if failed.len() >= OPENCL_FAILURES { ", and every job from here on" } else { "" };
+        if this && !given_up && failed.insert(job.id.clone(), now).is_none() {
+            let from_here_on =
+                if failed.len() >= OPENCL_FAILURES { ", and every job for the next half hour" } else { "" };
             tracing::warn!(
                 job = %job.id,
                 "OpenCL failed to tone map Dolby Vision before its first segment: libplacebo tone maps this job{from_here_on}"
@@ -1486,8 +1513,13 @@ impl JobManager {
         // since: the same plan with them.
         let share = self.gpu_share(job, hw && fallback.is_none());
         let bitrate = *job.bitrate.lock();
-        let adjusted = (share.is_some() || bitrate.is_some()).then(|| {
+        // Quick Sync's own decoder failed on the video: FFmpeg's in its place.
+        let qsv_decode_failed = job.runtime.lock().qsv_decode_failed;
+        let adjusted = (share.is_some() || bitrate.is_some() || qsv_decode_failed).then(|| {
             let mut plan = share.map_or_else(|| plan.clone(), |s| plan.with_share(s));
+            if qsv_decode_failed {
+                plan = plan.without_quick_sync_decoding(&self.ff);
+            }
             if let (Some(kbps), Some(v)) = (bitrate, plan.video.as_mut()) {
                 v.bitrate_kbps = kbps;
             }
@@ -1955,6 +1987,15 @@ impl Job {
             && self.plan.video.as_ref().is_some_and(|v| !v.copy)
     }
 
+    /// Whether the latest process (its runtime `rt`) took its frames from
+    /// Quick Sync's own decoder: as planned ([`Plan::decodes_on_quick_sync`]),
+    /// or as its share moved it there (Quick Sync's tone mapping, or the
+    /// base layer it decodes).
+    fn quick_sync_decoded(&self, rt: &Runtime) -> bool {
+        rt.share.is_some_and(|s| s.quick_sync || s.base_layer)
+            || rt.share.map_or_else(|| self.plan.clone(), |s| self.plan.with_share(s)).decodes_on_quick_sync()
+    }
+
     /// The cores a process of this job takes decoding its video on the CPU
     /// now (see [`share::decode_cores`]): none when the GPU decodes it.
     fn cpu_decode_cores(&self) -> f64 {
@@ -2206,6 +2247,14 @@ impl Job {
                 // video's: the next process tone maps as planned, and this
                 // one doesn't count against the segment.
                 rt.opencl_failed = true;
+            } else if made_nothing && !rt.qsv_decode_failed && self.quick_sync_decoded(&rt) {
+                // So is Quick Sync's own decoder failing before it made
+                // anything, which has no software fallback: the next process
+                // decodes with FFmpeg's decoder, as on other GPUs, and this
+                // one doesn't count against the segment. A second failure
+                // is the encoder's (below).
+                tracing::warn!(job = %self.id, "Quick Sync's decoder failed: FFmpeg's decoder takes the video");
+                rt.qsv_decode_failed = true;
             } else {
                 *rt.failures.entry(next).or_insert(0) += 1;
                 // A hardware encoder failing before it made anything (a
@@ -2370,6 +2419,14 @@ impl Job {
     fn own_status(&self) -> JobStatus {
         let rt = self.runtime.lock();
         let mut video = self.plan.video_plan(&self.media, rt.encoder_override.as_ref());
+        // Quick Sync's own decoder failed: FFmpeg's paired with the encoder
+        // took over (see `Plan::without_quick_sync_decoding`).
+        if rt.qsv_decode_failed
+            && self.plan.decodes_on_quick_sync()
+            && let Some(v) = video.as_mut()
+        {
+            v.decoder = Some(if cfg!(windows) { "d3d11va" } else { "vaapi" }.into());
+        }
         // Quick Sync took the decoding over from the decoder that failed.
         let quick_sync_decodes = rt.quick_sync_decodes(&self.plan);
         if let Some(v) = video.as_mut().filter(|_| rt.decoded_in_software && !quick_sync_decodes) {
@@ -2402,6 +2459,9 @@ impl Job {
         let mut warnings = self.plan.warnings.clone();
         // The CPU decodes no more once Quick Sync took over.
         warnings.extend(rt.warnings.iter().filter(|w| !(quick_sync_decodes && *w == GPU_DECODING_FAILED)).cloned());
+        if rt.qsv_decode_failed {
+            warnings.push(QSV_DECODING_FAILED.to_owned());
+        }
         JobStatus {
             id: self.id.clone(),
             label: self.request.label.clone(),
@@ -4099,6 +4159,76 @@ mod tests {
             assert!(!jobs.gpu_share(job, true).unwrap().opencl);
         }
         assert!(!jobs.gpu_share(&fourth, true).unwrap().opencl);
+
+        // The three failures hold for half an hour, then OpenCL is tried again.
+        let long_ago = Instant::now() - LATCH_HOLDS - Duration::from_secs(1);
+        jobs.opencl_failed.lock().values_mut().for_each(|at| *at = long_ago);
+        assert!(jobs.gpu_share(&fourth, true).unwrap().opencl);
+    }
+
+    /// Quick Sync's own decoder has no software fallback: a process whose
+    /// frames came from it that fails before its first segment hands the
+    /// video to FFmpeg's decoder paired with the encoder, without counting
+    /// against the segment. A second failure is the encoder's, as before.
+    #[tokio::test]
+    async fn quick_sync_decoder_failing_gives_way_to_ffmpegs() {
+        use pley_transcoder_api::{DynamicRange, StreamKind, VideoRequest};
+        let dir = crate::testing::tempdir();
+        let ff = iris_xe(dir.path());
+        let video = MediaStream {
+            kind: StreamKind::Video,
+            codec: "hevc".into(),
+            width: Some(3840),
+            height: Some(2160),
+            bit_depth: Some(10),
+            pix_fmt: Some("yuv420p10le".into()),
+            frame_rate: Some(24.0),
+            dynamic_range: Some(DynamicRange::Hdr10),
+            hdr10_metadata: Some(true),
+            ..Default::default()
+        };
+        let media = MediaInfo { duration_ms: Some(8_000), streams: vec![video], ..Default::default() };
+        let req = JobRequest {
+            input: "/media/movie.mkv".into(),
+            video: Some(VideoRequest { max_height: Some(1080), ..Default::default() }),
+            ..Default::default()
+        };
+        let mut job = job(dir.path(), vec![0, 4_000, 8_000]);
+        job.plan = Plan::build(&req, &media, &ff, None).unwrap();
+        job.media = Arc::new(media);
+        assert!(job.plan.decodes_on_quick_sync(), "4K HDR10 made 1080p: Quick Sync decodes and scales it");
+
+        let (tail, metrics) = (Mutex::new(VecDeque::new()), Metrics::default());
+        let started = |job: &Job| {
+            job.runtime.lock().process = Some(ProcessStatus { start_segment: 1, hardware: true, ..Default::default() });
+        };
+        started(&job);
+        job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        {
+            let rt = job.runtime.lock();
+            assert!(rt.qsv_decode_failed && !rt.hardware_failed);
+            assert_eq!(rt.failures.get(&1), None, "the segment is tried again");
+        }
+        // FFmpeg's decoder from then on, the frames whole to memory.
+        let taken = job.plan.without_quick_sync_decoding(&ff);
+        let v = taken.video.as_ref().unwrap();
+        let paired = if cfg!(windows) { Some("d3d11va") } else { None };
+        assert_eq!((v.hw_decode.as_deref(), v.gpu_scale), (paired, None));
+        assert!(!taken.decodes_on_quick_sync());
+        let status = job.status();
+        assert!(status.warnings.iter().any(|w| w == QSV_DECODING_FAILED), "{:?}", status.warnings);
+        assert_ne!(status.video.unwrap().decoder.as_deref(), Some("qsv"));
+        // Quick Sync takes neither the tone mapping nor the base layer.
+        let jobs = manager_with(dir.path(), iris_xe(dir.path()));
+        let share = jobs.gpu_share(&job, true).unwrap();
+        assert!(!share.quick_sync && !share.base_layer);
+
+        // Failing again: the encoder's.
+        started(&job);
+        job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        let rt = job.runtime.lock();
+        assert!(rt.hardware_failed);
+        assert_eq!(rt.failures.get(&1), Some(&1));
     }
 
     #[test]
