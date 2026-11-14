@@ -604,6 +604,7 @@ pub fn parse_ffprobe_json(json: &[u8], path: &Path) -> anyhow::Result<MediaInfo>
                     stream.dv_profile = get("dv_profile");
                     stream.dv_level = get("dv_level");
                     stream.dv_bl_compat = get("dv_bl_signal_compatibility_id");
+                    stream.dv_el_present = get("el_present_flag").map(|flag| flag != 0);
                     // Usually only frames say (see `Prober::find_hdr10plus`).
                     stream.hdr10plus = hdr10plus.then_some(true);
                     DynamicRange::DolbyVision
@@ -926,6 +927,7 @@ mod tests {
         assert_eq!(video.dynamic_range, Some(DynamicRange::DolbyVision));
         assert_eq!(video.dv_profile, Some(8));
         assert_eq!(video.dv_bl_compat, Some(1));
+        assert_eq!(video.dv_el_present, Some(false), "the record's el_present_flag");
         assert_eq!(video.bit_depth, Some(10));
         assert_eq!(video.hdr, Some(true));
         assert_eq!(video.interlaced, Some(false));

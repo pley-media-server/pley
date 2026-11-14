@@ -217,6 +217,13 @@ pub struct MediaStream {
     /// transcoder, or frames that couldn't be read).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dv_el: Option<DolbyVisionLayer>,
+    /// Whether the stream carries its Dolby Vision enhancement layer, as
+    /// its configuration record says (`el_present_flag`). A profile 7 track
+    /// can keep a full layer's metadata without the layer itself (some
+    /// remuxes drop it); there is nothing then to rebuild the full picture
+    /// from. `None`: not said, or probed by an older transcoder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dv_el_present: Option<bool>,
     /// Dolby Vision found only in the frames (their RPUs): the file doesn't
     /// name it, having no configuration record (some remuxes and older
     /// muxers leave it out). A player given the file as it is decodes its

@@ -25,7 +25,7 @@ use crate::metrics::Metrics;
 use crate::mks;
 use crate::plan::{
     MAX_DURATION_MS, PLACEBO_CURVE, PLACEBO_FALLBACK_PEAK, PLACEBO_STATIC_PEAK, TextSource, ZSCALE_TONEMAP,
-    untagged_hdr_fix,
+    placebo_still_options, untagged_hdr_fix,
 };
 use crate::probe::Prober;
 use crate::util::{MEDIA_INPUT_OPTIONS, file_key, input_arg, secs, touch, write_atomically};
@@ -1786,10 +1786,11 @@ impl Picture {
         let zscale = caps.tonemappers.contains(&Tonemapper::Zscale);
         if placebo && (!zscale || video.is_some_and(MediaStream::is_dolby_vision_only)) {
             let fallback = if caps.placebo_fallback_peak { format!(":{PLACEBO_FALLBACK_PEAK}") } else { String::new() };
+            let still = placebo_still_options(video);
             return Self {
                 init: &VULKAN_DEVICE,
                 vf: format!(
-                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}{fallback}"
+                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}{fallback}{still}"
                 ),
                 tone_mapped: true,
             };
@@ -2060,6 +2061,19 @@ mod tests {
         let pleys = Capabilities { placebo_fallback_peak: true, ..caps(&[Tonemapper::Libplacebo]) };
         let picture = Picture::hdr(640, Some(&hdr10), &pleys);
         assert!(picture.vf.ends_with("tonemapping=bt.2390:peak_detect=0:fallback_peak=1000"), "{picture:?}");
+        // Profile 7 with a full enhancement layer: its base layer alone, as
+        // transcodes make it by default; a minimal layer's metadata is read.
+        let fel = MediaStream {
+            dynamic_range: Some(pley_transcoder_api::DynamicRange::DolbyVision),
+            dv_profile: Some(7),
+            dv_bl_compat: Some(6),
+            dv_el: Some(pley_transcoder_api::DolbyVisionLayer::Fel),
+            ..hdr10.clone()
+        };
+        let placebo = caps(&[Tonemapper::Libplacebo]);
+        assert!(Picture::hdr(640, Some(&fel), &placebo).vf.ends_with(":apply_dolbyvision=0"));
+        let mel = MediaStream { dv_el: Some(pley_transcoder_api::DolbyVisionLayer::Mel), ..fel };
+        assert!(!Picture::hdr(640, Some(&mel), &placebo).vf.contains("apply_dolbyvision"));
     }
 
     /// An extractor whose FFmpeg is `ffmpeg` and whose ffprobe doesn't exist.

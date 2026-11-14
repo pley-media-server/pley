@@ -1032,8 +1032,9 @@ libplacebo tone maps or converts it:
   metadata, and HDR kept as HDR10 is the base layer already: both values
   give them the same picture. Pley's FFmpeg's OpenCL reads it, and is
   told not to (`apply_dovi=0`) for `base_layer`.
-- Thumbnails and seek previews aren't concerned either: libplacebo reads
-  the metadata for them.
+- Seek previews and frame grabs are made from the base layer alone, as
+  transcodes are by default (`apply_dolbyvision=0`), whatever the setting:
+  they are made once a file.
 - Capability `dolby_vision_fel`. A transcoder without it does `metadata`.
 - **Experimental: the full layer.** With `dolby_vision_fel_full` asked for,
   and an FFmpeg that can (capability `dolby_vision_fel_full`, Pley's own
@@ -1042,7 +1043,12 @@ libplacebo tone maps or converts it:
   then transcoded as HDR10. The brightness the metadata gives each scene
   describes that picture, and goes on with it as HDR10+ (`dovi_compose`'s
   `scene`), so made SDR it is tone mapped scene by scene, as a Dolby Vision
-  player would. Elsewhere it is ignored and `dolby_vision_fel` applies.
+  player would. Elsewhere it is ignored and `dolby_vision_fel` applies,
+  and also where the stream says it carries no enhancement layer, only its
+  metadata (`MediaStream.dv_el_present: false`, from the configuration
+  record's `el_present_flag`): FFmpeg would wait for that layer's frames
+  to the end of the file. Blu-ray transport streams and dual-track MP4s,
+  where the layer is a stream of its own, aren't composed.
 
 #### libplacebo quality
 
@@ -1477,7 +1483,10 @@ decodes its first frames' side data and records:
   `dynamic_range: hdr10plus`, and Dolby Vision found in the frames keeps
   its base layer's HDR10+ (Dolby Vision + HDR10+).
 - For profile 7, `MediaStream.dv_el`: `mel` (minimal) when the enhancement
-  layer's residual is zero in every component, else `fel` (full).
+  layer's residual is zero in every component, else `fel` (full). The
+  metadata says it, so it is there where the layer itself was dropped;
+  `MediaStream.dv_el_present` says whether the layer is (the configuration
+  record's `el_present_flag`, from the stream rather than its frames).
 - `MediaStream.hdr10_metadata`: whether the frames carry HDR10's static
   metadata, the mastering display's (SMPTE ST 2086). Quick Sync's scaler
   and VAAPI tone map by it ([Sharing the GPU](#sharing-the-gpu)).

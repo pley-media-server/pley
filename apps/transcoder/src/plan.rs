@@ -88,6 +88,23 @@ pub const PLACEBO_STATIC_PEAK: &str = "peak_detect=0";
 /// detail (12 % of its pixels at 250 or more, against 0.3 %).
 pub const PLACEBO_CURVE: &str = "tonemapping=bt.2390";
 
+/// Dolby Vision profile 7 with a full enhancement layer
+/// ([`DolbyVisionLayer::Fel`]).
+fn has_full_enhancement_layer(video: &MediaStream) -> bool {
+    video.dynamic_range() == DynamicRange::DolbyVision
+        && video.dv_profile == Some(7)
+        && video.dv_el == Some(DolbyVisionLayer::Fel)
+}
+
+/// What libplacebo is told besides its usual options for a still of
+/// `video` (seek previews, frame grabs): profile 7 with a full enhancement
+/// layer from its base layer alone, its Dolby Vision metadata unread, as
+/// transcodes make it by default ([`DolbyVisionFel::BaseLayer`]). Stills are
+/// made once a file, whatever the setting says later.
+pub fn placebo_still_options(video: Option<&MediaStream>) -> &'static str {
+    if video.is_some_and(has_full_enhancement_layer) { ":apply_dolbyvision=0" } else { "" }
+}
+
 /// The peak libplacebo assumes for HDR10 that carries no metadata of its
 /// brightness, where FFmpeg takes it ([`Capabilities::placebo_fallback_peak`]):
 /// the 1000 cd/m² most HDR10 films are mastered to, rather than PQ's own
@@ -804,13 +821,17 @@ impl Plan {
                     // default), the video is HDR10 to every choice below,
                     // its Dolby Vision metadata left unread. That metadata's
                     // brightness is of the picture with the layer.
-                    let fel = range == DynamicRange::DolbyVision
-                        && src.dv_profile == Some(7)
-                        && src.dv_el == Some(DolbyVisionLayer::Fel);
+                    let fel = has_full_enhancement_layer(src);
                     // Experimental: the full picture rebuilt from both layers,
                     // where FFmpeg can (Pley's own). `dovi_compose` takes
                     // frames from memory, so the CPU decodes both layers.
-                    let fel_compose = fel && req.options.dolby_vision_fel_full && ff.caps.dolby_vision_fel_full;
+                    // Not where the stream says it has no enhancement layer,
+                    // only its metadata: FFmpeg would wait for that layer's
+                    // frames to the end of the file.
+                    let fel_compose = fel
+                        && src.dv_el_present != Some(false)
+                        && req.options.dolby_vision_fel_full
+                        && ff.caps.dolby_vision_fel_full;
                     let fel_base = fel && (fel_compose || req.options.dolby_vision_fel == DolbyVisionFel::BaseLayer);
                     let hardware_decoding = req.options.hardware_decoding && !fel_compose;
                     let tonemap = match hdr {
@@ -3778,6 +3799,18 @@ mod tests {
         let mut mel = fel.clone();
         mel.streams[0].dv_el = Some(DolbyVisionLayer::Mel);
         assert!(!Plan::build(&req, &mel, &ff, None).unwrap().video.as_ref().unwrap().fel_compose);
+
+        // A full layer's metadata without the layer (the stream says so):
+        // nothing to compose, its base layer alone. Said to be there, or
+        // not said (probed by an older transcoder): composed.
+        for (present, composed) in [(Some(false), false), (Some(true), true), (None, true)] {
+            let mut stream = fel.clone();
+            stream.streams[0].dv_el_present = present;
+            let plan = Plan::build(&req, &stream, &ff, None).unwrap();
+            let v = plan.video.as_ref().unwrap();
+            assert_eq!((v.fel_compose, v.base_layer_only), (composed, true), "{present:?}");
+            assert_eq!(args_string(&plan, 0, 2).contains("dovi_split"), composed, "{present:?}");
+        }
     }
 
     /// Dolby Vision profile 7 with a full enhancement layer is made from its

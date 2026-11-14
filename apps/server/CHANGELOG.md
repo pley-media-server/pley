@@ -81,6 +81,11 @@ On Intel graphics:
   with Pley's own FFmpeg, in transcodes, seek previews and thumbnails.
 - Dolby Vision profile 5 plays on a server without a graphics card instead
   of failing to start.
+- With the experimental Dolby Vision full enhancement layer turned on, a
+  profile 7 file that keeps the layer's metadata but not the layer plays
+  from its base layer instead of never starting.
+- Seek previews and frame grabs of Dolby Vision profile 7 with a full
+  enhancement layer look like the video, made from the base layer.
 
 On Intel graphics:
 

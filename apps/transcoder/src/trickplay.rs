@@ -30,7 +30,9 @@ use crate::cpuload::CpuMeter;
 use crate::error::{ApiError, ApiResult};
 use crate::extract::{KEEP_FRESH, Lock, Locks, kept_fresh, pass_timeout};
 use crate::ffmpeg::Ffmpeg;
-use crate::plan::{PLACEBO_CURVE, PLACEBO_FALLBACK_PEAK, PLACEBO_STATIC_PEAK, ZSCALE_TONEMAP, untagged_hdr_fix};
+use crate::plan::{
+    PLACEBO_CURVE, PLACEBO_FALLBACK_PEAK, PLACEBO_STATIC_PEAK, ZSCALE_TONEMAP, placebo_still_options, untagged_hdr_fix,
+};
 use crate::probe::{Prober, Rejected};
 use crate::util::{MEDIA_INPUT_OPTIONS, background_priority, file_key, input_arg, touch};
 
@@ -260,8 +262,9 @@ impl Trickplay {
             // Handles Dolby Vision profile 5 too (its RPU is on every keyframe).
             // Tone mapped as the video is, by the stream's metadata.
             let fallback = if caps.placebo_fallback_peak { format!(":{PLACEBO_FALLBACK_PEAK}") } else { String::new() };
+            let still = placebo_still_options(Some(video));
             format!(
-                "libplacebo=w={width}:h={height}:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}{fallback}"
+                "libplacebo=w={width}:h={height}:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}{fallback}{still}"
             )
         } else if range.is_hdr() && caps.tonemappers.contains(&Tonemapper::Zscale) {
             // zimg needs colours: Dolby Vision profile 5 frames have none.
