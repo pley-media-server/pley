@@ -14,7 +14,7 @@ use std::time::{Duration, Instant, SystemTime};
 
 use futures::future::{BoxFuture, FutureExt, Shared};
 use parking_lot::Mutex;
-use pley_transcoder_api::{MediaInfo, MediaStream, StreamKind, ThumbnailRequest, Tonemapper};
+use pley_transcoder_api::{Capabilities, MediaInfo, MediaStream, StreamKind, ThumbnailRequest, Tonemapper};
 use tokio::sync::{Semaphore, watch};
 
 use crate::background::Background;
@@ -24,7 +24,8 @@ use crate::matroska;
 use crate::metrics::Metrics;
 use crate::mks;
 use crate::plan::{
-    MAX_DURATION_MS, PLACEBO_SDR_LIFT, PLACEBO_STATIC_PEAK, TextSource, ZSCALE_TONEMAP, untagged_hdr_fix,
+    MAX_DURATION_MS, PLACEBO_FALLBACK_PEAK, PLACEBO_SDR_LIFT, PLACEBO_STATIC_PEAK, TextSource, ZSCALE_TONEMAP,
+    untagged_hdr_fix,
 };
 use crate::probe::Prober;
 use crate::util::{MEDIA_INPUT_OPTIONS, file_key, input_arg, secs, touch, write_atomically};
@@ -174,7 +175,7 @@ impl Extractor {
         let width = req.width.unwrap_or(640).clamp(64, 1920);
         let plain = Picture::plain(width);
         let picture = if req.hdr {
-            Picture::hdr(width, media.as_deref().and_then(MediaInfo::video), &self.ff.caps.tonemappers)
+            Picture::hdr(width, media.as_deref().and_then(MediaInfo::video), &self.ff.caps)
         } else {
             plain.clone()
         };
@@ -1778,15 +1779,17 @@ impl Picture {
     /// HDR tone-mapped to SDR the best way available. Dolby Vision without a
     /// compatible base layer (profile 5) only gets its colours right through
     /// libplacebo, which applies the RPU; other HDR is cheaper on the CPU with
-    /// zimg, given the colour properties it needs.
-    fn hdr(width: u32, video: Option<&MediaStream>, tonemappers: &[Tonemapper]) -> Self {
-        let placebo = tonemappers.contains(&Tonemapper::Libplacebo);
-        let zscale = tonemappers.contains(&Tonemapper::Zscale);
+    /// zimg, given the colour properties it needs. libplacebo tone maps as it
+    /// does the video ([`PLACEBO_FALLBACK_PEAK`]).
+    fn hdr(width: u32, video: Option<&MediaStream>, caps: &Capabilities) -> Self {
+        let placebo = caps.tonemappers.contains(&Tonemapper::Libplacebo);
+        let zscale = caps.tonemappers.contains(&Tonemapper::Zscale);
         if placebo && (!zscale || video.is_some_and(MediaStream::is_dolby_vision_only)) {
+            let fallback = if caps.placebo_fallback_peak { format!(":{PLACEBO_FALLBACK_PEAK}") } else { String::new() };
             return Self {
                 init: &VULKAN_DEVICE,
                 vf: format!(
-                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:{PLACEBO_STATIC_PEAK}:{PLACEBO_SDR_LIFT}"
+                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:{PLACEBO_STATIC_PEAK}{fallback}:{PLACEBO_SDR_LIFT}"
                 ),
                 tone_mapped: true,
             };
@@ -2029,11 +2032,14 @@ mod tests {
             color_space: Some("bt2020nc".into()),
             ..Default::default()
         };
-        let all = [Tonemapper::Libplacebo, Tonemapper::Opencl, Tonemapper::Zscale];
+        let caps =
+            |tonemappers: &[Tonemapper]| Capabilities { tonemappers: tonemappers.to_vec(), ..Default::default() };
+        let all = caps(&[Tonemapper::Libplacebo, Tonemapper::Opencl, Tonemapper::Zscale]);
         // Profile 5 went through zimg, which fails on its untagged frames
         // ("Nothing was written into output file"): libplacebo applies its RPU.
         let picture = Picture::hdr(640, Some(&p5), &all);
         assert!(picture.vf.starts_with("libplacebo=w=640:h=-2:"), "{picture:?}");
+        assert!(!picture.vf.contains("fallback_peak"), "{picture:?}");
         assert_eq!(picture.init, VULKAN_DEVICE.as_slice());
         // Other HDR stays on the CPU.
         let picture = Picture::hdr(640, Some(&hdr10), &all);
@@ -2041,14 +2047,22 @@ mod tests {
         assert!(picture.init.is_empty() && picture.tone_mapped);
         // Without libplacebo, profile 5 frames are tagged for zimg: off
         // colours, but a picture.
-        let picture = Picture::hdr(640, Some(&p5), &[Tonemapper::Zscale]);
+        let picture = Picture::hdr(640, Some(&p5), &caps(&[Tonemapper::Zscale]));
         assert!(
             picture.vf.starts_with("setparams=color_trc=smpte2084:color_primaries=bt2020:colorspace=bt2020nc,zscale="),
             "{picture:?}"
         );
         // Unknown video (the probe failed) or no tone mapper.
-        assert_eq!(Picture::hdr(640, None, &[Tonemapper::Libplacebo]).init, VULKAN_DEVICE.as_slice());
-        assert_eq!(Picture::hdr(640, Some(&p5), &[Tonemapper::Opencl]), Picture::plain(640));
+        assert_eq!(Picture::hdr(640, None, &caps(&[Tonemapper::Libplacebo])).init, VULKAN_DEVICE.as_slice());
+        assert_eq!(Picture::hdr(640, Some(&p5), &caps(&[Tonemapper::Opencl])), Picture::plain(640));
+        // HDR10 that says nothing of its brightness, as the video is tone
+        // mapped, where libplacebo takes a peak for it.
+        let pleys = Capabilities { placebo_fallback_peak: true, ..caps(&[Tonemapper::Libplacebo]) };
+        let picture = Picture::hdr(640, Some(&hdr10), &pleys);
+        assert!(
+            picture.vf.ends_with("tonemapping=auto:peak_detect=0:fallback_peak=1000:brightness=0.03"),
+            "{picture:?}"
+        );
     }
 
     /// An extractor whose FFmpeg is `ffmpeg` and whose ffprobe doesn't exist.
