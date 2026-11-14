@@ -24,7 +24,7 @@ use crate::matroska;
 use crate::metrics::Metrics;
 use crate::mks;
 use crate::plan::{
-    MAX_DURATION_MS, PLACEBO_FALLBACK_PEAK, PLACEBO_SDR_LIFT, PLACEBO_STATIC_PEAK, TextSource, ZSCALE_TONEMAP,
+    MAX_DURATION_MS, PLACEBO_CURVE, PLACEBO_FALLBACK_PEAK, PLACEBO_STATIC_PEAK, TextSource, ZSCALE_TONEMAP,
     untagged_hdr_fix,
 };
 use crate::probe::Prober;
@@ -1789,7 +1789,7 @@ impl Picture {
             return Self {
                 init: &VULKAN_DEVICE,
                 vf: format!(
-                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:tonemapping=auto:{PLACEBO_STATIC_PEAK}{fallback}:{PLACEBO_SDR_LIFT}"
+                    "libplacebo=w={width}:h=-2:format=yuv420p:colorspace=bt709:color_primaries=bt709:color_trc=bt709:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}{fallback}"
                 ),
                 tone_mapped: true,
             };
@@ -2060,7 +2060,7 @@ mod tests {
         let pleys = Capabilities { placebo_fallback_peak: true, ..caps(&[Tonemapper::Libplacebo]) };
         let picture = Picture::hdr(640, Some(&hdr10), &pleys);
         assert!(
-            picture.vf.ends_with("tonemapping=auto:peak_detect=0:fallback_peak=1000:brightness=0.03"),
+            picture.vf.ends_with("tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0:fallback_peak=1000"),
             "{picture:?}"
         );
     }

@@ -75,14 +75,17 @@ pub fn zscale_tonemap(w: i64, h: i64) -> String {
 /// same frames, bit for bit, whatever it started with.
 pub const PLACEBO_STATIC_PEAK: &str = "peak_detect=0";
 
-/// What libplacebo adds to the brightness of HDR made SDR, before its
-/// curve (its default, a spline). Against two films' own SDR grades
-/// (Sol Levante's and Sparks', six scenes), it came closer to both than
-/// the spline alone: CIEDE2000 6.18 against 6.48 and 4.72 against 4.82,
-/// SSIM 0.96 against 0.94 and 0.88 against 0.69, the shadows the spline
-/// crushes kept. BT.2390's curve came out furthest from both, lifted or
-/// not.
-pub const PLACEBO_SDR_LIFT: &str = "brightness=0.03";
+/// libplacebo's tone curve: ITU-R BT.2390's EETF as the recommendation
+/// gives it (its knee at 1.5 × the target's peak − 0.5, libplacebo's knee
+/// offset 0.5; libplacebo's own default, 1.0, starts compressing sooner).
+/// Below the knee it keeps the master's luminance, against BT.2408's
+/// 203 cd/m² reference white for SDR, and above it rolls the highlights off
+/// to the target's peak; black stays black. On a PQ grey ramp made SDR it
+/// came within 6 code values on average of the master's own luminance up to
+/// 203 cd/m², where libplacebo's default spline was 21 off (most of all in
+/// the mid-tones it darkens) and the spline with a brightness lift 12 off,
+/// that with black raised to luma 19.
+pub const PLACEBO_CURVE: &str = "tonemapping=bt.2390:tonemapping_param=0.5";
 
 /// The peak libplacebo assumes for HDR10 that carries no metadata of its
 /// brightness, where FFmpeg takes it ([`Capabilities::placebo_fallback_peak`]):
@@ -1912,12 +1915,10 @@ impl Plan {
                 // The base layer alone: whichever decoder brings the frames,
                 // with their Dolby Vision metadata or without.
                 let unread = if v.base_layer_only { ":apply_dolbyvision=0" } else { "" };
-                // Made SDR, lifted first; HDR kept or converted as it is.
-                let lift = if v.hdr.is_none() { format!(":{PLACEBO_SDR_LIFT}") } else { String::new() };
                 let fallback =
                     if v.placebo_fallback_peak { format!(":{PLACEBO_FALLBACK_PEAK}") } else { String::new() };
                 pre.push(format!(
-                    "libplacebo=w={w}:h={h}:format={format}:{target}:range=tv:tonemapping=auto:{PLACEBO_STATIC_PEAK}{fallback}{lift}{unread}{quality}{cache}"
+                    "libplacebo=w={w}:h={h}:format={format}:{target}:range=tv:{PLACEBO_CURVE}:{PLACEBO_STATIC_PEAK}{fallback}{unread}{quality}{cache}"
                 ));
                 match pipeline {
                     // Frames stay in Vulkan memory all the way into h264_vulkan.
@@ -2839,7 +2840,7 @@ mod tests {
         assert!(args.contains("-output_ts_offset 12.000"));
         assert!(args.contains("libplacebo=w=1920:h=1080"));
         // By the stream's metadata: every process makes the same frames.
-        assert!(args.contains("range=tv:tonemapping=auto:peak_detect=0"), "{args}");
+        assert!(args.contains("range=tv:tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0"), "{args}");
         assert!(args.contains("-c:v h264_nvenc"));
         assert!(args.contains("-force_key_frames expr:gte(t,n_forced*4)"));
         // Splits for boundaries 16,20,24,28 s relative to the 12 s start, 0.5 s early.
@@ -2860,7 +2861,7 @@ mod tests {
         assert!(!args.contains("fallback_peak"), "{args}");
         ff.caps.placebo_fallback_peak = true;
         let args = args_string(&Plan::build(&request(), &m, &ff, None).unwrap(), 0, 2);
-        assert!(args.contains("tonemapping=auto:peak_detect=0:fallback_peak=1000:brightness=0.03"), "{args}");
+        assert!(args.contains("tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0:fallback_peak=1000"), "{args}");
     }
 
     #[test]
@@ -2902,7 +2903,7 @@ mod tests {
         let args: Vec<String> = plan.ffmpeg_args(&ctx, 0, 2).iter().map(|a| a.to_string_lossy().into_owned()).collect();
         assert!(
             args.join(" ").contains(
-                "tonemapping=auto:peak_detect=0:brightness=0.03:shader_cache=/var/cache/pley-transcoder/libplacebo/,"
+                "tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0:shader_cache=/var/cache/pley-transcoder/libplacebo/,"
             ),
             "{args:?}"
         );
@@ -2931,7 +2932,10 @@ mod tests {
         assert_eq!(plan.video.as_ref().unwrap().pipeline, Pipeline::Vulkan { encode_on_gpu: false });
         let args = args_string(&plan, 0, 2);
         assert!(args.contains("-hwaccel vulkan -hwaccel_device vk -hwaccel_output_format vulkan"), "{args}");
-        assert!(args.contains("tonemapping=auto:peak_detect=0:brightness=0.03,hwdownload,format=nv12[vout]"), "{args}");
+        assert!(
+            args.contains("tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0,hwdownload,format=nv12[vout]"),
+            "{args}"
+        );
         assert!(args.contains("-c:v h264_nvenc"), "{args}");
         assert_eq!(plan.video_plan(&m, None).unwrap().pipeline.as_deref(), Some("hybrid"));
 
@@ -2956,7 +2960,10 @@ mod tests {
         let plan = Plan::build(&req, &m, &ff, None).unwrap();
         assert_eq!(plan.video.as_ref().unwrap().pipeline, Pipeline::Vulkan { encode_on_gpu: false });
         let args = args_string(&plan, 0, 2);
-        assert!(args.contains("tonemapping=auto:peak_detect=0:brightness=0.03,hwdownload,format=nv12[vout]"), "{args}");
+        assert!(
+            args.contains("tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0,hwdownload,format=nv12[vout]"),
+            "{args}"
+        );
         assert!(args.contains("-c:v h264_nvenc"));
         assert_eq!(plan.video_plan(&m, None).unwrap().pipeline.as_deref(), Some("hybrid"));
 
@@ -3682,7 +3689,7 @@ mod tests {
         );
         let args = args_string(&plan, 0, 2);
         assert!(args.contains(QSV_DECODE_ARGS), "{args}");
-        assert!(args.contains("tonemapping=auto:peak_detect=0:brightness=0.03:apply_dolbyvision=0"), "{args}");
+        assert!(args.contains("tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0:apply_dolbyvision=0"), "{args}");
         // And tone mapped by Quick Sync where the GPU falls behind.
         assert!(plan.quick_sync_could_tonemap(&fel, true));
 
@@ -3716,7 +3723,7 @@ mod tests {
         let v = plan.video.as_ref().unwrap();
         assert!(v.base_layer_only);
         assert_eq!((v.hw_decode.as_deref(), v.gpu_scale), (Some(own_decoder), None));
-        assert!(args_string(&plan, 0, 2).contains("brightness=0.03:apply_dolbyvision=0"));
+        assert!(args_string(&plan, 0, 2).contains("peak_detect=0:apply_dolbyvision=0"));
 
         // On other GPUs, whose decoders read the metadata, and on the CPU:
         // libplacebo leaves it unread all the same.
@@ -3724,7 +3731,7 @@ mod tests {
         let software = ffmpeg_with(vec![x264()], vec![Tonemapper::Libplacebo, Tonemapper::Zscale]);
         for ff in [&nvidia, &software] {
             let plan = Plan::build(&request(), &fel, ff, None).unwrap();
-            assert!(args_string(&plan, 0, 2).contains("brightness=0.03:apply_dolbyvision=0"));
+            assert!(args_string(&plan, 0, 2).contains("peak_detect=0:apply_dolbyvision=0"));
             let plan = Plan::build(&req, &fel, ff, None).unwrap();
             assert!(!args_string(&plan, 0, 2).contains("apply_dolbyvision"));
         }
@@ -4301,7 +4308,9 @@ mod tests {
         assert_eq!(plan.video.as_ref().unwrap().tonemap_quality, TonemapQuality::Balanced);
         let args = args_string(&plan, 0, 2);
         assert!(
-            args.contains("tonemapping=auto:peak_detect=0:brightness=0.03:upscaler=bilinear:contrast_recovery=0,"),
+            args.contains(
+                "tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0:upscaler=bilinear:contrast_recovery=0,"
+            ),
             "{args}"
         );
         assert_eq!(plan.video_plan(&m, None).unwrap().tonemap_quality, Some(TonemapQuality::Balanced));
@@ -4320,7 +4329,7 @@ mod tests {
         let plan = Plan::build(&req, &m, &ff, None).unwrap();
         assert_eq!(plan.video.as_ref().unwrap().tonemap_quality, TonemapQuality::High);
         let args = args_string(&plan, 0, 2);
-        assert!(args.contains("tonemapping=auto:peak_detect=0:brightness=0.03,"), "{args}");
+        assert!(args.contains("tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0,"), "{args}");
     }
 
     #[test]
@@ -4637,7 +4646,7 @@ mod tests {
         assert!(
             args.contains(
                 "libplacebo=w=1920:h=1080:format=p010:colorspace=bt2020nc:color_primaries=bt2020:color_trc=smpte2084:\
-                 range=tv:tonemapping=auto:peak_detect=0,hwdownload,format=p010[vout]"
+                 range=tv:tonemapping=bt.2390:tonemapping_param=0.5:peak_detect=0,hwdownload,format=p010[vout]"
             ),
             "{args}"
         );

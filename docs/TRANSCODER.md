@@ -950,22 +950,25 @@ available tone mapper:
   profile 5 picks it.
 - libplacebo tone maps by the stream's own metadata (`peak_detect=0`), so
   segments from different FFmpeg processes match at the seams. Thumbnails and
-  seek previews do the same. Its curve is libplacebo's default
-  (`tonemapping=auto`, a spline), and HDR made SDR is lifted slightly first
-  (`brightness=0.03`). Measured against two films' own SDR grades (Sol
-  Levante's and Sparks'), that came closest of what was tried: the lift
-  keeps the shadows the spline alone crushes (SSIM 0.96 and 0.88 against
-  0.94 and 0.69), and BT.2390's curve, lifted or not, made bright scenes a
-  third too bright and clipped 10 to 15 % of their pixels where the grade
-  clips 1 to 2 %. The lift raises black with the rest: a letterboxed film's
-  bars come out at luma 19 rather than 16. HDR10 that carries no metadata
-  of its brightness (no mastering display, no content light levels) is
-  taken by libplacebo for PQ's own 10000 cd/m² peak and comes out far too
-  dark; with Pley's FFmpeg (`placebo_fallback_peak`) it is tone mapped from
-  1000 cd/m², what most HDR10 films are mastered to (`fallback_peak=1000`),
-  in transcodes, seek previews and frame grabs. `tonemap_opencl` as FFmpeg
-  releases it measures the peak frame by frame, which can't be turned off, so its brightness can
-  jump between processes; pley-ffmpeg's
+  seek previews do the same. Its curve is ITU-R BT.2390's EETF as the
+  recommendation gives it (`tonemapping=bt.2390:tonemapping_param=0.5`):
+  the master's luminance is kept below the knee, against BT.2408's
+  203 cd/m² reference white for SDR, the highlights above it are rolled off
+  to the target's peak, and black stays black, so letterbox bars stay at
+  luma 16. On a PQ grey ramp made SDR it came within 6 code values on
+  average of the master's luminance up to 203 cd/m²; libplacebo's default
+  curve (`tonemapping=auto`, a spline) was 21 off, darkening the mid-tones,
+  and that with a brightness lift 12 off, with black raised to luma 19. It
+  is the most faithful rendering of the master, not of a film's own SDR
+  grade, which colourists often make darker in bright scenes. HDR10 that
+  carries no metadata of its brightness (no mastering display, no content
+  light levels) is taken by libplacebo for PQ's own 10000 cd/m² peak and
+  comes out far too dark; with Pley's FFmpeg (`placebo_fallback_peak`) it
+  is tone mapped from 1000 cd/m², what most HDR10 films are mastered to
+  (`fallback_peak=1000`), in transcodes, seek previews and frame grabs.
+  `tonemap_opencl` as FFmpeg releases it measures the peak frame by frame,
+  which can't be turned off, so its brightness can jump between processes;
+  pley-ffmpeg's
   ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) goes by the stream's
   metadata, and applies Dolby Vision's reshaping. Where it lists BT.2390
   (`opencl_bt2390`, also jellyfin-ffmpeg's), OpenCL tone maps with

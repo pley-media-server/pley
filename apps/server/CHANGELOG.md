@@ -47,8 +47,9 @@ describes how they are made.
   read.
 - The dashboard's Now playing shows whether each stream is playing or
   paused, and its time moves on while it plays.
-- HDR made SDR keeps more detail in the shadows, closer to films' own SDR
-  versions.
+- HDR made SDR keeps the master's brightness up to SDR's white, with the
+  standard BT.2390 curve, instead of darkening the mid-tones; black and
+  letterbox bars stay black.
 - Dolby Vision profile 7 with a full enhancement layer is transcoded from
   its HDR10 base layer, where it was tone mapped by its Dolby Vision
   brightness before; Settings → Transcoder brings that back.
