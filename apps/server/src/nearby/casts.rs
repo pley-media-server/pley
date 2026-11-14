@@ -176,7 +176,7 @@ impl Attempt<'_> {
             "keyed_urls": true,
             "controls": device.protocol.controls(),
             "device_name": device.name,
-            "device_kind": "tv",
+            "device_kind": device.kind(),
         }))
         .map_err(|err| Tried::Error(AppError::bad_request(err.to_string())))?;
         let request = PlaybackRequest { device_id: Some(device.key()), ..request };

@@ -948,8 +948,8 @@ pub async fn devices(
         out.extend(found.into_iter().filter(|d| !taken.contains(&d.address.ip())).map(|d| RemoteDevice {
             receiver_id: d.key(),
             device_id: d.key(),
+            kind: d.kind(),
             name: Some(d.name),
-            kind: DeviceKind::Tv,
             casts: BTreeSet::from([CastKind::Item]),
             profile: None,
             protocol: Some(d.protocol.word()),

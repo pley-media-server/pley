@@ -97,6 +97,18 @@ impl Found {
     pub fn key(&self) -> String {
         format!("{}{}", self.protocol.prefix(), self.id)
     }
+
+    /// What kind of device it is, as the remotes show it. A Mac says so in
+    /// its AirPlay model (`Mac13,1`, `MacBookPro18,3`, `iMac21,1`); the
+    /// rest are TVs and the boxes plugged into them.
+    pub fn kind(&self) -> crate::playback::DeviceKind {
+        let mac = |m: &str| m.starts_with("Mac") || m.starts_with("iMac");
+        if self.protocol == Protocol::AirPlay && self.model.as_deref().is_some_and(mac) {
+            crate::playback::DeviceKind::Computer
+        } else {
+            crate::playback::DeviceKind::Tv
+        }
+    }
 }
 
 /// The devices found, and the casts playing on them.
@@ -159,6 +171,7 @@ impl NearbyDevices {
             tracing::warn!("couldn't look for devices on the network: {err}");
             Vec::new()
         });
+        not_the_server(&mut seen, &from);
         seen.extend(fixed);
         one_per_address(&mut seen);
         let now = Instant::now();
@@ -191,6 +204,12 @@ impl NearbyDevices {
             refused.insert(model);
         }
     }
+}
+
+/// Leaves out the machine the server runs on, at one of `own` addresses: a
+/// Mac takes AirPlay, but a cast to it would play on the server itself.
+fn not_the_server(seen: &mut Vec<Found>, own: &[Ipv4Addr]) {
+    seen.retain(|d| !matches!(d.address.ip(), std::net::IpAddr::V4(ip) if own.contains(&ip)));
 }
 
 /// Keeps one device of those at one address: a TV with both Google Cast
@@ -250,5 +269,32 @@ mod tests {
         one_per_address(&mut seen);
         let left: Vec<_> = seen.iter().map(|d| (d.protocol, d.address.port())).collect();
         assert_eq!(left, vec![(Protocol::Cast, 8009), (Protocol::AirPlay, 7000)]);
+    }
+
+    #[test]
+    fn macs_are_computers_and_the_server_s_own_is_left_out() {
+        let device = |protocol, ip: &str, model: &str| Found {
+            id: ip.into(),
+            name: ip.into(),
+            model: Some(model.into()),
+            address: format!("{ip}:7000").parse().unwrap(),
+            video: true,
+            protocol,
+        };
+        use crate::playback::DeviceKind;
+        let kind = |protocol, model| device(protocol, "192.168.1.20", model).kind();
+        for mac in ["Mac13,1", "MacBookPro18,3", "iMac21,1", "Macmini9,1", "MacPro7,1"] {
+            assert_eq!(kind(Protocol::AirPlay, mac), DeviceKind::Computer, "{mac}");
+        }
+        assert_eq!(kind(Protocol::AirPlay, "AppleTV11,1"), DeviceKind::Tv);
+        assert_eq!(kind(Protocol::AirPlay, "UN55TU8000"), DeviceKind::Tv);
+        assert_eq!(kind(Protocol::Cast, "Chromecast"), DeviceKind::Tv);
+
+        let mut seen = vec![
+            device(Protocol::AirPlay, "192.168.1.10", "Mac13,1"),
+            device(Protocol::AirPlay, "192.168.1.20", "AppleTV11,1"),
+        ];
+        not_the_server(&mut seen, &["192.168.1.10".parse().unwrap()]);
+        assert_eq!(seen.iter().map(|d| d.name.as_str()).collect::<Vec<_>>(), ["192.168.1.20"]);
     }
 }

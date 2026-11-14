@@ -21,7 +21,8 @@ describes how they are made.
   TVs with Google TV and Apple TV 4K get HEVC, and 4K and HDR where they
   play them. An AirPlay device that asks for a PIN is paired once, with
   the PIN it shows, and administrators can forget pairings in Settings →
-  Network. A TV running a Pley app is listed once, as the app. They're
+  Network. A TV running a Pley app is listed once, as the app. Macs are
+  listed as computers, and the server's own Mac isn't listed. They're
   listed while discovery is on in Settings → Network.
 - The dashboard says what plays each session: a Pley app, an app through
   the Plex or Jellyfin API, Google Cast or AirPlay. Stopping one offers a

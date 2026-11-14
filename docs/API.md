@@ -3899,7 +3899,9 @@ would.
   `airplay:<its id>` and `protocol: "airplay"`. The server finds them by
   mDNS (`_airplay._tcp`) beside Cast devices; speakers, and receivers too
   old to pair as HomeKit does, aren't listed. A TV with both Google Cast
-  and AirPlay is listed once, as a Cast device. A cast there answers as a
+  and AirPlay is listed once, as a Cast device. Macs take AirPlay too and
+  are listed with `kind` `computer` (their model says so); the machine the
+  server runs on isn't listed. A cast there answers as a
   Cast device's does, and `409` `{ code: "pairing_needed" }` when the
   device wants a PIN: the remote then has the device show one, with
   `POST /api/remote/devices/{id}/pairing` and no `pin`, asks for it, and
