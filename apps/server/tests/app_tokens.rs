@@ -130,6 +130,8 @@ const ADMIN: &[(&str, &str)] = &[
     ("POST", "/api/settings/arr"),
     ("GET", "/api/network"),
     ("PUT", "/api/network"),
+    ("GET", "/api/network/airplay"),
+    ("DELETE", "/api/network/airplay/{id}"),
     ("POST", "/api/fs"),
     ("GET", "/api/live/settings"),
     ("PUT", "/api/live/settings"),

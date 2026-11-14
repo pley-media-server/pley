@@ -4,6 +4,9 @@
 
 pub mod connection;
 pub mod crypto;
+pub mod device;
+pub mod discovery;
 pub mod pairing;
 pub mod pairings;
+pub mod player;
 pub mod tlv;

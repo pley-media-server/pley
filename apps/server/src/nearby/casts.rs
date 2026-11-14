@@ -29,6 +29,9 @@ const RECORD_EVERY: Duration = Duration::from_secs(10);
 /// starts (a large file on a network share takes a while).
 const PREPARE_WITHIN: Duration = Duration::from_secs(20);
 
+/// The error code of a cast to a device that wants pairing first.
+pub const PAIRING_NEEDED: &str = "pairing_needed";
+
 /// What a cast is asked to play.
 #[derive(Debug, Clone)]
 pub struct Cast {
@@ -65,6 +68,19 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
     })?;
     let choice = match device.protocol {
         Protocol::Cast => crate::cast::device::choose(state, &device).await,
+        Protocol::AirPlay => {
+            // A device that wants a PIN is paired first, from Play on….
+            let ready = crate::airplay::device::ready(state, &device)
+                .await
+                .map_err(|_| AppError::ConflictAs("cast_failed", "the device didn't answer".to_owned()))?;
+            if !ready {
+                return Err(AppError::ConflictAs(
+                    PAIRING_NEEDED,
+                    "the device wants a PIN: pair with it first".to_owned(),
+                ));
+            }
+            crate::airplay::device::choose(&device)
+        }
     };
     let refused = choice.model.as_deref().is_some_and(|m| state.nearby.refused(m));
     let (first, fallback) = match (refused, choice.basic) {
@@ -212,7 +228,8 @@ impl Attempt<'_> {
         // choices. Text ones go beside the stream, as WebVTT; picture ones
         // the stream has burned in.
         let shown = cast.subtitle_index.or(session.play.lock().subtitle_index).filter(|i| *i >= 0);
-        let subtitle = shown.filter(|_| !info.burn_subtitles).and_then(|index| {
+        let sideloads = device.protocol.shows_subtitles();
+        let subtitle = shown.filter(|_| !info.burn_subtitles && sideloads).and_then(|index| {
             let track = info.subtitles.iter().find(|t| t.index == index && t.text_based)?;
             let name = track.title.clone().or_else(|| track.language.clone()).unwrap_or_else(|| format!("{index}"));
             let url = format!("{base}/api/media/{key}/subtitles-{index}.vtt");
@@ -253,6 +270,7 @@ impl Attempt<'_> {
         let connect = async {
             match device.protocol {
                 Protocol::Cast => crate::cast::device::connect(device).await,
+                Protocol::AirPlay => crate::airplay::device::connect(state, device).await,
             }
         };
         let ((), connected) = tokio::join!(read, connect);

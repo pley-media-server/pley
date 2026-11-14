@@ -163,6 +163,12 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   **TCP 8008** to learn its model; they fetch the stream from the web
   port. A container sees them only on the host's network, as above, and
   not while discovery is off.
+- **AirPlay devices** (Apple TVs, TVs with AirPlay 2) are found the same
+  way. The server connects to them on the port they announce (**TCP
+  7000** on an Apple TV) and on one each gives for its events, and the
+  device asks the server's clock over **UDP**, on a port the server
+  picks for each cast: a firewall on the server must let the local
+  network reach it.
 - **From outside your network**, put Pley behind a reverse proxy with TLS
   (Caddy, nginx, Traefik). Docker publishes ports around host firewalls:
   with a proxy on the same computer, publish Pley on `127.0.0.1` only.

@@ -3529,8 +3529,9 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number, quality?: string, volume?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
-| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play; `204` once a Google Cast device plays it ([Casting](#casting)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast and AirPlay devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play; `204` once a Google Cast or AirPlay device plays it ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/pairing` | `play` | `{ pin?: string }` → `204`: has an AirPlay device show a PIN (without `pin`), or pairs the server with it (with the 4 digits it shows) ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `scans` are the scans queued or running.
@@ -3893,6 +3894,36 @@ would.
   session ends when the device stops or finishes it, when another app
   takes the device over, or when it is stopped in Pley, which stops the
   device too. A new cast to the device ends the one before.
+- **AirPlay devices.** Apple TVs and TVs with AirPlay 2 built in are
+  listed the same way, with `receiver_id` and `device_id`
+  `airplay:<its id>` and `protocol: "airplay"`. The server finds them by
+  mDNS (`_airplay._tcp`) beside Cast devices; speakers, and receivers too
+  old to pair as HomeKit does, aren't listed. A TV with both Google Cast
+  and AirPlay is listed once, as a Cast device. A cast there answers as a
+  Cast device's does, and `409` `{ code: "pairing_needed" }` when the
+  device wants a PIN: the remote then has the device show one, with
+  `POST /api/remote/devices/{id}/pairing` and no `pin`, asks for it, and
+  sends it there; once that answers `204` the cast is sent again. The
+  pairing is the server's, for every home member's casts, and stays
+  until an administrator forgets it (`DELETE
+  /api/network/airplay/{device_id}`) or the device is unpaired on the
+  device (its next cast then answers `409` `cast_failed`, and the one
+  after asks for a PIN). A device open to everyone on its network needs no PIN.
+  The pairing route answers `404` as a cast does, `409` `{ code:
+  "not_pairable" }` for a device that isn't AirPlay, `400` for a PIN
+  that isn't 4 digits, `403` `{ code: "wrong_pin" }` for a wrong one
+  (counted as a profile PIN's: `429` after 5 in 15 minutes), `429` when
+  the device takes no other try yet or was asked for a PIN in the last
+  3 seconds (each ask shows a new one), and `409` `{ code:
+  "pairing_failed" }` when the device doesn't pair. The server plays the
+  stream through the device's play queue (tvOS 26 and later's way):
+  Apple TV 4K takes HEVC, 4K, HDR10 and HLG, AC-3 and E-AC-3 up to 5.1;
+  Apple TV HD H.264 up to 1080p with AC-3 and E-AC-3; other receivers
+  H.264 up to 1080p with stereo AAC, in HLS of MPEG-TS. Subtitles beside
+  the stream don't reach an AirPlay player: picture subtitles are burned
+  in, and text ones aren't shown, so the session says none are. The
+  session has the controls `play`, `pause`, `seek` and `skip`; the
+  device keeps its volume to itself. It ends as a Cast device's does.
 
 ### Watch state on other devices
 
@@ -4058,7 +4089,7 @@ interface RemoteDevice {        // GET /api/remote/devices
   name: string | null;          // as PlayingSession's `device`
   kind: DeviceKind;
   casts: ("item" | "live")[];   // what it plays when cast to
-  protocol?: "cast";            // played by the server on a Google Cast device
+  protocol?: "cast" | "airplay"; // played by the server on a Google Cast or AirPlay device
 }
 
 interface TranscodeInfo {
@@ -4387,6 +4418,8 @@ interface LiveTuner {                  // a connection in use
 | POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives, with `container`, whether Pley runs in one, and `mounts`, the folders mounted into it, which are among the roots). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
 | PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, jellyfin, jellyfin_on_web?, discovery, bonjour?, bonjour_adapters?, bonjour_host_name? }` → `Network` |
+| GET | `/api/network/airplay` | `admin` | `{ device_id, name, paired_by: string \| null, paired_at }[]`: the AirPlay devices the server paired with, by name; `paired_by` is the name of who typed the PIN, while their account exists |
+| DELETE | `/api/network/airplay/{device_id}` | `admin` | `204`: forgets a pairing (`404` for none); the device wants a PIN again at the next cast |
 
 - **`transcode-dir`** is saved in the config file for the next start
   (`null`, or the default folder, removes `transcode_dir`). `400` for a

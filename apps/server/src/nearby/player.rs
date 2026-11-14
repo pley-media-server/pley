@@ -77,6 +77,7 @@ pub enum Failure {
 /// The player of a cast, in its protocol.
 pub enum Player {
     Cast(crate::cast::player::Player),
+    AirPlay(crate::airplay::player::Player),
 }
 
 impl Player {
@@ -84,24 +85,28 @@ impl Player {
     pub async fn status(&self) -> bool {
         match self {
             Player::Cast(p) => p.status().await,
+            Player::AirPlay(p) => p.status().await,
         }
     }
 
     pub async fn play(&self) -> bool {
         match self {
             Player::Cast(p) => p.play().await,
+            Player::AirPlay(p) => p.play().await,
         }
     }
 
     pub async fn pause(&self) -> bool {
         match self {
             Player::Cast(p) => p.pause().await,
+            Player::AirPlay(p) => p.pause().await,
         }
     }
 
     pub async fn seek(&self, position_ms: i64) -> bool {
         match self {
             Player::Cast(p) => p.seek(position_ms).await,
+            Player::AirPlay(p) => p.seek(position_ms).await,
         }
     }
 
@@ -109,6 +114,7 @@ impl Player {
     pub async fn ask_volume(&self) -> bool {
         match self {
             Player::Cast(p) => p.ask_volume().await,
+            Player::AirPlay(_) => false,
         }
     }
 
@@ -116,6 +122,7 @@ impl Player {
     pub async fn set_volume(&self, percent: u8) -> bool {
         match self {
             Player::Cast(p) => p.set_volume(percent).await,
+            Player::AirPlay(_) => false,
         }
     }
 
@@ -123,6 +130,7 @@ impl Player {
     pub async fn stop(&self) {
         match self {
             Player::Cast(p) => p.stop().await,
+            Player::AirPlay(p) => p.stop().await,
         }
     }
 
@@ -130,6 +138,8 @@ impl Player {
     pub fn leave(&self) {
         match self {
             Player::Cast(p) => p.leave(),
+            // The session ends as the player is dropped.
+            Player::AirPlay(_) => {}
         }
     }
 }
@@ -137,6 +147,7 @@ impl Player {
 /// A connection to a device, its player not started yet.
 pub enum Connected {
     Cast(crate::cast::connection::Connection, mpsc::Receiver<crate::cast::connection::Incoming>),
+    AirPlay(Box<crate::airplay::player::Session<tokio::net::TcpStream>>),
 }
 
 impl Connected {
@@ -148,6 +159,10 @@ impl Connected {
             Connected::Cast(connection, incoming) => {
                 let (player, events) = crate::cast::player::Player::start(connection, incoming, media).await?;
                 Ok((Player::Cast(player), events))
+            }
+            Connected::AirPlay(session) => {
+                let (player, events) = session.start(media).await?;
+                Ok((Player::AirPlay(player), events))
             }
         }
     }

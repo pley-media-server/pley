@@ -374,14 +374,15 @@ other apps (`pley_ct_…`), never with a session's
   unicast, so a device on the network can't make it flood another; reads
   what it hears within bounds; and keeps none of it, so no device can
   make it hold more.
-- Pley looks for Google Cast devices (`_googlecast._tcp`) only when a home
+- Pley looks for Google Cast and AirPlay devices (`_googlecast._tcp`,
+  `_airplay._tcp`) only when a home
   member's remote lists devices, at most every 30 seconds, by one mDNS
   query from a port of its own, and only while discovery is on: turned
   off in Settings → Network (or with `--no-discovery`), it doesn't look,
   and forgets the devices it found, which can't be cast to.
   Only answers from private and link-local addresses count, read within
   bounds: 64 devices a look, names cut to 100 characters, ids of letters
-  and digits. Pley connects to a device only as one of these answered,
+  and digits (an AirPlay device's, its 12-digit hex MAC address). Pley connects to a device only as one of these answered,
   never to an address a request names.
 - Pley talks to a Cast device over TLS without checking its certificate,
   which the device made itself and no authority signed, as Google's own
@@ -391,7 +392,23 @@ other apps (`pley_ct_…`), never with a session's
   open that session's media alone, and nothing else of Pley's; a cast
   plays as a session of the home member who sent it, by their profile's
   rules, and only home members see and cast to these devices.
-- Before its first cast to a device, Pley asks the device's own setup API
+- Pley pairs with an AirPlay device as HomeKit does: the device shows a
+  PIN, a home member types it, and SRP proves it without sending it;
+  then the two swap Ed25519 public keys, and each connection proves both
+  hold their keys (X25519, HKDF-SHA512) and is sealed with
+  ChaCha20-Poly1305, its frames counted. Pley's key pair is derived from
+  `secret.key`, so the database keeps only each device's id and public
+  key (and its name, and who paired it). A pairing is the server's, for
+  every home member's casts; administrators list and forget pairings.
+  Wrong PINs are counted as a profile PIN's are (5 in 15 minutes), a
+  device is asked to show a PIN once every 3 seconds at most, and a wait
+  the device asks for is kept. A device open to everyone on its network
+  pairs for each connection with its fixed PIN, and nothing is kept.
+  What the device sends is read within bounds: 16 KiB a pairing message,
+  1 MiB a message, frames of 1 KiB. Its session has Pley connect to the
+  event port it names, at its own address, and answer its clock on a UDP
+  port of Pley's, which closes with the session.
+- Before its first cast to a Cast device, Pley asks the device's own setup API
   (`http://<its address>:8008/setup/eureka_info`, an address one of the
   answers above named) which hardware it is, waiting a second at most and
   reading 64 KiB at most, without proxies or redirects. It keeps the

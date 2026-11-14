@@ -1,9 +1,9 @@
 //! Devices on the server's network that Pley plays on itself, as no Pley
-//! app runs there: Google Cast devices, by the protocol each speaks. The
-//! server finds them, lists them for the household's remotes, and plays a
-//! cast on one as a playback session of its own ([`casts`]), the device
-//! fetching the session's keyed stream. What is said to a device is the
-//! protocol's own ([`crate::cast`]).
+//! app runs there: Google Cast and AirPlay devices, by the protocol each
+//! speaks. The server finds them, lists them for the household's remotes,
+//! and plays a cast on one as a playback session of its own ([`casts`]),
+//! the device fetching the session's keyed stream. What is said to a
+//! device is the protocol's own ([`crate::cast`], [`crate::airplay`]).
 
 pub mod casts;
 pub mod discovery;
@@ -31,15 +31,17 @@ const MAX_KNOWN: usize = 256;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Protocol {
     Cast,
+    AirPlay,
 }
 
 impl Protocol {
-    pub const ALL: [Protocol; 1] = [Protocol::Cast];
+    pub const ALL: [Protocol; 2] = [Protocol::Cast, Protocol::AirPlay];
 
     /// The prefix of its devices' ids among the remotes' devices.
     pub fn prefix(self) -> &'static str {
         match self {
             Protocol::Cast => "cast:",
+            Protocol::AirPlay => "airplay:",
         }
     }
 
@@ -47,6 +49,7 @@ impl Protocol {
     pub fn word(self) -> &'static str {
         match self {
             Protocol::Cast => "cast",
+            Protocol::AirPlay => "airplay",
         }
     }
 
@@ -59,6 +62,16 @@ impl Protocol {
     pub fn controls(self) -> &'static [&'static str] {
         match self {
             Protocol::Cast => &["play", "pause", "seek", "skip", "volume"],
+            // An AirPlay device keeps its volume to itself.
+            Protocol::AirPlay => &["play", "pause", "seek", "skip"],
+        }
+    }
+
+    /// Its players show text subtitles from beside the stream.
+    pub fn shows_subtitles(self) -> bool {
+        match self {
+            Protocol::Cast => true,
+            Protocol::AirPlay => false,
         }
     }
 }
@@ -105,6 +118,8 @@ pub struct NearbyDevices {
     refused: Mutex<HashSet<String>>,
     /// What Pley learned of Cast devices.
     pub(crate) cast: crate::cast::device::Known,
+    /// What Pley learned of AirPlay devices.
+    pub(crate) airplay: crate::airplay::device::Known,
 }
 
 impl NearbyDevices {
@@ -137,13 +152,15 @@ impl NearbyDevices {
             if from.is_empty() || fixed.is_some() {
                 return Ok(Vec::new());
             }
-            discovery::browse(&[crate::cast::discovery::SERVICE], &from, LOOK_FOR).await
+            let services = [crate::cast::discovery::SERVICE, crate::airplay::discovery::SERVICE];
+            discovery::browse(&services, &from, LOOK_FOR).await
         };
         let mut seen = browse.await.unwrap_or_else(|err| {
             tracing::warn!("couldn't look for devices on the network: {err}");
             Vec::new()
         });
         seen.extend(fixed);
+        one_per_address(&mut seen);
         let now = Instant::now();
         let mut found = self.found.lock();
         for device in seen {
@@ -176,6 +193,15 @@ impl NearbyDevices {
     }
 }
 
+/// Keeps one device of those at one address: a TV with both Google Cast
+/// and AirPlay built in is listed once, as a Cast device, which plays
+/// subtitles and takes its volume.
+fn one_per_address(seen: &mut Vec<Found>) {
+    let cast: HashSet<std::net::IpAddr> =
+        seen.iter().filter(|d| d.protocol == Protocol::Cast && d.video).map(|d| d.address.ip()).collect();
+    seen.retain(|d| d.protocol == Protocol::Cast || !cast.contains(&d.address.ip()));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,6 +228,27 @@ mod tests {
     #[test]
     fn a_device_id_names_its_protocol() {
         assert_eq!(Protocol::of("cast:9f8e"), Some(Protocol::Cast));
+        assert_eq!(Protocol::of("airplay:a1b2c3d4e5f6"), Some(Protocol::AirPlay));
         assert_eq!(Protocol::of("app-3"), None);
+    }
+
+    #[test]
+    fn a_tv_with_cast_and_airplay_is_listed_once_as_a_cast_device() {
+        let device = |protocol, ip: &str, port| Found {
+            id: ip.into(),
+            name: "Living room".into(),
+            model: None,
+            address: format!("{ip}:{port}").parse().unwrap(),
+            video: true,
+            protocol,
+        };
+        let mut seen = vec![
+            device(Protocol::AirPlay, "192.168.1.20", 7000),
+            device(Protocol::Cast, "192.168.1.20", 8009),
+            device(Protocol::AirPlay, "192.168.1.21", 7000),
+        ];
+        one_per_address(&mut seen);
+        let left: Vec<_> = seen.iter().map(|d| (d.protocol, d.address.port())).collect();
+        assert_eq!(left, vec![(Protocol::Cast, 8009), (Protocol::AirPlay, 7000)]);
     }
 }

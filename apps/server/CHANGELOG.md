@@ -13,13 +13,16 @@ describes how they are made.
 
 ### Added
 
-- Home members can cast movies and episodes to Chromecasts, Google TVs and
-  TVs with Cast built in on the server's network, with their subtitles, and
-  control them from the remote as Pley's own players, their volume too.
-  Chromecast Ultra, Chromecast with Google TV, Google TV Streamer and TVs
-  with Google TV get HEVC, and 4K and HDR where they play them. A TV
-  running a Pley app is listed once, as the app. They're listed while
-  discovery is on in Settings → Network.
+- Home members can cast movies and episodes to Chromecasts, Google TVs,
+  TVs with Cast built in, Apple TVs and most TVs with AirPlay 2 on the
+  server's network, and control them from the remote as Pley's own
+  players. Cast devices show subtitles and take their volume from the
+  remote. Chromecast Ultra, Chromecast with Google TV, Google TV Streamer,
+  TVs with Google TV and Apple TV 4K get HEVC, and 4K and HDR where they
+  play them. An AirPlay device that asks for a PIN is paired once, with
+  the PIN it shows, and administrators can forget pairings in Settings →
+  Network. A TV running a Pley app is listed once, as the app. They're
+  listed while discovery is on in Settings → Network.
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.

@@ -207,6 +207,7 @@ pub fn router(state: AppState) -> Router {
         .route("/sessions/{id}/command", post(remote::command))
         .route("/remote/devices", get(remote::devices))
         .route("/remote/devices/{id}/cast", post(remote::cast))
+        .route("/remote/devices/{id}/pairing", post(remote::pair))
         .route("/activity", get(activity::activity))
         .route("/events", get(activity::events))
         .route("/users", get(accounts::list_users).post(accounts::create_user))
@@ -233,6 +234,8 @@ pub fn router(state: AppState) -> Router {
         .route("/settings/test", post(admin::test_service))
         .route("/settings/arr", post(admin::arr_options))
         .route("/network", get(admin::get_network).put(admin::put_network))
+        .route("/network/airplay", get(admin::airplay_pairings))
+        .route("/network/airplay/{id}", delete(admin::unpair_airplay))
         .route("/fs", post(admin::browse_fs))
         .fallback(|| async { AppError::not_found("no such endpoint") })
         .layer(SetResponseHeaderLayer::if_not_present(header::CACHE_CONTROL, HeaderValue::from_static("no-store")));

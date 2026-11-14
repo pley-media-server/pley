@@ -1013,14 +1013,79 @@ const WITH_TRACKS: [&str; 2] = ["movie", "episode"];
 /// (its next episode), an album or an artist (its tracks).
 const CASTABLE: [&str; 7] = ["movie", "episode", "show", "season", "track", "album", "artist"];
 
-/// A cast to a Google Cast device ([`crate::cast`]): a movie or an
-/// episode, by a home member, played by the server on the device.
-async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast) -> ApiResult<StatusCode> {
+/// The device on the server's network of `id`, as the household's lists
+/// show it: to a home member only.
+async fn nearby_device(state: &AppState, user: &AuthUser, id: &str) -> ApiResult<crate::nearby::Found> {
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
     let discovery = state.network.wanted().discovery;
     let device = state.nearby.device(id, state.config.cast_fixed.found(), discovery).filter(|_| home);
-    let device = device.ok_or_else(|| AppError::not_found("no such device"))?;
+    device.ok_or_else(|| AppError::not_found("no such device"))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Pairing {
+    /// The PIN the device shows; none, to have it show one.
+    #[serde(default)]
+    pin: Option<CastPin>,
+}
+
+/// `POST /api/remote/devices/{id}/pairing`: pairs the server with an
+/// AirPlay device that wants a PIN, which a cast to it answered `409
+/// pairing_needed`. Without a `pin`, the device shows one; with it, the
+/// server pairs, for every home member's casts. Wrong PINs are counted as
+/// a profile PIN's are (`403 wrong_pin`, then `429`).
+pub async fn pair(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    body: Result<Json<Pairing>, JsonRejection>,
+) -> ApiResult<StatusCode> {
+    use crate::airplay::pairing::Failed;
+    let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
+    let device = nearby_device(&state, &user, &id).await?;
+    if device.protocol != crate::nearby::Protocol::AirPlay {
+        return Err(AppError::ConflictAs("not_pairable", "this device needs no pairing".to_owned()));
+    }
+    let failed = |failed: Failed| match failed {
+        Failed::Wait(wait) => {
+            AppError::TooManyRequests(format!("the device takes no other try for {} s", wait.as_secs().max(1)))
+        }
+        other => {
+            tracing::warn!("couldn't pair with the AirPlay device {}: {other}", device.address);
+            AppError::ConflictAs("pairing_failed", "the device didn't pair".to_owned())
+        }
+    };
+    let Some(CastPin(pin)) = body.pin else {
+        crate::airplay::device::ask_for_pin(&state, &device).await.map_err(failed)?;
+        return Ok(StatusCode::NO_CONTENT);
+    };
+    if pin.len() != 4 || !pin.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(AppError::bad_request("the PIN is the 4 digits the device shows"));
+    }
+    let attempt = state.auth.throttle.begin(&format!("airplay:{}", device.id))?;
+    match crate::airplay::device::pair(&state, user.id, &device, &pin).await {
+        Ok(()) => {
+            attempt.succeeded();
+            Ok(StatusCode::NO_CONTENT)
+        }
+        Err(Failed::WrongPin) => {
+            attempt.failed();
+            Err(AppError::ForbiddenAs("wrong_pin", "that isn't the PIN the device shows".to_owned()))
+        }
+        // No guess was checked: the attempt goes back.
+        Err(other) => {
+            drop(attempt);
+            Err(failed(other))
+        }
+    }
+}
+
+/// A cast to a Google Cast or AirPlay device ([`crate::cast`],
+/// [`crate::airplay`]): a movie or an
+/// episode, by a home member, played by the server on the device.
+async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast) -> ApiResult<StatusCode> {
+    let device = nearby_device(state, user, id).await?;
     if body.profile_id.is_some_and(|p| p != user.id) || body.device_id.is_some() {
         return Err(AppError::not_found("no such device"));
     }

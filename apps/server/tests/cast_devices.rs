@@ -300,6 +300,23 @@ async fn a_pley_app_on_the_tv_stands_for_its_cast_device() {
 }
 
 #[tokio::test]
+async fn only_airplay_devices_pair_and_only_administrators_list_pairings() {
+    let w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/pairing", &w.admin, json!({"pin": "1234"})).await;
+    assert_eq!((cast.status, cast.body["code"].clone()), (StatusCode::CONFLICT, json!("not_pairable")));
+    let unknown = w.app.post("/api/remote/devices/airplay:a1b2c3d4e5f6/pairing", &w.admin, json!({})).await;
+    assert_eq!(unknown.status, StatusCode::NOT_FOUND);
+
+    let listed = w.app.get("/api/network/airplay", &w.admin).await;
+    assert_eq!((listed.status, listed.body.clone()), (StatusCode::OK, json!([])));
+    let (member, _) = w.app.user(&w.admin, "member", json!({"home": true})).await;
+    assert_eq!(w.app.get("/api/network/airplay", &member).await.status, StatusCode::FORBIDDEN);
+    assert_eq!(w.app.delete("/api/network/airplay/a1b2c3d4e5f6", &member).await.status, StatusCode::FORBIDDEN);
+    assert_eq!(w.app.delete("/api/network/airplay/a1b2c3d4e5f6", &w.admin).await.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn only_movies_and_episodes_are_cast() {
     let w = world().await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
