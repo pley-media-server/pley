@@ -21,7 +21,7 @@ use crate::events::ServerEvent;
 use crate::library::list_libraries;
 use crate::library::sidecar::EXTERNAL_INDEX_BASE;
 use crate::oauth::clients::clean_name;
-use crate::playback::{Caps, Controls, Method, PlaybackMode, PlaybackRequest, Session};
+use crate::playback::{Api, Caps, Controls, Method, PlaybackMode, PlaybackRequest, Session};
 use crate::state::AppState;
 
 /// Plex client details of a server's sessions (by pley session id) and the
@@ -274,6 +274,7 @@ async fn report(
                     None,
                     time_ms,
                 );
+                session.api = Api::Plex;
                 session.device = device.and_then(clean_name);
                 session.on_device(
                     crate::api::remote::device_id_of(user, None),
@@ -653,6 +654,7 @@ pub async fn universal_start(
         copy_video_only: false,
         stream_only: true,
         device_id: None,
+        api: Api::Plex,
     };
     let Json(info) =
         crate::api::playback::start(State(state.clone()), user, HeaderMap::new(), CurrentToken(None), Json(request))

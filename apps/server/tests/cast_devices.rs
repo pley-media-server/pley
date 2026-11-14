@@ -362,6 +362,9 @@ async fn a_cast_plays_on_the_device_as_a_session_the_remotes_control() {
     assert_eq!((session["device_kind"].clone(), session["subtitle_index"].clone()), (json!("tv"), json!(2)));
     assert_eq!(session["controls"], json!(["play", "pause", "seek", "skip", "volume"]));
     let id = session["session_id"].as_str().unwrap().to_owned();
+    // The dashboard says what plays it.
+    let activity = w.app.get("/api/activity", &w.admin).await;
+    assert_eq!(activity.body["sessions"][0]["player"], json!("cast"));
 
     // Its commands go to the device.
     let paused = w.app.post(&format!("/api/sessions/{id}/command"), &w.admin, json!({"command": "pause"})).await;

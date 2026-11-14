@@ -191,10 +191,10 @@ function SessionCard({ s, receivedAtMs, onStop }: { s: SessionInfo; receivedAtMs
             {t(`dashboard.methods.${s.method}`)}
           </Badge>
         </div>
-        {/* On a line of its own: beside the user, the time and Stop there is no room for it in two columns. */}
-        {s.device ? (
-          <div className="truncate text-xs text-muted" title={s.device}>
-            {s.device}
+        {/* On a line of its own, with what plays it: beside the user, the time and Stop there is no room for it in two columns. */}
+        {s.device || s.player ? (
+          <div className="truncate text-xs text-muted" title={s.device ?? undefined}>
+            {[s.device, s.player && t(`dashboard.players.${s.player}`)].filter(Boolean).join(" · ")}
           </div>
         ) : null}
         {/* Wraps rather than overflowing the card: squeezed, the state's icon would shrink away and Stop spill out. */}

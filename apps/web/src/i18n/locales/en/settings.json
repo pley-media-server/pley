@@ -649,6 +649,13 @@
       "remux": "Remux",
       "transcode": "Transcode"
     },
+    "players": {
+      "pley": "Pley app",
+      "plex": "Plex API",
+      "jellyfin": "Jellyfin API",
+      "cast": "Google Cast",
+      "airplay": "AirPlay"
+    },
     "pipelines": {
       "gpu": {
         "label": "GPU",

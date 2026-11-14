@@ -679,6 +679,8 @@ export interface TranscodeInfo {
   variants?: number;
 }
 
+export type SessionPlayer = "pley" | "plex" | "jellyfin" | "cast" | "airplay";
+
 export interface SessionInfo {
   session_id: string;
   kind: "item";
@@ -686,6 +688,8 @@ export interface SessionInfo {
   username: string;
   /** The device it plays on ("Living room TV", "Firefox on macOS"); null when it isn't known. */
   device: string | null;
+  /** What plays it: a Pley app, another app through the Plex- or Jellyfin-compatible API, or a device the server casts to. Absent from servers before it. */
+  player?: SessionPlayer;
   item: ItemSummary;
   method: PlaybackMethod;
   position_ms: number;

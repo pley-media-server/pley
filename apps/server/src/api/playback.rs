@@ -263,6 +263,7 @@ pub async fn start(
         session.compatibility_token = user.compatibility.map(|c| c.token_id);
         session.media_key = req.keyed_urls.then(new_media_key);
         session.controls = req.controls.clone();
+        session.api = req.api;
         session.device = device;
         session.on_device(device_id, device_kind);
         session.picked_tracks(decision.audio_index, subtitles_at_start);
@@ -390,6 +391,7 @@ pub async fn start(
     session.compatibility_token = user.compatibility.map(|c| c.token_id);
     session.media_key = req.keyed_urls.then(new_media_key);
     session.controls = req.controls.clone();
+    session.api = req.api;
     session.device = device;
     session.on_device(device_id, device_kind);
     session.picked_tracks(decision.audio_index, subtitles_at_start);

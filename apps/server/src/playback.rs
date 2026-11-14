@@ -392,6 +392,20 @@ pub struct PlaybackRequest {
     /// the server, never read from the player.
     #[serde(skip)]
     pub stream_only: bool,
+    /// Which API the play came through. Set by the server, never read from
+    /// the player.
+    #[serde(skip)]
+    pub api: Api,
+}
+
+/// Which API started a session: Pley's own, or one of those for other
+/// apps (docs/COMPATIBILITY.md). The dashboard says which kind of app plays.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Api {
+    #[default]
+    Pley,
+    Plex,
+    Jellyfin,
 }
 
 /// A command a remote sends a player (`POST /api/sessions/{id}/command`),
@@ -1937,6 +1951,8 @@ pub struct Session {
     pub device_id: String,
     /// What kind of device it is ([`DeviceKind`]).
     pub device_kind: DeviceKind,
+    /// Which API started it.
+    pub api: Api,
     /// Commands sent to it lately, which [`Session::take_command`] counts.
     commands: Mutex<CommandWindow>,
     last_transcoder_touch: AtomicI64,
@@ -1995,6 +2011,7 @@ impl Session {
             device: None,
             device_id,
             device_kind: DeviceKind::Other,
+            api: Api::Pley,
             commands: Mutex::new(CommandWindow::default()),
             last_transcoder_touch: AtomicI64::new(now),
             quiet: AtomicBool::new(false),
@@ -3019,6 +3036,7 @@ mod tests {
             download: false,
             copy_video_only: false,
             stream_only: false,
+            api: Api::Pley,
             device_id: None,
         }
     }

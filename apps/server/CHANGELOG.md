@@ -23,6 +23,8 @@ describes how they are made.
   the PIN it shows, and administrators can forget pairings in Settings →
   Network. A TV running a Pley app is listed once, as the app. They're
   listed while discovery is on in Settings → Network.
+- The dashboard says what plays each session: a Pley app, an app through
+  the Plex or Jellyfin API, Google Cast or AirPlay.
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.

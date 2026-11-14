@@ -40,6 +40,14 @@ describe("DashboardSettings stopping playback", () => {
     expect(await screen.findByText("Firefox on macOS")).toBeInTheDocument();
   });
 
+  it("says what plays each session: a Pley app, another app, or a device the server casts to", async () => {
+    const cast: SessionInfo = { ...playing, session_id: "def", device: "Den Apple TV", player: "airplay" };
+    mockApi({ "GET /api/activity": () => ({ scans: [], sessions: [{ ...playing, player: "pley" }, cast] }) });
+    renderWithProviders(<DashboardSettings />);
+    expect(await screen.findByText("Den Apple TV · AirPlay")).toBeInTheDocument();
+    expect(screen.getByText("Firefox on macOS · Pley app")).toBeInTheDocument();
+  });
+
   it("stops a session, with a message for the viewer", async () => {
     const user = userEvent.setup();
     const requests = serve();

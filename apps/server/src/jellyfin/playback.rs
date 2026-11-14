@@ -30,7 +30,7 @@ use crate::auth::{AuthUser, CurrentToken, SourceIp};
 use crate::catalog::{self, FileRow, ItemRow};
 use crate::events::ServerEvent;
 use crate::oauth::clients::clean_name;
-use crate::playback::{Controls, Method, PlaybackMode, PlaybackRequest, Session};
+use crate::playback::{Api, Controls, Method, PlaybackMode, PlaybackRequest, Session};
 use crate::state::AppState;
 
 pub fn routes() -> Router<AppState> {
@@ -146,6 +146,7 @@ async fn playback_info(
             copy_video_only: !state.settings.get().transcode_video,
             stream_only: false,
             device_id: None,
+            api: Api::Jellyfin,
         };
         let decision = crate::playback::decide(file, info.as_ref(), &streams, &req);
         // Picture subtitles chosen go onto the video, which then streams.
@@ -408,6 +409,7 @@ async fn master(
                 copy_video_only: false,
                 stream_only: true,
                 device_id: None,
+                api: Api::Jellyfin,
             };
             let Json(info) = crate::api::playback::start(
                 State(state.clone()),
@@ -801,6 +803,7 @@ async fn report(
                     None,
                     position_ms,
                 );
+                session.api = Api::Jellyfin;
                 session.device = device.and_then(clean_name);
                 session.on_device(
                     crate::api::remote::device_id_of(user, None),

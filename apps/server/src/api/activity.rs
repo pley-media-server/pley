@@ -39,6 +39,10 @@ pub struct SessionInfo {
     device: Option<String>,
     device_id: String,
     device_kind: crate::playback::DeviceKind,
+    /// What plays it: a Pley app, another app through the Plex- or
+    /// Jellyfin-compatible API, or a Google Cast or AirPlay device the
+    /// server plays on.
+    player: &'static str,
     item: ItemSummary,
     method: Method,
     position_ms: i64,
@@ -51,6 +55,19 @@ pub struct SessionInfo {
     started_at: i64,
     updated_at: i64,
     transcode: Option<TranscodeInfo>,
+}
+
+/// What plays `session`, as [`SessionInfo::player`] says it.
+fn player_of(session: &crate::playback::Session) -> &'static str {
+    use crate::playback::Api;
+    if let Some(protocol) = crate::nearby::Protocol::of(&session.device_id) {
+        return protocol.word();
+    }
+    match session.api {
+        Api::Pley => "pley",
+        Api::Plex => "plex",
+        Api::Jellyfin => "jellyfin",
+    }
 }
 
 #[derive(Serialize)]
@@ -101,6 +118,7 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
             device: session.device.clone(),
             device_id: session.device_id.clone(),
             device_kind: session.device_kind,
+            player: player_of(&session),
             item: row.to_summary(),
             method: session.method,
             position_ms: play.position_ms,

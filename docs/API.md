@@ -4030,6 +4030,9 @@ interface SessionInfo {
   device: string | null;        // "Living room TV", "Firefox on macOS" (Remote control)
   device_id: string;            // which device that is: "app-12", "web-9f2c…" (Remote control)
   device_kind: DeviceKind;      // and what kind
+  player: "pley" | "plex" | "jellyfin" | "cast" | "airplay";
+                                // what plays it: a Pley app, another app through the Plex- or
+                                // Jellyfin-compatible API, or a device the server casts to
   item: ItemSummary;
   method: "direct" | "remux" | "transcode";
   position_ms: number;
