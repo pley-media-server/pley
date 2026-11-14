@@ -490,6 +490,8 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
     // Iris Xe that makes 150. It warms up untimed.
     let _ = time(TonemapQuality::Fast, 6).await;
     let mut speed = TonemapSpeed::default();
+    // The qualities whose runs finished, though maybe too fast to time.
+    let (mut fast_ran, mut balanced_ran) = (false, false);
     for quality in [TonemapQuality::Fast, TonemapQuality::Balanced, TonemapQuality::High] {
         // Twice where the time allows, the faster short and the faster long
         // run counting, each on its own: other work on the GPU (seek
@@ -508,6 +510,12 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
                 (short, long) = (short.min(s), long.min(l));
             }
         }
+        let ran = short.is_finite() && long.is_finite();
+        match quality {
+            TonemapQuality::Fast => fast_ran = ran,
+            TonemapQuality::Balanced => balanced_ran = ran,
+            TonemapQuality::High => {}
+        }
         if let Some(fps) = frames_a_second(short, long) {
             let measured = match quality {
                 TonemapQuality::Fast => &mut speed.fast,
@@ -520,10 +528,18 @@ async fn measure_tonemap_speed(ffmpeg: &Path) -> Option<TonemapSpeed> {
     // Each quality does less than the one above it: one that read slower was
     // slowed by something else (`fast` read 51 frames a second where
     // `balanced` read 97, the first runs of a start on an Iris Xe). One that
-    // measured nothing (too fast to time) is as fast as the one above.
-    speed.balanced = speed.balanced.max(speed.high);
-    speed.fast = speed.fast.max(speed.balanced);
+    // ran but measured nothing (too fast to time) is as fast as the one
+    // above; one whose runs failed, or that the time left no room for, stays
+    // unmeasured and is never used.
+    speed.balanced = clamp_to_dearer(speed.balanced, speed.high, balanced_ran);
+    speed.fast = clamp_to_dearer(speed.fast, speed.balanced, fast_ran);
     (speed.fast > 0.0 || speed.balanced > 0.0 || speed.high > 0.0).then_some(speed)
+}
+
+/// A quality's speed, at least that of the dearer one above it where its
+/// own runs finished (`ran`); unmeasured otherwise.
+fn clamp_to_dearer(measured: f64, dearer: f64, ran: bool) -> f64 {
+    if ran { measured.max(dearer) } else { measured }
 }
 
 /// The frames a second the 36 frames between a 6-frame run of `short`
@@ -1289,6 +1305,16 @@ fn lists_option(help: &str, name: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_quality_whose_runs_failed_stays_unmeasured() {
+        // Slowed by something else: as fast as the dearer one.
+        assert_eq!(clamp_to_dearer(51.0, 97.0, true), 97.0);
+        // Too fast to time, its runs finished: as fast as the dearer one.
+        assert_eq!(clamp_to_dearer(0.0, 97.0, true), 97.0);
+        // Its runs failed, or weren't made: never used.
+        assert_eq!(clamp_to_dearer(0.0, 97.0, false), 0.0);
+    }
 
     #[test]
     fn tone_mapping_speed_takes_the_fastest_short_and_long_runs() {

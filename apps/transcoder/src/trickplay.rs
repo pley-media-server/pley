@@ -42,8 +42,9 @@ const ROWS: u32 = 10;
 const QUALITY: &str = "7";
 /// The version of the sets made here ([`TrickplayInfo::version`]), raised
 /// whenever they are made otherwise, so that servers make theirs again. 1:
-/// sheets at [`QUALITY`] 7 rather than 5.
-pub const VERSION: u32 = 1;
+/// sheets at [`QUALITY`] 7 rather than 5. 2: HDR tone mapped with BT.2390
+/// ([`crate::plan::PLACEBO_CURVE`]), as transcodes are.
+pub const VERSION: u32 = 2;
 /// The shortest time limit a set gets ([`run_limit`]).
 const TIMEOUT: Duration = Duration::from_secs(60 * 60);
 /// How long the file is waited for at first: a share whose disks spin up
