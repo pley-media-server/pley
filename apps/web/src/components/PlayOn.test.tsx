@@ -58,6 +58,47 @@ describe("PlayOn", () => {
     ]);
   });
 
+  it("offers Cast devices for a movie or an episode alone, marked as such", async () => {
+    const castDevice = makeReceiver({
+      receiver_id: "cast:9f8e",
+      device_id: "cast:9f8e",
+      name: "Bedroom TV",
+      casts: ["item"],
+      protocol: "cast",
+    });
+    serve(undefined, [tv, castDevice]);
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <PlayOn kind="item" video cast={() => ({ item_id: 7 })} />
+        <PlayOn kind="item" label="Shuffle on…" cast={() => ({ playlist_id: 2 })} />
+      </>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Play on…" }));
+    const items = within(screen.getByRole("menu", { name: "Play on…" })).getAllByRole("menuitem");
+    expect(items.map((i) => i.getAttribute("aria-label"))).toEqual(["Living room TV", "Bedroom TV"]);
+    expect(items[1]).toHaveAccessibleDescription("Google Cast");
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "Shuffle on…" }));
+    expect(within(screen.getByRole("menu", { name: "Shuffle on…" })).getAllByRole("menuitem").map((i) => i.getAttribute("aria-label"))).toEqual([
+      "Living room TV",
+    ]);
+  });
+
+  it("says why a Cast device didn't play it", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item"], protocol: "cast" });
+    mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [castDevice],
+      "POST /api/remote/devices/cast%3A9f8e/cast": () => apiError(409, "cast_unreachable", "Pley doesn't listen on an address the device can reach"),
+    });
+    renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+    await choose("Play on…", "Bedroom TV");
+    expect(await screen.findByText("Bedroom TV can't reach this server")).toBeInTheDocument();
+  });
+
   it("isn't there while no device takes it", async () => {
     serve(undefined, [phone]);
     const { client } = renderWithProviders(<PlayOn kind="live" label="Watch on…" cast={() => ({ channel_id: 3 })} />);

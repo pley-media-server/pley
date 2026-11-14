@@ -234,7 +234,9 @@
     "stop": "Detener",
     "stopConfirm": "¿Detener la reproducción en {{device}}?",
     "programme": "{{title}}, de {{start}} a {{end}}",
-    "next": "A continuación: {{title}}"
+    "next": "A continuación: {{title}}",
+    "googleCast": "Google Cast",
+    "volumeOn": "Volumen en {{device}}"
   },
   "requestNotices": {
     "open": "Abrir"

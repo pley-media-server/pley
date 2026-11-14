@@ -14,14 +14,19 @@ import { DeviceSummary, useOtherDevices } from "./Remote";
 import { useToast } from "./Toast";
 import { Button } from "./ui";
 
-/** The devices "Play on…" offers for `kind`: the user's other devices that take it, their household's too. */
-export function useCastTargets(kind: CastKind): OtherDevice[] {
-  return castTargets(useOtherDevices().devices, kind);
+/**
+ * The devices "Play on…" offers for `kind`: the user's other devices that take it, their household's too, and
+ * with `video` (a movie or an episode), the Cast devices the server plays on.
+ */
+export function useCastTargets(kind: CastKind, video = false): OtherDevice[] {
+  return castTargets(useOtherDevices().devices, kind, video);
 }
 
 export interface PlayOnProps {
   /** `item` for titles, music and playlists; `live` for a channel. */
   kind: CastKind;
+  /** It casts a movie or an episode, which Cast devices play too. */
+  video?: boolean;
   /** What it sends, as the page's own Play would play it now. */
   cast: () => CastRequest;
   /** "Play on…", "Shuffle on…", "Watch on…". */
@@ -58,6 +63,7 @@ interface PinAsk {
  */
 export function PlayOn({
   kind,
+  video,
   cast,
   label: given,
   icon = <Cast className="size-4" />,
@@ -70,7 +76,7 @@ export function PlayOn({
   onCast,
 }: PlayOnProps) {
   const { t } = useTranslation(["components", "common"]);
-  const targets = useCastTargets(kind);
+  const targets = useCastTargets(kind, video);
   const label = given ?? t("playOn.label");
   const send = useCast();
   const toast = useToast();

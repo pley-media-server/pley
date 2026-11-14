@@ -160,7 +160,9 @@
     "cantDoThat": "{{device}} can't do that",
     "notOn": "{{device}} isn't on any more",
     "cantPlay": "{{device}} can't play that",
-    "tooMany": "Too many at once: try again in a moment"
+    "tooMany": "Too many at once: try again in a moment",
+    "castUnreachable": "{{device}} can't reach this server",
+    "castFailed": "{{device}} didn't play it"
   },
   "errors": {
     "unreachable": "Can't reach the server",

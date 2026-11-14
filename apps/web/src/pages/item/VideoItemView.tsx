@@ -212,6 +212,7 @@ export function VideoItemView({ item }: { item: ItemDetail }) {
               // Where Play would resume, there too, with the tracks shown here.
               <PlayOn
                 kind="item"
+                video={item.kind === "movie" || item.kind === "episode"}
                 compact
                 cast={() => ({
                   item_id: item.id,

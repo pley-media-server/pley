@@ -702,7 +702,7 @@ export interface SessionInfo {
 }
 
 /** A command a remote sends one of the user's players (`POST /api/sessions/{id}/command`). */
-export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality";
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality" | "volume";
 
 /** What kind of device plays a session, or takes casts: remotes show each with its own icon. */
 export type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
@@ -769,6 +769,8 @@ export interface PlayingSession {
   qualities?: { id: string; label: string }[];
   /** Its file's intro and credits, which a remote offers to skip; empty on live (absent from servers before them). */
   markers?: Marker[];
+  /** Its device's volume, 0 to 100, for a player that takes `volume` (a Cast device's), once it says. */
+  volume?: number;
 }
 
 /** What a device plays when cast to: titles, music and playlists (`item`), Live TV channels (`live`). */
@@ -791,6 +793,8 @@ export interface RemoteDevice {
    * switches it to the user's first. What it plays isn't listed.
    */
   profile?: { id: Id; name: string };
+  /** How the server plays on it when not through a Pley app: `cast` for a Google Cast device. */
+  protocol?: "cast";
 }
 
 /**

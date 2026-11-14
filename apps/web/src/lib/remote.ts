@@ -65,6 +65,8 @@ export interface OtherDevice {
   session: RemoteSession | null;
   /** The household profile it is on, when it isn't the user's: a cast switches it to theirs. */
   profile: NonNullable<RemoteDevice["profile"]> | null;
+  /** How the server plays on it when no Pley app does: `cast` for a Google Cast device. */
+  protocol: NonNullable<RemoteDevice["protocol"]> | null;
 }
 
 /**
@@ -90,6 +92,7 @@ export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[
     receiver,
     session,
     profile: receiver?.profile ?? null,
+    protocol: receiver?.protocol ?? null,
   }));
   devices.sort(
     (a, b) =>
@@ -105,9 +108,13 @@ export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[
   });
 }
 
-/** The devices that take `kind` when cast to, in the list's order. */
-export function castTargets(devices: OtherDevice[], kind: CastKind): OtherDevice[] {
-  return devices.filter((d) => d.receiver?.casts.includes(kind));
+/**
+ * The devices that take `kind` when cast to, in the list's order. Devices the
+ * server plays on itself (Cast devices) take movies and episodes alone: only
+ * with `video`.
+ */
+export function castTargets(devices: OtherDevice[], kind: CastKind, video = false): OtherDevice[] {
+  return devices.filter((d) => d.receiver?.casts.includes(kind) && (video || !d.protocol));
 }
 
 /** A page's wish for the header's remote to open on a device: one cast just went there. */
@@ -201,6 +208,8 @@ export interface SentCommand {
   track?: number;
   /** `quality`: the quality picked, by id. */
   quality?: string;
+  /** `volume`: the level asked for, 0 to 100. */
+  volume?: number;
 }
 
 /**
@@ -226,6 +235,8 @@ export function asSent(session: RemoteSession, sent: SentCommand | null): Remote
       return { ...session, subtitle_index: sent.track ?? session.subtitle_index };
     case "quality":
       return { ...session, quality: sent.quality ?? session.quality };
+    case "volume":
+      return { ...session, volume: sent.volume ?? session.volume };
     default:
       return sent.target != null ? { ...session, ...at(sent.target) } : session;
   }
@@ -252,6 +263,8 @@ export function commandAnswered(sent: SentCommand, now: RemoteSession | undefine
   if (sent.command === "audio") return now.audio_index === sent.track;
   if (sent.command === "subtitles") return now.subtitle_index === sent.track;
   if (sent.command === "quality") return now.quality === sent.quality;
+  // The device rounds a level to its own steps: any new level is its answer.
+  if (sent.command === "volume") return now.volume !== before.volume;
   if (now.state !== before.state) return true;
   if (sent.command !== "seek" && sent.command !== "skip" && sent.command !== "previous") return false;
   const reportedSince = now.updated_at > before.updated_at || now.position_ms !== before.position_ms;

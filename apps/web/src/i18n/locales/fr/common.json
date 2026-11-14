@@ -166,7 +166,9 @@
     "cantDoThat": "{{device}} ne peut pas faire ça",
     "notOn": "{{device}} n’est plus connecté",
     "cantPlay": "{{device}} ne peut pas lire ça",
-    "tooMany": "Trop de demandes à la fois : réessayez dans un instant"
+    "tooMany": "Trop de demandes à la fois : réessayez dans un instant",
+    "castUnreachable": "{{device}} n’arrive pas à joindre ce serveur",
+    "castFailed": "{{device}} ne l’a pas lu"
   },
   "errors": {
     "unreachable": "Impossible de joindre le serveur",

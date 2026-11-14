@@ -23,6 +23,9 @@ import {
   Smartphone,
   Tablet,
   Tv,
+  Volume1,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import {
   queries,
@@ -34,6 +37,7 @@ import {
   type SessionCommand,
 } from "@/api/hooks";
 import type { Control, DeviceKind, Marker } from "@/api/types";
+import { currentLocale } from "@/i18n";
 import { cn } from "@/lib/cn";
 import { episodeLabel, formatClock, fullTitle } from "@/lib/format";
 import { useDismiss, useNow } from "@/lib/hooks";
@@ -115,6 +119,8 @@ export function DeviceIcon({ kind, className }: { kind: DeviceKind; className?: 
  */
 function playingLine(device: OtherDevice, t: TFunction<"components">): string {
   const s = device.session;
+  // A device the server plays on itself says what it is: "Google Cast".
+  if (!s && device.protocol === "cast") return t("remote.googleCast");
   if (!s) return device.profile ? t("remote.onProfile", { name: device.profile.name }) : t("remote.readyToPlay");
   if (s.kind === "live") return s.channel ? [s.channel.number, s.channel.name].filter(Boolean).join(" ") : t("remote.liveTv");
   return s.item ? fullTitle(s.item) : "";
@@ -399,7 +405,7 @@ function PlayingControls({
   const position = estimatedPosition(shown, nowMs);
   const duration = session.duration_ms;
 
-  const send = (c: Control, extra: Pick<SessionCommand, "positionMs" | "offsetMs" | "streamIndex" | "quality"> = {}) => {
+  const send = (c: Control, extra: Pick<SessionCommand, "positionMs" | "offsetMs" | "streamIndex" | "quality" | "volume"> = {}) => {
     setError(null);
     const sentAt = remoteClock();
     // A skip goes from where the bar shows, a seek still on its way too.
@@ -416,7 +422,15 @@ function PlayingControls({
             ? at
             : undefined);
     // Shown at once, and waited for from now: the player's report confirms it.
-    const entry: SentCommand = { command: c, before: session, sentAt, target, track: extra.streamIndex, quality: extra.quality };
+    const entry: SentCommand = {
+      command: c,
+      before: session,
+      sentAt,
+      target,
+      track: extra.streamIndex,
+      quality: extra.quality,
+      volume: extra.volume,
+    };
     setSent(entry);
     if (mayEndSession(c)) onEnding(session);
     command.mutate(
@@ -481,6 +495,8 @@ function PlayingControls({
   };
   const pickerLabel = (p: Picker) => t(`remote.${p}On`, { device: name });
   const pickersShown = (["audio", "subtitles", "quality"] as const).filter((p) => offered[p]);
+  // The device's own volume, where its player takes it and has said it.
+  const volume = can("volume") && shown.volume != null ? shown.volume : null;
 
   const askStop = () => {
     setPicking(null);
@@ -648,6 +664,20 @@ function PlayingControls({
               <PickerIcon picker={p} />
             </IconButton>
           ))}
+          {volume !== null ? (
+            <div className="flex items-center gap-2 pl-1">
+              <VolumeIcon level={volume} />
+              <Slider
+                label={t("remote.volumeOn", { device: name })}
+                value={volume}
+                max={100}
+                step={1}
+                valueText={(v) => new Intl.NumberFormat(currentLocale(), { style: "percent" }).format(v / 100)}
+                onCommit={(v) => send("volume", { volume: Math.round(v) })}
+                className="w-24"
+              />
+            </div>
+          ) : null}
           <button
             ref={stopRef}
             type="button"
@@ -683,6 +713,12 @@ function PlayingControls({
       ) : null}
     </div>
   );
+}
+
+/** A volume icon as loud as `level` (0 to 100). */
+function VolumeIcon({ level }: { level: number }) {
+  const Icon = level === 0 ? VolumeX : level < 50 ? Volume1 : Volume2;
+  return <Icon aria-hidden className="size-4 shrink-0 text-muted" />;
 }
 
 /**

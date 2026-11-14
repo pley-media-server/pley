@@ -994,6 +994,8 @@ export interface SessionCommand {
   streamIndex?: number;
   /** `quality`: the id of one of the session's `qualities`. */
   quality?: string;
+  /** `volume`: the device's volume, 0 to 100. */
+  volume?: number;
 }
 
 /**
@@ -1003,10 +1005,10 @@ export interface SessionCommand {
 export function useSessionCommand() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ sessionId, command, positionMs, offsetMs, streamIndex, quality }: SessionCommand) =>
+    mutationFn: ({ sessionId, command, positionMs, offsetMs, streamIndex, quality, volume }: SessionCommand) =>
       request<void>(`/api/sessions/${encodeURIComponent(sessionId)}/command`, {
         method: "POST",
-        body: { command, position_ms: positionMs, offset_ms: offsetMs, stream_index: streamIndex, quality },
+        body: { command, position_ms: positionMs, offset_ms: offsetMs, stream_index: streamIndex, quality, volume },
       }),
     onError: (err, { sessionId }) => {
       // Its player is gone, or no longer obeys that: the list says what is left.
@@ -1049,6 +1051,9 @@ export function useCast() {
 /** What "Play on…" says when `device` didn't take a cast. */
 export function castError(err: unknown, device: string): string {
   if (isApiError(err, 404)) return t("remote.notOn", { device });
+  // A Cast device the server couldn't reach, or that didn't play the stream.
+  if (isApiError(err, 409) && err.code === "cast_unreachable") return t("remote.castUnreachable", { device });
+  if (isApiError(err, 409) && err.code === "cast_failed") return t("remote.castFailed", { device });
   if (isApiError(err, 409)) return t("remote.cantPlay", { device });
   if (isApiError(err, 429)) return t("remote.tooMany");
   return errorMessage(err);
