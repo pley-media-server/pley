@@ -145,6 +145,7 @@ async fn playback_info(
             download: false,
             copy_video_only: !state.settings.get().transcode_video,
             stream_only: false,
+            device_id: None,
         };
         let decision = crate::playback::decide(file, info.as_ref(), &streams, &req);
         // Picture subtitles chosen go onto the video, which then streams.
@@ -406,6 +407,7 @@ async fn master(
                 download: false,
                 copy_video_only: false,
                 stream_only: true,
+                device_id: None,
             };
             let Json(info) = crate::api::playback::start(
                 State(state.clone()),

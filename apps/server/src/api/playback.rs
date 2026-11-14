@@ -230,7 +230,7 @@ pub async fn start(
     let start_ms = req.start_ms.unwrap_or(0).max(0);
     let client_id = req.client_id.clone().filter(|c| !c.is_empty() && c.len() <= 128);
     let device = super::remote::device_name(req.device_name.as_deref(), &headers);
-    let device_id = super::remote::device_id_of(&user, token.as_deref());
+    let device_id = req.device_id.clone().or_else(|| super::remote::device_id_of(&user, token.as_deref()));
     let device_kind = super::remote::device_kind_of(req.device_kind, &user, super::remote::user_agent(&headers));
     let subtitles_at_start = subtitles_shown(&state, user.id, &row, &streams, &decision).await?;
 
@@ -1624,6 +1624,20 @@ pub async fn subtitles(
         .ok_or_else(|| AppError::not_found("unknown subtitle file"))?;
     let file = visible_file(&state, &user, id).await?;
     text_track(&state, &user, &file, index, query.offset_ms.unwrap_or(0), Duration::ZERO).await
+}
+
+/// Reads text track `index` of `file` whole ahead of a player outside Pley
+/// asking for it (a cast), waiting up to `wait`: whether it is whole.
+pub(crate) async fn prepare_text_track(
+    state: &AppState,
+    user: &AuthUser,
+    file_id: i64,
+    index: i64,
+    wait: Duration,
+) -> bool {
+    let Ok(Some(file)) = catalog::file(&state.db, file_id).await else { return false };
+    let answer = text_track(state, user, &file, index, 0, wait).await;
+    answer.is_ok_and(|r| r.headers().get("x-pley-complete").is_none_or(|v| v != "0"))
 }
 
 /// How long a keyed `.vtt` answer waits for its whole track: a player

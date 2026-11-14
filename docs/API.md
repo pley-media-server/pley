@@ -3529,7 +3529,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, a home member's Google Cast devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
@@ -3844,6 +3844,33 @@ would.
   such cast: it isn't offered across profiles. A progress report naming
   another profile's session (one that left with this profile's token as
   its device switched) is answered `204` and kept for neither.
+- **Google Cast devices.** Chromecasts, Google TVs and TVs with Cast
+  built in that show video are listed too, for home members, with
+  `receiver_id` and `device_id` `cast:<its id>`, `kind` `tv`, `casts`
+  `["item"]` and `protocol: "cast"`, which remotes show under the name.
+  The server finds them by mDNS (`_googlecast._tcp`) on its own network,
+  when the list is asked for and the last look is over 30 seconds old,
+  and keeps one that stops answering for 5 minutes; it doesn't look with
+  `--no-discovery`, nor from a Docker bridge network, which the
+  announcements don't reach. A cast there names a movie or an episode,
+  as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
+  above, never `profile_id`; it answers `204` once the device plays,
+  `404` for a device not listed or a caller who isn't a home member,
+  `409` `{ code: "not_castable" }` for anything else, `409` `{ code:
+  "cast_failed" }` when the device didn't play it, and `409` `{ code:
+  "cast_unreachable" }` when Pley doesn't listen on an address the device
+  can reach. The server plays it on the device itself: it starts a
+  session of the caller's as a player would (H.264 and AAC, as an MP4 or
+  HLS of MPEG-TS, up to 1080p), with keyed addresses, which it gives to
+  Google's own player on the device; the subtitles go beside the stream as
+  keyed WebVTT, read whole before the device asks (it asks once), and
+  picture subtitles are burned in. The session has the device's
+  `device_id`, its name, and the controls `play`, `pause`, `seek` and
+  `skip`, which the server passes on; it asks the device where it is
+  every 5 seconds and keeps the place as a progress report would. The
+  session ends when the device stops or finishes it, when another app
+  takes the device over, or when it is stopped in Pley, which stops the
+  device too. A new cast to the device ends the one before.
 
 ### Watch state on other devices
 
@@ -4007,6 +4034,7 @@ interface RemoteDevice {        // GET /api/remote/devices
   name: string | null;          // as PlayingSession's `device`
   kind: DeviceKind;
   casts: ("item" | "live")[];   // what it plays when cast to
+  protocol?: "cast";            // played by the server on a Google Cast device
 }
 
 interface TranscodeInfo {

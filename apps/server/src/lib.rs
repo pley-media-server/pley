@@ -10,6 +10,7 @@ pub mod auth;
 pub mod backup;
 pub mod bandwidth;
 pub mod bonjour;
+pub mod cast;
 pub mod catalog;
 pub mod collections;
 pub mod config;

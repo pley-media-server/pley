@@ -710,6 +710,7 @@ impl Receivers {
                 kind: open.receiver.kind,
                 casts: open.receiver.casts.clone(),
                 profile: None,
+                protocol: None,
                 switches: open.receiver.switches,
             })
             .collect();
@@ -830,6 +831,10 @@ pub struct RemoteDevice {
     /// caller's own. A cast there switches it to the caller's profile.
     #[serde(skip_serializing_if = "Option::is_none")]
     profile: Option<DeviceProfile>,
+    /// How the server plays on it, when not through a Pley app: `cast`
+    /// for a Google Cast device. Remotes mark it under its name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    protocol: Option<&'static str>,
     #[serde(skip)]
     switches: bool,
 }
@@ -878,13 +883,28 @@ pub async fn devices(
     query: Result<Query<DevicesQuery>, QueryRejection>,
 ) -> ApiResult<Json<Vec<RemoteDevice>>> {
     let mut out = state.receivers.listed(user.id);
+    let everyone = crate::accounts::users(&state.db).await?;
+    let home = everyone.iter().any(|u| u.id == user.id && u.home);
+    // The Cast devices on the server's network, for the household: they
+    // are the home's, as its TVs are.
+    if home {
+        out.extend(state.cast_devices.listed(&state.config).await.into_iter().map(|d| RemoteDevice {
+            receiver_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
+            device_id: format!("{}{}", crate::cast::devices::ID_PREFIX, d.id),
+            name: Some(d.name),
+            kind: DeviceKind::Tv,
+            casts: BTreeSet::from([CastKind::Item]),
+            profile: None,
+            protocol: Some("cast"),
+            switches: false,
+        }));
+        out.sort_by_cached_key(listing_order);
+    }
     // A query that doesn't parse asks for nothing more.
     let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
     if !asked || !reaches_household(&user) {
         return Ok(Json(out));
     }
-    let everyone = crate::accounts::users(&state.db).await?;
-    let home = everyone.iter().any(|u| u.id == user.id && u.home);
     for other in everyone.into_iter().filter(|u| home && u.home && !u.disabled && u.id != user.id) {
         // Its name as "Who's watching?" says it: apps never see usernames.
         let profile = DeviceProfile { id: other.id, name: other.name };
@@ -951,6 +971,43 @@ const WITH_TRACKS: [&str; 2] = ["movie", "episode"];
 /// (its next episode), an album or an artist (its tracks).
 const CASTABLE: [&str; 7] = ["movie", "episode", "show", "season", "track", "album", "artist"];
 
+/// A cast to a Google Cast device ([`crate::cast`]): a movie or an
+/// episode, by a home member, played by the server on the device.
+async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast) -> ApiResult<StatusCode> {
+    let everyone = crate::accounts::users(&state.db).await?;
+    let home = everyone.iter().any(|u| u.id == user.id && u.home);
+    let device = state.cast_devices.device(id).filter(|_| home).ok_or_else(|| AppError::not_found("no such device"))?;
+    if body.profile_id.is_some_and(|p| p != user.id) || body.device_id.is_some() {
+        return Err(AppError::not_found("no such device"));
+    }
+    let (Some(item_id), None, None) = (body.item_id, body.playlist_id, body.channel_id) else {
+        return Err(AppError::ConflictAs("not_castable", "this device plays movies and episodes".to_owned()));
+    };
+    let row = item_or_404(state, user.id, item_id).await?;
+    if !WITH_TRACKS.contains(&row.kind.as_str()) {
+        return Err(AppError::ConflictAs("not_castable", "this device plays movies and episodes".to_owned()));
+    }
+    if body.start_ms.is_some_and(|start| !(0..=MAX_UNKNOWN_SEEK_MS).contains(&start)) {
+        return Err(AppError::bad_request(format!("start_ms must be between 0 and {MAX_UNKNOWN_SEEK_MS}")));
+    }
+    let files = catalog::files_for_item(&state.db, row.id).await?;
+    let streams: Vec<MediaStream> = files.iter().flat_map(|f| f.streams()).collect();
+    if let Some(index) = body.audio_index {
+        check_track(&streams, StreamKind::Audio, index, "audio_index")?;
+    }
+    if let Some(index) = body.subtitle_index {
+        check_track(&streams, StreamKind::Subtitle, index, "subtitle_index")?;
+    }
+    let cast = crate::cast::devices::Cast {
+        item_id,
+        start_ms: body.start_ms,
+        audio_index: body.audio_index,
+        subtitle_index: body.subtitle_index,
+    };
+    crate::cast::devices::start(state, user, device, cast).await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 /// `POST /api/remote/devices/{id}/cast`: sends a receiver a title, a
 /// playlist or a Live TV channel to play, through the event streams of the
 /// profile it is on. `202`: it is on its way; the device's sessions say what
@@ -968,6 +1025,9 @@ pub async fn cast(
     body: Result<Json<Cast>, JsonRejection>,
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
+    if let Some(cast_id) = id.strip_prefix(crate::cast::devices::ID_PREFIX) {
+        return cast_to_device(&state, &user, cast_id, body).await;
+    }
     let owner = body.profile_id.unwrap_or(user.id);
     if owner != user.id && !reaches_household(&user) {
         return Err(AppError::ForbiddenAs(

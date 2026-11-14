@@ -382,6 +382,11 @@ pub struct PlaybackRequest {
     /// the player.
     #[serde(skip)]
     pub copy_video_only: bool,
+    /// Which device the session plays on, when the server starts it for a
+    /// device that has no sign-in of its own (a Cast device,
+    /// [`crate::cast`]). Set by the server, never read from the player.
+    #[serde(skip)]
+    pub device_id: Option<String>,
     /// The player opened a stream's address (the compatibility APIs' HLS
     /// routes), so the answer is a stream, never the file as it is. Set by
     /// the server, never read from the player.
@@ -2997,6 +3002,7 @@ mod tests {
             download: false,
             copy_video_only: false,
             stream_only: false,
+            device_id: None,
         }
     }
 

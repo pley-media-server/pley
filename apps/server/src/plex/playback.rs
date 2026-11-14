@@ -652,6 +652,7 @@ pub async fn universal_start(
         download: false,
         copy_video_only: false,
         stream_only: true,
+        device_id: None,
     };
     let Json(info) =
         crate::api::playback::start(State(state.clone()), user, HeaderMap::new(), CurrentToken(None), Json(request))

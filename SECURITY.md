@@ -374,6 +374,21 @@ other apps (`pley_ct_…`), never with a session's
   unicast, so a device on the network can't make it flood another; reads
   what it hears within bounds; and keeps none of it, so no device can
   make it hold more.
+- Pley looks for Google Cast devices (`_googlecast._tcp`) only when a home
+  member's remote lists devices, at most every 30 seconds, by one mDNS
+  query from a port of its own; with `--no-discovery` it doesn't look.
+  Only answers from private and link-local addresses count, read within
+  bounds: 64 devices a look, names cut to 100 characters, ids of letters
+  and digits. Pley connects to a device only as one of these answered,
+  never to an address a request names.
+- Pley talks to a Cast device over TLS without checking its certificate,
+  which the device made itself and no authority signed, as Google's own
+  senders do on a home network. It reads what comes back within bounds
+  (64 KiB a message, JSON objects alone) and ends a connection that goes
+  silent for 20 seconds. The device gets the cast's keyed addresses, which
+  open that session's media alone, and nothing else of Pley's; a cast
+  plays as a session of the home member who sent it, by their profile's
+  rules, and only home members see and cast to these devices.
 - Discovery is on and Bonjour off until Settings → Network changes them.
   `--no-bonjour` (`PLEY_NO_BONJOUR`) keeps Bonjour off, and
   `--no-discovery` (`PLEY_NO_DISCOVERY`) both; the Docker setup has them

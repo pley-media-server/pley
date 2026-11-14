@@ -105,6 +105,25 @@ from) changes. The server's runs on Linux, macOS and Windows, with a build on
 the oldest supported Rust, the license check and the Docker build
 ([RELEASING.md](RELEASING.md#ci)).
 
+### Casting to Google Cast without a device
+
+Android's Google TV emulator is a Cast device: its system image (`google-tv`,
+in Android Studio's device manager or `sdkmanager`) runs Google's own Cast
+receiver once signed in to a Google account and updated from the Play Store.
+The server can't find it by mDNS through the emulator's network, so a debug
+build takes it from two environment variables:
+
+```sh
+adb forward tcp:8009 tcp:8009
+PLEY_CAST_DEVICE=127.0.0.1:8009 PLEY_CAST_SERVER=http://10.0.2.2:7539 ./target/debug/pley
+```
+
+`PLEY_CAST_DEVICE` is where the server connects to the device, and
+`PLEY_CAST_SERVER` where the device reaches the server (`10.0.2.2` is the
+computer, from the emulator). Home members' remotes then list "Cast
+emulator". Release builds ignore both. `tests/cast_devices.rs` plays against
+a fake device instead.
+
 The README's screenshot (`docs/images/web-home.jpg`) shows a demo library of
 made-up titles ([scripts/store-library](../scripts/store-library/README.md)):
 `bun scripts/store-library/web.mjs <dir> <address>` takes it from a server

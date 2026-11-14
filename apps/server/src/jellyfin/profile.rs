@@ -799,6 +799,7 @@ mod tests {
             download: false,
             copy_video_only: false,
             stream_only: false,
+            device_id: None,
         };
         decide(&file(), Some(&info), &info.streams, &req)
     }

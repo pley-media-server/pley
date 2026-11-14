@@ -13,8 +13,9 @@ describes how they are made.
 
 ### Added
 
-- Players outside Pley, such as a Chromecast's, can play a session's keyed
-  stream and its text subtitles.
+- Home members can cast movies and episodes to Chromecasts, Google TVs and
+  TVs with Cast built in on the server's network, with their subtitles, and
+  control them from the remote as Pley's own players.
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.

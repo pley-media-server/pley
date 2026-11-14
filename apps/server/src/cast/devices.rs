@@ -1,0 +1,452 @@
+//! The Cast devices the household's remotes cast to, and the casts playing
+//! on them. A cast is a playback session like any other, started by the
+//! server for the device: its stream is keyed, as the device fetches it
+//! itself, and the server reports its place, as the device's player reports
+//! nothing to Pley. The remotes control it through the session, as they
+//! control Pley's own players.
+
+use std::collections::HashMap;
+use std::net::{Ipv4Addr, SocketAddr};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
+
+use axum::Json;
+use axum::extract::State;
+use axum::http::HeaderMap;
+use parking_lot::Mutex;
+use tokio_util::sync::CancellationToken;
+
+use super::connection::Connection;
+use super::discovery::{self, Found};
+use super::player::{Ended, Event, Failure, Media, Player, State as Playing, Subtitle};
+use crate::auth::{AuthUser, CurrentToken};
+use crate::error::{ApiResult, AppError};
+use crate::events::ServerEvent;
+use crate::playback::{Control, Method, PlaybackRequest};
+use crate::state::AppState;
+
+/// How long a look for devices waits for answers, how long one is good
+/// for, and how long a device that stops answering stays listed.
+const LOOK_FOR: Duration = Duration::from_millis(1500);
+const LOOK_AGAIN: Duration = Duration::from_secs(30);
+const KEEP_FOR: Duration = Duration::from_secs(5 * 60);
+/// How often the device is asked where it is, and its place kept.
+const ASK_EVERY: Duration = Duration::from_secs(5);
+const RECORD_EVERY: Duration = Duration::from_secs(10);
+/// How long a cast waits for its subtitles to be read whole before it
+/// starts (a large file on a network share takes a while).
+const PREPARE_WITHIN: Duration = Duration::from_secs(20);
+
+/// The prefix of a Cast device's id among the remotes' devices.
+pub const ID_PREFIX: &str = "cast:";
+
+/// What a cast is asked to play.
+#[derive(Debug, Clone)]
+pub struct Cast {
+    pub item_id: i64,
+    pub start_ms: Option<i64>,
+    pub audio_index: Option<i64>,
+    pub subtitle_index: Option<i64>,
+}
+
+#[derive(Default)]
+pub struct CastDevices {
+    found: Mutex<HashMap<String, (Found, Instant)>>,
+    looked: Mutex<Option<Instant>>,
+    looking: tokio::sync::Mutex<()>,
+    /// The cast playing on each device, by its id: a new one ends it.
+    playing: Mutex<HashMap<String, (u64, CancellationToken)>>,
+    casts: AtomicU64,
+}
+
+impl CastDevices {
+    /// The devices that show video, looking again when the last look is
+    /// old and Pley may look on the local network (its `discovery`).
+    pub async fn listed(&self, config: &crate::config::Config) -> Vec<Found> {
+        let fixed = config.cast_fixed.found();
+        if (config.discovery || fixed.is_some()) && self.looked.lock().is_none_or(|at| at.elapsed() >= LOOK_AGAIN) {
+            let _one = self.looking.lock().await;
+            // Another request looked while this one waited.
+            if self.looked.lock().is_none_or(|at| at.elapsed() >= LOOK_AGAIN) {
+                self.look(fixed).await;
+            }
+        }
+        let mut found = self.found.lock();
+        found.retain(|_, (_, at)| at.elapsed() < KEEP_FOR);
+        found.values().map(|(device, _)| device.clone()).filter(|d| d.video).collect()
+    }
+
+    async fn look(&self, fixed: Option<Found>) {
+        let from: Vec<Ipv4Addr> =
+            crate::network::adapters().into_iter().filter(|a| a.up).flat_map(|a| a.addresses).collect();
+        let browse = async {
+            if from.is_empty() || fixed.is_some() {
+                return Ok(Vec::new());
+            }
+            discovery::browse(&from, LOOK_FOR).await
+        };
+        let mut seen = browse.await.unwrap_or_else(|err| {
+            tracing::warn!("couldn't look for Cast devices: {err}");
+            Vec::new()
+        });
+        seen.extend(fixed);
+        let now = Instant::now();
+        let mut found = self.found.lock();
+        for device in seen {
+            found.insert(device.id.clone(), (device, now));
+        }
+        *self.looked.lock() = Some(now);
+    }
+
+    /// The device of `id` (without [`ID_PREFIX`]) seen lately.
+    pub fn device(&self, id: &str) -> Option<Found> {
+        let found = self.found.lock();
+        found.get(id).filter(|(d, at)| d.video && at.elapsed() < KEEP_FOR).map(|(d, _)| d.clone())
+    }
+}
+
+/// Plays `cast` on `device` as `user`: a session started as Pley's own
+/// players start one, Google's player started on the device and the
+/// stream loaded into it. Returns once it plays, or didn't start; then the
+/// server follows it until it ends.
+pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast) -> ApiResult<()> {
+    let base = base_url(state, device.address).ok_or_else(|| {
+        AppError::ConflictAs("cast_unreachable", "Pley doesn't listen on an address the device can reach".to_owned())
+    })?;
+    let request: PlaybackRequest = serde_json::from_value(serde_json::json!({
+        "item_id": cast.item_id,
+        "start_ms": cast.start_ms,
+        "audio_index": cast.audio_index,
+        "subtitle_index": cast.subtitle_index,
+        "caps": caps(),
+        // One cast at a time on a device: a new one ends the last.
+        "client_id": format!("{ID_PREFIX}{}", device.id),
+        "keyed_urls": true,
+        "controls": ["play", "pause", "seek", "skip"],
+        "device_name": device.name,
+        "device_kind": "tv",
+    }))
+    .map_err(|err| AppError::bad_request(err.to_string()))?;
+    let request = PlaybackRequest { device_id: Some(format!("{ID_PREFIX}{}", device.id)), ..request };
+    // A cast playing there already leaves the device to this one, before
+    // its session ends (this one's start ends it), so that it doesn't stop
+    // the device on its way out.
+    let ours = CancellationToken::new();
+    let cast_id = state.cast_devices.casts.fetch_add(1, Ordering::Relaxed);
+    if let Some((_, before)) = state.cast_devices.playing.lock().insert(device.id.clone(), (cast_id, ours.clone())) {
+        before.cancel();
+    }
+    let started = crate::api::playback::start(
+        State(state.clone()),
+        user.clone(),
+        HeaderMap::new(),
+        CurrentToken(None),
+        Json(request),
+    )
+    .await;
+    let Ok(Json(info)) = started else {
+        forget(state, &device.id, cast_id);
+        return started.map(|_| ());
+    };
+    let end = |state: &AppState| {
+        end_session(state, &info.session_id);
+        forget(state, &device.id, cast_id);
+    };
+    let Some(session) = state.sessions.get(&info.session_id) else {
+        end(state);
+        return Err(AppError::not_found("the session ended"));
+    };
+    let Some(key) = session.media_key.clone() else {
+        end(state);
+        return Err(AppError::Conflict("the session has no keyed address".to_owned()));
+    };
+    // The subtitles it shows: picked by the remote, else by the user's
+    // choices. Text ones go beside the stream, as WebVTT; picture ones the
+    // stream has burned in.
+    let shown = cast.subtitle_index.or(session.play.lock().subtitle_index).filter(|i| *i >= 0);
+    let subtitle = shown.filter(|_| !info.burn_subtitles).and_then(|index| {
+        let track = info.subtitles.iter().find(|t| t.index == index && t.text_based)?;
+        let name = track.title.clone().or_else(|| track.language.clone()).unwrap_or_else(|| format!("{index}"));
+        let url = format!("{base}/api/media/{key}/subtitles-{index}.vtt");
+        Some(Subtitle { url, language: track.language.clone(), name })
+    });
+    // What it shows, for the remotes: none when the track isn't one it can.
+    if session.report_tracks(None, Some(subtitle.as_ref().and(shown).unwrap_or(-1))) {
+        state.events.send(ServerEvent::SessionsChanged { user_id: user.id });
+    }
+    let content_type = match info.method {
+        Method::Direct => "video/mp4",
+        _ => "application/x-mpegurl",
+    };
+    let title =
+        crate::api::items::item_or_404(state, user.id, cast.item_id).await.map(|row| row.title).unwrap_or_default();
+    let media = Media {
+        url: format!("{base}{}", info.url),
+        content_type: content_type.to_owned(),
+        start_ms: cast.start_ms.unwrap_or(0),
+        title,
+        subtitle,
+    };
+
+    // The device asks for the subtitles once, as the stream loads, and
+    // never again: the track is read whole first (the first read out of a
+    // large file takes a while), as the device is connected to.
+    let read = async {
+        if media.subtitle.is_some()
+            && let Some(index) = shown
+            && !crate::api::playback::prepare_text_track(state, user, session.file_id, index, PREPARE_WITHIN).await
+        {
+            tracing::warn!("a cast's subtitles weren't read whole in time: they start where they are");
+        }
+    };
+    let connect = async {
+        Connection::connect(device.address).await.map_err(|err| {
+            tracing::warn!("couldn't connect to the Cast device {}: {err}", device.address);
+            Failure::Lost
+        })
+    };
+    let ((), connected) = tokio::join!(read, connect);
+    let started = match connected {
+        Ok((connection, incoming)) => Player::start(connection, incoming, &media).await,
+        Err(failure) => Err(failure),
+    };
+    let (player, events) = match started {
+        Ok(started) => started,
+        Err(failure) => {
+            end(state);
+            tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
+            return Err(AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned()));
+        }
+    };
+    tracing::info!("item {} is cast to a Cast device", cast.item_id);
+    let cast = Following {
+        state: state.clone(),
+        user_id: user.id,
+        device,
+        session_id: info.session_id,
+        duration_ms: info.duration_ms,
+        cast_id,
+    };
+    tokio::spawn(cast.follow(player, events, ours));
+    Ok(())
+}
+
+/// What Cast devices play, all of them: H.264 and AAC, as an MP4 file or
+/// HLS of MPEG-TS, at 1080p. Text subtitles come beside, as WebVTT, and
+/// picture ones are burned in.
+fn caps() -> serde_json::Value {
+    serde_json::json!({
+        "containers": ["mp4"],
+        "video_codecs": ["h264"],
+        "audio_codecs": ["aac", "mp3"],
+        "audio_channels": 2,
+        "subtitle_codecs": ["subrip", "webvtt", "ass", "ssa", "mov_text", "text"],
+        "picture_subtitles_sideload": false,
+        "hls": {"segments": ["ts"]},
+        "display": {"width": 1920, "height": 1080, "refresh_rates": [60.0]},
+    })
+}
+
+/// Where the device reaches Pley's web port: the address of this computer
+/// on the way to it.
+fn base_url(state: &AppState, device: SocketAddr) -> Option<String> {
+    if let Some(server) = &state.config.cast_fixed.server {
+        return Some(server.clone());
+    }
+    let local = std::net::UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).ok()?;
+    local.connect(device).ok()?;
+    let ip = local.local_addr().ok()?.ip();
+    let listeners = state.network.listeners();
+    let web = listeners.iter().find(|l| {
+        l.kind == crate::network::Kind::Web
+            && l.error.is_none()
+            && (l.address.ip().is_unspecified() || l.address.ip() == ip)
+    })?;
+    Some(format!("http://{}", SocketAddr::new(ip, web.address.port())))
+}
+
+fn end_session(state: &AppState, id: &str) {
+    if let Some(session) = state.sessions.remove(id) {
+        if let Some(job) = session.job_id() {
+            let transcoder = state.transcoder.clone();
+            tokio::spawn(async move {
+                let _ = transcoder.delete_job(&job).await;
+            });
+        }
+        state.events.send(ServerEvent::SessionsChanged { user_id: session.user_id });
+    }
+}
+
+/// Forgets the cast on `device` unless another took its place.
+fn forget(state: &AppState, device: &str, cast_id: u64) {
+    let mut playing = state.cast_devices.playing.lock();
+    if playing.get(device).is_some_and(|(id, _)| *id == cast_id) {
+        playing.remove(device);
+    }
+}
+
+/// Follows a cast until it ends: its place kept, the remotes' commands
+/// passed on, and the device stopped when the session is stopped in Pley.
+struct Following {
+    state: AppState,
+    user_id: i64,
+    device: Found,
+    session_id: String,
+    duration_ms: i64,
+    cast_id: u64,
+}
+
+impl Following {
+    async fn follow(self, player: Player, mut events: tokio::sync::mpsc::Receiver<Event>, ours: CancellationToken) {
+        let Following { state, user_id, device, session_id, duration_ms, cast_id } = self;
+        let mut commands = state.events.subscribe();
+        let mut ask = tokio::time::interval(ASK_EVERY);
+        let item_id = state.sessions.get(&session_id).map(|s| s.item_id);
+        let Some(item_id) = item_id else {
+            player.stop().await;
+            return;
+        };
+        let mut last = (0i64, "buffering");
+        let mut recorded = Instant::now();
+        let ended = loop {
+            tokio::select! {
+                () = ours.cancelled() => {
+                    // Another cast took the device: it plays, this session ends.
+                    player.leave();
+                    break None;
+                }
+                event = events.recv() => match event {
+                    Some(Event::Status { state: playing, position_ms }) => {
+                        let word = match playing {
+                            Playing::Playing => "playing",
+                            Playing::Paused => "paused",
+                            Playing::Buffering => "buffering",
+                        };
+                        let Some(session) = state.sessions.get(&session_id) else {
+                            player.stop().await;
+                            break None;
+                        };
+                        if session.update(position_ms, word) {
+                            state.events.send(ServerEvent::SessionsChanged { user_id });
+                        }
+                        if session.should_touch_transcoder() && let Some(job) = session.job_id() {
+                            let transcoder = state.transcoder.clone();
+                            tokio::spawn(async move { let _ = transcoder.touch_job(&job).await; });
+                        }
+                        if word != last.1 || recorded.elapsed() >= RECORD_EVERY {
+                            record(&state, user_id, item_id, position_ms, duration_ms, &device.name, word).await;
+                            recorded = Instant::now();
+                        }
+                        last = (position_ms, word);
+                    }
+                    Some(Event::Ended(ended)) => break Some(ended),
+                    None => break Some(Ended::Lost),
+                },
+                command = commands.recv() => match command {
+                    Ok(ServerEvent::PlayerCommand { session_id: sid, command, position_ms, offset_ms, .. }) if sid == session_id => {
+                        match command {
+                            Control::Play => { player.play().await; }
+                            Control::Pause => { player.pause().await; }
+                            Control::Seek | Control::Skip => {
+                                let at = position_ms.or_else(|| offset_ms.map(|offset| last.0 + offset));
+                                if let Some(at) = at {
+                                    player.seek(at.clamp(0, duration_ms.max(0))).await;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        player.stop().await;
+                        break None;
+                    }
+                    _ => {}
+                },
+                _ = ask.tick() => {
+                    if state.sessions.get(&session_id).is_none() {
+                        // Stopped in Pley: from the dashboard, a remote, a new cast.
+                        if !ours.is_cancelled() {
+                            player.stop().await;
+                        }
+                        break None;
+                    }
+                    player.status().await;
+                }
+            }
+        };
+        let position = match ended {
+            Some(Ended::Finished) => duration_ms,
+            _ => last.0,
+        };
+        if ended.is_some() {
+            record(&state, user_id, item_id, position, duration_ms, &device.name, "stopped").await;
+        }
+        end_session(&state, &session_id);
+        forget(&state, &device.id, cast_id);
+        tracing::info!("a cast to a Cast device ended: {ended:?}");
+    }
+}
+
+async fn record(
+    state: &AppState,
+    user_id: i64,
+    item_id: i64,
+    position_ms: i64,
+    duration_ms: i64,
+    device: &str,
+    word: &str,
+) {
+    let recorded = crate::catalog::record_progress(
+        &state.db,
+        &state.events,
+        user_id,
+        item_id,
+        position_ms,
+        duration_ms,
+        Some(device),
+        word,
+    )
+    .await;
+    match recorded {
+        Ok(recorded) => {
+            if recorded.left_watchlist {
+                state.events.send(ServerEvent::WatchlistChanged { user_id });
+            }
+            if recorded.counted
+                && let Ok(row) = crate::api::items::item_or_404(state, user_id, item_id).await
+            {
+                state.events.send(ServerEvent::LibraryChanged { library_id: row.library_id });
+            }
+        }
+        Err(err) => tracing::warn!("couldn't keep a cast's place: {err}"),
+    }
+}
+
+/// A Cast device no look finds, to develop and test with: Android's Google
+/// TV emulator, its port 8009 forwarded (`adb forward tcp:8009 tcp:8009`),
+/// or a test's fake device. Debug builds read it from `PLEY_CAST_DEVICE`
+/// (its address) and `PLEY_CAST_SERVER` (Pley's address as the device
+/// reaches it: `http://10.0.2.2:7539` from the emulator); release builds
+/// have none.
+#[derive(Debug, Clone, Default)]
+pub struct Fixed {
+    pub device: Option<SocketAddr>,
+    pub server: Option<String>,
+}
+
+impl Fixed {
+    pub fn from_env() -> Fixed {
+        if !cfg!(debug_assertions) {
+            return Fixed::default();
+        }
+        Fixed {
+            device: std::env::var("PLEY_CAST_DEVICE").ok().and_then(|a| a.parse().ok()),
+            server: std::env::var("PLEY_CAST_SERVER").ok().filter(|s| s.starts_with("http://")),
+        }
+    }
+
+    fn found(&self) -> Option<Found> {
+        let address = self.device?;
+        Some(Found { id: "dev".into(), name: "Cast emulator".into(), model: None, address, video: true })
+    }
+}
