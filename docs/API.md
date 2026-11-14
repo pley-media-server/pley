@@ -2398,16 +2398,17 @@ URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
   that fetches it itself, once (a Cast receiver). A track still being read
   out of a big file is waited for, up to 8 seconds, before what is read so
   far comes with `X-Pley-Complete: 0`. `404` for a picture track.
-  With `hls=true`, it starts with the `X-TIMESTAMP-MAP` that matches its
-  cues with the session's stream (MPEG-TS segments start 1.4 s past the
-  file's time, fMP4 segments on it).
 - `/api/media/{key}/subtitled-{index}.m3u8`, of a session playing a
   stream, is a playlist of the stream (`index.m3u8`) with text track
   `index` beside it, shown at once, for a player that shows only subtitles
   a stream's playlist names (an AirPlay device); `subtitles-{index}.m3u8`
-  is the track's own playlist, one segment of the whole track
-  (`subtitles-{index}.vtt?hls=true`). `404` for a picture track, or a
-  session playing its file as it is.
+  is the track's own playlist, in 30-second segments
+  (`subtitles-{index}-{n}.vtt`, `n` from 0). A segment holds the cues shown
+  in its time, after the `X-TIMESTAMP-MAP` that lines them up with the
+  session's stream (MPEG-TS segments start 1.4 s past the file's time, fMP4
+  segments on it). One still being read out of the file is waited for, up
+  to 8 seconds, so a cast starts before the whole track is read. `404` for
+  a picture track, or a session playing its file as it is.
 - `/api/media/{key}/subtitles-{index}.json?at=` is the file's PGS track
   `index` as pictures, for a player that draws them without decoding PGS
   (Roku's): `{ complete, width, height, cues: [{ start_ms, end_ms, x, y,

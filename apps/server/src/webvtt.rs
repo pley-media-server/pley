@@ -34,6 +34,49 @@ pub fn with_timestamp_map(text: &str, mpegts: u64) -> String {
     }
 }
 
+/// The cues of `text` shown at some time from `from_ms` to before `to_ms`,
+/// after its header (the first line and any blocks before the first cue):
+/// a segment of a stream's subtitles. A cue on both sides of a boundary is
+/// in both segments, as HLS players expect.
+pub fn between(text: &str, from_ms: i64, to_ms: i64) -> String {
+    let mut header = Vec::new();
+    let mut cues = Vec::new();
+    for block in blocks(text) {
+        match timing(block) {
+            Some((start, end)) => {
+                if start < to_ms && end > from_ms {
+                    cues.push(block);
+                }
+            }
+            None if cues.is_empty() && !header.is_empty() && block.starts_with("NOTE") => {}
+            None if cues.is_empty() => header.push(block),
+            None => {}
+        }
+    }
+    let mut out = header.into_iter().chain(cues).collect::<Vec<_>>().join("\n\n");
+    out.push('\n');
+    out
+}
+
+/// When the last cue of `text` starts: how far a track being read out of a
+/// file has got.
+pub fn last_start_ms(text: &str) -> Option<i64> {
+    blocks(text).filter_map(timing).map(|(start, _)| start).max()
+}
+
+/// The blocks of a WebVTT text, between blank lines.
+fn blocks(text: &str) -> impl Iterator<Item = &str> {
+    text.split("\n\n").flat_map(|b| b.split("\r\n\r\n")).map(|b| b.trim_matches(['\r', '\n'])).filter(|b| !b.is_empty())
+}
+
+/// A cue block's start and end.
+fn timing(block: &str) -> Option<(i64, i64)> {
+    let line = block.lines().find(|l| l.contains("-->"))?;
+    let (start, rest) = line.split_once("-->")?;
+    let end = rest.split_whitespace().next()?;
+    Some((time_ms(start.trim())?, time_ms(end)?))
+}
+
 /// A cue's timing line ("00:01.000 --> 00:04.000 line:90%") moved, or
 /// `None` for any other line. WebVTT allows `-->` nowhere else.
 fn moved_timing(line: &str, offset_ms: i64) -> Option<String> {
@@ -78,6 +121,27 @@ mod tests {
     use super::*;
 
     const TRACK: &str = "WEBVTT\n\nNOTE made by pley\n\n1\n00:01.000 --> 00:04.000 line:90% align:center\nHello\n\n01:00:02.500 --> 01:00:03.000\r\n<i>there</i>\r\n";
+
+    #[test]
+    fn a_segment_has_the_header_and_the_cues_shown_in_its_time() {
+        let track = "WEBVTT\n\nSTYLE\n::cue { color: yellow }\n\n1\n00:10.000 --> 00:12.000\nOne\n\n\
+                     00:29.000 --> 00:31.000\nAcross\n\nNOTE between\n\n00:45.000 --> 00:46.000\nThree\n";
+        assert_eq!(
+            between(track, 0, 30_000),
+            "WEBVTT\n\nSTYLE\n::cue { color: yellow }\n\n1\n00:10.000 --> 00:12.000\nOne\n\n00:29.000 --> 00:31.000\nAcross\n"
+        );
+        assert_eq!(
+            between(track, 30_000, 60_000),
+            "WEBVTT\n\nSTYLE\n::cue { color: yellow }\n\n00:29.000 --> 00:31.000\nAcross\n\n00:45.000 --> 00:46.000\nThree\n"
+        );
+        assert_eq!(between(track, 60_000, 90_000), "WEBVTT\n\nSTYLE\n::cue { color: yellow }\n");
+        assert_eq!(last_start_ms(track), Some(45_000));
+        assert_eq!(last_start_ms("WEBVTT\n"), None);
+        assert_eq!(
+            between("WEBVTT\r\n\r\n00:01.000 --> 00:02.000\r\nHi\r\n", 0, 30_000),
+            "WEBVTT\n\n00:01.000 --> 00:02.000\r\nHi\n"
+        );
+    }
 
     #[test]
     fn the_timestamp_map_goes_in_the_header() {

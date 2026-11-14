@@ -2096,16 +2096,33 @@ async fn a_text_track_comes_in_the_stream_s_playlist_for_a_keyed_player() {
 
     let track = bare("subtitles-4.m3u8").await;
     assert_eq!(track.status, StatusCode::OK, "{}", track.text());
-    assert!(track.text().contains("\nsubtitles-4.vtt?hls=true\n#EXT-X-ENDLIST\n"), "{}", track.text());
+    assert!(track.text().contains("#EXTINF:30.000,\nsubtitles-4-0.vtt\n"), "{}", track.text());
+    assert!(track.text().ends_with(".vtt\n#EXT-X-ENDLIST\n"), "{}", track.text());
 
-    // MPEG-TS segments start 1.4 s past the file's time.
-    let cues = bare("subtitles-4.vtt?hls=true").await;
+    // A segment: the cues in its time, timed to the stream (MPEG-TS
+    // segments start 1.4 s past the file's time). The track, read out of a
+    // big file, is waited for until it's read past the segment's end.
+    w.fake.slow_text_track.store(true, Ordering::SeqCst);
+    let cues = bare("subtitles-4-0.vtt").await;
+    assert!(!cues.text().contains("so far"), "{}", cues.text());
+    assert_eq!(w.fake.subtitles.lock().iter().filter(|r| r.stream_index == Some(4)).count(), 2);
     assert_eq!(cues.status, StatusCode::OK, "{}", cues.text());
     assert!(cues.text().starts_with("WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:126000,LOCAL:00:00:00.000\n"), "{}", cues.text());
+    assert!(cues.text().contains("00:00.000 --> 00:01.000"), "{}", cues.text());
+    assert!(!bare("subtitles-4-1.vtt").await.text().contains("-->"));
     assert!(!bare("subtitles-4.vtt").await.text().contains("X-TIMESTAMP-MAP"));
 
     // Pictures, and tracks the file doesn't have, aren't.
-    for missing in ["subtitled-3.m3u8", "subtitles-3.m3u8", "subtitled-9.m3u8", "subtitled-x.m3u8"] {
+    for missing in [
+        "subtitled-3.m3u8",
+        "subtitles-3.m3u8",
+        "subtitled-9.m3u8",
+        "subtitled-x.m3u8",
+        "subtitles-3-0.vtt",
+        "subtitles-4--1.vtt",
+        "subtitles-4-999999.vtt",
+        "subtitles-4-x.vtt",
+    ] {
         assert_eq!(bare(missing).await.status, StatusCode::NOT_FOUND, "{missing}");
     }
 }

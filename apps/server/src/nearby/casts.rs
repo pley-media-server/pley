@@ -262,13 +262,20 @@ impl Attempt<'_> {
             fmp4,
         };
 
-        // The device asks for the subtitles once, as the stream loads, and
-        // never again: the track is read whole first (the first read out of
-        // a large file takes a while), as the device is connected to.
+        // A Cast device asks for the subtitles once, as the stream loads,
+        // and never again: the track is read whole first (the first read out
+        // of a large file takes a while), as the device is connected to. An
+        // AirPlay device asks for them a segment at a time, each waiting
+        // until the track is read past it: the reading only starts here.
         let read = async {
+            let within = match device.protocol {
+                Protocol::Cast => PREPARE_WITHIN,
+                Protocol::AirPlay => Duration::ZERO,
+            };
             if media.subtitle.is_some()
                 && let Some(index) = shown
-                && !crate::api::playback::prepare_text_track(state, user, session.file_id, index, PREPARE_WITHIN).await
+                && !crate::api::playback::prepare_text_track(state, user, session.file_id, index, within).await
+                && device.protocol == Protocol::Cast
             {
                 tracing::warn!("a cast's subtitles weren't read whole in time: they start where they are");
             }

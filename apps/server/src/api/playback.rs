@@ -1139,8 +1139,20 @@ pub async fn keyed_media(
         let row = visible_file(&state, &user, session.file_id).await?;
         // A text track as WebVTT, for a player outside Pley (a Cast
         // receiver) that fetches it itself, once.
-        if let Some(index) = name.strip_suffix(".vtt") {
-            let index: i64 = index.parse().map_err(|_| AppError::not_found("unknown file"))?;
+        if let Some(name) = name.strip_suffix(".vtt") {
+            // A segment of a stream's subtitle playlist (below).
+            if let Some((index, n)) = name.split_once('-') {
+                let number = |s: &str| s.parse::<i64>().ok().filter(|n| *n >= 0);
+                let (Some(index), Some(n)) = (number(index), number(n)) else {
+                    return Err(AppError::not_found("unknown file"));
+                };
+                text_stream_track(&row, &session, index)?;
+                if n * SUBTITLE_SEGMENT_MS >= session.duration_ms.max(1) {
+                    return Err(AppError::not_found("past the end"));
+                }
+                return text_segment(&state, &user, &row, index, n, stream_start_mpegts(&session)).await;
+            }
+            let index: i64 = name.parse().map_err(|_| AppError::not_found("unknown file"))?;
             let text = row
                 .streams()
                 .iter()
@@ -1148,10 +1160,7 @@ pub async fn keyed_media(
             if !text {
                 return Err(AppError::not_found("no text subtitle track has this index"));
             }
-            // In a stream's subtitle playlist (below), it says how its cues
-            // meet the stream's timestamps.
-            let mpegts = query.hls.then(|| stream_start_mpegts(&session));
-            return text_track(&state, &user, &row, index, query.offset_ms.unwrap_or(0), mpegts, KEYED_VTT_WAIT).await;
+            return text_track(&state, &user, &row, index, query.offset_ms.unwrap_or(0), KEYED_VTT_WAIT).await;
         }
         // The track as an HLS subtitle playlist, for a player that only
         // shows subtitles named in the stream's playlist (an AirPlay
@@ -1227,14 +1236,22 @@ fn playlist_response(text: String) -> Response {
 }
 
 /// The text track `index` of a title `duration_ms` long, as an HLS subtitle
-/// playlist of one segment: the whole track as WebVTT, timed to the stream.
+/// playlist of [`SUBTITLE_SEGMENT_MS`] segments of WebVTT, timed to the
+/// stream.
 fn subtitle_playlist(index: i64, duration_ms: i64) -> String {
-    let secs = duration_ms.max(1) as f64 / 1000.0;
-    format!(
-        "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:{}\n#EXT-X-MEDIA-SEQUENCE:0\n\
-         #EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:{secs:.3},\nsubtitles-{index}.vtt?hls=true\n#EXT-X-ENDLIST\n",
-        secs.ceil() as i64,
-    )
+    let duration_ms = duration_ms.max(1);
+    let mut out = format!(
+        "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:{}\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n",
+        SUBTITLE_SEGMENT_MS / 1000
+    );
+    let mut n = 0;
+    while n * SUBTITLE_SEGMENT_MS < duration_ms {
+        let length = (duration_ms - n * SUBTITLE_SEGMENT_MS).min(SUBTITLE_SEGMENT_MS);
+        out.push_str(&format!("#EXTINF:{:.3},\nsubtitles-{index}-{n}.vtt\n", length as f64 / 1000.0));
+        n += 1;
+    }
+    out.push_str("#EXT-X-ENDLIST\n");
+    out
 }
 
 /// A stream (`fmp4`: of fMP4 segments) with text track `index` beside it,
@@ -1667,10 +1684,6 @@ pub struct SubtitleQuery {
     /// Where the player is (ms of the file's time), for a picture track not
     /// copied out of its file yet: the pictures around there come first.
     at: Option<i64>,
-    /// A text track in a stream's subtitle playlist: it says how its cues
-    /// meet the stream's timestamps.
-    #[serde(default)]
-    hls: bool,
 }
 
 /// The furthest into a file a player is taken to be: two days, past any
@@ -1712,7 +1725,7 @@ pub async fn subtitles(
         .and_then(|n| n.parse().ok())
         .ok_or_else(|| AppError::not_found("unknown subtitle file"))?;
     let file = visible_file(&state, &user, id).await?;
-    text_track(&state, &user, &file, index, query.offset_ms.unwrap_or(0), None, Duration::ZERO).await
+    text_track(&state, &user, &file, index, query.offset_ms.unwrap_or(0), Duration::ZERO).await
 }
 
 /// Reads text track `index` of `file` whole ahead of a player outside Pley
@@ -1725,7 +1738,7 @@ pub(crate) async fn prepare_text_track(
     wait: Duration,
 ) -> bool {
     let Ok(Some(file)) = catalog::file(&state.db, file_id).await else { return false };
-    let answer = text_track(state, user, &file, index, 0, None, wait).await;
+    let answer = text_track(state, user, &file, index, 0, wait).await;
     answer.is_ok_and(|r| r.headers().get("x-pley-complete").is_none_or(|v| v != "0"))
 }
 
@@ -1744,18 +1757,38 @@ async fn text_track(
     file: &catalog::FileRow,
     index: i64,
     offset_ms: i64,
-    mpegts: Option<u64>,
     wait: Duration,
 ) -> ApiResult<Response> {
-    let (sidecar, version) = subtitle_source(state, file, index).await?;
     let offset = offset_ms.clamp(-webvtt::MAX_OFFSET_MS, webvtt::MAX_OFFSET_MS);
-    let moved = |text: String| {
-        let text = if offset == 0 { text } else { webvtt::shift(&text, offset) };
-        match mpegts {
-            Some(mpegts) => webvtt::with_timestamp_map(&text, mpegts),
-            None => text,
-        }
-    };
+    let moved = |text: String| if offset == 0 { text } else { webvtt::shift(&text, offset) };
+    let (text, complete) = track_text(state, user, file, index, wait, |_| false).await?;
+    if complete {
+        return Ok(vtt(moved(text)));
+    }
+    Ok((
+        [
+            (header::CONTENT_TYPE, "text/vtt; charset=utf-8"),
+            (header::CACHE_CONTROL, "no-store"),
+            (header::HeaderName::from_static(SUBTITLES_COMPLETE_HEADER), "0"),
+        ],
+        moved(text),
+    )
+        .into_response())
+}
+
+/// Text track `index` of `file` as WebVTT, and whether it is whole. An
+/// embedded track still being read out of a big file (minutes for a big
+/// one on a network share) comes as far as it is read once that is
+/// `enough`, or after waiting up to `wait` for the rest.
+async fn track_text(
+    state: &AppState,
+    user: &AuthUser,
+    file: &catalog::FileRow,
+    index: i64,
+    wait: Duration,
+    enough: impl Fn(&str) -> bool,
+) -> ApiResult<(String, bool)> {
+    let (sidecar, version) = subtitle_source(state, file, index).await?;
     let cache =
         state.config.cache_dir().join("subtitles").join(format!("{}_{}_{}{version}.vtt", file.id, index, file.mtime));
     // Anything but WebVTT is a file cut short by an earlier version (written
@@ -1763,40 +1796,50 @@ async fn text_track(
     if let Ok(text) = tokio::fs::read_to_string(&cache).await
         && text.starts_with("WEBVTT")
     {
-        return Ok(vtt(moved(text)));
+        return Ok((text, true));
     }
     let Some(path) = sidecar else {
-        // An embedded track: the cues found so far, at once, while the rest
-        // of the file is read (minutes for a big one on a network share).
-        // The player asks again until it has them all.
         let started = Instant::now();
         let (text, complete) = loop {
             let (text, complete) =
                 state.transcoder.subtitles_so_far(&file.path, index).await.map_err(|err| for_viewer(user, err))?;
-            if complete || started.elapsed() >= wait {
+            if complete || enough(&text) || started.elapsed() >= wait {
                 break (text, complete);
             }
             tokio::time::sleep(Duration::from_secs(1)).await;
         };
         if complete {
             cache_subtitles(&cache, text.as_bytes()).await;
-            return Ok(vtt(moved(text)));
         }
-        return Ok((
-            [
-                (header::CONTENT_TYPE, "text/vtt; charset=utf-8"),
-                (header::CACHE_CONTROL, "no-store"),
-                (header::HeaderName::from_static(SUBTITLES_COMPLETE_HEADER), "0"),
-            ],
-            moved(text),
-        )
-            .into_response());
+        return Ok((text, complete));
     };
     let transcoder = state.transcoder.clone();
     let made = extract_once(cache, async move { Ok(transcoder.subtitles(&path, None).await?.into_bytes()) })
         .await
         .map_err(|err| for_viewer(user, err))?;
-    Ok(vtt(moved(String::from_utf8_lossy(&made).into_owned())))
+    Ok((String::from_utf8_lossy(&made).into_owned(), true))
+}
+
+/// How long a stream's subtitle segment is (`subtitles-{index}-{n}.vtt`).
+const SUBTITLE_SEGMENT_MS: i64 = 30_000;
+
+/// Segment `n` of text track `index` of `file`, for a stream's subtitle
+/// playlist: its cues within the segment's time, timed to the stream by
+/// `mpegts`. A track still being read waits until it is read past the
+/// segment, up to [`KEYED_VTT_WAIT`]: the player fetches each segment once,
+/// those it reaches first first, while the rest of the file is read.
+async fn text_segment(
+    state: &AppState,
+    user: &AuthUser,
+    file: &catalog::FileRow,
+    index: i64,
+    n: i64,
+    mpegts: u64,
+) -> ApiResult<Response> {
+    let (from, to) = (n * SUBTITLE_SEGMENT_MS, (n + 1) * SUBTITLE_SEGMENT_MS);
+    let read_past = |text: &str| webvtt::last_start_ms(text).is_some_and(|last| last >= to);
+    let (text, _) = track_text(state, user, file, index, KEYED_VTT_WAIT, read_past).await?;
+    Ok(vtt(webvtt::with_timestamp_map(&webvtt::between(&text, from, to), mpegts)))
 }
 
 /// Where subtitle `index` of `file` comes from: a sidecar's path (`None`:
@@ -2273,9 +2316,10 @@ mod tests {
         assert!(subtitled_master(3, "3", None, 1, true).starts_with("#EXTM3U\n#EXT-X-VERSION:7\n"));
         assert!(!subtitled_master(3, "3", None, 1, true).contains("LANGUAGE"));
         assert_eq!(
-            subtitle_playlist(3, 5_160_148),
-            "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:5161\n#EXT-X-MEDIA-SEQUENCE:0\n\
-             #EXT-X-PLAYLIST-TYPE:VOD\n#EXTINF:5160.148,\nsubtitles-3.vtt?hls=true\n#EXT-X-ENDLIST\n"
+            subtitle_playlist(3, 75_500),
+            "#EXTM3U\n#EXT-X-VERSION:3\n#EXT-X-TARGETDURATION:30\n#EXT-X-MEDIA-SEQUENCE:0\n#EXT-X-PLAYLIST-TYPE:VOD\n\
+             #EXTINF:30.000,\nsubtitles-3-0.vtt\n#EXTINF:30.000,\nsubtitles-3-1.vtt\n#EXTINF:15.500,\nsubtitles-3-2.vtt\n\
+             #EXT-X-ENDLIST\n"
         );
     }
 
