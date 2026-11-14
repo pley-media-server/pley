@@ -362,6 +362,20 @@ impl Settings {
             dolby_vision_fel_full: self.dolby_vision_fel_full,
         }
     }
+
+    /// [`Settings::transcode_options`] for a player whose screen shows Dolby
+    /// Vision (`dolby_vision_screen`) or doesn't. The Dolby Vision FEL
+    /// choices are for Dolby Vision screens, whose owners expect the
+    /// picture a Dolby Vision player makes of profile 7; any other screen
+    /// gets the HDR10 base layer, the picture an HDR10 player makes of the
+    /// disc.
+    pub fn transcode_options_for(&self, dolby_vision_screen: bool) -> TranscodeOptions {
+        let options = self.transcode_options();
+        if dolby_vision_screen {
+            return options;
+        }
+        TranscodeOptions { dolby_vision_fel: DolbyVisionFel::BaseLayer, dolby_vision_fel_full: false, ..options }
+    }
 }
 
 /// The name Settings shows for a hardware acceleration.
@@ -1282,6 +1296,14 @@ mod tests {
         assert!(full.transcode_options().dolby_vision_fel_full);
         let patch: SettingsPatch = serde_json::from_str(r#"{"dolby_vision_fel_full":true}"#).unwrap();
         assert_eq!(patch.dolby_vision_fel_full, Some(true));
+
+        // Both are for Dolby Vision screens: any other gets the base layer.
+        let both = Settings { dolby_vision_fel: DolbyVisionFel::Metadata, dolby_vision_fel_full: true, ..full };
+        let shown = both.transcode_options_for(true);
+        assert_eq!((shown.dolby_vision_fel, shown.dolby_vision_fel_full), (DolbyVisionFel::Metadata, true));
+        let other = both.transcode_options_for(false);
+        assert_eq!((other.dolby_vision_fel, other.dolby_vision_fel_full), (DolbyVisionFel::BaseLayer, false));
+        assert_eq!(other, Settings::default().transcode_options(), "the rest as set");
     }
 
     #[test]

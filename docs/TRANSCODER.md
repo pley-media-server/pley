@@ -1007,7 +1007,9 @@ doesn't read that layer, so a transcode's picture is the base layer's
 (Pley's own FFmpeg can rebuild the full one, below).
 `TranscodeOptions.dolby_vision_fel` says what a transcode makes of a stream
 the probe found a full layer in (`MediaStream.dv_el: fel`), where
-libplacebo tone maps or converts it:
+libplacebo tone maps or converts it. The server passes the setting on for
+players whose screen shows Dolby Vision, and asks for `base_layer` for any
+other: an HDR10 screen gets the picture an HDR10 player makes of the disc.
 
 | Value | The picture |
 |---|---|

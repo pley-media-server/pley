@@ -4473,7 +4473,9 @@ interface Settings {
                                     // brightness (TRANSCODER.md)
   dolby_vision_fel_full: boolean;   // experimental: that layer is used, the full picture rebuilt from both
                                     // layers, where the transcoder's FFmpeg can (`transcoder.dolby_vision_fel_full`);
-                                    // default false
+                                    // default false. Both are for players whose screen shows Dolby Vision
+                                    // (`caps.hdr_types` names `dolby_vision`): every other player's transcodes
+                                    // are made from the base layer
   scan_interval_minutes: number;    // 0 disables periodic scans
   watch_libraries: boolean;         // pick up file changes automatically
   detect_markers: boolean;          // find intros and credits in the background (default true)

@@ -11,10 +11,11 @@ describes how they are made.
 
 ### Added
 
-- Settings → Transcoder has a Dolby Vision FEL choice: profile 7 with a full
-  enhancement layer is transcoded from its HDR10 base layer, or with its
-  Dolby Vision brightness. An experimental toggle uses the full enhancement
-  layer itself, with Pley's own FFmpeg.
+- Settings → Transcoder has a Dolby Vision FEL choice for screens that show
+  Dolby Vision: profile 7 with a full enhancement layer is transcoded from
+  its HDR10 base layer, or with its Dolby Vision brightness. An
+  experimental toggle uses the full enhancement layer itself, with Pley's
+  own FFmpeg. Other screens always get the HDR10 base layer.
 
 ### Changed
 

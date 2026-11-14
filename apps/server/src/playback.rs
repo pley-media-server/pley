@@ -215,6 +215,12 @@ impl Caps {
         self.hdr_types.as_deref().is_some_and(|types| listed(types, range))
     }
 
+    /// The screen shows Dolby Vision: the Dolby Vision FEL setting is for
+    /// its transcodes ([`crate::settings::Settings::transcode_options_for`]).
+    pub fn shows_dolby_vision(&self) -> bool {
+        self.shows("dolby_vision")
+    }
+
     /// The version 2 player shows these subtitles itself.
     fn shows_subtitles(&self, codec: &str) -> bool {
         self.is_v2() && self.subtitle_codecs.as_deref().is_some_and(|list| listed(list, codec))

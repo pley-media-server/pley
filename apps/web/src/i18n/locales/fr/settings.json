@@ -187,7 +187,7 @@
       "tonemapInstead": "{{reason}} : {{fallback}}",
       "tonemapWithAnother": "{{reason}} : les transcodages utilisent un autre mappage tonal à la place.",
       "fel": "Dolby Vision FEL",
-      "felHint": "Profil 7 avec une couche d’amélioration complète, comme sur beaucoup de Blu-ray UHD. FFmpeg, tel qu’il est publié, ne lit pas cette couche : les transcodages utilisent l’image HDR10 qui se trouve dessous.",
+      "felHint": "Profil 7 avec une couche d’amélioration complète, comme sur beaucoup de Blu-ray UHD. FFmpeg, tel qu’il est publié, ne lit pas cette couche : les transcodages utilisent l’image HDR10 qui se trouve dessous. Ce choix vaut pour les écrans qui affichent le Dolby Vision ; tous les autres reçoivent la couche de base HDR10.",
       "felBaseLayer": "Couche de base HDR10",
       "felMetadata": "Couche de base avec la luminosité Dolby Vision",
       "felBaseLayerNote": "Mappage tonal comme pour du HDR10 : la bonne image pour tous les titres, et elle reste sur le GPU avec Quick Sync.",
