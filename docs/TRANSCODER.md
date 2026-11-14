@@ -983,7 +983,10 @@ available tone mapper:
   (`opencl_bt2390`, also jellyfin-ffmpeg's), OpenCL tone maps with
   `tonemap=bt2390:tonemap_mode=max`: Hable came out a fifth too dark
   there, and on Sol Levante this mode was as bright as the SDR grade
-  with the fewest highlights clipped. FFmpeg's own keeps Hable.
+  with the fewest highlights clipped. FFmpeg's own keeps Hable. HDR10
+  whose frames carry no mastering display is tone mapped there from
+  1000 cd/m² too (`peak=10`, in 100 cd/m²), as libplacebo does it; a
+  stream with content light levels alone is taken for 1000 cd/m² as well.
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
   and work with any tone mapper. Profile 5 without libplacebo, or Pley's
   FFmpeg's OpenCL, plays with off colours, with a warning. Profile 7 with a full enhancement layer is tone

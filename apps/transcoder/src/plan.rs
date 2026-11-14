@@ -294,6 +294,12 @@ const OPENCL_HABLE: &str = "tonemap=hable:desat=0";
 /// modes; the grade clips 2 %).
 const OPENCL_BT2390: &str = "tonemap=bt2390:tonemap_mode=max:desat=0";
 
+/// The peak BT.2390's `tonemap_opencl` takes for HDR10 that says nothing of
+/// its brightness (no mastering display), in 100 cd/m²: the 1000 cd/m² that
+/// libplacebo takes there ([`PLACEBO_FALLBACK_PEAK`]), rather than PQ's
+/// own peak, which made a 1000 cd/m² ramp's white 218 rather than 253.
+const OPENCL_FALLBACK_PEAK: &str = "peak=10";
+
 /// OpenCL's tone mapping of Dolby Vision at `w×h` by its own metadata
 /// (`apply_dovi`, the filter's default), between FFmpeg's decoder on
 /// Direct3D 11 and Quick Sync's encoder
@@ -435,6 +441,10 @@ pub struct VideoOut {
     pub fel_compose: bool,
     /// OpenCL's tone mapper has BT.2390 ([`Capabilities::opencl_bt2390`]).
     pub opencl_bt2390: bool,
+    /// HDR10 whose frames carry no mastering display metadata
+    /// ([`MediaStream::hdr10_metadata`]), which OpenCL's tone mapper is
+    /// given a peak for ([`OPENCL_FALLBACK_PEAK`]).
+    pub unknown_peak: bool,
     /// libplacebo takes a peak for HDR10 without metadata
     /// ([`Capabilities::placebo_fallback_peak`]).
     pub placebo_fallback_peak: bool,
@@ -785,6 +795,7 @@ impl Plan {
                         base_layer_only: false,
                         fel_compose: false,
                         opencl_bt2390: false,
+                        unknown_peak: false,
                         placebo_fallback_peak: false,
                         amf_upload: false,
                         vui_primaries: None,
@@ -1028,6 +1039,7 @@ impl Plan {
                         base_layer_only: fel_base,
                         fel_compose,
                         opencl_bt2390: ff.caps.opencl_bt2390,
+                        unknown_peak: range == DynamicRange::Hdr10 && src.hdr10_metadata == Some(false),
                         placebo_fallback_peak: ff.caps.placebo_fallback_peak,
                         amf_upload,
                         // BT.709 out of every tone mapper; the source's otherwise.
@@ -1997,8 +2009,10 @@ impl Plan {
                 pre.extend(v.tonemap_input.clone());
                 // With BT.2390 it reads Dolby Vision's metadata, which the
                 // base layer alone leaves unread (as libplacebo is told).
+                // HDR10 without its brightness from 1000 cd/m², as libplacebo.
                 let curve = match (v.opencl_bt2390, v.base_layer_only) {
                     (true, true) => format!("{OPENCL_BT2390}:apply_dovi=0"),
+                    (true, false) if v.unknown_peak => format!("{OPENCL_BT2390}:{OPENCL_FALLBACK_PEAK}"),
                     (true, false) => OPENCL_BT2390.to_owned(),
                     (false, _) => OPENCL_HABLE.to_owned(),
                 };
@@ -2937,6 +2951,27 @@ mod tests {
         ff.caps.placebo_fallback_peak = true;
         let args = args_string(&Plan::build(&request(), &m, &ff, None).unwrap(), 0, 2);
         assert!(args.contains("tonemapping=bt.2390:peak_detect=0:fallback_peak=1000"), "{args}");
+    }
+
+    /// OpenCL's BT.2390 takes the same 1000 cd/m² for HDR10 whose frames
+    /// carry no mastering display; HDR10 that does, or not known, goes by
+    /// its own metadata.
+    #[test]
+    fn opencl_gets_a_peak_for_hdr10_without_metadata() {
+        let mut ff = ffmpeg_with(vec![x264(), x265()], vec![Tonemapper::Opencl]);
+        ff.caps.opencl_bt2390 = true;
+        let args = |has: Option<bool>| {
+            let mut m = ten_bit(media(DynamicRange::Hdr10, None));
+            m.streams[0].hdr10_metadata = has;
+            args_string(&Plan::build(&request(), &m, &ff, None).unwrap(), 0, 2)
+        };
+        assert!(
+            args(Some(false)).contains("tonemap=bt2390:tonemap_mode=max:desat=0:peak=10:"),
+            "{}",
+            args(Some(false))
+        );
+        assert!(!args(Some(true)).contains("peak=10"));
+        assert!(!args(None).contains("peak=10"));
     }
 
     #[test]

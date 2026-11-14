@@ -78,7 +78,8 @@ On Intel graphics:
 - HDR transcodes no longer pick a picture quality too slow to keep up, or
   a lower one than the GPU has time for, after the server starts.
 - HDR10 that doesn't say how bright it is no longer comes out far too dark
-  with Pley's own FFmpeg, in transcodes, seek previews and thumbnails.
+  with Pley's own FFmpeg, in transcodes (OpenCL's too), seek previews and
+  thumbnails.
 - Dolby Vision profile 5 plays on a server without a graphics card instead
   of failing to start.
 - With the experimental Dolby Vision full enhancement layer turned on, a
