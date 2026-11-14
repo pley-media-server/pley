@@ -354,6 +354,8 @@ export function PlayOn({
             error={pinMessage}
             prompt={asking.pairing ? null : t("playOn.enterPin")}
             length={asking.pairing ? asking.digits : undefined}
+            // A device's code is 4 digits at most, all the server takes.
+            most={asking.pairing ? 4 : undefined}
             extra={
               asking.pairing ? (
                 <button

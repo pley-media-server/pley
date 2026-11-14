@@ -147,7 +147,8 @@ describe("PlayOn", () => {
     expect(asking).toHaveAccessibleDescription("Type the code shown on the TV. Everyone in your home can then play on it.");
     await user.keyboard("1111{Enter}");
     await waitFor(() => expect(within(asking).getByRole("alert")).toHaveTextContent("That isn't the code Den Apple TV shows"));
-    await user.keyboard("4821{Enter}");
+    // The server takes 4 digits: no more are typed.
+    await user.keyboard("482193{Enter}");
     expect(await screen.findByText("Playing on Den Apple TV")).toBeInTheDocument();
     expect(asking).not.toBeInTheDocument();
     const pairings = requests.filter((r) => r.path.endsWith("/pairing")).map((r) => r.body);

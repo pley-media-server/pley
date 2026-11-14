@@ -34,6 +34,7 @@ export function PinPad({
   cancelIcon = <ArrowLeft className="size-4" />,
   small,
   length,
+  most,
   extra,
 }: {
   /** Whose PIN it is, shown above the pad; left out where what is around the pad says it. */
@@ -56,6 +57,8 @@ export function PinPad({
   small?: boolean;
   /** How many digits the PIN has, when that is known: no more are taken, and the last one sends it. */
   length?: number;
+  /** The most digits taken, where `length` isn't known: 8 by default. */
+  most?: number;
   /** Shown under the keys, above Cancel. */
   extra?: ReactNode;
 }) {
@@ -77,13 +80,13 @@ export function PinPad({
       if (key === "back") setPin(current.slice(0, -1));
       else if (key === "ok") {
         if (current.length >= least) onSubmit(current);
-      } else if (current.length < (length ?? 8)) {
+      } else if (current.length < (length ?? most ?? 8)) {
         const next = current + key;
         setPin(next);
         if (next.length === length) onSubmit(next);
       }
     },
-    [busy, locked, least, length, onSubmit, setPin],
+    [busy, locked, least, length, most, onSubmit, setPin],
   );
 
   useEffect(() => {
