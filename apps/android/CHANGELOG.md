@@ -13,6 +13,7 @@ describes how they are made.
 - Play on… lists Google Cast and AirPlay devices for movies and episodes.
   An AirPlay device asks once for the code it shows; on an Apple TV the
   code goes as its fourth digit is typed.
+- The remote has a volume slider for a Google Cast device.
 
 ## [0.1.13] - 2026-11-14
 

@@ -37,6 +37,7 @@
     <string name="remote_audio_on">Audio sur %1$s</string>
     <string name="remote_subtitles_on">Sous-titres sur %1$s</string>
     <string name="remote_quality_on">Qualité sur %1$s</string>
+    <string name="remote_volume_on">Volume sur %1$s</string>
 
     <string name="remote_live_next">À suivre : %1$s</string>
 

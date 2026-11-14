@@ -514,6 +514,17 @@ class RemoteRepositoryTest {
         assertTrue(RemoteRepository.answered(quality, remote(before.session.copy(sessionId = "s9", quality = "8m"), 2_000), 2_000))
     }
 
+    @Test
+    fun `a volume shows at once, and is answered by the device saying any new level`() {
+        val before = remote(session(state = ProgressState.Playing).copy(volume = 40), reportedAt = 0)
+        val volume = SentCommand(Control.Volume, before, sentAt = 1_000, volume = 70)
+        assertEquals(70, RemoteRepository.asSent(before, volume).session.volume)
+        assertFalse(RemoteRepository.answered(volume, before, 2_000))
+        assertTrue(RemoteRepository.answered(volume, remote(before.session.copy(volume = 70), 2_000), 2_000))
+        // The device's own steps: near enough is its answer.
+        assertTrue(RemoteRepository.answered(volume, remote(before.session.copy(volume = 69), 2_000), 2_000))
+    }
+
     private fun remote(session: PlayingSession, reportedAt: Long) = RemoteSession(session, reportedAt)
 
     private fun receiver(id: String, deviceId: String, name: String?, kind: DeviceKind = DeviceKind.Tv) =

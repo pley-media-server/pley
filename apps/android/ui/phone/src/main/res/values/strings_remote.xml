@@ -60,6 +60,7 @@
     <string name="remote_audio_on">Audio on %1$s</string>
     <string name="remote_subtitles_on">Subtitles on %1$s</string>
     <string name="remote_quality_on">Quality on %1$s</string>
+    <string name="remote_volume_on">Volume on %1$s</string>
 
     <!-- A channel playing: the programme on, its times ("20:00 – 21:00"), and the one after it. -->
     <string name="remote_live_span" translatable="false">%1$s – %2$s</string>

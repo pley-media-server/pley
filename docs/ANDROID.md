@@ -413,7 +413,10 @@ A device's controls, top to bottom:
   opens a menu, showing as selected while it is open, of the tracks
   labelled as the phone's own player labels them, or of the qualities, the
   one playing ticked (no quality is until its player says which);
-  Subtitles starts with **Off**. On the right, **Stop**, which asks first
+  Subtitles starts with **Off**. Then the device's volume, a slider read
+  out as a percentage, where its player declares `volume` and has said
+  the level (a Google Cast device's, `volume` 0 to 100); the level let go
+  of goes as `volume`. On the right, **Stop**, which asks first
   (**Stop playing on** the device?, Stop or Cancel).
 
 What a command asks shows at once, with nothing said while it waits:

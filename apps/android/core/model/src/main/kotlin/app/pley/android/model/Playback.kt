@@ -139,6 +139,9 @@ enum class Control(override val wire: String) : WireEnum {
 
     /** Another entry of the Quality menu: `quality`, one of the session's [PlayingSession.qualities]. */
     Quality("quality"),
+
+    /** The device's volume, 0 to 100: a Google Cast device's, which the server plays on. */
+    Volume("volume"),
     Unknown("unknown"),
     ;
 
@@ -222,6 +225,8 @@ data class PlayingSession(
     val qualities: List<QualityOption> = emptyList(),
     /** The intro and credits of the file it plays, for the remote's Skip intro and Skip credits; none on live. */
     val markers: List<Marker> = emptyList(),
+    /** Its device's volume, 0 to 100, for a player that takes [Control.Volume] (a Google Cast device's), once it says. */
+    val volume: Int? = null,
 ) {
     companion object {
         /** The subtitle index of none, in sessions, commands and progress reports. */
@@ -276,6 +281,8 @@ data class PlayerCommandRequest(
     val offsetMs: Long? = null,
     val streamIndex: Int? = null,
     val quality: String? = null,
+    /** [Control.Volume]: 0 to 100. */
+    val volume: Int? = null,
 )
 
 /** What a device plays when a remote casts to it (docs/API.md, "Casting"). */

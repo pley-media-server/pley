@@ -101,7 +101,7 @@ data class OtherDevice(
  * [target]: where it should be once the player acted, for a seek, a skip
  * and a previous that starts the title over; [streamIndex]: the track an
  * audio or subtitle command picked; [quality]: the quality a quality
- * command picked.
+ * command picked; [volume]: the level a volume command asked for.
  */
 data class SentCommand(
     val command: Control,
@@ -110,6 +110,7 @@ data class SentCommand(
     val target: Long? = null,
     val streamIndex: Int? = null,
     val quality: String? = null,
+    val volume: Int? = null,
 )
 
 /**
@@ -221,6 +222,9 @@ interface RemoteRepository {
                 Control.Audio -> return current.session.audioIndex == sent.streamIndex
                 Control.Subtitles -> return current.session.subtitleIndex == sent.streamIndex
                 Control.Quality -> return current.session.quality == sent.quality
+                // The device rounds a level to its own steps: any new level is its answer, and so is the one asked
+                // for, which it may have reported before the list was read for `before`.
+                Control.Volume -> return current.session.volume == sent.volume || current.session.volume != before.session.volume
                 else -> Unit
             }
             if (current.session.state != before.session.state) return true
@@ -265,6 +269,7 @@ interface RemoteRepository {
                 Control.Audio -> session.copy(session = playing.copy(audioIndex = sent.streamIndex ?: playing.audioIndex))
                 Control.Subtitles -> session.copy(session = playing.copy(subtitleIndex = sent.streamIndex ?: playing.subtitleIndex))
                 Control.Quality -> session.copy(session = playing.copy(quality = sent.quality ?: playing.quality))
+                Control.Volume -> session.copy(session = playing.copy(volume = sent.volume ?: playing.volume))
                 else -> sent.target?.let { at(it) } ?: session
             }
         }
