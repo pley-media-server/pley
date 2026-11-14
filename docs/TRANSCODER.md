@@ -1031,8 +1031,10 @@ libplacebo tone maps or converts it:
   and an FFmpeg that can (capability `dolby_vision_fel_full`, Pley's own
   FFmpeg), the full picture is rebuilt from the base layer, the enhancement
   layer and their metadata, as a Dolby Vision player does, on the CPU, and
-  then transcoded as HDR10. Elsewhere it is ignored and `dolby_vision_fel`
-  applies.
+  then transcoded as HDR10. The brightness the metadata gives each scene
+  describes that picture, and goes on with it as HDR10+ (`dovi_compose`'s
+  `scene`), so made SDR it is tone mapped scene by scene, as a Dolby Vision
+  player would. Elsewhere it is ignored and `dolby_vision_fel` applies.
 
 #### libplacebo quality
 

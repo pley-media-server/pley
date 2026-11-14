@@ -65,7 +65,7 @@ and what changed when it was moved from FFmpeg 8.1 to 9.0.2.
 | 0070, 0103 | VAAPI: `tonemap_vaapi` without mastering display metadata, 64-bit timestamps in `deinterlace_vaapi` |
 | 0085 | libplacebo's SDR output isn't tagged with HDR10's metadata |
 | 0058, 0067, 0068, 0098, 0106 | `ffmpeg` itself: picture subtitles burned in without the same picture uploaded for every frame, filter graphs that end in hardware frames, no stall or crash at a stream's end or change |
-| 1001 | Pley's own, experimental: `dovi_compose` rebuilds Dolby Vision profile 7's full picture from its base layer, its full enhancement layer (split out by FFmpeg's `dovi_split`) and their metadata, as ETSI GS CCM 001's composer does, on the CPU |
+| 1001 | Pley's own, experimental: `dovi_compose` rebuilds Dolby Vision profile 7's full picture from its base layer, its full enhancement layer (split out by FFmpeg's `dovi_split`) and their metadata, as ETSI GS CCM 001's composer does, on the CPU; the brightness its metadata gives each scene goes on as HDR10+ |
 | 1002 | Pley's own: libplacebo's `fallback_peak`, the peak taken for HDR10 that carries no metadata of its brightness, rather than PQ's 10000 cd/m², which made such video far too dark |
 
 Patches numbered from 1001 are Pley's own rather than jellyfin-ffmpeg's.

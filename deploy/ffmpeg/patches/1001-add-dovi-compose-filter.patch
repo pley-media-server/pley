@@ -7,7 +7,9 @@ layer, its full enhancement layer and their metadata (RPU), as ETSI GS
 CCM 001's composer does: polynomial and MMR mapping, linear dead zone
 NLQ, and its annex B's enhancement layer resampling. The output is 12-
 or 10-bit BT.2020 PQ without Dolby Vision metadata, for Pley's
-experimental use of the full enhancement layer.
+experimental use of the full enhancement layer. The brightness the RPU
+gives each scene (level 1) goes on as HDR10+, which tone mappers read in
+its place.
 
 Experimental: checked against an independent implementation of the
 specification and Dolby Vision test vectors on synthetic streams, not
@@ -15,10 +17,10 @@ against a Dolby decoder or a real disc. GPL (--enable-gpl), under
 FFmpeg's licence as the files it changes.
 ---
 diff --git a/configure b/configure
-index 374bd5c..bcf8da8 100755
+index 4a901f2..f11918f 100755
 --- a/configure
 +++ b/configure
-@@ -4180,6 +4180,7 @@ dilation_opencl_filter_deps="opencl"
+@@ -4181,6 +4181,7 @@ dilation_opencl_filter_deps="opencl"
  dnn_classify_filter_select="dnn"
  dnn_detect_filter_select="dnn"
  dnn_processing_filter_select="dnn"
@@ -27,10 +29,10 @@ index 374bd5c..bcf8da8 100755
  drawtext_filter_suggest="libfontconfig libfribidi"
  drawvg_filter_deps="cairo"
 diff --git a/doc/filters.texi b/doc/filters.texi
-index 3534c87..d55efdb 100644
+index 3534c87..af9b4b0 100644
 --- a/doc/filters.texi
 +++ b/doc/filters.texi
-@@ -12308,6 +12308,82 @@ please use tools/python/tf_sess_config.py to get the configs of TensorFlow backe
+@@ -12308,6 +12308,90 @@ please use tools/python/tf_sess_config.py to get the configs of TensorFlow backe
  
  @end itemize
  
@@ -51,7 +53,8 @@ index 3534c87..d55efdb 100644
 +
 +The output is a BT.2020 PQ picture of 12 or 10 bits without Dolby Vision
 +metadata, so that what follows treats it as HDR10. The static HDR10 metadata
-+of the base layer is kept (see @option{peak}).
++of the base layer is kept (see @option{peak}), and the brightness the RPU gives
++each scene goes on as HDR10+ (see @option{scene}).
 +
 +Both inputs are @code{yuv420p10}, and the enhancement layer is the size of the
 +base layer or half of it in each direction. A base layer in another transfer
@@ -108,6 +111,13 @@ index 3534c87..d55efdb 100644
 +A peak in cd/m2, set in the frames and in the stream; the content light levels
 +are dropped from both.
 +@end table
++
++@item scene
++Pass the brightness that the RPU's level 1 metadata gives each scene, the
++maximum and the average of its maxRGB, on as the MaxSCL and average maxRGB of
++HDR10+ dynamic metadata in the frames, so that a tone mapper keeps following
++it. It describes the composed picture. Enabled by default; HDR10+ that the
++base layer carries is replaced.
 +@end table
 +
  @section drawbox
@@ -139,10 +149,10 @@ index 402b843..66df38b 100644
  extern const FFFilter ff_vf_drawgrid;
 diff --git a/libavfilter/vf_dovi_compose.c b/libavfilter/vf_dovi_compose.c
 new file mode 100644
-index 0000000..8097732
+index 0000000..b07b746
 --- /dev/null
 +++ b/libavfilter/vf_dovi_compose.c
-@@ -0,0 +1,1001 @@
+@@ -0,0 +1,1043 @@
 +/*
 + * This file is part of FFmpeg.
 + *
@@ -187,6 +197,7 @@ index 0000000..8097732
 +
 +#include "libavutil/common.h"
 +#include "libavutil/dovi_meta.h"
++#include "libavutil/hdr_dynamic_metadata.h"
 +#include "libavutil/mastering_display_metadata.h"
 +#include "libavutil/mem.h"
 +#include "libavutil/opt.h"
@@ -244,6 +255,7 @@ index 0000000..8097732
 +    int bits;
 +    int residual;
 +    int peak;
++    int scene;
 +
 +    int plane_w[3], plane_h[3]; ///< BL and output
 +    int el_w[3], el_h[3];
@@ -277,6 +289,7 @@ index 0000000..8097732
 +    { "peak", "set the mastering peak of the output, in cd/m2", OFFSET(peak), AV_OPT_TYPE_INT, { .i64 = PEAK_AUTO }, PEAK_BL, 10000, FLAGS, .unit = "peak" },
 +        { "auto", "the base layer's, raised in the frames to the RPU's source peak when that is higher", 0, AV_OPT_TYPE_CONST, { .i64 = PEAK_AUTO }, 0, 0, FLAGS, .unit = "peak" },
 +        { "bl",   "the base layer's",                                                                   0, AV_OPT_TYPE_CONST, { .i64 = PEAK_BL },   0, 0, FLAGS, .unit = "peak" },
++    { "scene", "pass the RPU's brightness of each scene on as HDR10+", OFFSET(scene), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, FLAGS },
 +    { NULL }
 +};
 +
@@ -830,6 +843,40 @@ index 0000000..8097732
 +}
 +
 +/**
++ * Give a frame the brightness of its scene that the RPU's level 1 says, the
++ * maximum and the average of its maxRGB, as HDR10+'s MaxSCL and average
++ * maxRGB: what a tone mapper reads from either, which it could no longer
++ * read from the RPU the output leaves out.
++ */
++static int set_scene_brightness(AVFrame *out, const AVDOVIMetadata *dovi)
++{
++    const AVDOVIDmData *dm = av_dovi_find_level(dovi, 1);
++    AVDynamicHDRPlus *hdr;
++    AVHDRPlusColorTransformParams *w;
++    int max, avg;
++
++    if (!dm || !dm->l1.max_pq)
++        return 0;
++    /* cd/m2 in steps of 0.1, of 10000 cd/m2 */
++    max = lrint(pq_to_nits(dm->l1.max_pq) * 10);
++    avg = lrint(pq_to_nits(FFMIN(dm->l1.avg_pq, dm->l1.max_pq)) * 10);
++
++    av_frame_remove_side_data(out, AV_FRAME_DATA_DYNAMIC_HDR_PLUS);
++    hdr = av_dynamic_hdr_plus_create_side_data(out);
++    if (!hdr)
++        return AVERROR(ENOMEM);
++    hdr->itu_t_t35_country_code = 0xB5;
++    hdr->application_version = 1;
++    hdr->num_windows = 1;
++    hdr->targeted_system_display_maximum_luminance = av_make_q(0, 1);
++    w = &hdr->params[0];
++    for (int i = 0; i < 3; i++)
++        w->maxscl[i] = av_make_q(max, 100000);
++    w->average_maxrgb = av_make_q(FFMAX(avg, 1), 100000);
++    return 0;
++}
++
++/**
 + * Make the output the HDR10 frame it now is: no Dolby Vision metadata, the
 + * colour tags of the composed signal, and static metadata that covers it.
 + *
@@ -843,6 +890,11 @@ index 0000000..8097732
 +
 +    av_frame_remove_side_data(out, AV_FRAME_DATA_DOVI_METADATA);
 +    av_frame_remove_side_data(out, AV_FRAME_DATA_DOVI_RPU_BUFFER);
++    if (s->scene && dovi) {
++        int ret = set_scene_brightness(out, dovi);
++        if (ret < 0)
++            return ret;
++    }
 +
 +    out->color_primaries = AVCOL_PRI_BT2020;
 +    out->color_trc       = AVCOL_TRC_SMPTE2084;
