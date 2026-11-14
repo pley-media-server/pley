@@ -1058,7 +1058,7 @@
   },
   "airplay": {
     "title": "AirPlay devices",
-    "description": "The server is paired with these. Forget one and the next cast to it asks for its PIN again; remove Pley from the device's own list too.",
+    "description": "The server is paired with these. Forget one and the next cast to it asks for its code again; remove Pley from the device's own list too.",
     "pairedBy": "Paired by {{name}} on {{date}}",
     "paired": "Paired on {{date}}",
     "forget": "Forget {{device}}",

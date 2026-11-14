@@ -8,7 +8,7 @@ import { formatDay } from "@/lib/format";
 
 /**
  * The AirPlay devices the server paired with (Settings → Network), which
- * an administrator can forget: the next cast to one asks for its PIN again.
+ * an administrator can forget: the next cast to one asks for its code again.
  * Nothing shows until one is paired, from "Play on…".
  */
 export function AirPlayPairings() {

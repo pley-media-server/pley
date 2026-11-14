@@ -1298,7 +1298,7 @@ export function useAirPlayPairings() {
   return useQuery({ queryKey: keys.airplayPairings, queryFn: () => api.get<AirPlayPairing[]>("/api/network/airplay") });
 }
 
-/** Forgets a pairing: the device asks for its PIN again at the next cast. */
+/** Forgets a pairing: the device asks for its code again at the next cast. */
 export function useForgetAirPlayPairing() {
   const qc = useQueryClient();
   return useMutation({
