@@ -9,4 +9,5 @@ pub mod discovery;
 pub mod pairing;
 pub mod pairings;
 pub mod player;
+pub mod plists;
 pub mod tlv;

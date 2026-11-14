@@ -40,8 +40,8 @@ fn bplist(value: Value) -> Vec<u8> {
     out
 }
 
-fn read_plist(bytes: &[u8]) -> Result<Value, plist::Error> {
-    Value::from_reader(std::io::Cursor::new(bytes))
+fn read_plist(bytes: &[u8]) -> Option<Value> {
+    super::plists::read(bytes)
 }
 
 fn dict<const N: usize>(pairs: [(&str, Value); N]) -> Value {
@@ -138,7 +138,6 @@ impl Session<TcpStream> {
         let plist_type = [("Content-Type", "application/x-apple-binary-plist")];
         let answer = control.request("SETUP", &rtsp_url, true, &plist_type, &bplist(setup)).await?;
         let event_port = read_plist(&answer.body)
-            .ok()
             .and_then(|v| v.as_dictionary()?.get("eventPort")?.as_unsigned_integer())
             .and_then(|p| u16::try_from(p).ok())
             .filter(|_| answer.status() == 200)
@@ -170,7 +169,6 @@ impl Session<TcpStream> {
         let body = bplist(dict([("streams", Value::Array(vec![stream]))]));
         let answer = control.request("SETUP", &rtsp_url, true, &plist_type, &body).await?;
         let stream_id = read_plist(&answer.body)
-            .ok()
             .and_then(|v| {
                 let id =
                     v.as_dictionary()?.get("streams")?.as_array()?.first()?.as_dictionary()?.get("streamID")?.clone();
@@ -263,10 +261,10 @@ async fn read_events<S: AsyncRead + AsyncWrite + Unpin>(
 /// `params.data`, a binary plist of its own; others' in `params`, or the
 /// event itself.
 fn notice(body: &[u8]) -> Option<Dictionary> {
-    let outer = read_plist(body).ok()?.into_dictionary()?;
+    let outer = read_plist(body)?.into_dictionary()?;
     let params = outer.get("params").and_then(Value::as_dictionary);
     if let Some(data) = params.and_then(|p| p.get("data")).and_then(Value::as_data) {
-        return read_plist(data).ok()?.into_dictionary();
+        return read_plist(data)?.into_dictionary();
     }
     Some(params.cloned().unwrap_or(outer))
 }
