@@ -215,8 +215,9 @@ pub fn verdict(m: Measured) -> Verdict {
 /// When a lesson was learned, last confirmed, and with how much on the GPU.
 #[derive(Debug, Clone, Copy)]
 struct Learned {
-    /// What the jobs tone mapping on the GPU needed in all
-    /// ([`crate::plan::Plan::tonemap_need`]).
+    /// What the jobs tone mapping with libplacebo needed in all
+    /// ([`crate::plan::Plan::tonemap_need`]), the job that taught it
+    /// included as if it were on libplacebo.
     load: f64,
     at: Instant,
 }

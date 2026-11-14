@@ -87,6 +87,9 @@ On Intel graphics:
 - Quick Sync works on Linux when an NVIDIA or AMD card comes first.
 - Transcodes no longer fail when every Quick Sync session is busy.
 - 4:2:2 and 4:4:4 H.264, from some cameras and screen recordings, plays.
+- Once HDR transcodes have moved to Quick Sync or OpenCL tone mapping,
+  another one started beside them gets the best picture the GPU keeps up
+  with, and one of them goes back when there is room.
 
 ## [0.1.10] - 2026-11-12
 

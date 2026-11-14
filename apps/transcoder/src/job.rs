@@ -1313,7 +1313,11 @@ impl JobManager {
                     "{speed:.2}× real time, held back by its input: another job tone mapping alike gets {others:.1} times as much done"
                 );
             }
-            if !self.lessons.lock().learn(verdict, share, load, now) {
+            // A job moved off libplacebo learns with the load it would add
+            // there, as it is asked whether to go back (`Self::gpu_share`).
+            let moved = share.quick_sync || share.opencl;
+            let own = if moved { job.plan.tonemap_need(&job.media).unwrap_or(0.0) } else { 0.0 };
+            if !self.lessons.lock().learn(verdict, share, load + own, now) {
                 continue;
             }
             let opencl = job.plan.opencl_could_tonemap() && !self.opencl_fails(job);
@@ -1932,10 +1936,15 @@ impl Job {
         self.last_access_ms.store(now_ms(), Relaxed);
     }
 
-    /// Whether a process of this job is tone mapping with libplacebo now.
+    /// Whether a process of this job is tone mapping with libplacebo now:
+    /// not one moved to Quick Sync's scaler or to OpenCL, which leaves
+    /// libplacebo nothing of it to do.
     fn tone_maps_on_gpu(&self) -> bool {
         let rt = self.runtime.lock();
-        rt.state == JobState::Running && rt.process.is_some() && self.plan.tone_maps_with_libplacebo()
+        rt.state == JobState::Running
+            && rt.process.is_some()
+            && self.plan.tone_maps_with_libplacebo()
+            && !rt.share.is_some_and(|s| s.quick_sync || s.opencl)
     }
 
     /// Whether a process of this job is encoding video in software now.
@@ -3971,6 +3980,49 @@ mod tests {
             let share = jobs.gpu_share(job, true).unwrap();
             assert_eq!((share.opencl, share.cpu_decode, share.quality), (true, false, TonemapQuality::High));
         }
+    }
+
+    /// A job moved to Quick Sync's scaler or to OpenCL leaves libplacebo
+    /// nothing to do: the others' quality and moves don't count it, while
+    /// it is asked whether to go back with what it would add there.
+    #[tokio::test]
+    async fn jobs_moved_off_libplacebo_leave_it_room() {
+        let dir = crate::testing::tempdir();
+        let ff = iris_xe(dir.path());
+        let jobs = manager_with(dir.path(), iris_xe(dir.path()));
+        let [a, b, c] = [1, 2, 3].map(|n| {
+            let job = dolby_vision_job(dir.path(), &ff, 8, 24.0);
+            Arc::new(Job { id: format!("film-{n}"), ..job })
+        });
+        let need = a.plan.tonemap_need(&a.media).expect("libplacebo tone maps it");
+        let running = |job: &Arc<Job>, share: Share| {
+            let mut rt = job.runtime.lock();
+            rt.state = JobState::Running;
+            rt.share = Some(share);
+            rt.process = Some(ProcessStatus { hardware: true, ..Default::default() });
+            drop(rt);
+            jobs.jobs.lock().insert(job.id.clone(), job.clone());
+        };
+        running(&a, FAST);
+        running(&b, FAST);
+        assert!((jobs.tonemapping_load() - 2.0 * need).abs() < 1e-9);
+
+        // Both fell behind, and moved off libplacebo.
+        running(&a, Share { quick_sync: true, ..FAST });
+        running(&b, Share { opencl: true, ..FAST });
+        assert_eq!(jobs.tonemapping_load(), 0.0);
+        // A third gets libplacebo's best, as it would alone.
+        let alone = manager_with(dir.path(), iris_xe(dir.path())).gpu_share(&c, true).unwrap();
+        assert_eq!(jobs.gpu_share(&c, true).unwrap(), alone);
+
+        // The two fell behind together at fast; one went back to libplacebo.
+        jobs.lessons.lock().learn(share::Verdict::GpuBound, FAST, 2.0 * need, Instant::now());
+        running(&b, FAST);
+        // The other stays off it, which it would fall behind again on...
+        let a_share = jobs.gpu_share(&a, true).unwrap();
+        assert!(a_share.quick_sync || a_share.opencl, "{a_share:?}");
+        // ...and the one back there gets its best quality, as alone.
+        assert_eq!(jobs.gpu_share(&b, true).unwrap(), alone);
     }
 
     /// OpenCL takes its frames from FFmpeg's decoder on the GPU: once that

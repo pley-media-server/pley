@@ -1105,7 +1105,9 @@ Several jobs tone mapping with libplacebo share the GPU (`src/share.rs`):
 
   A lesson holds for 10 minutes after it was last confirmed, while the load
   stays at least 0.9 of what it was; then the start-up measurement is tried
-  again. Each is logged once, at `info`.
+  again. Each is logged once, at `info`. The load is what libplacebo has to
+  do: a job moved to OpenCL or Quick Sync tone mapping counts only when it
+  is the one asking to go back, or the one that fell behind.
 - **Tone mapping on Quick Sync.** Where the GPU falls behind (as for decoding
   on the CPU), HDR10 made SDR that Quick Sync decodes and scales is tone
   mapped by its scaler instead (status `tonemap_quick_sync: true`), where
