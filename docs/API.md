@@ -154,7 +154,8 @@ For those origins only, the API and
   `Retry-After`.
 
 A wildcard origin never lets a page read an answer made with cookies, so
-these answers only carry what a token in `Authorization` opens. The consent
+these answers only carry what a token in `Authorization` opens. Keyed
+media addresses answer CORS to every origin ([Keyed URLs](#keyed-urls)). The consent
 page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`) never
 answer CORS. A server's proof (`/api/server` with a `challenge`,
 [Telling servers apart](#telling-servers-apart)) isn't made for any other
@@ -2391,6 +2392,12 @@ URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
 - `/api/media/{key}/previews.bif` is the file's seek previews as a BIF file,
   for a player that fetches them itself (Roku's); `404` while they are being
   made, as for `trickplay`.
+- `/api/media/{key}/subtitles-{index}.vtt` is the file's text track
+  `index` (in it, next to it or added) as WebVTT, as
+  `/api/files/{id}/subtitles/{index}.vtt` is, `offset_ms` too, for a player
+  that fetches it itself, once (a Cast receiver). A track still being read
+  out of a big file is waited for, up to 8 seconds, before what is read so
+  far comes with `X-Pley-Complete: 0`. `404` for a picture track.
 - `/api/media/{key}/subtitles-{index}.json?at=` is the file's PGS track
   `index` as pictures, for a player that draws them without decoding PGS
   (Roku's): `{ complete, width, height, cues: [{ start_ms, end_ms, x, y,
@@ -2417,8 +2424,13 @@ URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
   stopped from elsewhere answers `410 session_stopped` here too, with its
   message.
 - Logs leave the key out (`/api/media/…/12.ts`).
-- Everything else the player asks for (subtitles, sprite sheets, its
-  reports) goes with the token as usual.
+- They answer CORS to any origin (`Access-Control-Allow-Origin: *`, a
+  preflight letting `Range` through, `Content-Range` and `X-Pley-Complete`
+  exposed), as a player outside Pley fetches them from a page of its own
+  (a Cast receiver's, served by Google). They take no cookie or token, so
+  a page that reads them reads only what their key opens.
+- Everything else the player asks for (subtitles at their own address,
+  sprite sheets, its reports) goes with the token as usual.
 - **Live TV** works the same way: `POST /api/live/channels/{id}/watch`
   with `keyed_urls: true` answers `url` as
   `/api/live/media/{key}/index.m3u8`, whose segments are named relatively.

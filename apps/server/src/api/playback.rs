@@ -1133,10 +1133,23 @@ pub async fn keyed_media(
         )
             .into_response());
     }
-    // PGS subtitles as pictures, for a player that can't decode them
-    // (Roku's), which fetches them itself too.
     if let Some(name) = file.strip_prefix("subtitles-") {
         let row = visible_file(&state, &user, session.file_id).await?;
+        // A text track as WebVTT, for a player outside Pley (a Cast
+        // receiver) that fetches it itself, once.
+        if let Some(index) = name.strip_suffix(".vtt") {
+            let index: i64 = index.parse().map_err(|_| AppError::not_found("unknown file"))?;
+            let text = row
+                .streams()
+                .iter()
+                .any(|s| s.index == index && s.kind == StreamKind::Subtitle && s.text_based != Some(false));
+            if !text {
+                return Err(AppError::not_found("no text subtitle track has this index"));
+            }
+            return text_track(&state, &user, &row, index, query.offset_ms.unwrap_or(0), KEYED_VTT_WAIT).await;
+        }
+        // PGS subtitles as pictures, for a player that can't decode them
+        // (Roku's), which fetches them itself too.
         return keyed_pictures(&state, &user, row, name, query.at()).await;
     }
     if session.transcode.is_some() {
@@ -1610,8 +1623,28 @@ pub async fn subtitles(
         .and_then(|n| n.parse().ok())
         .ok_or_else(|| AppError::not_found("unknown subtitle file"))?;
     let file = visible_file(&state, &user, id).await?;
-    let (sidecar, version) = subtitle_source(&state, &file, index).await?;
-    let offset = query.offset_ms.unwrap_or(0).clamp(-webvtt::MAX_OFFSET_MS, webvtt::MAX_OFFSET_MS);
+    text_track(&state, &user, &file, index, query.offset_ms.unwrap_or(0), Duration::ZERO).await
+}
+
+/// How long a keyed `.vtt` answer waits for its whole track: a player
+/// outside Pley (a Cast receiver) reads a text track once, as it turns it
+/// on, and never asks again for the rest.
+const KEYED_VTT_WAIT: Duration = Duration::from_secs(8);
+
+/// Text track `index` of `file` (in it, next to it or added) as WebVTT,
+/// moved by `offset_ms`. An embedded track still being read out of a big
+/// file comes as far as it is read, with `X-Pley-Complete: 0`, after
+/// waiting up to `wait` for the rest; the player asks again.
+async fn text_track(
+    state: &AppState,
+    user: &AuthUser,
+    file: &catalog::FileRow,
+    index: i64,
+    offset_ms: i64,
+    wait: Duration,
+) -> ApiResult<Response> {
+    let (sidecar, version) = subtitle_source(state, file, index).await?;
+    let offset = offset_ms.clamp(-webvtt::MAX_OFFSET_MS, webvtt::MAX_OFFSET_MS);
     let moved = |text: String| if offset == 0 { text } else { webvtt::shift(&text, offset) };
     let cache =
         state.config.cache_dir().join("subtitles").join(format!("{}_{}_{}{version}.vtt", file.id, index, file.mtime));
@@ -1626,8 +1659,15 @@ pub async fn subtitles(
         // An embedded track: the cues found so far, at once, while the rest
         // of the file is read (minutes for a big one on a network share).
         // The player asks again until it has them all.
-        let (text, complete) =
-            state.transcoder.subtitles_so_far(&file.path, index).await.map_err(|err| for_viewer(&user, err))?;
+        let started = Instant::now();
+        let (text, complete) = loop {
+            let (text, complete) =
+                state.transcoder.subtitles_so_far(&file.path, index).await.map_err(|err| for_viewer(user, err))?;
+            if complete || started.elapsed() >= wait {
+                break (text, complete);
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        };
         if complete {
             cache_subtitles(&cache, text.as_bytes()).await;
             return Ok(vtt(moved(text)));
@@ -1645,7 +1685,7 @@ pub async fn subtitles(
     let transcoder = state.transcoder.clone();
     let made = extract_once(cache, async move { Ok(transcoder.subtitles(&path, None).await?.into_bytes()) })
         .await
-        .map_err(|err| for_viewer(&user, err))?;
+        .map_err(|err| for_viewer(user, err))?;
     Ok(vtt(moved(String::from_utf8_lossy(&made).into_owned())))
 }
 

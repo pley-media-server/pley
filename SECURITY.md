@@ -333,6 +333,10 @@ other apps (`pley_ct_…`), never with a session's
 - No other site may frame Pley (`frame-ancestors 'none'`,
   `X-Frame-Options: DENY`). Answers carry `nosniff` and
   `Referrer-Policy: same-origin`.
+- CORS opens the API to Pley's packaged TV apps' origins alone. Keyed
+  media addresses answer it to any origin, for players such as a Cast
+  receiver's page: they take no cookie or token, so another site's page
+  reads nothing a key it was given doesn't already open.
 - Clients get 30 seconds to send a request's headers, and a body may pause
   for 20 seconds at most.
 - At most 8,192 connections are open at once, and 256 from one address on

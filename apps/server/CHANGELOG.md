@@ -13,6 +13,8 @@ describes how they are made.
 
 ### Added
 
+- Players outside Pley, such as a Chromecast's, can play a session's keyed
+  stream and its text subtitles.
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.

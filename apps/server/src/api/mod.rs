@@ -348,16 +348,27 @@ fn cors_path(path: &str) -> bool {
     path.starts_with("/api/") && !path.starts_with("/api/oauth/requests") && path != "/api/oauth/device/verify"
 }
 
+/// Keyed media addresses (docs/API.md, "Keyed URLs"): the key in the path is
+/// all they take, never a cookie or a token.
+fn keyed_path(path: &str) -> bool {
+    path.starts_with("/api/media/") || path.starts_with("/api/live/media/")
+}
+
 /// CORS for pley's packaged TV apps (docs/API.md, "CORS for TV apps"). Their web
 /// runtimes enforce it, so their API calls, which carry the app's token in
 /// `Authorization` and never a cookie, are answered with
 /// `Access-Control-Allow-Origin: *` and their preflights let that header
 /// through. A wildcard never lets a page read an answer made with cookies,
 /// and only the TV apps' origins get it at all.
+///
+/// Keyed media addresses answer CORS to every origin: a player outside
+/// Pley fetches them from a page of its own (a Cast receiver's, served
+/// from Google), and what they open is what their key opens, whoever asks.
 async fn tv_app_cors(request: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
     use axum::response::IntoResponse;
-    let allowed = request.headers().get(header::ORIGIN).is_some_and(|o| tv_app_origin(o.as_bytes()))
-        && cors_path(request.uri().path());
+    let path = request.uri().path();
+    let allowed = request.headers().get(header::ORIGIN).is_some_and(|o| tv_app_origin(o.as_bytes())) && cors_path(path)
+        || request.headers().contains_key(header::ORIGIN) && keyed_path(path);
     if !allowed {
         return next.run(request).await;
     }
@@ -532,5 +543,7 @@ mod tests {
         assert!(cors_path("/.well-known/oauth-authorization-server"));
         assert!(!cors_path("/api/oauth/requests") && !cors_path("/api/oauth/requests/7/continue"));
         assert!(!cors_path("/api/oauth/device/verify") && !cors_path("/link") && !cors_path("/"));
+        assert!(keyed_path("/api/media/pley_mk_a/index.m3u8") && keyed_path("/api/live/media/pley_mk_a/0.ts"));
+        assert!(!keyed_path("/api/files/1/subtitles/2.vtt") && !keyed_path("/api/playback/a/index.m3u8"));
     }
 }
