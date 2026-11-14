@@ -1212,17 +1212,15 @@ impl JobManager {
             let cache = self.hdr10_metadata.lock();
             cache.get(input).filter(|(was, _)| *was == stamp).map(|(_, has)| *has)
         });
-        match read_before {
-            Some(has) => {
-                if let Some(video) = known.streams.iter_mut().find(|s| s.kind == pley_transcoder_api::StreamKind::Video)
-                {
-                    video.hdr10_metadata = has;
-                }
-            }
+        let has = match read_before {
+            Some(has) => has,
             None => {
-                self.prober.read_first_frames(input, &mut known).await;
+                // Only this of what the frames say: the rest stays as the
+                // server has it, which is all the file's later jobs get.
+                let mut read = media.clone();
+                self.prober.read_first_frames(input, &mut read).await;
+                let has = read.video().and_then(|v| v.hdr10_metadata);
                 if let Some(stamp) = stamp {
-                    let has = known.video().and_then(|v| v.hdr10_metadata);
                     let mut cache = self.hdr10_metadata.lock();
                     // A library's worth, then started again.
                     if cache.len() >= 4096 {
@@ -1230,7 +1228,11 @@ impl JobManager {
                     }
                     cache.insert(input.to_path_buf(), (stamp, has));
                 }
+                has
             }
+        };
+        if let Some(video) = known.streams.iter_mut().find(|s| s.kind == pley_transcoder_api::StreamKind::Video) {
+            video.hdr10_metadata = has;
         }
         known
     }
