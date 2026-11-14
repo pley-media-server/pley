@@ -124,6 +124,14 @@ recipe is a new image. The Windows build's is the same of
    the Windows installers take the Windows build for the recipe they are
    made from.
 
+libplacebo and FFmpeg's Vulkan headers go together. Where the headers have
+`VK_KHR_internally_synchronized_queues` and the GPU's driver does (NVIDIA's
+current ones), FFmpeg 9 makes its Vulkan device with such queues, and its
+libplacebo filter refuses a libplacebo before 7.365 on it: tone mapping
+with libplacebo then fails its start-up test. Debian 13's headers predate
+the extension, and the Dockerfile stops if they come to have it: libplacebo
+is updated then.
+
 The Windows build's dependency image, BtbN's, is pinned by digest and
 copied once to `ghcr.io/pley-media-server/ffmpeg-builds-win64-gpl`, which
 CI builds from, since BtbN's registry doesn't keep every digest.

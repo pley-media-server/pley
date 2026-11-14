@@ -58,10 +58,11 @@ ships FFmpeg beside it, FFmpeg keeps its own licence:
 
 - **The Docker image** carries pley-ffmpeg
   ([deploy/ffmpeg](deploy/ffmpeg/README.md)): FFmpeg 9 (`--enable-gpl`, so
-  GPL) with patches from jellyfin-ffmpeg, which are under FFmpeg's licence
-  as the files they change, and libplacebo (LGPL), unmodified, built from
-  their release sources against Debian's libraries. Their licences and
-  sources, the patches and FFmpeg's build configuration are in
+  GPL) with patches from jellyfin-ffmpeg and two of Pley's own, which are
+  under FFmpeg's licence as the files they change, and libplacebo (LGPL),
+  unmodified, built from their release sources against Debian's libraries.
+  Their licences and sources, the patches and FFmpeg's build configuration
+  are in
   `/usr/share/doc/ffmpeg` and `/usr/share/doc/libplacebo`. Debian's
   packages keep their licences in `/usr/share/doc/<package>/copyright`;
   their sources are at <https://sources.debian.org>. On amd64 the image

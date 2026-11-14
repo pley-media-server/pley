@@ -46,7 +46,10 @@ RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.vid
 # are named on amd64, where the image's check (.github/workflows/server.yml)
 # expects them; elsewhere FFmpeg takes NVIDIA's when it finds them. There
 # too, FFmpeg must have found how Quick Sync's frames are shared with
-# OpenCL, which it leaves out silently otherwise.
+# OpenCL, which it leaves out silently otherwise. Its Vulkan headers must
+# not know internally synchronised queues: FFmpeg asks for them where they
+# do and the GPU's driver has them (NVIDIA's), and its libplacebo filter
+# then refuses a libplacebo before 7.365, without a word.
 COPY patches/ patches/
 RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" \
     && echo "$FFMPEG_SHA256  ffmpeg-$FFMPEG_VERSION.tar.xz" | sha256sum -c - \
@@ -70,6 +73,7 @@ RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_
     && if [ "$(dpkg --print-architecture)" = amd64 ]; then \
         grep -qx '#define HAVE_OPENCL_VAAPI_INTEL_MEDIA 1' config.h; \
     fi \
+    && ! grep -q VK_KHR_internally_synchronized_queues /usr/include/vulkan/vulkan_core.h \
     && make -j"${JOBS:-$(nproc)}" \
     && make install \
     && install -d /out/usr/local/bin /out/usr/local/lib /out/usr/share/doc/ffmpeg \

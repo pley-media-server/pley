@@ -4,6 +4,8 @@
 # recipe is always a new image. `tag.sh windows` gives the Windows build's
 # (Dockerfile.windows, the patches and windows/).
 set -eu
+# windows/'s files in the same order whatever the shell's language.
+export LC_ALL=C
 cd "$(dirname "$0")"
 dockerfile=Dockerfile
 [ "${1:-}" = windows ] && dockerfile=Dockerfile.windows

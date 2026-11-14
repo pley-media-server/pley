@@ -3,8 +3,8 @@ pley-ffmpeg for Windows
 
 ffmpeg.exe and ffprobe.exe, the FFmpeg that Pley's transcoder runs: FFmpeg
 built from its release source with patches from jellyfin-ffmpeg that keep
-Intel Quick Sync transcodes on the GPU. `ffmpeg -version` gives the version
-and the options it was configured with.
+Intel Quick Sync transcodes on the GPU, and two of Pley's own.
+`ffmpeg -version` gives the version and the options it was configured with.
 
 Licence
 -------
@@ -34,7 +34,8 @@ The source folder has what these programs were built from:
 The other libraries come built for Windows from BtbN/FFmpeg-Builds
 (https://github.com/BtbN/FFmpeg-Builds), whose scripts.d folder names the
 source of each. The patches are jellyfin-ffmpeg's
-(https://github.com/jellyfin/jellyfin-ffmpeg), under FFmpeg's licence.
+(https://github.com/jellyfin/jellyfin-ffmpeg) and, the two numbered from
+1001, Pley's own, all under FFmpeg's licence.
 
 The recipe is kept with Pley's source, in deploy/ffmpeg:
 https://github.com/pley-media-server/pley
