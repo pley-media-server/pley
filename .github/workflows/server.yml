@@ -452,8 +452,9 @@ jobs:
           # pley-ffmpeg's patches (deploy/ffmpeg): without them an Intel GPU's
           # HDR frames are copied to memory to be tone mapped.
           opencl=$(ff -h filter=tonemap_opencl)
-          grep -qw bt2390 <<<"$opencl" && grep -qw apply_dovi <<<"$opencl" ||
+          if ! grep -qw bt2390 <<<"$opencl" || ! grep -qw apply_dovi <<<"$opencl"; then
             fail "FFmpeg's tonemap_opencl isn't pley-ffmpeg's"
+          fi
           if [ "$ARCH" = amd64 ]; then
             # Intel's full driver: the free one leaves older GPUs on the CPU (Dockerfile).
             docker run --rm --entrypoint dpkg pley:local -s intel-media-va-driver-non-free >/dev/null ||

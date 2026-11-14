@@ -192,13 +192,9 @@ pub fn takes(e: &VideoDecoder, video: &MediaStream, depth: i64) -> bool {
         return false;
     }
     let ten_bit_hevc = video.codec == "hevc" && depth >= 10;
-    if !listed.is_empty()
+    !(!listed.is_empty()
         && ten_bit_hevc
-        && !listed.iter().any(|p| p.eq_ignore_ascii_case("main 10") || p.eq_ignore_ascii_case("rext"))
-    {
-        return false;
-    }
-    true
+        && !listed.iter().any(|p| p.eq_ignore_ascii_case("main 10") || p.eq_ignore_ascii_case("rext")))
 }
 
 /// The container a file's extension names, as the TV's rules name it:
