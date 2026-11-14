@@ -221,13 +221,15 @@ impl Player {
         self.connection.request(PLATFORM, NS_RECEIVER, json!({"type": "GET_STATUS"})).await.is_some()
     }
 
-    /// The device's own volume, 0 to 100.
+    /// The device's own volume, 0 to 100. A level above 0 unmutes it too,
+    /// as the slider shows a muted device at 0: a request sets either the
+    /// level or the mute, not both.
     pub async fn set_volume(&self, percent: u8) -> bool {
         let level = f64::from(percent.min(100)) / 100.0;
-        self.connection
-            .request(PLATFORM, NS_RECEIVER, json!({"type": "SET_VOLUME", "volume": {"level": level}}))
-            .await
-            .is_some()
+        let set = |volume: Value| {
+            self.connection.request(PLATFORM, NS_RECEIVER, json!({"type": "SET_VOLUME", "volume": volume}))
+        };
+        set(json!({"level": level})).await.is_some() && (percent == 0 || set(json!({"muted": false})).await.is_some())
     }
 
     /// Stops the stream and closes Google's player, which leaves the
@@ -493,6 +495,7 @@ mod tests {
         let volume = device.next().await;
         assert_eq!(volume.destination, PLATFORM);
         assert!(volume.payload.contains(r#""level":0.4"#));
+        assert!(device.next().await.payload.contains(r#""volume":{"muted":false}"#), "unmuted");
 
         device
             .say(

@@ -100,12 +100,13 @@ async fn serve(
         };
         let mut at = 0.0;
         let mut volume = 0.5;
+        let mut muted = false;
         // What the device says of itself: Google's player running, and its
         // volume.
-        let receiver = |id: &Value, volume: f64| {
+        let receiver = |id: &Value, volume: f64, muted: bool| {
             json!({"type": "RECEIVER_STATUS", "requestId": id, "status": {
                 "applications": [{"appId": "CC1AD845", "transportId": "web-5", "sessionId": "s-1"}],
-                "volume": {"level": volume, "muted": false},
+                "volume": {"level": volume, "muted": muted},
             }})
         };
         loop {
@@ -126,13 +127,16 @@ async fn serve(
             let _ = sent_tx.send((message.destination.clone(), payload.clone()));
             let id = payload["requestId"].clone();
             let answer = match payload["type"].as_str() {
-                Some("LAUNCH") => Some(reply("receiver-0", "receiver", receiver(&id, volume))),
+                Some("LAUNCH") => Some(reply("receiver-0", "receiver", receiver(&id, volume, muted))),
                 Some("GET_STATUS") if message.destination == "receiver-0" => {
-                    Some(reply("receiver-0", "receiver", receiver(&id, volume)))
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted)))
                 }
+                // Either the level or the mute, as Google's senders send them.
                 Some("SET_VOLUME") => {
-                    volume = payload["volume"]["level"].as_f64().unwrap();
-                    Some(reply("receiver-0", "receiver", receiver(&id, volume)))
+                    assert!(payload["volume"].as_object().unwrap().len() == 1, "{payload}");
+                    volume = payload["volume"]["level"].as_f64().unwrap_or(volume);
+                    muted = payload["volume"]["muted"].as_bool().unwrap_or(muted);
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted)))
                 }
                 Some("LOAD") if refuse.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() => {
                     Some(reply("web-5", "media", json!({"type": "LOAD_FAILED", "requestId": id})))
@@ -515,6 +519,8 @@ async fn the_remote_sets_the_devices_volume() {
     assert_eq!(set.status, StatusCode::ACCEPTED, "{}", set.text());
     let (to, payload) = next(&mut w.sent, "SET_VOLUME").await;
     assert_eq!((to.as_str(), payload["volume"]["level"].as_f64()), ("receiver-0", Some(0.3)));
+    // A level is heard: a muted device is unmuted too.
+    assert_eq!(next(&mut w.sent, "SET_VOLUME").await.1["volume"], json!({"muted": false}));
     for _ in 0..50 {
         if sessions(&w).await[0]["volume"] == json!(30) {
             return;
