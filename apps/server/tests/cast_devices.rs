@@ -396,6 +396,28 @@ async fn a_cast_that_finishes_on_the_device_ends_its_session_watched() {
 }
 
 #[tokio::test]
+async fn a_cast_stopped_before_its_first_report_keeps_its_place() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices", &w.admin).await;
+    let body = json!({"item_id": w.film, "start_ms": 600_000});
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+    next(&mut w.sent, "LOAD").await;
+    let stopped = json!({"type": "MEDIA_STATUS", "requestId": 0, "status": [
+        {"mediaSessionId": 7, "playerState": "IDLE", "idleReason": "CANCELLED", "currentTime": 0.0}
+    ]});
+    w.say.send(stopped).unwrap();
+    let over = async {
+        while !sessions(&w).await.is_empty() {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(5), over).await.expect("the session over");
+    let item = w.app.get(&format!("/api/items/{}", w.film), &w.admin).await;
+    assert_eq!(item.body["user_state"]["position_ms"], 600_000, "{}", item.body);
+}
+
+#[tokio::test]
 async fn a_new_cast_takes_the_device_over_without_stopping_it() {
     let mut w = world().await;
     w.app.get("/api/remote/devices", &w.admin).await;

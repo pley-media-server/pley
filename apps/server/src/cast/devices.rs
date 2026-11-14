@@ -183,7 +183,8 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
         }
     };
     tracing::info!("item {} is cast to a Cast device", cast.item_id);
-    let cast = Following { state: state.clone(), user_id: user.id, device, session_id, duration_ms, cast_id };
+    let start_ms = cast.start_ms.unwrap_or(0);
+    let cast = Following { state: state.clone(), user_id: user.id, device, session_id, duration_ms, start_ms, cast_id };
     tokio::spawn(cast.follow(player, events, ours));
     Ok(())
 }
@@ -410,12 +411,14 @@ struct Following {
     device: Found,
     session_id: String,
     duration_ms: i64,
+    /// Where it started: its place until the device says another.
+    start_ms: i64,
     cast_id: u64,
 }
 
 impl Following {
     async fn follow(self, player: Player, mut events: tokio::sync::mpsc::Receiver<Event>, ours: CancellationToken) {
-        let Following { state, user_id, device, session_id, duration_ms, cast_id } = self;
+        let Following { state, user_id, device, session_id, duration_ms, start_ms, cast_id } = self;
         let mut commands = state.events.subscribe();
         let mut ask = tokio::time::interval(ASK_EVERY);
         let item_id = state.sessions.get(&session_id).map(|s| s.item_id);
@@ -430,7 +433,9 @@ impl Following {
         // Its volume, for the remotes' slider: the device says it again
         // whenever it changes.
         player.ask_volume().await;
-        let mut last = (0i64, "buffering");
+        // A cast that ends before the device says where it is keeps the
+        // place it started at, not the title's start.
+        let mut last = (start_ms, "buffering");
         let mut recorded = Instant::now();
         let ended = loop {
             tokio::select! {
