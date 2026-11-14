@@ -27,15 +27,19 @@ The source folder has what these programs were built from:
                            Dockerfile.windows. In a folder with them:
                            docker build -f Dockerfile.windows --output out .
   zvbi-<commit>.tar.gz     libzvbi's source, which the script builds too
+  libplacebo-<version>.tar.xz
+                           libplacebo's source as built, with the recipe's
+                           windows/libplacebo-uploads.patch applied, under
+                           libplacebo's licence, the LGPL 2.1 or later
   configuration.txt        the options FFmpeg was configured with
   libraries.txt            the libraries built in, their versions, and the
                            image they come from
 
 The other libraries come built for Windows from BtbN/FFmpeg-Builds
 (https://github.com/BtbN/FFmpeg-Builds), whose scripts.d folder names the
-source of each. The patches are jellyfin-ffmpeg's
-(https://github.com/jellyfin/jellyfin-ffmpeg) and, the two numbered from
-1001, Pley's own, all under FFmpeg's licence.
+source of each; libplacebo is built as its scripts.d builds it. The FFmpeg
+patches are jellyfin-ffmpeg's (https://github.com/jellyfin/jellyfin-ffmpeg)
+and, the two numbered from 1001, Pley's own, all under FFmpeg's licence.
 
 The recipe is kept with Pley's source, in deploy/ffmpeg:
 https://github.com/pley-media-server/pley

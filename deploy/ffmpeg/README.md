@@ -102,6 +102,12 @@ libraries, and writes the folder out:
 `scripts\build-installer.ps1 -Ffmpeg dist\pley-ffmpeg-windows-x86_64\bin`
 makes an installer with it ([../windows/README.md](../windows/README.md)).
 
+libplacebo is rebuilt there at the image's own version with
+[windows/libplacebo-uploads.patch](windows/libplacebo-uploads.patch):
+from 7.387 the CPU copies each frame from memory before AMD's driver
+takes it, which on AMD's integrated graphics made libplacebo several
+times slower; the patch lets them take the frame as it is.
+
 ## Updating FFmpeg, libplacebo or the patches
 
 The image's tag is FFmpeg's version and the hash of its recipe, the

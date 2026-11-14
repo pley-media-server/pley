@@ -19,6 +19,9 @@ ARG FFMPEG_VERSION=9.0.2
 ARG FFMPEG_SHA256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
 ARG ZVBI_COMMIT=34bb6f660c5c1bacd4a66cc7b22311e4ca3c1ab5
 ARG ZVBI_SHA256=5c671a9f052e41cf770372a263ee6258cb41f6c97ce884080f68b341ab81db1a
+# The image's own libplacebo version, rebuilt with a patch of Pley's.
+ARG LIBPLACEBO_VERSION=7.387.0
+ARG LIBPLACEBO_COMMIT=275f7dea27924cdd34ab2e6c20e448b6bc4fab65
 # How many compilers run at once: all the processors, unless set.
 ARG JOBS
 WORKDIR /src
@@ -38,6 +41,22 @@ RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "zvbi-$ZVBI_COMM
 COPY Dockerfile.windows ./
 COPY patches/ patches/
 COPY windows/ windows/
+# libplacebo as the image builds it (its scripts.d/50-libplacebo.sh), with
+# windows/libplacebo-uploads.patch: AMD's integrated graphics take frames
+# from memory as they are, where 7.387 has the CPU copy each one first,
+# several times slower.
+RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.videolan.org/videolan/libplacebo.git \
+    && test "$(git -C libplacebo rev-parse HEAD)" = "$LIBPLACEBO_COMMIT" \
+    && git -C libplacebo submodule --quiet update --init --recursive --depth 1 \
+    && patch -d libplacebo -p1 --no-backup-if-mismatch -F0 -i ../windows/libplacebo-uploads.patch \
+    && tar --exclude-vcs -cJf "libplacebo-$LIBPLACEBO_VERSION.tar.xz" libplacebo \
+    && meson setup libplacebo/build libplacebo --prefix="$FFBUILD_PREFIX" --buildtype=release --default-library=static \
+        --cross-file=/cross.meson -Dvulkan=enabled -Dvk-proc-addr=enabled \
+        -Dvulkan-registry="$FFBUILD_PREFIX/share/vulkan/registry/vk.xml" -Dshaderc=enabled -Dglslang=disabled \
+        -Dlcms=enabled -Dxxhash=enabled -Dd3d11=enabled -Ddemos=false -Dtests=false -Dbench=false -Dfuzz=false \
+    && ninja -C libplacebo/build ${JOBS:+-j "$JOBS"} install \
+    && echo "Libs.private: -lstdc++" >> "$FFBUILD_PREFIX/lib/pkgconfig/libplacebo.pc" \
+    && rm -rf libplacebo
 # The patches are applied in the order of their series file, and the build
 # stops at one that doesn't apply exactly.
 RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" \
@@ -88,7 +107,8 @@ RUN cd "ffmpeg-$FFMPEG_VERSION" \
     && install -m755 ffmpeg.exe ffprobe.exe /out/bin/ \
     && install -m644 COPYING.GPLv3 /out/LICENSE.txt \
     && install -m644 ../windows/README.txt /out/README.txt \
-    && install -m644 "../ffmpeg-$FFMPEG_VERSION.tar.xz" "../zvbi-$ZVBI_COMMIT.tar.gz" /out/source/ \
+    && install -m644 "../ffmpeg-$FFMPEG_VERSION.tar.xz" "../zvbi-$ZVBI_COMMIT.tar.gz" \
+        "../libplacebo-$LIBPLACEBO_VERSION.tar.xz" /out/source/ \
     && tar -C .. --sort=name --owner=0 --group=0 --numeric-owner -cJf /out/source/recipe.tar.xz Dockerfile.windows patches windows \
     && sed -n 's/^#define FFMPEG_CONFIGURATION "\(.*\)"$/\1/p' config.h > /out/source/configuration.txt \
     && test -s /out/source/configuration.txt \

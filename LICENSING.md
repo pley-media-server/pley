@@ -79,7 +79,8 @@ ships FFmpeg beside it, FFmpeg keeps its own licence:
   configuration, and the libraries built in with their versions and the
   image they come from (BtbN/FFmpeg-Builds, whose scripts name each
   library's source; libzvbi's source, which the script builds itself, is
-  there too). Whoever distributes the installer must also offer that source
+  there too, and libplacebo's (LGPL), rebuilt with a patch of Pley's under
+  its licence). Whoever distributes the installer must also offer that source
   (GPLv3 §6; <https://ffmpeg.org/legal.html>), which the installer does.
   An installer can be built with another FFmpeg
   ([deploy/windows/README.md](deploy/windows/README.md)), with that build's
