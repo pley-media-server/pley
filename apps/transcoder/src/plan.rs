@@ -165,14 +165,29 @@ pub fn tonemap_need(pixels_in: u64, pixels_out: u64, fps: f64) -> f64 {
     fps * TONEMAP_HEADROOM * work
 }
 
+/// Where no quality is fast enough, those measured within this share of the
+/// fastest count as fast as it, and the best of them is taken. On an RTX
+/// 5070 `fast` measures no faster than `balanced` (the start-up test then
+/// gives it `balanced`'s speed): four 4K transcodes at once went at the same
+/// frames a second at either, and `fast` gives up dithering and the better
+/// downscaler for nothing.
+const SAME_SPEED: f64 = 0.95;
+
 /// The best quality fast enough for libplacebo transcodes that `need` this
-/// together ([`tonemap_need`]); the fastest that works when none is.
+/// together ([`tonemap_need`]); when none is, the best of the fastest
+/// ([`SAME_SPEED`]).
 pub fn tonemap_quality(speed: &TonemapSpeed, need: f64) -> TonemapQuality {
     let working: Vec<TonemapQuality> = [TonemapQuality::High, TonemapQuality::Balanced, TonemapQuality::Fast]
         .into_iter()
         .filter(|q| speed.at(*q) > 0.0)
         .collect();
-    working.iter().copied().find(|q| speed.at(*q) >= need).or(working.last().copied()).unwrap_or_default()
+    let fastest = working.iter().map(|q| speed.at(*q)).fold(0.0, f64::max);
+    working
+        .iter()
+        .copied()
+        .find(|q| speed.at(*q) >= need)
+        .or_else(|| working.iter().copied().find(|q| speed.at(*q) >= fastest * SAME_SPEED))
+        .unwrap_or_default()
 }
 
 /// Whether no quality is fast enough for [`tonemap_quality`]: the GPU, not
@@ -4463,6 +4478,14 @@ mod tests {
         // A quality whose options this FFmpeg refused (measured 0) is never taken.
         let old = TonemapSpeed { high: 20.0, balanced: 0.0, fast: 0.0 };
         assert_eq!(tonemap_quality(&old, film), TonemapQuality::High);
+        // Where none keeps ahead, `fast` measured no faster than `balanced`
+        // (an RTX 5070's) buys no time: `balanced`. Within 5 % is as fast.
+        let rtx = TonemapSpeed { high: 120.1, balanced: 133.3, fast: 133.3 };
+        assert_eq!(tonemap_quality(&rtx, 8.0 * film), TonemapQuality::Balanced);
+        let near = TonemapSpeed { fast: 138.0, ..rtx };
+        assert_eq!(tonemap_quality(&near, 8.0 * film), TonemapQuality::Balanced);
+        let faster = TonemapSpeed { fast: 150.0, ..rtx };
+        assert_eq!(tonemap_quality(&faster, 8.0 * film), TonemapQuality::Fast);
     }
 
     #[test]

@@ -1077,7 +1077,9 @@ video plan):
   the one above it.
 - A process takes the best quality that measured at least twice what the jobs
   tone mapping with libplacebo need together, itself included; when none
-  did, the fastest. Each job needs its frame rate × (0.6 × the source's
+  did, the best of those within 5 % of the fastest: on an RTX 5070 `fast`
+  measures no faster than `balanced`, and four 4K transcodes at once went
+  as fast at `balanced`, with its dithering. Each job needs its frame rate × (0.6 × the source's
   pixels + 0.4 × the output's) relative to 4K, so a 4K film made 1080p needs
   less than one kept 4K. The source's pixels count where Quick Sync scaled
   the frames first too: its decoder and scaler work on the GPU libplacebo
