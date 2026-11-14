@@ -76,6 +76,19 @@ describe("DashboardSettings stopping playback", () => {
     expect(requests.find((r) => r.method === "DELETE")?.body).toBeUndefined();
   });
 
+  it("offers no message for a player that can't show one", async () => {
+    const user = userEvent.setup();
+    const cast: SessionInfo = { ...playing, device: "Den Apple TV", player: "airplay" };
+    const requests = mockApi({ "GET /api/activity": () => ({ scans: [], sessions: [cast] }), "DELETE /api/sessions/abc": () => undefined });
+    renderWithProviders(<DashboardSettings />);
+    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam on Den Apple TV" }));
+    const dialog = screen.getByRole("dialog", { name: "Stop playback" });
+    expect(within(dialog).queryByLabelText("Message")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Stop" }));
+    await waitFor(() => expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/sessions/abc")).toBe(true));
+    expect(requests.find((r) => r.method === "DELETE")?.body).toBeUndefined();
+  });
+
   it("keeps the dialog and says why when it can't", async () => {
     const user = userEvent.setup();
     serve(() => apiError(403, "forbidden", "only administrators can stop other people's playback"));

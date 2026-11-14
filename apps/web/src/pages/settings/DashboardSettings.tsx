@@ -99,7 +99,16 @@ function libraryWorkWaits(work: LibraryWorkStatus | null): string {
 /** Most a stop message may say (the server's limit). */
 const STOP_MESSAGE_MAX = 200;
 
-/** Ends someone's playback, with a message for their screen if wanted. */
+/**
+ * Whether `session`'s player shows a stop message: Pley's own apps do; other
+ * apps through the Plex and Jellyfin APIs, and devices the server casts to,
+ * only stop. A server before `player` was said: as Pley's.
+ */
+function showsStopMessage(session: SessionInfo): boolean {
+  return (session.player ?? "pley") === "pley";
+}
+
+/** Ends someone's playback, with a message for their screen if wanted and it shows one. */
 function StopSessionModal({ session, onClose }: { session: SessionInfo | null; onClose: () => void }) {
   const { t } = useTranslation(["settings", "common"]);
   const stop = useStopSession();
@@ -109,7 +118,7 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
     e.preventDefault();
     if (!session) return;
     stop.mutate(
-      { sessionId: session.session_id, message: message.trim() || undefined },
+      { sessionId: session.session_id, message: (showsStopMessage(session) && message.trim()) || undefined },
       {
         onSuccess: () => {
           toast.success(t("dashboard.stop.stopped"));
@@ -147,16 +156,18 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
               components={{ title: <span className="font-medium text-fg" /> }}
             />
           </p>
-          <Field label={t("dashboard.stop.message")} htmlFor="stop-session-message" hint={t("dashboard.stop.messageHint")}>
-            <textarea
-              id="stop-session-message"
-              rows={3}
-              value={message}
-              maxLength={STOP_MESSAGE_MAX}
-              onChange={(e) => setMessage(e.target.value)}
-              className="w-full resize-y rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent focus:outline-none"
-            />
-          </Field>
+          {showsStopMessage(session) ? (
+            <Field label={t("dashboard.stop.message")} htmlFor="stop-session-message" hint={t("dashboard.stop.messageHint")}>
+              <textarea
+                id="stop-session-message"
+                rows={3}
+                value={message}
+                maxLength={STOP_MESSAGE_MAX}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full resize-y rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent focus:outline-none"
+              />
+            </Field>
+          ) : null}
         </form>
       ) : null}
     </Modal>

@@ -24,7 +24,8 @@ describes how they are made.
   Network. A TV running a Pley app is listed once, as the app. They're
   listed while discovery is on in Settings → Network.
 - The dashboard says what plays each session: a Pley app, an app through
-  the Plex or Jellyfin API, Google Cast or AirPlay.
+  the Plex or Jellyfin API, Google Cast or AirPlay. Stopping one offers a
+  message only for Pley apps, the only ones that show it.
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.
