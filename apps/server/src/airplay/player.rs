@@ -155,9 +155,11 @@ impl Session<TcpStream> {
         tokio::spawn(read_events(events, notices));
         expect_ok(control.request("RECORD", &rtsp_url, true, &[], &[]).await?)?;
         // Apple's senders ask its info and record again before the
-        // remote-control stream.
+        // remote-control stream. An Apple TV answers the second RECORD with
+        // 500 and plays all the same, so its answer is only logged.
         let _ = control.request("GET", "/info", true, &[], &[]).await?;
-        expect_ok(control.request("RECORD", &rtsp_url, true, &[], &[]).await?)?;
+        let again = control.request("RECORD", &rtsp_url, true, &[], &[]).await?;
+        tracing::debug!("an AirPlay device answered RECORD again with {}", again.status());
         let stream = dict([
             ("clientUUID", uuid().into()),
             ("clientTypeUUID", CLIENT_TYPE.into()),
