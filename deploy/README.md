@@ -159,9 +159,10 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   A container is found only on the host's network (`--network host`, or
   Unraid's `br0`).
 - **Google Cast devices** (Chromecasts, Google TVs) are found by mDNS too,
-  and the server connects to them on **TCP 8009**; they fetch the stream
-  from the web port. A container sees them only on the host's network, as
-  above, and not with `--no-discovery`.
+  and the server connects to them on **TCP 8009**, and once to each on
+  **TCP 8008** to learn its model; they fetch the stream from the web
+  port. A container sees them only on the host's network, as above, and
+  not while discovery is off.
 - **From outside your network**, put Pley behind a reverse proxy with TLS
   (Caddy, nginx, Traefik). Docker publishes ports around host firewalls:
   with a proxy on the same computer, publish Pley on `127.0.0.1` only.
