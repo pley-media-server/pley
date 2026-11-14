@@ -2398,6 +2398,16 @@ URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
   that fetches it itself, once (a Cast receiver). A track still being read
   out of a big file is waited for, up to 8 seconds, before what is read so
   far comes with `X-Pley-Complete: 0`. `404` for a picture track.
+  With `hls=true`, it starts with the `X-TIMESTAMP-MAP` that matches its
+  cues with the session's stream (MPEG-TS segments start 1.4 s past the
+  file's time, fMP4 segments on it).
+- `/api/media/{key}/subtitled-{index}.m3u8`, of a session playing a
+  stream, is a playlist of the stream (`index.m3u8`) with text track
+  `index` beside it, shown at once, for a player that shows only subtitles
+  a stream's playlist names (an AirPlay device); `subtitles-{index}.m3u8`
+  is the track's own playlist, one segment of the whole track
+  (`subtitles-{index}.vtt?hls=true`). `404` for a picture track, or a
+  session playing its file as it is.
 - `/api/media/{key}/subtitles-{index}.json?at=` is the file's PGS track
   `index` as pictures, for a player that draws them without decoding PGS
   (Roku's): `{ complete, width, height, cues: [{ start_ms, end_ms, x, y,
@@ -3921,9 +3931,11 @@ would.
   stream through the device's play queue (tvOS 26 and later's way):
   Apple TV 4K takes HEVC, 4K, HDR10 and HLG, AC-3 and E-AC-3 up to 5.1;
   Apple TV HD H.264 up to 1080p with AC-3 and E-AC-3; other receivers
-  H.264 up to 1080p with stereo AAC, in HLS of MPEG-TS. Subtitles beside
-  the stream don't reach an AirPlay player: picture subtitles are burned
-  in, and text ones aren't shown, so the session says none are. The
+  H.264 up to 1080p with stereo AAC, in HLS of MPEG-TS. An AirPlay player
+  shows only subtitles its stream's playlist names: picture subtitles are
+  burned in, and a text track goes in the playlist (the keyed
+  `subtitled-{index}.m3u8`) when the title plays as a stream. One played
+  as its file is shows none, and the session says so. The
   session has the controls `play`, `pause`, `seek` and `skip`; the
   device keeps its volume to itself. It ends as a Cast device's does.
 

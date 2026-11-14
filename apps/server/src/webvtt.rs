@@ -23,6 +23,17 @@ pub fn shift(text: &str, offset_ms: i64) -> String {
     out
 }
 
+/// `text` with the line HLS players read to match its cues with a stream's
+/// timestamps: the stream's time `mpegts` (90 kHz) is the track's start.
+/// It goes in the header, after the first line.
+pub fn with_timestamp_map(text: &str, mpegts: u64) -> String {
+    let map = format!("X-TIMESTAMP-MAP=MPEGTS:{mpegts},LOCAL:00:00:00.000\n");
+    match text.find('\n') {
+        Some(end) => format!("{}{map}{}", &text[..=end], &text[end + 1..]),
+        None => format!("{text}\n{map}"),
+    }
+}
+
 /// A cue's timing line ("00:01.000 --> 00:04.000 line:90%") moved, or
 /// `None` for any other line. WebVTT allows `-->` nowhere else.
 fn moved_timing(line: &str, offset_ms: i64) -> Option<String> {
@@ -67,6 +78,13 @@ mod tests {
     use super::*;
 
     const TRACK: &str = "WEBVTT\n\nNOTE made by pley\n\n1\n00:01.000 --> 00:04.000 line:90% align:center\nHello\n\n01:00:02.500 --> 01:00:03.000\r\n<i>there</i>\r\n";
+
+    #[test]
+    fn the_timestamp_map_goes_in_the_header() {
+        let mapped = with_timestamp_map(TRACK, 126_000);
+        assert!(mapped.starts_with("WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:126000,LOCAL:00:00:00.000\n\nNOTE made by pley\n"));
+        assert_eq!(with_timestamp_map("WEBVTT", 0), "WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:0,LOCAL:00:00:00.000\n");
+    }
 
     #[test]
     fn moves_every_cue_and_nothing_else() {

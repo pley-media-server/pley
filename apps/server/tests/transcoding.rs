@@ -2069,6 +2069,47 @@ async fn pgs_subtitles_come_as_pictures_for_a_keyed_player() {
     assert_eq!(app.call(Method::GET, &wrong, None, None, &[]).await.status, StatusCode::NOT_FOUND);
 }
 
+/// An AirPlay device shows only subtitles a stream's playlist names: the
+/// keyed session serves a playlist with the text track beside the stream,
+/// the track's own playlist, and the track timed to the stream.
+#[tokio::test]
+async fn a_text_track_comes_in_the_stream_s_playlist_for_a_keyed_player() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let feature = w.movies["Feature"];
+    let started =
+        play(app, admin, json!({"item_id": feature, "caps": web_drawing_pictures(), "keyed_urls": true})).await;
+    assert_eq!(started.status, StatusCode::OK, "{:?}", started.body);
+    let url = started.body["url"].as_str().unwrap();
+    let folder = &url[..url.rfind('/').unwrap() + 1];
+    let bare = |name: &str| {
+        let uri = format!("{folder}{name}");
+        async move { app.call(Method::GET, &uri, None, None, &[]).await }
+    };
+
+    let master = bare("subtitled-4.m3u8").await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    assert_eq!(master.headers[header::CONTENT_TYPE], "application/vnd.apple.mpegurl");
+    let master = master.text();
+    assert!(master.contains("LANGUAGE=\"fr\",DEFAULT=YES,AUTOSELECT=YES,URI=\"subtitles-4.m3u8\""), "{master}");
+    assert!(master.ends_with("SUBTITLES=\"subtitles\"\nindex.m3u8\n"), "{master}");
+
+    let track = bare("subtitles-4.m3u8").await;
+    assert_eq!(track.status, StatusCode::OK, "{}", track.text());
+    assert!(track.text().contains("\nsubtitles-4.vtt?hls=true\n#EXT-X-ENDLIST\n"), "{}", track.text());
+
+    // MPEG-TS segments start 1.4 s past the file's time.
+    let cues = bare("subtitles-4.vtt?hls=true").await;
+    assert_eq!(cues.status, StatusCode::OK, "{}", cues.text());
+    assert!(cues.text().starts_with("WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:126000,LOCAL:00:00:00.000\n"), "{}", cues.text());
+    assert!(!bare("subtitles-4.vtt").await.text().contains("X-TIMESTAMP-MAP"));
+
+    // Pictures, and tracks the file doesn't have, aren't.
+    for missing in ["subtitled-3.m3u8", "subtitles-3.m3u8", "subtitled-9.m3u8", "subtitled-x.m3u8"] {
+        assert_eq!(bare(missing).await.status, StatusCode::NOT_FOUND, "{missing}");
+    }
+}
+
 #[tokio::test]
 async fn pictures_for_a_keyed_player_are_copied_from_around_where_it_asks() {
     let w = world().await;

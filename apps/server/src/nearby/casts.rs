@@ -228,7 +228,7 @@ impl Attempt<'_> {
         // choices. Text ones go beside the stream, as WebVTT; picture ones
         // the stream has burned in.
         let shown = cast.subtitle_index.or(session.play.lock().subtitle_index).filter(|i| *i >= 0);
-        let sideloads = device.protocol.shows_subtitles();
+        let sideloads = device.protocol.shows_subtitles(info.method != Method::Direct);
         let subtitle = shown.filter(|_| !info.burn_subtitles && sideloads).and_then(|index| {
             let track = info.subtitles.iter().find(|t| t.index == index && t.text_based)?;
             let name = track.title.clone().or_else(|| track.language.clone()).unwrap_or_else(|| format!("{index}"));
@@ -247,8 +247,14 @@ impl Attempt<'_> {
         let fmp4 = session.transcode.as_ref().is_some_and(|spec| !spec.request.segment_format.is_ts());
         let title =
             crate::api::items::item_or_404(state, user.id, cast.item_id).await.map(|row| row.title).unwrap_or_default();
+        // An AirPlay device finds its subtitles in the stream's playlist:
+        // one that names them, beside the stream's own.
+        let url = match (&subtitle, shown, device.protocol) {
+            (Some(_), Some(index), Protocol::AirPlay) => format!("{base}/api/media/{key}/subtitled-{index}.m3u8"),
+            _ => format!("{base}{}", info.url),
+        };
         let media = Media {
-            url: format!("{base}{}", info.url),
+            url,
             content_type: content_type.to_owned(),
             start_ms: cast.start_ms.unwrap_or(0),
             title,

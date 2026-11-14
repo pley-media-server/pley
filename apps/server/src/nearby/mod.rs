@@ -67,11 +67,13 @@ impl Protocol {
         }
     }
 
-    /// Its players show text subtitles from beside the stream.
-    pub fn shows_subtitles(self) -> bool {
+    /// Its players show text subtitles from beside what they play:
+    /// `streamed`, it comes as an HLS stream. An AirPlay device shows only
+    /// those a stream's playlist names, so not beside a file played as it is.
+    pub fn shows_subtitles(self, streamed: bool) -> bool {
         match self {
             Protocol::Cast => true,
-            Protocol::AirPlay => false,
+            Protocol::AirPlay => streamed,
         }
     }
 }
