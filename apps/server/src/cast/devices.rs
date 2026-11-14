@@ -150,13 +150,18 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast)
     let played = match attempt.play(picked).await {
         Err(Tried::Refused) if picked != Profile::BASIC => {
             tracing::info!("a Cast device refused its profile ({picked:?}): it is sent the basic one");
-            if let Some(model) = model {
+            let basic = attempt.play(Profile::BASIC).await;
+            // Its model is remembered only when the basic profile plays:
+            // then the stream, not the device, was what failed.
+            if basic.is_ok()
+                && let Some(model) = model
+            {
                 let mut refused = state.cast_devices.refused.lock();
                 if refused.len() < MAX_KNOWN {
                     refused.insert(model);
                 }
             }
-            attempt.play(Profile::BASIC).await
+            basic
         }
         played => played,
     };
@@ -352,7 +357,7 @@ impl Attempt<'_> {
                 tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
                 Err(match failure {
                     Failure::Load(_) => Tried::Refused,
-                    Failure::Launch(_) | Failure::Lost => Tried::Failed,
+                    Failure::Launch(_) | Failure::NotStarted(_) | Failure::Lost => Tried::Failed,
                 })
             }
         }

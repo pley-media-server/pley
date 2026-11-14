@@ -83,8 +83,10 @@ pub enum Event {
 pub enum Failure {
     /// The device didn't start Google's player.
     Launch(String),
-    /// The player refused the stream, or didn't start it in time.
+    /// The player refused the stream: another may do.
     Load(String),
+    /// The player didn't start the stream in time, or was closed.
+    NotStarted(String),
     /// The connection ended.
     Lost,
 }
@@ -141,28 +143,36 @@ impl Player {
             return Err(Failure::Lost);
         }
         let load = connection.request(&transport, NS_MEDIA, load_request(media)).await.ok_or(Failure::Lost)?;
+        // The stream's media session is the one the answer to the LOAD
+        // names: the player may still be telling of another, such as the
+        // stream a cast this one replaced left playing.
         let media_session = tokio::time::timeout(LOAD_WITHIN, async {
+            let mut ours = None;
             loop {
                 let message = incoming.recv().await.ok_or(Failure::Lost)?;
                 let p = &message.payload;
                 if message.namespace == NS_RECEIVER && p["type"] == "RECEIVER_STATUS" && running(p).is_none() {
-                    return Err(Failure::Load("the player was closed".into()));
+                    return Err(Failure::NotStarted("the player was closed".into()));
                 }
                 if message.namespace != NS_MEDIA {
                     continue;
                 }
                 match p["type"].as_str() {
                     Some("MEDIA_STATUS") => {
-                        let status = statuses(p).find_map(|s| s["mediaSessionId"].as_i64().map(|id| (id, s)));
-                        if let Some((id, s)) = status
-                            && s["playerState"] != "IDLE"
-                        {
-                            return Ok(id);
-                        }
-                        if let Some((_, s)) = status
-                            && s["idleReason"] == "ERROR"
-                        {
-                            return Err(Failure::Load("the player couldn't play it".into()));
+                        for s in statuses(p) {
+                            let Some(id) = s["mediaSessionId"].as_i64() else { continue };
+                            if p["requestId"] == load {
+                                ours = Some(id);
+                            }
+                            if ours != Some(id) {
+                                continue;
+                            }
+                            if s["playerState"] != "IDLE" {
+                                return Ok(id);
+                            }
+                            if s["idleReason"] == "ERROR" {
+                                return Err(Failure::Load("the player couldn't play it".into()));
+                            }
                         }
                     }
                     Some("LOAD_FAILED" | "LOAD_CANCELLED" | "INVALID_REQUEST" | "ERROR") if p["requestId"] == load => {
@@ -173,7 +183,7 @@ impl Player {
             }
         })
         .await
-        .map_err(|_| Failure::Load("the player didn't start the stream".into()))??;
+        .map_err(|_| Failure::NotStarted("the player didn't start the stream".into()))??;
 
         let (events, received) = mpsc::channel(32);
         tokio::spawn(follow(incoming, events, app_session.clone(), media_session));
@@ -526,6 +536,50 @@ mod tests {
         let home = json!([{"appId": "E8C28D3C", "transportId": "web-1", "sessionId": "b", "isIdleScreen": true}]);
         device.say(PLATFORM, NS_RECEIVER, Device::status(home)).await;
         assert_eq!(events.recv().await, Some(Event::Ended(Ended::Stopped)));
+    }
+
+    #[tokio::test]
+    async fn the_start_waits_for_the_answer_to_its_own_load() {
+        let m = media();
+        let (connection, incoming, mut device) = pair();
+        let answer = async {
+            device.next().await;
+            device.next().await;
+            let app = json!([{"appId": DEFAULT_MEDIA_RECEIVER, "transportId": "web-5", "sessionId": "s-1"}]);
+            device.say(PLATFORM, NS_RECEIVER, Device::status(app)).await;
+            device.next().await;
+            let load: Value = serde_json::from_str(&device.next().await.payload).unwrap();
+            // The stream a cast before this one left, ending as it is replaced.
+            device
+                .say(
+                    "web-5",
+                    NS_MEDIA,
+                    json!({"type": "MEDIA_STATUS", "requestId": 0, "status": [
+                        {"mediaSessionId": 3, "playerState": "IDLE", "idleReason": "ERROR"}
+                    ]}),
+                )
+                .await;
+            device
+                .say(
+                    "web-5",
+                    NS_MEDIA,
+                    json!({"type": "MEDIA_STATUS", "requestId": load["requestId"], "status": [
+                        {"mediaSessionId": 8, "playerState": "IDLE"}
+                    ]}),
+                )
+                .await;
+            device
+                .say(
+                    "web-5",
+                    NS_MEDIA,
+                    json!({"type": "MEDIA_STATUS", "requestId": 0, "status": [
+                        {"mediaSessionId": 8, "playerState": "BUFFERING", "currentTime": 10.0}
+                    ]}),
+                )
+                .await;
+        };
+        let (started, ()) = tokio::join!(Player::start(connection, incoming, &m), answer);
+        assert_eq!(started.unwrap().0.media_session, 8);
     }
 
     #[tokio::test]
