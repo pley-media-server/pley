@@ -9,8 +9,6 @@ describes how they are made.
 
 ## [Unreleased]
 
-## [0.1.11] - 2026-11-14
-
 ### Added
 
 - Home members can cast movies and episodes to Chromecasts, Google TVs,
@@ -27,6 +25,16 @@ describes how they are made.
 - The dashboard says what plays each session: a Pley app, an app through
   the Plex or Jellyfin API, Google Cast or AirPlay. Stopping one offers a
   message only for Pley apps, the only ones that show it.
+
+### Fixed
+
+- In a short window, Play on… and the web app's other menus scroll within
+  it rather than running past its top or bottom.
+
+## [0.1.11] - 2026-11-14
+
+### Added
+
 - Activity monitors such as Tracearr can connect through the
   Jellyfin-compatible API with a token that sees everyone's activity, and
   show what everyone is playing.
@@ -62,8 +70,6 @@ describes how they are made.
 
 ### Fixed
 
-- In a short window, Play on… and the web app's other menus scroll within
-  it rather than running past its top or bottom.
 - Infuse opens a Pley server through the Jellyfin-compatible API instead
   of saying "An error occurred" after signing in.
 - Live TV channels with AC-3 audio, such as US broadcast channels, and
