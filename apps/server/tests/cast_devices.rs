@@ -707,13 +707,15 @@ async fn a_session_slow_to_start_ends_the_cast_in_time_and_frees_the_device() {
 
 #[tokio::test]
 async fn a_cast_the_device_never_loads_stops_in_time() {
-    let mut w = world_within(Duration::from_secs(2)).await;
+    let mut w = world_within(Duration::from_secs(5)).await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     w.fake.silent_load.store(true, Ordering::SeqCst);
     let asked = std::time::Instant::now();
     let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
-    assert!(asked.elapsed() < Duration::from_secs(20), "answered at the deadline, not the device's own waits");
+    let waited = asked.elapsed();
+    assert!(waited >= Duration::from_secs(5), "not before the deadline: {waited:?}");
+    assert!(waited < Duration::from_secs(20), "answered at the deadline, not the device's own waits");
     // Nothing is left to play: no session, and Google's player closed.
     assert!(sessions(&w).await.is_empty());
     let (to, stop) = next(&mut w.sent, "STOP").await;
