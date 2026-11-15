@@ -223,7 +223,7 @@
       }
     },
     "%@ didn't pair." : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -393,7 +393,7 @@
       }
     },
     "%@ takes no other try yet: wait a moment." : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -2726,7 +2726,7 @@
       }
     },
     "Code" : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3287,7 +3287,7 @@
       }
     },
     "Everyone in your home can then play on it." : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -3830,19 +3830,19 @@
         }
       }
     },
-    "No code on the TV? Show it again" : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+    "No code showing? Show it again" : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "¿No hay código en la tele? Mostrarlo otra vez"
+            "value" : "¿No aparece ningún código? Mostrarlo otra vez"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pas de code sur la TV ? L’afficher à nouveau"
+            "value" : "Aucun code affiché ? L’afficher à nouveau"
           }
         }
       }
@@ -4120,7 +4120,7 @@
       }
     },
     "Pair" : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -4137,7 +4137,7 @@
       }
     },
     "Pair with %@" : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -5690,7 +5690,7 @@
       }
     },
     "That isn't the code %@ shows." : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
@@ -5944,19 +5944,19 @@
         }
       }
     },
-    "Type the code shown on the TV" : {
-      "comment" : "Play on…: pairing with an AirPlay device, whose code the TV shows.",
+    "Type the code %@ shows" : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Escribe el código que aparece en la tele"
+            "value" : "Escribe el código que muestra %@"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Saisissez le code affiché sur la TV"
+            "value" : "Saisissez le code affiché sur %@"
           }
         }
       }

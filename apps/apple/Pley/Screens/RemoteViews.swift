@@ -1013,7 +1013,7 @@ struct PairingSheet: View {
                         .animation(.default, value: pairing.wrong)
                         .accessibilityIdentifier("pairing.code")
                 } header: {
-                    Text(Words.pairingCodePrompt)
+                    Text(Words.pairingCodePrompt(pairing.name))
                 } footer: {
                     VStack(alignment: .leading, spacing: 8) {
                         if let error = pairing.error {

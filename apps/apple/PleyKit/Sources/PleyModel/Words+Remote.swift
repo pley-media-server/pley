@@ -191,11 +191,11 @@ extension Words {
     /// The sheet that asks for the code an AirPlay device shows: its title,
     /// what it asks, why, its field and its buttons.
     public static func pairWith(_ device: String) -> String { localized("Pair with \(device)") }
-    public static var pairingCodePrompt: String { localized("Type the code shown on the TV") }
+    public static func pairingCodePrompt(_ device: String) -> String { localized("Type the code \(device) shows") }
     public static var pairingWhy: String { localized("Everyone in your home can then play on it.") }
     public static var pairingCodeField: String { localized("Code") }
     public static var pairingPair: String { localized("Pair") }
-    public static var showCodeAgain: String { localized("No code on the TV? Show it again") }
+    public static var showCodeAgain: String { localized("No code showing? Show it again") }
 
     /// What that sheet, or a toast, says when pairing didn't go.
     public static func wrongPairingCode(_ device: String) -> String { localized("That isn't the code \(device) shows.") }

@@ -307,6 +307,9 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(String(decoding: sent.body, as: UTF8.self) == #"{"item_id":7}"#)
         #expect(app.shell.toast?.text == "Playing on Den Apple TV")
         #expect(!model.pairingBusy)
+        // The sheet's words name the device, which may be a Mac as well as a TV, as every app's do.
+        #expect(Words.pairingCodePrompt("Den Apple TV") == "Type the code Den Apple TV shows")
+        #expect(Words.showCodeAgain == "No code showing? Show it again")
     }
 
     @Test func aPairingClosedMeanwhileSendsNothing() async throws {

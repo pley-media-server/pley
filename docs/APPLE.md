@@ -1483,10 +1483,11 @@ there can also say "Kitchen TV can't reach this server" (`409`
 server hasn't paired with answers `409` `pairing_needed`: the app has it
 show its code (`POST /api/remote/devices/{id}/pairing` with no `pin`),
 and a sheet asks for it, "Pair with Den Apple TV", with "Type the code
-shown on the TV" and "Everyone in your home can then play on it." The
+Den Apple TV shows" (a Mac shows one too) and "Everyone in your home can
+then play on it." The
 field takes digits alone, 4 at most (all the server takes); where the
 server says how many the code has (`digits`, 4 on an Apple TV), it goes
-as the last is typed, else with Pair. "No code on the TV? Show it again"
+as the last is typed, else with Pair. "No code showing? Show it again"
 has the device show a new one. A wrong code shakes the field and says
 "That isn't the code Den Apple TV shows." to type again, and a device
 that takes no other try yet says so; any other refusal closes the sheet
