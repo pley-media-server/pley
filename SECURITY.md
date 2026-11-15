@@ -407,7 +407,8 @@ other apps (`pley_ct_…`), never with a session's
   What the device sends is read within bounds: 16 KiB a pairing message,
   1 MiB a message, frames of 1 KiB. Its session has Pley connect to the
   event port it names, at its own address, and answer its clock on a UDP
-  port of Pley's, which closes with the session.
+  port of Pley's, which answers that address alone and closes with the
+  session.
 - Before its first cast to a Cast device, Pley asks the device's own setup API
   (`http://<its address>:8008/setup/eureka_info`, an address one of the
   answers above named) which hardware it is, waiting a second at most and

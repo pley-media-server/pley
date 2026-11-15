@@ -116,7 +116,7 @@ impl Session<TcpStream> {
         ]);
         let timing = UdpSocket::bind(SocketAddr::new(local, 0)).await?;
         let timing_port = timing.local_addr()?.port();
-        let timing = Task(tokio::spawn(answer_clock(timing)));
+        let timing = Task(tokio::spawn(answer_clock(timing, device)));
         let session_id = uuid();
         let mac = sender_mac(id);
         let rtsp_url = format!("rtsp://{local}/{}", rand_u64() as u32);
@@ -212,30 +212,40 @@ fn sender_mac(id: &str) -> String {
 
 /// Answers the device's NTP requests on `socket` with the server's clock,
 /// as the session's timing port: the device waits for its clock before it
-/// plays.
-async fn answer_clock(socket: UdpSocket) {
+/// plays. Only `device` is answered: anyone else on the network could
+/// otherwise have the server send its answers to an address of their
+/// choosing.
+async fn answer_clock(socket: UdpSocket, device: IpAddr) {
     let mut buf = [0u8; 128];
     loop {
         let Ok((len, from)) = socket.recv_from(&mut buf).await else { return };
-        if len < 32 {
-            continue;
-        }
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-        // NTP counts from 1900.
-        let seconds = (now.as_secs() + 2_208_988_800) as u32;
-        let fraction = ((u64::from(now.subsec_nanos()) << 32) / 1_000_000_000) as u32;
-        let mut out = [0u8; 32];
-        out[0] = buf[0];
-        out[1] = 0xD3;
-        out[2..4].copy_from_slice(&7u16.to_be_bytes());
-        // Its send time, as the reference it measures by.
-        out[8..16].copy_from_slice(&buf[24..32]);
-        for at in [16, 24] {
-            out[at..at + 4].copy_from_slice(&seconds.to_be_bytes());
-            out[at + 4..at + 8].copy_from_slice(&fraction.to_be_bytes());
+        if let Some(out) = clock_answer(&buf[..len], from, device, now) {
+            let _ = socket.send_to(&out, from).await;
         }
-        let _ = socket.send_to(&out, from).await;
     }
+}
+
+/// The answer to an NTP request `packet` that came from `from`, with the
+/// server's clock at `now`: none when it isn't the device's, or isn't one.
+fn clock_answer(packet: &[u8], from: SocketAddr, device: IpAddr, now: Duration) -> Option<[u8; 32]> {
+    if from.ip() != device || packet.len() < 32 {
+        return None;
+    }
+    // NTP counts from 1900.
+    let seconds = (now.as_secs() + 2_208_988_800) as u32;
+    let fraction = ((u64::from(now.subsec_nanos()) << 32) / 1_000_000_000) as u32;
+    let mut out = [0u8; 32];
+    out[0] = packet[0];
+    out[1] = 0xD3;
+    out[2..4].copy_from_slice(&7u16.to_be_bytes());
+    // Its send time, as the reference it measures by.
+    out[8..16].copy_from_slice(&packet[24..32]);
+    for at in [16, 24] {
+        out[at..at + 4].copy_from_slice(&seconds.to_be_bytes());
+        out[at + 4..at + 8].copy_from_slice(&fraction.to_be_bytes());
+    }
+    Some(out)
 }
 
 /// Reads what the device says on its event connection, answers each, and
@@ -636,6 +646,21 @@ mod tests {
         assert_eq!(read_time(&cm_time(90_500)), Some(90_500));
         assert!(sender_mac("x").starts_with(|c: char| c.is_ascii_hexdigit()));
         assert_eq!(sender_mac("x"), sender_mac("x"));
+    }
+
+    #[test]
+    fn the_clock_answers_the_device_alone() {
+        let device: IpAddr = "192.168.1.20".parse().unwrap();
+        let mut request = [0u8; 48];
+        request[0] = 0x23;
+        request[24..32].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let now = Duration::from_secs(1_700_000_000);
+        let answer = clock_answer(&request, "192.168.1.20:7010".parse().unwrap(), device, now).unwrap();
+        assert_eq!((answer[0], &answer[8..16]), (0x23, &[1, 2, 3, 4, 5, 6, 7, 8][..]));
+        assert_eq!(u32::from_be_bytes(answer[16..20].try_into().unwrap()), 1_700_000_000 + 2_208_988_800);
+        // Someone else on the network, and a request cut short.
+        assert_eq!(clock_answer(&request, "192.168.1.21:7010".parse().unwrap(), device, now), None);
+        assert_eq!(clock_answer(&request[..31], "192.168.1.20:7010".parse().unwrap(), device, now), None);
     }
 
     /// A device's end of the control connection: the commands Pley posts
