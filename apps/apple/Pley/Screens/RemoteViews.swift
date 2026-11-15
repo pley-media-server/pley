@@ -939,8 +939,10 @@ struct PlayOnMenu: View {
             } label: {
                 if iconOnly {
                     // A target of its own, among the overlay's other buttons.
-                    if starting != nil {
-                        ProgressView().frame(width: 44, height: 44)
+                    if let starting {
+                        ProgressView()
+                            .frame(width: 44, height: 44)
+                            .accessibilityLabel(starting)
                     } else {
                         Label(title, systemImage: "play.tv").labelStyle(.iconOnly).frame(width: 44, height: 44)
                     }
