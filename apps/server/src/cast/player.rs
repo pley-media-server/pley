@@ -3,6 +3,7 @@
 //! commands passed on. The device fetches the stream itself, from the
 //! session's keyed address.
 
+use std::net::SocketAddr;
 use std::time::Duration;
 
 use serde_json::{Value, json};
@@ -19,6 +20,9 @@ pub const DEFAULT_MEDIA_RECEIVER: &str = "CC1AD845";
 /// start the stream (a transcode's first segment comes first).
 const LAUNCH_WITHIN: Duration = Duration::from_secs(20);
 const LOAD_WITHIN: Duration = Duration::from_secs(60);
+/// How long the device may take to say which apps run, when its player is
+/// closed after a cast that failed.
+const CLOSE_WITHIN: Duration = Duration::from_secs(5);
 
 /// Google's player playing a stream on a device.
 pub struct Player {
@@ -175,6 +179,33 @@ impl Player {
     pub fn leave(&self) {
         self.connection.close();
     }
+}
+
+/// Closes Google's player on the device at `address`, if it runs there: a
+/// cast that launched it and then failed to play leaves it open and idle
+/// on the TV otherwise.
+pub async fn close(address: SocketAddr) {
+    let Ok((connection, mut incoming)) = Connection::connect(address).await else { return };
+    if !connection.open(PLATFORM).await {
+        return;
+    }
+    let Some(asked) = connection.request(PLATFORM, NS_RECEIVER, json!({"type": "GET_STATUS"})).await else {
+        return;
+    };
+    let app = tokio::time::timeout(CLOSE_WITHIN, async {
+        while let Some(message) = incoming.recv().await {
+            let p = &message.payload;
+            if message.namespace == NS_RECEIVER && p["type"] == "RECEIVER_STATUS" && p["requestId"] == asked {
+                return running(p);
+            }
+        }
+        None
+    })
+    .await;
+    if let Ok(Some((_, app_session))) = app {
+        connection.request(PLATFORM, NS_RECEIVER, json!({"type": "STOP", "sessionId": app_session})).await;
+    }
+    connection.close();
 }
 
 /// The LOAD request for `media`.

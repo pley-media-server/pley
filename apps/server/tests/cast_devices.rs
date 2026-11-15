@@ -524,6 +524,24 @@ async fn a_new_cast_that_fails_leaves_the_one_playing_be() {
     let listed = sessions(&w).await;
     assert_eq!(listed.len(), 1, "{listed:?}");
     assert_eq!(listed[0]["session_id"], playing);
+    // Nor is the player it plays in closed.
+    while let Ok((to, payload)) = w.sent.try_recv() {
+        assert!(!(to == "receiver-0" && payload["type"] == "STOP"), "{payload}");
+    }
+}
+
+#[tokio::test]
+async fn a_cast_that_fails_closes_the_player_it_opened() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.refuse.store(2, Ordering::SeqCst);
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(failed.status, StatusCode::CONFLICT, "{}", failed.text());
+    // Google's player, opened for the cast, is closed: the TV goes back to
+    // what it showed.
+    let (to, stop) = next(&mut w.sent, "STOP").await;
+    assert_eq!((to.as_str(), stop["sessionId"].as_str()), ("receiver-0", Some("s-1")));
+    assert!(sessions(&w).await.is_empty());
 }
 
 #[tokio::test]

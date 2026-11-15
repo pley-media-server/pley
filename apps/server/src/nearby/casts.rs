@@ -121,6 +121,17 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
         }
         (played, _) => played,
     };
+    // A Cast device that answered but played neither stream is left with
+    // Google's player open and idle: it is closed, unless a cast plays in
+    // it or a newer one is on its way. Only now, as closing it between the
+    // two tries would have the second open it again.
+    if matches!(played, Err(Tried::Refused | Tried::Failed))
+        && device.protocol == Protocol::Cast
+        && !ours.is_cancelled()
+        && !state.nearby.playing.lock().contains_key(&key)
+    {
+        crate::cast::player::close(device.address).await;
+    }
     forget(&state.nearby.pending, &key, cast_id);
     let (player, events, session_id, duration_ms) = match played {
         Ok(started) => started,
@@ -131,7 +142,7 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
         Err(tried) => {
             return Err(match tried {
                 Tried::Superseded => unreachable!(),
-                Tried::Refused | Tried::Failed => {
+                Tried::Refused | Tried::Failed | Tried::Lost => {
                     AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned())
                 }
                 Tried::Error(err) => err,
@@ -154,8 +165,10 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
 enum Tried {
     /// The device refused the stream: another profile may do.
     Refused,
-    /// It didn't answer, or went away.
+    /// It didn't start its player, or the stream, in time.
     Failed,
+    /// It couldn't be reached, or went away.
+    Lost,
     /// The session didn't start.
     Error(AppError),
     /// A newer cast to the device took its place.
@@ -327,7 +340,8 @@ impl Attempt<'_> {
                 tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
                 Err(match failure {
                     Failure::Refused(_) => Tried::Refused,
-                    Failure::NotStarted(_) | Failure::Lost => Tried::Failed,
+                    Failure::NotStarted(_) => Tried::Failed,
+                    Failure::Lost => Tried::Lost,
                     Failure::NeedsPairing => Tried::Error(AppError::ConflictAs(
                         PAIRING_NEEDED,
                         "the device wants a PIN: pair with it first".to_owned(),
