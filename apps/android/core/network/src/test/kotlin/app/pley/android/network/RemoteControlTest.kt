@@ -19,11 +19,14 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -249,6 +252,27 @@ class RemoteControlTest {
         )
         assertEquals(listOf(CastProtocol.Cast, CastProtocol.AirPlay, CastProtocol.Unknown, null), api.remoteDevices().map { it.protocol })
         assertEquals("1", server.takeRequest(5, TimeUnit.SECONDS)?.url?.queryParameter("nearby"))
+    }
+
+    @Test
+    fun castsAndPairingsWaitForTheDeviceLongerThanOtherCallsWaitForTheServer() = runTest {
+        // A client that gives up on a quiet server sooner than OkHttp's 10 s, as everything else does.
+        val quick = OkHttpClient.Builder().readTimeout(200, TimeUnit.MILLISECONDS).build()
+        val api = HttpPleyApi(issuer, { quick })
+        fun late(answer: MockResponse) = answer.newBuilder().headersDelay(600, TimeUnit.MILLISECONDS).build()
+
+        // The server answers once the device plays, or paired: a while later.
+        server.enqueue(late(MockPley.noContent()))
+        api.cast("cast:abc", app.pley.android.model.CastRequest(itemId = 101))
+        server.enqueue(late(MockPley.json("""{"digits":4}""")))
+        assertEquals(4, api.showPairingCode("airplay:a1b2c3d4e5f6").digits)
+        server.enqueue(late(MockPley.noContent()))
+        api.pair("airplay:a1b2c3d4e5f6", "4821")
+        // Anything else gives up as before.
+        server.enqueue(late(MockPley.noContent()))
+        val stop = runCatching { api.stopSession("6f1c2a9e") }.exceptionOrNull()
+        assertTrue("$stop", stop is OfflineException)
+        assertEquals(HttpPleyApi.DEVICE_READ_SECONDS * 1_000, HttpPleyApi.waitingForDevices(quick).readTimeoutMillis.toLong())
     }
 
     @Test

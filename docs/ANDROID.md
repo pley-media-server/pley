@@ -524,7 +524,10 @@ devices, and another can be picked: the device **isn't on any more**
 (`404`), **can't play that** (`409`), **Too many at once** (`429`), and
 for a Google Cast or AirPlay device, it **can't reach this server**
 (`409 cast_unreachable`) or **didn't play it** (`409 cast_failed`), else
-the server's own words.
+the server's own words. The server answers a cast to a Google Cast or
+AirPlay device once the device plays, which can take a minute or more:
+the phone waits up to 3 minutes for that answer, and for a pairing's,
+where its other calls give up after 10 seconds without one.
 
 An AirPlay device the server hasn't paired with answers the cast `409
 pairing_needed`. The chooser asks it to show a code (`POST
