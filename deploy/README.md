@@ -190,6 +190,9 @@ an app used, the app refuses the server. So a reverse proxy must:
   proxy on the same computer, the local network or a Docker network;
 - not buffer responses (live updates are server-sent events, and video
   streams as it is read);
+- wait more than 3 minutes for an answer: a cast to a Google Cast or
+  AirPlay device answers once the device plays, which can take that long,
+  and nginx's default of 60 seconds answers `504` first;
 - accept uploads of up to 25 MB (artwork).
 
 **Caddy** does all of it by default:
@@ -224,6 +227,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_buffering off;
+        proxy_read_timeout 240s;
     }
 }
 ```
