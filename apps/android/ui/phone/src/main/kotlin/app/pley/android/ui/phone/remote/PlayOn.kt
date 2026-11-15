@@ -67,6 +67,7 @@ import app.pley.android.network.PairingRefusal
 import app.pley.android.screens.item.TrackChoices
 import app.pley.android.screens.onboarding.PinEntry
 import app.pley.android.ui.phone.R
+import app.pley.android.ui.phone.kit.DelayedSpinner
 import app.pley.android.ui.phone.kit.PinPad
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
@@ -512,7 +513,7 @@ internal fun PlayOnSheet(
                 choices.forEach { device ->
                     key(device.deviceId) {
                         val name = names.getValue(device.deviceId)
-                        ChooserRow(device, name, enabled = sending == null) {
+                        ChooserRow(device, name, enabled = sending == null, starting = sending == device.deviceId) {
                             // Another profile's device, with a PIN to give: the pad first.
                             if (device.profile != null && remote.castNeedsPin) {
                                 error = null
@@ -592,9 +593,14 @@ internal object CastsSent {
     }
 }
 
-/** A device to send to: its kind's icon, its name, and what it plays now or that it is ready (on whose profile, for another's). */
+/**
+ * A device to send to: its kind's icon, its name, and what it plays now or
+ * that it is ready (on whose profile, for another's); while what was sent
+ * is [starting] there, a spinner, as a Google Cast or AirPlay device takes
+ * seconds to answer.
+ */
 @Composable
-private fun ChooserRow(device: OtherDevice, name: String, enabled: Boolean, onClick: () -> Unit) {
+private fun ChooserRow(device: OtherDevice, name: String, enabled: Boolean, starting: Boolean, onClick: () -> Unit) {
     val session = device.session
     Row(
         Modifier
@@ -618,6 +624,10 @@ private fun ChooserRow(device: OtherDevice, name: String, enabled: Boolean, onCl
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        if (starting) {
+            Spacer(Modifier.width(8.dp))
+            DelayedSpinner(stringResource(R.string.remote_starting_on, name), Modifier.testTag(PLAY_ON_STARTING), size = 20.dp)
+        }
     }
 }
 
@@ -628,6 +638,9 @@ internal const val PLAY_ON = "pley.phone.play_on"
 internal const val PLAY_ON_SHEET = "pley.phone.play_on_sheet"
 internal const val PLAY_ON_SHUFFLE = "pley.phone.play_on_shuffle"
 internal const val PLAY_ON_DEVICE = "pley.phone.play_on_device."
+
+/** The spinner of the device a cast is starting on. */
+internal const val PLAY_ON_STARTING = "pley.phone.play_on_starting"
 
 /** The PIN pad a cast to another profile's device asks first, or the code an AirPlay device shows. */
 internal const val PLAY_ON_PIN = "pley.phone.play_on_pin"

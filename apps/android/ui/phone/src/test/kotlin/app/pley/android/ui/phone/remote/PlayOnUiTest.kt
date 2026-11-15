@@ -34,6 +34,7 @@ import app.pley.android.screens.item.TrackChoice
 import app.pley.android.screens.item.TrackChoices
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
 import app.pley.android.ui.phone.kit.PIN_ERROR_TAG
+import app.pley.android.ui.phone.kit.SPINNER_DELAY_MS
 import app.pley.android.ui.phone.onboarding.LocalOnboardingSource
 import app.pley.android.ui.phone.shell.PhoneNavigation
 import app.pley.android.ui.phone.shell.PhoneShell
@@ -306,6 +307,27 @@ class PlayOnUiTest {
         compose.waitForIdle()
         compose.onNodeWithText("Bedroom Chromecast didn't play it.").assertExists()
         assertTrue(graph.castsSent.isEmpty())
+    }
+
+    @Test
+    fun aCastStartingOnADeviceShowsASpinnerOnItsRowUntilTheDeviceTakesIt() {
+        shell(castTv(), livingRoom())
+        choose(CastTarget(itemId = 101, video = true))
+        // A Google Cast device answers once it plays: seconds later.
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.mainClock.advanceTimeBy(SPINNER_DELAY_MS + 100)
+        compose.waitForIdle()
+        // Inside the row, which reads as one.
+        compose.onNodeWithTag(PLAY_ON_STARTING, useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("Starting on Bedroom Chromecast…", useUnmergedTree = true).assertExists()
+        // One cast at a time: the other devices wait.
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertIsNotEnabled()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(CAST_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
     }
 
     @Test

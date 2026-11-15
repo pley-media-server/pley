@@ -92,6 +92,9 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
     val castRefusals = java.util.concurrent.ConcurrentLinkedQueue<Exception>()
     @Volatile var castNeedsPin = false
 
+    /** While set, a cast waits for it before it is answered, as a Google Cast device takes seconds to. */
+    @Volatile var castGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
     /**
      * AirPlay pairing: the devices asked to show their code, by receiver id,
      * a code of [codeLength] digits (`null`: not known); the codes typed,
@@ -155,6 +158,7 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
             override suspend fun command(sessionId: String, command: PlayerCommandRequest) = Unit
             override suspend fun stop(sessionId: String) = Unit
             override suspend fun cast(receiverId: String, request: CastRequest) {
+                castGate?.await()
                 castRefusals.poll()?.let { throw it }
                 castFailure?.let { throw it }
                 castsSent += receiverId to request
