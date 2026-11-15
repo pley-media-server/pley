@@ -348,6 +348,28 @@ class Media3EngineTest {
     }
 
     @Test
+    fun aLiveChannelGoesQuietForAnotherAppsSoundAndPlaysOn() {
+        codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
+        val engine = engine()
+        val channel = EngineSource(file(), hls = false, mimeType = "video/mp4", live = true)
+        engine.prepare(channel, startMs = 0, playWhenReady = true)
+        val looper = shadowOf(Looper.getMainLooper())
+        looper.idle()
+
+        // Another app plays: the channel doesn't pause (its player would play it again, taking the focus back).
+        shadowOf(context.getSystemService(AudioManager::class.java)).lastAudioFocusRequest.listener.onAudioFocusChange(AudioManager.AUDIOFOCUS_LOSS)
+        looper.idle()
+        assertTrue(engine.player.playWhenReady)
+        assertEquals(0f, engine.player.volume, 0f)
+
+        // The next channel tuned, playing on, asks for the sound again.
+        engine.prepare(channel, startMs = 0, playWhenReady = true)
+        looper.idle()
+        assertTrue(engine.player.playWhenReady)
+        assertEquals(1f, engine.player.volume, 0f)
+    }
+
+    @Test
     fun aTvLeavesTheModeForShortItemsAndPhonesNeverWait() {
         codecs.addDecoders(ShadowMediaCodecConfig.CODEC_INFO_AVC, ShadowMediaCodecConfig.CODEC_INFO_AAC)
         val host = FakeHost(ModeChoiceTest.STREAMER.copy(matchContent = MatchContent.Always))

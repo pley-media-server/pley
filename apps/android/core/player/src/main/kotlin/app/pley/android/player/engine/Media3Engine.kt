@@ -103,9 +103,9 @@ class Media3EngineFactory(
  * - buffers by memory tier, starting sooner from a home server;
  * - on TVs, the display mode matched to the video's frame rate before it
  *   plays; on phones, Media3's seamless-only rate hints;
- * - audio focus that pauses rather than ducks passthrough, pauses when
- *   headphones or HDMI go, and an audio output started again after it
- *   fails;
+ * - audio focus that pauses rather than ducks passthrough and quiets a
+ *   live channel rather than pausing it, pauses when headphones or HDMI
+ *   go, and an audio output started again after it fails;
  * - loads retried while the server is out of reach (MediaRetries), and
  *   then [EngineState.reconnecting];
  * - stats, a struggling decoder, and tracks the device can't play, in
@@ -298,7 +298,11 @@ class Media3Engine(
         player.setSeekParameters(SeekParameters.EXACT)
         // A live channel starts at its default position: the live edge, less the playlist's offset.
         if (source.live) player.setMediaSource(loading.mediaSource(source)) else player.setMediaSource(loading.mediaSource(source), startMs.coerceAtLeast(0))
+        focus?.live = source.live
         setPlayWhenReady(playWhenReady && !matchPending)
+        // A channel tuned while another played doesn't change playWhenReady: the focus is asked for here, so the
+        // sound comes back after another app took it.
+        if (source.live && playWhenReady) focus?.beforePlay()
         player.prepare()
         if (matchPending && window != null) startMatch()
     }

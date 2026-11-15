@@ -723,6 +723,10 @@ for again once 10 s have passed, as the list moves. When the player fails,
 the channel is tuned again twice, after 1 s and then 3 s, before the player
 says why; not when the server refused it (every connection in use, the
 channel stopped, gone or not allowed). Try again starts the count again.
+Live TV has no pause, so another app's sound, a call's included, quiets
+the channel instead: its sound comes back once the other app is done, or,
+after music or a video, which take the sound for good, with the next
+channel tuned.
 
 On phones and tablets the live player goes into picture in picture as
 the video player does: by itself when you leave it while a channel plays
