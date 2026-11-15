@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV goes into picture in picture on phones and tablets, as videos
+  do, with Channel down and Channel up in its small window.
+
 ## [0.1.13] - 2026-11-14
 
 ### Changed

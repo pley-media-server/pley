@@ -724,6 +724,16 @@ the channel is tuned again twice, after 1 s and then 3 s, before the player
 says why; not when the server refused it (every connection in use, the
 channel stopped, gone or not allowed). Try again starts the count again.
 
+On phones and tablets the live player goes into picture in picture as
+the video player does: by itself when you leave it while a channel plays
+or tunes (Android 12 and later; Home on older versions), or with the
+picture in picture button in its bar. The small window shows the picture
+alone (the channel's logo while it tunes or for a radio channel, why it
+doesn't play when it fails) with Channel down and Channel up as its
+buttons, and keeps the session. Closing it, or the screen turning off,
+lets the session go, as leaving does; back in the player, the channel is
+tuned again.
+
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
 holding OK shows the controls (the channel list and the favourite's star) over
 what's on. Up and Down, Channel up and down, and Previous and Next change
@@ -1245,8 +1255,7 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
 
 - Downloads are on phones and tablets only; TVs stream everything.
 - No Watch Next row on phones or Fire TV.
-- Live TV has no picture in picture, and the TV's display mode isn't
-  matched for live channels.
+- The TV's display mode isn't matched for live channels.
 - Videos on a USB drive are on TVs only. Their display mode isn't
   matched, as their frame rate is known only once they play; HDR10+ shows
   as HDR10 in the player's details; M2TS and MTS files aren't listed, as

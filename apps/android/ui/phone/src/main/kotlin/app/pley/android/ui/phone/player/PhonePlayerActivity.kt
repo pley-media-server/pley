@@ -1,19 +1,16 @@
 package app.pley.android.ui.phone.player
 
-import android.app.AppOpsManager
 import android.app.PictureInPictureParams
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ActivityInfo
-import android.content.pm.PackageManager
 import android.content.res.Configuration
 import android.graphics.Rect
 import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Process
 import android.provider.Settings as SystemSettings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -289,17 +286,7 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
 
     // ---------------------------------------------------------------- picture in picture
 
-    override val pipSupported: Boolean by lazy {
-        if (!packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)) return@lazy false
-        val ops = getSystemService(AppOpsManager::class.java) ?: return@lazy true
-        @Suppress("DEPRECATION")
-        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            ops.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), packageName)
-        } else {
-            ops.checkOpNoThrow(AppOpsManager.OPSTR_PICTURE_IN_PICTURE, Process.myUid(), packageName)
-        }
-        mode == AppOpsManager.MODE_ALLOWED
-    }
+    override val pipSupported: Boolean by lazy { PictureInPicture.allowed(this) }
 
     override fun enterPip() {
         if (!pipSupported) return
@@ -324,46 +311,24 @@ class PhonePlayerActivity : ComponentActivity(), PlayerHost {
     private fun updatePip(s: PlayerUiState) {
         if (!pipSupported) return
         val playing = isPlaying(s.phase)
-        val next = listOf(playing, aspect(), sourceHint())
+        val next = listOf(playing, PictureInPicture.aspect(picture.videoAspect), sourceHint())
         if (next == pipKey) return
         pipKey = next
         runCatching { setPictureInPictureParams(pipParams(playing)) }
     }
 
-    private fun pipParams(playing: Boolean): PictureInPictureParams {
-        val builder = PictureInPictureParams.Builder()
-            .setAspectRatio(aspect())
-            .setActions(listOf(PipActions.playPause(this, playing)))
-        sourceHint()?.let(builder::setSourceRectHint)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            // Only while playing: a paused video doesn't shrink into a corner.
-            builder.setAutoEnterEnabled(playing)
-            builder.setSeamlessResizeEnabled(false)
-        }
-        return builder.build()
-    }
+    // Enters by itself only while playing: a paused video doesn't shrink into a corner.
+    private fun pipParams(playing: Boolean): PictureInPictureParams =
+        PictureInPicture.params(picture.videoAspect, sourceHint(), listOf(PipActions.playPause(this, playing)), autoEnter = playing)
 
-    /**
-     * Where picture in picture grows from: the whole picture, fitted to this
-     * window (picture in picture shows all of it, however it was zoomed).
-     */
+    /** Where picture in picture grows from: the whole picture, fitted to this window. */
     private fun sourceHint(): Rect? {
         // In picture in picture the window is the small one: the hint for coming back stays as it was.
         if (inPip.value) return lastHint
-        val root = window.decorView
-        if (root.width == 0 || root.height == 0) return null
-        val r = PictureGeometry.place(root.width, root.height, picture.videoAspect, 1f, keepBottom = false)
-        return Rect(r.left, r.top, r.right, r.bottom).takeIf { !it.isEmpty }.also { lastHint = it }
+        return PictureInPicture.hint(window.decorView, picture.videoAspect).also { lastHint = it }
     }
 
     private var lastHint: Rect? = null
-
-    /** The video's shape, within what picture in picture allows (2.39:1 either way). */
-    private fun aspect(): android.util.Rational {
-        val video = picture.videoAspect.takeIf { it > 0f } ?: (16f / 9f)
-        val clamped = video.coerceIn(1f / 2.39f + 0.001f, 2.39f - 0.001f)
-        return android.util.Rational((clamped * 1000).roundToInt(), 1000)
-    }
 
     // ---------------------------------------------------------------- the host's other parts
 
