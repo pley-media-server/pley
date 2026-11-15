@@ -504,3 +504,73 @@ describe("LivePlayerPage and the remote", () => {
     expect(requests.some((r) => r.method === "DELETE")).toBe(false);
   });
 });
+
+describe("LivePlayerPage and picture in picture", () => {
+  const sport: Channel = { ...news, id: 6, name: "Sport", number: "6", group: "Sport" };
+  /** The browser's media session: the page's handlers, by action, as the window's buttons call them. */
+  const actions = new Map<string, (() => void) | null>();
+
+  beforeEach(() => {
+    hlsInstances.length = 0;
+    actions.clear();
+    vi.stubGlobal("EventSource", FakeEventSource);
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+    Object.defineProperty(navigator, "mediaSession", {
+      configurable: true,
+      value: { setActionHandler: (action: string, handler: (() => void) | null) => actions.set(action, handler) },
+    });
+  });
+  afterEach(() => {
+    Reflect.deleteProperty(navigator, "mediaSession");
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  /** Two channels; each watch gets its own session (5-1, 6-1, 5-2…). */
+  function serveTwo(): FakeRequest[] {
+    const channels = [news, sport];
+    const handlers: Parameters<typeof mockApi>[0] = {
+      "GET /api/live/browse": () => ({ total: channels.length, offset: 0, channels }),
+    };
+    for (const c of channels) {
+      let n = 0;
+      handlers[`GET /api/live/channels/${c.id}`] = () => c;
+      handlers[`POST /api/live/channels/${c.id}/watch`] = () => {
+        n++;
+        return { session_id: `${c.id}-${n}`, url: `/api/live/sessions/${c.id}-${n}/index.m3u8`, kind: "hls", channel: c };
+      };
+      handlers[`DELETE /api/live/sessions/${c.id}-1`] = () => undefined;
+      handlers[`DELETE /api/live/sessions/${c.id}-2`] = () => undefined;
+    }
+    return mockApi(handlers);
+  }
+  const watched = (requests: FakeRequest[]) =>
+    requests.filter((r) => r.method === "POST" && r.path.endsWith("/watch")).map((r) => r.path);
+
+  it("lets the browser open its window, as for a video", async () => {
+    serveTwo();
+    const { container } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    expect(container.querySelector("video")).not.toHaveAttribute("disablepictureinpicture");
+  });
+
+  it("changes channel from the window's next and previous buttons", async () => {
+    const requests = serveTwo();
+    const { unmount } = renderWithProviders(<PlayerWithEvents />, { route: "/live/5" });
+    await waitFor(() => expect(hlsInstances[0]?.calls).toContain("attachMedia"));
+    await waitFor(() => expect(requests.some((r) => r.path.startsWith("/api/live/browse"))).toBe(true));
+
+    act(() => actions.get("nexttrack")?.());
+    await waitFor(() => expect(watched(requests).at(-1)).toBe("/api/live/channels/6/watch"));
+    act(() => actions.get("previoustrack")?.());
+    await waitFor(() => expect(watched(requests).at(-1)).toBe("/api/live/channels/5/watch"));
+    expect(watched(requests)).toHaveLength(3);
+
+    // Gone with the player: the buttons and media keys are the browser's again.
+    unmount();
+    expect(actions.get("nexttrack")).toBeNull();
+    expect(actions.get("previoustrack")).toBeNull();
+  });
+});

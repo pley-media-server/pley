@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV goes into the browser's picture in picture, as videos do; next
+  and previous, in its small window or on the keyboard, change channel.
+
 ### Changed
 
 - HDR made SDR keeps the master's brightness up to SDR's white, with the

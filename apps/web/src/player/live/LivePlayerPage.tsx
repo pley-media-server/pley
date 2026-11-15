@@ -534,6 +534,27 @@ function LivePlayer({
   });
   useEffect(() => onServerEvent(onEvent), []);
 
+  // Next and previous track change channel, as up and down do: the buttons
+  // of the browser's picture in picture window, and the keyboard's media keys.
+  const onTrack = useEffectEvent((by: 1 | -1) => onStep(by));
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    const set = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // A browser without that action.
+      }
+    };
+    set("nexttrack", () => onTrack(1));
+    set("previoustrack", () => onTrack(-1));
+    return () => {
+      set("nexttrack", null);
+      set("previoustrack", null);
+    };
+  }, []);
+
   // Leaving the page (a closed tab) lets the connection go at once.
   useEffect(() => {
     const leave = () => {
@@ -736,7 +757,6 @@ function LivePlayer({
           ref={videoRef}
           className="absolute inset-0 size-full object-contain"
           playsInline
-          disablePictureInPicture
           onClick={() => (panel ? setPanel(false) : poke())}
           onDoubleClick={toggleFullscreen}
         />
