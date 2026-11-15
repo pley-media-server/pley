@@ -321,12 +321,19 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         await model.cast(.item(7, video: true), to: den)
         // A TV that may want a password: no known length, 4 digits at most all the same.
         #expect(model.pairing?.digits == nil && model.pairing?.most == 4)
+
+        // Closed while the code is on its way: the server pairs, but what was cast stays unsent.
+        server.hold(path: "/api/remote/devices/airplay:den/pairing")
         let pairing = Task { await model.pair(code: "4821") }
+        #expect(await eventually { server.pairingCodesTyped == ["4821"] })
+        #expect(model.pairingBusy)
         model.pairing = nil
+        server.release(path: "/api/remote/devices/airplay:den/pairing")
         await pairing.value
-        // Only the first cast went: Cancel leaves what was cast unsent.
+        // Only the first cast went, the one the device wanted its code for.
         #expect(server.castsReceived.count == 1)
-        #expect(model.pairing == nil)
+        #expect(model.pairing == nil && !model.pairingBusy)
+        #expect(app.shell.toast == nil)
     }
 
     @Test func aGoogleCastDevicesVolumeIsSetAndAnsweredByItsReport() async throws {
