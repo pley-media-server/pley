@@ -1,0 +1,120 @@
+# syntax=docker/dockerfile:1.7
+# pley-ffmpeg for Windows: FFmpeg 9 with the patches in patches/, as the
+# Docker image's (Dockerfile), cross-compiled with mingw-w64 into
+# ffmpeg.exe and ffprobe.exe that need no DLL beside them. The output is a
+# folder the installer takes as it is (scripts/build-installer.ps1 -Ffmpeg
+# <folder>\bin): the programs, FFmpeg's licence, a README (windows/) and
+# source\, what they were built from.
+#
+#   docker build -f deploy/ffmpeg/Dockerfile.windows --output dist/pley-ffmpeg-windows-x86_64 deploy/ffmpeg
+
+# The compiler and the libraries FFmpeg links, built for Windows by
+# BtbN/FFmpeg-Builds (https://github.com/BtbN/FFmpeg-Builds, MIT), pinned
+# by digest: its scripts.d names each library's source and commit.
+ARG DEPS_IMAGE=ghcr.io/btbn/ffmpeg-builds/win64-gpl-9.0@sha256:fb4ed524faadf288d91e3236c77c8a77e75a5cd13e7932e6f2619dc2cda7cd7d
+
+FROM ${DEPS_IMAGE} AS build
+ARG DEPS_IMAGE
+ARG FFMPEG_VERSION=9.0.2
+ARG FFMPEG_SHA256=8c3850283eb25fa026482078a04051e0be17347b09ef81a0849bec15a96e002e
+ARG ZVBI_COMMIT=34bb6f660c5c1bacd4a66cc7b22311e4ca3c1ab5
+ARG ZVBI_SHA256=5c671a9f052e41cf770372a263ee6258cb41f6c97ce884080f68b341ab81db1a
+# The image's own libplacebo version, rebuilt with a patch of Pley's.
+ARG LIBPLACEBO_VERSION=7.387.0
+ARG LIBPLACEBO_COMMIT=275f7dea27924cdd34ab2e6c20e448b6bc4fab65
+# How many compilers run at once: all the processors, unless set.
+ARG JOBS
+WORKDIR /src
+# libzvbi, which reads teletext subtitles, is the one library the image
+# doesn't bring.
+RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "zvbi-$ZVBI_COMMIT.tar.gz" "https://github.com/zapping-vbi/zvbi/archive/$ZVBI_COMMIT.tar.gz" \
+    && echo "$ZVBI_SHA256  zvbi-$ZVBI_COMMIT.tar.gz" | sha256sum -c - \
+    && mkdir zvbi && tar -xzf "zvbi-$ZVBI_COMMIT.tar.gz" -C zvbi --strip-components=1 \
+    && cd zvbi \
+    && ./autogen.sh \
+    && ./configure --prefix="$FFBUILD_PREFIX" --host="$FFBUILD_TOOLCHAIN" --disable-shared --enable-static --with-pic \
+        --without-doxygen --without-x --disable-dvb --disable-bktr --disable-nls --disable-proxy \
+    && make -C src -j"${JOBS:-$(nproc)}" \
+    && make -C src install \
+    && make SUBDIRS=. install \
+    && cd .. && rm -rf zvbi
+COPY Dockerfile.windows ./
+COPY patches/ patches/
+COPY windows/ windows/
+# libplacebo as the image builds it (its scripts.d/50-libplacebo.sh), with
+# windows/libplacebo-uploads.patch: AMD's integrated graphics take frames
+# from memory as they are, where 7.387 has the CPU copy each one first,
+# several times slower.
+RUN git clone --quiet --depth 1 --branch "v$LIBPLACEBO_VERSION" https://code.videolan.org/videolan/libplacebo.git \
+    && test "$(git -C libplacebo rev-parse HEAD)" = "$LIBPLACEBO_COMMIT" \
+    && git -C libplacebo submodule --quiet update --init --recursive --depth 1 \
+    && patch -d libplacebo -p1 --no-backup-if-mismatch -F0 -i ../windows/libplacebo-uploads.patch \
+    && tar --exclude-vcs -cJf "libplacebo-$LIBPLACEBO_VERSION.tar.xz" libplacebo \
+    && meson setup libplacebo/build libplacebo --prefix="$FFBUILD_PREFIX" --buildtype=release --default-library=static \
+        --cross-file=/cross.meson -Dvulkan=enabled -Dvk-proc-addr=enabled \
+        -Dvulkan-registry="$FFBUILD_PREFIX/share/vulkan/registry/vk.xml" -Dshaderc=enabled -Dglslang=disabled \
+        -Dlcms=enabled -Dxxhash=enabled -Dd3d11=enabled -Ddemos=false -Dtests=false -Dbench=false -Dfuzz=false \
+    && ninja -C libplacebo/build ${JOBS:+-j "$JOBS"} install \
+    && echo "Libs.private: -lstdc++" >> "$FFBUILD_PREFIX/lib/pkgconfig/libplacebo.pc" \
+    && rm -rf libplacebo
+# The patches are applied in the order of their series file, and the build
+# stops at one that doesn't apply exactly.
+RUN curl -fsSL --retry 5 --retry-all-errors --retry-delay 10 -o "ffmpeg-$FFMPEG_VERSION.tar.xz" "https://ffmpeg.org/releases/ffmpeg-$FFMPEG_VERSION.tar.xz" \
+    && echo "$FFMPEG_SHA256  ffmpeg-$FFMPEG_VERSION.tar.xz" | sha256sum -c - \
+    && tar -xJf "ffmpeg-$FFMPEG_VERSION.tar.xz" \
+    && cd "ffmpeg-$FFMPEG_VERSION" \
+    && while read -r patch; do \
+        patch -p1 --no-backup-if-mismatch -F0 -i "../patches/$patch" || exit 1; \
+    done < ../patches/series
+# Only what is named is built in (--disable-autodetect): what the transcoder
+# uses (apps/transcoder/src/ffmpeg.rs), and the libraries that read what
+# FFmpeg can't by itself. The image's own flags link its compiler's
+# libraries into the programs. FFmpeg must have found how D3D11's frames
+# are shared with OpenCL, which it leaves out silently otherwise.
+RUN cd "ffmpeg-$FFMPEG_VERSION" \
+    && ./configure --prefix=/usr/local --extra-version=pley \
+        $FFBUILD_TARGET_FLAGS --pkg-config-flags=--static --extra-ldflags=-pthread \
+        --disable-debug --disable-doc --disable-ffplay --disable-autodetect \
+        --enable-gpl --enable-version3 \
+        --disable-w32threads --enable-pthreads \
+        --enable-iconv --enable-zlib --enable-lzma --enable-libxml2 --enable-gmp --enable-schannel \
+        --enable-libx264 --enable-libx265 --enable-libsvtav1 --enable-libdav1d --enable-libvpx --enable-libwebp \
+        --enable-libopus --enable-libmp3lame --enable-libvorbis \
+        --enable-libass --enable-libfreetype --enable-fontconfig --enable-libfribidi --enable-libharfbuzz \
+        --enable-libplacebo --enable-vulkan --enable-lcms2 --enable-libzimg --enable-chromaprint \
+        --enable-opencl --enable-libvpl --enable-amf \
+        --enable-ffnvcodec --enable-nvenc --enable-nvdec --enable-cuvid --enable-cuda-llvm \
+        --enable-d3d11va --enable-dxva2 --enable-d3d12va --enable-mediafoundation --enable-vaapi \
+        --enable-libaribb24 --enable-libaribcaption --enable-libzvbi --enable-libdavs2 --enable-libuavs3d \
+        --enable-libjxl --enable-libopenjpeg --enable-libopenmpt --enable-libgme --enable-libsnappy \
+        --enable-libsrt --enable-librist --enable-libssh \
+    && grep -qx '#define HAVE_OPENCL_D3D11 1' config.h \
+    && make -j"${JOBS:-$(nproc)}"
+# The programs load nothing but Windows' own libraries: one more would be a
+# DLL to ship, and a program that doesn't start without it.
+RUN cd "ffmpeg-$FFMPEG_VERSION" \
+    && for exe in ffmpeg.exe ffprobe.exe; do \
+        "${FFBUILD_CROSS_PREFIX}objdump" -p "$exe" | sed -n 's/.*DLL Name: //p' | tr 'A-Z' 'a-z' | sort -u > "/tmp/$exe.dlls"; \
+        if grep -Evx 'api-ms-win-.*\.dll|(advapi32|avicap32|bcrypt|cfgmgr32|crypt32|d2d1|dwrite|gdi32|iphlpapi|kernel32|ncrypt|ntdll|ole32|oleaut32|rpcrt4|secur32|shell32|shlwapi|user32|usp10|ws2_32)\.dll' "/tmp/$exe.dlls"; then \
+            echo "$exe needs a DLL that isn't Windows' own" >&2; exit 1; \
+        fi; \
+    done
+# What the installer carries: the programs, the licence the build is under
+# (--enable-gpl --enable-version3: the GPL, version 3 or later), and what
+# they were built from.
+RUN cd "ffmpeg-$FFMPEG_VERSION" \
+    && install -d /out/bin /out/source \
+    && install -m755 ffmpeg.exe ffprobe.exe /out/bin/ \
+    && install -m644 COPYING.GPLv3 /out/LICENSE.txt \
+    && install -m644 ../windows/README.txt /out/README.txt \
+    && install -m644 "../ffmpeg-$FFMPEG_VERSION.tar.xz" "../zvbi-$ZVBI_COMMIT.tar.gz" \
+        "../libplacebo-$LIBPLACEBO_VERSION.tar.xz" /out/source/ \
+    && tar -C .. --sort=name --owner=0 --group=0 --numeric-owner -cJf /out/source/recipe.tar.xz Dockerfile.windows patches windows \
+    && sed -n 's/^#define FFMPEG_CONFIGURATION "\(.*\)"$/\1/p' config.h > /out/source/configuration.txt \
+    && test -s /out/source/configuration.txt \
+    && { echo "The libraries built into ffmpeg.exe and ffprobe.exe, from"; echo "$DEPS_IMAGE"; echo; sh ../windows/libraries.sh; } > /out/source/libraries.txt \
+    && cat /out/source/libraries.txt
+
+# Files only: `docker build --output <folder>` writes them out.
+FROM scratch
+COPY --from=build /out/ /

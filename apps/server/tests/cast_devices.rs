@@ -660,6 +660,7 @@ async fn stuck_transcoder() -> String {
                 hardware: false,
                 accel: HwAccel::None,
                 main10: false,
+                low_power: false,
             }],
             ..Default::default()
         },

@@ -234,6 +234,14 @@ pub struct MediaStream {
     /// by an older transcoder).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hdr10plus: Option<bool>,
+    /// HDR10's static metadata (the mastering display's colours and
+    /// brightness, SMPTE ST 2086) in the video's first frames, looked for
+    /// in Dolby Vision and PQ streams. Quick Sync's scaler and VAAPI tone
+    /// map by it: without it the first leaves the picture as it is and the
+    /// second refuses the frames. `None`: not looked for (other streams, or
+    /// probed by an older transcoder).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub hdr10_metadata: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color_transfer: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -335,6 +343,17 @@ impl MediaStream {
             && (self.dv_profile == Some(5) || self.dv_bl_compat == Some(0))
     }
 
+    /// Whether the picture is HDR10 once its scene-by-scene metadata is left
+    /// unread: HDR10 and HDR10+, and Dolby Vision over an HDR10 base layer
+    /// (compatibility 1, and 6, profile 7's Blu-ray HDR10).
+    pub fn has_hdr10_base(&self) -> bool {
+        match self.dynamic_range() {
+            DynamicRange::Hdr10 | DynamicRange::Hdr10plus => true,
+            DynamicRange::DolbyVision => matches!(self.dv_bl_compat, Some(1 | 6)),
+            DynamicRange::Hlg | DynamicRange::Sdr => false,
+        }
+    }
+
     /// The Dolby Vision level the stream's size and frame rate need: the
     /// lowest whose pixels a second take them, in Dolby's table (1 for 720p
     /// at 24 fps up to 13 for 8K at 120). `None` without a size or a rate.
@@ -428,6 +447,13 @@ pub enum Tonemapper {
     Opencl,
     /// CPU via zimg (`zscale` + `tonemap`).
     Zscale,
+    /// Intel's GPU via Quick Sync's scaler (`vpp_qsv`), in place of
+    /// libplacebo where the GPU falls behind: the transcoder's choice, never
+    /// one to ask for. Never sent: a job's status says it with
+    /// [`VideoPlan::tonemap_quick_sync`], which older servers ignore, where
+    /// this value would make its status unreadable to them.
+    #[serde(rename = "vpp_qsv")]
+    QuickSync,
 }
 
 impl Tonemapper {
@@ -436,6 +462,7 @@ impl Tonemapper {
             Tonemapper::Libplacebo => "libplacebo",
             Tonemapper::Opencl => "opencl",
             Tonemapper::Zscale => "zscale",
+            Tonemapper::QuickSync => "vpp_qsv",
         }
     }
 }
@@ -518,24 +545,53 @@ pub struct EncoderInfo {
     /// transcodes that keep HDR need.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub main10: bool,
+    /// Quick Sync's encoder passed its test encodes in low-power mode
+    /// (Intel's fixed-function encoder, VDEnc), Main 10 too for HEVC: jobs
+    /// then encode that way, which leaves the GPU's shader cores to tone
+    /// mapping and runs faster at the same picture quality.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub low_power: bool,
 }
 
 /// A hardware pipeline that keeps frames in GPU memory from decode to encode.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct GpuPipeline {
     pub accel: HwAccel,
-    /// Input codec keys: `h264`, `hevc`, `hevc10`, `av1`, `vp9`, `mpeg2video`.
+    /// Input codec keys ([`decode_key`]): `h264`, `hevc`, `hevc10`,
+    /// `hevc10-yuv422p10le`, `av1`, `vp9`, `mpeg2video`.
     pub codecs: Vec<String>,
+    /// Those whose frames stay on the GPU in 10 bits too, into its HEVC
+    /// Main 10 encoder: transcodes that keep HDR. Quick Sync's only; older
+    /// transcoders tried none.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub main10: Vec<String>,
 }
 
-/// Codec key used for hardware decode capability checks (`hevc10` for 10-bit HEVC).
-pub fn decode_key(codec: &str, bit_depth: Option<i64>) -> String {
-    match (codec, bit_depth.unwrap_or(8)) {
+/// Codec key used for hardware decode capability checks: `hevc10` for
+/// 10-bit HEVC; the depth for video deeper than 10 bits (`hevc-12`); and the
+/// pixel format after the key for video that isn't 4:2:0 (`h264-yuv422p`).
+/// A pipeline tested on 8- and 10-bit 4:2:0 clips isn't used for the others
+/// (Intel's decoders can't decode 4:2:2 H.264): the start-up tests try one
+/// of them, 10-bit 4:2:2 HEVC (`hevc10-yuv422p10le`), and the rest match no
+/// pipeline.
+pub fn decode_key(codec: &str, bit_depth: Option<i64>, pix_fmt: Option<&str>) -> String {
+    let key = match (codec, bit_depth.unwrap_or(8)) {
+        (c, d) if d > 10 => format!("{c}-{d}"),
         ("hevc", d) if d > 8 => "hevc10".into(),
         ("h264", d) if d > 8 => "h264-10".into(),
         ("vp9", d) if d > 8 => "vp9-10".into(),
         (c, _) => c.to_owned(),
+    };
+    match pix_fmt {
+        Some(format) if !is_420(format) => format!("{key}-{format}"),
+        _ => key,
     }
+}
+
+/// Whether FFmpeg's pixel format halves chroma both ways (4:2:0), as all
+/// but one of the start-up tests' clips do.
+fn is_420(pix_fmt: &str) -> bool {
+    ["yuv420", "yuvj420", "yuva420", "nv12", "nv21", "p010", "p012", "p016"].iter().any(|f| pix_fmt.starts_with(f))
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
@@ -564,6 +620,21 @@ pub struct Capabilities {
     /// with the input codecs each one handles.
     #[serde(default)]
     pub gpu_pipelines: Vec<GpuPipeline>,
+    /// Quick Sync's scaler tone maps HDR10 that its decoder decoded to SDR
+    /// ([`Tonemapper::QuickSync`]). A start-up test.
+    #[serde(default)]
+    pub qsv_tonemap: bool,
+    /// Quick Sync lays picture subtitles on frames its decoder decoded, on
+    /// Windows. A start-up test.
+    #[serde(default)]
+    pub qsv_overlay: bool,
+    /// OpenCL tone maps Dolby Vision by its own metadata between FFmpeg's
+    /// decoder on Direct3D 11 and Quick Sync's encoder, the frames never
+    /// copied (Windows, with Pley's FFmpeg or jellyfin-ffmpeg): where Dolby
+    /// Vision goes when libplacebo can't keep up. A start-up test, on a clip
+    /// that carries the metadata.
+    #[serde(default)]
+    pub qsv_opencl_dovi: bool,
     /// Tone mappers whose frames reach a VAAPI encoder (Linux): libplacebo
     /// on a Vulkan device and OpenCL on a device made from the VAAPI one,
     /// the frames uploaded back to it. A start-up test; zimg always does.
@@ -628,10 +699,24 @@ pub struct Capabilities {
     /// a GPU, and from older transcoders, which tone map at `High`.
     #[serde(default)]
     pub tonemap_speed: Option<TonemapSpeed>,
+    /// libplacebo runs on a CPU's Vulkan (Mesa's llvmpipe), where no GPU
+    /// is: it tone maps at [`TonemapQuality::Fast`] there, which is several
+    /// times faster than `High` and looks almost the same.
+    #[serde(default)]
+    pub placebo_software: bool,
     /// libplacebo takes `shader_cache` (FFmpeg 8 and later): compiled
     /// shaders are kept on disk, so tone mapping starts sooner.
     #[serde(default)]
     pub placebo_shader_cache: bool,
+    /// libplacebo takes `fallback_peak` (Pley's FFmpeg): HDR10 without its
+    /// metadata is tone mapped from that peak rather than PQ's 10000 cd/m².
+    #[serde(default)]
+    pub placebo_fallback_peak: bool,
+    /// `tonemap_opencl` has BT.2390's curve (jellyfin-ffmpeg's and Pley's
+    /// FFmpeg): it then tone maps by the stream's own metadata and applies
+    /// Dolby Vision's reshaping, and is given that curve.
+    #[serde(default)]
+    pub opencl_bt2390: bool,
     /// AMF encoders get frames FFmpeg uploaded to the AMD GPU (Direct3D 11)
     /// rather than frames in system memory, which AMF copies over itself
     /// several times slower (Windows).
@@ -1265,6 +1350,10 @@ pub struct VideoPlan {
     #[serde(default)]
     pub dv_bl_compat: Option<i64>,
     pub tonemap: Option<Tonemapper>,
+    /// Quick Sync's scaler tone maps in libplacebo's place
+    /// ([`Tonemapper::QuickSync`]); `tonemap` is then `None`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub tonemap_quick_sync: bool,
     /// What libplacebo does of its work (`tonemap` libplacebo only).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tonemap_quality: Option<TonemapQuality>,
@@ -1731,6 +1820,26 @@ mod tests {
     }
 
     #[test]
+    fn video_that_isnt_4_2_0_has_a_decode_key_of_its_own() {
+        assert_eq!(decode_key("h264", Some(8), Some("yuv420p")), "h264");
+        assert_eq!(decode_key("hevc", Some(10), Some("yuv420p10le")), "hevc10");
+        assert_eq!(decode_key("mjpeg", None, Some("yuvj420p")), "mjpeg");
+        assert_eq!(decode_key("hevc", Some(10), None), "hevc10", "unknown: as before");
+        // 10-bit 4:2:2 HEVC has a start-up test of its own.
+        assert_eq!(decode_key("hevc", Some(10), Some("yuv422p10le")), "hevc10-yuv422p10le");
+        // What the start-up tests never decode: no GPU pipeline matches it.
+        assert_eq!(decode_key("h264", Some(8), Some("yuv422p")), "h264-yuv422p");
+        assert_eq!(decode_key("h264", Some(8), Some("yuv444p")), "h264-yuv444p");
+        assert_eq!(decode_key("h264", Some(8), Some("gray")), "h264-gray");
+        assert_eq!(decode_key("hevc", Some(12), Some("yuv420p12le")), "hevc-12");
+        assert_eq!(decode_key("av1", Some(12), Some("yuv444p12le")), "av1-12-yuv444p12le");
+        // Pipelines from older transcoders tried nothing in 10 bits.
+        let p: GpuPipeline = serde_json::from_str(r#"{"accel":"qsv","codecs":["hevc10"]}"#).unwrap();
+        assert!(p.main10.is_empty());
+        assert!(!serde_json::to_string(&p).unwrap().contains("main10"));
+    }
+
+    #[test]
     fn segment_formats_are_ts_unless_asked_and_known() {
         // Requests from older servers, and answers from older transcoders.
         let req: JobRequest = serde_json::from_str(r#"{"input":"/m/a.mkv"}"#).unwrap();
@@ -1797,6 +1906,13 @@ mod tests {
         let hdr10plus =
             MediaStream { dynamic_range: Some(DynamicRange::Hdr10plus), hdr10plus: Some(true), ..Default::default() };
         assert_eq!(hdr10plus.dynamic_range_label(), "HDR10+");
+        // What is HDR10 under its scene-by-scene metadata: HDR10+, and
+        // Dolby Vision over an HDR10 base layer, profile 7's included.
+        assert!(hdr10plus.has_hdr10_base());
+        assert!(dv(8, 1, None, None).has_hdr10_base() && dv(7, 6, Some(DolbyVisionLayer::Fel), None).has_hdr10_base());
+        assert!(!dv(5, 0, None, None).has_hdr10_base(), "profile 5 has no picture without its metadata");
+        assert!(!dv(8, 4, None, None).has_hdr10_base() && !dv(8, 2, None, None).has_hdr10_base(), "HLG and SDR bases");
+        assert!(!MediaStream::default().has_hdr10_base());
         let p5 =
             MediaStream { dynamic_range: Some(DynamicRange::DolbyVision), dv_profile: Some(5), ..Default::default() };
         assert!(p5.is_dolby_vision_only());

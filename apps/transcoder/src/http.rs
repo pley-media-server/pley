@@ -977,6 +977,7 @@ mod tests {
             hardware: false,
             accel: HwAccel::None,
             main10: false,
+            low_power: false,
         };
         let caps = Capabilities {
             ffmpeg_available: true,

@@ -61,6 +61,11 @@ docker logs pley    # the setup link
 
 - **Intel or AMD GPU:** add `--device /dev/dri`. **NVIDIA:** add
   `--gpus all` (needs the NVIDIA Container Toolkit).
+- **Intel's Quick Sync** works in the image on 11th-generation Core
+  (Tiger Lake) and later, Arc and the N100 family: Debian 13 has only
+  Intel's current runtime (`libmfx-gen1.2`). Older Intel graphics transcode
+  with VAAPI instead, the same video engine through another driver
+  interface.
 - Pley runs as user and group 1000 (`-e PUID=… -e PGID=…` change them) and
   gives that user the config folder on its first start. Libraries are
   folders under `/media`.
@@ -90,8 +95,10 @@ and `PLEY_FFPROBE=…` in the unit.
 - **Intel and AMD:** install the VAAPI driver (`intel-media-va-driver-non-free`
   or `mesa-va-drivers`) and `mesa-vulkan-drivers` (for HDR tone mapping),
   then uncomment `SupplementaryGroups=render video` in the unit. With several
-  GPUs Pley takes the first Intel or AMD one;
-  `Environment=PLEY_VAAPI_DEVICE=/dev/dri/renderD129` picks another.
+  GPUs Pley takes the first Intel or AMD one (Quick Sync the first Intel
+  one); `Environment=PLEY_VAAPI_DEVICE=/dev/dri/renderD129` picks another.
+  Quick Sync also needs Intel's runtime: `libmfx-gen1.2` for 11th-generation
+  Core and later, `libmfx1` (where the distribution still has it) for older.
 - **NVIDIA:** the proprietary driver is enough. If NVENC works by hand but
   not from the service, load `nvidia-uvm` at boot.
 
@@ -115,9 +122,10 @@ burn-in). Until releases are signed, downloaded binaries may need
 
 `pley-server-<version>-windows-<arch>-setup.exe` installs Pley with FFmpeg
 and a firewall rule, as a locked-down service or in the notification area:
-[windows/README.md](windows/README.md). Or extract the archive, install
-FFmpeg (`winget install Gyan.FFmpeg`, whose "full" build has NVENC, QSV, AMF
-and Vulkan tone mapping) and run `pley.exe`.
+[windows/README.md](windows/README.md); its FFmpeg is pley-ffmpeg's
+Windows build, with the Docker image's patches for Intel GPUs. Or extract
+the archive, install FFmpeg (`winget install Gyan.FFmpeg`, whose "full"
+build has NVENC, QSV, AMF and Vulkan tone mapping) and run `pley.exe`.
 
 ## Synology
 

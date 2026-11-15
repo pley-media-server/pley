@@ -46,7 +46,10 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
   mapping, use a build with NVENC, QSV, AMF or VAAPI and libplacebo:
   gyan.dev's "full" build on Windows, the distribution's or jellyfin-ffmpeg
   on Linux, Homebrew's `ffmpeg-full` on macOS
-  ([deploy/README.md](../deploy/README.md)).
+  ([deploy/README.md](../deploy/README.md)). The Docker image's is
+  pley-ffmpeg, FFmpeg with patches for Intel GPUs, which
+  [deploy/ffmpeg](../deploy/ffmpeg/README.md) builds for Linux and for
+  Windows.
 
 ## Running from source
 

@@ -413,6 +413,8 @@ interface MediaStream {
   dv_level?: number;                // Dolby Vision level (absent with dv_unnamed)
   hdr10plus?: boolean;              // Dolby Vision and PQ streams: HDR10+ in the first frames (absent: not
                                     // looked for). On Dolby Vision, true means Dolby Vision + HDR10+
+  hdr10_metadata?: boolean;         // Dolby Vision and PQ streams: HDR10's mastering display metadata in the
+                                    // first frames, which some tone mappers need (absent: not looked for)
   // Clients name the dynamic range the same way everywhere: "Dolby Vision P8.1", "Dolby Vision P8.4",
   // "Dolby Vision P5", "Dolby Vision P7 FEL" (or MEL; "P7" when not known, never "P7.6"),
   // "Dolby Vision P8.1 + HDR10+", "HDR10+", "HDR10", "HLG". Badges shorten "Dolby Vision" to "DV".
@@ -4138,7 +4140,8 @@ interface TranscodeInfo {
   preset: string | null;        // the software encoder's current preset (the automatic one changes)
   decoder: string | null;       // "cuda", "vulkan", "cpu", …
   pipeline: string | null;      // "gpu" (zero-copy), "hybrid", "cpu" or "copy"
-  tonemap: string | null;       // "libplacebo" | "opencl" | "zscale" when HDR/DV is tone-mapped to SDR
+  tonemap: string | null;       // "libplacebo" | "opencl" | "zscale" | "vpp_qsv" (Quick Sync's scaler, VAAPI's
+                                // on Linux) when HDR/DV is tone-mapped to SDR
   dolby_vision: string | null;  // remuxes: "kept" (named in master.m3u8), "converted to 8.1" (profile 7)
   hdr10plus_stripped: boolean;  // the remux leaves out HDR10+ (Dolby Vision + HDR10+ streams)
   subtitle_burn: boolean;
