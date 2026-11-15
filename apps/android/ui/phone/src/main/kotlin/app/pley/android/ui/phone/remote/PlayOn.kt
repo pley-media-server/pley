@@ -342,7 +342,7 @@ internal fun PlayOnSheet(
      */
     suspend fun showCode(device: OtherDevice, name: String, pad: PinAsk?) {
         val receiver = device.receiver ?: return
-        // Closed while the cast was out: a code would show on the TV with no pad to type it on.
+        // Closed while the cast was out: a code would show on the device with no pad to type it on.
         if (!open.get()) return
         try {
             val length = remote.showPairingCode(receiver.receiverId)
@@ -458,7 +458,8 @@ internal fun PlayOnSheet(
                 }
             }
             PinPad(
-                title = stringResource(if (shown.pairing) R.string.play_on_code_title else R.string.play_on_pin_title),
+                // The device's name, not "the TV": a Mac takes AirPlay too.
+                title = if (shown.pairing) stringResource(R.string.play_on_code_title, name) else stringResource(R.string.play_on_pin_title),
                 body = if (shown.pairing) {
                     stringResource(R.string.play_on_code_body)
                 } else {
@@ -664,5 +665,5 @@ internal const val PLAY_ON_PIN = "pley.phone.play_on_pin"
 /** The longest code an AirPlay device's pad takes: the server takes 4 digits. */
 private const val PAIRING_CODE_MAX = 4
 
-/** "No code on the TV? Show it again", under the pad for an AirPlay device's code. */
+/** "No code showing? Show it again", under the pad for an AirPlay device's code. */
 internal const val PLAY_ON_SHOW_CODE = "pley.phone.play_on_show_code"

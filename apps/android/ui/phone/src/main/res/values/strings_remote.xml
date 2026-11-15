@@ -96,9 +96,9 @@
     <string name="play_on_failed">%1$s didn\'t play it.</string>
     <!-- An AirPlay device the server hasn't paired with: it shows a code, typed on the pad, once for the household. -->
     <string name="play_on_pair_title">Pair with %1$s</string>
-    <string name="play_on_code_title">Type the code shown on the TV</string>
+    <string name="play_on_code_title">Type the code %1$s shows</string>
     <string name="play_on_code_body">Everyone in your home can then play on it.</string>
-    <string name="play_on_show_code_again">No code on the TV? Show it again</string>
+    <string name="play_on_show_code_again">No code showing? Show it again</string>
     <string name="play_on_wrong_code">That isn\'t the code %1$s shows.</string>
     <string name="play_on_pairing_wait">%1$s takes no other try yet: wait a moment.</string>
     <string name="play_on_pairing_failed">%1$s didn\'t pair.</string>

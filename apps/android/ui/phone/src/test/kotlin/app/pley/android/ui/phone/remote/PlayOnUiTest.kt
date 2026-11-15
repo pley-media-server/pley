@@ -371,14 +371,16 @@ class PlayOnUiTest {
         compose.waitForIdle()
         compose.onNodeWithTag(PLAY_ON_PIN).assertExists()
         compose.onNodeWithText("Pair with Den Apple TV").assertExists()
-        compose.onNodeWithText("Type the code shown on the TV").assertExists()
+        // By its name: a Mac takes AirPlay too.
+        compose.onNodeWithText("Type the code Den Apple TV shows").assertExists()
+        compose.onNodeWithText("No code showing? Show it again").assertExists()
         assertEquals(listOf(APPLE_TV), graph.codesShown)
 
         // A wrong code, sent at its fourth digit with no OK: the pad says so.
         graph.pairingRefusals += ApiException(403, "wrong_pin", "that isn't the PIN the device shows")
         press("1111")
         compose.onNodeWithText("That isn't the code Den Apple TV shows.").assertExists()
-        // No code on the TV: it shows one again, and what was typed goes.
+        // No code showing: it shows one again, and what was typed goes.
         press("48")
         compose.onNodeWithTag(PLAY_ON_SHOW_CODE).performScrollTo().performClick()
         compose.waitForIdle()

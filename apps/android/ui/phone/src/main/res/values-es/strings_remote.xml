@@ -75,9 +75,9 @@
     <string name="play_on_unreachable">%1$s no puede conectarse a este servidor.</string>
     <string name="play_on_failed">%1$s no lo reprodujo.</string>
     <string name="play_on_pair_title">Vincular %1$s</string>
-    <string name="play_on_code_title">Escribe el código que aparece en la tele</string>
-    <string name="play_on_code_body">Después todo tu hogar podrá reproducir en ella.</string>
-    <string name="play_on_show_code_again">¿No hay código en la tele? Mostrarlo otra vez</string>
+    <string name="play_on_code_title">Escribe el código que muestra %1$s</string>
+    <string name="play_on_code_body">Después todo tu hogar podrá reproducir allí.</string>
+    <string name="play_on_show_code_again">¿No aparece ningún código? Mostrarlo otra vez</string>
     <string name="play_on_wrong_code">Ese no es el código que muestra %1$s.</string>
     <string name="play_on_pairing_wait">%1$s aún no acepta otro intento: espera un momento.</string>
     <string name="play_on_pairing_failed">%1$s no se vinculó.</string>
