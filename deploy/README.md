@@ -165,7 +165,7 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   not while discovery is off.
 - **AirPlay devices** (Apple TVs, TVs with AirPlay 2) are found the same
   way. The server connects to them on the port they announce (**TCP
-  7000** on an Apple TV) and on one each gives for its events, and the
+  7000** on an Apple TV) and on the port each names for its events, and the
   device asks the server's clock over **UDP**, on a port the server
   picks for each cast: a firewall on the server must let the local
   network reach it.

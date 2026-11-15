@@ -3679,7 +3679,7 @@ profile of the remote that sent it something.
   Music and Live TV have none: an empty list and `null`.
 - **Volume.** A player that sets its device's volume lists `volume` and
   says the level: the session's `volume`, 0 to 100 (0 while muted). Only
-  the server's casts to Cast devices do for now, which follow the
+  the server's casts to Cast devices do, which follow the
   device's own level, whatever sets it; a change sends `sessions_changed`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
@@ -3701,7 +3701,7 @@ profile of the remote that sent it something.
   and `subtitles` one of its subtitle `tracks` or `-1` to turn them off;
   `quality` needs `quality`, the id of one of the session's `qualities`;
   `volume` needs `volume`, from 0 to 100, which only Cast devices take
-  for now (the event has it for `volume` alone). Live TV sessions take
+  (the event has it for `volume` alone). Live TV sessions take
   none of `audio`, `subtitles` and `quality`. The other commands take
   none of these, and the event has them `null`. It answers:
   - `400` for an unknown command, or a place, offset, track, quality or
