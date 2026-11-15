@@ -454,8 +454,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
                             if let Some(started) = started.take() {
                                 let _ = started.send(Ok(()));
                             }
+                            // Never waited for: whoever follows the cast may
+                            // be waiting on this loop to stop it, and a later
+                            // status says the same and more. What a device
+                            // says faster than it is read is dropped.
                             let status = Event::Status { state, position_ms: playing.position_ms };
-                            if events.send(status).await.is_err() {
+                            if let Err(mpsc::error::TrySendError::Closed(_)) = events.try_send(status) {
                                 return;
                             }
                         }
@@ -485,9 +489,21 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
                 };
                 let _ = started.send(Err(failure));
             }
-            None => {
-                let _ = events.send(Event::Ended(ended)).await;
-            }
+            // Told once there is room, unless the follower stops the cast
+            // first: it then waits for this loop, not for the news.
+            None => loop {
+                tokio::select! {
+                    _ = events.send(Event::Ended(ended)) => return,
+                    command = commands.recv() => match command {
+                        Some(Command::Stop(done)) => {
+                            let _ = done.send(());
+                            return;
+                        }
+                        Some(_) => {}
+                        None => return,
+                    },
+                }
+            },
         }
     }
 }
@@ -730,5 +746,69 @@ mod tests {
             .filter_map(|(_, n)| n.as_ref())
             .find(|n| n.get("type").and_then(Value::as_string) == Some("removePlayQueueItem"));
         assert_eq!(removed.unwrap()["item"].as_dictionary().unwrap()["uuid"].as_string(), Some(first.as_str()));
+    }
+
+    /// A session started on a device that answers every request, playing:
+    /// the player, its events (left unread), how the device's events are
+    /// told, and the first lines of the requests it answered.
+    async fn playing()
+    -> (Player, mpsc::Receiver<Event>, mpsc::Sender<Option<Dictionary>>, tokio::task::JoinHandle<Vec<String>>) {
+        let (ours, theirs) = tokio::io::duplex(64 * 1024);
+        let (tell, notices) = mpsc::channel(8);
+        let session = Session {
+            control: Channel::over(ours),
+            notices,
+            session_id: "S".into(),
+            stream_id: "7".into(),
+            rtsp_url: "rtsp://pley/1".into(),
+            _tasks: Vec::new(),
+        };
+        let mut device = Channel::over(theirs);
+        let answering = tokio::spawn(async move {
+            let mut seen = Vec::new();
+            while let Ok(request) = device.read().await {
+                device.reply("HTTP/1.1 200 OK", &[], &[]).await.unwrap();
+                seen.push(request.first);
+            }
+            seen
+        });
+        let media = Media {
+            url: "http://192.168.1.2:7539/api/media/k/index.m3u8".into(),
+            content_type: "application/x-mpegurl".into(),
+            start_ms: 0,
+            title: "1917".into(),
+            subtitle: None,
+            fmp4: false,
+        };
+        let starting = tokio::spawn(async move { session.start(&media).await });
+        tell.send(Some(info(1.0, 100.0, 1.0))).await.unwrap();
+        let (player, events) = starting.await.unwrap().unwrap();
+        (player, events, tell, answering)
+    }
+
+    /// Far more statuses than the cast's follower reads, which is busy
+    /// stopping the cast.
+    async fn flood(tell: &mpsc::Sender<Option<Dictionary>>) {
+        for at in 2..100 {
+            if tell.send(Some(info(f64::from(at) / 10.0, 100.0, 1.0))).await.is_err() {
+                return;
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_device_that_says_more_than_is_read_still_stops() {
+        let (player, _events, tell, answering) = playing().await;
+        tokio::time::timeout(Duration::from_secs(10), flood(&tell)).await.expect("the device's statuses are read");
+        tokio::time::timeout(Duration::from_secs(10), player.stop()).await.expect("the session stops");
+        drop((player, tell));
+        assert!(answering.await.unwrap().iter().any(|first| first.starts_with("TEARDOWN")));
+
+        // The device lets go of the session as it is stopped: the news of
+        // the end can't wait for a follower that waits for the stop.
+        let (player, _events, tell, _answering) = playing().await;
+        tokio::time::timeout(Duration::from_secs(10), flood(&tell)).await.expect("the device's statuses are read");
+        tell.send(None).await.unwrap();
+        tokio::time::timeout(Duration::from_secs(10), player.stop()).await.expect("the session stops");
     }
 }
