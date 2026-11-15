@@ -388,7 +388,7 @@ other apps (`pley_ct_…`), never with a session's
   which the device made itself and no authority signed, as Google's own
   senders do on a home network. It reads what comes back within bounds
   (64 KiB a message, JSON objects alone) and ends a connection that goes
-  silent for 20 seconds. The device gets the cast's keyed addresses, which
+  silent, or stops reading, for 20 seconds. The device gets the cast's keyed addresses, which
   open that session's media alone, and nothing else of Pley's; a cast
   plays as a session of the home member who sent it, by their profile's
   rules, and only home members see and cast to these devices.
