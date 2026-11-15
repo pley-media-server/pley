@@ -1353,8 +1353,10 @@ and when the app comes back to the front.
   accessory holds one of them, so while music plays here the mini player
   keeps it and has the remote's button at its end. Before iOS 26.1, and
   at the foot of the page beside the iPad's sidebar, it is a card above
-  the mini player. Choosing it opens the remote as a sheet, which closes
-  by itself once no other device is on.
+  the mini player. A Google Cast or an AirPlay device counts for the bar
+  only while it plays: one is on whenever the network is, so idle, it
+  would keep the bar there for good. Choosing it opens the remote as a
+  sheet, which closes by itself once no other device is on.
 - **Mac**: a remote button in the toolbar, as in the web app's header,
   opens the same remote as a popover.
 

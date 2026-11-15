@@ -206,6 +206,33 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(app.shell.toast?.text == "Kitchen TV didn't play it")
     }
 
+    @Test func theBarLeavesOutAGoogleCastOrAirPlayDeviceThatPlaysNothing() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
+                           castProtocol: "cast")
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay")
+        await model.reload()
+        // On as long as the network is: they would keep the bar there for good.
+        #expect(model.devices.count == 2)
+        #expect(model.barDevices.isEmpty)
+
+        // A Pley app that plays nothing counts, ready to play.
+        server.addReceiver("bedroom-tv", deviceId: "bedroom-tv", name: "Bedroom TV", casts: ["item"])
+        await model.reload()
+        #expect(model.barDevices.map(\.id) == ["bedroom-tv"])
+
+        // And a Google Cast device counts while it plays.
+        server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000))
+        server.playElsewhere(7, deviceId: "cast:kitchen", device: "Kitchen TV")
+        await model.reload()
+        #expect(model.barDevices.map(\.id) == ["cast:kitchen", "bedroom-tv"])
+        #expect(model.devices.count == 3)
+    }
+
     @Test func anAirPlayDeviceAsksForItsCodeThenPlays() async throws {
         let server = try await fixture()
         defer { server.stop() }

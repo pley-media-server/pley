@@ -113,7 +113,7 @@ struct ShellView: View {
         }
         #if os(iOS)
         if #available(iOS 26.1, *) {
-            view.tabViewBottomAccessory(isEnabled: shell.nowPlaying || !remote.devices.isEmpty) {
+            view.tabViewBottomAccessory(isEnabled: shell.nowPlaying || !remote.barDevices.isEmpty) {
                 if shell.nowPlaying {
                     HStack(spacing: 0) {
                         MiniPlayer(app: app, inAccessory: true)

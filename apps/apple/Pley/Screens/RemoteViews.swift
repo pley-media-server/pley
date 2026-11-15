@@ -50,7 +50,7 @@ struct RemoteBar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let devices = remote.devices
+        let devices = remote.barDevices
         if !devices.isEmpty {
             let names = remote.names
             let one = devices.count == 1 ? devices[0] : nil
@@ -138,7 +138,7 @@ struct RemoteAccessoryButton: View {
     let open: () -> Void
 
     var body: some View {
-        let count = remote.devices.count
+        let count = remote.barDevices.count
         if count > 0 {
             Button(action: open) {
                 Image(systemName: "av.remote")

@@ -230,6 +230,11 @@ public final class RemoteModel: ObservableObject {
         }
     }
 
+    /// The devices the bar above the tabs stands for: a Google Cast or an
+    /// AirPlay device only while it plays, since one is on as long as the
+    /// network is. "Play on…" and the remote list them all the same.
+    public var barDevices: [Device] { devices.filter { $0.entry != nil || $0.receiver?.castProtocol == nil } }
+
     /// What the remote calls each device, by id.
     public var names: [String: String] { Self.names(devices) }
 
