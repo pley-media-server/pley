@@ -27,8 +27,8 @@
   #define OutputDir "..\..\dist"
 #endif
 ; The FFmpeg pley runs, which the installer carries: ffmpeg.exe, ffprobe.exe
-; and the DLLs next to them (gyan.dev's build, or one built for Dolby Vision
-; FEL, say).
+; and the DLLs next to them (pley-ffmpeg's Windows build, or another, such as
+; gyan.dev's).
 #ifndef FfmpegDir
   #error Pass /DFfmpegDir=<an FFmpeg build's bin folder>
 #endif

@@ -1,0 +1,45 @@
+From: the jellyfin-ffmpeg contributors
+Subject: fix the sub2video perf regressions
+Origin: https://github.com/jellyfin/jellyfin-ffmpeg/blob/v8.1.3-2/debian/patches/0058-fix-the-sub2video-perf-regressions.patch
+
+ffmpeg sends a subtitle picture to the filter graph when the graph asks
+for one, not again with every video frame: burning picture subtitles in
+doesn't scale and upload the same picture frame after frame.
+
+Rebased onto FFmpeg 9.0.2: the same change, at 9.0.2's line numbers.
+
+From jellyfin-ffmpeg 8.1.3-2, where the patch has no header: its authors
+are in that repository's history. Under FFmpeg's licence, as the files
+it changes.
+---
+diff --git a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
+--- a/fftools/ffmpeg_filter.c
++++ b/fftools/ffmpeg_filter.c
+@@ -2934,7 +2934,8 @@ static void sub2video_heartbeat(InputFil
+            or if we need to initialize the system, update the
+            overlaid subpicture and its start/end times */
+         sub2video_update(ifp, pts2 + 1, NULL);
+-    else
++
++    if (av_buffersrc_get_nb_failed_requests(ifp->ifilter.filter))
+         sub2video_push_ref(ifp, pts2);
+ }
+ 
+diff --git a/tests/ref/fate/filter-overlay-dvdsub-2397 b/tests/ref/fate/filter-overlay-dvdsub-2397
+--- a/tests/ref/fate/filter-overlay-dvdsub-2397
++++ b/tests/ref/fate/filter-overlay-dvdsub-2397
+@@ -489,12 +489,12 @@
+ 1,       3877,       3877,       10,     2013, 0x95a39f9c
+ 1,       3887,       3887,       10,     2013, 0x4f7ea123
+ 1,       3897,       3897,       10,     2013, 0x9efb9ba1
+-0,        117,        117,        1,   518400, 0x61e0f688
++0,        117,        117,        1,   518400, 0xbf8523da
+ 1,       3907,       3907,       10,     2013, 0xf395b2cd
+ 1,       3917,       3917,       10,     2013, 0x261a881e
+ 1,       3927,       3927,       10,     2013, 0x7f2d9f72
+ 1,       3937,       3937,       10,     2013, 0x0105b38d
+-0,        118,        118,        1,   518400, 0xa47de755
++0,        118,        118,        1,   518400, 0x41890ed6
+ 1,       3952,       3952,       10,     2013, 0x0e5db67e
+ 1,       3962,       3962,       10,     2013, 0xfc9baf97
+ 0,        119,        119,        1,   518400, 0x588534fc

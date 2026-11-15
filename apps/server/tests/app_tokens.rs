@@ -639,6 +639,46 @@ async fn third_party_token(app: &TestApp, user_id: i64, scope: &str) -> String {
     issued.access_token
 }
 
+/// Whether `token`'s remote lists the Cast device the server was told of.
+async fn lists_nearby(app: &TestApp, token: &str) -> bool {
+    let devices = app.get("/api/remote/devices?nearby=1", token).await;
+    assert_eq!(devices.status, StatusCode::OK, "{}", devices.text());
+    devices.body.as_array().unwrap().iter().any(|d| d["receiver_id"] == "cast:dev")
+}
+
+/// The devices on the server's network are the home's, as its TVs are: a
+/// home member's own sign-in and Pley's own apps list them, cast to them
+/// and pair with them, and no other app; a cast plays only what the caller
+/// can see.
+#[tokio::test]
+async fn only_home_members_through_pleys_own_apps_reach_the_devices_on_the_network() {
+    // A Cast device the server was told of; nothing below connects to it.
+    let app = TestApp::with_config(|config| config.cast_fixed.device = Some("127.0.0.1:9".parse().unwrap())).await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Film (2020).mkv", 2048);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    let film = app.ids(movies, &admin).await["Film"];
+    let (_, member_id) = app.user(&admin, "member", json!({"home": true})).await;
+    let (own, _) = app.app_token(member_id, "library play").await;
+    assert!(lists_nearby(&app, &own).await);
+
+    let other = third_party_token(&app, member_id, "library play").await;
+    assert!(!lists_nearby(&app, &other).await);
+    let cast = app.post("/api/remote/devices/cast:dev/cast", &other, json!({"item_id": film})).await;
+    assert_eq!(cast.status, StatusCode::NOT_FOUND, "{}", cast.text());
+    let pairing = app.post("/api/remote/devices/cast:dev/pairing", &other, json!({})).await;
+    assert_eq!(pairing.status, StatusCode::NOT_FOUND, "{}", pairing.text());
+    // Pley's own app gets past that, to the device's own answer.
+    let pairing = app.post("/api/remote/devices/cast:dev/pairing", &own, json!({})).await;
+    assert_eq!((pairing.status, pairing.body["code"].clone()), (StatusCode::CONFLICT, json!("not_pairable")));
+
+    // A home member who can't see the title can't cast it either.
+    let (guest, _) = app.user(&admin, "guest", json!({"home": true, "all_libraries": false, "library_ids": []})).await;
+    assert!(lists_nearby(&app, &guest).await);
+    let hidden = app.post("/api/remote/devices/cast:dev/cast", &guest, json!({"item_id": film})).await;
+    assert_eq!(hidden.status, StatusCode::NOT_FOUND, "{}", hidden.text());
+}
+
 /// The users whose sessions `/api/activity` lists to `token`, sorted.
 async fn activity_users(app: &TestApp, token: &str) -> Vec<i64> {
     let reply = app.get("/api/activity", token).await;

@@ -402,20 +402,18 @@ pub fn hwaccel_problem(hwaccel: HwAccel, os: Option<&str>, caps: Option<&Capabil
 /// (or nobody can tell). Without it, the transcoder tone maps as Automatic
 /// does.
 pub fn tonemap_problem(mode: TonemapMode, caps: Option<&Capabilities>) -> Option<String> {
-    let wanted = match mode {
-        TonemapMode::Libplacebo => Tonemapper::Libplacebo,
-        TonemapMode::Opencl => Tonemapper::Opencl,
-        TonemapMode::Zscale => Tonemapper::Zscale,
+    let (wanted, why) = match mode {
+        TonemapMode::Libplacebo => (
+            Tonemapper::Libplacebo,
+            "libplacebo isn't available here: it needs an FFmpeg with libplacebo and a GPU it reaches through Vulkan",
+        ),
+        TonemapMode::Opencl => {
+            (Tonemapper::Opencl, "OpenCL tone mapping isn't available here: it needs a GPU with OpenCL drivers")
+        }
+        TonemapMode::Zscale => (Tonemapper::Zscale, "zscale isn't available here: this FFmpeg was built without zimg"),
         TonemapMode::Auto | TonemapMode::None => return None,
     };
     let caps = caps.filter(|caps| caps.ffmpeg_available)?;
-    let why = match wanted {
-        Tonemapper::Libplacebo => {
-            "libplacebo isn't available here: it needs an FFmpeg with libplacebo and a GPU it reaches through Vulkan"
-        }
-        Tonemapper::Opencl => "OpenCL tone mapping isn't available here: it needs a GPU with OpenCL drivers",
-        Tonemapper::Zscale => "zscale isn't available here: this FFmpeg was built without zimg",
-    };
     (!caps.tonemappers.contains(&wanted)).then(|| why.to_owned())
 }
 
@@ -1171,6 +1169,7 @@ mod tests {
             hardware: accel != HwAccel::None,
             accel,
             main10: false,
+            low_power: false,
         }
     }
 

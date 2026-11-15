@@ -90,7 +90,9 @@ impl Connection {
         let (incoming_tx, received) = mpsc::channel::<Incoming>(QUEUE);
         let closed = CancellationToken::new();
 
-        // Writes what is sent, and pings.
+        // Writes what is sent, and pings. A device that stops reading ends
+        // the connection as one that stops answering does: a write waits
+        // for it no longer than its silence is borne.
         let done = closed.clone();
         tokio::spawn(async move {
             let mut ping = tokio::time::interval(PING_EVERY);
@@ -101,7 +103,7 @@ impl Connection {
                         // What was sent before closing still goes (a STOP
                         // just before the end).
                         while let Ok(message) = outgoing.try_recv() {
-                            if frame::write(&mut writer, &message).await.is_err() {
+                            if !write_within(&mut writer, &message).await {
                                 break;
                             }
                         }
@@ -113,7 +115,7 @@ impl Connection {
                     },
                     _ = ping.tick() => message(PLATFORM, NS_HEARTBEAT, &json!({"type": "PING"})),
                 };
-                if frame::write(&mut writer, &message).await.is_err() {
+                if !write_within(&mut writer, &message).await {
                     break;
                 }
             }
@@ -154,9 +156,14 @@ impl Connection {
     }
 
     /// Sends `payload` to `destination` on `namespace`. `false` once the
-    /// connection has ended.
+    /// connection has ended, also while waiting for room to send it.
     pub async fn send(&self, destination: &str, namespace: &str, payload: &Value) -> bool {
-        !self.closed.is_cancelled() && self.out.send(message(destination, namespace, payload)).await.is_ok()
+        let message = message(destination, namespace, payload);
+        tokio::select! {
+            biased;
+            () = self.closed.cancelled() => false,
+            sent = self.out.send(message) => sent.is_ok(),
+        }
     }
 
     /// Sends `payload` with a `requestId` of its own, which the answer
@@ -229,11 +236,48 @@ impl rustls::client::danger::ServerCertVerifier for AnyCertificate {
     }
 }
 
+/// Writes `message`: whether it went within [`SILENT_AT_MOST`].
+async fn write_within(writer: &mut (impl AsyncWrite + Unpin), message: &Message) -> bool {
+    matches!(tokio::time::timeout(SILENT_AT_MOST, frame::write(writer, message)).await, Ok(Ok(())))
+}
+
 fn message(destination: &str, namespace: &str, payload: &Value) -> Message {
     Message {
         source: SENDER.to_owned(),
         destination: destination.to_owned(),
         namespace: namespace.to_owned(),
         payload: payload.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn a_device_that_talks_but_stops_reading_ends_the_connection() {
+        let (ours, theirs) = tokio::io::duplex(1024);
+        let (connection, _incoming) = Connection::over(ours);
+        // The device pings, so it never goes silent, but reads nothing.
+        let (_unread, mut device) = tokio::io::split(theirs);
+        let pinging = tokio::spawn(async move {
+            let ping = Message {
+                source: PLATFORM.into(),
+                destination: SENDER.into(),
+                namespace: NS_HEARTBEAT.into(),
+                payload: r#"{"type":"PING"}"#.into(),
+            };
+            while frame::write(&mut device, &ping).await.is_ok() {
+                tokio::time::sleep(PING_EVERY).await;
+            }
+        });
+        let payload = json!({"type": "GET_STATUS", "padding": "x".repeat(1000)});
+        let ended = tokio::time::timeout(Duration::from_secs(120), async {
+            while connection.send(PLATFORM, NS_RECEIVER, &payload).await {}
+        })
+        .await;
+        assert!(ended.is_ok(), "sending gives up once the device stops reading");
+        assert!(connection.is_closed());
+        pinging.abort();
     }
 }

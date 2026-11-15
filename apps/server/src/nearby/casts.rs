@@ -31,6 +31,12 @@ const RECORD_EVERY: Duration = Duration::from_secs(10);
 /// starts (a large file on a network share takes a while).
 const PREPARE_WITHIN: Duration = Duration::from_secs(20);
 
+/// How long a cast may take to start, all its tries and waits together:
+/// past it, the cast stops as one that failed does, rather than play
+/// minutes after the remote was told it didn't. Clients wait longer than
+/// this for the answer (docs/API.md).
+pub const CAST_WITHIN: Duration = Duration::from_secs(180);
+
 /// The error code of a cast to a device that wants pairing first.
 pub const PAIRING_NEEDED: &str = "pairing_needed";
 
@@ -64,8 +70,11 @@ pub struct Choice {
 /// goes on until this one plays, so that one that fails leaves it be. A
 /// cast that a newer one to the same device replaces while it starts gives
 /// way: it ends its session, leaves the device to the newer one, and
-/// returns as done, since the device plays what was last asked of it.
+/// returns as done, since the device plays what was last asked of it. A
+/// cast that doesn't play within [`CAST_WITHIN`] (the config's
+/// `cast_within`) ends as one the device didn't play.
 pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: Cast) -> ApiResult<()> {
+    let deadline = tokio::time::Instant::now() + state.config.cast_within;
     // A cast that names no place starts where Play would, so it doesn't
     // start over and save the beginning over the place someone left off.
     if cast.start_ms.is_none() {
@@ -75,22 +84,25 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
     let base = base_url(state, device.address).ok_or_else(|| {
         AppError::ConflictAs("cast_unreachable", "Pley doesn't listen on an address the device can reach".to_owned())
     })?;
-    let choice = match device.protocol {
-        Protocol::Cast => crate::cast::device::choose(state, &device).await,
-        Protocol::AirPlay => {
-            // A device that wants a PIN is paired first, from Play on….
-            let ready = crate::airplay::device::ready(state, &device)
-                .await
-                .map_err(|_| AppError::ConflictAs("cast_failed", "the device didn't answer".to_owned()))?;
-            if !ready {
-                return Err(AppError::ConflictAs(
-                    PAIRING_NEEDED,
-                    "the device wants a PIN: pair with it first".to_owned(),
-                ));
+    let choosing = async {
+        match device.protocol {
+            Protocol::Cast => Ok(crate::cast::device::choose(state, &device).await),
+            Protocol::AirPlay => {
+                // A device that wants a PIN is paired first, from Play on….
+                let ready = crate::airplay::device::ready(state, &device)
+                    .await
+                    .map_err(|_| AppError::ConflictAs("cast_failed", "the device didn't answer".to_owned()))?;
+                if !ready {
+                    return Err(AppError::ConflictAs(
+                        PAIRING_NEEDED,
+                        "the device wants a PIN: pair with it first".to_owned(),
+                    ));
+                }
+                Ok(crate::airplay::device::choose(&device))
             }
-            crate::airplay::device::choose(&device)
         }
     };
+    let choice = tokio::time::timeout_at(deadline, choosing).await.map_err(|_| too_late(&device))??;
     let refused = choice.model.as_deref().is_some_and(|m| state.nearby.refused(m));
     let (first, fallback) = match (refused, choice.basic) {
         (true, Some(basic)) => (basic, None),
@@ -105,7 +117,11 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
     if let Some((_, before)) = state.nearby.pending.lock().insert(key.clone(), (cast_id, ours.clone())) {
         before.cancel();
     }
-    let attempt = Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours };
+    // The session of Google's player that a try loaded into, on a Cast
+    // device: the one to close should the cast not play.
+    let launched = Mutex::new(None);
+    let attempt =
+        Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours, deadline, launched: &launched };
     let played = match (attempt.play(&first).await, fallback) {
         (Err(Tried::Refused), Some(basic)) => {
             tracing::info!("a device refused its stream ({first}): it is sent the basic one");
@@ -121,6 +137,20 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
         }
         (played, _) => played,
     };
+    // A Cast device that answered but played neither stream, or not in
+    // time, is left with Google's player open: the session a try loaded
+    // into is closed, unless a cast plays in it or a newer one is on its
+    // way, then or as the stop goes. Only now, as closing it between the
+    // two tries would have the second open it again. A try that loaded
+    // into no player closes none: what runs there isn't this cast's.
+    let free = || !ours.is_cancelled() && !state.nearby.playing.lock().contains_key(&key);
+    let loaded = launched.lock().clone();
+    if matches!(played, Err(Tried::Refused | Tried::Failed | Tried::TimedOut))
+        && let Some(app_session) = loaded
+        && free()
+    {
+        crate::cast::player::close(device.address, &app_session, free).await;
+    }
     forget(&state.nearby.pending, &key, cast_id);
     let (player, events, session_id, duration_ms) = match played {
         Ok(started) => started,
@@ -131,9 +161,10 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
         Err(tried) => {
             return Err(match tried {
                 Tried::Superseded => unreachable!(),
-                Tried::Refused | Tried::Failed => {
+                Tried::Refused | Tried::Failed | Tried::Lost => {
                     AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned())
                 }
+                Tried::TimedOut => too_late(&device),
                 Tried::Error(err) => err,
             });
         }
@@ -154,8 +185,12 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
 enum Tried {
     /// The device refused the stream: another profile may do.
     Refused,
-    /// It didn't answer, or went away.
+    /// It didn't start its player, or the stream, in time.
     Failed,
+    /// It couldn't be reached, or went away.
+    Lost,
+    /// The cast's time to start ran out.
+    TimedOut,
     /// The session didn't start.
     Error(AppError),
     /// A newer cast to the device took its place.
@@ -171,6 +206,11 @@ struct Attempt<'a> {
     base: &'a str,
     /// Cancelled when a newer cast to the device takes this one's place.
     ours: &'a CancellationToken,
+    /// When the cast's time to start runs out ([`CAST_WITHIN`]).
+    deadline: tokio::time::Instant,
+    /// The session of Google's player the try loaded into, on a Cast
+    /// device.
+    launched: &'a Mutex<Option<String>>,
 }
 
 impl Attempt<'_> {
@@ -195,35 +235,38 @@ impl Attempt<'_> {
             "device_kind": device.kind(),
         }))
         .map_err(|err| Tried::Error(AppError::bad_request(err.to_string())))?;
-        let mut request = PlaybackRequest { device_id: Some(device.key()), ..request };
+        let request = PlaybackRequest { device_id: Some(device.key()), ..request };
         // The session starts, ending the device's last one, only while no
         // newer cast has: otherwise this one would end the newer one's.
         let one = state.nearby.starting.lock().entry(device.key()).or_default().clone();
         let started = {
-            let _one = one.lock().await;
+            let Ok(_one) = tokio::time::timeout_at(self.deadline, one.lock()).await else {
+                return Err(Tried::TimedOut);
+            };
             if self.ours.is_cancelled() {
                 return Err(Tried::Superseded);
             }
-            let start = |request| {
-                crate::api::playback::start(
-                    State(state.clone()),
-                    user.clone(),
-                    HeaderMap::new(),
-                    CurrentToken(None),
-                    Json(request),
-                )
-            };
-            match start(request.clone()).await {
-                // The server's limit on streams counts the cast playing
-                // there: it ends first, then, leaving the device to this one.
-                Err(AppError::Unavailable(_)) => {
-                    if let Some((_, before)) = state.nearby.playing.lock().get(&device.key()) {
-                        before.cancel();
-                    }
-                    request.keep_previous = false;
-                    start(request).await
+            // Started apart, so that the deadline can leave a start that
+            // takes too long (a transcoder slow to make the job): what it
+            // makes once it is done is then ended, and the device is free
+            // for the next cast meanwhile.
+            let abandoned = CancellationToken::new();
+            let mut starting =
+                tokio::spawn(start_session(state.clone(), user.clone(), request, device.key(), abandoned.clone()));
+            tokio::select! {
+                started = &mut starting => started.unwrap_or_else(|err| {
+                    Err(AppError::Internal(anyhow::anyhow!("a cast's session didn't start: {err}")))
+                }),
+                () = tokio::time::sleep_until(self.deadline) => {
+                    abandoned.cancel();
+                    let state = state.clone();
+                    tokio::spawn(async move {
+                        if let Ok(Ok(Json(info))) = starting.await {
+                            end_session(&state, &info.session_id);
+                        }
+                    });
+                    return Err(Tried::TimedOut);
                 }
-                started => started,
             }
         };
         let Json(info) = started.map_err(Tried::Error)?;
@@ -233,10 +276,12 @@ impl Attempt<'_> {
         };
         // From here on, a newer cast ends this one where it is: the
         // connection, dropped, closes, and the device is left to the newer
-        // cast.
+        // cast. So does the end of the cast's time to start, its session
+        // ended so that the device can fetch no more of it.
         tokio::select! {
             biased;
             () = self.ours.cancelled() => Err(end(Tried::Superseded)),
+            () = tokio::time::sleep_until(self.deadline) => Err(end(Tried::TimedOut)),
             played = self.load(&info) => played.map_err(end),
         }
     }
@@ -318,7 +363,7 @@ impl Attempt<'_> {
         let ((), connected) = tokio::join!(read, connect);
         drop(session);
         let started = match connected {
-            Ok(connected) => connected.start(&media).await,
+            Ok(connected) => connected.start(&media, self.launched).await,
             Err(failure) => Err(failure),
         };
         match started {
@@ -327,7 +372,8 @@ impl Attempt<'_> {
                 tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
                 Err(match failure {
                     Failure::Refused(_) => Tried::Refused,
-                    Failure::NotStarted(_) | Failure::Lost => Tried::Failed,
+                    Failure::NotStarted(_) => Tried::Failed,
+                    Failure::Lost => Tried::Lost,
                     Failure::NeedsPairing => Tried::Error(AppError::ConflictAs(
                         PAIRING_NEEDED,
                         "the device wants a PIN: pair with it first".to_owned(),
@@ -354,6 +400,45 @@ fn base_url(state: &AppState, device: SocketAddr) -> Option<String> {
             && (l.address.ip().is_unspecified() || l.address.ip() == ip)
     })?;
     Some(format!("http://{}", SocketAddr::new(ip, web.address.port())))
+}
+
+/// Starts the session of a cast to the device of `key`, as Pley's own
+/// players start one. Once the cast's attempt has `abandoned` it, the
+/// cast playing there is no longer ended to make room.
+async fn start_session(
+    state: AppState,
+    user: AuthUser,
+    mut request: PlaybackRequest,
+    key: String,
+    abandoned: CancellationToken,
+) -> ApiResult<Json<crate::playback::PlaybackInfo>> {
+    let start = |request| {
+        crate::api::playback::start(
+            State(state.clone()),
+            user.clone(),
+            HeaderMap::new(),
+            CurrentToken(None),
+            Json(request),
+        )
+    };
+    match start(request.clone()).await {
+        // The server's limit on streams counts the cast playing there: it
+        // ends first, then, leaving the device to this one.
+        Err(AppError::Unavailable(_)) if !abandoned.is_cancelled() => {
+            if let Some((_, before)) = state.nearby.playing.lock().get(&key) {
+                before.cancel();
+            }
+            request.keep_previous = false;
+            start(request).await
+        }
+        started => started,
+    }
+}
+
+/// The answer to a cast that didn't play within its time to start.
+fn too_late(device: &Found) -> AppError {
+    tracing::warn!("a cast to {} didn't play in time: it is stopped", device.address);
+    AppError::ConflictAs("cast_failed", "the device didn't play it in time".to_owned())
 }
 
 fn end_session(state: &AppState, id: &str) {

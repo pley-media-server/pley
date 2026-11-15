@@ -914,6 +914,123 @@ pub fn rpu_to_p81(nal: &[u8]) -> anyhow::Result<NalEdit> {
     Ok(NalEdit::Replace(out))
 }
 
+/// Profile 5's colour coefficients, as its streams carry them: its own
+/// YCbCr (IPT-PQ-C2) to RGB, and that RGB to LMS.
+const P5_YCC_TO_RGB: [i16; 9] = [8192, 799, 1681, 8192, -933, 1091, 8192, 267, -5545];
+const P5_YCC_TO_RGB_OFFSET: [u32; 3] = [0, 134_217_728, 134_217_728];
+const P5_RGB_TO_LMS: [i16; 9] = [17081, -349, -349, -349, 17081, -349, -349, -349, 17081];
+
+/// A profile 5 RPU NAL unit for 10-bit video, as plain as one can be: each
+/// component mapped onto itself by one linear piece, profile 5's colour
+/// coefficients, no extension blocks. The start-up test of a tone mapper
+/// that must find Dolby Vision's metadata on its frames puts it on its
+/// clip's ([`crate::ffmpeg`]): FFmpeg's encoders write RPUs only from
+/// metadata a decoder read.
+pub fn test_rpu() -> anyhow::Result<Vec<u8>> {
+    const BL_BITS: u32 = 10;
+    let seq = SeqInfo {
+        chroma_resampling_explicit_filter: false,
+        coefficient_data_type: 0,
+        coefficient_log2_denom: 23,
+        vdr_rpu_normalized_idc: 1,
+        // With profile 0, what tells FFmpeg profile 5 in a stream that has
+        // no configuration record (`ff_dovi_guess_profile_hevc`).
+        bl_video_full_range: true,
+        depths: Some(Depths {
+            bl_bit_depth_minus8: u64::from(BL_BITS) - 8,
+            el_bit_depth_minus8: u64::from(BL_BITS) - 8,
+            vdr_bit_depth_minus8: 4,
+            spatial_resampling_filter: false,
+            dm_compression: 0,
+            el_spatial_resampling_filter: false,
+            disable_residual: true,
+        }),
+    };
+    let mut mapping = Mapping {
+        vdr_rpu_id: 0,
+        mapping_color_space: 0,
+        mapping_chroma_format_idc: 0,
+        curves: vec![Curve { pivots: Vec::new(), pieces: Vec::new() }; 3],
+        nlq_header: None,
+        num_x_partitions_minus1: 0,
+        num_y_partitions_minus1: 0,
+        nlq: None,
+    };
+    mapping.set_no_op(&seq, BL_BITS);
+    let colour = DmColour {
+        ycc_to_rgb_coef: P5_YCC_TO_RGB.map(|v| u64::from(v as u16)),
+        ycc_to_rgb_offset: P5_YCC_TO_RGB_OFFSET.map(u64::from),
+        rgb_to_lms_coef: P5_RGB_TO_LMS.map(|v| u64::from(v as u16)),
+        // PQ, in 12 bits of full-range IPT, from 0.0001 to 1000 nits.
+        signal_eotf: 0xFFFF,
+        signal_eotf_param0: 0,
+        signal_eotf_param1: 0,
+        signal_eotf_param2: 0,
+        signal_bit_depth: 12,
+        signal_color_space: 2,
+        signal_chroma_format: 0,
+        signal_full_range_flag: 1,
+        source_min_pq: 7,
+        source_max_pq: 3079,
+        source_diagonal: 42,
+    };
+    let rpu = Rpu {
+        header: Header {
+            rpu_type: 2,
+            rpu_format: 18,
+            vdr_rpu_profile: 0,
+            vdr_rpu_level: 0,
+            seq: Some(seq),
+            vdr_dm_metadata_present: true,
+            use_prev_vdr_rpu: false,
+            prev_vdr_rpu_id: 0,
+        },
+        mapping: Some(mapping),
+        dm: Some(Dm {
+            affected_dm_metadata_id: 0,
+            current_dm_metadata_id: 0,
+            scene_refresh_flag: 1,
+            colour: Some(colour),
+            cm_v29: Vec::new(),
+            cm_v40: None,
+        }),
+    };
+    // The NAL unit's header: type 62, layer 0, temporal id 0.
+    let mut nal = vec![NAL_DV_RPU << 1, 1];
+    nal.extend(escape(&rpu.write()?));
+    Ok(nal)
+}
+
+/// An Annex B HEVC stream with the NAL unit `rpu` after each picture, last
+/// in its access unit, where Dolby Vision carries it.
+pub fn with_rpus(stream: &[u8], rpu: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(stream.len() + stream.len() / 8);
+    let add = |out: &mut Vec<u8>| {
+        out.extend([0, 0, 0, 1]);
+        out.extend(rpu);
+    };
+    let mut picture = false;
+    for unit in crate::tsedit::nal_units(stream) {
+        let nal = &stream[unit.nal.clone()];
+        let Some(kind) = nal_type(nal) else { continue };
+        // Slices are the types under 32, and a picture's first one says so
+        // in the first bit after its header. Parameter sets (32 to 34), an
+        // access unit delimiter (35) and a prefix SEI start the next unit.
+        let slice = kind < 32;
+        let first_slice = slice && nal.get(2).is_some_and(|b| b & 0x80 != 0);
+        if picture && (first_slice || matches!(kind, 32..=35 | NAL_PREFIX_SEI)) {
+            add(&mut out);
+            picture = false;
+        }
+        picture |= slice;
+        out.extend(&stream[unit.start_code.start..unit.nal.end]);
+    }
+    if picture {
+        add(&mut out);
+    }
+    out
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
@@ -1112,6 +1229,40 @@ pub(crate) mod tests {
                 }]
             );
         }
+    }
+
+    #[test]
+    fn the_start_up_tests_rpu_is_profile_5s_and_goes_after_each_picture() {
+        let nal = test_rpu().unwrap();
+        assert_eq!((&nal[..2], nal_type(&nal)), (&[0x7C, 0x01][..], Some(NAL_DV_RPU)));
+        assert!(rewrites_as_read(&nal).unwrap());
+        // The bytes FFmpeg 9 reads as Dolby Vision metadata (`ffprobe
+        // -show_frames` on a clip carrying them).
+        assert_eq!(
+            unescape(&nal[2..]).iter().map(|b| format!("{b:02x}")).collect::<String>(),
+            "190809004061b6506f003ff801ffc00fffd000000800000680000040000034000002000001a2000031f06912000fc5b0443\
+             2000010bea5700000000080000000800000042b9fea3fea3fea342b9fea3fea3fea342b9ffff00000000000000006420\
+             0f80e15408456838980"
+        );
+        let rpu = read_nal(&nal);
+        let depths = rpu.header.depths().unwrap();
+        assert_eq!((rpu.header.vdr_rpu_profile, depths.disable_residual), (0, true), "no enhancement layer");
+        assert_eq!(rpu.dm.unwrap().colour.unwrap().signal_color_space, 2, "IPT");
+
+        // Two pictures, the first with its parameter sets and an SEI, the
+        // second in two slices, behind start codes of both lengths.
+        let (vps, sei, idr, first, second) =
+            ([0x40, 1, 9], [0x4E, 1, 9], [0x26, 1, 0x80], [0x02, 1, 0x80], [0x02, 1, 0]);
+        let mut stream = Vec::new();
+        for (unit, long) in [(vps, true), (sei, false), (idr, false), (first, true), (second, false)] {
+            stream.extend(if long { &[0u8, 0, 0, 1][..] } else { &[0, 0, 1][..] });
+            stream.extend(unit);
+        }
+        let with = with_rpus(&stream, &nal);
+        let kinds: Vec<u8> = crate::tsedit::nal_units(&with).iter().map(|u| (with[u.nal.start] >> 1) & 0x3f).collect();
+        assert_eq!(kinds, [32, 39, 19, 62, 1, 1, 62]);
+        assert_eq!(with.len(), stream.len() + 2 * (4 + nal.len()));
+        assert!(with.ends_with(&nal));
     }
 
     #[test]

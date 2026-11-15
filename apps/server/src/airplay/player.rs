@@ -116,7 +116,7 @@ impl Session<TcpStream> {
         ]);
         let timing = UdpSocket::bind(SocketAddr::new(local, 0)).await?;
         let timing_port = timing.local_addr()?.port();
-        let timing = Task(tokio::spawn(answer_clock(timing)));
+        let timing = Task(tokio::spawn(answer_clock(timing, device)));
         let session_id = uuid();
         let mac = sender_mac(id);
         let rtsp_url = format!("rtsp://{local}/{}", rand_u64() as u32);
@@ -212,30 +212,40 @@ fn sender_mac(id: &str) -> String {
 
 /// Answers the device's NTP requests on `socket` with the server's clock,
 /// as the session's timing port: the device waits for its clock before it
-/// plays.
-async fn answer_clock(socket: UdpSocket) {
+/// plays. Only `device` is answered: anyone else on the network could
+/// otherwise have the server send its answers to an address of their
+/// choosing.
+async fn answer_clock(socket: UdpSocket, device: IpAddr) {
     let mut buf = [0u8; 128];
     loop {
         let Ok((len, from)) = socket.recv_from(&mut buf).await else { return };
-        if len < 32 {
-            continue;
-        }
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
-        // NTP counts from 1900.
-        let seconds = (now.as_secs() + 2_208_988_800) as u32;
-        let fraction = ((u64::from(now.subsec_nanos()) << 32) / 1_000_000_000) as u32;
-        let mut out = [0u8; 32];
-        out[0] = buf[0];
-        out[1] = 0xD3;
-        out[2..4].copy_from_slice(&7u16.to_be_bytes());
-        // Its send time, as the reference it measures by.
-        out[8..16].copy_from_slice(&buf[24..32]);
-        for at in [16, 24] {
-            out[at..at + 4].copy_from_slice(&seconds.to_be_bytes());
-            out[at + 4..at + 8].copy_from_slice(&fraction.to_be_bytes());
+        if let Some(out) = clock_answer(&buf[..len], from, device, now) {
+            let _ = socket.send_to(&out, from).await;
         }
-        let _ = socket.send_to(&out, from).await;
     }
+}
+
+/// The answer to an NTP request `packet` that came from `from`, with the
+/// server's clock at `now`: none when it isn't the device's, or isn't one.
+fn clock_answer(packet: &[u8], from: SocketAddr, device: IpAddr, now: Duration) -> Option<[u8; 32]> {
+    if from.ip() != device || packet.len() < 32 {
+        return None;
+    }
+    // NTP counts from 1900.
+    let seconds = (now.as_secs() + 2_208_988_800) as u32;
+    let fraction = ((u64::from(now.subsec_nanos()) << 32) / 1_000_000_000) as u32;
+    let mut out = [0u8; 32];
+    out[0] = packet[0];
+    out[1] = 0xD3;
+    out[2..4].copy_from_slice(&7u16.to_be_bytes());
+    // Its send time, as the reference it measures by.
+    out[8..16].copy_from_slice(&packet[24..32]);
+    for at in [16, 24] {
+        out[at..at + 4].copy_from_slice(&seconds.to_be_bytes());
+        out[at + 4..at + 8].copy_from_slice(&fraction.to_be_bytes());
+    }
+    Some(out)
 }
 
 /// Reads what the device says on its event connection, answers each, and
@@ -444,8 +454,12 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
                             if let Some(started) = started.take() {
                                 let _ = started.send(Ok(()));
                             }
+                            // Never waited for: whoever follows the cast may
+                            // be waiting on this loop to stop it, and a later
+                            // status says the same and more. What a device
+                            // says faster than it is read is dropped.
                             let status = Event::Status { state, position_ms: playing.position_ms };
-                            if events.send(status).await.is_err() {
+                            if let Err(mpsc::error::TrySendError::Closed(_)) = events.try_send(status) {
                                 return;
                             }
                         }
@@ -475,9 +489,21 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
                 };
                 let _ = started.send(Err(failure));
             }
-            None => {
-                let _ = events.send(Event::Ended(ended)).await;
-            }
+            // Told once there is room, unless the follower stops the cast
+            // first: it then waits for this loop, not for the news.
+            None => loop {
+                tokio::select! {
+                    _ = events.send(Event::Ended(ended)) => return,
+                    command = commands.recv() => match command {
+                        Some(Command::Stop(done)) => {
+                            let _ = done.send(());
+                            return;
+                        }
+                        Some(_) => {}
+                        None => return,
+                    },
+                }
+            },
         }
     }
 }
@@ -638,6 +664,21 @@ mod tests {
         assert_eq!(sender_mac("x"), sender_mac("x"));
     }
 
+    #[test]
+    fn the_clock_answers_the_device_alone() {
+        let device: IpAddr = "192.168.1.20".parse().unwrap();
+        let mut request = [0u8; 48];
+        request[0] = 0x23;
+        request[24..32].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+        let now = Duration::from_secs(1_700_000_000);
+        let answer = clock_answer(&request, "192.168.1.20:7010".parse().unwrap(), device, now).unwrap();
+        assert_eq!((answer[0], &answer[8..16]), (0x23, &[1, 2, 3, 4, 5, 6, 7, 8][..]));
+        assert_eq!(u32::from_be_bytes(answer[16..20].try_into().unwrap()), 1_700_000_000 + 2_208_988_800);
+        // Someone else on the network, and a request cut short.
+        assert_eq!(clock_answer(&request, "192.168.1.21:7010".parse().unwrap(), device, now), None);
+        assert_eq!(clock_answer(&request[..31], "192.168.1.20:7010".parse().unwrap(), device, now), None);
+    }
+
     /// A device's end of the control connection: the commands Pley posts
     /// come out of `next`, each answered 200.
     async fn next_command(device: &mut Channel<tokio::io::DuplexStream>) -> (String, Option<Dictionary>) {
@@ -705,5 +746,78 @@ mod tests {
             .filter_map(|(_, n)| n.as_ref())
             .find(|n| n.get("type").and_then(Value::as_string) == Some("removePlayQueueItem"));
         assert_eq!(removed.unwrap()["item"].as_dictionary().unwrap()["uuid"].as_string(), Some(first.as_str()));
+    }
+
+    /// A session started on a device that answers every request, playing:
+    /// the player, its events (left unread), how the device's events are
+    /// told, and the first lines of the requests it answered.
+    async fn playing()
+    -> (Player, mpsc::Receiver<Event>, mpsc::Sender<Option<Dictionary>>, tokio::task::JoinHandle<Vec<String>>) {
+        let (ours, theirs) = tokio::io::duplex(64 * 1024);
+        let (tell, notices) = mpsc::channel(8);
+        let session = Session {
+            control: Channel::over(ours),
+            notices,
+            session_id: "S".into(),
+            stream_id: "7".into(),
+            rtsp_url: "rtsp://pley/1".into(),
+            _tasks: Vec::new(),
+        };
+        let mut device = Channel::over(theirs);
+        let answering = tokio::spawn(async move {
+            let mut seen = Vec::new();
+            while let Ok(request) = device.read().await {
+                device.reply("HTTP/1.1 200 OK", &[], &[]).await.unwrap();
+                seen.push(request.first);
+            }
+            seen
+        });
+        let media = Media {
+            url: "http://192.168.1.2:7539/api/media/k/index.m3u8".into(),
+            content_type: "application/x-mpegurl".into(),
+            start_ms: 0,
+            title: "1917".into(),
+            subtitle: None,
+            fmp4: false,
+        };
+        let starting = tokio::spawn(async move { session.start(&media).await });
+        tell.send(Some(info(1.0, 100.0, 1.0))).await.unwrap();
+        let (player, events) = starting.await.unwrap().unwrap();
+        (player, events, tell, answering)
+    }
+
+    /// Far more statuses than the cast's follower reads, which is busy
+    /// stopping the cast.
+    async fn flood(tell: &mpsc::Sender<Option<Dictionary>>) {
+        for at in 2..100 {
+            if tell.send(Some(info(f64::from(at) / 10.0, 100.0, 1.0))).await.is_err() {
+                return;
+            }
+        }
+    }
+
+    #[tokio::test]
+    async fn a_device_that_says_more_than_is_read_still_stops() {
+        let (player, _events, tell, answering) = playing().await;
+        tokio::time::timeout(Duration::from_secs(10), flood(&tell)).await.expect("the device's statuses are read");
+        tokio::time::timeout(Duration::from_secs(10), player.stop()).await.expect("the session stops");
+        drop((player, tell));
+        assert!(answering.await.unwrap().iter().any(|first| first.starts_with("TEARDOWN")));
+
+        // The device lets go of the session while the follower, busy
+        // stopping it, reads nothing: the news of the end waits for room,
+        // and the stop is answered all the same.
+        let (player, _events, tell, _answering) = playing().await;
+        tokio::time::timeout(Duration::from_secs(10), flood(&tell)).await.expect("the device's statuses are read");
+        tell.send(None).await.unwrap();
+        // Once the loop has taken the end from the device, it is waiting
+        // to tell of it: the statuses before filled what the follower reads.
+        let told = async {
+            while tell.capacity() < tell.max_capacity() {
+                tokio::task::yield_now().await;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(10), told).await.expect("the device's end is read");
+        tokio::time::timeout(Duration::from_secs(10), player.stop()).await.expect("the session stops");
     }
 }
