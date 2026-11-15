@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
@@ -414,10 +415,13 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
 
 /**
  * Play on…'s chooser while a page asked for it: sent, it closes, and the
- * remote's bar says it starts on the device, then what plays there.
+ * remote's bar says it starts on the device, then what plays there. A
+ * cast goes on when the chooser is closed before the device took it.
  */
 @Composable
 private fun PlayOnSlot(shell: PhoneShellState) {
+    // The shell's, not the chooser's: closing the chooser doesn't call off a cast on its way.
+    val casting = rememberCoroutineScope()
     val target = shell.playingOn ?: return
     val remote = shell.remote ?: return
     PlayOnSheet(
@@ -425,10 +429,12 @@ private fun PlayOnSlot(shell: PhoneShellState) {
         shell.remoteDevices,
         remote,
         onCast = { device, _ ->
-            shell.playingOn = null
+            // Not a chooser opened for something else since this one closed.
+            if (shell.playingOn == target) shell.playingOn = null
             shell.castSent(device.deviceId)
         },
         onDismiss = { shell.playingOn = null },
+        scope = casting,
     )
 }
 

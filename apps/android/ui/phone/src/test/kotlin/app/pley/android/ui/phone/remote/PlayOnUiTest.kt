@@ -331,6 +331,38 @@ class PlayOnUiTest {
     }
 
     @Test
+    fun aCastOnItsWayGoesOnWhenTheChooserIsClosedButAsksForNoCodeThen() {
+        shell(castTv(), appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        // Closed, as a swipe or Back closes it, before the device took it.
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(CAST_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithText("Starting on Bedroom Chromecast…").assertExists()
+
+        // An AirPlay device asking for its code once the chooser is gone isn't asked to show one: no pad to type it on.
+        choose(CastTarget(itemId = 102, video = true))
+        val second = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = second
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        second.complete(Unit)
+        compose.waitForIdle()
+        assertTrue(graph.codesShown.isEmpty())
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+    }
+
+    @Test
     fun anAppleTvAskingForPairingShowsItsCodeWhichGoesAtItsFourthDigitThenTheCastGoesAgain() {
         shell(appleTv())
         choose(CastTarget(itemId = 101, video = true))

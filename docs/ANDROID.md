@@ -524,12 +524,17 @@ devices, and another can be picked: the device **isn't on any more**
 (`404`), **can't play that** (`409`), **Too many at once** (`429`), and
 for a Google Cast or AirPlay device, it **can't reach this server**
 (`409 cast_unreachable`) or **didn't play it** (`409 cast_failed`), else
-the server's own words. The server answers a cast to a Google Cast or
-AirPlay device once the device plays, which can take a minute or more:
-the device's row shows a spinner meanwhile (read out as **Starting on**
-the device), the other rows wait, and the phone waits up to 3 minutes for
-that answer, and for a pairing's, where its other calls give up after 10
-seconds without one.
+the server's own words.
+
+The server answers a cast to a Google Cast or AirPlay device once the
+device plays, which can take a minute or more: the device's row shows a
+spinner meanwhile (read out as **Starting on** the device), the other
+rows wait, and the phone waits up to 3 minutes for that answer, and for a
+pairing's, where its other calls give up after 10 seconds without one.
+Closing the chooser meanwhile doesn't call the cast off: the remote's bar
+follows it once the device took it, as on the web, and an AirPlay device
+that asks for its code then isn't asked to show one, as there is no pad
+to type it on.
 
 An AirPlay device the server hasn't paired with answers the cast `409
 pairing_needed`. The chooser asks it to show a code (`POST

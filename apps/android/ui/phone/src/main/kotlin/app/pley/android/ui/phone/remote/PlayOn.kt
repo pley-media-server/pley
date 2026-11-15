@@ -22,6 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -73,7 +74,9 @@ import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
 import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.TonalButton
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.cancellation.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -271,6 +274,11 @@ private data class PinAsk(
  * its last digit where the server knows how many it has, as on an Apple
  * TV), and once paired, the cast goes again. The device can be asked to show
  * its code again.
+ *
+ * What was sent goes on in [scope] once the chooser closes, the host's, which
+ * outlives it: a Google Cast or AirPlay device takes seconds to start, and
+ * closing the chooser meanwhile doesn't call the cast off ([onCast] is still
+ * told). A device asking for its code then isn't asked to show one.
  */
 @Composable
 internal fun PlayOnSheet(
@@ -279,9 +287,12 @@ internal fun PlayOnSheet(
     remote: RemoteRepository,
     onCast: (device: OtherDevice, name: String) -> Unit,
     onDismiss: () -> Unit,
+    scope: CoroutineScope = rememberCoroutineScope(),
 ) {
     val resources = LocalResources.current
-    val scope = rememberCoroutineScope()
+    // Whether the chooser still shows: no code is asked for once it is gone.
+    val open = remember { AtomicBoolean(true) }
+    DisposableEffect(Unit) { onDispose { open.set(false) } }
     var shuffle by remember(target) { mutableStateOf(false) }
     var sending by remember(target) { mutableStateOf<String?>(null) }
     var error by remember(target) { mutableStateOf<String?>(null) }
@@ -331,6 +342,8 @@ internal fun PlayOnSheet(
      */
     suspend fun showCode(device: OtherDevice, name: String, pad: PinAsk?) {
         val receiver = device.receiver ?: return
+        // Closed while the cast was out: a code would show on the TV with no pad to type it on.
+        if (!open.get()) return
         try {
             val length = remote.showPairingCode(receiver.receiverId)
             if (pad == null) ask(PinAsk(device.deviceId, pairing = true, length = length))
@@ -546,6 +559,8 @@ internal fun PlayOnSheet(
 internal fun PlayOnWindow(remote: RemoteRepository, onCast: (device: OtherDevice, name: String) -> Unit, content: @Composable () -> Unit) {
     val devices = remote.devices.collectAsStateWithLifecycle()
     val asked = remember { mutableStateOf<CastTarget?>(null) }
+    // A cast outlives the chooser, while the window is there.
+    val casting = rememberCoroutineScope()
     val host = remember(devices) {
         object : PlayOnHost {
             override val devices: List<OtherDevice> get() = devices.value
@@ -562,10 +577,11 @@ internal fun PlayOnWindow(remote: RemoteRepository, onCast: (device: OtherDevice
             devices.value,
             remote,
             onCast = { device, name ->
-                asked.value = null
+                if (asked.value == target) asked.value = null
                 onCast(device, name)
             },
             onDismiss = { asked.value = null },
+            scope = casting,
         )
     }
 }
