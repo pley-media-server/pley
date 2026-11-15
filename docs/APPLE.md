@@ -1469,7 +1469,10 @@ in a moment" (`429`), and the server's own words otherwise.
 
 A movie or an episode goes to a Google Cast or an AirPlay device too,
 which the server plays on itself; an album, a show, a playlist or a
-channel goes to Pley's own apps alone. A cast there can also say
+channel goes to Pley's own apps alone. The server answers once the
+device plays, which can take it up to two minutes, so a cast waits that
+long for its answer, where other requests wait 20 seconds.
+A cast there can also say
 "Kitchen TV can't reach this server" (`409` `cast_unreachable`) or
 "Kitchen TV didn't play it" (`409` `cast_failed`). An AirPlay device the
 server hasn't paired with answers `409` `pairing_needed`: the app has it

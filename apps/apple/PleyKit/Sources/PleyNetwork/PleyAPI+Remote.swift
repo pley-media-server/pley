@@ -77,10 +77,19 @@ extension PleyAPI {
     /// `429` past 10 a second; for a Google Cast or an AirPlay device,
     /// `409` `cast_failed`, `cast_unreachable`, or `pairing_needed`
     /// (`pairingNeeded`) for an AirPlay device that wants its code first.
+    /// It waits `castTimeout` for the answer.
     public func cast(_ target: CastTarget, to receiverId: String) async throws {
         _ = try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/cast",
-                                  body: target, as: NoContent.self)
+                                  body: target, as: NoContent.self, timeout: Self.castTimeout)
     }
+
+    /// How long a cast waits for its answer: a Google Cast or an AirPlay
+    /// device's comes once it plays, which can take the server up to two
+    /// minutes (the stream started, the device's player launched, the stream
+    /// loaded, and tried again with the basic stream when it is refused).
+    /// Waiting less, the cast would fail while it starts, and the server be
+    /// doubted as if it hadn't answered.
+    public static let castTimeout: TimeInterval = 120
 
     /// `receiverSegment`, else the server's own answer for a device it doesn't know.
     private static func receiverPath(_ id: String) throws -> String {

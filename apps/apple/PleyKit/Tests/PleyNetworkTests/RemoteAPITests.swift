@@ -69,6 +69,30 @@ import Testing
         #expect(server.castsReceived.last.map { String(decoding: $0.body, as: UTF8.self) } == #"{"item_id":7}"#)
     }
 
+    @Test func aCastWaitsForTheDeviceToPlayLongerThanOtherRequests() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        // A transport that waits a second stands for the app's 20 seconds; a cast keeps its own wait.
+        let http = HTTPTransport(userAgent: testAgent, gate: ConnectionGate(), requestTimeout: 1)
+        let api = PleyAPI(client: APIClient(origin: server.origin, tokens: FakeTokens(server: server, transport: http),
+                                            transport: http))
+        #expect(PleyAPI.castTimeout == 120)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
+                           castProtocol: "cast")
+        server.delay(path: "/api/remote/devices/cast:kitchen/cast", ms: 2_500, method: "POST")
+        try await api.cast(.item(7, video: true), to: "cast:kitchen")
+        #expect(server.castsReceived.count == 1)
+
+        // Anything else gives up at the transport's wait.
+        server.delay(path: "/api/remote/devices", ms: 2_500)
+        do {
+            _ = try await api.remoteDevices()
+            Issue.record("the list waited past the transport's wait")
+        } catch let error as PleyError {
+            #expect(error.noAnswer)
+        }
+    }
+
     @Test func aVolumeCommandSaysTheLevel() throws {
         let body = try PleyJSON.encoder.encode(PlayerCommand.volume(-5))
         #expect(String(decoding: body, as: UTF8.self) == #"{"command":"volume","volume":0}"#)

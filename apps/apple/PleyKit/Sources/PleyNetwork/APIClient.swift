@@ -34,11 +34,15 @@ public actor APIClient {
         return try decode(type, response)
     }
 
+    /// With `timeout`, the request waits that long for its answer rather
+    /// than the transport's 20 seconds: for a route that answers only once
+    /// something slow is done (a cast to a Google Cast device).
     public func send<B: Encodable & Sendable, T: Decodable & Sendable>(_ method: String, _ path: String, body: B?,
-                                                                    as type: T.Type) async throws -> T {
+                                                                    as type: T.Type,
+                                                                    timeout: TimeInterval? = nil) async throws -> T {
         let data = try body.map { try PleyJSON.encoder.encode($0) }
         let response = try await request(method, path, query: [], body: data, maxBytes: BodyLimit.json,
-                                         accept: "application/json")
+                                         accept: "application/json", timeout: timeout)
         return try decode(type, response)
     }
 
@@ -266,13 +270,16 @@ public actor APIClient {
         if url.scheme?.lowercased() == "http" { try await transport.gate.check(host: host) }
     }
 
-    /// With `notModified`, a `304` is an answer, not an error.
+    /// With `notModified`, a `304` is an answer, not an error; with
+    /// `timeout`, the request's own wait for its answer.
     private func request(_ method: String, _ path: String, query: [URLQueryItem], body: Data?, maxBytes: Int,
-                         accept: String, headers: [String: String] = [:],
-                         notModified: Bool = false) async throws -> HTTPResponse {
+                         accept: String, headers: [String: String] = [:], notModified: Bool = false,
+                         timeout: TimeInterval? = nil) async throws -> HTTPResponse {
         guard let url = url(path, query: query) else { throw PleyError.unreachable(PleyError.notOnServer) }
         var request = URLRequest(url: url)
         request.httpMethod = method
+        // A request's own interval goes before the session's.
+        if let timeout { request.timeoutInterval = timeout }
         request.setValue(accept, forHTTPHeaderField: "Accept")
         for (name, value) in headers { request.setValue(value, forHTTPHeaderField: name) }
         let check: (HTTPResponse) throws -> Void = { [self] response in
