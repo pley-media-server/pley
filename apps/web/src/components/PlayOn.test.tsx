@@ -58,6 +58,174 @@ describe("PlayOn", () => {
     ]);
   });
 
+  it("offers Cast devices for a movie or an episode alone, marked as such", async () => {
+    const castDevice = makeReceiver({
+      receiver_id: "cast:9f8e",
+      device_id: "cast:9f8e",
+      name: "Bedroom TV",
+      casts: ["item"],
+      protocol: "cast",
+    });
+    serve(undefined, [tv, castDevice]);
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <PlayOn kind="item" video cast={() => ({ item_id: 7 })} />
+        <PlayOn kind="item" label="Shuffle on…" cast={() => ({ playlist_id: 2 })} />
+      </>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Play on…" }));
+    const items = within(screen.getByRole("menu", { name: "Play on…" })).getAllByRole("menuitem");
+    expect(items.map((i) => i.getAttribute("aria-label"))).toEqual(["Living room TV", "Bedroom TV"]);
+    expect(items[1]).toHaveAccessibleDescription("Google Cast");
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "Shuffle on…" }));
+    expect(within(screen.getByRole("menu", { name: "Shuffle on…" })).getAllByRole("menuitem").map((i) => i.getAttribute("aria-label"))).toEqual([
+      "Living room TV",
+    ]);
+  });
+
+  it("says why a Cast device didn't play it", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item"], protocol: "cast" });
+    mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [castDevice],
+      "POST /api/remote/devices/cast%3A9f8e/cast": () => apiError(409, "cast_unreachable", "Pley doesn't listen on an address the device can reach"),
+    });
+    renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+    await choose("Play on…", "Bedroom TV");
+    expect(await screen.findByText("Bedroom TV can't reach this server")).toBeInTheDocument();
+  });
+
+  it("says where a cast is starting, and that it plays, however long the device takes", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item"], protocol: "cast" });
+    let answer = () => {};
+    mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [castDevice],
+      "POST /api/remote/devices/cast%3A9f8e/cast": () =>
+        new Promise<undefined>((done) => {
+          answer = () => done(undefined);
+        }),
+    });
+    const { rerender } = renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+    await choose("Play on…", "Bedroom TV");
+    const starting = await screen.findByRole("button", { name: "Starting on Bedroom TV…" });
+    expect(starting).toBeDisabled();
+
+    // The page drops the button (a player closing) before the device answers.
+    rerender(<></>);
+    act(() => answer());
+    expect(await screen.findByText("Playing on Bedroom TV")).toBeInTheDocument();
+  });
+
+  it("pairs with an AirPlay device that asks for the code it shows, sent with OK when its length isn't known, then plays it there", async () => {
+    const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
+    let paired = false;
+    const requests = mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [appleTv],
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/cast": () => (paired ? undefined : apiError(409, "pairing_needed", "the device wants a PIN")),
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/pairing": (req) => {
+        const pin = (req.body as { pin?: string }).pin;
+        if (pin === undefined) return undefined;
+        if (pin !== "4821") return apiError(403, "wrong_pin", "that isn't the PIN the device shows");
+        paired = true;
+        return undefined;
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+
+    await user.click(await screen.findByRole("button", { name: "Play on…" }));
+    const item = within(screen.getByRole("menu", { name: "Play on…" })).getByRole("menuitem", { name: "Den Apple TV" });
+    expect(item).toHaveAccessibleDescription("AirPlay");
+    await user.click(item);
+    const asking = await screen.findByRole("dialog", { name: "Pair with Den Apple TV" });
+    expect(asking).toHaveAccessibleDescription("Type the code Den Apple TV shows. Everyone in your home can then play on it.");
+    await user.keyboard("1111{Enter}");
+    await waitFor(() => expect(within(asking).getByRole("alert")).toHaveTextContent("That isn't the code Den Apple TV shows"));
+    // The server takes 4 digits: no more are typed.
+    await user.keyboard("482193{Enter}");
+    expect(await screen.findByText("Playing on Den Apple TV")).toBeInTheDocument();
+    expect(asking).not.toBeInTheDocument();
+    const pairings = requests.filter((r) => r.path.endsWith("/pairing")).map((r) => r.body);
+    expect(pairings).toEqual([{}, { pin: "1111" }, { pin: "4821" }]);
+    expect(casts(requests)).toHaveLength(2);
+  });
+
+  it("sends an Apple TV's code at its fourth digit, and has the TV show it again", async () => {
+    const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
+    let paired = false;
+    const requests = mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [appleTv],
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/cast": () => (paired ? undefined : apiError(409, "pairing_needed", "the device wants a PIN")),
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/pairing": (req) => {
+        const pin = (req.body as { pin?: string }).pin;
+        if (pin === undefined) return { digits: 4 };
+        if (pin !== "4821") return apiError(403, "wrong_pin", "that isn't the PIN the device shows");
+        paired = true;
+        return undefined;
+      },
+    });
+    const user = userEvent.setup();
+    renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+
+    await user.click(await screen.findByRole("button", { name: "Play on…" }));
+    await user.click(within(screen.getByRole("menu", { name: "Play on…" })).getByRole("menuitem", { name: "Den Apple TV" }));
+    const asking = await screen.findByRole("dialog", { name: "Pair with Den Apple TV" });
+    await user.keyboard("12");
+    await user.click(within(asking).getByRole("button", { name: "No code showing? Show it again" }));
+    await waitFor(() => expect(requests.filter((r) => r.path.endsWith("/pairing"))).toHaveLength(2));
+    expect(await within(asking).findByLabelText("0 digits entered")).toBeInTheDocument();
+    await user.keyboard("4821");
+    expect(await screen.findByText("Playing on Den Apple TV")).toBeInTheDocument();
+    const pairings = requests.filter((r) => r.path.endsWith("/pairing")).map((r) => r.body);
+    expect(pairings).toEqual([{}, {}, { pin: "4821" }]);
+  });
+
+  it("stays busy while an AirPlay device is asked for its PIN, and says to pick it again once it closed", async () => {
+    const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
+    let showPin = () => {};
+    let answerCast: (r: Response) => void = () => {};
+    let waits = false;
+    const requests = mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [appleTv],
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/cast": () =>
+        waits
+          ? new Promise<Response>((done) => {
+              answerCast = done;
+            })
+          : apiError(409, "pairing_needed", "the device wants a PIN"),
+      "POST /api/remote/devices/airplay%3Aa1b2c3d4e5f6/pairing": () =>
+        new Promise<undefined>((done) => {
+          showPin = () => done(undefined);
+        }),
+    });
+    const { rerender } = renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
+    await choose("Play on…", "Den Apple TV");
+    // The device is asked to show its PIN: the button can't start another.
+    await waitFor(() => expect(requests.filter((r) => r.path.endsWith("/pairing"))).toHaveLength(1));
+    expect(screen.getByRole("button", { name: "Starting on Den Apple TV…" })).toBeDisabled();
+    act(() => showPin());
+    expect(await screen.findByRole("dialog", { name: "Pair with Den Apple TV" })).toBeInTheDocument();
+    await userEvent.setup().keyboard("{Escape}");
+
+    // Gone from the page before the device asks for pairing: no PIN is
+    // asked for that no one could type.
+    waits = true;
+    await choose("Play on…", "Den Apple TV");
+    await waitFor(() => expect(casts(requests)).toHaveLength(2));
+    rerender(<></>);
+    act(() => answerCast(apiError(409, "pairing_needed", "the device wants a PIN")));
+    expect(await screen.findByText("Den Apple TV wants pairing first: choose it in Play on… again")).toBeInTheDocument();
+    expect(requests.filter((r) => r.path.endsWith("/pairing"))).toHaveLength(1);
+  });
+
   it("isn't there while no device takes it", async () => {
     serve(undefined, [phone]);
     const { client } = renderWithProviders(<PlayOn kind="live" label="Watch on…" cast={() => ({ channel_id: 3 })} />);
@@ -96,7 +264,7 @@ describe("PlayOn", () => {
       act(() => screen.getByRole("button", { name: "Dismiss" }).click());
     };
     await said("Phone", "Phone isn't on any more");
-    await waitFor(() => expect(requests.filter((r) => r.path === "/api/remote/devices?household=1")).toHaveLength(2));
+    await waitFor(() => expect(requests.filter((r) => r.path === "/api/remote/devices?household=1&nearby=1")).toHaveLength(2));
     answer = apiError(409, "not_castable", "this device doesn't play that");
     await said("Living room TV", "Living room TV can't play that");
     answer = apiError(429, "too_many_requests", "slow down");

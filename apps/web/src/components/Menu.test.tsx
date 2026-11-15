@@ -48,6 +48,8 @@ describe("Menu", () => {
     try {
       await user.click(trigger);
       expect(screen.getByRole("menu")).toHaveClass("bottom-full");
+      // No taller than the room above, less the gap and the edge: it scrolls within the window.
+      expect(screen.getByRole("menu").style.getPropertyValue("--room")).toBe(`${window.innerHeight - 60 - 16}px`);
       await user.click(trigger);
       rect.mockImplementation(function (this: HTMLElement) {
         return this.getAttribute("role") === "menu" ? box(0, 120) : box(20, 40);

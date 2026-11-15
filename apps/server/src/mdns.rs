@@ -111,6 +111,62 @@ pub fn read(packet: &[u8]) -> Option<Packet> {
     Some(Packet::Response(names))
 }
 
+/// The records of a response, its answers and additionals alike, of the
+/// kinds [`Data`] holds; others are skipped, and so are goodbyes. `None`
+/// for anything but a well-formed response within the bounds. For a
+/// browser ([`crate::cast::discovery`]): what a device says of itself.
+pub fn records(packet: &[u8]) -> Option<Vec<(Name, Data)>> {
+    let header = packet.get(..12)?;
+    let word = |at: usize| u16::from_be_bytes([header[at], header[at + 1]]);
+    let flags = word(2);
+    if flags & 0x8000 == 0 || flags & 0x7800 != 0 || flags & 0x000F != 0 {
+        return None;
+    }
+    let questions = usize::from(word(4));
+    let count = usize::from(word(6)) + usize::from(word(8)) + usize::from(word(10));
+    let mut at = 12;
+    for _ in 0..questions.min(MAX_ENTRIES) {
+        at = skip_name(packet, at)? + 4;
+    }
+    let mut out = Vec::new();
+    for _ in 0..count.min(MAX_ENTRIES) {
+        let (name, next) = read_name(packet, at)?;
+        let fixed = packet.get(next..next + 10)?;
+        let kind = u16::from_be_bytes([fixed[0], fixed[1]]);
+        let ttl = u32::from_be_bytes(fixed[4..8].try_into().ok()?);
+        let length = usize::from(u16::from_be_bytes([fixed[8], fixed[9]]));
+        let start = next + 10;
+        let data = packet.get(start..start + length)?;
+        at = start + length;
+        if ttl == 0 {
+            continue;
+        }
+        let read = match kind {
+            TYPE_A if length == 4 => Some(Data::A(Ipv4Addr::new(data[0], data[1], data[2], data[3]))),
+            // Names in the data may point back into the packet.
+            TYPE_PTR => Some(Data::Ptr(read_name(packet, start)?.0)),
+            TYPE_SRV if length > 6 => {
+                let port = u16::from_be_bytes([data[4], data[5]]);
+                Some(Data::Srv { port, target: read_name(packet, start + 6)?.0 })
+            }
+            TYPE_TXT => {
+                let mut strings = Vec::new();
+                let mut i = 0;
+                while i < data.len() && strings.len() < MAX_ENTRIES {
+                    let len = usize::from(data[i]);
+                    let s = data.get(i + 1..i + 1 + len)?;
+                    strings.push(String::from_utf8_lossy(s).into_owned());
+                    i += 1 + len;
+                }
+                Some(Data::Txt(strings))
+            }
+            _ => None,
+        };
+        out.extend(read.map(|data| (name, data)));
+    }
+    Some(out)
+}
+
 /// The name at `at` in `packet`, and where what follows it begins.
 /// Compression pointers must point before the label that points, and are
 /// followed [`MAX_POINTERS`] times at most, which ends a loop between
@@ -334,6 +390,42 @@ mod tests {
         let mut failed = p.clone();
         failed[3] |= 3;
         assert_eq!(read(&failed), None);
+    }
+
+    #[test]
+    fn a_devices_records_are_read_from_its_response() {
+        let instance = name("Chromecast-1a2b._googlecast._tcp.local");
+        let host = name("1a2b.local");
+        let ptr =
+            Record { name: name("_googlecast._tcp.local"), data: Data::Ptr(instance.clone()), ttl: 120, unique: false };
+        let rest = [
+            Record {
+                name: instance.clone(),
+                data: Data::Srv { port: 8009, target: host.clone() },
+                ttl: 120,
+                unique: true,
+            },
+            Record {
+                name: instance.clone(),
+                data: Data::Txt(vec!["id=1a2b".into(), "fn=Living room".into()]),
+                ttl: 120,
+                unique: true,
+            },
+            Record { name: host.clone(), data: Data::A(Ipv4Addr::new(192, 168, 1, 30)), ttl: 120, unique: true },
+            Record { name: name("old.local"), data: Data::A(Ipv4Addr::new(192, 168, 1, 31)), ttl: 0, unique: true },
+        ];
+        let p = write(std::slice::from_ref(&ptr), &rest, None);
+        let read = records(&p).unwrap();
+        assert_eq!(read.len(), 4, "the goodbye is left out");
+        assert_eq!(read[0], (name("_googlecast._tcp.local"), Data::Ptr(instance.clone())));
+        assert_eq!(read[1], (instance.clone(), Data::Srv { port: 8009, target: host.clone() }));
+        assert_eq!(read[2].1, Data::Txt(vec!["id=1a2b".into(), "fn=Living room".into()]));
+        assert_eq!(read[3], (host, Data::A(Ipv4Addr::new(192, 168, 1, 30))));
+        // Cut short, a query, or an error: none.
+        for end in 12..p.len() - 1 {
+            assert!(records(&p[..end]).is_none_or(|r| r.len() < 4), "{end}");
+        }
+        assert_eq!(records(&write_query(&name("_googlecast._tcp.local"), TYPE_PTR)), None);
     }
 
     #[test]

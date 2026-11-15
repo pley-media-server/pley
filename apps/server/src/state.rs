@@ -54,6 +54,9 @@ pub struct Inner {
     /// The devices the user's remotes cast to, while their event streams
     /// are open.
     pub(crate) receivers: Arc<crate::api::remote::Receivers>,
+    /// The Google Cast devices on the local network, and the casts playing
+    /// on them.
+    pub(crate) nearby: Arc<crate::nearby::NearbyDevices>,
     /// When library work runs (see [`crate::schedule`]).
     pub schedule: Arc<Scheduler>,
     pub markers: Arc<MarkerService>,
@@ -214,6 +217,7 @@ impl AppState {
                 plex_session_keys: Default::default(),
                 jellyfin_remotes: Default::default(),
                 receivers: Default::default(),
+                nearby: Default::default(),
                 schedule,
                 markers,
                 trickplay,

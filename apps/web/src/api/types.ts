@@ -679,6 +679,8 @@ export interface TranscodeInfo {
   variants?: number;
 }
 
+export type SessionPlayer = "pley" | "plex" | "jellyfin" | "cast" | "airplay";
+
 export interface SessionInfo {
   session_id: string;
   kind: "item";
@@ -686,6 +688,8 @@ export interface SessionInfo {
   username: string;
   /** The device it plays on ("Living room TV", "Firefox on macOS"); null when it isn't known. */
   device: string | null;
+  /** What plays it: a Pley app, another app through the Plex- or Jellyfin-compatible API, or a device the server casts to. Absent from servers before it. */
+  player?: SessionPlayer;
   item: ItemSummary;
   method: PlaybackMethod;
   position_ms: number;
@@ -702,7 +706,7 @@ export interface SessionInfo {
 }
 
 /** A command a remote sends one of the user's players (`POST /api/sessions/{id}/command`). */
-export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality";
+export type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality" | "volume";
 
 /** What kind of device plays a session, or takes casts: remotes show each with its own icon. */
 export type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
@@ -769,6 +773,8 @@ export interface PlayingSession {
   qualities?: { id: string; label: string }[];
   /** Its file's intro and credits, which a remote offers to skip; empty on live (absent from servers before them). */
   markers?: Marker[];
+  /** Its device's volume, 0 to 100, for a player that takes `volume` (a Cast device's), once it says. */
+  volume?: number;
 }
 
 /** What a device plays when cast to: titles, music and playlists (`item`), Live TV channels (`live`). */
@@ -791,6 +797,19 @@ export interface RemoteDevice {
    * switches it to the user's first. What it plays isn't listed.
    */
   profile?: { id: Id; name: string };
+  /** How the server plays on it when not through a Pley app: on a Google Cast or an AirPlay device. */
+  protocol?: "cast" | "airplay";
+}
+
+/** An AirPlay device the server paired with (Settings → Network). */
+export interface AirPlayPairing {
+  device_id: string;
+  /** Its name when it was paired. */
+  name: string;
+  /** Who typed its PIN, while their account exists. */
+  paired_by: string | null;
+  /** Unix seconds. */
+  paired_at: number;
 }
 
 /**

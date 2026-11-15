@@ -40,6 +40,14 @@ describe("DashboardSettings stopping playback", () => {
     expect(await screen.findByText("Firefox on macOS")).toBeInTheDocument();
   });
 
+  it("says what plays each session: a Pley app, another app, or a device the server casts to", async () => {
+    const cast: SessionInfo = { ...playing, session_id: "def", device: "Den Apple TV", player: "airplay" };
+    mockApi({ "GET /api/activity": () => ({ scans: [], sessions: [{ ...playing, player: "pley" }, cast] }) });
+    renderWithProviders(<DashboardSettings />);
+    expect(await screen.findByText("Den Apple TV · AirPlay")).toBeInTheDocument();
+    expect(screen.getByText("Firefox on macOS · Pley app")).toBeInTheDocument();
+  });
+
   it("stops a session, with a message for the viewer", async () => {
     const user = userEvent.setup();
     const requests = serve();
@@ -64,6 +72,19 @@ describe("DashboardSettings stopping playback", () => {
     renderWithProviders(<DashboardSettings />);
     await user.click(await screen.findByRole("button", { name: "Stop Heat for sam on Firefox on macOS" }));
     await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Stop" }));
+    await waitFor(() => expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/sessions/abc")).toBe(true));
+    expect(requests.find((r) => r.method === "DELETE")?.body).toBeUndefined();
+  });
+
+  it("offers no message for a player that can't show one", async () => {
+    const user = userEvent.setup();
+    const cast: SessionInfo = { ...playing, device: "Den Apple TV", player: "airplay" };
+    const requests = mockApi({ "GET /api/activity": () => ({ scans: [], sessions: [cast] }), "DELETE /api/sessions/abc": () => undefined });
+    renderWithProviders(<DashboardSettings />);
+    await user.click(await screen.findByRole("button", { name: "Stop Heat for sam on Den Apple TV" }));
+    const dialog = screen.getByRole("dialog", { name: "Stop playback" });
+    expect(within(dialog).queryByLabelText("Message")).not.toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Stop" }));
     await waitFor(() => expect(requests.some((r) => r.method === "DELETE" && r.path === "/api/sessions/abc")).toBe(true));
     expect(requests.find((r) => r.method === "DELETE")?.body).toBeUndefined();
   });
