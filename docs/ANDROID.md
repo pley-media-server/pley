@@ -903,8 +903,10 @@ and each does what its web page does. The server's settings, its network,
 the transcoder and Live TV's sources hold its keys and passwords, and stay
 in the web app: the server doesn't let apps read or change them. Requests'
 settings and Live TV's channels and tuners are managed there too, and the
-page says where they are. The app asks for the `server` scope as it signs
-in, where the server offers it ([API.md](API.md#scopes)); an
+page says where they are. Moving from Plex, which signs in to Plex, and
+forgetting AirPlay pairings are done in the web app as well. The app asks
+for the `server` scope as it signs in, where the server offers it
+([API.md](API.md#scopes)); an
 administrator signed in before then is offered to sign in again, and
 anyone else sees nothing of it. Nor does a phone that a cast switched to
 an administrator's profile, whoever signed it in: the caster gave their
