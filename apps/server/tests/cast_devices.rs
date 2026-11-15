@@ -7,7 +7,7 @@ mod common;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use axum::http::StatusCode;
@@ -27,7 +27,7 @@ type Say = mpsc::UnboundedSender<Value>;
 
 /// A Cast device on this computer, with a certificate of its own making as
 /// real ones have.
-async fn fake_device() -> (SocketAddr, Sent, Say, Refuse) {
+async fn fake_device() -> (SocketAddr, Sent, Say, Fake) {
     let made = rcgen::generate_simple_self_signed(vec!["cast".to_owned()]).unwrap();
     let key = rustls::pki_types::PrivateKeyDer::Pkcs8(made.signing_key.serialize_der().into());
     let config = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::aws_lc_rs::default_provider()))
@@ -42,21 +42,35 @@ async fn fake_device() -> (SocketAddr, Sent, Say, Refuse) {
     let (sent_tx, sent) = mpsc::unbounded_channel();
     let (say, said) = mpsc::unbounded_channel::<Value>();
     let said = Arc::new(tokio::sync::Mutex::new(said));
-    let refuse = Refuse::default();
-    let refusing = refuse.clone();
+    let fake = Fake::default();
+    let knobs = fake.clone();
     tokio::spawn(async move {
         // Each connection as it comes: a new cast connects again.
         while let Ok((tcp, _)) = listener.accept().await {
-            let (acceptor, sent_tx, said, refuse) = (acceptor.clone(), sent_tx.clone(), said.clone(), refusing.clone());
-            tokio::spawn(async move { serve(acceptor.accept(tcp).await.unwrap(), sent_tx, said, refuse).await });
+            let (acceptor, sent_tx, said, fake) = (acceptor.clone(), sent_tx.clone(), said.clone(), knobs.clone());
+            tokio::spawn(async move { serve(acceptor.accept(tcp).await.unwrap(), sent_tx, said, fake).await });
         }
     });
-    (address, sent, say, refuse)
+    (address, sent, say, fake)
 }
 
-/// How many loads the fake device refuses next, as a device does a stream
-/// it can't decode.
-type Refuse = Arc<AtomicUsize>;
+/// How the fake device behaves, as the test sets it.
+#[derive(Default)]
+struct Knobs {
+    /// How many loads it refuses next, as a device does a stream it can't
+    /// decode.
+    refuse: AtomicUsize,
+    /// It answers no load.
+    silent_load: AtomicBool,
+    /// It answers no launch.
+    silent_launch: AtomicBool,
+    /// Its next answer to what runs comes this many milliseconds late.
+    slow_status_ms: AtomicU64,
+    /// Its next answer to what runs names another sender's session of
+    /// Google's player.
+    other_session: AtomicBool,
+}
+type Fake = Arc<Knobs>;
 
 /// A Cast device's setup API on this computer, answering `answer` to
 /// whatever it is asked.
@@ -88,7 +102,7 @@ async fn serve(
     stream: tokio_rustls::server::TlsStream<tokio::net::TcpStream>,
     sent_tx: mpsc::UnboundedSender<(String, Value)>,
     said: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<Value>>>,
-    refuse: Refuse,
+    fake: Fake,
 ) {
     {
         let (mut reader, mut writer) = tokio::io::split(stream);
@@ -103,9 +117,9 @@ async fn serve(
         let mut muted = false;
         // What the device says of itself: Google's player running, and its
         // volume.
-        let receiver = |id: &Value, volume: f64, muted: bool| {
+        let receiver = |id: &Value, volume: f64, muted: bool, session: &str| {
             json!({"type": "RECEIVER_STATUS", "requestId": id, "status": {
-                "applications": [{"appId": "CC1AD845", "transportId": "web-5", "sessionId": "s-1"}],
+                "applications": [{"appId": "CC1AD845", "transportId": "web-5", "sessionId": session}],
                 "volume": {"level": volume, "muted": muted},
             }})
         };
@@ -127,18 +141,28 @@ async fn serve(
             let _ = sent_tx.send((message.destination.clone(), payload.clone()));
             let id = payload["requestId"].clone();
             let answer = match payload["type"].as_str() {
-                Some("LAUNCH") => Some(reply("receiver-0", "receiver", receiver(&id, volume, muted))),
+                Some("LAUNCH") if fake.silent_launch.load(Ordering::SeqCst) => None,
+                Some("LAUNCH") => Some(reply("receiver-0", "receiver", receiver(&id, volume, muted, "s-1"))),
                 Some("GET_STATUS") if message.destination == "receiver-0" => {
-                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted)))
+                    let late = fake.slow_status_ms.swap(0, Ordering::SeqCst);
+                    if late > 0 {
+                        tokio::time::sleep(Duration::from_millis(late)).await;
+                    }
+                    let other = fake.other_session.swap(false, Ordering::SeqCst);
+                    let session = if other { "s-other" } else { "s-1" };
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted, session)))
                 }
                 // Either the level or the mute, as Google's senders send them.
                 Some("SET_VOLUME") => {
                     assert!(payload["volume"].as_object().unwrap().len() == 1, "{payload}");
                     volume = payload["volume"]["level"].as_f64().unwrap_or(volume);
                     muted = payload["volume"]["muted"].as_bool().unwrap_or(muted);
-                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted)))
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted, "s-1")))
                 }
-                Some("LOAD") if refuse.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() => {
+                Some("LOAD") if fake.silent_load.load(Ordering::SeqCst) => None,
+                Some("LOAD")
+                    if fake.refuse.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() =>
+                {
                     Some(reply("web-5", "media", json!({"type": "LOAD_FAILED", "requestId": id})))
                 }
                 Some("LOAD") => {
@@ -185,7 +209,7 @@ struct World {
     film: i64,
     sent: Sent,
     say: Say,
-    refuse: Refuse,
+    fake: Fake,
 }
 
 async fn world() -> World {
@@ -194,11 +218,22 @@ async fn world() -> World {
 
 /// The world, with the device's setup API at `setup`.
 async fn world_with(setup: Option<SocketAddr>) -> World {
-    let (address, sent, say, refuse) = fake_device().await;
+    world_where(|config| config.cast_fixed.setup = setup).await
+}
+
+/// The world, where a cast has `within` to start.
+async fn world_within(within: Duration) -> World {
+    world_where(|config| config.cast_within = within).await
+}
+
+/// The world, with what `adjust` changes of the server's config.
+async fn world_where(adjust: impl FnOnce(&mut pley::config::Config)) -> World {
+    let (address, sent, say, fake) = fake_device().await;
     let app = TestApp::with_config(|config| {
         config.cast_fixed.device = Some(address);
         config.cast_fixed.server = Some("http://pley.test:7539".into());
-        config.cast_fixed.setup = setup;
+        config.cast_fixed.setup = None;
+        adjust(config);
     })
     .await;
     let admin = app.setup_admin().await;
@@ -208,22 +243,31 @@ async fn world_with(setup: Option<SocketAddr>) -> World {
     sqlx::query("UPDATE items SET duration_ms = ?").bind(LENGTH_MS).execute(&app.state.db.write).await.unwrap();
     // H.264 and AAC in MP4, as a Cast device plays it, with English text
     // subtitles.
+    film_in(&app, film, "h264").await;
+    World { app, admin, film, sent, say, fake }
+}
+
+/// Makes `film` MP4 with `video` and AAC, and English text subtitles:
+/// played as it is in H.264, transcoded in HEVC.
+async fn film_in(app: &TestApp, film: i64, video: &str) {
     let info = json!({
         "container": "mov,mp4,m4a,3gp,3g2,mj2",
         "duration_ms": LENGTH_MS,
         "streams": [
-            {"index": 0, "kind": "video", "codec": "h264", "width": 1920, "height": 1080, "pix_fmt": "yuv420p"},
+            {"index": 0, "kind": "video", "codec": video, "width": 1920, "height": 1080, "pix_fmt": "yuv420p"},
             {"index": 1, "kind": "audio", "codec": "aac", "channels": 2, "language": "eng", "default": true},
             {"index": 2, "kind": "subtitle", "codec": "mov_text", "language": "eng", "text_based": true},
         ],
     });
-    sqlx::query("UPDATE media_files SET media_info = ?, container = 'mp4', video_codec = 'h264', audio_codec = 'aac' WHERE id = ?")
-        .bind(info.to_string())
-        .bind(app.file_of(film).await)
-        .execute(&app.state.db.write)
-        .await
-        .unwrap();
-    World { app, admin, film, sent, say, refuse }
+    sqlx::query(
+        "UPDATE media_files SET media_info = ?, container = 'mp4', video_codec = ?, audio_codec = 'aac' WHERE id = ?",
+    )
+    .bind(info.to_string())
+    .bind(video)
+    .bind(app.file_of(film).await)
+    .execute(&app.state.db.write)
+    .await
+    .unwrap();
 }
 
 async fn sessions(w: &World) -> Vec<Value> {
@@ -516,7 +560,7 @@ async fn a_new_cast_that_fails_leaves_the_one_playing_be() {
     next(&mut w.sent, "LOAD").await;
     let playing = sessions(&w).await[0]["session_id"].clone();
     // The device refuses the next stream, and the basic one too.
-    w.refuse.store(2, Ordering::SeqCst);
+    w.fake.refuse.store(2, Ordering::SeqCst);
     let body = json!({"item_id": w.film, "start_ms": 600_000});
     let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body).await;
     assert_eq!(failed.status, StatusCode::CONFLICT, "{}", failed.text());
@@ -524,6 +568,174 @@ async fn a_new_cast_that_fails_leaves_the_one_playing_be() {
     let listed = sessions(&w).await;
     assert_eq!(listed.len(), 1, "{listed:?}");
     assert_eq!(listed[0]["session_id"], playing);
+    // Nor is the player it plays in closed.
+    while let Ok((to, payload)) = w.sent.try_recv() {
+        assert!(!(to == "receiver-0" && payload["type"] == "STOP"), "{payload}");
+    }
+}
+
+#[tokio::test]
+async fn a_cast_that_fails_closes_the_player_it_opened() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.fake.refuse.store(2, Ordering::SeqCst);
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(failed.status, StatusCode::CONFLICT, "{}", failed.text());
+    // Google's player, opened for the cast, is closed: the TV goes back to
+    // what it showed.
+    let (to, stop) = next(&mut w.sent, "STOP").await;
+    assert_eq!((to.as_str(), stop["sessionId"].as_str()), ("receiver-0", Some("s-1")));
+    assert!(sessions(&w).await.is_empty());
+}
+
+/// Whether the device was told to close a session of Google's player
+/// among what it was sent so far, given a moment to arrive.
+async fn player_closed(sent: &mut Sent) -> bool {
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let mut closed = false;
+    while let Ok((to, payload)) = sent.try_recv() {
+        closed |= to == "receiver-0" && payload["type"] == "STOP";
+    }
+    closed
+}
+
+#[tokio::test]
+async fn a_cast_closes_no_player_it_didnt_load_into() {
+    // It never launched one: the device didn't answer before the deadline.
+    let mut w = world_within(Duration::from_secs(5)).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.fake.silent_launch.store(true, Ordering::SeqCst);
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
+    assert!(!player_closed(&mut w.sent).await, "what runs there isn't the cast's");
+    assert!(sessions(&w).await.is_empty());
+
+    // Another sender's session runs by the time the player would close.
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.fake.refuse.store(1, Ordering::SeqCst);
+    w.fake.other_session.store(true, Ordering::SeqCst);
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(failed.status, StatusCode::CONFLICT);
+    assert_eq!(next(&mut w.sent, "GET_STATUS").await.0, "receiver-0", "asked what runs");
+    assert!(!player_closed(&mut w.sent).await, "another sender's player is left be");
+}
+
+#[tokio::test]
+async fn a_newer_cast_keeps_the_player_a_failed_one_was_closing() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    // The first cast is refused, and the device takes its time to say what
+    // runs as the cast closes the player: a second cast comes meanwhile,
+    // into the same session of Google's player.
+    w.fake.refuse.store(1, Ordering::SeqCst);
+    w.fake.slow_status_ms.store(3_000, Ordering::SeqCst);
+    let (app, admin, film, sent) = (&w.app, w.admin.as_str(), w.film, &mut w.sent);
+    let (first, second) =
+        tokio::join!(app.post("/api/remote/devices/cast:dev/cast", admin, json!({"item_id": film})), async {
+            assert_eq!(next(sent, "GET_STATUS").await.0, "receiver-0");
+            app.post("/api/remote/devices/cast:dev/cast", admin, json!({"item_id": film, "start_ms": 600_000})).await
+        });
+    assert_eq!((first.status, second.status), (StatusCode::CONFLICT, StatusCode::NO_CONTENT));
+    assert!(!player_closed(&mut w.sent).await, "the newer cast plays on");
+    assert_eq!(sessions(&w).await.len(), 1);
+}
+
+/// A transcoder that says what it can do, and never answers a request to
+/// make a job: its address.
+async fn stuck_transcoder() -> String {
+    use axum::routing::{get, post};
+    use pley_transcoder_api::{API_VERSION, Capabilities, EncoderInfo, HwAccel, Limits, TranscoderInfo, VideoCodec};
+    let info = TranscoderInfo {
+        name: "pley-transcoder".into(),
+        version: "9.9.9".into(),
+        api_version: API_VERSION,
+        license: "AGPL-3.0-only".into(),
+        capabilities: Capabilities {
+            ffmpeg_available: true,
+            ffprobe_available: true,
+            encoders: vec![EncoderInfo {
+                name: "libx264".into(),
+                codec: VideoCodec::H264,
+                hardware: false,
+                accel: HwAccel::None,
+                main10: false,
+                low_power: false,
+            }],
+            ..Default::default()
+        },
+        limits: Limits { max_jobs: 8, max_hw_jobs: 0 },
+        ..Default::default()
+    };
+    let app = axum::Router::new()
+        .route("/v1/info", get(move || async move { axum::Json(info) }))
+        .route("/v1/jobs", post(std::future::pending::<StatusCode>));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{address}")
+}
+
+#[tokio::test]
+async fn a_session_slow_to_start_ends_the_cast_in_time_and_frees_the_device() {
+    let transcoder = stuck_transcoder().await;
+    let mut w = world_where(|config| {
+        config.cast_within = Duration::from_secs(5);
+        config.transcoder_url = Some(transcoder);
+        config.transcoder_token = Some("secret".into());
+    })
+    .await;
+    w.app.state.transcoder.start();
+    assert!(w.app.state.transcoder.wait_ready(Duration::from_secs(10)).await);
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    // HEVC, which every Cast device doesn't play: a transcode, whose job the
+    // transcoder never makes.
+    film_in(&w.app, w.film, "hevc").await;
+    let asked = std::time::Instant::now();
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
+    assert!(asked.elapsed() < Duration::from_secs(20), "answered at the deadline, not the transcoder's");
+    assert!(sessions(&w).await.is_empty());
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(w.sent.try_recv().is_err(), "the device was never reached, nor closed");
+
+    // The device is free for the next cast, which plays as it is.
+    film_in(&w.app, w.film, "h264").await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+    assert_eq!(sessions(&w).await.len(), 1);
+}
+
+#[tokio::test]
+async fn a_cast_the_device_never_loads_stops_in_time() {
+    let mut w = world_within(Duration::from_secs(5)).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.fake.silent_load.store(true, Ordering::SeqCst);
+    let asked = std::time::Instant::now();
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
+    let waited = asked.elapsed();
+    assert!(waited >= Duration::from_secs(5), "not before the deadline: {waited:?}");
+    assert!(waited < Duration::from_secs(20), "answered at the deadline, not the device's own waits");
+    // Nothing is left to play: no session, and Google's player closed.
+    assert!(sessions(&w).await.is_empty());
+    let (to, stop) = next(&mut w.sent, "STOP").await;
+    assert_eq!((to.as_str(), stop["sessionId"].as_str()), ("receiver-0", Some("s-1")));
+
+    // A remote that stops waiting doesn't stop the deadline: the cast,
+    // started apart from its request, ends there all the same.
+    let body = json!({"item_id": w.film});
+    let dropped = tokio::time::timeout(
+        Duration::from_millis(500),
+        w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body),
+    )
+    .await;
+    assert!(dropped.is_err(), "the device doesn't play it");
+    next(&mut w.sent, "LOAD").await;
+    assert_eq!(sessions(&w).await.len(), 1, "the cast goes on without its request");
+    let (to, _) = next(&mut w.sent, "STOP").await;
+    assert_eq!(to, "receiver-0");
+    assert!(sessions(&w).await.is_empty());
 }
 
 #[tokio::test]
@@ -556,7 +768,7 @@ async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
     .await;
     let mut w = world_with(Some(setup)).await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
-    w.refuse.store(1, Ordering::SeqCst);
+    w.fake.refuse.store(1, Ordering::SeqCst);
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
     next(&mut w.sent, "LOAD").await;
@@ -566,7 +778,7 @@ async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
 
     // Its model is remembered: the next cast is the basic one at once, and
     // nothing comes after it to fall back on.
-    w.refuse.store(1, Ordering::SeqCst);
+    w.fake.refuse.store(1, Ordering::SeqCst);
     let refused = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(refused.status, StatusCode::CONFLICT);
     assert_eq!(refused.body["code"], "cast_failed");

@@ -923,8 +923,8 @@ impl Screen for PlaylistScreen {
         let (row_kind, row_px) = if video { (TileKind::Landscape, 160.0) } else { (TileKind::Square, 90.0) };
         let px = ui.image_px(row_px);
         ui.group(ids.entries, Group::column(), |ui| {
-            for k in r0..r1 {
-                let Some(entry) = detail.entries.get(view.shown[k]) else { continue };
+            for (k, &shown) in view.shown.iter().enumerate().take(r1).skip(r0) {
+                let Some(entry) = detail.entries.get(shown) else { continue };
                 let e = entry.entry_id;
                 let row = rows.entry(e).or_insert_with(|| Row::new(&entry.item, api, row_kind, px));
                 let lifted = moving == Some(e);

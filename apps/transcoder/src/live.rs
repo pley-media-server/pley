@@ -776,6 +776,9 @@ fn video_args(plan: &Plan, enc: &EncoderInfo) -> Vec<String> {
         HwAccel::Qsv => {
             let max = (u64::from(br) * 1000 + 1).to_string();
             push(&["-preset", "veryfast", "-look_ahead", "0", "-forced_idr", "1", "-g", &gop, "-mbbrc", "1"]);
+            if enc.low_power {
+                push(&crate::plan::QSV_LOW_POWER);
+            }
             push(&["-b:v", &b, "-maxrate", &max, "-bufsize", &buf, "-profile:v", "high"]);
         }
         HwAccel::Amf => {
@@ -894,6 +897,7 @@ mod tests {
             hardware: true,
             accel: HwAccel::Nvenc,
             main10: false,
+            low_power: false,
         };
         let x264 = EncoderInfo {
             name: "libx264".into(),
@@ -901,6 +905,7 @@ mod tests {
             hardware: false,
             accel: HwAccel::None,
             main10: false,
+            low_power: false,
         };
         let mut plan = Plan {
             video: Some(stream("mpeg2video", 1080, true)),

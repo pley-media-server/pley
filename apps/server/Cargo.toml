@@ -153,4 +153,6 @@ tray = ["dep:open", "dep:sys-locale", "dep:tray-icon", "dep:objc2", "dep:objc2-a
 # (tests/cast_devices.rs).
 rcgen = { version = "0.14", default-features = false, features = ["aws_lc_rs", "crypto"] }
 tempfile = "3.20"
+# Paused time in tests.
+tokio = { version = "1", features = ["test-util"] }
 tokio-tungstenite = "0.30"

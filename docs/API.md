@@ -413,6 +413,8 @@ interface MediaStream {
   dv_level?: number;                // Dolby Vision level (absent with dv_unnamed)
   hdr10plus?: boolean;              // Dolby Vision and PQ streams: HDR10+ in the first frames (absent: not
                                     // looked for). On Dolby Vision, true means Dolby Vision + HDR10+
+  hdr10_metadata?: boolean;         // Dolby Vision and PQ streams: HDR10's mastering display metadata in the
+                                    // first frames, which some tone mappers need (absent: not looked for)
   // Clients name the dynamic range the same way everywhere: "Dolby Vision P8.1", "Dolby Vision P8.4",
   // "Dolby Vision P5", "Dolby Vision P7 FEL" (or MEL; "P7" when not known, never "P7.6"),
   // "Dolby Vision P8.1 + HDR10+", "HDR10+", "HDR10", "HLG". Badges shorten "Dolby Vision" to "DV".
@@ -3541,7 +3543,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`; only Pley's own apps show it) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number, quality?: string, volume?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast and AirPlay devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast and AirPlay devices (not to an app other than Pley's own), and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play; `204` once a Google Cast or AirPlay device plays it ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/pairing` | `play` | `{ pin?: string }` → `{ digits: number \| null }`: has an AirPlay device show a PIN (without `pin`), with how many digits it has where known (`4` on an Apple TV); `204`: pairs the server with it (with the 4 digits it shows) ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
@@ -3679,7 +3681,7 @@ profile of the remote that sent it something.
   Music and Live TV have none: an empty list and `null`.
 - **Volume.** A player that sets its device's volume lists `volume` and
   says the level: the session's `volume`, 0 to 100 (0 while muted). Only
-  the server's casts to Cast devices do for now, which follow the
+  the server's casts to Cast devices do, which follow the
   device's own level, whatever sets it; a change sends `sessions_changed`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
@@ -3701,7 +3703,7 @@ profile of the remote that sent it something.
   and `subtitles` one of its subtitle `tracks` or `-1` to turn them off;
   `quality` needs `quality`, the id of one of the session's `qualities`;
   `volume` needs `volume`, from 0 to 100, which only Cast devices take
-  for now (the event has it for `volume` alone). Live TV sessions take
+  (the event has it for `volume` alone). Live TV sessions take
   none of `audio`, `subtitles` and `quality`. The other commands take
   none of these, and the event has them `null`. It answers:
   - `400` for an unknown command, or a place, offset, track, quality or
@@ -3864,7 +3866,10 @@ would.
   its device switched) is answered `204` and kept for neither.
 - **Google Cast devices.** Chromecasts, Google TVs and TVs with Cast
   built in that show video are listed too, for home members whose remote
-  asks with `nearby=1` (a remote that doesn't know them leaves it out), with
+  asks with `nearby=1` (a remote that doesn't know them leaves it out),
+  through the web app or one of Pley's own apps: they are the home's, as
+  its TVs are, and an app other than Pley's own gets none, nor casts or
+  pairs there. They are listed with
   `receiver_id` and `device_id` `cast:<its id>`, `kind` `tv`, `casts`
   `["item"]` and `protocol: "cast"`, which remotes show under the name.
   The server finds them by mDNS (`_googlecast._tcp`) on its own network,
@@ -3879,8 +3884,13 @@ would.
   as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
   above (without `start_ms` it starts where Play would: the resume
   point, or the beginning once watched); `profile_id`, if given, is the
-  caller's own. It answers `204` once the device plays; `404` for a device not listed lately, a caller
-  who isn't a home member, another profile's `profile_id`, a `device_id`
+  caller's own. It answers `204` once the device plays. A cast not
+  playing within 3 minutes is stopped and answers `cast_failed`, so a
+  client (and a reverse proxy before Pley) waits longer than that, 4
+  minutes say, for the answer;
+  `404` for a device not listed lately, a caller
+  who isn't a home member, an app other than Pley's own, another
+  profile's `profile_id`, a `device_id`
   or an item the caller can't see; `400` for a `start_ms` out of range or
   a track the item doesn't have; `409` `{ code: "not_castable" }` for
   anything but a movie or an episode, `409` `{ code:
@@ -4130,7 +4140,8 @@ interface TranscodeInfo {
   preset: string | null;        // the software encoder's current preset (the automatic one changes)
   decoder: string | null;       // "cuda", "vulkan", "cpu", …
   pipeline: string | null;      // "gpu" (zero-copy), "hybrid", "cpu" or "copy"
-  tonemap: string | null;       // "libplacebo" | "opencl" | "zscale" when HDR/DV is tone-mapped to SDR
+  tonemap: string | null;       // "libplacebo" | "opencl" | "zscale" | "vpp_qsv" (Quick Sync's scaler, VAAPI's
+                                // on Linux) when HDR/DV is tone-mapped to SDR
   dolby_vision: string | null;  // remuxes: "kept" (named in master.m3u8), "converted to 8.1" (profile 7)
   hdr10plus_stripped: boolean;  // the remux leaves out HDR10+ (Dolby Vision + HDR10+ streams)
   subtitle_burn: boolean;

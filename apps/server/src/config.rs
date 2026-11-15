@@ -235,6 +235,9 @@ pub struct Config {
     pub trickplay_disks: crate::disks::Source,
     /// A Cast device no look finds (see [`crate::cast::device::Fixed`]).
     pub cast_fixed: crate::cast::device::Fixed,
+    /// How long a cast to a device on the network may take to start
+    /// ([`crate::nearby::casts::CAST_WITHIN`]; tests shorten it).
+    pub cast_within: Duration,
     /// The config file given, or `pley.toml` in the data directory: where
     /// the web app saves where pley listens (see [`crate::network`]).
     pub config_file: PathBuf,
@@ -318,6 +321,7 @@ impl Config {
             trickplay_pace: crate::trickplay::Pace::default(),
             trickplay_disks: crate::disks::Source::System,
             cast_fixed: crate::cast::device::Fixed::from_env(),
+            cast_within: crate::nearby::casts::CAST_WITHIN,
             network_fixed: crate::network::Fixed {
                 web: cli.bind.is_some(),
                 plex: cli.plex_bind.is_some(),
@@ -370,6 +374,7 @@ impl Config {
             trickplay_pace: crate::trickplay::Pace::default(),
             trickplay_disks: crate::disks::Source::System,
             cast_fixed: crate::cast::device::Fixed::default(),
+            cast_within: crate::nearby::casts::CAST_WITHIN,
             config_file: data_dir.join("pley.toml"),
             network_fixed: crate::network::Fixed::default(),
         }

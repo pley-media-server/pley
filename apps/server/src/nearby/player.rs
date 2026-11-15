@@ -155,11 +155,17 @@ pub enum Connected {
 impl Connected {
     /// Starts the device's player and loads `media` into it. Its events
     /// come on the receiver returned, until it ends ([`Event::Ended`], then
-    /// nothing).
-    pub async fn start(self, media: &Media) -> Result<(Player, mpsc::Receiver<Event>), Failure> {
+    /// nothing). A Cast device's player session goes in `launched` once
+    /// `media` is loaded into it ([`crate::cast::player::close`]).
+    pub async fn start(
+        self,
+        media: &Media,
+        launched: &parking_lot::Mutex<Option<String>>,
+    ) -> Result<(Player, mpsc::Receiver<Event>), Failure> {
         match self {
             Connected::Cast(connection, incoming) => {
-                let (player, events) = crate::cast::player::Player::start(connection, incoming, media).await?;
+                let (player, events) =
+                    crate::cast::player::Player::start(connection, incoming, media, launched).await?;
                 Ok((Player::Cast(player), events))
             }
             Connected::AirPlay(session) => {
