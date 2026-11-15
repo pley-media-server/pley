@@ -534,6 +534,7 @@ async fn direct_play_supports_ranges_and_transcode_needs_the_transcoder() {
 
     let activity = app.get("/api/activity", &token).await;
     assert_eq!(activity.body["sessions"].as_array().unwrap().len(), 1);
+    assert_eq!(activity.body["sessions"][0]["player"], json!("pley"));
     let session = play.body["session_id"].as_str().unwrap();
     let stop = app.call(Method::DELETE, &format!("/api/playback/{session}"), Some(&token), None, &[]).await;
     assert_eq!(stop.status, StatusCode::NO_CONTENT);

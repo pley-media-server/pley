@@ -179,8 +179,12 @@
   "playOn": {
     "label": "Play on…",
     "playingOn": "Playing on {{device}}",
+    "starting": "Starting on {{device}}…",
     "otherProfile": "{{device}} is on {{profile}}'s profile: it switches to yours first.",
-    "enterPin": "Enter your PIN"
+    "enterPin": "Enter your PIN",
+    "pairWith": "Pair with {{device}}",
+    "pairWhy": "Type the code {{device}} shows. Everyone in your home can then play on it.",
+    "showCodeAgain": "No code showing? Show it again"
   },
   "remote": {
     "readyToPlay": "Ready to play",
@@ -224,7 +228,10 @@
     "stop": "Stop",
     "stopConfirm": "Stop playing on {{device}}?",
     "programme": "{{title}}, {{start}} to {{end}}",
-    "next": "Next: {{title}}"
+    "next": "Next: {{title}}",
+    "googleCast": "Google Cast",
+    "volumeOn": "Volume on {{device}}",
+    "airPlay": "AirPlay"
   },
   "requestNotices": {
     "open": "Open"

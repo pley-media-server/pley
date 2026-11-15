@@ -138,7 +138,8 @@ pub enum ServerEvent {
     /// (back when negative), `stream_index` the track `audio` and
     /// `subtitles` change to (`-1`: subtitles off), `quality` the id of the
     /// Quality menu's entry `quality` picks; each is `null` for the other
-    /// commands.
+    /// commands. `volume` (0 to 100) is the level `volume` sets, left out
+    /// for the other commands.
     PlayerCommand {
         #[serde(skip)]
         user_id: i64,
@@ -148,6 +149,8 @@ pub enum ServerEvent {
         offset_ms: Option<i64>,
         stream_index: Option<i64>,
         quality: Option<&'static str>,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        volume: Option<u8>,
     },
     /// The user's remote cast a title, a playlist or a Live TV channel to
     /// one of their devices: to that user's streams, whose app holding
@@ -460,6 +463,7 @@ mod tests {
             offset_ms: None,
             stream_index: None,
             quality: None,
+            volume: None,
         };
         assert_eq!(event.user_id(), Some(4), "to the session's user only");
         assert_eq!(

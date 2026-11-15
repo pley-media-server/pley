@@ -5,11 +5,13 @@
 
 pub mod access;
 pub mod accounts;
+pub mod airplay;
 pub mod api;
 pub mod auth;
 pub mod backup;
 pub mod bandwidth;
 pub mod bonjour;
+pub mod cast;
 pub mod catalog;
 pub mod collections;
 pub mod config;
@@ -38,6 +40,7 @@ pub mod logging;
 pub mod markers;
 pub mod mdns;
 pub mod metadata;
+pub mod nearby;
 pub mod network;
 pub mod oauth;
 pub mod overrides;

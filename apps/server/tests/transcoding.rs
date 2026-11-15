@@ -88,6 +88,9 @@ struct Fake {
     sidecar_delay: Arc<Mutex<Duration>>,
     /// The next subtitle file's conversion fails.
     sidecar_fails: Arc<AtomicBool>,
+    /// The fixture's text track 4 is in a big file too, as stream 5 always
+    /// is: its first answer has only the cues read so far.
+    slow_text_track: Arc<AtomicBool>,
     /// Subtitle file conversions answered (done or failed).
     sidecar_answers: Arc<AtomicUsize>,
     /// The media files can't be read (a share went to sleep): jobs and
@@ -518,12 +521,14 @@ async fn start_fake() -> (Fake, String) {
             post(|State(fake): State<Fake>, Json(req): Json<SubtitleRequest>| async move {
                 let text = format!("WEBVTT\n\n00:00.000 --> 00:01.000\n{}#{:?}\n", req.path, req.stream_index);
                 let fails = req.stream_index == Some(99);
+                let slow = |index| index == Some(5) || index == Some(4) && fake.slow_text_track.load(Ordering::SeqCst);
                 let first_of_slow =
-                    req.stream_index == Some(5) && !fake.subtitles.lock().iter().any(|r| r.stream_index == Some(5));
+                    slow(req.stream_index) && !fake.subtitles.lock().iter().any(|r| r.stream_index == req.stream_index);
                 if fake.unreadable.load(Ordering::SeqCst) {
                     return unreadable(&req.path);
                 }
                 let partial = req.partial;
+                let stream_index = req.stream_index;
                 let sidecar = req.stream_index.is_none();
                 fake.subtitles.lock().push(req);
                 if sidecar {
@@ -535,7 +540,11 @@ async fn start_fake() -> (Fake, String) {
                     return error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed");
                 }
                 if first_of_slow && partial {
-                    let so_far = "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n";
+                    // Track 4 is read past its first 30 s segment.
+                    let so_far = match stream_index {
+                        Some(4) => "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n00:45.000 --> 00:46.000\nread on\n\n",
+                        _ => "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n",
+                    };
                     let more = HeaderName::from_static(SUBTITLES_COMPLETE_HEADER);
                     return ([(header::CONTENT_TYPE, "text/vtt"), (more, "0")], so_far).into_response();
                 }
@@ -2065,6 +2074,66 @@ async fn pgs_subtitles_come_as_pictures_for_a_keyed_player() {
     assert_eq!(app.call(Method::GET, &wrong, None, None, &[]).await.status, StatusCode::NOT_FOUND);
 }
 
+/// An AirPlay device shows only subtitles a stream's playlist names: the
+/// keyed session serves a playlist with the text track beside the stream,
+/// the track's own playlist, and the track timed to the stream.
+#[tokio::test]
+async fn a_text_track_comes_in_the_stream_s_playlist_for_a_keyed_player() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let feature = w.movies["Feature"];
+    let started =
+        play(app, admin, json!({"item_id": feature, "caps": web_drawing_pictures(), "keyed_urls": true})).await;
+    assert_eq!(started.status, StatusCode::OK, "{:?}", started.body);
+    let url = started.body["url"].as_str().unwrap();
+    let folder = &url[..url.rfind('/').unwrap() + 1];
+    let bare = |name: &str| {
+        let uri = format!("{folder}{name}");
+        async move { app.call(Method::GET, &uri, None, None, &[]).await }
+    };
+
+    let master = bare("subtitled-4.m3u8").await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    assert_eq!(master.headers[header::CONTENT_TYPE], "application/vnd.apple.mpegurl");
+    let master = master.text();
+    assert!(master.contains("LANGUAGE=\"fr\",DEFAULT=YES,AUTOSELECT=YES,URI=\"subtitles-4.m3u8\""), "{master}");
+    assert!(master.ends_with("SUBTITLES=\"subtitles\"\nindex.m3u8\n"), "{master}");
+
+    let track = bare("subtitles-4.m3u8").await;
+    assert_eq!(track.status, StatusCode::OK, "{}", track.text());
+    assert!(track.text().contains("#EXTINF:30.000,\nsubtitles-4-0.vtt\n"), "{}", track.text());
+    assert!(track.text().ends_with(".vtt\n#EXT-X-ENDLIST\n"), "{}", track.text());
+
+    // A segment: the cues in its time, timed to the stream (MPEG-TS
+    // segments start 1.4 s past the file's time). A track still being read
+    // out of a big file comes once it's read past the segment's end: here
+    // at once, the first answer having a cue at 45 s.
+    w.fake.slow_text_track.store(true, Ordering::SeqCst);
+    let cues = bare("subtitles-4-0.vtt").await;
+    assert!(cues.text().contains("so far") && !cues.text().contains("read on"), "{}", cues.text());
+    assert_eq!(w.fake.subtitles.lock().iter().filter(|r| r.stream_index == Some(4)).count(), 1);
+    assert_eq!(cues.status, StatusCode::OK, "{}", cues.text());
+    assert!(cues.text().starts_with("WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:126000,LOCAL:00:00:00.000\n"), "{}", cues.text());
+    assert!(cues.text().contains("00:00.000 --> 00:01.000"), "{}", cues.text());
+    assert!(!bare("subtitles-4-1.vtt").await.text().contains("-->"));
+    assert!(!bare("subtitles-4.vtt").await.text().contains("X-TIMESTAMP-MAP"));
+
+    // Pictures, and tracks the file doesn't have, aren't.
+    for missing in [
+        "subtitled-3.m3u8",
+        "subtitles-3.m3u8",
+        "subtitled-9.m3u8",
+        "subtitled-x.m3u8",
+        "subtitles-3-0.vtt",
+        "subtitles-4--1.vtt",
+        "subtitles-4-999999.vtt",
+        "subtitles-4-9223372036854775807.vtt",
+        "subtitles-4-x.vtt",
+    ] {
+        assert_eq!(bare(missing).await.status, StatusCode::NOT_FOUND, "{missing}");
+    }
+}
+
 #[tokio::test]
 async fn pictures_for_a_keyed_player_are_copied_from_around_where_it_asks() {
     let w = world().await;
@@ -2157,6 +2226,46 @@ async fn embedded_subtitles_come_as_far_as_they_are_read() {
     assert!(all.text().contains("#Some(5)") && !all.headers.contains_key(SUBTITLES_COMPLETE_HEADER));
     assert_eq!(app.get(&slow, admin).await.text(), all.text());
     assert_eq!(asked(), 2, "served from the cache");
+}
+
+#[tokio::test]
+async fn text_subtitles_come_keyed_and_whole_for_a_player_outside_pley() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let started =
+        play(app, admin, json!({"item_id": w.movies["Feature"], "caps": browser(), "keyed_urls": true})).await;
+    // Track 4 in a big file, still being read when the player first asks.
+    w.fake.slow_text_track.store(true, Ordering::SeqCst);
+    assert_eq!(started.status, StatusCode::OK, "{:?}", started.body);
+    let url = started.body["url"].as_str().unwrap();
+    let folder = &url[..url.rfind('/').unwrap() + 1];
+    assert!(folder.starts_with("/api/media/pley_mk_"), "{url}");
+    // Asked for with no token, as a Cast receiver asks, from its own page.
+    let bare = |name: &str| {
+        let uri = format!("{folder}{name}");
+        async move { app.call(Method::GET, &uri, None, None, &[("origin", "https://www.gstatic.com")]).await }
+    };
+
+    // A track still being read out of its file comes whole after a moment:
+    // the player reads it once.
+    let embedded = bare("subtitles-4.vtt").await;
+    assert_eq!(embedded.status, StatusCode::OK, "{}", embedded.text());
+    assert!(embedded.text().starts_with("WEBVTT") && embedded.text().contains("#Some(4)"), "{}", embedded.text());
+    assert_eq!(embedded.headers[header::CONTENT_TYPE], "text/vtt; charset=utf-8");
+    assert_eq!(embedded.headers[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
+    assert!(!embedded.text().contains("so far") && !embedded.headers.contains_key(SUBTITLES_COMPLETE_HEADER));
+    assert_eq!(w.fake.subtitles.lock().iter().filter(|r| r.stream_index == Some(4)).count(), 2);
+
+    // A sidecar, and an offset, as WebVTT.
+    assert!(bare("subtitles-1000.vtt").await.text().contains("#None"));
+    assert!(bare("subtitles-1000.vtt?offset_ms=2000").await.text().contains("00:00:02.000 --> 00:00:03.000"));
+
+    // Text tracks only, of the session's own file.
+    assert_eq!(bare("subtitles-3.vtt").await.status, StatusCode::NOT_FOUND, "a picture track");
+    assert_eq!(bare("subtitles-77.vtt").await.status, StatusCode::NOT_FOUND);
+    assert_eq!(bare("subtitles-x.vtt").await.status, StatusCode::NOT_FOUND);
+    let wrong = format!("/api/media/pley_mk_{}/subtitles-4.vtt", "A".repeat(43));
+    assert_eq!(app.call(Method::GET, &wrong, None, None, &[]).await.status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]

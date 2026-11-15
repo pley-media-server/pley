@@ -76,6 +76,8 @@ class FakePleyApiTest {
         api.stopSession("6f1c2a9e")
         api.cast("android-den", app.pley.android.model.CastRequest(channelId = 1))
         assertEquals(listOf("Living room TV", "Firefox on macOS"), api.remoteDevices().map { it.name })
+        assertEquals(4, api.showPairingCode("airplay:a1b2c3d4e5f6").digits)
+        api.pair("airplay:a1b2c3d4e5f6", "4821")
         assertTrue(api.playbackNetwork("android-test").local)
         api.reportNetwork(app.pley.android.model.NetworkReport.Ceiling("android-test", 8_000))
         assertTrue(api.speedTest(1_000_000, 2_000, 3_000).complete)

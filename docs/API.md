@@ -154,7 +154,8 @@ For those origins only, the API and
   `Retry-After`.
 
 A wildcard origin never lets a page read an answer made with cookies, so
-these answers only carry what a token in `Authorization` opens. The consent
+these answers only carry what a token in `Authorization` opens. Keyed
+media addresses answer CORS to every origin ([Keyed URLs](#keyed-urls)). The consent
 page's endpoints (`/api/oauth/requests…`, `/api/oauth/device/verify`) never
 answer CORS. A server's proof (`/api/server` with a `challenge`,
 [Telling servers apart](#telling-servers-apart)) isn't made for any other
@@ -2393,6 +2394,24 @@ URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
 - `/api/media/{key}/previews.bif` is the file's seek previews as a BIF file,
   for a player that fetches them itself (Roku's); `404` while they are being
   made, as for `trickplay`.
+- `/api/media/{key}/subtitles-{index}.vtt` is the file's text track
+  `index` (in it, next to it or added) as WebVTT, as
+  `/api/files/{id}/subtitles/{index}.vtt` is, `offset_ms` too, for a player
+  that fetches it itself, once (a Cast receiver). A track still being read
+  out of a big file is waited for, up to 8 seconds, before what is read so
+  far comes with `X-Pley-Complete: 0`. `404` for a picture track.
+- `/api/media/{key}/subtitled-{index}.m3u8`, of a session playing a
+  stream, is a playlist of the stream (`index.m3u8`) with text track
+  `index` beside it, shown at once, for a player that shows only subtitles
+  a stream's playlist names (an AirPlay device); `subtitles-{index}.m3u8`
+  is the track's own playlist, in 30-second segments
+  (`subtitles-{index}-{n}.vtt`, `n` from 0). A segment holds the cues shown
+  in its time, after the `X-TIMESTAMP-MAP` that lines them up with the
+  session's stream (MPEG-TS segments start 1.4 s past the file's time, fMP4
+  segments on it). A segment of a track still being read out of the file
+  waits, up to 20 seconds, until the read is past it, so a cast starts
+  before the whole track is read. `404` for
+  a picture track, or a session playing its file as it is.
 - `/api/media/{key}/subtitles-{index}.json?at=` is the file's PGS track
   `index` as pictures, for a player that draws them without decoding PGS
   (Roku's): `{ complete, width, height, cues: [{ start_ms, end_ms, x, y,
@@ -2419,8 +2438,13 @@ URLs, and so do the Apple apps, whose AVPlayer adds no header of its own.
   stopped from elsewhere answers `410 session_stopped` here too, with its
   message.
 - Logs leave the key out (`/api/media/…/12.ts`).
-- Everything else the player asks for (subtitles, sprite sheets, its
-  reports) goes with the token as usual.
+- They answer CORS to any origin (`Access-Control-Allow-Origin: *`, a
+  preflight letting `Range` through, `Content-Range` and `X-Pley-Complete`
+  exposed), as a player outside Pley fetches them from a page of its own
+  (a Cast receiver's, served by Google). They take no cookie or token, so
+  a page that reads them reads only what their key opens.
+- Everything else the player asks for (subtitles at their own address,
+  sprite sheets, its reports) goes with the token as usual.
 - **Live TV** works the same way: `POST /api/live/channels/{id}/watch`
   with `keyed_urls: true` answers `url` as
   `/api/live/media/{key}/index.m3u8`, whose segments are named relatively.
@@ -3517,10 +3541,11 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 |---|---|---|---|
 | GET | `/api/activity` | `activity` | `{ scans: ScanStatus[], first_scans_done: ScanStatus[], sessions: SessionInfo[], analysis: AnalysisStatus \| null, seasons_pending: number, previews_pending: number, previews_running: number, library_work: LibraryWorkStatus \| null }` |
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
-| DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`) → `204`: stops a playback session at once |
-| POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
-| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play ([Casting](#casting)) |
+| DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`; only Pley's own apps show it) → `204`: stops a playback session at once |
+| POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number, quality?: string, volume?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast and AirPlay devices (not to an app other than Pley's own), and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play; `204` once a Google Cast or AirPlay device plays it ([Casting](#casting)) |
+| POST | `/api/remote/devices/{id}/pairing` | `play` | `{ pin?: string }` → `{ digits: number \| null }`: has an AirPlay device show a PIN (without `pin`), with how many digits it has where known (`4` on an Apple TV); `204`: pairs the server with it (with the 4 digits it shows) ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
 
 `/api/activity`: `scans` are the scans queued or running.
@@ -3654,6 +3679,10 @@ profile of the remote that sent it something.
   report's `quality` (one of the menu's ids), `null` until its player
   says. A player that reports another quality sends `sessions_changed`.
   Music and Live TV have none: an empty list and `null`.
+- **Volume.** A player that sets its device's volume lists `volume` and
+  says the level: the session's `volume`, 0 to 100 (0 while muted). Only
+  the server's casts to Cast devices do, which follow the
+  device's own level, whatever sets it; a change sends `sessions_changed`.
 - **Live TV.** A `POST /api/live/channels/{id}/watch` takes `controls`,
   `device_name` and `device_kind` too. Its session is listed with
   `kind: "live"`, its `channel` (with the programme on, when it started
@@ -3667,17 +3696,18 @@ profile of the remote that sent it something.
   or changing channel sends `sessions_changed`.
 - **`POST /api/sessions/{id}/command`** answers `202` and sends the
   user's event streams `{ type: "player_command", session_id, command,
-  position_ms, offset_ms, stream_index, quality }`. `seek` needs `position_ms`,
+  position_ms, offset_ms, stream_index, quality, volume? }`. `seek` needs `position_ms`,
   from 0 to the title's length (a day when it isn't known); `skip` needs
   `offset_ms`, up to 10 minutes either way (back when negative); `audio`
   needs `stream_index`, the index of one of the session's audio `tracks`,
   and `subtitles` one of its subtitle `tracks` or `-1` to turn them off;
-  `quality` needs `quality`, the id of one of the session's `qualities`.
-  Live TV sessions take none of `audio`, `subtitles` and `quality`. The
-  other commands take none of these, and the event has them `null`. It
-  answers:
-  - `400` for an unknown command, or a place, offset, track or quality
-    missing or out of range, or a track or a quality on Live TV;
+  `quality` needs `quality`, the id of one of the session's `qualities`;
+  `volume` needs `volume`, from 0 to 100, which only Cast devices take
+  (the event has it for `volume` alone). Live TV sessions take
+  none of `audio`, `subtitles` and `quality`. The other commands take
+  none of these, and the event has them `null`. It answers:
+  - `400` for an unknown command, or a place, offset, track, quality or
+    volume missing or out of range, or a track or a quality on Live TV;
   - `403` for someone else's session, an administrator's request too;
   - `404` for a session unknown, stopped, or whose player is gone;
   - `409` `{ code: "not_controllable", message }` for a command the
@@ -3834,6 +3864,98 @@ would.
   such cast: it isn't offered across profiles. A progress report naming
   another profile's session (one that left with this profile's token as
   its device switched) is answered `204` and kept for neither.
+- **Google Cast devices.** Chromecasts, Google TVs and TVs with Cast
+  built in that show video are listed too, for home members whose remote
+  asks with `nearby=1` (a remote that doesn't know them leaves it out),
+  through the web app or one of Pley's own apps: they are the home's, as
+  its TVs are, and an app other than Pley's own gets none, nor casts or
+  pairs there. They are listed with
+  `receiver_id` and `device_id` `cast:<its id>`, `kind` `tv`, `casts`
+  `["item"]` and `protocol: "cast"`, which remotes show under the name.
+  The server finds them by mDNS (`_googlecast._tcp`) on its own network,
+  when the list is asked for and the last look is over 30 seconds old,
+  and keeps one that stops answering for 5 minutes. It doesn't look
+  while discovery is off (Settings → Network, `--no-discovery`), and then
+  lists none, nor from a Docker bridge network, which the announcements
+  don't reach. A Cast device at the address of a receiver
+  in the same list that takes `item` is left out: it is the same TV, and
+  the Pley app stands for it. One whose Pley app is on a profile the
+  caller can't cast to stays listed. A cast there names a movie or an episode,
+  as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
+  above (without `start_ms` it starts where Play would: the resume
+  point, or the beginning once watched); `profile_id`, if given, is the
+  caller's own. It answers `204` once the device plays. A cast not
+  playing within 3 minutes is stopped and answers `cast_failed`, so a
+  client (and a reverse proxy before Pley) waits longer than that, 4
+  minutes say, for the answer;
+  `404` for a device not listed lately, a caller
+  who isn't a home member, an app other than Pley's own, another
+  profile's `profile_id`, a `device_id`
+  or an item the caller can't see; `400` for a `start_ms` out of range or
+  a track the item doesn't have; `409` `{ code: "not_castable" }` for
+  anything but a movie or an episode, `409` `{ code:
+  "cast_failed" }` when the device didn't play it, and `409` `{ code:
+  "cast_unreachable" }` when Pley doesn't listen on an address the device
+  can reach. The server plays it on the device itself: it starts a
+  session of the caller's as a player would, with keyed addresses, which it
+  gives to Google's own player on the device. What the stream carries goes
+  by the device's model, as Cast devices don't say what they decode: every
+  one plays H.264 up to 1080p with stereo AAC, as an MP4 or HLS of
+  MPEG-TS; Chromecast Ultra, Chromecast with Google TV and Google TV
+  Streamer also take HEVC, 4K and HDR10, Chromecast with Google TV (HD)
+  HEVC at 1080p, and TVs with Google TV or Android TV HEVC up to 4K
+  without HDR, in HLS of fMP4. The server tells the models apart by mDNS
+  and by the device's local setup API (port 8008), asked once per device.
+  A device that refuses its stream gets a new session with the basic one,
+  and its model gets the basic one until the server restarts. The
+  subtitles go beside the stream as
+  keyed WebVTT, read whole before the device asks (it asks once), and
+  picture subtitles are burned in. The session has the device's
+  `device_id`, its name, and the controls `play`, `pause`, `seek`, `skip`
+  and `volume` (the device's own), which the server passes on; it asks the device where it is
+  every 5 seconds and keeps the place as a progress report would, the
+  last one too however the cast ends. Commands sent while the cast loads
+  are passed on once it plays. The session ends when the device stops or
+  finishes it, when another app takes the device over, or when it is
+  stopped in Pley, which stops the device too. A new cast to the device
+  ends the one before once it plays: one that fails leaves it playing
+  (unless the server's limit on streams counted it, which ends it first).
+- **AirPlay devices.** Apple TVs and TVs with AirPlay 2 built in are
+  listed the same way, with `receiver_id` and `device_id`
+  `airplay:<its id>` and `protocol: "airplay"`. The server finds them by
+  mDNS (`_airplay._tcp`) beside Cast devices; speakers, and receivers too
+  old to pair as HomeKit does, aren't listed. A TV with both Google Cast
+  and AirPlay is listed once, as a Cast device. Macs take AirPlay too and
+  are listed with `kind` `computer` (their model says so); the machine the
+  server runs on isn't listed. A cast there answers as a
+  Cast device's does, and `409` `{ code: "pairing_needed" }` when the
+  device wants a PIN: the remote then has the device show one, with
+  `POST /api/remote/devices/{id}/pairing` and no `pin` (which answers
+  `{ digits }`, the PIN's length where known: `4` on an Apple TV, `null`
+  on a TV that may ask for a password set in its settings), asks for it,
+  and sends it there; once that answers `204` the cast is sent again. The
+  pairing is the server's, for every home member's casts, and stays
+  until an administrator forgets it (`DELETE
+  /api/network/airplay/{device_id}`) or the device is unpaired or reset
+  (its next cast then answers `409` `pairing_needed`, and the new pairing
+  replaces the old). A device open to everyone on its network needs no PIN.
+  The pairing route answers `404` as a cast does, `409` `{ code:
+  "not_pairable" }` for a device that isn't AirPlay, `400` for a PIN
+  that isn't 4 digits, `403` `{ code: "wrong_pin" }` for a wrong one
+  (counted as a profile PIN's: `429` after 5 in 15 minutes), `429` when
+  the device takes no other try yet or was asked for a PIN in the last
+  3 seconds (each ask shows a new one), and `409` `{ code:
+  "pairing_failed" }` when the device doesn't pair. The server plays the
+  stream through the device's play queue (tvOS 26 and later's way):
+  Apple TV 4K takes HEVC, 4K, HDR10 and HLG, AC-3 and E-AC-3 up to 5.1;
+  Apple TV HD H.264 up to 1080p with AC-3 and E-AC-3; other receivers
+  H.264 up to 1080p with stereo AAC, in HLS of MPEG-TS. An AirPlay player
+  shows only subtitles its stream's playlist names: picture subtitles are
+  burned in, and a text track goes in the playlist (the keyed
+  `subtitled-{index}.m3u8`) when the title plays as a stream. One played
+  as its file is shows none, and the session says so. The
+  session has the controls `play`, `pause`, `seek` and `skip`; the
+  device keeps its volume to itself. It ends as a Cast device's does.
 
 ### Watch state on other devices
 
@@ -3940,6 +4062,9 @@ interface SessionInfo {
   device: string | null;        // "Living room TV", "Firefox on macOS" (Remote control)
   device_id: string;            // which device that is: "app-12", "web-9f2c…" (Remote control)
   device_kind: DeviceKind;      // and what kind
+  player: "pley" | "plex" | "jellyfin" | "cast" | "airplay";
+                                // what plays it: a Pley app, another app through the Plex- or
+                                // Jellyfin-compatible API, or a device the server casts to
   item: ItemSummary;
   method: "direct" | "remux" | "transcode";
   position_ms: number;
@@ -3950,7 +4075,7 @@ interface SessionInfo {
   transcode: null | TranscodeInfo;
 }
 
-type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality";
+type Control = "play" | "pause" | "seek" | "skip" | "next" | "previous" | "audio" | "subtitles" | "quality" | "volume";
 type DeviceKind = "tv" | "phone" | "tablet" | "computer" | "browser" | "other";
 
 interface PlayingSession {      // GET /api/sessions
@@ -3977,6 +4102,8 @@ interface PlayingSession {      // GET /api/sessions
   quality: string | null;       // the Quality menu's pick, by id ("auto", "8m"); null until its player says
   qualities: { id: string; label: string }[]; // what its menu offers for the file, which `quality`
                                 // picks from; empty for music and on live (Remote control, "Quality")
+  volume?: number;              // the device's volume, 0 to 100, for a player that takes `volume`
+                                // (a Cast device's), once it says; left out otherwise
   markers: Marker[];            // the intro and credits of the file it plays, for a remote's Skip Intro
                                 // and Skip Credits (a seek); empty on live
 }
@@ -3997,6 +4124,7 @@ interface RemoteDevice {        // GET /api/remote/devices
   name: string | null;          // as PlayingSession's `device`
   kind: DeviceKind;
   casts: ("item" | "live")[];   // what it plays when cast to
+  protocol?: "cast" | "airplay"; // played by the server on a Google Cast or AirPlay device
 }
 
 interface TranscodeInfo {
@@ -4326,6 +4454,8 @@ interface LiveTuner {                  // a connection in use
 | POST | `/api/fs` | `admin` | `{ path? }` → `{ path: string \| null, parent: string \| null, entries: { name, path }[] }`: directories only (`path` left out: roots and drives, with `container`, whether Pley runs in one, and `mounts`, the folders mounted into it, which are among the roots). A POST, as a GET over plain HTTP could be another site's link ([SECURITY.md](../SECURITY.md#sessions)) |
 | GET | `/api/network` | `admin` | `Network`: where Pley listens, and could |
 | PUT | `/api/network` | `admin` | `{ web, plex, plex_on_web?, jellyfin, jellyfin_on_web?, discovery, bonjour?, bonjour_adapters?, bonjour_host_name? }` → `Network` |
+| GET | `/api/network/airplay` | `admin` | `{ device_id, name, paired_by: string \| null, paired_at }[]`: the AirPlay devices the server paired with, by name; `paired_by` is the name of who typed the PIN, while their account exists |
+| DELETE | `/api/network/airplay/{device_id}` | `admin` | `204`: forgets a pairing (`404` for none); the device wants a PIN again at the next cast |
 
 - **`transcode-dir`** is saved in the config file for the next start
   (`null`, or the default folder, removes `transcode_dir`). `400` for a

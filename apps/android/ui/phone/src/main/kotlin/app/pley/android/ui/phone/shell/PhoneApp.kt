@@ -60,6 +60,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
 import androidx.navigation3.runtime.NavBackStack
 import androidx.navigation3.runtime.NavEntry
@@ -100,7 +101,9 @@ import app.pley.android.ui.phone.livetv.liveTvEntries
 import app.pley.android.ui.phone.playlists.playlistsEntries
 import app.pley.android.ui.phone.remote.CastTarget
 import app.pley.android.ui.phone.remote.CastsSent
+import app.pley.android.ui.phone.remote.FollowCasts
 import app.pley.android.ui.phone.remote.LocalPlayOn
+import app.pley.android.ui.phone.remote.PlayOnCasts
 import app.pley.android.ui.phone.remote.PlayOnHost
 import app.pley.android.ui.phone.remote.PlayOnSheet
 import app.pley.android.ui.phone.remote.RemoteSlot
@@ -414,22 +417,20 @@ private fun Tabs(navigation: PhoneNavigation, shell: PhoneShellState, entries: (
 
 /**
  * Play on…'s chooser while a page asked for it: sent, it closes, and the
- * remote's bar says it starts on the device, then what plays there.
+ * remote's bar says it starts on the device, then what plays there. The
+ * cast is the activity's ([PlayOnCasts]): it goes on when the chooser is
+ * closed before the device took it, the bar following it then, and what
+ * the chooser would have said of it is a toast.
  */
 @Composable
 private fun PlayOnSlot(shell: PhoneShellState) {
+    val casts: PlayOnCasts = viewModel { PlayOnCasts() }
+    FollowCasts(casts, shell.toasts) { deviceId, _ -> shell.castSent(deviceId) }
     val target = shell.playingOn ?: return
     val remote = shell.remote ?: return
-    PlayOnSheet(
-        target,
-        shell.remoteDevices,
-        remote,
-        onCast = { device, _ ->
-            shell.playingOn = null
-            shell.castSent(device.deviceId)
-        },
-        onDismiss = { shell.playingOn = null },
-    )
+    key(shell.playOnOpened) {
+        PlayOnSheet(target, shell.remoteDevices, remote, casts, onDismiss = { shell.playingOn = null })
+    }
 }
 
 @Composable

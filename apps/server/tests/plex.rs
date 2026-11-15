@@ -289,6 +289,7 @@ async fn watch_state_and_sessions_are_shared_with_pley() {
     assert_eq!(playing["Player"]["machineIdentifier"], "test-client");
     let activity = app.api(Method::GET, "/api/activity", Some(&session), None).await;
     assert_eq!(activity["sessions"].as_array().unwrap().len(), 1);
+    assert_eq!(activity["sessions"][0]["player"], json!("plex"));
     let item = app.api(Method::GET, &format!("/api/items/{id}"), Some(&session), None).await;
     assert_eq!(item["user_state"]["position_ms"], 20000);
 

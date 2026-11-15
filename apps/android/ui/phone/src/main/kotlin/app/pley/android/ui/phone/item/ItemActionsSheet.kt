@@ -108,7 +108,7 @@ internal fun ItemActionsSheet(itemId: Long, continueWatching: Boolean = false) {
                 val playOn = LocalPlayOn.current
                 val playing = s.actions.takeWhile { it in PLAY_ACTIONS }
                 playing.forEach { row(it) }
-                CastTarget.of(s.item)?.takeIf { canPlayOn(it.kind) }?.let { cast ->
+                CastTarget.of(s.item)?.takeIf { canPlayOn(it) }?.let { cast ->
                     SheetAction(
                         label = stringResource(R.string.play_on),
                         icon = PleyIcons.Cast,

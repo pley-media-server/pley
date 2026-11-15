@@ -98,6 +98,39 @@ class AudioRulesTest {
     }
 
     @Test
+    fun aLiveChannelGoesQuietForACallAndIsHeardAgainAfter() {
+        rules.live = true
+        assertTrue(rules.beforePlay())
+        rules.onFocusChange(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT)
+        // Tuned again meanwhile (a channel changed, a retry): still quiet.
+        assertTrue(rules.beforePlay())
+        rules.onPausedByPerson()
+        rules.onFocusChange(AudioManager.AUDIOFOCUS_GAIN)
+        assertEquals(listOf("request", "volume 0.0", "volume 1.0"), r.calls)
+    }
+
+    @Test
+    fun aLiveChannelLostForGoodStaysQuietUntilItIsTunedAgain() {
+        rules.live = true
+        rules.beforePlay()
+        rules.onFocusChange(AudioManager.AUDIOFOCUS_LOSS)
+        assertEquals(listOf("request", "abandon", "volume 0.0"), r.calls)
+        assertTrue(rules.beforePlay())
+        assertEquals(listOf("request", "abandon", "volume 0.0", "request", "volume 1.0"), r.calls)
+    }
+
+    @Test
+    fun aLiveChannelPlaysQuietWhenTheFocusIsRefused() {
+        rules.live = true
+        r.granted = false
+        assertTrue("no pause for the player to undo", rules.beforePlay())
+        assertEquals(listOf("request", "volume 0.0"), r.calls)
+        // A video after it isn't left quiet.
+        rules.live = false
+        assertEquals("volume 1.0", r.calls.last())
+    }
+
+    @Test
     fun releaseGivesTheFocusBack() {
         rules.release()
         assertEquals(emptyList<String>(), r.calls)

@@ -3,7 +3,8 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use axum::Json;
-use axum::extract::{Query, State};
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use pley_transcoder_api::Counters;
 use serde::{Deserialize, Serialize};
 
@@ -388,6 +389,30 @@ async fn network_info(state: &AppState) -> ApiResult<NetworkInfo> {
 
 pub async fn get_network(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<NetworkInfo>> {
     Ok(Json(network_info(&state).await?))
+}
+
+/// `GET /api/network/airplay`: the AirPlay devices the server paired
+/// with, by name.
+pub async fn airplay_pairings(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+) -> ApiResult<Json<Vec<crate::airplay::pairings::Pairing>>> {
+    Ok(Json(crate::airplay::pairings::list(&state.db).await?))
+}
+
+/// `DELETE /api/network/airplay/{id}`: forgets a pairing. The device
+/// wants a PIN again at the next cast; it may keep Pley in its own list
+/// until it is removed there.
+pub async fn unpair_airplay(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Path(id): Path<String>,
+) -> ApiResult<StatusCode> {
+    if crate::airplay::pairings::remove(&state.db, &id).await? {
+        Ok(StatusCode::NO_CONTENT)
+    } else {
+        Err(AppError::not_found("no such pairing"))
+    }
 }
 
 /// Listens as `listen` says from now on, and from the next start on.

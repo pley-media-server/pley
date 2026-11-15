@@ -11,6 +11,20 @@ describes how they are made.
 
 ### Added
 
+- Home members can cast movies and episodes to Chromecasts, Google TVs,
+  TVs with Cast built in, Apple TVs and most TVs with AirPlay 2 on the
+  server's network, and control them from the remote as Pley's own
+  players. They show subtitles, and Cast devices take their volume from
+  the remote. Chromecast Ultra, Chromecast with Google TV, Google TV
+  Streamer, TVs with Google TV and Apple TV 4K get HEVC, and 4K and HDR
+  where they play them. An AirPlay device that asks for a code is paired
+  once, with the code it shows, and administrators can forget pairings in
+  Settings → Network. A TV running a Pley app is listed once, as the app.
+  Macs are listed as computers, and the server's own Mac isn't listed.
+  They're listed while discovery is on in Settings → Network.
+- The dashboard says what plays each session: a Pley app, an app through
+  the Plex or Jellyfin API, Google Cast or AirPlay. Stopping one offers a
+  message only for Pley apps, the only ones that show it.
 - Live TV goes into the browser's picture in picture, as videos do; next
   and previous, in its small window or on the keyboard, change channel.
 
@@ -39,6 +53,8 @@ On Intel graphics:
 
 ### Fixed
 
+- In a short window, Play on… and the web app's other menus scroll within
+  it rather than running past its top or bottom.
 - HDR transcodes no longer pick a picture quality too slow to keep up, or
   a lower one than the GPU has time for, after the server starts.
 - HDR10 that doesn't say how bright it is no longer comes out far too dark

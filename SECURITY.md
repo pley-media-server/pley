@@ -333,6 +333,10 @@ other apps (`pley_ct_…`), never with a session's
 - No other site may frame Pley (`frame-ancestors 'none'`,
   `X-Frame-Options: DENY`). Answers carry `nosniff` and
   `Referrer-Policy: same-origin`.
+- CORS opens the API to Pley's packaged TV apps' origins alone. Keyed
+  media addresses answer it to any origin, for players such as a Cast
+  receiver's page: they take no cookie or token, so another site's page
+  reads nothing a key it was given doesn't already open.
 - Clients get 30 seconds to send a request's headers, and a body may pause
   for 20 seconds at most.
 - At most 8,192 connections are open at once, and 256 from one address on
@@ -370,6 +374,54 @@ other apps (`pley_ct_…`), never with a session's
   unicast, so a device on the network can't make it flood another; reads
   what it hears within bounds; and keeps none of it, so no device can
   make it hold more.
+- Pley looks for Google Cast and AirPlay devices (`_googlecast._tcp`,
+  `_airplay._tcp`) only when a home member's remote lists devices, at most
+  every 30 seconds, by one mDNS query from a port of its own, and only
+  while discovery is on: turned off in Settings → Network (or with
+  `--no-discovery`), it doesn't look, and forgets the devices it found,
+  which can't be cast to. Only answers from private and link-local
+  addresses count, read within bounds: 64 devices a look, names cut to 100
+  characters, ids of letters and digits (an AirPlay device's, its 12-digit
+  hex MAC address). Pley connects to a device only as one of these
+  answered, never to an address a request names.
+- Pley talks to a Cast device over TLS without checking its certificate,
+  which the device made itself and no authority signed, as Google's own
+  senders do on a home network. It reads what comes back within bounds
+  (64 KiB a message, JSON objects alone) and ends a connection that goes
+  silent, or stops reading, for 20 seconds. The device gets the cast's
+  keyed addresses, which open that session's media alone, and nothing else
+  of Pley's; a cast plays as a session of the home member who sent it, by
+  their profile's rules, and only home members see and cast to these
+  devices, from the web app or Pley's own apps: another app gets none of
+  them, as it gets none of the household's TVs.
+- Pley pairs with an AirPlay device as HomeKit does: the device shows a
+  PIN, a home member types it, and SRP proves it without sending it; then
+  the two swap Ed25519 public keys, and each connection proves both hold
+  their keys (X25519, HKDF-SHA512) and is sealed with ChaCha20-Poly1305,
+  its frames counted. Pley's key pair is derived from `secret.key`, so the
+  database keeps only each device's id and public key (and its name, and
+  who paired it). A pairing is the server's, for every home member's
+  casts; administrators list and forget pairings. Wrong PINs are counted
+  as a profile PIN's are (5 in 15 minutes), a device is asked to show a
+  PIN once every 3 seconds at most, and a wait the device asks for is
+  kept. A device open to everyone on its network pairs for each connection
+  with its fixed PIN, and nothing is kept. What the device sends is read
+  within bounds: 16 KiB a pairing message, 1 MiB a message, frames of
+  1 KiB. Its session has Pley connect to the event port it names, at its
+  own address, and answer its clock on a UDP port of Pley's, which answers
+  that address alone and closes with the session.
+- Before its first cast to a Cast device, Pley asks the device's own setup
+  API (`http://<its address>:8008/setup/eureka_info`, an address one of
+  the answers above named) which hardware it is, waiting a second at most
+  and reading 64 KiB at most, without proxies or redirects. It keeps the
+  model, the hardware's name and two flags, in memory, and neither keeps
+  nor logs the rest (the device's keys and addresses). A device that lies
+  about its model gets a stream it may not play, and then the basic one.
+- A receiver keeps the address its event stream came from, in memory while
+  the stream lasts, so that a Cast device at the same address is listed
+  once, as the Pley app. Someone on the local network can make an app
+  claim any address, and so hide a Cast device from the lists that app is
+  in; it can't cast to the device or reach it that way.
 - Discovery is on and Bonjour off until Settings → Network changes them.
   `--no-bonjour` (`PLEY_NO_BONJOUR`) keeps Bonjour off, and
   `--no-discovery` (`PLEY_NO_DISCOVERY`) both; the Docker setup has them

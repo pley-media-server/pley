@@ -14,6 +14,7 @@
 //! (`/api/playback`) or a Live TV viewer's (`/api/live/channels/{id}/watch`).
 
 use std::collections::{BTreeSet, HashMap, HashSet};
+use std::net::IpAddr;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -169,6 +170,10 @@ pub struct PlayingSession {
     /// The qualities its player's menu offers for the file, which `quality`
     /// picks from; none for music and on Live TV.
     qualities: Vec<QualityOption>,
+    /// The device's volume, 0 to 100, for a player that takes `volume`, as
+    /// it last said; left out until it does.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    volume: Option<u8>,
     /// The intro and credits of the file it plays, for a remote's Skip
     /// intro and Skip credits; none on Live TV.
     markers: Vec<Marker>,
@@ -233,6 +238,7 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             tracks: TrackOptions::default(),
             quality: None,
             qualities: Vec::new(),
+            volume: None,
             markers: Vec::new(),
             started_at: viewer.started_at,
             reported_at_ms: viewer.seen_at_ms,
@@ -276,6 +282,7 @@ async fn playing_items(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playi
             tracks,
             quality: play.quality,
             qualities,
+            volume: play.volume,
             markers,
             started_at: session.started_at,
             reported_at_ms,
@@ -318,6 +325,8 @@ pub struct Command {
     stream_index: Option<i64>,
     #[serde(default)]
     quality: Option<String>,
+    #[serde(default)]
+    volume: Option<i64>,
 }
 
 /// What a command carries to its player, each `None` for the commands that
@@ -328,6 +337,7 @@ struct Values {
     offset_ms: Option<i64>,
     stream_index: Option<i64>,
     quality: Option<&'static str>,
+    volume: Option<u8>,
 }
 
 /// What a title's session picks from: its file's streams (for `audio` and
@@ -397,6 +407,7 @@ pub async fn command(
         offset_ms: values.offset_ms,
         stream_index: values.stream_index,
         quality: values.quality,
+        volume: values.volume,
     });
     Ok(StatusCode::ACCEPTED)
 }
@@ -500,6 +511,14 @@ fn command_values(body: &Command, duration_ms: i64, choices: Option<&Choices>) -
                 .ok_or_else(|| AppError::bad_request("quality must be one of the session's qualities"))?;
             Ok(Values { quality: Some(id), ..Values::default() })
         }
+        Control::Volume => {
+            let level = body.volume.ok_or_else(|| AppError::bad_request("volume needs volume"))?;
+            let level = u8::try_from(level)
+                .ok()
+                .filter(|l| *l <= 100)
+                .ok_or_else(|| AppError::bad_request("volume must be between 0 and 100"))?;
+            Ok(Values { volume: Some(level), ..Values::default() })
+        }
         Control::Play | Control::Pause | Control::Next | Control::Previous => Ok(Values::default()),
     }
 }
@@ -529,6 +548,7 @@ fn words(command: Control) -> &'static str {
         Control::Audio => "audio",
         Control::Subtitles => "subtitles",
         Control::Quality => "quality",
+        Control::Volume => "volume",
     }
 }
 
@@ -593,6 +613,10 @@ pub(crate) struct Receiver {
     pub casts: BTreeSet<CastKind>,
     /// It switches to a casting remote's profile ([`casts_switch`]).
     pub switches: bool,
+    /// The address its stream came from ([`crate::auth::SourceIp`]): a
+    /// Cast device at the same one is the same TV, which the Pley app
+    /// stands for in the device list.
+    pub address: Option<IpAddr>,
 }
 
 /// A receiver while one of its streams is open.
@@ -710,7 +734,9 @@ impl Receivers {
                 kind: open.receiver.kind,
                 casts: open.receiver.casts.clone(),
                 profile: None,
+                protocol: None,
                 switches: open.receiver.switches,
+                address: open.receiver.address,
             })
             .collect();
         out.sort_by_cached_key(listing_order);
@@ -830,8 +856,14 @@ pub struct RemoteDevice {
     /// caller's own. A cast there switches it to the caller's profile.
     #[serde(skip_serializing_if = "Option::is_none")]
     profile: Option<DeviceProfile>,
+    /// How the server plays on it, when not through a Pley app: `cast`
+    /// for a Google Cast device. Remotes mark it under its name.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    protocol: Option<&'static str>,
     #[serde(skip)]
     switches: bool,
+    #[serde(skip)]
+    address: Option<IpAddr>,
 }
 
 /// The order remotes list devices in: by name, whatever its case, unnamed
@@ -855,6 +887,11 @@ pub struct DevicesQuery {
     /// `1`: the household's other profiles' receivers too. Remotes that
     /// don't know them (older apps) leave it out, and get their own.
     household: Option<String>,
+    /// `1`: the Cast and AirPlay devices on the server's network too, which
+    /// play only movies and episodes and are told apart by `protocol`.
+    /// Remotes that don't know them (older apps) leave it out, and other
+    /// apps get none.
+    nearby: Option<String>,
 }
 
 /// Whether the request may list and cast to the household's other profiles'
@@ -866,10 +903,20 @@ pub(crate) fn reaches_household(user: &AuthUser) -> bool {
     user.first_party() && user.allowed(Scope::Profiles)
 }
 
+/// Whether the request may list, cast to and pair with the devices on the
+/// server's network: a home member's (`home`) own sign-in, or one of Pley's
+/// own apps. They are the home's, as its TVs are: another app would learn
+/// their names, take them over, and pair the server with them for everyone.
+fn reaches_nearby(user: &AuthUser, home: bool) -> bool {
+    home && user.first_party()
+}
+
 /// `GET /api/remote/devices`: the devices that take casts, one each: the
 /// caller's own, and with `household=1`, for a home member, those of the
 /// household's other profiles that switch to a casting remote's profile,
-/// each with the profile it is on (what they play stays theirs).
+/// each with the profile it is on (what they play stays theirs), and with
+/// `nearby=1`, for a home member, the Cast and AirPlay devices on the
+/// server's network ([`reaches_nearby`]).
 /// Administrators get only the household's too, and an app only when it
 /// [reaches the household](reaches_household).
 pub async fn devices(
@@ -878,23 +925,48 @@ pub async fn devices(
     query: Result<Query<DevicesQuery>, QueryRejection>,
 ) -> ApiResult<Json<Vec<RemoteDevice>>> {
     let mut out = state.receivers.listed(user.id);
-    // A query that doesn't parse asks for nothing more.
-    let asked = query.ok().and_then(|Query(q)| q.household).is_some_and(|v| v == "1" || v == "true");
-    if !asked || !reaches_household(&user) {
-        return Ok(Json(out));
-    }
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
-    for other in everyone.into_iter().filter(|u| home && u.home && !u.disabled && u.id != user.id) {
-        // Its name as "Who's watching?" says it: apps never see usernames.
-        let profile = DeviceProfile { id: other.id, name: other.name };
-        let theirs = state.receivers.listed(other.id).into_iter().filter(|d| d.switches);
-        out.extend(theirs.map(|d| RemoteDevice { profile: Some(profile.clone()), ..d }));
+    // A query that doesn't parse asks for nothing more.
+    let query = query.map(|Query(q)| q).unwrap_or_default();
+    let yes = |v: Option<String>| v.is_some_and(|v| v == "1" || v == "true");
+    let (asked, nearby) = (yes(query.household), yes(query.nearby));
+    if asked && reaches_household(&user) {
+        for other in everyone.into_iter().filter(|u| home && u.home && !u.disabled && u.id != user.id) {
+            // Its name as "Who's watching?" says it: apps never see usernames.
+            let profile = DeviceProfile { id: other.id, name: other.name };
+            let theirs = state.receivers.listed(other.id).into_iter().filter(|d| d.switches);
+            out.extend(theirs.map(|d| RemoteDevice { profile: Some(profile.clone()), ..d }));
+        }
+        // A device on two profiles at once is the same one twice only while
+        // it switches: the caller's own wins, as its sessions say what it
+        // plays.
+        let mut seen = HashSet::new();
+        out.retain(|d| seen.insert(d.device_id.clone()));
     }
-    // A device on two profiles at once is the same one twice only while it
-    // switches: the caller's own wins, as its sessions say what it plays.
-    let mut seen = HashSet::new();
-    out.retain(|d| seen.insert(d.device_id.clone()));
+    // The Cast devices on the server's network, for the household: they
+    // are the home's, as its TVs are. One that a Pley app listed here plays
+    // titles on, at the same address, is that TV, and the app stands for
+    // it. An app on another profile the caller can't cast to leaves the
+    // Cast device listed, as the only way to reach the TV. (An app on the
+    // local network can claim any address, and so hide a Cast device from
+    // the lists it is in, but do nothing more with it.)
+    if nearby && reaches_nearby(&user, home) {
+        let taken: HashSet<IpAddr> =
+            out.iter().filter(|d| d.casts.contains(&CastKind::Item)).filter_map(|d| d.address).collect();
+        let found = state.nearby.listed(state.config.cast_fixed.found(), state.network.wanted().discovery).await;
+        out.extend(found.into_iter().filter(|d| !taken.contains(&d.address.ip())).map(|d| RemoteDevice {
+            receiver_id: d.key(),
+            device_id: d.key(),
+            kind: d.kind(),
+            name: Some(d.name),
+            casts: BTreeSet::from([CastKind::Item]),
+            profile: None,
+            protocol: Some(d.protocol.word()),
+            switches: false,
+            address: None,
+        }));
+    }
     out.sort_by_cached_key(listing_order);
     Ok(Json(out))
 }
@@ -951,6 +1023,119 @@ const WITH_TRACKS: [&str; 2] = ["movie", "episode"];
 /// (its next episode), an album or an artist (its tracks).
 const CASTABLE: [&str; 7] = ["movie", "episode", "show", "season", "track", "album", "artist"];
 
+/// The device on the server's network of `id`, as the household's lists
+/// show it: to a home member only, as [`reaches_nearby`] says.
+async fn nearby_device(state: &AppState, user: &AuthUser, id: &str) -> ApiResult<crate::nearby::Found> {
+    let everyone = crate::accounts::users(&state.db).await?;
+    let home = everyone.iter().any(|u| u.id == user.id && u.home);
+    let discovery = state.network.wanted().discovery;
+    let device =
+        state.nearby.device(id, state.config.cast_fixed.found(), discovery).filter(|_| reaches_nearby(user, home));
+    device.ok_or_else(|| AppError::not_found("no such device"))
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Pairing {
+    /// The PIN the device shows; none, to have it show one.
+    #[serde(default)]
+    pin: Option<CastPin>,
+}
+
+/// `POST /api/remote/devices/{id}/pairing`: pairs the server with an
+/// AirPlay device that wants a PIN, which a cast to it answered `409
+/// pairing_needed`. Without a `pin`, the device shows one, and the answer
+/// says how many digits it has where that is known (an Apple TV's are 4);
+/// with it, the server pairs, for every home member's casts. Wrong PINs are
+/// counted as a profile PIN's are (`403 wrong_pin`, then `429`).
+pub async fn pair(
+    State(state): State<AppState>,
+    user: AuthUser,
+    Path(id): Path<String>,
+    body: Result<Json<Pairing>, JsonRejection>,
+) -> ApiResult<axum::response::Response> {
+    use crate::airplay::pairing::Failed;
+    use axum::response::IntoResponse;
+    let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
+    let device = nearby_device(&state, &user, &id).await?;
+    if device.protocol != crate::nearby::Protocol::AirPlay {
+        return Err(AppError::ConflictAs("not_pairable", "this device needs no pairing".to_owned()));
+    }
+    let failed = |failed: Failed| match failed {
+        Failed::Wait(wait) => {
+            AppError::TooManyRequests(format!("the device takes no other try for {} s", wait.as_secs().max(1)))
+        }
+        other => {
+            tracing::warn!("couldn't pair with the AirPlay device {}: {other}", device.address);
+            AppError::ConflictAs("pairing_failed", "the device didn't pair".to_owned())
+        }
+    };
+    let Some(CastPin(pin)) = body.pin else {
+        crate::airplay::device::ask_for_pin(&state, &device).await.map_err(failed)?;
+        let digits = crate::airplay::device::pin_digits(&device);
+        return Ok(Json(serde_json::json!({ "digits": digits })).into_response());
+    };
+    if pin.len() != 4 || !pin.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(AppError::bad_request("the PIN is the 4 digits the device shows"));
+    }
+    let attempt = state.auth.throttle.begin(&format!("airplay:{}", device.id))?;
+    match crate::airplay::device::pair(&state, user.id, &device, &pin).await {
+        Ok(()) => {
+            attempt.succeeded();
+            Ok(StatusCode::NO_CONTENT.into_response())
+        }
+        Err(Failed::WrongPin) => {
+            attempt.failed();
+            Err(AppError::ForbiddenAs("wrong_pin", "that isn't the PIN the device shows".to_owned()))
+        }
+        // No guess was checked: the attempt goes back.
+        Err(other) => {
+            drop(attempt);
+            Err(failed(other))
+        }
+    }
+}
+
+/// A cast to a Google Cast or AirPlay device ([`crate::cast`],
+/// [`crate::airplay`]): a movie or an
+/// episode, by a home member, played by the server on the device.
+async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast) -> ApiResult<StatusCode> {
+    let device = nearby_device(state, user, id).await?;
+    if body.profile_id.is_some_and(|p| p != user.id) || body.device_id.is_some() {
+        return Err(AppError::not_found("no such device"));
+    }
+    let (Some(item_id), None, None) = (body.item_id, body.playlist_id, body.channel_id) else {
+        return Err(AppError::ConflictAs("not_castable", "this device plays movies and episodes".to_owned()));
+    };
+    let row = item_or_404(state, user.id, item_id).await?;
+    if !WITH_TRACKS.contains(&row.kind.as_str()) {
+        return Err(AppError::ConflictAs("not_castable", "this device plays movies and episodes".to_owned()));
+    }
+    if body.start_ms.is_some_and(|start| !(0..=MAX_UNKNOWN_SEEK_MS).contains(&start)) {
+        return Err(AppError::bad_request(format!("start_ms must be between 0 and {MAX_UNKNOWN_SEEK_MS}")));
+    }
+    let files = catalog::files_for_item(&state.db, row.id).await?;
+    let streams: Vec<MediaStream> = files.iter().flat_map(|f| f.streams()).collect();
+    if let Some(index) = body.audio_index {
+        check_track(&streams, StreamKind::Audio, index, "audio_index")?;
+    }
+    if let Some(index) = body.subtitle_index {
+        check_track(&streams, StreamKind::Subtitle, index, "subtitle_index")?;
+    }
+    let cast = crate::nearby::casts::Cast {
+        item_id,
+        start_ms: body.start_ms,
+        audio_index: body.audio_index,
+        subtitle_index: body.subtitle_index,
+    };
+    // Started apart from the request, which a client or a proxy may drop
+    // while the device loads: the cast then either plays and is followed,
+    // or ends its session.
+    let (state, user) = (state.clone(), user.clone());
+    let started = tokio::spawn(async move { crate::nearby::casts::start(&state, &user, device, cast).await });
+    started.await.map_err(|err| AppError::Internal(anyhow::anyhow!("a cast's start failed: {err}")))??;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 /// `POST /api/remote/devices/{id}/cast`: sends a receiver a title, a
 /// playlist or a Live TV channel to play, through the event streams of the
 /// profile it is on. `202`: it is on its way; the device's sessions say what
@@ -968,6 +1153,9 @@ pub async fn cast(
     body: Result<Json<Cast>, JsonRejection>,
 ) -> ApiResult<StatusCode> {
     let Json(body) = body.map_err(|err| AppError::bad_request(err.body_text()))?;
+    if crate::nearby::Protocol::of(&id).is_some() {
+        return cast_to_device(&state, &user, &id, body).await;
+    }
     let owner = body.profile_id.unwrap_or(user.id);
     if owner != user.id && !reaches_household(&user) {
         return Err(AppError::ForbiddenAs(
@@ -1232,6 +1420,7 @@ mod tests {
             kind: DeviceKind::Tv,
             casts: cast_kinds(casts),
             switches: casts_switch(casts),
+            address: None,
         }
     }
 

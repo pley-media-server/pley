@@ -649,6 +649,13 @@
       "remux": "Remux",
       "transcode": "Transcode"
     },
+    "players": {
+      "pley": "Pley app",
+      "plex": "Plex API",
+      "jellyfin": "Jellyfin API",
+      "cast": "Google Cast",
+      "airplay": "AirPlay"
+    },
     "pipelines": {
       "gpu": {
         "label": "GPU",
@@ -1048,5 +1055,13 @@
       "hideSteps": "Hide the steps",
       "report": "See what came over"
     }
+  },
+  "airplay": {
+    "title": "AirPlay devices",
+    "description": "The server is paired with these. Forget one and the next cast to it asks for its code again; remove Pley from the device's own list too.",
+    "pairedBy": "Paired by {{name}} on {{date}}",
+    "paired": "Paired on {{date}}",
+    "forget": "Forget {{device}}",
+    "forgotten": "{{device}} forgotten"
   }
 }

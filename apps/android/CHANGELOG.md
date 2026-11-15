@@ -8,6 +8,21 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Play on… lists Google Cast and AirPlay devices for movies and episodes.
+  An AirPlay device asks once for the code it shows; on an Apple TV the
+  code goes as its fourth digit is typed.
+- The remote has a volume slider for a Google Cast device.
+- Live TV goes into picture in picture on phones and tablets, as videos
+  do, with Channel down and Channel up in its small window.
+
+### Fixed
+
+- Live TV goes quiet while another app plays, a call included, instead of
+  playing over it or taking the sound back. Its sound comes back once the
+  other app is done, or with the next channel after music or a video.
+
 ## [0.1.13] - 2026-11-14
 
 ### Changed

@@ -15,6 +15,8 @@ import app.pley.android.model.DiscoverPage
 import app.pley.android.model.ItemRequest
 import app.pley.android.model.MediaRequest
 import app.pley.android.model.NewRequest
+import app.pley.android.model.PairingCode
+import app.pley.android.model.PairingRequest
 import app.pley.android.model.RequestList
 import app.pley.android.model.RequestOptions
 import app.pley.android.model.RequestQuery
@@ -121,9 +123,14 @@ class HttpPleyApi(
 
     private val base: HttpUrl = this.issuer.toHttpUrl()
     private val lazyClient = lazy(client)
+    private val lazyDeviceClient = lazy { waitingForDevices(lazyClient.value) }
 
     private suspend fun http(): OkHttpClient =
         if (lazyClient.isInitialized()) lazyClient.value else withContext(io) { lazyClient.value }
+
+    /** [http], for the calls the server answers once a device on its network did ([DEVICE_READ_SECONDS]). */
+    private suspend fun deviceHttp(): OkHttpClient =
+        if (lazyDeviceClient.isInitialized()) lazyDeviceClient.value else withContext(io) { lazyDeviceClient.value }
 
     // ---------------------------------------------------------------- server
 
@@ -367,10 +374,24 @@ class HttpPleyApi(
     override suspend fun stopSession(sessionId: String) = call("DELETE", null, "api", "sessions", sessionId)
 
     override suspend fun remoteDevices(): List<RemoteDevice> =
-        get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices", query = listOf("household" to "1"))
+        get(ListSerializer(RemoteDevice.serializer()), "api", "remote", "devices", query = listOf("household" to "1", "nearby" to "1"))
+
+    override suspend fun showPairingCode(receiverId: String): PairingCode =
+        postToDevice("{}".toRequestBody(JSON), receiverId, "pairing") { it.decode(PairingCode.serializer()) }
+
+    override suspend fun pair(receiverId: String, code: String) =
+        postToDevice(json(PairingRequest.serializer(), PairingRequest(code)), receiverId, "pairing") { it.expectSuccess() }
 
     override suspend fun cast(receiverId: String, request: CastRequest) =
-        call("POST", json(CastRequest.serializer(), request), "api", "remote", "devices", receiverId, "cast")
+        postToDevice(json(CastRequest.serializer(), request), receiverId, "cast") { it.expectSuccess() }
+
+    /**
+     * POST /api/remote/devices/{receiverId}/{route}: a Google Cast or an
+     * AirPlay device answers through the server, which answers once it did,
+     * so this waits as long as the server waits for it.
+     */
+    private suspend fun <T> postToDevice(body: RequestBody, receiverId: String, route: String, read: (okhttp3.Response) -> T): T =
+        deviceHttp().fetch(jsonRequest(address(listOf("api", "remote", "devices", receiverId, route))).post(body).build(), read)
 
     override suspend fun reportProgress(itemId: Long, report: ProgressReport) =
         call("POST", json(ProgressReport.serializer(), report), "api", "items", itemId, "progress")
@@ -584,5 +605,18 @@ class HttpPleyApi(
          * SUBTITLES_COMPLETE_HEADER).
          */
         const val SUBTITLES_COMPLETE_HEADER = "X-Pley-Complete"
+
+        /**
+         * How long a cast or a pairing may go without an answer, in seconds,
+         * rather than OkHttp's 10: the server answers a cast to a Google Cast
+         * or AirPlay device once it plays. It stops one that hasn't after 3
+         * minutes, but its answer may come seconds after that, so clients
+         * wait about 4 (docs/API.md, "Casting").
+         */
+        const val DEVICE_READ_SECONDS = 240L
+
+        /** [client], waiting [DEVICE_READ_SECONDS] for an answer. */
+        internal fun waitingForDevices(client: OkHttpClient): OkHttpClient =
+            client.newBuilder().readTimeout(DEVICE_READ_SECONDS, TimeUnit.SECONDS).build()
     }
 }

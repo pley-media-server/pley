@@ -166,7 +166,13 @@
     "cantDoThat": "{{device}} ne peut pas faire ça",
     "notOn": "{{device}} n’est plus connecté",
     "cantPlay": "{{device}} ne peut pas lire ça",
-    "tooMany": "Trop de demandes à la fois : réessayez dans un instant"
+    "tooMany": "Trop de demandes à la fois : réessayez dans un instant",
+    "castUnreachable": "{{device}} n’arrive pas à joindre ce serveur",
+    "castFailed": "{{device}} ne l’a pas lu",
+    "pairingFailed": "{{device}} ne s’est pas associé",
+    "pairFirst": "{{device}} doit d’abord être associé : choisissez-le à nouveau dans Lire sur…",
+    "wrongDevicePin": "Ce n’est pas le code affiché sur {{device}}",
+    "pairingWait": "{{device}} n’accepte pas d’autre essai pour l’instant : patientez un peu"
   },
   "errors": {
     "unreachable": "Impossible de joindre le serveur",

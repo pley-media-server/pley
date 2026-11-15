@@ -1214,6 +1214,7 @@ async fn activity_monitors_see_what_everyone_plays() {
     assert_eq!((&play["PositionTicks"], &play["IsPaused"]), (&json!(600_000_000_i64), &json!(true)));
     assert_eq!(play["PlayMethod"], json!("DirectPlay"));
     assert_eq!(play["MediaSourceId"], item["MediaSources"][0]["Id"]);
+    assert_eq!(app.state.sessions.active()[0].api, pley::playback::Api::Jellyfin);
 
     // Pley's session id opens its stream: monitors are given a hash of it,
     // and of a device id made from it.

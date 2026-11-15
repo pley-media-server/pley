@@ -72,6 +72,14 @@ What Pley does, in full. The [README](../README.md) has the short version.
   desktop app takes casts too, as "Pley for Windows", "Pley for Mac" or
   "Pley for Linux", switching to the profile that sent one; a browser tab
   doesn't, as a browser won't start sound in a tab in the background.
+- Chromecasts, Google TVs and TVs with Cast built in, Apple TVs and TVs
+  with AirPlay 2 on the server's network take casts of movies and episodes
+  from the household: the server plays them there itself, in HEVC, 4K and
+  HDR on models that play them, with the subtitles picked, keeps their
+  place, and the remote controls them as it does Pley's own players. An
+  AirPlay device that asks for a code is paired once, with the code it
+  shows, and administrators forget pairings in Settings → Network
+  ([API.md](API.md#casting)).
 
 ## Live TV
 

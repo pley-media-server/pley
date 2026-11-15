@@ -166,6 +166,17 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   announces Pley on. Allow them, or type the server's address in the app.
   A container is found only on the host's network (`--network host`, or
   Unraid's `br0`).
+- **Google Cast devices** (Chromecasts, Google TVs) are found by mDNS too,
+  and the server connects to them on **TCP 8009**, and once to each on
+  **TCP 8008** to learn its model; they fetch the stream from the web
+  port. A container sees them only on the host's network, as above, and
+  not while discovery is off.
+- **AirPlay devices** (Apple TVs, TVs with AirPlay 2) are found the same
+  way. The server connects to them on the port they announce (**TCP
+  7000** on an Apple TV) and on the port each names for its events, and the
+  device asks the server's clock over **UDP**, on a port the server
+  picks for each cast: a firewall on the server must let the local
+  network reach it.
 - **From outside your network**, put Pley behind a reverse proxy with TLS
   (Caddy, nginx, Traefik). Docker publishes ports around host firewalls:
   with a proxy on the same computer, publish Pley on `127.0.0.1` only.
@@ -187,6 +198,9 @@ an app used, the app refuses the server. So a reverse proxy must:
   proxy on the same computer, the local network or a Docker network;
 - not buffer responses (live updates are server-sent events, and video
   streams as it is read);
+- wait more than 3 minutes for an answer: a cast to a Google Cast or
+  AirPlay device answers once the device plays, which can take that long,
+  and nginx's default of 60 seconds answers `504` first;
 - accept uploads of up to 25 MB (artwork).
 
 **Caddy** does all of it by default:
@@ -221,6 +235,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_buffering off;
+        proxy_read_timeout 240s;
     }
 }
 ```

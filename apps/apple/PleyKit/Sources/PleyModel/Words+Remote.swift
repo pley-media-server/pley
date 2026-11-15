@@ -33,6 +33,8 @@ extension Words {
     /// Between a channel's down and up on the remote, as on a TV remote's rocker.
     public static var remoteChannelTitle: String { localized("Channel") }
     public static var remoteSubtitlesOff: String { localized("Off") }
+    /// The remote's volume slider, for a Google Cast device.
+    public static var remoteVolumeTitle: String { localized("Volume") }
 
     /// Stop, and its confirmation's buttons.
     public static var remoteStopTitle: String { localized("Stop") }
@@ -134,6 +136,16 @@ extension Words {
     public static func remoteAudio(_ device: String) -> String { localized("Audio on \(device)") }
     public static func remoteSubtitles(_ device: String) -> String { localized("Subtitles on \(device)") }
     public static func remoteQuality(_ device: String) -> String { localized("Quality on \(device)") }
+    public static func remoteVolume(_ device: String) -> String { localized("Volume on \(device)") }
+
+    /// Under a Google Cast or an AirPlay device's name while it plays nothing: how Pley plays there.
+    public static func castProtocol(_ via: CastProtocol) -> String? {
+        switch via {
+        case .cast: localized("Google Cast")
+        case .airplay: localized("AirPlay")
+        default: nil
+        }
+    }
 
     /// After a command the player didn't show it acted on.
     public static func remoteNoAnswer(_ device: String) -> String { localized("\(device) didn't answer.") }
@@ -152,6 +164,9 @@ extension Words {
     /// After "Play on…": where it went.
     public static func playingOn(_ device: String) -> String { localized("Playing on \(device)") }
 
+    /// "Play on…" while a cast is on its way there, until the device plays it.
+    public static func startingOn(_ device: String) -> String { localized("Starting on \(device)…") }
+
     /// As something cast from another device starts here: that device, as
     /// the server names it, else "another device".
     public static func playingFrom(_ device: String?) -> String {
@@ -159,14 +174,33 @@ extension Words {
         return localized("Playing from \(device)")
     }
 
-    /// What "Play on…" says when the server refused it with `status`;
-    /// `nil` for a refusal said in the server's own words.
-    public static func castRefusal(status: Int, device: String) -> String? {
-        switch status {
-        case 404: localized("\(device) isn't on any more")
-        case 409: localized("\(device) can't play that")
-        case 429: localized("Too many at once: try again in a moment")
+    /// What "Play on…" says when the server refused it with `status` and
+    /// `code`; `nil` for a refusal said in the server's own words.
+    public static func castRefusal(status: Int, code: String? = nil, device: String) -> String? {
+        switch (status, code) {
+        case (409, "cast_unreachable"): localized("\(device) can't reach this server")
+        case (409, "cast_failed"): localized("\(device) didn't play it")
+        case (409, "pairing_failed"): pairingFailed(device)
+        case (404, _): localized("\(device) isn't on any more")
+        case (409, _): localized("\(device) can't play that")
+        case (429, _): localized("Too many at once: try again in a moment")
         default: nil
         }
     }
+
+    /// The sheet that asks for the code an AirPlay device shows: its title,
+    /// what it asks, why, its field and its buttons.
+    public static func pairWith(_ device: String) -> String { localized("Pair with \(device)") }
+    public static func pairingCodePrompt(_ device: String) -> String { localized("Type the code \(device) shows") }
+    public static var pairingWhy: String { localized("Everyone in your home can then play on it.") }
+    public static var pairingCodeField: String { localized("Code") }
+    public static var pairingPair: String { localized("Pair") }
+    public static var showCodeAgain: String { localized("No code showing? Show it again") }
+
+    /// What that sheet, or a toast, says when pairing didn't go.
+    public static func wrongPairingCode(_ device: String) -> String { localized("That isn't the code \(device) shows.") }
+    public static func pairingWait(_ device: String) -> String {
+        localized("\(device) takes no other try yet: wait a moment.")
+    }
+    public static func pairingFailed(_ device: String) -> String { localized("\(device) didn't pair.") }
 }

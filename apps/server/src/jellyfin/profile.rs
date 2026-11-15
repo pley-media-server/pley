@@ -799,6 +799,8 @@ mod tests {
             download: false,
             copy_video_only: false,
             stream_only: false,
+            device_id: None,
+            api: crate::playback::Api::Jellyfin,
         };
         decide(&file(), Some(&info), &info.streams, &req)
     }

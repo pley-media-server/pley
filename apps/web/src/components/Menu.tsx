@@ -42,14 +42,7 @@ export function Menu({
       menuRef.current = menu;
       const trigger = ref.current?.getBoundingClientRect();
       if (!menu || !trigger) return;
-      const height = menu.getBoundingClientRect().height;
-      const gap = 8;
-      const below = window.innerHeight - trigger.bottom - gap;
-      const above = trigger.top - gap;
-      const other = placement === "below" ? "above" : "below";
-      const room = placement === "below" ? below : above;
-      const otherRoom = placement === "below" ? above : below;
-      setSide(height > room && otherRoom > room ? other : placement);
+      setSide(fitBeside(menu, trigger, placement));
     },
     [placement],
   );
@@ -110,8 +103,9 @@ export function Menu({
           aria-label={label}
           onKeyDown={onKeyDown}
           className={cn(
-            // A long menu (Play on… with many devices) scrolls within the window rather than past its edge.
-            "absolute z-40 max-h-[min(28rem,calc(100dvh-6rem))] min-w-48 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-black/50",
+            // A long menu (Play on… with many devices) scrolls within the window rather than past its edge
+            // (`--room`, from `fitBeside`).
+            "absolute z-40 max-h-[min(28rem,var(--room,calc(100dvh-6rem)))] min-w-48 animate-pop-in overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface-2 py-1 shadow-xl shadow-black/50",
             side === "below" ? "top-full mt-2" : "bottom-full mb-2",
             align === "right" ? "right-0" : align === "center" ? "left-1/2 -translate-x-1/2" : "left-0",
             className,
@@ -122,6 +116,28 @@ export function Menu({
       ) : null}
     </div>
   );
+}
+
+/** Room left between a popover and the window's edge. */
+const EDGE = 8;
+
+/**
+ * The side of `trigger` a popover opens on, `preferred` unless the window has more room on the
+ * other, and caps its height to the room there, so in a short window it scrolls within it rather
+ * than running past its edge.
+ */
+export function fitBeside(popover: HTMLElement, trigger: DOMRect, preferred: "below" | "above"): "below" | "above" {
+  const height = popover.getBoundingClientRect().height;
+  const gap = 8;
+  const below = window.innerHeight - trigger.bottom - gap - EDGE;
+  const above = trigger.top - gap - EDGE;
+  const other = preferred === "below" ? "above" : "below";
+  const room = preferred === "below" ? below : above;
+  const otherRoom = preferred === "below" ? above : below;
+  const side = height > room && otherRoom > room ? other : preferred;
+  // Its class caps its height by `--room` (see the menu's), its own limit kept in a tall window.
+  popover.style.setProperty("--room", `${Math.max(Math.floor(side === "below" ? below : above), 0)}px`);
+  return side;
 }
 
 export function MenuItem({
