@@ -268,6 +268,18 @@ public final class RemoteModel: ObservableObject {
         chosen = id
     }
 
+    /// The remote, opened from the bar: on the controls of the device it
+    /// stands for when it stands for one, though the list may have idle
+    /// Google Cast and AirPlay devices too; else on the list.
+    public func showFromBar() {
+        let bar = barDevices
+        if bar.count == 1 {
+            show(bar[0].id)
+        } else {
+            presented = true
+        }
+    }
+
     /// The pictures for what `session` plays, tried in turn: a track's own,
     /// else its album's; a title's poster, else its still (an episode's).
     public static func artPaths(_ session: PlayingSession) -> [String] {

@@ -55,12 +55,13 @@ struct ShellView: View {
                 NowPlayingView(app: app) { shell.nowPlayingOpen = false }
             }
         }
-        // It closes by itself once no other device is on, and opens closed when one is again.
+        // It closes by itself once no other device is on, as the bar counts them (an idle Google Cast or
+        // AirPlay device doesn't), and opens closed when one is again.
         .sheet(isPresented: Binding(get: { remote.presented && !remote.devices.isEmpty },
                                     set: { remote.presented = $0 })) {
             RemoteSheet(app: app, remote: remote) { remote.presented = false }
         }
-        .onValueChange(of: remote.devices.isEmpty) { empty in
+        .onValueChange(of: remote.barDevices.isEmpty) { empty in
             if empty { remote.presented = false }
         }
         #endif
@@ -79,7 +80,7 @@ struct ShellView: View {
         if !inAccessory {
             VStack(spacing: 0) {
                 #if os(iOS)
-                RemoteBar(remote: remote) { remote.presented = true }
+                RemoteBar(remote: remote) { remote.showFromBar() }
                 #endif
                 FootMiniPlayer(app: app)
             }
@@ -117,10 +118,10 @@ struct ShellView: View {
                 if shell.nowPlaying {
                     HStack(spacing: 0) {
                         MiniPlayer(app: app, inAccessory: true)
-                        RemoteAccessoryButton(remote: remote) { remote.presented = true }
+                        RemoteAccessoryButton(remote: remote) { remote.showFromBar() }
                     }
                 } else {
-                    RemoteBar(remote: remote, inAccessory: true) { remote.presented = true }
+                    RemoteBar(remote: remote, inAccessory: true) { remote.showFromBar() }
                 }
             }
         } else {

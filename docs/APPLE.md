@@ -1356,7 +1356,9 @@ and when the app comes back to the front.
   the mini player. A Google Cast or an AirPlay device counts for the bar
   only while it plays: one is on whenever the network is, so idle, it
   would keep the bar there for good. Choosing it opens the remote as a
-  sheet, which closes by itself once no other device is on.
+  sheet, on the controls of the device the bar stands for when it stands
+  for one (idle Google Cast and AirPlay devices are still in the list),
+  and the sheet closes by itself once the bar stands for none.
 - **Mac**: a remote button in the toolbar, as in the web app's header,
   opens the same remote as a popover.
 

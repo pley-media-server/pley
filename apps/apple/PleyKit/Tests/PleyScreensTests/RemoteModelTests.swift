@@ -255,6 +255,11 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         server.addReceiver("bedroom-tv", deviceId: "bedroom-tv", name: "Bedroom TV", casts: ["item"])
         await model.reload()
         #expect(model.barDevices.map(\.id) == ["bedroom-tv"])
+        // The bar stands for that one: it opens the remote on its controls, as one device alone does.
+        model.showFromBar()
+        #expect(model.presented && model.chosen == "bedroom-tv")
+        #expect(model.selected?.id == "bedroom-tv")
+        model.presented = false
 
         // And a Google Cast device counts while it plays.
         server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000))
@@ -262,6 +267,9 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         await model.reload()
         #expect(model.barDevices.map(\.id) == ["cast:kitchen", "bedroom-tv"])
         #expect(model.devices.count == 3)
+        // Two: the bar opens the list.
+        model.showFromBar()
+        #expect(model.presented && model.chosen == nil)
     }
 
     @Test func anAirPlayDeviceAsksForItsCodeThenPlays() async throws {
