@@ -904,7 +904,8 @@ private struct RemotePlayingControls: View {
 /// profile's other devices that take what it plays, each with what it
 /// plays now, as the remote lists them; choosing one sends it there. Beside
 /// Shuffle, "Shuffle on…" in it sends it shuffled. Nothing shows while no
-/// other device takes it.
+/// other device takes it. While a cast is on its way it says "Starting on
+/// Living room TV…", and its devices can't be chosen.
 struct PlayOnMenu: View {
     @ObservedObject var remote: RemoteModel
     let target: CastTarget
@@ -921,7 +922,9 @@ struct PlayOnMenu: View {
         let devices = remote.takers(target)
         if !devices.isEmpty {
             let names = remote.names
-            let title = target.kind == .live ? Words.watchOn : Words.playOn
+            // While a cast is on its way, it says where, until the device plays it.
+            let starting = remote.casting.map { Words.startingOn(names[$0] ?? Words.unnamedDevice) }
+            let title = starting ?? (target.kind == .live ? Words.watchOn : Words.playOn)
             Menu {
                 ForEach(devices) { device in
                     choice(device, names: names, target: target)
@@ -936,7 +939,11 @@ struct PlayOnMenu: View {
             } label: {
                 if iconOnly {
                     // A target of its own, among the overlay's other buttons.
-                    Label(title, systemImage: "play.tv").labelStyle(.iconOnly).frame(width: 44, height: 44)
+                    if starting != nil {
+                        ProgressView().frame(width: 44, height: 44)
+                    } else {
+                        Label(title, systemImage: "play.tv").labelStyle(.iconOnly).frame(width: 44, height: 44)
+                    }
                 } else {
                     Label(title, systemImage: "play.tv")
                 }
@@ -957,6 +964,8 @@ struct PlayOnMenu: View {
             Label(name, systemImage: device.kind.symbol)
             Text(device.line)
         }
+        // One cast at a time: the server answers once the device plays.
+        .disabled(remote.casting != nil)
         .accessibilityIdentifier("\(prefix).playOn.\(device.id)")
     }
 }

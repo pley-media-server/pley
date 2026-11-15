@@ -164,6 +164,9 @@ extension Words {
     /// After "Play on…": where it went.
     public static func playingOn(_ device: String) -> String { localized("Playing on \(device)") }
 
+    /// "Play on…" while a cast is on its way there, until the device plays it.
+    public static func startingOn(_ device: String) -> String { localized("Starting on \(device)…") }
+
     /// As something cast from another device starts here: that device, as
     /// the server names it, else "another device".
     public static func playingFrom(_ device: String?) -> String {

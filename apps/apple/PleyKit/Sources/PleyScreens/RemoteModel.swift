@@ -158,6 +158,10 @@ public final class RemoteModel: ObservableObject {
     @Published public var pairing: Pairing?
     /// A pairing, or the cast after it, is on its way.
     @Published public private(set) var pairingBusy = false
+    /// The device a cast is on its way to, by id, until the server answers:
+    /// a Google Cast or an AirPlay device answers once it plays, which can
+    /// take a minute or two. "Play on…" says so meanwhile, and takes no other.
+    @Published public private(set) var casting: String?
 
     public let app: AppModel
     private let wait: Duration
@@ -379,9 +383,15 @@ public final class RemoteModel: ObservableObject {
     /// controls show once its session does. A refusal says why, in the
     /// remote's words. An AirPlay device that wants its code first is
     /// asked to show it, and the sheet asks for it (`pairing`); `paired`:
-    /// just paired with, so a second ask says it didn't pair.
+    /// just paired with, so a second ask says it didn't pair. One cast at a
+    /// time (`casting`): another while one is on its way sends nothing.
     public func cast(_ target: CastTarget, to device: Device, paired: Bool = false) async {
         guard let receiver = device.receiver else { return }
+        // The cast after a pairing goes all the same: the pairing holds the sheet (`pairingBusy`) meanwhile.
+        guard paired || casting == nil else { return }
+        let starts = casting == nil
+        if starts { casting = device.id }
+        defer { if starts { casting = nil } }
         let name = name(device)
         do {
             guard let api = await app.session.api else { throw PleyError.signedOut }

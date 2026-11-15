@@ -5451,6 +5451,23 @@
         }
       }
     },
+    "Starting on %@…" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciando en %@…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lancement sur %@…"
+          }
+        }
+      }
+    },
     "Stereo" : {
       "comment" : "A track, version, size, duration or count, as every app words it (Words).",
       "localizations" : {

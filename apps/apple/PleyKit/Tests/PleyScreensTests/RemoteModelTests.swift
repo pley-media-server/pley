@@ -206,6 +206,37 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(app.shell.toast?.text == "Kitchen TV didn't play it")
     }
 
+    @Test func playOnTakesOneCastAtATimeAndSaysWhereItStarts() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
+                           castProtocol: "cast")
+        server.addReceiver("den-tv", deviceId: "app-90", name: "Den TV", casts: ["item"])
+        await model.reload()
+        let kitchen = try #require(model.devices.first(where: { $0.id == "cast:kitchen" }))
+        let den = try #require(model.devices.first(where: { $0.id == "app-90" }))
+
+        // The server answers once the device plays: until then "Play on…" says where it is starting.
+        server.hold(path: "/api/remote/devices/cast:kitchen/cast")
+        let first = Task { await model.cast(.item(7, video: true), to: kitchen) }
+        #expect(await eventually { server.castsReceived.count == 1 })
+        #expect(model.casting == "cast:kitchen")
+        #expect(Words.startingOn("Kitchen TV") == "Starting on Kitchen TV…")
+        // Another meanwhile, there or elsewhere, sends nothing.
+        await model.cast(.item(7, video: true), to: kitchen)
+        await model.cast(.item(8, video: true), to: den)
+        #expect(server.castsReceived.count == 1)
+        #expect(model.casting == "cast:kitchen")
+
+        server.release(path: "/api/remote/devices/cast:kitchen/cast")
+        await first.value
+        #expect(model.casting == nil)
+        #expect(server.castsReceived.count == 1)
+        #expect(app.shell.toast?.text == "Playing on Kitchen TV")
+    }
+
     @Test func theBarLeavesOutAGoogleCastOrAirPlayDeviceThatPlaysNothing() async throws {
         let server = try await fixture()
         defer { server.stop() }
