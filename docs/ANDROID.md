@@ -527,9 +527,10 @@ for a Google Cast or AirPlay device, it **can't reach this server**
 the server's own words.
 
 The server answers a cast to a Google Cast or AirPlay device once the
-device plays, within 3 minutes: the device's row shows a spinner
-meanwhile (read out as **Starting on** the device), the other rows wait,
-and the phone waits up to 3½ minutes for that answer, and for a
+device plays, stopping one that hasn't after 3 minutes: the device's row
+shows a spinner meanwhile (read out as **Starting on** the device), the
+other rows wait, and the phone waits up to 4 minutes for that answer,
+which can come a few seconds after the server stopped it, and for a
 pairing's, where its other calls give up after 10 seconds without one.
 The cast is the activity's, not the chooser's: closing the chooser
 meanwhile, or the phone turning, folding or switching to dark mode,
