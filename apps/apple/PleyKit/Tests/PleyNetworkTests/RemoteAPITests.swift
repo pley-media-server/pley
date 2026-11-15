@@ -69,19 +69,26 @@ import Testing
         #expect(server.castsReceived.last.map { String(decoding: $0.body, as: UTF8.self) } == #"{"item_id":7}"#)
     }
 
-    @Test func aCastWaitsForTheDeviceToPlayLongerThanOtherRequests() async throws {
+    @Test func castsAndPairingsWaitLongerThanOtherRequests() async throws {
         let server = try await fixture()
         defer { server.stop() }
-        // A transport that waits a second stands for the app's 20 seconds; a cast keeps its own wait.
+        // A transport that waits a second stands for the app's 20 seconds; casts and pairings keep their own wait.
         let http = HTTPTransport(userAgent: testAgent, gate: ConnectionGate(), requestTimeout: 1)
         let api = PleyAPI(client: APIClient(origin: server.origin, tokens: FakeTokens(server: server, transport: http),
                                             transport: http))
-        #expect(PleyAPI.castTimeout == 120)
+        #expect(PleyAPI.deviceTimeout == 210)
         server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
                            castProtocol: "cast")
         server.delay(path: "/api/remote/devices/cast:kitchen/cast", ms: 2_500, method: "POST")
         try await api.cast(.item(7, video: true), to: "cast:kitchen")
         #expect(server.castsReceived.count == 1)
+        // So does a pairing: having the device show its code, and typing it.
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay", pairingCode: "4821", digits: 4)
+        server.delay(path: "/api/remote/devices/airplay:den/pairing", ms: 2_500, method: "POST")
+        #expect(try await api.showPairingCode(on: "airplay:den") == 4)
+        try await api.pair(with: "airplay:den", code: "4821")
+        #expect(server.pairingCodesTyped == ["4821"])
 
         // Anything else gives up at the transport's wait.
         server.delay(path: "/api/remote/devices", ms: 2_500)

@@ -53,20 +53,21 @@ extension PleyAPI {
     /// device of `receiverId` show its code, and answers how many digits it
     /// has, where the server knows (4 on an Apple TV). It refuses with
     /// `.api`: `404` for a device gone, `409` `pairing_failed`, `429` while
-    /// the device takes no other try yet.
+    /// the device takes no other try yet. It waits `deviceTimeout` for the
+    /// answer.
     public func showPairingCode(on receiverId: String) async throws -> Int? {
         try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/pairing",
-                              body: PairingBody(), as: PairingCode.self).digits
+                              body: PairingBody(), as: PairingCode.self, timeout: Self.deviceTimeout).digits
     }
 
     /// `POST /api/remote/devices/{id}/pairing` with `code`, the one the
     /// AirPlay device of `receiverId` shows: `204` once the server is paired
     /// with it, for every home member's casts. It refuses with `.api`: `403`
     /// `wrong_pin` (`wrongPairingCode`), `429` after too many, `404` and
-    /// `409` as above.
+    /// `409` as above. It waits `deviceTimeout` for the answer.
     public func pair(with receiverId: String, code: String) async throws {
         _ = try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/pairing",
-                                  body: PairingBody(pin: code), as: NoContent.self)
+                                  body: PairingBody(pin: code), as: NoContent.self, timeout: Self.deviceTimeout)
     }
 
     /// `POST /api/remote/devices/{id}/cast`: `202` once `target` is on its
@@ -77,19 +78,22 @@ extension PleyAPI {
     /// `429` past 10 a second; for a Google Cast or an AirPlay device,
     /// `409` `cast_failed`, `cast_unreachable`, or `pairing_needed`
     /// (`pairingNeeded`) for an AirPlay device that wants its code first.
-    /// It waits `castTimeout` for the answer.
+    /// It waits `deviceTimeout` for the answer.
     public func cast(_ target: CastTarget, to receiverId: String) async throws {
         _ = try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/cast",
-                                  body: target, as: NoContent.self, timeout: Self.castTimeout)
+                                  body: target, as: NoContent.self, timeout: Self.deviceTimeout)
     }
 
-    /// How long a cast waits for its answer: a Google Cast or an AirPlay
-    /// device's comes once it plays, which can take the server up to two
-    /// minutes (the stream started, the device's player launched, the stream
-    /// loaded, and tried again with the basic stream when it is refused).
-    /// Waiting less, the cast would fail while it starts, and the server be
+    /// How long a cast, or a pairing with an AirPlay device, waits for its
+    /// answer rather than the transport's 20 seconds. A cast to a Google Cast
+    /// or an AirPlay device is answered once the device plays, within the
+    /// server's 3 minutes for starting it there (the stream started, the
+    /// device's player launched, the stream loaded, and tried again with the
+    /// basic stream when it is refused); a pairing with the code can take it
+    /// 50 seconds, and having the device show its code 20. Waiting less, they
+    /// would fail while the server still works on them, and the server be
     /// doubted as if it hadn't answered.
-    public static let castTimeout: TimeInterval = 120
+    public static let deviceTimeout: TimeInterval = 210
 
     /// `receiverSegment`, else the server's own answer for a device it doesn't know.
     private static func receiverPath(_ id: String) throws -> String {

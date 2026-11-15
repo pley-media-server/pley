@@ -159,8 +159,8 @@ public final class RemoteModel: ObservableObject {
     /// A pairing, or the cast after it, is on its way.
     @Published public private(set) var pairingBusy = false
     /// The device a cast is on its way to, by id, until the server answers:
-    /// a Google Cast or an AirPlay device answers once it plays, which can
-    /// take a minute or two. "Play on…" says so meanwhile, and takes no other.
+    /// a Google Cast or an AirPlay device answers once it plays, within 3
+    /// minutes. "Play on…" says so meanwhile, and takes no other.
     @Published public private(set) var casting: String?
 
     public let app: AppModel
