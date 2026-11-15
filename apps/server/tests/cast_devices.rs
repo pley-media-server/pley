@@ -466,6 +466,23 @@ async fn a_cast_stopped_before_its_first_report_keeps_its_place() {
 }
 
 #[tokio::test]
+async fn a_cast_without_a_place_starts_where_play_would() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    let progress = json!({"position_ms": 600_000, "duration_ms": LENGTH_MS});
+    w.app.post(&format!("/api/items/{}/progress", w.film), &w.admin, progress).await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+    assert_eq!(next(&mut w.sent, "LOAD").await.1["currentTime"], 600.0);
+
+    // Once watched, it starts at the beginning.
+    w.app.post(&format!("/api/items/{}/watched", w.film), &w.admin, json!({})).await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+    assert_eq!(next(&mut w.sent, "LOAD").await.1["currentTime"], 0.0);
+}
+
+#[tokio::test]
 async fn a_new_cast_takes_the_device_over_without_stopping_it() {
     let mut w = world().await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;

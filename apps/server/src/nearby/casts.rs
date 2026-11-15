@@ -65,7 +65,13 @@ pub struct Choice {
 /// cast that a newer one to the same device replaces while it starts gives
 /// way: it ends its session, leaves the device to the newer one, and
 /// returns as done, since the device plays what was last asked of it.
-pub async fn start(state: &AppState, user: &AuthUser, device: Found, cast: Cast) -> ApiResult<()> {
+pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: Cast) -> ApiResult<()> {
+    // A cast that names no place starts where Play would, so it doesn't
+    // start over and save the beginning over the place someone left off.
+    if cast.start_ms.is_none() {
+        let row = crate::api::items::item_or_404(state, user.id, cast.item_id).await?;
+        cast.start_ms = Some(crate::api::items::resume_ms(&row));
+    }
     let base = base_url(state, device.address).ok_or_else(|| {
         AppError::ConflictAs("cast_unreachable", "Pley doesn't listen on an address the device can reach".to_owned())
     })?;

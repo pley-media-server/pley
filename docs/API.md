@@ -3877,8 +3877,9 @@ would.
   the Pley app stands for it. One whose Pley app is on a profile the
   caller can't cast to stays listed. A cast there names a movie or an episode,
   as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
-  above; `profile_id`, if given, is the caller's own. It answers `204`
-  once the device plays; `404` for a device not listed lately, a caller
+  above (without `start_ms` it starts where Play would: the resume
+  point, or the beginning once watched); `profile_id`, if given, is the
+  caller's own. It answers `204` once the device plays; `404` for a device not listed lately, a caller
   who isn't a home member, another profile's `profile_id`, a `device_id`
   or an item the caller can't see; `400` for a `start_ms` out of range or
   a track the item doesn't have; `409` `{ code: "not_castable" }` for
