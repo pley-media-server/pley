@@ -609,12 +609,10 @@ class HttpPleyApi(
         /**
          * How long a cast or a pairing may go without an answer, in seconds,
          * rather than OkHttp's 10: the server answers a cast to a Google Cast
-         * or AirPlay device once it plays, after reading the subtitles (20 s
-         * at most), reaching the device and starting its player (30 s) and
-         * loading the stream (60 s), and once more with the basic stream when
-         * the device refuses the first (docs/API.md, "Casting").
+         * or AirPlay device once it plays, within 3 minutes (docs/API.md,
+         * "Casting"), and this leaves its answer time to arrive.
          */
-        const val DEVICE_READ_SECONDS = 180L
+        const val DEVICE_READ_SECONDS = 210L
 
         /** [client], waiting [DEVICE_READ_SECONDS] for an answer. */
         internal fun waitingForDevices(client: OkHttpClient): OkHttpClient =
