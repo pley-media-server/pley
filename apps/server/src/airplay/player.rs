@@ -804,11 +804,20 @@ mod tests {
         drop((player, tell));
         assert!(answering.await.unwrap().iter().any(|first| first.starts_with("TEARDOWN")));
 
-        // The device lets go of the session as it is stopped: the news of
-        // the end can't wait for a follower that waits for the stop.
+        // The device lets go of the session while the follower, busy
+        // stopping it, reads nothing: the news of the end waits for room,
+        // and the stop is answered all the same.
         let (player, _events, tell, _answering) = playing().await;
         tokio::time::timeout(Duration::from_secs(10), flood(&tell)).await.expect("the device's statuses are read");
         tell.send(None).await.unwrap();
+        // Once the loop has taken the end from the device, it is waiting
+        // to tell of it: the statuses before filled what the follower reads.
+        let told = async {
+            while tell.capacity() < tell.max_capacity() {
+                tokio::task::yield_now().await;
+            }
+        };
+        tokio::time::timeout(Duration::from_secs(10), told).await.expect("the device's end is read");
         tokio::time::timeout(Duration::from_secs(10), player.stop()).await.expect("the session stops");
     }
 }
