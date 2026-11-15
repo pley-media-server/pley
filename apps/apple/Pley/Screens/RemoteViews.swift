@@ -974,8 +974,8 @@ struct PlayOnMenu: View {
 /// cast there: what to type and why, the field (a code of a known length
 /// goes at its last digit, as on an Apple TV), what went wrong with the last
 /// try, and a link that has the device show a new code. Cancel closes it,
-/// but not while the code or the cast after it is on its way; once paired,
-/// what was cast goes there.
+/// but not while a code is on its way; once paired, it closes and what was
+/// cast goes there, "Play on…" saying "Starting on…" meanwhile.
 struct PairingSheet: View {
     @ObservedObject var remote: RemoteModel
     /// As the sheet opened: the model's own once it changes (a wrong code, a new one shown).
@@ -1037,7 +1037,7 @@ struct PairingSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(Words.remoteCancel) { remote.pairing = nil }
-                        // Not while the code, or the cast after it, is on its way: its answer belongs to this sheet.
+                        // Not while a code is on its way (50 seconds at most): its answer belongs to this sheet.
                         .disabled(remote.pairingBusy)
                         .accessibilityIdentifier("pairing.cancel")
                 }

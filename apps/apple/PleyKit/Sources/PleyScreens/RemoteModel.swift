@@ -156,7 +156,9 @@ public final class RemoteModel: ObservableObject {
     @Published public var chosen: String?
     /// The AirPlay device whose code the sheet asks for; `nil` closes it.
     @Published public var pairing: Pairing?
-    /// A pairing, or the cast after it, is on its way.
+    /// The code typed is on its way, or the device is asked to show a new
+    /// one: the sheet stays meanwhile (50 seconds at most). The cast after
+    /// a pairing goes once it has closed.
     @Published public private(set) var pairingBusy = false
     /// The device a cast is on its way to, by id, until the server answers:
     /// a Google Cast or an AirPlay device answers once it plays, within 3
@@ -399,7 +401,7 @@ public final class RemoteModel: ObservableObject {
     /// time (`casting`): another while one is on its way sends nothing.
     public func cast(_ target: CastTarget, to device: Device, paired: Bool = false) async {
         guard let receiver = device.receiver else { return }
-        // The cast after a pairing goes all the same: the pairing holds the sheet (`pairingBusy`) meanwhile.
+        // The cast after a pairing goes all the same: the code was just typed for it.
         guard paired || casting == nil else { return }
         let starts = casting == nil
         if starts { casting = device.id }
@@ -408,7 +410,7 @@ public final class RemoteModel: ObservableObject {
         do {
             guard let api = await app.session.api else { throw PleyError.signedOut }
             try await api.cast(target, to: receiver.receiverId)
-            // Its own sheet alone closes: another device's may have opened while the cast was on its way.
+            // A sheet for this device alone closes: another device's may have opened while the cast was on its way.
             if paired && pairing?.id == device.id { pairing = nil }
             app.shell.show(Words.playingOn(name))
             show(device.id)
@@ -438,34 +440,16 @@ public final class RemoteModel: ObservableObject {
     }
 
     /// Pairs the server with the device the sheet asks for, with the `code`
-    /// it shows, then sends it what was cast. A code that isn't the one
-    /// shown, or a device that takes no other try yet, is said in the sheet
-    /// to type again; anything else closes it and says why.
+    /// it shows. Once paired, the sheet closes and what was cast goes there
+    /// as a pick from "Play on…" does (`casting`: "Starting on…"), which can
+    /// take minutes. A code that isn't the one shown, or a device that takes
+    /// no other try yet, is said in the sheet to type again; anything else
+    /// closes it and says why.
     public func pair(code: String) async {
-        guard let asked = pairing, !pairingBusy, let receiver = asked.device.receiver else { return }
-        pairingBusy = true
-        defer { pairingBusy = false }
-        do {
-            guard let api = await app.session.api else { throw PleyError.signedOut }
-            try await api.pair(with: receiver.receiverId, code: code)
-        } catch {
-            // Closed meanwhile: nothing more to say.
-            guard pairing?.id == asked.id else { return }
-            let words = Self.pairingWords(error, device: asked.name)
-            if (error as? PleyError)?.wrongPairingCode == true {
-                pairing?.error = words
-                pairing?.wrong += 1
-            } else if Self.refusal(error)?.status == 429 {
-                pairing?.error = words
-            } else {
-                pairing = nil
-                app.shell.show(words, action: nil, error: true)
-                if Self.refusal(error)?.status == 404 { Task { await reload() } }
-            }
-            return
-        }
+        guard let asked = pairing, !pairingBusy, await sendCode(code, for: asked) else { return }
         // Paired, but the sheet was closed: what was cast stays unsent.
         guard pairing?.id == asked.id else { return }
+        pairing = nil
         await cast(asked.target, to: asked.device, paired: true)
     }
 
@@ -508,6 +492,34 @@ public final class RemoteModel: ObservableObject {
         switch error as? PleyError {
         case .api(let status, let code, _)?, .refused(let status, let code, _, _, _)?: (status, code)
         default: nil
+        }
+    }
+
+    /// Sends `code` to pair with the device `asked` is for, the sheet busy
+    /// meanwhile: whether it paired. A refusal is said as `pair` says.
+    private func sendCode(_ code: String, for asked: Pairing) async -> Bool {
+        guard let receiver = asked.device.receiver else { return false }
+        pairingBusy = true
+        defer { pairingBusy = false }
+        do {
+            guard let api = await app.session.api else { throw PleyError.signedOut }
+            try await api.pair(with: receiver.receiverId, code: code)
+            return true
+        } catch {
+            // Closed meanwhile: nothing more to say.
+            guard pairing?.id == asked.id else { return false }
+            let words = Self.pairingWords(error, device: asked.name)
+            if (error as? PleyError)?.wrongPairingCode == true {
+                pairing?.error = words
+                pairing?.wrong += 1
+            } else if Self.refusal(error)?.status == 429 {
+                pairing?.error = words
+            } else {
+                pairing = nil
+                app.shell.show(words, action: nil, error: true)
+                if Self.refusal(error)?.status == 404 { Task { await reload() } }
+            }
+            return false
         }
     }
 

@@ -1490,9 +1490,11 @@ as the last is typed, else with Pair. "No code on the TV? Show it again"
 has the device show a new one. A wrong code shakes the field and says
 "That isn't the code Den Apple TV shows." to type again, and a device
 that takes no other try yet says so; any other refusal closes the sheet
-and says why. Once paired, the cast goes again; Cancel leaves it unsent.
-While a code, or the cast after it, is on its way, the sheet stays:
-Cancel waits, and the answer closes that device's sheet alone.
+and says why. While a code is on its way the sheet stays (Cancel and the
+swipe wait). Once paired, the sheet closes and the cast goes again as a
+pick from "Play on…" does, which says "Starting on Den Apple TV…" until
+the device plays. Cancel, before a code pairs, leaves what was cast
+unsent.
 
 **Taking casts.** Every Apple app, Apple TV included, opens its event
 stream as a receiver

@@ -336,7 +336,7 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(app.shell.toast == nil)
     }
 
-    @Test func theCastAfterAPairingClosesOnlyItsOwnSheet() async throws {
+    @Test func oncePairedTheSheetClosesAndTheCastGoesAsAPick() async throws {
         let server = try await fixture()
         defer { server.stop() }
         let app = try await signedIn(server)
@@ -351,17 +351,20 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         await model.cast(.item(7, video: true), to: den)
         #expect(model.pairing?.id == "airplay:den")
 
-        // Paired, the cast goes again and takes its time; meanwhile the other TV's sheet asks for its code.
+        // Paired, the sheet closes and the cast goes again, taking its time as a pick from "Play on…" does.
         server.hold(path: "/api/remote/devices/airplay:den/cast")
         let pairing = Task { await model.pair(code: "4821") }
         #expect(await eventually { server.castsReceived.count == 2 })
+        #expect(model.pairing == nil && !model.pairingBusy)
+        #expect(model.casting == "airplay:den")
+        // Meanwhile another TV's sheet asks for its code.
         model.pairing = RemoteModel.Pairing(device: office, name: "Office TV", target: .item(7, video: true), digits: 4)
         server.release(path: "/api/remote/devices/airplay:den/cast")
         await pairing.value
         #expect(app.shell.toast?.text == "Playing on Den Apple TV")
-        // The cast closes Den Apple TV's sheet alone: the other one still asks.
+        #expect(model.casting == nil)
+        // The cast leaves the other TV's sheet asking.
         #expect(model.pairing?.id == "airplay:office")
-        #expect(!model.pairingBusy)
     }
 
     @Test func aGoogleCastDevicesVolumeIsSetAndAnsweredByItsReport() async throws {
