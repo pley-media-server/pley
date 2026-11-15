@@ -7,7 +7,7 @@
     },
     "apps/desktop": {
       "name": "pley-desktop",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "dependencies": {
         "@tauri-apps/api": "^2.12.4",
         "i18next": "^26.7.2",
@@ -34,7 +34,7 @@
     },
     "apps/web": {
       "name": "pley-web",
-      "version": "0.1.10",
+      "version": "0.1.11",
       "dependencies": {
         "@tanstack/react-query": "^5.105.0",
         "@tanstack/react-virtual": "^3.14.23",

@@ -381,16 +381,18 @@ function LivePlayer({
         },
       );
       let failed = false;
-      let played = false;
-      video.addEventListener("playing", () => (played = true), { once: true });
+      // Played from its stream, as the server or the stream said it could be.
+      let chosen = false;
       player.on(mpegts.Events.ERROR, () => {
         failed = true;
         player.destroy();
         if (directRef.current === player) directRef.current = null;
-        if (cancelled || !played) return;
-        // It broke off while playing: the transcoder's segments from now,
-        // unless its connection was taken over (that's told as the stream
-        // ends, and tuning again would only find every connection in use).
+        // Not chosen yet: the transcoder's segments play once the plan comes, below.
+        if (cancelled || !chosen) return;
+        // It broke off, playing or before its first picture: the transcoder's
+        // segments from now, unless its connection was taken over (that's
+        // told as the stream ends, and tuning again would only find every
+        // connection in use).
         window.setTimeout(() => {
           if (cancelled || takenOver.current) return;
           void watch().then((w) => w && playHls(w.url));
@@ -401,12 +403,16 @@ function LivePlayer({
       player.load();
       const known = await plan;
       if (cancelled) return true;
+      // Let go already (mpegts.js throws when let go twice): it failed, and
+      // the transcoder's segments play, or watching ended, which says why.
+      if (directRef.current !== player) return !failed;
       // What the server says goes; not known in time, what the stream turned out to be.
-      if (failed || (known ? !playsAsSent(known) : !hasPlayableTracks(player))) {
+      if (known ? !playsAsSent(known) : !hasPlayableTracks(player)) {
         player.destroy();
-        if (directRef.current === player) directRef.current = null;
+        directRef.current = null;
         return false;
       }
+      chosen = true;
       start();
       return true;
     };
@@ -527,6 +533,27 @@ function LivePlayer({
     }
   });
   useEffect(() => onServerEvent(onEvent), []);
+
+  // Next and previous track change channel, as up and down do: the buttons
+  // of the browser's picture in picture window, and the keyboard's media keys.
+  const onTrack = useEffectEvent((by: 1 | -1) => onStep(by));
+  useEffect(() => {
+    if (!("mediaSession" in navigator)) return;
+    const session = navigator.mediaSession;
+    const set = (action: MediaSessionAction, handler: MediaSessionActionHandler | null) => {
+      try {
+        session.setActionHandler(action, handler);
+      } catch {
+        // A browser without that action.
+      }
+    };
+    set("nexttrack", () => onTrack(1));
+    set("previoustrack", () => onTrack(-1));
+    return () => {
+      set("nexttrack", null);
+      set("previoustrack", null);
+    };
+  }, []);
 
   // Leaving the page (a closed tab) lets the connection go at once.
   useEffect(() => {
@@ -730,7 +757,6 @@ function LivePlayer({
           ref={videoRef}
           className="absolute inset-0 size-full object-contain"
           playsInline
-          disablePictureInPicture
           onClick={() => (panel ? setPanel(false) : poke())}
           onDoubleClick={toggleFullscreen}
         />

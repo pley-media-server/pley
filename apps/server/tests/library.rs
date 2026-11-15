@@ -70,6 +70,23 @@ async fn libraries_are_checked_when_created_and_changed() {
 }
 
 #[tokio::test]
+async fn a_metadata_only_scan_leaves_the_folders_alone() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979).mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    app.media_file("movies/Brazil (1985).mkv", 1024);
+    // Fetching metadata doesn't walk the folders: Brazil waits for a scan.
+    app.state.scanner.enqueue_metadata(movies);
+    app.wait_for_scans().await;
+    let listed = format!("/api/libraries/{movies}/items");
+    assert_eq!(titles(&app.get(&listed, &admin).await.body["items"]), ["Alien"]);
+    app.state.scanner.enqueue_files(movies);
+    app.wait_for_scans().await;
+    assert_eq!(titles(&app.get(&listed, &admin).await.body["items"]), ["Alien", "Brazil"]);
+}
+
+#[tokio::test]
 async fn moving_and_deleting_a_library() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;

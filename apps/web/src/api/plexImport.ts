@@ -1,0 +1,430 @@
+import { useEffect } from "react";
+import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { api, isApiError } from "./client";
+import { onServerEvent } from "./events";
+import { keys } from "./hooks";
+import type { Id, LibraryKind } from "./types";
+
+/** A Plex server the account owns (docs/API.md, "Moving from Plex"). */
+export interface PlexServer {
+  id: string;
+  name: string;
+  owned: boolean;
+  version: string | null;
+}
+
+export interface PlexFolder {
+  plex: string;
+  pley: string;
+}
+
+export type PairingStatus = "matched" | "unsure" | "not_in_pley";
+
+export interface PlanLibrary {
+  key: string;
+  title: string;
+  kind: LibraryKind;
+  /** Plex's folders. */
+  locations: string[];
+  /** How much it holds: movies, episodes or tracks; absent from servers before it. */
+  items?: number;
+  /** Its shows or artists; null for movies. */
+  groups?: number | null;
+  pairing: {
+    status: PairingStatus;
+    /** The Pley library most of its files are in. */
+    library_id: Id | null;
+    /** Where its folders are for Pley, read off the files found. */
+    folders: PlexFolder[];
+    /** Plex's folders this server can open. */
+    folders_here: string[];
+    /** Where Plex's other folders seem to be for Pley, found by their path's end and a file in them. */
+    folders_found: PlexFolder[];
+  };
+}
+
+export interface PlanLimits {
+  max_age: number | null;
+  max_age_system: string | null;
+  show_labels: string[];
+  hide_labels: string[];
+  /** Labels past the most a profile keeps. */
+  left_over: string[];
+  /** Parts of Plex's rules Pley can't keep, as Plex wrote them. */
+  not_kept: string[];
+}
+
+export interface PlanUser {
+  id: number;
+  title: string;
+  /** The account signed in, which comes as the administrator. */
+  admin: boolean;
+  restricted: boolean;
+  /** Plex may ask for their PIN. */
+  protected: boolean;
+  /** The profile an earlier import made for them. */
+  profile_id: Id | null;
+  limits: PlanLimits;
+  /** Their picture is at `plexUserPicture(id)`. */
+  picture: boolean;
+  /** The colour of Plex's picture for them, which their profile takes. */
+  color: string | null;
+}
+
+/** A Home user's picture, as the last plan found it. */
+export function plexUserPicture(id: number): string {
+  return `/api/import/plex/users/${id}/picture`;
+}
+
+export interface ImportPlan {
+  server: string;
+  libraries: PlanLibrary[];
+  users: PlanUser[];
+}
+
+export interface ImportChoices {
+  libraries: { key: string; library_id?: Id; new?: { name: string; paths: string[] } }[];
+  folders?: PlexFolder[];
+  users?: { id: number; pin?: string }[];
+  /** What comes besides the libraries and people; each on when left out. */
+  bring?: ImportBring;
+}
+
+/** The "What to bring" step's boxes. */
+export interface ImportBring {
+  watch_history: boolean;
+  collections: boolean;
+  edits: boolean;
+}
+
+/** `interrupted`: the server restarted while it ran; it stopped, with no report. */
+export type ImportState = "idle" | "running" | "done" | "failed" | "cancelled" | "interrupted";
+export type ImportStep =
+  | "scanning"
+  | "profiles"
+  | "matching"
+  | "labels"
+  | "edits"
+  | "collections"
+  | "watch_state"
+  | "history"
+  | "playlists"
+  | "fetching"
+  | "matching_again";
+export type ProfileSkipped = "pin_needed" | "refused" | "no_access";
+
+export interface LibraryReport {
+  title: string;
+  library_id: Id | null;
+  created: boolean;
+  matched: number;
+  missed: number;
+  missed_titles: string[];
+  /** Still waiting for Plex's labels: profiles with labels they never see don't see it until a run finishes. */
+  labels_pending?: boolean;
+}
+
+export interface ProfileReport {
+  title: string;
+  user_id: Id | null;
+  created: boolean;
+  skipped: ProfileSkipped | null;
+  max_age: number | null;
+  show_labels: string[];
+  hide_labels: string[];
+  left_over: string[];
+  not_kept: string[];
+  watched: number;
+  resumed: number;
+  rated: number;
+  plays: number;
+  /** Their playlists, made or added to. */
+  playlists: number;
+  /** Plex refused some of their watch history. */
+  incomplete: boolean;
+  /** Plex refused some of their playlists. */
+  playlists_incomplete?: boolean;
+  /** Found again with an age limit of its own, which it kept: rules not kept didn't make it stricter. */
+  kept_limit?: boolean;
+  /** Libraries already in Pley, by name, not opened to a new profile: they hold more than Plex shared with them. */
+  closed?: string[];
+  /** A PIN on Plex: "kept", the profile took the one typed for them; "none", it has no PIN in Pley. Absent with no PIN on Plex, or when the profile has its own. */
+  pin?: "kept" | "none" | null;
+}
+
+export interface ImportReport {
+  /** When it started; 0 or absent in reports kept before it was. */
+  started_at?: number;
+  finished_at: number;
+  outcome: Exclude<ImportState, "idle" | "running" | "interrupted">;
+  /** Why it failed, in the server's words (English). */
+  error: string | null;
+  libraries: LibraryReport[];
+  profiles: ProfileReport[];
+  labels_added: number;
+  dates_moved: number;
+  /** Titles matched again to Plex's TMDB entry. */
+  matches_fixed: number;
+  /** Locked fields brought as edits, by field ("title", "content_rating"). */
+  edits: Partial<Record<EditedField, number>>;
+  collections_made: number;
+  /** Titles put in collections, new or found again. */
+  collection_items: number;
+  /** Smart collections and playlists, which aren't brought. */
+  smart_left: number;
+  /** What was chosen; missing from reports kept before the choice existed. */
+  bring?: ImportBring;
+  /** How long each step took, in seconds, in the order they ran; absent from reports kept before it was. */
+  steps?: { step: ImportStep; secs: number }[];
+}
+
+export type EditedField =
+  | "title"
+  | "sort_title"
+  | "original_title"
+  | "summary"
+  | "tagline"
+  | "year"
+  | "release_date"
+  | "content_rating"
+  | "studio"
+  | "genres";
+
+export interface ImportProgress {
+  state: ImportState;
+  /** When the last import started (Unix seconds); 0 when none has since the server started. Absent from servers before it. */
+  started_at?: number;
+  step: ImportStep | null;
+  done: number;
+  total: number;
+  /** About how many seconds the step has left, where that can be told (fetching details); absent from servers before it. */
+  left_secs?: number | null;
+  error: string | null;
+  report: ImportReport | null;
+  /** What was found by file has come over; metadata and the titles found by id follow. */
+  first_pass_done: boolean;
+  /** The library being scanned while the import waits for the scans; absent from servers before it. */
+  scan?: ImportScan | null;
+  /** The steps it goes through, in order, as they stand; absent from servers before it. */
+  steps?: ImportStepRow[];
+  /** Each library it brings, from the scanning step on; absent from servers before it. */
+  libraries?: ImportLibraryRow[];
+}
+
+/** One of the steps an import goes through. `count`: what it brought, once done, where there's one to give. */
+export interface ImportStepRow {
+  step: ImportStep;
+  state: "to_come" | "running" | "done";
+  count: number | null;
+}
+
+/** A library the import brings, during the scanning step. */
+export interface ImportLibraryRow {
+  library: string;
+  phase: "queued" | "walking" | "probing" | "matching" | "done";
+  /** Its files read of those found, while they're read. */
+  done: number;
+  total: number;
+  /** About how many seconds its files have left to be read, once that can be told. */
+  left_secs: number | null;
+  /** Plex's titles found in it, once looked for. */
+  found: number | null;
+}
+
+export interface ImportScan {
+  library: string;
+  phase: "queued" | "walking" | "probing";
+  done: number;
+  total: number;
+}
+
+export const plexImportKeys = {
+  progress: ["import", "plex"] as const,
+  servers: ["import", "plex", "servers"] as const,
+  plan: ["import", "plex", "plan"] as const,
+  signedIn: ["import", "plex", "pin"] as const,
+  folder: (library: string, plex: string, pley: string) => ["import", "plex", "folder", library, plex, pley] as const,
+};
+
+/**
+ * Whether one of a Plex library's folders is where it's said to be for
+ * Pley: `found` when one of the files the plan sampled from it is there,
+ * `untold` when none was sampled from it.
+ */
+export type FolderCheck = "found" | "none_found" | "missing" | "untold";
+
+/** `plex`, one of Plex library `library`'s folders, checked at `pley`; nothing asked while `pley` is empty. */
+export function useFolderCheck(library: string, plex: string, pley: string) {
+  return useQuery({
+    queryKey: plexImportKeys.folder(library, plex, pley),
+    queryFn: () => api.post<{ state: FolderCheck }>("/api/import/plex/folder", { library, plex, pley }).then((r) => r.state),
+    enabled: pley.trim() !== "",
+    staleTime: 30_000,
+  });
+}
+
+/** The running import's step as last seen, by whichever views show it: one refetch per step, not one per view. */
+let seenStep: string | null = null;
+
+/** The least time between two fetches `import_changed` events ask for: some steps send one per title. */
+export const IMPORT_EVENT_MS = 500;
+
+/** How many views show the import, and the one listener they share. */
+let watching = 0;
+let unwatch: (() => void) | null = null;
+
+/** Fetches the import's progress again on `import_changed`, at most every {@link IMPORT_EVENT_MS}, until the returned function is called. */
+function watchImport(qc: QueryClient): () => void {
+  watching += 1;
+  if (watching === 1) {
+    let last = 0;
+    let later: ReturnType<typeof setTimeout> | undefined;
+    const refetch = () => {
+      later = undefined;
+      last = Date.now();
+      // A fetch on its way may have left before the change: a new one
+      // replaces it.
+      void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true });
+    };
+    const stop = onServerEvent((ev) => {
+      if (ev.type !== "import_changed" || later !== undefined) return;
+      const wait = last + IMPORT_EVENT_MS - Date.now();
+      if (wait <= 0) refetch();
+      else later = setTimeout(refetch, wait);
+    });
+    unwatch = () => {
+      stop();
+      clearTimeout(later);
+    };
+  }
+  return () => {
+    watching -= 1;
+    if (watching === 0) {
+      unwatch?.();
+      unwatch = null;
+    }
+  };
+}
+
+/**
+ * Where the import is, or the last one's report: fetched again on
+ * `import_changed` events, and every few seconds while it runs in case the
+ * event stream is down.
+ */
+export function usePlexImport() {
+  const qc = useQueryClient();
+  useEffect(() => watchImport(qc), [qc]);
+  const query = useQuery({
+    queryKey: plexImportKeys.progress,
+    queryFn: () => api.get<ImportProgress>("/api/import/plex"),
+    refetchInterval: (query) => (query.state.data?.state === "running" ? 5_000 : false),
+    staleTime: 0,
+  });
+  const data = query.data;
+  const step =
+    data && data.state !== "idle" ? `${data.started_at ?? 0}:${data.state === "running" ? (data.step ?? "") : data.state}` : null;
+  // The import makes profiles and gives them, and the administrator, Plex's
+  // pictures, and opens libraries to profiles as it ends: each step it moves
+  // on, and once when it ends, they're fetched again, so they show without
+  // a reload.
+  useEffect(() => {
+    if (step === null || step === seenStep) return;
+    seenStep = step;
+    for (const key of [keys.me, keys.users, keys.profiles]) void qc.invalidateQueries({ queryKey: key, exact: true });
+  }, [step, qc]);
+  return query;
+}
+
+/**
+ * Whether Pley holds a Plex sign-in: `true`, `false` while Plex's sign-in
+ * page waits for the person (asked again every `poll` ms), or `null` when
+ * nobody has started signing in.
+ */
+export function usePlexSignedIn(poll: number | false) {
+  return useQuery({
+    queryKey: plexImportKeys.signedIn,
+    queryFn: async () => {
+      try {
+        return (await api.get<{ signed_in: boolean }>("/api/import/plex/pin")).signed_in;
+      } catch (e) {
+        if (isApiError(e) && e.code === "plex_signed_out") return null;
+        throw e;
+      }
+    },
+    // Not after an error (an expired PIN), whose last answer was still false.
+    refetchInterval: (query) => (poll && query.state.status === "success" && query.state.data === false ? poll : false),
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+/** Starts Plex's sign-in: the page the person allows Pley on. */
+export function useStartPlexSignIn() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post<{ code: number; auth_url: string }>("/api/import/plex/pin", {}),
+    // A new PIN signs the server out until it's allowed: the sign-in
+    // before it isn't this one.
+    onSuccess: () => qc.setQueryData(plexImportKeys.signedIn, false),
+  });
+}
+
+export function usePlexToken() {
+  return useMutation({
+    mutationFn: (token: string) => api.post<void>("/api/import/plex/token", { token }),
+  });
+}
+
+export function usePlexServers(enabled: boolean) {
+  return useQuery({
+    queryKey: plexImportKeys.servers,
+    queryFn: () => api.get<PlexServer[]>("/api/import/plex/servers"),
+    enabled,
+    staleTime: 0,
+    gcTime: 0,
+  });
+}
+
+export function useChoosePlexServer() {
+  // The plan is the caller's to drop when the server is another one.
+  return useMutation({
+    mutationFn: (server: { id: string } | { address: string }) => api.post<{ name: string }>("/api/import/plex/server", server),
+  });
+}
+
+export function usePlexPlan(enabled: boolean) {
+  return useQuery({
+    queryKey: plexImportKeys.plan,
+    queryFn: () => api.get<ImportPlan>("/api/import/plex/plan"),
+    enabled,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+}
+
+export function useStartPlexImport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (choices: ImportChoices) => api.post<void>("/api/import/plex/start", choices),
+    onSuccess: () => {
+      // Running from here, not the last import's report, until the server says more.
+      qc.setQueryData<ImportProgress>(plexImportKeys.progress, { state: "running", step: null, done: 0, total: 0, error: null, report: null, first_pass_done: false });
+      void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true });
+    },
+  });
+}
+
+/** Stops the import, and forgets the Plex sign-in. */
+export function useForgetPlex() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.del<void>("/api/import/plex"),
+    onSettled: () => {
+      // The sign-in goes with it: importing again starts by signing in.
+      qc.setQueryData(plexImportKeys.signedIn, null);
+      qc.removeQueries({ queryKey: plexImportKeys.servers });
+      qc.removeQueries({ queryKey: plexImportKeys.plan });
+      void qc.invalidateQueries({ queryKey: plexImportKeys.progress, exact: true });
+    },
+  });
+}

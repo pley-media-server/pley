@@ -19,7 +19,7 @@ const icons = [
   ["Play", "play", true], ["Pause", "pause", true], ["SkipBack", "skip-back", true], ["SkipForward", "skip-forward", true],
   ["Rewind", "rewind"], ["FastForward", "fast-forward"], ["RotateCcw", "rotate-ccw"], ["RotateCw", "rotate-cw"],
   ["Captions", "captions"], ["AudioLines", "audio-lines"], ["Gauge", "gauge"], ["PictureInPicture2", "picture-in-picture-2"],
-  ["Volume2", "volume-2"], ["Sun", "sun"], ["Maximize", "maximize"], ["Minimize", "minimize"], ["Shuffle", "shuffle"],
+  ["Volume1", "volume-1"], ["Volume2", "volume-2"], ["VolumeX", "volume-x"], ["Sun", "sun"], ["Maximize", "maximize"], ["Minimize", "minimize"], ["Shuffle", "shuffle"],
   ["Repeat", "repeat"], ["Repeat1", "repeat-1"], ["MonitorPlay", "monitor-play"],
   // Actions and state
   ["Check", "check"], ["CircleCheck", "circle-check"], ["Star", "star", true], ["Eye", "eye"], ["EyeOff", "eye-off"],

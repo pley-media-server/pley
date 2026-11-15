@@ -324,12 +324,20 @@ async fn wanted(
             let title = edits.iter().find(|(c, _)| *c == "title").and_then(|(_, v)| v.as_deref());
             values.insert("sort_title", title.map(sort_title));
         }
-        // A rating typed by hand has no country: it's read with the
-        // metadata region's ratings.
-        if edited("content_rating") {
-            values.insert("content_rating_country", None);
-        }
+        let rating_edited = edited("content_rating");
         values.extend(edits);
+        // A rating edited is read with the server's country's ratings,
+        // unless it's written with its country ("GB:15", Plex's "nz/R"):
+        // then it's that country's, as an NFO file's is.
+        if rating_edited {
+            let rating = values.get("content_rating").cloned().flatten();
+            let (country, rating) = match rating.as_deref().map(crate::ratings::with_country) {
+                Some((country, rating)) => (country.map(str::to_owned), Some(rating.to_owned())),
+                None => (None, None),
+            };
+            values.insert("content_rating", rating);
+            values.insert("content_rating_country", country);
+        }
     }
     Ok(wanted)
 }

@@ -2390,4 +2390,22 @@ async fn labels_a_profile_never_sees_keep_titles_out_of_discover() {
     assert_eq!(detail.body["status"], json!("restricted"), "{}", detail.text());
     let refused = w.ask(&w.ann, json!({"kind": "show", "tmdb_id": 1396, "seasons": [2]})).await;
     assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("restricted")));
+
+    // A library Plex's labels are still on their way to: its titles may
+    // have the label, so they're kept out too until it's shown.
+    let unlabelled = w.app.patch(&format!("/api/items/{matrix}"), &w.admin, json!({"labels": []})).await;
+    assert_eq!(unlabelled.status, StatusCode::OK, "{}", unlabelled.text());
+    sqlx::query("UPDATE libraries SET labels_pending = 1 WHERE id = ?")
+        .bind(w.movies)
+        .execute(&w.app.state.db.write)
+        .await
+        .unwrap();
+    let trending = w.app.get("/api/discover/trending", &w.ann).await;
+    assert_eq!(common::titles(&trending.body["results"]), Vec::<String>::new(), "{}", trending.text());
+    let refused = w.ask(&w.ann, json!({"kind": "movie", "tmdb_id": 603})).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("restricted")));
+    let shown = w.app.patch(&format!("/api/libraries/{}", w.movies), &w.admin, json!({"labels_pending": false})).await;
+    assert_eq!(shown.status, StatusCode::OK, "{}", shown.text());
+    let trending = w.app.get("/api/discover/trending", &w.ann).await;
+    assert_eq!(common::titles(&trending.body["results"]), ["The Matrix"], "{}", trending.text());
 }

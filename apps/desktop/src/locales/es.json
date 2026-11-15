@@ -91,5 +91,28 @@
     "downloadGone": "Esta descarga ya no existe.",
     "notWhole": "Esta descarga está incompleta.",
     "other": "{{detail}}"
+  },
+  "notices": {
+    "quoted": "«{{title}}»",
+    "seasonList_one": "Temporada {{list}}",
+    "seasonList_many": "Temporadas {{list}}",
+    "seasonList_other": "Temporadas {{list}}",
+    "andSpecials": "{{seasons}} y especiales",
+    "specials": "Especiales",
+    "ready": "{{title}} está listo para ver.",
+    "seasonsReady_one": "{{seasons}} de {{title}} ya está lista para ver.",
+    "seasonsReady_many": "{{seasons}} de {{title}} ya están listas para ver.",
+    "seasonsReady_other": "{{seasons}} de {{title}} ya están listas para ver.",
+    "specialsReady": "Los especiales de {{title}} ya están listos para ver.",
+    "approved": "{{title}} se aprobó.",
+    "declined": "{{title}} se rechazó.",
+    "declinedBecause": "{{title}} se rechazó: {{reason}}.",
+    "created": "{{name}} solicitó {{title}}.",
+    "createdSeasons": "{{name}} solicitó {{title}} ({{seasons}}).",
+    "notSent": "No se pudo enviar {{title}} a {{service}}.",
+    "notSentBecause": "No se pudo enviar {{title}} a {{service}}: {{reason}}",
+    "news_one": "{{count}} de tus solicitudes tiene novedades.",
+    "news_many": "{{count}} de tus solicitudes tienen novedades.",
+    "news_other": "{{count}} de tus solicitudes tienen novedades."
   }
 }

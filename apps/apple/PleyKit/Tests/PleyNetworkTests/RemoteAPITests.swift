@@ -36,6 +36,77 @@ import Testing
         #expect(server.requests("/api/sessions/\(info.sessionId)/command").allSatisfy { $0.token != nil })
     }
 
+    @Test func nearbyDevicesAreListedAndAnAirPlayDevicePairsWithItsCode() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let api = api(server)
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay", pairingCode: "4821", digits: 4)
+        let devices = try await api.remoteDevices()
+        #expect(devices == [RemoteDevice(receiverId: "airplay:den", deviceId: "airplay:den", name: "Den Apple TV",
+                                         kind: .tv, casts: [.item], castProtocol: .airplay)])
+        #expect(server.requests("/api/remote/devices").last?.query["nearby"] == "1")
+
+        // It wants its code first.
+        do {
+            try await api.cast(.item(7, video: true), to: "airplay:den")
+            Issue.record("the cast went unpaired")
+        } catch let error as PleyError {
+            #expect(error.pairingNeeded)
+        }
+        #expect(try await api.showPairingCode(on: "airplay:den") == 4)
+        do {
+            try await api.pair(with: "airplay:den", code: "1111")
+            Issue.record("a wrong code paired")
+        } catch let error as PleyError {
+            #expect(error.wrongPairingCode)
+        }
+        try await api.pair(with: "airplay:den", code: "4821")
+        #expect(server.pairingCodesShown == 1)
+        #expect(server.pairingCodesTyped == ["1111", "4821"])
+        try await api.cast(.item(7, video: true), to: "airplay:den")
+        // `video` stays here.
+        #expect(server.castsReceived.last.map { String(decoding: $0.body, as: UTF8.self) } == #"{"item_id":7}"#)
+    }
+
+    @Test func castsAndPairingsWaitLongerThanOtherRequests() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        // A transport that waits a second stands for the app's 20 seconds; casts and pairings keep their own wait.
+        let http = HTTPTransport(userAgent: testAgent, gate: ConnectionGate(), requestTimeout: 1)
+        let api = PleyAPI(client: APIClient(origin: server.origin, tokens: FakeTokens(server: server, transport: http),
+                                            transport: http))
+        #expect(PleyAPI.deviceTimeout == 240)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
+                           castProtocol: "cast")
+        server.delay(path: "/api/remote/devices/cast:kitchen/cast", ms: 2_500, method: "POST")
+        try await api.cast(.item(7, video: true), to: "cast:kitchen")
+        #expect(server.castsReceived.count == 1)
+        // So does a pairing: having the device show its code, and typing it.
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay", pairingCode: "4821", digits: 4)
+        server.delay(path: "/api/remote/devices/airplay:den/pairing", ms: 2_500, method: "POST")
+        #expect(try await api.showPairingCode(on: "airplay:den") == 4)
+        try await api.pair(with: "airplay:den", code: "4821")
+        #expect(server.pairingCodesTyped == ["4821"])
+
+        // Anything else gives up at the transport's wait.
+        server.delay(path: "/api/remote/devices", ms: 2_500)
+        do {
+            _ = try await api.remoteDevices()
+            Issue.record("the list waited past the transport's wait")
+        } catch let error as PleyError {
+            #expect(error.noAnswer)
+        }
+    }
+
+    @Test func aVolumeCommandSaysTheLevel() throws {
+        let body = try PleyJSON.encoder.encode(PlayerCommand.volume(-5))
+        #expect(String(decoding: body, as: UTF8.self) == #"{"command":"volume","volume":0}"#)
+        let session = try PleyJSON.decoder.decode(PlayingSession.self, from: Data(#"{"session_id":"a","volume":35}"#.utf8))
+        #expect(session.volume == 35)
+    }
+
     @Test func refusalsSayWhy() async throws {
         let server = try await fixture()
         defer { server.stop() }

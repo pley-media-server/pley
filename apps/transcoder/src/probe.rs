@@ -41,8 +41,14 @@ pub struct Prober {
     ff: Arc<Ffmpeg>,
     metrics: Arc<Metrics>,
     limiter: Semaphore,
+    /// Slots of their own for probes a playback waits for, so that they
+    /// don't wait behind a library scan's.
+    urgent: Semaphore,
     cache: Mutex<ProbeCache>,
 }
+
+/// Probes a playback waits for, read at the same time beside the others.
+const URGENT_PROBES: usize = 2;
 
 #[derive(Default)]
 struct ProbeCache {
@@ -52,15 +58,31 @@ struct ProbeCache {
 
 impl Prober {
     pub fn new(ff: Arc<Ffmpeg>, metrics: Arc<Metrics>, concurrency: usize) -> Self {
-        Self { ff, metrics, limiter: Semaphore::new(concurrency.max(1)), cache: Mutex::default() }
+        Self {
+            ff,
+            metrics,
+            limiter: Semaphore::new(concurrency.max(1)),
+            urgent: Semaphore::new(URGENT_PROBES),
+            cache: Mutex::default(),
+        }
     }
 
     pub async fn probe(&self, path: &Path) -> anyhow::Result<Arc<MediaInfo>> {
+        self.probe_with(path, &self.limiter).await
+    }
+
+    /// [`Self::probe`] for a playback waiting for it: on slots of its own,
+    /// not in line behind the others.
+    pub async fn probe_now(&self, path: &Path) -> anyhow::Result<Arc<MediaInfo>> {
+        self.probe_with(path, &self.urgent).await
+    }
+
+    async fn probe_with(&self, path: &Path, slots: &Semaphore) -> anyhow::Result<Arc<MediaInfo>> {
         let key = file_key(path).with_context(|| format!("cannot access {}", path.display()))?;
         if let Some(hit) = self.cache.lock().map.get(&key) {
             return Ok(hit.clone());
         }
-        let _permit = self.limiter.acquire().await?;
+        let _permit = slots.acquire().await?;
         let started = Instant::now();
         Metrics::inc(&self.metrics.probes);
         let result = self.run_ffprobe(path).await;
@@ -143,10 +165,13 @@ impl Prober {
     /// (CEA-608/708) in its frames, whether 10-bit HEVC the container
     /// doesn't name Dolby Vision carries it all the same (RPUs in its
     /// frames, see [`MediaStream::dv_unnamed`]), whether a Dolby Vision or
-    /// PQ stream carries HDR10+ (a PQ one is then HDR10+, not HDR10), and
-    /// what a profile 7 stream's enhancement layer holds. Left unknown when
-    /// that fails.
-    async fn read_first_frames(&self, path: &Path, info: &mut MediaInfo) {
+    /// PQ stream carries HDR10+ (a PQ one is then HDR10+, not HDR10) and
+    /// HDR10's static metadata, and what a profile 7 stream's enhancement
+    /// layer holds. Left unknown when that fails.
+    ///
+    /// Also for media info a caller had from before one of these was read
+    /// (see [`crate::job::JobManager::create`]): what is known stays.
+    pub async fn read_first_frames(&self, path: &Path, info: &mut MediaInfo) {
         let Some(video) = info.streams.iter_mut().find(|s| s.kind == StreamKind::Video) else {
             return;
         };
@@ -236,15 +261,18 @@ fn unnamed_dolby_vision_wanted(video: &MediaStream) -> bool {
 }
 
 /// Whether the first frames of `video` are read for its dynamic range:
-/// Dolby Vision its file doesn't name, HDR10+, or what profile 7's
-/// enhancement layer holds, not known yet.
+/// Dolby Vision its file doesn't name, HDR10+, HDR10's static metadata, or
+/// what profile 7's enhancement layer holds, not known yet.
 fn hdr_wanted(video: &MediaStream) -> bool {
     unnamed_dolby_vision_wanted(video)
         || match video.dynamic_range() {
             DynamicRange::DolbyVision => {
-                video.hdr10plus.is_none() || (video.dv_profile == Some(7) && video.dv_el.is_none())
+                video.hdr10plus.is_none()
+                    || video.hdr10_metadata.is_none()
+                    || (video.dv_profile == Some(7) && video.dv_el.is_none())
             }
-            DynamicRange::Hdr10 => video.hdr10plus.is_none(),
+            DynamicRange::Hdr10 => video.hdr10plus.is_none() || video.hdr10_metadata.is_none(),
+            DynamicRange::Hdr10plus => video.hdr10_metadata.is_none(),
             _ => false,
         }
 }
@@ -276,6 +304,10 @@ fn take_first_frames(video: &mut MediaStream, frames: &[u8]) {
     if range == DynamicRange::Hdr10 && video.hdr10plus == Some(true) {
         video.dynamic_range = Some(DynamicRange::Hdr10plus);
     }
+    let pq = matches!(video.dynamic_range(), DynamicRange::DolbyVision | DynamicRange::Hdr10 | DynamicRange::Hdr10plus);
+    if pq && video.hdr10_metadata.is_none() {
+        video.hdr10_metadata = hdr10_metadata_in_frames(frames);
+    }
     if range == DynamicRange::DolbyVision && video.dv_profile == Some(7) && video.dv_el.is_none() {
         video.dv_el = dolby_vision_layer_in_frames(frames);
     }
@@ -285,6 +317,13 @@ fn take_first_frames(video: &mut MediaStream, frames: &[u8]) {
 /// HDR10+ metadata; `None` without frames.
 pub fn hdr10plus_in_frames(json: &[u8]) -> Option<bool> {
     side_data_in_frames(json, "2094-40")
+}
+
+/// Whether frames ffprobe showed carry HDR10's static metadata ("Mastering
+/// display metadata"); `None` without frames. The content's light levels
+/// alone don't count: VAAPI's tone mapping takes the mastering display's.
+pub fn hdr10_metadata_in_frames(json: &[u8]) -> Option<bool> {
+    side_data_in_frames(json, "Mastering display")
 }
 
 /// Whether frames ffprobe showed carry closed captions ("ATSC A53 Part 4
@@ -789,6 +828,27 @@ fn leak_ext(ext: &str) -> &'static str {
 mod tests {
     use super::*;
 
+    #[tokio::test]
+    async fn a_probe_a_playback_waits_for_doesnt_wait_behind_the_others() {
+        let dir = tempfile::tempdir().unwrap();
+        let movie = dir.path().join("movie.mkv");
+        std::fs::write(&movie, b"frames").unwrap();
+        let ff = Ffmpeg {
+            ffmpeg: dir.path().join("no-ffmpeg"),
+            ffprobe: dir.path().join("no-ffprobe"),
+            caps: Default::default(),
+            segment_times_relative: true,
+        };
+        let prober = Prober::new(Arc::new(ff), Arc::new(Metrics::default()), 1);
+        // A scan's probe takes the only slot.
+        let _busy = prober.limiter.acquire().await.unwrap();
+        let waits = Duration::from_millis(200);
+        assert!(tokio::time::timeout(waits, prober.probe(&movie)).await.is_err(), "in line");
+        // Run at once (and fail: there's no ffprobe here).
+        let urgent = tokio::time::timeout(waits, prober.probe_now(&movie)).await;
+        assert!(urgent.is_ok_and(|r| r.is_err()), "not in line");
+    }
+
     const SAMPLE: &str = r#"{
       "streams": [
         {"index":0,"codec_name":"hevc","codec_type":"video","profile":"Main 10","width":3840,"height":2160,
@@ -1139,6 +1199,37 @@ mod tests {
         let mut avc = hevc("smpte2084");
         avc.codec = "h264".into();
         assert!(!found(avc, P81_FRAMES).dv_unnamed);
+    }
+
+    /// HDR10's static metadata is looked for in the first frames of PQ
+    /// video: Quick Sync's tone mapping does nothing without it.
+    #[test]
+    fn hdr10s_static_metadata_is_found_in_the_frames() {
+        let found = |mut video: MediaStream, frames: &str| {
+            take_first_frames(&mut video, frames.as_bytes());
+            video
+        };
+        assert_eq!(found(hevc("smpte2084"), HDR10_FRAMES).hdr10_metadata, Some(true));
+        assert_eq!(found(hevc("smpte2084"), P81_FRAMES).hdr10_metadata, Some(true));
+        assert_eq!(found(hevc("smpte2084"), P7_FEL_FRAMES).hdr10_metadata, Some(true));
+        // PQ video that carries none (some encodes leave it out).
+        let bare = r#"{"frames":[{"key_frame":1,"side_data_list":[
+            {"side_data_type":"H.26[45] User Data Unregistered SEI message"}]}]}"#;
+        assert_eq!(found(hevc("smpte2084"), bare).hdr10_metadata, Some(false));
+        // The content's light levels alone aren't enough for VAAPI's.
+        let levels = r#"{"frames":[{"side_data_list":[{"side_data_type":"Content light level metadata"}]}]}"#;
+        assert_eq!(found(hevc("smpte2084"), levels).hdr10_metadata, Some(false));
+        // Not looked for in HLG; unknown without frames.
+        assert_eq!(found(hevc("arib-std-b67"), HDR10_FRAMES).hdr10_metadata, None);
+        assert_eq!(found(hevc("smpte2084"), r#"{"frames":[]}"#).hdr10_metadata, None);
+        // Media info from before it was looked for is read again for it
+        // alone, and keeps the rest.
+        let mut known = found(hevc("smpte2084"), HDR10_FRAMES);
+        known.hdr10_metadata = None;
+        assert!(hdr_wanted(&known));
+        let again = found(known, bare);
+        assert_eq!((again.dynamic_range, again.hdr10plus), (Some(DynamicRange::Hdr10), Some(false)));
+        assert_eq!(again.hdr10_metadata, Some(false));
     }
 
     #[test]

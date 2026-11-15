@@ -30,15 +30,17 @@ macro_rules! me_cte {
 pub(crate) use me_cte;
 
 /// Whether item `i` (with parent `p` and grandparent `gp`) is visible to the
-/// user in `me`: library access, the profile's labels it never sees, and its
-/// age limit unless a label it always sees is there, see [`crate::access`].
+/// user in `me`: library access, the profile's labels it never sees (and
+/// the libraries those labels are still on their way to), and its age limit
+/// unless a label it always sees is there, see [`crate::access`].
 /// The labels are only looked for when the profile has rules of that kind.
 pub(crate) const VISIBLE: &str = "((SELECT all_libs FROM me)
        OR i.library_id IN (SELECT library_id FROM user_libraries WHERE user_id = (SELECT uid FROM me)))
   AND (NOT (SELECT hides FROM me)
-       OR NOT EXISTS (SELECT 1 FROM user_label_rules r JOIN item_labels l ON l.label = r.label
-                      WHERE r.user_id = (SELECT uid FROM me) AND r.kind = 'hide'
-                        AND l.item_id IN (i.id, i.parent_id, i.grandparent_id)))
+       OR (i.library_id NOT IN (SELECT id FROM libraries WHERE labels_pending)
+           AND NOT EXISTS (SELECT 1 FROM user_label_rules r JOIN item_labels l ON l.label = r.label
+                           WHERE r.user_id = (SELECT uid FROM me) AND r.kind = 'hide'
+                             AND l.item_id IN (i.id, i.parent_id, i.grandparent_id))))
   AND ((SELECT max_age FROM me) IS NULL
        OR i.kind IN ('artist', 'album', 'track')
        OR NULLIF(MAX(COALESCE(i.rating_age, -1), COALESCE(p.rating_age, -1), COALESCE(gp.rating_age, -1)), -1)

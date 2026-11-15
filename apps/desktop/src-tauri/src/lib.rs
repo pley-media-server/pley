@@ -9,7 +9,8 @@
 //! only the picker, bundled with the app, has it. The files a server's page
 //! downloads are fetched by the app, to play while the server is away
 //! (`downloads`), and the system's notifications tell of requests while the
-//! window isn't in front (`notices`). Before the app opens a server, and
+//! window isn't in front (`notices`), in the language of the server's pages
+//! (`words`). Before the app opens a server, and
 //! before its own requests with the window's session, the server proves it
 //! is the one the window signed in to (`proofs`); the server's pages in the
 //! window send the session themselves, so on another network the window
@@ -24,6 +25,7 @@ mod notices;
 mod proofs;
 mod said;
 mod servers;
+mod words;
 
 use std::sync::Mutex;
 
@@ -201,10 +203,12 @@ fn open_in_browser<R: Runtime>(app: &AppHandle<R>, url: &Url) {
 }
 
 /// Shows the server at `url` in the window (the picker calls this once the
-/// server answered).
+/// server answered), with the computer's `languages` as its web view has
+/// them, for the notices.
 #[tauri::command]
-async fn open_server(window: WebviewWindow, url: String) -> Result<(), said::Said> {
+async fn open_server(window: WebviewWindow, url: String, languages: Vec<String>) -> Result<(), said::Said> {
     let origin = servers::server_origin(&url)?;
+    window.state::<notices::Notices>().languages_are(languages);
     let route = route_to(origin.clone()).await;
     // The network may have changed since the picker checked it.
     let proofs = window.state::<proofs::Proofs>();

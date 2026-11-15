@@ -43,7 +43,7 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden|navigation|uiMode|density|locale|layoutDirection"
             android:exported="false"
             android:resizeableActivity="true"
-            android:supportsPictureInPicture="false"
+            android:supportsPictureInPicture="true"
             android:theme="@style/Theme.PleyPhone.Player" />
     </application>
 </manifest>

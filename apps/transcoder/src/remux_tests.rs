@@ -605,6 +605,7 @@ fn hdr_transcodes_keep_hdr10_and_leave_dolby_vision_out() {
         hardware: false,
         accel: HwAccel::None,
         main10: true,
+        low_power: false,
     }];
     for (input, dolby_vision) in [(&source, false), (&p7, true)] {
         let mut media = probe(input);

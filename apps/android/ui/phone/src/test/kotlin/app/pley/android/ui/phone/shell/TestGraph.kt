@@ -92,6 +92,25 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
     val castRefusals = java.util.concurrent.ConcurrentLinkedQueue<Exception>()
     @Volatile var castNeedsPin = false
 
+    /** While set, a cast waits for it before it is answered, as a Google Cast device takes seconds to. */
+    @Volatile var castGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
+    /**
+     * AirPlay pairing: the devices asked to show their code, by receiver id,
+     * a code of [codeLength] digits (`null`: not known); the codes typed,
+     * refused ones too; [pairingRefusals] refuse the next of either, one each.
+     */
+    val codesShown: MutableList<String> = Collections.synchronizedList(mutableListOf())
+    @Volatile var codeLength: Int? = 4
+    val codesTyped: MutableList<Pair<String, String>> = Collections.synchronizedList(mutableListOf())
+    val pairingRefusals = java.util.concurrent.ConcurrentLinkedQueue<Exception>()
+
+    /** While set, a device asked to show its code waits for it before it is answered. */
+    @Volatile var codeGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
+    /** While set, a code typed waits for it before it is answered. */
+    @Volatile var pairingGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
     override val device = DeviceProfile(FormFactor.Phone, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 8L shl 30, lowRam = false)
 
     override val auth: AuthGraph
@@ -142,9 +161,21 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
             override suspend fun command(sessionId: String, command: PlayerCommandRequest) = Unit
             override suspend fun stop(sessionId: String) = Unit
             override suspend fun cast(receiverId: String, request: CastRequest) {
+                castGate?.await()
                 castRefusals.poll()?.let { throw it }
                 castFailure?.let { throw it }
                 castsSent += receiverId to request
+            }
+            override suspend fun showPairingCode(receiverId: String): Int? {
+                codeGate?.await()
+                pairingRefusals.poll()?.let { throw it }
+                codesShown += receiverId
+                return codeLength
+            }
+            override suspend fun pair(receiverId: String, code: String) {
+                codesTyped += receiverId to code
+                pairingGate?.await()
+                pairingRefusals.poll()?.let { throw it }
             }
             override val castNeedsPin: Boolean get() = this@TestGraph.castNeedsPin
             override fun here(player: Any, sessionId: String?) = Unit

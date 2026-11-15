@@ -71,7 +71,7 @@ describe("EditDialogs", () => {
     await user.clear(screen.getByLabelText("Content rating"));
     await user.type(screen.getByLabelText("Content rating"), "PG");
     expect(screen.queryByText("Country: India")).not.toBeInTheDocument();
-    expect(screen.getByText("Read with the metadata region’s ratings")).toBeInTheDocument();
+    expect(screen.getByText("Read with the ratings of the server’s country, set in Settings › Server")).toBeInTheDocument();
   });
 
   it("reads a rating as the server does: its written country's, else the region's or common ones", async () => {
@@ -93,7 +93,7 @@ describe("EditDialogs", () => {
     await user.clear(field);
     await user.type(field, "PG");
     expect(
-      screen.getByText("Read by the US’s ratings and others in common use: the metadata region has none here"),
+      screen.getByText("Read by the US’s ratings and others in common use: the server’s country has none here"),
     ).toBeInTheDocument();
     // "M/12" is a rating, Portugal's, not a country's.
     await user.clear(field);

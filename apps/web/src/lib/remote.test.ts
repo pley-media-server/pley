@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { PlayingSession, TrackOption } from "@/api/types";
+import type { PlayingSession, SessionInfo, TrackOption } from "@/api/types";
 import { makeItem, makeReceiver, makeSession } from "@/test/fixtures";
 import {
+  activityPosition,
   asSent,
   commandAnswered,
   estimatedPosition,
@@ -59,6 +60,37 @@ describe("estimatedPosition", () => {
       const [s] = received([{ ...report, updated_at: updatedAt, age_ms: 5_000 }], seen);
       expect(estimatedPosition(s!, seen + 10_000)).toBe(75_000);
     }
+  });
+});
+
+describe("activityPosition", () => {
+  const playing: SessionInfo = {
+    session_id: "s1",
+    kind: "item",
+    user_id: 1,
+    username: "ana",
+    device: "iPhone",
+    item: makeItem({ duration_ms: 120_000 }),
+    method: "direct",
+    position_ms: 60_000,
+    state: "playing",
+    age_ms: 5_000,
+    started_at: at - 600,
+    updated_at: at,
+    transcode: null,
+  };
+
+  it("moves on from the report while playing, from when the list came, up to the end", () => {
+    // Reported 5 s before the server answered, and 10 s since the answer came.
+    expect(activityPosition(playing, seen, seen + 10_000)).toBe(75_000);
+    expect(activityPosition(playing, seen, seen + 600_000)).toBe(120_000);
+    expect(activityPosition(playing, seen, seen - 5_000)).toBe(65_000);
+  });
+
+  it("stays where it was when paused, before a report, and from servers that don't say", () => {
+    expect(activityPosition({ ...playing, state: "paused" }, seen, seen + 10_000)).toBe(60_000);
+    expect(activityPosition({ ...playing, age_ms: null }, seen, seen + 10_000)).toBe(60_000);
+    expect(activityPosition({ ...playing, age_ms: undefined }, seen, seen + 10_000)).toBe(60_000);
   });
 });
 
@@ -128,6 +160,19 @@ describe("commandAnswered", () => {
     expect(commandAnswered(sent("pause"), later(2, { state: "paused" }), by)).toBe(true);
     expect(commandAnswered(sent("next"), { ...tv, item: makeItem({ id: 8 }) }, by)).toBe(true);
     expect(commandAnswered(sent("next"), undefined, by)).toBe(true);
+  });
+
+  it("sees a volume in a new level, or the one asked for already there", () => {
+    const volume = (level: number, before = 50): SentCommand => ({
+      command: "volume",
+      before: { ...tv, volume: before },
+      sentAt,
+      volume: level,
+    });
+    expect(commandAnswered(volume(30), { ...tv, volume: 50 }, by)).toBe(false);
+    expect(commandAnswered(volume(30), { ...tv, volume: 31 }, by)).toBe(true);
+    // The device said 30 before the list `before` came from was read.
+    expect(commandAnswered(volume(30, 30), { ...tv, volume: 30 }, by)).toBe(true);
   });
 
   it("sees a seek or skip in a report from somewhere new", () => {

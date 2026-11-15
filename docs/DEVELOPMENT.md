@@ -46,7 +46,10 @@ server talks to it only over HTTP ([TRANSCODER.md](TRANSCODER.md)).
   mapping, use a build with NVENC, QSV, AMF or VAAPI and libplacebo:
   gyan.dev's "full" build on Windows, the distribution's or jellyfin-ffmpeg
   on Linux, Homebrew's `ffmpeg-full` on macOS
-  ([deploy/README.md](../deploy/README.md)).
+  ([deploy/README.md](../deploy/README.md)). The Docker image's is
+  pley-ffmpeg, FFmpeg with patches for Intel GPUs, which
+  [deploy/ffmpeg](../deploy/ffmpeg/README.md) builds for Linux and for
+  Windows.
 
 ## Running from source
 
@@ -104,6 +107,28 @@ pull request, each app's workflow only when that app (or what it is built
 from) changes. The server's runs on Linux, macOS and Windows, with a build on
 the oldest supported Rust, the license check and the Docker build
 ([RELEASING.md](RELEASING.md#ci)).
+
+### Casting to Google Cast without a device
+
+Android's Google TV emulator is a Cast device: its system image (`google-tv`,
+in Android Studio's device manager or `sdkmanager`) runs Google's own Cast
+receiver once signed in to a Google account and updated from the Play Store.
+The server can't find it by mDNS through the emulator's network, so a debug
+build takes it from two environment variables:
+
+```sh
+adb forward tcp:8009 tcp:8009
+adb forward tcp:8008 tcp:8008
+PLEY_CAST_DEVICE=127.0.0.1:8009 PLEY_CAST_SERVER=http://10.0.2.2:7539 ./target/debug/pley
+```
+
+`PLEY_CAST_DEVICE` is where the server connects to the device, and
+`PLEY_CAST_SERVER` where the device reaches the server (`10.0.2.2` is the
+computer, from the emulator). Home members' remotes then list "Cast
+emulator". The server asks the device's setup API, which picks what it
+streams, at the device's address on port 8008 (forwarded above), or at
+`PLEY_CAST_SETUP`. Release builds ignore all three. `tests/cast_devices.rs` plays against
+a fake device instead.
 
 The README's screenshot (`docs/images/web-home.jpg`) shows a demo library of
 made-up titles ([scripts/store-library](../scripts/store-library/README.md)):

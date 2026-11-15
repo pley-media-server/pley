@@ -409,6 +409,55 @@ pub async fn add(db: &Db, user: &AuthUser, id: i64, item_ids: &[i64]) -> Result<
     Ok(leaves.len() as u64)
 }
 
+/// Appends `item_ids` to playlist `id` in their order, as the Plex import
+/// brings a playlist: those of its kind that play (movies and episodes, or
+/// tracks), others left out, up to the most a playlist holds. How many were
+/// added.
+pub async fn append_leaves(db: &Db, id: i64, item_ids: &[i64]) -> sqlx::Result<u64> {
+    let mut tx = db.write.begin().await?;
+    let Some(kind) = sqlx::query_scalar::<_, String>("SELECT kind FROM playlists WHERE id = ?")
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await?
+    else {
+        return Ok(0);
+    };
+    let kinds = if kind == "audio" { "('track')" } else { "('movie', 'episode')" };
+    let (mut count, mut next): (i64, i64) =
+        sqlx::query_as("SELECT COUNT(*), COALESCE(MAX(position) + 1, 0) FROM playlist_items WHERE playlist_id = ?")
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+    let now = now();
+    let mut added = 0;
+    // `kinds` is one of the two lists above.
+    let sql = format!(
+        "INSERT INTO playlist_items (playlist_id, item_id, position, added_at)
+         SELECT ?, id, ?, ? FROM items WHERE id = ? AND kind IN {kinds}"
+    );
+    for item in item_ids {
+        if count >= MAX_ENTRIES {
+            break;
+        }
+        let done = sqlx::query(sqlx::AssertSqlSafe(sql.as_str()))
+            .bind(id)
+            .bind(next)
+            .bind(now)
+            .bind(item)
+            .execute(&mut *tx)
+            .await?
+            .rows_affected();
+        count += done as i64;
+        next += done as i64;
+        added += done;
+    }
+    if added > 0 {
+        sqlx::query("UPDATE playlists SET updated_at = ? WHERE id = ?").bind(now).bind(id).execute(&mut *tx).await?;
+    }
+    tx.commit().await?;
+    Ok(added)
+}
+
 /// Puts the leaves of `item_ids` in place of the entries the user sees, in
 /// that order, as apps that edit a playlist as a whole send it: entries the
 /// user can't see stay, after them. Refused, changing nothing, as [`add`]

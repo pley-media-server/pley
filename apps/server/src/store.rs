@@ -29,6 +29,7 @@ use serde::Serialize;
 use sha2::{Digest, Sha256};
 
 use crate::db::Db;
+use crate::schedule::LibraryHold;
 use crate::util::{now, path_str};
 
 const BLOB_PREFIX: &str = "blob:";
@@ -161,6 +162,8 @@ pub struct Store {
     cleaning: tokio::sync::Mutex<()>,
     fingerprinting: tokio::sync::Mutex<()>,
     handed_out: Arc<Mutex<HandedOut>>,
+    /// Fingerprinting waits while it's held, as other library work does.
+    hold: Arc<LibraryHold>,
 }
 
 /// Blobs and media folders handed out lately: a picture stored, stored again
@@ -219,7 +222,14 @@ impl Store {
             cleaning: tokio::sync::Mutex::new(()),
             fingerprinting: tokio::sync::Mutex::new(()),
             handed_out: Arc::default(),
+            hold: Arc::default(),
         }
+    }
+
+    /// The store, its fingerprinting waiting while `hold` is held.
+    pub fn with_hold(mut self, hold: Arc<LibraryHold>) -> Self {
+        self.hold = hold;
+        self
     }
 
     /// Remember that a blob (by file name) or a media folder (by
@@ -369,6 +379,9 @@ impl Store {
         let (mut after, mut done, mut failed, mut in_a_row) = (0i64, 0u64, 0u64, 0u32);
         let mut last_error = None;
         'run: loop {
+            // New libraries filling in go first: each file is read, and its
+            // fingerprint written, one at a time.
+            self.hold.released().await;
             let batch: Vec<(i64, String, i64, i64)> = match sqlx::query_as(
                 "SELECT id, path, size, mtime FROM media_files
                  WHERE fingerprint IS NULL AND id > ? ORDER BY id LIMIT 200",
@@ -1204,6 +1217,24 @@ mod tests {
         // Space again: the next run saves them all.
         sqlx::query("DROP TRIGGER disk_full").execute(&store.db.write).await.unwrap();
         store.fingerprint_pending().await;
+        assert_eq!(count(&store, "SELECT COUNT(*) FROM media_files WHERE fingerprint IS NULL").await, 0);
+    }
+
+    #[tokio::test]
+    async fn fingerprinting_waits_while_new_libraries_fill_in() {
+        let dir = crate::testing::tempdir();
+        let hold = Arc::new(LibraryHold::default());
+        let store = Arc::new(pending_files(dir.path(), 3).await.with_hold(hold.clone()));
+        let guard = hold.take();
+        let run = tokio::spawn({
+            let store = store.clone();
+            async move { store.fingerprint_pending().await }
+        });
+        tokio::time::sleep(Duration::from_millis(200)).await;
+        assert_eq!(count(&store, "SELECT COUNT(*) FROM media_files WHERE fingerprint IS NULL").await, 3);
+
+        drop(guard);
+        tokio::time::timeout(Duration::from_secs(20), run).await.expect("the run ends").unwrap();
         assert_eq!(count(&store, "SELECT COUNT(*) FROM media_files WHERE fingerprint IS NULL").await, 0);
     }
 

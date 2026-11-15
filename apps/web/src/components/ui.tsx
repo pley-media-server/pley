@@ -150,11 +150,14 @@ export function Field({
 }
 
 export function Toggle({
+  id,
   checked,
   onChange,
   label,
   disabled,
 }: {
+  /** For a `<label htmlFor>` elsewhere. */
+  id?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
   label: string;
@@ -162,6 +165,7 @@ export function Toggle({
 }) {
   return (
     <button
+      id={id}
       type="button"
       role="switch"
       aria-checked={checked}

@@ -32,7 +32,7 @@ export interface AccessValue {
   all_libraries: boolean;
   library_ids: Id[];
   max_age: number | null;
-  /** The rating system the limit is picked in; `null`: the metadata region's. */
+  /** The rating system the limit is picked in; `null`: the server's country's. */
   max_age_system: string | null;
   /** "2015-03": the limit is their age, from this birthday (accounts only, not invitations). */
   birth_month?: string | null;
@@ -111,7 +111,7 @@ export function AccessFields({
       return setBirthMonth(birthMonthOf(now.getFullYear() - (value.max_age ?? 10), now.getMonth() + 1));
     }
     if (!country) return;
-    // The region's ratings stay "the region's" (null) unless another country is picked.
+    // The server's country's ratings stay its own (null) unless another country is picked.
     const system = value.max_age_system == null && country === systems?.region ? null : country;
     set({ ...fixed, max_age_system: system, max_age: ageIn(systems, country, value.max_age ?? 0) });
   };

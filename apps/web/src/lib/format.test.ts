@@ -17,6 +17,7 @@ import {
   formatDuration,
   formatRelative,
   formatRemaining,
+  formatTimeLeft,
   formatUptime,
   fullTitle,
   isPlayableVideo,
@@ -82,6 +83,17 @@ describe("formatRemaining", () => {
     expect(formatRemaining(5_000, null)).toBe("");
     expect(formatRemaining(2_640_000, 2_640_000)).toBe("");
     expect(formatRemaining(3_000_000, 2_640_000)).toBe("");
+  });
+});
+
+describe("formatTimeLeft", () => {
+  it("says about how long is left in minutes up to an hour and a half, then in hours", () => {
+    expect(formatTimeLeft(30)).toBe("under a minute left");
+    expect(formatTimeLeft(61)).toBe("about 2 minutes left");
+    expect(formatTimeLeft(60)).toBe("about 1 minute left");
+    expect(formatTimeLeft(89 * 60)).toBe("about 89 minutes left");
+    expect(formatTimeLeft(90 * 60)).toBe("about 2 hours left");
+    expect(formatTimeLeft(5 * 3600)).toBe("about 5 hours left");
   });
 });
 

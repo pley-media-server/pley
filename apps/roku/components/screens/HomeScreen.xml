@@ -61,7 +61,11 @@
             <Label id="infoMeta" width="1300" maxLines="1" color="0xA1A9B6FF" font="font:SmallSystemFont" />
             <Label id="infoSummary" width="1100" wrap="true" maxLines="2" lineSpacing="6" color="0xEBEBEBFF" font="font:SmallerSystemFont" />
         </LayoutGroup>
-        <RowList id="rows" translation="[440, 620]" itemComponentName="Tile" itemSize="[1480, 470]" numRows="3" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="floatingFocus" visible="false" rowLabelFont="font:MediumBoldSystemFont" />
+        <!-- The focused row stays at the top of the rows, the others
+             scrolling past it: there is room for little more than one row
+             under the info block. The rows scrolled past are cut at the
+             top, under the info block's words. -->
+        <RowList id="rows" translation="[440, 620]" itemComponentName="Tile" itemSize="[1480, 470]" numRows="3" itemSpacing="[0, 28]" rowItemSpacing="[[28, 0]]" showRowLabel="[true]" rowLabelOffset="[[0, 12]]" rowLabelColor="0xEBEBEBFF" drawFocusFeedback="false" rowFocusAnimationStyle="floatingFocus" vertFocusAnimationStyle="fixedFocus" clippingRect="[-40, 0, 1560, 1080]" visible="false" rowLabelFont="font:MediumBoldSystemFont" />
         <LayoutGroup id="message" translation="[440, 440]" layoutDirection="vert" itemSpacings="[16]">
             <Label id="messageTitle" width="1380" wrap="true" horizAlign="center" color="0xEBEBEBFF" font="font:LargeBoldSystemFont" />
             <Label id="messageText" width="1380" wrap="true" horizAlign="center" color="0xA1A9B6FF" font="font:MediumSystemFont" />

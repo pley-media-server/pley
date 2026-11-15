@@ -500,7 +500,7 @@ function ArtworkGrid({
 /**
  * Which ratings a content rating's age is read with, as the server reads
  * it: the country written before it ("GB:15"), else the item's while it's
- * the rating the item has, else the metadata region's. A region without
+ * the rating the item has, else the server's country's. A country without
  * ratings here reads it by the US's names and others in common use.
  */
 function ratingCountry(

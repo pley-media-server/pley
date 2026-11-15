@@ -348,6 +348,10 @@ for the household's too (`?household=1`): for a home member, the
 receivers include the other profiles' devices that switch to the
 caster's profile, each with the profile it is on (`profile`); what those
 play stays their profile's, so they are listed as on it, not playing.
+It asks for the devices on the server's network too (`&nearby=1`):
+Google Cast and AirPlay devices the server plays on itself, each with
+its `protocol`, which their row says (**Google Cast**, **AirPlay**)
+while they play nothing.
 
 The button opens the remote, a sheet of **Your devices**: a row for
 each, those that play first, then the profile's own, then the other
@@ -409,7 +413,10 @@ A device's controls, top to bottom:
   opens a menu, showing as selected while it is open, of the tracks
   labelled as the phone's own player labels them, or of the qualities, the
   one playing ticked (no quality is until its player says which);
-  Subtitles starts with **Off**. On the right, **Stop**, which asks first
+  Subtitles starts with **Off**. Then the device's volume, a slider read
+  out as a percentage, where its player declares `volume` and has said
+  the level (a Google Cast device's, `volume` 0 to 100); the level let go
+  of goes as `volume`. On the right, **Stop**, which asks first
   (**Stop playing on** the device?, Stop or Cancel).
 
 What a command asks shows at once, with nothing said while it waits:
@@ -486,8 +493,9 @@ pause the person's own, and the controls then stay.
 
 On the phone, what a page plays goes to another of the profile's devices
 that takes it ([API.md](API.md#casting)): a receiver whose `casts` names
-`item` for titles, music and playlists, or `live` for a channel. **Play
-on…** shows only while one does:
+`item` for titles, music and playlists, or `live` for a channel; a Google
+Cast or AirPlay device takes a movie or an episode alone. **Play on…**
+shows only while one does:
 
 - beside Play on a movie's, an episode's, a show's and a season's page,
   a square button as tall as Play: a title being watched starts there
@@ -513,8 +521,47 @@ once it is on its way the chooser closes, and the remote's bar says
 plays there; it opens the device's controls. The live player closes as
 its channel goes to the device, and the bar follows it the same way. A refusal is said under the
 devices, and another can be picked: the device **isn't on any more**
-(`404`), **can't play that** (`409`), **Too many at once** (`429`), else
+(`404`), **can't play that** (`409`), **Too many at once** (`429`), and
+for a Google Cast or AirPlay device, it **can't reach this server**
+(`409 cast_unreachable`) or **didn't play it** (`409 cast_failed`), else
 the server's own words.
+
+The server answers a cast to a Google Cast or AirPlay device once the
+device plays, stopping one that hasn't after 3 minutes: the device's row
+shows a spinner meanwhile (read out as **Starting on** the device), the
+other rows wait, and the phone waits up to 4 minutes for that answer,
+which can come a few seconds after the server stopped it, and for a
+pairing's, where its other calls give up after 10 seconds without one.
+The cast is the activity's, not the chooser's: closing the chooser
+meanwhile, or the phone turning, folding or switching to dark mode,
+doesn't call it off. One cast goes at a time in a window, as on the web:
+the chooser opened again meanwhile shows the spinner on that device and
+its rows wait (the live player, a window of its own, keeps its own). Once
+the device took it the remote's bar follows it, and the chooser it was
+sent from closes, not one opened since. What else it comes to shows in
+the chooser open then, as in the one that sent it: a refusal under its
+devices, the pad. With no chooser open it is a toast: a refusal in the
+same words, and for an AirPlay device that asks for its code then, which
+isn't asked to show one as there is no pad to type it on, that it
+**wants pairing first: choose it in Play on… again**. The live player
+shows those toasts over its picture.
+
+An AirPlay device the server hasn't paired with answers the cast `409
+pairing_needed`. The chooser asks it to show a code (`POST
+/api/remote/devices/{id}/pairing` with no `pin`) and shows the pad in the
+list's place: **Pair with** the device by its name, **Type the code** the
+device **shows** (by its name, as a Mac takes AirPlay too), and that
+everyone in the home can then play on it. Where the
+server says how many digits the code has (`digits`, 4 on an Apple TV), the
+pad shows that many dots and sends it at the last one; a TV can be set to
+use a password instead, so with no `digits` it waits for OK, taking 4
+digits at most, as the server does. The code goes as `pin`, and once
+paired the cast goes again. A wrong code shakes the dots and says so
+(`403 wrong_pin`); a device that takes no other try yet (`429`) says so
+on the pad too. **No code showing? Show it again** asks the device for
+a new one, and a refusal of that is said on the pad. Any other refusal of
+the code goes back to the list and is said there. An answer that comes
+after Back closed the pad doesn't open it again.
 
 A device of another profile of the household plays as the phone's
 profile: the cast names that device's profile (`profile_id`), and the
@@ -718,11 +765,26 @@ or E-AC3 sound the server converts, where the device decodes it or sends it
 to its receiver as it is (Diagnostics lists both); anything else
 plays the server's HLS. Taking over a connection, it reads `stream.ts` only once
 the watch has answered, as only the watch takes the connection. Leaving
-the player ends the session. A page of channels that didn't load is asked
-for again once 10 s have passed, as the list moves. When the player fails,
+the player ends the session, unless it goes into picture in picture
+(below). A page of channels that didn't load is asked for again once
+10 s have passed, as the list moves. When the player fails,
 the channel is tuned again twice, after 1 s and then 3 s, before the player
 says why; not when the server refused it (every connection in use, the
 channel stopped, gone or not allowed). Try again starts the count again.
+Live TV has no pause, so another app's sound, a call's included, quiets
+the channel instead: its sound comes back once the other app is done, or,
+after music or a video, which take the sound for good, with the next
+channel tuned.
+
+On phones and tablets the live player goes into picture in picture as
+the video player does: by itself when you leave it while a channel plays
+or tunes (Android 12 and later; Home on older versions), or with the
+picture in picture button in its bar. The small window shows the picture
+alone (the channel's logo while it tunes or for a radio channel, why it
+doesn't play when it fails) with Channel down and Channel up as its
+buttons, and keeps the session. Closing it ends the session and the
+player. The screen turning off lets the session go too, and the channel
+is tuned again in the small window once the screen is back on.
 
 On TVs, OK in the player opens the channel list, as Menu and Guide do;
 holding OK shows the controls (the channel list and the favourite's star) over
@@ -897,12 +959,14 @@ to the home server still goes over the Wi-Fi (`LocalRoute`).
   own. A home address gets 3 s to connect.
 - **Playback that loses the server** plays what it has, then retries for
   90 s.
-- **Downloads** (phones and tablets): Download is under Play, beside each
-  episode and on a season; they are listed under Me → Downloads. A
-  download is the original file (of several versions, the sharpest up to
-  1080p the device plays as it is) with its text subtitles. A file the
-  device can't play, or any file when Settings → Downloads → Quality picks
-  a smaller size, is converted by the server first
+- **Downloads** (phones and tablets): Download is among the actions
+  under Play, beside Playlist (its ring fills as it comes, and its label
+  says how far or what it waits for), beside each episode and on a
+  season; they are listed under Me → Downloads. A download is the
+  original file (of several versions, the sharpest up to 1080p the device
+  plays as it is) with its text subtitles. A file the device can't play,
+  or any file when Settings → Downloads → Quality picks a smaller size,
+  is converted by the server first
   ([API.md](API.md#downloads)). Downloads wait for Wi-Fi or Ethernet
   unless Settings → Downloads allows mobile data. Progress made offline is
   sent when the server is back.
@@ -1301,8 +1365,7 @@ base64 -w0 pley-release.keystore   # the ANDROID_KEYSTORE_BASE64 secret
   server's settings, network, transcoder, requests and Live TV to the web
   app.
 - No Watch Next row on phones or Fire TV.
-- Live TV has no picture in picture, and the TV's display mode isn't
-  matched for live channels.
+- The TV's display mode isn't matched for live channels.
 - Videos on a USB drive are on TVs only. Their display mode isn't
   matched, as their frame rate is known only once they play; HDR10+ shows
   as HDR10 in the player's details; M2TS and MTS files aren't listed, as

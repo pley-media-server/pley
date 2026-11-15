@@ -65,8 +65,9 @@ sub relabel()
     m.globe.language = m.global.language
     showStatus()
     focused = m.actions.buttonFocused
+    hadFocus = m.actions.isInFocusChain()
     showButtons()
-    if focused > 0 and focused < m.buttonActions.Count() then m.actions.focusButton = focused
+    uiKeepButton(m.actions, focused, hadFocus)
 end sub
 
 sub onActive()

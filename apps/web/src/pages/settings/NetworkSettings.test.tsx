@@ -16,6 +16,7 @@ const NETWORK: Network = {
   bonjour_adapters: [],
   bonjour_host_name: "",
   bonjour_host_default: "pley-0123456789ab",
+  container_network: false,
   fixed: { web: false, jellyfin: false, plex: false, discovery: false, bonjour: false },
   listeners: [{ kind: "web", address: "127.0.0.1:7539", error: null }],
   adapters: [
@@ -69,6 +70,26 @@ describe("NetworkSettings", () => {
     );
     expect(await screen.findByText("Pley listens there now")).toBeInTheDocument();
     expect(screen.getByText("192.168.1.10:7539")).toBeInTheDocument();
+  });
+
+  it("lists the AirPlay devices the server paired with, and forgets one", async () => {
+    const user = userEvent.setup();
+    let pairings = [{ device_id: "a1b2c3d4e5f6", name: "Den Apple TV", paired_by: "Sam", paired_at: 1_790_000_000 }];
+    const requests = mockApi({
+      "GET /api/network": () => NETWORK,
+      "GET /api/network/airplay": () => pairings,
+      "DELETE /api/network/airplay/a1b2c3d4e5f6": () => {
+        pairings = [];
+        return undefined;
+      },
+    });
+    renderWithProviders(<NetworkSettings />);
+    expect(await screen.findByRole("heading", { name: "AirPlay devices" })).toBeInTheDocument();
+    expect(screen.getByText(/^Paired by Sam on /)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Forget Den Apple TV" }));
+    expect(await screen.findByText("Den Apple TV forgotten")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("heading", { name: "AirPlay devices" })).toBeNull());
+    expect(requests.some((r) => r.method === "DELETE")).toBe(true);
   });
 
   it("turns the Jellyfin-compatible API on, on pley's port or its own", async () => {
@@ -361,6 +382,21 @@ describe("NetworkSettings", () => {
     renderWithProviders(<NetworkSettings />);
     expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).toBeDisabled();
     expect(screen.getByText(/Turned off by --no-bonjour/)).toBeInTheDocument();
+  });
+
+  it("says when Docker's own network hides Pley, and still lets the search and Bonjour be turned on", async () => {
+    mockApi({
+      "GET /api/network": () => ({
+        ...NETWORK,
+        web: ["0.0.0.0:7539"],
+        container_network: true,
+        adapters: [{ name: "eth0", description: null, up: true, addresses: ["172.17.0.2"], network: null }],
+      }),
+    });
+    renderWithProviders(<NetworkSettings />);
+    expect(await screen.findByRole("switch", { name: "Found by Apple's devices (Bonjour)" })).toBeEnabled();
+    expect(screen.getByRole("switch", { name: "Found by the Pley apps" })).toBeEnabled();
+    expect(screen.getAllByText(/Pley runs on Docker's own network/)).toHaveLength(2);
   });
 
   it("leaves what the command line sets alone, and says which addresses wait", async () => {

@@ -41,17 +41,43 @@ interface FocusPort {
  * back with the focus (Amazon's multimedia guideline 4.7). Focus is asked
  * for right before playing, kept through pauses, and given back on release
  * or for good when another app takes it.
+ *
+ * A live channel has no pause, and its player plays on whatever paused it:
+ * paused for another app's sound, it played over it at once, and took the
+ * focus back from music or a video. It goes quiet instead, its sound back
+ * with the focus, or, when another app took it for good, as a channel is
+ * tuned.
  */
 class AudioFocusRules(private val port: FocusPort, private val target: FocusTarget) {
     private var held = false
     private var resumeOnGain = false
     private var ducked = false
 
+    /** A live channel, quiet without the focus. */
+    private var quiet = false
+
     /** Encoded audio goes to the output as it is. */
     var passthrough = false
 
-    /** Before playing: `false` when focus was refused (a phone call), and it shouldn't play. */
+    /** A live channel plays: losing the focus quiets it rather than pausing it. */
+    var live = false
+        set(value) {
+            field = value
+            if (!value && quiet) restoreVolume()
+        }
+
+    /**
+     * Before playing: `false` when focus was refused (a phone call), and it
+     * shouldn't play. A live channel always plays, heard only with the focus.
+     */
     fun beforePlay(): Boolean {
+        if (live) {
+            // Lost for now (a call): quiet until the focus comes back.
+            if (resumeOnGain) return true
+            if (!held) held = port.request(::onFocusChange)
+            if (!held) goQuiet() else if (quiet) restoreVolume()
+            return true
+        }
         resumeOnGain = false
         if (held) return true
         held = port.request(::onFocusChange)
@@ -72,38 +98,45 @@ class AudioFocusRules(private val port: FocusPort, private val target: FocusTarg
                 restoreVolume()
                 if (resumeOnGain) {
                     resumeOnGain = false
-                    target.play()
+                    if (!live) target.play()
                 }
             }
             AudioManager.AUDIOFOCUS_LOSS -> {
                 held = false
                 resumeOnGain = false
                 port.abandon()
-                target.pause()
+                if (live) goQuiet() else target.pause()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> pauseForNow()
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> if (passthrough) {
                 pauseForNow()
             } else {
                 ducked = true
-                target.setVolume(DUCKED_VOLUME)
+                if (!quiet) target.setVolume(DUCKED_VOLUME)
             }
         }
     }
 
-    /** The person paused: no coming back on its own when focus returns. */
+    /** The person paused: no coming back on its own when focus returns. A live channel plays on, and stays quiet until then. */
     fun onPausedByPerson() {
-        resumeOnGain = false
+        if (!live) resumeOnGain = false
     }
 
     private fun pauseForNow() {
         resumeOnGain = true
-        target.pause()
+        if (live) goQuiet() else target.pause()
+    }
+
+    private fun goQuiet() {
+        if (quiet) return
+        quiet = true
+        target.setVolume(0f)
     }
 
     private fun restoreVolume() {
-        if (ducked) {
+        if (ducked || quiet) {
             ducked = false
+            quiet = false
             target.setVolume(1f)
         }
     }

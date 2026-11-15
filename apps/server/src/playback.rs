@@ -382,11 +382,30 @@ pub struct PlaybackRequest {
     /// the player.
     #[serde(skip)]
     pub copy_video_only: bool,
+    /// Which device the session plays on, when the server starts it for a
+    /// device that has no sign-in of its own (a Cast device,
+    /// [`crate::cast`]). Set by the server, never read from the player.
+    #[serde(skip)]
+    pub device_id: Option<String>,
     /// The player opened a stream's address (the compatibility APIs' HLS
     /// routes), so the answer is a stream, never the file as it is. Set by
     /// the server, never read from the player.
     #[serde(skip)]
     pub stream_only: bool,
+    /// Which API the play came through. Set by the server, never read from
+    /// the player.
+    #[serde(skip)]
+    pub api: Api,
+}
+
+/// Which API started a session: Pley's own, or one of those for other
+/// apps (docs/COMPATIBILITY.md). The dashboard says which kind of app plays.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Api {
+    #[default]
+    Pley,
+    Plex,
+    Jellyfin,
 }
 
 /// A command a remote sends a player (`POST /api/sessions/{id}/command`),
@@ -407,6 +426,8 @@ pub enum Control {
     Subtitles,
     /// Another quality of the player's Quality menu (docs/QUALITY.md), by id.
     Quality,
+    /// The device's own volume, 0 to 100: a Cast device's.
+    Volume,
 }
 
 /// The commands a player obeys, each once, in a fixed order.
@@ -1862,6 +1883,10 @@ pub struct PlayState {
     /// its player last said; `None` until it does.
     #[serde(skip)]
     pub quality: Option<&'static str>,
+    /// The device's volume, 0 to 100, for a player that takes `volume`, as
+    /// it last said; `None` until it does.
+    #[serde(skip)]
+    pub volume: Option<u8>,
 }
 
 impl PlayState {
@@ -1926,6 +1951,8 @@ pub struct Session {
     pub device_id: String,
     /// What kind of device it is ([`DeviceKind`]).
     pub device_kind: DeviceKind,
+    /// Which API started it.
+    pub api: Api,
     /// Commands sent to it lately, which [`Session::take_command`] counts.
     commands: Mutex<CommandWindow>,
     last_transcoder_touch: AtomicI64,
@@ -1973,6 +2000,7 @@ impl Session {
                 audio_index: None,
                 subtitle_index: None,
                 quality: None,
+                volume: None,
             }),
             app_grant: None,
             compatibility_token: None,
@@ -1983,6 +2011,7 @@ impl Session {
             device: None,
             device_id,
             device_kind: DeviceKind::Other,
+            api: Api::Pley,
             commands: Mutex::new(CommandWindow::default()),
             last_transcoder_touch: AtomicI64::new(now),
             quiet: AtomicBool::new(false),
@@ -2063,6 +2092,16 @@ impl Session {
         let mut play = self.play.lock();
         let changed = play.quality != Some(id);
         play.quality = Some(id);
+        changed
+    }
+
+    /// Records the device's volume its player says it has, 0 to 100 (more
+    /// is taken as 100). Whether it changed, which the user's remotes hear
+    /// about at once.
+    pub fn report_volume(&self, percent: u8) -> bool {
+        let mut play = self.play.lock();
+        let changed = play.volume != Some(percent.min(100));
+        play.volume = Some(percent.min(100));
         changed
     }
 
@@ -2791,7 +2830,9 @@ pub fn transcode_info(job: &JobStatus) -> TranscodeInfo {
         // (HLG to HDR10), which keeps the video HDR.
         tonemap: video
             .filter(|v| !v.dynamic_range_out.is_some_and(|r| r.is_hdr()))
-            .and_then(|v| v.tonemap)
+            .and_then(
+                |v| if v.tonemap_quick_sync { Some(pley_transcoder_api::Tonemapper::QuickSync) } else { v.tonemap },
+            )
             .map(|t| t.as_str().to_owned()),
         dolby_vision: video.and_then(|v| v.dolby_vision).and_then(|m| match m {
             DolbyVisionMode::Copy => None,
@@ -2997,6 +3038,8 @@ mod tests {
             download: false,
             copy_video_only: false,
             stream_only: false,
+            api: Api::Pley,
+            device_id: None,
         }
     }
 
@@ -3883,6 +3926,8 @@ mod tests {
         let p7 = with(plan.clone());
         assert_eq!(p7.video_in.as_deref(), Some("HEVC 3840×2160 Dolby Vision P7 FEL + HDR10+"));
         assert_eq!(p7.tonemap.as_deref(), Some("libplacebo"));
+        let quick_sync = VideoPlan { tonemap: None, tonemap_quick_sync: true, ..plan.clone() };
+        assert_eq!(with(quick_sync).tonemap.as_deref(), Some("vpp_qsv"));
         plan.dynamic_range_out = Some(DynamicRange::Hdr10);
         assert_eq!(with(plan).tonemap, None);
         assert_eq!(transcode_info(&JobStatus { video: None, audio: None, ..job }).video, "none");

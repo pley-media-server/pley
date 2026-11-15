@@ -67,7 +67,8 @@ provenance (`gh attestation verify <file> --repo pley-media-server/pley`).
   Actions to create and approve pull requests**; without it, it pushes the
   branch and links to where you open the pull request. Checks don't run on a
   pull request it opens (GitHub's rule for its token); the units' workflows
-  run on the merge.
+  run on the merge. It labels the pull request `release`; one you open by
+  hand needs the label from you.
 - The Android release key comes from the secrets `ANDROID_KEYSTORE_BASE64`,
   `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` and `ANDROID_KEY_PASSWORD`
   ([ANDROID.md](ANDROID.md#releases)). Without them, a release has Android's
@@ -153,7 +154,7 @@ workflow's `on.paths` has the exact list.
 
 | Workflow | Runs for changes in |
 |---|---|
-| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,ffmpeg,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license and source scripts |
+| Server | `apps/server`, `apps/transcoder`, `packages/transcoder-api`, `apps/web`, `deploy/{docker,ffmpeg,windows,systemd,launchd}` (not their Markdown), `Cargo.*`, the root `package.json`, `LICENSING.md`, `docs/TRANSCODER.md`, the build, installer, license, test watchdog and source scripts |
 | Desktop | `apps/desktop`, the root `package.json` |
 | Android | `apps/android`, `scripts/check-android.ps1` |
 | Samsung TV | `apps/tizen`, `packages/tv`, the root `package.json` and `bun.lock`, `scripts/commit.mjs` |
@@ -164,6 +165,7 @@ workflow's `on.paths` has the exact list.
 | FFmpeg | `deploy/ffmpeg` on master: publishes the Docker image's FFmpeg ([deploy/ffmpeg](../deploy/ffmpeg/README.md)) |
 | Repository | `.github/workflows/`, the version and release scripts, any `CHANGELOG.md`, `README.md`, a unit's version (the first file in its "Version in") |
 | Release | A unit's version on master (the first file in its "Version in") |
+| CodeQL | Every push to master and pull request, and weekly: GitHub's code scanning of each language, Kotlin and Swift read as the Android and Apple apps compile |
 
 Repository also fails a pull request whose merge would leave a unit's
 version below the one it had at the last release tag (`release.mjs check`).
@@ -171,6 +173,13 @@ A branch carrying a unit's manifests and CHANGELOG from before that release
 passes `version.mjs check`, since they agree with each other, yet would take
 the release back. What waits for the next release, a higher version or
 entries under Unreleased, passes.
+
+Server's Windows job runs its tests under `scripts/test-watchdog.ps1`. A
+test program that runs over 5 minutes is stuck: the watchdog prints its
+threads' stacks when cdb (Debugging Tools for Windows) is there, keeps a
+minidump of it with its program and symbols as the `stuck-test-windows`
+artifact, and ends it, so the job fails at once and names the program
+instead of waiting for its time limit.
 
 A CHANGELOG change alone runs only Repository. Prepare release and Audit
 (known vulnerabilities in the lock files) run only by hand.

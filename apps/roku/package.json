@@ -1,7 +1,7 @@
 {
   "name": "pley-roku",
   "private": true,
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Pley for Roku: a native SceneGraph app",
   "scripts": {
     "compile": "bsc --create-package false --copy-to-staging false",

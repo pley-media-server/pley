@@ -188,6 +188,23 @@
         }
       }
     },
+    "%@ can't reach this server" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no puede conectarse a este servidor"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ n’arrive pas à joindre ce serveur"
+          }
+        }
+      }
+    },
     "%@ didn't answer." : {
       "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
       "localizations" : {
@@ -201,6 +218,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@ n’a pas répondu."
+          }
+        }
+      }
+    },
+    "%@ didn't pair." : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no se vinculó."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ne s’est pas associé."
+          }
+        }
+      }
+    },
+    "%@ didn't play it" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no lo reprodujo"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ne l’a pas lu"
           }
         }
       }
@@ -337,6 +388,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Prêt à regarder : %@"
+          }
+        }
+      }
+    },
+    "%@ takes no other try yet: wait a moment." : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ aún no acepta otro intento: espera un momento."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ n’accepte pas d’autre essai pour l’instant : patientez un peu."
           }
         }
       }
@@ -2215,6 +2283,23 @@
         }
       }
     },
+    "AirPlay" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AirPlay"
+          }
+        }
+      }
+    },
     "Airs %@" : {
       "comment" : "Requests: Discover, a title page, the lists, the managers' dialogs and notices (RequestWords).",
       "localizations" : {
@@ -2636,6 +2721,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Fermer"
+          }
+        }
+      }
+    },
+    "Code" : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Código"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Code"
           }
         }
       }
@@ -3184,6 +3286,23 @@
         }
       }
     },
+    "Everyone in your home can then play on it." : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Después todo tu hogar podrá reproducir en ella."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tout votre foyer pourra ensuite y lire."
+          }
+        }
+      }
+    },
     "External" : {
       "comment" : "A track, version, size, duration or count, as every app words it (Words).",
       "localizations" : {
@@ -3384,6 +3503,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Avancer de %lld secondes sur %@"
+          }
+        }
+      }
+    },
+    "Google Cast" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Cast"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Google Cast"
           }
         }
       }
@@ -3694,6 +3830,23 @@
         }
       }
     },
+    "No code showing? Show it again" : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "¿No aparece ningún código? Mostrarlo otra vez"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aucun code affiché ? L’afficher à nouveau"
+          }
+        }
+      }
+    },
     "No longer in a library" : {
       "comment" : "Requests: Discover, a title page, the lists, the managers' dialogs and notices (RequestWords).",
       "localizations" : {
@@ -3962,6 +4115,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Sortie : %@"
+          }
+        }
+      }
+    },
+    "Pair" : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vincular"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Associer"
+          }
+        }
+      }
+    },
+    "Pair with %@" : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vincular %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Associer %@"
           }
         }
       }
@@ -5264,6 +5451,23 @@
         }
       }
     },
+    "Starting on %@…" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Iniciando en %@…"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lancement sur %@…"
+          }
+        }
+      }
+    },
     "Stereo" : {
       "comment" : "A track, version, size, duration or count, as every app words it (Words).",
       "localizations" : {
@@ -5481,6 +5685,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Me prévenir aussi"
+          }
+        }
+      }
+    },
+    "That isn't the code %@ shows." : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ese no es el código que muestra %@."
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ce n’est pas le code affiché sur %@."
           }
         }
       }
@@ -5723,6 +5944,23 @@
         }
       }
     },
+    "Type the code %@ shows" : {
+      "comment" : "Play on…: pairing with an AirPlay device (a TV, an Apple TV or a Mac), whose code it shows.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Escribe el código que muestra %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saisissez le code affiché sur %@"
+          }
+        }
+      }
+    },
     "Unknown" : {
       "comment" : "A track with neither a language nor a title.",
       "localizations" : {
@@ -5770,6 +6008,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Version %lld"
+          }
+        }
+      }
+    },
+    "Volume" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volumen"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume"
+          }
+        }
+      }
+    },
+    "Volume on %@" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volumen en %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Volume sur %@"
           }
         }
       }

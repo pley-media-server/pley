@@ -187,8 +187,12 @@
   "playOn": {
     "label": "Reproducir en…",
     "playingOn": "Reproduciendo en {{device}}",
+    "starting": "Iniciando en {{device}}…",
     "otherProfile": "{{device}} está en el perfil de {{profile}}: primero cambia al tuyo.",
-    "enterPin": "Introduce tu PIN"
+    "enterPin": "Introduce tu PIN",
+    "pairWith": "Vincular {{device}}",
+    "pairWhy": "Escribe el código que muestra {{device}}. Después todo tu hogar podrá reproducir allí.",
+    "showCodeAgain": "¿No aparece ningún código? Mostrarlo otra vez"
   },
   "remote": {
     "readyToPlay": "Listo para reproducir",
@@ -234,7 +238,10 @@
     "stop": "Detener",
     "stopConfirm": "¿Detener la reproducción en {{device}}?",
     "programme": "{{title}}, de {{start}} a {{end}}",
-    "next": "A continuación: {{title}}"
+    "next": "A continuación: {{title}}",
+    "googleCast": "Google Cast",
+    "volumeOn": "Volumen en {{device}}",
+    "airPlay": "AirPlay"
   },
   "requestNotices": {
     "open": "Abrir"

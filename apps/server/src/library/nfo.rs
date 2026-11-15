@@ -743,7 +743,7 @@ fn content_rating(ratings: &[NfoRating]) -> Option<String> {
 }
 
 impl NfoFields {
-    /// The rating to use where the metadata region is `region`, with its
+    /// The rating to use where the server's country is `region`, with its
     /// country: the region's, else the United States', else the first. A
     /// file read before ratings had countries has only `content_rating`.
     pub fn rating_in(&self, region: &str) -> Option<(Option<&str>, &str)> {
@@ -1245,7 +1245,7 @@ mod tests {
         assert_eq!(nfo.fields.content_ratings.len(), 2);
     }
 
-    /// The metadata region's rating is used, with its country; the United
+    /// The server's country's rating is used, with its country; the United
     /// States' when the file has none of the region's.
     #[test]
     fn the_regions_rating_is_used() {

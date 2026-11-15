@@ -207,6 +207,8 @@ pub struct Config {
     /// Where TVmaze, TheTVDB, MusicBrainz and the Cover Art Archive are
     /// reached. `None` (tests) never contacts them.
     pub metadata_endpoints: Option<crate::providers::Endpoints>,
+    /// Where plex.tv is, for the Plex import (tests give a fake one).
+    pub plex_tv: String,
     /// See [`SHUTDOWN_GRACE`] (tests shorten it).
     pub shutdown_grace: Duration,
     /// Answer apps looking for servers on the local network (see
@@ -231,6 +233,11 @@ pub struct Config {
     /// Where media files are read from, for seek previews: the system's
     /// disks, or fixed ones in tests.
     pub trickplay_disks: crate::disks::Source,
+    /// A Cast device no look finds (see [`crate::cast::device::Fixed`]).
+    pub cast_fixed: crate::cast::device::Fixed,
+    /// How long a cast to a device on the network may take to start
+    /// ([`crate::nearby::casts::CAST_WITHIN`]; tests shorten it).
+    pub cast_within: Duration,
     /// The config file given, or `pley.toml` in the data directory: where
     /// the web app saves where pley listens (see [`crate::network`]).
     pub config_file: PathBuf,
@@ -302,6 +309,7 @@ impl Config {
             transcoder_token: cli.transcoder_token.clone().or(file.transcoder_token),
             transcoder_max_jobs: file.transcoder_max_jobs.unwrap_or(8).max(1),
             metadata_endpoints: Some(crate::providers::Endpoints::default()),
+            plex_tv: crate::import::plex::PLEX_TV.to_owned(),
             shutdown_grace: SHUTDOWN_GRACE,
             discovery: !cli.no_discovery && file.discovery.unwrap_or(true),
             bonjour: !cli.no_discovery && !cli.no_bonjour && file.bonjour.unwrap_or(false),
@@ -312,6 +320,8 @@ impl Config {
             client_documents: crate::oauth::fetch::Source::Internet,
             trickplay_pace: crate::trickplay::Pace::default(),
             trickplay_disks: crate::disks::Source::System,
+            cast_fixed: crate::cast::device::Fixed::from_env(),
+            cast_within: crate::nearby::casts::CAST_WITHIN,
             network_fixed: crate::network::Fixed {
                 web: cli.bind.is_some(),
                 plex: cli.plex_bind.is_some(),
@@ -352,6 +362,7 @@ impl Config {
             transcoder_token: None,
             transcoder_max_jobs: 8,
             metadata_endpoints: None,
+            plex_tv: crate::import::plex::PLEX_TV.to_owned(),
             shutdown_grace: SHUTDOWN_GRACE,
             discovery: false,
             bonjour: false,
@@ -362,6 +373,8 @@ impl Config {
             client_documents: crate::oauth::fetch::Source::Off,
             trickplay_pace: crate::trickplay::Pace::default(),
             trickplay_disks: crate::disks::Source::System,
+            cast_fixed: crate::cast::device::Fixed::default(),
+            cast_within: crate::nearby::casts::CAST_WITHIN,
             config_file: data_dir.join("pley.toml"),
             network_fixed: crate::network::Fixed::default(),
         }

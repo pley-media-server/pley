@@ -21,6 +21,13 @@ export interface ModalProps {
   align?: "center" | "top";
 }
 
+/**
+ * The dialogs open, the last opened last: only it answers Escape and keeps
+ * Tab inside it, so a confirmation over a dialog closes alone.
+ */
+const openDialogs: object[] = [];
+let pageOverflow = "";
+
 /** Keeps Tab and Shift+Tab inside `container`: past its last control, back to its first. */
 export function keepTabInside(e: KeyboardEvent, container: HTMLElement) {
   const focusables = container.querySelectorAll<HTMLElement>(
@@ -55,9 +62,14 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
   useEffect(() => {
     if (!open) return;
     const prevFocus = document.activeElement as HTMLElement | null;
-    const prevOverflow = document.body.style.overflow;
+    // The page's own overflow, kept by the first dialog: closed in any
+    // order, the last one closing puts it back.
+    if (openDialogs.length === 0) pageOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
+    const self = {};
+    openDialogs.push(self);
     const onKey = (e: KeyboardEvent) => {
+      if (openDialogs.at(-1) !== self) return;
       if (e.key === "Escape") onEscape(e);
       if (e.key === "Tab" && panelRef.current) keepTabInside(e, panelRef.current);
     };
@@ -71,8 +83,9 @@ export function Modal({ open, onClose, title, children, footer, size = "md", loc
       target?.focus();
     }, 0);
     return () => {
+      openDialogs.splice(openDialogs.indexOf(self), 1);
       document.removeEventListener("keydown", onKey, true);
-      document.body.style.overflow = prevOverflow;
+      if (openDialogs.length === 0) document.body.style.overflow = pageOverflow;
       prevFocus?.focus?.();
     };
   }, [open]);

@@ -456,6 +456,23 @@ pub fn adapters() -> Vec<Adapter> {
     adapters
 }
 
+/// Whether Pley runs in a container: Docker and Podman leave a file of
+/// their own at its root.
+pub fn in_container() -> bool {
+    ["/.dockerenv", "/run/.containerenv"].iter().any(|file| std::path::Path::new(file).exists())
+}
+
+/// Whether Pley, in a container (`contained`), is only on networks of
+/// Docker's own (172.16.0.0/12, as a bridge network is), where the apps'
+/// search and Bonjour don't reach the home network. With host networking
+/// or an address on the home network (Unraid's br0), it has another
+/// address too. A guess: a home network can be 172.16.0.0/12 as well, so
+/// it only ever says so, and never turns anything off.
+pub fn on_container_network(contained: bool, adapters: &[Adapter]) -> bool {
+    let mut addresses = adapters.iter().filter(|a| a.up).flat_map(|a| &a.addresses).peekable();
+    contained && addresses.peek().is_some() && addresses.all(|ip| ip.octets()[0] == 172 && ip.octets()[1] & 0xf0 == 16)
+}
+
 #[cfg(windows)]
 mod platform {
     use std::collections::HashMap;
@@ -737,6 +754,30 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_container_on_dockers_own_network_is_told_apart() {
+        let adapter = |name: &str, up: bool, addresses: &[&str]| Adapter {
+            name: name.into(),
+            description: None,
+            up,
+            addresses: addresses.iter().map(|a| a.parse().unwrap()).collect(),
+            network: None,
+        };
+        let bridge = [adapter("eth0", true, &["172.17.0.2"])];
+        assert!(on_container_network(true, &bridge));
+        assert!(!on_container_network(false, &bridge), "a home network on 172.16.0.0/12");
+        // Docker Compose's networks, further into the range.
+        assert!(on_container_network(true, &[adapter("eth0", true, &["172.31.255.2"])]));
+        // Host networking: the computer's adapters, Docker's among them.
+        let host = [adapter("docker0", true, &["172.17.0.1"]), adapter("eth0", true, &["192.168.1.20"])];
+        assert!(!on_container_network(true, &host));
+        // br0: an address of its own on the home network.
+        assert!(!on_container_network(true, &[adapter("eth0", true, &["192.168.1.30"])]));
+        assert!(!on_container_network(true, &[adapter("eth0", true, &["172.32.0.2"])]));
+        assert!(!on_container_network(true, &[]), "nothing to go by");
+        assert!(!on_container_network(true, &[adapter("eth0", false, &["172.17.0.2"])]));
+    }
 
     fn listen(web: &[&str], jellyfin: &[&str], discovery: bool) -> Listen {
         Listen {

@@ -65,7 +65,7 @@ pub struct UserDto {
     pub max_age: Option<i64>,
     /// The rating system `max_age` was chosen in and is shown in (see
     /// `GET /api/ratings/systems`): a country, or "age"; `None`: the
-    /// metadata region's.
+    /// server's country's.
     pub max_age_system: Option<String>,
     /// For administrators only (see [`for_administrators`]): the month and
     /// year the profile was born ("2015-03") when its age limit is its age.
@@ -672,6 +672,23 @@ pub fn process_avatar(bytes: &[u8]) -> Result<Vec<u8>, AppError> {
         .encode_image(&resized)
         .map_err(|e| AppError::Internal(anyhow::anyhow!("encoding avatar: {e}")))?;
     Ok(out)
+}
+
+/// Makes `jpeg` (from [`process_avatar`]) profile `user_id`'s picture, in
+/// place of any it had. The file is named for the moment, so a picture
+/// cached for the old one's address isn't shown for the new one.
+pub async fn set_avatar(db: &Db, data_dir: &Path, user_id: i64, jpeg: Vec<u8>) -> Result<(), AppError> {
+    let dir = avatars_dir(data_dir);
+    tokio::fs::create_dir_all(&dir).await.map_err(|e| AppError::Internal(e.into()))?;
+    let file = format!("{user_id}-{}.jpg", crate::util::now());
+    tokio::fs::write(dir.join(&file), jpeg).await.map_err(|e| AppError::Internal(e.into()))?;
+    let old: Option<String> =
+        sqlx::query_scalar("SELECT avatar FROM users WHERE id = ?").bind(user_id).fetch_one(&db.read).await?;
+    sqlx::query("UPDATE users SET avatar = ? WHERE id = ?").bind(&file).bind(user_id).execute(&db.write).await?;
+    if let Some(old) = old.filter(|o| *o != file) {
+        let _ = tokio::fs::remove_file(dir.join(old)).await;
+    }
+    Ok(())
 }
 
 // ------------------------------------------------------------------ invites

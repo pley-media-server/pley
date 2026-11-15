@@ -25,6 +25,9 @@ async fn administrators_see_where_pley_listens_and_could() {
     assert_eq!((&reply.body["bonjour"], &reply.body["bonjour_adapters"]), (&json!(false), &json!([])));
     assert_eq!(reply.body["bonjour_host_name"], json!(""));
     assert!(reply.body["bonjour_host_default"].as_str().unwrap().starts_with("pley-"), "{:?}", reply.body);
+    // What this machine is: the tests may run in a container too.
+    let contained = pley::network::on_container_network(pley::network::in_container(), &pley::network::adapters());
+    assert_eq!(reply.body["container_network"], contained);
     assert_eq!(reply.body["windows"], cfg!(windows));
     assert!(reply.body["adapters"].is_array());
     assert!(reply.body["config_file"].as_str().unwrap().ends_with("pley.toml"));

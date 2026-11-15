@@ -8,7 +8,8 @@ import { PasswordInput } from "@/components/PasswordInput";
 import { Button, Field, TextInput } from "@/components/ui";
 import { useDocumentTitle } from "@/lib/hooks";
 import { MIN_PASSWORD_LENGTH, passwordProblem } from "@/lib/passwords";
-import { AuthLayout } from "./AuthLayout";
+import { SETUP_PROGRESS } from "@/lib/setupFrame";
+import { SetupActions, SetupStep } from "./SetupLayout";
 
 /** The setup code in `#code=ABCD-EFGH`, as links had it before 0.2. */
 export function codeFromHash(hash: string): string | null {
@@ -45,14 +46,14 @@ export function SetupPage() {
     if (problem) return;
     setup.mutate(
       { username: username.trim(), password, ...(needsCode ? { setup_code: code.trim() } : {}) },
-      { onSuccess: () => void navigate("/settings/libraries?add=1", { replace: true }) },
+      { onSuccess: () => void navigate("/setup/server", { replace: true }) },
     );
   };
 
   const error = localError ?? (setup.error ? errorMessage(setup.error) : null);
 
   return (
-    <AuthLayout title={t("setup.title")} subtitle={t("setup.subtitle")}>
+    <SetupStep progress={SETUP_PROGRESS.account} title={t("setup.title")} subtitle={t("setup.subtitle")}>
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label={t("fields.username")} htmlFor="setup-username">
           <TextInput
@@ -87,10 +88,12 @@ export function SetupPage() {
             {error}
           </p>
         ) : null}
-        <Button type="submit" variant="primary" size="lg" className="w-full" loading={setup.isPending}>
-          {t("setup.createAccount")}
-        </Button>
+        <SetupActions>
+          <Button type="submit" variant="primary" loading={setup.isPending}>
+            {t("setup.createAccount")}
+          </Button>
+        </SetupActions>
       </form>
-    </AuthLayout>
+    </SetupStep>
   );
 }

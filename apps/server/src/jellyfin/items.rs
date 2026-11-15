@@ -27,6 +27,9 @@ pub fn routes() -> Router<AppState> {
     Router::new()
         .route("/userviews", get(views))
         .route("/users/{user}/views", get(views))
+        .route("/userviews/groupingoptions", get(grouping_options))
+        .route("/users/{user}/groupingoptions", get(grouping_options))
+        .route("/library/virtualfolders", get(virtual_folders))
         .route("/items", get(items))
         .route("/users/{user}/items", get(items))
         .route("/items/latest", get(latest))
@@ -138,6 +141,36 @@ async fn views(
     let items: Vec<Item> = libraries(&state, &user).await?.iter().map(|lib| Item::library(&jellyfin, lib)).collect();
     let total = items.len();
     Ok(answer(items, total, 0))
+}
+
+/// `/UserViews/GroupingOptions`: the libraries Jellyfin lets a user group
+/// into its views, its movies' and shows', by name. Pley groups nothing, but
+/// apps ask as they load their home screen, and Infuse stops at a `404`.
+async fn grouping_options(
+    State(state): State<AppState>,
+    Extension(jellyfin): Extension<Arc<Jellyfin>>,
+    JfUser { user, .. }: JfUser,
+    user_path: Option<Path<String>>,
+) -> JfResult<Json<Vec<NameId>>> {
+    if let Some(Path(id)) = user_path {
+        own(&jellyfin, &user, &id)?;
+    }
+    let mut options: Vec<NameId> = libraries(&state, &user)
+        .await?
+        .iter()
+        .filter(|lib| lib.kind() != crate::library::LibraryKind::Music)
+        .map(|lib| NameId { name: lib.name.clone(), id: jellyfin.ids.of(Kind::Library, lib.id) })
+        .collect();
+    options.sort_by_key(|option| option.name.to_lowercase());
+    Ok(Json(options))
+}
+
+/// `/Library/VirtualFolders`: the libraries and their folders on disk, which
+/// Jellyfin shows administrators alone. Nothing administers through this
+/// API, so everyone is refused as Jellyfin refuses those who don't (`403`):
+/// apps that ask as they load (Infuse) carry on, and stop at a `404`.
+async fn virtual_folders(_user: JfUser) -> JfError {
+    JfError::Forbidden
 }
 
 // ------------------------------------------------------------------ listings

@@ -8,6 +8,7 @@ import {
   FastForward,
   History,
   Images,
+  LoaderCircle,
   MonitorPlay,
   Pause,
   Play,
@@ -38,7 +39,8 @@ import { versionLabel, WEB_COMMIT, WEB_VERSION } from "@/lib/build";
 import { cn } from "@/lib/cn";
 import { formatBytes, formatClock, formatTimestamp, formatUptime, fullTitle, transcodeSummary } from "@/lib/format";
 import { thumbCandidates } from "@/lib/images";
-import { useDocumentTitle } from "@/lib/hooks";
+import { useDocumentTitle, useNow } from "@/lib/hooks";
+import { activityPosition } from "@/lib/remote";
 import { itemUrl } from "@/lib/urls";
 
 const METHOD_TONE: Record<PlaybackMethod, "success" | "info" | "accent"> = {
@@ -81,6 +83,8 @@ function libraryWorkWaits(work: LibraryWorkStatus | null): string {
       return translate("dashboard.waits.playing", { ns: "settings" });
     case "busy":
       return translate("dashboard.waits.busy", { ns: "settings" });
+    case "scanning":
+      return translate("dashboard.waits.scanning", { ns: "settings" });
     case "hours": {
       const mode = work.mode === "auto" ? "auto" : "hours";
       return work.resumes_at
@@ -95,7 +99,16 @@ function libraryWorkWaits(work: LibraryWorkStatus | null): string {
 /** Most a stop message may say (the server's limit). */
 const STOP_MESSAGE_MAX = 200;
 
-/** Ends someone's playback, with a message for their screen if wanted. */
+/**
+ * Whether `session`'s player shows a stop message: Pley's own apps do; other
+ * apps through the Plex and Jellyfin APIs, and devices the server casts to,
+ * only stop. A server before `player` was said: as Pley's.
+ */
+function showsStopMessage(session: SessionInfo): boolean {
+  return (session.player ?? "pley") === "pley";
+}
+
+/** Ends someone's playback, with a message for their screen if wanted and it shows one. */
 function StopSessionModal({ session, onClose }: { session: SessionInfo | null; onClose: () => void }) {
   const { t } = useTranslation(["settings", "common"]);
   const stop = useStopSession();
@@ -105,7 +118,7 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
     e.preventDefault();
     if (!session) return;
     stop.mutate(
-      { sessionId: session.session_id, message: message.trim() || undefined },
+      { sessionId: session.session_id, message: (showsStopMessage(session) && message.trim()) || undefined },
       {
         onSuccess: () => {
           toast.success(t("dashboard.stop.stopped"));
@@ -143,26 +156,32 @@ function StopSessionModal({ session, onClose }: { session: SessionInfo | null; o
               components={{ title: <span className="font-medium text-fg" /> }}
             />
           </p>
-          <Field label={t("dashboard.stop.message")} htmlFor="stop-session-message" hint={t("dashboard.stop.messageHint")}>
-            <textarea
-              id="stop-session-message"
-              rows={3}
-              value={message}
-              maxLength={STOP_MESSAGE_MAX}
-              onChange={(e) => setMessage(e.target.value)}
-              className="w-full resize-y rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent focus:outline-none"
-            />
-          </Field>
+          {showsStopMessage(session) ? (
+            <Field label={t("dashboard.stop.message")} htmlFor="stop-session-message" hint={t("dashboard.stop.messageHint")}>
+              <textarea
+                id="stop-session-message"
+                rows={3}
+                value={message}
+                maxLength={STOP_MESSAGE_MAX}
+                onChange={(e) => setMessage(e.target.value)}
+                className="w-full resize-y rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent focus:outline-none"
+              />
+            </Field>
+          ) : null}
         </form>
       ) : null}
     </Modal>
   );
 }
 
-function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
+/** `receivedAtMs`: when the list it's in came, by this browser's clock, which its time moves on from while it plays. */
+function SessionCard({ s, receivedAtMs, onStop }: { s: SessionInfo; receivedAtMs: number; onStop: () => void }) {
   const { t } = useTranslation("settings");
   const duration = s.item.duration_ms ?? 0;
   const tc = s.transcode;
+  const nowMs = useNow(1_000) * 1000;
+  const position = activityPosition(s, receivedAtMs, nowMs);
+  const StateIcon = s.state === "playing" ? Play : s.state === "paused" ? Pause : s.state === "buffering" ? LoaderCircle : Square;
   return (
     <div className="flex gap-4 rounded-lg border border-border bg-surface p-3">
       <Link to={itemUrl(s.item.id)} className="w-32 shrink-0 sm:w-40">
@@ -183,24 +202,21 @@ function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
             {t(`dashboard.methods.${s.method}`)}
           </Badge>
         </div>
-        {/* On a line of its own: beside the user, the time and Stop there is no room for it in two columns. */}
-        {s.device ? (
-          <div className="truncate text-xs text-muted" title={s.device}>
-            {s.device}
+        {/* On a line of its own, with what plays it: beside the user, the time and Stop there is no room for it in two columns. */}
+        {s.device || s.player ? (
+          <div className="truncate text-xs text-muted" title={s.device ?? undefined}>
+            {[s.device, s.player && t(`dashboard.players.${s.player}`)].filter(Boolean).join(" · ")}
           </div>
         ) : null}
-        <div className="flex items-center gap-1.5 text-xs text-muted">
-          {s.state === "playing" ? (
-            <Play className="size-3 fill-current text-success" />
-          ) : s.state === "paused" ? (
-            <Pause className="size-3 fill-current" />
-          ) : (
-            <Square className="size-3 fill-current" />
-          )}
-          <span className="font-medium text-fg/85">{s.username}</span>
+        {/* Wraps rather than overflowing the card: squeezed, the state's icon would shrink away and Stop spill out. */}
+        <div className="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted">
+          <span role="img" aria-label={t(`dashboard.states.${s.state}`)} title={t(`dashboard.states.${s.state}`)} className="shrink-0">
+            <StateIcon className={cn("size-3", s.state === "buffering" ? "animate-spin" : "fill-current", s.state === "playing" && "text-success")} />
+          </span>
+          <span className="min-w-0 truncate font-medium text-fg/85">{s.username}</span>
           <span>·</span>
           <span className="shrink-0 whitespace-nowrap tabular-nums">
-            {formatClock(s.position_ms / 1000)}
+            {formatClock(position / 1000)}
             {duration ? ` / ${formatClock(duration / 1000)}` : ""}
           </span>
           <button
@@ -218,7 +234,7 @@ function SessionCard({ s, onStop }: { s: SessionInfo; onStop: () => void }) {
             {t("dashboard.stop.stop")}
           </button>
         </div>
-        {duration ? <ProgressBar value={s.position_ms / duration} className="h-1" /> : null}
+        {duration ? <ProgressBar value={position / duration} className="h-1" /> : null}
         {tc ? (
           <div className="space-y-1 pt-0.5">
             <div className="flex items-start gap-1.5">
@@ -490,7 +506,7 @@ export function DashboardSettings() {
         ) : (
           <div className="grid gap-3 xl:grid-cols-2">
             {sessions.map((s) => (
-              <SessionCard key={s.session_id} s={s} onStop={() => setStopping(s)} />
+              <SessionCard key={s.session_id} s={s} receivedAtMs={activity.dataUpdatedAt} onStop={() => setStopping(s)} />
             ))}
           </div>
         )}

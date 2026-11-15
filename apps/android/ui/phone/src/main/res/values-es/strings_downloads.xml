@@ -29,10 +29,13 @@
     <string name="downloads_failed_short">No se descargó</string>
     <string name="downloads_queued_short">En cola</string>
     <string name="downloads_waiting_short">Esperando</string>
+    <string name="downloads_preparing_short">Preparando</string>
+    <string name="downloads_percent">%1$d %%</string>
     <string name="downloads_download_season">Descargar la temporada</string>
     <string name="downloads_download_item">Descargar %1$s</string>
     <string name="downloads_downloaded_item">Descargado: %1$s</string>
     <string name="downloads_downloading_item">Descargando %1$s, %2$d %%</string>
+    <string name="downloads_status_item">%1$s, %2$s</string>
     <string name="downloads_failed_toast">No se pudo descargar: %1$s</string>
     <string name="downloads_started">Descargando. Lo encontrarás en Descargas, dentro de Yo.</string>
     <string name="downloads_started_action">Descargas</string>

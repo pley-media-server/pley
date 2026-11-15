@@ -242,7 +242,7 @@ impl Discover {
     }
 
     /// A page (from 1) of a list. `ceiling`: the highest movie
-    /// certification of the metadata region an account may ask for (see
+    /// certification of the server's country an account may ask for (see
     /// [`Discover::ceiling`]): popular and upcoming movies then come from
     /// TMDB's discover search, rated at most that.
     pub(crate) async fn list(&self, list: List, page: u32, ceiling: Option<&str>) -> Result<Arc<Page>, TmdbError> {
@@ -374,7 +374,7 @@ impl Discover {
         Ok(None)
     }
 
-    /// The highest movie certification of the metadata region that an age
+    /// The highest movie certification of the server's country that an age
     /// limit of `max_age` allows (TMDB's own order), for lists TMDB filters
     /// itself; `None` when the region has none (or TMDB doesn't say), and
     /// every title is checked as it comes.

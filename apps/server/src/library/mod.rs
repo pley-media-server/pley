@@ -57,6 +57,9 @@ pub struct LibraryRow {
     pub paths: String,
     pub created_at: i64,
     pub scanned_at: Option<i64>,
+    /// A Plex import is bringing Plex's labels to its titles: a profile with
+    /// labels it never sees doesn't see it until then (`crate::access`).
+    pub labels_pending: bool,
 }
 
 impl LibraryRow {
@@ -70,7 +73,7 @@ impl LibraryRow {
 }
 
 pub async fn get_library(db: &Db, id: i64) -> sqlx::Result<Option<LibraryRow>> {
-    sqlx::query_as("SELECT id, name, kind, paths, created_at, scanned_at FROM libraries WHERE id = ?")
+    sqlx::query_as("SELECT id, name, kind, paths, created_at, scanned_at, labels_pending FROM libraries WHERE id = ?")
         .bind(id)
         .fetch_optional(&db.read)
         .await
@@ -79,7 +82,7 @@ pub async fn get_library(db: &Db, id: i64) -> sqlx::Result<Option<LibraryRow>> {
 /// Every library, in the order administrators chose (see [`set_order`]).
 pub async fn list_libraries(db: &Db) -> sqlx::Result<Vec<LibraryRow>> {
     sqlx::query_as(
-        "SELECT id, name, kind, paths, created_at, scanned_at FROM libraries
+        "SELECT id, name, kind, paths, created_at, scanned_at, labels_pending FROM libraries
          ORDER BY position, name COLLATE NOCASE, id",
     )
     .fetch_all(&db.read)

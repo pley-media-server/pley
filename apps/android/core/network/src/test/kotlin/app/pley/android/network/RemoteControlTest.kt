@@ -1,7 +1,10 @@
 package app.pley.android.network
 
+import app.pley.android.model.CastProtocol
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
+import app.pley.android.model.PairingCode
+import app.pley.android.model.PairingRequest
 import app.pley.android.model.PlaybackRequest
 import app.pley.android.model.PlayerCommandRequest
 import app.pley.android.model.PlayingKind
@@ -16,11 +19,14 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
+import okhttp3.OkHttpClient
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -181,6 +187,13 @@ class RemoteControlTest {
         assertEquals(CastRefusal.NotCastable, refusal())
         server.enqueue(MockPley.error(429, "too_many_requests", "10 casts a second at most: wait a moment"))
         assertEquals(CastRefusal.TooMany, refusal())
+        // A Google Cast or an AirPlay device the server plays on itself.
+        server.enqueue(MockPley.error(409, "pairing_needed", "the device wants a PIN"))
+        assertEquals(CastRefusal.PairingNeeded, refusal())
+        server.enqueue(MockPley.error(409, "cast_unreachable", "the device can't be reached"))
+        assertEquals(CastRefusal.Unreachable, refusal())
+        server.enqueue(MockPley.error(409, "cast_failed", "the device didn't play it"))
+        assertEquals(CastRefusal.Failed, refusal())
         // Another conflict, and everything else, says its own sentence.
         server.enqueue(MockPley.fixture("errors/not_controllable.json", code = 409))
         assertEquals(CastRefusal.Other, refusal())
@@ -224,5 +237,73 @@ class RemoteControlTest {
         assertEquals(CastRefusal.TooMany, refusal())
         // Its PIN is never written out where the request is.
         assertFalse("1234" in app.pley.android.model.CastRequest(itemId = 204, pin = "1234").toString())
+    }
+
+    @Test
+    fun theDevicesTheServerPlaysOnItselfSayHow() = runTest {
+        val api = api(null)
+        server.enqueue(
+            MockPley.json(
+                """[{"receiver_id":"cast:abc","device_id":"cast:abc","name":"Bedroom TV","kind":"tv","casts":["item"],"protocol":"cast"},""" +
+                    """{"receiver_id":"airplay:a1b2c3d4e5f6","device_id":"airplay:a1b2c3d4e5f6","name":"Den Apple TV","kind":"tv","casts":["item"],"protocol":"airplay"},""" +
+                    """{"receiver_id":"x","device_id":"x","casts":["item"],"protocol":"miracast"},""" +
+                    """{"receiver_id":"web-1","device_id":"web-1","casts":["item"]}]""",
+            ),
+        )
+        assertEquals(listOf(CastProtocol.Cast, CastProtocol.AirPlay, CastProtocol.Unknown, null), api.remoteDevices().map { it.protocol })
+        assertEquals("1", server.takeRequest(5, TimeUnit.SECONDS)?.url?.queryParameter("nearby"))
+    }
+
+    @Test
+    fun castsAndPairingsWaitForTheDeviceLongerThanOtherCallsWaitForTheServer() = runTest {
+        // A client that gives up on a quiet server sooner than OkHttp's 10 s, as everything else does.
+        val quick = OkHttpClient.Builder().readTimeout(200, TimeUnit.MILLISECONDS).build()
+        val api = HttpPleyApi(issuer, { quick })
+        fun late(answer: MockResponse) = answer.newBuilder().headersDelay(600, TimeUnit.MILLISECONDS).build()
+
+        // The server answers once the device plays, or paired: a while later.
+        server.enqueue(late(MockPley.noContent()))
+        api.cast("cast:abc", app.pley.android.model.CastRequest(itemId = 101))
+        server.enqueue(late(MockPley.json("""{"digits":4}""")))
+        assertEquals(4, api.showPairingCode("airplay:a1b2c3d4e5f6").digits)
+        server.enqueue(late(MockPley.noContent()))
+        api.pair("airplay:a1b2c3d4e5f6", "4821")
+        // Anything else gives up as before.
+        server.enqueue(late(MockPley.noContent()))
+        val stop = runCatching { api.stopSession("6f1c2a9e") }.exceptionOrNull()
+        assertTrue("$stop", stop is OfflineException)
+        assertEquals(HttpPleyApi.DEVICE_READ_SECONDS * 1_000, HttpPleyApi.waitingForDevices(quick).readTimeoutMillis.toLong())
+    }
+
+    @Test
+    fun anAirPlayDeviceShowsItsCodeThenPairsWithItAndSaysWhyItWasRefused() = runTest {
+        val api = api(null)
+        server.enqueue(MockPley.json("""{"digits":4}"""))
+        assertEquals(PairingCode(digits = 4), api.showPairingCode("airplay:a1b2c3d4e5f6"))
+        assertEquals(JsonObject(emptyMap()), sent())
+        // A TV may use a password: the server can't say how long it is.
+        server.enqueue(MockPley.json("""{"digits":null}"""))
+        assertEquals(PairingCode(digits = null), api.showPairingCode("airplay:a1b2c3d4e5f6"))
+        sent()
+        server.enqueue(MockPley.noContent())
+        api.pair("airplay:a1b2c3d4e5f6", "4821")
+        assertEquals(JsonPrimitive("4821"), sent()["pin"])
+
+        suspend fun refusal(): PairingRefusal = try {
+            api.pair("airplay:a1b2c3d4e5f6", "1111")
+            error("expected a refusal")
+        } catch (e: IOException) {
+            PairingRefusal.of(e)
+        }
+        server.enqueue(MockPley.error(403, "wrong_pin", "that isn't the PIN the device shows"))
+        assertEquals(PairingRefusal.WrongCode, refusal())
+        server.enqueue(MockPley.error(429, "too_many_requests", "the device takes no other try yet"))
+        assertEquals(PairingRefusal.Wait, refusal())
+        server.enqueue(MockPley.fixture("errors/not_found.json", code = 404))
+        assertEquals(PairingRefusal.Gone, refusal())
+        server.enqueue(MockPley.error(409, "pairing_failed", "the device didn't pair"))
+        assertEquals(PairingRefusal.Failed, refusal())
+        assertEquals(PairingRefusal.Offline, PairingRefusal.of(OfflineException(java.net.ConnectException("away"))))
+        assertFalse("4821" in PairingRequest("4821").toString())
     }
 }

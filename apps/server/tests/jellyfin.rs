@@ -280,6 +280,34 @@ async fn libraries_list_with_filters_sorts_and_pages() {
     assert_eq!(hints["SearchHints"][0]["ItemId"], json!(app.jf_item(w.film)));
 }
 
+/// What Infuse asks for as it loads its home screen, after the views: without
+/// an answer, it shows "An error occurred". Its library mode looks for its
+/// own plugin too.
+#[tokio::test]
+async fn apps_loading_their_home_screen_get_grouping_options_and_no_folders_or_plugins() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let music = app.library(admin, "Albums", "music", "music").await;
+    let options = app.jf_json("/UserViews/GroupingOptions", admin).await;
+    assert_eq!(jf_names(&options), ["Movies", "TV"], "movies and shows, by name: music isn't grouped");
+    assert_eq!(options[0]["Id"], json!(app.jf_library(w.movies)));
+    let views = jf_names(&app.jf_json("/UserViews", admin).await);
+    assert!(views.contains(&"Albums".to_owned()), "{views:?}: {music}");
+    let mine = app.jf_user(admin).await;
+    assert_eq!(app.jf_json(&format!("/Users/{mine}/GroupingOptions"), admin).await, options);
+
+    // Libraries' folders on disk are for administrators, which no one is here.
+    let folders = app.jf(Method::GET, "/Library/VirtualFolders", admin, None).await;
+    assert_eq!(folders.status, StatusCode::FORBIDDEN);
+    assert_eq!(folders.text(), "");
+    let unsigned = app.jf(Method::GET, "/Library/VirtualFolders", "", None).await;
+    assert_eq!(unsigned.status, StatusCode::UNAUTHORIZED);
+    // Its library mode looks for its own plugin, installed or to install.
+    for path in ["/Plugins", "/Packages"] {
+        assert_eq!(app.jf_json(path, admin).await, json!([]), "{path}");
+    }
+}
+
 #[tokio::test]
 async fn ids_are_this_servers_own_and_cant_be_guessed() {
     let w = world().await;
@@ -987,6 +1015,8 @@ async fn a_user_id_in_a_path_is_the_callers_own() {
         (format!("/Users/{bobs}/Items/Latest"), false),
         (format!("/Users/{bobs}/Suggestions"), false),
         (format!("/Users/{bobs}/Items/Resume"), false),
+        (format!("/Users/{mine}/GroupingOptions"), true),
+        (format!("/Users/{bobs}/GroupingOptions"), false),
     ] {
         let status = app.jf(Method::GET, &uri, admin, None).await.status;
         assert_eq!(status == StatusCode::OK, ok, "{uri}: {status}");
@@ -1113,6 +1143,7 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
     // Every first segment of its routes, as players send them: no header.
     for path in [
         "/UserViews".to_owned(),
+        "/UserViews/GroupingOptions".to_owned(),
         "/Users/Me".to_owned(),
         "/Items".to_owned(),
         "/UserItems/Resume".to_owned(),
@@ -1133,6 +1164,7 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         "/Branding/Configuration".to_owned(),
         "/QuickConnect/Enabled".to_owned(),
         "/Plugins".to_owned(),
+        "/Packages".to_owned(),
         "/Localization/Cultures".to_owned(),
         "/DisplayPreferences/usersettings".to_owned(),
         "/Years".to_owned(),
@@ -1143,10 +1175,85 @@ async fn every_part_of_the_api_is_reached_on_pleys_port() {
         assert!(theirs(&reply), "{path}: {} {}", reply.status, reply.text());
     }
     // Paths the web app has too: with a token only.
-    for path in ["/Search/Hints?SearchTerm=x".to_owned(), format!("/Playlists/{x}/Items")] {
+    for path in
+        ["/Search/Hints?SearchTerm=x".to_owned(), format!("/Playlists/{x}/Items"), "/Library/VirtualFolders".to_owned()]
+    {
         let page = app.call(Method::GET, &path, None, None, &[]).await;
         assert!(!theirs(&page), "{path} without a token is the web app's");
         let reply = app.call(Method::GET, &path, None, None, &[("x-emby-token", token.as_str())]).await;
         assert!(theirs(&reply), "{path}: {} {}", reply.status, reply.text());
     }
+}
+
+#[tokio::test]
+async fn activity_monitors_see_what_everyone_plays() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let (bob, _) = app.user(admin, "bob", json!({})).await;
+    let pilot = app.jf_item(w.pilot);
+    let report = json!({"ItemId": pilot, "PositionTicks": 600_000_000_i64, "IsPaused": true});
+    let started = app.jf(Method::POST, "/Sessions/Playing", &bob, Some(report)).await;
+    assert_eq!(started.status, StatusCode::NO_CONTENT, "{}", started.text());
+
+    // An administrator's token with `activity`, as Tracearr is given.
+    let monitor = app.compatibility_token(admin, "activity").await;
+    let listed = app.jf_raw(Method::GET, "/Sessions", &[("x-emby-token", &monitor)], None).await;
+    assert_eq!(listed.status, StatusCode::OK, "{}", listed.text());
+    let sessions = listed.body.as_array().unwrap();
+    assert_eq!(sessions.len(), 1, "{}", listed.text());
+    let session = &sessions[0];
+    assert_eq!((&session["UserName"], &session["UserId"]), (&json!("bob"), &json!(app.jf_user(&bob).await)));
+    assert_eq!(session["DeviceName"], json!("Bench"));
+    let item = &session["NowPlayingItem"];
+    assert_eq!((&item["Id"], &item["Name"], &item["Type"]), (&json!(pilot), &json!("Pilot"), &json!("Episode")));
+    assert_eq!(
+        (&item["SeriesName"], &item["ParentIndexNumber"], &item["IndexNumber"]),
+        (&json!("Show"), &json!(1), &json!(1))
+    );
+    let play = &session["PlayState"];
+    assert_eq!((&play["PositionTicks"], &play["IsPaused"]), (&json!(600_000_000_i64), &json!(true)));
+    assert_eq!(play["PlayMethod"], json!("DirectPlay"));
+    assert_eq!(play["MediaSourceId"], item["MediaSources"][0]["Id"]);
+    assert_eq!(app.state.sessions.active()[0].api, pley::playback::Api::Jellyfin);
+
+    // Pley's session id opens its stream: monitors are given a hash of it,
+    // and of a device id made from it.
+    let pleys = app.state.sessions.active()[0].clone();
+    let (id, device) = (session["Id"].as_str().unwrap(), session["DeviceId"].as_str().unwrap());
+    assert!(is_hex(id, 32) && is_hex(device, 32), "{session}");
+    assert!(!pleys.id.contains(id) && !id.contains(&pleys.id) && !device.contains(&pleys.id));
+
+    // Other tokens, the player's own included, see none.
+    for token in [app.compatibility_token(admin, "play").await, app.compatibility_token(admin, "manage").await] {
+        let none = app.jf_raw(Method::GET, "/Sessions", &[("x-emby-token", &token)], None).await;
+        assert_eq!((none.status, none.body), (StatusCode::OK, json!([])));
+    }
+    assert_eq!(app.jf(Method::GET, "/Sessions", &bob, None).await.body, json!([]));
+}
+
+#[tokio::test]
+async fn activity_tokens_say_they_administer_and_change_nothing() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let administers = async |scope: &str| {
+        let token = app.compatibility_token(admin, scope).await;
+        let me = app.jf_raw(Method::GET, "/Users/Me", &[("x-emby-token", &token)], None).await;
+        assert_eq!(me.status, StatusCode::OK, "{}", me.text());
+        me.body["Policy"]["IsAdministrator"].clone()
+    };
+    // Monitors such as Tracearr refuse a key that isn't an administrator's.
+    assert_eq!(administers("activity").await, json!(true));
+    assert_eq!(administers("play").await, json!(false));
+    assert_eq!(administers("manage").await, json!(false));
+
+    // It sees; it changes nothing.
+    let monitor = app.compatibility_token(admin, "activity").await;
+    let headers = [("x-emby-token", monitor.as_str())];
+    let collection = app.jf_raw(Method::POST, "/Collections?name=Picks", &headers, None).await;
+    assert_eq!(collection.status, StatusCode::FORBIDDEN);
+    let film = format!("/Items/{}", app.jf_item(w.film));
+    let edited = app.jf_raw(Method::POST, &film, &headers, Some(json!({"Name": "Renamed"}))).await;
+    assert_eq!(edited.status, StatusCode::FORBIDDEN);
+    let refreshed = app.jf_raw(Method::POST, &format!("{film}/Refresh"), &headers, None).await;
+    assert_eq!(refreshed.status, StatusCode::FORBIDDEN);
 }

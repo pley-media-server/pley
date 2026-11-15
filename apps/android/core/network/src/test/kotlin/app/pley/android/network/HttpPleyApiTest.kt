@@ -198,13 +198,25 @@ class HttpPleyApiTest {
                 body = """{"command":"pause"}""",
             ) { sendCommand("6f1c2a9e", PlayerCommandRequest(Control.Pause)) },
             Golden("stopSession", MockPley.noContent(), "DELETE /api/sessions/6f1c2a9e") { stopSession("6f1c2a9e") },
-            Golden("remoteDevices", json("remote/devices.json"), "GET /api/remote/devices?household=1") { remoteDevices() },
+            Golden("remoteDevices", json("remote/devices.json"), "GET /api/remote/devices?household=1&nearby=1") { remoteDevices() },
             Golden(
                 "cast",
                 MockPley.noContent(),
                 "POST /api/remote/devices/android-den/cast",
                 body = """{"item_id":204,"start_ms":600000}""",
             ) { cast("android-den", CastRequest(itemId = 204, startMs = 600_000)) },
+            Golden(
+                "showPairingCode",
+                jsonAnswer("""{"digits":4}"""),
+                "POST /api/remote/devices/airplay:a1b2c3d4e5f6/pairing",
+                body = "{}",
+            ) { showPairingCode("airplay:a1b2c3d4e5f6") },
+            Golden(
+                "pair",
+                MockPley.noContent(),
+                "POST /api/remote/devices/airplay:a1b2c3d4e5f6/pairing",
+                body = """{"pin":"4821"}""",
+            ) { pair("airplay:a1b2c3d4e5f6", "4821") },
             Golden(
                 "cast (a playlist, shuffled)",
                 MockPley.noContent(),

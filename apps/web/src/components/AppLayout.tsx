@@ -6,6 +6,7 @@ import { AudioPlayerBar } from "@/audio/AudioPlayerBar";
 import { useAudioPlayer } from "@/audio/AudioPlayer";
 import { cn } from "@/lib/cn";
 import { APP_RESUMED } from "@/lib/shell";
+import { ImportTabTitle } from "@/pages/plexImport/ImportTabTitle";
 import { ConnectionBanner } from "./ConnectionBanner";
 import { ListMenuProvider } from "./lists/ListMenu";
 import { Sidebar } from "./Sidebar";
@@ -27,6 +28,7 @@ export function AppLayout() {
 
   return (
     <div className="group/shell min-h-screen">
+      <ImportTabTitle />
       <Sidebar open={drawer} onClose={closeDrawer} />
       <div className="flex min-h-screen flex-col lg:pl-60">
         <TopBar onMenu={() => setDrawer(true)} />

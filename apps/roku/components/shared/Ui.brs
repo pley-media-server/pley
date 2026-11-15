@@ -46,6 +46,8 @@ end function
 function uiRequest(spec as object, callback as string) as object
     request = CreateObject("roSGNode", "ApiRequest")
     request.spec = spec
+    if m.uiDevice = invalid then m.uiDevice = CreateObject("roDeviceInfo")
+    request.ticket = m.uiDevice.GetRandomUUID()
     if callback <> "" then request.observeField("result", callback)
     m.global.api.request = request
     return request
@@ -66,6 +68,34 @@ function uiHttpAgent(withToken = true as boolean) as object
     if LCase(Left(session.server, 8)) = "https://" then agent.SetCertificatesFile("common:/certs/ca-bundle.crt")
     return agent
 end function
+
+' Puts a ButtonGroup's highlight back on index once its buttons changed.
+' On a Roku, focusButton gives the group the focus too: set where the group
+' had none (hadFocus, read before the buttons changed), it would take the
+' remote from the screen over it, or from another part of its own. There
+' the index waits until the group has the focus again, so coming back to a
+' page whose buttons changed meanwhile finds the button left.
+sub uiKeepButton(group as object, index as integer, hadFocus as boolean)
+    if index <= 0 or index >= group.buttons.Count() then return
+    if hadFocus
+        group.focusButton = index
+        return
+    end if
+    if not group.hasField("keptButton") then group.addField("keptButton", "integer", false)
+    if group.keptButton <= 0 then group.observeFieldScoped("focusedChild", "uiKeptButtonFocus")
+    group.keptButton = index
+end sub
+
+' A group whose buttons changed without the focus has it again: the
+' highlight goes back on the button left (uiKeepButton).
+sub uiKeptButtonFocus(event as object)
+    group = event.getRoSGNode()
+    if not group.isInFocusChain() then return
+    group.unobserveFieldScoped("focusedChild")
+    index = group.keptButton
+    group.keptButton = 0
+    if index > 0 and index < group.buttons.Count() then group.focusButton = index
+end sub
 
 ' Asks the scene for a screen: { to, params, reset, replace }, or
 ' { back: true }.
@@ -151,7 +181,8 @@ function uiNoteChange(change as object) as object
     scene = m.top.getScene()
     change.count = scene.changeCount + 1
     kept = []
-    for each earlier in scene.changes
+    ' A Roku leaves an array field unset (invalid) until something sets it.
+    for each earlier in httpArray(scene.changes)
         if earlier.count > change.count - 30 then kept.Push(earlier)
     end for
     kept.Push(change)
@@ -172,7 +203,7 @@ function uiChangesSince() as object
     scene = m.top.getScene()
     if m.changesSeen = invalid then m.changesSeen = scene.changeCount
     out = []
-    for each change in scene.changes
+    for each change in httpArray(scene.changes)
         if change.count > m.changesSeen then out.Push(change)
     end for
     m.changesSeen = scene.changeCount

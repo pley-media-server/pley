@@ -6,6 +6,7 @@ import { t } from "@/i18n";
 import { received, type RemoteSession } from "@/lib/remote";
 import type {
   Activity,
+  AirPlayPairing,
   Backup,
   Backups,
   CastRequest,
@@ -86,6 +87,7 @@ export const keys = {
   invite: (code: string) => ["invite", code] as const,
   settings: ["settings"] as const,
   network: ["network"] as const,
+  airplayPairings: ["network", "airplay"] as const,
   twoStep: ["me", "two-step"] as const,
   system: ["system"] as const,
   storage: ["system", "storage"] as const,
@@ -371,12 +373,13 @@ export const queries = {
   /**
    * The devices that take casts, which a remote lists: the user's own, with
    * what they play, and those of the household's other profiles that switch
-   * to the user's for a cast (`household=1`).
+   * to the user's for a cast (`household=1`), and the Cast devices on the
+   * server's network, which the server plays on (`nearby=1`).
    */
   remoteDevices: () =>
     queryOptions({
       queryKey: keys.remoteDevices,
-      queryFn: () => api.get<RemoteDevice[]>("/api/remote/devices?household=1"),
+      queryFn: () => api.get<RemoteDevice[]>("/api/remote/devices?household=1&nearby=1"),
       staleTime: 2_000,
     }),
   item: (id: Id) => queryOptions({ queryKey: keys.item(id), queryFn: ({ signal }) => api.get<ItemDetail>(`/api/items/${id}`, { signal }) }),
@@ -534,7 +537,7 @@ export function useCreateLibrary() {
 export function useUpdateLibrary() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: Id; name?: string; paths?: string[] }) =>
+    mutationFn: ({ id, ...body }: { id: Id; name?: string; paths?: string[]; labels_pending?: false }) =>
       api.patch<Library>(`/api/libraries/${id}`, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.libraries });
@@ -922,13 +925,16 @@ export function usePerson(id: Id) {
 // Activity
 // ---------------------------------------------------------------------------
 
+/** How often the activity is fetched while a scan runs. */
+export const ACTIVITY_POLL_MS = 4_000;
+
 export function useActivity(opts: { poll?: number | false } = {}) {
   return useQuery({
     ...queries.activity(),
     refetchInterval: (query) => {
       if (opts.poll) return opts.poll;
       const scans = query.state.data?.scans ?? [];
-      return scans.some((s) => s.phase !== "done") ? 4_000 : false;
+      return scans.some((s) => s.phase !== "done") ? ACTIVITY_POLL_MS : false;
     },
     refetchIntervalInBackground: false,
   });
@@ -991,6 +997,8 @@ export interface SessionCommand {
   streamIndex?: number;
   /** `quality`: the id of one of the session's `qualities`. */
   quality?: string;
+  /** `volume`: the device's volume, 0 to 100. */
+  volume?: number;
 }
 
 /**
@@ -1000,10 +1008,10 @@ export interface SessionCommand {
 export function useSessionCommand() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ sessionId, command, positionMs, offsetMs, streamIndex, quality }: SessionCommand) =>
+    mutationFn: ({ sessionId, command, positionMs, offsetMs, streamIndex, quality, volume }: SessionCommand) =>
       request<void>(`/api/sessions/${encodeURIComponent(sessionId)}/command`, {
         method: "POST",
-        body: { command, position_ms: positionMs, offset_ms: offsetMs, stream_index: streamIndex, quality },
+        body: { command, position_ms: positionMs, offset_ms: offsetMs, stream_index: streamIndex, quality, volume },
       }),
     onError: (err, { sessionId }) => {
       // Its player is gone, or no longer obeys that: the list says what is left.
@@ -1043,9 +1051,37 @@ export function useCast() {
   });
 }
 
+/** Has an AirPlay device show a PIN (without `pin`), or pairs the server with it. */
+export function usePairDevice() {
+  const qc = useQueryClient();
+  return useMutation({
+    gcTime: 0,
+    mutationFn: ({ receiverId, pin }: { receiverId: string; pin?: string }) =>
+      // Asked to show its code, the server says how many digits it has, when it knows.
+      api.post<{ digits: number | null } | undefined>(`/api/remote/devices/${encodeURIComponent(receiverId)}/pairing`, pin === undefined ? {} : { pin }),
+    onSuccess: (_, { pin }) => {
+      if (pin !== undefined) void qc.invalidateQueries({ queryKey: keys.airplayPairings });
+    },
+  });
+}
+
+/** What "Play on…" says when pairing with `device` didn't go. */
+export function pairingError(err: unknown, device: string): string {
+  if (isApiError(err, 403) && err.code === "wrong_pin") return t("remote.wrongDevicePin", { device });
+  if (isApiError(err, 429)) return t("remote.pairingWait", { device });
+  if (isApiError(err, 404)) return t("remote.notOn", { device });
+  if (isApiError(err, 409)) return t("remote.pairingFailed", { device });
+  return errorMessage(err);
+}
+
 /** What "Play on…" says when `device` didn't take a cast. */
 export function castError(err: unknown, device: string): string {
   if (isApiError(err, 404)) return t("remote.notOn", { device });
+  // A Cast device the server couldn't reach, or that didn't play the stream.
+  if (isApiError(err, 409) && err.code === "cast_unreachable") return t("remote.castUnreachable", { device });
+  if (isApiError(err, 409) && err.code === "cast_failed") return t("remote.castFailed", { device });
+  // Play on… had closed when the device asked for pairing: picked again, it asks for the PIN.
+  if (isApiError(err, 409) && err.code === "pairing_needed") return t("remote.pairFirst", { device });
   if (isApiError(err, 409)) return t("remote.cantPlay", { device });
   if (isApiError(err, 429)) return t("remote.tooMany");
   return errorMessage(err);
@@ -1254,6 +1290,20 @@ export function useNetwork() {
   return useQuery({
     ...queries.network(),
     refetchInterval: (query) => (query.state.data?.listeners.some((l) => l.error) ? 5_000 : false),
+  });
+}
+
+/** The AirPlay devices the server paired with (administrators). */
+export function useAirPlayPairings() {
+  return useQuery({ queryKey: keys.airplayPairings, queryFn: () => api.get<AirPlayPairing[]>("/api/network/airplay") });
+}
+
+/** Forgets a pairing: the device asks for its code again at the next cast. */
+export function useForgetAirPlayPairing() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (deviceId: string) => api.del<void>(`/api/network/airplay/${encodeURIComponent(deviceId)}`),
+    onSettled: () => qc.invalidateQueries({ queryKey: keys.airplayPairings }),
   });
 }
 

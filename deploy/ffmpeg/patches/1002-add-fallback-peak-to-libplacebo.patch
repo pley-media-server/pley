@@ -1,0 +1,46 @@
+From: Pley
+Subject: add fallback_peak to libplacebo
+Origin: Pley's own (deploy/ffmpeg/README.md)
+
+PQ video that carries no mastering display or content light level
+metadata is taken by libplacebo for PQ's own 10000 cd/m2 peak, and
+tone mapped as if it were that bright: a 344 cd/m2 test clip came out a
+fifth darker than jellyfin-ffmpeg's OpenCL made it. fallback_peak gives
+the peak to assume for such frames instead (0, the default, keeps
+libplacebo's). Frames that say their brightness, Dolby Vision's
+included, are left as they are.
+
+Under FFmpeg's licence, as the file it changes.
+---
+--- a/libavfilter/vf_libplacebo.c
++++ b/libavfilter/vf_libplacebo.c
+@@ -239,6 +239,7 @@
+ 
+     /* pl_peak_detect_params */
+     int peakdetect;
++    float fallback_peak;
+     float smoothing;
+     float scene_low;
+     float scene_high;
+@@ -1102,6 +1103,13 @@
+     out->lut_type = s->lut_type;
+     out->rotation += s->rotation;
+ 
++    /* PQ that says nothing of its brightness (no mastering display, no
++     * content light levels, no Dolby Vision) would be taken for PQ's own
++     * 10000 cd/m2 peak, and come out far too dark: it takes the one given. */
++    if (ok && s->fallback_peak > 0 && out->color.transfer == PL_COLOR_TRC_PQ &&
++        !out->color.hdr.max_luma && !out->color.hdr.max_cll)
++        out->color.hdr.max_luma = s->fallback_peak;
++
+     if (!s->apply_filmgrain)
+         out->film_grain.type = PL_FILM_GRAIN_NONE;
+ 
+@@ -1695,6 +1703,7 @@
+     { "temperature", "Color temperature adjustment (kelvin)", OFFSET(temperature), AV_OPT_TYPE_FLOAT, {.dbl = 6500.0}, 1667.0, 25000.0, DYNAMIC },
+ 
+     { "peak_detect", "Enable dynamic peak detection for HDR tone-mapping", OFFSET(peakdetect), AV_OPT_TYPE_BOOL, {.i64 = 1}, 0, 1, DYNAMIC },
++    { "fallback_peak", "Peak brightness (cd/m2) assumed for PQ input without HDR metadata, 0 for PQ's own", OFFSET(fallback_peak), AV_OPT_TYPE_FLOAT, {.dbl = 0.0}, 0.0, 10000.0, DYNAMIC },
+     { "smoothing_period", "Peak detection smoothing period", OFFSET(smoothing), AV_OPT_TYPE_FLOAT, {.dbl = 20.0}, 0.0, 1000.0, DYNAMIC },
+     { "scene_threshold_low", "Scene change low threshold", OFFSET(scene_low), AV_OPT_TYPE_FLOAT, {.dbl = 1.0}, -1.0, 100.0, DYNAMIC },
+     { "scene_threshold_high", "Scene change high threshold", OFFSET(scene_high), AV_OPT_TYPE_FLOAT, {.dbl = 3.0}, -1.0, 100.0, DYNAMIC },

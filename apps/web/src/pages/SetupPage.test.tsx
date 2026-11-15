@@ -44,7 +44,7 @@ describe("SetupPage", () => {
     await waitFor(() =>
       expect(setupPosts(requests).at(-1)?.body).toEqual({ username: "owner", password: "short and sweet", setup_code: "ABCD-EFGH" }),
     );
-    expect(await screen.findByTestId("location")).toHaveTextContent("/settings/libraries");
+    expect(await screen.findByTestId("location")).toHaveTextContent("/setup/server");
   });
 
   it("asks for the code in the log, also from older links", async () => {

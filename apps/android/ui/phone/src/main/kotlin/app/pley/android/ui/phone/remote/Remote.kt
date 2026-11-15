@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
@@ -90,7 +91,9 @@ import app.pley.android.designsystem.image.Artwork
 import app.pley.android.designsystem.image.ArtworkCandidates
 import app.pley.android.designsystem.image.ArtworkImage
 import app.pley.android.designsystem.text.formatWords
+import app.pley.android.designsystem.text.shownLocale
 import app.pley.android.designsystem.tile.ChannelLogo
+import app.pley.android.model.CastProtocol
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.ItemKind
@@ -115,7 +118,9 @@ import app.pley.android.ui.phone.kit.ConfirmDialog
 import app.pley.android.ui.phone.kit.PleyIconButton
 import app.pley.android.ui.phone.kit.PleySheet
 import app.pley.android.ui.phone.livetv.rememberClock
+import java.text.NumberFormat
 import kotlin.coroutines.cancellation.CancellationException
+import kotlin.math.roundToInt
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -417,13 +422,18 @@ private fun DeviceRow(device: OtherDevice, name: String, now: Long, onClick: () 
 }
 
 /**
- * What a device that plays nothing here says: "Ready to play", and a
- * device of another of the household's profiles whose it is: "On Sam's
- * profile", never what it plays.
+ * What a device that plays nothing here says: "Ready to play", a device
+ * of another of the household's profiles whose it is: "On Sam's profile",
+ * never what it plays, and one the server plays on itself what it is:
+ * "Google Cast", "AirPlay".
  */
 @Composable
-internal fun readyLine(device: OtherDevice): String =
-    device.profile?.let { stringResource(R.string.remote_on_profile, it.name) } ?: stringResource(R.string.remote_ready)
+internal fun readyLine(device: OtherDevice): String = when (device.protocol) {
+    // A device the server plays on itself says what it is.
+    CastProtocol.Cast -> stringResource(R.string.remote_google_cast)
+    CastProtocol.AirPlay -> stringResource(R.string.remote_airplay)
+    else -> device.profile?.let { stringResource(R.string.remote_on_profile, it.name) } ?: stringResource(R.string.remote_ready)
+}
 
 /** A device's kind as an icon in a 40 dp circle: in the accent while it plays. */
 @Composable
@@ -547,7 +557,7 @@ private fun Playing(
         val toggle = request.command == Control.Play || request.command == Control.Pause
         val target = RemoteRepository.target(shown, request.command, sentAt, request.positionMs, request.offsetMs)
             ?: shown.positionAt(sentAt).takeIf { toggle }
-        val entry = SentCommand(request.command, before, sentAt, target, request.streamIndex, request.quality)
+        val entry = SentCommand(request.command, before, sentAt, target, request.streamIndex, request.quality, request.volume)
         // Shown at once, and waited for from now: the player's report confirms it.
         sent = entry
         onCommand(before, request.command)
@@ -976,7 +986,8 @@ private fun ChannelRocker(session: RemoteSession, device: String, send: (PlayerC
  * it and has something to pick: more than one audio track, any subtitles,
  * the qualities its menu offers. Each opens a menu labelled as the
  * player's own menu labels it, what plays ticked (subtitles' Off first; no
- * quality ticked until the player says which).
+ * quality ticked until the player says which). Then the device's volume,
+ * where its player takes it and has said it (a Google Cast device's).
  */
 @Composable
 private fun Choices(session: RemoteSession, device: String, send: (PlayerCommandRequest) -> Unit, modifier: Modifier = Modifier) {
@@ -1020,6 +1031,49 @@ private fun Choices(session: RemoteSession, device: String, send: (PlayerCommand
                 onPick = { send(PlayerCommandRequest(Control.Quality, quality = it)) },
             )
         }
+        val volume = playing.volume?.takeIf { session.can(Control.Volume) }
+        if (volume != null) {
+            Volume(volume, device, onSet = { send(PlayerCommandRequest(Control.Volume, volume = it)) }, Modifier.weight(1f, fill = false))
+        }
+    }
+}
+
+/** The device's [level] (0 to 100) on a slider, read out as a percentage; [onSet] once a new level is let go of. */
+@Composable
+private fun Volume(level: Int, device: String, onSet: (Int) -> Unit, modifier: Modifier = Modifier) {
+    // What the thumb shows while it is dragged; the device's level otherwise.
+    var dragged by remember { mutableStateOf<Float?>(null) }
+    val label = stringResource(R.string.remote_volume_on, device)
+    val percent = NumberFormat.getPercentInstance(shownLocale()).format((dragged ?: level.toFloat()).roundToInt() / 100.0)
+    Row(modifier.padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        val shown = (dragged ?: level.toFloat()).roundToInt()
+        // As loud as it is: muted, low, or high.
+        val icon = when {
+            shown == 0 -> PleyIcons.VolumeX
+            shown < 50 -> PleyIcons.Volume1
+            else -> PleyIcons.Volume2
+        }
+        Icon(icon, contentDescription = null, size = 20.dp, tint = PleyColors.Muted)
+        Spacer(Modifier.width(8.dp))
+        Slider(
+            value = dragged ?: level.toFloat(),
+            onValueChange = { dragged = it },
+            onValueChangeFinished = {
+                val asked = dragged?.roundToInt()
+                dragged = null
+                // A level the device has already: nothing would answer it.
+                if (asked != null && asked != level) onSet(asked)
+            },
+            valueRange = 0f..100f,
+            colors = SliderDefaults.colors(thumbColor = PleyColors.Fg, activeTrackColor = PleyColors.Fg, inactiveTrackColor = PleyColors.Surface3),
+            modifier = Modifier
+                .widthIn(max = 140.dp)
+                .semantics {
+                    contentDescription = label
+                    stateDescription = percent
+                }
+                .testTag(REMOTE_VOLUME),
+        )
     }
 }
 
@@ -1163,6 +1217,7 @@ internal const val REMOTE_CARD = "pley.phone.remote_card."
 internal const val REMOTE_AUDIO = "pley.phone.remote_audio"
 internal const val REMOTE_SUBTITLES = "pley.phone.remote_subtitles"
 internal const val REMOTE_QUALITY = "pley.phone.remote_quality"
+internal const val REMOTE_VOLUME = "pley.phone.remote_volume"
 
 /** A channel's up and down. */
 internal const val REMOTE_ROCKER = "pley.phone.remote_rocker"

@@ -251,7 +251,8 @@ impl Listener {
             | ServerEvent::RequestDecided { .. }
             | ServerEvent::RequestCreated { .. }
             | ServerEvent::RequestFailed { .. }
-            | ServerEvent::RequestsSettingsChanged { .. } => Ok(Vec::new()),
+            | ServerEvent::RequestsSettingsChanged { .. }
+            | ServerEvent::ImportChanged { .. } => Ok(Vec::new()),
         };
         result.unwrap_or_else(|err| {
             tracing::debug!("notification socket: {err}");

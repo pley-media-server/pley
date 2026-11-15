@@ -88,7 +88,7 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
 }
 
 /// Where Play starts for this user: the resume point, or the beginning once watched.
-fn resume_ms(row: &ItemRow) -> i64 {
+pub(crate) fn resume_ms(row: &ItemRow) -> i64 {
     if row.watched { 0 } else { row.position_ms.max(0) }
 }
 

@@ -4,10 +4,13 @@ import { appKeys } from "@/api/apps";
 import { keys, useSettings, useSystemInfo, useUsers, useWatchingHours } from "@/api/hooks";
 import type { LibraryWork, Settings, TvMetadata } from "@/api/types";
 import { useAuth } from "@/auth";
+import { CountrySelect } from "@/components/CountrySelect";
 import { Select, TextInput, Toggle } from "@/components/ui";
 import { LanguageOptions } from "@/i18n/LanguageOptions";
 import { Trans, useTranslation } from "react-i18next";
+import { regionOf } from "@/lib/access";
 import { formatTimestamp } from "@/lib/format";
+import { metadataLanguageChoices } from "@/lib/metadataLanguages";
 import { useDocumentTitle } from "@/lib/hooks";
 import { Group, Link, Note, Row, SecretInput, SettingsForm, TestButton, useSettingsForm } from "./SettingsForm";
 import { knownTranscoder } from "./transcodeChoices";
@@ -19,6 +22,7 @@ const KEYS = [
   "language",
   "tmdb_api_key",
   "metadata_language",
+  "country",
   "tv_metadata",
   "tvdb_api_key",
   "tvdb_pin",
@@ -39,35 +43,6 @@ const KEYS = [
   "opensubtitles_username",
   "opensubtitles_password",
 ] as const satisfies readonly (keyof Settings)[];
-
-const LANGUAGES = [
-  "en-US",
-  "en-GB",
-  "fr-FR",
-  "de-DE",
-  "es-ES",
-  "es-MX",
-  "it-IT",
-  "pt-BR",
-  "pt-PT",
-  "nl-NL",
-  "sv-SE",
-  "da-DK",
-  "fi-FI",
-  "nb-NO",
-  "pl-PL",
-  "cs-CZ",
-  "ru-RU",
-  "uk-UA",
-  "tr-TR",
-  "ar-SA",
-  "he-IL",
-  "hi-IN",
-  "ja-JP",
-  "ko-KR",
-  "zh-CN",
-  "zh-TW",
-];
 
 const TV_SOURCES: Record<Exclude<TvMetadata, "auto">, string> = { tmdb: "TMDB", tvdb: "TheTVDB", tvmaze: "TVmaze" };
 
@@ -130,6 +105,10 @@ export function ServerSettings() {
                   <LanguageOptions />
                 </Select>
               </Row>
+              <Row label={t("server.country")} hint={t("server.countryHint")} htmlFor="server-country">
+                {/* The metadata language's until an administrator picks one (an empty setting). */}
+                <CountrySelect id="server-country" value={form.country || regionOf(form.metadata_language)} onChange={(v) => set("country", v)} />
+              </Row>
             </Group>
 
             <Group title={t("server.metadata.title")} description={t("server.metadata.description")}>
@@ -188,9 +167,9 @@ ${form.tvdb_pin}`}
               ) : null}
               <Row label={t("server.metadata.language")} htmlFor="meta-lang" hint={t("server.metadata.languageHint")}>
                 <Select id="meta-lang" value={form.metadata_language} onChange={(e) => set("metadata_language", e.target.value)} className="w-full">
-                  {(LANGUAGES.includes(form.metadata_language) ? LANGUAGES : [form.metadata_language, ...LANGUAGES]).map((l) => (
-                    <option key={l} value={l}>
-                      {l}
+                  {metadataLanguageChoices(form.metadata_language).map((l) => (
+                    <option key={l.value} value={l.value}>
+                      {l.label}
                     </option>
                   ))}
                 </Select>

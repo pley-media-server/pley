@@ -126,7 +126,10 @@ sub onLayout()
 end sub
 
 sub onFocus()
-    focused = m.top.itemHasFocus and m.top.rowHasFocus and m.top.rowListHasFocus and m.top.gridHasFocus
+    ' A RowList's rows say whether they have the focus; some Rokus also set
+    ' gridHasFocus false on its tiles, which only a MarkupGrid's mean.
+    gridHasFocus = m.top.gridHasFocus or inRowList()
+    focused = m.top.itemHasFocus and m.top.rowHasFocus and m.top.rowListHasFocus and gridHasFocus
     ' Words in the frame (See all, a title without a picture) stay legible
     ' on the accent.
     if focused
@@ -139,3 +142,22 @@ sub onFocus()
         m.fallback.color = "0xA1A9B6FF"
     end if
 end sub
+
+' Whether this tile is in a RowList's row, rather than a MarkupGrid: found
+' once among its parents (a list's tiles stay in it), once it has them.
+function inRowList() as boolean
+    if m.inRowList <> invalid then return m.inRowList
+    node = m.top.getParent()
+    if node = invalid then return false
+    m.inRowList = false
+    for i = 1 to 4
+        if node = invalid then exit for
+        kind = node.subtype()
+        if kind = "RowList" or kind = "RowListItem"
+            m.inRowList = true
+            exit for
+        end if
+        node = node.getParent()
+    end for
+    return m.inRowList
+end function

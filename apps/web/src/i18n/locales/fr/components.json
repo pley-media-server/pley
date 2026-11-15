@@ -187,8 +187,12 @@
   "playOn": {
     "label": "Lire sur…",
     "playingOn": "Lecture sur {{device}}",
+    "starting": "Lancement sur {{device}}…",
     "otherProfile": "{{device}} est sur le profil de {{profile}} : il passe d’abord au vôtre.",
-    "enterPin": "Saisissez votre code PIN"
+    "enterPin": "Saisissez votre code PIN",
+    "pairWith": "Associer {{device}}",
+    "pairWhy": "Saisissez le code affiché sur {{device}}. Tout votre foyer pourra ensuite y lire.",
+    "showCodeAgain": "Aucun code affiché ? L’afficher à nouveau"
   },
   "remote": {
     "readyToPlay": "Prêt pour la lecture",
@@ -234,7 +238,10 @@
     "stop": "Arrêter",
     "stopConfirm": "Arrêter la lecture sur {{device}} ?",
     "programme": "{{title}}, de {{start}} à {{end}}",
-    "next": "À suivre : {{title}}"
+    "next": "À suivre : {{title}}",
+    "googleCast": "Google Cast",
+    "volumeOn": "Volume sur {{device}}",
+    "airPlay": "AirPlay"
   },
   "requestNotices": {
     "open": "Ouvrir"

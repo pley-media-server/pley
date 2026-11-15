@@ -166,9 +166,13 @@ pub async fn user_dto(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser) ->
             enable_next_episode_auto_play: true,
         },
         policy: UserPolicy {
-            // Nothing administers through this API, an administrator's
-            // sign-in included: clients then offer no dashboard that fails.
-            is_administrator: false,
+            // Activity monitors such as Tracearr take only an
+            // administrator's key: a token with `activity` (an
+            // administrator's) says it is one, and sees everyone's sessions.
+            // It administers nothing here all the same ([`super::JfUser`]),
+            // and apps' sign-ins never have it, so they offer no dashboard
+            // that fails.
+            is_administrator: user.compatibility_allows(crate::auth::compatibility::Scope::Activity),
             is_hidden: true,
             // As Pley lets the token: with `manage`, collections change here.
             enable_collection_management: user.compatibility_allows(crate::auth::compatibility::Scope::Manage),

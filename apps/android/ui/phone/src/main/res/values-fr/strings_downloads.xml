@@ -26,13 +26,16 @@
 
     <string name="downloads_download">Télécharger</string>
     <string name="downloads_downloaded">Téléchargé</string>
-    <string name="downloads_failed_short">Échec du téléchargement</string>
+    <string name="downloads_failed_short">Échec</string>
     <string name="downloads_queued_short">En file d’attente</string>
     <string name="downloads_waiting_short">En attente</string>
+    <string name="downloads_preparing_short">Préparation</string>
+    <string name="downloads_percent">%1$d %%</string>
     <string name="downloads_download_season">Télécharger la saison</string>
     <string name="downloads_download_item">Télécharger %1$s</string>
     <string name="downloads_downloaded_item">Téléchargé : %1$s</string>
     <string name="downloads_downloading_item">Téléchargement de %1$s, %2$d %%</string>
+    <string name="downloads_status_item">%1$s, %2$s</string>
     <string name="downloads_failed_toast">Impossible de télécharger : %1$s</string>
     <string name="downloads_started">Téléchargement en cours. Retrouvez-le dans Téléchargements, sous Moi.</string>
     <string name="downloads_started_action">Téléchargements</string>

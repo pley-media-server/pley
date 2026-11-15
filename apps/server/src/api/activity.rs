@@ -18,7 +18,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use super::remote::{self, SessionKind};
 use crate::access;
 use crate::auth::scopes::Scope;
-use crate::auth::{AuthUser, CurrentToken};
+use crate::auth::{AuthUser, CurrentToken, SourceIp};
 use crate::catalog::{self, ItemSummary};
 use crate::error::{ApiResult, AppError};
 use crate::i18n;
@@ -39,18 +39,43 @@ pub struct SessionInfo {
     device: Option<String>,
     device_id: String,
     device_kind: crate::playback::DeviceKind,
+    /// What plays it: a Pley app, another app through the Plex- or
+    /// Jellyfin-compatible API, or a Google Cast or AirPlay device the
+    /// server plays on.
+    player: &'static str,
     item: ItemSummary,
     method: Method,
     position_ms: i64,
     state: String,
+    /// How long ago its player reported `position_ms` (ms, by the server's
+    /// clock, as the answer is made); none before its first report. The
+    /// dashboard moves a playing session's time on from it, as remotes do,
+    /// without comparing its own clock with the server's.
+    age_ms: Option<i64>,
     started_at: i64,
     updated_at: i64,
     transcode: Option<TranscodeInfo>,
 }
 
+/// What plays `session`, as [`SessionInfo::player`] says it.
+fn player_of(session: &crate::playback::Session) -> &'static str {
+    use crate::playback::Api;
+    if let Some(protocol) = crate::nearby::Protocol::of(&session.device_id) {
+        return protocol.word();
+    }
+    match session.api {
+        Api::Pley => "pley",
+        Api::Plex => "plex",
+        Api::Jellyfin => "jellyfin",
+    }
+}
+
 #[derive(Serialize)]
 pub struct Activity {
     scans: Vec<ScanStatus>,
+    /// Libraries' first scans that are done while others are still queued
+    /// or running, for Home to tick off; empty once the last is done.
+    first_scans_done: Vec<ScanStatus>,
     sessions: Vec<SessionInfo>,
     /// Intro/credits detection in progress.
     analysis: Option<AnalysisStatus>,
@@ -81,6 +106,7 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
         HashMap::new()
     };
     let mut out = Vec::new();
+    let now_ms = crate::util::now_ms();
     for session in sessions {
         let Some(row) = catalog::item(&state.db, session.user_id, session.item_id).await? else { continue };
         let play = session.play.lock().clone();
@@ -92,10 +118,12 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
             device: session.device.clone(),
             device_id: session.device_id.clone(),
             device_kind: session.device_kind,
+            player: player_of(&session),
             item: row.to_summary(),
             method: session.method,
             position_ms: play.position_ms,
             state: play.state,
+            age_ms: play.reported_at_ms.map(|at| (now_ms - at).max(0)),
             started_at: session.started_at,
             updated_at: play.updated_at,
             transcode: session
@@ -111,14 +139,12 @@ pub async fn activity(State(state): State<AppState>, user: AuthUser) -> ApiResul
     let library_work = (seasons_pending + previews_pending > 0).then(|| state.schedule.status());
     // Scans of libraries the user can't open stay private (their names too).
     let libraries = access::library_ids(&state.db, &user).await?;
-    let scans = state
-        .scanner
-        .statuses()
-        .into_iter()
-        .filter(|s| libraries.as_ref().is_none_or(|ids| ids.contains(&s.library_id)))
-        .collect();
+    let visible = |s: &ScanStatus| libraries.as_ref().is_none_or(|ids| ids.contains(&s.library_id));
+    let scans = state.scanner.statuses().into_iter().filter(visible).collect();
+    let first_scans_done = state.scanner.first_scans_done().into_iter().filter(visible).collect();
     Ok(Json(Activity {
         scans,
+        first_scans_done,
         sessions: out,
         analysis,
         seasons_pending,
@@ -175,6 +201,7 @@ pub async fn events(
     State(state): State<AppState>,
     user: AuthUser,
     CurrentToken(token): CurrentToken,
+    SourceIp(address): SourceIp,
     headers: HeaderMap,
     query: Result<Query<EventsQuery>, QueryRejection>,
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
@@ -211,6 +238,7 @@ pub async fn events(
             // app's would take the household's casts, and their PINs, for
             // nothing.
             switches: query.casts.as_deref().is_some_and(remote::casts_switch) && remote::reaches_household(&user),
+            address,
         };
         state.receivers.open(&state.events, user.id, id, receiver)
     });

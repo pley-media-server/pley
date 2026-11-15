@@ -11,6 +11,7 @@ import { cn } from "@/lib/cn";
 import { pickFeatured } from "@/lib/featured";
 import { useDocumentTitle } from "@/lib/hooks";
 import { HomeBanner, HomeBannerSkeleton, ROWS_OVERLAP } from "./HomeBanner";
+import { HomeProgress } from "./HomeProgress";
 
 export function HomePage() {
   const { t } = useTranslation(["pages", "common"]);
@@ -65,24 +66,31 @@ export function HomePage() {
   if (visible.length === 0) {
     const scanning = libs.data?.some((l) => l.scanning);
     return (
-      <EmptyState
-        className="min-h-[70vh]"
-        icon={<Clapperboard />}
-        title={scanning ? t("home.scanning") : t("home.empty")}
-        description={scanning ? t("home.scanningHint") : t("home.emptyHint")}
-        action={
-          user.is_admin && !scanning ? (
-            <Link to="/settings/libraries" className={buttonClass()}>
-              {t("home.manage")}
-            </Link>
-          ) : undefined
-        }
-      />
+      <>
+        <HomeProgress className="mx-4 mt-6 sm:mx-8" />
+        <EmptyState
+          className="min-h-[70vh]"
+          icon={<Clapperboard />}
+          title={scanning ? t("home.scanning") : t("home.empty")}
+          description={scanning ? t("home.scanningHint") : t("home.emptyHint")}
+          action={
+            user.is_admin && !scanning ? (
+              <Link to="/settings/libraries" className={buttonClass()}>
+                {t("home.manage")}
+              </Link>
+            ) : undefined
+          }
+        />
+      </>
     );
   }
 
   return (
     <>
+      {/* What's filling in comes first while it shows: the banner then starts below it rather than under the top bar. */}
+      <div data-home-progress className="px-4 pt-6 pb-6 empty:hidden sm:px-8">
+        <HomeProgress />
+      </div>
       {featured.length ? <HomeBanner featured={featured} /> : null}
       <div className={cn("relative space-y-9 py-7 sm:space-y-10 sm:py-8", featured.length && [ROWS_OVERLAP, "pt-0 sm:pt-0"])}>
         {visible.map((hub) => (

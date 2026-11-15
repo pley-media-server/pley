@@ -1,0 +1,30 @@
+From: the jellyfin-ffmpeg contributors
+Subject: unref the last frame on filter graph cleanup
+Origin: https://github.com/jellyfin/jellyfin-ffmpeg/blob/v8.1.3-2/debian/patches/0106-unref-the-last-frame-on-filter-graph-cleanup.patch
+
+ffmpeg lets go of the frame its frame rate conversion kept when it
+rebuilds a filter graph: it belonged to the old graph's frames, which
+crashed hwmap.
+
+Rebased onto FFmpeg 9.0.2: the same change, at 9.0.2's line numbers.
+
+From jellyfin-ffmpeg 8.1.3-2, where the patch has no header: its authors
+are in that repository's history. Under FFmpeg's licence, as the files
+it changes.
+---
+diff --git a/fftools/ffmpeg_filter.c b/fftools/ffmpeg_filter.c
+--- a/fftools/ffmpeg_filter.c
++++ b/fftools/ffmpeg_filter.c
+@@ -2032,8 +2032,11 @@ static int configure_input_filter(Filter
+ 
+ static void cleanup_filtergraph(FilterGraph *fg, FilterGraphThread *fgt)
+ {
+-    for (int i = 0; i < fg->nb_outputs; i++)
++    for (int i = 0; i < fg->nb_outputs; i++) {
+         fg->outputs[i]->filter = NULL;
++        // drop the last frame retained by FPS conversion before graph reinitialization
++        av_frame_unref(ofp_from_ofilter(fg->outputs[i])->fps.last_frame);
++    }
+     for (int i = 0; i < fg->nb_inputs; i++)
+         fg->inputs[i]->filter = NULL;
+     avfilter_graph_free(&fgt->graph);

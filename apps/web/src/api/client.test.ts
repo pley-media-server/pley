@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { apiError, mockApi } from "@/test/render";
-import { api, ApiError, errorMessage, isApiError, qs, request, setUnauthorizedHandler } from "./client";
+import { api, ApiError, errorMessage, isApiError, qs, request, setUnauthorizedHandler, signInAgainFrom } from "./client";
 
 afterEach(() => {
   setUnauthorizedHandler(null);
@@ -88,6 +88,13 @@ describe("request", () => {
     const abort = new DOMException("The operation was aborted.", "AbortError");
     vi.stubGlobal("fetch", vi.fn().mockRejectedValueOnce(abort));
     await expect(api.get("/api/x")).rejects.toBe(abort);
+  });
+});
+
+describe("signInAgainFrom", () => {
+  it("sends setup's steps after the first account to sign in, not the pages before one", () => {
+    for (const path of ["/", "/setup/server", "/setup/start", "/setup/plex", "/settings/users"]) expect(signInAgainFrom(path), path).toBe(true);
+    for (const path of ["/login", "/setup", "/setup/", "/invite/abc"]) expect(signInAgainFrom(path), path).toBe(false);
   });
 });
 

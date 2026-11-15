@@ -5,7 +5,7 @@
 //! number per user ("up to 12") works for all of them. Some ratings mean
 //! different ages in different countries ("A" is for all ages in Denmark and
 //! for adults in India), so a rating is read with its country's ratings
-//! ([`SYSTEMS`]) when its country is known, else the metadata region's, and
+//! ([`SYSTEMS`]) when its country is known, else the server's country's, and
 //! only then with the table below, which knows the US's names and numbers.
 
 mod systems;
@@ -71,7 +71,7 @@ impl Rating {
 impl System {
     /// The age of `rating` in this country: a rating of the kind first, then
     /// one of the other kind (TMDB gives some TV shows a film rating).
-    fn age(&self, kind: Kind, rating: &str) -> Option<i64> {
+    pub fn age(&self, kind: Kind, rating: &str) -> Option<i64> {
         let named = |r: &&Rating| r.names.iter().any(|n| same(n, rating));
         let found = self.ratings.iter().filter(named).find(|r| r.kind.is_none_or(|k| k == kind));
         found.or_else(|| self.ratings.iter().find(named)).map(|r| r.age)
@@ -84,7 +84,7 @@ pub fn system(country: &str) -> Option<&'static System> {
 }
 
 /// The age `rating` stands for, `None` when unknown or unrated. `country`
-/// is the rating's, or else the metadata region's; a rating written with
+/// is the rating's, or else the server's country; a rating written with
 /// its country (an NFO file's "GB:15", Plex's "gb/12A") is read as that
 /// country's whatever `country` says.
 pub fn age(country: Option<&str>, kind: Kind, rating: &str) -> Option<i64> {
@@ -99,16 +99,26 @@ pub fn region_of(language: &str) -> String {
     language.split(['-', '_']).nth(1).unwrap_or("US").to_ascii_uppercase()
 }
 
-/// The metadata region, read from the settings as they're stored.
+/// The server's country: the one chosen, else its metadata language's.
+pub fn region_in(settings: &crate::settings::Settings) -> String {
+    if settings.country.is_empty() { region_of(&settings.metadata_language) } else { settings.country.clone() }
+}
+
+/// The server's country ([`region_in`]), read from the settings as they're
+/// stored.
 pub async fn region(db: &Db) -> sqlx::Result<String> {
-    let language: Option<String> = sqlx::query_scalar(
-        "SELECT CASE WHEN json_valid(value) THEN json_extract(value, '$.metadata_language') END
+    let stored: Option<(Option<String>, Option<String>)> = sqlx::query_as(
+        "SELECT CASE WHEN json_valid(value) THEN json_extract(value, '$.country') END,
+                CASE WHEN json_valid(value) THEN json_extract(value, '$.metadata_language') END
              FROM settings WHERE key = 'server'",
     )
     .fetch_optional(&db.read)
-    .await?
-    .flatten();
-    Ok(region_of(language.as_deref().unwrap_or("en-US")))
+    .await?;
+    let (country, language) = stored.unwrap_or_default();
+    Ok(match country.filter(|c| !c.is_empty()) {
+        Some(country) => country,
+        None => region_of(language.as_deref().unwrap_or("en-US")),
+    })
 }
 
 /// Names compare without regard to case or the spaces around them.
@@ -128,7 +138,7 @@ fn without_rated(rating: &str) -> &str {
 /// "GB:15", "gb/12A" and "USA:R": the country written before a rating, when
 /// it's one with ratings here (Portugal's "M/12" and Belgium's "KT/EA" are
 /// ratings, not countries).
-fn with_country(rating: &str) -> (Option<&'static str>, &str) {
+pub fn with_country(rating: &str) -> (Option<&'static str>, &str) {
     let Some((before, after)) = rating.split_once([':', '/']) else { return (None, rating) };
     let before = before.trim();
     let country = if before.eq_ignore_ascii_case("usa") { Some("US") } else { system(before).map(|s| s.country) };
@@ -168,7 +178,7 @@ fn rating_age(rating: &str) -> Option<i64> {
 
 /// Work out the items' ages: those without one (stored before ages
 /// existed), and all of them when the ratings tables ([`VERSION`]) or the
-/// metadata region (the country of ratings with none of their own) changed
+/// server's country (that of ratings with none of their own) changed
 /// since the last time.
 ///
 /// The first time, ratings were all stored without their country, though
@@ -514,5 +524,13 @@ mod tests {
         set_language(&db, "en-GB").await;
         backfill(&db).await.unwrap();
         assert_eq!(ages(&db).await, [Some(0), Some(18), Some(8)], "a British server: PG is 8");
+        // A country chosen goes before the metadata language's.
+        sqlx::query("UPDATE settings SET value = json_set(value, '$.country', 'US') WHERE key = 'server'")
+            .execute(&db.write)
+            .await
+            .unwrap();
+        assert_eq!(region(&db).await.unwrap(), "US");
+        backfill(&db).await.unwrap();
+        assert_eq!(ages(&db).await[2], Some(10), "English titles, American ratings");
     }
 }

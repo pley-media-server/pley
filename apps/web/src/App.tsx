@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import { createBrowserRouter, Navigate, RouterProvider, type Params, type RouteObject } from "react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { LoaderCircle } from "lucide-react";
-import { ApiError, setUnauthorizedHandler } from "@/api/client";
+import { ApiError, setUnauthorizedHandler, signInAgainFrom } from "@/api/client";
 import { queries } from "@/api/hooks";
 import { liveQueries } from "@/api/livetv";
 import { requestQueries } from "@/api/requests";
@@ -23,7 +23,9 @@ import { NotFoundPage, RouteErrorPage } from "@/pages/NotFoundPage";
 import { PersonPage } from "@/pages/PersonPage";
 import { ProfilesPage } from "@/pages/ProfilesPage";
 import { SearchPage } from "@/pages/SearchPage";
+import { SetupLayout } from "@/pages/SetupLayout";
 import { SetupPage } from "@/pages/SetupPage";
+import { SetupStartPage } from "@/pages/SetupStartPage";
 import { loadPlayerPage, playerData } from "@/player/preload";
 
 export const queryClient = new QueryClient({
@@ -80,7 +82,48 @@ function onDemand<M>(
 }
 
 const router = createBrowserRouter([
-  { path: "/setup", element: <SetupPage />, errorElement: <RouteErrorPage /> },
+  // Setup, from the administrator's account on, in one card that stays.
+  {
+    element: <SetupLayout />,
+    errorElement: <RouteErrorPage />,
+    children: [
+      { path: "/setup", element: <SetupPage /> },
+      {
+        element: <RequireAuth />,
+        children: [
+          // The first run goes on here once the administrator's account is made.
+          {
+            path: "/setup/server",
+            ...onDemand(
+              withWords(["settings"], () => import("@/pages/SetupServerPage")),
+              (m) => m.SetupServerPage,
+              () => [],
+              <Splash />,
+            ),
+          },
+          { path: "/setup/start", element: <SetupStartPage /> },
+          {
+            path: "/setup/library",
+            ...onDemand(
+              withWords(["settings"], () => import("@/pages/SetupLibraryPage")),
+              (m) => m.SetupLibraryPage,
+              () => [],
+              <Splash />,
+            ),
+          },
+          {
+            path: "/setup/plex",
+            ...onDemand(
+              withWords(["settings"], () => import("@/pages/plexImport/PlexSetupPage")),
+              (m) => m.PlexSetupPage,
+              () => [],
+              <Splash />,
+            ),
+          },
+        ],
+      },
+    ],
+  },
   { path: "/login", element: <LoginPage />, errorElement: <RouteErrorPage /> },
   { path: "/invite/:code", element: <InvitePage />, errorElement: <RouteErrorPage /> },
   // Where the way back to an app leads once its request is over.
@@ -279,7 +322,7 @@ const router = createBrowserRouter([
 // Any authenticated request that comes back 401 (expired/revoked session) sends the user to the login screen.
 setUnauthorizedHandler(() => {
   const { pathname, search } = window.location;
-  if (pathname.startsWith("/login") || pathname.startsWith("/setup") || pathname.startsWith("/invite/")) return;
+  if (!signInAgainFrom(pathname)) return;
   const next = pathname + search;
   void router
     .navigate(next && next !== "/" ? `/login?next=${encodeURIComponent(next)}` : "/login", { replace: true })

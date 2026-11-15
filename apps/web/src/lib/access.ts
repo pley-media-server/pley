@@ -55,6 +55,18 @@ export function systemChoices(systems: RatingSystems | undefined): { value: stri
     .sort((a, b) => collator.compare(a.label, b.label));
 }
 
+/** The country of a metadata language ("GB" for "en-GB"), the US's without one, as the server reads it. */
+export function regionOf(language: string): string {
+  return language.split(/[-_]/)[1]?.toUpperCase() || "US";
+}
+
+/** The countries a server's ratings can be read as: those whose ratings Pley knows, and `current`. */
+export function countryChoices(systems: RatingSystems | undefined, current: string): { value: string; label: string }[] {
+  const choices = systemChoices(systems);
+  if (current && !choices.some((c) => c.value === current)) return [{ value: current, label: systemName(current) }, ...choices];
+  return choices;
+}
+
 /** How an age limit is set: what the age limit select shows. */
 export type LimitMode = "none" | "rating" | "age" | "birthday";
 
@@ -67,7 +79,7 @@ export function limitMode(
   return shownSystem(systems, value.max_age_system, value.max_age) === AGE_SYSTEM ? "age" : "rating";
 }
 
-/** The country to pick a rating in: the one stored, else the metadata region, else the US. */
+/** The country to pick a rating in: the one stored, else the server's country, else the US. */
 export function ratingSystem(systems: RatingSystems | undefined, stored: string | null): string | null {
   const countries = systems?.systems ?? [];
   const has = (code: string | null) => !!code && countries.some((s) => s.country === code);
@@ -93,7 +105,7 @@ export function writtenCountry(systems: RatingSystems | undefined, rating: strin
 }
 
 /**
- * The system a limit shows in: the one stored, else the metadata region's,
+ * The system a limit shows in: the one stored, else the server's country's,
  * else Age; and Age when the system has no rating for the limit (8 in the
  * US), so that it never reads as no limit.
  */

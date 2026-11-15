@@ -159,8 +159,9 @@ sub showDetail()
     hasButtons = m.detail.buttons.Count() > 0 and (m.detail.kind <> "show" or m.onDeckKnown)
     if hasButtons
         focused = m.buttons.buttonFocused
+        hadFocus = m.buttons.isInFocusChain()
         if FormatJson(m.buttons.buttons) <> FormatJson(m.detail.buttons) then m.buttons.buttons = m.detail.buttons
-        if focused > 0 and focused < m.detail.buttons.Count() then m.buttons.focusButton = focused
+        uiKeepButton(m.buttons, focused, hadFocus)
     end if
     m.buttons.visible = hasButtons
     m.column.visible = true

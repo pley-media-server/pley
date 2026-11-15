@@ -118,8 +118,8 @@
       "locked": "Locked: click to unlock",
       "willUnlock": "Will be unlocked",
       "ratingCountry": "Country: {{country}}",
-      "ratingRegion": "Read with the metadata region’s ratings",
-      "ratingCommon": "Read by the US’s ratings and others in common use: the metadata region has none here",
+      "ratingRegion": "Read with the ratings of the server’s country, set in Settings › Server",
+      "ratingCommon": "Read by the US’s ratings and others in common use: the server’s country has none here",
       "fromNfo": "From the NFO file",
       "fields": {
         "title": "Title",

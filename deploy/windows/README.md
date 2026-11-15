@@ -14,7 +14,10 @@ installing it, use the release's `.zip` instead
    **More info → Run anyway**.
 3. Keep the defaults, or change them ([Setup's choices](#setups-choices)).
 4. On the last page, open the setup link to create the administrator
-   account. If you started from existing data, sign in as before.
+   account; setup then asks about your server and your libraries, or
+   brings over a Plex server
+   ([First start](../../docs/CONFIGURATION.md#first-start)). If you started
+   from existing data, sign in as before.
 
 Later, the Start menu's **Pley Media Server** opens Pley, and
 **Pley Media Server logs** opens its logs. A service has no icon in the
@@ -60,9 +63,11 @@ Good to know:
 - The Jellyfin-compatible API, for Jellyfin's apps, is off. **Settings →
   Network** turns it on, on Pley's port or one of its own.
 - FFmpeg comes with the installer, in `ffmpeg\` next to Pley. Releases carry
-  gyan.dev's full build (NVENC, Quick Sync, AMF, Vulkan tone mapping). The
-  ARM64 installer carries the same x64 build, which Windows emulates, so on
-  Windows on Arm Pley transcodes on the CPU.
+  pley-ffmpeg's Windows build: FFmpeg 9 with NVENC, Quick Sync, AMF and
+  Vulkan tone mapping, and the patches for Intel GPUs the Docker image's
+  has ([../ffmpeg/README.md](../ffmpeg/README.md)). The ARM64 installer
+  carries the same x64 build, which Windows emulates, so on Windows on Arm
+  Pley transcodes on the CPU.
 - The service starts with Windows (delayed), restarts when it stops on its
   own, and has 50 seconds to stop at shutdown.
 
@@ -196,8 +201,12 @@ Or, from a release folder you already built:
 - **`-Ffmpeg <bin folder>`** picks the FFmpeg build to carry (default: the
   one on `PATH`, following WinGet's link). Setup takes its DLLs and, from
   beside `bin`, its `LICENSE*`, `README.txt` and `source\` (a patched build's
-  patch and script, which the GPL requires). Releases use gyan.dev's full
-  build, at the version and checksum in `.github/workflows/server.yml`.
+  patch and script, which the GPL requires). Releases use pley-ffmpeg's
+  Windows build, which comes as such a folder: the FFmpeg workflow
+  publishes it from `deploy/ffmpeg/Dockerfile.windows`, and the release
+  takes the one for the recipe it is made from
+  ([../ffmpeg/README.md](../ffmpeg/README.md)). Any other build works too,
+  gyan.dev's full one for instance.
 - **`-Flavor <name>`** names an installer built with a different FFmpeg:
   `-Flavor custom` makes `pley-server-<version>-custom-windows-x86_64-setup.exe`.
 - `scripts\build.ps1 -Installer` passes `-Ffmpeg` and `-Flavor` on.

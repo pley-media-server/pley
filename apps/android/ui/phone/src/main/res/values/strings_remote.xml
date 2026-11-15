@@ -60,6 +60,7 @@
     <string name="remote_audio_on">Audio on %1$s</string>
     <string name="remote_subtitles_on">Subtitles on %1$s</string>
     <string name="remote_quality_on">Quality on %1$s</string>
+    <string name="remote_volume_on">Volume on %1$s</string>
 
     <!-- A channel playing: the programme on, its times ("20:00 – 21:00"), and the one after it. -->
     <string name="remote_live_span" translatable="false">%1$s – %2$s</string>
@@ -86,4 +87,21 @@
     <string name="play_on_back">Back to the devices</string>
     <string name="play_on_wrong_pin">Wrong PIN. Try again.</string>
     <string name="play_on_pin_locked">Your PIN is locked after too many wrong tries. You or an administrator can reset it.</string>
+
+    <!-- A Google Cast or AirPlay device the server plays on itself: what its row says under its name. -->
+    <string name="remote_google_cast">Google Cast</string>
+    <string name="remote_airplay">AirPlay</string>
+    <!-- Refused by a Google Cast or AirPlay device, said under the chooser's devices. -->
+    <string name="play_on_unreachable">%1$s can\'t reach this server.</string>
+    <string name="play_on_failed">%1$s didn\'t play it.</string>
+    <!-- An AirPlay device the server hasn't paired with: it shows a code, typed on the pad, once for the household. -->
+    <string name="play_on_pair_title">Pair with %1$s</string>
+    <string name="play_on_code_title">Type the code %1$s shows</string>
+    <string name="play_on_code_body">Everyone in your home can then play on it.</string>
+    <string name="play_on_show_code_again">No code showing? Show it again</string>
+    <string name="play_on_wrong_code">That isn\'t the code %1$s shows.</string>
+    <string name="play_on_pairing_wait">%1$s takes no other try yet: wait a moment.</string>
+    <string name="play_on_pairing_failed">%1$s didn\'t pair.</string>
+    <!-- A toast: the chooser closed before an AirPlay device asked for its code. -->
+    <string name="play_on_pair_first">%1$s wants pairing first: choose it in Play on… again.</string>
 </resources>

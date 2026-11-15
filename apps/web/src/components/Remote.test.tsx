@@ -207,7 +207,7 @@ describe("RemoteButton", () => {
     renderWithProviders(<RemoteButton />);
     const { panel } = await openRemote();
     // Asked for: without it, the list is the user's own devices alone.
-    expect(requests.filter((r) => r.path.startsWith("/api/remote/devices")).map((r) => r.path)).toContain("/api/remote/devices?household=1");
+    expect(requests.filter((r) => r.path.startsWith("/api/remote/devices")).map((r) => r.path)).toContain("/api/remote/devices?household=1&nearby=1");
     expect(within(within(panel).getByRole("list")).getAllByRole("listitem").map((i) => i.textContent)).toEqual([
       "Living room TVTest Show — S1 · E1 — Pilot",
       "PhoneReady to play",
@@ -331,6 +331,55 @@ describe("RemoteButton", () => {
     await act(() => new Promise((r) => setTimeout(r, 100)));
     expect(within(panel).getByRole("button", { name: "Pause on Living room TV" })).toBeInTheDocument();
     expect(within(panel).queryByRole("alert")).toBeNull();
+  });
+
+  it("sets a Cast device's volume, its own level showing", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item"], protocol: "cast" });
+    const casting = (volume: number) =>
+      episode({ device: "Bedroom TV", device_id: "cast:9f8e", controls: ["play", "pause", "seek", "skip", "volume"], volume });
+    let sessions = [casting(40)];
+    const requests = serve(
+      () => sessions,
+      () => [castDevice],
+      {
+        "POST /api/sessions/tv/command": () => {
+          // The device takes the nearest of its own steps.
+          sessions = [casting(27)];
+          return undefined;
+        },
+      },
+    );
+    const { client } = renderWithProviders(<RemoteButton />);
+    const { panel } = await openRemote();
+    const slider = within(panel).getByRole("slider", { name: "Volume on Bedroom TV" });
+    expect(slider).toHaveValue("40");
+    expect(slider).toHaveAttribute("aria-valuetext", "40%");
+    // No tracks or quality to pick on a Cast device.
+    expect(within(panel).queryByRole("button", { name: /^(Audio|Subtitles|Quality) on/ })).toBeNull();
+
+    fireEvent.change(slider, { target: { value: "25" } });
+    fireEvent.pointerUp(slider);
+    fireEvent.keyUp(slider, { key: "ArrowLeft" });
+    await waitFor(() => expect(commands(requests)).toEqual([{ command: "volume", volume: 25 }]));
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    await waitFor(() => expect(within(panel).getByRole("slider", { name: "Volume on Bedroom TV" })).toHaveValue("27"));
+    expect(within(panel).queryByRole("alert")).toBeNull();
+
+    // Dragged back to the level it has: nothing is sent.
+    const again = within(panel).getByRole("slider", { name: "Volume on Bedroom TV" });
+    fireEvent.change(again, { target: { value: "30" } });
+    fireEvent.change(again, { target: { value: "27" } });
+    fireEvent.pointerUp(again);
+    await act(() => client.invalidateQueries({ queryKey: ["sessions"] }));
+    expect(commands(requests)).toHaveLength(1);
+  });
+
+  it("marks a Cast device ready to play as one", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item"], protocol: "cast" });
+    serve(() => [episode()], () => [castDevice]);
+    renderWithProviders(<RemoteButton />);
+    const { panel } = await openRemote();
+    expect(within(panel).getByText("Bedroom TV").parentElement).toHaveTextContent("Google Cast");
   });
 
   it("says so when the device didn't answer, and shows where it is again", async () => {

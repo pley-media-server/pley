@@ -49,7 +49,14 @@ public final class HTTPTransport: Sendable {
     fileprivate let directSession: URLSession
 
     /// `userAgent` is `UserAgent.current`, read on the main actor.
-    public init(userAgent: String, gate: ConnectionGate = ConnectionGate()) {
+    public convenience init(userAgent: String, gate: ConnectionGate = ConnectionGate()) {
+        self.init(userAgent: userAgent, gate: gate, requestTimeout: 20)
+    }
+
+    /// `requestTimeout`: how long a request waits for more of its answer when
+    /// it doesn't say itself (`URLRequest.timeoutInterval`); the app's is 20
+    /// seconds, a test's shorter.
+    package init(userAgent: String, gate: ConnectionGate, requestTimeout: TimeInterval) {
         self.userAgent = userAgent
         self.gate = gate
         let configuration = URLSessionConfiguration.ephemeral
@@ -60,7 +67,7 @@ public final class HTTPTransport: Sendable {
         configuration.urlCredentialStorage = nil
         configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
         configuration.httpAdditionalHeaders = ["User-Agent": userAgent, "Accept": "application/json"]
-        configuration.timeoutIntervalForRequest = 20
+        configuration.timeoutIntervalForRequest = requestTimeout
         configuration.waitsForConnectivity = false
         session = URLSession(configuration: configuration)
         // An empty proxy dictionary, unlike the default nil, means no proxy at all.

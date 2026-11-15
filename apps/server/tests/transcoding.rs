@@ -47,6 +47,10 @@ struct Fake {
     created_json: Arc<Mutex<Vec<Value>>>,
     deleted: Arc<Mutex<Vec<String>>>,
     probes: Arc<Mutex<Vec<String>>>,
+    /// Probes wait while this is set.
+    probes_held: Arc<AtomicBool>,
+    /// How long each probe takes.
+    probe_delay: Arc<Mutex<Duration>>,
     subtitles: Arc<Mutex<Vec<SubtitleRequest>>>,
     thumbnails: Arc<AtomicUsize>,
     /// Paths seek previews were asked for.
@@ -84,6 +88,9 @@ struct Fake {
     sidecar_delay: Arc<Mutex<Duration>>,
     /// The next subtitle file's conversion fails.
     sidecar_fails: Arc<AtomicBool>,
+    /// The fixture's text track 4 is in a big file too, as stream 5 always
+    /// is: its first answer has only the cues read so far.
+    slow_text_track: Arc<AtomicBool>,
     /// Subtitle file conversions answered (done or failed).
     sidecar_answers: Arc<AtomicUsize>,
     /// The media files can't be read (a share went to sleep): jobs and
@@ -344,7 +351,7 @@ async fn start_fake() -> (Fake, String) {
                             codec: VideoCodec::H264,
                             hardware: false,
                             accel: HwAccel::None,
-                            main10: false,
+                            main10: false, low_power: false
                         }],
                         subtitle_matroska: true,
                         subtitle_matroska_partial: true,
@@ -383,6 +390,13 @@ async fn start_fake() -> (Fake, String) {
             "/v1/probe",
             post(|State(fake): State<Fake>, Json(req): Json<ProbeRequest>| async move {
                 fake.probes.lock().push(req.path.clone());
+                while fake.probes_held.load(Ordering::SeqCst) {
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+                let delay = *fake.probe_delay.lock();
+                if !delay.is_zero() {
+                    tokio::time::sleep(delay).await;
+                }
                 match probe_result(&req.path) {
                     Some(info) => Json(info).into_response(),
                     None => error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed"),
@@ -507,12 +521,14 @@ async fn start_fake() -> (Fake, String) {
             post(|State(fake): State<Fake>, Json(req): Json<SubtitleRequest>| async move {
                 let text = format!("WEBVTT\n\n00:00.000 --> 00:01.000\n{}#{:?}\n", req.path, req.stream_index);
                 let fails = req.stream_index == Some(99);
+                let slow = |index| index == Some(5) || index == Some(4) && fake.slow_text_track.load(Ordering::SeqCst);
                 let first_of_slow =
-                    req.stream_index == Some(5) && !fake.subtitles.lock().iter().any(|r| r.stream_index == Some(5));
+                    slow(req.stream_index) && !fake.subtitles.lock().iter().any(|r| r.stream_index == req.stream_index);
                 if fake.unreadable.load(Ordering::SeqCst) {
                     return unreadable(&req.path);
                 }
                 let partial = req.partial;
+                let stream_index = req.stream_index;
                 let sidecar = req.stream_index.is_none();
                 fake.subtitles.lock().push(req);
                 if sidecar {
@@ -524,7 +540,11 @@ async fn start_fake() -> (Fake, String) {
                     return error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed");
                 }
                 if first_of_slow && partial {
-                    let so_far = "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n";
+                    // Track 4 is read past its first 30 s segment.
+                    let so_far = match stream_index {
+                        Some(4) => "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n00:45.000 --> 00:46.000\nread on\n\n",
+                        _ => "WEBVTT\n\n00:00.000 --> 00:01.000\nso far\n\n",
+                    };
                     let more = HeaderName::from_static(SUBTITLES_COMPLETE_HEADER);
                     return ([(header::CONTENT_TYPE, "text/vtt"), (more, "0")], so_far).into_response();
                 }
@@ -925,6 +945,196 @@ async fn eventually(check: impl Fn() -> bool) {
         tokio::time::sleep(Duration::from_millis(10)).await;
     }
     panic!("condition not reached");
+}
+
+#[tokio::test]
+async fn a_librarys_first_scan_holds_library_work_and_says_so() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let turn = || app.state.schedule.turn(pley::schedule::Class::Later);
+    let scan = |activity: &Value| activity["scans"].as_array().and_then(|s| s.first()).cloned().unwrap_or_default();
+
+    // A new library: its files are read while library work waits, and its
+    // scan says it's its first.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("more/New (2022).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "More", "kind": "movies", "paths": [app.media_path("more")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let library = r.body["id"].as_i64().unwrap();
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("New (2022)"))).await;
+    let first = scan(&app.get("/api/activity", admin).await.body);
+    assert_eq!(
+        (&first["library_id"], &first["phase"], &first["first"]),
+        (&json!(library), &json!("probing"), &json!(true))
+    );
+    assert_eq!(turn(), Err(pley::schedule::Wait::Scanning));
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    assert_ne!(turn(), Err(pley::schedule::Wait::Scanning));
+
+    // A rescan neither holds nor says so.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.post(&format!("/api/libraries/{library}/scan"), admin, json!({"force": true})).await;
+    eventually(|| w.fake.probes.lock().iter().filter(|p| p.contains("New (2022)")).count() == 2).await;
+    let again = scan(&app.get("/api/activity", admin).await.body);
+    assert_eq!((&again["phase"], &again["first"]), (&json!("probing"), &json!(false)));
+    assert_ne!(turn(), Err(pley::schedule::Wait::Scanning));
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+}
+
+#[tokio::test]
+async fn first_scans_done_stay_listed_until_the_last_is_done() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let add = |name: &'static str| async move {
+        let r = app
+            .post("/api/libraries", admin, json!({"name": name, "kind": "movies", "paths": [app.media_path(name)]}))
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+        r.body["id"].as_i64().unwrap()
+    };
+    let listed = |activity: &Value, list: &str| -> Vec<(i64, String, bool)> {
+        activity[list]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| (s["library_id"].as_i64().unwrap(), s["phase"].as_str().unwrap().to_owned(), s["first"] == true))
+            .collect()
+    };
+
+    // Empty's scan finishes at once; Held's waits on its file, and Next's
+    // waits behind it, a first scan from the moment it's queued.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    std::fs::create_dir_all(app.media_path("empty")).unwrap();
+    app.media_file("held/Held (2020).mkv", 5000);
+    app.media_file("next/Next (2021).mkv", 5000);
+    let empty = add("empty").await;
+    let held = add("held").await;
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("Held (2020)"))).await;
+    let next = add("next").await;
+    let activity = app.get("/api/activity", admin).await.body;
+    assert_eq!(listed(&activity, "first_scans_done"), [(empty, "done".to_owned(), true)]);
+    assert_eq!(listed(&activity, "scans"), [(held, "probing".to_owned(), true), (next, "queued".to_owned(), true)]);
+
+    // Once the last is done, none is listed.
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    let activity = app.get("/api/activity", admin).await.body;
+    assert_eq!(listed(&activity, "first_scans_done"), []);
+    assert_eq!(listed(&activity, "scans"), []);
+}
+
+#[tokio::test]
+async fn first_scans_one_behind_another_hold_library_work_until_the_last() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let add = |name: &'static str| async move {
+        let r = app
+            .post("/api/libraries", admin, json!({"name": name, "kind": "movies", "paths": [app.media_path(name)]}))
+            .await;
+        assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    };
+    // Next is queued while Held's scan runs.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("held/Held (2020).mkv", 5000);
+    app.media_file("next/Next (2021).mkv", 5000);
+    add("held").await;
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("Held (2020)"))).await;
+    add("next").await;
+
+    let let_go = Arc::new(AtomicUsize::new(0));
+    let watcher = tokio::spawn({
+        let (state, let_go) = (app.state.clone(), let_go.clone());
+        async move {
+            loop {
+                state.schedule.let_go().await;
+                let_go.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+    });
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    app.wait_for_scans().await;
+    eventually(|| let_go.load(Ordering::SeqCst) > 0).await;
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    watcher.abort();
+    assert_eq!(let_go.load(Ordering::SeqCst), 1, "let go once, after Next");
+}
+
+#[tokio::test]
+async fn a_rescan_after_a_first_scan_lets_library_work_go() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    app.media_file("old/Old (2019).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "Old", "kind": "movies", "paths": [app.media_path("old")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let old = r.body["id"].as_i64().unwrap();
+    app.wait_for_scans().await;
+
+    // Old's rescan is queued while New's first scan runs.
+    w.fake.probes_held.store(true, Ordering::SeqCst);
+    app.media_file("new/New (2021).mkv", 5000);
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "New", "kind": "movies", "paths": [app.media_path("new")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    eventually(|| w.fake.probes.lock().iter().any(|p| p.contains("New (2021)"))).await;
+    let r = app.post(&format!("/api/libraries/{old}/scan"), admin, json!({"force": true})).await;
+    assert_eq!(r.status, StatusCode::ACCEPTED, "{:?}", r.body);
+    let held = || app.state.schedule.turn(pley::schedule::Class::Soon) == Err(pley::schedule::Wait::Scanning);
+    assert!(held());
+
+    // Old reads its file again slowly: New's done, so nothing holds.
+    *w.fake.probe_delay.lock() = Duration::from_secs(2);
+    w.fake.probes_held.store(false, Ordering::SeqCst);
+    // New's file read first, slowly too.
+    for _ in 0..1000 {
+        if w.fake.probes.lock().iter().filter(|p| p.contains("Old (2019)")).count() == 2 {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert!(app.state.scanner.is_scanning(old));
+    assert!(!held(), "a rescan holds nothing back");
+    *w.fake.probe_delay.lock() = Duration::ZERO;
+    app.wait_for_scans().await;
+}
+
+#[tokio::test]
+async fn a_first_scan_says_how_long_its_files_have_left_once_it_has_read_for_a_while() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // 120 files read 6 at a time, a second each: about 20 seconds.
+    *w.fake.probe_delay.lock() = Duration::from_secs(1);
+    for n in 0..120 {
+        app.media_file(&format!("slow/Film {n} ({}).mkv", 1950 + n), 5000);
+    }
+    let r = app
+        .post("/api/libraries", admin, json!({"name": "Slow", "kind": "movies", "paths": [app.media_path("slow")]}))
+        .await;
+    assert_eq!(r.status, StatusCode::CREATED, "{:?}", r.body);
+    let id = r.body["id"].as_i64().unwrap();
+    let scan = || async move {
+        let activity = app.get("/api/activity", admin).await.body;
+        activity["scans"].as_array().unwrap().iter().find(|s| s["library_id"] == id).cloned()
+    };
+
+    tokio::time::sleep(Duration::from_secs(4)).await;
+    let early = scan().await.expect("still scanning");
+    assert_eq!((early["phase"].as_str(), &early["left_secs"]), (Some("probing"), &Value::Null), "too soon to tell");
+    tokio::time::sleep(Duration::from_secs(8)).await;
+    let later = scan().await.expect("still scanning");
+    assert_eq!(later["phase"], "probing");
+    let left = later["left_secs"].as_u64().unwrap_or_else(|| panic!("no time left: {later}"));
+    assert!((1..=20).contains(&left), "{left} seconds left of about 8: {later}");
+
+    *w.fake.probe_delay.lock() = Duration::ZERO;
+    app.wait_for_scans().await;
 }
 
 #[tokio::test]
@@ -1864,6 +2074,66 @@ async fn pgs_subtitles_come_as_pictures_for_a_keyed_player() {
     assert_eq!(app.call(Method::GET, &wrong, None, None, &[]).await.status, StatusCode::NOT_FOUND);
 }
 
+/// An AirPlay device shows only subtitles a stream's playlist names: the
+/// keyed session serves a playlist with the text track beside the stream,
+/// the track's own playlist, and the track timed to the stream.
+#[tokio::test]
+async fn a_text_track_comes_in_the_stream_s_playlist_for_a_keyed_player() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let feature = w.movies["Feature"];
+    let started =
+        play(app, admin, json!({"item_id": feature, "caps": web_drawing_pictures(), "keyed_urls": true})).await;
+    assert_eq!(started.status, StatusCode::OK, "{:?}", started.body);
+    let url = started.body["url"].as_str().unwrap();
+    let folder = &url[..url.rfind('/').unwrap() + 1];
+    let bare = |name: &str| {
+        let uri = format!("{folder}{name}");
+        async move { app.call(Method::GET, &uri, None, None, &[]).await }
+    };
+
+    let master = bare("subtitled-4.m3u8").await;
+    assert_eq!(master.status, StatusCode::OK, "{}", master.text());
+    assert_eq!(master.headers[header::CONTENT_TYPE], "application/vnd.apple.mpegurl");
+    let master = master.text();
+    assert!(master.contains("LANGUAGE=\"fr\",DEFAULT=YES,AUTOSELECT=YES,URI=\"subtitles-4.m3u8\""), "{master}");
+    assert!(master.ends_with("SUBTITLES=\"subtitles\"\nindex.m3u8\n"), "{master}");
+
+    let track = bare("subtitles-4.m3u8").await;
+    assert_eq!(track.status, StatusCode::OK, "{}", track.text());
+    assert!(track.text().contains("#EXTINF:30.000,\nsubtitles-4-0.vtt\n"), "{}", track.text());
+    assert!(track.text().ends_with(".vtt\n#EXT-X-ENDLIST\n"), "{}", track.text());
+
+    // A segment: the cues in its time, timed to the stream (MPEG-TS
+    // segments start 1.4 s past the file's time). A track still being read
+    // out of a big file comes once it's read past the segment's end: here
+    // at once, the first answer having a cue at 45 s.
+    w.fake.slow_text_track.store(true, Ordering::SeqCst);
+    let cues = bare("subtitles-4-0.vtt").await;
+    assert!(cues.text().contains("so far") && !cues.text().contains("read on"), "{}", cues.text());
+    assert_eq!(w.fake.subtitles.lock().iter().filter(|r| r.stream_index == Some(4)).count(), 1);
+    assert_eq!(cues.status, StatusCode::OK, "{}", cues.text());
+    assert!(cues.text().starts_with("WEBVTT\nX-TIMESTAMP-MAP=MPEGTS:126000,LOCAL:00:00:00.000\n"), "{}", cues.text());
+    assert!(cues.text().contains("00:00.000 --> 00:01.000"), "{}", cues.text());
+    assert!(!bare("subtitles-4-1.vtt").await.text().contains("-->"));
+    assert!(!bare("subtitles-4.vtt").await.text().contains("X-TIMESTAMP-MAP"));
+
+    // Pictures, and tracks the file doesn't have, aren't.
+    for missing in [
+        "subtitled-3.m3u8",
+        "subtitles-3.m3u8",
+        "subtitled-9.m3u8",
+        "subtitled-x.m3u8",
+        "subtitles-3-0.vtt",
+        "subtitles-4--1.vtt",
+        "subtitles-4-999999.vtt",
+        "subtitles-4-9223372036854775807.vtt",
+        "subtitles-4-x.vtt",
+    ] {
+        assert_eq!(bare(missing).await.status, StatusCode::NOT_FOUND, "{missing}");
+    }
+}
+
 #[tokio::test]
 async fn pictures_for_a_keyed_player_are_copied_from_around_where_it_asks() {
     let w = world().await;
@@ -1956,6 +2226,46 @@ async fn embedded_subtitles_come_as_far_as_they_are_read() {
     assert!(all.text().contains("#Some(5)") && !all.headers.contains_key(SUBTITLES_COMPLETE_HEADER));
     assert_eq!(app.get(&slow, admin).await.text(), all.text());
     assert_eq!(asked(), 2, "served from the cache");
+}
+
+#[tokio::test]
+async fn text_subtitles_come_keyed_and_whole_for_a_player_outside_pley() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let started =
+        play(app, admin, json!({"item_id": w.movies["Feature"], "caps": browser(), "keyed_urls": true})).await;
+    // Track 4 in a big file, still being read when the player first asks.
+    w.fake.slow_text_track.store(true, Ordering::SeqCst);
+    assert_eq!(started.status, StatusCode::OK, "{:?}", started.body);
+    let url = started.body["url"].as_str().unwrap();
+    let folder = &url[..url.rfind('/').unwrap() + 1];
+    assert!(folder.starts_with("/api/media/pley_mk_"), "{url}");
+    // Asked for with no token, as a Cast receiver asks, from its own page.
+    let bare = |name: &str| {
+        let uri = format!("{folder}{name}");
+        async move { app.call(Method::GET, &uri, None, None, &[("origin", "https://www.gstatic.com")]).await }
+    };
+
+    // A track still being read out of its file comes whole after a moment:
+    // the player reads it once.
+    let embedded = bare("subtitles-4.vtt").await;
+    assert_eq!(embedded.status, StatusCode::OK, "{}", embedded.text());
+    assert!(embedded.text().starts_with("WEBVTT") && embedded.text().contains("#Some(4)"), "{}", embedded.text());
+    assert_eq!(embedded.headers[header::CONTENT_TYPE], "text/vtt; charset=utf-8");
+    assert_eq!(embedded.headers[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
+    assert!(!embedded.text().contains("so far") && !embedded.headers.contains_key(SUBTITLES_COMPLETE_HEADER));
+    assert_eq!(w.fake.subtitles.lock().iter().filter(|r| r.stream_index == Some(4)).count(), 2);
+
+    // A sidecar, and an offset, as WebVTT.
+    assert!(bare("subtitles-1000.vtt").await.text().contains("#None"));
+    assert!(bare("subtitles-1000.vtt?offset_ms=2000").await.text().contains("00:00:02.000 --> 00:00:03.000"));
+
+    // Text tracks only, of the session's own file.
+    assert_eq!(bare("subtitles-3.vtt").await.status, StatusCode::NOT_FOUND, "a picture track");
+    assert_eq!(bare("subtitles-77.vtt").await.status, StatusCode::NOT_FOUND);
+    assert_eq!(bare("subtitles-x.vtt").await.status, StatusCode::NOT_FOUND);
+    let wrong = format!("/api/media/pley_mk_{}/subtitles-4.vtt", "A".repeat(43));
+    assert_eq!(app.call(Method::GET, &wrong, None, None, &[]).await.status, StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
@@ -2633,6 +2943,25 @@ async fn an_older_transcoder_makes_previews_one_at_a_time() {
     eventually(|| app.state.trickplay.pending() == 0).await;
     assert_eq!(w.fake.previews.lock().len(), 4, "each once");
     assert_eq!(w.fake.previews_most.load(Ordering::SeqCst), 1);
+}
+
+#[tokio::test]
+async fn library_previews_wait_while_new_libraries_fill_in() {
+    let w = previews_world(5, &ON_THREE_DISKS).await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    *w.fake.load.lock() = Some(idle());
+    library_work(app, admin).await;
+    // A library's first scan, or an import, holds the rest of library work.
+    let hold = app.state.schedule.hold();
+    app.state.trickplay.request_all().await;
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    assert!(w.fake.previews.lock().is_empty(), "nothing made meanwhile");
+    let activity = app.get("/api/activity", admin).await;
+    assert_eq!(activity.body["library_work"]["waiting"], json!("scanning"));
+
+    drop(hold);
+    eventually(|| app.state.trickplay.pending() == 0).await;
+    assert_eq!(w.fake.previews.lock().len(), 4, "each once");
 }
 
 #[tokio::test]

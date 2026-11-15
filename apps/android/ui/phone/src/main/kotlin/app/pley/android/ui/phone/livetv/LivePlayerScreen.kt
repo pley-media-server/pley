@@ -15,6 +15,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -115,10 +116,12 @@ import kotlinx.coroutines.flow.distinctUntilChanged
  * list; Live; channel down and up. Live TV is watched as it airs: no
  * pause, no going back (as the web's). A swipe up or
  * down changes channel. What's on and next shows for 5 s when a tap brings
- * the controls, not on its own as a channel tunes.
+ * the controls, not on its own as a channel tunes. [onPip], where picture in
+ * picture is allowed, is a button in the top bar; [inPip], the small window
+ * shows the picture alone ([PipOverlay]).
  */
 @Composable
-internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit) {
+internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit, inPip: Boolean = false, onPip: (() -> Unit)? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
     val engine by vm.engine.collectAsStateWithLifecycle()
     val channel by vm.channel.collectAsStateWithLifecycle()
@@ -158,6 +161,11 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit) {
     // A window of its own: UI Automator (the benchmarks' journeys) finds its tags as resource ids.
     Box(Modifier.fillMaxSize().semantics { testTagsAsResourceId = true }.background(Color.Black).testTag(LIVE_PLAYER)) {
         VideoSurface(engine?.player, Modifier.fillMaxSize().testTag(TestTags.PLAYER_SURFACE))
+        val shown = channel
+        if (inPip) {
+            PipOverlay(state, shown, origin)
+            return@Box
+        }
         val density = LocalDensity.current
         Box(
             Modifier
@@ -190,7 +198,6 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit) {
                     )
                 },
         )
-        val shown = channel
         if (state.audioOnly && playing && shown != null) SoundOnly(shown, origin, now)
         when (val phase = state.phase) {
             LivePhase.Tuning, LivePhase.Idle -> if (shown != null) Tuning(shown, origin, now)
@@ -208,7 +215,7 @@ internal fun LivePlayerScreen(vm: LivePlayerViewModel, onBack: () -> Unit) {
             }
         }
         AnimatedVisibility(controls && state.phase !is LivePhase.Failed, enter = fadeIn(), exit = fadeOut()) {
-            Controls(state, shown, origin, now, vm, onBack = onBack, onChannels = { panel = true }, onPoke = poke)
+            Controls(state, shown, origin, now, vm, onBack = onBack, onChannels = { panel = true }, onPoke = poke, onPip = onPip)
         }
         if (shown != null) {
             AnimatedVisibility(
@@ -295,6 +302,7 @@ private fun Controls(
     onBack: () -> Unit,
     onChannels: () -> Unit,
     onPoke: () -> Unit,
+    onPip: (() -> Unit)?,
 ) {
     val clock = rememberClock()
     val on = channel?.onAt(now)
@@ -334,6 +342,7 @@ private fun Controls(
             } else {
                 Spacer(Modifier.weight(1f))
             }
+            onPip?.let { PleyIconButton(PleyIcons.PictureInPicture2, stringResource(R.string.player_pip), onClick = it, modifier = Modifier.testTag(LIVE_PLAYER_PIP)) }
             PleyIconButton(PleyIcons.List, stringResource(R.string.live_player_channels), onClick = onChannels, modifier = Modifier.testTag(LIVE_PLAYER_CHANNELS))
         }
         Column(
@@ -461,16 +470,7 @@ private fun TroubleCard(
     onChannels: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val name = channel?.name.orEmpty()
-    val title = when (trouble.kind) {
-        LiveTrouble.Kind.Busy -> stringResource(R.string.live_player_busy)
-        LiveTrouble.Kind.Stopped -> stringResource(R.string.live_player_stopped)
-        LiveTrouble.Kind.Missing -> stringResource(R.string.live_player_missing)
-        LiveTrouble.Kind.NotAllowed -> stringResource(R.string.live_player_not_allowed)
-        LiveTrouble.Kind.Unavailable -> stringResource(R.string.live_player_unavailable, name)
-        LiveTrouble.Kind.Offline -> stringResource(R.string.live_player_offline)
-        LiveTrouble.Kind.Other -> stringResource(R.string.live_player_failed, name)
-    }
+    val title = troubleTitle(trouble, channel)
     Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.85f)).windowInsetsPadding(WindowInsets.safeDrawing), contentAlignment = Alignment.Center) {
         Column(
             Modifier
@@ -528,6 +528,63 @@ private fun TroubleCard(
                 TonalButton(stringResource(R.string.live_player_other_channels), onClick = onChannels, icon = PleyIcons.List)
             }
             PleyTextButton(stringResource(R.string.live_player_back_to_guide), onClick = onBack)
+        }
+    }
+}
+
+/** Why [channel] doesn't play, in a sentence. */
+@Composable
+private fun troubleTitle(trouble: LiveTrouble, channel: LiveChannel?): String {
+    val name = channel?.name.orEmpty()
+    return when (trouble.kind) {
+        LiveTrouble.Kind.Busy -> stringResource(R.string.live_player_busy)
+        LiveTrouble.Kind.Stopped -> stringResource(R.string.live_player_stopped)
+        LiveTrouble.Kind.Missing -> stringResource(R.string.live_player_missing)
+        LiveTrouble.Kind.NotAllowed -> stringResource(R.string.live_player_not_allowed)
+        LiveTrouble.Kind.Unavailable -> stringResource(R.string.live_player_unavailable, name)
+        LiveTrouble.Kind.Offline -> stringResource(R.string.live_player_offline)
+        LiveTrouble.Kind.Other -> stringResource(R.string.live_player_failed, name)
+    }
+}
+
+/**
+ * What picture in picture's small window shows over the picture, with
+ * nothing to press: the channel's logo while it tunes or plays sound only,
+ * why it doesn't play, the spinner while it waits for data.
+ */
+@Composable
+private fun BoxScope.PipOverlay(state: LiveState, channel: LiveChannel?, origin: String) {
+    val centred = Modifier.fillMaxSize().background(Color.Black).padding(8.dp)
+    when (val phase = state.phase) {
+        LivePhase.Tuning, LivePhase.Idle -> Column(centred, verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            if (channel != null) {
+                ChannelTile(channel, origin, Modifier.size(width = 72.dp, height = 40.dp), well = Color.White.copy(alpha = 0.06f))
+                Spacer(Modifier.height(10.dp))
+            }
+            CircularProgressIndicator(Modifier.size(20.dp), color = PleyColors.Accent, trackColor = Color.Transparent, strokeWidth = 2.dp)
+        }
+        is LivePhase.Failed -> Column(centred.testTag(LIVE_PLAYER_TROUBLE), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
+            Icon(PleyIcons.TriangleAlert, contentDescription = null, size = 20.dp, tint = PleyColors.Accent)
+            Spacer(Modifier.height(6.dp))
+            Text(
+                troubleTitle(phase.trouble, channel),
+                style = MaterialTheme.typography.labelMedium,
+                color = PleyColors.Fg,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        LivePhase.Playing -> when {
+            state.audioOnly && channel != null -> Box(centred, contentAlignment = Alignment.Center) {
+                ChannelTile(channel, origin, Modifier.size(width = 96.dp, height = 54.dp), name = true, well = Color.White.copy(alpha = 0.06f))
+            }
+            state.buffering -> CircularProgressIndicator(
+                Modifier.align(Alignment.Center).size(28.dp),
+                color = PleyColors.Fg,
+                trackColor = Color.Transparent,
+                strokeWidth = 2.dp,
+            )
         }
     }
 }
@@ -775,6 +832,7 @@ internal const val LIVE_PLAYER = "pley.live.player"
 internal const val LIVE_PLAYER_UP = "pley.live.player.up"
 internal const val LIVE_PLAYER_LIVE = "pley.live.player.live"
 internal const val LIVE_PLAYER_CHANNELS = "pley.live.player.channels"
+internal const val LIVE_PLAYER_PIP = "pley.live.player.pip"
 internal const val LIVE_PLAYER_PANEL = "pley.live.player.panel"
 internal const val LIVE_PLAYER_GROUP = "pley.live.player.group"
 internal const val LIVE_PLAYER_SEARCH = "pley.live.player.search"

@@ -12,8 +12,10 @@ Pick the guide for where Pley will run:
 | macOS | The release archive and a launch agent | [below](#macos-launchd) |
 
 Whichever you pick, Pley prints a link with a one-time setup code when it
-first starts. Open it, create the administrator account and add your
-libraries. Until then, anyone with the code can claim the server.
+first starts. Open it and create the administrator account; setup then asks
+about your server, and whether to bring over a Plex server or add your
+libraries ([First start](../docs/CONFIGURATION.md#first-start)). Until the
+account exists, anyone with the code can claim the server.
 
 ## What Pley needs
 
@@ -59,6 +61,11 @@ docker logs pley    # the setup link
 
 - **Intel or AMD GPU:** add `--device /dev/dri`. **NVIDIA:** add
   `--gpus all` (needs the NVIDIA Container Toolkit).
+- **Intel's Quick Sync** works in the image on 11th-generation Core
+  (Tiger Lake) and later, Arc and the N100 family: Debian 13 has only
+  Intel's current runtime (`libmfx-gen1.2`). Older Intel graphics transcode
+  with VAAPI instead, the same video engine through another driver
+  interface.
 - Pley runs as user and group 1000 (`-e PUID=… -e PGID=…` change them) and
   gives that user the config folder on its first start. Libraries are
   folders under `/media`.
@@ -88,8 +95,10 @@ and `PLEY_FFPROBE=…` in the unit.
 - **Intel and AMD:** install the VAAPI driver (`intel-media-va-driver-non-free`
   or `mesa-va-drivers`) and `mesa-vulkan-drivers` (for HDR tone mapping),
   then uncomment `SupplementaryGroups=render video` in the unit. With several
-  GPUs Pley takes the first Intel or AMD one;
-  `Environment=PLEY_VAAPI_DEVICE=/dev/dri/renderD129` picks another.
+  GPUs Pley takes the first Intel or AMD one (Quick Sync the first Intel
+  one); `Environment=PLEY_VAAPI_DEVICE=/dev/dri/renderD129` picks another.
+  Quick Sync also needs Intel's runtime: `libmfx-gen1.2` for 11th-generation
+  Core and later, `libmfx1` (where the distribution still has it) for older.
 - **NVIDIA:** the proprietary driver is enough. If NVENC works by hand but
   not from the service, load `nvidia-uvm` at boot.
 
@@ -113,9 +122,10 @@ burn-in). Until releases are signed, downloaded binaries may need
 
 `pley-server-<version>-windows-<arch>-setup.exe` installs Pley with FFmpeg
 and a firewall rule, as a locked-down service or in the notification area:
-[windows/README.md](windows/README.md). Or extract the archive, install
-FFmpeg (`winget install Gyan.FFmpeg`, whose "full" build has NVENC, QSV, AMF
-and Vulkan tone mapping) and run `pley.exe`.
+[windows/README.md](windows/README.md); its FFmpeg is pley-ffmpeg's
+Windows build, with the Docker image's patches for Intel GPUs. Or extract
+the archive, install FFmpeg (`winget install Gyan.FFmpeg`, whose "full"
+build has NVENC, QSV, AMF and Vulkan tone mapping) and run `pley.exe`.
 
 ## Synology
 
@@ -156,6 +166,17 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   announces Pley on. Allow them, or type the server's address in the app.
   A container is found only on the host's network (`--network host`, or
   Unraid's `br0`).
+- **Google Cast devices** (Chromecasts, Google TVs) are found by mDNS too,
+  and the server connects to them on **TCP 8009**, and once to each on
+  **TCP 8008** to learn its model; they fetch the stream from the web
+  port. A container sees them only on the host's network, as above, and
+  not while discovery is off.
+- **AirPlay devices** (Apple TVs, TVs with AirPlay 2) are found the same
+  way. The server connects to them on the port they announce (**TCP
+  7000** on an Apple TV) and on the port each names for its events, and the
+  device asks the server's clock over **UDP**, on a port the server
+  picks for each cast: a firewall on the server must let the local
+  network reach it.
 - **From outside your network**, put Pley behind a reverse proxy with TLS
   (Caddy, nginx, Traefik). Docker publishes ports around host firewalls:
   with a proxy on the same computer, publish Pley on `127.0.0.1` only.
@@ -177,6 +198,9 @@ an app used, the app refuses the server. So a reverse proxy must:
   proxy on the same computer, the local network or a Docker network;
 - not buffer responses (live updates are server-sent events, and video
   streams as it is read);
+- wait more than 3 minutes for an answer: a cast to a Google Cast or
+  AirPlay device answers once the device plays, which can take that long,
+  and nginx's default of 60 seconds answers `504` first;
 - accept uploads of up to 25 MB (artwork).
 
 **Caddy** does all of it by default:
@@ -211,6 +235,7 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_buffering off;
+        proxy_read_timeout 240s;
     }
 }
 ```

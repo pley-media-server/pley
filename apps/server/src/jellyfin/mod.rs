@@ -247,7 +247,8 @@ async fn token_user(
 }
 
 /// A token's user as this API takes it: never as an administrator, whatever
-/// its scopes allow on the Plex-compatible API.
+/// its scopes allow on the Plex-compatible API, and whatever
+/// `Policy.IsAdministrator` says to activity monitors.
 pub(crate) fn this_apis(user: AuthUser) -> AuthUser {
     AuthUser { is_admin: false, ..user }
 }
@@ -293,7 +294,7 @@ impl FromRequestParts<AppState> for JfUser {
 /// (collections, metadata): a token that may manage libraries (`manage`),
 /// on an account that is an administrator now, as on the Plex-compatible
 /// API. It acts with an administrator's rights for that change alone, and
-/// `Policy.IsAdministrator` stays `false`.
+/// `Policy.IsAdministrator` (which `activity` sets) has no part in it.
 pub struct JfManager(pub AuthUser);
 
 impl FromRequestParts<AppState> for JfManager {

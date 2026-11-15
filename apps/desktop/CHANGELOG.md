@@ -8,6 +8,22 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-11-14
+
+### Added
+
+- Notifications about requests are in French and Spanish too, in the
+  language the server's pages are in.
+
+### Fixed
+
+- A notification that a show's specials are ready says they "are" ready.
+
+On a Mac:
+
+- A download from a server with video transcoding turned off comes as the
+  original file, for a player such as IINA or VLC.
+
 ## [0.1.4] - 2026-11-06
 
 ### Added
@@ -83,7 +99,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-06...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-14...HEAD
+[0.1.5]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14
 [0.1.4]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06
 [0.1.3]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-05
 [0.1.2]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-02.2

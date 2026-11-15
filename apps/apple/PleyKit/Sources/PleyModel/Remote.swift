@@ -23,27 +23,33 @@ public struct Control: WireValue {
     public static let subtitles = Control(rawValue: "subtitles")
     /// Another entry of the player's Quality menu (`quality`, its id).
     public static let quality = Control(rawValue: "quality")
+    /// The device's volume (`volume`, 0 to 100): only the server's casts to
+    /// Google Cast devices take it.
+    public static let volume = Control(rawValue: "volume")
 }
 
 /// One command: the body of `POST /api/sessions/{id}/command`, and what
 /// the player hears of it in `player_command`. `seek` carries
 /// `positionMs`, `skip` `offsetMs` (back when negative), `audio` and
 /// `subtitles` `streamIndex` (`SessionTracks.off`: no subtitles),
-/// `quality` the id of an entry of the Quality menu, the others none.
+/// `quality` the id of an entry of the Quality menu, `volume` a level
+/// from 0 to 100, the others none.
 public struct PlayerCommand: Codable, Hashable, Sendable {
     public var command: Control
     public var positionMs: Int?
     public var offsetMs: Int?
     public var streamIndex: Int?
     public var quality: String?
+    public var volume: Int?
 
     public init(_ command: Control, positionMs: Int? = nil, offsetMs: Int? = nil, streamIndex: Int? = nil,
-                quality: String? = nil) {
+                quality: String? = nil, volume: Int? = nil) {
         self.command = command
         self.positionMs = positionMs
         self.offsetMs = offsetMs
         self.streamIndex = streamIndex
         self.quality = quality
+        self.volume = volume
     }
 
     public static let play = PlayerCommand(.play)
@@ -61,6 +67,8 @@ public struct PlayerCommand: Codable, Hashable, Sendable {
     }
     /// The Quality menu's entry of id `id` ("auto", "8m").
     public static func quality(_ id: String) -> PlayerCommand { PlayerCommand(.quality, quality: id) }
+    /// The device's volume at `level`, kept from 0 to 100.
+    public static func volume(_ level: Int) -> PlayerCommand { PlayerCommand(.volume, volume: min(max(level, 0), 100)) }
 }
 
 /// What a session plays: a title of the library, or a Live TV channel.
@@ -267,6 +275,8 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
     /// The intro and credits of the file it plays, for the remote's Skip Intro and Skip Credits; none on
     /// Live TV, and from an older server.
     public var markers: [Marker]
+    /// The device's volume, 0 to 100 (0 while muted), for a player that takes `volume`; `nil` otherwise.
+    public var volume: Int?
 
     public var id: String { sessionId }
 
@@ -275,7 +285,7 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
                 state: PlayingState = .playing, positionMs: Int = 0, durationMs: Int? = nil, updatedAt: Int = 0,
                 ageMs: Int = 0, controls: [Control] = [], audioIndex: Int? = nil, subtitleIndex: Int? = nil,
                 tracks: SessionTracks = SessionTracks(), quality: String? = nil, qualities: [QualityOption] = [],
-                markers: [Marker] = []) {
+                markers: [Marker] = [], volume: Int? = nil) {
         self.sessionId = sessionId
         self.kind = kind
         self.device = device
@@ -295,6 +305,7 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
         self.quality = quality
         self.qualities = qualities
         self.markers = markers
+        self.volume = volume
     }
 
     public init(from decoder: any Decoder) throws {
@@ -322,6 +333,7 @@ public struct PlayingSession: Codable, Hashable, Sendable, Identifiable {
         qualities = (try? c.decodeIfPresent([QualityOption].self, forKey: .qualities)) ?? []
         // Markers that can't be read leave it listed, with nothing to skip.
         markers = (try? c.decodeIfPresent([Marker].self, forKey: .markers)) ?? []
+        volume = try? c.decodeIfPresent(Int.self, forKey: .volume)
     }
 
     /// Whether its player obeys `control`.
@@ -338,8 +350,20 @@ public struct CastKind: WireValue {
     public static let live = CastKind(rawValue: "live")
 }
 
+/// How the server plays on a device it finds itself, rather than an app of
+/// Pley's playing there.
+public struct CastProtocol: WireValue {
+    public let rawValue: String
+    public init(rawValue: String) { self.rawValue = rawValue }
+
+    public static let cast = CastProtocol(rawValue: "cast")
+    public static let airplay = CastProtocol(rawValue: "airplay")
+}
+
 /// One of the profile's devices that takes casts (`GET /api/remote/devices`):
-/// an app whose event stream names it as a receiver, while that is open.
+/// an app whose event stream names it as a receiver, while that is open, or
+/// a Google Cast or AirPlay device on the server's network (`castProtocol`),
+/// which the server plays a movie or an episode on itself.
 public struct RemoteDevice: Codable, Hashable, Sendable, Identifiable {
     /// The app's own id for the device: where casts go.
     public var receiverId: String
@@ -350,16 +374,24 @@ public struct RemoteDevice: Codable, Hashable, Sendable, Identifiable {
     public var kind: DeviceKind
     /// What it plays when cast to.
     public var casts: [CastKind]
+    /// How the server plays on it: a Google Cast or an AirPlay device; `nil` for an app of Pley's.
+    public var castProtocol: CastProtocol?
 
     public var id: String { receiverId }
 
+    private enum CodingKeys: String, CodingKey {
+        case receiverId, deviceId, name, kind, casts
+        case castProtocol = "protocol"
+    }
+
     public init(receiverId: String, deviceId: String = "", name: String? = nil, kind: DeviceKind = .other,
-                casts: [CastKind] = []) {
+                casts: [CastKind] = [], castProtocol: CastProtocol? = nil) {
         self.receiverId = receiverId
         self.deviceId = deviceId
         self.name = name
         self.kind = kind
         self.casts = casts
+        self.castProtocol = castProtocol
     }
 
     public init(from decoder: any Decoder) throws {
@@ -369,10 +401,24 @@ public struct RemoteDevice: Codable, Hashable, Sendable, Identifiable {
         name = try c.decodeIfPresent(String.self, forKey: .name)
         kind = try c.value(.kind, or: .other)
         casts = try c.value(.casts, or: [])
+        castProtocol = try c.decodeIfPresent(CastProtocol.self, forKey: .castProtocol)
     }
 
     /// Whether it plays `kind` when cast to.
     public func takes(_ kind: CastKind) -> Bool { casts.contains(kind) }
+
+    /// Whether it plays `target` when cast to: it takes its kind, and a
+    /// device the server plays on itself takes a movie or an episode alone.
+    public func takes(_ target: CastTarget) -> Bool { takes(target.kind) && (target.video || castProtocol == nil) }
+}
+
+/// What the server answers when it has an AirPlay device show its code
+/// (`POST /api/remote/devices/{id}/pairing`): how many digits the code has,
+/// where known (4 on an Apple TV).
+public struct PairingCode: Codable, Hashable, Sendable {
+    public var digits: Int?
+
+    public init(digits: Int? = nil) { self.digits = digits }
 }
 
 /// What a remote casts to one of the profile's devices (the body of
@@ -381,7 +427,8 @@ public struct RemoteDevice: Codable, Hashable, Sendable, Identifiable {
 /// album or an artist), a playlist or a Live TV channel; where a title
 /// starts, and whether an album, an artist or a playlist plays shuffled.
 /// A movie or an episode may carry the tracks picked on its page, which
-/// the device plays it with.
+/// the device plays it with, and is `video`: a Google Cast or an AirPlay
+/// device takes that alone.
 public struct CastTarget: Encodable, Hashable, Sendable {
     public enum What: Hashable, Sendable {
         case item(Int)
@@ -397,19 +444,23 @@ public struct CastTarget: Encodable, Hashable, Sendable {
     public var audioIndex: Int?
     /// Its subtitles, by stream index (`SessionTracks.off`: none); `nil`: the device's own choice.
     public var subtitleIndex: Int?
+    /// A movie or an episode, which a Google Cast or an AirPlay device takes too. Not sent.
+    public var video: Bool
 
     public init(_ what: What, startMs: Int? = nil, shuffle: Bool = false, audioIndex: Int? = nil,
-                subtitleIndex: Int? = nil) {
+                subtitleIndex: Int? = nil, video: Bool = false) {
         self.what = what
         self.startMs = startMs
         self.shuffle = shuffle
         self.audioIndex = audioIndex
         self.subtitleIndex = subtitleIndex
+        self.video = video
     }
 
     public static func item(_ id: Int, startMs: Int? = nil, shuffle: Bool = false, audioIndex: Int? = nil,
-                            subtitleIndex: Int? = nil) -> CastTarget {
-        CastTarget(.item(id), startMs: startMs, shuffle: shuffle, audioIndex: audioIndex, subtitleIndex: subtitleIndex)
+                            subtitleIndex: Int? = nil, video: Bool = false) -> CastTarget {
+        CastTarget(.item(id), startMs: startMs, shuffle: shuffle, audioIndex: audioIndex, subtitleIndex: subtitleIndex,
+                   video: video)
     }
 
     public static func playlist(_ id: Int, shuffle: Bool = false) -> CastTarget {

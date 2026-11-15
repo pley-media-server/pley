@@ -18,6 +18,45 @@ describes how they are made.
 - An administrator's rights in an app hold only in an app that
   administrator allowed, on their profile picked at the device, not one a
   cast switched to.
+- Home members can cast movies and episodes to Chromecasts, Google TVs,
+  TVs with Cast built in, Apple TVs and most TVs with AirPlay 2 on the
+  server's network, and control them from the remote as Pley's own
+  players. They show subtitles, and Cast devices take their volume from
+  the remote. Chromecast Ultra, Chromecast with Google TV, Google TV
+  Streamer, TVs with Google TV and Apple TV 4K get HEVC, and 4K and HDR
+  where they play them. An AirPlay device that asks for a code is paired
+  once, with the code it shows, and administrators can forget pairings in
+  Settings → Network. A TV running a Pley app is listed once, as the app.
+  Macs are listed as computers, and the server's own Mac isn't listed.
+  They're listed while discovery is on in Settings → Network.
+- The dashboard says what plays each session: a Pley app, an app through
+  the Plex or Jellyfin API, Google Cast or AirPlay. Stopping one offers a
+  message only for Pley apps, the only ones that show it.
+- Live TV goes into the browser's picture in picture, as videos do; next
+  and previous, in its small window or on the keyboard, change channel.
+
+### Changed
+
+- HDR made SDR keeps the master's brightness up to SDR's white, with the
+  standard BT.2390 curve, instead of darkening the mid-tones; black and
+  letterbox bars stay black.
+- Dolby Vision profile 7 with a full enhancement layer is transcoded from
+  its HDR10 base layer, where it was tone mapped by its Dolby Vision
+  brightness before.
+- The Docker image and the Windows installer carry Pley's own FFmpeg, with
+  jellyfin-ffmpeg's improvements for Intel graphics.
+
+On Intel graphics:
+
+- 4K HDR made SDR transcodes about twice as fast, on less of the CPU, and
+  two at once each keep up better. Transcodes run up to a quarter faster
+  again where the GPU has a low-power encoder, and Linux and Docker get the
+  same faster transcodes as Windows.
+- HDR kept as HDR and burned-in picture subtitles stay on the GPU, and Dolby
+  Vision and HDR10+ do where the CPU would decode them.
+- 4K Dolby Vision at 60 frames a second, or several at once, keeps up with
+  its Dolby Vision picture on Windows, profile 5 too, with Pley's own
+  FFmpeg.
 
 ### Fixed
 
@@ -25,6 +64,83 @@ describes how they are made.
   picked, where the server answered with an error.
 - Clean up counts the old cache files and subtitles it removes, where it
   could say there was nothing to clean up.
+- In a short window, Play on… and the web app's other menus scroll within
+  it rather than running past its top or bottom.
+- HDR transcodes no longer pick a picture quality too slow to keep up, or
+  a lower one than the GPU has time for, after the server starts.
+- HDR10 that doesn't say how bright it is no longer comes out far too dark
+  with Pley's own FFmpeg, in transcodes (OpenCL's too), seek previews and
+  thumbnails.
+- Dolby Vision profile 5 plays on a server without a graphics card instead
+  of failing to start.
+- With the experimental Dolby Vision full enhancement layer turned on, a
+  profile 7 file that keeps the layer's metadata but not the layer plays
+  from its base layer instead of never starting.
+- Seek previews and frame grabs of Dolby Vision profile 7 with a full
+  enhancement layer look like the video, made from the base layer.
+
+On Intel graphics:
+
+- Quick Sync works on Linux when an NVIDIA or AMD card comes first.
+- Transcodes no longer fail when every Quick Sync session is busy.
+- 4:2:2 and 4:4:4 H.264, from some cameras and screen recordings, plays.
+- Once HDR transcodes have moved to Quick Sync or OpenCL tone mapping,
+  another one started beside them gets the best picture the GPU keeps up
+  with, and one of them goes back when there is room.
+- 720p and 4K HDR transcodes in fMP4 keep playing when another stream
+  makes the GPU busy, instead of stopping.
+- A video Quick Sync can't decode plays, decoded another way, instead of
+  stopping.
+- Burned-in picture subtitles on films cropped to wide screen show at the
+  bottom.
+- A file that couldn't be read no longer keeps Dolby Vision off OpenCL
+  until the server restarts, nor one GPU decoding error keeps Dolby Vision
+  and HDR10+ from being decoded by the GPU.
+
+## [0.1.11] - 2026-11-14
+
+### Added
+
+- Activity monitors such as Tracearr can connect through the
+  Jellyfin-compatible API with a token that sees everyone's activity, and
+  show what everyone is playing.
+- Setup asks for the server's name, languages, country, TMDB key and
+  whether Apple devices find it by Bonjour, then whether to bring over a
+  Plex server or start fresh with Movies, TV Shows and Music libraries.
+- Moving from Plex: setup and Settings → Libraries can import a Plex
+  server's libraries, its Home users as profiles with their restrictions
+  and the PINs typed for them, and each person's watch history, ratings,
+  labels, collections, playlists and matches (docs/MOVING_FROM_PLEX.md).
+- Home and Settings → Libraries show a Plex import step by step while it
+  runs, and its report once it ends.
+- Home shows administrators how far new libraries' first scans are.
+- Settings → Server has a Country, for age ratings, age limits and Coming
+  to cinemas.
+- Settings → Network says when Pley is on Docker's own network, where
+  devices can't find it, and how to fix that.
+- In a container with no media folder mounted, adding a library says how
+  to mount one.
+
+### Changed
+
+- Settings → Server calls its languages Pley's language and Titles and
+  summaries, and names them instead of showing codes.
+- Seek previews, intro detection and fingerprinting wait until first
+  scans and Plex imports are done.
+- A video that has to be remuxed or converted starts sooner while a
+  library is being scanned.
+- Home and a library's page show a new library's titles as its files are
+  read.
+- The dashboard's Now playing shows whether each stream is playing or
+  paused, and its time moves on while it plays.
+
+### Fixed
+
+- Infuse opens a Pley server through the Jellyfin-compatible API instead
+  of saying "An error occurred" after signing in.
+- Live TV channels with AC-3 audio, such as US broadcast channels, and
+  channels whose stream breaks off as they start, play in the browser and
+  the desktop app instead of tuning forever.
 
 ## [0.1.10] - 2026-11-12
 
@@ -911,7 +1027,8 @@ describes how they are made.
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-12...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-14...HEAD
+[0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-06

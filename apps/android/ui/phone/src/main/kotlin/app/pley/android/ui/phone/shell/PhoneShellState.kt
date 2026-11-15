@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -78,12 +79,21 @@ class PhoneShellState internal constructor(
     /** What Play on…'s chooser sends, while it shows ([playOn]); `null` while it doesn't. */
     internal var playingOn: CastTarget? by mutableStateOf(null)
 
+    /**
+     * Which opening of the chooser shows ([playOn] counts them): each is its
+     * own, so a cast that went closes only the one it was sent from, not one
+     * opened since for the same title.
+     */
+    internal var playOnOpened: Int by mutableIntStateOf(0)
+        private set
+
     /** What the remote was last asked: to open ([openRemote]), or to follow a cast ([castSent]). */
     internal var remoteAsked: RemoteAsk? by mutableStateOf(null)
         private set
 
     /** Play on…: the chooser of the profile's other devices that play [target] shows over the page. */
     internal fun playOn(target: CastTarget) {
+        playOnOpened++
         playingOn = target
     }
 

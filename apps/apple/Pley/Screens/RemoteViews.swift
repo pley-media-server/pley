@@ -8,7 +8,9 @@ import SwiftUI
 // toolbar button opens it as a popover. Its list of devices is
 // `RemoteDeviceList`, a device's controls `RemoteDeviceControls`.
 // "Play on…" (`PlayOnMenu`) sends a page's title, music, playlist or
-// channel to one of them.
+// channel to one of them, and a movie or an episode to a Google Cast or an
+// AirPlay device too; `PairingSheet` asks for the code an AirPlay device
+// shows the first time.
 
 extension DeviceKind {
     /// The symbol the remote shows for a device of this kind.
@@ -25,8 +27,12 @@ extension DeviceKind {
 }
 
 extension RemoteModel.Device {
-    /// What it plays, as its row says it; "Ready to play" while it plays nothing.
-    var line: String { entry.map { Words.remotePlaying($0.session) } ?? Words.readyToPlay }
+    /// What it plays, as its row says it; while it plays nothing, "Google
+    /// Cast" or "AirPlay" for a device the server plays on, else "Ready to play".
+    var line: String {
+        entry.map { Words.remotePlaying($0.session) }
+            ?? receiver?.castProtocol.flatMap(Words.castProtocol) ?? Words.readyToPlay
+    }
 }
 
 #if os(iOS)
@@ -44,7 +50,7 @@ struct RemoteBar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        let devices = remote.devices
+        let devices = remote.barDevices
         if !devices.isEmpty {
             let names = remote.names
             let one = devices.count == 1 ? devices[0] : nil
@@ -132,7 +138,7 @@ struct RemoteAccessoryButton: View {
     let open: () -> Void
 
     var body: some View {
-        let count = remote.devices.count
+        let count = remote.barDevices.count
         if count > 0 {
             Button(action: open) {
                 Image(systemName: "av.remote")
@@ -415,6 +421,8 @@ private struct RemotePlayingControls: View {
     let device: String
     /// The slider's place while it is dragged.
     @State private var seeking: Double?
+    /// The volume slider's level while it is dragged.
+    @State private var level: Double?
     /// Stop's confirmation shows.
     @State private var confirmingStop = false
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -433,6 +441,7 @@ private struct RemotePlayingControls: View {
                 }
             }
             transport
+            if session.obeys(.volume), let volume = session.volume { volumeSlider(volume) }
             pickersAndStop
             if let error = remote.errors[entry.id] {
                 Text(error)
@@ -673,6 +682,36 @@ private struct RemotePlayingControls: View {
         .opacity(waiting ? 0.5 : 1)
     }
 
+    /// The device's volume (a Google Cast device's), sent as the slider is let go.
+    private func volumeSlider(_ volume: Int) -> some View {
+        let shown = level.map { Int($0.rounded()) } ?? volume
+        let symbol = shown == 0 ? "speaker.slash.fill" : shown < 50 ? "speaker.wave.1.fill" : "speaker.wave.3.fill"
+        return HStack(spacing: 8) {
+            Image(systemName: symbol)
+                .frame(width: 24)
+                .foregroundStyle(.secondary)
+                .accessibilityHidden(true)
+            Slider(value: Binding(get: { level ?? Double(volume) }, set: { level = $0 }), in: 0...100, step: 1) { editing in
+                guard !editing, let to = level else { return }
+                level = nil
+                send(.volume(Int(to.rounded())))
+            }
+            .accessibilityLabel(Words.remoteVolume(device))
+            .accessibilityValue((Double(shown) / 100).formatted(.percent.locale(ShownLanguage.locale)))
+            // VoiceOver's swipes go up and down by a tenth, one command each.
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment: send(.volume(volume + 10))
+                case .decrement: send(.volume(volume - 10))
+                @unknown default: break
+                }
+            }
+            .accessibilityIdentifier("remote.volume.\(entry.id)")
+        }
+        .help(Words.remoteVolumeTitle)
+        .opacity(waiting ? 0.5 : 1)
+    }
+
     /// Play or Pause, the big round one.
     private func toggleButton(_ toggle: Control) -> some View {
         Button {
@@ -865,7 +904,8 @@ private struct RemotePlayingControls: View {
 /// profile's other devices that take what it plays, each with what it
 /// plays now, as the remote lists them; choosing one sends it there. Beside
 /// Shuffle, "Shuffle on…" in it sends it shuffled. Nothing shows while no
-/// other device takes it.
+/// other device takes it. While a cast is on its way it says "Starting on
+/// Living room TV…", and its devices can't be chosen.
 struct PlayOnMenu: View {
     @ObservedObject var remote: RemoteModel
     let target: CastTarget
@@ -879,10 +919,12 @@ struct PlayOnMenu: View {
     var chosen: (() -> Void)?
 
     var body: some View {
-        let devices = remote.takers(target.kind)
+        let devices = remote.takers(target)
         if !devices.isEmpty {
             let names = remote.names
-            let title = target.kind == .live ? Words.watchOn : Words.playOn
+            // While a cast is on its way, it says where, until the device plays it.
+            let starting = remote.casting.map { Words.startingOn(names[$0] ?? Words.unnamedDevice) }
+            let title = starting ?? (target.kind == .live ? Words.watchOn : Words.playOn)
             Menu {
                 ForEach(devices) { device in
                     choice(device, names: names, target: target)
@@ -897,7 +939,13 @@ struct PlayOnMenu: View {
             } label: {
                 if iconOnly {
                     // A target of its own, among the overlay's other buttons.
-                    Label(title, systemImage: "play.tv").labelStyle(.iconOnly).frame(width: 44, height: 44)
+                    if let starting {
+                        ProgressView()
+                            .frame(width: 44, height: 44)
+                            .accessibilityLabel(starting)
+                    } else {
+                        Label(title, systemImage: "play.tv").labelStyle(.iconOnly).frame(width: 44, height: 44)
+                    }
                 } else {
                     Label(title, systemImage: "play.tv")
                 }
@@ -918,6 +966,125 @@ struct PlayOnMenu: View {
             Label(name, systemImage: device.kind.symbol)
             Text(device.line)
         }
+        // One cast at a time: the server answers once the device plays.
+        .disabled(remote.casting != nil)
         .accessibilityIdentifier("\(prefix).playOn.\(device.id)")
+    }
+}
+
+/// Asks for the code an AirPlay device shows, the first time something is
+/// cast there: what to type and why, the field (a code of a known length
+/// goes at its last digit, as on an Apple TV), what went wrong with the last
+/// try, and a link that has the device show a new code. Cancel closes it,
+/// but not while a code is on its way; once paired, it closes and what was
+/// cast goes there, "Play on…" saying "Starting on…" meanwhile.
+struct PairingSheet: View {
+    @ObservedObject var remote: RemoteModel
+    /// As the sheet opened: the model's own once it changes (a wrong code, a new one shown).
+    let opened: RemoteModel.Pairing
+    @State private var code = ""
+    @FocusState private var focused: Bool
+
+    private var pairing: RemoteModel.Pairing { remote.pairing ?? opened }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField(Words.pairingCodeField, text: $code)
+                        #if os(iOS)
+                        .keyboardType(.numberPad)
+                        #endif
+                        .textContentType(.oneTimeCode)
+                        .font(.title2.monospacedDigit())
+                        .focused($focused)
+                        .disabled(remote.pairingBusy)
+                        .onSubmit(submit)
+                        .onValueChange(of: code) { typed in
+                            // Digits alone, no more than the code has.
+                            let digits = String(typed.filter { $0.isASCII && $0.isNumber }.prefix(pairing.most))
+                            if digits != typed {
+                                code = digits
+                            } else if let length = pairing.digits, digits.count == length {
+                                submit()
+                            }
+                        }
+                        .modifier(Shake(times: pairing.wrong))
+                        .animation(.default, value: pairing.wrong)
+                        .accessibilityIdentifier("pairing.code")
+                } header: {
+                    Text(Words.pairingCodePrompt(pairing.name))
+                } footer: {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let error = pairing.error {
+                            Text(error)
+                                .foregroundStyle(.red)
+                                .accessibilityIdentifier("pairing.error")
+                        } else {
+                            Text(Words.pairingWhy)
+                        }
+                        Button(Words.showCodeAgain) {
+                            code = ""
+                            Task { await remote.showCodeAgain() }
+                        }
+                        .disabled(remote.pairingBusy)
+                        .accessibilityIdentifier("pairing.showAgain")
+                    }
+                }
+            }
+            .navigationTitle(Words.pairWith(pairing.name))
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Words.remoteCancel) { remote.pairing = nil }
+                        // Not while a code is on its way (50 seconds at most): its answer belongs to this sheet.
+                        .disabled(remote.pairingBusy)
+                        .accessibilityIdentifier("pairing.cancel")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    if remote.pairingBusy {
+                        ProgressView()
+                    } else {
+                        Button(Words.pairingPair, action: submit)
+                            .disabled(code.count < RemoteModel.pairingCodeMax)
+                            .accessibilityIdentifier("pairing.pair")
+                    }
+                }
+            }
+            .onAppear { focused = true }
+            // A wrong code, or one shown again, is typed afresh.
+            .onValueChange(of: pairing.wrong) { _ in code = "" }
+            .onValueChange(of: pairing.error) { error in
+                if let error { announce(error) }
+            }
+        }
+        #if os(macOS)
+        .frame(minWidth: 360, minHeight: 220)
+        #endif
+        .presentationDetents([.medium])
+        .interactiveDismissDisabled(remote.pairingBusy)
+    }
+
+    /// Sends the code once it has its digits: the server takes 4.
+    private func submit() {
+        guard !remote.pairingBusy, code.count == RemoteModel.pairingCodeMax else { return }
+        Task { await remote.pair(code: code) }
+    }
+}
+
+/// Shakes its view sideways each time `times` goes up, as a wrong code does.
+private struct Shake: GeometryEffect {
+    var times: Int
+    var animatableData: CGFloat
+
+    init(times: Int) {
+        self.times = times
+        animatableData = CGFloat(times)
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: 8 * sin(animatableData * .pi * 4), y: 0))
     }
 }

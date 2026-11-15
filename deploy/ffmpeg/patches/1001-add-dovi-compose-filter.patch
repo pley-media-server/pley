@@ -1,0 +1,1205 @@
+From: Pley
+Subject: add dovi_compose, a Dolby Vision dual-layer composer
+Origin: Pley's own (deploy/ffmpeg/README.md)
+
+Rebuilds the picture of a Dolby Vision profile 7 stream from its base
+layer, its full enhancement layer and their metadata (RPU), as ETSI GS
+CCM 001's composer does: polynomial and MMR mapping, linear dead zone
+NLQ, and its annex B's enhancement layer resampling. The output is 12-
+or 10-bit BT.2020 PQ without Dolby Vision metadata, for Pley's
+experimental use of the full enhancement layer. The brightness the RPU
+gives each scene (level 1) goes on as HDR10+, which tone mappers read in
+its place.
+
+Experimental: checked against an independent implementation of the
+specification and Dolby Vision test vectors on synthetic streams, not
+against a Dolby decoder or a real disc. GPL (--enable-gpl), under
+FFmpeg's licence as the files it changes.
+---
+diff --git a/configure b/configure
+index 4a901f2..f11918f 100755
+--- a/configure
++++ b/configure
+@@ -4181,6 +4181,7 @@ dilation_opencl_filter_deps="opencl"
+ dnn_classify_filter_select="dnn"
+ dnn_detect_filter_select="dnn"
+ dnn_processing_filter_select="dnn"
++dovi_compose_filter_deps="gpl"
+ drawtext_filter_deps="libfreetype libharfbuzz"
+ drawtext_filter_suggest="libfontconfig libfribidi"
+ drawvg_filter_deps="cairo"
+diff --git a/doc/filters.texi b/doc/filters.texi
+index 3534c87..af9b4b0 100644
+--- a/doc/filters.texi
++++ b/doc/filters.texi
+@@ -12308,6 +12308,90 @@ please use tools/python/tf_sess_config.py to get the configs of TensorFlow backe
+ 
+ @end itemize
+ 
++@section dovi_compose
++
++Compose the two layers of a dual-layer Dolby Vision stream (profile 7, as on
++Ultra HD Blu-ray) into the picture they encode together.
++
++This filter is experimental: it follows the composer of ETSI GS CCM 001 and
++has not been compared with the output of a Dolby decoder.
++
++It takes two inputs: the base layer, an HDR10 picture, and the enhancement
++layer, the picture that holds what the base layer lacks. The composing
++metadata (the RPU) comes as side data of the frames of either. The base layer
++is mapped by the curves of the RPU, the enhancement layer is brought to the
++size of the base layer, inverse quantized and added to it. With a minimal
++enhancement layer (MEL), whose residual is zero, only the curves are applied.
++
++The output is a BT.2020 PQ picture of 12 or 10 bits without Dolby Vision
++metadata, so that what follows treats it as HDR10. The static HDR10 metadata
++of the base layer is kept (see @option{peak}), and the brightness the RPU gives
++each scene goes on as HDR10+ (see @option{scene}).
++
++Both inputs are @code{yuv420p10}, and the enhancement layer is the size of the
++base layer or half of it in each direction. A base layer in another transfer
++than PQ, layers of 8 bits and an NLQ other than the linear dead zone are
++refused with an error.
++
++A picture of the base layer goes with the picture of the enhancement layer
++that has its timestamp. One without such a picture is composed without a
++residual, and one without an RPU is passed on as it is; a warning tells so.
++
++A file that carries both layers in one track is opened twice, the second time
++through the @code{dovi_split} bitstream filter, which keeps the enhancement
++layer:
++
++@example
++ffmpeg -i INPUT -bsf:v:0 dovi_split=mode=el -i INPUT -filter_complex \
++  "[0:v:0][1:v:0]dovi_compose[v]" -map "[v]" -map 0:a OUTPUT
++@end example
++
++Where the layers are two streams, as in the transport streams of a disc, the
++RPU is in the second:
++
++@example
++ffmpeg -i INPUT -filter_complex "[0:v:0][0:v:1]dovi_compose[v]" -map "[v]" \
++  -map 0:a OUTPUT
++@end example
++
++The filter accepts the following options:
++
++@table @option
++@item bits
++Set the bit depth of the output: 12 (@code{yuv420p12}), the depth of the
++composed signal and the default, or 10 (@code{yuv420p10}), rounded from it.
++
++@item residual
++Add the residual of the enhancement layer. Enabled by default; when disabled,
++the output is the base layer mapped by the curves of the RPU alone.
++
++@item peak
++Set the mastering peak in the static metadata of the output. That metadata is
++the base layer's and describes the base layer, while the composed picture can
++be mastered brighter; a tone mapper that trusts the lower peak clips it.
++
++@table @samp
++@item auto
++Keep the base layer's, except in frames that the curves or the residual
++change and whose RPU declares a higher source peak: these get that peak, and
++lose their content light levels, which were measured on the base layer. The
++metadata of the stream, which an encoder writes, stays the base layer's: a
++filter cannot change it once frames flow. This is the default.
++@item bl
++Keep the base layer's.
++@item @var{peak}
++A peak in cd/m2, set in the frames and in the stream; the content light levels
++are dropped from both.
++@end table
++
++@item scene
++Pass the brightness that the RPU's level 1 metadata gives each scene, the
++maximum and the average of its maxRGB, on as the MaxSCL and average maxRGB of
++HDR10+ dynamic metadata in the frames, so that a tone mapper keeps following
++it. It describes the composed picture. Enabled by default; HDR10+ that the
++base layer carries is replaced.
++@end table
++
+ @section drawbox
+ 
+ Draw a colored box on the input image.
+diff --git a/libavfilter/Makefile b/libavfilter/Makefile
+index ce40cf3..50062f1 100644
+--- a/libavfilter/Makefile
++++ b/libavfilter/Makefile
+@@ -295,6 +295,7 @@ OBJS-$(CONFIG_DNN_CLASSIFY_FILTER)           += vf_dnn_classify.o
+ OBJS-$(CONFIG_DNN_DETECT_FILTER)             += vf_dnn_detect.o
+ OBJS-$(CONFIG_DNN_PROCESSING_FILTER)         += vf_dnn_processing.o
+ OBJS-$(CONFIG_DOUBLEWEAVE_FILTER)            += vf_weave.o
++OBJS-$(CONFIG_DOVI_COMPOSE_FILTER)           += vf_dovi_compose.o framesync.o
+ OBJS-$(CONFIG_DRAWBOX_FILTER)                += vf_drawbox.o
+ OBJS-$(CONFIG_DRAWGRAPH_FILTER)              += f_drawgraph.o
+ OBJS-$(CONFIG_DRAWGRID_FILTER)               += vf_drawbox.o
+diff --git a/libavfilter/allfilters.c b/libavfilter/allfilters.c
+index 402b843..66df38b 100644
+--- a/libavfilter/allfilters.c
++++ b/libavfilter/allfilters.c
+@@ -269,6 +269,7 @@ extern const FFFilter ff_vf_dnn_classify;
+ extern const FFFilter ff_vf_dnn_detect;
+ extern const FFFilter ff_vf_dnn_processing;
+ extern const FFFilter ff_vf_doubleweave;
++extern const FFFilter ff_vf_dovi_compose;
+ extern const FFFilter ff_vf_drawbox;
+ extern const FFFilter ff_vf_drawgraph;
+ extern const FFFilter ff_vf_drawgrid;
+diff --git a/libavfilter/vf_dovi_compose.c b/libavfilter/vf_dovi_compose.c
+new file mode 100644
+index 0000000..4a01dc0
+--- /dev/null
++++ b/libavfilter/vf_dovi_compose.c
+@@ -0,0 +1,1050 @@
++/*
++ * This file is part of FFmpeg.
++ *
++ * FFmpeg is free software; you can redistribute it and/or modify
++ * it under the terms of the GNU General Public License as published by
++ * the Free Software Foundation; either version 2 of the License, or
++ * (at your option) any later version.
++ *
++ * FFmpeg is distributed in the hope that it will be useful,
++ * but WITHOUT ANY WARRANTY; without even the implied warranty of
++ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ * GNU General Public License for more details.
++ *
++ * You should have received a copy of the GNU General Public License along
++ * with FFmpeg; if not, write to the Free Software Foundation, Inc.,
++ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
++ */
++
++/**
++ * @file
++ * Dolby Vision dual-layer composer (experimental).
++ *
++ * Reconstructs the picture of a dual-layer Dolby Vision stream (profile 7,
++ * as on UHD Blu-ray) from its base layer (BL), its enhancement layer (EL)
++ * and the composing metadata of the RPU: the BL is mapped to a 16-bit
++ * prediction (piece-wise polynomial or MMR), the EL is brought to the BL's
++ * size, inverse quantized (NLQ, linear dead zone) and added to it.
++ *
++ * The arithmetic follows the composer of ETSI GS CCM 001 V1.1.1, clause 5.4
++ * (inverse mapping 5.4.2, NLQ 5.4.3.2, reconstruction 5.4.3.3), and the EL
++ * resampling follows its informative annex B.3. The same reading of that
++ * arithmetic is found in DoViBaker (https://github.com/erazortt/DoViBaker)
++ * and in libplacebo, which were consulted to check it; libplacebo also
++ * reports the position of the EL samples that annex B.3 implies (co-sited
++ * horizontally, centred vertically) on the streams it was tried with.
++ *
++ * It was written without a stream made by a Dolby encoder to compare with.
++ */
++
++#include <math.h>
++#include <string.h>
++
++#include "libavutil/common.h"
++#include "libavutil/dovi_meta.h"
++#include "libavutil/hdr_dynamic_metadata.h"
++#include "libavutil/mastering_display_metadata.h"
++#include "libavutil/mem.h"
++#include "libavutil/opt.h"
++#include "libavutil/pixdesc.h"
++#include "libavutil/timestamp.h"
++
++#include "avfilter.h"
++#include "filters.h"
++#include "formats.h"
++#include "framesync.h"
++#include "video.h"
++
++/* The only layout this filter takes: 4:2:0 with 10-bit BL and EL. */
++#define IN_DEPTH   10
++#define BL_LUT     (1 << IN_DEPTH)
++/* The annex B.3 filters overshoot: an upsampled 10-bit EL stays below 1406. */
++#define NLQ_LUT    (1 << (IN_DEPTH + 1))
++/* Samples each side of a row that the horizontal filter reads past it. */
++#define ROW_PAD    4
++/* The fractional bits of the MMR coefficients are kept to this many (those of
++ * the profiles of the specification), so that their products with the 20-bit
++ * terms fit 64 bits. */
++#define MMR_DENOM  23
++
++/* Values of the peak option below the mastering peaks it also takes. */
++enum PeakMode {
++    PEAK_BL   = -1,
++    PEAK_AUTO =  0,
++};
++
++/* What a composition depends on: compared to tell when to rebuild tables. */
++typedef struct DoviKey {
++    int valid;                  ///< 0: no RPU, the BL is passed on as it is
++    int coef_log2_denom;
++    int nlq;                    ///< the RPU has an NLQ to apply
++    AVDOVIReshapingCurve curves[3];
++    AVDOVINLQParams nlq_params[3];
++} DoviKey;
++
++typedef struct MMRPiece {
++    int order;                  ///< 0 for a polynomial piece
++    int64_t constant;
++    int64_t coef[3][7];
++} MMRPiece;
++
++typedef struct ThreadBuf {
++    uint16_t *tmp;              ///< a row of the EL after the vertical filter
++    uint16_t *up[2];            ///< rows of the EL at the BL's size
++} ThreadBuf;
++
++typedef struct DoviComposeContext {
++    const AVClass *class;
++    FFFrameSync fs;
++
++    int bits;
++    int residual;
++    int peak;
++    int scene;
++
++    int plane_w[3], plane_h[3]; ///< BL and output
++    int el_w[3], el_h[3];
++    int el_upscale;             ///< the EL is half the BL's size
++
++    DoviKey key;
++    int have_key;
++    uint16_t lut_v[3][BL_LUT];  ///< BL sample to 16-bit prediction
++    uint8_t  piece[3][BL_LUT];  ///< BL sample to the piece it falls in
++    int32_t  lut_r[3][NLQ_LUT]; ///< EL sample to residual
++    int      pivot_lo[3], pivot_hi[3];
++    MMRPiece mmr[3][AV_DOVI_MAX_PIECES];
++    int      mmr_denom;
++    int      has_mmr;           ///< a chroma piece is mapped by MMR
++    int      identity;          ///< the curves leave the BL as it is
++    int      nlq_zero;          ///< every residual is zero (a minimal EL)
++
++    ThreadBuf *bufs;
++    int nb_bufs;
++
++    int64_t nb_frames, nb_composed, nb_no_rpu, nb_no_el;
++    int l1_max, l1_avg;         ///< the last level 1 seen, 12-bit PQ
++    int warned_no_rpu, warned_no_el, warned_signal, logged_mode, logged_peak;
++} DoviComposeContext;
++
++#define OFFSET(x) offsetof(DoviComposeContext, x)
++#define FLAGS (AV_OPT_FLAG_VIDEO_PARAM | AV_OPT_FLAG_FILTERING_PARAM)
++
++static const AVOption dovi_compose_options[] = {
++    { "bits", "set the bit depth of the output (10 or 12)", OFFSET(bits), AV_OPT_TYPE_INT, { .i64 = 12 }, 10, 12, FLAGS },
++    { "residual", "add the enhancement layer's residual", OFFSET(residual), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, FLAGS },
++    { "peak", "set the mastering peak of the output, in cd/m2", OFFSET(peak), AV_OPT_TYPE_INT, { .i64 = PEAK_AUTO }, PEAK_BL, 10000, FLAGS, .unit = "peak" },
++        { "auto", "the base layer's, raised in the frames to the RPU's source peak when that is higher", 0, AV_OPT_TYPE_CONST, { .i64 = PEAK_AUTO }, 0, 0, FLAGS, .unit = "peak" },
++        { "bl",   "the base layer's",                                                                   0, AV_OPT_TYPE_CONST, { .i64 = PEAK_BL },   0, 0, FLAGS, .unit = "peak" },
++    { "scene", "pass the RPU's brightness of each scene on as HDR10+", OFFSET(scene), AV_OPT_TYPE_BOOL, { .i64 = 1 }, 0, 1, FLAGS },
++    { NULL }
++};
++
++AVFILTER_DEFINE_CLASS(dovi_compose);
++
++static int query_formats(const AVFilterContext *ctx,
++                         AVFilterFormatsConfig **cfg_in,
++                         AVFilterFormatsConfig **cfg_out)
++{
++    const DoviComposeContext *s = ctx->priv;
++    int ret;
++
++    /* Each link gets lists of its own. Lists shared between the links would
++     * let the negotiation convert the EL to the BL's colour space or range,
++     * or the BL to that of what follows, and so change the code values the
++     * RPU is written for. */
++    for (int i = 0; i < 2; i++) {
++        if ((ret = ff_formats_ref(ff_make_formats_list_singleton(AV_PIX_FMT_YUV420P10),
++                                  &cfg_in[i]->formats)) < 0 ||
++            (ret = ff_formats_ref(ff_all_color_spaces(),
++                                  &cfg_in[i]->color_spaces)) < 0 ||
++            (ret = ff_formats_ref(ff_all_color_ranges(),
++                                  &cfg_in[i]->color_ranges)) < 0)
++            return ret;
++    }
++
++    /* The composed signal is BT.2020 non-constant luminance, limited range. */
++    if ((ret = ff_formats_ref(ff_make_formats_list_singleton(s->bits == 10 ? AV_PIX_FMT_YUV420P10
++                                                                           : AV_PIX_FMT_YUV420P12),
++                              &cfg_out[0]->formats)) < 0 ||
++        (ret = ff_formats_ref(ff_make_formats_list_singleton(AVCOL_SPC_BT2020_NCL),
++                              &cfg_out[0]->color_spaces)) < 0 ||
++        (ret = ff_formats_ref(ff_make_formats_list_singleton(AVCOL_RANGE_MPEG),
++                              &cfg_out[0]->color_ranges)) < 0)
++        return ret;
++
++    return 0;
++}
++
++/**
++ * The piece of a curve a BL sample falls in (ETSI GS CCM 001, 5.4.2.2). A
++ * sample at or above the last pivot belongs to the last piece: the index one
++ * past it that the pseudo-code of the specification gives names no piece.
++ */
++static int pivot_index(const AVDOVIReshapingCurve *curve, int sample)
++{
++    const int last = curve->num_pivots - 2;
++
++    for (int i = 0; i < last; i++)
++        if (sample < curve->pivots[i + 1])
++            return i;
++    return last;
++}
++
++/* Polynomial mapping of a BL sample (ETSI GS CCM 001, 5.4.2.3.2). */
++static int poly_map(const AVDOVIReshapingCurve *curve, int piece, int sample,
++                    int denom)
++{
++    const int order = curve->poly_order[piece];
++    uint64_t vv = 0;
++    int64_t ss = 1, v;
++    int shift = 20;
++
++    sample = av_clip(sample, curve->pivots[0],
++                     curve->pivots[curve->num_pivots - 1]);
++    for (int i = 0; i <= order; i++) {
++        vv += (uint64_t)curve->poly_coef[piece][i] * (uint64_t)(ss << shift);
++        ss *= sample;
++        shift -= IN_DEPTH;
++    }
++    v = (int64_t)vv;
++    v = v < 0 ? 0 : v >> (4 + denom);
++    return FFMIN(v, 0xffff);
++}
++
++/* Linear dead zone inverse quantization (ETSI GS CCM 001, 5.4.3.2). */
++static int nlq_linear_dz(const AVDOVINLQParams *p, int sample, int denom)
++{
++    const int64_t limit = (INT64_C(2) << denom) - 1;
++    const int64_t T = FFMIN(p->linear_deadzone_threshold, limit);
++    const int64_t S = FFMIN(p->linear_deadzone_slope, limit);
++    const int64_t R = FFMIN(p->vdr_in_max, limit);
++    const int shift = denom - 5 - IN_DEPTH;
++    int64_t rr = sample - (int)p->nlq_offset, dq;
++    int sign;
++
++    if (!rr)
++        return 0;
++
++    sign = rr < 0 ? -1 : 1;
++    rr   = rr * 2 - sign;
++    dq   = rr * S + T * 2 * sign;
++    dq   = av_clip64(dq, -R * 2, R * 2);
++    /* arithmetic shifts, as the specification defines them */
++    return shift >= 0 ? dq >> shift : dq * (1 << -shift);
++}
++
++static int check_curve(AVFilterContext *ctx, const AVDOVIReshapingCurve *curve,
++                       int c)
++{
++    if (curve->num_pivots < 2 || curve->num_pivots > AV_DOVI_MAX_PIECES + 1)
++        goto invalid;
++
++    for (int i = 0; i < curve->num_pivots - 1; i++) {
++        if (curve->pivots[i] > curve->pivots[i + 1])
++            goto invalid;
++        switch (curve->mapping_idc[i]) {
++        case AV_DOVI_MAPPING_POLYNOMIAL:
++            if (curve->poly_order[i] > 2)
++                goto invalid;
++            break;
++        case AV_DOVI_MAPPING_MMR:
++            /* the luma is never predicted from the chroma */
++            if (!c || curve->mmr_order[i] < 1 || curve->mmr_order[i] > 3)
++                goto invalid;
++            break;
++        default:
++            goto invalid;
++        }
++    }
++    return 0;
++
++invalid:
++    av_log(ctx, AV_LOG_ERROR, "Invalid reshaping curve for component %d.\n", c);
++    return AVERROR_INVALIDDATA;
++}
++
++/**
++ * Build the tables for a new set of composing metadata.
++ */
++static int build_tables(AVFilterContext *ctx)
++{
++    DoviComposeContext *s = ctx->priv;
++    const DoviKey *key = &s->key;
++    const int denom = key->coef_log2_denom;
++    int ret;
++
++    s->has_mmr  = 0;
++    s->nlq_zero = 1;
++    s->identity = 1;
++
++    if (!key->valid) {
++        /* no metadata: the BL at the precision of the prediction */
++        for (int c = 0; c < 3; c++)
++            for (int i = 0; i < BL_LUT; i++)
++                s->lut_v[c][i] = i << (16 - IN_DEPTH);
++        return 0;
++    }
++
++    s->mmr_denom = FFMIN(denom, MMR_DENOM);
++    for (int c = 0; c < 3; c++) {
++        const AVDOVIReshapingCurve *curve = &key->curves[c];
++
++        if ((ret = check_curve(ctx, curve, c)) < 0)
++            return ret;
++
++        s->pivot_lo[c] = FFMIN(curve->pivots[0], BL_LUT - 1);
++        s->pivot_hi[c] = FFMIN(curve->pivots[curve->num_pivots - 1], BL_LUT - 1);
++        for (int i = 0; i < curve->num_pivots - 1; i++) {
++            MMRPiece *piece = &s->mmr[c][i];
++            const int drop = denom - s->mmr_denom;
++
++            piece->order = 0;
++            if (curve->mapping_idc[i] != AV_DOVI_MAPPING_MMR)
++                continue;
++            s->has_mmr      = 1;
++            piece->order    = curve->mmr_order[i];
++            piece->constant = curve->mmr_constant[i] >> drop;
++            for (int j = 0; j < piece->order; j++)
++                for (int k = 0; k < 7; k++)
++                    piece->coef[j][k] = curve->mmr_coef[i][j][k] >> drop;
++        }
++
++        for (int i = 0; i < BL_LUT; i++) {
++            const int piece = pivot_index(curve, i);
++
++            s->piece[c][i] = piece;
++            s->lut_v[c][i] = curve->mapping_idc[piece] == AV_DOVI_MAPPING_MMR ? 0 :
++                             poly_map(curve, piece, i, denom);
++            if (s->lut_v[c][i] != i << (16 - IN_DEPTH))
++                s->identity = 0;
++        }
++
++        if (!key->nlq)
++            continue;
++        for (int i = 0; i < NLQ_LUT; i++) {
++            s->lut_r[c][i] = nlq_linear_dz(&key->nlq_params[c], i, denom);
++            if (s->lut_r[c][i])
++                s->nlq_zero = 0;
++        }
++    }
++
++    av_log(ctx, AV_LOG_VERBOSE, "New composing metadata: %s mapping, %s.\n",
++           s->has_mmr ? "MMR" : "polynomial",
++           !key->nlq    ? "no residual" :
++           s->nlq_zero  ? "a residual of zero (minimal enhancement layer)" :
++                          "a residual (full enhancement layer)");
++    return 0;
++}
++
++/**
++ * Take the composing metadata of a frame, and rebuild the tables when it
++ * differs from the previous frame's.
++ */
++static int update_metadata(AVFilterContext *ctx, const AVDOVIMetadata *dovi)
++{
++    DoviComposeContext *s = ctx->priv;
++    DoviKey key;
++
++    memset(&key, 0, sizeof(key));
++    if (dovi) {
++        const AVDOVIRpuDataHeader *hdr = av_dovi_get_header(dovi);
++        const AVDOVIDataMapping *mapping = av_dovi_get_mapping(dovi);
++
++        if (hdr->bl_bit_depth != IN_DEPTH) {
++            av_log(ctx, AV_LOG_ERROR, "A %d-bit base layer is not supported.\n",
++                   hdr->bl_bit_depth);
++            return AVERROR_PATCHWELCOME;
++        }
++        if (hdr->coef_log2_denom > 32) {
++            av_log(ctx, AV_LOG_ERROR, "Invalid coefficient denominator.\n");
++            return AVERROR_INVALIDDATA;
++        }
++        if (mapping->num_x_partitions > 1 || mapping->num_y_partitions > 1) {
++            av_log(ctx, AV_LOG_ERROR, "Partitioned mappings are not supported.\n");
++            return AVERROR_PATCHWELCOME;
++        }
++
++        key.valid           = 1;
++        key.coef_log2_denom = hdr->coef_log2_denom;
++        key.nlq             = !hdr->disable_residual_flag &&
++                              mapping->nlq_method_idc != AV_DOVI_NLQ_NONE;
++        memcpy(key.curves, mapping->curves, sizeof(key.curves));
++        if (key.nlq) {
++            if (mapping->nlq_method_idc != AV_DOVI_NLQ_LINEAR_DZ) {
++                av_log(ctx, AV_LOG_ERROR, "NLQ method %d is not supported.\n",
++                       mapping->nlq_method_idc);
++                return AVERROR_PATCHWELCOME;
++            }
++            if (hdr->el_bit_depth != IN_DEPTH) {
++                av_log(ctx, AV_LOG_ERROR, "A %d-bit enhancement layer is not "
++                       "supported.\n", hdr->el_bit_depth);
++                return AVERROR_PATCHWELCOME;
++            }
++            memcpy(key.nlq_params, mapping->nlq, sizeof(key.nlq_params));
++        }
++    }
++
++    if (s->have_key && !memcmp(&key, &s->key, sizeof(key)))
++        return 0;
++
++    memcpy(&s->key, &key, sizeof(key));
++    s->have_key = 0;
++    if (build_tables(ctx) < 0)
++        return AVERROR_INVALIDDATA;
++    s->have_key = 1;
++    return 0;
++}
++
++/* Vertical EL filters of ETSI GS CCM 001, annex B.3. */
++static void el_vert_luma(uint16_t *restrict dst, const uint16_t *r0,
++                         const uint16_t *r1, const uint16_t *r2,
++                         const uint16_t *r3, int w, int odd)
++{
++    const int c0 = odd ?  -9 :  -3, c1 = odd ? 111 :  29,
++              c2 = odd ?  29 : 111, c3 = odd ?  -3 :  -9;
++
++    for (int x = 0; x < w; x++)
++        dst[x] = av_clip_uint16((c0 * r0[x] + c1 * r1[x] + c2 * r2[x] +
++                                 c3 * r3[x] + 64) >> 7);
++}
++
++static void el_vert_chroma(uint16_t *restrict dst, const uint16_t *r0,
++                           const uint16_t *r1, int w, int odd)
++{
++    const int c0 = odd ? 192 : 64, c1 = odd ? 64 : 192;
++
++    for (int x = 0; x < w; x++)
++        dst[x] = av_clip_uint16((c0 * r0[x] + c1 * r1[x] + 128) >> 8);
++}
++
++/* Horizontal filter of ETSI GS CCM 001, annex B.2, as B.3 uses it. */
++static void el_horiz(uint16_t *restrict dst, const uint16_t *src, int w)
++{
++    const int half = w >> 1;
++
++    for (int x = 0; x < half; x++) {
++        dst[2 * x]     = src[x];
++        dst[2 * x + 1] = av_clip_uint16((  22 * (src[x - 3] + src[x + 4])
++                                         + 94 * (src[x - 2] + src[x + 3])
++                                        - 524 * (src[x - 1] + src[x + 2])
++                                       + 2456 * (src[x]     + src[x + 1])
++                                       + 2048) >> 12);
++    }
++    if (w & 1)
++        dst[w - 1] = src[half];
++}
++
++/**
++ * A row of an EL plane at the size of the BL plane: the row itself when the
++ * layers have one size, else the row upsampled into up.
++ */
++static const uint16_t *el_row(const DoviComposeContext *s, const ThreadBuf *buf,
++                              const AVFrame *el, int plane, int y, uint16_t *up)
++{
++    const uint8_t *data = el->data[plane];
++    const ptrdiff_t linesize = el->linesize[plane];
++    const int w = s->el_w[plane], h = s->el_h[plane];
++    const int n = y >> 1, odd = y & 1;
++    uint16_t *tmp = buf->tmp + ROW_PAD;
++
++#define ROW(i) ((const uint16_t *)(data + av_clip(i, 0, h - 1) * linesize))
++    if (!s->el_upscale)
++        return ROW(y);
++
++    if (!plane)
++        el_vert_luma(tmp, ROW(n - 2 + odd), ROW(n - 1 + odd), ROW(n + odd),
++                     ROW(n + 1 + odd), w, odd);
++    else
++        el_vert_chroma(tmp, ROW(n - 1 + odd), ROW(n + odd), w, odd);
++#undef ROW
++
++    /* past the picture, the sample at its edge */
++    for (int i = 1; i <= ROW_PAD; i++) {
++        tmp[-i]        = tmp[0];
++        tmp[w - 1 + i] = tmp[w - 1];
++    }
++    el_horiz(up, tmp, s->plane_w[plane]);
++    return up;
++}
++
++/* Reconstruction (ETSI GS CCM 001, 5.4.3.3) of a row mapped by polynomials. */
++static void compose_row(uint16_t *dst, const uint16_t *bl, const uint16_t *el,
++                        int w, const uint16_t *lut_v, const int32_t *lut_r,
++                        int bits)
++{
++    const int round = 1 << (15 - bits), shift = 16 - bits;
++
++    if (el) {
++        for (int x = 0; x < w; x++) {
++            const int v = lut_v[FFMIN(bl[x], BL_LUT - 1)];
++            const int r = lut_r[FFMIN(el[x], NLQ_LUT - 1)];
++            dst[x] = av_clip_uintp2((v + r + round) >> shift, bits);
++        }
++    } else {
++        for (int x = 0; x < w; x++) {
++            const int v = lut_v[FFMIN(bl[x], BL_LUT - 1)];
++            dst[x] = av_clip_uintp2((v + round) >> shift, bits);
++        }
++    }
++}
++
++/* MMR mapping of one chroma sample (ETSI GS CCM 001, 5.4.2.3.3). */
++static av_always_inline int mmr_map(const MMRPiece *piece, const int64_t *tt,
++                                    int denom)
++{
++    uint64_t rr = (uint64_t)piece->constant << 20;
++    int64_t v;
++
++    for (int i = 0; i < piece->order; i++)
++        for (int j = 0; j < 7; j++)
++            rr += (uint64_t)piece->coef[i][j] * (uint64_t)tt[1 + 7 * i + j];
++    v = (int64_t)rr;
++    v = v < 0 ? 0 : v >> (4 + denom);
++    return FFMIN(v, 0xffff);
++}
++
++/**
++ * Reconstruction of a row of both chroma planes when one of them is mapped
++ * by MMR, which predicts a chroma sample from the three components there.
++ *
++ * @param y0, y1 the two BL luma rows this chroma row lies between
++ * @param luma_w width of the luma rows
++ */
++static void compose_row_mmr(const DoviComposeContext *s, uint16_t *dst[2],
++                            const uint16_t *y0, const uint16_t *y1,
++                            const uint16_t *bl[2], const uint16_t *el[2],
++                            int w, int luma_w)
++{
++    const int round = 1 << (15 - s->bits), shift = 16 - s->bits;
++
++    for (int x = 0; x < w; x++) {
++        const int xm = FFMAX(2 * x - 1, 0), xc = 2 * x,
++                  xp = FFMIN(2 * x + 1, luma_w - 1);
++        const int in[2] = { FFMIN(bl[0][x], BL_LUT - 1),
++                            FFMIN(bl[1][x], BL_LUT - 1) };
++        const MMRPiece *piece[2] = { &s->mmr[1][s->piece[1][in[0]]],
++                                     &s->mmr[2][s->piece[2][in[1]]] };
++        const int order = FFMAX(piece[0]->order, piece[1]->order);
++        int64_t tt[22];
++
++        if (order) {
++            /* the luma at the position of the chroma sample */
++            const int64_t s0 = av_clip((((y0[xm] + 2 * y0[xc] + y0[xp] + 2) >> 2) +
++                                        ((y1[xm] + 2 * y1[xc] + y1[xp] + 2) >> 2) +
++                                        1) >> 1, s->pivot_lo[0], s->pivot_hi[0]);
++            const int64_t s1 = av_clip(in[0], s->pivot_lo[1], s->pivot_hi[1]);
++            const int64_t s2 = av_clip(in[1], s->pivot_lo[2], s->pivot_hi[2]);
++
++            tt[1] = s0 << (20 - IN_DEPTH);
++            tt[2] = s1 << (20 - IN_DEPTH);
++            tt[3] = s2 << (20 - IN_DEPTH);
++            tt[4] = (s0 * s1) << (20 - 2 * IN_DEPTH);
++            tt[5] = (s0 * s2) << (20 - 2 * IN_DEPTH);
++            tt[6] = (s1 * s2) << (20 - 2 * IN_DEPTH);
++            tt[7] = (tt[4] * tt[3]) >> 20;
++            if (order >= 2) {
++                tt[8]  = (s0 * s0) << (20 - 2 * IN_DEPTH);
++                tt[9]  = (s1 * s1) << (20 - 2 * IN_DEPTH);
++                tt[10] = (s2 * s2) << (20 - 2 * IN_DEPTH);
++                tt[11] = (tt[4] * tt[4]) >> 20;
++                tt[12] = (tt[5] * tt[5]) >> 20;
++                tt[13] = (tt[6] * tt[6]) >> 20;
++                tt[14] = (tt[7] * tt[7]) >> 20;
++            }
++            if (order >= 3) {
++                tt[15] = (tt[1] * tt[8])  >> 20;
++                tt[16] = (tt[2] * tt[9])  >> 20;
++                tt[17] = (tt[3] * tt[10]) >> 20;
++                tt[18] = (tt[4] * tt[11]) >> 20;
++                tt[19] = (tt[5] * tt[12]) >> 20;
++                tt[20] = (tt[6] * tt[13]) >> 20;
++                tt[21] = (tt[7] * tt[14]) >> 20;
++            }
++        }
++
++        for (int c = 0; c < 2; c++) {
++            int v = piece[c]->order ? mmr_map(piece[c], tt, s->mmr_denom)
++                                    : s->lut_v[c + 1][in[c]];
++            if (el[c])
++                v += s->lut_r[c + 1][FFMIN(el[c][x], NLQ_LUT - 1)];
++            dst[c][x] = av_clip_uintp2((v + round) >> shift, s->bits);
++        }
++    }
++}
++
++typedef struct ThreadData {
++    const AVFrame *bl, *el;     ///< el is NULL when no residual is added
++    AVFrame *out;
++} ThreadData;
++
++#define PLANE_ROW(frame, plane, y) \
++    ((uint16_t *)((frame)->data[plane] + (y) * (frame)->linesize[plane]))
++
++static int compose_slice(AVFilterContext *ctx, void *arg, int jobnr, int nb_jobs)
++{
++    const DoviComposeContext *s = ctx->priv;
++    const ThreadData *td = arg;
++    const ThreadBuf *buf = &s->bufs[jobnr];
++    const AVFrame *bl = td->bl, *el = td->el;
++    AVFrame *out = td->out;
++    /* slices are cut along chroma rows, so that none splits a pair of luma
++     * rows */
++    const int c_start = ff_slice_pos(s->plane_h[1], jobnr, nb_jobs);
++    const int c_end   = ff_slice_pos(s->plane_h[1], jobnr + 1, nb_jobs);
++    const int y_start = FFMIN(2 * c_start, s->plane_h[0]);
++    const int y_end   = FFMIN(2 * c_end,   s->plane_h[0]);
++
++    for (int y = y_start; y < y_end; y++)
++        compose_row(PLANE_ROW(out, 0, y), PLANE_ROW(bl, 0, y),
++                    el ? el_row(s, buf, el, 0, y, buf->up[0]) : NULL,
++                    s->plane_w[0], s->lut_v[0], s->lut_r[0], s->bits);
++
++    for (int y = c_start; y < c_end; y++) {
++        const uint16_t *el_rows[2] = {
++            el ? el_row(s, buf, el, 1, y, buf->up[0]) : NULL,
++            el ? el_row(s, buf, el, 2, y, buf->up[1]) : NULL,
++        };
++
++        if (s->has_mmr) {
++            uint16_t *dst[2] = { PLANE_ROW(out, 1, y), PLANE_ROW(out, 2, y) };
++            const uint16_t *src[2] = { PLANE_ROW(bl, 1, y), PLANE_ROW(bl, 2, y) };
++
++            compose_row_mmr(s, dst, PLANE_ROW(bl, 0, 2 * y),
++                            PLANE_ROW(bl, 0, FFMIN(2 * y + 1, s->plane_h[0] - 1)),
++                            src, el_rows, s->plane_w[1], s->plane_w[0]);
++        } else {
++            for (int p = 1; p < 3; p++)
++                compose_row(PLANE_ROW(out, p, y), PLANE_ROW(bl, p, y),
++                            el_rows[p - 1], s->plane_w[p], s->lut_v[p],
++                            s->lut_r[p], s->bits);
++        }
++    }
++
++    return 0;
++}
++
++/* SMPTE ST 2084: a 12-bit code value to cd/m2. */
++static double pq_to_nits(int code)
++{
++    const double m1 = 2610.0 / 16384, m2 = 2523.0 / 4096 * 128;
++    const double c1 = 3424.0 / 4096, c2 = 2413.0 / 4096 * 32,
++                 c3 = 2392.0 / 4096 * 32;
++    const double p = pow(code / 4095.0, 1.0 / m2);
++
++    return 10000.0 * pow(FFMAX(p - c1, 0.0) / (c2 - c3 * p), 1.0 / m1);
++}
++
++/* The RPU carried no display management data: lavc then gives its defaults. */
++static int color_is_default(const AVDOVIColorMetadata *color)
++{
++    return color->signal_bit_depth == 14 && color->source_diagonal == 42 &&
++           color->source_min_pq == 62 && color->source_max_pq == 3696 &&
++           color->ycc_to_rgb_matrix[2].num == 14742;
++}
++
++/**
++ * Give the static metadata in a set of side data a mastering peak, and take
++ * out the light levels, which were measured on the BL. The mastering display
++ * metadata is replaced, not changed: other frames may share it.
++ *
++ * @param min_pq the 12-bit PQ code of the minimum, for metadata that has none
++ */
++static int set_mastering_peak(AVFrameSideData ***sd, int *nb_sd, int peak,
++                              int min_pq)
++{
++    const AVFrameSideData *old = av_frame_side_data_get(*sd, *nb_sd, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
++    AVMasteringDisplayMetadata *mdm;
++    AVBufferRef *buf;
++    size_t size;
++
++    mdm = av_mastering_display_metadata_alloc_size(&size);
++    if (!mdm)
++        return AVERROR(ENOMEM);
++    if (old) {
++        const AVMasteringDisplayMetadata *src = (const AVMasteringDisplayMetadata *)old->data;
++
++        memcpy(mdm->display_primaries, src->display_primaries, sizeof(mdm->display_primaries));
++        memcpy(mdm->white_point, src->white_point, sizeof(mdm->white_point));
++        mdm->has_primaries = src->has_primaries;
++        mdm->has_luminance = src->has_luminance;
++        mdm->min_luminance = src->min_luminance;
++    }
++    if (!mdm->has_luminance)
++        mdm->min_luminance = av_d2q(pq_to_nits(min_pq), 10000);
++    mdm->max_luminance = av_make_q(peak, 1);
++    mdm->has_luminance = 1;
++
++    buf = av_buffer_create((uint8_t *)mdm, size, NULL, NULL, 0);
++    if (!buf) {
++        av_free(mdm);
++        return AVERROR(ENOMEM);
++    }
++    if (!av_frame_side_data_add(sd, nb_sd, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA,
++                                &buf, AV_FRAME_SIDE_DATA_FLAG_REPLACE)) {
++        av_buffer_unref(&buf);
++        return AVERROR(ENOMEM);
++    }
++    av_frame_side_data_remove(sd, nb_sd, AV_FRAME_DATA_CONTENT_LIGHT_LEVEL);
++    return 0;
++}
++
++/**
++ * Give a frame the brightness of its scene that the RPU's level 1 says, the
++ * maximum and the average of its maxRGB, as HDR10+'s MaxSCL and average
++ * maxRGB: what a tone mapper reads from either, which it could no longer
++ * read from the RPU the output leaves out.
++ */
++static int set_scene_brightness(DoviComposeContext *s, AVFrame *out,
++                                const AVDOVIMetadata *dovi)
++{
++    const AVDOVIDmData *dm = av_dovi_find_level(dovi, 1);
++    AVDynamicHDRPlus *hdr;
++    AVHDRPlusColorTransformParams *w;
++    int max, avg;
++
++    /* An RPU without it keeps the scene's: the last one given. */
++    if (dm && dm->l1.max_pq) {
++        s->l1_max = dm->l1.max_pq;
++        s->l1_avg = FFMIN(dm->l1.avg_pq, dm->l1.max_pq);
++    }
++    if (!s->l1_max)
++        return 0;
++    /* cd/m2 in steps of 0.1, of 10000 cd/m2 */
++    max = lrint(pq_to_nits(s->l1_max) * 10);
++    avg = lrint(pq_to_nits(s->l1_avg) * 10);
++
++    av_frame_remove_side_data(out, AV_FRAME_DATA_DYNAMIC_HDR_PLUS);
++    hdr = av_dynamic_hdr_plus_create_side_data(out);
++    if (!hdr)
++        return AVERROR(ENOMEM);
++    hdr->itu_t_t35_country_code = 0xB5;
++    hdr->application_version = 1;
++    hdr->num_windows = 1;
++    hdr->targeted_system_display_maximum_luminance = av_make_q(0, 1);
++    w = &hdr->params[0];
++    for (int i = 0; i < 3; i++)
++        w->maxscl[i] = av_make_q(max, 100000);
++    w->average_maxrgb = av_make_q(FFMAX(avg, 1), 100000);
++    return 0;
++}
++
++/**
++ * Make the output the HDR10 frame it now is: no Dolby Vision metadata, the
++ * colour tags of the composed signal, and static metadata that covers it.
++ *
++ * @param changed the picture is not the BL's: its curves or the EL changed it
++ */
++static int set_output_props(AVFilterContext *ctx, AVFrame *out,
++                            const AVDOVIMetadata *dovi, int changed)
++{
++    DoviComposeContext *s = ctx->priv;
++    const AVDOVIColorMetadata *color = dovi ? av_dovi_get_color(dovi) : NULL;
++
++    av_frame_remove_side_data(out, AV_FRAME_DATA_DOVI_METADATA);
++    av_frame_remove_side_data(out, AV_FRAME_DATA_DOVI_RPU_BUFFER);
++    if (s->scene && dovi) {
++        int ret = set_scene_brightness(s, out, dovi);
++        if (ret < 0)
++            return ret;
++    }
++
++    out->color_primaries = AVCOL_PRI_BT2020;
++    out->color_trc       = AVCOL_TRC_SMPTE2084;
++    out->colorspace      = AVCOL_SPC_BT2020_NCL;
++    out->color_range     = AVCOL_RANGE_MPEG;
++
++    if (color && color_is_default(color))
++        color = NULL;
++
++    if (color && !s->warned_signal) {
++        /* BT.2020 Y'CbCr to R'G'B' for limited-range 12-bit codes, as the
++         * RPUs of profile 7 carry it */
++        static const double ref[9] = { 1.1687, 0, 1.6848, 1.1687, -0.1880,
++                                       -0.6528, 1.1687, 2.1497, 0 };
++        for (int i = 0; i < 9; i++) {
++            if (fabs(av_q2d(color->ycc_to_rgb_matrix[i]) - ref[i]) > 0.02) {
++                av_log(ctx, AV_LOG_WARNING, "The RPU does not describe a "
++                       "BT.2020 Y'CbCr signal (another profile than 7?): the "
++                       "output is not HDR10.\n");
++                s->warned_signal = 1;
++                break;
++            }
++        }
++    }
++
++    if (s->peak > 0)
++        return set_mastering_peak(&out->side_data, &out->nb_side_data, s->peak,
++                                  color ? color->source_min_pq : 0);
++
++    /* The static metadata describes the BL. Where the composed picture is
++     * mastered brighter, a tone mapper given the BL's peak would clip. */
++    if (s->peak == PEAK_AUTO && changed && color && color->source_max_pq) {
++        const int peak = lrint(pq_to_nits(color->source_max_pq));
++        const AVFrameSideData *sd = av_frame_get_side_data(out, AV_FRAME_DATA_MASTERING_DISPLAY_METADATA);
++        const AVMasteringDisplayMetadata *mdm = sd ? (const AVMasteringDisplayMetadata *)sd->data : NULL;
++
++        if (mdm && mdm->has_luminance && av_q2d(mdm->max_luminance) * 1.05 >= peak)
++            return 0;
++        if (!s->logged_peak) {
++            /* An encoder writes the static metadata of the stream, which a
++             * filter can change only before it has seen a frame. */
++            av_log(ctx, AV_LOG_INFO, "The RPU's source peak, %d cd/m2, is above "
++                   "the base layer's mastering peak: the static metadata of "
++                   "the frames says so, that of the stream does not (set "
++                   "peak=%d for both).\n", peak, peak);
++            s->logged_peak = 1;
++        }
++        return set_mastering_peak(&out->side_data, &out->nb_side_data, peak,
++                                  color->source_min_pq);
++    }
++
++    return 0;
++}
++
++static int process_frame(FFFrameSync *fs)
++{
++    AVFilterContext *ctx = fs->parent;
++    DoviComposeContext *s = fs->opaque;
++    AVFilterLink *outlink = ctx->outputs[0];
++    const AVDOVIMetadata *dovi = NULL;
++    const AVFrameSideData *sd;
++    AVFrame *out, *bl, *el;
++    ThreadData td;
++    int ret, use_el;
++
++    if ((ret = ff_framesync_get_frame(&s->fs, 0, &bl, 0)) < 0 ||
++        (ret = ff_framesync_get_frame(&s->fs, 1, &el, 0)) < 0)
++        return ret;
++
++    /* A BL in another transfer than PQ (profile 4) is composed in that
++     * transfer and then converted (ETSI GS CCM 001, 5.5), which this does
++     * not do. */
++    if (bl->color_trc != AVCOL_TRC_SMPTE2084 &&
++        bl->color_trc != AVCOL_TRC_UNSPECIFIED) {
++        av_log(ctx, AV_LOG_ERROR, "The base layer is %s: only one in PQ "
++               "(smpte2084) is supported.\n",
++               av_color_transfer_name(bl->color_trc));
++        return AVERROR_PATCHWELCOME;
++    }
++
++    /* The picture of the EL that belongs to this one has its timestamp; any
++     * other would add the residual of another picture. */
++    if (el && s->fs.in[1].pts != s->fs.pts)
++        el = NULL;
++
++    /* A single track carries the RPU with the BL; where the layers are two
++     * streams (as on the disc), it comes with the EL. */
++    sd = av_frame_get_side_data(bl, AV_FRAME_DATA_DOVI_METADATA);
++    if (!sd && el)
++        sd = av_frame_get_side_data(el, AV_FRAME_DATA_DOVI_METADATA);
++    if (sd)
++        dovi = (const AVDOVIMetadata *)sd->data;
++
++    if ((ret = update_metadata(ctx, dovi)) < 0)
++        return ret;
++
++    s->nb_frames++;
++    if (!dovi) {
++        s->nb_no_rpu++;
++        if (!s->warned_no_rpu) {
++            av_log(ctx, AV_LOG_WARNING, "Frame without Dolby Vision metadata: "
++                   "the base layer is passed on as it is.\n");
++            s->warned_no_rpu = 1;
++        }
++    }
++
++    use_el = s->residual && s->key.nlq && !s->nlq_zero;
++    if (use_el && !el) {
++        s->nb_no_el++;
++        if (!s->warned_no_el) {
++            av_log(ctx, AV_LOG_WARNING, "No enhancement layer picture for the "
++                   "base layer picture at %s: composing without its residual.\n",
++                   av_ts2timestr(s->fs.pts, &s->fs.time_base));
++            s->warned_no_el = 1;
++        }
++        use_el = 0;
++    }
++    s->nb_composed += use_el;
++
++    if (dovi && !s->logged_mode) {
++        av_log(ctx, AV_LOG_INFO, "Composing Dolby Vision: %dx%d base layer, "
++               "%dx%d enhancement layer, %s.\n",
++               s->plane_w[0], s->plane_h[0], s->el_w[0], s->el_h[0],
++               !s->key.nlq ? "no residual in the RPU" :
++               s->nlq_zero ? "a residual of zero (minimal enhancement layer)" :
++               !s->residual ? "residual turned off" :
++                              "full enhancement layer");
++        s->logged_mode = 1;
++    }
++
++    out = ff_get_video_buffer(outlink, outlink->w, outlink->h);
++    if (!out)
++        return AVERROR(ENOMEM);
++    if ((ret = av_frame_copy_props(out, bl)) < 0) {
++        av_frame_free(&out);
++        return ret;
++    }
++
++    td.bl  = bl;
++    td.el  = use_el ? el : NULL;
++    td.out = out;
++    ff_filter_execute(ctx, compose_slice, &td, NULL,
++                      FFMIN(s->plane_h[1], s->nb_bufs));
++
++    if ((ret = set_output_props(ctx, out, dovi, use_el || !s->identity)) < 0) {
++        av_frame_free(&out);
++        return ret;
++    }
++    out->pts = av_rescale_q(s->fs.pts, s->fs.time_base, outlink->time_base);
++
++    return ff_filter_frame(outlink, out);
++}
++
++static int config_output(AVFilterLink *outlink)
++{
++    AVFilterContext *ctx = outlink->src;
++    DoviComposeContext *s = ctx->priv;
++    AVFilterLink *bl = ctx->inputs[0];
++    AVFilterLink *el = ctx->inputs[1];
++    FilterLink *il = ff_filter_link(bl);
++    FilterLink *ol = ff_filter_link(outlink);
++    FFFrameSyncIn *in;
++    int ret;
++
++    if (el->w == bl->w && el->h == bl->h) {
++        s->el_upscale = 0;
++    } else if (el->w * 2 == bl->w && el->h * 2 == bl->h) {
++        s->el_upscale = 1;
++    } else {
++        av_log(ctx, AV_LOG_ERROR, "The enhancement layer (%dx%d) is neither "
++               "the size of the base layer (%dx%d) nor half of it.\n",
++               el->w, el->h, bl->w, bl->h);
++        return AVERROR(EINVAL);
++    }
++
++    for (int p = 0; p < 3; p++) {
++        s->plane_w[p] = p ? AV_CEIL_RSHIFT(bl->w, 1) : bl->w;
++        s->plane_h[p] = p ? AV_CEIL_RSHIFT(bl->h, 1) : bl->h;
++        s->el_w[p]    = p ? AV_CEIL_RSHIFT(el->w, 1) : el->w;
++        s->el_h[p]    = p ? AV_CEIL_RSHIFT(el->h, 1) : el->h;
++    }
++
++    s->nb_bufs = ff_filter_get_nb_threads(ctx);
++    s->bufs    = av_calloc(s->nb_bufs, sizeof(*s->bufs));
++    if (!s->bufs)
++        return AVERROR(ENOMEM);
++    for (int i = 0; i < s->nb_bufs; i++) {
++        ThreadBuf *buf = &s->bufs[i];
++
++        buf->tmp   = av_calloc(el->w + 2 * ROW_PAD, sizeof(*buf->tmp));
++        buf->up[0] = av_calloc(bl->w, sizeof(*buf->up[0]));
++        buf->up[1] = av_calloc(bl->w, sizeof(*buf->up[1]));
++        if (!buf->tmp || !buf->up[0] || !buf->up[1])
++            return AVERROR(ENOMEM);
++    }
++
++    outlink->w = bl->w;
++    outlink->h = bl->h;
++    outlink->sample_aspect_ratio = bl->sample_aspect_ratio;
++    ol->frame_rate = il->frame_rate;
++
++    /* The static metadata of the stream is the BL's, which the link has by
++     * now; an encoder takes it from there. */
++    if (s->peak > 0 &&
++        (ret = set_mastering_peak(&outlink->side_data, &outlink->nb_side_data,
++                                  s->peak, 0)) < 0)
++        return ret;
++
++    if ((ret = ff_framesync_init(&s->fs, ctx, 2)) < 0)
++        return ret;
++
++    /* The BL sets the pace: a picture goes out for each of its pictures,
++     * with or without one of the EL. */
++    in = s->fs.in;
++    in[0].time_base = bl->time_base;
++    in[0].sync      = 2;
++    in[0].before    = EXT_STOP;
++    in[0].after     = EXT_STOP;
++    in[1].time_base = el->time_base;
++    in[1].sync      = 1;
++    in[1].before    = EXT_NULL;
++    in[1].after     = EXT_NULL;
++    s->fs.opaque    = s;
++    s->fs.on_event  = process_frame;
++
++    ret = ff_framesync_configure(&s->fs);
++    outlink->time_base = s->fs.time_base;
++
++    return ret;
++}
++
++static av_cold int init(AVFilterContext *ctx)
++{
++    DoviComposeContext *s = ctx->priv;
++
++    if (s->bits != 10 && s->bits != 12) {
++        av_log(ctx, AV_LOG_ERROR, "The output is 10 or 12 bits, not %d.\n",
++               s->bits);
++        return AVERROR(EINVAL);
++    }
++    return 0;
++}
++
++static int activate(AVFilterContext *ctx)
++{
++    DoviComposeContext *s = ctx->priv;
++    return ff_framesync_activate(&s->fs);
++}
++
++static av_cold void uninit(AVFilterContext *ctx)
++{
++    DoviComposeContext *s = ctx->priv;
++
++    if (s->nb_frames)
++        av_log(ctx, s->nb_no_rpu || s->nb_no_el ? AV_LOG_WARNING : AV_LOG_VERBOSE,
++               "%"PRId64" frames: %"PRId64" with the enhancement layer's "
++               "residual, %"PRId64" without Dolby Vision metadata, %"PRId64
++               " without their enhancement layer picture.\n",
++               s->nb_frames, s->nb_composed, s->nb_no_rpu, s->nb_no_el);
++
++    ff_framesync_uninit(&s->fs);
++    for (int i = 0; s->bufs && i < s->nb_bufs; i++) {
++        av_freep(&s->bufs[i].tmp);
++        av_freep(&s->bufs[i].up[0]);
++        av_freep(&s->bufs[i].up[1]);
++    }
++    av_freep(&s->bufs);
++}
++
++static const AVFilterPad dovi_compose_inputs[] = {
++    {
++        .name = "bl",
++        .type = AVMEDIA_TYPE_VIDEO,
++    },
++    {
++        .name = "el",
++        .type = AVMEDIA_TYPE_VIDEO,
++    },
++};
++
++static const AVFilterPad dovi_compose_outputs[] = {
++    {
++        .name         = "default",
++        .type         = AVMEDIA_TYPE_VIDEO,
++        .config_props = config_output,
++    },
++};
++
++const FFFilter ff_vf_dovi_compose = {
++    .p.name        = "dovi_compose",
++    .p.description = NULL_IF_CONFIG_SMALL("Compose the base and enhancement layers of Dolby Vision (profile 7) into one HDR10 picture."),
++    .p.priv_class  = &dovi_compose_class,
++    .p.flags       = AVFILTER_FLAG_SLICE_THREADS,
++    .priv_size     = sizeof(DoviComposeContext),
++    .init          = init,
++    .uninit        = uninit,
++    .activate      = activate,
++    FILTER_INPUTS(dovi_compose_inputs),
++    FILTER_OUTPUTS(dovi_compose_outputs),
++    FILTER_QUERY_FUNC2(query_formats),
++};

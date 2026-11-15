@@ -64,6 +64,15 @@ enum class CastRefusal {
     /** `429` to a cast with a PIN: too many wrong PINs lately; the error's sentence says how long to wait. */
     Throttled,
 
+    /** `409` `pairing_needed`: an AirPlay device the server hasn't paired with; it shows a code to pair first. */
+    PairingNeeded,
+
+    /** `409` `cast_unreachable`: a Google Cast or AirPlay device the server couldn't reach. */
+    Unreachable,
+
+    /** `409` `cast_failed`: the device didn't play the stream the server sent it. */
+    Failed,
+
     /** The server can't be reached. */
     Offline,
 
@@ -81,11 +90,51 @@ enum class CastRefusal {
             error !is ApiException -> Other
             error.status == 404 -> Gone
             error.status == 409 && error.code == "not_castable" -> NotCastable
+            error.status == 409 && error.code == "pairing_needed" -> PairingNeeded
+            error.status == 409 && error.code == "cast_unreachable" -> Unreachable
+            error.status == 409 && error.code == "cast_failed" -> Failed
             error.status == 403 && error.code == "pin_needed" -> PinNeeded
             error.status == 403 && error.code == "wrong_pin" -> WrongPin
             error.status == 403 && error.code == "pin_locked" -> PinLocked
             error.status == 429 && pinSent -> Throttled
             error.status == 429 -> TooMany
+            else -> Other
+        }
+    }
+}
+
+/**
+ * Why POST /api/remote/devices/{id}/pairing refused (docs/API.md,
+ * "Casting"), as Play on… says it.
+ */
+enum class PairingRefusal {
+    /** `403` `wrong_pin`: not the code the device shows. */
+    WrongCode,
+
+    /** `429`: the device takes no other try yet. */
+    Wait,
+
+    /** `404`: the device isn't on the network any more. */
+    Gone,
+
+    /** `409`: the device didn't pair. */
+    Failed,
+
+    /** The server can't be reached. */
+    Offline,
+
+    /** Anything else (`400`…): the error's own sentence. */
+    Other,
+    ;
+
+    companion object {
+        fun of(error: Throwable): PairingRefusal = when {
+            error is OfflineException -> Offline
+            error !is ApiException -> Other
+            error.status == 403 && error.code == "wrong_pin" -> WrongCode
+            error.status == 429 -> Wait
+            error.status == 404 -> Gone
+            error.status == 409 -> Failed
             else -> Other
         }
     }

@@ -13,6 +13,32 @@ describes how they are made.
 - Administrators manage the server's dashboard, libraries, users and
   invitations from a phone or tablet, in Me → Manage server. A phone
   signed in before asks to sign in again for it.
+- Play on… lists Google Cast and AirPlay devices for movies and episodes.
+  An AirPlay device asks once for the code it shows; on an Apple TV the
+  code goes as its fourth digit is typed.
+- The remote has a volume slider for a Google Cast device.
+- Live TV goes into picture in picture on phones and tablets, as videos
+  do, with Channel down and Channel up in its small window.
+
+### Fixed
+
+- Live TV goes quiet while another app plays, a call included, instead of
+  playing over it or taking the sound back. Its sound comes back once the
+  other app is done, or with the next channel after music or a video.
+
+## [0.1.13] - 2026-11-14
+
+### Changed
+
+- On phones and tablets, Download on a movie's or an episode's page is
+  one of the actions under Play, beside Playlist, instead of a wide
+  button. Its ring fills as the download comes, and its label says how
+  far it is or what it waits for.
+- The actions under Play share one label size. With the system's largest
+  text they go on two or three rows instead of breaking words in two.
+- With the system's largest text, labels under icons and titles under
+  posters get smaller rather than break inside a word, and a hyphenated
+  word ("Bande-annonce") can go on two lines at its hyphen.
 
 ## [0.1.12] - 2026-11-12
 
@@ -824,7 +850,8 @@ On Android TV:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-12...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-14...HEAD
+[0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10.2
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-10

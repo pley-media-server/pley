@@ -77,6 +77,42 @@ async fn a_keyed_address_opens_the_sessions_file_and_nothing_else() {
     assert_eq!(w.app.get("/api/hubs/home", &key).await.status, StatusCode::UNAUTHORIZED);
 }
 
+/// A player outside Pley (a Cast receiver) fetches keyed media from a page of
+/// its own, which CORS lets read the answers, from any origin.
+#[tokio::test]
+async fn keyed_addresses_answer_cors_to_any_origin() {
+    let w = world().await;
+    let (token, _) = w.app.app_token(w.viewer_id, "library play").await;
+    let url = play(&w, &token, true).await["url"].as_str().unwrap().to_owned();
+    let origin = ("origin", "https://www.gstatic.com");
+
+    let preflight = w
+        .app
+        .call(
+            Method::OPTIONS,
+            &url,
+            None,
+            None,
+            &[origin, ("access-control-request-method", "GET"), ("access-control-request-headers", "range")],
+        )
+        .await;
+    assert_eq!(preflight.status, StatusCode::NO_CONTENT);
+    assert_eq!(preflight.headers[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
+    assert!(preflight.headers[header::ACCESS_CONTROL_ALLOW_HEADERS].to_str().unwrap().contains("Range"));
+
+    let part = bare(&w.app, &url, &[origin, ("range", "bytes=0-99")]).await;
+    assert_eq!(part.status, StatusCode::PARTIAL_CONTENT);
+    assert_eq!(part.headers[header::ACCESS_CONTROL_ALLOW_ORIGIN], "*");
+    assert!(part.headers[header::ACCESS_CONTROL_EXPOSE_HEADERS].to_str().unwrap().contains("Content-Range"));
+    // Without an Origin (a TV's own player), as before: no CORS headers.
+    assert!(!bare(&w.app, &url, &[]).await.headers.contains_key(header::ACCESS_CONTROL_ALLOW_ORIGIN));
+
+    // The same origin gets nothing from the rest of the API, token or not.
+    let me = w.app.call(Method::GET, "/api/auth/me", Some(&token), None, &[origin]).await;
+    assert_eq!(me.status, StatusCode::OK);
+    assert!(!me.headers.contains_key(header::ACCESS_CONTROL_ALLOW_ORIGIN));
+}
+
 #[tokio::test]
 async fn a_keyed_session_has_its_files_seek_previews_as_a_bif_file() {
     use pley_transcoder_api::TrickplayInfo;

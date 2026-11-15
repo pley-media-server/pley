@@ -576,6 +576,7 @@ mod tests {
                     hardware: false,
                     accel: HwAccel::None,
                     main10: false,
+                    low_power: false,
                 }],
                 ..Default::default()
             },
@@ -674,6 +675,7 @@ mod tests {
                     hardware: false,
                     accel: HwAccel::None,
                     main10: false,
+                    low_power: false,
                 }],
                 ..Default::default()
             },
