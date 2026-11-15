@@ -136,6 +136,11 @@ class LivePlayerActivity : ComponentActivity() {
                 }
             }
         }
+        // Where picture in picture grows from moves with the window (a tablet turned, a split screen), which
+        // changes neither the channel's state nor its picture: worked out again as it is laid out.
+        window.decorView.addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
+            if (!isInPictureInPictureMode && (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop)) updatePip()
+        }
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 combine(vm.engine, vm.state) { engine, state -> engine to state }.collect { (engine, _) ->
