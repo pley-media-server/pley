@@ -1490,6 +1490,8 @@ has the device show a new one. A wrong code shakes the field and says
 "That isn't the code Den Apple TV shows." to type again, and a device
 that takes no other try yet says so; any other refusal closes the sheet
 and says why. Once paired, the cast goes again; Cancel leaves it unsent.
+While a code, or the cast after it, is on its way, the sheet stays:
+Cancel waits, and the answer closes that device's sheet alone.
 
 **Taking casts.** Every Apple app, Apple TV included, opens its event
 stream as a receiver

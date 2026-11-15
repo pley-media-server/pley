@@ -408,7 +408,8 @@ public final class RemoteModel: ObservableObject {
         do {
             guard let api = await app.session.api else { throw PleyError.signedOut }
             try await api.cast(target, to: receiver.receiverId)
-            if paired { pairing = nil }
+            // Its own sheet alone closes: another device's may have opened while the cast was on its way.
+            if paired && pairing?.id == device.id { pairing = nil }
             app.shell.show(Words.playingOn(name))
             show(device.id)
         } catch {
@@ -416,7 +417,7 @@ public final class RemoteModel: ObservableObject {
                 await showCode(on: device, name: name, target: target)
                 return
             }
-            if paired { pairing = nil }
+            if paired && pairing?.id == device.id { pairing = nil }
             let refusal = Self.refusal(error)
             let code = (error as? PleyError)?.pairingNeeded == true ? "pairing_failed" : refusal?.code
             let words = refusal.flatMap { Words.castRefusal(status: $0.status, code: code, device: name) }
