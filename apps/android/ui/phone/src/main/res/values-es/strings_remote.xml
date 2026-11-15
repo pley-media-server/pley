@@ -81,4 +81,5 @@
     <string name="play_on_wrong_code">Ese no es el código que muestra %1$s.</string>
     <string name="play_on_pairing_wait">%1$s aún no acepta otro intento: espera un momento.</string>
     <string name="play_on_pairing_failed">%1$s no se vinculó.</string>
+    <string name="play_on_pair_first">Primero hay que vincular %1$s: elígelo de nuevo en Reproducir en…</string>
 </resources>

@@ -105,6 +105,9 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
     val codesTyped: MutableList<Pair<String, String>> = Collections.synchronizedList(mutableListOf())
     val pairingRefusals = java.util.concurrent.ConcurrentLinkedQueue<Exception>()
 
+    /** While set, a device asked to show its code waits for it before it is answered. */
+    @Volatile var codeGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+
     /** While set, a code typed waits for it before it is answered. */
     @Volatile var pairingGate: kotlinx.coroutines.CompletableDeferred<Unit>? = null
 
@@ -164,6 +167,7 @@ class TestGraph(server: String? = SERVER) : ScreensGraph {
                 castsSent += receiverId to request
             }
             override suspend fun showPairingCode(receiverId: String): Int? {
+                codeGate?.await()
                 pairingRefusals.poll()?.let { throw it }
                 codesShown += receiverId
                 return codeLength

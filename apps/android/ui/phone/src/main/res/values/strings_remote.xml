@@ -102,4 +102,6 @@
     <string name="play_on_wrong_code">That isn\'t the code %1$s shows.</string>
     <string name="play_on_pairing_wait">%1$s takes no other try yet: wait a moment.</string>
     <string name="play_on_pairing_failed">%1$s didn\'t pair.</string>
+    <!-- A toast: the chooser closed before an AirPlay device asked for its code. -->
+    <string name="play_on_pair_first">%1$s wants pairing first: choose it in Play on… again.</string>
 </resources>

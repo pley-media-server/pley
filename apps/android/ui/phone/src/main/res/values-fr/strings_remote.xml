@@ -81,4 +81,5 @@
     <string name="play_on_wrong_code">Ce n’est pas le code affiché sur %1$s.</string>
     <string name="play_on_pairing_wait">%1$s n’accepte pas d’autre essai pour l’instant : patientez un peu.</string>
     <string name="play_on_pairing_failed">%1$s ne s’est pas associé.</string>
+    <string name="play_on_pair_first">%1$s doit d’abord être associé : choisissez-le à nouveau dans Lire sur…</string>
 </resources>

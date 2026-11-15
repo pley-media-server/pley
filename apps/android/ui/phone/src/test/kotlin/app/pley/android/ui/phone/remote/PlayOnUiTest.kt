@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -347,7 +348,8 @@ class PlayOnUiTest {
         assertEquals(listOf(CAST_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
         compose.onNodeWithText("Starting on Bedroom Chromecast…").assertExists()
 
-        // An AirPlay device asking for its code once the chooser is gone isn't asked to show one: no pad to type it on.
+        // An AirPlay device asking for its code once the chooser is gone isn't asked to show one: no pad to type it
+        // on. A toast says to pick it again.
         choose(CastTarget(itemId = 102, video = true))
         val second = kotlinx.coroutines.CompletableDeferred<Unit>()
         graph.castGate = second
@@ -360,6 +362,89 @@ class PlayOnUiTest {
         compose.waitForIdle()
         assertTrue(graph.codesShown.isEmpty())
         compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithText("Den Apple TV wants pairing first: choose it in Play on… again.").assertExists()
+    }
+
+    @Test
+    fun aChooserOpenedAgainWhileACastStartsShowsItAndWaits() {
+        shell(castTv(), livingRoom())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+
+        // Opened again, for the same title or another: the cast still starting shows, and nothing else can go.
+        choose(CastTarget(itemId = 102, video = true))
+        compose.mainClock.advanceTimeBy(SPINNER_DELAY_MS + 100)
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Starting on Bedroom Chromecast…", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).assertIsNotEnabled()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertIsNotEnabled()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").performClick()
+        compose.waitForIdle()
+
+        // The first went, and closes no chooser opened since: it was sent from the one that closed.
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(CAST_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertIsEnabled()
+    }
+
+    @Test
+    fun aCastLandingLateClosesNoChooserOpenedSinceForTheSameTitle() {
+        shell(castTv(), livingRoom())
+        val target = CastTarget(itemId = 101, video = true)
+        choose(target)
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        choose(target)
+        gate.complete(Unit)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertExists()
+    }
+
+    @Test
+    fun aRefusalAfterTheChooserClosedIsAToast() {
+        shell(castTv())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        graph.castRefusals += ApiException(409, "cast_unreachable", "the device can't be reached")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        // What the chooser would have said under its devices.
+        compose.onNodeWithText("Bedroom Chromecast can't reach this server.").assertExists()
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
+    }
+
+    @Test
+    fun aChooserClosedWhileTheDeviceIsAskedForItsCodeSaysToPickItAgain() {
+        shell(appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.codeGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(APPLE_TV), graph.codesShown)
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithText("Den Apple TV wants pairing first: choose it in Play on… again.").assertExists()
     }
 
     @Test
