@@ -76,7 +76,7 @@ import Testing
         let http = HTTPTransport(userAgent: testAgent, gate: ConnectionGate(), requestTimeout: 1)
         let api = PleyAPI(client: APIClient(origin: server.origin, tokens: FakeTokens(server: server, transport: http),
                                             transport: http))
-        #expect(PleyAPI.deviceTimeout == 210)
+        #expect(PleyAPI.deviceTimeout == 240)
         server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
                            castProtocol: "cast")
         server.delay(path: "/api/remote/devices/cast:kitchen/cast", ms: 2_500, method: "POST")

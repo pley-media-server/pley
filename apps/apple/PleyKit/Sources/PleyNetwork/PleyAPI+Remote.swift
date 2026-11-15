@@ -86,14 +86,15 @@ extension PleyAPI {
 
     /// How long a cast, or a pairing with an AirPlay device, waits for its
     /// answer rather than the transport's 20 seconds. A cast to a Google Cast
-    /// or an AirPlay device is answered once the device plays, within the
-    /// server's 3 minutes for starting it there (the stream started, the
-    /// device's player launched, the stream loaded, and tried again with the
-    /// basic stream when it is refused); a pairing with the code can take it
-    /// 50 seconds, and having the device show its code 20. Waiting less, they
-    /// would fail while the server still works on them, and the server be
-    /// doubted as if it hadn't answered.
-    public static let deviceTimeout: TimeInterval = 210
+    /// or an AirPlay device is answered once the device plays, within about
+    /// 4 minutes: the server gives starting it there 3 (the stream started,
+    /// the device's player launched, the stream loaded, and tried again with
+    /// the basic stream when it is refused), and a step under way when they
+    /// run out, or closing the device's player, takes it a little longer. A
+    /// pairing with the code can take it 50 seconds, and having the device
+    /// show its code 20. Waiting less, they would fail while the server still
+    /// works on them, and the server be doubted as if it hadn't answered.
+    public static let deviceTimeout: TimeInterval = 240
 
     /// `receiverSegment`, else the server's own answer for a device it doesn't know.
     private static func receiverPath(_ id: String) throws -> String {
