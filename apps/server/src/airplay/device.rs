@@ -205,19 +205,21 @@ pub async fn connect(state: &AppState, device: &Found) -> Result<Connected, Fail
         Some(paired) => pairing::verify(&mut channel, &identity, &paired.public_key).await,
         None => pairing::transient(&mut channel).await,
     };
-    if matches!(secret, Err(Failed::Forgotten)) {
+    match &secret {
         // Unpaired on the device, which proved who it is first.
-        let _ = pairings::remove(&state.db, &device.id).await;
+        Err(Failed::Forgotten) => {
+            let _ = pairings::remove(&state.db, &device.id).await;
+        }
+        // Open to everyone before, it wants a PIN now: [`ready`] asks for
+        // pairing from here on.
+        Err(Failed::WantsPin | Failed::WrongPin) if paired.is_none() => {
+            state.nearby.airplay.open.lock().remove(&device.id);
+        }
+        _ => {}
     }
     let secret = secret.map_err(|err| {
         tracing::warn!("couldn't pair with the AirPlay device {}: {err}", device.address);
-        match err {
-            Failed::Io(_) => Failure::Lost,
-            // A device that signs with another key keeps its pairing, since
-            // nothing proved it the same device: a new pairing replaces it.
-            Failed::Forgotten | Failed::OtherKey => Failure::NeedsPairing,
-            other => Failure::NotStarted(other.to_string()),
-        }
+        failure(err, paired.is_some())
     })?;
     channel.encrypt(&secret, Keyed::Control);
     match Session::open(channel, &secret, device.address.ip(), &identity.id).await {
@@ -229,9 +231,33 @@ pub async fn connect(state: &AppState, device: &Found) -> Result<Connected, Fail
     }
 }
 
+/// Why a cast to a device can't play, when connecting to it failed with
+/// `err`, `paired` or transiently.
+fn failure(err: Failed, paired: bool) -> Failure {
+    match err {
+        Failed::Io(_) => Failure::Lost,
+        // A device that signs with another key keeps its pairing, since
+        // nothing proved it the same device: a new pairing replaces it.
+        Failed::Forgotten | Failed::OtherKey => Failure::NeedsPairing,
+        // A device that took a transient pairing before wants a PIN now.
+        Failed::WantsPin | Failed::WrongPin if !paired => Failure::NeedsPairing,
+        other => Failure::NotStarted(other.to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_device_that_wants_a_pin_now_asks_for_pairing() {
+        assert_eq!(failure(Failed::WantsPin, false), Failure::NeedsPairing);
+        assert_eq!(failure(Failed::WrongPin, false), Failure::NeedsPairing);
+        assert_eq!(failure(Failed::Forgotten, true), Failure::NeedsPairing);
+        assert_eq!(failure(Failed::OtherKey, true), Failure::NeedsPairing);
+        assert_eq!(failure(Failed::Io(std::io::ErrorKind::TimedOut.into()), false), Failure::Lost);
+        assert!(matches!(failure(Failed::Refused("an unexpected status"), false), Failure::NotStarted(_)));
+    }
 
     #[test]
     fn an_apple_tv_4k_gets_hevc_and_4k_and_others_the_basic_stream() {
