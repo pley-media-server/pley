@@ -259,6 +259,45 @@ mod tests {
         assert!(matches!(failure(Failed::Refused("an unexpected status"), false), Failure::NotStarted(_)));
     }
 
+    #[tokio::test]
+    async fn a_tv_open_before_that_wants_a_pin_now_is_paired_first() {
+        // A TV that answers every pairing as Apple TVs do when they want a
+        // PIN.
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            while let Ok((stream, _)) = listener.accept().await {
+                tokio::spawn(async move {
+                    let mut channel = Channel::over(stream);
+                    while channel.read().await.is_ok() {
+                        if channel.reply("HTTP/1.1 470 Connection Authorization Required", &[], &[]).await.is_err() {
+                            return;
+                        }
+                    }
+                });
+            }
+        });
+        let dir = crate::testing::tempdir();
+        let mut config = crate::config::Config::for_data_dir(dir.path());
+        config.transcoder_path = Some(dir.path().join("no-transcoder-in-tests"));
+        let state = AppState::init(config).await.unwrap();
+        let tv = Found {
+            id: "a1b2c3d4e5f6".into(),
+            name: "TV".into(),
+            model: None,
+            address,
+            video: true,
+            protocol: crate::nearby::Protocol::AirPlay,
+        };
+        // It took a transient pairing once, so it is taken as open.
+        remember_open(&state, &tv);
+        assert_eq!(ready(&state, &tv).await, Ok(true));
+        // Now it wants a PIN: the cast asks for pairing, and so do the next.
+        assert!(matches!(connect(&state, &tv).await, Err(Failure::NeedsPairing)));
+        assert!(!state.nearby.airplay.open.lock().contains(&tv.id));
+        assert_eq!(ready(&state, &tv).await, Ok(false));
+    }
+
     #[test]
     fn an_apple_tv_4k_gets_hevc_and_4k_and_others_the_basic_stream() {
         assert_eq!(kind(Some("AppleTV14,1")), Kind::AppleTv4k);
