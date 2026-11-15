@@ -7,7 +7,7 @@ mod common;
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::time::Duration;
 
 use axum::http::StatusCode;
@@ -27,7 +27,7 @@ type Say = mpsc::UnboundedSender<Value>;
 
 /// A Cast device on this computer, with a certificate of its own making as
 /// real ones have.
-async fn fake_device() -> (SocketAddr, Sent, Say, Refuse) {
+async fn fake_device() -> (SocketAddr, Sent, Say, Fake) {
     let made = rcgen::generate_simple_self_signed(vec!["cast".to_owned()]).unwrap();
     let key = rustls::pki_types::PrivateKeyDer::Pkcs8(made.signing_key.serialize_der().into());
     let config = rustls::ServerConfig::builder_with_provider(Arc::new(rustls::crypto::aws_lc_rs::default_provider()))
@@ -42,22 +42,35 @@ async fn fake_device() -> (SocketAddr, Sent, Say, Refuse) {
     let (sent_tx, sent) = mpsc::unbounded_channel();
     let (say, said) = mpsc::unbounded_channel::<Value>();
     let said = Arc::new(tokio::sync::Mutex::new(said));
-    let refuse = Refuse::default();
-    let refusing = refuse.clone();
+    let fake = Fake::default();
+    let knobs = fake.clone();
     tokio::spawn(async move {
         // Each connection as it comes: a new cast connects again.
         while let Ok((tcp, _)) = listener.accept().await {
-            let (acceptor, sent_tx, said, refuse) = (acceptor.clone(), sent_tx.clone(), said.clone(), refusing.clone());
-            tokio::spawn(async move { serve(acceptor.accept(tcp).await.unwrap(), sent_tx, said, refuse).await });
+            let (acceptor, sent_tx, said, fake) = (acceptor.clone(), sent_tx.clone(), said.clone(), knobs.clone());
+            tokio::spawn(async move { serve(acceptor.accept(tcp).await.unwrap(), sent_tx, said, fake).await });
         }
     });
-    (address, sent, say, refuse)
+    (address, sent, say, fake)
 }
 
-/// How many loads the fake device refuses next, as a device does a stream
-/// it can't decode; [`SILENT`], it answers none.
-type Refuse = Arc<AtomicUsize>;
-const SILENT: usize = usize::MAX;
+/// How the fake device behaves, as the test sets it.
+#[derive(Default)]
+struct Knobs {
+    /// How many loads it refuses next, as a device does a stream it can't
+    /// decode.
+    refuse: AtomicUsize,
+    /// It answers no load.
+    silent_load: AtomicBool,
+    /// It answers no launch.
+    silent_launch: AtomicBool,
+    /// Its next answer to what runs comes this many milliseconds late.
+    slow_status_ms: AtomicU64,
+    /// Its next answer to what runs names another sender's session of
+    /// Google's player.
+    other_session: AtomicBool,
+}
+type Fake = Arc<Knobs>;
 
 /// A Cast device's setup API on this computer, answering `answer` to
 /// whatever it is asked.
@@ -89,7 +102,7 @@ async fn serve(
     stream: tokio_rustls::server::TlsStream<tokio::net::TcpStream>,
     sent_tx: mpsc::UnboundedSender<(String, Value)>,
     said: Arc<tokio::sync::Mutex<mpsc::UnboundedReceiver<Value>>>,
-    refuse: Refuse,
+    fake: Fake,
 ) {
     {
         let (mut reader, mut writer) = tokio::io::split(stream);
@@ -104,9 +117,9 @@ async fn serve(
         let mut muted = false;
         // What the device says of itself: Google's player running, and its
         // volume.
-        let receiver = |id: &Value, volume: f64, muted: bool| {
+        let receiver = |id: &Value, volume: f64, muted: bool, session: &str| {
             json!({"type": "RECEIVER_STATUS", "requestId": id, "status": {
-                "applications": [{"appId": "CC1AD845", "transportId": "web-5", "sessionId": "s-1"}],
+                "applications": [{"appId": "CC1AD845", "transportId": "web-5", "sessionId": session}],
                 "volume": {"level": volume, "muted": muted},
             }})
         };
@@ -128,19 +141,28 @@ async fn serve(
             let _ = sent_tx.send((message.destination.clone(), payload.clone()));
             let id = payload["requestId"].clone();
             let answer = match payload["type"].as_str() {
-                Some("LAUNCH") => Some(reply("receiver-0", "receiver", receiver(&id, volume, muted))),
+                Some("LAUNCH") if fake.silent_launch.load(Ordering::SeqCst) => None,
+                Some("LAUNCH") => Some(reply("receiver-0", "receiver", receiver(&id, volume, muted, "s-1"))),
                 Some("GET_STATUS") if message.destination == "receiver-0" => {
-                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted)))
+                    let late = fake.slow_status_ms.swap(0, Ordering::SeqCst);
+                    if late > 0 {
+                        tokio::time::sleep(Duration::from_millis(late)).await;
+                    }
+                    let other = fake.other_session.swap(false, Ordering::SeqCst);
+                    let session = if other { "s-other" } else { "s-1" };
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted, session)))
                 }
                 // Either the level or the mute, as Google's senders send them.
                 Some("SET_VOLUME") => {
                     assert!(payload["volume"].as_object().unwrap().len() == 1, "{payload}");
                     volume = payload["volume"]["level"].as_f64().unwrap_or(volume);
                     muted = payload["volume"]["muted"].as_bool().unwrap_or(muted);
-                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted)))
+                    Some(reply("receiver-0", "receiver", receiver(&id, volume, muted, "s-1")))
                 }
-                Some("LOAD") if refuse.load(Ordering::SeqCst) == SILENT => None,
-                Some("LOAD") if refuse.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() => {
+                Some("LOAD") if fake.silent_load.load(Ordering::SeqCst) => None,
+                Some("LOAD")
+                    if fake.refuse.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() =>
+                {
                     Some(reply("web-5", "media", json!({"type": "LOAD_FAILED", "requestId": id})))
                 }
                 Some("LOAD") => {
@@ -187,7 +209,7 @@ struct World {
     film: i64,
     sent: Sent,
     say: Say,
-    refuse: Refuse,
+    fake: Fake,
 }
 
 async fn world() -> World {
@@ -202,7 +224,7 @@ async fn world_with(setup: Option<SocketAddr>) -> World {
 /// The world, with the device's setup API at `setup`, where a cast has
 /// `within` to start.
 async fn world_within(setup: Option<SocketAddr>, within: Duration) -> World {
-    let (address, sent, say, refuse) = fake_device().await;
+    let (address, sent, say, fake) = fake_device().await;
     let app = TestApp::with_config(|config| {
         config.cast_fixed.device = Some(address);
         config.cast_fixed.server = Some("http://pley.test:7539".into());
@@ -232,7 +254,7 @@ async fn world_within(setup: Option<SocketAddr>, within: Duration) -> World {
         .execute(&app.state.db.write)
         .await
         .unwrap();
-    World { app, admin, film, sent, say, refuse }
+    World { app, admin, film, sent, say, fake }
 }
 
 async fn sessions(w: &World) -> Vec<Value> {
@@ -525,7 +547,7 @@ async fn a_new_cast_that_fails_leaves_the_one_playing_be() {
     next(&mut w.sent, "LOAD").await;
     let playing = sessions(&w).await[0]["session_id"].clone();
     // The device refuses the next stream, and the basic one too.
-    w.refuse.store(2, Ordering::SeqCst);
+    w.fake.refuse.store(2, Ordering::SeqCst);
     let body = json!({"item_id": w.film, "start_ms": 600_000});
     let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body).await;
     assert_eq!(failed.status, StatusCode::CONFLICT, "{}", failed.text());
@@ -543,7 +565,7 @@ async fn a_new_cast_that_fails_leaves_the_one_playing_be() {
 async fn a_cast_that_fails_closes_the_player_it_opened() {
     let mut w = world().await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
-    w.refuse.store(2, Ordering::SeqCst);
+    w.fake.refuse.store(2, Ordering::SeqCst);
     let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(failed.status, StatusCode::CONFLICT, "{}", failed.text());
     // Google's player, opened for the cast, is closed: the TV goes back to
@@ -553,11 +575,64 @@ async fn a_cast_that_fails_closes_the_player_it_opened() {
     assert!(sessions(&w).await.is_empty());
 }
 
+/// Whether the device was told to close a session of Google's player
+/// among what it was sent so far, given a moment to arrive.
+async fn player_closed(sent: &mut Sent) -> bool {
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    let mut closed = false;
+    while let Ok((to, payload)) = sent.try_recv() {
+        closed |= to == "receiver-0" && payload["type"] == "STOP";
+    }
+    closed
+}
+
+#[tokio::test]
+async fn a_cast_closes_no_player_it_didnt_load_into() {
+    // It never launched one: the device didn't answer before the deadline.
+    let mut w = world_within(None, Duration::from_secs(5)).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.fake.silent_launch.store(true, Ordering::SeqCst);
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
+    assert!(!player_closed(&mut w.sent).await, "what runs there isn't the cast's");
+    assert!(sessions(&w).await.is_empty());
+
+    // Another sender's session runs by the time the player would close.
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.fake.refuse.store(1, Ordering::SeqCst);
+    w.fake.other_session.store(true, Ordering::SeqCst);
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(failed.status, StatusCode::CONFLICT);
+    assert_eq!(next(&mut w.sent, "GET_STATUS").await.0, "receiver-0", "asked what runs");
+    assert!(!player_closed(&mut w.sent).await, "another sender's player is left be");
+}
+
+#[tokio::test]
+async fn a_newer_cast_keeps_the_player_a_failed_one_was_closing() {
+    let mut w = world().await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    // The first cast is refused, and the device takes its time to say what
+    // runs as the cast closes the player: a second cast comes meanwhile,
+    // into the same session of Google's player.
+    w.fake.refuse.store(1, Ordering::SeqCst);
+    w.fake.slow_status_ms.store(3_000, Ordering::SeqCst);
+    let (app, admin, film, sent) = (&w.app, w.admin.as_str(), w.film, &mut w.sent);
+    let (first, second) =
+        tokio::join!(app.post("/api/remote/devices/cast:dev/cast", admin, json!({"item_id": film})), async {
+            assert_eq!(next(sent, "GET_STATUS").await.0, "receiver-0");
+            app.post("/api/remote/devices/cast:dev/cast", admin, json!({"item_id": film, "start_ms": 600_000})).await
+        });
+    assert_eq!((first.status, second.status), (StatusCode::CONFLICT, StatusCode::NO_CONTENT));
+    assert!(!player_closed(&mut w.sent).await, "the newer cast plays on");
+    assert_eq!(sessions(&w).await.len(), 1);
+}
+
 #[tokio::test]
 async fn a_cast_the_device_never_loads_stops_in_time() {
     let mut w = world_within(None, Duration::from_secs(2)).await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
-    w.refuse.store(SILENT, Ordering::SeqCst);
+    w.fake.silent_load.store(true, Ordering::SeqCst);
     let asked = std::time::Instant::now();
     let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
@@ -613,7 +688,7 @@ async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
     .await;
     let mut w = world_with(Some(setup)).await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
-    w.refuse.store(1, Ordering::SeqCst);
+    w.fake.refuse.store(1, Ordering::SeqCst);
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
     next(&mut w.sent, "LOAD").await;
@@ -623,7 +698,7 @@ async fn a_device_that_refuses_its_profile_gets_the_basic_one() {
 
     // Its model is remembered: the next cast is the basic one at once, and
     // nothing comes after it to fall back on.
-    w.refuse.store(1, Ordering::SeqCst);
+    w.fake.refuse.store(1, Ordering::SeqCst);
     let refused = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(refused.status, StatusCode::CONFLICT);
     assert_eq!(refused.body["code"], "cast_failed");

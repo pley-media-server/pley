@@ -6,6 +6,7 @@
 use std::net::SocketAddr;
 use std::time::Duration;
 
+use parking_lot::Mutex;
 use serde_json::{Value, json};
 use tokio::sync::mpsc;
 
@@ -20,9 +21,9 @@ pub const DEFAULT_MEDIA_RECEIVER: &str = "CC1AD845";
 /// start the stream (a transcode's first segment comes first).
 const LAUNCH_WITHIN: Duration = Duration::from_secs(20);
 const LOAD_WITHIN: Duration = Duration::from_secs(60);
-/// How long the device may take to say which apps run, when its player is
-/// closed after a cast that failed.
-const CLOSE_WITHIN: Duration = Duration::from_secs(5);
+/// How long closing the player after a cast that failed may take, from
+/// connecting to the stop.
+const CLOSE_WITHIN: Duration = Duration::from_secs(10);
 
 /// Google's player playing a stream on a device.
 pub struct Player {
@@ -37,10 +38,13 @@ impl Player {
     /// Starts Google's player on the device at the other end of
     /// `connection` and loads `media` into it. Its events come on the
     /// receiver returned, until it ends ([`Event::Ended`], then nothing).
+    /// The player's session goes in `launched` once `media` is loaded into
+    /// it, for [`close`] to close should the cast not play.
     pub async fn start(
         connection: Connection,
         mut incoming: mpsc::Receiver<Incoming>,
         media: &Media,
+        launched: &Mutex<Option<String>>,
     ) -> Result<(Player, mpsc::Receiver<Event>), Failure> {
         if !connection.open(PLATFORM).await {
             return Err(Failure::Lost);
@@ -78,6 +82,9 @@ impl Player {
             return Err(Failure::Lost);
         }
         let load = connection.request(&transport, NS_MEDIA, load_request(media)).await.ok_or(Failure::Lost)?;
+        // Only now is the player this cast's: launching one that runs
+        // already joins it, and what it played goes on until the load.
+        *launched.lock() = Some(app_session.clone());
         // The stream's media session is the one the answer to the LOAD
         // names: the player may still be telling of another, such as the
         // stream a cast this one replaced left playing.
@@ -181,31 +188,33 @@ impl Player {
     }
 }
 
-/// Closes Google's player on the device at `address`, if it runs there: a
-/// cast that launched it and then failed to play leaves it open and idle
-/// on the TV otherwise.
-pub async fn close(address: SocketAddr) {
-    let Ok((connection, mut incoming)) = Connection::connect(address).await else { return };
-    if !connection.open(PLATFORM).await {
-        return;
-    }
-    let Some(asked) = connection.request(PLATFORM, NS_RECEIVER, json!({"type": "GET_STATUS"})).await else {
-        return;
-    };
-    let app = tokio::time::timeout(CLOSE_WITHIN, async {
-        while let Some(message) = incoming.recv().await {
+/// Closes the session `app_session` of Google's player on the device at
+/// `address`, which a cast launched and loaded into before it failed to
+/// play: it stays open and idle on the TV otherwise. Only while the device
+/// still runs that session, and while `still` holds as the stop goes (a
+/// newer cast may join the same session meanwhile); within
+/// [`CLOSE_WITHIN`] at most.
+pub async fn close(address: SocketAddr, app_session: &str, still: impl Fn() -> bool) {
+    let closing = async {
+        let (connection, mut incoming) = Connection::connect(address).await.ok()?;
+        if !connection.open(PLATFORM).await {
+            return None;
+        }
+        let asked = connection.request(PLATFORM, NS_RECEIVER, json!({"type": "GET_STATUS"})).await?;
+        let running_now = loop {
+            let message = incoming.recv().await?;
             let p = &message.payload;
             if message.namespace == NS_RECEIVER && p["type"] == "RECEIVER_STATUS" && p["requestId"] == asked {
-                return running(p);
+                break running(p);
             }
+        };
+        if running_now.is_some_and(|(_, session)| session == app_session) && still() {
+            connection.request(PLATFORM, NS_RECEIVER, json!({"type": "STOP", "sessionId": app_session})).await;
         }
-        None
-    })
-    .await;
-    if let Ok(Some((_, app_session))) = app {
-        connection.request(PLATFORM, NS_RECEIVER, json!({"type": "STOP", "sessionId": app_session})).await;
-    }
-    connection.close();
+        connection.close();
+        Some(())
+    };
+    let _ = tokio::time::timeout(CLOSE_WITHIN, closing).await;
 }
 
 /// The LOAD request for `media`.
@@ -447,7 +456,8 @@ mod tests {
     async fn a_cast_starts_plays_takes_commands_and_finishes() {
         let m = media();
         let (connection, incoming, mut device) = pair();
-        let (started, load) = tokio::join!(Player::start(connection, incoming, &m), device.starts_playing());
+        let launched = Mutex::default();
+        let (started, load) = tokio::join!(Player::start(connection, incoming, &m, &launched), device.starts_playing());
         assert_eq!(load["media"]["contentId"], media().url);
         let (player, mut events) = started.unwrap();
 
@@ -493,7 +503,8 @@ mod tests {
     async fn stopping_closes_the_player_on_the_device() {
         let m = media();
         let (connection, incoming, mut device) = pair();
-        let (started, _) = tokio::join!(Player::start(connection, incoming, &m), device.starts_playing());
+        let launched = Mutex::default();
+        let (started, _) = tokio::join!(Player::start(connection, incoming, &m, &launched), device.starts_playing());
         let (player, _events) = started.unwrap();
         player.stop().await;
         assert!(device.next().await.payload.contains(r#""type":"STOP""#));
@@ -506,14 +517,16 @@ mod tests {
     async fn another_app_taking_the_device_ends_the_cast() {
         let m = media();
         let (connection, incoming, mut device) = pair();
-        let (started, _) = tokio::join!(Player::start(connection, incoming, &m), device.starts_playing());
+        let launched = Mutex::default();
+        let (started, _) = tokio::join!(Player::start(connection, incoming, &m, &launched), device.starts_playing());
         let (_player, mut events) = started.unwrap();
         let youtube = json!([{"appId": "233637DE", "transportId": "web-9", "sessionId": "s-2"}]);
         device.say(PLATFORM, NS_RECEIVER, Device::status(youtube)).await;
         assert_eq!(events.recv().await, Some(Event::Ended(Ended::TakenOver)));
         // Closed on the device, back to its home screen.
         let (connection, incoming, mut device) = pair();
-        let (started, _) = tokio::join!(Player::start(connection, incoming, &m), device.starts_playing());
+        let launched = Mutex::default();
+        let (started, _) = tokio::join!(Player::start(connection, incoming, &m, &launched), device.starts_playing());
         let (_player, mut events) = started.unwrap();
         let home = json!([{"appId": "E8C28D3C", "transportId": "web-1", "sessionId": "b", "isIdleScreen": true}]);
         device.say(PLATFORM, NS_RECEIVER, Device::status(home)).await;
@@ -557,7 +570,8 @@ mod tests {
                 )
                 .await;
         };
-        let (started, ()) = tokio::join!(Player::start(connection, incoming, &m), answer);
+        let launched = Mutex::default();
+        let (started, ()) = tokio::join!(Player::start(connection, incoming, &m, &launched), answer);
         assert_eq!(started.unwrap().0.media_session, 8);
     }
 
@@ -571,12 +585,16 @@ mod tests {
             let load: Value = serde_json::from_str(&device.next().await.payload).unwrap();
             device.say("web-5", NS_MEDIA, json!({"type": "LOAD_FAILED", "requestId": load["requestId"]})).await;
         };
-        let (started, ()) = tokio::join!(Player::start(connection, incoming, &m), refuse);
+        let launched = Mutex::default();
+        let (started, ()) = tokio::join!(Player::start(connection, incoming, &m, &launched), refuse);
         assert!(matches!(started, Err(Failure::Refused(_))));
+        assert_eq!(launched.lock().as_deref(), Some("s-1"), "the player it loaded into, to close");
 
         let (connection, incoming, device) = pair();
         drop(device);
-        assert!(matches!(Player::start(connection, incoming, &m).await, Err(Failure::Lost)));
+        let launched = Mutex::default();
+        assert!(matches!(Player::start(connection, incoming, &m, &launched).await, Err(Failure::Lost)));
+        assert_eq!(*launched.lock(), None, "no player of its own");
     }
 
     #[test]

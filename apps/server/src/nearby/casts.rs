@@ -114,7 +114,11 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
     if let Some((_, before)) = state.nearby.pending.lock().insert(key.clone(), (cast_id, ours.clone())) {
         before.cancel();
     }
-    let attempt = Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours, deadline };
+    // The session of Google's player that a try loaded into, on a Cast
+    // device: the one to close should the cast not play.
+    let launched = Mutex::new(None);
+    let attempt =
+        Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours, deadline, launched: &launched };
     let played = match (attempt.play(&first).await, fallback) {
         (Err(Tried::Refused), Some(basic)) => {
             tracing::info!("a device refused its stream ({first}): it is sent the basic one");
@@ -131,15 +135,18 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
         (played, _) => played,
     };
     // A Cast device that answered but played neither stream, or not in
-    // time, is left with Google's player open: it is closed, unless a cast
-    // plays in it or a newer one is on its way. Only now, as closing it
-    // between the two tries would have the second open it again.
+    // time, is left with Google's player open: the session a try loaded
+    // into is closed, unless a cast plays in it or a newer one is on its
+    // way, then or as the stop goes. Only now, as closing it between the
+    // two tries would have the second open it again. A try that loaded
+    // into no player closes none: what runs there isn't this cast's.
+    let free = || !ours.is_cancelled() && !state.nearby.playing.lock().contains_key(&key);
+    let loaded = launched.lock().clone();
     if matches!(played, Err(Tried::Refused | Tried::Failed | Tried::TimedOut))
-        && device.protocol == Protocol::Cast
-        && !ours.is_cancelled()
-        && !state.nearby.playing.lock().contains_key(&key)
+        && let Some(app_session) = loaded
+        && free()
     {
-        crate::cast::player::close(device.address).await;
+        crate::cast::player::close(device.address, &app_session, free).await;
     }
     forget(&state.nearby.pending, &key, cast_id);
     let (player, events, session_id, duration_ms) = match played {
@@ -201,6 +208,9 @@ struct Attempt<'a> {
     ours: &'a CancellationToken,
     /// When the cast's time to start runs out ([`CAST_WITHIN`]).
     deadline: tokio::time::Instant,
+    /// The session of Google's player the try loaded into, on a Cast
+    /// device.
+    launched: &'a Mutex<Option<String>>,
 }
 
 impl Attempt<'_> {
@@ -353,7 +363,7 @@ impl Attempt<'_> {
         let ((), connected) = tokio::join!(read, connect);
         drop(session);
         let started = match connected {
-            Ok(connected) => connected.start(&media).await,
+            Ok(connected) => connected.start(&media, self.launched).await,
             Err(failure) => Err(failure),
         };
         match started {
