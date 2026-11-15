@@ -534,12 +534,14 @@ which can come a few seconds after the server stopped it, and for a
 pairing's, where its other calls give up after 10 seconds without one.
 The cast is the activity's, not the chooser's: closing the chooser
 meanwhile, or the phone turning, folding or switching to dark mode,
-doesn't call it off. One cast goes at a time, as on the web: the chooser
-opened again meanwhile shows the spinner on that device and its rows
-wait. Once the device took it the remote's bar follows it, and the
-chooser it was sent from closes, not one opened since. What the chooser
-would have said once it is closed is a toast: a refusal in the same
-words, and for an AirPlay device that asks for its code then, which
+doesn't call it off. One cast goes at a time in a window, as on the web:
+the chooser opened again meanwhile shows the spinner on that device and
+its rows wait (the live player, a window of its own, keeps its own). Once
+the device took it the remote's bar follows it, and the chooser it was
+sent from closes, not one opened since. What else it comes to shows in
+the chooser open then, as in the one that sent it: a refusal under its
+devices, the pad. With no chooser open it is a toast: a refusal in the
+same words, and for an AirPlay device that asks for its code then, which
 isn't asked to show one as there is no pad to type it on, that it
 **wants pairing first: choose it in Play on… again**. The live player
 shows those toasts over its picture.

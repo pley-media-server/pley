@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsEqualTo
@@ -409,6 +410,27 @@ class PlayOnUiTest {
         gate.complete(Unit)
         compose.waitForIdle()
         compose.onNodeWithTag(PLAY_ON_SHEET).assertExists()
+    }
+
+    @Test
+    fun aRefusalComingWhileTheChooserIsOpenAgainIsSaidInIt() {
+        shell(castTv(), livingRoom())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        graph.castRefusals += ApiException(409, "cast_failed", "the device didn't play it")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        choose(CastTarget(itemId = 101, video = true))
+        gate.complete(Unit)
+        compose.waitForIdle()
+        // Under the devices of the chooser open now, as the one that sent it would say it, and no toast under the sheet.
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertExists()
+        compose.onAllNodesWithText("Bedroom Chromecast didn't play it.").assertCountEquals(1)
+        assertTrue(state.toasts.current.isEmpty())
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).assertIsEnabled()
     }
 
     @Test

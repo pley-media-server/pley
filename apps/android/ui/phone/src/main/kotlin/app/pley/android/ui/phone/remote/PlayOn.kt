@@ -54,7 +54,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.common.UiText
-import app.pley.android.common.errorSentence
 import app.pley.android.common.resolve
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteRepository
@@ -69,8 +68,6 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.PlayingSession
 import app.pley.android.model.format.isInProgress
-import app.pley.android.network.CastRefusal
-import app.pley.android.network.PairingRefusal
 import app.pley.android.screens.item.TrackChoices
 import app.pley.android.screens.onboarding.PinEntry
 import app.pley.android.ui.phone.R
@@ -82,8 +79,6 @@ import app.pley.android.ui.phone.kit.PleyTextButton
 import app.pley.android.ui.phone.kit.ToastHost
 import app.pley.android.ui.phone.kit.ToastHostState
 import app.pley.android.ui.phone.kit.TonalButton
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -286,10 +281,11 @@ private data class PinAsk(
  * device takes seconds to start, and closing the chooser meanwhile, or the
  * activity being made again, doesn't call it off. One cast at a time: while
  * one is starting, its device's row shows a spinner and the others wait,
- * in a chooser opened again too. Once this chooser is gone, what it would
- * have said goes to its host as a toast ([CastNews.Refused]), and an AirPlay
- * device asking for its code isn't asked to show one: the toast says to
- * pick it again. A cast that went closes only the chooser it was sent from.
+ * in a chooser opened again too. What it comes to shows in the chooser open
+ * then, as in the one that sent it ([PlayOnCasts.forChooser]); with none
+ * open it is a toast of the host's, and an AirPlay device asking for its
+ * code isn't asked to show one: the toast says to pick it again. A cast
+ * that went closes only the opening of the chooser it was sent from.
  */
 @Composable
 internal fun PlayOnSheet(
@@ -300,9 +296,14 @@ internal fun PlayOnSheet(
     onDismiss: () -> Unit,
 ) {
     val resources = LocalResources.current
-    // Whether this chooser still shows: what a cast says once it is gone goes to the host.
-    val open = remember { AtomicBoolean(true) }
-    DisposableEffect(Unit) { onDispose { open.set(false) } }
+    // This opening of the chooser: what a cast comes to shows in the chooser open now, and one that went closes the
+    // opening it was sent from.
+    val opening = remember { PlayOnCasts.nextOpening() }
+    DisposableEffect(casts, opening) {
+        casts.opened(opening)
+        onDispose { casts.closed(opening) }
+    }
+    val dismiss by rememberUpdatedState(onDismiss)
     var shuffle by remember(target) { mutableStateOf(false) }
     val sending by casts.starting.collectAsStateWithLifecycle()
     var error by remember(target) { mutableStateOf<UiText?>(null) }
@@ -320,120 +321,70 @@ internal fun PlayOnSheet(
         asking = next
     }
 
-    /** Runs [work] for [device] in [casts], its row and the pad busy meanwhile; nothing while a cast is starting. */
-    fun busyWith(device: OtherDevice, work: suspend () -> Unit) {
-        if (casts.starting.value != null) return
-        // Before it starts: a refusal may come at once.
-        error = null
-        casts.start(device.deviceId, work)
-    }
-
-    /** Says [text] under the list while this chooser shows, else in a toast of its host's. */
-    fun say(text: UiText) {
-        if (open.get()) error = text else casts.tell(CastNews.Refused(text))
-    }
-
-    /** Whether [pad] still shows: Back, or closing the chooser, may have closed it while a request was out. */
-    fun stillAsking(pad: PinAsk): Boolean = open.get() && asking?.deviceId == pad.deviceId
-
-    /**
-     * Has [device] show its code, and asks for it; [pad] is the pad already
-     * asking, for "Show it again", which says a refusal there, while it
-     * still shows.
-     */
-    suspend fun showCode(device: OtherDevice, name: String, pad: PinAsk?) {
-        val receiver = device.receiver ?: return
-        // Closed while the cast was out, or while the code was asked for: a code shows on the device with no pad to
-        // type it on. Picked again, it asks for one.
-        val pickAgain = CastNews.Refused(UiText.res(R.string.play_on_pair_first, name))
-        if (!open.get()) return casts.tell(pickAgain)
-        try {
-            val length = remote.showPairingCode(receiver.receiverId)
-            when {
-                !open.get() -> casts.tell(pickAgain)
-                pad == null -> ask(PinAsk(device.deviceId, pairing = true, length = length))
-                stillAsking(pad) -> ask(pad.copy(error = null, length = length))
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            val text = pairingText(e, name)
-            when {
-                pad == null || !open.get() -> say(text)
-                stillAsking(pad) -> ask(pad.copy(error = text))
-            }
-        }
-    }
-
-    /** Sends [target] to [device]; [paired]: just paired with, so it asks for pairing no more. */
-    suspend fun cast(device: OtherDevice, name: String, typed: String?, paired: Boolean = false) {
-        val receiver = device.receiver ?: return
-        try {
-            // Another profile's device goes as the one listed, or not at all.
-            val profile = device.profile
-            val request = target.request(shuffle)
-                .copy(profileId = profile?.id, deviceId = receiver.deviceId.takeIf { profile != null }, pin = typed)
-            remote.cast(receiver.receiverId, request)
-            // The chooser it was sent from closes; one opened since, for this or something else, stays.
-            if (open.get()) {
+    // What a cast came to, whichever opening sent it: shown here as that one would.
+    val outcome by casts.forChooser.collectAsStateWithLifecycle()
+    LaunchedEffect(outcome) {
+        val shown = outcome ?: return@LaunchedEffect
+        casts.took(shown)
+        when (shown) {
+            is CastOutcome.Sent -> if (shown.from == opening) {
                 ask(null)
-                onDismiss()
+                dismiss()
             }
-            casts.tell(CastNews.Sent(device.deviceId, name))
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            val pad = asking?.takeIf { it.deviceId == device.deviceId } ?: PinAsk(device.deviceId)
-            val refusal = CastRefusal.of(e, pinSent = typed != null)
-            when {
-                // An AirPlay device the server hasn't paired with: its code first. Asked again once paired, it didn't pair.
-                refusal == CastRefusal.PairingNeeded && paired -> {
-                    ask(null)
-                    say(UiText.res(R.string.play_on_pairing_failed, name))
-                }
-                refusal == CastRefusal.PairingNeeded -> showCode(device, name, pad = null)
-                // No pad to ask again on: the toast says why.
-                !open.get() -> say(castText(e, refusal, name))
-                // A PIN set since GET /api/auth/me said there was none.
-                refusal == CastRefusal.PinNeeded -> ask(pad.copy(error = null))
-                refusal == CastRefusal.WrongPin -> ask(pad.copy(error = castText(e, refusal, name), shakes = pad.shakes + 1))
-                refusal == CastRefusal.PinLocked -> ask(pad.copy(error = castText(e, refusal, name), lockedOut = true))
-                // The server's sentence says how long to wait.
-                refusal == CastRefusal.Throttled -> ask(pad.copy(error = castText(e, refusal, name)))
-                else -> {
-                    ask(null)
-                    say(castText(e, refusal, name))
+            is CastOutcome.Refused -> {
+                ask(null)
+                error = shown.text
+            }
+            is CastOutcome.Pad -> {
+                val pad = asking?.takeIf { it.deviceId == shown.deviceId && it.pairing == shown.pairing }
+                if (pad == null && !shown.reopens) {
+                    // Back closed the pad it answers meanwhile: a refusal goes under the devices.
+                    if (shown.error != null) error = shown.error
+                } else {
+                    val base = pad ?: PinAsk(shown.deviceId, pairing = shown.pairing)
+                    ask(
+                        base.copy(
+                            error = shown.error,
+                            shakes = base.shakes + if (shown.shake) 1 else 0,
+                            lockedOut = base.lockedOut || shown.lockedOut,
+                            length = shown.length ?: base.length,
+                        ),
+                    )
                 }
             }
         }
     }
 
-    fun send(device: OtherDevice, name: String, typed: String?) = busyWith(device) { cast(device, name, typed) }
+    /** The body of a cast to [device]: another profile's device goes as the one listed, or not at all. */
+    fun requestFor(device: OtherDevice): CastRequest {
+        val profile = device.profile
+        return target.request(shuffle).copy(profileId = profile?.id, deviceId = device.receiver?.deviceId?.takeIf { profile != null })
+    }
+
+    /** Runs [go] unless a cast is starting already, clearing what was said before: a refusal may come at once. */
+    fun busy(go: () -> Unit) {
+        if (casts.starting.value != null) return
+        error = null
+        go()
+    }
+
+    /** Sends [target] to [device], with the profile's PIN [typed] for another profile's device. */
+    fun send(device: OtherDevice, name: String, typed: String?) = busy {
+        val receiver = device.receiver ?: return@busy
+        casts.cast(remote, device.deviceId, receiver.receiverId, name, requestFor(device), opening, pin = typed)
+    }
 
     /** Pairs the server with [device] with the [code] it shows, then sends it [target]. */
-    fun pairWith(device: OtherDevice, name: String, pad: PinAsk, code: String) = busyWith(device) {
-        val receiver = device.receiver ?: return@busyWith
-        try {
-            remote.pair(receiver.receiverId, code)
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            val refusal = PairingRefusal.of(e)
-            when {
-                // A code not the one shown, or tries to wait for: the pad says so, to type again, while it still shows.
-                refusal == PairingRefusal.WrongCode && stillAsking(pad) ->
-                    ask(pad.copy(error = pairingText(e, name), shakes = pad.shakes + 1))
-                refusal == PairingRefusal.Wait && stillAsking(pad) -> ask(pad.copy(error = pairingText(e, name)))
-                else -> {
-                    ask(null)
-                    say(pairingText(e, name))
-                }
-            }
-            return@busyWith
-        }
-        cast(device, name, typed = null, paired = true)
+    fun pairWith(device: OtherDevice, name: String, code: String) = busy {
+        val receiver = device.receiver ?: return@busy
+        casts.pair(remote, device.deviceId, receiver.receiverId, name, code, requestFor(device), opening)
     }
 
+    /** "Show it again": [device] shows a new code. */
+    fun showCodeAgain(device: OtherDevice, name: String) = busy {
+        val receiver = device.receiver ?: return@busy
+        casts.showCodeAgain(remote, device.deviceId, receiver.receiverId, name)
+    }
     // The device the pad is for, while it is still there to cast to.
     val padFor = asking?.let { pad -> choices.firstOrNull { it.deviceId == pad.deviceId } }
     LaunchedEffect(asking != null, padFor == null) { if (asking != null && padFor == null) ask(null) }
@@ -462,7 +413,7 @@ internal fun PlayOnSheet(
                 if (!shown.lockedOut && sending == null && pin.complete && (length == null || pin.length == length)) {
                     val typed = pin.take()
                     digits = 0
-                    if (shown.pairing) pairWith(padFor, name, shown, typed) else send(padFor, name, typed)
+                    if (shown.pairing) pairWith(padFor, name, typed) else send(padFor, name, typed)
                 }
             }
             PinPad(
@@ -496,7 +447,7 @@ internal fun PlayOnSheet(
                     if (shown.pairing) {
                         PleyTextButton(
                             stringResource(R.string.play_on_show_code_again),
-                            onClick = { busyWith(padFor) { showCode(padFor, name, pad = shown) } },
+                            onClick = { showCodeAgain(padFor, name) },
                             enabled = sending == null,
                             modifier = Modifier.testTag(PLAY_ON_SHOW_CODE),
                         )
@@ -559,32 +510,9 @@ internal fun PlayOnSheet(
     }
 }
 
-/** What Play on… says when pairing with [name] didn't go. */
-private fun pairingText(e: Exception, name: String): UiText = when (PairingRefusal.of(e)) {
-    PairingRefusal.WrongCode -> UiText.res(R.string.play_on_wrong_code, name)
-    PairingRefusal.Wait -> UiText.res(R.string.play_on_pairing_wait, name)
-    PairingRefusal.Gone -> UiText.res(R.string.play_on_gone, name)
-    PairingRefusal.Failed -> UiText.res(R.string.play_on_pairing_failed, name)
-    else -> errorSentence(e)
-}
-
-/** What Play on… says when [name] refused a cast ([refusal]). */
-private fun castText(e: Exception, refusal: CastRefusal, name: String): UiText = when (refusal) {
-    CastRefusal.Gone -> UiText.res(R.string.play_on_gone, name)
-    CastRefusal.NotCastable -> UiText.res(R.string.play_on_cant, name)
-    CastRefusal.TooMany -> UiText.res(R.string.remote_too_many)
-    CastRefusal.Unreachable -> UiText.res(R.string.play_on_unreachable, name)
-    CastRefusal.Failed -> UiText.res(R.string.play_on_failed, name)
-    CastRefusal.WrongPin -> UiText.res(R.string.play_on_wrong_pin)
-    CastRefusal.PinLocked -> UiText.res(R.string.play_on_pin_locked)
-    // The server's sentence: how long to wait, for one.
-    else -> errorSentence(e)
-}
-
 /**
  * Follows what [casts] tells, for the chooser's host: [onSent] once a cast
- * went, and a toast on [toasts] with what a chooser that closed meanwhile
- * would have said.
+ * went, and a toast on [toasts] with what no chooser was open to say.
  */
 @Composable
 internal fun FollowCasts(casts: PlayOnCasts, toasts: ToastHostState, onSent: (deviceId: String, name: String) -> Unit) {
@@ -594,7 +522,7 @@ internal fun FollowCasts(casts: PlayOnCasts, toasts: ToastHostState, onSent: (de
         casts.told.collect { news ->
             when (news) {
                 is CastNews.Sent -> sent(news.deviceId, news.name)
-                is CastNews.Refused -> toasts.show(news.text.resolve(resources), error = true)
+                is CastNews.Toast -> toasts.show(news.text.resolve(resources), error = true)
             }
         }
     }
