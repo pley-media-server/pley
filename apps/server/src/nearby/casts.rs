@@ -31,6 +31,12 @@ const RECORD_EVERY: Duration = Duration::from_secs(10);
 /// starts (a large file on a network share takes a while).
 const PREPARE_WITHIN: Duration = Duration::from_secs(20);
 
+/// How long a cast may take to start, all its tries and waits together:
+/// past it, the cast stops as one that failed does, rather than play
+/// minutes after the remote was told it didn't. Clients wait longer than
+/// this for the answer (docs/API.md).
+pub const CAST_WITHIN: Duration = Duration::from_secs(180);
+
 /// The error code of a cast to a device that wants pairing first.
 pub const PAIRING_NEEDED: &str = "pairing_needed";
 
@@ -64,8 +70,11 @@ pub struct Choice {
 /// goes on until this one plays, so that one that fails leaves it be. A
 /// cast that a newer one to the same device replaces while it starts gives
 /// way: it ends its session, leaves the device to the newer one, and
-/// returns as done, since the device plays what was last asked of it.
+/// returns as done, since the device plays what was last asked of it. A
+/// cast that doesn't play within [`CAST_WITHIN`] (the config's
+/// `cast_within`) ends as one the device didn't play.
 pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: Cast) -> ApiResult<()> {
+    let deadline = tokio::time::Instant::now() + state.config.cast_within;
     // A cast that names no place starts where Play would, so it doesn't
     // start over and save the beginning over the place someone left off.
     if cast.start_ms.is_none() {
@@ -105,7 +114,7 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
     if let Some((_, before)) = state.nearby.pending.lock().insert(key.clone(), (cast_id, ours.clone())) {
         before.cancel();
     }
-    let attempt = Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours };
+    let attempt = Attempt { state, user, device: &device, cast: &cast, base: &base, ours: &ours, deadline };
     let played = match (attempt.play(&first).await, fallback) {
         (Err(Tried::Refused), Some(basic)) => {
             tracing::info!("a device refused its stream ({first}): it is sent the basic one");
@@ -121,11 +130,11 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
         }
         (played, _) => played,
     };
-    // A Cast device that answered but played neither stream is left with
-    // Google's player open and idle: it is closed, unless a cast plays in
-    // it or a newer one is on its way. Only now, as closing it between the
-    // two tries would have the second open it again.
-    if matches!(played, Err(Tried::Refused | Tried::Failed))
+    // A Cast device that answered but played neither stream, or not in
+    // time, is left with Google's player open: it is closed, unless a cast
+    // plays in it or a newer one is on its way. Only now, as closing it
+    // between the two tries would have the second open it again.
+    if matches!(played, Err(Tried::Refused | Tried::Failed | Tried::TimedOut))
         && device.protocol == Protocol::Cast
         && !ours.is_cancelled()
         && !state.nearby.playing.lock().contains_key(&key)
@@ -144,6 +153,10 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
                 Tried::Superseded => unreachable!(),
                 Tried::Refused | Tried::Failed | Tried::Lost => {
                     AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned())
+                }
+                Tried::TimedOut => {
+                    tracing::warn!("a cast to {} didn't play in time: it is stopped", device.address);
+                    AppError::ConflictAs("cast_failed", "the device didn't play it in time".to_owned())
                 }
                 Tried::Error(err) => err,
             });
@@ -169,6 +182,8 @@ enum Tried {
     Failed,
     /// It couldn't be reached, or went away.
     Lost,
+    /// The cast's time to start ran out.
+    TimedOut,
     /// The session didn't start.
     Error(AppError),
     /// A newer cast to the device took its place.
@@ -184,6 +199,8 @@ struct Attempt<'a> {
     base: &'a str,
     /// Cancelled when a newer cast to the device takes this one's place.
     ours: &'a CancellationToken,
+    /// When the cast's time to start runs out ([`CAST_WITHIN`]).
+    deadline: tokio::time::Instant,
 }
 
 impl Attempt<'_> {
@@ -217,6 +234,9 @@ impl Attempt<'_> {
             if self.ours.is_cancelled() {
                 return Err(Tried::Superseded);
             }
+            if tokio::time::Instant::now() >= self.deadline {
+                return Err(Tried::TimedOut);
+            }
             let start = |request| {
                 crate::api::playback::start(
                     State(state.clone()),
@@ -246,10 +266,12 @@ impl Attempt<'_> {
         };
         // From here on, a newer cast ends this one where it is: the
         // connection, dropped, closes, and the device is left to the newer
-        // cast.
+        // cast. So does the end of the cast's time to start, its session
+        // ended so that the device can fetch no more of it.
         tokio::select! {
             biased;
             () = self.ours.cancelled() => Err(end(Tried::Superseded)),
+            () = tokio::time::sleep_until(self.deadline) => Err(end(Tried::TimedOut)),
             played = self.load(&info) => played.map_err(end),
         }
     }

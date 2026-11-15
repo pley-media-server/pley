@@ -3882,7 +3882,11 @@ would.
   as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
   above (without `start_ms` it starts where Play would: the resume
   point, or the beginning once watched); `profile_id`, if given, is the
-  caller's own. It answers `204` once the device plays; `404` for a device not listed lately, a caller
+  caller's own. It answers `204` once the device plays. A cast not
+  playing within 3 minutes is stopped and answers `cast_failed`, so a
+  client (and a reverse proxy before Pley) waits longer than that, 4
+  minutes say, for the answer;
+  `404` for a device not listed lately, a caller
   who isn't a home member, an app other than Pley's own, another
   profile's `profile_id`, a `device_id`
   or an item the caller can't see; `400` for a `start_ms` out of range or

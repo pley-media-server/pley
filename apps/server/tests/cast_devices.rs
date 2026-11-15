@@ -55,8 +55,9 @@ async fn fake_device() -> (SocketAddr, Sent, Say, Refuse) {
 }
 
 /// How many loads the fake device refuses next, as a device does a stream
-/// it can't decode.
+/// it can't decode; [`SILENT`], it answers none.
 type Refuse = Arc<AtomicUsize>;
+const SILENT: usize = usize::MAX;
 
 /// A Cast device's setup API on this computer, answering `answer` to
 /// whatever it is asked.
@@ -138,6 +139,7 @@ async fn serve(
                     muted = payload["volume"]["muted"].as_bool().unwrap_or(muted);
                     Some(reply("receiver-0", "receiver", receiver(&id, volume, muted)))
                 }
+                Some("LOAD") if refuse.load(Ordering::SeqCst) == SILENT => None,
                 Some("LOAD") if refuse.try_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1)).is_ok() => {
                     Some(reply("web-5", "media", json!({"type": "LOAD_FAILED", "requestId": id})))
                 }
@@ -194,11 +196,18 @@ async fn world() -> World {
 
 /// The world, with the device's setup API at `setup`.
 async fn world_with(setup: Option<SocketAddr>) -> World {
+    world_within(setup, pley::nearby::casts::CAST_WITHIN).await
+}
+
+/// The world, with the device's setup API at `setup`, where a cast has
+/// `within` to start.
+async fn world_within(setup: Option<SocketAddr>, within: Duration) -> World {
     let (address, sent, say, refuse) = fake_device().await;
     let app = TestApp::with_config(|config| {
         config.cast_fixed.device = Some(address);
         config.cast_fixed.server = Some("http://pley.test:7539".into());
         config.cast_fixed.setup = setup;
+        config.cast_within = within;
     })
     .await;
     let admin = app.setup_admin().await;
@@ -541,6 +550,36 @@ async fn a_cast_that_fails_closes_the_player_it_opened() {
     // what it showed.
     let (to, stop) = next(&mut w.sent, "STOP").await;
     assert_eq!((to.as_str(), stop["sessionId"].as_str()), ("receiver-0", Some("s-1")));
+    assert!(sessions(&w).await.is_empty());
+}
+
+#[tokio::test]
+async fn a_cast_the_device_never_loads_stops_in_time() {
+    let mut w = world_within(None, Duration::from_secs(2)).await;
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    w.refuse.store(SILENT, Ordering::SeqCst);
+    let asked = std::time::Instant::now();
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
+    assert!(asked.elapsed() < Duration::from_secs(20), "answered at the deadline, not the device's own waits");
+    // Nothing is left to play: no session, and Google's player closed.
+    assert!(sessions(&w).await.is_empty());
+    let (to, stop) = next(&mut w.sent, "STOP").await;
+    assert_eq!((to.as_str(), stop["sessionId"].as_str()), ("receiver-0", Some("s-1")));
+
+    // A remote that stops waiting doesn't stop the deadline: the cast,
+    // started apart from its request, ends there all the same.
+    let body = json!({"item_id": w.film});
+    let dropped = tokio::time::timeout(
+        Duration::from_millis(500),
+        w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, body),
+    )
+    .await;
+    assert!(dropped.is_err(), "the device doesn't play it");
+    next(&mut w.sent, "LOAD").await;
+    assert_eq!(sessions(&w).await.len(), 1, "the cast goes on without its request");
+    let (to, _) = next(&mut w.sent, "STOP").await;
+    assert_eq!(to, "receiver-0");
     assert!(sessions(&w).await.is_empty());
 }
 
