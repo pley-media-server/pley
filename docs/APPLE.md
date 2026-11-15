@@ -1474,28 +1474,26 @@ which the server plays on itself; an album, a show, a playlist or a
 channel goes to Pley's own apps alone. The server answers once the
 device plays, within 3 minutes, so a cast waits 3½ minutes for its
 answer, where other requests wait 20 seconds; so do the pairing requests
-below, which can take the server 50 seconds. Meanwhile
-"Play on…" says "Starting on Kitchen TV…" (in the live player's overlay,
-a spinner) and its devices can't be chosen: one cast at a time. A cast
-there can also say "Kitchen TV can't reach this server" (`409`
-`cast_unreachable`) or
+below, which can take the server 50 seconds. Meanwhile "Play on…" says
+"Starting on Kitchen TV…" (in the live player's overlay, a spinner) and
+its devices can't be chosen: one cast at a time. A cast there can also
+say "Kitchen TV can't reach this server" (`409` `cast_unreachable`) or
 "Kitchen TV didn't play it" (`409` `cast_failed`). An AirPlay device the
 server hasn't paired with answers `409` `pairing_needed`: the app has it
 show its code (`POST /api/remote/devices/{id}/pairing` with no `pin`),
 and a sheet asks for it, "Pair with Den Apple TV", with "Type the code
 Den Apple TV shows" (a Mac shows one too) and "Everyone in your home can
-then play on it." The
-field takes digits alone, 4 at most (all the server takes); where the
-server says how many the code has (`digits`, 4 on an Apple TV), it goes
-as the last is typed, else with Pair. "No code showing? Show it again"
-has the device show a new one. A wrong code shakes the field and says
-"That isn't the code Den Apple TV shows." to type again, and a device
-that takes no other try yet says so; any other refusal closes the sheet
-and says why. While a code is on its way the sheet stays (Cancel and the
-swipe wait). Once paired, the sheet closes and the cast goes again as a
-pick from "Play on…" does, which says "Starting on Den Apple TV…" until
-the device plays. Cancel, before a code pairs, leaves what was cast
-unsent.
+then play on it." The field takes digits alone, 4 at most (all the
+server takes); where the server says how many the code has (`digits`, 4
+on an Apple TV), it goes as the last is typed, else with Pair. "No code
+showing? Show it again" has the device show a new one. A wrong code
+shakes the field and says "That isn't the code Den Apple TV shows." to
+type again, and a device that takes no other try yet says so; any other
+refusal closes the sheet and says why. While a code is on its way the
+sheet stays (Cancel and the swipe wait). Once paired, the sheet closes
+and the cast goes again as a pick from "Play on…" does, which says
+"Starting on Den Apple TV…" until the device plays. Cancel, before a
+code pairs, leaves what was cast unsent.
 
 **Taking casts.** Every Apple app, Apple TV included, opens its event
 stream as a receiver
