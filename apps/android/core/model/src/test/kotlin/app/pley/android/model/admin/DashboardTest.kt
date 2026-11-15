@@ -1,6 +1,7 @@
 package app.pley.android.model.admin
 
 import app.pley.android.model.ItemKind
+import app.pley.android.model.ItemSummary
 import app.pley.android.model.JobState
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PleyJson
@@ -58,6 +59,55 @@ class DashboardTest {
         assertEquals(2, activity.previewsRunning)
         assertEquals("hours", activity.libraryWork?.waiting)
         assertEquals(1700003600L, activity.libraryWork?.resumesAt)
+    }
+
+    @Test
+    fun aSessionSaysWhatPlaysItAndHowLongAgoItsPlaceWasReported() {
+        val json = """
+            { "sessions": [
+              { "session_id": "a", "username": "bea", "player": "cast", "state": "buffering", "age_ms": 1500, "position_ms": 60000,
+                "item": { "id": 9, "library_id": 3, "kind": "movie", "title": "A film", "duration_ms": 600000 } },
+              { "session_id": "b", "username": "bea", "player": "jellyfin", "state": "playing", "age_ms": null, "position_ms": 0,
+                "item": { "id": 9, "library_id": 3, "kind": "movie", "title": "A film" } }
+            ] }
+        """.trimIndent()
+        val (cast, jellyfin) = PleyJson.decodeFromString(DashboardActivity.serializer(), json).sessions
+        assertEquals("cast", cast.player)
+        assertEquals("buffering", cast.state)
+        assertEquals(1500L, cast.ageMs)
+        assertFalse(cast.showsStopMessage)
+        assertEquals("jellyfin", jellyfin.player)
+        assertNull(jellyfin.ageMs)
+        assertFalse(jellyfin.showsStopMessage)
+
+        // A server before them: as Pley's own apps, at the place it has.
+        val older = PleyJson.decodeFromString(
+            DashboardSession.serializer(),
+            """{ "session_id": "c", "state": "playing", "position_ms": 5000, "item": { "id": 9, "library_id": 3, "kind": "movie", "title": "A film" } }""",
+        )
+        assertNull(older.player)
+        assertTrue(older.showsStopMessage)
+        assertEquals(5000L, older.positionAt(receivedAtMs = 0, nowMs = 60_000))
+        assertTrue(older.copy(player = "pley").showsStopMessage)
+        assertFalse(older.copy(player = "airplay").showsStopMessage)
+        assertFalse(older.copy(player = "plex").showsStopMessage)
+    }
+
+    @Test
+    fun aPlayingSessionsTimeMovesOnFromItsReportNeverPastItsEnd() {
+        val item = ItemSummary(id = 9, libraryId = 3, kind = ItemKind.Movie, title = "A film", durationMs = 600_000)
+        val playing = DashboardSession(sessionId = "a", item = item, positionMs = 60_000, state = "playing", ageMs = 2_000)
+        // Reported 2 s before the answer, which came 3 s ago.
+        assertEquals(65_000L, playing.positionAt(receivedAtMs = 10_000, nowMs = 13_000))
+        // A clock behind the answer's arrival adds nothing.
+        assertEquals(62_000L, playing.positionAt(receivedAtMs = 10_000, nowMs = 9_000))
+        assertEquals("never past its end", 600_000L, playing.positionAt(receivedAtMs = 0, nowMs = 10_000_000))
+        // Without a duration, on and on.
+        assertEquals(1_062_000L, playing.copy(item = item.copy(durationMs = null)).positionAt(0, 1_000_000))
+        // Paused, buffering or before its first report: where it is.
+        for (still in listOf(playing.copy(state = "paused"), playing.copy(state = "buffering"), playing.copy(ageMs = null))) {
+            assertEquals(60_000L, still.positionAt(receivedAtMs = 0, nowMs = 10_000))
+        }
     }
 
     @Test

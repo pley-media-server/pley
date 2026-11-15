@@ -6,6 +6,13 @@
     <string name="admin_dashboard_method_direct">Reproducción directa</string>
     <string name="admin_dashboard_method_remux">Remux</string>
     <string name="admin_dashboard_method_transcode">Transcodificación</string>
+    <string name="admin_dashboard_player_pley">Aplicación de Pley</string>
+    <string name="admin_dashboard_player_plex">API de Plex</string>
+    <string name="admin_dashboard_player_jellyfin">API de Jellyfin</string>
+    <string name="admin_dashboard_state_playing">Reproduciendo</string>
+    <string name="admin_dashboard_state_paused">En pausa</string>
+    <string name="admin_dashboard_state_buffering">Cargando</string>
+    <string name="admin_dashboard_state_stopped">Detenido</string>
     <string name="admin_dashboard_pipeline_gpu">GPU</string>
     <string name="admin_dashboard_pipeline_gpu_title">Decodificado, filtrado y codificado en la GPU sin copias</string>
     <string name="admin_dashboard_pipeline_hybrid">Híbrido</string>

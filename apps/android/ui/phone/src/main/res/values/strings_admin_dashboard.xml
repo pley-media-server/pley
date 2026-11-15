@@ -6,6 +6,15 @@
     <string name="admin_dashboard_method_direct">Direct Play</string>
     <string name="admin_dashboard_method_remux">Remux</string>
     <string name="admin_dashboard_method_transcode">Transcode</string>
+    <string name="admin_dashboard_player_pley">Pley app</string>
+    <string name="admin_dashboard_player_plex">Plex API</string>
+    <string name="admin_dashboard_player_jellyfin">Jellyfin API</string>
+    <string name="admin_dashboard_player_cast" translatable="false">Google Cast</string>
+    <string name="admin_dashboard_player_airplay" translatable="false">AirPlay</string>
+    <string name="admin_dashboard_state_playing">Playing</string>
+    <string name="admin_dashboard_state_paused">Paused</string>
+    <string name="admin_dashboard_state_buffering">Buffering</string>
+    <string name="admin_dashboard_state_stopped">Stopped</string>
     <string name="admin_dashboard_pipeline_gpu">GPU</string>
     <string name="admin_dashboard_pipeline_gpu_title">Decoded, filtered and encoded on the GPU without copies</string>
     <string name="admin_dashboard_pipeline_hybrid">Hybrid</string>

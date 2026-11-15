@@ -1,5 +1,10 @@
 package app.pley.android.ui.phone.admin.dashboard
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,6 +26,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.maxLength
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
@@ -34,6 +40,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -65,6 +73,7 @@ import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.admin.DashboardActivity
 import app.pley.android.model.admin.DashboardSession
+import app.pley.android.model.admin.dashboardClockMs
 import app.pley.android.model.format.formatBytes
 import app.pley.android.model.format.formatClockMs
 import app.pley.android.model.format.fullTitle
@@ -91,6 +100,7 @@ import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
+import kotlinx.coroutines.delay
 
 /**
  * The dashboard (the web's Settings → Dashboard), one page: what plays now
@@ -209,6 +219,7 @@ private fun LazyListScope.nowPlaying(
     onStop: (DashboardSession) -> Unit,
 ) {
     val sessions = activity.valueOrNull?.sessions.orEmpty()
+    val receivedAtMs = activity.valueOrNull?.receivedAtMs ?: 0L
     item(key = "playing", contentType = "heading") {
         SectionHeading(stringResource(R.string.admin_dashboard_now_playing), PleyIcons.MonitorPlay, count = sessions.size.takeIf { it > 0 })
     }
@@ -219,7 +230,7 @@ private fun LazyListScope.nowPlaying(
         }
         sessions.isEmpty() -> item(key = "playing.none", contentType = "line") { QuietLine(stringResource(R.string.admin_dashboard_nobody_watching)) }
         else -> items(sessions, key = { "session:" + it.sessionId }, contentType = { "session" }) { session ->
-            SessionCard(session, origin, onOpen = { onOpen(session.item) }, onStop = { onStop(session) }, modifier = Modifier.animateItem())
+            SessionCard(session, receivedAtMs, origin, onOpen = { onOpen(session.item) }, onStop = { onStop(session) }, modifier = Modifier.animateItem())
         }
     }
 }
@@ -231,15 +242,38 @@ internal fun Loading() {
     }
 }
 
-/** Someone's playback, as the web's SessionCard: its picture, what, where, who, how far, and how it plays. */
+/**
+ * Someone's playback, as the web's SessionCard: its picture, what, where
+ * and what plays it, whether it plays, who, how far, and how it plays.
+ * While it plays, its time moves on each second from when the list came
+ * ([receivedAtMs], by [clockMs]), as the web's does between reads.
+ */
 @Composable
-private fun SessionCard(session: DashboardSession, origin: String, onOpen: () -> Unit, onStop: () -> Unit, modifier: Modifier = Modifier) {
+internal fun SessionCard(
+    session: DashboardSession,
+    receivedAtMs: Long,
+    origin: String,
+    onOpen: () -> Unit,
+    onStop: () -> Unit,
+    modifier: Modifier = Modifier,
+    clockMs: () -> Long = ::dashboardClockMs,
+) {
     val words = formatWords()
     val item = session.item
     val title = remember(item, words) { fullTitle(item, words) }
     val art = remember(item, origin) { ArtworkImage(sessionArt(item).map { absolute(it, origin) }) }
     val duration = item.durationMs ?: 0L
+    val playing = session.state == "playing"
+    val nowMs by produceState(clockMs(), playing, receivedAtMs) {
+        value = clockMs()
+        while (playing) {
+            delay(1_000)
+            value = clockMs()
+        }
+    }
+    val position = session.positionAt(receivedAtMs, nowMs)
     val device = session.device
+    val player = playerName(session.player)
     val stopLabel = if (device != null) {
         stringResource(R.string.admin_dashboard_stop_label_on, title, session.username, device)
     } else {
@@ -271,18 +305,20 @@ private fun SessionCard(session: DashboardSession, origin: String, onOpen: () ->
                     Spacer(Modifier.width(8.dp))
                     MethodBadge(session.method)
                 }
-                session.device?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                // Where it plays and what plays it, on a line of their own, as on the web.
+                listOfNotNull(device, player).takeIf { it.isNotEmpty() }?.let {
+                    Text(
+                        it.joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = PleyColors.Muted,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    val (icon, tint) = when (session.state) {
-                        "playing" -> PleyIcons.Play to PleyColors.Success
-                        "paused" -> PleyIcons.Pause to PleyColors.Muted
-                        else -> PleyIcons.Square to PleyColors.Muted
-                    }
-                    Icon(icon, contentDescription = null, size = 12.dp, tint = tint)
+                    StateIcon(session.state)
                     Spacer(Modifier.width(6.dp))
-                    val time = formatClockMs(session.positionMs) + if (duration > 0) " / " + formatClockMs(duration) else ""
+                    val time = formatClockMs(position) + if (duration > 0) " / " + formatClockMs(duration) else ""
                     Text(
                         "${session.username} · $time",
                         style = MaterialTheme.typography.bodySmall,
@@ -293,7 +329,7 @@ private fun SessionCard(session: DashboardSession, origin: String, onOpen: () ->
                 }
             }
         }
-        if (duration > 0) Bar(session.positionMs.toFloat() / duration, Modifier.padding(top = 10.dp), height = 3.dp)
+        if (duration > 0) Bar(position.toFloat() / duration, Modifier.padding(top = 10.dp), height = 3.dp)
         session.transcode?.let { tc ->
             val size = sizeWords()
             val summary = remember(tc, words) { dashboardTranscodeSummary(tc, words, size) }
@@ -339,6 +375,43 @@ private fun SessionCard(session: DashboardSession, origin: String, onOpen: () ->
     }
 }
 
+/** What plays a session, in the web's words; `null` for a server before it said, or a player it doesn't know. */
+@Composable
+private fun playerName(player: String?): String? = when (player) {
+    "pley" -> stringResource(R.string.admin_dashboard_player_pley)
+    "plex" -> stringResource(R.string.admin_dashboard_player_plex)
+    "jellyfin" -> stringResource(R.string.admin_dashboard_player_jellyfin)
+    "cast" -> stringResource(R.string.admin_dashboard_player_cast)
+    "airplay" -> stringResource(R.string.admin_dashboard_player_airplay)
+    else -> null
+}
+
+/**
+ * Whether a session plays, as the web's icon says it: playing (green),
+ * paused, buffering (turning, as other apps say it) or stopped, named for
+ * screen readers.
+ */
+@Composable
+private fun StateIcon(state: String) {
+    val (icon, tint, name) = when (state) {
+        "playing" -> Triple(PleyIcons.Play, PleyColors.Success, R.string.admin_dashboard_state_playing)
+        "paused" -> Triple(PleyIcons.Pause, PleyColors.Muted, R.string.admin_dashboard_state_paused)
+        "buffering" -> Triple(PleyIcons.LoaderCircle, PleyColors.Muted, R.string.admin_dashboard_state_buffering)
+        else -> Triple(PleyIcons.Square, PleyColors.Muted, R.string.admin_dashboard_state_stopped)
+    }
+    val described = stringResource(name)
+    val turning = if (state == "buffering") {
+        val turn = rememberInfiniteTransition(label = "buffering")
+        val angle by turn.animateFloat(0f, 360f, infiniteRepeatable(tween(1_000, easing = LinearEasing)), label = "angle")
+        Modifier.graphicsLayer { rotationZ = angle }
+    } else {
+        Modifier
+    }
+    Box(turning.testTag(STATE_ICON).semantics { contentDescription = described }) {
+        Icon(icon, contentDescription = null, size = 12.dp, tint = tint)
+    }
+}
+
 /** "size 2 of 3", in the words shown. */
 @Composable
 private fun sizeWords(): (Int, Int) -> String {
@@ -348,17 +421,19 @@ private fun sizeWords(): (Int, Int) -> String {
 
 /**
  * Asks before stopping someone's playback, as the web's: what stops for
- * whom, and a message for their screen, up to the server's 200 characters.
+ * whom, and a message for their screen, up to the server's 200 characters,
+ * where its player shows one ([DashboardSession.showsStopMessage]); for
+ * the others, Stop only stops.
  */
 @Composable
-private fun StopDialog(session: DashboardSession, onStop: (String) -> Unit, onDismiss: () -> Unit) {
+internal fun StopDialog(session: DashboardSession, onStop: (String) -> Unit, onDismiss: () -> Unit) {
     val words = formatWords()
     val state = rememberTextFieldState()
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
-                onClick = { onStop(state.text.toString()) },
+                onClick = { onStop(if (session.showsStopMessage) state.text.toString() else "") },
                 colors = ButtonDefaults.textButtonColors(contentColor = PleyColors.DangerText),
                 modifier = Modifier.testTag(STOP_CONFIRM),
             ) { Text(stringResource(R.string.admin_dashboard_stop), style = MaterialTheme.typography.labelLarge) }
@@ -375,24 +450,7 @@ private fun StopDialog(session: DashboardSession, onStop: (String) -> Unit, onDi
                     stringResource(R.string.admin_dashboard_stops_for, fullTitle(session.item, words), session.username),
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                OutlinedTextField(
-                    state = state,
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.admin_dashboard_stop_message)) },
-                    supportingText = { Text(stringResource(R.string.admin_dashboard_stop_message_hint)) },
-                    inputTransformation = InputTransformation.maxLength(STOP_MESSAGE_MAX),
-                    lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 4),
-                    shape = PleyShape.Field,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = PleyColors.AccentBright,
-                        unfocusedBorderColor = PleyColors.Control,
-                        focusedLabelColor = PleyColors.AccentBright,
-                        unfocusedLabelColor = PleyColors.Muted,
-                        cursorColor = PleyColors.AccentBright,
-                        focusedSupportingTextColor = PleyColors.Muted,
-                        unfocusedSupportingTextColor = PleyColors.Muted,
-                    ),
-                )
+                if (session.showsStopMessage) StopMessageField(state)
             }
         },
         shape = PleyShape.Dialog,
@@ -400,6 +458,29 @@ private fun StopDialog(session: DashboardSession, onStop: (String) -> Unit, onDi
         titleContentColor = PleyColors.Fg,
         textContentColor = PleyColors.Muted,
         tonalElevation = 0.dp,
+    )
+}
+
+/** The message a stop shows on its player's screen. */
+@Composable
+private fun StopMessageField(state: TextFieldState) {
+    OutlinedTextField(
+        state = state,
+        modifier = Modifier.fillMaxWidth().testTag(STOP_MESSAGE),
+        label = { Text(stringResource(R.string.admin_dashboard_stop_message)) },
+        supportingText = { Text(stringResource(R.string.admin_dashboard_stop_message_hint)) },
+        inputTransformation = InputTransformation.maxLength(STOP_MESSAGE_MAX),
+        lineLimits = TextFieldLineLimits.MultiLine(minHeightInLines = 2, maxHeightInLines = 4),
+        shape = PleyShape.Field,
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = PleyColors.AccentBright,
+            unfocusedBorderColor = PleyColors.Control,
+            focusedLabelColor = PleyColors.AccentBright,
+            unfocusedLabelColor = PleyColors.Muted,
+            cursorColor = PleyColors.AccentBright,
+            focusedSupportingTextColor = PleyColors.Muted,
+            unfocusedSupportingTextColor = PleyColors.Muted,
+        ),
     )
 }
 
@@ -496,3 +577,5 @@ private const val STOP_MESSAGE_MAX = 200
 internal const val DASHBOARD_PAGE = "pley.admin.dashboard.page"
 internal const val STOP_BUTTON = "pley.admin.dashboard.stop"
 internal const val STOP_CONFIRM = "pley.admin.dashboard.stop.confirm"
+internal const val STOP_MESSAGE = "pley.admin.dashboard.stop.message"
+internal const val STATE_ICON = "pley.admin.dashboard.state"

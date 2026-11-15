@@ -15,6 +15,7 @@ import app.pley.android.model.admin.DashboardSystem
 import app.pley.android.model.admin.DashboardTranscoderStatus
 import app.pley.android.model.admin.StorageCleanReport
 import app.pley.android.model.admin.StorageUsage
+import app.pley.android.model.admin.dashboardClockMs
 import app.pley.android.network.AdminApi
 import app.pley.android.screens.account.HistoryRow
 import app.pley.android.screens.account.historyRow
@@ -68,6 +69,8 @@ class DashboardViewModel(
     admin: ServerAdmin,
     origin: Flow<String>,
     private val nowSeconds: () -> Long = { System.currentTimeMillis() / 1000 },
+    /** What playing sessions' time moves on from ([DashboardActivity.receivedAtMs]). */
+    private val clockMs: () -> Long = ::dashboardClockMs,
     compute: CoroutineDispatcher = Dispatchers.Default,
 ) : AdminViewModel(admin) {
     /** The server's address, which its pictures' paths are made absolute on. */
@@ -147,7 +150,9 @@ class DashboardViewModel(
         }
     }
 
-    internal suspend fun readActivity() = read(activityNow) { get(DashboardActivity.serializer(), ACTIVITY) }
+    internal suspend fun readActivity() = read(activityNow) {
+        get(DashboardActivity.serializer(), ACTIVITY).copy(receivedAtMs = clockMs())
+    }
 
     internal suspend fun readTranscoder() = read(transcoderNow) { get(DashboardTranscoderStatus.serializer(), TRANSCODER) }
 
@@ -170,12 +175,13 @@ class DashboardViewModel(
 
     /**
      * Stops [session] at once, with [message] (trimmed; none when blank)
-     * shown on its player's screen. It leaves the list straight away, and
-     * the list is read again either way.
+     * shown on its player's screen, for a player that shows one
+     * ([DashboardSession.showsStopMessage]). It leaves the list straight
+     * away, and the list is read again either way.
      */
     fun stop(session: DashboardSession, message: String) =
         change(said = AdminDone(STOPPED), after = { viewModelScope.launch { readActivity() } }) {
-            val words = message.trim().takeIf { it.isNotEmpty() }
+            val words = message.trim().takeIf { it.isNotEmpty() && session.showsStopMessage }
             call("DELETE", listOf("api", "sessions", session.sessionId), words?.let { buildJsonObject { put("message", it) } })
             activityNow.update { load ->
                 val shown = load.valueOrNull ?: return@update load

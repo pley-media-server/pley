@@ -161,6 +161,30 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun aPlayerThatShowsNoMessageIsStoppedWithoutOne() = runTest {
+        val server = server()
+        server.answer("GET /api/activity", activity("s1", player = "cast"))
+        server.answer("DELETE /api/sessions/s1", null)
+        val page = model(server)
+        page.readActivity()
+        val cast = page.activity.value.valueOrNull!!.sessions.single()
+        page.stop(cast, "Bedtime").join()
+        assertNull(server.callsTo("DELETE /api/sessions/s1").single().body)
+    }
+
+    @Test
+    fun theListSaysWhenItCameForPlayingSessionsTimeToMoveOnFrom() = runTest {
+        val server = server()
+        var clock = 5_000L
+        val page = DashboardViewModel(server, flowOf("http://nas:7539"), nowSeconds = { 1_700_000_000 }, clockMs = { clock }, compute = main.dispatcher)
+        page.readActivity()
+        assertEquals(5_000L, page.activity.value.valueOrNull?.receivedAtMs)
+        clock = 10_000L
+        page.readActivity()
+        assertEquals(10_000L, page.activity.value.valueOrNull?.receivedAtMs)
+    }
+
+    @Test
     fun showMoreAddsTheNextPlaysAndRemovingOneTakesItOut() = runTest {
         val server = server()
         val page = model(server)
@@ -281,8 +305,8 @@ class DashboardViewModelTest {
     }
 
     private companion object {
-        fun activity(vararg sessions: String) = sessions.joinToString(",", """{ "scans": [], "sessions": [""", "] }") { id ->
-            """{ "session_id": "$id", "user_id": 2, "username": "bea", "device": null, "method": "direct", "position_ms": 0, "state": "playing",
+        fun activity(vararg sessions: String, player: String = "pley") = sessions.joinToString(",", """{ "scans": [], "sessions": [""", "] }") { id ->
+            """{ "session_id": "$id", "user_id": 2, "username": "bea", "device": null, "player": "$player", "method": "direct", "position_ms": 0, "state": "playing",
                  "item": { "id": 9, "library_id": 1, "kind": "movie", "title": "A film" } }"""
         }
 

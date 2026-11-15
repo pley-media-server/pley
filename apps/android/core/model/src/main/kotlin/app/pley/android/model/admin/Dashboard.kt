@@ -6,6 +6,7 @@ import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.ScanPhase
 import app.pley.android.model.StreamAction
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /*
  * The dashboard of managing the server (the web's Settings → Dashboard):
@@ -31,6 +32,11 @@ data class DashboardActivity(
     val previewsRunning: Int = 0,
     /** Why what waits waits, while some does. */
     val libraryWork: DashboardLibraryWork? = null,
+    /**
+     * When the answer came, by [dashboardClockMs], not part of it: what a
+     * playing session's time moves on from ([DashboardSession.positionAt]).
+     */
+    @Transient val receivedAtMs: Long = 0,
 )
 
 /** A library's scan (apps/server/src/events.rs, `ScanStatus`). */
@@ -73,10 +79,43 @@ data class DashboardSession(
     val item: ItemSummary,
     val method: PlaybackMethod = PlaybackMethod.Unknown,
     val positionMs: Long = 0,
-    /** "playing", "paused" or "stopped". */
+    /** What plays it: "pley", "plex", "jellyfin", "cast" or "airplay"; `null` from servers before it. */
+    val player: String? = null,
+    /** "playing", "paused", "buffering" (other apps say it) or "stopped". */
     val state: String = "",
+    /**
+     * How long ago its player reported [positionMs], by the server's clock
+     * as it answered; `null` before the first report, and from servers
+     * before it.
+     */
+    val ageMs: Long? = null,
     val transcode: DashboardTranscode? = null,
-)
+) {
+    /**
+     * Whether its player shows a stop's message: Pley's own apps do; other
+     * apps through the Plex or Jellyfin API, Cast and AirPlay devices only
+     * stop. A server before [player] was said: as Pley's.
+     */
+    val showsStopMessage: Boolean get() = (player ?: "pley") == "pley"
+
+    /**
+     * Where it is at [nowMs]: its report, moved on while it plays from
+     * [ageMs] when the list came at [receivedAtMs] (both by
+     * [dashboardClockMs]), never past its end. Before its first report,
+     * and from servers that don't say, the place it has. The web's
+     * `activityPosition`.
+     */
+    fun positionAt(receivedAtMs: Long, nowMs: Long): Long {
+        val age = ageMs
+        if (state != "playing" || age == null) return positionMs
+        val at = positionMs + age + maxOf(0L, nowMs - receivedAtMs)
+        val duration = item.durationMs ?: 0L
+        return if (duration > 0) minOf(at, duration) else at
+    }
+}
+
+/** The clock the dashboard moves playing sessions on by: steady, whatever the device's time is set to. */
+fun dashboardClockMs(): Long = System.nanoTime() / 1_000_000
 
 /**
  * What a transcode does, live (apps/server/src/playback.rs, `TranscodeInfo`):

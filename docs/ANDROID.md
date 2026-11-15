@@ -917,8 +917,11 @@ signs in to it again. TVs don't manage
 the server: they sign in with a code, and the server never gives the
 scope to a code.
 
-- **Dashboard**: what plays, with its transcode, and stopping a stream
-  with a message; the server's and the machine's CPU and memory over the
+- **Dashboard**: what plays, where, and what plays it (a Pley app, an app
+  through the Plex or Jellyfin API, Google Cast or AirPlay), whether it
+  plays, is paused or is buffering, its time moving on while it plays, and
+  its transcode; stopping a stream, with a message for its screen where
+  the player shows one (Pley's own apps); the server's and the machine's CPU and memory over the
   last minutes; recently played, by everyone, with removing a play; the
   transcoder's jobs; scans, intro detection and seek previews under way;
   the server, its storage and the database's health, and cleaning up.
