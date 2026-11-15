@@ -218,18 +218,22 @@ async fn world() -> World {
 
 /// The world, with the device's setup API at `setup`.
 async fn world_with(setup: Option<SocketAddr>) -> World {
-    world_within(setup, pley::nearby::casts::CAST_WITHIN).await
+    world_where(|config| config.cast_fixed.setup = setup).await
 }
 
-/// The world, with the device's setup API at `setup`, where a cast has
-/// `within` to start.
-async fn world_within(setup: Option<SocketAddr>, within: Duration) -> World {
+/// The world, where a cast has `within` to start.
+async fn world_within(within: Duration) -> World {
+    world_where(|config| config.cast_within = within).await
+}
+
+/// The world, with what `adjust` changes of the server's config.
+async fn world_where(adjust: impl FnOnce(&mut pley::config::Config)) -> World {
     let (address, sent, say, fake) = fake_device().await;
     let app = TestApp::with_config(|config| {
         config.cast_fixed.device = Some(address);
         config.cast_fixed.server = Some("http://pley.test:7539".into());
-        config.cast_fixed.setup = setup;
-        config.cast_within = within;
+        config.cast_fixed.setup = None;
+        adjust(config);
     })
     .await;
     let admin = app.setup_admin().await;
@@ -239,22 +243,31 @@ async fn world_within(setup: Option<SocketAddr>, within: Duration) -> World {
     sqlx::query("UPDATE items SET duration_ms = ?").bind(LENGTH_MS).execute(&app.state.db.write).await.unwrap();
     // H.264 and AAC in MP4, as a Cast device plays it, with English text
     // subtitles.
+    film_in(&app, film, "h264").await;
+    World { app, admin, film, sent, say, fake }
+}
+
+/// Makes `film` MP4 with `video` and AAC, and English text subtitles:
+/// played as it is in H.264, transcoded in HEVC.
+async fn film_in(app: &TestApp, film: i64, video: &str) {
     let info = json!({
         "container": "mov,mp4,m4a,3gp,3g2,mj2",
         "duration_ms": LENGTH_MS,
         "streams": [
-            {"index": 0, "kind": "video", "codec": "h264", "width": 1920, "height": 1080, "pix_fmt": "yuv420p"},
+            {"index": 0, "kind": "video", "codec": video, "width": 1920, "height": 1080, "pix_fmt": "yuv420p"},
             {"index": 1, "kind": "audio", "codec": "aac", "channels": 2, "language": "eng", "default": true},
             {"index": 2, "kind": "subtitle", "codec": "mov_text", "language": "eng", "text_based": true},
         ],
     });
-    sqlx::query("UPDATE media_files SET media_info = ?, container = 'mp4', video_codec = 'h264', audio_codec = 'aac' WHERE id = ?")
-        .bind(info.to_string())
-        .bind(app.file_of(film).await)
-        .execute(&app.state.db.write)
-        .await
-        .unwrap();
-    World { app, admin, film, sent, say, fake }
+    sqlx::query(
+        "UPDATE media_files SET media_info = ?, container = 'mp4', video_codec = ?, audio_codec = 'aac' WHERE id = ?",
+    )
+    .bind(info.to_string())
+    .bind(video)
+    .bind(app.file_of(film).await)
+    .execute(&app.state.db.write)
+    .await
+    .unwrap();
 }
 
 async fn sessions(w: &World) -> Vec<Value> {
@@ -589,7 +602,7 @@ async fn player_closed(sent: &mut Sent) -> bool {
 #[tokio::test]
 async fn a_cast_closes_no_player_it_didnt_load_into() {
     // It never launched one: the device didn't answer before the deadline.
-    let mut w = world_within(None, Duration::from_secs(5)).await;
+    let mut w = world_within(Duration::from_secs(5)).await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     w.fake.silent_launch.store(true, Ordering::SeqCst);
     let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
@@ -628,9 +641,73 @@ async fn a_newer_cast_keeps_the_player_a_failed_one_was_closing() {
     assert_eq!(sessions(&w).await.len(), 1);
 }
 
+/// A transcoder that says what it can do, and never answers a request to
+/// make a job: its address.
+async fn stuck_transcoder() -> String {
+    use axum::routing::{get, post};
+    use pley_transcoder_api::{API_VERSION, Capabilities, EncoderInfo, HwAccel, Limits, TranscoderInfo, VideoCodec};
+    let info = TranscoderInfo {
+        name: "pley-transcoder".into(),
+        version: "9.9.9".into(),
+        api_version: API_VERSION,
+        license: "AGPL-3.0-only".into(),
+        capabilities: Capabilities {
+            ffmpeg_available: true,
+            ffprobe_available: true,
+            encoders: vec![EncoderInfo {
+                name: "libx264".into(),
+                codec: VideoCodec::H264,
+                hardware: false,
+                accel: HwAccel::None,
+                main10: false,
+            }],
+            ..Default::default()
+        },
+        limits: Limits { max_jobs: 8, max_hw_jobs: 0 },
+        ..Default::default()
+    };
+    let app = axum::Router::new()
+        .route("/v1/info", get(move || async move { axum::Json(info) }))
+        .route("/v1/jobs", post(std::future::pending::<StatusCode>));
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    format!("http://{address}")
+}
+
+#[tokio::test]
+async fn a_session_slow_to_start_ends_the_cast_in_time_and_frees_the_device() {
+    let transcoder = stuck_transcoder().await;
+    let mut w = world_where(|config| {
+        config.cast_within = Duration::from_secs(5);
+        config.transcoder_url = Some(transcoder);
+        config.transcoder_token = Some("secret".into());
+    })
+    .await;
+    w.app.state.transcoder.start();
+    assert!(w.app.state.transcoder.wait_ready(Duration::from_secs(10)).await);
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    // HEVC, which every Cast device doesn't play: a transcode, whose job the
+    // transcoder never makes.
+    film_in(&w.app, w.film, "hevc").await;
+    let asked = std::time::Instant::now();
+    let failed = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!((failed.status, failed.body["code"].as_str()), (StatusCode::CONFLICT, Some("cast_failed")));
+    assert!(asked.elapsed() < Duration::from_secs(20), "answered at the deadline, not the transcoder's");
+    assert!(sessions(&w).await.is_empty());
+    tokio::time::sleep(Duration::from_millis(500)).await;
+    assert!(w.sent.try_recv().is_err(), "the device was never reached, nor closed");
+
+    // The device is free for the next cast, which plays as it is.
+    film_in(&w.app, w.film, "h264").await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+    assert_eq!(sessions(&w).await.len(), 1);
+}
+
 #[tokio::test]
 async fn a_cast_the_device_never_loads_stops_in_time() {
-    let mut w = world_within(None, Duration::from_secs(2)).await;
+    let mut w = world_within(Duration::from_secs(2)).await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     w.fake.silent_load.store(true, Ordering::SeqCst);
     let asked = std::time::Instant::now();
