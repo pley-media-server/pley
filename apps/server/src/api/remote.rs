@@ -887,9 +887,10 @@ pub struct DevicesQuery {
     /// `1`: the household's other profiles' receivers too. Remotes that
     /// don't know them (older apps) leave it out, and get their own.
     household: Option<String>,
-    /// `1`: the Cast devices on the server's network too, which play only
-    /// movies and episodes and are told apart by `protocol`. Remotes that
-    /// don't know them (older apps, other apps) leave it out.
+    /// `1`: the Cast and AirPlay devices on the server's network too, which
+    /// play only movies and episodes and are told apart by `protocol`.
+    /// Remotes that don't know them (older apps) leave it out, and other
+    /// apps get none.
     nearby: Option<String>,
 }
 
@@ -902,11 +903,20 @@ pub(crate) fn reaches_household(user: &AuthUser) -> bool {
     user.first_party() && user.allowed(Scope::Profiles)
 }
 
+/// Whether the request may list, cast to and pair with the devices on the
+/// server's network: a home member's (`home`) own sign-in, or one of Pley's
+/// own apps. They are the home's, as its TVs are: another app would learn
+/// their names, take them over, and pair the server with them for everyone.
+fn reaches_nearby(user: &AuthUser, home: bool) -> bool {
+    home && user.first_party()
+}
+
 /// `GET /api/remote/devices`: the devices that take casts, one each: the
 /// caller's own, and with `household=1`, for a home member, those of the
 /// household's other profiles that switch to a casting remote's profile,
 /// each with the profile it is on (what they play stays theirs), and with
-/// `nearby=1`, for a home member, the Cast devices on the server's network.
+/// `nearby=1`, for a home member, the Cast and AirPlay devices on the
+/// server's network ([`reaches_nearby`]).
 /// Administrators get only the household's too, and an app only when it
 /// [reaches the household](reaches_household).
 pub async fn devices(
@@ -941,7 +951,7 @@ pub async fn devices(
     // Cast device listed, as the only way to reach the TV. (An app on the
     // local network can claim any address, and so hide a Cast device from
     // the lists it is in, but do nothing more with it.)
-    if home && nearby {
+    if nearby && reaches_nearby(&user, home) {
         let taken: HashSet<IpAddr> =
             out.iter().filter(|d| d.casts.contains(&CastKind::Item)).filter_map(|d| d.address).collect();
         let found = state.nearby.listed(state.config.cast_fixed.found(), state.network.wanted().discovery).await;
@@ -1014,12 +1024,13 @@ const WITH_TRACKS: [&str; 2] = ["movie", "episode"];
 const CASTABLE: [&str; 7] = ["movie", "episode", "show", "season", "track", "album", "artist"];
 
 /// The device on the server's network of `id`, as the household's lists
-/// show it: to a home member only.
+/// show it: to a home member only, as [`reaches_nearby`] says.
 async fn nearby_device(state: &AppState, user: &AuthUser, id: &str) -> ApiResult<crate::nearby::Found> {
     let everyone = crate::accounts::users(&state.db).await?;
     let home = everyone.iter().any(|u| u.id == user.id && u.home);
     let discovery = state.network.wanted().discovery;
-    let device = state.nearby.device(id, state.config.cast_fixed.found(), discovery).filter(|_| home);
+    let device =
+        state.nearby.device(id, state.config.cast_fixed.found(), discovery).filter(|_| reaches_nearby(user, home));
     device.ok_or_else(|| AppError::not_found("no such device"))
 }
 

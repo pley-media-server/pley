@@ -391,7 +391,9 @@ other apps (`pley_ct_…`), never with a session's
   silent, or stops reading, for 20 seconds. The device gets the cast's keyed addresses, which
   open that session's media alone, and nothing else of Pley's; a cast
   plays as a session of the home member who sent it, by their profile's
-  rules, and only home members see and cast to these devices.
+  rules, and only home members see and cast to these devices, from the
+  web app or Pley's own apps: another app gets none of them, as it gets
+  none of the household's TVs.
 - Pley pairs with an AirPlay device as HomeKit does: the device shows a
   PIN, a home member types it, and SRP proves it without sending it;
   then the two swap Ed25519 public keys, and each connection proves both

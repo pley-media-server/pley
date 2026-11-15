@@ -3541,7 +3541,7 @@ MediaRequest, retry_at: Timestamp | null }`, and a `409 declined` is
 | GET | `/api/sessions` | `play` | `PlayingSession[]`: the caller's own sessions whose players are there, oldest first ([Remote control](#remote-control)) |
 | DELETE | `/api/sessions/{id}` | `play` or `activity` | optional body `{ message?: string }` (at most 200 characters, else `400`; only Pley's own apps show it) → `204`: stops a playback session at once |
 | POST | `/api/sessions/{id}/command` | `play` | `{ command: Control, position_ms?: number, offset_ms?: number, stream_index?: number, quality?: string, volume?: number }` → `202`: sends one of the caller's own players a command ([Remote control](#remote-control)) |
-| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast and AirPlay devices, and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
+| GET | `/api/remote/devices` | `play` | `RemoteDevice[]`: the caller's own devices that take casts, one each, by name, with `?nearby=1` a home member's Google Cast and AirPlay devices (not to an app other than Pley's own), and with `?household=1` and `profiles`, for one of Pley's own apps, those of the household's other profiles that switch ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/cast` | `play` | `{ item_id?: Id, playlist_id?: Id, channel_id?: Id, start_ms?: number, shuffle?: boolean, profile_id?: Id, pin?: string }` → `202`: sends one of the caller's own devices (`{id}`: its `receiver_id`), or with `profile_id` and `profiles`, for one of Pley's own apps, a device of another of the household's profiles, something to play; `204` once a Google Cast or AirPlay device plays it ([Casting](#casting)) |
 | POST | `/api/remote/devices/{id}/pairing` | `play` | `{ pin?: string }` → `{ digits: number \| null }`: has an AirPlay device show a PIN (without `pin`), with how many digits it has where known (`4` on an Apple TV); `204`: pairs the server with it (with the 4 digits it shows) ([Casting](#casting)) |
 | GET | `/api/events` | `library` | optional `?receiver=&device_name=&device_kind=&casts=` → Server-Sent Events; each `data:` is a JSON `ServerEvent` |
@@ -3864,7 +3864,10 @@ would.
   its device switched) is answered `204` and kept for neither.
 - **Google Cast devices.** Chromecasts, Google TVs and TVs with Cast
   built in that show video are listed too, for home members whose remote
-  asks with `nearby=1` (a remote that doesn't know them leaves it out), with
+  asks with `nearby=1` (a remote that doesn't know them leaves it out),
+  through the web app or one of Pley's own apps: they are the home's, as
+  its TVs are, and an app other than Pley's own gets none, nor casts or
+  pairs there. They are listed with
   `receiver_id` and `device_id` `cast:<its id>`, `kind` `tv`, `casts`
   `["item"]` and `protocol: "cast"`, which remotes show under the name.
   The server finds them by mDNS (`_googlecast._tcp`) on its own network,
@@ -3880,7 +3883,8 @@ would.
   above (without `start_ms` it starts where Play would: the resume
   point, or the beginning once watched); `profile_id`, if given, is the
   caller's own. It answers `204` once the device plays; `404` for a device not listed lately, a caller
-  who isn't a home member, another profile's `profile_id`, a `device_id`
+  who isn't a home member, an app other than Pley's own, another
+  profile's `profile_id`, a `device_id`
   or an item the caller can't see; `400` for a `start_ms` out of range or
   a track the item doesn't have; `409` `{ code: "not_castable" }` for
   anything but a movie or an episode, `409` `{ code:
