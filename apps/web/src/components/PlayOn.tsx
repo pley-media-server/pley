@@ -343,7 +343,7 @@ export function PlayOn({
           </h2>
           <p id={whyId} className="mb-4 mt-1 text-xs text-muted">
             {asking.pairing
-              ? t("playOn.pairWhy")
+              ? t("playOn.pairWhy", { device: asking.device.name })
               : t("playOn.otherProfile", { device: asking.device.name, profile: asking.device.profile?.name })}
           </p>
           <PinPad

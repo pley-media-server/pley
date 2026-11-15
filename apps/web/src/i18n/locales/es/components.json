@@ -191,8 +191,8 @@
     "otherProfile": "{{device}} está en el perfil de {{profile}}: primero cambia al tuyo.",
     "enterPin": "Introduce tu PIN",
     "pairWith": "Vincular {{device}}",
-    "pairWhy": "Escribe el código que aparece en la tele. Después todo tu hogar podrá reproducir en ella.",
-    "showCodeAgain": "¿No hay código en la tele? Mostrarlo otra vez"
+    "pairWhy": "Escribe el código que muestra {{device}}. Después todo tu hogar podrá reproducir allí.",
+    "showCodeAgain": "¿No aparece ningún código? Mostrarlo otra vez"
   },
   "remote": {
     "readyToPlay": "Listo para reproducir",

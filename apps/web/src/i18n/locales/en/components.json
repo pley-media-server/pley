@@ -183,8 +183,8 @@
     "otherProfile": "{{device}} is on {{profile}}'s profile: it switches to yours first.",
     "enterPin": "Enter your PIN",
     "pairWith": "Pair with {{device}}",
-    "pairWhy": "Type the code shown on the TV. Everyone in your home can then play on it.",
-    "showCodeAgain": "No code on the TV? Show it again"
+    "pairWhy": "Type the code {{device}} shows. Everyone in your home can then play on it.",
+    "showCodeAgain": "No code showing? Show it again"
   },
   "remote": {
     "readyToPlay": "Ready to play",

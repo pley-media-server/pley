@@ -144,7 +144,7 @@ describe("PlayOn", () => {
     expect(item).toHaveAccessibleDescription("AirPlay");
     await user.click(item);
     const asking = await screen.findByRole("dialog", { name: "Pair with Den Apple TV" });
-    expect(asking).toHaveAccessibleDescription("Type the code shown on the TV. Everyone in your home can then play on it.");
+    expect(asking).toHaveAccessibleDescription("Type the code Den Apple TV shows. Everyone in your home can then play on it.");
     await user.keyboard("1111{Enter}");
     await waitFor(() => expect(within(asking).getByRole("alert")).toHaveTextContent("That isn't the code Den Apple TV shows"));
     // The server takes 4 digits: no more are typed.
@@ -178,7 +178,7 @@ describe("PlayOn", () => {
     await user.click(within(screen.getByRole("menu", { name: "Play on…" })).getByRole("menuitem", { name: "Den Apple TV" }));
     const asking = await screen.findByRole("dialog", { name: "Pair with Den Apple TV" });
     await user.keyboard("12");
-    await user.click(within(asking).getByRole("button", { name: "No code on the TV? Show it again" }));
+    await user.click(within(asking).getByRole("button", { name: "No code showing? Show it again" }));
     await waitFor(() => expect(requests.filter((r) => r.path.endsWith("/pairing"))).toHaveLength(2));
     expect(await within(asking).findByLabelText("0 digits entered")).toBeInTheDocument();
     await user.keyboard("4821");
