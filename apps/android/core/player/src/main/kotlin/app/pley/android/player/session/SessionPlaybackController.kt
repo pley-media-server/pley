@@ -1435,7 +1435,8 @@ class SessionPlaybackController(
                 if (change == TrackChange.NewSession) reportOnLoad = true
                 if (!ended) report(if (wantPlay.value) ProgressState.Playing else ProgressState.Paused)
             }
-            Control.Previous, Control.Unknown -> Unit
+            // The device's volume stays its own buttons' and remote's: this player doesn't say it takes it.
+            Control.Previous, Control.Volume, Control.Unknown -> Unit
         }
     }
 

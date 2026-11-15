@@ -60,8 +60,8 @@ import app.pley.android.ui.phone.R
  * [picture] (a profile's avatar, a device's icon), the [title] ("Enter
  * Sam's PIN"), what it is for ([body]), up to 8 dots, and a 3 × 4 grid of
  * 72 dp keys (1-9, ⌫, 0, OK), which a keyboard's digits, Backspace, Enter
- * and Escape drive too. [digits] typed are never shown; OK takes 4 at
- * least. A wrong PIN shakes ([shakes] counts them) and clears the dots,
+ * and Escape drive too, then [footer]. [digits] typed are never shown; OK
+ * takes 4 at least, or [length] where the code's length is known. A wrong PIN shakes ([shakes] counts them) and clears the dots,
  * with [error] under them. Locked out, the keys are off and [lockedOutLabel]
  * leads away ([onCancel]).
  */
@@ -80,8 +80,11 @@ internal fun PinPad(
     shakes: Int = 0,
     lockedOut: Boolean = false,
     busy: Boolean = false,
+    length: Int? = null,
     picture: @Composable () -> Unit = {},
+    footer: @Composable () -> Unit = {},
 ) {
+    val least = length ?: 4
     val reduced = reducedMotion()
     val shake = remember { Animatable(0f) }
     LaunchedEffect(shakes) {
@@ -133,7 +136,7 @@ internal fun PinPad(
                 .testTag(PIN_DOTS_TAG),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            repeat(maxOf(4, digits)) { i -> Dot(filled = i < digits) }
+            repeat(maxOf(least, digits)) { i -> Dot(filled = i < digits) }
         }
         Box(Modifier.fillMaxWidth().height(44.dp), contentAlignment = Alignment.Center) {
             error?.let {
@@ -163,7 +166,7 @@ internal fun PinPad(
                         PadKey(
                             key = key,
                             label = label,
-                            enabled = !lockedOut && !busy && (key != OK || digits >= 4),
+                            enabled = !lockedOut && !busy && (key != OK || digits >= least),
                             onClick = {
                                 when (key) {
                                     DELETE -> onDelete()
@@ -176,6 +179,7 @@ internal fun PinPad(
                 }
             }
         }
+        footer()
         Spacer(Modifier.height(16.dp))
         if (lockedOut) {
             TonalButton(lockedOutLabel, onClick = onCancel)

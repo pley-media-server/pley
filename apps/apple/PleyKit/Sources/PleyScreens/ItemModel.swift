@@ -392,7 +392,7 @@ public final class ItemModel: ObservableObject {
         guard let item, request() != nil else { return nil }
         switch item.kind {
         case .movie, .episode:
-            var target = CastTarget.item(item.id, startMs: resumeMs)
+            var target = CastTarget.item(item.id, startMs: resumeMs, video: true)
             if let file {
                 let audio = file.streams(.audio)
                 let subtitles = file.streams(.subtitle)

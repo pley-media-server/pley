@@ -1,6 +1,7 @@
 package app.pley.android.data
 
 import app.pley.android.model.CastKind
+import app.pley.android.model.CastProtocol
 import app.pley.android.model.CastRequest
 import app.pley.android.model.Control
 import app.pley.android.model.DeviceKind
@@ -87,6 +88,9 @@ data class OtherDevice(
     /** The household's other profile it is on, `null` for the profile's own: a cast there switches it first. */
     val profile: DeviceProfileName? get() = receiver?.profile
 
+    /** How the server plays on it itself, a Google Cast or an AirPlay device; `null` for a Pley app. */
+    val protocol: CastProtocol? get() = receiver?.protocol
+
     /** Whether it plays [kind] when a remote casts it there. */
     fun takes(kind: CastKind): Boolean = receiver?.casts?.contains(kind) == true
 }
@@ -97,7 +101,7 @@ data class OtherDevice(
  * [target]: where it should be once the player acted, for a seek, a skip
  * and a previous that starts the title over; [streamIndex]: the track an
  * audio or subtitle command picked; [quality]: the quality a quality
- * command picked.
+ * command picked; [volume]: the level a volume command asked for.
  */
 data class SentCommand(
     val command: Control,
@@ -106,6 +110,7 @@ data class SentCommand(
     val target: Long? = null,
     val streamIndex: Int? = null,
     val quality: String? = null,
+    val volume: Int? = null,
 )
 
 /**
@@ -156,6 +161,24 @@ interface RemoteRepository {
     suspend fun cast(receiverId: String, request: CastRequest)
 
     /**
+     * POST /api/remote/devices/{id}/pairing without a code: the AirPlay
+     * device [receiverId], which answered a cast with `pairing_needed`
+     * ([app.pley.android.network.CastRefusal.PairingNeeded]), shows a code
+     * to pair with; how many digits it has, `null` when the server can't
+     * tell. A refusal is thrown ([app.pley.android.network.PairingRefusal.of]
+     * says which).
+     */
+    suspend fun showPairingCode(receiverId: String): Int? = throw ApiException(404, "not_found", "Not found")
+
+    /**
+     * POST /api/remote/devices/{id}/pairing with the [code] the device
+     * shows: the server pairs with it, for the household, and the cast can
+     * go again. A refusal is thrown ([app.pley.android.network.PairingRefusal.of]
+     * says which).
+     */
+    suspend fun pair(receiverId: String, code: String): Unit = throw ApiException(404, "not_found", "Not found")
+
+    /**
      * Whether a cast to a device of another profile asks this profile's PIN
      * first: it has one, as GET /api/auth/me last said. A PIN set since is
      * asked for once the server answers `pin_needed`.
@@ -199,6 +222,9 @@ interface RemoteRepository {
                 Control.Audio -> return current.session.audioIndex == sent.streamIndex
                 Control.Subtitles -> return current.session.subtitleIndex == sent.streamIndex
                 Control.Quality -> return current.session.quality == sent.quality
+                // The device rounds a level to its own steps: any new level is its answer, and so is the one asked
+                // for, which it may have reported before the list was read for `before`.
+                Control.Volume -> return current.session.volume == sent.volume || current.session.volume != before.session.volume
                 else -> Unit
             }
             if (current.session.state != before.session.state) return true
@@ -243,6 +269,7 @@ interface RemoteRepository {
                 Control.Audio -> session.copy(session = playing.copy(audioIndex = sent.streamIndex ?: playing.audioIndex))
                 Control.Subtitles -> session.copy(session = playing.copy(subtitleIndex = sent.streamIndex ?: playing.subtitleIndex))
                 Control.Quality -> session.copy(session = playing.copy(quality = sent.quality ?: playing.quality))
+                Control.Volume -> session.copy(session = playing.copy(volume = sent.volume ?: playing.volume))
                 else -> sent.target?.let { at(it) } ?: session
             }
         }
@@ -461,10 +488,27 @@ internal class ServerRemote(
         try {
             api().cast(receiverId, request)
         } catch (e: ApiException) {
-            // Its app closed, or takes other things now: the lists say what is left.
-            if (e.status == 404 || e.status == 409) asks.tryEmit(Unit)
+            // Its app closed, or takes other things now: the lists say what is left. An AirPlay device asking for
+            // pairing first is still there.
+            if (e.status == 404 || (e.status == 409 && e.code != "pairing_needed")) asks.tryEmit(Unit)
             throw e
         }
+    }
+
+    override suspend fun showPairingCode(receiverId: String): Int? = try {
+        api().showPairingCode(receiverId).digits
+    } catch (e: ApiException) {
+        // Gone from the network: the lists say what is left.
+        if (e.status == 404) asks.tryEmit(Unit)
+        throw e
+    }
+
+    override suspend fun pair(receiverId: String, code: String) = try {
+        api().pair(receiverId, code)
+    } catch (e: ApiException) {
+        // Gone from the network: the lists say what is left.
+        if (e.status == 404) asks.tryEmit(Unit)
+        throw e
     }
 
     override val castNeedsPin: Boolean get() = hasPin()

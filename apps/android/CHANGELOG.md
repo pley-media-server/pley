@@ -10,6 +10,10 @@ describes how they are made.
 
 ### Added
 
+- Play on… lists Google Cast and AirPlay devices for movies and episodes.
+  An AirPlay device asks once for the code it shows; on an Apple TV the
+  code goes as its fourth digit is typed.
+- The remote has a volume slider for a Google Cast device.
 - Live TV goes into picture in picture on phones and tablets, as videos
   do, with Channel down and Channel up in its small window.
 

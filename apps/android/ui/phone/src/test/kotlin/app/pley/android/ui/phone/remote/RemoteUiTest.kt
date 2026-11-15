@@ -11,6 +11,7 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
@@ -505,6 +506,33 @@ class RemoteUiTest {
         compose.mainClock.advanceTimeBy(RemoteRepository.ANSWER_WAIT_MS + 1_000)
         compose.waitForIdle()
         compose.onNodeWithText("Living room TV didn't answer.").assertDoesNotExist()
+    }
+
+    @Test
+    fun aGoogleCastDevicesVolumeIsASliderThatSendsTheLevelLetGoOf() {
+        val cast = episode(controls = listOf(Control.Play, Control.Pause, Control.Seek, Control.Volume))
+        val session = cast.session!!
+        remote.devices.value = listOf(cast.copy(session = session.copy(session = session.session.copy(volume = 40))))
+        show()
+        open()
+        compose.onNodeWithTag(REMOTE_VOLUME).assertContentDescriptionEquals("Volume on Living room TV").assert(saying("40%"))
+        compose.onNodeWithTag(REMOTE_VOLUME).performSemanticsAction(SemanticsActions.SetProgress) { it(70f) }
+        compose.waitForIdle()
+        assertEquals("s1" to PlayerCommandRequest(Control.Volume, volume = 70), remote.commands.last())
+        // Shown at once.
+        compose.onNodeWithTag(REMOTE_VOLUME).assert(saying("70%"))
+    }
+
+    @Test
+    fun noVolumeShowsUntilThePlayerTakesItAndSaysTheLevel() {
+        remote.devices.value = listOf(episode())
+        show()
+        open()
+        compose.onNodeWithTag(REMOTE_VOLUME).assertDoesNotExist()
+        // It takes it, but hasn't said the level yet.
+        remote.devices.value = listOf(episode(controls = listOf(Control.Play, Control.Volume)))
+        compose.waitForIdle()
+        compose.onNodeWithTag(REMOTE_VOLUME).assertDoesNotExist()
     }
 
     @Test

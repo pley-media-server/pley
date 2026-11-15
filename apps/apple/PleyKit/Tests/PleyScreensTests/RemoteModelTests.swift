@@ -178,6 +178,226 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(await eventually { model.devices.isEmpty })
     }
 
+    @Test func googleCastAndAirPlayDevicesTakeAMovieOrAnEpisodeAlone() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
+                           castProtocol: "cast")
+        server.addReceiver("den-tv", deviceId: "app-90", name: "Den TV", casts: ["item"])
+        await model.reload()
+        // The remote asks for them (`nearby=1`): the server lists them only then.
+        #expect(model.devices.map(\.id) == ["app-90", "cast:kitchen"])
+        #expect(model.devices.last?.receiver?.castProtocol == .cast)
+        #expect(model.takers(.item(7, video: true)).map(\.id) == ["app-90", "cast:kitchen"])
+        // An album, a show or a playlist goes to Pley's own apps alone.
+        #expect(model.takers(.item(7)).map(\.id) == ["app-90"])
+        #expect(model.takers(.playlist(3)).map(\.id) == ["app-90"])
+        #expect(Words.castProtocol(.cast) == "Google Cast" && Words.castProtocol(.airplay) == "AirPlay")
+
+        // The server's refusals for a device it plays on itself, in every app's words.
+        let kitchen = try #require(model.devices.last)
+        server.refuseCasts(status: 409, code: "cast_unreachable")
+        await model.cast(.item(7, video: true), to: kitchen)
+        #expect(app.shell.toast?.text == "Kitchen TV can't reach this server")
+        server.refuseCasts(status: 409, code: "cast_failed")
+        await model.cast(.item(7, video: true), to: kitchen)
+        #expect(app.shell.toast?.text == "Kitchen TV didn't play it")
+    }
+
+    @Test func playOnTakesOneCastAtATimeAndSaysWhereItStarts() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
+                           castProtocol: "cast")
+        server.addReceiver("den-tv", deviceId: "app-90", name: "Den TV", casts: ["item"])
+        await model.reload()
+        let kitchen = try #require(model.devices.first(where: { $0.id == "cast:kitchen" }))
+        let den = try #require(model.devices.first(where: { $0.id == "app-90" }))
+
+        // The server answers once the device plays: until then "Play on…" says where it is starting.
+        server.hold(path: "/api/remote/devices/cast:kitchen/cast")
+        let first = Task { await model.cast(.item(7, video: true), to: kitchen) }
+        #expect(await eventually { server.castsReceived.count == 1 })
+        #expect(model.casting == "cast:kitchen")
+        #expect(Words.startingOn("Kitchen TV") == "Starting on Kitchen TV…")
+        // Another meanwhile, there or elsewhere, sends nothing.
+        await model.cast(.item(7, video: true), to: kitchen)
+        await model.cast(.item(8, video: true), to: den)
+        #expect(server.castsReceived.count == 1)
+        #expect(model.casting == "cast:kitchen")
+
+        server.release(path: "/api/remote/devices/cast:kitchen/cast")
+        await first.value
+        #expect(model.casting == nil)
+        #expect(server.castsReceived.count == 1)
+        #expect(app.shell.toast?.text == "Playing on Kitchen TV")
+    }
+
+    @Test func theBarLeavesOutAGoogleCastOrAirPlayDeviceThatPlaysNothing() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item"],
+                           castProtocol: "cast")
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay")
+        await model.reload()
+        // On as long as the network is: they would keep the bar there for good.
+        #expect(model.devices.count == 2)
+        #expect(model.barDevices.isEmpty)
+
+        // A Pley app that plays nothing counts, ready to play.
+        server.addReceiver("bedroom-tv", deviceId: "bedroom-tv", name: "Bedroom TV", casts: ["item"])
+        await model.reload()
+        #expect(model.barDevices.map(\.id) == ["bedroom-tv"])
+        // The bar stands for that one: it opens the remote on its controls, as one device alone does.
+        model.showFromBar()
+        #expect(model.presented && model.chosen == "bedroom-tv")
+        #expect(model.selected?.id == "bedroom-tv")
+        model.presented = false
+
+        // And a Google Cast device counts while it plays.
+        server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000))
+        server.playElsewhere(7, deviceId: "cast:kitchen", device: "Kitchen TV")
+        await model.reload()
+        #expect(model.barDevices.map(\.id) == ["cast:kitchen", "bedroom-tv"])
+        #expect(model.devices.count == 3)
+        // Two: the bar opens the list.
+        model.showFromBar()
+        #expect(model.presented && model.chosen == nil)
+    }
+
+    @Test func anAirPlayDeviceAsksForItsCodeThenPlays() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay", pairingCode: "4821", digits: 4)
+        await model.reload()
+        let den = try #require(model.devices.first)
+
+        // The first cast wants its code: the device shows it, and the sheet asks for its 4 digits.
+        await model.cast(.item(7, video: true), to: den)
+        let asking = try #require(model.pairing)
+        #expect(asking.id == "airplay:den" && asking.digits == 4 && asking.error == nil)
+        #expect(server.pairingCodesShown == 1)
+        #expect(app.shell.toast == nil)
+
+        // A wrong code is said in the sheet, to type again.
+        await model.pair(code: "1111")
+        #expect(model.pairing?.error == "That isn't the code Den Apple TV shows.")
+        #expect(model.pairing?.wrong == 1)
+        // Shown again: a new code, the error gone.
+        await model.showCodeAgain()
+        #expect(server.pairingCodesShown == 2)
+        #expect(model.pairing?.error == nil)
+
+        // The right one pairs, and what was cast goes there.
+        await model.pair(code: "4821")
+        #expect(server.pairingCodesTyped == ["1111", "4821"])
+        #expect(model.pairing == nil)
+        let sent = try #require(server.castsReceived.last)
+        #expect(sent.receiverId == "airplay:den")
+        #expect(String(decoding: sent.body, as: UTF8.self) == #"{"item_id":7}"#)
+        #expect(app.shell.toast?.text == "Playing on Den Apple TV")
+        #expect(!model.pairingBusy)
+        // The sheet's words name the device, which may be a Mac as well as a TV, as every app's do.
+        #expect(Words.pairingCodePrompt("Den Apple TV") == "Type the code Den Apple TV shows")
+        #expect(Words.showCodeAgain == "No code showing? Show it again")
+    }
+
+    @Test func aPairingClosedMeanwhileSendsNothing() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay", pairingCode: "4821")
+        await model.reload()
+        let den = try #require(model.devices.first)
+        await model.cast(.item(7, video: true), to: den)
+        // A TV that may want a password: no known length, 4 digits at most all the same.
+        #expect(model.pairing?.digits == nil && model.pairing?.most == 4)
+
+        // Closed while the code is on its way: the server pairs, but what was cast stays unsent.
+        server.hold(path: "/api/remote/devices/airplay:den/pairing")
+        let pairing = Task { await model.pair(code: "4821") }
+        #expect(await eventually { server.pairingCodesTyped == ["4821"] })
+        #expect(model.pairingBusy)
+        model.pairing = nil
+        server.release(path: "/api/remote/devices/airplay:den/pairing")
+        await pairing.value
+        // Only the first cast went, the one the device wanted its code for.
+        #expect(server.castsReceived.count == 1)
+        #expect(model.pairing == nil && !model.pairingBusy)
+        #expect(app.shell.toast == nil)
+    }
+
+    @Test func oncePairedTheSheetClosesAndTheCastGoesAsAPick() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay", pairingCode: "4821", digits: 4)
+        server.addReceiver("airplay:office", deviceId: "airplay:office", name: "Office TV", casts: ["item"],
+                           castProtocol: "airplay", pairingCode: "1234", digits: 4)
+        await model.reload()
+        let den = try #require(model.devices.first(where: { $0.id == "airplay:den" }))
+        let office = try #require(model.devices.first(where: { $0.id == "airplay:office" }))
+        await model.cast(.item(7, video: true), to: den)
+        #expect(model.pairing?.id == "airplay:den")
+
+        // Paired, the sheet closes and the cast goes again, taking its time as a pick from "Play on…" does.
+        server.hold(path: "/api/remote/devices/airplay:den/cast")
+        let pairing = Task { await model.pair(code: "4821") }
+        #expect(await eventually { server.castsReceived.count == 2 })
+        #expect(model.pairing == nil && !model.pairingBusy)
+        #expect(model.casting == "airplay:den")
+        // Meanwhile another TV's sheet asks for its code.
+        model.pairing = RemoteModel.Pairing(device: office, name: "Office TV", target: .item(7, video: true), digits: 4)
+        server.release(path: "/api/remote/devices/airplay:den/cast")
+        await pairing.value
+        #expect(app.shell.toast?.text == "Playing on Den Apple TV")
+        #expect(model.casting == nil)
+        // The cast leaves the other TV's sheet asking.
+        #expect(model.pairing?.id == "airplay:office")
+    }
+
+    @Test func aGoogleCastDevicesVolumeIsSetAndAnsweredByItsReport() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        server.addPlayable(.init(itemId: 7, fileId: 70, durationMs: 600_000))
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app, answerWait: .milliseconds(300))
+        let tv = server.playElsewhere(7, deviceId: "cast:kitchen", device: "Kitchen TV",
+                                      controls: ["play", "pause", "volume"])
+        server.reportSession(tv, state: "playing", positionMs: 0, volume: 40)
+        await model.reload()
+        let entry = try #require(model.others.first)
+        #expect(entry.session.obeys(.volume) && entry.session.volume == 40)
+
+        await model.send(.volume(170), to: entry)
+        // Kept within 0 to 100.
+        let body = try #require(server.sessionCommands.last?.body)
+        #expect(String(decoding: body, as: UTF8.self).contains(#""volume":100"#))
+        #expect(model.waiting == [tv])
+        let version = app.sessionsVersion
+        server.reportSession(tv, state: "playing", positionMs: 0, volume: 100)
+        #expect(await eventually { app.sessionsVersion > version })
+        await model.reload()
+        #expect(model.waiting.isEmpty)
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(model.errors.isEmpty)
+        #expect(Words.remoteVolume("Kitchen TV") == "Volume on Kitchen TV")
+    }
+
     @Test func playOnSendsTheTracksThePagesPickersShow() async throws {
         let server = try await fixture()
         defer { server.stop() }
@@ -190,15 +410,15 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         let page = ItemModel(app: app, itemId: 7)
         await page.load()
         // Automatic audio leaves the device its own; subtitles off are sent off.
-        #expect(page.castTarget == .item(7, startMs: 30_000, subtitleIndex: SessionTracks.off))
+        #expect(page.castTarget == .item(7, startMs: 30_000, subtitleIndex: SessionTracks.off, video: true))
         await page.chooseAudio(2)
         await page.chooseSubtitle(3)
-        #expect(page.castTarget == .item(7, startMs: 30_000, audioIndex: 2, subtitleIndex: 3))
+        #expect(page.castTarget == .item(7, startMs: 30_000, audioIndex: 2, subtitleIndex: 3, video: true))
         // A file with one audio track and no subtitles has no pickers: nothing to send.
         server.addPlayable(.init(itemId: 8, fileId: 80, durationMs: 600_000))
         let plain = ItemModel(app: app, itemId: 8)
         await plain.load()
-        #expect(plain.castTarget == .item(8))
+        #expect(plain.castTarget == .item(8, video: true))
     }
 
     @Test func aQualityCommandIsAnsweredByTheReportThatSaysIt() async throws {
@@ -237,6 +457,20 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(RemoteModel.answered(sent, picked, at: received))
         // Another quality plays in a session beside it: the one sent to goes.
         #expect(RemoteModel.answered(sent, nil, at: received))
+    }
+
+    @Test func aVolumeIsAnsweredByTheLevelItSaysOrAnyNewOne() {
+        let received = Date(timeIntervalSince1970: 1_000)
+        let film = ItemSummary(id: 7, libraryId: 1, kind: .movie, title: "Film")
+        let entry = { (volume: Int) in
+            RemoteModel.Entry(PlayingSession(sessionId: "a", item: film, controls: [.volume], volume: volume),
+                              received: received)
+        }
+        let sent = RemoteModel.Sent(command: .volume, before: entry(40), sentAt: received, target: nil, volume: 30)
+        #expect(!RemoteModel.answered(sent, entry(40), at: received))
+        #expect(RemoteModel.answered(sent, entry(30), at: received))
+        // The TV's own step near the level sent.
+        #expect(RemoteModel.answered(sent, entry(33), at: received))
     }
 
     @Test func theRemoteSaysItsControlsInEveryAppsWords() {

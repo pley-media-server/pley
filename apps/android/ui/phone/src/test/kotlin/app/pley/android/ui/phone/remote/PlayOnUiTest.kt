@@ -4,6 +4,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.assertHeightIsEqualTo
+import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -18,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import app.pley.android.data.OtherDevice
 import app.pley.android.data.RemoteSession
 import app.pley.android.model.CastKind
+import app.pley.android.model.CastProtocol
 import app.pley.android.model.CastRequest
 import app.pley.android.model.DeviceKind
 import app.pley.android.model.DeviceProfileName
@@ -33,6 +36,7 @@ import app.pley.android.screens.item.TrackChoice
 import app.pley.android.screens.item.TrackChoices
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
 import app.pley.android.ui.phone.kit.PIN_ERROR_TAG
+import app.pley.android.ui.phone.kit.SPINNER_DELAY_MS
 import app.pley.android.ui.phone.onboarding.LocalOnboardingSource
 import app.pley.android.ui.phone.shell.PhoneNavigation
 import app.pley.android.ui.phone.shell.PhoneShell
@@ -274,9 +278,265 @@ class PlayOnUiTest {
 
     /** Types [digits] on the PIN pad, then OK. */
     private fun type(digits: String) {
-        digits.forEach { compose.onNodeWithTag("pley.pad.$it").performScrollTo().performClick() }
+        press(digits)
         compose.onNodeWithTag("pley.pad.ok").performScrollTo().performClick()
         compose.waitForIdle()
+    }
+
+    /** Types [digits] on the PIN pad, without OK. */
+    private fun press(digits: String) {
+        digits.forEach { compose.onNodeWithTag("pley.pad.$it").performScrollTo().performClick() }
+        compose.waitForIdle()
+    }
+
+    @Test
+    fun aGoogleCastOrAirPlayDeviceTakesMoviesAndEpisodesAloneAndSaysWhatItIs() {
+        shell(livingRoom(), appleTv(), castTv())
+        choose(CastTarget(itemId = 500, shuffles = true))
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).assertDoesNotExist()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).assertDoesNotExist()
+        choose(CastTarget(itemId = 101, video = true))
+        compose.onNodeWithText("AirPlay").assertExists()
+        compose.onNodeWithText("Google Cast").assertExists()
+        // One it can't reach, or that didn't play it, says so.
+        graph.castRefusals += ApiException(409, "cast_unreachable", "the device can't be reached")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Bedroom Chromecast can't reach this server.").assertExists()
+        graph.castRefusals += ApiException(409, "cast_failed", "the device didn't play it")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Bedroom Chromecast didn't play it.").assertExists()
+        assertTrue(graph.castsSent.isEmpty())
+    }
+
+    @Test
+    fun aCastStartingOnADeviceShowsASpinnerOnItsRowUntilTheDeviceTakesIt() {
+        shell(castTv(), livingRoom())
+        choose(CastTarget(itemId = 101, video = true))
+        // A Google Cast device answers once it plays: seconds later.
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.mainClock.advanceTimeBy(SPINNER_DELAY_MS + 100)
+        compose.waitForIdle()
+        // Inside the row, which reads as one.
+        compose.onNodeWithTag(PLAY_ON_STARTING, useUnmergedTree = true).assertExists()
+        compose.onNodeWithContentDescription("Starting on Bedroom Chromecast…", useUnmergedTree = true).assertExists()
+        // One cast at a time: the other devices wait.
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertIsNotEnabled()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(CAST_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
+    }
+
+    @Test
+    fun aCastOnItsWayGoesOnWhenTheChooserIsClosedButAsksForNoCodeThen() {
+        shell(castTv(), appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        // Closed, as a swipe or Back closes it, before the device took it.
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(CAST_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithText("Starting on Bedroom Chromecast…").assertExists()
+
+        // An AirPlay device asking for its code once the chooser is gone isn't asked to show one: no pad to type it
+        // on. A toast says to pick it again.
+        choose(CastTarget(itemId = 102, video = true))
+        val second = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = second
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        second.complete(Unit)
+        compose.waitForIdle()
+        assertTrue(graph.codesShown.isEmpty())
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithText("Den Apple TV wants pairing first: choose it in Play on… again.").assertExists()
+    }
+
+    @Test
+    fun aChooserOpenedAgainWhileACastStartsShowsItAndWaits() {
+        shell(castTv(), livingRoom())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+
+        // Opened again, for the same title or another: the cast still starting shows, and nothing else can go.
+        choose(CastTarget(itemId = 102, video = true))
+        compose.mainClock.advanceTimeBy(SPINNER_DELAY_MS + 100)
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Starting on Bedroom Chromecast…", useUnmergedTree = true).assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).assertIsNotEnabled()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertIsNotEnabled()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").performClick()
+        compose.waitForIdle()
+
+        // The first went, and closes no chooser opened since: it was sent from the one that closed.
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(CAST_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + "app-12").assertIsEnabled()
+    }
+
+    @Test
+    fun aCastLandingLateClosesNoChooserOpenedSinceForTheSameTitle() {
+        shell(castTv(), livingRoom())
+        val target = CastTarget(itemId = 101, video = true)
+        choose(target)
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        choose(target)
+        gate.complete(Unit)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertExists()
+    }
+
+    @Test
+    fun aRefusalComingWhileTheChooserIsOpenAgainIsSaidInIt() {
+        shell(castTv(), livingRoom())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        graph.castRefusals += ApiException(409, "cast_failed", "the device didn't play it")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        choose(CastTarget(itemId = 101, video = true))
+        gate.complete(Unit)
+        compose.waitForIdle()
+        // Under the devices of the chooser open now, as the one that sent it would say it, and no toast under the sheet.
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertExists()
+        compose.onAllNodesWithText("Bedroom Chromecast didn't play it.").assertCountEquals(1)
+        assertTrue(state.toasts.current.isEmpty())
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).assertIsEnabled()
+    }
+
+    @Test
+    fun aRefusalAfterTheChooserClosedIsAToast() {
+        shell(castTv())
+        choose(CastTarget(itemId = 101, video = true))
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.castGate = gate
+        graph.castRefusals += ApiException(409, "cast_unreachable", "the device can't be reached")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        // What the chooser would have said under its devices.
+        compose.onNodeWithText("Bedroom Chromecast can't reach this server.").assertExists()
+        compose.onNodeWithTag(PLAY_ON_SHEET).assertDoesNotExist()
+    }
+
+    @Test
+    fun aChooserClosedWhileTheDeviceIsAskedForItsCodeSaysToPickItAgain() {
+        shell(appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.codeGate = gate
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle { state.playingOn = null }
+        compose.waitForIdle()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        assertEquals(listOf(APPLE_TV), graph.codesShown)
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithText("Den Apple TV wants pairing first: choose it in Play on… again.").assertExists()
+    }
+
+    @Test
+    fun anAppleTvAskingForPairingShowsItsCodeWhichGoesAtItsFourthDigitThenTheCastGoesAgain() {
+        shell(appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertExists()
+        compose.onNodeWithText("Pair with Den Apple TV").assertExists()
+        // By its name: a Mac takes AirPlay too.
+        compose.onNodeWithText("Type the code Den Apple TV shows").assertExists()
+        compose.onNodeWithText("No code showing? Show it again").assertExists()
+        assertEquals(listOf(APPLE_TV), graph.codesShown)
+
+        // A wrong code, sent at its fourth digit with no OK: the pad says so.
+        graph.pairingRefusals += ApiException(403, "wrong_pin", "that isn't the PIN the device shows")
+        press("1111")
+        compose.onNodeWithText("That isn't the code Den Apple TV shows.").assertExists()
+        // No code showing: it shows one again, and what was typed goes.
+        press("48")
+        compose.onNodeWithTag(PLAY_ON_SHOW_CODE).performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(listOf(APPLE_TV, APPLE_TV), graph.codesShown)
+        compose.onNodeWithText("That isn't the code Den Apple TV shows.").assertDoesNotExist()
+
+        press("4821")
+        assertEquals(listOf(APPLE_TV to "1111", APPLE_TV to "4821"), graph.codesTyped)
+        assertEquals(listOf(APPLE_TV to CastRequest(itemId = 101)), graph.castsSent.toList())
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+    }
+
+    @Test
+    fun anAnswerAfterBackClosedThePadDoesntOpenItAgain() {
+        shell(appleTv())
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        val gate = kotlinx.coroutines.CompletableDeferred<Unit>()
+        graph.pairingGate = gate
+        graph.pairingRefusals += ApiException(403, "wrong_pin", "that isn't the PIN the device shows")
+        press("1111")
+        compose.onNodeWithContentDescription("Back to the devices").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        gate.complete(Unit)
+        compose.waitForIdle()
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).assertExists()
+    }
+
+    @Test
+    fun aCodeOfALengthNotKnownGoesWithOkAt4DigitsAtMostAndARefusalOtherThanAWrongCodeGoesBackToTheList() {
+        shell(appleTv())
+        graph.codeLength = null
+        choose(CastTarget(itemId = 101, video = true))
+        graph.castRefusals += ApiException(409, "pairing_needed", "the device wants a PIN")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).performClick()
+        compose.waitForIdle()
+        // The server takes 4 digits: no more are typed, and nothing goes without OK.
+        press("482193")
+        assertTrue(graph.codesTyped.isEmpty())
+        graph.pairingRefusals += ApiException(409, "pairing_failed", "the device didn't pair")
+        compose.onNodeWithTag("pley.pad.ok").performScrollTo().performClick()
+        compose.waitForIdle()
+        assertEquals(listOf(APPLE_TV to "4821"), graph.codesTyped)
+        compose.onNodeWithTag(PLAY_ON_PIN).assertDoesNotExist()
+        compose.onNodeWithText("Den Apple TV didn't pair.").assertExists()
     }
 
     @Test
@@ -292,11 +552,11 @@ class PlayOnUiTest {
     @Test
     fun whatATitleSendsIsWhatItsPlayPlays() {
         val movie = ItemSummary(101, 1, ItemKind.Movie, "A Film", durationMs = 6_000_000)
-        assertEquals(CastTarget(itemId = 101), CastTarget.of(movie))
+        assertEquals(CastTarget(itemId = 101, video = true), CastTarget.of(movie))
         // Being watched: where Play resumes it.
-        assertEquals(CastTarget(itemId = 101, startMs = 600_000), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000))))
+        assertEquals(CastTarget(itemId = 101, startMs = 600_000, video = true), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000))))
         // Watched: from the start, as Play.
-        assertEquals(CastTarget(itemId = 101), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000, watched = true))))
+        assertEquals(CastTarget(itemId = 101, video = true), CastTarget.of(movie.copy(userState = UserState(positionMs = 600_000, watched = true))))
         // A show plays its next episode there, where that one was left.
         assertEquals(CastTarget(itemId = 201), CastTarget.of(ItemSummary(201, 2, ItemKind.Show, "A Show", userState = UserState(positionMs = 5_000))))
         assertEquals(CastTarget(itemId = 500, shuffles = true), CastTarget.of(ItemSummary(500, 3, ItemKind.Album, "An Album")))
@@ -319,12 +579,12 @@ class PlayOnUiTest {
             audioIndex = audio,
             subtitleIndex = subtitle,
         )
-        assertEquals(CastTarget(itemId = 101, audioIndex = 2, subtitleIndex = 3), CastTarget.page(movie, tracks(audio = 2, subtitle = 3)))
+        assertEquals(CastTarget(itemId = 101, audioIndex = 2, subtitleIndex = 3, video = true), CastTarget.page(movie, tracks(audio = 2, subtitle = 3)))
         // Automatic audio names no track, as Play here; subtitles off are -1.
-        assertEquals(CastTarget(itemId = 101, subtitleIndex = PlayingSession.SUBTITLES_OFF), CastTarget.page(movie, tracks(audio = null, subtitle = null)))
+        assertEquals(CastTarget(itemId = 101, subtitleIndex = PlayingSession.SUBTITLES_OFF, video = true), CastTarget.page(movie, tracks(audio = null, subtitle = null)))
         // A file without subtitles names none; a page with nothing to pick, nothing.
-        assertEquals(CastTarget(itemId = 101, audioIndex = 1), CastTarget.page(movie, tracks(audio = 1, subtitle = null, subtitles = false)))
-        assertEquals(CastTarget(itemId = 101), CastTarget.page(movie, null))
+        assertEquals(CastTarget(itemId = 101, audioIndex = 1, video = true), CastTarget.page(movie, tracks(audio = 1, subtitle = null, subtitles = false)))
+        assertEquals(CastTarget(itemId = 101, video = true), CastTarget.page(movie, null))
         // A show's page plays its next episode, with that one's own tracks.
         assertEquals(CastTarget(itemId = 201), CastTarget.page(ItemSummary(201, 2, ItemKind.Show, "A Show"), tracks(audio = 2, subtitle = 3)))
         assertEquals(
@@ -360,6 +620,15 @@ class PlayOnUiTest {
             "app-31",
             receiver = RemoteDevice("tv-3", "app-31", "Den TV", DeviceKind.Tv, listOf(CastKind.Item, CastKind.Live), profile = DeviceProfileName(3, "Sam")),
         )
+
+        const val APPLE_TV = "airplay:a1b2c3d4e5f6"
+        const val CAST_TV = "cast:5f1a8e0c"
+
+        /** An Apple TV the server plays on itself. */
+        fun appleTv() = OtherDevice(APPLE_TV, receiver = RemoteDevice(APPLE_TV, APPLE_TV, "Den Apple TV", DeviceKind.Tv, listOf(CastKind.Item), protocol = CastProtocol.AirPlay))
+
+        /** A Google Cast device the server plays on itself. */
+        fun castTv() = OtherDevice(CAST_TV, receiver = RemoteDevice(CAST_TV, CAST_TV, "Bedroom Chromecast", DeviceKind.Tv, listOf(CastKind.Item), protocol = CastProtocol.Cast))
 
         /** The Bedroom TV, on and playing nothing, taking [casts]. */
         fun bedroom(casts: List<CastKind>) = OtherDevice("app-20", receiver = RemoteDevice("tv-2", "app-20", "Bedroom TV", DeviceKind.Tv, casts))

@@ -9,6 +9,9 @@ import PleyPlayer
 /// (`GET /api/remote/devices`) with what plays on each (`GET /api/sessions`),
 /// merged by `device_id` and read again whenever `AppModel.sessionsVersion`
 /// goes up; the commands to their players, and what "Play on…" sends them.
+/// A Google Cast or an AirPlay device the server finds is listed too, and
+/// takes a movie or an episode; an AirPlay device the server hasn't paired
+/// with asks for the code it shows first (`pairing`).
 /// This device itself is left out: the sessions it plays, its own
 /// receiver, and whatever else has its `device_id`. Apple TV only obeys,
 /// so it has none.
@@ -51,6 +54,33 @@ public final class RemoteModel: ObservableObject {
         public var given: String? { receiver?.name ?? entry?.session.device }
         /// Whether "Play on…" sends it what is of `kind`.
         public func takes(_ kind: CastKind) -> Bool { receiver?.takes(kind) ?? false }
+        /// Whether "Play on…" sends it `target`: a Google Cast or an AirPlay device takes a movie or an episode alone.
+        public func takes(_ target: CastTarget) -> Bool { receiver?.takes(target) ?? false }
+    }
+
+    /// The code an AirPlay device shows, while the sheet asks for it: the
+    /// device, what goes there once paired, how many digits the code has
+    /// where the server knows (4 on an Apple TV, sent at the last one), and
+    /// what went wrong with the last try.
+    public struct Pairing: Identifiable, Hashable, Sendable {
+        public let device: Device
+        public let name: String
+        public let target: CastTarget
+        public var digits: Int?
+        public var error: String?
+        /// Counts the wrong codes: the field shakes at each.
+        public var wrong = 0
+
+        public init(device: Device, name: String, target: CastTarget, digits: Int? = nil) {
+            self.device = device
+            self.name = name
+            self.target = target
+            self.digits = digits
+        }
+
+        public var id: String { device.id }
+        /// The most digits the field takes: the code's own, else 4, all the server takes.
+        public var most: Int { digits ?? RemoteModel.pairingCodeMax }
     }
 
     /// Skip Intro or Skip Credits on a device, while what plays there is in
@@ -88,6 +118,8 @@ public final class RemoteModel: ObservableObject {
         var stream: Int?
         /// `quality`: the Quality menu's pick it should say once it acted.
         var quality: String?
+        /// `volume`: the level it should say once it acted.
+        var volume: Int?
         /// Which send this was: a check judges only its own command, never one sent after it.
         var token = 0
     }
@@ -99,6 +131,8 @@ public final class RemoteModel: ObservableObject {
     public static let forward = PlayerCommand.skip(byMs: Words.remoteSkipForwardMs)
     /// Farther than this from where it should be, a report has moved (the server's rule for a seek).
     static let jumpMs = 5_000
+    /// The longest code an AirPlay device's sheet takes: the server takes 4 digits.
+    public nonisolated static let pairingCodeMax = 4
 
     /// The profile's sessions, as last read, this device's included.
     @Published public private(set) var entries: [Entry] = []
@@ -120,6 +154,16 @@ public final class RemoteModel: ObservableObject {
     /// The device whose controls show, by id, while the remote shows: on a
     /// phone its own page, elsewhere below the list.
     @Published public var chosen: String?
+    /// The AirPlay device whose code the sheet asks for; `nil` closes it.
+    @Published public var pairing: Pairing?
+    /// The code typed is on its way, or the device is asked to show a new
+    /// one: the sheet stays meanwhile (50 seconds at most). The cast after
+    /// a pairing goes once it has closed.
+    @Published public private(set) var pairingBusy = false
+    /// The device a cast is on its way to, by id, until the server answers:
+    /// a Google Cast or an AirPlay device answers once it plays, within about
+    /// 4 minutes. "Play on…" says so meanwhile, and takes no other.
+    @Published public private(set) var casting: String?
 
     public let app: AppModel
     private let wait: Duration
@@ -192,6 +236,11 @@ public final class RemoteModel: ObservableObject {
         }
     }
 
+    /// The devices the bar above the tabs stands for: a Google Cast or an
+    /// AirPlay device only while it plays, since one is on as long as the
+    /// network is. "Play on…" and the remote list them all the same.
+    public var barDevices: [Device] { devices.filter { $0.entry != nil || $0.receiver?.castProtocol == nil } }
+
     /// What the remote calls each device, by id.
     public var names: [String: String] { Self.names(devices) }
 
@@ -209,13 +258,28 @@ public final class RemoteModel: ObservableObject {
         return chosen.flatMap { id in devices.first { $0.id == id } }
     }
 
-    /// The devices "Play on…" offers for what is of `kind`, as the list orders them.
+    /// The devices that take what is of `kind`, as the list orders them.
     public func takers(_ kind: CastKind) -> [Device] { devices.filter { $0.takes(kind) } }
+
+    /// The devices "Play on…" offers for `target`, as the list orders them.
+    public func takers(_ target: CastTarget) -> [Device] { devices.filter { $0.takes(target) } }
 
     /// The remote, open on the device of `id`.
     public func show(_ id: String) {
         presented = true
         chosen = id
+    }
+
+    /// The remote, opened from the bar: on the controls of the device it
+    /// stands for when it stands for one, though the list may have idle
+    /// Google Cast and AirPlay devices too; else on the list.
+    public func showFromBar() {
+        let bar = barDevices
+        if bar.count == 1 {
+            show(bar[0].id)
+        } else {
+            presented = true
+        }
     }
 
     /// The pictures for what `session` plays, tried in turn: a track's own,
@@ -297,7 +361,8 @@ public final class RemoteModel: ObservableObject {
             try await api.send(command, to: id)
             guard latest[id] == token else { return }
             sent[id] = Sent(command: command.command, before: entry, sentAt: sentAt, target: target,
-                            stream: command.streamIndex, quality: command.quality, token: token)
+                            stream: command.streamIndex, quality: command.quality, volume: command.volume,
+                            token: token)
             checks[id]?.cancel()
             checks[id] = Task { [weak self, wait] in
                 try? await Task.sleep(for: wait)
@@ -330,25 +395,62 @@ public final class RemoteModel: ObservableObject {
     /// Sends `device` `target` to play ("Play on…"): "Playing on Living
     /// room TV" says it went, and the remote opens on that device, whose
     /// controls show once its session does. A refusal says why, in the
-    /// remote's words.
-    public func cast(_ target: CastTarget, to device: Device) async {
+    /// remote's words. An AirPlay device that wants its code first is
+    /// asked to show it, and the sheet asks for it (`pairing`); `paired`:
+    /// just paired with, so a second ask says it didn't pair. One cast at a
+    /// time (`casting`): another while one is on its way sends nothing.
+    public func cast(_ target: CastTarget, to device: Device, paired: Bool = false) async {
         guard let receiver = device.receiver else { return }
+        // The cast after a pairing goes all the same: the code was just typed for it.
+        guard paired || casting == nil else { return }
+        let starts = casting == nil
+        if starts { casting = device.id }
+        defer { if starts { casting = nil } }
         let name = name(device)
         do {
             guard let api = await app.session.api else { throw PleyError.signedOut }
             try await api.cast(target, to: receiver.receiverId)
+            // A sheet for this device alone closes: another device's may have opened while the cast was on its way.
+            if paired && pairing?.id == device.id { pairing = nil }
             app.shell.show(Words.playingOn(name))
             show(device.id)
         } catch {
-            let status: Int? = switch error as? PleyError {
-            case .api(let status, _, _)?, .refused(let status, _, _, _, _)?: status
-            default: nil
+            if (error as? PleyError)?.pairingNeeded == true && !paired {
+                await showCode(on: device, name: name, target: target)
+                return
             }
-            let words = status.flatMap { Words.castRefusal(status: $0, device: name) } ?? asSentence(describe(error))
+            if paired && pairing?.id == device.id { pairing = nil }
+            let refusal = Self.refusal(error)
+            let code = (error as? PleyError)?.pairingNeeded == true ? "pairing_failed" : refusal?.code
+            let words = refusal.flatMap { Words.castRefusal(status: $0.status, code: code, device: name) }
+                ?? asSentence(describe(error))
             app.shell.show(words, action: nil, error: true)
             // Gone, or no longer taking that: the list is read again.
-            if status == 404 || status == 409 { Task { await reload() } }
+            if refusal?.status == 404 || refusal?.status == 409 { Task { await reload() } }
         }
+    }
+
+    /// Has the AirPlay device whose code the sheet asks for show it again
+    /// (each ask shows a new one).
+    public func showCodeAgain() async {
+        guard let asked = pairing, !pairingBusy else { return }
+        pairingBusy = true
+        defer { pairingBusy = false }
+        await showCode(on: asked.device, name: asked.name, target: asked.target, again: asked)
+    }
+
+    /// Pairs the server with the device the sheet asks for, with the `code`
+    /// it shows. Once paired, the sheet closes and what was cast goes there
+    /// as a pick from "Play on…" does (`casting`: "Starting on…"), which can
+    /// take minutes. A code that isn't the one shown, or a device that takes
+    /// no other try yet, is said in the sheet to type again; anything else
+    /// closes it and says why.
+    public func pair(code: String) async {
+        guard let asked = pairing, !pairingBusy, await sendCode(code, for: asked) else { return }
+        // Paired, but the sheet was closed: what was cast stays unsent.
+        guard pairing?.id == asked.id else { return }
+        pairing = nil
+        await cast(asked.target, to: asked.device, paired: true)
     }
 
     /// Whether the list shows the player acted on `sent`, by `now`: it is
@@ -368,6 +470,10 @@ public final class RemoteModel: ObservableObject {
         if sent.command == .audio { return sent.stream != nil && session.audioIndex == sent.stream }
         if sent.command == .subtitles { return sent.stream != nil && session.subtitleIndex == sent.stream }
         if sent.command == .quality { return sent.quality != nil && session.quality == sent.quality }
+        // A TV keeps its own steps (30 % can come back 33 %): any new level answers.
+        if sent.command == .volume {
+            return sent.volume != nil && (session.volume == sent.volume || session.volume != before.volume)
+        }
         if session.state != before.state { return true }
         guard [.seek, .skip, .previous].contains(sent.command) else { return false }
         let reportedSince = session.updatedAt > before.updatedAt || session.positionMs != before.positionMs
@@ -380,6 +486,78 @@ public final class RemoteModel: ObservableObject {
     }
 
     // MARK: Private
+
+    /// The server's refusal: its status and code.
+    private static func refusal(_ error: any Error) -> (status: Int, code: String)? {
+        switch error as? PleyError {
+        case .api(let status, let code, _)?, .refused(let status, let code, _, _, _)?: (status, code)
+        default: nil
+        }
+    }
+
+    /// Sends `code` to pair with the device `asked` is for, the sheet busy
+    /// meanwhile: whether it paired. A refusal is said as `pair` says.
+    private func sendCode(_ code: String, for asked: Pairing) async -> Bool {
+        guard let receiver = asked.device.receiver else { return false }
+        pairingBusy = true
+        defer { pairingBusy = false }
+        do {
+            guard let api = await app.session.api else { throw PleyError.signedOut }
+            try await api.pair(with: receiver.receiverId, code: code)
+            return true
+        } catch {
+            // Closed meanwhile: nothing more to say.
+            guard pairing?.id == asked.id else { return false }
+            let words = Self.pairingWords(error, device: asked.name)
+            if (error as? PleyError)?.wrongPairingCode == true {
+                pairing?.error = words
+                pairing?.wrong += 1
+            } else if Self.refusal(error)?.status == 429 {
+                pairing?.error = words
+            } else {
+                pairing = nil
+                app.shell.show(words, action: nil, error: true)
+                if Self.refusal(error)?.status == 404 { Task { await reload() } }
+            }
+            return false
+        }
+    }
+
+    /// What the sheet, or a toast, says when pairing with `device` didn't go.
+    private static func pairingWords(_ error: any Error, device: String) -> String {
+        switch refusal(error) {
+        case (403, "wrong_pin")?: Words.wrongPairingCode(device)
+        case (429, _)?: Words.pairingWait(device)
+        case (409, "pairing_failed")?: Words.pairingFailed(device)
+        case (404, _)?: Words.castRefusal(status: 404, device: device) ?? asSentence(describe(error))
+        default: asSentence(describe(error))
+        }
+    }
+
+    /// Has `device` show its code: the sheet asks for it, or, with `again`
+    /// (the sheet already asking), takes the new one's length. A refusal is
+    /// said in the sheet while it still shows, else in a toast.
+    private func showCode(on device: Device, name: String, target: CastTarget, again: Pairing? = nil) async {
+        guard let receiver = device.receiver else { return }
+        do {
+            guard let api = await app.session.api else { throw PleyError.signedOut }
+            let digits = try await api.showPairingCode(on: receiver.receiverId)
+            if let again {
+                guard pairing?.id == again.id else { return }
+                pairing?.digits = digits
+                pairing?.error = nil
+            } else {
+                pairing = Pairing(device: device, name: name, target: target, digits: digits)
+            }
+        } catch {
+            let words = Self.pairingWords(error, device: name)
+            if let again {
+                if pairing?.id == again.id { pairing?.error = words }
+            } else {
+                app.shell.show(words, action: nil, error: true)
+            }
+        }
+    }
 
     /// A device's id: its `device_id`, else (a server that doesn't say) one of its own.
     private static func deviceId(_ receiver: RemoteDevice) -> String {
@@ -453,6 +631,7 @@ public final class RemoteModel: ObservableObject {
         waiting = []
         stopping = []
         errors = [:]
+        pairing = nil
         presented = false
     }
 }

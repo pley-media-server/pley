@@ -37,6 +37,7 @@
     <string name="remote_audio_on">Audio en %1$s</string>
     <string name="remote_subtitles_on">Subtítulos en %1$s</string>
     <string name="remote_quality_on">Calidad en %1$s</string>
+    <string name="remote_volume_on">Volumen en %1$s</string>
 
     <string name="remote_live_next">A continuación: %1$s</string>
 
@@ -68,4 +69,17 @@
     <string name="play_on_back">Volver a los dispositivos</string>
     <string name="play_on_wrong_pin">PIN incorrecto. Inténtalo de nuevo.</string>
     <string name="play_on_pin_locked">Tu PIN está bloqueado tras demasiados intentos incorrectos. Tú o un administrador pueden restablecerlo.</string>
+
+    <string name="remote_google_cast">Google Cast</string>
+    <string name="remote_airplay">AirPlay</string>
+    <string name="play_on_unreachable">%1$s no puede conectarse a este servidor.</string>
+    <string name="play_on_failed">%1$s no lo reprodujo.</string>
+    <string name="play_on_pair_title">Vincular %1$s</string>
+    <string name="play_on_code_title">Escribe el código que muestra %1$s</string>
+    <string name="play_on_code_body">Después todo tu hogar podrá reproducir allí.</string>
+    <string name="play_on_show_code_again">¿No aparece ningún código? Mostrarlo otra vez</string>
+    <string name="play_on_wrong_code">Ese no es el código que muestra %1$s.</string>
+    <string name="play_on_pairing_wait">%1$s aún no acepta otro intento: espera un momento.</string>
+    <string name="play_on_pairing_failed">%1$s no se vinculó.</string>
+    <string name="play_on_pair_first">Primero hay que vincular %1$s: elígelo de nuevo en Reproducir en…</string>
 </resources>

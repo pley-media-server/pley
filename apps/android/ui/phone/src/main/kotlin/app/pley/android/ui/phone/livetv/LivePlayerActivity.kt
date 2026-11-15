@@ -123,8 +123,8 @@ class LivePlayerActivity : ComponentActivity() {
                 // Watch on…: the channel goes to the device, and the app's shell says so as this closes.
                 PlayOnWindow(
                     remote,
-                    onCast = { device, name ->
-                        CastsSent.tell(device.deviceId, name)
+                    onCast = { deviceId, name ->
+                        CastsSent.tell(deviceId, name)
                         finish()
                     },
                 ) {

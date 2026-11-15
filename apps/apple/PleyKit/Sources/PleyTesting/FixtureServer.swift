@@ -209,6 +209,8 @@ public final class FixtureServer: Sendable {
         var autoQuality = "8m"
         var adaptive = false
         var delays: [String: Int] = [:]
+        /// The answers held back, by `"METHOD path"`, until the test lets them go (`hold`).
+        var held: [String: [@Sendable () -> Void]] = [:]
         var network = Network()
         var browse = Browse()
         var account = Account()
@@ -258,6 +260,8 @@ public final class FixtureServer: Sendable {
         var subtitleIndex: Int?
         /// The Quality menu's pick, as its reports say; `nil` until one does.
         var quality: String?
+        /// The device's volume, as a Google Cast device's session says it; `nil` for other players.
+        var volume: Int?
     }
 
     /// NWListener is Sendable from iOS 17 only; it is safe to share, and only
@@ -319,6 +323,12 @@ public final class FixtureServer: Sendable {
 
     public func stop() {
         endEvents()
+        // Nothing waits on an answer held back.
+        let held = state.withLock { s -> [@Sendable () -> Void] in
+            defer { s.held = [:] }
+            return s.held.values.flatMap { $0 }
+        }
+        for send in held { send() }
         let box = state.withLock { s -> Listener? in
             defer { s.listener = nil }
             return s.listener
@@ -500,6 +510,19 @@ public final class FixtureServer: Sendable {
         state.withLock { $0.delays[method.map { "\($0) \(path)" } ?? path] = ms }
     }
 
+    /// Holds back the answers to `method path` until `release(path:method:)`,
+    /// as a server that takes its time (a cast to a Google Cast device): each
+    /// request is handled, and recorded, as it comes; only its answer waits.
+    public func hold(path: String, method: String = "POST") {
+        state.withLock { s in s.held["\(method) \(path)"] = s.held["\(method) \(path)"] ?? [] }
+    }
+
+    /// Sends the answers held back for `method path`, and answers it at once from now on.
+    public func release(path: String, method: String = "POST") {
+        let held = state.withLock { $0.held.removeValue(forKey: "\(method) \(path)") } ?? []
+        for send in held { send() }
+    }
+
     /// How the network routes answer: absent (`404`, an older server), the
     /// server's own network (`local`), or one it asks a speed test on (`probe`).
     public func setNetwork(routes: Bool = true, local: Bool = true, probe: Bool = false) {
@@ -560,6 +583,14 @@ public final class FixtureServer: Sendable {
                 self.openEvents(request, on: connection)
             case .some(.some(let request)):
                 let answer = self.handle(request)
+                let key = "\(request.method) \(request.path)"
+                let held = self.state.withLock { s -> Bool in
+                    guard s.held[key] != nil else { return false }
+                    s.held[key]?.append({ self.send(answer, on: connection) })
+                    return true
+                }
+                // Sent once the test lets it go.
+                if held { break }
                 if let ms = self.state.withLock({
                     $0.delays["\(request.method) \(request.path)"] ?? $0.delays[request.path]
                         ?? $0.delays["\(request.path)?q=\(request.query["q"] ?? "")"]
