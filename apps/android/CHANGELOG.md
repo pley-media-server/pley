@@ -11,8 +11,9 @@ describes how they are made.
 ### Added
 
 - Administrators manage the server's dashboard, libraries, users and
-  invitations from a phone or tablet, in Me → Manage server. A phone
-  signed in before asks to sign in again for it.
+  invitations from a phone or tablet, in Me → Manage server, once they
+  tick Manage the server as the phone signs in. A phone signed in before,
+  or without it ticked, asks to sign in again for it.
 - Play on… lists Google Cast and AirPlay devices for movies and episodes.
   An AirPlay device asks once for the code it shows; on an Apple TV the
   code goes as its fourth digit is typed.

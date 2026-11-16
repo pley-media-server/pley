@@ -15,6 +15,10 @@ describes how they are made.
   libraries, accounts and invitations and show the dashboard. It is never
   given with a TV's code. Settings, network, transcoder, backups and Live
   TV stay in the web app.
+- An app gets an administrator's rights (managing the server, approving
+  requests) only when an administrator ticks them as it signs in. An
+  account that isn't an administrator's never gives them, so becoming one
+  later wakes nothing in its apps.
 - An administrator's rights in an app hold only in an app that
   administrator allowed, on their profile picked at the device, not one a
   cast switched to.
@@ -37,6 +41,9 @@ describes how they are made.
 
 ### Changed
 
+- The page where an app signs in is shorter: what the app needs, a line
+  each; an administrator's rights as boxes to tick; and one line on what
+  it can't change.
 - HDR made SDR keeps the master's brightness up to SDR's white, with the
   standard BT.2390 curve, instead of darkening the mid-tones; black and
   letterbox bars stay black.

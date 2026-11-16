@@ -14,7 +14,7 @@
     <string name="admin_section_invitations_value">Enlaces para crear una cuenta</string>
     <string name="admin_web_only">Los ajustes del servidor, la red, el transcodificador, las solicitudes y la TV en vivo se cambian en la aplicación web de Pley.</string>
     <string name="admin_sign_in_title">Vuelve a iniciar sesión para gestionar el servidor</string>
-    <string name="admin_sign_in_body">Este teléfono inició sesión antes de que Pley pudiera dejarle gestionar el servidor. Vuelve a iniciar sesión y permítelo.</string>
+    <string name="admin_sign_in_body">Este teléfono no recibió permiso para gestionar el servidor al iniciar sesión. Vuelve a iniciar sesión y marca Gestionar el servidor.</string>
     <string name="admin_sign_in_action">Volver a iniciar sesión</string>
     <string name="admin_not_admin_title">Solo los administradores gestionan el servidor</string>
     <string name="admin_not_admin_body">Inicia sesión con una cuenta de administrador para gestionarlo desde este teléfono.</string>

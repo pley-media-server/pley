@@ -22,6 +22,7 @@ function tvRequest(): ConsentRequest {
     },
     redirect: { kind: "device", to: "BCDF-GHJK" },
     scopes: ["library", "play"],
+    optional: [],
   };
 }
 
@@ -210,7 +211,7 @@ describe("LinkPage", () => {
     expect(screen.getByText("Pley's own app")).toBeInTheDocument();
     expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
       "See Admin's libraries, playlists and watch history.",
-      "Play titles, and keep Admin's place, watched marks, ratings, track choices and library order.",
+      "Play titles and keep Admin's progress, ratings and track choices.",
     ]);
     expect(screen.getByText("It goes to:")).toBeInTheDocument();
     expect(screen.getByText(/^the TV or device showing/)).toHaveTextContent("the TV or device showing BCDF-GHJK");
@@ -238,10 +239,27 @@ describe("LinkPage", () => {
     await userEvent.setup().click(allow);
     expect(await screen.findByRole("heading", { name: "Pley for Android on your TV is signing in" })).toBeInTheDocument();
     expect(screen.getByText("You can close this page.")).toBeInTheDocument();
-    expect(posts(requests, "/api/oauth/requests/d1").map((r) => r.body)).toEqual([{ allow: true }]);
+    expect(posts(requests, "/api/oauth/requests/d1").map((r) => r.body)).toEqual([{ allow: true, scopes: ["library", "play"] }]);
     expect(assign).not.toHaveBeenCalled();
     expect(screen.queryByTestId("location")).not.toBeInTheDocument();
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("gives a TV approving requests only when its box is ticked", async () => {
+    const requests = serve({ verify: () => ({ ...tvRequest(), scopes: ["library", "requests", "approvals"], optional: ["approvals"] }) });
+    renderPage(URL_CODE);
+    const { allow } = await continueWith(null);
+
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "See Admin's libraries, playlists and watch history.",
+      "Ask for movies and shows, and follow Admin's requests.",
+    ]);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(screen.getByRole("checkbox", { name: "Approve requests" })).not.toBeChecked();
+    attend();
+    await userEvent.setup().click(allow);
+    await screen.findByRole("heading", { name: "Pley for Android on your TV is signing in" });
+    expect(posts(requests, "/api/oauth/requests/d1").map((r) => r.body)).toEqual([{ allow: true, scopes: ["library", "requests"] }]);
   });
 
   it("takes neither a second Enter nor a held one as the answer", async () => {

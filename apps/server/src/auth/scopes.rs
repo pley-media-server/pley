@@ -91,6 +91,13 @@ impl Scope {
         }
     }
 
+    /// An administrator's right (`approvals`, `server`): what the person may
+    /// leave out on the consent page, the app working without it, and what
+    /// an account that isn't an administrator never gives.
+    pub fn administrators(self) -> bool {
+        matches!(self, Scope::Approvals | Scope::Server)
+    }
+
     pub fn from_name(name: &str) -> Option<Scope> {
         Scope::ALL.into_iter().find(|scope| scope.name() == name)
     }
@@ -129,6 +136,21 @@ impl Scopes {
 
     pub fn with(self, scope: Scope) -> Scopes {
         Scopes(self.0 | scope.bit())
+    }
+
+    pub fn without(self, scope: Scope) -> Scopes {
+        Scopes(self.0 & !scope.bit())
+    }
+
+    /// What an account can give of these: all of them on an administrator's,
+    /// none of an administrator's rights on another. Given by an account
+    /// that isn't one, they would do nothing until it became one, and then
+    /// wake without anyone being asked.
+    pub fn for_account(self, administrator: bool) -> Scopes {
+        if administrator {
+            return self;
+        }
+        Scope::ALL.into_iter().filter(|scope| scope.administrators()).fold(self, Scopes::without)
     }
 
     pub fn contains(self, scope: Scope) -> bool {
@@ -403,6 +425,17 @@ mod tests {
             assert_eq!(Scope::from_name(scope.name()), Some(scope));
             assert!(!scope.words().is_empty());
         }
+    }
+
+    #[test]
+    fn only_administrators_give_administrators_rights() {
+        let asked = Scopes::parse("library play requests approvals activity server").unwrap();
+        assert_eq!(asked.for_account(true), asked);
+        assert_eq!(asked.for_account(false).to_string(), "library play requests activity");
+        assert_eq!(asked.without(Scope::Server).to_string(), "library play requests approvals activity");
+        assert_eq!(asked.without(Scope::Profiles), asked, "without one it hasn't changes nothing");
+        let administrators: Vec<_> = Scope::ALL.into_iter().filter(|scope| scope.administrators()).collect();
+        assert_eq!(administrators, [Scope::Approvals, Scope::Server]);
     }
 
     #[test]

@@ -1095,9 +1095,11 @@ A token answer:
 }
 ```
 
-`scope` is everything the app was allowed. `refresh_token` comes only for
-apps whose description lists the `refresh_token` grant type (Pley's own
-apps do). `server_id`, `proof_id` and `proof_key` let the app make sure
+`scope` is everything the app was allowed: what it asked for, less the
+administrator's rights the person left unticked or the account doesn't
+have ([the consent page](#the-consent-pages-endpoints)). `refresh_token`
+comes only for apps whose description lists the `refresh_token` grant
+type (Pley's own apps do). `server_id`, `proof_id` and `proof_key` let the app make sure
 later that an address still leads to this server ([Telling servers
 apart](#telling-servers-apart)); the last two are left out while the
 server can't use its `secret.key`.
@@ -1286,9 +1288,9 @@ everyone, in 10 minutes, no code is looked up (`429`).
 | `playlists` | make, change and delete the profile's playlists |
 | `profiles` | switch to the household's other profiles. Pley's own apps only, since a profile's PIN is typed into the app |
 | `requests` | ask for movies and shows the libraries don't have ([Requests](#requests)), and follow the profile's requests |
-| `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; it does nothing on other accounts |
+| `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; only an administrator gives it, by ticking its box on the consent page |
 | `activity` | see what's playing and stop it: the profile's streams, and everyone's where the account is an administrator. Any app may be allowed it, but only Pley's own see and stop everyone's, and of those only Pley for Home Assistant asks for it |
-| `server` | see the server's dashboard and manage its libraries, accounts and invitations, where the account is an administrator: the `admin` routes listed below. Pley's own apps only, and never with a TV's code ([TVs](#tvs)); it does nothing on other accounts. Of Pley's apps, Android's phones ask for it |
+| `server` | see the server's dashboard and manage its libraries, accounts and invitations, where the account is an administrator: the `admin` routes listed below. Pley's own apps only, and never with a TV's code ([TVs](#tvs)); only an administrator gives it, by ticking its box on the consent page. Of Pley's apps, Android's phones ask for it |
 
 An app's token opens only the routes whose **Who** is `any app` or one of
 its scopes (`HEAD` as `GET`), and with `server` the `admin` routes listed
@@ -1354,8 +1356,10 @@ What apps see:
   whoever holds the app's token into the web app as an administrator. It
   may take an administrator's role away. `GET /api/auth/me` tells Pley's
   own apps whether the account is an administrator who allowed the app
-  (`account_admin`), so one signed in before it could ask for `server` can
-  offer to sign in again.
+  (`account_admin`), so one without `server` (signed in before it could
+  ask for it, or allowed with the box left unticked) can offer to sign in
+  again. A grant never gains a scope later: not by a refresh, a profile
+  switch, or the account becoming an administrator.
 - Libraries' `paths` are empty, but for one that manages the server, and
   files' `path` is the file name only.
 - `/api/users/{id}/avatar` shows only the app's own profile, its
@@ -1526,16 +1530,25 @@ Pley's own page uses these (Who: `page`); apps never do.
 |---|---|---|---|
 | POST | `/api/oauth/requests` | `page` | `{ query }` (the page's query without `?`, at most 8 KiB) → a consent request |
 | POST | `/api/oauth/device/verify` | `page` | `{ user_code }` (as typed) → a consent request for a TV |
-| POST | `/api/oauth/requests/{id}` | `page` | `{ allow: boolean }` → `{ continue_url }`, or `{ done: true }` for a TV's request |
+| POST | `/api/oauth/requests/{id}` | `page` | `{ allow: boolean, scopes?: string[] }` → `{ continue_url }`, or `{ done: true }` for a TV's request |
 | GET | `/api/oauth/requests/{id}/continue` | `page` | `303` to the app with the answer |
 
 **`POST /api/oauth/requests`** answers
-`{ status: "consent", id, expires_at, client: { id, host, name, first_party }, redirect: { kind: "web" | "app" | "loopback", to }, scopes }`,
+`{ status: "consent", id, expires_at, client: { id, host, name, first_party }, redirect: { kind: "web" | "app" | "loopback", to }, scopes, optional }`,
 or for a mistake that goes back to the app
 `{ status: "error", error, message, back_url, client, redirect }`, where
 `redirect` says where "Back to the app" goes. `400` for an app or return
 address Pley can't accept, `429` with too many descriptions read, `503`
 with too many sign-ins in progress.
+
+- `scopes`: what the account can give of what the app asked for. An
+  account that isn't an administrator's never gives an administrator's
+  rights (`approvals`, `server`): they're left out here and from the grant,
+  whatever is sent. They would do nothing for such an account, and wake
+  without anyone being asked if it became one.
+- `optional`: those of `scopes` the person may leave out: an
+  administrator's rights, which the app works without. The page shows them
+  as boxes, unticked.
 
 **`POST /api/oauth/device/verify`** answers the consent as above, with
 `redirect: { kind: "device", to: "BCDF-GHJK", device, address }`.
@@ -1556,6 +1569,16 @@ with too many sign-ins in progress.
 **`POST /api/oauth/requests/{id}`**: a TV gets its answer when it next
 asks. The same answer again gets the same reply; the other answer `409`.
 `404` when the request is over (for a TV, also once its code expired).
+
+- `scopes`, with `allow: true`: the scopes the person allows, each one the
+  app asked for. Only those in `optional` may be left out. Anything else
+  (a scope the app didn't ask for, one Pley doesn't know, more than 8
+  names, one the app needs left out) is `400` and decides nothing.
+  Without it, everything in `scopes` is allowed. A refusal's is ignored.
+- The code or the TV's tokens hold what was allowed, and the token answer's
+  `scope` says so (RFC 6749 §5.1). An account that is no longer an
+  administrator's by the time they are made gets none of an
+  administrator's rights.
 
 **`GET /api/oauth/requests/{id}/continue`** repeats while the code works and
 wasn't exchanged, and for a minute after a refusal or a mistake. After

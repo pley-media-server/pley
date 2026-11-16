@@ -223,7 +223,13 @@ Apps sign in on Pley's own page with OAuth 2.1.
   two-step sign-in, nor see or sign out its devices and apps. Nor can it
   make an administrator, or change another administrator's password, PIN
   or two-step sign-in, either of which would take whoever holds it into the
-  web app as an administrator. `server` is never allowed with a TV's code,
+  web app as an administrator. On the consent page, `approvals` and
+  `server` are boxes the administrator ticks, unticked to begin with: the
+  app works without them. An account that isn't an administrator's is
+  never asked for them and never gives them, whatever the page sends, so
+  no grant holds rights that would wake without anyone being asked when
+  the account became one; and no grant gains a scope later, by a refresh or
+  a profile switch. `server` is never allowed with a TV's code,
   which anyone in front of a screen could pass to an administrator. Each
   is checked against the account at every request, so a role taken away
   takes them at once, and holds only for an app that administrator
@@ -239,7 +245,7 @@ Apps sign in on Pley's own page with OAuth 2.1.
 - Android's app is answered at a private-use address
   (`app.pley.android:/oauth/callback`), as RFC 8252 allows. Another app on
   the phone that claims that scheme can start a sign-in as Pley for Android
-  and get its token, `server` included, if the person allows it; PKCE
+  and get its token, `server` included, if the person ticks it; PKCE
   doesn't stop that, only the consent page does, so allow a sign-in only
   when you started it.
 - Apps, and people who aren't administrators, don't see library folders or

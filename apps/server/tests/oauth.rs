@@ -1146,3 +1146,155 @@ async fn behind_a_proxy_that_leaves_the_port_out_pley_names_the_address_apps_use
         .await;
     assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.text());
 }
+
+// ------------------------------------------------------------------ an administrator's rights, chosen
+
+/// Everything Pley for Android asks for of a server that offers it.
+const ALL_OF_THEM: &str = "library play requests approvals server";
+
+/// An authorization request of Pley for Android for `scope`.
+fn android_query(scope: &str) -> String {
+    query(&with(request_params(ANDROID_APP, ANDROID_BACK), &[("scope", Some(scope))]))
+}
+
+async fn decide_with(app: &TestApp, cookie: &str, id: &str, scopes: &[&str]) -> Reply {
+    let body = json!({"allow": true, "scopes": scopes});
+    app.browser_call(Method::POST, &format!("/api/oauth/requests/{id}"), cookie, Some(body), &[]).await
+}
+
+/// The code of a request allowed with `chosen` (`None`: no list sent).
+async fn code_allowed(app: &TestApp, cookie: &str, id: &str, chosen: Option<&[&str]>) -> String {
+    let decided = match chosen {
+        Some(chosen) => decide_with(app, cookie, id, chosen).await,
+        None => decide(app, cookie, id, true).await,
+    };
+    assert_eq!(decided.status, StatusCode::OK, "{}", decided.text());
+    params_of(&location(&back(app, cookie, id).await))["code"].clone()
+}
+
+/// The token answer of Pley for Android, allowed by `cookie` with the
+/// scopes `chosen` of `asked`, or with no list sent (`None`).
+async fn android_tokens(app: &TestApp, cookie: &str, asked: &str, chosen: Option<&[&str]>) -> Reply {
+    let id = consent(app, cookie, &android_query(asked)).await;
+    let code = code_allowed(app, cookie, &id, chosen).await;
+    exchange(app, &code, ANDROID_APP, ANDROID_BACK, VERIFIER).await
+}
+
+#[tokio::test]
+async fn an_administrator_chooses_which_of_their_rights_an_app_gets() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+
+    // The page shows what the app asked for, and which of it may be left out.
+    let shown = start(&app, &admin, &android_query(ALL_OF_THEM)).await;
+    assert_eq!(shown.body["scopes"], json!(["library", "play", "requests", "approvals", "server"]), "{}", shown.text());
+    assert_eq!(shown.body["optional"], json!(["approvals", "server"]));
+    let plain = start(&app, &admin, &query(&request_params(ANDROID_APP, ANDROID_BACK))).await;
+    assert_eq!(plain.body["optional"], json!([]));
+
+    // Left out: the token answer says what it holds (RFC 6749 §5.1), and
+    // the administrators' routes stay closed.
+    let tokens = android_tokens(&app, &admin, ALL_OF_THEM, Some(&["library", "play", "requests"])).await;
+    assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
+    let (access, refresh_token) = pair(&tokens);
+    let me = app.get("/api/auth/me", &access).await;
+    assert_eq!((&me.body["scope"], &me.body["account_admin"]), (&json!("library play requests"), &json!(true)));
+    let refused = app.get("/api/users", &access).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
+    assert_eq!(refused.headers[header::WWW_AUTHENTICATE], r#"Bearer error="insufficient_scope", scope="server""#);
+    // A refresh can't take them back.
+    let wider = form(&[
+        ("grant_type", "refresh_token"),
+        ("refresh_token", &refresh_token),
+        ("client_id", ANDROID_APP),
+        ("scope", "library play requests server"),
+    ]);
+    assert_eq!(
+        oauth_error(&app.form_post("/api/oauth/token", &wider, &[]).await),
+        (StatusCode::BAD_REQUEST, "invalid_scope")
+    );
+    let renewed = refresh(&app, &refresh_token, ANDROID_APP).await;
+    assert_eq!(renewed.body["scope"], "library play requests", "{}", renewed.text());
+
+    // One of them ticked.
+    let tokens = android_tokens(&app, &admin, ALL_OF_THEM, Some(&["server", "library", "play", "requests"])).await;
+    assert_eq!(tokens.body["scope"], "library play requests server", "{}", tokens.text());
+    let (access, _) = pair(&tokens);
+    assert_eq!(app.get("/api/users", &access).await.status, StatusCode::OK);
+
+    // A page that sends no list allows all that was asked.
+    let tokens = android_tokens(&app, &admin, ALL_OF_THEM, None).await;
+    assert_eq!(tokens.body["scope"], ALL_OF_THEM, "{}", tokens.text());
+}
+
+#[tokio::test]
+async fn the_answer_may_leave_out_only_an_administrators_rights() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let id = consent(&app, &admin, &android_query(ALL_OF_THEM)).await;
+    let refusals: [(&[&str], &str); 4] = [
+        (&["library", "play", "requests", "playlists"], "the app didn't ask for one of those scopes"),
+        (&["library", "play", "requests", "admin"], "the app didn't ask for one of those scopes"),
+        (&["library", "requests", "server"], "the app needs to play titles"),
+        (&["play", "requests", "approvals", "server"], "the app needs to see the profile's libraries"),
+    ];
+    for (chosen, said) in refusals {
+        let refused = decide_with(&app, &admin, &id, chosen).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{chosen:?}: {}", refused.text());
+        let message = refused.body["message"].as_str().unwrap();
+        assert!(message.starts_with(said), "{chosen:?}: {message}");
+    }
+    assert_eq!(decide_with(&app, &admin, &id, &["library"; 9]).await.status, StatusCode::BAD_REQUEST);
+    // Nothing was decided: the request is still there to answer.
+    let code = code_allowed(&app, &admin, &id, Some(&["library", "play", "requests", "approvals"])).await;
+    let tokens = exchange(&app, &code, ANDROID_APP, ANDROID_BACK, VERIFIER).await;
+    assert_eq!(tokens.body["scope"], "library play requests approvals", "{}", tokens.text());
+
+    // A refusal's list changes nothing.
+    let id = consent(&app, &admin, &query(&request_params(ANDROID_APP, ANDROID_BACK))).await;
+    let body = json!({"allow": false, "scopes": ["playlists"]});
+    let denied = app.browser_call(Method::POST, &format!("/api/oauth/requests/{id}"), &admin, Some(body), &[]).await;
+    assert_eq!(denied.status, StatusCode::OK, "{}", denied.text());
+    assert_eq!(params_of(&location(&back(&app, &admin, &id).await))["error"], "access_denied");
+}
+
+#[tokio::test]
+async fn an_account_that_isnt_an_administrator_gives_none_of_their_rights() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (bob, bob_id) = app.user(&admin, "bob", json!({})).await;
+
+    // Bob isn't asked about them, and doesn't give them, even when sent.
+    let shown = start(&app, &bob, &android_query(ALL_OF_THEM)).await;
+    assert_eq!((&shown.body["scopes"], &shown.body["optional"]), (&json!(["library", "play", "requests"]), &json!([])));
+    let sent =
+        android_tokens(&app, &bob, ALL_OF_THEM, Some(&["library", "play", "requests", "approvals", "server"])).await;
+    assert_eq!(sent.body["scope"], "library play requests", "{}", sent.text());
+    let tokens = android_tokens(&app, &bob, ALL_OF_THEM, None).await;
+    assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
+    let (access, refresh_token) = pair(&tokens);
+    assert_eq!(app.get("/api/auth/me", &access).await.body["account_admin"], json!(false));
+
+    // Made an administrator later, his app has none of them: it offers to
+    // sign in again, where he is asked.
+    let promoted = app.patch(&format!("/api/users/{bob_id}"), &admin, json!({"is_admin": true})).await;
+    assert_eq!(promoted.status, StatusCode::OK, "{}", promoted.text());
+    let (access, _) = pair(&refresh(&app, &refresh_token, ANDROID_APP).await);
+    let me = app.get("/api/auth/me", &access).await;
+    assert_eq!((&me.body["scope"], &me.body["account_admin"]), (&json!("library play requests"), &json!(true)));
+    let refused = app.get("/api/users", &access).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
+}
+
+#[tokio::test]
+async fn an_administrator_demoted_before_the_code_is_exchanged_gets_none_of_their_rights() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (dora, dora_id) = app.user(&admin, "dora", json!({"is_admin": true})).await;
+    let id = consent(&app, &dora, &android_query(ALL_OF_THEM)).await;
+    let code = code_allowed(&app, &dora, &id, None).await;
+    let demoted = app.patch(&format!("/api/users/{dora_id}"), &admin, json!({"is_admin": false})).await;
+    assert_eq!(demoted.status, StatusCode::OK, "{}", demoted.text());
+    let tokens = exchange(&app, &code, ANDROID_APP, ANDROID_BACK, VERIFIER).await;
+    assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
+}

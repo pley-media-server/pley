@@ -327,25 +327,27 @@
     "willBeAble": "It will be able to:",
     "scopes": {
       "library": "See {{profile}}'s libraries, playlists and watch history.",
-      "play": "Play titles, and keep {{profile}}'s place, watched marks, ratings, track choices and library order.",
+      "play": "Play titles and keep {{profile}}'s progress, ratings and track choices.",
       "playlists": "Make, change and delete {{profile}}'s playlists.",
-      "profiles": "Switch to the household's other profiles. Profiles with a PIN still ask for it.",
-      "requests": "Ask for movies and shows the libraries don't have, and follow {{profile}}'s requests.",
-      "approvals": "Approve and decline what people ask for, where the account is an administrator.",
-      "activity": "See what's playing and stop it: {{profile}}'s streams.",
-      "activityEveryone": "See what's playing and stop it: {{profile}}'s streams, and everyone's where the account is an administrator.",
-      "server": "See the server's dashboard and manage its libraries, accounts and invitations, where the account is an administrator."
+      "profiles": "Switch to the household's other profiles (PINs still apply).",
+      "requests": "Ask for movies and shows, and follow {{profile}}'s requests.",
+      "activity": "See and stop {{profile}}'s streams.",
+      "activityEveryone": "See and stop what's playing on the server."
+    },
+    "adminAccess": "Administrator access",
+    "optionalLabel": "Optional",
+    "optional": {
+      "server": {
+        "label": "Manage the server",
+        "hint": "Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app."
+      },
+      "approvals": {
+        "label": "Approve requests",
+        "hint": "Approve and decline what people ask for."
+      }
     },
     "cantChange": "It can't change your password, sign-in settings or devices.",
-    "cantChangeNoAdmin": "It can't change your password, sign-in settings or devices, and it never gets administrator rights.",
-    "rightsOnly": "Of your administrator rights it gets only {{rights}}: the others stay in Pley's web app.",
-    "rights": {
-      "approvals": "approving and declining requests",
-      "activity": "seeing and stopping everyone's streams"
-    },
-    "adminStays": "Your administrator rights stay in Pley's web app.",
-    "managesServer": "It manages this server's libraries and accounts as you do in Pley's web app. Making administrators, the server's settings and keys, Live TV, and your own password, PIN, two-step sign-in and devices stay there.",
-    "managesServerToo": "It also gets {{rights}}.",
+    "cantChangeAdmin": "It can't change your password, sign-in settings or devices. Everything else stays in Pley's web app.",
     "overTv": "This request is over: start again on your TV",
     "overApp": "This request is over: start again from the app",
     "deny": "Don't allow",

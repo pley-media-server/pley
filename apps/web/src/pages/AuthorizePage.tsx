@@ -104,8 +104,8 @@ function Consent({ request }: { request: ConsentRequest }) {
     <AppConsent
       request={request}
       returnTo={pathname + search}
-      onAnswer={(allow) =>
-        decide(request.id, allow).then(({ continue_url }) => {
+      onAnswer={(allow, scopes) =>
+        decide(request.id, allow, scopes).then(({ continue_url }) => {
           window.location.assign(continue_url);
           setContinueUrl(continue_url);
         })

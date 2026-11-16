@@ -11,7 +11,10 @@ enum class AdminAccess {
     /** Not an administrator's account, or a server that can't let apps manage it: nothing to show. */
     None,
 
-    /** An administrator's account signed in before the app could manage the server: signing in again allows it. */
+    /**
+     * An administrator's account whose sign-in doesn't have `server`: signed in before the app could manage the
+     * server, or with "Manage the server" left unticked on the sign-in page. Signing in again offers it.
+     */
     SignInAgain,
 
     /** Allowed `server` on an administrator's account. */
