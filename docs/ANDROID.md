@@ -934,15 +934,18 @@ server never gives the scope to a code.
 - **Users** and **Invitations**: the accounts and profiles; an account's
   page with what an administrator changes on the web (name, password,
   disabled, household, requests, libraries, age limit, label exceptions,
-  PIN, two-step sign-in, devices, apps, deleting, and taking the
-  administrator's role away); making accounts and profiles; invitation
-  links, made, copied, shared and deleted. Making an administrator, and
-  another administrator's password, PIN and two-step sign-in, stay in the
-  web app, as the server requires: either would let whoever holds the
-  phone into it as an administrator. An administrator's page has no age
-  limit or label exceptions, which don't apply to one. An age limit is set
-  as on the web: by a country's rating, by age, or (for an account) by
-  birthday, and titles with some labels are always or never shown.
+  PIN, two-step sign-in, devices, apps and deleting); making accounts and
+  profiles; invitation links, made, copied, shared and deleted. Making an
+  administrator, taking the role away, and everything of another
+  administrator's account stay in the web app, as the server requires:
+  another administrator's page shows the account, its devices and apps,
+  with a line saying their role, sign-in, devices and account change in
+  the web app, and offers nothing to change. Otherwise a phone's token
+  could take an administrator's place in the web app, or lock the others
+  out. An administrator's page has no age limit or label exceptions, which
+  don't apply to one. An age limit is set as on the web: by a country's
+  rating, by age, or (for an account) by birthday, and titles with some
+  labels are always or never shown.
   Without a TMDB key on the server, the page says that unrated movies are
   hidden; the key itself is added in the web app. The administrator's own
   name, password, PIN, two-step sign-in, devices and apps stay in Account
@@ -952,11 +955,11 @@ A value is sent as it is chosen, as the phone's own Settings save theirs;
 what is made or set together (a library, an account, an invitation) has
 one button. What can't be undone, or takes something from an account at
 once, asks first, where the web stages it until Save: deleting, signing
-out, taking the administrator's role away, disabling an account and
-removing a PIN. The server's refusals show in its own words, and the page
-then shows what the server has; a new password or PIN the server refuses
-stays in its dialog to be changed. Lists that change (what plays, scans,
-the machine's load) are read again every few seconds while they show, and
+out, disabling an account and removing a PIN. The server's refusals show
+in its own words, and the page then shows what the server has; a new
+password or PIN the server refuses stays in its dialog to be changed.
+Lists that change (what plays, scans, the machine's load) are read again
+every few seconds while they show, and
 a list is read again as it shows after a page above it. When the
 dashboard can't read them, it says from what time its numbers are and
 why, until the server answers again.

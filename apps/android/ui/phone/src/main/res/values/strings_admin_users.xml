@@ -64,7 +64,7 @@
     <string name="admin_users_admin_hint">Can manage libraries, users and server settings.</string>
     <string name="admin_users_managed_not_admin">Managed profiles can\'t be administrators.</string>
     <string name="admin_users_admin_in_web">Only Pley\'s web app makes an account an administrator.</string>
-    <string name="admin_users_admin_sign_in">An administrator\'s password, PIN and two-step sign-in change in Pley\'s web app.</string>
+    <string name="admin_users_other_admin">Another administrator\'s role, sign-in, devices and account change in Pley\'s web app.</string>
     <string name="admin_users_home">Member of this home</string>
     <string name="admin_users_home_hint">Shown in the profile switcher, so household members can switch to each other.</string>
     <string name="admin_users_disabled">Disabled</string>
@@ -82,9 +82,6 @@
     <string name="admin_users_remove_pin">Remove PIN</string>
     <string name="admin_users_remove_pin_title">Remove %1$s\'s PIN?</string>
     <string name="admin_users_remove_pin_message">Anyone in the household can then switch to %1$s without a PIN, until a new one is set.</string>
-    <string name="admin_users_remove_admin_title">Take away %1$s\'s administrator role?</string>
-    <string name="admin_users_remove_admin_message">%1$s can no longer manage the server, from the web app or from Pley\'s apps. Only the web app can make them an administrator again.</string>
-    <string name="admin_users_remove_admin_action">Take it away</string>
     <string name="admin_users_disable_title">Disable %1$s?</string>
     <string name="admin_users_disable_message">%1$s is signed out everywhere, and can\'t sign in or play anything until the account is enabled again.</string>
     <string name="admin_users_disable_action">Disable</string>

@@ -109,10 +109,11 @@ private val UserDialogSaver: Saver<UserDialog?, String> = Saver(
  * One account (the web's user dialog), each change sent as it is made.
  * One's own account can't change its password, PIN or two-step sign-in
  * here (Account does, asking for the password), nor be disabled, signed
- * out everywhere or deleted: those aren't offered, as on the web. Nor are
- * making an administrator, and another administrator's password, PIN and
- * two-step sign-in, which the server leaves to the web app; nor an
+ * out everywhere or deleted: those aren't offered, as on the web. Nor is
+ * making an administrator, which the server leaves to the web app, nor an
  * administrator's age limit and exceptions, which don't apply to one.
+ * Another administrator's account is only shown ([UserPage.otherAdmin]):
+ * the server leaves all of it to the web app.
  */
 @Composable
 internal fun UserAccountPage(id: Long) {
@@ -160,11 +161,22 @@ internal fun UserAccountPage(id: Long) {
     ) { page ->
         val user = page.user
         val self = page.self
+        val otherAdmin = page.otherAdmin
         val idle = busy == 0
         item(key = "header") { Header(user, model.avatar(user)) }
-        item(key = "profile") { ProfileGroup(user, self, idle, onRename = { dialog = UserDialog.Rename }, onPassword = { dialog = UserDialog.Password }) }
-        item(key = "roles") {
-            RolesGroup(page, self, idle, onRemoveAdmin = model::removeAdmin, onHome = model::setHome, onDisabled = model::setDisabled)
+        if (otherAdmin) {
+            item(key = "other-admin") {
+                Text(
+                    stringResource(R.string.admin_users_other_admin),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = PleyColors.Muted,
+                    modifier = Modifier.adminWidth.padding(horizontal = 4.dp).testTag(USER_OTHER_ADMIN),
+                )
+            }
+        }
+        item(key = "profile") { ProfileGroup(user, self, otherAdmin, idle, onRename = { dialog = UserDialog.Rename }, onPassword = { dialog = UserDialog.Password }) }
+        if (!otherAdmin) {
+            item(key = "roles") { RolesGroup(page, self, idle, onHome = model::setHome, onDisabled = model::setDisabled) }
         }
         val requests = requestsShown(user)
         if (requests != null) {
@@ -190,15 +202,15 @@ internal fun UserAccountPage(id: Long) {
                 onLabels = model::setLabels,
                 pickLibrary = stringResource(R.string.admin_users_pick_library),
                 modifier = Modifier.adminWidth,
-                enabled = idle,
+                enabled = idle && !otherAdmin,
                 birthday = true,
                 limits = !user.asAdmin,
             )
         }
-        if (!self && !user.asAdmin) {
+        if (!self && !otherAdmin) {
             item(key = "pin") { PinGroup(user, idle, onPin = { dialog = UserDialog.Pin }, onRemovePin = model::removePin) }
         }
-        if (user.twoStep && !self && !user.asAdmin) {
+        if (user.twoStep && !self && !otherAdmin) {
             item(key = "two-step") {
                 SettingsGroup(
                     stringResource(R.string.admin_users_two_step_title),
@@ -217,13 +229,16 @@ internal fun UserAccountPage(id: Long) {
             }
         }
         if (!self) {
+            // Another administrator's are shown, and signed out in the web app.
             item(key = "devices") {
                 val signedIn = devices.valueOrNull.orEmpty().isNotEmpty() || apps.valueOrNull.orEmpty().isNotEmpty()
-                DevicesGroup(devices, showSignOut = signedIn, onSignOut = { dialog = UserDialog.SignOutEverywhere })
+                DevicesGroup(devices, showSignOut = signedIn && !otherAdmin, onSignOut = { dialog = UserDialog.SignOutEverywhere })
             }
-            item(key = "apps") { AppsGroup(apps, user, onSignOut = { dialog = UserDialog.SignOutApp(it.id) }) }
+            item(key = "apps") {
+                AppsGroup(apps, user, onSignOut = if (otherAdmin) null else { app -> dialog = UserDialog.SignOutApp(app.id) })
+            }
         }
-        if (!self) {
+        if (!self && !otherAdmin) {
             item(key = "delete") {
                 SettingsGroup(null, Modifier.adminWidth) {
                     SettingsRow(
@@ -239,7 +254,7 @@ internal fun UserAccountPage(id: Long) {
         }
     }
 
-    val user = load.valueOrNull?.user ?: return
+    val user = load.valueOrNull?.takeUnless { it.otherAdmin }?.user ?: return
     if (lost) return
     val close = { dialog = null }
     when (val open = dialog) {
@@ -361,21 +376,20 @@ private fun Header(user: UserAccount, picture: String?) {
     }
 }
 
-/** The display name, and a new password (not one's own, nor an administrator's: the web app changes them). */
+/**
+ * The display name, and a new password: not one's own, nor another
+ * administrator's ([otherAdmin]), which the web app changes.
+ */
 @Composable
-private fun ProfileGroup(user: UserAccount, self: Boolean, idle: Boolean, onRename: () -> Unit, onPassword: () -> Unit) {
-    val footer = when {
-        self -> stringResource(R.string.admin_users_own_password)
-        user.asAdmin -> stringResource(R.string.admin_users_admin_sign_in)
-        else -> null
-    }
-    SettingsGroup(null, Modifier.adminWidth, footer = footer) {
+private fun ProfileGroup(user: UserAccount, self: Boolean, otherAdmin: Boolean, idle: Boolean, onRename: () -> Unit, onPassword: () -> Unit) {
+    SettingsGroup(null, Modifier.adminWidth, footer = if (self) stringResource(R.string.admin_users_own_password) else null) {
         SettingsRow(
             stringResource(R.string.admin_users_display_name),
             value = user.displayName?.takeIf { it.isNotBlank() },
             icon = PleyIcons.Pencil,
-            enabled = !self && idle,
+            enabled = !self && !otherAdmin && idle,
             onClick = onRename,
+            modifier = Modifier.testTag(USER_NAME),
         )
         if (!self && !user.asAdmin) {
             RowDivider()
@@ -396,28 +410,28 @@ private fun ProfileGroup(user: UserAccount, self: Boolean, idle: Boolean, onRena
 }
 
 /**
- * Administrator, home member, disabled. Off limits where the server
- * would refuse: making an administrator (the web app does), one's own
- * role or account, the last administrator's. Taking the role away and
- * disabling ask first (the web stages them until Save): either takes
- * something from the account at once.
+ * Administrator, home member, disabled, on one's own account or one that
+ * isn't another administrator's (whose roles the web app changes). The
+ * role is only shown: the web app makes administrators and takes the role
+ * away. Off limits where the server would refuse too: one's own account,
+ * the last administrator's. Disabling asks first (the web stages it until
+ * Save), as it takes something from the account at once.
  */
 @Composable
 internal fun RolesGroup(
     page: UserPage,
     self: Boolean,
     idle: Boolean,
-    onRemoveAdmin: () -> Unit,
     onHome: (Boolean) -> Unit,
     onDisabled: (Boolean) -> Unit,
 ) {
     val user = page.user
-    var asking by rememberSaveable { mutableStateOf<RoleChange?>(null) }
+    var asking by rememberSaveable { mutableStateOf(false) }
     SettingsGroup(null, Modifier.adminWidth) {
         SwitchRow(
             stringResource(R.string.admin_users_administrator),
             checked = user.asAdmin,
-            onChange = { on -> if (!on) asking = RoleChange.RemoveAdmin },
+            onChange = {},
             subtitle = stringResource(
                 when {
                     user.managed -> R.string.admin_users_managed_not_admin
@@ -425,8 +439,7 @@ internal fun RolesGroup(
                     else -> R.string.admin_users_admin_in_web
                 },
             ),
-            // Only taken away: the web app makes administrators.
-            enabled = idle && user.asAdmin && !self && !page.lastAdmin,
+            enabled = false,
             modifier = Modifier.testTag(USER_ADMIN),
         )
         RowDivider(inset = false)
@@ -442,42 +455,26 @@ internal fun RolesGroup(
             stringResource(R.string.admin_users_disabled),
             checked = user.disabled,
             // Enabling it again gives back what it had: nothing to ask.
-            onChange = { on -> if (on) asking = RoleChange.Disable else onDisabled(false) },
+            onChange = { on -> if (on) asking = true else onDisabled(false) },
             subtitle = stringResource(R.string.admin_users_disabled_hint),
             enabled = idle && !self && !(page.lastAdmin && !user.disabled),
             modifier = Modifier.testTag(USER_DISABLED),
         )
     }
-    val close = { asking = null }
-    when (asking) {
-        RoleChange.RemoveAdmin -> ConfirmDialog(
-            title = stringResource(R.string.admin_users_remove_admin_title, user.name),
-            body = stringResource(R.string.admin_users_remove_admin_message, user.name),
-            confirmLabel = stringResource(R.string.admin_users_remove_admin_action),
-            destructive = true,
-            onConfirm = {
-                close()
-                onRemoveAdmin()
-            },
-            onDismiss = close,
-        )
-        RoleChange.Disable -> ConfirmDialog(
+    if (asking) {
+        ConfirmDialog(
             title = stringResource(R.string.admin_users_disable_title, user.name),
             body = stringResource(R.string.admin_users_disable_message, user.name),
             confirmLabel = stringResource(R.string.admin_users_disable_action),
             destructive = true,
             onConfirm = {
-                close()
+                asking = false
                 onDisabled(true)
             },
-            onDismiss = close,
+            onDismiss = { asking = false },
         )
-        null -> Unit
     }
 }
-
-/** The changes of [RolesGroup] that ask first. */
-private enum class RoleChange { RemoveAdmin, Disable }
 
 /**
  * The profile's PIN: a new one ([onPin]), and Remove PIN, which asks
@@ -574,9 +571,9 @@ private fun DeviceRow(device: UserDevice, now: Long, words: FormatWords) {
 /** A phone or tablet, by its name, as the web picks the icon. */
 private val PHONE = Regex("iPhone|iPad|Android")
 
-/** The apps using the account or allowed by it, each signed out on its own. */
+/** The apps using the account or allowed by it, each signed out on its own; [onSignOut] `null`: only shown. */
 @Composable
-private fun AppsGroup(apps: AdminLoad<List<UserApp>>, user: UserAccount, onSignOut: (UserApp) -> Unit) {
+private fun AppsGroup(apps: AdminLoad<List<UserApp>>, user: UserAccount, onSignOut: ((UserApp) -> Unit)?) {
     val words = formatWords()
     val now = remember { System.currentTimeMillis() / 1000 }
     SettingsGroup(stringResource(R.string.admin_users_apps_title), Modifier.adminWidth) {
@@ -596,7 +593,7 @@ private fun AppsGroup(apps: AdminLoad<List<UserApp>>, user: UserAccount, onSignO
 }
 
 @Composable
-private fun AppRow(app: UserApp, user: UserAccount, now: Long, words: FormatWords, onSignOut: (UserApp) -> Unit) {
+private fun AppRow(app: UserApp, user: UserAccount, now: Long, words: FormatWords, onSignOut: ((UserApp) -> Unit)?) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -633,7 +630,9 @@ private fun AppRow(app: UserApp, user: UserAccount, now: Long, words: FormatWord
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        PleyTextButton(stringResource(R.string.admin_users_sign_out), onClick = { onSignOut(app) })
+        if (onSignOut != null) {
+            PleyTextButton(stringResource(R.string.admin_users_sign_out), onClick = { onSignOut(app) })
+        }
     }
 }
 
@@ -673,6 +672,8 @@ private fun requestsHint(user: UserAccount): String = stringResource(
 )
 
 internal const val USER_PAGE = "pley.admin.users.user"
+internal const val USER_OTHER_ADMIN = "pley.admin.users.user.otherAdmin"
+internal const val USER_NAME = "pley.admin.users.user.name"
 internal const val USER_PASSWORD = "pley.admin.users.user.password"
 internal const val USER_ADMIN = "pley.admin.users.user.admin"
 internal const val USER_DISABLED = "pley.admin.users.user.disabled"

@@ -19,6 +19,7 @@ import app.pley.android.screens.admin.AdminDone
 import app.pley.android.screens.admin.AdminViewModel
 import app.pley.android.screens.admin.valueOrNull
 import app.pley.android.screens.screensGraph
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,11 +42,17 @@ import kotlinx.serialization.json.putJsonArray
 data class UserPage(val user: UserAccount, val otherAdmins: Int, val self: Boolean = false) {
     /** Pley always keeps one enabled administrator. */
     val lastAdmin: Boolean get() = user.isAdmin && otherAdmins == 0
+
+    /**
+     * Another administrator's account, which an app only reads: the server
+     * leaves everything of it to the web app.
+     */
+    val otherAdmin: Boolean get() = !self && user.isAdmin
 }
 
 /**
  * One account's page (the web's user dialog), each change sent as it is
- * made: its name, password, role, whether it is in the home or disabled,
+ * made: its name, password, whether it is in the home or disabled,
  * requests, what it sees, its PIN; turning its two-step sign-in off,
  * signing it out everywhere or one of its apps, deleting it.
  *
@@ -53,10 +60,12 @@ data class UserPage(val user: UserAccount, val otherAdmins: Int, val self: Boole
  * two-step sign-in, sign-ins, disabling and deleting, and to an app their
  * own name, devices and apps too, which stay in the web app's Account;
  * the page doesn't offer them on one's own account ([UserPage.self]),
- * which it waits to know before showing anything. From an app
- * it also makes no administrator, nor changes another one's password, PIN
- * or two-step sign-in: the web app does, as either would take whoever
- * holds the phone into it as an administrator.
+ * which it waits to know before showing anything. From an app it also
+ * makes no administrator, and changes nothing of another administrator's
+ * account ([UserPage.otherAdmin]): their role, sign-in, devices and apps
+ * and the account itself stay with the web app, as a phone's token could
+ * otherwise take an administrator's place there or lock them out. Such an
+ * account is only read, and nothing is sent for it.
  */
 class UserViewModel(
     admin: ServerAdmin,
@@ -96,8 +105,8 @@ class UserViewModel(
     fun avatar(user: UserAccount): String? = avatarOf(user, session.value?.issuer)
 
     // The last account read, a reload that failed included: the page still
-    // shows it, and acts on it.
-    private val user: UserAccount? get() = page.state.value.valueOrNull?.user
+    // shows it, and acts on it, unless it is another administrator's.
+    private val user: UserAccount? get() = page.state.value.valueOrNull?.takeUnless { it.otherAdmin }?.user
 
     /** The display name; empty: none, the username shows. */
     fun rename(name: String) = patch(
@@ -115,21 +124,6 @@ class UserViewModel(
             devices.reload()
             apps.reload()
         }
-
-    /**
-     * No longer an administrator (the web app makes one). The account is
-     * given what the page then shows for requests, not what was kept from
-     * before it was one, as the web does.
-     */
-    fun removeAdmin() {
-        val user = user ?: return
-        patch(
-            buildJsonObject {
-                put("is_admin", false)
-                if (user.requestAccess != null) put("request_access", requestsByDefault(user.managed, user.maxAge).wire)
-            },
-        )
-    }
 
     fun setHome(on: Boolean) = patch(buildJsonObject { put("home", on) })
 
@@ -211,8 +205,11 @@ class UserViewModel(
     }
 
     /** Signs [app] out. */
-    fun signOutApp(app: UserApp) = change(said = AdminDone(APP_SIGNED_OUT, listOf(app.label)), after = apps::reload) {
-        call("DELETE", path("apps", app.id))
+    fun signOutApp(app: UserApp): Job? {
+        user ?: return null
+        return change(said = AdminDone(APP_SIGNED_OUT, listOf(app.label)), after = apps::reload) {
+            call("DELETE", path("apps", app.id))
+        }
     }
 
     /** Deletes the account; [deleted] once the server did. */

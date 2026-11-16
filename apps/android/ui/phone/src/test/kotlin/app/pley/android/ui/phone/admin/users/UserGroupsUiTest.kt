@@ -1,5 +1,8 @@
 package app.pley.android.ui.phone.admin.users
 
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
@@ -20,9 +23,9 @@ import org.robolectric.annotation.Config
 
 /**
  * An account's page asks before what takes something from the account at
- * once (its administrator's role, disabling it, its PIN), and only sends
- * it once that is confirmed; what gives back (enabling it) is sent as it
- * is chosen.
+ * once (disabling it, its PIN), and only sends it once that is confirmed;
+ * what gives back (enabling it) is sent as it is chosen. The role is only
+ * shown: the web app makes administrators and takes the role away.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w412dp-h915dp-xxhdpi")
@@ -30,18 +33,17 @@ class UserGroupsUiTest {
     @get:Rule
     val compose = createComposeRule()
 
-    private val cid = UserAccount(id = 3, username = "cid", name = "Cid", isAdmin = true, hasPin = true)
+    private val cid = UserAccount(id = 3, username = "cid", name = "Cid", hasPin = true)
 
     private val sent = mutableListOf<String>()
 
-    private fun roles(user: UserAccount = cid) {
+    private fun roles(user: UserAccount = cid, self: Boolean = false) {
         compose.setContent {
             PhoneTheme {
                 RolesGroup(
-                    UserPage(user, otherAdmins = 1),
-                    self = false,
+                    UserPage(user, otherAdmins = 1, self = self),
+                    self = self,
                     idle = true,
-                    onRemoveAdmin = { sent += "admin off" },
                     onHome = { sent += "home $it" },
                     onDisabled = { sent += "disabled $it" },
                 )
@@ -50,14 +52,17 @@ class UserGroupsUiTest {
     }
 
     @Test
-    fun takingTheRoleAwayAsksFirst() {
+    fun theRoleIsOnlyShown() {
         roles()
-        compose.onNodeWithTag(USER_ADMIN).performClick()
-        compose.onNodeWithText("Take away Cid's administrator role?").assertExists()
+        compose.onNodeWithTag(USER_ADMIN).assertIsOff().assertIsNotEnabled().performClick()
         assertEquals(emptyList<String>(), sent)
-        compose.onNodeWithText("Take it away").performClick()
-        assertEquals(listOf("admin off"), sent)
-        compose.onNodeWithText("Take away Cid's administrator role?").assertDoesNotExist()
+    }
+
+    @Test
+    fun onesOwnRoleIsShownAndNotChanged() {
+        roles(cid.copy(id = 1, isAdmin = true), self = true)
+        compose.onNodeWithTag(USER_ADMIN).assertIsOn().assertIsNotEnabled()
+        compose.onNodeWithTag(USER_DISABLED).assertIsNotEnabled()
     }
 
     @Test
@@ -83,7 +88,7 @@ class UserGroupsUiTest {
     @Test
     fun removingThePinAsksFirst() {
         compose.setContent {
-            PhoneTheme { PinGroup(cid.copy(isAdmin = false), idle = true, onPin = {}, onRemovePin = { sent += "pin off" }) }
+            PhoneTheme { PinGroup(cid, idle = true, onPin = {}, onRemovePin = { sent += "pin off" }) }
         }
         compose.onNodeWithTag(USER_REMOVE_PIN).performClick()
         compose.onNodeWithText("Remove Cid's PIN?").assertExists()
@@ -98,13 +103,13 @@ class UserGroupsUiTest {
         val restoration = StateRestorationTester(compose)
         restoration.setContent {
             PhoneTheme {
-                RolesGroup(UserPage(cid, otherAdmins = 1), self = false, idle = true, onRemoveAdmin = { sent += "admin off" }, onHome = {}, onDisabled = {})
+                RolesGroup(UserPage(cid, otherAdmins = 1), self = false, idle = true, onHome = {}, onDisabled = { sent += "disabled $it" })
             }
         }
-        compose.onNodeWithTag(USER_ADMIN).performClick()
+        compose.onNodeWithTag(USER_DISABLED).performClick()
         restoration.emulateSavedInstanceStateRestore()
-        compose.onNodeWithText("Take away Cid's administrator role?").assertExists()
-        compose.onNodeWithText("Take it away").performClick()
-        assertEquals(listOf("admin off"), sent)
+        compose.onNodeWithText("Disable Cid?").assertExists()
+        compose.onNodeWithText("Disable").performClick()
+        assertEquals(listOf("disabled true"), sent)
     }
 }

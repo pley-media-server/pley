@@ -226,18 +226,40 @@ class UsersViewModelTest {
     }
 
     @Test
-    fun oneNoLongerAnAdministratorGetsTheRequestsThePageShows() = runTest {
-        val cid = user(3, "Cid", admin = true)
-        val dee = user(4, "Dee", admin = true, maxAge = 13)
-        val server = server(user(1, "Ann", admin = true), cid, dee).apply {
-            patches(3, cid)
-            patches(4, dee)
+    fun anotherAdministratorsAccountIsReadAndNothingIsSentForIt() = runTest {
+        val server = server(user(1, "Ann", admin = true), user(3, "Cid", admin = true, pin = true, twoStep = true)).apply {
+            answer("GET /api/users/3/devices", """[{"id":"s1","name":"Firefox on Windows","ip":"10.0.0.2","last_seen_at":5}]""")
+            answer("GET /api/users/3/apps", "[]")
         }
-        UserViewModel(server, session, 3).removeAdmin()
-        assertEquals("""{"is_admin":false,"request_access":"ask"}""", body(server, "PATCH /api/users/3").toString())
-        // With an age limit, as the server makes such an account: it may not ask.
-        UserViewModel(server, session, 4).removeAdmin()
-        assertEquals("""{"is_admin":false,"request_access":"off"}""", body(server, "PATCH /api/users/4").toString())
+        val cid = UserViewModel(server, session, 3)
+        val page = cid.page.state.value.valueOrNull!!
+        assertTrue(page.otherAdmin)
+        assertFalse(UserPage(page.user, otherAdmins = 1, self = true).otherAdmin)
+        assertFalse(UserPage(page.user.copy(isAdmin = false), otherAdmins = 1).otherAdmin)
+        // Where Cid is signed in is shown, as the web's Users page shows it.
+        assertEquals(1, cid.devices.state.value.valueOrNull?.size)
+        assertEquals(emptyList<Any>(), cid.apps.state.value.valueOrNull)
+
+        // Their role, sign-in, devices and the account change in the web app: the server would refuse them.
+        cid.rename("Cee")
+        cid.setPassword("a long new one")
+        cid.setHome(false)
+        cid.setDisabled(true)
+        cid.setRequests(RequestAccess.Off)
+        cid.setLibraries(all = false, ids = listOf(2))
+        cid.setAgeLimit(AccessChoice(maxAge = 13))
+        cid.setLabels(listOf("Kids"), emptyList())
+        cid.setPin("4321")
+        cid.removePin()
+        cid.turnOffTwoStep()
+        cid.signOutEverywhere()
+        assertNull(cid.signOutApp(UserApp(7, "https://pley.app/android", "Pley for Android", true, "pley.app", profile = UserAppPerson(3, "Cid"), approvedBy = UserAppPerson(3, "Cid"))))
+        cid.delete()
+        assertEquals(
+            listOf("GET /api/users", "GET /api/users/3/devices", "GET /api/users/3/apps"),
+            server.calls.map { it.route }.filter { it.contains("/api/users") }.distinct(),
+        )
+        assertNull(cid.deleted.value)
     }
 
     @Test
@@ -286,15 +308,16 @@ class UsersViewModelTest {
     @Test
     fun aRefusedChangeIsSaidAndTheAccountReadAgain() = runTest {
         val server = server(user(1, "Ann", admin = true), user(2, "Bea"))
-        val refused = ApiException(400, "bad_request", "Pley needs at least one administrator")
-        server.fail("PATCH /api/users/1", refused)
-        val page = UserViewModel(server, session, 1)
+        // Bea was made an administrator in the web app meanwhile.
+        val refused = ApiException(403, "forbidden", "another administrator's account is changed in Pley's web app")
+        server.fail("PATCH /api/users/2", refused)
+        val page = UserViewModel(server, session, 2)
         val errors = mutableListOf<Throwable>()
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { page.errors.collect { errors += it } }
-        page.removeAdmin()
+        page.setHome(false)
         assertEquals(listOf<Throwable>(refused), errors)
         assertEquals(2, server.callsTo("GET /api/users").size)
-        assertTrue(page.page.state.value.valueOrNull!!.user.isAdmin)
+        assertTrue(page.page.state.value.valueOrNull!!.user.home)
     }
 
     @Test
@@ -320,7 +343,7 @@ class UsersViewModelTest {
         assertEquals(3, server.callsTo("GET /api/users/2/devices").size)
 
         val app = UserApp(7, "https://pley.app/android", "Pley for Android", true, "pley.app", profile = UserAppPerson(2, "Bea"), approvedBy = UserAppPerson(2, "Bea"))
-        page.signOutApp(app).join()
+        page.signOutApp(app)!!.join()
         assertEquals(1, server.callsTo("DELETE /api/users/2/apps/7").size)
         assertEquals(AdminDone(UserViewModel.APP_SIGNED_OUT, listOf("Pley for Android")), done.last())
 
