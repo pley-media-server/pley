@@ -239,6 +239,27 @@ async fn what_pley_doesnt_keep_is_refused_whole() {
     assert_eq!(w.app.plex(Method::PUT, &summary, &w.admin, &[]).await.status, StatusCode::BAD_REQUEST);
 }
 
+#[tokio::test]
+async fn id_lists_are_edited_whole_or_refused() {
+    let w = world().await;
+    let section = format!("/library/sections/{}/all", w.movies);
+    // An id that isn't a number, or more ids than an edit takes: refused,
+    // not cut short.
+    let junk = format!("type=1&id={},x&title.value=Renamed", w.brazil);
+    assert_eq!(put(&w, &section, &junk).await, StatusCode::BAD_REQUEST);
+    let junk = format!("/library/metadata/{},x", w.brazil);
+    assert_eq!(put(&w, &junk, "title.value=Renamed").await, StatusCode::NOT_FOUND);
+    let many = format!("{}{}", format!("{},", w.alien).repeat(5000), w.brazil);
+    assert_eq!(put(&w, &section, &format!("type=1&id={many}&title.value=Renamed")).await, StatusCode::BAD_REQUEST);
+    let metadata = format!("/library/metadata/{many}");
+    assert_eq!(put(&w, &metadata, "title.value=Renamed").await, StatusCode::BAD_REQUEST);
+    assert_eq!(details(&w, w.brazil).await["title"], json!("Brazil"));
+    // A long list is edited whole, past the 500th id.
+    let long = format!("type=1&id={}{}&title.value=Renamed", format!("{},", w.alien).repeat(500), w.brazil);
+    assert_eq!(put(&w, &section, &long).await, StatusCode::OK);
+    assert_eq!(details(&w, w.brazil).await["title"], json!("Renamed"));
+}
+
 fn png(rgb: [u8; 3]) -> Vec<u8> {
     let mut png = Vec::new();
     image::RgbImage::from_pixel(40, 60, image::Rgb(rgb))

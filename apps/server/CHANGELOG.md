@@ -70,6 +70,9 @@ On Intel graphics:
 - In Plex and Jellyfin apps, a show that just got a new episode comes
   first in Recently Added rows that mix libraries, instead of sorting by
   when the show itself was first added.
+- A Plex-compatible edit of more than 500 titles at once, as Kometa sends
+  them, changes all of them instead of only the first 500. An edit of more
+  than 5,000 titles is refused, so nothing is changed.
 
 On Intel graphics:
 

@@ -404,7 +404,9 @@ does:
   (Pley's locked fields, listed in details as `Field` elements with
   `locked="1"`); `field.locked=1` alone keeps the current value,
   `field.locked=0` gives the field back to the metadata agent, and a value
-  sent with `field.locked=0` is written but not kept.
+  sent with `field.locked=0` is written but not kept. One request edits up
+  to 5,000 items; a longer list, or an id that isn't a number, is refused
+  and nothing of it is applied.
 - Tags: `genre[0].tag.tag=Horror` adds a genre, `genre[].tag.tag-=Horror,Drama`
   removes (each name percent-encoded once more, as `python-plexapi` sends
   them). The same for `label`, which details list as `Label` and the

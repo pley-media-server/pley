@@ -39,6 +39,23 @@ use crate::{catalog, collections, labels, overrides};
 /// Plex's type number of collections.
 const COLLECTION_TYPE: &str = "18";
 
+/// The most items one edit changes, as many as a playlist holds: each costs
+/// a few writes.
+const MAX_IDS: usize = 5000;
+
+/// The ids of a comma-separated list, every one of them: an edit is applied
+/// whole or not at all, so a list Pley can't take in full is refused rather
+/// than cut short. `None` for a piece that isn't a number.
+fn id_list(list: &str) -> PlexResult<Option<Vec<i64>>> {
+    let pieces = list.split(',').map(str::trim).filter(|i| !i.is_empty());
+    // One past the most is enough to refuse the list.
+    let ids: Option<Vec<i64>> = pieces.take(MAX_IDS + 1).map(|i| i.parse().ok()).collect();
+    if ids.as_ref().is_some_and(|ids| ids.len() > MAX_IDS) {
+        return Err(PlexError::BadRequest(format!("an edit changes at most {MAX_IDS} items")));
+    }
+    Ok(ids)
+}
+
 /// Plex's field names and pley's.
 const FIELDS: &[(&str, &str)] = &[
     ("title", "title"),
@@ -236,8 +253,8 @@ pub async fn section(
     params: Params,
 ) -> PlexResult<StatusCode> {
     let section: i64 = section.parse().map_err(|_| PlexError::NotFound)?;
-    let ids: Vec<i64> =
-        params.get("id").unwrap_or_default().split(',').filter_map(|i| i.trim().parse().ok()).take(500).collect();
+    let ids = id_list(params.get("id").unwrap_or_default())?
+        .ok_or_else(|| PlexError::BadRequest("item ids (`id`) are numbers".into()))?;
     if ids.is_empty() {
         return Err(PlexError::BadRequest("edits name the items they change (`id`)".into()));
     }
@@ -307,7 +324,8 @@ pub async fn item(
     Path(ids): Path<String>,
     params: Params,
 ) -> PlexResult<StatusCode> {
-    let keys: Vec<Key> = ids.split(',').filter_map(|i| i.trim().parse().ok()).take(500).map(Key::of).collect();
+    // A key that isn't a number names nothing.
+    let keys: Vec<Key> = id_list(&ids)?.ok_or(PlexError::NotFound)?.into_iter().map(Key::of).collect();
     let items: Vec<i64> = keys.iter().filter_map(|k| if let Key::Item(id) = k { Some(*id) } else { None }).collect();
     let collections: Vec<i64> =
         keys.iter().filter_map(|k| if let Key::Collection(id) = k { Some(*id) } else { None }).collect();
@@ -622,6 +640,16 @@ mod tests {
         assert_eq!(Edit::parse(&params(&[("userRating.value", "")])).unwrap().user_rating, Some(None));
         assert_eq!(crate::util::percent_decode("Sci%2DFi%zz%+", false), "Sci-Fi%zz%+");
         assert_eq!(crate::util::percent_decode("a+b", true), "a b");
+    }
+
+    #[test]
+    fn id_lists_are_taken_whole_or_refused() {
+        assert_eq!(id_list("1, 2,3,").unwrap(), Some(vec![1, 2, 3]));
+        assert_eq!(id_list("").unwrap(), Some(vec![]));
+        assert_eq!(id_list("1,two").unwrap(), None);
+        let most = vec!["7"; MAX_IDS].join(",");
+        assert_eq!(id_list(&most).unwrap().map(|ids| ids.len()), Some(MAX_IDS));
+        assert!(id_list(&format!("{most},7")).is_err());
     }
 
     #[test]
