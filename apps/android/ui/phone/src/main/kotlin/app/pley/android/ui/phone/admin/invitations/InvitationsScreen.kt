@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,7 +106,8 @@ private fun InvitationsList() {
     val navigator = LocalPhoneNavigator.current
     val resources = LocalResources.current
     val copy = rememberCopy()
-    var deleting by remember { mutableStateOf<Invitation?>(null) }
+    // The code of the link being deleted: the question stays when the phone turns.
+    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     val add = { navigator.open(PleyKey.Manage(AdminSection.Invitations, PleyKey.Manage.NEW)) }
     AdminEvents(model) { done -> if (done.what == InvitationsViewModel.DELETED) resources.getString(R.string.admin_invitations_deleted) else null }
     ShownAgain(model::shownAgain)
@@ -152,7 +154,7 @@ private fun InvitationsList() {
                             systems = ratingSystems.valueOrNull,
                             systemsLoading = ratingSystems is AdminLoad.Loading,
                             onCopy = model.link(invitation)?.let { link -> { copy(link) } },
-                            onDelete = { deleting = invitation },
+                            onDelete = { deleting = invitation.code },
                         )
                     }
                 }
@@ -160,7 +162,7 @@ private fun InvitationsList() {
         }
     }
     if (lost) return
-    deleting?.let { invitation ->
+    load.valueOrNull?.firstOrNull { it.code == deleting }?.let { invitation ->
         ConfirmDialog(
             title = stringResource(R.string.admin_invitations_delete_title),
             body = stringResource(R.string.admin_invitations_delete_message),
@@ -228,9 +230,9 @@ private fun InvitationRow(
             )
         }
         if (state == InvitationState.Active && onCopy != null) {
-            PleyIconButton(PleyIcons.Copy, stringResource(R.string.admin_invitations_copy_link), onClick = onCopy, tint = PleyColors.Muted)
+            PleyIconButton(PleyIcons.Copy, stringResource(R.string.admin_invitations_copy_link_of, invitation.code), onClick = onCopy, tint = PleyColors.Muted)
         }
-        PleyIconButton(PleyIcons.Trash2, stringResource(R.string.admin_invitations_delete), onClick = onDelete, tint = PleyColors.Muted)
+        PleyIconButton(PleyIcons.Trash2, stringResource(R.string.admin_invitations_delete, invitation.code), onClick = onDelete, tint = PleyColors.Muted)
     }
 }
 
@@ -252,7 +254,7 @@ private fun NewInvitationPage() {
     val busy by model.busy.collectAsStateWithLifecycle()
     val created by model.created.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
-    var dialog by remember { mutableStateOf<NewInvitationDialog?>(null) }
+    var dialog by rememberSaveable { mutableStateOf<NewInvitationDialog?>(null) }
     var problem by remember { mutableStateOf<NewInvitationProblem?>(null) }
     val lost by model.lost.collectAsStateWithLifecycle()
     AdminEvents(model)

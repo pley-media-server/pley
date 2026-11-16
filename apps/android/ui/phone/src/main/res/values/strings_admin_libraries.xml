@@ -22,6 +22,7 @@
     <string name="admin_libraries_move_up">Move %1$s up</string>
     <string name="admin_libraries_move_down">Move %1$s down</string>
     <string name="admin_libraries_scan">Scan</string>
+    <string name="admin_libraries_scan_library">Scan %1$s</string>
     <string name="admin_libraries_force_rescan">Force full rescan</string>
     <string name="admin_libraries_rescan_started">Full rescan of “%1$s” started</string>
     <string name="admin_libraries_scan_started">Scanning “%1$s”</string>

@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -67,7 +68,7 @@ internal fun NewUserPage() {
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     val resources = LocalResources.current
-    var dialog by remember { mutableStateOf<NewUserDialog?>(null) }
+    var dialog by rememberSaveable { mutableStateOf<NewUserDialog?>(null) }
     var problem by remember { mutableStateOf<NewUserProblem?>(null) }
 
     LaunchedEffect(created) {

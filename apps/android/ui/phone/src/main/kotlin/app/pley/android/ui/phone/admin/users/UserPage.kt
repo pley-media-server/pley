@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -74,9 +75,35 @@ private sealed interface UserDialog {
     data object Requests : UserDialog
     data object TwoStep : UserDialog
     data object SignOutEverywhere : UserDialog
-    data class SignOutApp(val app: UserApp) : UserDialog
+    data class SignOutApp(val appId: Long) : UserDialog
     data object Delete : UserDialog
 }
+
+/** Keeps what is open over the page when the phone turns: a name, and an app's id. */
+private val UserDialogSaver: Saver<UserDialog?, String> = Saver(
+    save = { dialog ->
+        when (dialog) {
+            is UserDialog.SignOutApp -> "app:${dialog.appId}"
+            null -> null
+            else -> dialog.toString()
+        }
+    },
+    restore = { saved ->
+        if (saved.startsWith("app:")) {
+            saved.removePrefix("app:").toLongOrNull()?.let(UserDialog::SignOutApp)
+        } else {
+            listOf(
+                UserDialog.Rename,
+                UserDialog.Password,
+                UserDialog.Pin,
+                UserDialog.Requests,
+                UserDialog.TwoStep,
+                UserDialog.SignOutEverywhere,
+                UserDialog.Delete,
+            ).firstOrNull { it.toString() == saved }
+        }
+    },
+)
 
 /**
  * One account (the web's user dialog), each change sent as it is made.
@@ -103,7 +130,7 @@ internal fun UserAccountPage(id: Long) {
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     val resources = LocalResources.current
-    var dialog by remember { mutableStateOf<UserDialog?>(null) }
+    var dialog by rememberSaveable(stateSaver = UserDialogSaver) { mutableStateOf<UserDialog?>(null) }
 
     LaunchedEffect(deleted) {
         val name = deleted ?: return@LaunchedEffect
@@ -194,7 +221,7 @@ internal fun UserAccountPage(id: Long) {
                 val signedIn = devices.valueOrNull.orEmpty().isNotEmpty() || apps.valueOrNull.orEmpty().isNotEmpty()
                 DevicesGroup(devices, showSignOut = signedIn, onSignOut = { dialog = UserDialog.SignOutEverywhere })
             }
-            item(key = "apps") { AppsGroup(apps, user, onSignOut = { dialog = UserDialog.SignOutApp(it) }) }
+            item(key = "apps") { AppsGroup(apps, user, onSignOut = { dialog = UserDialog.SignOutApp(it.id) }) }
         }
         if (!self) {
             item(key = "delete") {
@@ -283,17 +310,19 @@ internal fun UserAccountPage(id: Long) {
             },
             onDismiss = close,
         )
-        is UserDialog.SignOutApp -> ConfirmDialog(
-            title = stringResource(R.string.admin_users_apps_sign_out, open.app.label),
-            body = null,
-            confirmLabel = stringResource(R.string.admin_users_sign_out),
-            destructive = true,
-            onConfirm = {
-                close()
-                model.signOutApp(open.app)
-            },
-            onDismiss = close,
-        )
+        is UserDialog.SignOutApp -> apps.valueOrNull?.firstOrNull { it.id == open.appId }?.let { app ->
+            ConfirmDialog(
+                title = stringResource(R.string.admin_users_apps_sign_out, app.label),
+                body = null,
+                confirmLabel = stringResource(R.string.admin_users_sign_out),
+                destructive = true,
+                onConfirm = {
+                    close()
+                    model.signOutApp(app)
+                },
+                onDismiss = close,
+            )
+        }
         UserDialog.Delete -> ConfirmDialog(
             title = stringResource(R.string.admin_users_delete_title),
             body = stringResource(R.string.admin_users_delete_message, user.name),

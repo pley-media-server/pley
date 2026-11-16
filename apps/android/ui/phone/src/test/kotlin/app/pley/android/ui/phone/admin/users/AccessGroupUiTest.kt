@@ -5,9 +5,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import app.pley.android.model.admin.RatingSystem
 import app.pley.android.model.admin.RatingSystems
 import app.pley.android.model.admin.SystemRating
@@ -63,5 +65,27 @@ class AccessGroupUiTest {
         compose.onNodeWithText("By rating").assertExists()
         compose.onNodeWithText("Titles suitable for age 13: PG-13", substring = true).assertExists()
         assertEquals(emptyList<AccessChoice>(), sent)
+    }
+
+    @Test
+    fun aChoiceOpenStaysOpenWhenThePhoneTurns() {
+        val restoration = StateRestorationTester(compose)
+        restoration.setContent {
+            PhoneTheme {
+                AccessGroup(
+                    access = AccessChoice(),
+                    libraries = emptyList(),
+                    sources = AccessSources(systems = us),
+                    onLibraries = { _, _ -> },
+                    onAgeLimit = {},
+                    onLabels = { _, _ -> },
+                    pickLibrary = "",
+                )
+            }
+        }
+        compose.onNodeWithTag(ACCESS_AGE_LIMIT).performClick()
+        compose.onNodeWithText("By rating").assertExists()
+        restoration.emulateSavedInstanceStateRestore()
+        compose.onNodeWithText("By rating").assertExists()
     }
 }

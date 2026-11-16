@@ -6,6 +6,7 @@
     <string name="admin_invitations_empty_title">Aucune invitation pour l’instant</string>
     <string name="admin_invitations_empty_description">Créez un lien et envoyez-le à quelqu’un. Vous choisissez les bibliothèques visibles et une éventuelle limite d’âge.</string>
     <string name="admin_invitations_copy_link">Copier le lien</string>
+    <string name="admin_invitations_copy_link_of">Copier le lien de l’invitation %1$s</string>
     <string name="admin_invitations_copied">Copié</string>
     <string name="admin_invitations_status_used">Utilisée</string>
     <string name="admin_invitations_status_expired">Expirée</string>
@@ -25,7 +26,7 @@
     <string name="admin_invitations_expired">expirée %1$s</string>
     <string name="admin_invitations_never_expires">n’expire jamais</string>
     <string name="admin_invitations_created">créée %1$s</string>
-    <string name="admin_invitations_delete">Supprimer l’invitation</string>
+    <string name="admin_invitations_delete">Supprimer l’invitation %1$s</string>
     <string name="admin_invitations_delete_title">Supprimer l’invitation ?</string>
     <string name="admin_invitations_delete_message">Le lien cesse de fonctionner. Les comptes déjà créés avec lui sont conservés.</string>
     <string name="admin_invitations_delete_action">Supprimer</string>

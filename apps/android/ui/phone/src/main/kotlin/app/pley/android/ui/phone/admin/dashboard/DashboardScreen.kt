@@ -156,7 +156,8 @@ internal fun DashboardScreen(id: String?) {
     val lost by model.lost.collectAsStateWithLifecycle()
     val stale by model.stale.collectAsStateWithLifecycle()
 
-    var stopping by remember { mutableStateOf<DashboardSession?>(null) }
+    // The id of the session being stopped: the question stays when the phone turns.
+    var stopping by rememberSaveable { mutableStateOf<String?>(null) }
     var cleaning by rememberSaveable { mutableStateOf(false) }
 
     val list = rememberLazyListState()
@@ -174,7 +175,7 @@ internal fun DashboardScreen(id: String?) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             stale?.let { item(key = "stale", contentType = "stale") { StaleBanner(it, Modifier.padding(top = 8.dp)) } }
-            nowPlaying(activity, origin, live = stale == null, onOpen = { navigator.open(opens(it)) }, onStop = { stopping = it })
+            nowPlaying(activity, origin, live = stale == null, onOpen = { navigator.open(opens(it)) }, onStop = { stopping = it.sessionId })
             item(key = "resources", contentType = "heading") { SectionHeading(stringResource(R.string.admin_dashboard_resources), PleyIcons.Gauge) }
             item(key = "resources.body", contentType = "resources") { ResourcesBody(usage) }
             recentlyPlayed(
@@ -195,7 +196,8 @@ internal fun DashboardScreen(id: String?) {
     }
 
     if (lost) return
-    stopping?.let { session ->
+    // Gone from the list (it ended meanwhile): nothing left to ask.
+    activity.valueOrNull?.sessions?.firstOrNull { it.sessionId == stopping }?.let { session ->
         StopDialog(
             session = session,
             onStop = { message ->
@@ -615,7 +617,7 @@ private fun PlayLine(play: DashboardPlay, origin: String, removing: Boolean, onO
                 Text(play.user.name, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        PleyIconButton(PleyIcons.X, stringResource(R.string.admin_dashboard_remove), onClick = onRemove, enabled = !removing, tint = PleyColors.Muted)
+        PleyIconButton(PleyIcons.X, stringResource(R.string.admin_dashboard_remove, row.title), onClick = onRemove, enabled = !removing, tint = PleyColors.Muted)
     }
 }
 

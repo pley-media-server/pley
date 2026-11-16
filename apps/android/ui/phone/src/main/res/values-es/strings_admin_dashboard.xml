@@ -104,7 +104,7 @@
     <string name="admin_dashboard_recently_played">Reproducido recientemente</string>
     <string name="admin_dashboard_nothing_played">Todavía no se ha reproducido nada hasta el final.</string>
     <string name="admin_dashboard_show_more">Ver más</string>
-    <string name="admin_dashboard_remove">Quitar del historial</string>
+    <string name="admin_dashboard_remove">Quitar %1$s del historial</string>
     <string name="admin_dashboard_library_scans">Análisis de bibliotecas</string>
     <string name="admin_dashboard_scan_queued">En cola</string>
     <string name="admin_dashboard_scan_walking">Buscando archivos</string>

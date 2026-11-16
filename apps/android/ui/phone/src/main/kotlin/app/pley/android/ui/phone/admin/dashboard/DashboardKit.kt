@@ -162,6 +162,7 @@ internal fun Badge(text: String, tone: Tone, modifier: Modifier = Modifier, desc
         style = MaterialTheme.typography.labelSmall,
         color = tone.fg,
         maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
         modifier = modifier
             .clip(PleyShape.Control)
             .background(tone.fg.copy(alpha = 0.14f))

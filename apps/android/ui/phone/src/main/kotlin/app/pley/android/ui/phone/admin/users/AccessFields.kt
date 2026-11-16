@@ -33,6 +33,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -149,7 +150,7 @@ internal fun AccessGroup(
     birthday: Boolean = false,
     limits: Boolean = true,
 ) {
-    var sheet by remember { mutableStateOf<AccessSheet?>(null) }
+    var sheet by rememberSaveable { mutableStateOf<AccessSheet?>(null) }
     val systems = sources.systems
     // `null` while the rating systems are read and the limit may be one of their ratings.
     val mode = limitModeOrNull(systems, sources.systemsLoading, access)
@@ -721,7 +722,7 @@ internal fun Tag(text: String, tone: TagTone = TagTone.Neutral, icon: PleyIcon? 
             Icon(icon, contentDescription = null, size = 12.dp, tint = ink)
             Spacer(Modifier.width(4.dp))
         }
-        Text(text, style = MaterialTheme.typography.labelSmall, color = ink, maxLines = 1)
+        Text(text, style = MaterialTheme.typography.labelSmall, color = ink, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

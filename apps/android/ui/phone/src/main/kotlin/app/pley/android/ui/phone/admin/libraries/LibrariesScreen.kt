@@ -284,7 +284,7 @@ private fun LibraryCard(
         Box(Modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
             PleyIconButton(
                 PleyIcons.ScanSearch,
-                stringResource(R.string.admin_libraries_scan),
+                stringResource(R.string.admin_libraries_scan_library, library.name),
                 onClick = onScan,
                 enabled = !running,
                 modifier = Modifier.testTag(LIBRARY_SCAN + library.id),

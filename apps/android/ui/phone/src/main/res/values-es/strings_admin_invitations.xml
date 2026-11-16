@@ -6,6 +6,7 @@
     <string name="admin_invitations_empty_title">Aún no hay invitaciones</string>
     <string name="admin_invitations_empty_description">Crea un enlace y envíaselo a alguien. Tú eliges qué bibliotecas puede ver y un límite de edad opcional.</string>
     <string name="admin_invitations_copy_link">Copiar enlace</string>
+    <string name="admin_invitations_copy_link_of">Copiar el enlace de la invitación %1$s</string>
     <string name="admin_invitations_copied">Copiado</string>
     <string name="admin_invitations_status_used">Usada</string>
     <string name="admin_invitations_status_expired">Caducada</string>
@@ -25,7 +26,7 @@
     <string name="admin_invitations_expired">caducó %1$s</string>
     <string name="admin_invitations_never_expires">no caduca</string>
     <string name="admin_invitations_created">creada %1$s</string>
-    <string name="admin_invitations_delete">Eliminar invitación</string>
+    <string name="admin_invitations_delete">Eliminar la invitación %1$s</string>
     <string name="admin_invitations_delete_title">¿Eliminar la invitación?</string>
     <string name="admin_invitations_delete_message">El enlace dejará de funcionar. Las cuentas ya creadas con él se conservan.</string>
     <string name="admin_invitations_delete_action">Eliminar</string>

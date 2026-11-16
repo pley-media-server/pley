@@ -24,6 +24,7 @@
     <string name="admin_libraries_move_up">Subir %1$s</string>
     <string name="admin_libraries_move_down">Bajar %1$s</string>
     <string name="admin_libraries_scan">Analizar</string>
+    <string name="admin_libraries_scan_library">Analizar %1$s</string>
     <string name="admin_libraries_force_rescan">Forzar un nuevo análisis completo</string>
     <string name="admin_libraries_rescan_started">Nuevo análisis completo de «%1$s» iniciado</string>
     <string name="admin_libraries_scan_started">Analizando «%1$s»</string>

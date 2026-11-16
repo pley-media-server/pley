@@ -104,7 +104,7 @@
     <string name="admin_dashboard_recently_played">Lus récemment</string>
     <string name="admin_dashboard_nothing_played">Rien n’a encore été lu jusqu’au bout.</string>
     <string name="admin_dashboard_show_more">Voir plus</string>
-    <string name="admin_dashboard_remove">Retirer de l’historique</string>
+    <string name="admin_dashboard_remove">Retirer %1$s de l’historique</string>
     <string name="admin_dashboard_library_scans">Analyses des bibliothèques</string>
     <string name="admin_dashboard_scan_queued">En attente</string>
     <string name="admin_dashboard_scan_walking">Recherche des fichiers</string>
