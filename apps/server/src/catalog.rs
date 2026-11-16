@@ -1855,22 +1855,32 @@ pub async fn recently_added(
 /// first. A show counts from its newest episode, as in each library's list,
 /// not from when the show itself was first added.
 pub async fn sort_newest_added(db: &Db, rows: &mut [ItemRow]) -> sqlx::Result<()> {
-    let shows: Vec<i64> = rows.iter().filter(|r| r.kind == "show").map(|r| r.id).collect();
-    let newest: HashMap<i64, i64> = if shows.is_empty() {
-        HashMap::new()
-    } else {
-        sqlx::query_as::<_, (i64, i64)>(
-            "SELECT grandparent_id, MAX(added_at) FROM items
-             WHERE kind = 'episode' AND grandparent_id IN (SELECT value FROM json_each(?)) GROUP BY grandparent_id",
-        )
-        .bind(serde_json::to_string(&shows).unwrap_or_else(|_| "[]".into()))
-        .fetch_all(&db.read)
-        .await?
-        .into_iter()
-        .collect()
-    };
+    let newest = newest_episodes(db, rows).await?;
     rows.sort_by_key(|r| std::cmp::Reverse((newest.get(&r.id).copied().unwrap_or(r.added_at), r.id)));
     Ok(())
+}
+
+/// When the newest episode of each show and season among `rows` was added,
+/// by their ids; one without episodes isn't in it.
+pub async fn newest_episodes(db: &Db, rows: &[ItemRow]) -> sqlx::Result<HashMap<i64, i64>> {
+    let ids = |kind: &str| rows.iter().filter(|r| r.kind == kind).map(|r| r.id).collect::<Vec<_>>();
+    let (shows, seasons) = (ids("show"), ids("season"));
+    if shows.is_empty() && seasons.is_empty() {
+        return Ok(HashMap::new());
+    }
+    let json = |ids: &[i64]| serde_json::to_string(ids).unwrap_or_else(|_| "[]".into());
+    let found = sqlx::query_as::<_, (i64, i64)>(
+        "SELECT grandparent_id, MAX(added_at) FROM items
+         WHERE kind = 'episode' AND grandparent_id IN (SELECT value FROM json_each(?)) GROUP BY grandparent_id
+         UNION ALL
+         SELECT parent_id, MAX(added_at) FROM items
+         WHERE kind = 'episode' AND parent_id IN (SELECT value FROM json_each(?)) GROUP BY parent_id",
+    )
+    .bind(json(&shows))
+    .bind(json(&seasons))
+    .fetch_all(&db.read)
+    .await?;
+    Ok(found.into_iter().collect())
 }
 
 pub async fn recently_released(

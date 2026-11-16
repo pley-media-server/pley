@@ -471,6 +471,7 @@ does:
 
 `/library/sections/{id}/all` accepts `type` (1 movie, 2 show, 3 season, 4
 episode, 8 artist, 9 album, 10 track), `sort` (`titleSort`, `addedAt`,
+`episode.addedAt` (shows by their newest episode, Last Episode Date Added),
 `originallyAvailableAt`, `year`, `rating`, `audienceRating`, `lastViewedAt`,
 `viewCount`, `duration`, `index`, `id`, `updatedAt`; with `:desc`, several
 comma-separated), `limit` and the API's filters with their operators:

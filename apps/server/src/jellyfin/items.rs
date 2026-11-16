@@ -183,7 +183,9 @@ fn sort_of(q: &Q) -> String {
     for (i, field) in q.list("sortBy").iter().enumerate() {
         let key = match field.to_ascii_lowercase().as_str() {
             "sortname" | "name" => "titleSort",
-            "datecreated" | "datelastcontentadded" => "addedAt",
+            "datecreated" => "addedAt",
+            // A series by its newest episode, anything else by its own date.
+            "datelastcontentadded" => "episode.addedAt",
             "premieredate" => "originallyAvailableAt",
             "productionyear" => "year",
             "communityrating" | "criticrating" => "rating",
@@ -303,8 +305,8 @@ async fn list_libraries(
         shuffle(&mut rows);
     } else if merged {
         let sort = listing::parse_sort(Some(&sort_of(q)).filter(|s| !s.is_empty()).map(String::as_str));
-        let bitrates = listing::bitrates_for(&state.db, &rows, &sort).await?;
-        listing::sort_rows(&mut rows, &sort, &bitrates);
+        let values = listing::sort_values(&state.db, &rows, &sort).await?;
+        listing::sort_rows(&mut rows, &sort, &values);
     }
     if random || merged {
         rows = rows.into_iter().skip(page.start).take(page.size.unwrap_or(usize::MAX)).collect();

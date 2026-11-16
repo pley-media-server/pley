@@ -1275,3 +1275,39 @@ async fn latest_counts_a_show_from_its_newest_episode() {
         assert_eq!((names.len(), names.first().map(String::as_str)), (4, Some("Show")), "{uri}");
     }
 }
+
+#[tokio::test]
+async fn date_episode_added_sorts_series_by_their_newest_episode() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Film (2001)/Film (2001).mkv", 1024);
+    app.media_file("tv/Old (2010)/Season 01/Old - S01E01 - Pilot.mkv", 1024);
+    app.media_file("tv/New (2012)/Season 01/New - S01E01 - Pilot.mkv", 1024);
+    app.library(&admin, "Movies", "movies", "movies").await;
+    app.library(&admin, "TV", "shows", "tv").await;
+    // The old series came first and got an episode last; the film came
+    // between the new series and that episode.
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE title WHEN 'Old' THEN 1000 WHEN 'Film' THEN 2500 ELSE 2000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE items SET added_at = 3000
+         WHERE kind = 'episode' AND grandparent_id = (SELECT id FROM items WHERE title = 'Old')",
+    )
+    .execute(db)
+    .await
+    .unwrap();
+    let (app, admin) = (&app, admin.as_str());
+    let names = |query: &str| {
+        let uri = format!("/Items?Recursive=true&SortOrder=Descending&{query}");
+        async move { jf_names(&app.jf_json(&uri, admin).await) }
+    };
+    assert_eq!(names("IncludeItemTypes=Series&SortBy=DateLastContentAdded").await, ["Old", "New"]);
+    // The date a series was added stays its own.
+    assert_eq!(names("IncludeItemTypes=Series&SortBy=DateCreated").await, ["New", "Old"]);
+    // Merged across libraries, a film by its own date.
+    assert_eq!(names("IncludeItemTypes=Series,Movie&SortBy=DateLastContentAdded").await, ["Old", "Film", "New"]);
+    assert_eq!(names("IncludeItemTypes=Series,Movie&SortBy=DateCreated").await, ["Film", "New", "Old"]);
+}

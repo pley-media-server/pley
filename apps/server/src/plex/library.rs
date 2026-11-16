@@ -18,7 +18,7 @@ use crate::catalog::{self, ItemRow, ME_CTE, VISIBLE, VISIBLE_ITEMS};
 use crate::db::Db;
 use crate::events::ServerEvent;
 use crate::library::LibraryRow;
-use crate::listing::{SectionQuery, bitrates_for, parse_sort, people_role, sort_rows};
+use crate::listing::{SectionQuery, parse_sort, people_role, sort_rows, sort_values};
 use crate::people;
 use crate::state::AppState;
 
@@ -373,8 +373,8 @@ pub async fn library_all(
         }
     }
     let sort = parse_sort(params.get("sort"));
-    let bitrates = bitrates_for(&state.db, &rows, &sort).await?;
-    sort_rows(&mut rows, &sort, &bitrates);
+    let values = sort_values(&state.db, &rows, &sort).await?;
+    sort_rows(&mut rows, &sort, &values);
     let rows: Vec<ItemRow> = rows.into_iter().skip(page.start).take(page.size.unwrap_or(usize::MAX)).collect();
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), listing_detail(&params)).await?;
     Ok(list_container(None, &info, nodes, total, &page))

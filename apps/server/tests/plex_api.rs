@@ -483,3 +483,37 @@ async fn recently_added_shows_are_those_with_the_newest_episodes() {
     let titles = plex_titles(&hub);
     assert_eq!((titles.len(), titles.first().map(String::as_str)), (50, Some("Show 00")));
 }
+
+#[tokio::test]
+async fn last_episode_date_added_sorts_shows_by_their_newest_episode() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Film (2001)/Film (2001).mkv", 1024);
+    app.media_file("tv/Old (2010)/Season 01/Old - S01E01 - Pilot.mkv", 1024);
+    app.media_file("tv/New (2012)/Season 01/New - S01E01 - Pilot.mkv", 1024);
+    app.library(&admin, "Movies", "movies", "movies").await;
+    let tv = app.library(&admin, "TV", "shows", "tv").await;
+    // The old show came first and got an episode last; the film came
+    // between the new show and that episode.
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE title WHEN 'Old' THEN 1000 WHEN 'Film' THEN 2500 ELSE 2000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE items SET added_at = 3000
+         WHERE kind = 'episode' AND grandparent_id = (SELECT id FROM items WHERE title = 'Old')",
+    )
+    .execute(db)
+    .await
+    .unwrap();
+    let (app, admin) = (&app, admin.as_str());
+    let titles = |uri: String| async move { plex_titles(&app.plex_json(&uri, admin).await) };
+    let section = format!("/library/sections/{tv}/all?type=2");
+    assert_eq!(titles(format!("{section}&sort=episode.addedAt:desc")).await, ["Old", "New"]);
+    assert_eq!(titles(format!("{section}&sort=episode.addedAt")).await, ["New", "Old"]);
+    // Date Added stays the show's own.
+    assert_eq!(titles(format!("{section}&sort=addedAt:desc")).await, ["New", "Old"]);
+    // Merged across libraries, a film by its own date.
+    assert_eq!(titles("/library/all?sort=episode.addedAt:desc".into()).await, ["Old", "Film", "New"]);
+    assert_eq!(titles("/library/all?sort=addedAt:desc".into()).await, ["Film", "New", "Old"]);
