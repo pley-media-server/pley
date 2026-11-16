@@ -906,9 +906,11 @@ settings and Live TV's channels and tuners are managed there too, and the
 page says where they are. Moving from Plex, which signs in to Plex, and
 forgetting AirPlay pairings are done in the web app as well. The app asks
 for the `server` scope as it signs in, where the server offers it
-([API.md](API.md#scopes)); an
-administrator signed in before then is offered to sign in again, and
-anyone else sees nothing of it. Nor does a phone that a cast switched to
+([API.md](API.md#scopes)), and the administrator gives it by ticking
+"Manage the server" on the sign-in page. An administrator whose phone
+doesn't have it (signed in before then, or with the box left unticked)
+sees Manage server offer to sign in again, and anyone else sees nothing
+of it. Nor does a phone that a cast switched to
 an administrator's profile, whoever signed it in: the caster gave their
 PIN on their own phone, and the server gives such a phone none of their
 rights over others. Manage server is back once the administrator
