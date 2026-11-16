@@ -95,13 +95,6 @@ pub async fn rating_systems(State(state): State<AppState>, _user: AuthUser) -> A
     Ok(Json(RatingSystems { region: ratings::region(&state.db).await?, systems }))
 }
 
-async fn admins_left_after(state: &AppState, without: i64) -> ApiResult<i64> {
-    Ok(sqlx::query_scalar("SELECT COUNT(*) FROM users WHERE is_admin = 1 AND disabled = 0 AND id != ?")
-        .bind(without)
-        .fetch_one(&state.db.read)
-        .await?)
-}
-
 // ------------------------------------------------------------------ admin: users
 
 pub async fn list_users(State(state): State<AppState>, _admin: AdminUser) -> ApiResult<Json<Vec<UserDto>>> {
@@ -299,7 +292,8 @@ pub async fn update_user(
     // Check everything first: a refused update changes nothing. One's own
     // is refused below, in its own words. Another administrator's account
     // is looked at again as the update is written (see
-    // `not_another_administrator`): this is only the first look.
+    // `not_another_administrator`): this is only the first look. Whether an
+    // administrator is left is counted only there.
     if admin.app.is_some() && id != admin.id {
         if current.is_admin {
             return Err(AppError::forbidden(OTHER_ADMINS_IN_THE_WEB_APP));
@@ -323,21 +317,11 @@ pub async fn update_user(
         }
         validate_password(password, &current.username)?;
     }
-    if let Some(is_admin) = body.is_admin {
-        if !is_admin && current.is_admin && admins_left_after(&state, id).await? == 0 {
-            return Err(AppError::bad_request("Pley needs at least one administrator"));
-        }
-        if is_admin && current.managed {
-            return Err(AppError::bad_request("a managed profile can't be an administrator"));
-        }
+    if body.is_admin == Some(true) && current.managed {
+        return Err(AppError::bad_request("a managed profile can't be an administrator"));
     }
-    if body.disabled == Some(true) {
-        if id == admin.id {
-            return Err(AppError::bad_request("you can't disable your own account"));
-        }
-        if current.is_admin && admins_left_after(&state, id).await? == 0 {
-            return Err(AppError::bad_request("Pley needs at least one administrator"));
-        }
+    if body.disabled == Some(true) && id == admin.id {
+        return Err(AppError::bad_request("you can't disable your own account"));
     }
     if let Some(max_age) = body.max_age {
         check_age(max_age)?;
@@ -400,10 +384,15 @@ pub async fn update_user(
         None => None,
     };
 
-    // One transaction: an update lands whole or not at all, and an app's on
-    // another account only while it isn't an administrator's.
+    // One transaction: an update lands whole or not at all, an app's on
+    // another account only while it isn't an administrator's, and one that
+    // takes a role or an account away only while another administrator is
+    // left.
     let mut tx = state.db.write.begin().await?;
     not_another_administrator(&mut tx, &admin, id).await?;
+    if body.is_admin == Some(false) || body.disabled == Some(true) {
+        not_the_last_administrator(&mut tx, id).await?;
+    }
     if let Some(hash) = password_hash {
         sqlx::query("UPDATE users SET password_hash = ?, managed = 0 WHERE id = ?")
             .bind(hash)
@@ -512,6 +501,9 @@ pub async fn delete_user(
         sqlx::query_scalar("SELECT avatar FROM users WHERE id = ?").bind(id).fetch_optional(&state.db.read).await?;
     let mut tx = state.db.write.begin().await?;
     not_another_administrator(&mut tx, &admin, id).await?;
+    // Whoever deletes is an administrator, unless another took their role
+    // meanwhile.
+    not_the_last_administrator(&mut tx, id).await?;
     // Requests others follow stay, with a new maker.
     let told = requests::hand_down(&mut tx, id).await?;
     let result = sqlx::query("DELETE FROM users WHERE id = ?").bind(id).execute(&mut *tx).await?;
@@ -644,6 +636,24 @@ pub(super) async fn not_another_administrator(
     let is_admin: Option<bool> =
         sqlx::query_scalar("SELECT is_admin FROM users WHERE id = ?").bind(id).fetch_optional(&mut *conn).await?;
     if is_admin == Some(true) { Err(AppError::forbidden(OTHER_ADMINS_IN_THE_WEB_APP)) } else { Ok(()) }
+}
+
+/// Refuses what would leave Pley without an enabled administrator: account
+/// `id`, one now, made not one, disabled or deleted while no other is left.
+/// Called in the write transaction that then makes the change, as
+/// [`not_another_administrator`] is, for the same reason: two
+/// administrators taking each other's role at once each count the other as
+/// they start, and the second to be written finds that it would leave none.
+async fn not_the_last_administrator(conn: &mut sqlx::SqliteConnection, id: i64) -> ApiResult<()> {
+    let (is_admin, others): (bool, i64) = sqlx::query_as(
+        "SELECT COALESCE((SELECT is_admin FROM users WHERE id = ?), 0),
+                (SELECT COUNT(*) FROM users WHERE is_admin = 1 AND disabled = 0 AND id != ?)",
+    )
+    .bind(id)
+    .bind(id)
+    .fetch_one(&mut *conn)
+    .await?;
+    if is_admin && others == 0 { Err(AppError::bad_request("Pley needs at least one administrator")) } else { Ok(()) }
 }
 
 /// One's own name, devices and apps stay with Pley's web app (Account), as

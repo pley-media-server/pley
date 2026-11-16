@@ -4505,7 +4505,11 @@ interface LiveTuner {                  // a connection in use
 
 `PATCH /api/users/{id}`:
 
-- Pley always keeps one enabled administrator.
+- Pley always keeps one enabled administrator: taking the last one's role
+  or disabling the account is `400` ("Pley needs at least one
+  administrator"), as is deleting it. It is counted as the change is
+  written, so two administrators taking each other's role at once leave
+  one of them.
 - A new `password` signs the user out on every device (an administrator's
   own device stays) and in every app using the account or allowed by it,
   and ends their tokens for other apps.

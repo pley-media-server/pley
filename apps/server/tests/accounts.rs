@@ -7,8 +7,10 @@ mod common;
 
 use std::time::{Duration, Instant};
 
-use axum::http::{Method, StatusCode, header};
+use axum::body::Body;
+use axum::http::{Method, Request, StatusCode, header};
 use serde_json::{Value, json};
+use tower::ServiceExt;
 
 use common::{Reply, TestApp};
 
@@ -76,6 +78,66 @@ async fn pley_always_keeps_an_enabled_administrator() {
     assert_eq!(promote.status, StatusCode::BAD_REQUEST);
     let both = app.post("/api/users", &second, json!({"username": "kid2", "managed": true, "is_admin": true})).await;
     assert_eq!(both.status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn two_administrators_taking_each_others_role_at_once_leave_one() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let admin_id = app.get("/api/auth/me", &admin).await.body["id"].as_i64().unwrap();
+    let (_, dora_id) = app.user(&admin, "dora", json!({"is_admin": true})).await;
+    let doras = format!("/api/users/{dora_id}");
+
+    let changes = [
+        (Method::PATCH, Some(json!({"is_admin": false}))),
+        (Method::PATCH, Some(json!({"disabled": true}))),
+        (Method::DELETE, None),
+    ];
+    for (method, body) in changes {
+        // Dora takes the first administrator's role while they take hers,
+        // disable her account or delete it: hers is written, not yet
+        // committed, so their change still finds two administrators as it
+        // starts, and its write waits for the server's one write connection.
+        let mut hers = app.state.db.write.begin().await.unwrap();
+        sqlx::query("UPDATE users SET is_admin = 0 WHERE id = ?").bind(admin_id).execute(&mut *hers).await.unwrap();
+        let req = Request::builder()
+            .method(method.clone())
+            .uri(&doras)
+            .header(header::AUTHORIZATION, format!("Bearer {admin}"));
+        let req = match &body {
+            Some(body) => req.header(header::CONTENT_TYPE, "application/json").body(Body::from(body.to_string())),
+            None => req.body(Body::empty()),
+        };
+        let api = app.api.clone();
+        let theirs = tokio::spawn(async move {
+            let resp = api.oneshot(req.unwrap()).await.unwrap();
+            let status = resp.status();
+            let bytes = axum::body::to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
+            (status, serde_json::from_slice::<Value>(&bytes).unwrap_or(Value::Null))
+        });
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(!theirs.is_finished(), "{method} {body:?}: waits for the writer");
+        hers.commit().await.unwrap();
+
+        // Counted as it is written, after hers: Dora is the last one.
+        let (status, reply) = theirs.await.unwrap();
+        assert_eq!(
+            (status, &reply["message"]),
+            (StatusCode::BAD_REQUEST, &json!("Pley needs at least one administrator")),
+            "{method} {body:?}"
+        );
+        let dora: (bool, bool) = sqlx::query_as("SELECT is_admin, disabled FROM users WHERE id = ?")
+            .bind(dora_id)
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
+        assert_eq!(dora, (true, false), "{method} {body:?}: still an enabled administrator");
+        sqlx::query("UPDATE users SET is_admin = 1 WHERE id = ?")
+            .bind(admin_id)
+            .execute(&app.state.db.write)
+            .await
+            .unwrap();
+    }
 }
 
 #[tokio::test]
