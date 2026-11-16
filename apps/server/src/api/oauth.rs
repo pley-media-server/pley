@@ -344,14 +344,52 @@ pub async fn create_request(
             "redirect": redirect,
         })));
     }
+    let (shown, optional) = shown_scopes(scopes, web.user.account_admin);
     Ok(Json(json!({
         "status": "consent",
         "id": id,
         "expires_at": now() + pending::PENDING_LIFETIME.as_secs() as i64,
         "client": client_dto,
         "redirect": redirect,
-        "scopes": scopes.names(),
+        "scopes": shown,
+        "optional": optional,
     })))
+}
+
+/// What a consent page shows of the scopes an app asked for: those the
+/// account can give ([`Scopes::for_account`]), and of them those the person
+/// may leave out ([`allowed_scopes`]).
+fn shown_scopes(asked: Scopes, administrator: bool) -> (Vec<&'static str>, Vec<&'static str>) {
+    let shown = asked.for_account(administrator);
+    let optional = Scope::ALL.into_iter().filter(|scope| scope.administrators() && shown.contains(*scope));
+    (shown.names(), optional.map(Scope::name).collect())
+}
+
+/// What the person allows of the scopes an app asked for (`asked`): those
+/// the consent page sent (`chosen`), or all of them when it sent none. It
+/// may leave out only an administrator's rights, which the app works
+/// without, and add none. On an account that isn't an administrator's,
+/// those are left out whatever was sent ([`Scopes::for_account`]).
+fn allowed_scopes(asked: Scopes, chosen: Option<&[String]>, administrator: bool) -> ApiResult<Scopes> {
+    let Some(chosen) = chosen else { return Ok(asked.for_account(administrator)) };
+    if chosen.len() > Scope::ALL.len() {
+        return Err(AppError::bad_request("that is more scopes than Pley has"));
+    }
+    let mut allowed = Scopes::default();
+    for name in chosen {
+        let scope = Scope::from_name(name)
+            .filter(|scope| asked.contains(*scope))
+            .ok_or_else(|| AppError::bad_request("the app didn't ask for one of those scopes"))?;
+        allowed = allowed.with(scope);
+    }
+    let left_out = |scope: &Scope| asked.contains(*scope) && !allowed.contains(*scope);
+    if let Some(needed) = Scope::ALL.into_iter().find(|scope| left_out(scope) && !scope.administrators()) {
+        return Err(AppError::bad_request(format!(
+            "the app needs to {}: allow it all, or don't allow the app",
+            needed.words()
+        )));
+    }
+    Ok(allowed.for_account(administrator))
 }
 
 /// The checks of a request whose mistakes go back to the app (d. of
@@ -446,6 +484,10 @@ fn asked_scopes(scope: Option<&str>, client: &clients::Client) -> Result<Scopes,
 #[derive(Deserialize)]
 pub struct Decision {
     allow: bool,
+    /// The scopes the person allows, when the page let them leave some out
+    /// ([`allowed_scopes`]); all those asked when it isn't sent.
+    #[serde(default)]
+    scopes: Option<Vec<String>>,
 }
 
 /// `POST /api/oauth/requests/{id}`: the person allows the app (a code is
@@ -460,8 +502,16 @@ pub async fn decide(
     Json(body): Json<Decision>,
 ) -> ApiResult<Json<Value>> {
     let shown = state.oauth.pending.get(&id, web.user.id, &web.session_hash);
+    // What is allowed, checked before anything is decided. A request that
+    // is over, or a mistake's, gets its own answer below.
+    let allowed = match &shown {
+        Some(shown) if body.allow && shown.error.is_none() => {
+            allowed_scopes(shown.scopes, body.scopes.as_deref(), web.user.account_admin)?
+        }
+        _ => Scopes::default(),
+    };
     if shown.is_some_and(|shown| matches!(shown.kind, Kind::Device(_))) {
-        return decide_for_device(&state, &web, &id, body.allow);
+        return decide_for_device(&state, &web, &id, body.allow, allowed);
     }
     let decided = state.oauth.pending.decide(&id, web.user.id, &web.session_hash, body.allow, |request, back| {
         state.oauth.codes.new_code(CodeGrant {
@@ -470,7 +520,7 @@ pub async fn decide(
             code_challenge: back.code_challenge.clone(),
             user_id: request.user_id,
             session_hash: request.session_hash.clone(),
-            scopes: request.scopes,
+            scopes: allowed,
         })
     });
     match decided {
@@ -757,7 +807,9 @@ async fn exchange_code(
             approved_by: user.id,
             client_id: grant.app.id.clone(),
             client_name: grant.app.name.clone(),
-            scopes: grant.scopes,
+            // No longer an administrator since the person allowed it: none of
+            // an administrator's rights.
+            scopes: grant.scopes.for_account(user.account_admin),
             refresh: grant.app.refresh,
             first_party: grant.app.first_party,
             session_hash: Some(grant.session_hash.clone()),
@@ -1007,13 +1059,15 @@ pub async fn verify_user_code(
     }
     let app = &found.app;
     let address = found.asker.address.map(|address| address.to_canonical().to_string());
+    let (shown, optional) = shown_scopes(found.scopes, web.user.account_admin);
     Ok(Json(json!({
         "status": "consent",
         "id": id,
         "expires_at": now() + lifetime.as_secs() as i64,
         "client": ClientDto { id: &app.id, host: &app.host, name: app.name.as_deref(), first_party: app.first_party },
         "redirect": {"kind": "device", "to": devices::shown(&code), "device": found.asker.device, "address": address},
-        "scopes": found.scopes.names(),
+        "scopes": shown,
+        "optional": optional,
     })))
 }
 
@@ -1031,20 +1085,15 @@ async fn signed_in(state: &AppState, session_hash: &str) -> ApiResult<bool> {
     Ok(found.is_some())
 }
 
-/// `POST /api/oauth/requests/{id}` for a TV's request: allowed, the TV acts
-/// as the profile the person uses, who allowed it; refused, it is told so.
-/// The TV gets the answer when it next asks: nothing goes back through the
-/// browser.
-fn decide_for_device(state: &AppState, web: &WebUser, id: &str, allow: bool) -> ApiResult<Json<Value>> {
+/// `POST /api/oauth/requests/{id}` for a TV's request: allowed (with
+/// `scopes`, see [`allowed_scopes`]), the TV acts as the profile the person
+/// uses, who allowed it; refused, it is told so. The TV gets the answer when
+/// it next asks: nothing goes back through the browser.
+fn decide_for_device(state: &AppState, web: &WebUser, id: &str, allow: bool, scopes: Scopes) -> ApiResult<Json<Value>> {
     let decided = state.oauth.pending.decide_device(id, web.user.id, &web.session_hash, allow, |request, key| {
-        state.oauth.devices.decide(key, id, allow, web.user.id, &web.session_hash, request.scopes)?;
+        state.oauth.devices.decide(key, id, allow, web.user.id, &web.session_hash, scopes)?;
         if allow {
-            tracing::info!(
-                "{} may use {}'s account ({}) on a device",
-                request.app.label(),
-                web.user.username,
-                request.scopes
-            );
+            tracing::info!("{} may use {}'s account ({scopes}) on a device", request.app.label(), web.user.username);
         }
         Ok(())
     });
@@ -1110,9 +1159,10 @@ async fn issue_for_device(
     allowed: &devices::DeviceGrant,
 ) -> Result<Issued, OAuthError> {
     // Things may have changed since the person allowed it.
+    let mut administrator = false;
     for id in [allowed.user_id, allowed.approved_by] {
         match AuthUser::load(&state.db, id).await {
-            Ok(Some(_)) => {}
+            Ok(Some(user)) => administrator |= id == allowed.user_id && user.account_admin,
             Ok(None) => return Err(OAuthError::invalid_grant("the account is disabled")),
             Err(err) => return Err(OAuthError::server_error(err)),
         }
@@ -1124,7 +1174,9 @@ async fn issue_for_device(
             approved_by: allowed.approved_by,
             client_id: allowed.app.id.clone(),
             client_name: allowed.app.name.clone(),
-            scopes: allowed.scopes,
+            // No longer an administrator since the person allowed it: none of
+            // an administrator's rights.
+            scopes: allowed.scopes.for_account(administrator),
             refresh: allowed.app.refresh,
             first_party: allowed.app.first_party,
             session_hash: Some(allowed.session_hash.clone()),

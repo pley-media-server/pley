@@ -1014,3 +1014,46 @@ async fn the_link_page_is_the_web_apps_and_cannot_be_framed() {
     let policy = page.headers[header::CONTENT_SECURITY_POLICY].to_str().unwrap();
     assert!(policy.contains("frame-ancestors 'none'"), "{policy}");
 }
+
+/// A TV asks for `scope`: its device code, and the code it shows.
+async fn tv_asking(app: &TestApp, scope: &str) -> (String, String) {
+    let started = ask(app, ANDROID_APP, Some(scope), &[]).await;
+    assert_eq!(started.status, StatusCode::OK, "{}", started.text());
+    let text = |name: &str| started.body[name].as_str().unwrap().to_owned();
+    (text("device_code"), text("user_code"))
+}
+
+#[tokio::test]
+async fn approving_requests_is_the_administrators_choice_on_a_tv_too() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (bob, _) = app.user(&admin, "bob", json!({})).await;
+    let asked = "library play requests approvals";
+
+    // Left out by an administrator: the TV's tokens say so.
+    let (device_code, user_code) = tv_asking(&app, asked).await;
+    let shown = verify(&app, &admin, &user_code).await;
+    assert_eq!(shown.body["scopes"], json!(["library", "play", "requests", "approvals"]), "{}", shown.text());
+    assert_eq!(shown.body["optional"], json!(["approvals"]));
+    let id = shown.body["id"].as_str().unwrap();
+    // Not without what the app needs.
+    let body = json!({"allow": true, "scopes": ["library", "approvals"]});
+    let refused = app.browser_call(Method::POST, &format!("/api/oauth/requests/{id}"), &admin, Some(body), &[]).await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.text());
+    let body = json!({"allow": true, "scopes": ["library", "play", "requests"]});
+    let decided = app.browser_call(Method::POST, &format!("/api/oauth/requests/{id}"), &admin, Some(body), &[]).await;
+    assert_eq!((decided.status, &decided.body), (StatusCode::OK, &json!({"done": true})), "{}", decided.text());
+    let tokens = poll(&app, &device_code, &[]).await;
+    assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
+    let (access, _) = pair(&tokens);
+    let refused = app.app_call(Method::POST, "/api/requests/1/approve", &access, None).await;
+    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
+
+    // Never asked of, nor given by, an account that isn't an administrator's.
+    let (device_code, user_code) = tv_asking(&app, asked).await;
+    let shown = verify(&app, &bob, &user_code).await;
+    assert_eq!((&shown.body["scopes"], &shown.body["optional"]), (&json!(["library", "play", "requests"]), &json!([])));
+    allow(&app, &bob, &user_code).await;
+    let tokens = poll(&app, &device_code, &[]).await;
+    assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
+}
