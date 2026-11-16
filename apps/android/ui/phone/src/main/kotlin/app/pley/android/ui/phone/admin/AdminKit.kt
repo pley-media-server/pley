@@ -14,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
@@ -186,6 +187,9 @@ internal enum class Entry {
     /** Hidden as it is typed, with a button to show it (passwords, keys). */
     Secret,
 
+    /** Digits, hidden as they are typed (a PIN). */
+    Pin,
+
     /** An address (a URL, a host). */
     Address,
 }
@@ -195,7 +199,12 @@ internal enum class Entry {
  * (its [label] above, [hint] under it), Save and Cancel. [check] answers
  * what's wrong with what is typed, which keeps Save from it and shows
  * under the field; `null` when it's fine. Save hands over what was typed,
- * trimmed but for [Entry.Secret].
+ * trimmed but for a secret ([Entry.Secret], [Entry.Pin]). [busy]: what
+ * was saved is on its way, and Save waits (a dialog the server may refuse
+ * stays open until it answers, so what was typed isn't lost).
+ *
+ * A secret typed is kept in memory only, never in the activity's saved
+ * state: the dialog opens empty again after the app is recreated.
  */
 @Composable
 internal fun TextEntryDialog(
@@ -208,12 +217,14 @@ internal fun TextEntryDialog(
     entry: Entry = Entry.Text,
     multiLine: Boolean = false,
     confirmLabel: String? = null,
+    busy: Boolean = false,
     check: (String) -> String? = { null },
 ) {
-    val state = rememberTextFieldState(initial)
+    val secret = entry == Entry.Secret || entry == Entry.Pin
+    val state = if (secret) remember { TextFieldState(initial) } else rememberTextFieldState(initial)
     val focus = remember { FocusRequester() }
     var tried by remember { mutableStateOf(false) }
-    val typed = state.text.toString().let { if (entry == Entry.Secret) it else it.trim() }
+    val typed = state.text.toString().let { if (secret) it else it.trim() }
     val problem = check(typed)
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
     val colors = OutlinedTextFieldDefaults.colors(
@@ -236,6 +247,7 @@ internal fun TextEntryDialog(
         keyboardType = when (entry) {
             Entry.Number -> KeyboardType.Number
             Entry.Secret -> KeyboardType.Password
+            Entry.Pin -> KeyboardType.NumberPassword
             Entry.Address -> KeyboardType.Uri
             Entry.Text -> KeyboardType.Text
         },
@@ -248,6 +260,7 @@ internal fun TextEntryDialog(
                     tried = true
                     if (problem == null) onSave(typed)
                 },
+                enabled = !busy,
                 colors = ButtonDefaults.textButtonColors(contentColor = PleyColors.AccentBright),
                 modifier = Modifier.testTag(TEXT_ENTRY_SAVE),
             ) { Text(confirmLabel ?: stringResource(R.string.admin_save), style = MaterialTheme.typography.labelLarge) }
@@ -260,7 +273,7 @@ internal fun TextEntryDialog(
         title = { Text(title, style = MaterialTheme.typography.headlineSmall) },
         text = {
             val field = Modifier.fillMaxWidth().focusRequester(focus).testTag(TEXT_ENTRY_FIELD)
-            if (entry == Entry.Secret) {
+            if (secret) {
                 OutlinedSecureTextField(
                     state = state,
                     modifier = field,

@@ -234,10 +234,9 @@ internal fun UserAccountPage(id: Long) {
                 entry = Entry.Secret,
                 hint = if (user.managed) stringResource(R.string.admin_users_managed_password_hint) else null,
                 check = { typed -> passwordProblem(typed, user.username)?.let(words) },
-                onSave = {
-                    close()
-                    model.setPassword(it)
-                },
+                // Open until the server takes it: one it refuses (too common) is still there to change.
+                busy = busy > 0,
+                onSave = { model.setPassword(it) { took -> if (took && dialog == UserDialog.Password) close() } },
                 onDismiss = close,
             )
         }
@@ -246,13 +245,11 @@ internal fun UserAccountPage(id: Long) {
             TextEntryDialog(
                 title = stringResource(R.string.admin_users_pin),
                 initial = "",
-                entry = Entry.Number,
+                entry = Entry.Pin,
                 hint = stringResource(if (user.hasPin) R.string.admin_users_pin_set else R.string.admin_users_pin_hint),
                 check = { typed -> if (pinOk(typed)) null else digits },
-                onSave = {
-                    close()
-                    model.setPin(it)
-                },
+                busy = busy > 0,
+                onSave = { model.setPin(it) { took -> if (took && dialog == UserDialog.Pin) close() } },
                 onDismiss = close,
             )
         }

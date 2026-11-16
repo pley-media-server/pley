@@ -102,12 +102,14 @@ class UserViewModel(
     /**
      * A new password, which signs the account out everywhere; a managed
      * profile's makes it an account. Its devices and apps are read again,
-     * as the server has just signed them out.
+     * as the server has just signed them out. [done]: whether the server
+     * took it (a common password it refuses isn't).
      */
-    fun setPassword(password: String) = patch(buildJsonObject { put("password", password) }, said = SAVED) {
-        devices.reload()
-        apps.reload()
-    }
+    fun setPassword(password: String, done: (Boolean) -> Unit = {}) =
+        patch(buildJsonObject { put("password", password) }, said = SAVED, done = done) {
+            devices.reload()
+            apps.reload()
+        }
 
     /**
      * No longer an administrator (the web app makes one). The account is
@@ -176,7 +178,8 @@ class UserViewModel(
         if (body.isNotEmpty()) patch(body, then = labels::reload)
     }
 
-    fun setPin(pin: String) = patch(buildJsonObject { put("pin", pin) })
+    /** A new PIN; [done]: whether the server took it. */
+    fun setPin(pin: String, done: (Boolean) -> Unit = {}) = patch(buildJsonObject { put("pin", pin) }, done = done)
 
     fun removePin() = patch(buildJsonObject { put("pin", JsonNull) })
 
@@ -219,16 +222,17 @@ class UserViewModel(
     /**
      * Sends [body] to the account; what the server answers is shown. A
      * refusal reads the account again, so the page shows what it has.
-     * [then] runs after, whatever the answer.
+     * [then] runs after, whatever the answer; [done] says which it was.
      */
-    private fun patch(body: JsonObject, said: String? = null, then: () -> Unit = {}) {
-        val user = user ?: return
+    private fun patch(body: JsonObject, said: String? = null, done: (Boolean) -> Unit = {}, then: () -> Unit = {}) {
+        val user = user ?: return done(false)
         var took = false
         change(
             said = said?.let { AdminDone(it, listOf(user.name)) },
             after = {
                 if (!took) page.reload()
                 then()
+                done(took)
             },
         ) {
             val answer = send("PATCH", UserAccount.serializer(), listOf("api", "users", id), body)

@@ -227,7 +227,7 @@ internal fun NewUserPage() {
             TextEntryDialog(
                 title = stringResource(R.string.admin_users_pin),
                 initial = form.pin,
-                entry = Entry.Number,
+                entry = Entry.Pin,
                 hint = stringResource(R.string.admin_users_pin_hint),
                 // Empty takes the PIN away again: it is optional.
                 check = { typed -> if (typed.isEmpty() || pinOk(typed)) null else digits },

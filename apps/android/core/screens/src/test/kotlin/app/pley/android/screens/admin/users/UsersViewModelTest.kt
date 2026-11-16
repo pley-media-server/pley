@@ -219,6 +219,20 @@ class UsersViewModelTest {
     }
 
     @Test
+    fun aPasswordOrPinSaysWhetherTheServerTookIt() = runTest {
+        val bea = user(2, "Bea")
+        val server = server(user(1, "Ann", admin = true), bea).apply { patches(2, bea) }
+        val page = UserViewModel(server, session, 2)
+        val took = mutableListOf<Boolean>()
+        page.setPassword("a long new one") { took += it }
+        page.setPin("4321") { took += it }
+        // The server refuses a common password: the dialog stays open with it.
+        server.fail("PATCH /api/users/2", ApiException(400, "bad_request", "that password is too common"))
+        page.setPassword("password1") { took += it }
+        assertEquals(listOf(true, true, false), took)
+    }
+
+    @Test
     fun anAccountShownAfterAFailedReadIsStillChanged() = runTest {
         val bea = user(2, "Bea")
         val server = server(user(1, "Ann", admin = true), bea).apply { patches(2, bea) }
