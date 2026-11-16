@@ -3787,7 +3787,11 @@ would.
   plays a playlist, an album or an artist shuffled. With a movie or an
   episode, `audio_index` and `subtitle_index` (`-1`: none) are the tracks
   the remote had picked on its page, by stream index of one of its files.
-  The quality stays the receiver's own: what suits a phone's network
+  The receiver plays the version it plays best, so of a title with several
+  versions it gets a track only where that index is the same track
+  (language, title, forced) in each; otherwise it starts with the tracks
+  the profile's saved choice gives its version, which the remote's pick
+  saved. The quality stays the receiver's own: what suits a phone's network
   doesn't suit a TV's. A receiver of another of the household's profiles
   takes that profile's id, `profile_id` (its `profile.id` in the list), the
   `device_id` the list shows for it, and the caller's `pin` when their

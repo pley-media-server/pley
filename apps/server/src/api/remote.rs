@@ -537,6 +537,27 @@ fn check_track(streams: &[MediaStream], kind: StreamKind, index: i64, field: &st
     }))
 }
 
+/// The track of `kind` a cast names, by stream index, kept where it is the
+/// same track (language, title, forced) in every version of the title. The
+/// remote picked it from the version its page shows, but the receiver plays
+/// the version it plays best, where the same index can be another language.
+/// Left out, the receiver starts with what the profile's saved choice, which
+/// the remote's pick saved, gives its own version. Subtitles off (`-1`) are
+/// the same in every version.
+fn same_in_every_version(files: &[catalog::FileRow], kind: StreamKind, index: Option<i64>) -> Option<i64> {
+    let index = index?;
+    if kind == StreamKind::Subtitle && index == -1 {
+        return Some(index);
+    }
+    let mut tracks = files.iter().map(|file| {
+        let streams = file.streams();
+        let track = streams.into_iter().find(|s| s.kind == kind && s.index == index);
+        track.map(|s| (crate::streams::is_forced(&s), s.language, s.title))
+    });
+    let first = tracks.next().flatten()?;
+    tracks.all(|track| track.as_ref() == Some(&first)).then_some(index)
+}
+
 fn words(command: Control) -> &'static str {
     match command {
         Control::Play => "play",
@@ -1124,8 +1145,8 @@ async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast)
     let cast = crate::nearby::casts::Cast {
         item_id,
         start_ms: body.start_ms,
-        audio_index: body.audio_index,
-        subtitle_index: body.subtitle_index,
+        audio_index: same_in_every_version(&files, StreamKind::Audio, body.audio_index),
+        subtitle_index: same_in_every_version(&files, StreamKind::Subtitle, body.subtitle_index),
     };
     // Started apart from the request, which a client or a proxy may drop
     // while the device loads: the cast then either plays and is followed,
@@ -1189,6 +1210,7 @@ pub async fn cast(
     // The device another profile's receiver is, which switches.
     let device = (owner != user.id).then(|| receiver.device_id.clone());
     let picked = body.audio_index.is_some() || body.subtitle_index.is_some();
+    let (mut audio_index, mut subtitle_index) = (None, None);
     let kind = match (body.item_id, body.playlist_id, body.channel_id) {
         (Some(item_id), None, None) => {
             let row = item_or_404(&state, user.id, item_id).await?;
@@ -1212,6 +1234,8 @@ pub async fn cast(
                 if let Some(index) = body.subtitle_index {
                     check_track(&streams, StreamKind::Subtitle, index, "subtitle_index")?;
                 }
+                audio_index = same_in_every_version(&files, StreamKind::Audio, body.audio_index);
+                subtitle_index = same_in_every_version(&files, StreamKind::Subtitle, body.subtitle_index);
             }
             CastKind::Item
         }
@@ -1285,8 +1309,8 @@ pub async fn cast(
         channel_id: body.channel_id,
         start_ms: body.start_ms,
         shuffle: body.shuffle.unwrap_or(false),
-        audio_index: body.audio_index,
-        subtitle_index: body.subtitle_index,
+        audio_index,
+        subtitle_index,
         from,
         profile_id: switch_ticket.is_some().then_some(user.id),
         switch_ticket,

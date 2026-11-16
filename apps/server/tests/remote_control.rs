@@ -1246,6 +1246,77 @@ async fn a_cast_carries_the_tracks_picked() {
     }
 }
 
+/// Gives the film (with [`with_tracks`]) a second version whose tracks are
+/// laid out otherwise: English audio, then an English commentary, the
+/// forced English signs, then full English subtitles.
+async fn with_second_version(w: &World) {
+    use pley_transcoder_api::{MediaInfo, MediaStream, StreamKind};
+    let stream = |index, kind, language: &str, title: Option<&str>| MediaStream {
+        index,
+        kind,
+        codec: if kind == StreamKind::Subtitle { "subrip" } else { "aac" }.into(),
+        language: Some(language.to_owned()),
+        title: title.map(str::to_owned),
+        ..Default::default()
+    };
+    let mut video = MediaStream { index: 0, kind: StreamKind::Video, codec: "h264".into(), ..Default::default() };
+    (video.width, video.height, video.pix_fmt) = (Some(1920), Some(1080), Some("yuv420p".into()));
+    let mut english = stream(1, StreamKind::Audio, "eng", None);
+    english.default = true;
+    let mut signs = stream(3, StreamKind::Subtitle, "eng", Some("Signs"));
+    signs.forced = true;
+    let streams = vec![
+        video,
+        english,
+        stream(2, StreamKind::Audio, "eng", Some("Commentary")),
+        signs,
+        stream(4, StreamKind::Subtitle, "eng", None),
+    ];
+    let info = MediaInfo { container: Some("mkv".into()), duration_ms: Some(LENGTH_MS), streams, ..Default::default() };
+    sqlx::query(
+        "INSERT INTO media_files (item_id, library_id, path, size, mtime, added_at, updated_at, media_info,
+                                  video_codec, audio_codec)
+         SELECT item_id, library_id, path || '.other.mkv', size, mtime, added_at, updated_at, ?, 'h264', 'aac'
+         FROM media_files WHERE id = ?",
+    )
+    .bind(serde_json::to_string(&info).unwrap())
+    .bind(w.app.file_of(w.film).await)
+    .execute(&w.app.state.db.write)
+    .await
+    .unwrap();
+}
+
+/// The audio and the subtitles a cast of the film that picked `audio` and
+/// `subtitles` reaches `tv-1` with.
+async fn tracks_cast(w: &World, audio: i64, subtitles: i64) -> (Value, Value) {
+    let send = async {
+        let body = json!({"item_id": w.film, "audio_index": audio, "subtitle_index": subtitles});
+        let sent = cast(w, &w.viewer, "tv-1", body).await;
+        assert_eq!(sent.status, StatusCode::ACCEPTED, "{}", sent.text());
+    };
+    let heard = events_until(w, &w.viewer, send, r#""type":"cast""#, Duration::from_secs(10)).await;
+    let event = &events_of(&heard, "cast")[0];
+    (event["audio_index"].clone(), event["subtitle_index"].clone())
+}
+
+#[tokio::test]
+async fn a_cast_carries_a_track_only_where_it_is_the_same_in_every_version() {
+    let w = world().await;
+    with_tracks(&w).await;
+    with_second_version(&w).await;
+    let _tv = stream(&w, &w.viewer, "receiver=tv-1&casts=item").await;
+    // The receiver plays the version it plays best: an index that is the
+    // same track in both goes, as do subtitles off.
+    assert_eq!(tracks_cast(&w, 1, 3).await, (json!(1), json!(3)));
+    assert_eq!(tracks_cast(&w, 1, -1).await, (json!(1), json!(-1)));
+    // French in one version is the commentary or English in the other: the
+    // receiver starts with what the saved choice gives the version it plays.
+    assert_eq!(tracks_cast(&w, 2, 4).await, (Value::Null, Value::Null));
+    // One version alone, as before.
+    sqlx::query("DELETE FROM media_files WHERE path LIKE '%.other.mkv'").execute(&w.app.state.db.write).await.unwrap();
+    assert_eq!(tracks_cast(&w, 2, 4).await, (json!(2), json!(4)));
+}
+
 /// Where the cast `token` sends to `tv-1`, saying `user_agent`, says it
 /// came from.
 async fn cast_from(w: &World, token: &str, user_agent: &str) -> Value {
