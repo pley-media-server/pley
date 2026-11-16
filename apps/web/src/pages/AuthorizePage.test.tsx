@@ -141,6 +141,9 @@ async function consentShown() {
 
 const posts = (requests: FakeRequest[], path: string) => requests.filter((r) => r.method === "POST" && r.path === path);
 
+/** What the box for managing the server says under its name. */
+const SERVER_HINT = "Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app.";
+
 describe("AuthorizePage", () => {
   it("hands the server its query once, even under StrictMode", async () => {
     const requests = serve();
@@ -210,7 +213,7 @@ describe("AuthorizePage", () => {
     expect(screen.getByRole("group", { name: /^Administrator access/ })).toBeInTheDocument();
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
     const server = screen.getByRole("checkbox", { name: "Manage the server" });
-    expect(server).toHaveAccessibleDescription("Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app.");
+    expect(server).toHaveAccessibleDescription(SERVER_HINT);
     expect(server).not.toBeChecked();
   });
 
@@ -219,10 +222,11 @@ describe("AuthorizePage", () => {
     renderPage();
     const { allow } = await consentShown();
 
+    attend();
     const user = userEvent.setup();
     const server = screen.getByRole("checkbox", { name: "Manage the server" });
     // The whole row is the label; Space ticks the focused box.
-    await user.click(screen.getByText("Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app."));
+    await user.click(screen.getByText(SERVER_HINT));
     expect(server).toBeChecked();
     await user.click(server);
     expect(server).not.toBeChecked();
@@ -230,13 +234,61 @@ describe("AuthorizePage", () => {
     await user.keyboard(" ");
     expect(server).toBeChecked();
 
-    attend();
     fireEvent.click(allow);
     await waitFor(() => expect(posts(requests, "/api/oauth/requests/r1")).toHaveLength(1));
     expect(posts(requests, "/api/oauth/requests/r1")[0]?.body).toEqual({
       allow: true,
       scopes: ["library", "play", "requests", "approvals", "server"],
     });
+  });
+
+  // Real time from the page's first render, as for Allow below.
+  it("takes no tick in the box as the page appears, but a second later", async () => {
+    focused = true;
+    serve({ answer: () => consent({ scopes: ["library", "play", "requests", "approvals", "server"], optional: ["server"] }) });
+    renderPage();
+    await consentShown();
+    const server = screen.getByRole("checkbox", { name: "Manage the server" });
+    const row = screen.getByText(SERVER_HINT);
+
+    // The second half of a double click meant for another page lands here as it appears; nor can a key reach the box.
+    expect(server).toBeDisabled();
+    const user = userEvent.setup();
+    await user.click(server);
+    await user.click(row);
+    expect(server).not.toBeChecked();
+    server.focus();
+    expect(server).not.toHaveFocus();
+
+    await waitFor(() => expect(server).toBeEnabled(), { timeout: 3000 });
+    await user.click(row);
+    expect(server).toBeChecked();
+  });
+
+  it("keeps the box off until the page has been seen for a whole second, as Allow", async () => {
+    serve({ answer: () => consent({ scopes: ["library", "play", "requests", "approvals", "server"], optional: ["server"] }) });
+    renderPage();
+    const { allow } = await consentShown();
+    const server = screen.getByRole("checkbox", { name: "Manage the server" });
+
+    expect(server).toBeDisabled();
+    fakeTimers();
+    setFocus(true);
+    wait(999);
+    expect(server).toBeDisabled();
+    wait(1);
+    expect(server).toBeEnabled();
+    expect(allow).toBeEnabled();
+    vi.useRealTimers();
+    const user = userEvent.setup();
+    await user.click(screen.getByText(SERVER_HINT));
+    expect(server).toBeChecked();
+
+    // Leaving the window starts it over, for the box as for Allow; the tick stays.
+    setFocus(false);
+    expect(server).toBeDisabled();
+    await user.click(screen.getByText(SERVER_HINT));
+    expect(server).toBeChecked();
   });
 
   it("allows what the app needs without managing the server when its box is left unticked", async () => {

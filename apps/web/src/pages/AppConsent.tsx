@@ -193,9 +193,10 @@ function OptionalScope({
 /**
  * Asks whether an app may use the account: an app that sent the browser to
  * the authorize page, or a TV that showed a code. It shows only what the
- * server answered, as text. Deny has the focus, and Allow waits until the
- * page has been seen for a whole second. A key held down, or pressed right
- * as the question shows, answers nothing: a refusal can't be taken back.
+ * server answered, as text. Deny has the focus, and Allow, with the box for
+ * managing the server, waits until the page has been seen for a whole
+ * second. A key held down, or pressed right as the question shows, answers
+ * nothing: a refusal can't be taken back.
  *
  * Managing the server, when an app asks for it, is a box the person ticks:
  * the app works without it, and it isn't given unless ticked here. The
@@ -333,7 +334,9 @@ export function AppConsent({
                   key={scope}
                   scope={scope}
                   checked={ticked.has(scope)}
-                  disabled={deciding !== null}
+                  // As Allow, until the page has been seen for a whole second: the second half of a
+                  // double click meant for another page can't tick it. Keys have settled by then.
+                  disabled={!ready || deciding !== null}
                   onChange={(on) =>
                     setTicked((before) => {
                       const next = new Set(before);
