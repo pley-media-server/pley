@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
+using Pley.Tv.Core.Player;
 using Pley.Tv.Core.Ui;
 using Xunit;
 using static Pley.Tv.Core.Tests.ItemKit;
@@ -203,6 +204,39 @@ public class ItemModelTests
         Assert.Empty(data.Streams);
         model.Play();
         Assert.Equal(12L, Assert.Single(played).FileId);
+    }
+
+    [Fact]
+    public void The_page_shows_the_version_the_player_picks_and_Play_names_one_only_when_picked()
+    {
+        // Dolby Vision 4K first, as the server lists the tallest first, then 1080p HDR10; both with English subtitles on.
+        var dolbyVision = new MediaStream { Index = 0, Kind = "video", Codec = "hevc", Width = 3840, Height = 2160, FrameRate = 23.976, BitDepth = 10, DynamicRange = "dolby_vision", DvProfile = 5, DvBlCompat = 0, Default = true };
+        var hdr10 = new MediaStream { Index = 0, Kind = "video", Codec = "hevc", Width = 1920, Height = 1080, FrameRate = 23.976, BitDepth = 10, DynamicRange = "hdr10", Profile = "Main 10", Default = true };
+        MediaStream[] Streams(MediaStream video) => new[] { video, Stream(1, "audio", "eac3", "eng", isDefault: true, channels: 6), Stream(2, "audio", "ac3", "fra", channels: 6), Stream(3, "subtitle", "subrip", "eng") };
+        var versions = Movie(files: new[] { File(11, Streams(dolbyVision), selectedSubtitle: 3), File(12, Streams(hdr10), selectedSubtitle: 3, width: 1920, height: 1080) });
+
+        // The TV can't tell what it plays: the first, and the player picks.
+        var unknown = Model(1);
+        data.Set(versions);
+        Assert.Equal(11L, PageOf(unknown).Tracks?.VersionId);
+        unknown.Play();
+        Assert.Equal(new PlayRequest(1, 0, false), played.Last());
+
+        // A 1080p HDR10 screen without Dolby Vision plays the 1080p version as it is.
+        data.TvCaps = TestCaps.HdrTv() with { Display = new DisplayCaps { Width = 1920, Height = 1080 } };
+        var model = Model(1);
+        Assert.Equal(12L, PageOf(model).Tracks?.VersionId);
+        model.Play();
+        Assert.Equal(new PlayRequest(1, 0, false), played.Last());
+        // A track picked keeps its version, named with it.
+        model.ChooseAudio(2);
+        Assert.Equal(new FakeItems.StreamWrite(1, 12, 2, 3), data.Streams.Last());
+        model.Play();
+        Assert.Equal(new PlayRequest(1, 0, false, FileId: 12, AudioIndex: 2, SubtitleIndex: 3), played.Last());
+        model.ChooseVersion(11);
+        Assert.Equal(11L, PageOf(model).Tracks?.VersionId);
+        model.Play();
+        Assert.Equal(11L, played.Last().FileId);
     }
 
     [Fact]

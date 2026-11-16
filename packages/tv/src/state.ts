@@ -219,6 +219,8 @@ export class AppState {
   readonly notices = signal<RequestNotice[]>([]);
   /** The events aren't connected: pages that show requests ask on their own meanwhile. */
   readonly eventsDown = signal(false);
+  /** The capabilities once a probe has answered ({@link caps}), for what a page draws from them; `null` until then. */
+  readonly probed = signal<Probe | null>(null);
   /**
    * The server's language for accounts without their own (`GET /api/server`):
    * `undefined` until it answers, `null` from a Pley from before languages,
@@ -954,7 +956,11 @@ export class AppState {
     if (fresh) this.capsPromise = null;
     if (!this.capsPromise) {
       const s = this.settings.value;
-      this.capsPromise = this.platform.probe({ truehd: s.passthroughTrueHd, dts: s.passthroughDts }).catch(() => null);
+      const asked = this.platform.probe({ truehd: s.passthroughTrueHd, dts: s.passthroughDts }).catch(() => null);
+      this.capsPromise = asked;
+      void asked.then((probe) => {
+        if (this.capsPromise === asked) this.probed.value = probe;
+      });
     }
     return this.capsPromise;
   }

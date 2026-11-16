@@ -5,7 +5,7 @@ mod common;
 
 use common::TestApp;
 use pley_base::Key;
-use pley_core::model::TitleKind;
+use pley_core::model::{DynamicRange, ItemDetail, ItemKind, MediaFile, MediaStream, StreamKind, TitleKind};
 use pley_fixtures::{ids, request_titles};
 use pley_shell::{AppCx, PlayRequest, Requests, Route};
 
@@ -87,6 +87,99 @@ fn the_tracks_panel_picks_what_play_asks_for() {
     let r = played(&app).expect("Resume opened no player");
     assert_eq!(r.item_id, MOVIE);
     assert!(r.file_id.is_some_and(|f| f != ids::PGS_MOVIE_FILE), "the version picked wasn't asked for: {r:?}");
+}
+
+const TWO_VERSIONS: i64 = 9_000_001;
+const TWO_VERSIONS_4K: i64 = 9_100_001;
+const TWO_VERSIONS_1080P: i64 = 9_200_001;
+
+/// A title kept from another page, with a Dolby Vision profile 7 4K version first (the server lists
+/// the tallest first) and a 1080p HDR10 one: the fake TV decodes no profile 7, so it plays the
+/// 1080p one as it is. The fake server doesn't have it: the page shows it as kept.
+fn two_versions() -> ItemDetail {
+    let video = |height, range, dv_profile| MediaStream {
+        index: 0,
+        kind: StreamKind::Video,
+        codec: "hevc".into(),
+        default: true,
+        profile: Some("Main 10".into()),
+        width: Some(height * 16 / 9),
+        height: Some(height),
+        frame_rate: Some(23.976),
+        bit_depth: Some(10),
+        dynamic_range: Some(range),
+        dv_profile,
+        dv_bl_compat: dv_profile.map(|_| 6),
+        ..MediaStream::default()
+    };
+    let audio = |index, language: &str| MediaStream {
+        index,
+        kind: StreamKind::Audio,
+        codec: "eac3".into(),
+        language: Some(language.into()),
+        default: index == 1,
+        channels: Some(6),
+        ..MediaStream::default()
+    };
+    let file = |id, v: MediaStream| MediaFile {
+        id,
+        width: v.width,
+        height: v.height,
+        streams: vec![v, audio(1, "eng"), audio(2, "fra")],
+        ..MediaFile::default()
+    };
+    let mut d = ItemDetail::default();
+    d.summary.id = TWO_VERSIONS;
+    d.summary.kind = ItemKind::Movie;
+    d.summary.title = "Two Versions".into();
+    d.files = vec![
+        file(TWO_VERSIONS_4K, video(2160, DynamicRange::DolbyVision, Some(7))),
+        file(TWO_VERSIONS_1080P, video(1080, DynamicRange::Hdr10, None)),
+    ];
+    d
+}
+
+#[test]
+fn the_page_shows_the_version_the_tv_plays_and_play_names_one_only_when_picked() {
+    let mut app = TestApp::start();
+    app.state.keep_item(two_versions());
+    app.open(Route::Item { id: TWO_VERSIONS });
+    // The TV's capabilities aren't known yet: the first shows, and the player picks.
+    assert!(app.until(|a| a.shows("Two Versions") && a.shows("4K") && !a.shows("1080p")), "the page never showed");
+    app.press(Key::Ok);
+    assert_eq!(played(&app).map(|r| r.file_id), Some(None), "Play named a version none picked");
+
+    app.press(Key::Back);
+    app.state.probe_caps(false);
+    assert!(
+        app.until(|a| a.shows("1080p") && !a.shows("4K") && a.focused() == Some(a.id(&["buttons", "play"]))),
+        "the 1080p version never showed"
+    );
+    app.press(Key::Ok);
+    assert_eq!(played(&app).map(|r| r.file_id), Some(None), "Play named a version none picked");
+
+    // A track picked keeps its version, and Play names it.
+    app.press(Key::Back);
+    assert!(app.until(|a| a.focused() == Some(a.id(&["buttons", "play"]))));
+    // Play, watched, then Audio and subtitles.
+    for _ in 0..2 {
+        app.press(Key::Right);
+    }
+    assert_eq!(app.focused(), Some(app.id(&["buttons", "tracks"])));
+    app.press(Key::Ok);
+    assert!(app.modal() && app.shows("Automatic (English)"));
+    // Focus starts on the version in force, the 1080p one; Automatic, then English, are below it.
+    app.press(Key::Down);
+    app.press(Key::Down);
+    app.press(Key::Ok);
+    app.press(Key::Back);
+    assert!(app.until(|a| !a.modal() && a.focused() == Some(a.id(&["buttons", "tracks"]))));
+    for _ in 0..2 {
+        app.press(Key::Left);
+    }
+    app.press(Key::Ok);
+    let r = played(&app).expect("Play opened no player");
+    assert_eq!((r.file_id, r.audio_index), (Some(TWO_VERSIONS_1080P), Some(1)));
 }
 
 #[test]

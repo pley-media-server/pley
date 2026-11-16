@@ -222,6 +222,10 @@ describes how they are made.
   type, one the remote's arrows can't reach.
 - Dolby Vision details call a profile 8 with the Blu-ray's base layer
   "Profile 8", as its label does, not "Profile 8.6".
+- A movie or episode with several versions plays the same version from
+  its page as from Home and Continue Watching: the one this TV plays
+  best, unless you pick another. The page's badges and tracks are that
+  version's.
 
 ## [0.0.1] - 2026-10-29
 

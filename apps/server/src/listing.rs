@@ -813,7 +813,12 @@ fn parse_date(value: &str, now: i64) -> Option<i64> {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum SortField {
     Title,
+    /// When the title itself was added: a show's first sighting.
     Added,
+    /// Plex's `episode.addedAt` (Last Episode Date Added), Jellyfin's
+    /// `DateLastContentAdded`: shows and seasons by their newest episode,
+    /// anything else as [`SortField::Added`].
+    EpisodeAdded,
     Released,
     Year,
     Rating,
@@ -833,15 +838,37 @@ const BITRATE_SQL: &str = "(CASE WHEN i.kind = 'show'
     THEN (SELECT AVG(f.bitrate) FROM items e JOIN media_files f ON f.item_id = e.id WHERE e.grandparent_id = i.id)
     ELSE (SELECT MAX(f.bitrate) FROM media_files f WHERE f.item_id = i.id) END)";
 
-/// The bitrates of `rows` when `spec` sorts by them (rows don't carry them).
-pub(crate) async fn bitrates_for(
-    db: &Db,
-    rows: &[ItemRow],
-    spec: &[(SortField, bool)],
-) -> sqlx::Result<HashMap<i64, f64>> {
-    if !spec.iter().any(|(field, _)| *field == SortField::Bitrate) {
-        return Ok(HashMap::new());
+/// When a title's newest episode was added, as [`SortField::EpisodeAdded`]
+/// sorts it.
+const EPISODE_ADDED_SQL: &str = "COALESCE(CASE i.kind
+    WHEN 'show' THEN (SELECT MAX(e.added_at) FROM items e WHERE e.grandparent_id = i.id AND e.kind = 'episode')
+    WHEN 'season' THEN (SELECT MAX(e.added_at) FROM items e WHERE e.parent_id = i.id AND e.kind = 'episode')
+    END, i.added_at)";
+
+/// What [`sort_rows`] sorts by that rows don't carry, as [`sort_values`]
+/// loads it.
+#[derive(Debug, Default)]
+pub(crate) struct SortValues {
+    bitrates: HashMap<i64, f64>,
+    /// When shows' and seasons' newest episodes were added.
+    newest_episodes: HashMap<i64, i64>,
+}
+
+/// What `spec` sorts `rows` by that they don't carry.
+pub(crate) async fn sort_values(db: &Db, rows: &[ItemRow], spec: &[(SortField, bool)]) -> sqlx::Result<SortValues> {
+    let sorts_by = |field: SortField| spec.iter().any(|(f, _)| *f == field);
+    let mut values = SortValues::default();
+    if sorts_by(SortField::Bitrate) {
+        values.bitrates = bitrates(db, rows).await?;
     }
+    if sorts_by(SortField::EpisodeAdded) {
+        values.newest_episodes = catalog::newest_episodes(db, rows).await?;
+    }
+    Ok(values)
+}
+
+/// The bitrates of `rows`.
+async fn bitrates(db: &Db, rows: &[ItemRow]) -> sqlx::Result<HashMap<i64, f64>> {
     let ids = serde_json::to_string(&rows.iter().map(|r| r.id).collect::<Vec<_>>()).unwrap_or_else(|_| "[]".into());
     let found: Vec<(i64, Option<f64>)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT i.id, CAST({BITRATE_SQL} AS REAL) FROM items i WHERE i.id IN (SELECT value FROM json_each(?))"
@@ -861,8 +888,13 @@ pub(crate) fn parse_sort(value: Option<&str>) -> Vec<(SortField, bool)> {
             continue;
         }
         let (field, dir) = spec.split_once(':').unwrap_or((spec, ""));
+        // Plex's `episode.addedAt` on shows is when their newest episode
+        // was added, not they; any other type named (`movie.addedAt`) is
+        // the listing's own.
+        let newest_episode = field == "episode.addedAt";
         let field = field.rsplit('.').next().unwrap_or(field);
         let field = match field {
+            "addedAt" if newest_episode => SortField::EpisodeAdded,
             "titleSort" | "title" => SortField::Title,
             "addedAt" => SortField::Added,
             "originallyAvailableAt" => SortField::Released,
@@ -886,8 +918,9 @@ pub(crate) fn parse_sort(value: Option<&str>) -> Vec<(SortField, bool)> {
     out
 }
 
-/// Sorts `rows` as `spec` says, with `bitrates` from [`bitrates_for`].
-pub(crate) fn sort_rows(rows: &mut [ItemRow], spec: &[(SortField, bool)], bitrates: &HashMap<i64, f64>) {
+/// Sorts `rows` as `spec` says, with what they don't carry from [`sort_values`].
+pub(crate) fn sort_rows(rows: &mut [ItemRow], spec: &[(SortField, bool)], values: &SortValues) {
+    let episode_added = |r: &ItemRow| values.newest_episodes.get(&r.id).copied().unwrap_or(r.added_at);
     fn cmp_opt<T: PartialOrd>(a: Option<T>, b: Option<T>, desc: bool) -> Ordering {
         match (a, b) {
             (Some(a), Some(b)) => {
@@ -905,6 +938,7 @@ pub(crate) fn sort_rows(rows: &mut [ItemRow], spec: &[(SortField, bool)], bitrat
             let o = match field {
                 SortField::Title => cmp_opt(Some(&a.sort_title), Some(&b.sort_title), desc),
                 SortField::Added => cmp_opt(Some(a.added_at), Some(b.added_at), desc),
+                SortField::EpisodeAdded => cmp_opt(Some(episode_added(a)), Some(episode_added(b)), desc),
                 SortField::Released => cmp_opt(a.release_date.as_ref(), b.release_date.as_ref(), desc),
                 SortField::Year => cmp_opt(a.year, b.year, desc),
                 SortField::Rating => cmp_opt(a.rating, b.rating, desc),
@@ -915,7 +949,7 @@ pub(crate) fn sort_rows(rows: &mut [ItemRow], spec: &[(SortField, bool)], bitrat
                 SortField::Index => cmp_opt(a.idx, b.idx, desc),
                 SortField::Id => cmp_opt(Some(a.id), Some(b.id), desc),
                 SortField::Updated => cmp_opt(Some(a.updated_at), Some(b.updated_at), desc),
-                SortField::Bitrate => cmp_opt(bitrates.get(&a.id), bitrates.get(&b.id), desc),
+                SortField::Bitrate => cmp_opt(values.bitrates.get(&a.id), values.bitrates.get(&b.id), desc),
             };
             if o != Ordering::Equal {
                 return o;
@@ -1229,6 +1263,7 @@ impl SortField {
         match self {
             SortField::Title => ("i.sort_title", false),
             SortField::Added => ("i.added_at", false),
+            SortField::EpisodeAdded => (EPISODE_ADDED_SQL, false),
             SortField::Released => ("i.release_date", true),
             SortField::Year => ("i.year", true),
             SortField::Rating => ("i.rating", true),
@@ -1287,11 +1322,21 @@ pub(crate) struct SectionQuery<'a> {
 
 impl<'a> SectionQuery<'a> {
     pub(crate) fn new(library_id: i64, kind: &'a str, params: &Params) -> Result<Self, FilterError> {
+        let mut sort = parse_sort(params.get("sort"));
+        // Only shows and seasons have episodes to go by; the others' own
+        // date (`episode.addedAt` on episodes) sorts as the column does.
+        if !matches!(kind, "show" | "season") {
+            for (field, _) in &mut sort {
+                if *field == SortField::EpisodeAdded {
+                    *field = SortField::Added;
+                }
+            }
+        }
         Ok(SectionQuery {
             library_id,
             kind,
             filter: Expr::parse(params, kind)?,
-            sort: parse_sort(params.get("sort")),
+            sort,
             cap: params.parse("limit"),
             now: now(),
         })
@@ -1386,8 +1431,8 @@ impl<'a> SectionQuery<'a> {
         if !self.filter.is_empty() {
             rows.retain(|r| self.filter.matches(r, extras.get(&r.id), self.now));
         }
-        let bitrates = bitrates_for(db, &rows, &self.sort).await?;
-        sort_rows(&mut rows, &self.sort, &bitrates);
+        let values = sort_values(db, &rows, &self.sort).await?;
+        sort_rows(&mut rows, &self.sort, &values);
         if let Some(cap) = self.cap {
             rows.truncate(cap);
         }
@@ -1572,6 +1617,11 @@ mod tests {
         assert_eq!(
             parse_sort(Some("movie.addedAt:desc,titleSort")),
             vec![(SortField::Added, true), (SortField::Title, false)]
+        );
+        // Shows' Last Episode Date Added, apart from their own Date Added.
+        assert_eq!(
+            parse_sort(Some("episode.addedAt:desc,show.addedAt")),
+            vec![(SortField::EpisodeAdded, true), (SortField::Added, false)]
         );
         assert_eq!(parse_sort(None), vec![(SortField::Title, false)]);
         assert_eq!(date_secs("1970-01-02"), Some(86_400));
@@ -1851,7 +1901,7 @@ mod tests {
         }
         let sorted = |spec: &str| {
             let mut rows = rows.clone();
-            sort_rows(&mut rows, &parse_sort(Some(spec)), &HashMap::new());
+            sort_rows(&mut rows, &parse_sort(Some(spec)), &SortValues::default());
             rows.iter().map(|r| r.title.clone()).collect::<Vec<_>>()
         };
         assert_eq!(sorted("year"), ["Charlie", "Alpha", "Delta", "Bravo"], "ties by title, missing last");

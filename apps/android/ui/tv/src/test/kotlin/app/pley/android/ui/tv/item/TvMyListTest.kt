@@ -17,6 +17,7 @@ import app.pley.android.common.Tier
 import app.pley.android.model.ItemKind
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemViewModel
+import app.pley.android.testing.caps.FakeCapsGraph
 import app.pley.android.ui.tv.shell.LocalTvNavigator
 import app.pley.android.ui.tv.shell.RailState
 import app.pley.android.ui.tv.shell.TvNavigator
@@ -38,7 +39,7 @@ class TvMyListTest {
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     private fun show(data: ItemData, id: Long = 1) {
-        val model = ItemViewModel(data, data.launcher, id, compute = Dispatchers.Main.immediate)
+        val model = ItemViewModel(data, data.launcher, FakeCapsGraph(), id, compute = Dispatchers.Main.immediate)
         val navigator = TvNavigator(mutableListOf<NavKey>(PleyKey.Home, PleyKey.Item(id)), RailState()) {}
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = true) {

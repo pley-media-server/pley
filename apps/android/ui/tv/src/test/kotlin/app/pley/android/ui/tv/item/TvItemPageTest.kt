@@ -37,6 +37,7 @@ import app.pley.android.model.TitleStatus
 import app.pley.android.model.UserState
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemViewModel
+import app.pley.android.testing.caps.FakeCapsGraph
 import app.pley.android.testing.Fixtures
 import app.pley.android.testing.data.FakeRequests
 import app.pley.android.ui.tv.shell.LocalTvNavigator
@@ -71,7 +72,7 @@ class TvItemPageTest {
     private val stack = mutableListOf<NavKey>(PleyKey.Home, PleyKey.Item(1))
 
     private fun show(data: ItemData, reduced: Boolean = true, id: Long = 1) {
-        val model = ItemViewModel(data, data.launcher, id, compute = Dispatchers.Main.immediate)
+        val model = ItemViewModel(data, data.launcher, FakeCapsGraph(), id, compute = Dispatchers.Main.immediate)
         val navigator = TvNavigator(stack, RailState()) {}
         compose.setContent {
             TvTheme(Tier.T2, reducedMotion = reduced) {

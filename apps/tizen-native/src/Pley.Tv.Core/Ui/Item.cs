@@ -268,7 +268,7 @@ public sealed record EpisodeLine(
 /// The version and tracks picked on the page (the web's VideoItemView state). A pick made for
 /// another version doesn't apply: choosing a version goes back to the server's choice of tracks for it.
 /// </summary>
-/// <param name="FileId">The version picked; null: the first.</param>
+/// <param name="FileId">The version picked, or the one a track was picked for; null: the one Play plays without a pick (<see cref="PageInput.BestFile"/>), else the first.</param>
 /// <param name="AudioFile">The version <paramref name="Audio"/> was picked for; null: none was.</param>
 /// <param name="Audio">The track picked; null with <paramref name="AudioFile"/>: Automatic was.</param>
 /// <param name="SubtitleFile">The version <paramref name="Subtitle"/> was picked for; null: none was (<paramref name="Subtitle"/> null with a file: Off).</param>
@@ -286,6 +286,8 @@ public sealed record PageInput
     public ItemDetail Detail { get; init; }
     public string Origin { get; init; }
     public StreamPick Pick { get; init; } = new StreamPick();
+    /// <summary>The version the player picks when none is asked for, as for Home and Continue Watching: the one this TV plays best; null when it can't tell.</summary>
+    public long? BestFile { get; init; }
     /// <summary>Shows and seasons: the episode Play plays; null while not known, or with none.</summary>
     public ItemSummary? OnDeck { get; init; }
     /// <summary>The show's seasons (a show's own, a season's siblings); null while they load.</summary>
@@ -324,10 +326,16 @@ public static class ItemPages
     /// <summary>Movies and shows, which My List takes.</summary>
     public static bool Listable(string kind) => kind is "movie" or "show";
 
-    /// <summary>The version and tracks <paramref name="pick"/> comes to on <paramref name="detail"/>, as the web works them out.</summary>
-    internal static Playing PlayingOf(ItemDetail detail, StreamPick pick)
+    /// <summary>
+    /// The version and tracks <paramref name="pick"/> comes to on <paramref name="detail"/>: the
+    /// version picked, else <paramref name="bestFile"/>, else the first; its tracks as the web works
+    /// them out.
+    /// </summary>
+    internal static Playing PlayingOf(ItemDetail detail, StreamPick pick, long? bestFile)
     {
-        var file = detail.Files.FirstOrDefault(f => f.Id == pick.FileId) ?? detail.Files.FirstOrDefault();
+        var file = detail.Files.FirstOrDefault(f => f.Id == pick.FileId)
+            ?? detail.Files.FirstOrDefault(f => f.Id == bestFile)
+            ?? detail.Files.FirstOrDefault();
         var audio = file?.Streams.Where(s => s.Kind == "audio").ToList() ?? new List<MediaStream>();
         var defaultAudio = audio.FirstOrDefault(s => s.Default) ?? audio.FirstOrDefault();
         var pickedHere = file != null && pick.AudioFile == file.Id;
@@ -342,7 +350,7 @@ public static class ItemPages
     public static ItemPage Page(PageInput input)
     {
         var d = input.Detail;
-        var playing = PlayingOf(d, input.Pick);
+        var playing = PlayingOf(d, input.Pick, input.BestFile);
         var onDeck = input.OnDeck;
         var kind = d.Kind;
         var video = Format.IsPlayableVideo(kind);

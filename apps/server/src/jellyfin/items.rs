@@ -183,7 +183,9 @@ fn sort_of(q: &Q) -> String {
     for (i, field) in q.list("sortBy").iter().enumerate() {
         let key = match field.to_ascii_lowercase().as_str() {
             "sortname" | "name" => "titleSort",
-            "datecreated" | "datelastcontentadded" => "addedAt",
+            "datecreated" => "addedAt",
+            // A series by its newest episode, anything else by its own date.
+            "datelastcontentadded" => "episode.addedAt",
             "premieredate" => "originallyAvailableAt",
             "productionyear" => "year",
             "communityrating" | "criticrating" => "rating",
@@ -303,8 +305,8 @@ async fn list_libraries(
         shuffle(&mut rows);
     } else if merged {
         let sort = listing::parse_sort(Some(&sort_of(q)).filter(|s| !s.is_empty()).map(String::as_str));
-        let bitrates = listing::bitrates_for(&state.db, &rows, &sort).await?;
-        listing::sort_rows(&mut rows, &sort, &bitrates);
+        let values = listing::sort_values(&state.db, &rows, &sort).await?;
+        listing::sort_rows(&mut rows, &sort, &values);
     }
     if random || merged {
         rows = rows.into_iter().skip(page.start).take(page.size.unwrap_or(usize::MAX)).collect();
@@ -619,7 +621,7 @@ async fn latest(
     }
     // One library's are in its order already; several are merged.
     if libs.len() > 1 {
-        rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+        catalog::sort_newest_added(&state.db, &mut rows).await?;
     }
     rows.truncate(limit as usize);
     Ok(Json(dtos(&state, &jellyfin, &user, &rows, Fields::of(&q)).await?).into_response())
@@ -750,7 +752,7 @@ async fn suggestions(
                 .filter(|r| matches!(r.kind.as_str(), "movie" | "show") && !r.watched && r.position_ms == 0),
         );
     }
-    rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+    catalog::sort_newest_added(&state.db, &mut rows).await?;
     rows.truncate(limit);
     let total = rows.len();
     let items = dtos(&state, &jellyfin, &user, &rows, Fields::of(&q)).await?;

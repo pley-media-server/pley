@@ -12,6 +12,7 @@ import app.pley.android.model.ItemDetail
 import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemViewModel
+import app.pley.android.testing.caps.FakeCapsGraph
 import app.pley.android.screens.item.ItemUiState
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
@@ -76,7 +77,7 @@ class ItemPageTest {
 
     private fun show(detail: ItemDetail, devices: List<OtherDevice> = emptyList(), withDownloads: Boolean = false): ItemData {
         val data = ItemData(detail)
-        val model = ItemViewModel(data, data.launcher, detail.id, compute = Dispatchers.Main.immediate)
+        val model = ItemViewModel(data, data.launcher, FakeCapsGraph(), detail.id, compute = Dispatchers.Main.immediate)
         val host = object : PlayOnHost {
             override val devices: List<OtherDevice> = devices
 

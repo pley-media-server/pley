@@ -3,6 +3,7 @@ package app.pley.android.screens.item
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.network.ApiException
+import app.pley.android.testing.caps.FakeCapsGraph
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -34,7 +35,7 @@ class MyListActionsTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.page(id: Long): ItemViewModel {
-        val model = ItemViewModel(data, launcher, id, compute = dispatcher)
+        val model = ItemViewModel(data, launcher, FakeCapsGraph(), id, compute = dispatcher)
         backgroundScope.launch(dispatcher) { model.state.collect { } }
         return model
     }

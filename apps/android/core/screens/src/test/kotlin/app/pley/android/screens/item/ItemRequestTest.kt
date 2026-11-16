@@ -11,6 +11,7 @@ import app.pley.android.model.TitleStatus
 import app.pley.android.network.ApiException
 import app.pley.android.screens.PleyKey
 import app.pley.android.testing.Fixtures
+import app.pley.android.testing.caps.FakeCapsGraph
 import app.pley.android.testing.data.FakeRequests
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -44,7 +45,7 @@ class ItemRequestTest {
 
     private fun TestScope.model(requests: FakeRequests): ItemViewModel {
         data.requests = requests
-        val model = ItemViewModel(data, RecordingLauncher(), 1, compute = dispatcher)
+        val model = ItemViewModel(data, RecordingLauncher(), FakeCapsGraph(), 1, compute = dispatcher)
         backgroundScope.launch(dispatcher) { model.state.collect { } }
         backgroundScope.launch(dispatcher) { model.request.collect { } }
         return model

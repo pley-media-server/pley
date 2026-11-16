@@ -18,7 +18,7 @@ use crate::catalog::{self, ItemRow, ME_CTE, VISIBLE, VISIBLE_ITEMS};
 use crate::db::Db;
 use crate::events::ServerEvent;
 use crate::library::LibraryRow;
-use crate::listing::{SectionQuery, bitrates_for, parse_sort, people_role, sort_rows};
+use crate::listing::{SectionQuery, parse_sort, people_role, sort_rows, sort_values};
 use crate::people;
 use crate::state::AppState;
 
@@ -373,8 +373,8 @@ pub async fn library_all(
         }
     }
     let sort = parse_sort(params.get("sort"));
-    let bitrates = bitrates_for(&state.db, &rows, &sort).await?;
-    sort_rows(&mut rows, &sort, &bitrates);
+    let values = sort_values(&state.db, &rows, &sort).await?;
+    sort_rows(&mut rows, &sort, &values);
     let rows: Vec<ItemRow> = rows.into_iter().skip(page.start).take(page.size.unwrap_or(usize::MAX)).collect();
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), listing_detail(&params)).await?;
     Ok(list_container(None, &info, nodes, total, &page))
@@ -699,6 +699,14 @@ pub async fn first_character(
 
 // ------------------------------------------------------------------ metadata
 
+/// The most keys `/library/metadata/{keys}` takes, as many as an edit or a
+/// playlist does.
+const MAX_METADATA_KEYS: usize = 5000;
+
+/// The most of them an answer carries unless the client asks for a page
+/// of another size: each costs lookups.
+const METADATA_PER_ANSWER: usize = 500;
+
 /// `/library/metadata/{keys}`: items, and the collections and playlists
 /// their keys name.
 pub async fn metadata(
@@ -707,16 +715,20 @@ pub async fn metadata(
     Extension(info): Extension<Arc<PlexInfo>>,
     Path(ids): Path<String>,
     params: Params,
+    page: Page,
 ) -> PlexResult<Node> {
-    // Each key once: a smart collection's or playlist's costs a listing.
+    // Each key once, and one past the most to refuse the list.
     let mut seen = std::collections::HashSet::new();
     let keys: Vec<Key> = ids
         .split(',')
         .filter_map(|i| i.trim().parse::<i64>().ok())
         .filter(|i| seen.insert(*i))
-        .take(500)
+        .take(MAX_METADATA_KEYS + 1)
         .map(Key::of)
         .collect();
+    if keys.len() > MAX_METADATA_KEYS {
+        return Err(PlexError::BadRequest(format!("at most {MAX_METADATA_KEYS} items are asked for at once")));
+    }
     match keys[..] {
         [Key::Collection(id)] => return super::lists::collection_details(&state, &user, &info, id, &params).await,
         [Key::Playlist(id)] => return super::lists::playlist_container_of(&state, &user, id).await,
@@ -734,6 +746,20 @@ pub async fn metadata(
         Some(first) => libraries.iter().find(|l| l.id == first.library_id),
         None => list_library.as_ref(),
     };
+    // Up to one answer's worth comes whole, whatever the page, as it did.
+    // More come by pages of what the user may see (python-plexapi asks with
+    // `X-Plex-Container-Start` and `-Size` while `totalSize` says there are
+    // more), in the size asked for: one that moves on by it skips nothing.
+    let found = rows.len() + lists.len();
+    let (start, size) = if found > METADATA_PER_ANSWER {
+        (page.start.min(found), page.size.unwrap_or(METADATA_PER_ANSWER))
+    } else {
+        (0, found)
+    };
+    // Items first, then collections and playlists, as they are listed.
+    let lists_start = start.saturating_sub(rows.len());
+    let rows: Vec<ItemRow> = rows.into_iter().skip(start).take(size).collect();
+    let lists: Vec<Node> = lists.into_iter().skip(lists_start).take(size - rows.len()).collect();
     let sections = Sections::new(&libraries);
     let detail = Detail {
         guids: true,
@@ -757,8 +783,7 @@ pub async fn metadata(
         }
     }
     nodes.extend(lists);
-    let total = nodes.len();
-    Ok(list_container(lib, &info, nodes, total, &Page::default()))
+    Ok(list_container(lib, &info, nodes, found, &Page { start, size: None }))
 }
 
 /// `/library/metadata/{key}/children`: a show's seasons, …, a collection's
@@ -934,7 +959,7 @@ pub async fn recently_added(
     for lib in &libraries {
         rows.extend(recent_rows(&state, &user, lib, 50).await?);
     }
-    rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+    catalog::sort_newest_added(&state.db, &mut rows).await?;
     let (rows, total) = page.apply(rows);
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), listing_detail(&params)).await?;
     Ok(list_container(None, &info, nodes, total, &page).attr("title1", "Recently Added"))
@@ -955,6 +980,9 @@ pub async fn home_recently_added(
     let mut rows = Vec::new();
     for lib in libraries.iter().filter(|l| section.is_none_or(|s| s == l.id)) {
         match wanted {
+            // The shows with the newest episodes, as without a type, not the
+            // newest shows.
+            Some("show") if kinds_of(lib).contains(&"show") => rows.extend(recent_rows(&state, &user, lib, 50).await?),
             Some(kind) if kinds_of(lib).contains(&kind) => {
                 let query = SectionQuery::new(lib.id, kind, &newest)?;
                 rows.extend(query.page(&state.db, user.id, &Page::default()).await?.0);
@@ -963,7 +991,7 @@ pub async fn home_recently_added(
             None => rows.extend(recent_rows(&state, &user, lib, 50).await?),
         }
     }
-    rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+    catalog::sort_newest_added(&state.db, &mut rows).await?;
     let (rows, total) = page.apply(rows);
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), listing_detail(&params)).await?;
     Ok(list_container(None, &info, nodes, total, &page).attr("title1", "Recently Added"))

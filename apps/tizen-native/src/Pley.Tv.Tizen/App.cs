@@ -360,7 +360,7 @@ class App : NUIApplication
             () => Go(new PageKey.Profiles()));
         tv.PageOf = key => key switch
         {
-            PageKey.Item item => new ItemScreen(tv, shell, new ItemModel(new AppItemSource(state), item.ItemId, new ContextScheduler()), images, gate, k => Go(tv, k),
+            PageKey.Item item => new ItemScreen(tv, shell, new ItemModel(new AppItemSource(state, () => PlayerScreen.Caps(state)), item.ItemId, new ContextScheduler()), images, gate, k => Go(tv, k),
                 new ItemRequestModel(requests, new ContextScheduler(), item.ItemId)),
             PageKey.Home => Home(tv),
             PageKey.Libraries => new LibrariesScreen(tv, shell, new LibrariesModel(new AppLibrarySource(state), new ContextScheduler()), gate, k => Go(tv, k)),

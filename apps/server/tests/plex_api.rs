@@ -435,3 +435,130 @@ async fn sidecar_subtitles_are_served_as_they_are() {
         app.plex(Method::GET, &format!("/library/streams/{}", (file + 1) * 10_000 + 1000), &admin, &[]).await;
     assert_eq!(elsewhere.status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn recently_added_counts_a_show_from_its_newest_episode() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979)/Alien (1979).mkv", 1024);
+    app.media_file("tv/Show (2010)/Season 01/Show - S01E01 - Pilot.mkv", 1024);
+    app.media_file("tv/Show (2010)/Season 01/Show - S01E02 - Second.mkv", 1024);
+    app.library(&admin, "Movies", "movies", "movies").await;
+    app.library(&admin, "TV", "shows", "tv").await;
+    // The show came first, the film after it, then the show's second
+    // episode, the newest of all.
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE WHEN kind = 'movie' THEN 2000 ELSE 1000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE items SET added_at = 3000 WHERE title = 'Second'").execute(db).await.unwrap();
+    for uri in ["/library/recentlyAdded", "/hubs/home/recentlyAdded"] {
+        assert_eq!(plex_titles(&app.plex_json(uri, &admin).await), ["Show", "Alien"], "{uri}");
+    }
+}
+
+#[tokio::test]
+async fn recently_added_shows_are_those_with_the_newest_episodes() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    // More shows than the hub lists; the first one added gets an episode last.
+    for n in 0..51 {
+        app.media_file(&format!("tv/Show {n:02} (2010)/Season 01/Show {n:02} - S01E01 - Pilot.mkv"), 1024);
+    }
+    let tv = app.library(&admin, "TV", "shows", "tv").await;
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE WHEN title = 'Show 00' THEN 1000 ELSE 2000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE items SET added_at = 3000
+         WHERE kind = 'episode' AND grandparent_id = (SELECT id FROM items WHERE title = 'Show 00')",
+    )
+    .execute(db)
+    .await
+    .unwrap();
+    let hub = app.plex_json(&format!("/hubs/home/recentlyAdded?type=2&sectionID={tv}"), &admin).await;
+    let titles = plex_titles(&hub);
+    assert_eq!((titles.len(), titles.first().map(String::as_str)), (50, Some("Show 00")));
+}
+
+#[tokio::test]
+async fn more_items_than_one_answer_carries_come_by_pages() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Film (2001)/Film (2001).mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 600)
+         INSERT INTO items (library_id, kind, key, title, sort_title, added_at, updated_at)
+         SELECT ?, 'movie', 'movie:more:' || i, 'More ' || i, 'more ' || i, 0, 0 FROM n",
+    )
+    .bind(movies)
+    .execute(&app.state.db.write)
+    .await
+    .unwrap();
+    let mut ids: Vec<i64> =
+        sqlx::query_scalar("SELECT id FROM items WHERE kind = 'movie'").fetch_all(&app.state.db.read).await.unwrap();
+    assert_eq!(ids.len(), 601);
+    // Keys of nothing the user may see come first; they count for nothing.
+    ids.splice(0..0, 1_000_000..1_000_200);
+    let uri = format!("/library/metadata/{}", ids.iter().map(i64::to_string).collect::<Vec<_>>().join(","));
+    let counts = |found: &Value| (found["size"].clone(), found["totalSize"].clone(), found["offset"].clone());
+    // Without a page, as many as an answer carries, and how many there are.
+    assert_eq!(counts(&app.plex_json(&uri, &admin).await), (json!(500), json!(601), json!(0)));
+    // Pages as python-plexapi asks for them, of 100 or of more than 500.
+    for size in [100, 1000] {
+        let mut seen = std::collections::HashSet::new();
+        for start in (0..=600).step_by(size) {
+            let (start, size) = (start.to_string(), size.to_string());
+            let headers = [("x-plex-container-start", start.as_str()), ("x-plex-container-size", size.as_str())];
+            let found = app.plex(Method::GET, &uri, &admin, &headers).await;
+            assert_eq!(found.status, StatusCode::OK, "{}", found.text());
+            assert_eq!(found.body["MediaContainer"]["totalSize"], json!(601));
+            seen.extend(plex_titles(&found.body["MediaContainer"]));
+        }
+        assert_eq!(seen.len(), 601, "pages of {size}");
+    }
+    // A page past the end is empty, and too many keys are refused.
+    let past = app.plex(Method::GET, &uri, &admin, &[("x-plex-container-start", "700")]).await;
+    assert_eq!(counts(&past.body["MediaContainer"]), (json!(0), json!(601), json!(601)));
+    let many = format!("/library/metadata/{}", (1..=5001).map(|i| i.to_string()).collect::<Vec<_>>().join(","));
+    assert_eq!(app.plex(Method::GET, &many, &admin, &[]).await.status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
+async fn last_episode_date_added_sorts_shows_by_their_newest_episode() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Film (2001)/Film (2001).mkv", 1024);
+    app.media_file("tv/Old (2010)/Season 01/Old - S01E01 - Pilot.mkv", 1024);
+    app.media_file("tv/New (2012)/Season 01/New - S01E01 - Pilot.mkv", 1024);
+    app.library(&admin, "Movies", "movies", "movies").await;
+    let tv = app.library(&admin, "TV", "shows", "tv").await;
+    // The old show came first and got an episode last; the film came
+    // between the new show and that episode.
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE title WHEN 'Old' THEN 1000 WHEN 'Film' THEN 2500 ELSE 2000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE items SET added_at = 3000
+         WHERE kind = 'episode' AND grandparent_id = (SELECT id FROM items WHERE title = 'Old')",
+    )
+    .execute(db)
+    .await
+    .unwrap();
+    let (app, admin) = (&app, admin.as_str());
+    let titles = |uri: String| async move { plex_titles(&app.plex_json(&uri, admin).await) };
+    let section = format!("/library/sections/{tv}/all?type=2");
+    assert_eq!(titles(format!("{section}&sort=episode.addedAt:desc")).await, ["Old", "New"]);
+    assert_eq!(titles(format!("{section}&sort=episode.addedAt")).await, ["New", "Old"]);
+    // Date Added stays the show's own.
+    assert_eq!(titles(format!("{section}&sort=addedAt:desc")).await, ["New", "Old"]);
+    // Merged across libraries, a film by its own date.
+    assert_eq!(titles("/library/all?sort=episode.addedAt:desc".into()).await, ["Old", "Film", "New"]);
+    assert_eq!(titles("/library/all?sort=addedAt:desc".into()).await, ["Film", "New", "Old"]);
+}

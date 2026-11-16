@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
+using Pley.Tv.Core.Player;
 using Pley.Tv.Core.Ui;
 
 namespace Pley.Tv.Core.Tests;
@@ -40,6 +41,9 @@ sealed class FakeItems : IItemSource
 
     /// <summary>What My List's writes throw, if anything.</summary>
     public Exception? ListFailure { get; set; }
+
+    /// <summary>What the TV plays; null: it can't tell.</summary>
+    public ClientCaps? TvCaps { get; set; }
 
     public void Set(ItemDetail detail)
     {
@@ -141,6 +145,8 @@ sealed class FakeItems : IItemSource
     }
 
     public void TracksChanged(ItemDetail? detail) => TracksChangedFor.Add(detail);
+
+    public ClientCaps? Caps() => TvCaps;
 
     public IDisposable OnChange(Action changed)
     {

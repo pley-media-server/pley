@@ -122,6 +122,24 @@ class ItemPagesTest {
     }
 
     @Test
+    fun `the version shown is the one picked, else the one this device plays best, else the first`() {
+        val versions = movie(
+            files = listOf(
+                file(11, stream(1, StreamKind.Audio, "truehd", "eng", default = true)),
+                file(12, stream(1, StreamKind.Audio, "ac3", "eng", default = true), width = 1920, height = 1080),
+            ),
+        )
+        val best = page(versions) { copy(bestFile = 12) }
+        assertEquals(12L, best.tracks!!.versionId)
+        assertEquals(listOf(false, true), best.tracks!!.versions.map { it.selected })
+        assertEquals(listOf(false, true), best.details.versions.map { it.selected })
+        assertEquals(MetaPart.Badges(listOf("1080p")), best.meta.last())
+        assertEquals(11L, page(versions) { copy(bestFile = 12, pick = StreamPick(fileId = 11)) }.tracks!!.versionId)
+        // The device's capabilities aren't known yet.
+        assertEquals(11L, page(versions).tracks!!.versionId)
+    }
+
+    @Test
     fun `nothing to choose gives no selects`() {
         val single = movie(files = listOf(file(11, stream(0, StreamKind.Video, "h264"), stream(1, StreamKind.Audio, "aac", "eng", default = true))))
         assertNull(page(single).tracks)

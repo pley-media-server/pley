@@ -85,6 +85,15 @@ On Intel graphics:
   from its base layer instead of never starting.
 - Seek previews and frame grabs of Dolby Vision profile 7 with a full
   enhancement layer look like the video, made from the base layer.
+- In Plex and Jellyfin apps, a show that just got a new episode comes
+  first in Recently Added rows that mix libraries, and in Kometa's Last
+  Episode Date Added and Jellyfin's Date Episode Added sorts.
+- Plex-compatible edits and requests of more than 500 titles at once, as
+  Kometa sends them, reach all of them. An edit of more than 5,000 titles,
+  or more than 5,000 added to a collection or playlist at once, is refused,
+  so nothing changes.
+- Play on… with a title that has several versions starts the other device
+  with the audio and subtitles picked, in whichever version it plays.
 
 On Intel graphics:
 

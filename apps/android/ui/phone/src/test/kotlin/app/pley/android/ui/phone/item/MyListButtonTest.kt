@@ -13,6 +13,7 @@ import app.pley.android.screens.Navigator
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.item.ItemUiState
 import app.pley.android.screens.item.ItemViewModel
+import app.pley.android.testing.caps.FakeCapsGraph
 import app.pley.android.ui.phone.theme.PhoneTheme
 import kotlinx.coroutines.Dispatchers
 import org.junit.Assert.assertEquals
@@ -36,7 +37,7 @@ class MyListButtonTest {
     }
 
     private fun show(data: ItemData, id: Long) {
-        val model = ItemViewModel(data, data.launcher, id, compute = Dispatchers.Main.immediate)
+        val model = ItemViewModel(data, data.launcher, FakeCapsGraph(), id, compute = Dispatchers.Main.immediate)
         compose.setContent {
             PhoneTheme {
                 val state by model.state.collectAsState()

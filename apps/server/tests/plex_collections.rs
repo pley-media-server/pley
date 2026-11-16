@@ -89,6 +89,43 @@ fn png() -> Vec<u8> {
 }
 
 #[tokio::test]
+async fn items_added_to_a_collection_or_playlist_are_taken_whole_or_refused() {
+    let w = world().await;
+    let collection = w.collection("Mine", &[w.alien]).await;
+    let made = w.send(Method::POST, &format!("/playlists?type=video&title=Tonight&uri={}", items(&[w.alien]))).await;
+    let playlist = key(&made.body["MediaContainer"]["Metadata"][0]);
+    let not_a_number =
+        encode(&format!("server://m/com.plexapp.plugins.library/library/metadata/{},x,{}", w.brazil, w.alien));
+    let too_many = items(&(1..=5001).collect::<Vec<i64>>());
+    for uri in [not_a_number, too_many] {
+        for (method, path) in [
+            (Method::POST, format!("/library/collections?type=1&title=New&smart=0&sectionId={}&uri={uri}", w.movies)),
+            (Method::PUT, format!("/library/collections/{collection}/items?uri={uri}")),
+            (Method::POST, format!("/playlists?type=video&title=New&uri={uri}")),
+            (Method::PUT, format!("/playlists/{playlist}/items?uri={uri}")),
+        ] {
+            let refused = w.send(method, &path).await;
+            assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.text());
+        }
+    }
+    // Nothing of them was added, nor made empty.
+    assert_eq!(w.titles(&format!("/library/metadata/{collection}/children")).await, ["Alien"]);
+    assert_eq!(w.titles(&format!("/playlists/{playlist}/items")).await, ["Alien"]);
+    let db = &w.app.state.db.read;
+    let lists: (i64, i64) =
+        sqlx::query_as("SELECT (SELECT COUNT(*) FROM collections), (SELECT COUNT(*) FROM playlists)")
+            .fetch_one(db)
+            .await
+            .unwrap();
+    assert_eq!(lists, (1, 1));
+    // As many as a playlist holds are taken (ids of no item add nothing).
+    let most = items(&[w.brazil].into_iter().chain(100_000..104_999).collect::<Vec<i64>>());
+    let added = w.send(Method::PUT, &format!("/library/collections/{collection}/items?uri={most}")).await;
+    assert_eq!(added.status, StatusCode::OK, "{}", added.text());
+    assert_eq!(w.titles(&format!("/library/metadata/{collection}/children")).await, ["Alien", "Brazil"]);
+}
+
+#[tokio::test]
 async fn collections_and_playlists_have_keys_of_their_own() {
     let w = world().await;
     let collection = w.collection("Two Films", &[w.alien, w.brazil]).await;
