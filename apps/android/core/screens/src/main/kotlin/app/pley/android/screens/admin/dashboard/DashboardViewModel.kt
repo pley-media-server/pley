@@ -50,6 +50,13 @@ import kotlinx.serialization.json.put
 /** A play of everyone's history, as its row shows it, with who played it. */
 data class DashboardPlay(val row: HistoryRow, val user: HistoryUser)
 
+/**
+ * The dashboard's live numbers stopped updating: reading them again fails
+ * ([error], the last), and what shows is from [since] (seconds since the
+ * epoch), the oldest of them read last.
+ */
+data class DashboardStale(val since: Long, val error: Throwable)
+
 /** Everyone's plays loaded so far, as rows, and whether there are more. */
 data class DashboardHistory(val plays: List<DashboardPlay>, val total: Int) {
     val canLoadMore: Boolean get() = plays.size < total
@@ -98,6 +105,18 @@ class DashboardViewModel(
 
     /** The processors and memory over the last five minutes: every 2 s, only the samples since the last. */
     val resources: StateFlow<AdminLoad<DashboardResources>> = resourcesNow.asStateFlow()
+
+    /** When each live read last had an answer (seconds), and those failing since. */
+    private val answeredAt = mutableMapOf<MutableStateFlow<*>, Long>()
+    private val failing = mutableSetOf<MutableStateFlow<*>>()
+    private val staleNow = MutableStateFlow<DashboardStale?>(null)
+
+    /**
+     * The live numbers shown stopped updating, and since when: `null` while
+     * they update. A read that never had an answer says so in its own place
+     * instead. Back to `null` once every read has an answer again.
+     */
+    val stale: StateFlow<DashboardStale?> = staleNow.asStateFlow()
 
     private val loadingMoreNow = MutableStateFlow(false)
     private val removingNow = MutableStateFlow<Set<Long>>(emptySet())
@@ -167,12 +186,22 @@ class DashboardViewModel(
     private suspend fun <T> read(into: MutableStateFlow<AdminLoad<T>>, read: suspend AdminApi.() -> T) {
         try {
             into.value = AdminLoad.Ready(admin.api().read())
+            answeredAt[into] = nowSeconds()
+            failing -= into
+            staleNow.value = staleOf(staleNow.value?.error)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             into.value = AdminLoad.Failed(e, into.value.valueOrNull)
+            if (into in answeredAt) failing += into
+            staleNow.value = staleOf(e)
             refused(e, reading = true)
         }
+    }
+
+    private fun staleOf(error: Throwable?): DashboardStale? {
+        val since = failing.mapNotNull(answeredAt::get).minOrNull() ?: return null
+        return error?.let { DashboardStale(since, it) }
     }
 
     /**

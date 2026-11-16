@@ -3,6 +3,8 @@
     <!-- Managing the server: the dashboard (apps/web/src/pages/settings/DashboardSettings.tsx, ResourcesSection.tsx, StorageSection.tsx). -->
     <string name="admin_dashboard_now_playing">En cours de lecture</string>
     <string name="admin_dashboard_nobody_watching">Personne ne regarde quoi que ce soit en ce moment.</string>
+    <string name="admin_dashboard_stale_title">Pas à jour : ces chiffres datent de %1$s</string>
+    <string name="admin_dashboard_stale_text">Ils se mettent à jour dès que le serveur répond.</string>
     <string name="admin_dashboard_method_direct">Lecture directe</string>
     <string name="admin_dashboard_method_remux">Remux</string>
     <string name="admin_dashboard_method_transcode">Transcodage</string>
