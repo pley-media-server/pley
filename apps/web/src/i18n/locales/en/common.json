@@ -163,6 +163,7 @@
     "tooMany": "Too many at once: try again in a moment",
     "castUnreachable": "{{device}} can't reach this server",
     "castFailed": "{{device}} didn't play it",
+    "connectionsFull": "{{device}} can't play the channel: all Live TV connections are in use",
     "pairingFailed": "{{device}} didn't pair",
     "pairFirst": "{{device}} wants pairing first: choose it in Play on… again",
     "wrongDevicePin": "That isn't the code {{device}} shows",

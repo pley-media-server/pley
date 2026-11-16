@@ -169,6 +169,7 @@
     "tooMany": "Demasiadas solicitudes a la vez: vuelve a intentarlo en un momento",
     "castUnreachable": "{{device}} no puede conectarse a este servidor",
     "castFailed": "{{device}} no lo reprodujo",
+    "connectionsFull": "{{device}} no puede reproducir el canal: todas las conexiones de TV en vivo están en uso",
     "pairingFailed": "{{device}} no se vinculó",
     "pairFirst": "Primero hay que vincular {{device}}: elígelo de nuevo en Reproducir en…",
     "wrongDevicePin": "Ese no es el código que muestra {{device}}",

@@ -169,6 +169,7 @@
     "tooMany": "Trop de demandes à la fois : réessayez dans un instant",
     "castUnreachable": "{{device}} n’arrive pas à joindre ce serveur",
     "castFailed": "{{device}} ne l’a pas lu",
+    "connectionsFull": "{{device}} ne peut pas lire la chaîne : toutes les connexions TV en direct sont utilisées",
     "pairingFailed": "{{device}} ne s’est pas associé",
     "pairFirst": "{{device}} doit d’abord être associé : choisissez-le à nouveau dans Lire sur…",
     "wrongDevicePin": "Ce n’est pas le code affiché sur {{device}}",
