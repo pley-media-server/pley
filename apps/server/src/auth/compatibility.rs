@@ -386,9 +386,14 @@ pub async fn delete_token(db: &Db, token: &str) -> Result<Option<i64>, AppError>
 
 /// Ends every token of `user_id`; their ids.
 pub async fn delete_for(db: &Db, user_id: i64) -> Result<Vec<i64>, AppError> {
+    delete_for_within(&mut *db.write.acquire().await?, user_id).await
+}
+
+/// [`delete_for`], within `conn`'s transaction.
+pub async fn delete_for_within(conn: &mut sqlx::SqliteConnection, user_id: i64) -> Result<Vec<i64>, AppError> {
     Ok(sqlx::query_scalar("DELETE FROM compatibility_tokens WHERE user_id = ? RETURNING id")
         .bind(user_id)
-        .fetch_all(&db.write)
+        .fetch_all(conn)
         .await?)
 }
 

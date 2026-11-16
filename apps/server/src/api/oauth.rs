@@ -1570,16 +1570,18 @@ async fn apps_of(state: &AppState, user_id: i64) -> ApiResult<Vec<AppGrant>> {
     Ok(grants::list(&state.db, user_id).await?.into_iter().map(AppGrant::from).collect())
 }
 
-/// Ends grant `grant_id` when it acts as `user_id` or they allowed it.
-async fn sign_out_app(state: &AppState, user_id: i64, grant_id: i64) -> ApiResult<StatusCode> {
-    let listed = grants::list(&state.db, user_id).await?.into_iter().any(|row| row.id == grant_id);
-    if !listed {
+/// Ends grant `grant_id` when it acts as `user_id` or they allowed it, for
+/// `by`: not for an app on another administrator's account.
+async fn sign_out_app(state: &AppState, by: &AuthUser, user_id: i64, grant_id: i64) -> ApiResult<StatusCode> {
+    let described = describe(state, grant_id).await;
+    let mut tx = state.db.write.begin().await?;
+    super::accounts::not_another_administrator(&mut tx, by, user_id).await?;
+    if !grants::delete_of_user(&mut tx, grant_id, user_id).await? {
         return Err(AppError::not_found("no such app"));
     }
-    let described = describe(state, grant_id).await;
-    if state.auth.end_grant(grant_id).await?
-        && let Some((app, user)) = described
-    {
+    tx.commit().await?;
+    state.auth.forget_grants(&[grant_id]);
+    if let Some((app, user)) = described {
         tracing::info!("{app} was signed out of {user}'s account");
     }
     Ok(StatusCode::NO_CONTENT)
@@ -1597,7 +1599,7 @@ pub async fn sign_out_my_app(
     user: AuthUser,
     Path(id): Path<i64>,
 ) -> ApiResult<StatusCode> {
-    sign_out_app(&state, user.id, id).await
+    sign_out_app(&state, &user, user.id, id).await
 }
 
 /// `GET /api/users/{id}/apps` (administrators).
@@ -1617,7 +1619,7 @@ pub async fn sign_out_user_app(
     Path((id, grant)): Path<(i64, i64)>,
 ) -> ApiResult<StatusCode> {
     super::accounts::not_ones_own_from_an_app(&admin, id, "sign your own apps out in Pley's web app")?;
-    sign_out_app(&state, id, grant).await
+    sign_out_app(&state, &admin, id, grant).await
 }
 
 #[cfg(test)]

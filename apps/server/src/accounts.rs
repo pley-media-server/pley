@@ -241,16 +241,19 @@ pub fn check_rules_apart(show: &[String], hide: &[String]) -> Result<(), AppErro
 }
 
 /// Replaces a profile's rules of `kind` ("show" or "hide") with `labels`
-/// (checked by [`check_label_rules`]).
-pub async fn set_label_rules(db: &Db, user_id: i64, kind: &str, labels: &[String]) -> sqlx::Result<()> {
-    let mut tx = db.write.begin().await?;
+/// (checked by [`check_label_rules`]), within `conn`'s transaction.
+pub async fn set_label_rules(
+    conn: &mut sqlx::SqliteConnection,
+    user_id: i64,
+    kind: &str,
+    labels: &[String],
+) -> sqlx::Result<()> {
     sqlx::query("DELETE FROM user_label_rules WHERE user_id = ? AND kind = ?")
         .bind(user_id)
         .bind(kind)
-        .execute(&mut *tx)
+        .execute(&mut *conn)
         .await?;
-    add_label_rules(&mut tx, user_id, kind, labels).await?;
-    tx.commit().await
+    add_label_rules(conn, user_id, kind, labels).await
 }
 
 /// Adds `labels` to a profile's rules of `kind`, within `conn`'s
@@ -350,17 +353,27 @@ pub async fn birthday_ages(db: &Db) -> sqlx::Result<Vec<i64>> {
 /// Replace a user's library list.
 pub async fn set_libraries(db: &Db, user_id: i64, library_ids: &[i64]) -> sqlx::Result<()> {
     let mut tx = db.write.begin().await?;
-    sqlx::query("DELETE FROM user_libraries WHERE user_id = ?").bind(user_id).execute(&mut *tx).await?;
+    set_libraries_within(&mut tx, user_id, library_ids).await?;
+    tx.commit().await
+}
+
+/// [`set_libraries`], within `conn`'s transaction.
+pub async fn set_libraries_within(
+    conn: &mut sqlx::SqliteConnection,
+    user_id: i64,
+    library_ids: &[i64],
+) -> sqlx::Result<()> {
+    sqlx::query("DELETE FROM user_libraries WHERE user_id = ?").bind(user_id).execute(&mut *conn).await?;
     for id in library_ids {
         sqlx::query(
             "INSERT OR IGNORE INTO user_libraries (user_id, library_id) SELECT ?, id FROM libraries WHERE id = ?",
         )
         .bind(user_id)
         .bind(id)
-        .execute(&mut *tx)
+        .execute(&mut *conn)
         .await?;
     }
-    tx.commit().await
+    Ok(())
 }
 
 /// Wrong PINs in a row after which a profile's PIN stops working until it is

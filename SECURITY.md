@@ -221,9 +221,16 @@ Apps sign in on Pley's own page with OAuth 2.1.
   password or a provider's address (tests/app_tokens.rs checks every one).
   Such a token can't change the account's own name, password, PIN or
   two-step sign-in, nor see or sign out its devices and apps. Nor can it
-  make an administrator, or change another administrator's password, PIN
-  or two-step sign-in, either of which would take whoever holds it into the
-  web app as an administrator. On the consent page, `approvals` and
+  make an administrator, or change anything of another administrator's
+  account: their role, password, PIN, two-step sign-in, name, libraries
+  and limits, whether it is disabled, their devices and apps, or the
+  account itself; it only reads such an account, its devices and apps. Making
+  an administrator, or a PIN set on one whose role was taken and then
+  given back, would take whoever holds the token into the web app as an
+  administrator; the rest would let them lock the other administrators
+  out. The role is checked again in the transaction that writes the
+  change, so an account made an administrator meanwhile is left as it
+  is. On the consent page, `approvals` and
   `server` are boxes the administrator ticks, unticked to begin with: the
   app works without them. An account that isn't an administrator's is
   never asked for them and never gives them, whatever the page sends, so

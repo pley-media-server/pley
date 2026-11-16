@@ -1348,13 +1348,19 @@ What apps see:
   without a user name or password. It may not change the account's own name, password, PIN or
   two-step sign-in, see or sign out its devices and apps, disable it or
   delete it, and its administration ends at once when the account stops
-  being an administrator. What makes an administrator, or gets into one's
-  account, stays with the web app too (`403`): it makes no account an
-  administrator (`is_admin: true` on `POST /api/users` or
-  `PATCH /api/users/{id}`), and changes no other administrator's
-  password or PIN, nor turns their two-step sign-in off. Either would let
-  whoever holds the app's token into the web app as an administrator. It
-  may take an administrator's role away. `GET /api/auth/me` tells Pley's
+  being an administrator. What makes an administrator, and other
+  administrators' accounts, stay with the web app too (`403`): it makes no
+  account an administrator (`is_admin: true` on `POST /api/users` or
+  `PATCH /api/users/{id}`, "an administrator is made in Pley's web app"),
+  and changes nothing of another administrator's account ("another
+  administrator's account is changed in Pley's web app"): no
+  `PATCH /api/users/{id}` of any field, no `DELETE /api/users/{id}`, and
+  no `DELETE` of its `devices`, `apps/{grant}` or `two-step`. It reads
+  them (`GET /api/users`, and their `devices` and `apps`). The role is
+  checked again in the transaction that writes a change, so an account
+  made an administrator meanwhile is refused, not changed. Accounts that
+  aren't administrators', and profiles without a password, it changes as
+  the web app does. `GET /api/auth/me` tells Pley's
   own apps whether the account is an administrator who allowed the app
   (`account_admin`), so one without `server` (signed in before it could
   ask for it, or allowed with the box left unticked) can offer to sign in
@@ -4501,6 +4507,11 @@ interface LiveTuner {                  // a connection in use
   `requests_settings_changed`, so they fetch the request summary again.
 - An age limit added to an account whose `request_access` is `"ask"` makes
   it `"off"`, unless the same change sets `request_access`.
+- A change is written whole or not at all.
+
+From one of Pley's apps allowed `server`, the routes above answer `403`
+on another administrator's account, but for the `GET`s
+([What apps see](#scopes)).
 
 ## Invitations
 

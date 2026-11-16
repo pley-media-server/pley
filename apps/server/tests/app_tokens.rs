@@ -740,48 +740,222 @@ async fn pleys_own_app_allowed_server_manages_it_on_an_administrators_account() 
     drop(dora);
 }
 
+const OTHER_ADMINS: &str = "another administrator's account is changed in Pley's web app";
+const ADMINS_MADE: &str = "an administrator is made in Pley's web app";
+
+/// Every change Manage server makes to someone else's account `id`, whose
+/// app signed in has grant `grant`: `(method, uri, body)`.
+fn changes_to(id: i64, grant: i64) -> Vec<(Method, String, Option<Value>)> {
+    let user = format!("/api/users/{id}");
+    let mut changes: Vec<_> = [
+        json!({"password": "another-pass-2"}),
+        json!({"pin": "1234"}),
+        json!({"pin": null}),
+        json!({"is_admin": false}),
+        json!({"disabled": true}),
+        json!({"display_name": "Someone"}),
+        json!({"home": false}),
+        json!({"all_libraries": false, "library_ids": []}),
+        json!({"max_age": 12}),
+        json!({"birth_month": "2015-03"}),
+        json!({"show_labels": ["Family"]}),
+        json!({"request_access": "off"}),
+    ]
+    .into_iter()
+    .map(|body| (Method::PATCH, user.clone(), Some(body)))
+    .collect();
+    changes.extend([
+        (Method::DELETE, format!("{user}/devices"), None),
+        (Method::DELETE, format!("{user}/apps/{grant}"), None),
+        (Method::DELETE, format!("{user}/two-step"), None),
+        (Method::DELETE, user, None),
+    ]);
+    changes
+}
+
+/// A new account signed in, with two-step sign-in on and an app signed in.
+struct Changed {
+    id: i64,
+    grant: i64,
+    session: String,
+    app_token: String,
+}
+
+async fn account_to_change(app: &TestApp, admin: &str, username: &str, is_admin: bool) -> Changed {
+    let (session, id) = app.user(admin, username, json!({"is_admin": is_admin})).await;
+    app.turn_on_two_step(&session, "test-pass-1").await;
+    let (app_token, _) = app.app_token(id, "library play").await;
+    let grant = sqlx::query_scalar("SELECT id FROM app_grants WHERE user_id = ?")
+        .bind(id)
+        .fetch_one(&app.state.db.read)
+        .await
+        .unwrap();
+    Changed { id, grant, session, app_token }
+}
+
+/// What a change could touch of account `id`, in one string; `None` once
+/// it is gone.
+async fn account_of(app: &TestApp, id: i64) -> Option<String> {
+    sqlx::query_scalar(
+        "SELECT json_array(password_hash, pin_hash, pin_failures, is_admin, disabled, display_name, home,
+                           all_libraries, max_age, max_age_system, birth_month, request_access, managed,
+                           (SELECT COUNT(*) FROM sessions WHERE user_id = u.id),
+                           (SELECT COUNT(*) FROM app_grants WHERE user_id = u.id OR approved_by = u.id),
+                           (SELECT COUNT(*) FROM two_step WHERE user_id = u.id),
+                           (SELECT COUNT(*) FROM recovery_codes WHERE user_id = u.id),
+                           (SELECT COUNT(*) FROM user_label_rules WHERE user_id = u.id),
+                           (SELECT COUNT(*) FROM user_libraries WHERE user_id = u.id))
+         FROM users u WHERE id = ?",
+    )
+    .bind(id)
+    .fetch_optional(&app.state.db.read)
+    .await
+    .unwrap()
+}
+
 #[tokio::test]
-async fn an_app_makes_no_administrator_nor_changes_ones_sign_in() {
+async fn an_app_changes_nothing_of_another_administrators_account() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let (_, bob_id) = app.user(&admin, "bob", json!({})).await;
-    let (_, dora_id) = app.user(&admin, "dora", json!({"is_admin": true})).await;
+    let dora = account_to_change(&app, &admin, "dora", true).await;
+    let (dora_id, doras_grant) = (dora.id, dora.grant);
     let (token, _) = app.app_token(1, "library play server").await;
+    let before = account_of(&app, dora_id).await;
+    assert!(before.is_some());
 
-    // Either would take whoever holds the token to the web app as an
-    // administrator, where the server's keys and passwords are.
+    // Their role, sign-in, devices and apps and the account itself stay
+    // with the web app: a PIN set while the role was away, and the role
+    // given back, would let whoever holds the token in as them.
+    for (method, uri, body) in changes_to(dora_id, doras_grant) {
+        let reply = app.app_call(method.clone(), &uri, &token, body.clone()).await;
+        assert_eq!(
+            (reply.status, &reply.body["message"]),
+            (StatusCode::FORBIDDEN, &json!(OTHER_ADMINS)),
+            "{method} {uri} {body:?}"
+        );
+    }
+    assert_eq!(account_of(&app, dora_id).await, before, "nothing changed");
+    for signed_in in [&dora.session, &dora.app_token] {
+        assert_eq!(app.get("/api/auth/me", signed_in).await.status, StatusCode::OK, "still signed in");
+    }
+
+    // Nor does an app make an administrator.
     let eve = json!({"username": "eve", "password": "test-pass-1", "is_admin": true});
-    let dora = format!("/api/users/{dora_id}");
-    let refused = [
-        app.app_call(Method::POST, "/api/users", &token, Some(eve)).await,
-        app.app_call(Method::PATCH, &format!("/api/users/{bob_id}"), &token, Some(json!({"is_admin": true}))).await,
-        app.app_call(Method::PATCH, &dora, &token, Some(json!({"password": "another-pass-2"}))).await,
-        app.app_call(Method::PATCH, &dora, &token, Some(json!({"pin": "1234"}))).await,
-        app.app_call(Method::PATCH, &dora, &token, Some(json!({"pin": null}))).await,
-        app.app_call(Method::DELETE, &format!("{dora}/two-step"), &token, None).await,
-    ];
-    for reply in refused {
-        assert_eq!(reply.status, StatusCode::FORBIDDEN, "{:?}", reply.body);
+    let bobs = format!("/api/users/{bob_id}");
+    for (method, uri, body) in
+        [(Method::POST, "/api/users", eve), (Method::PATCH, bobs.as_str(), json!({"is_admin": true}))]
+    {
+        let reply = app.app_call(method, uri, &token, Some(body)).await;
+        assert_eq!((reply.status, &reply.body["message"]), (StatusCode::FORBIDDEN, &json!(ADMINS_MADE)), "{uri}");
     }
     let users = app.get("/api/users", &admin).await.body;
     let role =
         |name: &str| users.as_array().unwrap().iter().find(|u| u["username"] == name).map(|u| u["is_admin"].clone());
-    assert_eq!(
-        (role("eve"), role("bob"), role("dora")),
-        (None, Some(json!(false)), Some(json!(true))),
-        "nothing changed"
-    );
+    assert_eq!((role("eve"), role("bob")), (None, Some(json!(false))), "nothing changed");
 
-    // Others' sign-ins stay the app's to change, and so does a role taken away.
-    let bob = format!("/api/users/{bob_id}");
-    for body in [json!({"password": "another-pass-2"}), json!({"pin": "1234"}), json!({"pin": null})] {
-        let reply = app.app_call(Method::PATCH, &bob, &token, Some(body)).await;
+    // It reads their account, as the list of accounts shows it.
+    let listed = app.get("/api/users", &token).await.body;
+    assert!(listed.as_array().unwrap().iter().any(|u| u["id"] == dora_id));
+    for uri in [format!("/api/users/{dora_id}/devices"), format!("/api/users/{dora_id}/apps")] {
+        let reply = app.get(&uri, &token).await;
+        assert_eq!((reply.status, reply.body.as_array().map(Vec::len)), (StatusCode::OK, Some(1)), "{uri}");
+    }
+
+    // The web's administrators change all of it, as before.
+    for i in 0..changes_to(0, 0).len() {
+        let other = account_to_change(&app, &admin, &format!("admin{i}"), true).await;
+        let (method, uri, body) = changes_to(other.id, other.grant).into_iter().nth(i).unwrap();
+        let reply = app.call(method.clone(), &uri, Some(&admin), body.clone(), &[]).await;
+        assert!(reply.status.is_success(), "{method} {uri} {body:?}: {:?}", reply.body);
+    }
+}
+
+#[tokio::test]
+async fn an_app_changes_other_accounts_and_profiles() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (token, _) = app.app_token(1, "library play server").await;
+
+    // Each change, to an account that isn't an administrator's.
+    for i in 0..changes_to(0, 0).len() {
+        let Changed { id, grant, .. } = account_to_change(&app, &admin, &format!("user{i}"), false).await;
+        let before = account_of(&app, id).await;
+        let (method, uri, body) = changes_to(id, grant).into_iter().nth(i).unwrap();
+        let reply = app.app_call(method.clone(), &uri, &token, body.clone()).await;
+        assert!(reply.status.is_success(), "{method} {uri} {body:?}: {:?}", reply.body);
+        if body != Some(json!({"pin": null})) && body != Some(json!({"is_admin": false})) {
+            assert_ne!(account_of(&app, id).await, before, "{method} {uri} {body:?} changed it");
+        }
+    }
+
+    // And a profile without a password, with its PIN.
+    let kid = json!({"username": "kid", "managed": true, "max_age": 7});
+    let made = app.app_call(Method::POST, "/api/users", &token, Some(kid)).await;
+    assert_eq!(made.status, StatusCode::CREATED, "{:?}", made.body);
+    let kids = format!("/api/users/{}", made.body["id"]);
+    for body in [json!({"pin": "1234"}), json!({"max_age": 9, "display_name": "Kid"}), json!({"pin": null})] {
+        let reply = app.app_call(Method::PATCH, &kids, &token, Some(body)).await;
         assert_eq!(reply.status, StatusCode::OK, "{:?}", reply.body);
     }
-    let demoted = app.app_call(Method::PATCH, &dora, &token, Some(json!({"is_admin": false}))).await;
-    assert_eq!(demoted.status, StatusCode::OK, "{:?}", demoted.body);
-    let pin = app.app_call(Method::PATCH, &dora, &token, Some(json!({"pin": "1234"}))).await;
-    assert_eq!(pin.status, StatusCode::OK, "no longer an administrator: {:?}", pin.body);
+    assert_eq!(app.app_call(Method::DELETE, &kids, &token, None).await.status, StatusCode::NO_CONTENT);
+}
+
+/// The answer to `req`, sent to the server on a task of its own.
+fn sent(app: &TestApp, req: Request<Body>) -> tokio::task::JoinHandle<(StatusCode, Value)> {
+    let api = app.api.clone();
+    tokio::spawn(async move {
+        let resp = api.oneshot(req).await.unwrap();
+        let status = resp.status();
+        let bytes = axum::body::to_bytes(resp.into_body(), 1024 * 1024).await.unwrap();
+        (status, serde_json::from_slice(&bytes).unwrap_or(Value::Null))
+    })
+}
+
+#[tokio::test]
+async fn an_account_made_an_administrator_while_an_app_changes_it_is_left_as_it_is() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    let (token, _) = app.app_token(1, "library play server").await;
+
+    for i in 0..changes_to(0, 0).len() {
+        let Changed { id, grant, .. } = account_to_change(&app, &admin, &format!("user{i}"), false).await;
+        let before = account_of(&app, id).await;
+        let (method, uri, body) = changes_to(id, grant).into_iter().nth(i).unwrap();
+        // The web app makes the account an administrator's while the app's
+        // change is on its way: the role is written, not yet committed, so
+        // the change's first look finds no administrator, and its writes
+        // wait for the server's one write connection.
+        let mut promoting = app.state.db.write.begin().await.unwrap();
+        sqlx::query("UPDATE users SET is_admin = 1 WHERE id = ?").bind(id).execute(&mut *promoting).await.unwrap();
+        let req = Request::builder()
+            .method(method.clone())
+            .uri(&uri)
+            .header(header::AUTHORIZATION, format!("Bearer {token}"));
+        let req = match &body {
+            Some(body) => req.header(header::CONTENT_TYPE, "application/json").body(Body::from(body.to_string())),
+            None => req.body(Body::empty()),
+        };
+        let change = sent(&app, req.unwrap());
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        assert!(!change.is_finished(), "{method} {uri} {body:?} waits for the writer");
+        promoting.commit().await.unwrap();
+
+        // The change, made after the role, finds it and changes nothing.
+        let (status, reply) = change.await.unwrap();
+        assert_eq!(
+            (status, &reply["message"]),
+            (StatusCode::FORBIDDEN, &json!(OTHER_ADMINS)),
+            "{method} {uri} {body:?}"
+        );
+        let demoted = sqlx::query("UPDATE users SET is_admin = 0 WHERE id = ? AND is_admin = 1")
+            .bind(id)
+            .execute(&app.state.db.write)
+            .await
+            .unwrap();
+        assert_eq!(demoted.rows_affected(), 1, "{method} {uri} {body:?}: still an administrator");
+        assert_eq!(account_of(&app, id).await, before, "{method} {uri} {body:?}: nothing else changed");
+    }
 }
 
 #[tokio::test]
