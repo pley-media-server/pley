@@ -26,6 +26,9 @@ describes how they are made.
 
 ### Fixed
 
+- Sign in again, offered where the app's sign-in didn't allow something
+  (managing the server, asking for movies and shows), opens the server's
+  sign-in page instead of going back to Home.
 - Live TV goes quiet while another app plays, a call included, instead of
   playing over it or taking the sound back. Its sound comes back once the
   other app is done, or with the next channel after music or a video.

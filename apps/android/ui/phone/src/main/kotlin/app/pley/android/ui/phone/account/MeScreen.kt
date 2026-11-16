@@ -152,7 +152,8 @@ internal fun MeScreen() {
                             stringResource(R.string.admin_title),
                             value = stringResource(if (manages) R.string.admin_me_value else R.string.admin_me_sign_in),
                             icon = PleyIcons.Server,
-                            onClick = { if (manages) navigator.open(PleyKey.ManageServer) else shell.signInAgain() },
+                            // Manage server says why it needs a new sign-in, and what to tick, before it signs in.
+                            onClick = { navigator.open(PleyKey.ManageServer) },
                             modifier = Modifier.testTag(ME_MANAGE_SERVER),
                         )
                     }

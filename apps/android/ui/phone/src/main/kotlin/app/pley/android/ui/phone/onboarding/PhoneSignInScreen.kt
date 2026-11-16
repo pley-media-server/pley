@@ -99,8 +99,10 @@ import app.pley.android.ui.phone.shell.LocalPhoneNavigator
  * opens that page does the button sign in with a code from another device
  * instead. Over the button, a chosen server that requires two-step sign-in
  * says so: its page sets it up. [preselect] is the server the app was
- * signed out of (PleyKey.SignIn). The globe in the top bar picks this
- * device's language.
+ * signed out of, or signs in to again for a permission its sign-in didn't
+ * give (PleyKey.SignIn): Continue then opens its page even with the app
+ * signed in to it, and the new sign-in takes the old one's place. The
+ * globe in the top bar picks this device's language.
  */
 @Composable
 internal fun PhoneSignInScreen(preselect: String?) {
@@ -120,7 +122,9 @@ internal fun PhoneSignInScreen(preselect: String?) {
     LaunchedEffect(servers) {
         servers.chosen.collect { chosen ->
             when {
-                chosen.signedIn -> navigator.restart(PleyKey.Home)
+                // Signed in to it already: in, unless the page was opened to sign in to it again
+                // (PhoneShellState.signInAgain: a permission its sign-in didn't give).
+                chosen.signedIn && !sameServer(chosen.url, preselect) -> navigator.restart(PleyKey.Home)
                 viaCode || noBrowserFor(context, chosen.url) -> navigator.open(PleyKey.Link(chosen.url))
                 else -> signIn.signIn(activity, chosen.url)
             }
@@ -184,6 +188,9 @@ private fun noBrowserFor(context: Context, server: String?): Boolean {
     val view = Intent(Intent.ACTION_VIEW, page).addCategory(Intent.CATEGORY_BROWSABLE)
     return view.resolveActivity(context.packageManager) == null
 }
+
+/** Whether [chosen] is [preselect], the server the page was opened for, however either ends. */
+internal fun sameServer(chosen: String, preselect: String?): Boolean = preselect != null && chosen.trimEnd('/') == preselect.trimEnd('/')
 
 /** A page to ask about before a server is chosen. */
 private const val ANY_PAGE = "https://example.com"
