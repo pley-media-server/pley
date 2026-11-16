@@ -15,8 +15,10 @@
     <string name="admin_section_invitations_value">Links that make an account</string>
     <string name="admin_web_only">The server\'s settings, network, transcoder, requests and Live TV are changed in Pley\'s web app.</string>
     <string name="admin_sign_in_title">Sign in again to manage the server</string>
-    <string name="admin_sign_in_body">This phone wasn\'t allowed to manage the server when it signed in. Sign in again and tick Manage the server.</string>
+    <string name="admin_sign_in_body">This phone wasn\'t allowed to manage the server when it signed in. Sign in again in the browser, not with a code, and tick Manage the server.</string>
     <string name="admin_sign_in_action">Sign in again</string>
+    <string name="admin_browser_title">Managing the server needs a browser</string>
+    <string name="admin_browser_body">Only a sign-in through a browser on this phone can let it manage the server, and no browser here opens the server\'s page. Install one, then come back here to sign in again.</string>
     <string name="admin_not_admin_title">Only administrators manage the server</string>
     <string name="admin_not_admin_body">Sign in with an administrator\'s account to manage it from this phone.</string>
     <string name="admin_load_failed">Couldn\'t load this page</string>

@@ -909,13 +909,16 @@ for the `server` scope as it signs in, where the server offers it
 ([API.md](API.md#scopes)), and the administrator gives it by ticking
 "Manage the server" on the sign-in page. An administrator whose phone
 doesn't have it (signed in before then, or with the box left unticked)
-sees Manage server offer to sign in again, and anyone else sees nothing
-of it. Nor does a phone that a cast switched to an administrator's
-profile, whoever signed it in: the caster gave their PIN on their own
-phone, and the server gives such a phone none of their rights over
-others. Manage server is back once the administrator switches to their
-profile on the phone itself, which takes their PIN, or signs in to it
-again. TVs don't manage the server: they sign in with a code, and the
+sees Manage server offer to sign in again in the browser, and anyone else
+sees nothing of it. A sign-in with a code from another device never
+allows it, so on a phone with no browser that opens the server's page
+Manage server says that one is needed instead of offering a sign-in that
+can't give it, and offers it once a browser is installed. Nor does a
+phone that a cast switched to an administrator's profile, whoever signed
+it in: the caster gave their PIN on their own phone, and the server gives
+such a phone none of their rights over others. Manage server is back once
+the administrator switches to their profile on the phone itself, which
+takes their PIN, or signs in to it again. TVs don't manage the server: they sign in with a code, and the
 server never gives the scope to a code.
 
 - **Dashboard**: what plays, where, and what plays it (a Pley app, an app

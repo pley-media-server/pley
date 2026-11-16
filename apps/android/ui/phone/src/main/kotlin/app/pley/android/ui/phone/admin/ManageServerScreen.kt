@@ -5,9 +5,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.data.AdminAccess
@@ -23,6 +29,7 @@ import app.pley.android.ui.phone.account.SettingsRow
 import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.PleyTopAppBar
 import app.pley.android.ui.phone.kit.PrimaryButton
+import app.pley.android.ui.phone.onboarding.noBrowserFor
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 
@@ -31,7 +38,10 @@ import app.pley.android.ui.phone.shell.LocalPhoneShell
  * Settings in the web app a phone has, in its order, each opening its page,
  * and a line saying where the others are. An
  * administrator signed in before the app could manage the server is asked
- * to sign in again; anyone else is told only administrators can.
+ * to sign in again in the browser; on a phone with no browser for the
+ * server's page, where signing in takes a code that never allows it, they
+ * are told that one is needed instead. Anyone else is told only
+ * administrators can.
  */
 @Composable
 internal fun ManageServerScreen() {
@@ -62,12 +72,20 @@ internal fun ManageServerScreen() {
                     }
                 }
             }
-            AdminAccess.SignInAgain -> EmptyState(
-                title = stringResource(R.string.admin_sign_in_title),
-                body = stringResource(R.string.admin_sign_in_body),
-                icon = PleyIcons.LogOut,
-                action = { PrimaryButton(stringResource(R.string.admin_sign_in_action), onClick = shell::signInAgain) },
-            )
+            AdminAccess.SignInAgain -> if (rememberNoBrowser(shell.server)) {
+                EmptyState(
+                    title = stringResource(R.string.admin_browser_title),
+                    body = stringResource(R.string.admin_browser_body),
+                    icon = PleyIcons.Globe,
+                )
+            } else {
+                EmptyState(
+                    title = stringResource(R.string.admin_sign_in_title),
+                    body = stringResource(R.string.admin_sign_in_body),
+                    icon = PleyIcons.LogOut,
+                    action = { PrimaryButton(stringResource(R.string.admin_sign_in_action), onClick = shell::signInAgain) },
+                )
+            }
             AdminAccess.None -> EmptyState(
                 title = stringResource(R.string.admin_not_admin_title),
                 body = stringResource(R.string.admin_not_admin_body),
@@ -76,6 +94,19 @@ internal fun ManageServerScreen() {
             null -> Unit
         }
     }
+}
+
+/**
+ * Whether nothing on this phone opens [server]'s sign-in page
+ * ([noBrowserFor]), asked again as the page comes back: a browser installed
+ * meanwhile offers the sign-in.
+ */
+@Composable
+private fun rememberNoBrowser(server: String?): Boolean {
+    val context = LocalContext.current
+    var none by remember(server) { mutableStateOf(noBrowserFor(context, server)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { none = noBrowserFor(context, server) }
+    return none
 }
 
 /** The parts, grouped as people look for them: what goes on, what is shared, and with whom. */

@@ -181,9 +181,10 @@ internal fun PhoneSignInScreen(preselect: String?) {
 /**
  * Whether nothing on this phone opens [server]'s sign-in page: no app
  * takes a browsable view of its address. Browsers are visible to the app
- * from Android 11 through the manifest's queries.
+ * from Android 11 through the manifest's queries. Signing in then takes a
+ * code, which never allows managing the server (ManageServerScreen).
  */
-private fun noBrowserFor(context: Context, server: String?): Boolean {
+internal fun noBrowserFor(context: Context, server: String?): Boolean {
     val page = server?.toUri()?.takeIf { it.scheme == "http" || it.scheme == "https" } ?: ANY_PAGE.toUri()
     val view = Intent(Intent.ACTION_VIEW, page).addCategory(Intent.CATEGORY_BROWSABLE)
     return view.resolveActivity(context.packageManager) == null

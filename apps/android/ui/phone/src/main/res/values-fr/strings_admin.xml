@@ -14,8 +14,10 @@
     <string name="admin_section_invitations_value">Liens pour créer un compte</string>
     <string name="admin_web_only">Les paramètres du serveur, le réseau, le transcodeur, les demandes et la TV en direct se changent dans l\'application web de Pley.</string>
     <string name="admin_sign_in_title">Reconnectez-vous pour gérer le serveur</string>
-    <string name="admin_sign_in_body">Ce téléphone n’a pas eu le droit de gérer le serveur à sa connexion. Reconnectez-vous et cochez Gérer le serveur.</string>
+    <string name="admin_sign_in_body">Ce téléphone n’a pas eu le droit de gérer le serveur à sa connexion. Reconnectez-vous dans le navigateur, pas avec un code, et cochez Gérer le serveur.</string>
     <string name="admin_sign_in_action">Se reconnecter</string>
+    <string name="admin_browser_title">Gérer le serveur demande un navigateur</string>
+    <string name="admin_browser_body">Seule une connexion dans un navigateur sur ce téléphone peut lui permettre de gérer le serveur, et aucun navigateur ici n’ouvre la page du serveur. Installez-en un, puis revenez ici pour vous reconnecter.</string>
     <string name="admin_not_admin_title">Seuls les administrateurs gèrent le serveur</string>
     <string name="admin_not_admin_body">Connectez-vous avec un compte administrateur pour le gérer depuis ce téléphone.</string>
     <string name="admin_load_failed">Impossible de charger cette page</string>
