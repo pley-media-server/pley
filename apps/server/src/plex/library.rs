@@ -703,8 +703,8 @@ pub async fn first_character(
 /// playlist does.
 const MAX_METADATA_KEYS: usize = 5000;
 
-/// The most of them one answer carries: each costs lookups, a smart
-/// collection's or playlist's a listing.
+/// The most of them an answer carries unless the client asks for a page
+/// of another size: each costs lookups.
 const METADATA_PER_ANSWER: usize = 500;
 
 /// `/library/metadata/{keys}`: items, and the collections and playlists
@@ -719,7 +719,7 @@ pub async fn metadata(
 ) -> PlexResult<Node> {
     // Each key once, and one past the most to refuse the list.
     let mut seen = std::collections::HashSet::new();
-    let mut keys: Vec<Key> = ids
+    let keys: Vec<Key> = ids
         .split(',')
         .filter_map(|i| i.trim().parse::<i64>().ok())
         .filter(|i| seen.insert(*i))
@@ -734,29 +734,32 @@ pub async fn metadata(
         [Key::Playlist(id)] => return super::lists::playlist_container_of(&state, &user, id).await,
         _ => {}
     }
-    // More than one answer carries come by pages (python-plexapi asks for
-    // them with `X-Plex-Container-Start` and `-Size` while `totalSize` says
-    // there are more); fewer come whole, whatever the page, as they did.
-    let asked = keys.len();
-    let paged = asked > METADATA_PER_ANSWER;
-    let start = if paged { page.start.min(asked) } else { 0 };
-    if paged {
-        let size = page.size.unwrap_or(METADATA_PER_ANSWER).min(METADATA_PER_ANSWER);
-        keys = keys.into_iter().skip(start).take(size).collect();
-    }
     let ids: Vec<i64> = keys.iter().filter_map(|k| if let Key::Item(id) = k { Some(*id) } else { None }).collect();
     let (lists, list_library) = super::lists::list_nodes(&state, &user, &keys).await?;
     let rows = catalog::items_by_ids(&state.db, user.id, &ids).await?;
     let libraries = visible_libraries(&state, &user).await?;
     let rows: Vec<ItemRow> = rows.into_iter().filter(|r| libraries.iter().any(|l| l.id == r.library_id)).collect();
-    // A page may find none of its keys; the others may be on another.
-    if rows.is_empty() && lists.is_empty() && !paged {
+    if rows.is_empty() && lists.is_empty() {
         return Err(PlexError::NotFound);
     }
     let lib = match rows.first() {
         Some(first) => libraries.iter().find(|l| l.id == first.library_id),
         None => list_library.as_ref(),
     };
+    // Up to one answer's worth comes whole, whatever the page, as it did.
+    // More come by pages of what the user may see (python-plexapi asks with
+    // `X-Plex-Container-Start` and `-Size` while `totalSize` says there are
+    // more), in the size asked for: one that moves on by it skips nothing.
+    let found = rows.len() + lists.len();
+    let (start, size) = if found > METADATA_PER_ANSWER {
+        (page.start.min(found), page.size.unwrap_or(METADATA_PER_ANSWER))
+    } else {
+        (0, found)
+    };
+    // Items first, then collections and playlists, as they are listed.
+    let lists_start = start.saturating_sub(rows.len());
+    let rows: Vec<ItemRow> = rows.into_iter().skip(start).take(size).collect();
+    let lists: Vec<Node> = lists.into_iter().skip(lists_start).take(size - rows.len()).collect();
     let sections = Sections::new(&libraries);
     let detail = Detail {
         guids: true,
@@ -780,8 +783,7 @@ pub async fn metadata(
         }
     }
     nodes.extend(lists);
-    let total = if paged { asked } else { nodes.len() };
-    Ok(list_container(lib, &info, nodes, total, &Page { start, size: None }))
+    Ok(list_container(lib, &info, nodes, found, &Page { start, size: None }))
 }
 
 /// `/library/metadata/{key}/children`: a show's seasons, …, a collection's

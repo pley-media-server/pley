@@ -499,23 +499,28 @@ async fn more_items_than_one_answer_carries_come_by_pages() {
     .execute(&app.state.db.write)
     .await
     .unwrap();
-    let ids: Vec<i64> =
+    let mut ids: Vec<i64> =
         sqlx::query_scalar("SELECT id FROM items WHERE kind = 'movie'").fetch_all(&app.state.db.read).await.unwrap();
     assert_eq!(ids.len(), 601);
+    // Keys of nothing the user may see come first; they count for nothing.
+    ids.splice(0..0, 1_000_000..1_000_200);
     let uri = format!("/library/metadata/{}", ids.iter().map(i64::to_string).collect::<Vec<_>>().join(","));
     let counts = |found: &Value| (found["size"].clone(), found["totalSize"].clone(), found["offset"].clone());
     // Without a page, as many as an answer carries, and how many there are.
     assert_eq!(counts(&app.plex_json(&uri, &admin).await), (json!(500), json!(601), json!(0)));
-    // python-plexapi's pages.
-    let mut seen = Vec::new();
-    for start in (0..=600).step_by(100) {
-        let start = start.to_string();
-        let headers = [("x-plex-container-start", start.as_str()), ("x-plex-container-size", "100")];
-        let found = app.plex(Method::GET, &uri, &admin, &headers).await;
-        assert_eq!(found.status, StatusCode::OK, "{}", found.text());
-        seen.extend(plex_titles(&found.body["MediaContainer"]));
+    // Pages as python-plexapi asks for them, of 100 or of more than 500.
+    for size in [100, 1000] {
+        let mut seen = std::collections::HashSet::new();
+        for start in (0..=600).step_by(size) {
+            let (start, size) = (start.to_string(), size.to_string());
+            let headers = [("x-plex-container-start", start.as_str()), ("x-plex-container-size", size.as_str())];
+            let found = app.plex(Method::GET, &uri, &admin, &headers).await;
+            assert_eq!(found.status, StatusCode::OK, "{}", found.text());
+            assert_eq!(found.body["MediaContainer"]["totalSize"], json!(601));
+            seen.extend(plex_titles(&found.body["MediaContainer"]));
+        }
+        assert_eq!(seen.len(), 601, "pages of {size}");
     }
-    assert_eq!(seen.len(), 601);
     // A page past the end is empty, and too many keys are refused.
     let past = app.plex(Method::GET, &uri, &admin, &[("x-plex-container-start", "700")]).await;
     assert_eq!(counts(&past.body["MediaContainer"]), (json!(0), json!(601), json!(601)));

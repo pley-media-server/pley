@@ -1856,7 +1856,8 @@ pub async fn recently_added(
 /// not from when the show itself was first added.
 pub async fn sort_newest_added(db: &Db, rows: &mut [ItemRow]) -> sqlx::Result<()> {
     let newest = newest_episodes(db, rows).await?;
-    rows.sort_by_key(|r| std::cmp::Reverse((newest.get(&r.id).copied().unwrap_or(r.added_at), r.id)));
+    let added = |r: &ItemRow| newest.get(&r.id).copied().filter(|_| r.kind == "show").unwrap_or(r.added_at);
+    rows.sort_by_key(|r| std::cmp::Reverse((added(r), r.id)));
     Ok(())
 }
 

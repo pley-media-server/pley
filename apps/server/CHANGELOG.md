@@ -68,18 +68,14 @@ On Intel graphics:
 - Seek previews and frame grabs of Dolby Vision profile 7 with a full
   enhancement layer look like the video, made from the base layer.
 - In Plex and Jellyfin apps, a show that just got a new episode comes
-  first in Recently Added rows that mix libraries, and sorted by Last
-  Episode Date Added (Date Episode Added in Jellyfin), instead of sorting
-  by when the show itself was first added.
-- A Plex-compatible edit of more than 500 titles at once, as Kometa sends
-  them, changes all of them instead of only the first 500, and asking for
-  more than 500 titles at once gets them all, page by page. An edit of more
-  than 5,000 titles, or more than 5,000 added to a collection or playlist
-  at once, is refused, so nothing is changed.
+  first in Recently Added rows that mix libraries, and in Kometa's Last
+  Episode Date Added and Jellyfin's Date Episode Added sorts.
+- Plex-compatible edits and requests of more than 500 titles at once, as
+  Kometa sends them, reach all of them. An edit of more than 5,000 titles,
+  or more than 5,000 added to a collection or playlist at once, is refused,
+  so nothing changes.
 - Play on… with a title that has several versions starts the other device
-  with the audio and subtitles picked, in the version it plays, instead of
-  the track at the same place in another version, which could be another
-  language.
+  with the audio and subtitles picked, in whichever version it plays.
 
 On Intel graphics:
 

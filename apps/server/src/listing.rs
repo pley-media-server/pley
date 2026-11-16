@@ -1322,11 +1322,21 @@ pub(crate) struct SectionQuery<'a> {
 
 impl<'a> SectionQuery<'a> {
     pub(crate) fn new(library_id: i64, kind: &'a str, params: &Params) -> Result<Self, FilterError> {
+        let mut sort = parse_sort(params.get("sort"));
+        // Only shows and seasons have episodes to go by; the others' own
+        // date (`episode.addedAt` on episodes) sorts as the column does.
+        if !matches!(kind, "show" | "season") {
+            for (field, _) in &mut sort {
+                if *field == SortField::EpisodeAdded {
+                    *field = SortField::Added;
+                }
+            }
+        }
         Ok(SectionQuery {
             library_id,
             kind,
             filter: Expr::parse(params, kind)?,
-            sort: parse_sort(params.get("sort")),
+            sort,
             cap: params.parse("limit"),
             now: now(),
         })
