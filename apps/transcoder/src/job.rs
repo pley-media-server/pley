@@ -477,6 +477,10 @@ struct Runtime {
     /// failed before its first segment: FFmpeg's decoder paired with the
     /// encoder takes the video from then on.
     qsv_decode_failed: bool,
+    /// A process rebuilding Dolby Vision FEL's full picture
+    /// ([`crate::plan::VideoOut::fel_compose`], experimental) failed before its first
+    /// segment: the video is made from its base layer from then on.
+    fel_compose_failed: bool,
     failures: HashMap<u32, u32>,
     /// The automatic preset of the running process (index in
     /// [`adaptive::LADDER`]), and when it started or moved.
@@ -509,6 +513,9 @@ const GPU_DECODING_FAILED: &str = "GPU decoding failed, using the CPU";
 
 /// What a job warns of once Quick Sync's own decoder failed on the video.
 const QSV_DECODING_FAILED: &str = "Quick Sync's decoder failed, using FFmpeg's";
+
+/// What a job warns of once rebuilding Dolby Vision FEL's full picture failed.
+const FEL_REBUILD_FAILED: &str = "Dolby Vision FEL's full picture couldn't be rebuilt, using its base layer";
 
 impl Runtime {
     /// Whether the latest process decodes with Quick Sync what FFmpeg's own
@@ -1515,12 +1522,19 @@ impl JobManager {
         // since: the same plan with them.
         let share = self.gpu_share(job, hw && fallback.is_none());
         let bitrate = *job.bitrate.lock();
-        // Quick Sync's own decoder failed on the video: FFmpeg's in its place.
-        let qsv_decode_failed = job.runtime.lock().qsv_decode_failed;
-        let adjusted = (share.is_some() || bitrate.is_some() || qsv_decode_failed).then(|| {
+        // Quick Sync's own decoder failed on the video: FFmpeg's in its
+        // place. The full picture couldn't be rebuilt: the base layer.
+        let (qsv_decode_failed, fel_compose_failed) = {
+            let rt = job.runtime.lock();
+            (rt.qsv_decode_failed, rt.fel_compose_failed)
+        };
+        let adjusted = (share.is_some() || bitrate.is_some() || qsv_decode_failed || fel_compose_failed).then(|| {
             let mut plan = share.map_or_else(|| plan.clone(), |s| plan.with_share(s));
             if qsv_decode_failed {
                 plan = plan.without_quick_sync_decoding();
+            }
+            if fel_compose_failed {
+                plan = plan.without_fel_compose();
             }
             if let (Some(kbps), Some(v)) = (bitrate, plan.video.as_mut()) {
                 v.bitrate_kbps = kbps;
@@ -2257,6 +2271,14 @@ impl Job {
                 // is the encoder's (below).
                 tracing::warn!(job = %self.id, "Quick Sync's decoder failed: FFmpeg's decoder takes the video");
                 rt.qsv_decode_failed = true;
+            } else if made_nothing && !rt.fel_compose_failed && self.plan.composes_fel() {
+                // So is rebuilding Dolby Vision FEL's full picture failing
+                // before it made anything (an enhancement layer `dovi_compose`
+                // can't read): the next process makes the video from its
+                // base layer, as without the rebuild, and this one doesn't
+                // count against the segment.
+                tracing::warn!(job = %self.id, "the FEL rebuild failed: the base layer takes the video");
+                rt.fel_compose_failed = true;
             } else {
                 *rt.failures.entry(next).or_insert(0) += 1;
                 // A hardware encoder failing before it made anything (a
@@ -2464,6 +2486,9 @@ impl Job {
         warnings.extend(rt.warnings.iter().filter(|w| !(quick_sync_decodes && *w == GPU_DECODING_FAILED)).cloned());
         if rt.qsv_decode_failed {
             warnings.push(QSV_DECODING_FAILED.to_owned());
+        }
+        if rt.fel_compose_failed && self.plan.composes_fel() {
+            warnings.push(FEL_REBUILD_FAILED.to_owned());
         }
         JobStatus {
             id: self.id.clone(),
@@ -4236,6 +4261,64 @@ mod tests {
         let rt = job.runtime.lock();
         assert!(rt.hardware_failed);
         assert_eq!(rt.failures.get(&1), Some(&1));
+    }
+
+    /// Rebuilding Dolby Vision FEL's full picture (experimental) failing
+    /// before its first segment makes the video from its base layer from
+    /// then on, with a warning, without counting against the segment.
+    #[tokio::test]
+    async fn a_rebuild_failing_before_its_first_segment_plays_the_base_layer() {
+        use pley_transcoder_api::{DolbyVisionLayer, DynamicRange, StreamKind, VideoRequest};
+        let dir = crate::testing::tempdir();
+        let mut ff = iris_xe(dir.path());
+        ff.caps.dolby_vision_fel_full = true;
+        let video = MediaStream {
+            kind: StreamKind::Video,
+            codec: "hevc".into(),
+            width: Some(3840),
+            height: Some(2160),
+            bit_depth: Some(10),
+            pix_fmt: Some("yuv420p10le".into()),
+            frame_rate: Some(24.0),
+            dynamic_range: Some(DynamicRange::DolbyVision),
+            dv_profile: Some(7),
+            dv_bl_compat: Some(6),
+            dv_el: Some(DolbyVisionLayer::Fel),
+            dv_el_present: Some(true),
+            hdr10_metadata: Some(true),
+            ..Default::default()
+        };
+        let media = MediaInfo { duration_ms: Some(8_000), streams: vec![video], ..Default::default() };
+        let mut req = JobRequest {
+            input: "/media/movie.mkv".into(),
+            video: Some(VideoRequest { max_height: Some(1080), ..Default::default() }),
+            ..Default::default()
+        };
+        req.options.dolby_vision_fel_full = true;
+        let mut job = job(dir.path(), vec![0, 4_000, 8_000]);
+        job.plan = Plan::build(&req, &media, &ff, None).unwrap();
+        job.media = Arc::new(media);
+        assert!(job.plan.composes_fel());
+
+        let (tail, metrics) = (Mutex::new(VecDeque::new()), Metrics::default());
+        let started = |job: &Job| {
+            job.runtime.lock().process = Some(ProcessStatus { start_segment: 1, hardware: true, ..Default::default() });
+        };
+        assert!(!job.status().warnings.iter().any(|w| w == FEL_REBUILD_FAILED));
+        started(&job);
+        job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        {
+            let rt = job.runtime.lock();
+            assert!(rt.fel_compose_failed && !rt.hardware_failed && !rt.qsv_decode_failed);
+            assert_eq!(rt.failures.get(&1), None, "the segment is tried again");
+        }
+        let status = job.status();
+        assert!(status.warnings.iter().any(|w| w == FEL_REBUILD_FAILED), "{:?}", status.warnings);
+
+        // Failing again, from the base layer: counted, as any failure.
+        started(&job);
+        job.on_exit(0, 2, 1, Ok(exit(1)), false, None, &tail, &metrics);
+        assert_eq!(job.runtime.lock().failures.get(&1), Some(&1));
     }
 
     #[test]

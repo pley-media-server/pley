@@ -53,6 +53,68 @@ describe("TranscoderSettings' form", () => {
     expect(screen.getByRole("switch", { name: "Throttle transcodes" })).not.toBeChecked();
     expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
+
+  it("turns the full enhancement layer on, experimental, where FFmpeg can read it", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => SETTINGS,
+      "GET /api/system": () => ({
+        transcoder: { available: true, managed: true, encoders: [], hwaccels: [], tonemapping: [], dolby_vision_fel_full: true },
+      }),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
+    });
+    renderWithProviders(<TranscoderSettings />);
+    const full = await screen.findByRole("switch", { name: "Offer the full enhancement layer" });
+    await waitFor(() => expect(full).toBeEnabled());
+    expect(full).not.toBeChecked();
+    expect(screen.getByText("Experimental")).toBeInTheDocument();
+    // Players on HDR screens offer it; the server alone doesn't use it.
+    expect(screen.getByText(/Clients must support HDR/)).toBeInTheDocument();
+    await user.click(full);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ dolby_vision_fel_full: true }));
+  });
+
+  it("greys the full enhancement layer out where FFmpeg can't read it", async () => {
+    mockApi({
+      "GET /api/settings": () => SETTINGS,
+      "GET /api/system": () => ({ transcoder: { available: true, managed: true, encoders: [], hwaccels: [], tonemapping: [] } }),
+    });
+    renderWithProviders(<TranscoderSettings />);
+    expect(await screen.findByText(/Needs Pley's own FFmpeg/)).toBeInTheDocument();
+    const full = screen.getByRole("switch", { name: "Offer the full enhancement layer" });
+    expect(full).toBeDisabled();
+    expect(full).not.toBeChecked();
+  });
+
+  it("lets the full enhancement layer be turned off where FFmpeg can't read it any more", async () => {
+    const user = userEvent.setup();
+    const requests = mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, dolby_vision_fel_full: true }),
+      "GET /api/system": () => ({ transcoder: { available: true, managed: true, encoders: [], hwaccels: [], tonemapping: [] } }),
+      "PUT /api/settings": (req) => ({ ...SETTINGS, ...(req.body as Partial<Settings>) }),
+    });
+    renderWithProviders(<TranscoderSettings />);
+    expect(await screen.findByText(/Needs Pley's own FFmpeg/)).toBeInTheDocument();
+    const full = screen.getByRole("switch", { name: "Offer the full enhancement layer" });
+    expect(full).toBeChecked();
+    expect(full).toBeEnabled();
+    await user.click(full);
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(requests.find((r) => r.method === "PUT")?.body).toEqual({ dolby_vision_fel_full: false }));
+  });
+
+  it("doesn't say what FFmpeg can't do before the transcoder says", async () => {
+    mockApi({
+      "GET /api/settings": () => ({ ...SETTINGS, dolby_vision_fel_full: true }),
+      "GET /api/system": () => ({ transcoder: { available: false, managed: true, encoders: [], hwaccels: [], tonemapping: [] } }),
+    });
+    renderWithProviders(<TranscoderSettings />);
+    const full = await screen.findByRole("switch", { name: "Offer the full enhancement layer" });
+    await waitFor(() => expect(full).toBeChecked());
+    expect(full).toBeEnabled();
+    expect(screen.queryByText(/Needs Pley's own FFmpeg/)).not.toBeInTheDocument();
+  });
 });
 
 describe("TranscoderSettings' folder", () => {

@@ -28,6 +28,12 @@ describes how they are made.
 - Live TV goes into picture in picture on phones and tablets, as videos
   do, with Channel down and Channel up in its small window.
 
+On Android TV:
+
+- The player's Quality panel has an experimental Enable FEL rebuild switch
+  where the server offers it, which says what the title plays as. The
+  device keeps it on or off.
+
 ### Fixed
 
 - Sign in again, offered where the app's sign-in didn't allow something

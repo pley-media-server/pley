@@ -99,6 +99,37 @@ fun interface ItemDetails {
 /** Whether the device is on its home network (Wi-Fi, Ethernet) or on mobile data. */
 enum class NetworkKind { Home, Mobile }
 
+/** Whether Dolby Vision profile 7's full enhancement layer is wanted on this device (Settings.felRebuild). */
+interface FelRebuildMemory {
+    suspend fun wanted(): Boolean
+
+    suspend fun remember(on: Boolean)
+
+    companion object {
+        /** Never wanted, and nothing kept. */
+        val NONE = object : FelRebuildMemory {
+            override suspend fun wanted() = false
+
+            override suspend fun remember(on: Boolean) = Unit
+        }
+
+        /** In the app's settings. */
+        fun of(settings: AppSettings): FelRebuildMemory = object : FelRebuildMemory {
+            override suspend fun wanted() = settings.settings.first().felRebuild
+
+            override suspend fun remember(on: Boolean) {
+                try {
+                    settings.update { it.copy(felRebuild = on) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    // Not saved: the next video plays its base layer.
+                }
+            }
+        }
+    }
+}
+
 /** The quality chosen last, per device and network kind (Settings.qualityOnHomeNetwork, qualityOnMobile). */
 interface QualityMemory {
     suspend fun remembered(): String?
@@ -177,6 +208,8 @@ class PlaybackEnvironment(
     val reporter: SessionReporter,
     val subtitles: SubtitleFetcher,
     val quality: QualityMemory = QualityMemory.NONE,
+    /** Whether Dolby Vision profile 7's full enhancement layer is wanted on this device. */
+    val felRebuild: FelRebuildMemory = FelRebuildMemory.NONE,
     /** What Automatic found the network carries, on this device for this server, for the next titles. */
     val ceiling: CeilingMemory = CeilingMemory.memory(),
     /** Seek previews' sheets; `null` for none. */

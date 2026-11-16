@@ -44,6 +44,11 @@
     <string name="tv_player_subtitles_toast">Sous-titres : %1$s</string>
     <string name="tv_player_play_original">Lire l’original</string>
     <string name="tv_player_play_original_hint">Réessayer l’original</string>
+    <string name="tv_player_fel_enable">Activer la reconstruction FEL</string>
+    <string name="tv_player_fel_experimental">Expérimental</string>
+    <string name="tv_player_fel_plays_sdr">Lu en SDR</string>
+    <string name="tv_player_fel_plays_hdr10">Lu en HDR10</string>
+    <string name="tv_player_fel_plays_hlg">Lu en HLG</string>
     <string name="tv_player_info_title">Détails de lecture</string>
     <string name="tv_player_info_how">Mode de lecture</string>
     <string name="tv_player_info_device">Cette TV</string>

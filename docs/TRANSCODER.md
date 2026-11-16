@@ -227,6 +227,7 @@ before using what it names:
 | `live_bitrate` | `POST /v1/jobs/{id}/bitrate` works |
 | `live` | `/v1/live` works |
 | `fmp4_segments` | jobs make fMP4 segments when `segment_format` asks for them, except jobs without video ([fMP4 segments](#fmp4-segments)) |
+| `dolby_vision_fel_full` | FFmpeg can rebuild profile 7's full picture from both layers (Pley's FFmpeg; [Profile 7's full enhancement layer](#profile-7s-full-enhancement-layer)) |
 | `trickplay_version` | the version of the seek previews it makes (`TrickplayInfo.version`); `0` from older transcoders |
 | `trickplay_runs` | how many seek-preview sets it makes at once; `0` from older transcoders, which make one at a time and give a set up after an hour of running |
 
@@ -437,6 +438,7 @@ variants, segment_format}`. See [How HLS jobs work](#how-hls-jobs-work).
 | `preset` | `veryfast` | x264 preset for software encodes, or `auto`: chosen and changed by the transcoder from its load and its lead on the player |
 | `throttle` | on | hold FFmpeg to real time after a burst ([Throttling](#throttling)) |
 | `in_memory` | on | keep segments in memory when possible ([Segments in memory](#segments-in-memory)) |
+| `dolby_vision_fel_full` | off | experimental: profile 7 with a full enhancement layer is transcoded from the full picture both layers make, where FFmpeg can (`dolby_vision_fel_full`) |
 
 Playlists and segments:
 
@@ -987,7 +989,8 @@ available tone mapper:
 - Dolby Vision profiles 7 and 8 have an HDR10- or HLG-compatible base layer
   and work with any tone mapper. Profile 5 without libplacebo, or Pley's
   FFmpeg's OpenCL, plays with off colours, with a warning. Profile 7 with
-  a full enhancement layer is tone mapped from its base layer alone
+  a full enhancement layer is tone mapped from its base layer alone, or
+  from the full picture where that is asked for
   ([Profile 7's full enhancement layer](#profile-7s-full-enhancement-layer)).
 - libplacebo caches compiled shaders in `libplacebo/` (saving about 0.2 s at
   every start, seek and quality switch) with FFmpeg 8 and later, whose
@@ -1017,7 +1020,25 @@ the base layer's own static metadata, the Dolby Vision metadata unread
 - HDR10+ in the base layer is the base layer's own: still read.
 - A minimal layer, a layer not known (probed by an older transcoder) and
   the other profiles aren't concerned: their metadata is read.
-- Seek previews and frame grabs are made from the base layer alone too.
+- Seek previews and frame grabs are made from the base layer alone too:
+  they are made once a file, whatever a player asks for later.
+- **Experimental: the full layer.** With `dolby_vision_fel_full` asked for,
+  and an FFmpeg that can (capability `dolby_vision_fel_full`, Pley's own
+  FFmpeg), the full picture is rebuilt from the base layer, the enhancement
+  layer and their metadata, as a Dolby Vision player does, on the CPU, and
+  then transcoded as HDR10. The brightness the metadata gives each scene
+  describes that picture, and goes on with it as HDR10+ (`dovi_compose`'s
+  `scene`), so made SDR it is tone mapped scene by scene, as a Dolby Vision
+  player would. The server asks for it only for a player that asked
+  ([API.md](API.md), `enhancement_layer`). It is done only where the
+  stream says it carries the enhancement layer
+  (`MediaStream.dv_el_present: true`, from the configuration record's
+  `el_present_flag`): with the layer's metadata alone, FFmpeg would wait
+  for that layer's frames to the end of the file. Files probed before
+  probes said so are probed again. The file is read twice, once for each
+  layer. A rebuild that fails before its first segment gives way to the
+  base layer for the rest of the job, with a warning. Files that carry the
+  layer as a video stream of its own (two video tracks) aren't composed.
 
 #### libplacebo quality
 
@@ -1454,7 +1475,10 @@ decodes its first frames' side data and records:
   `dynamic_range: hdr10plus`, and Dolby Vision found in the frames keeps
   its base layer's HDR10+ (Dolby Vision + HDR10+).
 - For profile 7, `MediaStream.dv_el`: `mel` (minimal) when the enhancement
-  layer's residual is zero in every component, else `fel` (full).
+  layer's residual is zero in every component, else `fel` (full). The
+  metadata says it, so it is there where the layer itself was dropped;
+  `MediaStream.dv_el_present` says whether the layer is (the configuration
+  record's `el_present_flag`, from the stream rather than its frames).
 - `MediaStream.hdr10_metadata`: whether the frames carry HDR10's static
   metadata, the mastering display's (SMPTE ST 2086). Quick Sync's scaler
   and VAAPI tone map by it ([Sharing the GPU](#sharing-the-gpu)).

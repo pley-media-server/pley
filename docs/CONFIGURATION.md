@@ -63,9 +63,10 @@ example, `--plex-bind` is also `PLEY_PLEX_BIND` and `plex_bind`.
 Everything else is set in the web app:
 
 - **Settings → Server**: the server name, metadata sources and keys, scanning.
-- **Settings → Transcoder**: hardware acceleration, tone mapping, whether
-  video is transcoded at all, and how many streams run at once (video
-  transcodes, and all of them).
+- **Settings → Transcoder**: hardware acceleration, tone mapping, Dolby
+  Vision profile 7's full enhancement layer, whether video is transcoded at
+  all, and how many streams run at once (video transcodes, and all of
+  them).
 - **Settings → Network**: where Pley listens (networks, port, the Plex- and
   Jellyfin-compatible APIs, discovery, Bonjour), changed while Pley runs and
   saved in `pley.toml`, unless `--bind`, `--plex-bind`, `--jellyfin-bind`,

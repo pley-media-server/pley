@@ -296,6 +296,21 @@ answers say so (`original_only`), and every player follows:
 
 Kodi's quality is a setting: it keeps its choice, and the Original plays.
 
+## Dolby Vision FEL rebuild (experimental)
+
+Where the server rebuilds the full picture of Dolby Vision profile 7 with
+a full enhancement layer (Settings → Transcoder, "Dolby Vision FEL"), its
+play answer offers it for such a title on an HDR screen whose player can't
+play the layer itself (`enhancement_layer: "offered"`, [API.md](API.md)),
+and says what it plays as (`enhancement_layer_as`). The player shows one
+switch below the qualities, Enable FEL rebuild, off unless turned on, with
+"Experimental" and what it plays as under it. It is kept on the device and
+asked for in every play (`enhancement_layer: true`). Turned on, the title
+plays from where it is as a transcode of the full picture, whatever the
+quality; turned off, as before. The web and desktop apps and Android TV
+offer it; their transcodes keep HDR as far as they do for any video (SDR
+on the web).
+
 ## The server
 
 | Player asks for | Request |

@@ -62,6 +62,34 @@ describe("SettingsPopover", () => {
     expect(props.setOpen).toHaveBeenCalledWith(false);
   });
 
+  it("offers to rebuild Dolby Vision FEL below the qualities only where the server does", async () => {
+    const user = userEvent.setup();
+    renderPopover();
+    await user.click(screen.getByRole("button", { name: /Quality/ }));
+    expect(screen.queryByRole("menuitemcheckbox")).not.toBeInTheDocument();
+
+    const onFelRebuild = vi.fn();
+    renderPopover({ felRebuild: { on: false, playsAs: "sdr" }, onFelRebuild });
+    await user.click(screen.getAllByRole("button", { name: /Quality/ }).at(-1)!);
+    const rebuild = screen.getByRole("menuitemcheckbox", { name: /Enable FEL rebuild/ });
+    expect(rebuild).toHaveAttribute("aria-checked", "false");
+    expect(rebuild).toHaveTextContent("Experimental · Plays as SDR");
+    await user.click(rebuild);
+    expect(onFelRebuild).toHaveBeenCalledWith(true);
+  });
+
+  it("turns the FEL rebuild off again", async () => {
+    const user = userEvent.setup();
+    const onFelRebuild = vi.fn();
+    renderPopover({ felRebuild: { on: true, playsAs: "hdr10" }, onFelRebuild });
+    await user.click(screen.getByRole("button", { name: /Quality/ }));
+    const rebuild = screen.getByRole("menuitemcheckbox", { name: /Enable FEL rebuild/ });
+    expect(rebuild).toHaveAttribute("aria-checked", "true");
+    expect(rebuild).toHaveTextContent("Plays as HDR10");
+    await user.click(rebuild);
+    expect(onFelRebuild).toHaveBeenCalledWith(false);
+  });
+
   it("says what Automatic plays, and why when lower", async () => {
     const user = userEvent.setup();
     renderPopover({ quality: "auto", autoNow: "Original" });

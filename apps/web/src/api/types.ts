@@ -553,6 +553,13 @@ export interface PlaybackInfo {
    */
   original_only?: boolean;
   /**
+   * Dolby Vision profile 7's full enhancement layer: "offered" where the player may ask for it
+   * (`enhancement_layer` in the request), "used" where this transcode is made from it. Absent otherwise.
+   */
+  enhancement_layer?: "offered" | "used";
+  /** What the full picture plays as where it is offered. */
+  enhancement_layer_as?: "sdr" | "hdr10" | "hlg";
+  /**
    * What the screen gets of HDR video, by name: "Dolby Vision P8.1", "HDR10
    * (Dolby Vision base layer)", "SDR (tone-mapped)"… Absent for SDR video
    * and from older servers.
@@ -584,6 +591,8 @@ export interface ClientCaps {
   audio_codecs: string[];
   /** Shows HDR10 / HLG without tone mapping. */
   hdr?: boolean;
+  /** The screen itself is HDR, where `hdr` is also true of a browser tone mapping for an SDR screen. */
+  hdr_display?: boolean;
   /** Decodes Dolby Vision (needed for profile 5). */
   dolby_vision?: boolean;
   /** HLS: `variants` moves between a multivariant playlist's sizes by itself (adaptive bitrate). */
@@ -610,6 +619,8 @@ export interface PlaybackRequest {
   client_id?: string;
   /** Started while the last session plays on, to move to it once it is ready: that one is left to the player to end. */
   keep_previous?: boolean;
+  /** The viewer wants Dolby Vision profile 7's full enhancement layer where the server offers it (experimental). */
+  enhancement_layer?: boolean;
   /** The remote's commands this player obeys; left out: none (Stop always works). */
   controls?: Control[];
   /** What remotes call this device; left out: the server names it from the User-Agent ("Firefox on macOS"). */
@@ -1049,6 +1060,12 @@ export interface Settings {
   throttle_transcodes: boolean;
   /** Keep transcodes' segments in RAM where the transcoder can, else on disk. Throttled transcodes only. */
   transcode_in_memory: boolean;
+  /**
+   * Experimental: players on HDR screens offer profile 7's full
+   * enhancement layer, the full picture rebuilt from both layers where the
+   * transcoder's FFmpeg can. Absent from servers before it.
+   */
+  dolby_vision_fel_full?: boolean;
   scan_interval_minutes: number;
   watch_libraries: boolean;
   detect_markers: boolean;
@@ -1173,6 +1190,8 @@ export interface TranscoderInfo {
   chromaprint: boolean;
   /** FFmpeg can hold transcodes back (6.1 and newer). */
   throttling: boolean;
+  /** The transcoder's FFmpeg can rebuild Dolby Vision FEL's full picture. Absent from servers before it. */
+  dolby_vision_fel_full?: boolean;
   /** Whether segments can be kept in memory, and how much; `null` while the transcoder is unavailable. */
   memory?: TranscoderMemory | null;
   max_jobs: number;

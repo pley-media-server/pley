@@ -173,6 +173,9 @@ class SessionHarness(
     val api: CountingApi
     val remembered = mutableListOf<String>()
 
+    /** Dolby Vision FEL's rebuild turned on or off on the device, in order. */
+    val felRebuildRemembered = mutableListOf<Boolean>()
+
     /** Streams made ready beside the one playing: their address and where they were asked for from, in order. */
     val warmups: MutableList<Pair<String, Long>> = Collections.synchronizedList(mutableListOf())
 
@@ -212,6 +215,13 @@ class SessionHarness(
 
             override suspend fun remember(id: String) {
                 remembered += id
+            }
+        },
+        felRebuild = object : FelRebuildMemory {
+            override suspend fun wanted(): Boolean = felRebuildRemembered.lastOrNull() ?: false
+
+            override suspend fun remember(on: Boolean) {
+                felRebuildRemembered += on
             }
         },
         autoplayNext = { autoplay },

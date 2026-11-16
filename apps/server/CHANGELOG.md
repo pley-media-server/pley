@@ -56,6 +56,10 @@ describes how they are made.
   message only for Pley apps, the only ones that show it.
 - Live TV goes into the browser's picture in picture, as videos do; next
   and previous, in its small window or on the keyboard, change channel.
+- Settings → Transcoder has an experimental Dolby Vision FEL option: with
+  Pley's own FFmpeg, players on HDR screens can turn on Enable FEL rebuild
+  in their Quality menu to play profile 7's full picture, rebuilt from its
+  enhancement layer. The web and desktop apps offer it.
 
 ### Changed
 

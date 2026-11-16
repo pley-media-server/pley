@@ -32,6 +32,7 @@ describe("videoCaps", () => {
       video_codecs: ["h264", "vp9", "av1", "vp8"],
       audio_codecs: ["aac", "opus", "flac"],
       hdr: false,
+      hdr_display: false,
       dolby_vision: false,
       // Transcodes come in several sizes, which hls.js moves between.
       hls: { variants: true },
@@ -63,7 +64,7 @@ describe("videoCaps", () => {
     expect(found.containers).not.toContain("mkv");
     expect(found.video_codecs).toEqual(["hevc"]);
     expect(found.audio_codecs).toEqual(["eac3", "alac"]);
-    expect(found).toMatchObject({ hdr: true, dolby_vision: true });
+    expect(found).toMatchObject({ hdr: true, hdr_display: true, dolby_vision: true });
   });
 
   it("needs an HDR screen as well as a 10-bit decoder for HDR", async () => {
@@ -75,7 +76,7 @@ describe("videoCaps", () => {
   it("lets desktop Chromium tone-map HDR for an SDR screen", async () => {
     Object.defineProperty(navigator, "userAgentData", { value: { brands: [{ brand: "Chromium" }] }, configurable: true });
     browser({ types: ['video/mp4; codecs="hvc1.2.4.L153.B0"'], hdrDisplay: false });
-    expect((await caps()).videoCaps().hdr).toBe(true);
+    expect((await caps()).videoCaps()).toMatchObject({ hdr: true, hdr_display: false });
 
     browser({ types: [], hdrDisplay: false });
     expect((await caps()).videoCaps().hdr).toBe(false);

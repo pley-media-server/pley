@@ -4,6 +4,7 @@ import app.pley.android.fixtures.FixtureIds
 import app.pley.android.model.DynamicRange
 import app.pley.android.model.PlaybackMethod
 import app.pley.android.model.PlaybackMode
+import app.pley.android.player.FelRebuildChoice
 import app.pley.android.player.PlayRequest
 import app.pley.android.testing.caps.TestDevices
 import app.pley.android.testing.caps.capsOf
@@ -51,6 +52,39 @@ class QualityAndGuardsTest {
         h.settle()
         assertEquals(PlaybackMode.Auto, h.playbackRequests().last().mode)
         assertNull(h.playbackRequests().last().maxBitrate)
+    }
+
+    @Test
+    fun `the FEL rebuild shows where the server offers it, and switching it plays from where it is and is kept`() {
+        val c = h.play(PlayRequest(FixtureIds.SAMPLE_1080P))
+        h.engine.ready()
+        h.advance(1_000)
+        assertNull(c.state.value.felRebuild)
+
+        // A server that offers it, from the start of the title.
+        use(SessionHarness())
+        h.server.offersFelRebuild = true
+        val offered = h.play(PlayRequest(FixtureIds.SAMPLE_1080P))
+        h.engine.ready()
+        h.advance(2_000)
+        assertEquals(FelRebuildChoice(on = false, playsAs = "hdr10"), offered.state.value.felRebuild)
+        assertNull(h.playbackRequests().last().enhancementLayer)
+
+        offered.selectFelRebuild(true)
+        h.settle()
+        val asked = h.playbackRequests().last()
+        assertEquals(true, asked.enhancementLayer)
+        assertEquals(2_000L, asked.startMs)
+        assertEquals(listOf(true), h.felRebuildRemembered)
+        assertEquals(FelRebuildChoice(on = true, playsAs = "hdr10"), offered.state.value.felRebuild)
+
+        // Turned off where the server offers it no more: asked for no more, and no switch.
+        h.server.offersFelRebuild = false
+        offered.selectFelRebuild(false)
+        h.settle()
+        assertNull(h.playbackRequests().last().enhancementLayer)
+        assertEquals(listOf(true, false), h.felRebuildRemembered)
+        assertNull(offered.state.value.felRebuild)
     }
 
     @Test

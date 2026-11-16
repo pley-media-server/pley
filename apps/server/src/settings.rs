@@ -89,6 +89,13 @@ pub struct Settings {
     /// Keep transcodes' segments in memory where the transcoder can (a
     /// folder in RAM with room: Linux's `/dev/shm`), else on disk.
     pub transcode_in_memory: bool,
+    /// Experimental: Dolby Vision profile 7's full enhancement layer (FEL)
+    /// is offered to players whose screen shows HDR and that can't play
+    /// profile 7 themselves; one that asks gets the full
+    /// picture both layers make, rebuilt where the transcoder's FFmpeg can
+    /// (Pley's own) ([`crate::playback::enhancement_layer_offered`]).
+    /// Otherwise transcodes use its HDR10 base layer.
+    pub dolby_vision_fel_full: bool,
     pub scan_interval_minutes: u32,
     pub watch_libraries: bool,
     /// Find intros and credits (Skip Intro / Skip Credits) in the background.
@@ -229,6 +236,7 @@ impl Default for Settings {
             transcode_preset: "auto".into(),
             throttle_transcodes: true,
             transcode_in_memory: true,
+            dolby_vision_fel_full: false,
             scan_interval_minutes: 360,
             watch_libraries: true,
             detect_markers: true,
@@ -348,7 +356,15 @@ impl Settings {
             preset: Some(self.transcode_preset.clone()),
             throttle: self.throttle_transcodes,
             in_memory: self.transcode_in_memory,
+            dolby_vision_fel_full: false,
         }
+    }
+
+    /// [`Settings::transcode_options`] for a play that uses profile 7's full
+    /// enhancement layer (`full_layer`: offered and asked for,
+    /// [`crate::playback::EnhancementLayer::Used`]) or doesn't.
+    pub fn transcode_options_for(&self, full_layer: bool) -> TranscodeOptions {
+        TranscodeOptions { dolby_vision_fel_full: full_layer && self.dolby_vision_fel_full, ..self.transcode_options() }
     }
 }
 
@@ -604,6 +620,7 @@ pub struct SettingsPatch {
     pub transcode_preset: Option<String>,
     pub throttle_transcodes: Option<bool>,
     pub transcode_in_memory: Option<bool>,
+    pub dolby_vision_fel_full: Option<bool>,
     pub scan_interval_minutes: Option<u32>,
     pub watch_libraries: Option<bool>,
     pub detect_markers: Option<bool>,
@@ -766,6 +783,9 @@ impl SettingsStore {
         }
         if let Some(v) = patch.transcode_in_memory {
             next.transcode_in_memory = v;
+        }
+        if let Some(v) = patch.dolby_vision_fel_full {
+            next.dolby_vision_fel_full = v;
         }
         if let Some(v) = patch.scan_interval_minutes {
             next.scan_interval_minutes = v.min(7 * 24 * 60);
@@ -1238,6 +1258,24 @@ mod tests {
         assert!(Settings::default().transcode_in_memory && Settings::default().transcode_options().in_memory);
         let off = Settings { transcode_in_memory: false, ..Settings::default() };
         assert!(!off.transcode_options().in_memory);
+    }
+
+    /// Dolby Vision profile 7's full enhancement layer: off unless turned
+    /// on, and then used only by the plays that ask for it. Settings saved
+    /// with the choice the server had before are read without it.
+    #[test]
+    fn the_full_enhancement_layer_is_off_unless_turned_on_and_asked_for() {
+        let before: Settings = serde_json::from_str(r#"{"server_name":"Home","dolby_vision_fel":"metadata"}"#).unwrap();
+        assert!(!before.dolby_vision_fel_full);
+        assert!(!serde_json::to_string(&before).unwrap().contains(r#""dolby_vision_fel""#));
+        let patch: SettingsPatch = serde_json::from_str(r#"{"dolby_vision_fel_full":true}"#).unwrap();
+        assert_eq!(patch.dolby_vision_fel_full, Some(true));
+        let on = Settings { dolby_vision_fel_full: true, ..Settings::default() };
+        assert!(!on.transcode_options().dolby_vision_fel_full, "not for every job");
+        assert!(on.transcode_options_for(true).dolby_vision_fel_full);
+        assert!(!on.transcode_options_for(false).dolby_vision_fel_full);
+        assert!(!Settings::default().transcode_options_for(true).dolby_vision_fel_full, "off on the server");
+        assert_eq!(on.transcode_options_for(false), Settings::default().transcode_options(), "the rest as set");
     }
 
     #[test]

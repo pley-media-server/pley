@@ -114,6 +114,15 @@
   },
   "settings": {
     "label": "Playback settings",
+    "fel": {
+      "enable": "Enable FEL rebuild",
+      "experimental": "Experimental",
+      "playsAs": {
+        "sdr": "Plays as SDR",
+        "hdr10": "Plays as HDR10",
+        "hlg": "Plays as HLG"
+      }
+    },
     "panel": {
       "quality": "Quality",
       "audio": "Audio",

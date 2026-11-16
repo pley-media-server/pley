@@ -336,4 +336,62 @@ mod tests {
         );
         db.close().await;
     }
+
+    /// Profile 7 with a full enhancement layer, probed before probes said
+    /// whether the layer is there, is probed again; nothing else is.
+    #[tokio::test]
+    async fn a_full_enhancement_layer_not_known_to_be_there_is_probed_again() {
+        let dir = crate::testing::tempdir();
+        let path = dir.path().join("pley.db");
+        let pool = database_before(54, &path).await;
+        sqlx::query("INSERT INTO libraries (id, name, kind, created_at) VALUES (1, 'Movies', 'movies', 0)")
+            .execute(&pool)
+            .await
+            .unwrap();
+        let video = |profile: i64, layer: &str, present: Option<bool>| {
+            serde_json::json!({"streams": [{"index": 0, "kind": "video", "codec": "hevc",
+                "dynamic_range": "dolby_vision", "dv_profile": profile, "dv_el": layer, "dv_el_present": present}]})
+            .to_string()
+        };
+        let files = [
+            ("fel", Some(video(7, "fel", None))),
+            ("fel present", Some(video(7, "fel", Some(true)))),
+            ("fel missing", Some(video(7, "fel", Some(false)))),
+            ("mel", Some(video(7, "mel", None))),
+            ("profile 8", Some(video(8, "fel", None))),
+            ("unreadable", None),
+        ];
+        for (id, (name, info)) in files.iter().enumerate() {
+            sqlx::query(
+                "INSERT INTO items (id, library_id, kind, key, title, sort_title, added_at, updated_at)
+                 VALUES (?, 1, 'movie', ?, ?, ?, 0, 0)",
+            )
+            .bind(id as i64)
+            .bind(name)
+            .bind(name)
+            .bind(name)
+            .execute(&pool)
+            .await
+            .unwrap();
+            sqlx::query(
+                "INSERT INTO media_files (item_id, library_id, path, size, mtime, media_info, probed, added_at, updated_at)
+                 VALUES (?, 1, ?, 1, 0, ?, 1, 0, 0)",
+            )
+            .bind(id as i64)
+            .bind(format!("/m/{name}.mkv"))
+            .bind(info)
+            .execute(&pool)
+            .await
+            .unwrap();
+        }
+        pool.close().await;
+
+        let db = Db::open(&path).await.unwrap();
+        let again: Vec<String> = sqlx::query_scalar("SELECT path FROM media_files WHERE probed = 0 ORDER BY id")
+            .fetch_all(&db.read)
+            .await
+            .unwrap();
+        assert_eq!(again, ["/m/fel.mkv"]);
+        db.close().await;
+    }
 }

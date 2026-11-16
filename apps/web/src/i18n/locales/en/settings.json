@@ -185,6 +185,11 @@
       "dolbyVisionNeeds": "Dolby Vision needs an FFmpeg with libplacebo, and a GPU it reaches through Vulkan: <builds/>. Point Pley at it with --ffmpeg and --ffprobe, or in pley.toml.",
       "tonemapInstead": "{{reason}}: {{fallback}}",
       "tonemapWithAnother": "{{reason}}: transcodes tone map with another instead.",
+      "fel": "Dolby Vision FEL",
+      "felHint": "Allow the transcoder to rebuild the full picture for FEL titles. Clients must support HDR.",
+      "felFull": "Offer the full enhancement layer",
+      "felFullUnavailable": "Needs Pley's own FFmpeg, which can read the enhancement layer.",
+      "experimental": "Experimental",
       "builds": {
         "windows": "<gyan>gyan.dev's full build</gyan> or <jellyfin>jellyfin-ffmpeg</jellyfin>",
         "macos": "Homebrew's ffmpeg-full",

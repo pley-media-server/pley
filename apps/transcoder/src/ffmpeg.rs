@@ -831,6 +831,8 @@ async fn detect_capabilities(ffmpeg: &Path, ffprobe: &Path) -> (Capabilities, bo
     caps.qsv_tonemap = gpu.qsv_tonemap;
     caps.qsv_overlay = gpu.qsv_overlay;
     caps.qsv_opencl_dovi = gpu.qsv_opencl_dovi;
+    // Pley's FFmpeg rebuilds Dolby Vision FEL's full picture (experimental).
+    caps.dolby_vision_fel_full = filter_names.contains("dovi_compose");
     if libplacebo && libplacebo_on_gpu {
         caps.tonemap_speed = measure_tonemap_speed(ffmpeg).await;
     }

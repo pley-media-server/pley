@@ -408,6 +408,7 @@ mod tests {
             qsv_base_layer: false,
             opencl_dovi: false,
             base_layer_only: false,
+            fel_compose: false,
             opencl_bt2390: false,
             unknown_peak: false,
             placebo_fallback_peak: false,

@@ -74,6 +74,13 @@ class PlaybackPlanTest {
     }
 
     @Test
+    fun `the full enhancement layer is asked for only when chosen`() {
+        assertNull(PlaybackPlan.request(70, choices(), "c", tv).enhancementLayer)
+        val asked = PlaybackPlan.request(70, choices().copy(felRebuild = true), "c", tv)
+        assertEquals(true, asked.enhancementLayer)
+    }
+
+    @Test
     fun `direct play names the audio only when it isn't the server's own, a stream always, pictures burn only into streams`() {
         val direct = PlaybackPlan.request(70, choices(audio = ac3, subtitle = pgs), "c", tv)
         assertNull(direct.audioIndex)

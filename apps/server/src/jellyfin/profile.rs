@@ -794,6 +794,8 @@ mod tests {
             controls: Controls::new(),
             device_name: None,
             device_kind: None,
+            enhancement_layer: false,
+            full_layer: false,
             hdr_transcodes: true,
             fmp4_segments: true,
             download: false,

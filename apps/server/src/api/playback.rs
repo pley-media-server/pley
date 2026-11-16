@@ -13,8 +13,8 @@ use dashmap::DashMap;
 use futures::FutureExt;
 use futures::future::{BoxFuture, Shared};
 use pley_transcoder_api::{
-    AudioMode, ConversionState, ConversionStatus, FileContainer, JobRequest, JobStatus, MediaInfo, MediaStream,
-    SUBTITLES_COMPLETE_HEADER, SegmentFormat, StreamKind, VideoMode,
+    AudioMode, ConversionState, ConversionStatus, DynamicRange, FileContainer, JobRequest, JobStatus, MediaInfo,
+    MediaStream, SUBTITLES_COMPLETE_HEADER, SegmentFormat, StreamKind, VideoMode,
 };
 use serde::{Deserialize, Serialize};
 use tower::ServiceExt;
@@ -28,9 +28,9 @@ use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::library::sidecar::EXTERNAL_INDEX_BASE;
 use crate::playback::{
-    Decision, Delivery, Full, HLS_PTS_OFFSET_MS, Method, NOT_CONVERTED, PlaybackInfo, PlaybackRequest, Pool, Session,
-    SessionStatus, TranscodeInfo, TranscodeSpec, decide, decide_with_audio, may_draw_pictures, new_media_key,
-    picture_to_prepare, sentence, subtitle_tracks, transcode_info, video_range_shown,
+    Decision, Delivery, EnhancementLayer, Full, HLS_PTS_OFFSET_MS, Method, NOT_CONVERTED, PlaybackInfo,
+    PlaybackRequest, Pool, Session, SessionStatus, TranscodeInfo, TranscodeSpec, decide, decide_with_audio,
+    may_draw_pictures, new_media_key, picture_to_prepare, sentence, subtitle_tracks, transcode_info, video_range_shown,
 };
 use crate::state::AppState;
 use crate::streams;
@@ -192,6 +192,10 @@ pub async fn start(
     // Music has no video: a track is converted as ever, also one never
     // analysed, whose streams aren't known to be sound alone.
     req.copy_video_only = !settings.transcode_video && row.kind != "track";
+    // Profile 7's full enhancement layer, offered where the server turned
+    // it on and its transcoder can rebuild it.
+    req.full_layer = settings.dolby_vision_fel_full
+        && state.transcoder.info().is_some_and(|info| info.capabilities.dolby_vision_fel_full);
     if !matches!(row.kind.as_str(), "movie" | "episode" | "track" | "extra") {
         return Err(AppError::bad_request("this item cannot be played directly"));
     }
@@ -311,6 +315,8 @@ pub async fn start(
             live_bitrate: false,
             pts_offset_ms: None,
             original_only: req.copy_video_only,
+            enhancement_layer: decision.enhancement_layer,
+            enhancement_layer_as: decision.enhancement_layer_as,
         }));
     }
 
@@ -333,7 +339,7 @@ pub async fn start(
         subtitle: decision.subtitle.clone(),
         segment_seconds: Some(SEGMENT_SECONDS),
         start_ms: Some(start_ms),
-        options: settings.transcode_options(),
+        options: settings.transcode_options_for(decision.enhancement_layer == Some(EnhancementLayer::Used)),
         container: None,
         // A transcoder older than adaptive bitrate makes one size.
         variants: if state.transcoder.info().is_some_and(|t| t.capabilities.hls_variants) {
@@ -439,9 +445,14 @@ pub async fn start(
         // Only when the video really is converted (a remux the transcoder
         // turned into a transcode keeps its own default).
         auto_quality: decision.quality.filter(|_| method == Method::Transcode).map(str::to_owned),
-        video_range: video_stream
-            .zip(created.video.as_ref())
-            .and_then(|(v, plan)| video_range_shown(&v, &req.caps, Delivery::of_plan(plan))),
+        video_range: video_stream.zip(created.video.as_ref()).and_then(|(v, plan)| {
+            // Made from the full picture both layers make (the job says what it made of it).
+            if decision.enhancement_layer == Some(EnhancementLayer::Used) && plan.mode == VideoMode::Transcode {
+                let out = plan.dynamic_range_out.unwrap_or(DynamicRange::Sdr);
+                return Some(format!("{} (Dolby Vision full enhancement layer)", out.label()));
+            }
+            video_range_shown(&v, &req.caps, Delivery::of_plan(plan))
+        }),
         adaptive,
         // An fMP4 stream's init segment holds the encoder's settings: its
         // bitrate stays as it began, and players move between variants.
@@ -449,6 +460,8 @@ pub async fn start(
         // The MP4 muxer keeps the file's times as they are.
         pts_offset_ms: Some(if created.segment_format.is_ts() { HLS_PTS_OFFSET_MS } else { 0 }),
         original_only: req.copy_video_only,
+        enhancement_layer: decision.enhancement_layer,
+        enhancement_layer_as: decision.enhancement_layer_as,
     }))
 }
 

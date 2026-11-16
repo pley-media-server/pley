@@ -186,6 +186,11 @@
       "dolbyVisionNeeds": "Le Dolby Vision nécessite un FFmpeg avec libplacebo et un GPU qu’il atteint par Vulkan : <builds/>. Indiquez-le à Pley avec --ffmpeg et --ffprobe, ou dans pley.toml.",
       "tonemapInstead": "{{reason}} : {{fallback}}",
       "tonemapWithAnother": "{{reason}} : les transcodages utilisent un autre mappage tonal à la place.",
+      "fel": "Dolby Vision FEL",
+      "felHint": "Permet au transcodeur de reconstituer l’image complète des titres FEL. Les clients doivent prendre en charge le HDR.",
+      "felFull": "Proposer la couche d’amélioration complète",
+      "felFullUnavailable": "Nécessite le FFmpeg de Pley, qui sait lire la couche d’amélioration.",
+      "experimental": "Expérimental",
       "builds": {
         "windows": "<gyan>la version complète de gyan.dev</gyan> ou <jellyfin>jellyfin-ffmpeg</jellyfin>",
         "macos": "ffmpeg-full de Homebrew",

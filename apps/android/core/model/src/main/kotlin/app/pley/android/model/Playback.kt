@@ -80,6 +80,12 @@ data class PlaybackRequest(
      * ended, the player ends it as it moves over. `null` leaves it out.
      */
     val keepPrevious: Boolean? = null,
+    /**
+     * The viewer wants Dolby Vision profile 7's full enhancement layer
+     * where the server offers it ([PlaybackInfo.enhancementLayer]); `null`
+     * leaves it out (experimental).
+     */
+    val enhancementLayer: Boolean? = null,
     /** What this device decodes. */
     val caps: ClientCaps = ClientCaps(),
     /** The remote's commands this player obeys (Remote control); `null` leaves them out: none but Stop. */
@@ -491,6 +497,14 @@ data class PlaybackInfo(
      * alone, and Automatic stays there.
      */
     val originalOnly: Boolean = false,
+    /**
+     * Dolby Vision profile 7's full enhancement layer: "offered" where the
+     * player may ask for it ([PlaybackRequest.enhancementLayer]), "used"
+     * where this transcode is made from it; `null` otherwise.
+     */
+    val enhancementLayer: String? = null,
+    /** What the full picture plays as where it is offered: "sdr", "hdr10" or "hlg". */
+    val enhancementLayerAs: String? = null,
     /**
      * What the screen gets of HDR video, by name: "Dolby Vision P8.1",
      * "HDR10 (Dolby Vision base layer)", "Dolby Vision P8.1 (converted from

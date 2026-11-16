@@ -648,6 +648,8 @@ pub async fn universal_start(
         controls: Controls::new(),
         device_name: client.device_name.clone().or_else(|| client.product.clone()),
         device_kind: None,
+        enhancement_layer: false,
+        full_layer: false,
         hdr_transcodes: false,
         fmp4_segments: false,
         download: false,

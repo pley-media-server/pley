@@ -81,6 +81,12 @@ interface PlaybackController {
     /** "original" or a quality preset's id ("8m"); remembered for this device and network. */
     fun selectQuality(name: String)
 
+    /**
+     * Dolby Vision profile 7's full enhancement layer ([PlayerUiState.felRebuild]) asked for or
+     * not, where the server offers it; remembered for this device (experimental).
+     */
+    fun selectFelRebuild(on: Boolean) {}
+
     /** Skips the intro or credits showing now. */
     fun skip()
 

@@ -141,6 +141,10 @@ internal class State(val options: FixtureServer.Options) {
     @Volatile
     var convertsVideo = true
 
+    /** The server offers Dolby Vision FEL's rebuild for every title (experimental), as HDR10; used where asked for. */
+    @Volatile
+    var offersFelRebuild = false
+
     /** Subtitles added to files (POST /api/items/{id}/subtitles), by file. */
     val addedSubtitles = HashMap<Long, MutableList<app.pley.android.model.SubtitleTrack>>()
 

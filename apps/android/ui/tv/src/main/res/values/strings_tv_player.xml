@@ -48,6 +48,11 @@
     <string name="tv_player_subtitles_toast">Subtitles: %1$s</string>
     <string name="tv_player_play_original">Play original</string>
     <string name="tv_player_play_original_hint">Try the original again</string>
+    <string name="tv_player_fel_enable">Enable FEL rebuild</string>
+    <string name="tv_player_fel_experimental">Experimental</string>
+    <string name="tv_player_fel_plays_sdr">Plays as SDR</string>
+    <string name="tv_player_fel_plays_hdr10">Plays as HDR10</string>
+    <string name="tv_player_fel_plays_hlg">Plays as HLG</string>
     <string name="tv_player_info_title">Playback details</string>
     <string name="tv_player_info_how">How it plays</string>
     <string name="tv_player_info_device">This TV</string>

@@ -89,6 +89,9 @@ export function videoCaps(): ClientCaps {
     video_codecs: video,
     audio_codecs: audioCodecs(v),
     hdr: tenBit && (hdrDisplay || (isChromium() && !/\bAndroid\b/.test(navigator.userAgent))),
+    // The screen itself is HDR, not tone mapped for: what the server offers Dolby Vision FEL's
+    // rebuild by (experimental).
+    hdr_display: tenBit && hdrDisplay,
     dolby_vision: dolbyVision,
     // hls.js, and a browser's own HLS, move between a transcode's sizes as the connection allows.
     hls: { variants: true },

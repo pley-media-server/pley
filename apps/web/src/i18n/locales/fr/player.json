@@ -115,6 +115,15 @@
   },
   "settings": {
     "label": "Paramètres de lecture",
+    "fel": {
+      "enable": "Activer la reconstruction FEL",
+      "experimental": "Expérimental",
+      "playsAs": {
+        "sdr": "Lu en SDR",
+        "hdr10": "Lu en HDR10",
+        "hlg": "Lu en HLG"
+      }
+    },
     "panel": {
       "quality": "Qualité",
       "audio": "Audio",

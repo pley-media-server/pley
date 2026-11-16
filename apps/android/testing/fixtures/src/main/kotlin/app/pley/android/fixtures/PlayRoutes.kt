@@ -221,6 +221,8 @@ internal class PlayRoutes(private val s: State) {
             reason = reasons.joinToString(" ").ifEmpty { null },
             autoQuality = if (method == PlaybackMethod.Transcode && request.maxBitrate == null) "8m" else null,
             originalOnly = !s.convertsVideo,
+            enhancementLayer = if (!s.offersFelRebuild) null else if (request.enhancementLayer == true) "used" else "offered",
+            enhancementLayerAs = "hdr10".takeIf { s.offersFelRebuild },
         )
         return Reply.json(PlaybackInfo.serializer(), info)
     }

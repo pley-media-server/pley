@@ -147,6 +147,13 @@ class FixtureServer(private val options: Options = Options()) : Closeable {
             state.convertsVideo = value
         }
 
+    /** Whether the play answers offer Dolby Vision FEL's rebuild (experimental): `used` where the player asks for it. */
+    var offersFelRebuild: Boolean
+        get() = state.offersFelRebuild
+        set(value) {
+            state.offersFelRebuild = value
+        }
+
     /** Off, subtitle search answers 503 "not set up". */
     var subtitleSearch: Boolean
         get() = state.subtitleSearch

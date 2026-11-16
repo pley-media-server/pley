@@ -151,6 +151,13 @@ private fun ChoicePanel(
     )
     val original = stringResource(R.string.tv_player_play_original)
     val originalHint = stringResource(R.string.tv_player_play_original_hint)
+    val felEnable = stringResource(R.string.tv_player_fel_enable)
+    val felExperimental = stringResource(R.string.tv_player_fel_experimental)
+    val felPlaysAs = when (s.felRebuild?.playsAs) {
+        "hdr10" -> stringResource(R.string.tv_player_fel_plays_hdr10)
+        "hlg" -> stringResource(R.string.tv_player_fel_plays_hlg)
+        else -> stringResource(R.string.tv_player_fel_plays_sdr)
+    }
     val style = SubtitleStyleTexts(
         size = stringResource(R.string.tv_settings_subtitle_size),
         sizes = SubtitleSizeLabels.map { stringResource(it) },
@@ -270,6 +277,15 @@ private fun ChoicePanel(
                     controller.selectQuality(s.qualities[i].id)
                     ui.closePanel()
                 }
+                // Dolby Vision FEL rebuilt in full, where the server offers it for this title (experimental).
+                s.felRebuild?.let { fel ->
+                    item(key = "fel-rebuild") {
+                        PanelRow(felEnable, onClick = {
+                            controller.selectFelRebuild(!fel.on)
+                            ui.closePanel()
+                        }, checked = fel.on, supporting = "$felExperimental · $felPlaysAs")
+                    }
+                }
             }
             PlayerPanel.Info -> Unit
         }
@@ -343,6 +359,7 @@ private data class PanelData(
     val subtitles: List<app.pley.android.player.TrackChoice>,
     val audio: List<app.pley.android.player.TrackChoice>,
     val qualities: List<app.pley.android.player.QualityChoice>,
+    val felRebuild: app.pley.android.player.FelRebuildChoice?,
     val note: String?,
     val canPlayOriginal: Boolean,
     val subtitleSync: Boolean,
@@ -360,6 +377,7 @@ private data class PanelData(
             subtitles = s.subtitles,
             audio = s.audio,
             qualities = s.qualities,
+            felRebuild = s.felRebuild,
             note = s.note,
             canPlayOriginal = s.canPlayOriginal,
             subtitleSync = s.subtitleSync,

@@ -37,6 +37,7 @@ import app.pley.android.player.AudioDelays
 import app.pley.android.player.ChapterMark
 import app.pley.android.player.EngineSource
 import app.pley.android.player.FoundSubtitle
+import app.pley.android.player.FelRebuildChoice
 import app.pley.android.player.PlaybackSpeeds
 import app.pley.android.player.PlayRequest
 import app.pley.android.player.PlaybackController
@@ -205,6 +206,9 @@ class SessionPlaybackController(
 
     /** The server converts no video, as its last play answer had it: only the original is offered, and plays. */
     private var originalOnly = false
+
+    /** Dolby Vision profile 7's full enhancement layer is asked for (kept per device; experimental). */
+    private var felRebuild = false
     private var markers: List<Marker> = emptyList()
 
     /** The mode a Dolby Vision guard asked for, for this item's later sessions too. */
@@ -421,6 +425,13 @@ class SessionPlaybackController(
             null
         }
         picked = if (originalOnly) Qualities.ORIGINAL else Qualities.choose(chosen, remembered)
+        felRebuild = try {
+            env.felRebuild.wanted()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            false
+        }
         val streams = chosen != null && localFile(chosen.id) == null
         quality = playedFor(picked, if (picked.automatic && streams) startCeiling(lookup) else StartCeiling.Device)
         lookup?.cancel()
@@ -629,6 +640,7 @@ class SessionPlaybackController(
             mode = mode,
             streaming = PlaybackPlan.streams(mode, decision, chosen, wanted, fileCaps),
             sideload = sideload,
+            felRebuild = felRebuild,
         )
     }
 
@@ -694,6 +706,8 @@ class SessionPlaybackController(
         playingConvertedSound = serverDecodes
         val info = started.info
         originalOnly = info.originalOnly
+        // Offered for this title: the Quality panel shows the choice, and what the full picture plays as.
+        ui.update { s -> s.copy(felRebuild = info.enhancementLayer?.let { FelRebuildChoice(on = felRebuild, playsAs = info.enhancementLayerAs ?: "sdr") }) }
         if (originalOnly) {
             // Whatever was asked for, the original plays: the menu says so, and the quality kept stays for servers that convert.
             picked = Qualities.ORIGINAL
@@ -1847,6 +1861,16 @@ class SessionPlaybackController(
 
     override fun selectQuality(name: String) {
         changeQuality(name)
+    }
+
+    /** The Quality panel's Dolby Vision FEL choice: kept for this device, and played from where it is. */
+    override fun selectFelRebuild(on: Boolean) {
+        if (on == felRebuild) return
+        felRebuild = on
+        scope.launch { env.felRebuild.remember(on) }
+        ui.update { s -> s.copy(felRebuild = s.felRebuild?.copy(on = on)) }
+        if (item == null) return
+        restart(livePosition(), alongside = true)
     }
 
     /** The menu's quality choice, and the remote's: kept as the pick, and played from where it is when it plays otherwise. */

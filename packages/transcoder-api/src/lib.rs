@@ -217,6 +217,14 @@ pub struct MediaStream {
     /// transcoder, or frames that couldn't be read).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dv_el: Option<DolbyVisionLayer>,
+    /// Whether the stream carries its Dolby Vision enhancement layer, as
+    /// its configuration record says (`el_present_flag`). A profile 7 track
+    /// can keep a full layer's metadata without the layer itself (some
+    /// remuxes drop it); there is nothing then to rebuild the full picture
+    /// from, which is rebuilt only where this is `Some(true)`. `None`: not
+    /// said, or probed by an older transcoder.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dv_el_present: Option<bool>,
     /// Dolby Vision found only in the frames (their RPUs): the file doesn't
     /// name it, having no configuration record (some remuxes and older
     /// muxers leave it out). A player given the file as it is decodes its
@@ -736,6 +744,12 @@ pub struct Capabilities {
     /// Older transcoders make MPEG-TS only.
     #[serde(default)]
     pub fmp4_segments: bool,
+    /// FFmpeg can rebuild Dolby Vision profile 7's full picture from its
+    /// base layer, its full enhancement layer and their metadata, as a
+    /// Dolby Vision player does (Pley's FFmpeg). Experimental: what
+    /// [`TranscodeOptions::dolby_vision_fel_full`] turns on.
+    #[serde(default)]
+    pub dolby_vision_fel_full: bool,
     /// The version of the seek previews this transcoder makes
     /// ([`TrickplayInfo::version`]). Older transcoders lack it (0).
     #[serde(default)]
@@ -1196,6 +1210,13 @@ pub struct TranscodeOptions {
     /// jobs only: their lead on the player is bounded.
     #[serde(default = "default_true")]
     pub in_memory: bool,
+    /// Experimental: Dolby Vision profile 7 with a full enhancement layer
+    /// is transcoded from the full picture both layers make, where the
+    /// transcoder can ([`Capabilities::dolby_vision_fel_full`]), rather
+    /// than from its HDR10 base layer alone, as it is otherwise (FFmpeg as
+    /// released doesn't read that layer).
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dolby_vision_fel_full: bool,
 }
 
 impl Default for TranscodeOptions {
@@ -1207,6 +1228,7 @@ impl Default for TranscodeOptions {
             preset: None,
             throttle: true,
             in_memory: true,
+            dolby_vision_fel_full: false,
         }
     }
 }
@@ -1837,6 +1859,21 @@ mod tests {
         let p: GpuPipeline = serde_json::from_str(r#"{"accel":"qsv","codecs":["hevc10"]}"#).unwrap();
         assert!(p.main10.is_empty());
         assert!(!serde_json::to_string(&p).unwrap().contains("main10"));
+    }
+
+    /// Dolby Vision profile 7's full enhancement layer: its base layer
+    /// alone unless the full picture is asked for, a request from a server
+    /// from before the choice included.
+    #[test]
+    fn a_full_enhancement_layer_is_made_from_the_base_layer_unless_asked() {
+        let options: TranscodeOptions = serde_json::from_str("{}").unwrap();
+        assert!(!options.dolby_vision_fel_full);
+        assert_eq!(options, TranscodeOptions::default());
+        // A server that still sends the choice it had: ignored.
+        let options: TranscodeOptions = serde_json::from_str(r#"{"dolby_vision_fel":"metadata"}"#).unwrap();
+        assert_eq!(options, TranscodeOptions::default());
+        let json = serde_json::to_string(&TranscodeOptions::default()).unwrap();
+        assert!(!json.contains("dolby_vision_fel"), "{json}");
     }
 
     #[test]
