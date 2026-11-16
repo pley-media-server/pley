@@ -21,6 +21,8 @@ use crate::words::{self, join, medium_date, year_range};
 /// title, and kept here so Play uses them at once).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Picks {
+    /// The version picked, or the one a track was picked for; `None`: the one Play plays without a
+    /// pick, else the first.
     pub file: Option<i64>,
     /// The file audio was picked for, and the track (`None`: Automatic).
     pub audio: Option<(i64, Option<i64>)>,
@@ -31,7 +33,7 @@ pub struct Picks {
 /// The version and tracks the picks come to on a title (`playing` in `ItemPages.kt`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Playing<'a> {
-    /// The version chosen here, else the first (the tallest).
+    /// The version chosen here, else the one this TV plays best, else the first (the tallest).
     pub file: Option<&'a MediaFile>,
     /// The audio picked here, else the details' choice.
     pub audio_index: Option<i64>,
@@ -44,9 +46,10 @@ pub struct Playing<'a> {
     pub automatic_audio: bool,
 }
 
-/// What `picks` come to on `d`.
-pub fn playing<'a>(d: &'a ItemDetail, picks: &Picks) -> Playing<'a> {
-    let file = picks.file.and_then(|id| d.file(id)).or(d.files.first());
+/// What `picks` come to on `d`: the version picked, else `best` (the one the player picks without
+/// a pick, as for Home's Play; `None` while the TV's capabilities aren't known), else the first.
+pub fn playing<'a>(d: &'a ItemDetail, picks: &Picks, best: Option<i64>) -> Playing<'a> {
+    let file = picks.file.and_then(|id| d.file(id)).or_else(|| best.and_then(|id| d.file(id))).or(d.files.first());
     let default_audio = file
         .and_then(|f| f.streams_of(StreamKind::Audio).find(|s| s.default))
         .or_else(|| file.and_then(|f| f.streams_of(StreamKind::Audio).next()));
@@ -642,7 +645,7 @@ mod tests {
     fn picks_choose_the_version_and_tracks() {
         let d = movie();
         let none = Picks::default();
-        let p = playing(&d, &none);
+        let p = playing(&d, &none, None);
         assert_eq!(p.file.map(|f| f.id), Some(100));
         let t = track_choices(&d, &p).unwrap();
         assert_eq!(t.versions.len(), 2);
@@ -653,14 +656,27 @@ mod tests {
         assert!(t.subtitles_off);
 
         let picks = Picks { file: Some(100), audio: Some((100, Some(2))), subtitle: Some((100, Some(3))) };
-        let p = playing(&d, &picks);
+        let p = playing(&d, &picks, None);
         assert_eq!((p.picked_audio, p.subtitle_index), (Some(2), Some(3)));
         let t = track_choices(&d, &p).unwrap();
         assert!(!t.automatic_audio && t.audio[1].selected && t.subtitles[0].selected && !t.subtitles_off);
 
         // A pick for another version doesn't carry over.
         let other = Picks { file: Some(101), ..picks };
-        assert_eq!(playing(&d, &other).picked_audio, None);
+        assert_eq!(playing(&d, &other, None).picked_audio, None);
+    }
+
+    #[test]
+    fn the_version_shown_is_the_one_picked_else_the_one_this_tv_plays_best_else_the_first() {
+        let d = movie();
+        let best = playing(&d, &Picks::default(), Some(101));
+        assert_eq!(best.file.map(|f| f.id), Some(101));
+        let t = track_choices(&d, &best).unwrap();
+        assert!(!t.versions[0].selected && t.versions[1].selected);
+        let picked = Picks { file: Some(100), ..Picks::default() };
+        assert_eq!(playing(&d, &picked, Some(101)).file.map(|f| f.id), Some(100));
+        // The TV's capabilities aren't known yet.
+        assert_eq!(playing(&d, &Picks::default(), None).file.map(|f| f.id), Some(100));
     }
 
     #[test]
@@ -668,7 +684,7 @@ mod tests {
         let mut d = movie();
         d.files.truncate(1);
         d.files[0].streams.truncate(1);
-        assert_eq!(track_choices(&d, &playing(&d, &Picks::default())), None);
+        assert_eq!(track_choices(&d, &playing(&d, &Picks::default(), None)), None);
     }
 
     #[test]
@@ -740,7 +756,7 @@ mod tests {
             assert_eq!(f[1].0, "Scénario");
             assert_eq!(f.last(), Some(&("Lectures".to_string(), "1\u{a0}234".to_string())));
             assert_eq!(meta(&d, d.files.first(), &[]).rating.as_deref(), Some("7,9"));
-            let picked = playing(&d, &Picks::default());
+            let picked = playing(&d, &Picks::default(), None);
             assert!(track_choices(&d, &picked).unwrap().automatic_label.starts_with("Automatique ("));
             assert_eq!(media_info(&d.files)[0].title.as_deref(), Some("Version 1"));
         });

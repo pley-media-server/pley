@@ -2,7 +2,7 @@ import { useSignal, type Signal } from "@preact/signals";
 import type { ComponentChildren } from "preact";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { errorMessage, isApiError, unreachable } from "../../api/client";
-import type { Credit, CreditRole, ItemDetail, ItemSummary, MediaFile, MediaRequest, MediaStream } from "../../api/types";
+import type { ClientCaps, Credit, CreditRole, ItemDetail, ItemSummary, MediaFile, MediaRequest, MediaStream } from "../../api/types";
 import {
   codecLabel,
   episodeLabel,
@@ -26,7 +26,7 @@ import {
 import { mediaFacts } from "../../format/media-info";
 import { currentLanguage, formatDate, t } from "../../i18n";
 import { mayAsk } from "../../requests";
-import { audioStreams, subtitleStreams, withTracks } from "../../player/plan";
+import { audioStreams, chooseFile, subtitleStreams, withTracks } from "../../player/plan";
 import { useUi } from "../context";
 import { artCandidates } from "../kit/art";
 import { Backdrop, useRested } from "../kit/backdrop";
@@ -98,6 +98,18 @@ export function versionLong(file: MediaFile): string {
 export function versionShort(file: MediaFile, n: number): string {
   const parts = [file.edition ?? "", resolutionLabel(file.width, file.height) ?? "", codecLabel(file.video_codec), file.container ? file.container.toUpperCase() : "", file.size ? formatBytes(file.size) : ""].filter(Boolean);
   return parts.length ? parts.join(" · ") : t("format.track.version", { number: n });
+}
+
+/**
+ * The version a page shows (its badges, tracks and Version pick): the one
+ * picked (a track picks its version too), else the one the player picks
+ * without a pick, as for Home's Play, else the first while the TV's
+ * capabilities aren't known. Play names it only when one was picked, of
+ * several: otherwise the player picks it.
+ */
+export function pageVersion(item: ItemDetail, picked: number | null, caps: ClientCaps | null): { file: MediaFile | null; fileId: number | null } {
+  const file = chooseFile(item, picked, caps);
+  return { file, fileId: picked !== null && item.files.length > 1 && file ? file.id : null };
 }
 
 function isWatched(item: ItemSummary): boolean {
@@ -265,7 +277,11 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
 
   // ---- versions and tracks chosen on this page
   const [fileId, setFileId] = useState<number | null>(null);
-  const file = item.files.filter((f) => f.id === fileId)[0] ?? item.files[0] ?? null;
+  // The TV's capabilities, asked for if Home hasn't yet: without a pick, they choose the version.
+  useEffect(() => void app.caps(), []);
+  const caps = app.probed.value?.caps ?? null;
+  const version = useMemo(() => pageVersion(item, fileId, caps), [item, fileId, caps]);
+  const file = version.file;
   const [panel, setPanel] = useState<PanelKind>(null);
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [section, setSection] = useState<string>((entry.state.section as string | undefined) ?? "hero");
@@ -289,7 +305,7 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
     if (!el) return;
     const h = HERO_PAD + el.offsetHeight;
     if (h !== heroH) setHeroH(h);
-  }, [item, target, fileId, partOf.data, !!requested, !!askMore]);
+  }, [item, target, file, partOf.data, !!requested, !!askMore]);
 
   // ---- the primary button
   const playable = kind === "movie" || kind === "episode" ? item.files.length > 0 : !!target;
@@ -306,10 +322,9 @@ function ItemPage(p: { entry: Entry; item: ItemDetail; reload: () => void }) {
       ui.toast(t("browse.item.noFiles"));
       return;
     }
-    const files = target.id === item.id ? item.files : [];
     openPlayer(ui, {
       itemId: target.id,
-      fileId: files.length > 1 && file ? file.id : null,
+      fileId: target.id === item.id ? version.fileId : null,
       fromStart,
     });
   };
@@ -974,8 +989,28 @@ function MediaInfoCard(p: { file: MediaFile; title: string | null }) {
   );
 }
 
+interface TracksProps {
+  item: ItemDetail;
+  file: MediaFile;
+  files: MediaFile[];
+  onVersion: (f: MediaFile) => void;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
 /** Audio and subtitles (TvPanels' Tracks): the version, the audio track, the subtitles; saved for the item. */
-function TracksPanel(p: { item: ItemDetail; file: MediaFile; files: MediaFile[]; onVersion: (f: MediaFile) => void; onClose: () => void; onSaved: () => void }) {
+function TracksPanel(p: TracksProps) {
+  return (
+    <SidePanel onClose={p.onClose} label={t("browse.item.audioSubtitles")}>
+      <PanelTitle>{t("browse.item.audioSubtitles")}</PanelTitle>
+      {/* Each version has its own tracks: another one shown starts from its own. */}
+      <TrackRows key={p.file.id} {...p} />
+    </SidePanel>
+  );
+}
+
+/** The panel's rows, from the version shown's tracks. */
+function TrackRows(p: TracksProps) {
   const app = useApp();
   const ui = useUi();
   const audio = audioStreams(p.file);
@@ -989,12 +1024,13 @@ function TracksPanel(p: { item: ItemDetail; file: MediaFile; files: MediaFile[];
     // Play, pressed at once, starts with these (the player starts from the
     // details kept); the show's other episodes are asked for again.
     app.tracksChanged(withTracks(p.item, p.file.id, a, s));
+    // They are this version's: the page keeps it, and Play names it.
+    p.onVersion(p.file);
     ui.api.setStreams(p.item.id, p.file.id, a, s).then(p.onSaved, (e) => ui.toast(sentence(errorMessage(e)), true));
   };
   const firstChecked = p.files.length > 1 ? "version" : audio.length >= 2 ? "audio" : "subs";
   return (
-    <SidePanel onClose={p.onClose} label={t("browse.item.audioSubtitles")}>
-      <PanelTitle>{t("browse.item.audioSubtitles")}</PanelTitle>
+    <>
       {p.files.length > 1 && (
         <>
           <PanelHeading>{t("browse.item.version")}</PanelHeading>
@@ -1057,7 +1093,7 @@ function TracksPanel(p: { item: ItemDetail; file: MediaFile; files: MediaFile[];
           ))}
         </>
       )}
-    </SidePanel>
+    </>
   );
 }
 

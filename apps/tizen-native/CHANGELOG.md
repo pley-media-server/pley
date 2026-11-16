@@ -8,6 +8,13 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- A movie or episode with several versions plays the same version from
+  its page as from Home and Continue Watching: the one this TV plays
+  best, unless you pick another. The page's badges and tracks are that
+  version's.
+
 ## [0.1.9] - 2026-11-12
 
 ### Added

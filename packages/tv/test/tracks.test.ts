@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import type { ClientCaps, ItemDetail, MediaFile } from "../src/api/types";
 import { castAction, castBanner, itemPlay, type CastAction, type CastEvent } from "../src/player/cast";
 import { qualityAction, trackAction, videoControls, type PlayerCommand, type QualityAction, type TrackAction } from "../src/player/remote";
+import { pageVersion } from "../src/ui/screens/item";
 // Shared with the native Samsung app's tests, which must answer the same.
 import fixture from "./fixtures/tracks.json";
 
@@ -86,6 +88,16 @@ describe("tracks and casts, as the shared fixture has them", () => {
             ? { plays: plan.plays, shuffle: plan.shuffle }
             : { plays: plan.plays };
       sameFields(c.in, written, c.out);
+    }
+  });
+
+  it("versions: the one an item page shows and Play asks for, picked, else the TV's best, else the first", () => {
+    const files = fixture.version_files as Record<string, unknown>;
+    const caps = fixture.version_caps as Record<string, unknown>;
+    for (const c of fixture.versions) {
+      const item = { id: 1, kind: "movie", title: "Film", files: c.in.files.map((f) => files[f] as MediaFile) } as ItemDetail;
+      const version = pageVersion(item, c.in.picked, c.in.caps === null ? null : (caps[c.in.caps] as ClientCaps));
+      sameFields(c.in, { shown: version.file?.id ?? null, file_id: version.fileId }, c.out);
     }
   });
 });

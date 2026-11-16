@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Pley.Tv.Core.Api;
 using Pley.Tv.Core.Auth;
+using Pley.Tv.Core.Player;
 
 namespace Pley.Tv.Core.Ui;
 
@@ -86,14 +87,23 @@ public interface IItemSource
 
     /// <summary>Calls <paramref name="changed"/> when what pages show may have changed (the server's events, a playback that ended).</summary>
     IDisposable OnChange(Action changed);
+
+    /// <summary>What the TV plays (<see cref="TizenCaps.Of"/>), which picks a title's version as the player does; null when it can't tell.</summary>
+    ClientCaps? Caps();
 }
 
 /// <summary>Item pages' source in the app: <see cref="AppState"/> and its API.</summary>
 public sealed class AppItemSource : IItemSource
 {
     readonly AppState app;
+    readonly Func<IReadOnlyDictionary<string, object?>?>? caps;
 
-    public AppItemSource(AppState app) => this.app = app;
+    /// <param name="caps">The TV's report, made by the Tizen side (<see cref="TizenCaps.Of"/>); none for pages without versions.</param>
+    public AppItemSource(AppState app, Func<IReadOnlyDictionary<string, object?>?>? caps = null)
+    {
+        this.app = app;
+        this.caps = caps;
+    }
 
     Api.Api Api => app.Api.Value ?? throw new SignedOutException();
 
@@ -129,6 +139,8 @@ public sealed class AppItemSource : IItemSource
         api.SetStreams(itemId, fileId, automaticAudio ? null : audio, subtitle, keepAudio: audio == null && !automaticAudio);
 
     public void TracksChanged(ItemDetail? detail) => app.TracksChanged(detail);
+
+    public ClientCaps? Caps() => caps?.Invoke() is { } report ? PlayerModel.ReadCaps(report) : null;
 
     public IDisposable OnChange(Action changed)
     {
@@ -210,9 +222,11 @@ public static class Plays
 /// More Like This and its collections beside it; and what can be done there.
 ///
 /// Play asks the screen to play (<see cref="PlayRequested"/>) with the version and tracks chosen
-/// here. Choosing an audio or subtitle track is kept for the item (PUT /api/items/{id}/streams),
-/// as on the web. Watched marks, ratings and My List show at once and are undone if the server
-/// refuses. The page asks again when the app hears that things changed.
+/// here: a version only when one was picked (a track picks its version too), else the player picks
+/// it as for Home, and the page shows the one it will play. Choosing an audio or subtitle track is
+/// kept for the item (PUT /api/items/{id}/streams), as on the web.
+/// Watched marks, ratings and My List show at once and are undone if the server refuses. The page
+/// asks again when the app hears that things changed.
 /// </summary>
 public sealed class ItemModel : IDisposable
 {
@@ -220,6 +234,8 @@ public sealed class ItemModel : IDisposable
     readonly IScheduler scheduler;
     readonly CultureInfo? culture;
     readonly IDisposable changes;
+    /// <summary>What the TV plays, read once a title with several versions needs it.</summary>
+    readonly Lazy<ClientCaps?> caps;
     /// <summary>The seasons whose episodes were asked for since the page last asked again.</summary>
     readonly HashSet<long> asked = new HashSet<long>();
     Held held = new Held();
@@ -235,6 +251,7 @@ public sealed class ItemModel : IDisposable
         this.source = source;
         this.scheduler = scheduler;
         this.culture = culture;
+        caps = new Lazy<ClientCaps?>(source.Caps);
         ItemId = itemId;
         changes = source.OnChange(() =>
         {
@@ -311,18 +328,20 @@ public sealed class ItemModel : IDisposable
 
     /// <summary>
     /// The request for <paramref name="target"/>: this item's own choices when it is the item
-    /// played. The audio only when picked here: otherwise the server picks the track this device
-    /// plays best.
+    /// played. Of several versions, the one picked here, with its subtitles; none picked, the
+    /// player picks the version as for Home, with the profile's tracks for it. The audio only when
+    /// picked here: otherwise the server picks the track this device plays best.
     /// </summary>
     PlayRequest RequestFor(ItemDetail d, PlayRequest target)
     {
         if (target.ItemId != d.Id) return target;
-        var playing = ItemPages.PlayingOf(d, pick);
+        var playing = ItemPages.PlayingOf(d, pick, BestFile(d));
+        var named = d.Files.Count < 2 || pick.FileId != null;
         return target with
         {
-            FileId = d.Files.Count > 1 ? playing.File?.Id : null,
+            FileId = d.Files.Count > 1 && named ? playing.File?.Id : null,
             AudioIndex = playing.PickedAudio,
-            SubtitleIndex = playing.SubtitleIndex,
+            SubtitleIndex = named ? playing.SubtitleIndex : null,
         };
     }
 
@@ -369,10 +388,12 @@ public sealed class ItemModel : IDisposable
     public void ChooseAudio(int? index)
     {
         var d = held.Detail;
-        var file = d == null ? null : ItemPages.PlayingOf(d, pick).File;
+        var best = d == null ? null : BestFile(d);
+        var file = d == null ? null : ItemPages.PlayingOf(d, pick, best).File;
         if (d == null || file == null) return;
-        pick = pick with { AudioFile = file.Id, Audio = index };
-        Remember(d, file.Id, index, ItemPages.PlayingOf(d, pick).SubtitleIndex, automaticAudio: index == null);
+        // A track is its version's: the page keeps that version, and Play names it.
+        pick = pick with { FileId = pick.FileId ?? file.Id, AudioFile = file.Id, Audio = index };
+        Remember(d, file.Id, index, ItemPages.PlayingOf(d, pick, best).SubtitleIndex, automaticAudio: index == null);
     }
 
     /// <summary>
@@ -383,12 +404,18 @@ public sealed class ItemModel : IDisposable
     {
         var d = held.Detail;
         if (d == null) return;
-        var playing = ItemPages.PlayingOf(d, pick);
+        var playing = ItemPages.PlayingOf(d, pick, BestFile(d));
         var file = playing.File;
         if (file == null) return;
-        pick = pick with { SubtitleFile = file.Id, Subtitle = index };
+        pick = pick with { FileId = pick.FileId ?? file.Id, SubtitleFile = file.Id, Subtitle = index };
         Remember(d, file.Id, playing.PickedAudio, index, automaticAudio: false);
     }
+
+    /// <summary>
+    /// The version of <paramref name="d"/> this TV plays best, as the player picks it when none is
+    /// asked for (Home's Play); null with one version, or when the TV can't tell what it plays.
+    /// </summary>
+    long? BestFile(ItemDetail d) => d.Files.Count > 1 && caps.Value is { } known ? PlaybackPlan.File(d, null, known)?.Id : null;
 
     void Remember(ItemDetail d, long fileId, int? audio, int? subtitle, bool automaticAudio) =>
         Change(ItemPatch.Streams(d.Id, fileId, audio, subtitle, automaticAudio), () => source.ChooseStreams(d.Id, fileId, audio, subtitle, automaticAudio), () =>
@@ -546,6 +573,7 @@ public sealed class ItemModel : IDisposable
         var page = ItemPages.Page(new PageInput(d, source.Origin)
         {
             Pick = pick,
+            BestFile = BestFile(d),
             OnDeck = held.OnDeck,
             Seasons = held.Seasons,
             SelectedSeason = selected,

@@ -22,6 +22,10 @@ describes how they are made.
 - Live TV goes quiet while another app plays, a call included, instead of
   playing over it or taking the sound back. Its sound comes back once the
   other app is done, or with the next channel after music or a video.
+- A movie or episode with several versions plays the same version from
+  its page as from Home and Continue Watching: the one downloaded, else
+  the one this device plays best, unless you pick another. The page's
+  badges and tracks are that version's.
 
 ## [0.1.13] - 2026-11-14
 

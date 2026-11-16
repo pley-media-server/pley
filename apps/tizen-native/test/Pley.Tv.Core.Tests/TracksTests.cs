@@ -10,13 +10,15 @@ namespace Pley.Tv.Core.Tests;
 
 /// <summary>
 /// The remote's audio and subtitles, as the fixture packages/tv's tracks.test.ts reads too has
-/// them: what a video declares, and what it does with a track command.
+/// them: what a video declares, and what it does with a track command; and the version an item
+/// page shows and plays.
 /// </summary>
 public class TrackRuleTests
 {
     public static IEnumerable<object[]> ControlsCases => Indexes("controls");
     public static IEnumerable<object[]> CommandCases => Indexes("commands");
     public static IEnumerable<object[]> QualityCases => Indexes("qualities");
+    public static IEnumerable<object[]> VersionCases => Indexes("versions");
 
     static IEnumerable<object[]> Indexes(string rule) =>
         Enumerable.Range(0, Fixtures.Load("tracks").GetProperty(rule).GetArrayLength()).Select(i => new object[] { i });
@@ -82,6 +84,31 @@ public class TrackRuleTests
         var written = action.Id == null
             ? new Dictionary<string, object?> { ["act"] = "none", ["report"] = action.Report }
             : new Dictionary<string, object?> { ["act"] = "quality", ["quality"] = action.Id, ["report"] = action.Report };
+        Fixtures.SameFields(input, written, c.GetProperty("out"));
+    }
+
+    [Theory]
+    [MemberData(nameof(VersionCases))]
+    public void An_item_page_shows_and_plays_the_version_the_fixture_says(int i)
+    {
+        var fixture = Fixtures.Load("tracks");
+        var c = Case("versions", i);
+        var input = c.GetProperty("in");
+        var files = input.GetProperty("files").EnumerateArray()
+            .Select(f => fixture.GetProperty("version_files").GetProperty(f.GetString()!).Deserialize<MediaFile>(ApiJson.Options)!).ToList();
+        var caps = input.GetProperty("caps");
+        var data = new FakeItems
+        {
+            TvCaps = caps.ValueKind == JsonValueKind.Null ? null : fixture.GetProperty("version_caps").GetProperty(caps.GetString()!).Deserialize<ClientCaps>(ApiJson.Options),
+        };
+        data.Set(ItemKit.Movie(files: files));
+        var model = new ItemModel(data, 1, new FakeScheduler());
+        var played = new List<PlayRequest>();
+        model.PlayRequested += played.Add;
+        if (Int(input.GetProperty("picked")) is int picked) model.ChooseVersion(picked);
+        model.Play();
+        var page = Assert.IsType<ItemState.Ready>(model.State.Value).Page;
+        var written = new Dictionary<string, object?> { ["shown"] = page.Tracks?.VersionId, ["file_id"] = played.Single().FileId };
         Fixtures.SameFields(input, written, c.GetProperty("out"));
     }
 }

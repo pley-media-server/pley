@@ -48,7 +48,10 @@ import kotlin.math.roundToInt
  * version goes back to the server's choice of tracks for it.
  */
 data class StreamPick(
-    /** The version picked; `null`: the first. */
+    /**
+     * The version picked, or the one a track was picked for; `null`: the one
+     * Play plays without a pick ([PageInput.bestFile]), else the first.
+     */
     val fileId: Long? = null,
     /** The version [audio] was picked for; `null`: none was. */
     val audioFile: Long? = null,
@@ -64,6 +67,12 @@ data class PageInput(
     val detail: ItemDetail,
     val origin: String,
     val pick: StreamPick = StreamPick(),
+    /**
+     * The version the player picks when none is asked for, as for Home and
+     * Continue Watching: a downloaded one, else the one this device plays
+     * best; `null` while the device's capabilities aren't known.
+     */
+    val bestFile: Long? = null,
     /** Shows and seasons: the episode Play plays; `null` while not asked. */
     val onDeck: Loadable<ItemSummary?>? = null,
     /** The show's seasons (a show's own, a season's siblings) as they are listed ([seasonOrder]); `null` while they load. */
@@ -96,9 +105,14 @@ internal data class Playing(
     val automaticAudio: Boolean = false,
 )
 
-/** The version and tracks [pick] comes to on [detail], as the web works them out. */
-internal fun playing(detail: ItemDetail, pick: StreamPick): Playing {
-    val file = detail.files.firstOrNull { it.id == pick.fileId } ?: detail.files.firstOrNull()
+/**
+ * The version and tracks [pick] comes to on [detail]: the version picked,
+ * else [bestFile], else the first; its tracks as the web works them out.
+ */
+internal fun playing(detail: ItemDetail, pick: StreamPick, bestFile: Long?): Playing {
+    val file = detail.files.firstOrNull { it.id == pick.fileId }
+        ?: detail.files.firstOrNull { it.id == bestFile }
+        ?: detail.files.firstOrNull()
     val audio = file?.streams?.filter { it.kind == StreamKind.Audio }.orEmpty()
     val defaultAudio = audio.firstOrNull { it.default } ?: audio.firstOrNull()
     val pickedHere = file != null && pick.audioFile == file.id
@@ -114,7 +128,7 @@ fun itemPage(input: PageInput): ItemPage {
     val d = input.detail
     val locale = input.locale
     val words = input.words
-    val playing = playing(d, input.pick)
+    val playing = playing(d, input.pick, input.bestFile)
     val onDeck = input.onDeck?.valueOrNull
     val kind = d.kind
     val video = kind == ItemKind.Movie || kind == ItemKind.Episode || kind == ItemKind.Extra

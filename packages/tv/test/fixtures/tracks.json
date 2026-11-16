@@ -308,5 +308,65 @@
       "in": { "kind": "photo", "start_ms": null, "shuffle": false },
       "out": { "plays": "nothing" }
     }
+  ],
+  "version_files": {
+    "dolby_vision_4k": {
+      "id": 11, "path": "", "size": 0, "container": "mkv", "bitrate": 60000000, "width": 3840, "height": 2160, "video_codec": "hevc",
+      "streams": [
+        { "index": 0, "kind": "video", "codec": "hevc", "default": true, "width": 3840, "height": 2160, "frame_rate": 23.976, "bit_depth": 10, "dynamic_range": "dolby_vision", "dv_profile": 5, "dv_bl_compat": 0 },
+        { "index": 1, "kind": "audio", "codec": "eac3", "language": "eng", "default": true, "channels": 6 },
+        { "index": 2, "kind": "audio", "codec": "ac3", "language": "fra", "default": false, "channels": 6 }
+      ]
+    },
+    "hdr10_1080p": {
+      "id": 12, "path": "", "size": 0, "container": "mkv", "bitrate": 12000000, "width": 1920, "height": 1080, "video_codec": "hevc",
+      "streams": [
+        { "index": 0, "kind": "video", "codec": "hevc", "default": true, "width": 1920, "height": 1080, "frame_rate": 23.976, "bit_depth": 10, "dynamic_range": "hdr10", "profile": "Main 10" },
+        { "index": 1, "kind": "audio", "codec": "eac3", "language": "eng", "default": true, "channels": 6 },
+        { "index": 2, "kind": "audio", "codec": "ac3", "language": "fra", "default": false, "channels": 6 }
+      ]
+    }
+  },
+  "version_caps": {
+    "hdr10_1080p_screen": {
+      "containers": ["mkv", "mp4"], "video_codecs": ["h264", "hevc"], "audio_codecs": ["aac", "ac3", "eac3"], "hdr": true, "dolby_vision": false, "caps_version": 2,
+      "video": [{ "codec": "hevc", "hardware": true, "profiles": ["Main", "Main 10"], "max_width": 3840, "max_height": 2160, "max_fps": 60, "max_bit_depth": 10 }],
+      "hdr_types": ["hdr10", "hlg"], "dolby_vision_profiles": [], "display": { "width": 1920, "height": 1080 }
+    },
+    "dolby_vision_4k_screen": {
+      "containers": ["mkv", "mp4"], "video_codecs": ["h264", "hevc"], "audio_codecs": ["aac", "ac3", "eac3"], "hdr": true, "dolby_vision": true, "caps_version": 2,
+      "video": [{ "codec": "hevc", "hardware": true, "profiles": ["Main", "Main 10"], "max_width": 3840, "max_height": 2160, "max_fps": 60, "max_bit_depth": 10 }],
+      "hdr_types": ["dolby_vision", "hdr10", "hlg"], "dolby_vision_profiles": [{ "profile": 5, "max_level": 9 }, { "profile": 8, "max_level": 9 }], "display": { "width": 3840, "height": 2160 }
+    }
+  },
+  "versions": [
+    {
+      "in": { "files": ["dolby_vision_4k", "hdr10_1080p"], "caps": "hdr10_1080p_screen", "picked": null },
+      "out": { "shown": 12, "file_id": null }
+    },
+    {
+      "in": { "files": ["dolby_vision_4k", "hdr10_1080p"], "caps": "hdr10_1080p_screen", "picked": 11 },
+      "out": { "shown": 11, "file_id": 11 }
+    },
+    {
+      "in": { "files": ["dolby_vision_4k", "hdr10_1080p"], "caps": "hdr10_1080p_screen", "picked": 12 },
+      "out": { "shown": 12, "file_id": 12 }
+    },
+    {
+      "in": { "files": ["dolby_vision_4k", "hdr10_1080p"], "caps": null, "picked": null },
+      "out": { "shown": 11, "file_id": null }
+    },
+    {
+      "in": { "files": ["dolby_vision_4k", "hdr10_1080p"], "caps": "dolby_vision_4k_screen", "picked": null },
+      "out": { "shown": 11, "file_id": null }
+    },
+    {
+      "in": { "files": ["dolby_vision_4k", "hdr10_1080p"], "caps": "dolby_vision_4k_screen", "picked": 12 },
+      "out": { "shown": 12, "file_id": 12 }
+    },
+    {
+      "in": { "files": ["hdr10_1080p"], "caps": "hdr10_1080p_screen", "picked": null },
+      "out": { "shown": 12, "file_id": null }
+    }
   ]
 }

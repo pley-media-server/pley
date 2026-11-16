@@ -407,7 +407,7 @@ sealed class PlayerScreen : Sheet
     }
 
     /// <summary>What the TV says it plays, with Settings' passthrough choices; null when it can't say.</summary>
-    static IReadOnlyDictionary<string, object?>? Caps(AppState state)
+    internal static IReadOnlyDictionary<string, object?>? Caps(AppState state)
     {
         try
         {

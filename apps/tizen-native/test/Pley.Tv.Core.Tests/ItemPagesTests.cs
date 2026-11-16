@@ -120,6 +120,24 @@ public class ItemPagesTests
     }
 
     [Fact]
+    public void The_version_shown_is_the_one_picked_else_the_one_this_TV_plays_best_else_the_first()
+    {
+        var versions = Movie(files: new[]
+        {
+            File(11, new[] { Stream(1, "audio", "truehd", "eng", isDefault: true) }),
+            File(12, new[] { Stream(1, "audio", "ac3", "eng", isDefault: true) }, width: 1920, height: 1080),
+        });
+        var best = Page(versions, i => i with { BestFile = 12 });
+        Assert.Equal(12L, best.Tracks!.VersionId);
+        Assert.Equal(new[] { false, true }, best.Tracks.Versions.Select(v => v.Selected));
+        Assert.Equal(new[] { false, true }, best.Details.Versions.Select(v => v.Selected));
+        Assert.Equal(new MetaPart.Badges(new[] { "1080p" }), best.Meta.Last());
+        Assert.Equal(11L, Page(versions, i => i with { BestFile = 12, Pick = new StreamPick(FileId: 11) }).Tracks!.VersionId);
+        // The TV can't tell what it plays.
+        Assert.Equal(11L, Page(versions).Tracks!.VersionId);
+    }
+
+    [Fact]
     public void Nothing_to_choose_gives_no_selects()
     {
         var single = Movie(files: new[] { File(11, new[] { Stream(0, "video", "h264"), Stream(1, "audio", "aac", "eng", isDefault: true) }) });

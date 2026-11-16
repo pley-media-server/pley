@@ -7,9 +7,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import app.pley.android.caps.CapsGraph
+import app.pley.android.caps.CapsSnapshot
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.TraceNames
 import app.pley.android.data.DataGraph
+import app.pley.android.data.Downloads
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.map
@@ -22,6 +25,7 @@ import app.pley.android.model.ItemRequest
 import app.pley.android.model.ItemSummary
 import app.pley.android.network.ApiException
 import app.pley.android.player.PlayRequest
+import app.pley.android.player.session.PlaybackPlan
 import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.requests.ItemRequestState
@@ -74,9 +78,11 @@ sealed interface ItemEvent {
  *
  * Playing goes through [PlayItem][app.pley.android.data.PlayItem] (movies and
  * episodes resume, shows play their next episode) and the [PlayerLauncher],
- * with the version and tracks chosen here; an audio track only when picked
- * here, else the server picks the one the device plays best. Choosing an
- * audio or subtitle track is saved for the item (PUT /api/items/{id}/streams),
+ * with the version and tracks chosen here: a version only when one was
+ * picked (a track picks its version too), else the player picks it as for
+ * Home, and the page shows the one it will play; an audio track only when
+ * picked here, else the server picks the one the device plays best. Choosing
+ * an audio or subtitle track is saved for the item (PUT /api/items/{id}/streams),
  * as on the web.
  * Watched marks, ratings and My List show at once and are undone if the server
  * refuses. The page is made again when the language shown changes: its
@@ -86,7 +92,9 @@ sealed interface ItemEvent {
 class ItemViewModel(
     private val data: DataGraph,
     private val launcher: PlayerLauncher,
+    private val caps: CapsGraph,
     val itemId: Long,
+    private val downloads: Downloads = Downloads.None,
     compute: CoroutineDispatcher = Dispatchers.Default,
 ) : ViewModel() {
     private val pick = MutableStateFlow(StreamPick())
@@ -144,6 +152,7 @@ class ItemViewModel(
             PageInput(
                 detail = d,
                 origin = data.servers.active.value.orEmpty(),
+                bestFile = bestFile(d),
                 onDeck = next ?: Loadable.Loading.takeIf { container },
                 seasons = seasons,
                 selectedSeason = selected,
@@ -222,7 +231,10 @@ class ItemViewModel(
         val beside = combine(onDeck, seasons, episodes, related, partOf) { next, list, (season, eps), rel, part ->
             Beside(next, list, season, eps, rel, part)
         }
-        return combine(detail, origin, pick, beside, AppLanguage.shown) { load, server, picked, b, _ ->
+        // The device's capabilities can come after the page, and a download end while it shows: the
+        // version shown follows them.
+        val choices = combine(pick, caps.capabilities.snapshot, downloads.entries) { picked, snapshot, _ -> picked to snapshot }
+        return combine(detail, origin, choices, beside, AppLanguage.shown) { load, server, (picked, snapshot), b, _ ->
             val d = load.valueOrNull ?: return@combine withoutDetail(load)
             shown = d
             val page = itemPage(
@@ -230,6 +242,7 @@ class ItemViewModel(
                     detail = d,
                     origin = server,
                     pick = picked,
+                    bestFile = bestFile(d, snapshot),
                     onDeck = b.onDeck,
                     seasons = b.seasons,
                     selectedSeason = b.season,
@@ -354,19 +367,23 @@ class ItemViewModel(
 
     /**
      * The request for [target]: this item's own choices when it is the item
-     * played. The audio only when picked here: otherwise the server picks
-     * the track this device plays best.
+     * played. Of several versions, the one picked here, with its subtitles;
+     * none picked, the player picks the version as for Home, with the
+     * profile's tracks for it. The audio only when picked here: otherwise the
+     * server picks the track this device plays best.
      */
     private fun request(d: ItemDetail, target: PlayTarget.Video, fromStart: Boolean): PlayRequest {
         if (target.itemId != d.id) return PlayRequest(itemId = target.itemId, startMs = target.startMs, fromStart = fromStart)
-        val playing = playing(d, pick.value)
+        val picked = pick.value
+        val playing = playing(d, picked, bestFile(d))
+        val named = d.files.size < 2 || picked.fileId != null
         return PlayRequest(
             itemId = d.id,
-            fileId = playing.file?.id?.takeIf { d.files.size > 1 },
+            fileId = playing.file?.id?.takeIf { d.files.size > 1 && named },
             startMs = target.startMs,
             fromStart = fromStart,
             audioIndex = playing.pickedAudio?.toLong(),
-            subtitleIndex = playing.subtitleIndex?.toLong(),
+            subtitleIndex = playing.subtitleIndex?.toLong()?.takeIf { named },
         )
     }
 
@@ -411,9 +428,11 @@ class ItemViewModel(
      */
     fun chooseAudio(index: Int?) {
         val d = shown ?: return
-        val file = playing(d, pick.value).file ?: return
-        pick.update { it.copy(audioFile = file.id, audio = index) }
-        remember(d, file.id, index, playing(d, pick.value).subtitleIndex, automaticAudio = index == null)
+        val best = bestFile(d)
+        val file = playing(d, pick.value, best).file ?: return
+        // A track is its version's: the page keeps that version, and Play names it.
+        pick.update { it.copy(fileId = it.fileId ?: file.id, audioFile = file.id, audio = index) }
+        remember(d, file.id, index, playing(d, pick.value, best).subtitleIndex, automaticAudio = index == null)
     }
 
     /**
@@ -422,11 +441,20 @@ class ItemViewModel(
      */
     fun chooseSubtitle(index: Int?) {
         val d = shown ?: return
-        val playing = playing(d, pick.value)
+        val playing = playing(d, pick.value, bestFile(d))
         val file = playing.file ?: return
-        pick.update { it.copy(subtitleFile = file.id, subtitle = index) }
+        pick.update { it.copy(fileId = it.fileId ?: file.id, subtitleFile = file.id, subtitle = index) }
         remember(d, file.id, playing.pickedAudio, index)
     }
+
+    /**
+     * The version of [d] the player picks when none is asked for (Home's
+     * Play): a downloaded one, else the one this device plays best; `null`
+     * while the device's capabilities aren't known.
+     */
+    private fun bestFile(d: ItemDetail, snapshot: CapsSnapshot? = caps.capabilities.snapshot.value): Long? =
+        d.files.firstOrNull { downloads.file(it.id) != null }?.id
+            ?: snapshot?.let { PlaybackPlan.file(d, null, it, caps.policy)?.id }
 
     private fun remember(d: ItemDetail, fileId: Long, audio: Int?, subtitle: Int?, automaticAudio: Boolean = false) {
         viewModelScope.launch { attempt { data.watchState.chooseStreams(d.id, fileId, audio, subtitle, automaticAudio) } }
@@ -501,7 +529,7 @@ class ItemViewModel(
         fun factory(itemId: Long): ViewModelProvider.Factory = viewModelFactory {
             initializer {
                 val graph = screensGraph()
-                ItemViewModel(graph.data, graph.playerLauncher, itemId)
+                ItemViewModel(graph.data, graph.playerLauncher, graph.caps, itemId, graph.downloads)
             }
         }
     }

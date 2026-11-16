@@ -43,6 +43,7 @@ import app.pley.android.screens.PlayerLauncher
 import app.pley.android.screens.PleyGraphOwner
 import app.pley.android.screens.ScreensGraph
 import app.pley.android.testing.Fixtures
+import app.pley.android.testing.caps.FakeCapsGraph
 import app.pley.android.ui.tv.home.TestHomeSources
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -75,7 +76,8 @@ class TvTestGraph : ScreensGraph {
 
     override val device = DeviceProfile(FormFactor.Tv, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 4L shl 30, lowRam = false)
     override val auth: AuthGraph get() = unused("auth")
-    override val caps: CapsGraph get() = unused("caps")
+    // A title's page reads what the device plays to choose the version it shows: nothing known here.
+    override val caps: CapsGraph = FakeCapsGraph()
     override val player: PlayerGraph get() = unused("player")
     override val playerLauncher: PlayerLauncher get() = sources.launcher
 

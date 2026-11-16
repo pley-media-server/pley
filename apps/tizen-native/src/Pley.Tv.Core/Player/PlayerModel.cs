@@ -250,7 +250,7 @@ public sealed class PlayerModel : IDisposable
         }
     }
 
-    static ClientCaps? ReadCaps(IReadOnlyDictionary<string, object?> report)
+    internal static ClientCaps? ReadCaps(IReadOnlyDictionary<string, object?> report)
     {
         try
         {

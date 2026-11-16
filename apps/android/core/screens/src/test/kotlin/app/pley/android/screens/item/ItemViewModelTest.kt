@@ -1,15 +1,22 @@
 package app.pley.android.screens.item
 
 import app.pley.android.common.UiText
+import app.pley.android.data.DownloadEntry
+import app.pley.android.data.DownloadStorage
+import app.pley.android.data.Downloads
 import app.pley.android.data.Loadable
+import app.pley.android.data.LocalFile
 import app.pley.android.model.CreditRole
+import app.pley.android.model.DynamicRange
 import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemKind
 import app.pley.android.model.Me
+import app.pley.android.model.MediaStream
 import app.pley.android.model.PersonCredit
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PersonRole
 import app.pley.android.model.PleyJson
+import app.pley.android.model.StreamKind
 import app.pley.android.network.ApiException
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PleyKey
@@ -17,9 +24,15 @@ import app.pley.android.screens.R
 import app.pley.android.screens.person.PersonUiState
 import app.pley.android.screens.person.PersonViewModel
 import app.pley.android.screens.person.roleWords
+import app.pley.android.testing.caps.FakeCapsGraph
+import app.pley.android.testing.caps.FakeDeviceCapabilities
+import app.pley.android.testing.caps.TestDevices
+import app.pley.android.testing.caps.capsOf
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -39,6 +52,10 @@ class ItemViewModelTest {
     private val data = FakeData()
     private val launcher = RecordingLauncher()
 
+    /** The device's capabilities: not known until a test says what they are. */
+    private val caps = FakeDeviceCapabilities()
+    private val capsGraph = FakeCapsGraph(caps)
+
     @Before
     fun setUp() = Dispatchers.setMain(dispatcher)
 
@@ -46,7 +63,7 @@ class ItemViewModelTest {
     fun tearDown() = Dispatchers.resetMain()
 
     private fun TestScope.model(id: Long): ItemViewModel {
-        val model = ItemViewModel(data, launcher, id, compute = dispatcher)
+        val model = ItemViewModel(data, launcher, capsGraph, id, compute = dispatcher)
         backgroundScope.launch(dispatcher) { model.state.collect { } }
         return model
     }
@@ -165,6 +182,65 @@ class ItemViewModelTest {
         assertEquals(12L, launcher.played.single().fileId)
     }
 
+    /** Dolby Vision 4K first, as the server lists the tallest first, then 1080p HDR10; both with English subtitles on. */
+    private fun versions(): ItemDetail {
+        val dolbyVision = MediaStream(
+            index = 0, kind = StreamKind.Video, codec = "hevc", width = 3840, height = 2160, frameRate = 23.976, bitDepth = 10,
+            dynamicRange = DynamicRange.DolbyVision, dvProfile = 5, dvBlCompat = 0, default = true,
+        )
+        val hdr10 = MediaStream(
+            index = 0, kind = StreamKind.Video, codec = "hevc", width = 1920, height = 1080, frameRate = 23.976, bitDepth = 10,
+            dynamicRange = DynamicRange.Hdr10, level = 120, profile = "Main 10", default = true,
+        )
+        val tracks = arrayOf(
+            stream(1, StreamKind.Audio, "eac3", "eng", default = true, channels = 6),
+            stream(2, StreamKind.Audio, "ac3", "fra", channels = 6),
+            stream(3, StreamKind.Subtitle, "subrip", "eng"),
+        )
+        return movie(files = listOf(file(11, dolbyVision, *tracks, selectedSubtitle = 3), file(12, hdr10, *tracks, selectedSubtitle = 3, width = 1920, height = 1080)))
+    }
+
+    @Test
+    fun `the page shows the version the player picks, and Play names one only when picked`() = runTest(dispatcher) {
+        val model = model(1)
+        data.set(versions())
+        // The device's capabilities aren't known yet: the first; the player picks once it knows them.
+        assertEquals(11L, model.page.tracks?.versionId)
+        model.play()
+        assertEquals(PlayRequest(itemId = 1, startMs = 0, fromStart = false), launcher.played.last())
+        // A 1080p HDR10 screen without Dolby Vision plays the 1080p version as it is.
+        caps.emit(capsOf(TestDevices.fireTvStickLite))
+        assertEquals(12L, model.page.tracks?.versionId)
+        model.play()
+        assertEquals(PlayRequest(itemId = 1, startMs = 0, fromStart = false), launcher.played.last())
+        // A track picked keeps its version, named with it, whatever the capabilities say after.
+        model.chooseAudio(2)
+        assertEquals(FakeData.StreamWrite(1, 12, 2, 3), data.streams.last())
+        caps.emit(capsOf(TestDevices.fireTvStick4kMax2023))
+        assertEquals(12L, model.page.tracks?.versionId)
+        model.play()
+        assertEquals(PlayRequest(itemId = 1, fileId = 12, startMs = 0, fromStart = false, audioIndex = 2, subtitleIndex = 3), launcher.played.last())
+        model.chooseVersion(11)
+        assertEquals(11L, model.page.tracks?.versionId)
+        model.play()
+        assertEquals(11L, launcher.played.last().fileId)
+    }
+
+    @Test
+    fun `a downloaded version is the one shown, as the player plays it`() = runTest(dispatcher) {
+        val downloaded = object : Downloads {
+            override val entries: StateFlow<List<DownloadEntry>> = MutableStateFlow(emptyList())
+            override val storage: StateFlow<DownloadStorage> = MutableStateFlow(DownloadStorage())
+            override fun file(fileId: Long) = LocalFile("file:///downloads/movie.mkv").takeIf { fileId == 12L }
+        }
+        val model = ItemViewModel(data, launcher, capsGraph, 1, downloaded, compute = dispatcher)
+        backgroundScope.launch(dispatcher) { model.state.collect { } }
+        data.set(versions())
+        assertEquals(12L, model.page.tracks?.versionId)
+        model.play()
+        assertEquals(null, launcher.played.last().fileId)
+    }
+
     @Test
     fun `a show plays its next episode, picked on its season`() = runTest(dispatcher) {
         val model = model(10)
@@ -228,12 +304,12 @@ class ItemViewModelTest {
         data.setChildren(31, listOf(next))
 
         // The next episode isn't held: no season is picked yet, as on the page made later.
-        val early = (ItemViewModel(data, launcher, 10, compute = dispatcher).state.value as ItemUiState.Ready).page
+        val early = (ItemViewModel(data, launcher, capsGraph, 10, compute = dispatcher).state.value as ItemUiState.Ready).page
         assertEquals(listOf(30L, 31L), early.seasons?.seasons?.map { it.id })
         assertEquals(null, early.seasons?.selected)
 
         data.setOnDeck(10, next)
-        val held = ItemViewModel(data, launcher, 10, compute = dispatcher)
+        val held = ItemViewModel(data, launcher, capsGraph, 10, compute = dispatcher)
         val first = (held.state.value as ItemUiState.Ready).page
         assertEquals(31L, first.seasons?.selected)
         assertEquals(listOf(41L), first.seasons?.episodes?.map { it.item.id })
@@ -242,13 +318,13 @@ class ItemViewModelTest {
         assertEquals(first, held.page)
         // A season's page, held too, is its show's seasons and its own episodes at once.
         data.set(ItemDetail(id = 31, libraryId = 2, kind = ItemKind.Season, title = "", index = 2, parentId = 10, parentTitle = "Driftline"))
-        val season = (ItemViewModel(data, launcher, 31, compute = dispatcher).state.value as ItemUiState.Ready).page
+        val season = (ItemViewModel(data, launcher, capsGraph, 31, compute = dispatcher).state.value as ItemUiState.Ready).page
         assertEquals("Driftline", season.context?.showTitle)
         assertEquals(31L, season.seasons?.selected)
         assertEquals(listOf(41L), season.seasons?.episodes?.map { it.item.id })
         // Music and extras have other pages: theirs go the usual way.
         data.set(ItemDetail(id = 50, libraryId = 3, kind = ItemKind.Album, title = "Low Tide"))
-        assertEquals(ItemUiState.Loading, ItemViewModel(data, launcher, 50, compute = dispatcher).state.value)
+        assertEquals(ItemUiState.Loading, ItemViewModel(data, launcher, capsGraph, 50, compute = dispatcher).state.value)
     }
 
     @Test

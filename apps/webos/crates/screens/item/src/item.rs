@@ -13,6 +13,7 @@
 use std::collections::HashSet;
 
 use pley_base::{Color, Icon, Key, Point, Rect, TextOpts};
+use pley_core::caps;
 use pley_core::format::season_title;
 use pley_core::model::{
     AudioChoice, CollectionRef, ItemCollections, ItemDetail, ItemKind, ItemList, ItemSummary, StreamChoice, TitleKind,
@@ -324,6 +325,9 @@ pub struct ItemScreen {
     data: Option<Data>,
     chosen_season: Option<i64>,
     picks: Picks,
+    /// The TV's capabilities were known when the page was last made: once they come, it shows the
+    /// version the TV plays best.
+    probed: bool,
     model: Option<Model>,
     dirty: bool,
     view: View,
@@ -348,6 +352,7 @@ impl ItemScreen {
             data: None,
             chosen_season: None,
             picks: Picks::default(),
+            probed: false,
             model: None,
             dirty: true,
             view: View::default(),
@@ -389,6 +394,11 @@ impl ItemScreen {
                 None => {}
             }
             self.play_next = None;
+        }
+        let probed = cx.state.caps().is_some();
+        if probed != self.probed {
+            self.probed = probed;
+            self.dirty = true;
         }
         // The request is asked once the page has drawn, so it never holds the title up.
         let summary = cx.state.request_summary();
@@ -529,7 +539,7 @@ impl ItemScreen {
             .map(|c| c.collections.clone())
             .unwrap_or_default();
 
-        let playing = playing(d, &self.picks);
+        let playing = playing(d, &self.picks, best_file(d, cx));
         let own_episodes = match d.kind {
             ItemKind::Season if selected == Some(d.id) => episodes,
             _ => None,
@@ -693,7 +703,7 @@ impl ItemScreen {
             ItemKind::Show | ItemKind::Season => self.play_next_of(id, from_start, cx),
             _ if no_files => cx.toast(nothing_to_play()),
             _ => {
-                if let Some(r) = self.own_request(from_start) {
+                if let Some(r) = self.own_request(from_start, cx) {
                     cx.play(r);
                 }
             }
@@ -719,18 +729,21 @@ impl ItemScreen {
         self.play_next = Some(PlayNext { promise, from_start, held });
     }
 
-    /// The request Play makes for the page's own video: the version and tracks chosen here.
-    fn own_request(&self, from_start: bool) -> Option<PlayRequest> {
+    /// The request Play makes for the page's own video: the version and tracks chosen here. Of
+    /// several versions, the one picked here, with its subtitles; none picked, the player picks the
+    /// version as for Home, with the profile's tracks for it.
+    fn own_request(&self, from_start: bool, cx: &AppCx) -> Option<PlayRequest> {
         let d = self.shown()?;
-        let p = playing(d, &self.picks);
+        let p = playing(d, &self.picks, best_file(d, cx));
+        let named = d.files.len() < 2 || self.picks.file.is_some();
         let subtitle_here = match (p.file, self.picks.subtitle) {
             (Some(f), Some((at, pick))) if at == f.id => Some(pick.unwrap_or(-1)),
             _ => p.subtitle_index,
         };
         Some(PlayRequest {
-            file_id: p.file.map(|f| f.id).filter(|_| d.files.len() > 1),
+            file_id: p.file.map(|f| f.id).filter(|_| d.files.len() > 1 && named),
             audio_index: p.picked_audio,
-            subtitle_index: subtitle_here,
+            subtitle_index: subtitle_here.filter(|_| named),
             ..common::play_request(d.id, from_start)
         })
     }
@@ -884,7 +897,7 @@ impl ItemScreen {
     /// that names it.
     fn pick_tracks(&mut self, audio: Option<Option<i64>>, subtitle: Option<Option<i64>>, cx: &mut AppCx) {
         let Some(d) = self.shown() else { return };
-        let p = playing(d, &self.picks);
+        let p = playing(d, &self.picks, best_file(d, cx));
         let Some(file) = p.file.map(|f| f.id) else { return };
         let item = d.id;
         let choice = match (audio, subtitle) {
@@ -900,6 +913,8 @@ impl ItemScreen {
             },
             (None, None) => return,
         };
+        // A track is its version's: the page keeps that version, and Play names it.
+        self.picks.file.get_or_insert(file);
         if let Some(a) = audio {
             self.picks.audio = Some((file, a));
         }
@@ -1819,6 +1834,12 @@ fn info_block(ui: &mut Ui, id: Id, m: &Model, episode: Option<(&TileData, &str)>
             }
         }
     });
+}
+
+/// The version of `d` this TV plays best, as the player picks it when none is asked for (Home's
+/// Play); `None` while the TV's capabilities aren't known.
+fn best_file(d: &ItemDetail, cx: &AppCx) -> Option<i64> {
+    cx.state.caps().and_then(|r| caps::best_file(d, &r.caps)).map(|f| f.id)
 }
 
 impl Screen for ItemScreen {
