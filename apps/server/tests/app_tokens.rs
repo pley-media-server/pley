@@ -703,6 +703,18 @@ async fn pleys_own_app_allowed_server_manages_it_on_an_administrators_account() 
     for reply in own {
         assert_eq!(reply.status, StatusCode::BAD_REQUEST, "{:?}", reply.body);
     }
+    // Nor its own role, with another administrator left to keep the server
+    // managed: whoever holds a lost phone could take it from its owner.
+    app.user(&admin, "ella", json!({"is_admin": true})).await;
+    for is_admin in [false, true] {
+        let reply = app.app_call(Method::PATCH, "/api/users/1", &token, Some(json!({"is_admin": is_admin}))).await;
+        assert_eq!(
+            (reply.status, &reply.body["message"]),
+            (StatusCode::BAD_REQUEST, &json!("change your own administrator role in Pley's web app")),
+            "{is_admin}"
+        );
+    }
+    assert_eq!(app.get("/api/auth/me", &admin).await.body["is_admin"], json!(true), "still an administrator");
     // Others' devices and apps, as the web's Users page shows them.
     for uri in [format!("/api/users/{bob_id}/devices"), format!("/api/users/{bob_id}/apps")] {
         assert_eq!(app.get(&uri, &token).await.status, StatusCode::OK, "{uri}");

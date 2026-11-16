@@ -311,6 +311,10 @@ pub async fn update_user(
     if body.display_name.is_some() {
         not_ones_own_from_an_app(&admin, id, "change your own name in Pley's web app")?;
     }
+    if body.is_admin.is_some() {
+        // Whoever holds a lost phone could otherwise take its owner's role.
+        not_ones_own_from_an_app(&admin, id, "change your own administrator role in Pley's web app")?;
+    }
     if let Some(password) = &body.password {
         // One's own, from Account, which asks for the current one first and
         // signs one's other devices out: a session alone isn't enough.
@@ -422,10 +426,9 @@ pub async fn update_user(
         let name = name.map(|n| n.trim().to_owned()).filter(|n| !n.is_empty());
         sqlx::query("UPDATE users SET display_name = ? WHERE id = ?").bind(name).bind(id).execute(&mut *tx).await?;
     }
-    // An app gives no one the role: `true` from one gets here only for its
-    // own account, an administrator's, where it changes nothing (and so
-    // can't give the role back should it have been taken meanwhile).
-    if let Some(is_admin) = body.is_admin.filter(|&is_admin| !(is_admin && admin.app.is_some())) {
+    // From an app, only `false` on an account that isn't an administrator's
+    // gets here (see the checks above): an app gives and takes no one's role.
+    if let Some(is_admin) = body.is_admin {
         sqlx::query("UPDATE users SET is_admin = ? WHERE id = ?").bind(is_admin).bind(id).execute(&mut *tx).await?;
     }
     if let Some(home) = body.home {
@@ -644,8 +647,8 @@ pub(super) async fn not_another_administrator(
 }
 
 /// One's own name, devices and apps stay with Pley's web app (Account), as
-/// for every app: one that manages the server reaches them on others'
-/// accounts only.
+/// for every app, and so does one's own administrator role: one that
+/// manages the server reaches them on others' accounts only.
 pub(super) fn not_ones_own_from_an_app(admin: &AuthUser, id: i64, words: &'static str) -> ApiResult<()> {
     if admin.app.is_some() && id == admin.id { Err(AppError::bad_request(words)) } else { Ok(()) }
 }

@@ -13,8 +13,8 @@ describes how they are made.
 
 - A new app permission, "Manage the server", lets Pley's own apps manage
   libraries, accounts and invitations and show the dashboard. It is never
-  given with a TV's code. Settings, network, transcoder, backups, Live TV
-  and other administrators' accounts stay in the web app.
+  given with a TV's code. Settings, network, transcoder, backups, Live TV,
+  other administrators' accounts and one's own role stay in the web app.
 - An app manages the server only when an administrator ticks Manage the
   server as it signs in. An account that isn't an administrator's never
   gives an app that, nor approving requests, so becoming one later wakes
