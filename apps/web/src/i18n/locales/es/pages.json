@@ -342,7 +342,7 @@
     "optional": {
       "server": {
         "label": "Gestionar el servidor",
-        "hint": "Panel, bibliotecas, usuarios e invitaciones. Los ajustes, las claves y la TV en vivo se quedan en la aplicación web."
+        "hint": "Panel, bibliotecas, usuarios e invitaciones. Los ajustes, las claves, la TV en vivo y los demás administradores se quedan en la aplicación web."
       }
     },
     "cantChange": "No puede cambiar tu contraseña, tus ajustes de inicio de sesión ni tus dispositivos.",

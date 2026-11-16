@@ -340,7 +340,7 @@
     "optional": {
       "server": {
         "label": "Manage the server",
-        "hint": "Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app."
+        "hint": "Dashboard, libraries, users and invitations. Settings, keys, Live TV and other administrators stay in the web app."
       }
     },
     "cantChange": "It can't change your password, sign-in settings or devices.",

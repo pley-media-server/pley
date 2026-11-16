@@ -142,7 +142,7 @@ async function consentShown() {
 const posts = (requests: FakeRequest[], path: string) => requests.filter((r) => r.method === "POST" && r.path === path);
 
 /** What the box for managing the server says under its name. */
-const SERVER_HINT = "Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app.";
+const SERVER_HINT = "Dashboard, libraries, users and invitations. Settings, keys, Live TV and other administrators stay in the web app.";
 
 describe("AuthorizePage", () => {
   it("hands the server its query once, even under StrictMode", async () => {

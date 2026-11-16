@@ -342,7 +342,7 @@
     "optional": {
       "server": {
         "label": "Gérer le serveur",
-        "hint": "Tableau de bord, bibliothèques, utilisateurs et invitations. Les paramètres, les clés et la TV en direct restent dans l’application web."
+        "hint": "Tableau de bord, bibliothèques, utilisateurs et invitations. Les paramètres, les clés, la TV en direct et les autres administrateurs restent dans l’application web."
       }
     },
     "cantChange": "Elle ne peut pas changer votre mot de passe, vos paramètres de connexion ni vos appareils.",
