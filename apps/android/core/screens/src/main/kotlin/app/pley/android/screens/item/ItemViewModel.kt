@@ -12,6 +12,7 @@ import app.pley.android.caps.CapsSnapshot
 import app.pley.android.common.AppLanguage
 import app.pley.android.common.TraceNames
 import app.pley.android.data.DataGraph
+import app.pley.android.data.DownloadState
 import app.pley.android.data.Downloads
 import app.pley.android.data.Loadable
 import app.pley.android.data.PlayTarget
@@ -232,8 +233,11 @@ class ItemViewModel(
             Beside(next, list, season, eps, rel, part)
         }
         // The device's capabilities can come after the page, and a download end while it shows: the
-        // version shown follows them.
-        val choices = combine(pick, caps.capabilities.snapshot, downloads.entries) { picked, snapshot, _ -> picked to snapshot }
+        // version shown follows them, not each step of a download's progress.
+        val downloaded = downloads.entries
+            .map { all -> all.filter { it.state == DownloadState.Done }.mapTo(HashSet()) { it.fileId } }
+            .distinctUntilChanged()
+        val choices = combine(pick, caps.capabilities.snapshot, downloaded) { picked, snapshot, _ -> picked to snapshot }
         return combine(detail, origin, choices, beside, AppLanguage.shown) { load, server, (picked, snapshot), b, _ ->
             val d = load.valueOrNull ?: return@combine withoutDetail(load)
             shown = d

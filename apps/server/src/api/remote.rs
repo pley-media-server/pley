@@ -562,7 +562,8 @@ fn cast_tracks(
 /// The track of `kind` a cast names, by stream index, kept where it is the
 /// same track (language, title, forced) in every version of the title. The
 /// remote picked it from the version its page shows, but the receiver plays
-/// the version it plays best, where the same index can be another language.
+/// a version of its own choosing (the one it plays best, or the first),
+/// where the same index can be another language.
 /// Left out, the receiver starts with what the profile's saved choice, which
 /// the remote's pick saved, gives its own version. Subtitles off (`-1`) are
 /// the same in every version.

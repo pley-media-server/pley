@@ -3787,7 +3787,7 @@ would.
   plays a playlist, an album or an artist shuffled. With a movie or an
   episode, `audio_index` and `subtitle_index` (`-1`: none) are the tracks
   the remote had picked on its page, by stream index of one of its files.
-  The receiver plays the version it plays best, so of a title with several
+  The receiver chooses the version it plays, so of a title with several
   versions it gets a track only where that index is the same track
   (language, title, forced) in each; otherwise it starts with the tracks
   the profile's saved choice gives its version, which the remote's pick
