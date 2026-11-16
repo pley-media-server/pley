@@ -1,13 +1,15 @@
 //! The TV's system services (luna-service2) from native code, on a thread of
 //! their own.
 //!
-//! One anonymous registration (`LSRegister(NULL)`: a jailed native app can't
-//! take its app id's name; what it may call is still its role file's
-//! decision), attached to the luna thread's own `GMainContext` and driven by
-//! its `GMainLoop`. Other threads post requests to it and get their answers in
-//! callbacks run on that thread (or through [`Pending`]). Every call has a
-//! timeout that ends in `LSCallCancel`; a subscription's first answer has one
-//! too. The interface's thread never waits on the bus.
+//! Each [`Luna`] is one registration, attached to its thread's own
+//! `GMainContext` and driven by its `GMainLoop`. The TV's services get an
+//! anonymous one (`LSRegister(NULL)`: a jailed native app can't take its app
+//! id's name, which LG's SDL already holds; what it may call is still its
+//! role file's decision). The media pipeline gets one with a name
+//! ([`Luna::start_as`]). Other threads post requests to it and get their
+//! answers in callbacks run on that thread (or through [`Pending`]). Every
+//! call has a timeout that ends in `LSCallCancel`; a subscription's first
+//! answer has one too. The interface's thread never waits on the bus.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -134,6 +136,16 @@ impl Luna {
     /// registers anonymously; `None` off the TV (the libraries aren't there).
     /// Calls made before the registration finishes wait for it.
     pub fn start() -> Option<Luna> {
+        Luna::launch(None)
+    }
+
+    /// The same, registered as `name`, or anonymously when the hub refuses
+    /// the name (the app's role file lists the names it may take).
+    pub fn start_as(name: &str) -> Option<Luna> {
+        Luna::launch(Some(CString::new(name).ok()?))
+    }
+
+    fn launch(name: Option<CString>) -> Option<Luna> {
         let api = api()?;
         let (tx, rx) = mpsc::channel();
         let shared = Arc::new(Shared {
@@ -144,7 +156,7 @@ impl Luna {
             status: Mutex::new(Status::Starting),
         });
         let thread_shared = shared.clone();
-        std::thread::Builder::new().name("pley-luna".into()).spawn(move || run(api, rx, thread_shared)).ok()?;
+        std::thread::Builder::new().name("pley-luna".into()).spawn(move || run(api, rx, thread_shared, name)).ok()?;
         Some(Luna { shared })
     }
 
@@ -421,22 +433,45 @@ thread_local! {
     static STATE: RefCell<Option<State>> = const { RefCell::new(None) };
 }
 
-fn run(api: &'static Api, rx: Receiver<Request>, shared: Arc<Shared>) {
+/// Registers on the bus as `name` (anonymously without one) and attaches the
+/// handle to `context`; the hub's words when it refuses.
+fn register(api: &Api, name: Option<&CStr>, context: *mut c_void) -> Result<*mut c_void, String> {
+    let mut handle = ptr::null_mut();
+    let mut error = LsError::new(&api.ls);
+    // SAFETY: a NUL-terminated name or null, an initialised LSError, and the
+    // luna thread's own context.
+    unsafe {
+        let name = name.map_or(ptr::null(), CStr::as_ptr);
+        if !(api.ls.LSRegister)(name, &mut handle, &mut error)
+            || !(api.ls.LSGmainContextAttach)(handle, context, &mut error)
+        {
+            return Err(error.take(&api.ls));
+        }
+        (api.ls.LSErrorFree)(&mut error);
+    }
+    Ok(handle)
+}
+
+fn run(api: &'static Api, rx: Receiver<Request>, shared: Arc<Shared>, name: Option<CString>) {
     // SAFETY: plain GLib and luna-service2 calls on this thread, with the
     // pointers they return; the context and loop live for the process.
     unsafe {
         let context = (api.glib.g_main_context_new)();
         (api.glib.g_main_context_push_thread_default)(context);
         let main_loop = (api.glib.g_main_loop_new)(context, 0);
-        let mut handle = ptr::null_mut();
-        let mut error = LsError::new(&api.ls);
-        let failed = if !(api.ls.LSRegister)(ptr::null(), &mut handle, &mut error)
-            || !(api.ls.LSGmainContextAttach)(handle, context, &mut error)
-        {
-            Some(error.take(&api.ls))
-        } else {
-            (api.ls.LSErrorFree)(&mut error);
-            None
+        let registered = match (register(api, name.as_deref(), context), &name) {
+            (Err(why), Some(name)) => {
+                crate::log::line(&format!(
+                    "luna: the hub refused the name {}: {why}; registering anonymously",
+                    name.to_string_lossy()
+                ));
+                register(api, None, context)
+            }
+            (registered, _) => registered,
+        };
+        let (handle, failed) = match registered {
+            Ok(handle) => (handle, None),
+            Err(why) => (ptr::null_mut(), Some(why)),
         };
         *shared.status.lock().unwrap_or_else(|e| e.into_inner()) = match &failed {
             Some(why) => {

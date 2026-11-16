@@ -12,7 +12,7 @@ use std::net::{IpAddr, Ipv4Addr, UdpSocket};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::sync::mpsc::Sender;
-use std::sync::{Arc, Condvar, Mutex, Weak};
+use std::sync::{Arc, Condvar, Mutex, OnceLock, Weak};
 use std::time::{Duration, Instant};
 
 use pley_base::{Tier, Waker};
@@ -24,7 +24,7 @@ use crate::caps::{tier_of, webos_caps};
 use crate::data::{self, DataDir};
 use crate::facts::{WebosFacts, read_sources};
 use crate::luna::{Answer, Luna, Subscription};
-use crate::ums::{UmsConfig, UmsEngine};
+use crate::ums::{self, UmsConfig, UmsEngine};
 use crate::{APP_ID, sdl};
 
 /// The most a caller waits for the facts the first time (they take tens of
@@ -56,6 +56,9 @@ struct Inner {
     /// Where the TV's files are: `/`, a folder of samples in tests.
     root: PathBuf,
     luna: Option<Luna>,
+    /// The media pipeline's own registration, named as uMediaServer's clients
+    /// are (none off the TV, or where `luna` is none).
+    media_luna: OnceLock<Option<Luna>>,
     waker: Waker,
     app_version: String,
     app_id: String,
@@ -109,6 +112,7 @@ impl WebosDevice {
             inner: Arc::new(Inner {
                 root: root.to_path_buf(),
                 luna,
+                media_luna: OnceLock::new(),
                 waker,
                 app_version: app_version.into(),
                 app_id,
@@ -511,8 +515,13 @@ impl Device for WebosDevice {
     fn engine(&self) -> Box<dyn PlayerEngine> {
         let f = self.facts();
         let firmware = f.build.clone().or(f.firmware.clone()).unwrap_or_else(|| "unknown".into());
+        // Made at the first playback and kept: what it loaded goes when it does.
+        let luna = self.inner.media_luna.get_or_init(|| {
+            self.inner.luna.as_ref()?;
+            Luna::start_as(&ums::client_name(std::process::id()))
+        });
         Box::new(UmsEngine::new(
-            self.inner.luna.clone(),
+            luna.clone(),
             self.inner.waker.clone(),
             UmsConfig {
                 app_id: self.inner.app_id.clone(),
