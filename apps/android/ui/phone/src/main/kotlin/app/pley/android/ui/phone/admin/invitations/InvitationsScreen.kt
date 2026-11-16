@@ -47,6 +47,7 @@ import app.pley.android.model.admin.RatingSystems
 import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatRelative
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.admin.AdminLoad
 import app.pley.android.screens.admin.AdminSection
 import app.pley.android.screens.admin.invitations.EXPIRY_DAYS
 import app.pley.android.screens.admin.invitations.InvitationState
@@ -149,6 +150,7 @@ private fun InvitationsList() {
                             words = words,
                             libraries = libraries.valueOrNull,
                             systems = ratingSystems.valueOrNull,
+                            systemsLoading = ratingSystems is AdminLoad.Loading,
                             onCopy = model.link(invitation)?.let { link -> { copy(link) } },
                             onDelete = { deleting = invitation },
                         )
@@ -186,6 +188,7 @@ private fun InvitationRow(
     words: FormatWords,
     libraries: List<Library>?,
     systems: RatingSystems?,
+    systemsLoading: Boolean,
     onCopy: (() -> Unit)?,
     onDelete: () -> Unit,
 ) {
@@ -202,7 +205,7 @@ private fun InvitationRow(
                     InvitationState.Expired -> Tag(stringResource(R.string.admin_invitations_status_expired), TagTone.Danger)
                 }
                 Tag(librariesLabel(invitation.allLibraries, invitation.libraryIds, libraries))
-                ageTag(systems, invitation.maxAgeSystem, invitation.maxAge)?.let { Tag(it) }
+                ageTag(systems, invitation.maxAgeSystem, invitation.maxAge, loading = systemsLoading)?.let { Tag(it) }
             }
             val expires = invitation.expiresAt
             val line = listOfNotNull(
@@ -301,7 +304,7 @@ private fun NewInvitationPage() {
             AccessGroup(
                 access = form.access,
                 libraries = libraries,
-                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey),
+                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey, ratingSystems is AdminLoad.Loading),
                 onLibraries = { all, ids -> model.edit { it.copy(access = it.access.copy(allLibraries = all, libraryIds = ids)) } },
                 onAgeLimit = { access -> model.edit { it.copy(access = access) } },
                 onLabels = { show, hide -> model.edit { it.copy(access = it.access.copy(showLabels = show, hideLabels = hide)) } },

@@ -55,6 +55,22 @@ class AccessTest {
     }
 
     @Test
+    fun aLimitThatMayBeARatingWaitsForTheRatingSystems() {
+        val pg13 = AccessChoice(maxAge = 13)
+        // Without the systems, PG-13 would read as "age 13": it isn't told until they come.
+        assertEquals(LimitMode.Age, limitMode(null, pg13))
+        assertNull(limitModeOrNull(null, loading = true, pg13))
+        assertEquals(LimitMode.Rating, limitModeOrNull(systems, loading = false, pg13))
+        assertEquals(LimitMode.Rating, limitModeOrNull(systems, loading = false, pg13.copy(maxAgeSystem = "CA", maxAge = 14)))
+        // What is told without them is shown at once.
+        assertEquals(LimitMode.None, limitModeOrNull(null, loading = true, AccessChoice()))
+        assertEquals(LimitMode.Age, limitModeOrNull(null, loading = true, pg13.copy(maxAgeSystem = AGE_SYSTEM)))
+        assertEquals(LimitMode.Birthday, limitModeOrNull(null, loading = true, pg13.copy(birthMonth = "2013-01")))
+        // A server without them (they failed, or it's older): an age, as before.
+        assertEquals(LimitMode.Age, limitModeOrNull(null, loading = false, pg13))
+    }
+
+    @Test
     fun aLimitShowsInTheRegionsSystemAndOneNoRatingHasAsAnAge() {
         assertEquals("US", shownSystem(systems, null, null))
         assertEquals(AGE_SYSTEM, shownSystem(systems.copy(region = "ZZ"), null, 13))

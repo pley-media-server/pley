@@ -22,6 +22,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.model.RequestAccess
+import app.pley.android.screens.admin.AdminLoad
 import app.pley.android.screens.admin.users.AccountKind
 import app.pley.android.screens.admin.users.NewUserProblem
 import app.pley.android.screens.admin.users.NewUserViewModel
@@ -152,7 +153,7 @@ internal fun NewUserPage() {
             AccessGroup(
                 access = form.access,
                 libraries = libraries,
-                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey),
+                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey, ratingSystems is AdminLoad.Loading),
                 onLibraries = { all, ids -> model.edit { it.copy(access = it.access.copy(allLibraries = all, libraryIds = ids)) } },
                 onAgeLimit = { access -> model.edit { it.copy(access = access) } },
                 onLabels = { show, hide -> model.edit { it.copy(access = it.access.copy(showLabels = show, hideLabels = hide)) } },

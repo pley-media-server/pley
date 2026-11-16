@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -72,7 +73,8 @@ import app.pley.android.screens.admin.users.birthYears
 import app.pley.android.screens.admin.users.birthdayLimitEnd
 import app.pley.android.screens.admin.users.inBoth
 import app.pley.android.screens.admin.users.labelKey
-import app.pley.android.screens.admin.users.limitMode
+import app.pley.android.screens.admin.users.limitModeOrNull
+import app.pley.android.screens.admin.users.limitNeedsSystems
 import app.pley.android.screens.admin.users.limitRating
 import app.pley.android.screens.admin.users.parseBirthMonth
 import app.pley.android.screens.admin.users.ratingSystem
@@ -110,11 +112,14 @@ import java.util.Locale
  * What an age limit and its exceptions are picked from, each `null` while
  * unknown (or from a server before it): the rating systems, the labels
  * titles carry, and whether a TMDB key gives movies their ratings.
+ * [systemsLoading]: the rating systems are still being read, and a limit
+ * by rating can't be told from a plain age yet.
  */
 internal data class AccessSources(
     val systems: RatingSystems? = null,
     val labels: List<LabelUse>? = null,
     val tmdbKey: Boolean? = null,
+    val systemsLoading: Boolean = false,
 )
 
 /**
@@ -127,7 +132,8 @@ internal data class AccessSources(
  * unknown. [pickLibrary]: what the sheet says when "Only some" has none
  * chosen. Without [limits] (an administrator, whom no limit or exception
  * holds back, and whose answer the server sends without them), Libraries
- * alone.
+ * alone. While the rating systems are read, a limit that may be a rating
+ * says so and waits, rather than showing as a plain age.
  */
 @Composable
 internal fun AccessGroup(
@@ -145,14 +151,15 @@ internal fun AccessGroup(
 ) {
     var sheet by remember { mutableStateOf<AccessSheet?>(null) }
     val systems = sources.systems
-    val mode = limitMode(systems, access)
+    // `null` while the rating systems are read and the limit may be one of their ratings.
+    val mode = limitModeOrNull(systems, sources.systemsLoading, access)
     val ratingFor = ratingForWords()
     val country = ratingSystem(systems, access.maxAgeSystem)
     val locale = shownLocale()
     val born = access.birthMonth?.let(::parseBirthMonth)
     val change = { next: AccessChoice -> if (next != access) onAgeLimit(next) }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(28.dp)) {
-        SettingsGroup(null, footer = if (limits) limitHint(access, systems, ratingFor) else null) {
+        SettingsGroup(null, footer = if (limits && mode != null) limitHint(access, systems, ratingFor) else null) {
             SettingsRow(
                 stringResource(R.string.admin_users_access_libraries),
                 value = librariesLabel(access.allLibraries, access.libraryIds, libraries),
@@ -164,10 +171,11 @@ internal fun AccessGroup(
             RowDivider()
             SettingsRow(
                 stringResource(R.string.admin_users_access_age_limit),
-                value = modeLabel(mode),
+                value = if (mode != null) modeLabel(mode) else stringResource(R.string.admin_loading),
                 icon = PleyIcons.Lock,
-                enabled = enabled,
+                enabled = enabled && mode != null,
                 onClick = { sheet = AccessSheet.Mode },
+                modifier = Modifier.testTag(ACCESS_AGE_LIMIT),
             )
             if (mode == LimitMode.Rating && country != null) {
                 val level = ageLevels(systems, country, ratingFor).firstOrNull { it.age == access.maxAge }
@@ -253,18 +261,20 @@ internal fun AccessGroup(
             },
             onDismiss = dismiss,
         )
-        AccessSheet.Mode -> ChoiceSheet(
-            title = stringResource(R.string.admin_users_access_age_limit),
-            choices = listOfNotNull(
-                LimitMode.None,
-                LimitMode.Rating.takeIf { country != null },
-                LimitMode.Age,
-                LimitMode.Birthday.takeIf { birthday },
-            ).map { Choice(it, modeLabel(it)) },
-            selected = mode,
-            onPick = { if (it != mode) change(access.withMode(it, systems, birthday)) },
-            onDismiss = dismiss,
-        )
+        AccessSheet.Mode -> if (mode != null) {
+            ChoiceSheet(
+                title = stringResource(R.string.admin_users_access_age_limit),
+                choices = listOfNotNull(
+                    LimitMode.None,
+                    LimitMode.Rating.takeIf { country != null },
+                    LimitMode.Age,
+                    LimitMode.Birthday.takeIf { birthday },
+                ).map { Choice(it, modeLabel(it)) },
+                selected = mode,
+                onPick = { if (it != mode) change(access.withMode(it, systems, birthday)) },
+                onDismiss = dismiss,
+            )
+        }
         AccessSheet.System -> ChoiceSheet(
             title = stringResource(R.string.admin_users_limit_rating_system),
             choices = systems?.systems.orEmpty()
@@ -661,11 +671,14 @@ internal fun librariesLabel(all: Boolean, ids: List<Long>, libraries: List<Libra
 
 /**
  * A row's age limit tag, as the web's badge says it: "Up to PG-13", "Up to
- * age 8", "Up to PG-13 (age 13, by birthday)"; `null` without a limit.
+ * age 8", "Up to PG-13 (age 13, by birthday)"; `null` without a limit,
+ * and while the rating systems are read ([loading]) for one that may be a
+ * rating, rather than a plain age that changes as they come.
  */
 @Composable
-internal fun ageTag(systems: RatingSystems?, system: String?, maxAge: Int?, birthMonth: String? = null): String? {
+internal fun ageTag(systems: RatingSystems?, system: String?, maxAge: Int?, birthMonth: String? = null, loading: Boolean = false): String? {
     if (maxAge == null) return null
+    if (loading && limitNeedsSystems(AccessChoice(maxAge = maxAge, maxAgeSystem = system, birthMonth = birthMonth))) return null
     val rating = limitRating(systems, system, maxAge, ratingForWords())
     return when {
         birthMonth != null && rating != null -> stringResource(R.string.admin_users_up_to_by_birthday, rating, maxAge)
@@ -711,6 +724,8 @@ internal fun Tag(text: String, tone: TagTone = TagTone.Neutral, icon: PleyIcon? 
         Text(text, style = MaterialTheme.typography.labelSmall, color = ink, maxLines = 1)
     }
 }
+
+internal const val ACCESS_AGE_LIMIT = "pley.admin.access.ageLimit"
 
 /** Text that isn't a row: a group's "Loading…" or "No apps use this account.". */
 @Composable

@@ -90,6 +90,19 @@ fun limitMode(systems: RatingSystems?, access: AccessChoice): LimitMode = when {
     else -> LimitMode.Rating
 }
 
+/**
+ * [limitMode], or `null` while it can't be told: a limit that may be a
+ * rating, while the rating systems are still being read ([loading]).
+ * Without them every such limit reads as a plain age, which the page
+ * would show, and send back if it were changed from there.
+ */
+fun limitModeOrNull(systems: RatingSystems?, loading: Boolean, access: AccessChoice): LimitMode? =
+    if (loading && limitNeedsSystems(access)) null else limitMode(systems, access)
+
+/** Whether [access]'s limit can only be told and shown with the rating systems: one set, not by birthday, nor a plain age. */
+fun limitNeedsSystems(access: AccessChoice): Boolean =
+    access.maxAge != null && access.birthMonth == null && access.maxAgeSystem != AGE_SYSTEM
+
 /** The country to pick a rating in: the one stored, else the metadata region, else the US. */
 fun ratingSystem(systems: RatingSystems?, stored: String?): String? {
     val countries = systems?.systems.orEmpty()

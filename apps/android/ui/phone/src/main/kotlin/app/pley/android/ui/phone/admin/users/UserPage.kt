@@ -157,7 +157,7 @@ internal fun UserAccountPage(id: Long) {
             AccessGroup(
                 access = accessOf(user),
                 libraries = libraries.valueOrNull,
-                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey),
+                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey, ratingSystems is AdminLoad.Loading),
                 onLibraries = model::setLibraries,
                 onAgeLimit = model::setAgeLimit,
                 onLabels = model::setLabels,
