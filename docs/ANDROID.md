@@ -918,8 +918,8 @@ phone that a cast switched to an administrator's profile, whoever signed
 it in: the caster gave their PIN on their own phone, and the server gives
 such a phone none of their rights over others. Manage server is back once
 the administrator switches to their profile on the phone itself, which
-takes their PIN, or signs in to it again. TVs don't manage the server: they sign in with a code, and the
-server never gives the scope to a code.
+takes their PIN, or signs in to it again. TVs don't manage the server:
+they sign in with a code, and the server never gives the scope to a code.
 
 - **Dashboard**: what plays, where, and what plays it (a Pley app, an app
   through the Plex or Jellyfin API, Google Cast or AirPlay), whether it

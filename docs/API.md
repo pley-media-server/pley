@@ -1350,8 +1350,9 @@ What apps see:
   name, password, PIN, two-step sign-in or role (`is_admin`, "change your
   own administrator role in Pley's web app"), see or sign out its devices
   and apps, disable it or delete it, and its administration ends at once
-  when the account stops being an administrator. What makes an administrator, and other
-  administrators' accounts, stay with the web app too (`403`): it makes no
+  when the account stops being an administrator. What makes an
+  administrator, and other administrators' accounts, stay with the web app
+  too (`403`): it makes no
   account an administrator (`is_admin: true` on `POST /api/users` or
   `PATCH /api/users/{id}`, "an administrator is made in Pley's web app"),
   and changes nothing of another administrator's account ("another

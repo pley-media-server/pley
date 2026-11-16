@@ -251,10 +251,11 @@ Apps sign in on Pley's own page with OAuth 2.1.
   gains a scope later, by a refresh or a profile switch. `server` is never
   allowed with a TV's code, which anyone in front of a screen could pass
   to an administrator. Each of the three rights is checked against the
-  account at every request, so a role taken away takes them at once, and
-  holds only for an app that administrator allowed, on a profile picked at
-  the device. An app someone else allowed
-  never has them on an administrator's profile. Nor does a phone or TV
+  account at every request, so a role taken away takes them at once (and
+  gives them back with the role: to end them for good, sign the account's
+  apps out), and holds only for an app that administrator allowed, on a
+  profile picked at the device. An app someone else allowed never has them
+  on an administrator's profile. Nor does a phone or TV
   that a cast switched to one, whoever signed it in: the caster gave
   their PIN on their own device, so it plays as them with none of the
   three until their profile is picked on it with that PIN, or they sign in
