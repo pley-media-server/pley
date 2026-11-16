@@ -80,6 +80,14 @@
     <string name="admin_users_pin_set">Este perfil tiene un PIN. Introduce uno nuevo para cambiarlo.</string>
     <string name="admin_users_pin_hint">Opcional, de 4 a 8 dígitos. Se necesita para cambiar a este perfil.</string>
     <string name="admin_users_remove_pin">Quitar el PIN</string>
+    <string name="admin_users_remove_pin_title">¿Quitar el PIN de %1$s?</string>
+    <string name="admin_users_remove_pin_message">Cualquiera del hogar podrá cambiar al perfil de %1$s sin PIN, hasta que se ponga uno nuevo.</string>
+    <string name="admin_users_remove_admin_title">¿Quitarle a %1$s el rol de administrador?</string>
+    <string name="admin_users_remove_admin_message">%1$s ya no podrá gestionar el servidor, ni desde la aplicación web ni desde las aplicaciones de Pley. Solo la aplicación web puede volver a hacerle administrador.</string>
+    <string name="admin_users_remove_admin_action">Quitárselo</string>
+    <string name="admin_users_disable_title">¿Desactivar a %1$s?</string>
+    <string name="admin_users_disable_message">Se cierra la sesión de %1$s en todas partes, y no puede iniciar sesión ni reproducir nada hasta que la cuenta se vuelva a activar.</string>
+    <string name="admin_users_disable_action">Desactivar</string>
     <string name="admin_users_enter_username">Introduce un nombre de usuario.</string>
     <string name="admin_users_pin_digits">El PIN debe tener de 4 a 8 dígitos.</string>
     <string name="admin_users_pick_library">Elige al menos una biblioteca, o permite todas.</string>

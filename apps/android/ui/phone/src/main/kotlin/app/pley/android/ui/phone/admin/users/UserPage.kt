@@ -16,6 +16,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -133,7 +134,9 @@ internal fun UserAccountPage(id: Long) {
         val idle = busy == 0
         item(key = "header") { Header(user, model.avatar(user)) }
         item(key = "profile") { ProfileGroup(user, self, idle, onRename = { dialog = UserDialog.Rename }, onPassword = { dialog = UserDialog.Password }) }
-        item(key = "roles") { RolesGroup(page, self, idle, model) }
+        item(key = "roles") {
+            RolesGroup(page, self, idle, onRemoveAdmin = model::removeAdmin, onHome = model::setHome, onDisabled = model::setDisabled)
+        }
         val requests = requestsShown(user)
         if (requests != null) {
             item(key = "requests") {
@@ -164,19 +167,7 @@ internal fun UserAccountPage(id: Long) {
             )
         }
         if (!self && !user.asAdmin) {
-            item(key = "pin") {
-                SettingsGroup(
-                    null,
-                    Modifier.adminWidth,
-                    footer = stringResource(if (user.hasPin) R.string.admin_users_pin_set else R.string.admin_users_pin_hint),
-                ) {
-                    SettingsRow(stringResource(R.string.admin_users_pin), icon = PleyIcons.Lock, enabled = idle, onClick = { dialog = UserDialog.Pin })
-                    if (user.hasPin) {
-                        RowDivider()
-                        SettingsRow(stringResource(R.string.admin_users_remove_pin), icon = PleyIcons.LockOpen, enabled = idle, onClick = model::removePin)
-                    }
-                }
-            }
+            item(key = "pin") { PinGroup(user, idle, onPin = { dialog = UserDialog.Pin }, onRemovePin = model::removePin) }
         }
         if (user.twoStep && !self && !user.asAdmin) {
             item(key = "two-step") {
@@ -378,16 +369,26 @@ private fun ProfileGroup(user: UserAccount, self: Boolean, idle: Boolean, onRena
 /**
  * Administrator, home member, disabled. Off limits where the server
  * would refuse: making an administrator (the web app does), one's own
- * role or account, the last administrator's.
+ * role or account, the last administrator's. Taking the role away and
+ * disabling ask first (the web stages them until Save): either takes
+ * something from the account at once.
  */
 @Composable
-private fun RolesGroup(page: UserPage, self: Boolean, idle: Boolean, model: UserViewModel) {
+internal fun RolesGroup(
+    page: UserPage,
+    self: Boolean,
+    idle: Boolean,
+    onRemoveAdmin: () -> Unit,
+    onHome: (Boolean) -> Unit,
+    onDisabled: (Boolean) -> Unit,
+) {
     val user = page.user
+    var asking by rememberSaveable { mutableStateOf<RoleChange?>(null) }
     SettingsGroup(null, Modifier.adminWidth) {
         SwitchRow(
             stringResource(R.string.admin_users_administrator),
             checked = user.asAdmin,
-            onChange = { on -> if (!on) model.removeAdmin() },
+            onChange = { on -> if (!on) asking = RoleChange.RemoveAdmin },
             subtitle = stringResource(
                 when {
                     user.managed -> R.string.admin_users_managed_not_admin
@@ -403,7 +404,7 @@ private fun RolesGroup(page: UserPage, self: Boolean, idle: Boolean, model: User
         SwitchRow(
             stringResource(R.string.admin_users_home),
             checked = user.home,
-            onChange = model::setHome,
+            onChange = onHome,
             subtitle = stringResource(R.string.admin_users_home_hint),
             enabled = idle,
         )
@@ -411,10 +412,79 @@ private fun RolesGroup(page: UserPage, self: Boolean, idle: Boolean, model: User
         SwitchRow(
             stringResource(R.string.admin_users_disabled),
             checked = user.disabled,
-            onChange = model::setDisabled,
+            // Enabling it again gives back what it had: nothing to ask.
+            onChange = { on -> if (on) asking = RoleChange.Disable else onDisabled(false) },
             subtitle = stringResource(R.string.admin_users_disabled_hint),
             enabled = idle && !self && !(page.lastAdmin && !user.disabled),
             modifier = Modifier.testTag(USER_DISABLED),
+        )
+    }
+    val close = { asking = null }
+    when (asking) {
+        RoleChange.RemoveAdmin -> ConfirmDialog(
+            title = stringResource(R.string.admin_users_remove_admin_title, user.name),
+            body = stringResource(R.string.admin_users_remove_admin_message, user.name),
+            confirmLabel = stringResource(R.string.admin_users_remove_admin_action),
+            destructive = true,
+            onConfirm = {
+                close()
+                onRemoveAdmin()
+            },
+            onDismiss = close,
+        )
+        RoleChange.Disable -> ConfirmDialog(
+            title = stringResource(R.string.admin_users_disable_title, user.name),
+            body = stringResource(R.string.admin_users_disable_message, user.name),
+            confirmLabel = stringResource(R.string.admin_users_disable_action),
+            destructive = true,
+            onConfirm = {
+                close()
+                onDisabled(true)
+            },
+            onDismiss = close,
+        )
+        null -> Unit
+    }
+}
+
+/** The changes of [RolesGroup] that ask first. */
+private enum class RoleChange { RemoveAdmin, Disable }
+
+/**
+ * The profile's PIN: a new one ([onPin]), and Remove PIN, which asks
+ * first, as anyone in the household can then switch to the profile.
+ */
+@Composable
+internal fun PinGroup(user: UserAccount, idle: Boolean, onPin: () -> Unit, onRemovePin: () -> Unit) {
+    var asking by rememberSaveable { mutableStateOf(false) }
+    SettingsGroup(
+        null,
+        Modifier.adminWidth,
+        footer = stringResource(if (user.hasPin) R.string.admin_users_pin_set else R.string.admin_users_pin_hint),
+    ) {
+        SettingsRow(stringResource(R.string.admin_users_pin), icon = PleyIcons.Lock, enabled = idle, onClick = onPin)
+        if (user.hasPin) {
+            RowDivider()
+            SettingsRow(
+                stringResource(R.string.admin_users_remove_pin),
+                icon = PleyIcons.LockOpen,
+                enabled = idle,
+                onClick = { asking = true },
+                modifier = Modifier.testTag(USER_REMOVE_PIN),
+            )
+        }
+    }
+    if (asking) {
+        ConfirmDialog(
+            title = stringResource(R.string.admin_users_remove_pin_title, user.name),
+            body = stringResource(R.string.admin_users_remove_pin_message, user.name),
+            confirmLabel = stringResource(R.string.admin_users_remove_pin),
+            destructive = true,
+            onConfirm = {
+                asking = false
+                onRemovePin()
+            },
+            onDismiss = { asking = false },
         )
     }
 }
@@ -577,5 +647,6 @@ internal const val USER_PAGE = "pley.admin.users.user"
 internal const val USER_PASSWORD = "pley.admin.users.user.password"
 internal const val USER_ADMIN = "pley.admin.users.user.admin"
 internal const val USER_DISABLED = "pley.admin.users.user.disabled"
+internal const val USER_REMOVE_PIN = "pley.admin.users.user.removePin"
 internal const val USER_SIGN_OUT_EVERYWHERE = "pley.admin.users.user.signout"
 internal const val USER_DELETE = "pley.admin.users.user.delete"
