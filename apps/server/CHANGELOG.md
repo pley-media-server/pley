@@ -41,6 +41,9 @@ describes how they are made.
 
 ### Changed
 
+- The page where an app signs in is shorter: what the app needs, a line
+  each; an administrator's rights as boxes to tick; and one line on what
+  it can't change.
 - HDR made SDR keeps the master's brightness up to SDR's white, with the
   standard BT.2390 curve, instead of darkening the mid-tones; black and
   letterbox bars stay black.

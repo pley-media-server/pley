@@ -51,7 +51,7 @@ export function LinkPage() {
       <AppConsent
         request={request}
         returnTo={`/link?code=${found.code}`}
-        onAnswer={(allow) => decideDevice(request.id, allow).then(() => setAnswer(allow ? "allowed" : "denied"))}
+        onAnswer={(allow, scopes) => decideDevice(request.id, allow, scopes).then(() => setAnswer(allow ? "allowed" : "denied"))}
       />
     );
   }

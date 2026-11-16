@@ -329,25 +329,27 @@
     "willBeAble": "Esta aplicación podrá:",
     "scopes": {
       "library": "Ver las bibliotecas, las listas de reproducción y el historial de {{profile}}.",
-      "play": "Reproducir títulos y guardar la posición, lo visto, las valoraciones, las pistas elegidas y el orden de las bibliotecas de {{profile}}.",
+      "play": "Reproducir títulos y guardar el progreso, las valoraciones y las pistas elegidas de {{profile}}.",
       "playlists": "Crear, cambiar y eliminar las listas de reproducción de {{profile}}.",
-      "profiles": "Cambiar a los otros perfiles de la casa. Los perfiles con PIN lo siguen pidiendo.",
-      "requests": "Pedir películas y series que no están en las bibliotecas, y seguir las solicitudes de {{profile}}.",
-      "approvals": "Aprobar y rechazar lo que piden los demás, donde la cuenta es de administrador.",
-      "activity": "Ver lo que se está reproduciendo y detenerlo: las reproducciones de {{profile}}.",
-      "activityEveryone": "Ver lo que se está reproduciendo y detenerlo: las reproducciones de {{profile}}, y las de todos donde la cuenta es de administrador.",
-      "server": "Ver el panel del servidor y gestionar sus bibliotecas, cuentas e invitaciones, donde la cuenta es de administrador."
+      "profiles": "Cambiar a los otros perfiles de la casa (los PIN se siguen pidiendo).",
+      "requests": "Pedir películas y series, y seguir las solicitudes de {{profile}}.",
+      "activity": "Ver y detener las reproducciones de {{profile}}.",
+      "activityEveryone": "Ver y detener lo que se está reproduciendo en el servidor."
+    },
+    "adminAccess": "Acceso de administrador",
+    "optionalLabel": "Opcional",
+    "optional": {
+      "server": {
+        "label": "Gestionar el servidor",
+        "hint": "Panel, bibliotecas, usuarios e invitaciones. Los ajustes, las claves y la TV en vivo se quedan en la aplicación web."
+      },
+      "approvals": {
+        "label": "Aprobar solicitudes",
+        "hint": "Aprobar y rechazar lo que piden los demás."
+      }
     },
     "cantChange": "No puede cambiar tu contraseña, tus ajustes de inicio de sesión ni tus dispositivos.",
-    "cantChangeNoAdmin": "No puede cambiar tu contraseña, tus ajustes de inicio de sesión ni tus dispositivos, y nunca obtiene derechos de administrador.",
-    "rightsOnly": "De tus derechos de administrador solo obtiene {{rights}}: los demás se quedan en la aplicación web de Pley.",
-    "rights": {
-      "approvals": "aprobar y rechazar solicitudes",
-      "activity": "ver y detener las reproducciones de todos"
-    },
-    "adminStays": "Tus derechos de administrador se quedan en la aplicación web de Pley.",
-    "managesServer": "Gestiona las bibliotecas y las cuentas de este servidor como lo haces en la aplicación web de Pley. Nombrar administradores, los ajustes y las claves del servidor, la TV en vivo, tu contraseña, tu PIN, tu inicio de sesión en dos pasos y tus dispositivos se quedan allí.",
-    "managesServerToo": "También obtiene {{rights}}.",
+    "cantChangeAdmin": "No puede cambiar tu contraseña, tus ajustes de inicio de sesión ni tus dispositivos. Todo lo demás se queda en la aplicación web de Pley.",
     "overTv": "Esta solicitud ha terminado: vuelve a empezar en tu TV",
     "overApp": "Esta solicitud ha terminado: vuelve a empezar desde la aplicación",
     "deny": "No permitir",

@@ -37,7 +37,10 @@ export interface ConsentRequest {
    * asked from.
    */
   redirect: AppRedirect | { kind: "device"; to: string; device?: string | null; address?: string | null };
+  /** What the account can give of what the app asked for (no administrator rights from an account that isn't one). */
   scopes: (OAuthScope | (string & {}))[];
+  /** Those of `scopes` the person may leave out: an administrator's rights ("approvals", "server"), given only when ticked. */
+  optional: string[];
 }
 
 /** `POST /api/oauth/requests`: a mistake that goes back to the app, but only on a click. */
@@ -68,9 +71,14 @@ export function startRequest(query: string) {
   return api.post<RequestAnswer>("/api/oauth/requests", { query });
 }
 
-/** Allows the app, or not. */
-export function decide(id: string, allow: boolean) {
-  return api.post<Decision>(`/api/oauth/requests/${encodeURIComponent(id)}`, { allow });
+/** The body of an answer: the scopes go with Allow only. */
+function answer(allow: boolean, scopes: string[]) {
+  return allow ? { allow, scopes } : { allow };
+}
+
+/** Allows the app with `scopes` (of those it asked for), or not. */
+export function decide(id: string, allow: boolean, scopes: string[]) {
+  return api.post<Decision>(`/api/oauth/requests/${encodeURIComponent(id)}`, answer(allow, scopes));
 }
 
 /** Hands over the code a TV shows; the TV's request, to allow or not. */
@@ -78,7 +86,7 @@ export function verifyCode(userCode: string) {
   return api.post<ConsentRequest>("/api/oauth/device/verify", { user_code: userCode });
 }
 
-/** Allows the TV, or not. */
-export function decideDevice(id: string, allow: boolean) {
-  return api.post<DeviceDecision>(`/api/oauth/requests/${encodeURIComponent(id)}`, { allow });
+/** Allows the TV with `scopes` (of those it asked for), or not. */
+export function decideDevice(id: string, allow: boolean, scopes: string[]) {
+  return api.post<DeviceDecision>(`/api/oauth/requests/${encodeURIComponent(id)}`, answer(allow, scopes));
 }
