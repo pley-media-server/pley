@@ -73,6 +73,9 @@ enum class CastRefusal {
     /** `409` `cast_failed`: the device didn't play the stream the server sent it. */
     Failed,
 
+    /** `409` `connections_full`: a channel, with every connection of its source in use. */
+    ConnectionsFull,
+
     /** The server can't be reached. */
     Offline,
 
@@ -93,6 +96,7 @@ enum class CastRefusal {
             error.status == 409 && error.code == "pairing_needed" -> PairingNeeded
             error.status == 409 && error.code == "cast_unreachable" -> Unreachable
             error.status == 409 && error.code == "cast_failed" -> Failed
+            error.status == 409 && error.code == "connections_full" -> ConnectionsFull
             error.status == 403 && error.code == "pin_needed" -> PinNeeded
             error.status == 403 && error.code == "wrong_pin" -> WrongPin
             error.status == 403 && error.code == "pin_locked" -> PinLocked

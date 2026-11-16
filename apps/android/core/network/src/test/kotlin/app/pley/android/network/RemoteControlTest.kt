@@ -194,6 +194,8 @@ class RemoteControlTest {
         assertEquals(CastRefusal.Unreachable, refusal())
         server.enqueue(MockPley.error(409, "cast_failed", "the device didn't play it"))
         assertEquals(CastRefusal.Failed, refusal())
+        server.enqueue(MockPley.error(409, "connections_full", "Provider allows one connection at once, and it is in use: watching News."))
+        assertEquals(CastRefusal.ConnectionsFull, refusal())
         // Another conflict, and everything else, says its own sentence.
         server.enqueue(MockPley.fixture("errors/not_controllable.json", code = 409))
         assertEquals(CastRefusal.Other, refusal())

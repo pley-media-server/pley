@@ -494,7 +494,8 @@ pause the person's own, and the controls then stay.
 On the phone, what a page plays goes to another of the profile's devices
 that takes it ([API.md](API.md#casting)): a receiver whose `casts` names
 `item` for titles, music and playlists, or `live` for a channel; a Google
-Cast or AirPlay device takes a movie or an episode alone. **Play on…**
+Cast or AirPlay device takes a movie, an episode or, where it lists
+`live`, a channel alone. **Play on…**
 shows only while one does:
 
 - beside Play on a movie's, an episode's, a show's and a season's page,
@@ -523,8 +524,10 @@ its channel goes to the device, and the bar follows it the same way. A refusal i
 devices, and another can be picked: the device **isn't on any more**
 (`404`), **can't play that** (`409`), **Too many at once** (`429`), and
 for a Google Cast or AirPlay device, it **can't reach this server**
-(`409 cast_unreachable`) or **didn't play it** (`409 cast_failed`), else
-the server's own words.
+(`409 cast_unreachable`) or **didn't play it** (`409 cast_failed`), and
+for a channel there, it **can't play the channel: all Live TV
+connections are in use** (`409 connections_full`), else the server's
+own words.
 
 The server answers a cast to a Google Cast or AirPlay device once the
 device plays, stopping one that hasn't after 3 minutes: the device's row
