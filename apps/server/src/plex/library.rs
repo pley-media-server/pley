@@ -934,7 +934,7 @@ pub async fn recently_added(
     for lib in &libraries {
         rows.extend(recent_rows(&state, &user, lib, 50).await?);
     }
-    rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+    catalog::sort_newest_added(&state.db, &mut rows).await?;
     let (rows, total) = page.apply(rows);
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), listing_detail(&params)).await?;
     Ok(list_container(None, &info, nodes, total, &page).attr("title1", "Recently Added"))
@@ -955,6 +955,9 @@ pub async fn home_recently_added(
     let mut rows = Vec::new();
     for lib in libraries.iter().filter(|l| section.is_none_or(|s| s == l.id)) {
         match wanted {
+            // The shows with the newest episodes, as without a type, not the
+            // newest shows.
+            Some("show") if kinds_of(lib).contains(&"show") => rows.extend(recent_rows(&state, &user, lib, 50).await?),
             Some(kind) if kinds_of(lib).contains(&kind) => {
                 let query = SectionQuery::new(lib.id, kind, &newest)?;
                 rows.extend(query.page(&state.db, user.id, &Page::default()).await?.0);
@@ -963,7 +966,7 @@ pub async fn home_recently_added(
             None => rows.extend(recent_rows(&state, &user, lib, 50).await?),
         }
     }
-    rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+    catalog::sort_newest_added(&state.db, &mut rows).await?;
     let (rows, total) = page.apply(rows);
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), listing_detail(&params)).await?;
     Ok(list_container(None, &info, nodes, total, &page).attr("title1", "Recently Added"))

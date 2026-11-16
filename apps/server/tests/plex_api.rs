@@ -435,3 +435,51 @@ async fn sidecar_subtitles_are_served_as_they_are() {
         app.plex(Method::GET, &format!("/library/streams/{}", (file + 1) * 10_000 + 1000), &admin, &[]).await;
     assert_eq!(elsewhere.status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn recently_added_counts_a_show_from_its_newest_episode() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Alien (1979)/Alien (1979).mkv", 1024);
+    app.media_file("tv/Show (2010)/Season 01/Show - S01E01 - Pilot.mkv", 1024);
+    app.media_file("tv/Show (2010)/Season 01/Show - S01E02 - Second.mkv", 1024);
+    app.library(&admin, "Movies", "movies", "movies").await;
+    app.library(&admin, "TV", "shows", "tv").await;
+    // The show came first, the film after it, then the show's second
+    // episode, the newest of all.
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE WHEN kind = 'movie' THEN 2000 ELSE 1000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE items SET added_at = 3000 WHERE title = 'Second'").execute(db).await.unwrap();
+    for uri in ["/library/recentlyAdded", "/hubs/home/recentlyAdded"] {
+        assert_eq!(plex_titles(&app.plex_json(uri, &admin).await), ["Show", "Alien"], "{uri}");
+    }
+}
+
+#[tokio::test]
+async fn recently_added_shows_are_those_with_the_newest_episodes() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    // More shows than the hub lists; the first one added gets an episode last.
+    for n in 0..51 {
+        app.media_file(&format!("tv/Show {n:02} (2010)/Season 01/Show {n:02} - S01E01 - Pilot.mkv"), 1024);
+    }
+    let tv = app.library(&admin, "TV", "shows", "tv").await;
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE WHEN title = 'Show 00' THEN 1000 ELSE 2000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query(
+        "UPDATE items SET added_at = 3000
+         WHERE kind = 'episode' AND grandparent_id = (SELECT id FROM items WHERE title = 'Show 00')",
+    )
+    .execute(db)
+    .await
+    .unwrap();
+    let hub = app.plex_json(&format!("/hubs/home/recentlyAdded?type=2&sectionID={tv}"), &admin).await;
+    let titles = plex_titles(&hub);
+    assert_eq!((titles.len(), titles.first().map(String::as_str)), (50, Some("Show 00")));
+}

@@ -619,7 +619,7 @@ async fn latest(
     }
     // One library's are in its order already; several are merged.
     if libs.len() > 1 {
-        rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+        catalog::sort_newest_added(&state.db, &mut rows).await?;
     }
     rows.truncate(limit as usize);
     Ok(Json(dtos(&state, &jellyfin, &user, &rows, Fields::of(&q)).await?).into_response())
@@ -750,7 +750,7 @@ async fn suggestions(
                 .filter(|r| matches!(r.kind.as_str(), "movie" | "show") && !r.watched && r.position_ms == 0),
         );
     }
-    rows.sort_by_key(|r| std::cmp::Reverse(r.added_at));
+    catalog::sort_newest_added(&state.db, &mut rows).await?;
     rows.truncate(limit);
     let total = rows.len();
     let items = dtos(&state, &jellyfin, &user, &rows, Fields::of(&q)).await?;

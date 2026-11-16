@@ -67,6 +67,9 @@ On Intel graphics:
   from its base layer instead of never starting.
 - Seek previews and frame grabs of Dolby Vision profile 7 with a full
   enhancement layer look like the video, made from the base layer.
+- In Plex and Jellyfin apps, a show that just got a new episode comes
+  first in Recently Added rows that mix libraries, instead of sorting by
+  when the show itself was first added.
 
 On Intel graphics:
 

@@ -1257,3 +1257,21 @@ async fn activity_tokens_say_they_administer_and_change_nothing() {
     let refreshed = app.jf_raw(Method::POST, &format!("{film}/Refresh"), &headers, None).await;
     assert_eq!(refreshed.status, StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn latest_counts_a_show_from_its_newest_episode() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    // The show came first, the films after it, then the show's second
+    // episode, the newest of all.
+    let db = &app.state.db.write;
+    sqlx::query("UPDATE items SET added_at = CASE WHEN kind = 'movie' THEN 2000 ELSE 1000 END")
+        .execute(db)
+        .await
+        .unwrap();
+    sqlx::query("UPDATE items SET added_at = 3000 WHERE title = 'Second'").execute(db).await.unwrap();
+    for uri in ["/Items/Latest", "/Items/Suggestions"] {
+        let names = jf_names(&app.jf_json(uri, admin).await);
+        assert_eq!((names.len(), names.first().map(String::as_str)), (4, Some("Show")), "{uri}");
+    }
+}
