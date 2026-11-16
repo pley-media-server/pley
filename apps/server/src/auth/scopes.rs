@@ -151,9 +151,12 @@ impl Scopes {
     }
 
     /// What an account can give of these: all of them on an administrator's,
-    /// none of an administrator's rights on another. Given by an account
-    /// that isn't one, they would do nothing until it became one, and then
-    /// wake without anyone being asked.
+    /// none of an administrator's rights (`approvals`, `server`) on another.
+    /// Given by an account that isn't one, they would do nothing until it
+    /// became one, and then wake without anyone being asked. `activity`
+    /// stays: it covers the profile's own streams, and everyone's once the
+    /// account is an administrator who allowed the app
+    /// (`AuthUser::oversees_playback`).
     pub fn for_account(self, administrator: bool) -> Scopes {
         if administrator {
             return self;

@@ -235,14 +235,19 @@ Apps sign in on Pley's own page with OAuth 2.1.
   with the rest of what the app needs, allowed with it or not at all, as
   Pley's apps without it ask to sign in again on their requests screens.
   An account that isn't an administrator's is never asked for either and
-  never gives them, whatever the page sends, so
-  no grant holds rights that would wake without anyone being asked when
-  the account became one; and no grant gains a scope later, by a refresh or
-  a profile switch. `server` is never allowed with a TV's code,
-  which anyone in front of a screen could pass to an administrator. Each
-  is checked against the account at every request, so a role taken away
-  takes them at once, and holds only for an app that administrator
-  allowed, on a profile picked at the device. An app someone else allowed
+  never gives them, whatever the page sends, so no grant of such an
+  account holds `approvals` or `server` to wake without anyone being asked
+  when the account becomes one. `activity` does stay on its grants, for the
+  profile's own streams, and once the account is an administrator it
+  covers everyone's in an app the account allowed, as for any
+  administrator: Pley for Home Assistant, signed in by someone made an
+  administrator later, then sees and stops what everyone plays. No grant
+  gains a scope later, by a refresh or a profile switch. `server` is never
+  allowed with a TV's code, which anyone in front of a screen could pass
+  to an administrator. Each of the three rights is checked against the
+  account at every request, so a role taken away takes them at once, and
+  holds only for an app that administrator allowed, on a profile picked at
+  the device. An app someone else allowed
   never has them on an administrator's profile. Nor does a phone or TV
   that a cast switched to one, whoever signed it in: the caster gave
   their PIN on their own device, so it plays as them with none of the

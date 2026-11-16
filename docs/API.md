@@ -1366,7 +1366,9 @@ What apps see:
   (`account_admin`), so one without `server` (signed in before it could
   ask for it, or allowed with the box left unticked) can offer to sign in
   again. A grant never gains a scope later: not by a refresh, a profile
-  switch, or the account becoming an administrator.
+  switch, or the account becoming an administrator. What `activity` reaches
+  does grow then: an app the account allowed sees and stops everyone's
+  streams once it is an administrator, as above.
 - Libraries' `paths` are empty, but for one that manages the server, and
   files' `path` is the file name only.
 - `/api/users/{id}/avatar` shows only the app's own profile, its
@@ -1552,7 +1554,9 @@ with too many sign-ins in progress.
   account that isn't an administrator's never gives an administrator's
   rights (`approvals`, `server`): they're left out here and from the grant,
   whatever is sent. They would do nothing for such an account, and wake
-  without anyone being asked if it became one.
+  without anyone being asked if it became one. `activity` is given as
+  asked: the profile's own streams, and everyone's once the account is an
+  administrator ([What apps see](#scopes)).
 - `optional`: those of `scopes` the person may leave out: `server`, which
   the app works without, when the app asked for it and the account is an
   administrator's. The page shows it as a box, unticked. Everything else in
