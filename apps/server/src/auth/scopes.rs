@@ -91,11 +91,19 @@ impl Scope {
         }
     }
 
-    /// An administrator's right (`approvals`, `server`): what the person may
-    /// leave out on the consent page, the app working without it, and what
-    /// an account that isn't an administrator never gives.
+    /// An administrator's right (`approvals`, `server`): what an account that
+    /// isn't an administrator never gives ([`Scopes::for_account`]).
     pub fn administrators(self) -> bool {
         matches!(self, Scope::Approvals | Scope::Server)
+    }
+
+    /// Whether the person may leave it out on the consent page, the app
+    /// working without it: managing the server (`server`), which an
+    /// administrator may keep to the web app. Every other scope asked for is
+    /// one the app needs: without `approvals`, Pley's own apps on an
+    /// administrator's account ask to sign in again on every requests screen.
+    pub fn optional(self) -> bool {
+        self == Scope::Server
     }
 
     pub fn from_name(name: &str) -> Option<Scope> {
@@ -437,6 +445,8 @@ mod tests {
         assert_eq!(asked.without(Scope::Profiles), asked, "without one it hasn't changes nothing");
         let administrators: Vec<_> = Scope::ALL.into_iter().filter(|scope| scope.administrators()).collect();
         assert_eq!(administrators, [Scope::Approvals, Scope::Server]);
+        let optional: Vec<_> = Scope::ALL.into_iter().filter(|scope| scope.optional()).collect();
+        assert_eq!(optional, [Scope::Server], "approving requests is one an app needs");
     }
 
     #[test]

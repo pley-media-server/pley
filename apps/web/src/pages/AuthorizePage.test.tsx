@@ -195,10 +195,8 @@ describe("AuthorizePage", () => {
     expect(screen.getByText("Only allow this if you just started signing in to the app.")).toBeInTheDocument();
   });
 
-  it("offers an administrator's rights as boxes, unticked", async () => {
-    serve({
-      answer: () => consent({ scopes: ["library", "play", "requests", "approvals", "server"], optional: ["approvals", "server"] }),
-    });
+  it("lists approving requests with what the app needs, and offers managing the server as a box, unticked", async () => {
+    serve({ answer: () => consent({ scopes: ["library", "play", "requests", "approvals", "server"], optional: ["server"] }) });
     renderPage();
 
     await consentShown();
@@ -207,21 +205,17 @@ describe("AuthorizePage", () => {
       "See Admin's libraries, playlists and watch history.",
       "Play titles and keep Admin's progress, ratings and track choices.",
       "Ask for movies and shows, and follow Admin's requests.",
+      "Approve and decline what people ask for.",
     ]);
     expect(screen.getByRole("group", { name: /^Administrator access/ })).toBeInTheDocument();
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
     const server = screen.getByRole("checkbox", { name: "Manage the server" });
-    expect(screen.getAllByRole("checkbox")[0]).toBe(server);
     expect(server).toHaveAccessibleDescription("Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app.");
     expect(server).not.toBeChecked();
-    const approvals = screen.getByRole("checkbox", { name: "Approve requests" });
-    expect(approvals).toHaveAccessibleDescription("Approve and decline what people ask for.");
-    expect(approvals).not.toBeChecked();
   });
 
   it("allows only what is ticked", async () => {
-    const requests = serve({
-      answer: () => consent({ scopes: ["library", "play", "requests", "approvals", "server"], optional: ["approvals", "server"] }),
-    });
+    const requests = serve({ answer: () => consent({ scopes: ["library", "play", "requests", "approvals", "server"], optional: ["server"] }) });
     renderPage();
     const { allow } = await consentShown();
 
@@ -239,7 +233,21 @@ describe("AuthorizePage", () => {
     attend();
     fireEvent.click(allow);
     await waitFor(() => expect(posts(requests, "/api/oauth/requests/r1")).toHaveLength(1));
-    expect(posts(requests, "/api/oauth/requests/r1")[0]?.body).toEqual({ allow: true, scopes: ["library", "play", "requests", "server"] });
+    expect(posts(requests, "/api/oauth/requests/r1")[0]?.body).toEqual({
+      allow: true,
+      scopes: ["library", "play", "requests", "approvals", "server"],
+    });
+  });
+
+  it("allows what the app needs without managing the server when its box is left unticked", async () => {
+    const requests = serve({ answer: () => consent({ scopes: ["library", "play", "requests", "approvals", "server"], optional: ["server"] }) });
+    renderPage();
+    const { allow } = await consentShown();
+
+    attend();
+    fireEvent.click(allow);
+    await waitFor(() => expect(posts(requests, "/api/oauth/requests/r1")).toHaveLength(1));
+    expect(posts(requests, "/api/oauth/requests/r1")[0]?.body).toEqual({ allow: true, scopes: ["library", "play", "requests", "approvals"] });
   });
 
   it("says Pley's own app allowed activity sees and stops everyone's streams", async () => {

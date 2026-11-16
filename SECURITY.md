@@ -230,10 +230,12 @@ Apps sign in on Pley's own page with OAuth 2.1.
   administrator; the rest would let them lock the other administrators
   out. The role is checked again in the transaction that writes the
   change, so an account made an administrator meanwhile is left as it
-  is. On the consent page, `approvals` and
-  `server` are boxes the administrator ticks, unticked to begin with: the
-  app works without them. An account that isn't an administrator's is
-  never asked for them and never gives them, whatever the page sends, so
+  is. On the consent page, `server` is a box the administrator ticks,
+  unticked to begin with: the app works without it. `approvals` is listed
+  with the rest of what the app needs, allowed with it or not at all, as
+  Pley's apps without it ask to sign in again on their requests screens.
+  An account that isn't an administrator's is never asked for either and
+  never gives them, whatever the page sends, so
   no grant holds rights that would wake without anyone being asked when
   the account became one; and no grant gains a scope later, by a refresh or
   a profile switch. `server` is never allowed with a TV's code,

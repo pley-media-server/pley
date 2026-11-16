@@ -1095,9 +1095,10 @@ A token answer:
 }
 ```
 
-`scope` is everything the app was allowed: what it asked for, less the
-administrator's rights the person left unticked or the account doesn't
-have ([the consent page](#the-consent-pages-endpoints)). `refresh_token`
+`scope` is everything the app was allowed: what it asked for, less
+`server` when the person left it unticked, and less the administrator's
+rights an account that isn't an administrator's doesn't give ([the
+consent page](#the-consent-pages-endpoints)). `refresh_token`
 comes only for apps whose description lists the `refresh_token` grant
 type (Pley's own apps do). `server_id`, `proof_id` and `proof_key` let the app make sure
 later that an address still leads to this server ([Telling servers
@@ -1288,7 +1289,7 @@ everyone, in 10 minutes, no code is looked up (`429`).
 | `playlists` | make, change and delete the profile's playlists |
 | `profiles` | switch to the household's other profiles. Pley's own apps only, since a profile's PIN is typed into the app |
 | `requests` | ask for movies and shows the libraries don't have ([Requests](#requests)), and follow the profile's requests |
-| `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; only an administrator gives it, by ticking its box on the consent page |
+| `approvals` | approve and decline what people ask for, where the account is an administrator. Pley's own apps only; only an administrator gives it, with the rest of what the app asks for (it can't be left out: Pley's apps without it ask to sign in again on their requests screens) |
 | `activity` | see what's playing and stop it: the profile's streams, and everyone's where the account is an administrator. Any app may be allowed it, but only Pley's own see and stop everyone's, and of those only Pley for Home Assistant asks for it |
 | `server` | see the server's dashboard and manage its libraries, accounts and invitations, where the account is an administrator: the `admin` routes listed below. Pley's own apps only, and never with a TV's code ([TVs](#tvs)); only an administrator gives it, by ticking its box on the consent page. Of Pley's apps, Android's phones ask for it |
 
@@ -1552,9 +1553,11 @@ with too many sign-ins in progress.
   rights (`approvals`, `server`): they're left out here and from the grant,
   whatever is sent. They would do nothing for such an account, and wake
   without anyone being asked if it became one.
-- `optional`: those of `scopes` the person may leave out: an
-  administrator's rights, which the app works without. The page shows them
-  as boxes, unticked.
+- `optional`: those of `scopes` the person may leave out: `server`, which
+  the app works without, when the app asked for it and the account is an
+  administrator's. The page shows it as a box, unticked. Everything else in
+  `scopes` is what the app needs, `approvals` included, allowed together
+  or not at all. A TV's request has none: it never asks for `server`.
 
 **`POST /api/oauth/device/verify`** answers the consent as above, with
 `redirect: { kind: "device", to: "BCDF-GHJK", device, address }`.

@@ -333,6 +333,7 @@
       "playlists": "Crear, cambiar y eliminar las listas de reproducción de {{profile}}.",
       "profiles": "Cambiar a los otros perfiles de la casa (los PIN se siguen pidiendo).",
       "requests": "Pedir películas y series, y seguir las solicitudes de {{profile}}.",
+      "approvals": "Aprobar y rechazar lo que piden los demás.",
       "activity": "Ver y detener las reproducciones de {{profile}}.",
       "activityEveryone": "Ver y detener lo que se está reproduciendo en el servidor."
     },
@@ -342,10 +343,6 @@
       "server": {
         "label": "Gestionar el servidor",
         "hint": "Panel, bibliotecas, usuarios e invitaciones. Los ajustes, las claves y la TV en vivo se quedan en la aplicación web."
-      },
-      "approvals": {
-        "label": "Aprobar solicitudes",
-        "hint": "Aprobar y rechazar lo que piden los demás."
       }
     },
     "cantChange": "No puede cambiar tu contraseña, tus ajustes de inicio de sesión ni tus dispositivos.",

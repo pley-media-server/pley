@@ -1573,8 +1573,10 @@ impl Requests {
             .bind(user.id)
             .fetch_one(&self.db.read)
             .await?;
-        // An administrator's app of pley's own that was signed in before it
-        // could manage requests.
+        // An administrator's app of Pley's own without `approvals`: signed in
+        // before Pley had it, or while the account wasn't an administrator,
+        // which gives none of an administrator's rights. A new sign-in asks
+        // for it, and the administrator can't leave it out.
         let approvals =
             user.role_holds() && user.app.is_some() && user.first_party() && !user.allowed(Scope::Approvals);
         Ok(Summary {

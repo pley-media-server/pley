@@ -245,21 +245,23 @@ describe("LinkPage", () => {
     expect(screen.queryByRole("button")).not.toBeInTheDocument();
   });
 
-  it("gives a TV approving requests only when its box is ticked", async () => {
-    const requests = serve({ verify: () => ({ ...tvRequest(), scopes: ["library", "requests", "approvals"], optional: ["approvals"] }) });
+  it("gives a TV approving requests with the rest, with nothing to tick", async () => {
+    // A TV never manages the server: the server offers nothing to leave out.
+    const requests = serve({ verify: () => ({ ...tvRequest(), scopes: ["library", "requests", "approvals"], optional: [] }) });
     renderPage(URL_CODE);
     const { allow } = await continueWith(null);
 
     expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
       "See Admin's libraries, playlists and watch history.",
       "Ask for movies and shows, and follow Admin's requests.",
+      "Approve and decline what people ask for.",
     ]);
-    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
-    expect(screen.getByRole("checkbox", { name: "Approve requests" })).not.toBeChecked();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByText("Administrator access")).not.toBeInTheDocument();
     attend();
     await userEvent.setup().click(allow);
     await screen.findByRole("heading", { name: "Pley for Android on your TV is signing in" });
-    expect(posts(requests, "/api/oauth/requests/d1").map((r) => r.body)).toEqual([{ allow: true, scopes: ["library", "requests"] }]);
+    expect(posts(requests, "/api/oauth/requests/d1").map((r) => r.body)).toEqual([{ allow: true, scopes: ["library", "requests", "approvals"] }]);
   });
 
   it("takes neither a second Enter nor a held one as the answer", async () => {

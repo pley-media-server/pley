@@ -1147,7 +1147,7 @@ async fn behind_a_proxy_that_leaves_the_port_out_pley_names_the_address_apps_use
     assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.text());
 }
 
-// ------------------------------------------------------------------ an administrator's rights, chosen
+// ------------------------------------------------------------------ managing the server, chosen
 
 /// Everything Pley for Android asks for of a server that offers it.
 const ALL_OF_THEM: &str = "library play requests approvals server";
@@ -1181,44 +1181,52 @@ async fn android_tokens(app: &TestApp, cookie: &str, asked: &str, chosen: Option
 }
 
 #[tokio::test]
-async fn an_administrator_chooses_which_of_their_rights_an_app_gets() {
+async fn an_administrator_chooses_whether_an_app_manages_the_server() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
 
-    // The page shows what the app asked for, and which of it may be left out.
+    // The page shows what the app asked for, and that managing the server
+    // may be left out; approving requests is one the app needs.
     let shown = start(&app, &admin, &android_query(ALL_OF_THEM)).await;
     assert_eq!(shown.body["scopes"], json!(["library", "play", "requests", "approvals", "server"]), "{}", shown.text());
-    assert_eq!(shown.body["optional"], json!(["approvals", "server"]));
+    assert_eq!(shown.body["optional"], json!(["server"]));
     let plain = start(&app, &admin, &query(&request_params(ANDROID_APP, ANDROID_BACK))).await;
     assert_eq!(plain.body["optional"], json!([]));
+    let approvals = start(&app, &admin, &android_query("library play requests approvals")).await;
+    assert_eq!(approvals.body["optional"], json!([]), "{}", approvals.text());
 
-    // Left out: the token answer says what it holds (RFC 6749 §5.1), and
-    // the administrators' routes stay closed.
-    let tokens = android_tokens(&app, &admin, ALL_OF_THEM, Some(&["library", "play", "requests"])).await;
-    assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
+    // Managing the server left out: the token answer says what it holds
+    // (RFC 6749 §5.1), and the administrators' routes stay closed.
+    let without = ["library", "play", "requests", "approvals"];
+    let tokens = android_tokens(&app, &admin, ALL_OF_THEM, Some(&without)).await;
+    assert_eq!(tokens.body["scope"], "library play requests approvals", "{}", tokens.text());
     let (access, refresh_token) = pair(&tokens);
     let me = app.get("/api/auth/me", &access).await;
-    assert_eq!((&me.body["scope"], &me.body["account_admin"]), (&json!("library play requests"), &json!(true)));
+    assert_eq!(
+        (&me.body["scope"], &me.body["account_admin"]),
+        (&json!("library play requests approvals"), &json!(true))
+    );
     let refused = app.get("/api/users", &access).await;
     assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
     assert_eq!(refused.headers[header::WWW_AUTHENTICATE], r#"Bearer error="insufficient_scope", scope="server""#);
-    // A refresh can't take them back.
+    // A refresh can't take it back.
     let wider = form(&[
         ("grant_type", "refresh_token"),
         ("refresh_token", &refresh_token),
         ("client_id", ANDROID_APP),
-        ("scope", "library play requests server"),
+        ("scope", ALL_OF_THEM),
     ]);
     assert_eq!(
         oauth_error(&app.form_post("/api/oauth/token", &wider, &[]).await),
         (StatusCode::BAD_REQUEST, "invalid_scope")
     );
     let renewed = refresh(&app, &refresh_token, ANDROID_APP).await;
-    assert_eq!(renewed.body["scope"], "library play requests", "{}", renewed.text());
+    assert_eq!(renewed.body["scope"], "library play requests approvals", "{}", renewed.text());
 
-    // One of them ticked.
-    let tokens = android_tokens(&app, &admin, ALL_OF_THEM, Some(&["server", "library", "play", "requests"])).await;
-    assert_eq!(tokens.body["scope"], "library play requests server", "{}", tokens.text());
+    // Ticked, in any order.
+    let ticked = ["server", "library", "play", "requests", "approvals"];
+    let tokens = android_tokens(&app, &admin, ALL_OF_THEM, Some(&ticked)).await;
+    assert_eq!(tokens.body["scope"], ALL_OF_THEM, "{}", tokens.text());
     let (access, _) = pair(&tokens);
     assert_eq!(app.get("/api/users", &access).await.status, StatusCode::OK);
 
@@ -1228,15 +1236,18 @@ async fn an_administrator_chooses_which_of_their_rights_an_app_gets() {
 }
 
 #[tokio::test]
-async fn the_answer_may_leave_out_only_an_administrators_rights() {
+async fn the_answer_may_leave_out_only_managing_the_server() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let id = consent(&app, &admin, &android_query(ALL_OF_THEM)).await;
-    let refusals: [(&[&str], &str); 4] = [
-        (&["library", "play", "requests", "playlists"], "the app didn't ask for one of those scopes"),
-        (&["library", "play", "requests", "admin"], "the app didn't ask for one of those scopes"),
-        (&["library", "requests", "server"], "the app needs to play titles"),
+    let refusals: [(&[&str], &str); 5] = [
+        (&["library", "play", "requests", "approvals", "playlists"], "the app didn't ask for one of those scopes"),
+        (&["library", "play", "requests", "approvals", "admin"], "the app didn't ask for one of those scopes"),
+        (&["library", "requests", "approvals", "server"], "the app needs to play titles"),
         (&["play", "requests", "approvals", "server"], "the app needs to see the profile's libraries"),
+        // Without it, Pley's own apps would ask to sign in again on every
+        // requests screen.
+        (&["library", "play", "requests", "server"], "the app needs to approve and decline what people ask for"),
     ];
     for (chosen, said) in refusals {
         let refused = decide_with(&app, &admin, &id, chosen).await;
@@ -1270,6 +1281,9 @@ async fn an_account_that_isnt_an_administrator_gives_none_of_their_rights() {
     let sent =
         android_tokens(&app, &bob, ALL_OF_THEM, Some(&["library", "play", "requests", "approvals", "server"])).await;
     assert_eq!(sent.body["scope"], "library play requests", "{}", sent.text());
+    // What his page showed, sent back as it is: `approvals` wasn't on it.
+    let shown = android_tokens(&app, &bob, ALL_OF_THEM, Some(&["library", "play", "requests"])).await;
+    assert_eq!(shown.body["scope"], "library play requests", "{}", shown.text());
     let tokens = android_tokens(&app, &bob, ALL_OF_THEM, None).await;
     assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
     let (access, refresh_token) = pair(&tokens);

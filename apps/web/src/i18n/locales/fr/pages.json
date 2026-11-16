@@ -333,6 +333,7 @@
       "playlists": "Créer, modifier et supprimer les playlists de {{profile}}.",
       "profiles": "Passer aux autres profils du foyer (les codes PIN restent demandés).",
       "requests": "Demander des films et des séries, et suivre les demandes de {{profile}}.",
+      "approvals": "Approuver et refuser les demandes des autres.",
       "activity": "Voir et arrêter les lectures de {{profile}}.",
       "activityEveryone": "Voir et arrêter ce qui est en cours de lecture sur le serveur."
     },
@@ -342,10 +343,6 @@
       "server": {
         "label": "Gérer le serveur",
         "hint": "Tableau de bord, bibliothèques, utilisateurs et invitations. Les paramètres, les clés et la TV en direct restent dans l’application web."
-      },
-      "approvals": {
-        "label": "Approuver les demandes",
-        "hint": "Approuver et refuser ce que les autres demandent."
       }
     },
     "cantChange": "Elle ne peut pas changer votre mot de passe, vos paramètres de connexion ni vos appareils.",

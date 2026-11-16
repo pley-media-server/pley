@@ -331,6 +331,7 @@
       "playlists": "Make, change and delete {{profile}}'s playlists.",
       "profiles": "Switch to the household's other profiles (PINs still apply).",
       "requests": "Ask for movies and shows, and follow {{profile}}'s requests.",
+      "approvals": "Approve and decline what people ask for.",
       "activity": "See and stop {{profile}}'s streams.",
       "activityEveryone": "See and stop what's playing on the server."
     },
@@ -340,10 +341,6 @@
       "server": {
         "label": "Manage the server",
         "hint": "Dashboard, libraries, users and invitations. Settings, keys and Live TV stay in the web app."
-      },
-      "approvals": {
-        "label": "Approve requests",
-        "hint": "Approve and decline what people ask for."
       }
     },
     "cantChange": "It can't change your password, sign-in settings or devices.",

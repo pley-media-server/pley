@@ -14,14 +14,14 @@ import { cn } from "@/lib/cn";
 import { AuthLayout } from "./AuthLayout";
 
 /** The scopes Pley has words for (`consent.scopes`): what each lets an app do, for the profile it acts as. */
-const SCOPES = ["library", "play", "playlists", "profiles", "requests", "activity"] as const;
+const SCOPES = ["library", "play", "playlists", "profiles", "requests", "approvals", "activity"] as const;
 
 function knownScope(scope: string): scope is (typeof SCOPES)[number] {
   return (SCOPES as readonly string[]).includes(scope);
 }
 
-/** The administrator rights the person may give or not (`consent.optional`), each with a checkbox. */
-const OPTIONAL = ["server", "approvals"] as const;
+/** The administrator rights the person may give or not (`consent.optional`), each with a checkbox: managing the server. */
+const OPTIONAL = ["server"] as const;
 
 function knownOptional(scope: string): scope is (typeof OPTIONAL)[number] {
   return (OPTIONAL as readonly string[]).includes(scope);
@@ -197,10 +197,10 @@ function OptionalScope({
  * page has been seen for a whole second. A key held down, or pressed right
  * as the question shows, answers nothing: a refusal can't be taken back.
  *
- * The administrator rights an app asked for (managing the server, approving
- * requests) are boxes the person ticks: the app works without them, and
- * nothing is given unless asked for here. The server offers them only to an
- * administrator.
+ * Managing the server, when an app asks for it, is a box the person ticks:
+ * the app works without it, and it isn't given unless ticked here. The
+ * server offers it only to an administrator, and lists approving requests,
+ * which Pley's own apps need on an administrator's account, with the rest.
  */
 export function AppConsent({
   request,

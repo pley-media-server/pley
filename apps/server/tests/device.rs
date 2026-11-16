@@ -1024,30 +1024,34 @@ async fn tv_asking(app: &TestApp, scope: &str) -> (String, String) {
 }
 
 #[tokio::test]
-async fn approving_requests_is_the_administrators_choice_on_a_tv_too() {
+async fn a_tv_gets_approving_requests_with_the_rest_and_nothing_to_tick() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let (bob, _) = app.user(&admin, "bob", json!({})).await;
     let asked = "library play requests approvals";
 
-    // Left out by an administrator: the TV's tokens say so.
+    // An administrator gives all of it: a TV never manages the server, the
+    // one right the page offers to leave out.
     let (device_code, user_code) = tv_asking(&app, asked).await;
     let shown = verify(&app, &admin, &user_code).await;
     assert_eq!(shown.body["scopes"], json!(["library", "play", "requests", "approvals"]), "{}", shown.text());
-    assert_eq!(shown.body["optional"], json!(["approvals"]));
+    assert_eq!(shown.body["optional"], json!([]));
     let id = shown.body["id"].as_str().unwrap();
-    // Not without what the app needs.
-    let body = json!({"allow": true, "scopes": ["library", "approvals"]});
-    let refused = app.browser_call(Method::POST, &format!("/api/oauth/requests/{id}"), &admin, Some(body), &[]).await;
-    assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{}", refused.text());
-    let body = json!({"allow": true, "scopes": ["library", "play", "requests"]});
+    // Not without what the app needs, approving requests included: without
+    // it the TV would ask to sign in again on every requests screen.
+    for chosen in [json!(["library", "approvals"]), json!(["library", "play", "requests"])] {
+        let body = json!({"allow": true, "scopes": chosen});
+        let refused =
+            app.browser_call(Method::POST, &format!("/api/oauth/requests/{id}"), &admin, Some(body), &[]).await;
+        assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{chosen}: {}", refused.text());
+    }
+    let body = json!({"allow": true, "scopes": ["library", "play", "requests", "approvals"]});
     let decided = app.browser_call(Method::POST, &format!("/api/oauth/requests/{id}"), &admin, Some(body), &[]).await;
     assert_eq!((decided.status, &decided.body), (StatusCode::OK, &json!({"done": true})), "{}", decided.text());
     let tokens = poll(&app, &device_code, &[]).await;
-    assert_eq!(tokens.body["scope"], "library play requests", "{}", tokens.text());
+    assert_eq!(tokens.body["scope"], asked, "{}", tokens.text());
     let (access, _) = pair(&tokens);
-    let refused = app.app_call(Method::POST, "/api/requests/1/approve", &access, None).await;
-    assert_eq!((refused.status, &refused.body["code"]), (StatusCode::FORBIDDEN, &json!("insufficient_scope")));
+    assert_eq!(app.get("/api/auth/me", &access).await.body["scope"], asked);
 
     // Never asked of, nor given by, an account that isn't an administrator's.
     let (device_code, user_code) = tv_asking(&app, asked).await;

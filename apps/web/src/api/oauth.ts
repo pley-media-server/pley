@@ -39,7 +39,7 @@ export interface ConsentRequest {
   redirect: AppRedirect | { kind: "device"; to: string; device?: string | null; address?: string | null };
   /** What the account can give of what the app asked for (no administrator rights from an account that isn't one). */
   scopes: (OAuthScope | (string & {}))[];
-  /** Those of `scopes` the person may leave out: an administrator's rights ("approvals", "server"), given only when ticked. */
+  /** Those of `scopes` the person may leave out: managing the server ("server"), given only when ticked. */
   optional: string[];
 }
 

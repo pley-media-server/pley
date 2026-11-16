@@ -358,20 +358,23 @@ pub async fn create_request(
 
 /// What a consent page shows of the scopes an app asked for: those the
 /// account can give ([`Scopes::for_account`]), and of them those the person
-/// may leave out ([`allowed_scopes`]).
+/// may leave out ([`Scope::optional`]: managing the server).
 fn shown_scopes(asked: Scopes, administrator: bool) -> (Vec<&'static str>, Vec<&'static str>) {
     let shown = asked.for_account(administrator);
-    let optional = Scope::ALL.into_iter().filter(|scope| scope.administrators() && shown.contains(*scope));
+    let optional = Scope::ALL.into_iter().filter(|scope| scope.optional() && shown.contains(*scope));
     (shown.names(), optional.map(Scope::name).collect())
 }
 
 /// What the person allows of the scopes an app asked for (`asked`): those
-/// the consent page sent (`chosen`), or all of them when it sent none. It
-/// may leave out only an administrator's rights, which the app works
-/// without, and add none. On an account that isn't an administrator's,
-/// those are left out whatever was sent ([`Scopes::for_account`]).
+/// the consent page sent (`chosen`), or all of them when it sent none. Of
+/// what the page showed ([`shown_scopes`]) it may leave out only managing
+/// the server ([`Scope::optional`]), which the app works without, and it
+/// adds none. On an account that isn't an administrator's, an
+/// administrator's rights are left out whatever was sent
+/// ([`Scopes::for_account`]).
 fn allowed_scopes(asked: Scopes, chosen: Option<&[String]>, administrator: bool) -> ApiResult<Scopes> {
-    let Some(chosen) = chosen else { return Ok(asked.for_account(administrator)) };
+    let shown = asked.for_account(administrator);
+    let Some(chosen) = chosen else { return Ok(shown) };
     if chosen.len() > Scope::ALL.len() {
         return Err(AppError::bad_request("that is more scopes than Pley has"));
     }
@@ -382,8 +385,8 @@ fn allowed_scopes(asked: Scopes, chosen: Option<&[String]>, administrator: bool)
             .ok_or_else(|| AppError::bad_request("the app didn't ask for one of those scopes"))?;
         allowed = allowed.with(scope);
     }
-    let left_out = |scope: &Scope| asked.contains(*scope) && !allowed.contains(*scope);
-    if let Some(needed) = Scope::ALL.into_iter().find(|scope| left_out(scope) && !scope.administrators()) {
+    let left_out = |scope: &Scope| shown.contains(*scope) && !allowed.contains(*scope);
+    if let Some(needed) = Scope::ALL.into_iter().find(|scope| left_out(scope) && !scope.optional()) {
         return Err(AppError::bad_request(format!(
             "the app needs to {}: allow it all, or don't allow the app",
             needed.words()
