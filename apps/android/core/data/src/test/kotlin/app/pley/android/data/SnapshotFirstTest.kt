@@ -5,6 +5,7 @@ package app.pley.android.data
 import app.pley.android.model.Hub
 import app.pley.android.model.Hubs
 import app.pley.android.model.ItemDetail
+import app.pley.android.model.Library
 import app.pley.android.network.OfflineException
 import app.pley.android.testing.Fixtures
 import app.pley.android.testing.data.TestData
@@ -16,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -68,6 +70,22 @@ class SnapshotFirstTest {
         testScheduler.runCurrent()
         assertEquals(1_000, file.lastModified())
         assertTrue(written > 0)
+    }
+
+    @Test
+    fun `where the server keeps the media isn't saved with the libraries`() = runTest {
+        val dir = folder.newFolder()
+        // What the server tells an app that manages it.
+        val listed: List<Library> = Fixtures.decode("libraries/list.json")
+        val data = signedIn(dir) { api.answer("libraries", listed.map { it.copy(paths = listOf("/srv/media/${it.id}")) }) }
+        val seen = collect(data.graph.libraries.libraries())
+        testScheduler.runCurrent()
+        val shown = (seen.last() as Loadable.Ready).value
+        assertEquals(listed.map { it.id }, shown.map { it.id })
+        assertTrue(shown.all { it.paths.isEmpty() })
+        val file = snapshotFile(dir, ProfileScope(data.issuer, 2), SnapshotKeys.LIBRARIES)
+        assertTrue(file.isFile)
+        assertFalse(file.readText().contains("/srv/media"))
     }
 
     @Test

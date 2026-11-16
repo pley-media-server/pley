@@ -50,13 +50,18 @@ internal suspend fun <T> ResourceCache.refreshQuietly(resource: Resource<T>) {
     }
 }
 
+/**
+ * The libraries everyone browses, saved for the next start. The server
+ * tells an app that manages it where it keeps the media; nothing here
+ * shows that, so it isn't saved: Manage server reads it when it shows.
+ */
 internal class CachedLibraries(
     private val cache: ResourceCache,
     /** Hears every fresh list: the scans it shows running. */
     private val heard: (List<Library>) -> Unit = {},
 ) : LibrariesRepository {
     private val resource = Resource(SnapshotKeys.LIBRARIES, ListSerializer(Library.serializer())) { api, _ ->
-        api.libraries().also(heard)
+        withoutPaths(api.libraries()).also(heard)
     }
 
     override fun libraries(): Flow<Loadable<List<Library>>> = cache.observe(resource)
@@ -69,10 +74,14 @@ internal class CachedLibraries(
 
     /** The server's answer to a change is the list now; Home's rows of each library follow its order. */
     private fun holds(answer: List<Library>) {
-        heard(answer)
-        cache.put(resource, answer)
+        val libraries = withoutPaths(answer)
+        heard(libraries)
+        cache.put(resource, libraries)
         cache.revalidate { key, _ -> key == SnapshotKeys.HOME }
     }
+
+    private fun withoutPaths(libraries: List<Library>): List<Library> =
+        libraries.map { if (it.paths.isEmpty()) it else it.copy(paths = emptyList()) }
 }
 
 internal class CachedHubs(private val cache: ResourceCache) : HubsRepository {
