@@ -581,5 +581,43 @@
     "nothingInLibraries": "Nada en tus bibliotecas coincide.",
     "noResults": "No hay resultados para «{{q}}»",
     "differentSpelling": "Prueba con otra ortografía o una búsqueda más corta."
+  },
+  "sso": {
+    "theProvider": "el proveedor",
+    "or": "o",
+    "signInWith": "Iniciar sesión con {{provider}}",
+    "inBrowser": "Para iniciar sesión con {{provider}}, abre Pley en tu navegador.",
+    "notice": {
+      "linked": "Tu cuenta de {{provider}} está vinculada: ya puedes iniciar sesión con ella.",
+      "off": "El inicio de sesión único está desactivado en este servidor.",
+      "expired": "Ese inicio de sesión tardó demasiado o se empezó en otro navegador. Inténtalo de nuevo.",
+      "denied": "Se canceló el inicio de sesión en {{provider}}.",
+      "provider": "{{provider}} no completó el inicio de sesión. El registro del servidor indica el motivo.",
+      "invalid": "No se pudo verificar la respuesta de {{provider}}. El registro del servidor indica el motivo.",
+      "unknown": "Ninguna cuenta de aquí está vinculada a esa cuenta de {{provider}}. Inicia sesión con tu contraseña y vincúlala en la página de tu cuenta.",
+      "disabled": "Esta cuenta está desactivada.",
+      "group": "Esa cuenta de {{provider}} no tiene permiso para usar este servidor.",
+      "signin": "Vuelve a iniciar sesión aquí para vincular tu cuenta.",
+      "taken": "Esa cuenta de {{provider}} ya está vinculada a otra cuenta de aquí.",
+      "twoStep": "Este servidor pide el inicio de sesión en dos pasos, que tu cuenta aún no ha configurado. Inicia sesión con tu contraseña para configurarlo.",
+      "busy": "Han fallado demasiados inicios de sesión desde aquí. Inténtalo de nuevo en unos minutos.",
+      "error": "Algo salió mal. Inténtalo de nuevo."
+    },
+    "account": {
+      "title": "Inicio de sesión único",
+      "signsInWith": "Inicia sesión con {{provider}}.",
+      "signsInWithAs": "Inicia sesión con {{provider}} como <email>{{email}}</email>.",
+      "offer": "Inicia sesión con tu cuenta de {{provider}} en lugar de con una contraseña.",
+      "noPassword": "Esta cuenta no tiene contraseña: solo inicia sesión con {{provider}}. Un administrador puede ponerle una.",
+      "inBrowser": "Abre Pley en tu navegador para vincular o desvincular tu cuenta de {{provider}}.",
+      "elsewhere": "La vinculación se hace en <address>{{address}}</address>, adonde {{provider}} devuelve a la gente.",
+      "passwordHint": "Cambiar cómo inicia sesión esta cuenta requiere su contraseña.",
+      "code": "Código de tu aplicación de autenticación",
+      "link": "Vincular tu cuenta de {{provider}}",
+      "continueTo": "Continuar a {{provider}}",
+      "unlink": "Desvincular",
+      "unlinkFrom": "Desvincular {{provider}}",
+      "unlinked": "Desvinculada de {{provider}}"
+    }
   }
 }

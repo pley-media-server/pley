@@ -1,7 +1,7 @@
 import { Route, Routes } from "react-router";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { User } from "@/api/types";
 import { rememberProfile } from "@/lib/lastProfile";
 import { apiError, LocationDisplay, mockApi, renderWithProviders, testSetup, testUser, twoStepSetupAnswer } from "@/test/render";
@@ -13,7 +13,10 @@ interface Server {
   profiles?: User[];
   /** Who signing in signs in as. */
   user?: User;
+  sso?: { name: string; start: string };
 }
+
+const AUTHENTIK = { name: "Authentik", start: "https://pley.example.com/api/auth/sso/start" };
 
 const RECOVERY_CODES = Array.from({ length: 10 }, (_, i) => `${i}aaa-bbbb-cccc-dddd`);
 /** What the server shows once the first secret got too many wrong codes. */
@@ -24,11 +27,11 @@ const NEW_SETUP = {
   id: "7RZCN3W2HLMQ5DKAXVBT6YPGEU",
 };
 
-function serve({ setupRequired = false, signedIn = false, profiles = [testUser], user = testUser }: Server = {}) {
+function serve({ setupRequired = false, signedIn = false, profiles = [testUser], user = testUser, sso }: Server = {}) {
   /** Wrong codes while setting up: the third starts over with a new secret. */
   let wrongSetupCodes = 0;
   return mockApi({
-    "GET /api/server": () => ({ name: "Living Room", version: "1.0.0", setup_required: setupRequired }),
+    "GET /api/server": () => ({ name: "Living Room", version: "1.0.0", setup_required: setupRequired, sso: sso ?? null }),
     "GET /api/auth/me": () => (signedIn ? testUser : apiError(401, "unauthorized", "not signed in")),
     "POST /api/auth/login": (req) => {
       const { password, code } = req.body as { password: string; code?: string };
@@ -77,6 +80,39 @@ async function signIn(password: string) {
 }
 
 describe("LoginPage", () => {
+  afterEach(() => {
+    delete (window as { __PLEY_APP__?: unknown }).__PLEY_APP__;
+  });
+
+  it("offers single sign-on when the server has it, back to the page asked for", async () => {
+    serve({ sso: AUTHENTIK });
+    renderLogin();
+    const link = await screen.findByRole("link", { name: "Sign in with Authentik" });
+    expect(link).toHaveAttribute("href", "https://pley.example.com/api/auth/sso/start?next=%2Flibrary%2F2");
+  });
+
+  it("says why a single sign-on didn't sign in", async () => {
+    serve({ sso: AUTHENTIK });
+    renderLogin("/login?sso=unknown");
+    expect(await screen.findByRole("alert")).toHaveTextContent("No account here is linked to that Authentik account");
+  });
+
+  it("has no single sign-on button when the server has none", async () => {
+    serve();
+    renderLogin();
+    expect(await screen.findByText("to Living Room")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Sign in with/ })).not.toBeInTheDocument();
+  });
+
+  it("sends single sign-on to the browser from the apps' windows", async () => {
+    // The desktop and Android apps keep their windows on the server's pages.
+    (window as { __PLEY_APP__?: unknown }).__PLEY_APP__ = "desktop";
+    serve({ sso: AUTHENTIK });
+    renderLogin();
+    expect(await screen.findByText("To sign in with Authentik, open Pley in your browser.")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Sign in with Authentik" })).not.toBeInTheDocument();
+  });
+
   it("signs in and goes where the user was headed", async () => {
     const requests = serve();
     renderLogin();

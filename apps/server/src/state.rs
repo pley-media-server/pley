@@ -64,6 +64,8 @@ pub struct Inner {
     /// Live TV: its sources, channels, guide and connections (see [`crate::livetv`]).
     pub live: Arc<crate::livetv::LiveTv>,
     pub two_step: crate::two_step::TwoStep,
+    /// Single sign-on with an OpenID Connect provider (see [`crate::sso`]).
+    pub sso: crate::sso::Sso,
     /// What Automatic quality knows of each client's networks.
     pub bandwidth: crate::bandwidth::Bandwidth,
     /// This server's id and its proofs to apps (see [`crate::identity`]).
@@ -223,6 +225,7 @@ impl AppState {
                 trickplay,
                 live,
                 two_step,
+                sso: crate::sso::Sso::new(),
                 bandwidth,
                 identity,
                 oauth,

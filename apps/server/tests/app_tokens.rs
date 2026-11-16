@@ -25,6 +25,11 @@ const PUBLIC: &[(&str, &str)] = &[
     ("POST", "/api/setup"),
     ("POST", "/api/auth/login"),
     ("POST", "/api/auth/logout"),
+    // Single sign-on's pages, which browsers pass through on their way to
+    // the provider and back, and pley's client metadata document.
+    ("GET", "/api/auth/sso/start"),
+    ("GET", "/api/auth/sso/callback"),
+    ("GET", "/api/auth/sso/client"),
     ("GET", "/api/invites/{code}"),
     ("POST", "/api/invites/{code}/accept"),
     // Apps exchange codes and refresh tokens, and sign out, with forms.
@@ -46,6 +51,9 @@ const FIRST_PARTY: &[(&str, &str)] = &[
     ("PUT", "/api/auth/password"),
     ("GET", "/api/auth/profiles"),
     ("POST", "/api/auth/switch"),
+    ("POST", "/api/auth/sso/link"),
+    ("GET", "/api/me/sso"),
+    ("DELETE", "/api/me/sso"),
     ("GET", "/api/me/two-step"),
     ("POST", "/api/me/two-step"),
     ("DELETE", "/api/me/two-step"),
@@ -101,6 +109,7 @@ const ADMIN: &[(&str, &str)] = &[
     ("GET", "/api/users/{id}/apps"),
     ("DELETE", "/api/users/{id}/apps/{grant}"),
     ("DELETE", "/api/users/{id}/two-step"),
+    ("DELETE", "/api/users/{id}/sso"),
     ("GET", "/api/invites"),
     ("POST", "/api/invites"),
     ("DELETE", "/api/invites/{code}"),

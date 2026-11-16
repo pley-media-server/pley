@@ -173,11 +173,13 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn single_sign_on_leaves_nothing_behind_after_an_upgrade() {
+    async fn the_first_single_sign_on_leaves_nothing_behind_after_an_upgrade() {
         let dir = crate::testing::tempdir();
         let path = dir.path().join("pley.db");
-        // A version with single sign-on: an account it made, linked to an
-        // identity at the provider, and its settings with the client secret.
+        // The version that first had single sign-on, which was taken out
+        // again (migration 0022) before it came back: an account it made,
+        // linked to an identity at the provider, and its settings with the
+        // client secret. None of it comes back with it.
         let pool = database_before(22, &path).await;
         sqlx::query("INSERT INTO users (id, username, password_hash, created_at) VALUES (1, 'ann', '!sso', 0)")
             .execute(&pool)
@@ -209,13 +211,9 @@ mod tests {
         pool.close().await;
 
         let db = Db::open(&path).await.unwrap();
-        let left: Vec<String> = sqlx::query_scalar(
-            "SELECT name FROM sqlite_master WHERE name IN ('user_identities', 'user_identities_user')",
-        )
-        .fetch_all(&db.read)
-        .await
-        .unwrap();
-        assert!(left.is_empty(), "{left:?}");
+        let identities: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM user_identities").fetch_one(&db.read).await.unwrap();
+        assert_eq!(identities, 0, "the identities linked then are gone");
         let value = server_settings(&db).await;
         let kept: serde_json::Value = serde_json::from_str(&value).unwrap();
         assert_eq!(kept, serde_json::json!({"server_name": "Attic"}), "the other settings stay");

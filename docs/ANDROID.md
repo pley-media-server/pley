@@ -37,10 +37,11 @@ keeps its saved servers and asks you to sign in again.
 
 Phones sign in on the server's own page in the browser; TVs, and phones
 without a browser, show a code and a QR code to approve at the server's
-`/link` page, on a phone or computer. When the server requires two-step
-sign-in, the sign-in screen says so, and whoever hasn't set it up yet does
-it on that page as they sign in (for a code, on the device that approves
-it).
+`/link` page, on a phone or computer. With single sign-on on the server,
+that page offers the provider beside the password. When the server
+requires two-step sign-in, the sign-in screen says so, and whoever hasn't
+set it up yet does it on that page as they sign in (for a code, on the
+device that approves it).
 
 Before its token goes to the server's address, the app has the server
 prove it is the one signed in to, at that address

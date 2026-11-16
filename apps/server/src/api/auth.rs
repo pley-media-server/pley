@@ -105,6 +105,13 @@ pub async fn server_status(
         "setup_code_required": users == 0,
         // Signing in may take setting it up first (see second_step).
         "two_step_required": state.auth.two_step_required(),
+        // The sign-in page's "Sign in with …" button (see crate::sso).
+        "sso": settings.sso_enabled.then(|| {
+            serde_json::json!({
+                "name": super::sso::provider_name(&settings),
+                "start": crate::sso::Sso::start_url(&settings),
+            })
+        }),
     });
     let Some((proof, address)) = proof else { return Ok(Json(body).into_response()) };
     body["proof"] = serde_json::json!(proof);

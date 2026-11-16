@@ -44,6 +44,12 @@ protect your server.
   (**Settings → Server → Sign-in**).
 - **Leave apps by other publishers off** (**Settings → Server → Apps**)
   unless you need one.
+- **Single sign-on:** use a provider you control, or set the group that may
+  sign in, and turn on new accounts only then. With a provider anyone can
+  join (Google, Microsoft), link accounts one by one instead. Turn on the
+  provider's own two-step sign-in: signing in through it skips Pley's.
+  Let a claim make administrators only with a provider you control, and a
+  group or role only its administrators can give.
 
 ## What Pley does
 
@@ -96,6 +102,11 @@ protect your server.
   Recovery codes are stored hashed.
 - Switching to a profile with a password takes its code too. Apps sign in on
   the same page, so they take the code as well.
+- Single sign-on skips it: the provider asks for its own. Linking an account
+  to an identity at the provider takes the account's code, as its password.
+  While it is required, an account with a password that hasn't set it up
+  isn't signed in through the provider either, until it signs in with its
+  password and sets it up.
 - **Required of everyone** (`require_two_step`): only an administrator who
   uses it can turn it on, so nobody locks themselves out. Everyone with a
   password and without it is signed out everywhere, browsers, apps and
@@ -126,6 +137,59 @@ protect your server.
   still sign in; apps say another device answers at the server's address
   until they sign in again, as its proofs change, and the desktop app until
   the server is forgotten and connected again).
+
+### Single sign-on
+
+- OpenID Connect's authorization code flow with PKCE (S256), a `state` bound
+  to the browser by a cookie, and a nonce checked in the ID token. What a
+  sign-in in progress needs travels in a cookie sealed with a key made at
+  each start (ChaCha20-Poly1305), for the sign-in pages only, for 10
+  minutes.
+- Pley checks ID tokens itself, with ring: the signature with the
+  provider's key (RS, PS, ES256/384, EdDSA) or, for a registered client,
+  the client secret (HS), then the issuer, the audience, the nonce and the
+  times. A time sent as anything but a number is refused outright, never
+  read as no time at all (CVE-2026-25537 in the `jsonwebtoken` crate). An
+  algorithm the provider doesn't list, a key it doesn't list, `none` and
+  tokens with critical extensions are refused.
+- It asks only who signed in: the scopes `openid email`, `profile` to name
+  new accounts, `groups` to check a group. It keeps none of the provider's
+  tokens: from the provider, only the issuer, the `sub` and the e-mail
+  address are stored.
+- Identities are linked to accounts explicitly, with the account's password
+  (and its code, with two-step sign-in), never matched by name or e-mail
+  address. New accounts start without a password, libraries or requests.
+- Administrators come from the provider only when an administrator names
+  the claim that decides (`sso_admin_claim`), and then at each sign-in
+  through it: an account is an administrator when the claim, in the ID
+  token or the userinfo answer about the same person, holds the value
+  named, and isn't one when the claim lacks it or is missing. The last
+  enabled administrator stays one, in one statement, so two sign-ins at
+  once can't both take it away. A change takes effect on the account's
+  sessions at once. Whoever controls that group or role at the provider
+  controls Pley, without Pley's two-step sign-in. Claims that say who
+  someone is (an e-mail address and whether it is verified, a username, a
+  name, the `sub`) can't decide: people choose many of them at the
+  provider, and nearly everyone's address is verified.
+- Everything Pley reads from the provider comes over https: plain http only
+  to the same machine (`localhost`, `127.0.0.1`), since whoever answered in
+  the provider's place could sign in as anyone. Redirects (at most three)
+  never lead to plain http either.
+- Codes the provider refuses are limited to 5 every 15 minutes from each
+  address. Answers from the provider are read up to 1 MiB, and the token
+  request, which may carry the client secret, follows no redirect.
+- After signing in, Pley goes back only to a page of its own web app, checked
+  again once `.` and `..` are resolved.
+- Unlinking an identity signs its account out everywhere else, as a new
+  password does (an administrator unlinking signs it out everywhere):
+  whoever got in through the provider is out. An administrator can't unlink
+  an account without a password, which would leave it no way in.
+- The client secret is never sent back to browsers, and goes only to the
+  provider and client it was saved for: a new issuer or client ID needs it
+  typed again.
+- It runs in a browser, where apps sign in too. The desktop app's window,
+  and the Android app's pages of the server, stay on the server's own
+  pages, so they never show another site's sign-in page.
 
 ### Sessions
 

@@ -571,5 +571,43 @@
     "nothingInLibraries": "Nothing in your libraries matches.",
     "noResults": "No results for “{{q}}”",
     "differentSpelling": "Try a different spelling or a shorter query."
+  },
+  "sso": {
+    "theProvider": "the provider",
+    "or": "or",
+    "signInWith": "Sign in with {{provider}}",
+    "inBrowser": "To sign in with {{provider}}, open Pley in your browser.",
+    "notice": {
+      "linked": "Your {{provider}} account is linked: you can sign in with it now.",
+      "off": "Single sign-on is off on this server.",
+      "expired": "That sign-in took too long, or was started in another browser. Try again.",
+      "denied": "The sign-in was cancelled at {{provider}}.",
+      "provider": "{{provider}} didn't complete the sign-in. The server's log says why.",
+      "invalid": "{{provider}}'s answer couldn't be verified. The server's log says why.",
+      "unknown": "No account here is linked to that {{provider}} account. Sign in with your password, then link it on your account page.",
+      "disabled": "This account is disabled.",
+      "group": "That {{provider}} account isn't allowed to use this server.",
+      "signin": "Sign in again here to link your account.",
+      "taken": "That {{provider}} account is already linked to another account here.",
+      "twoStep": "This server asks for two-step sign-in, which your account hasn't set up yet. Sign in with your password to set it up.",
+      "busy": "Too many sign-ins failed from here. Try again in a few minutes.",
+      "error": "Something went wrong. Try again."
+    },
+    "account": {
+      "title": "Single sign-on",
+      "signsInWith": "Signs in with {{provider}}.",
+      "signsInWithAs": "Signs in with {{provider}} as <email>{{email}}</email>.",
+      "offer": "Sign in with your {{provider}} account instead of a password.",
+      "noPassword": "This account has no password: it signs in only with {{provider}}. An administrator can give it one.",
+      "inBrowser": "Open Pley in your browser to link or unlink your {{provider}} account.",
+      "elsewhere": "Linking happens at <address>{{address}}</address>, where {{provider}} sends people back.",
+      "passwordHint": "Changing how this account signs in takes its password.",
+      "code": "Code from your authenticator app",
+      "link": "Link your {{provider}} account",
+      "continueTo": "Continue to {{provider}}",
+      "unlink": "Unlink",
+      "unlinkFrom": "Unlink {{provider}}",
+      "unlinked": "Unlinked from {{provider}}"
+    }
   }
 }

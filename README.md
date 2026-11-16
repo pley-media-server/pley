@@ -33,6 +33,7 @@
 - Live TV from M3U and Xtream Codes, with XMLTV guides
 - Requests for movies and shows, fetched by Radarr and Sonarr
 - Profiles, PINs and two-step sign-in
+- Single sign-on with Authentik, Keycloak, Google and other OpenID Connect providers
 - Works offline on the home network
 
 [All features](docs/FEATURES.md)

@@ -581,5 +581,43 @@
     "nothingInLibraries": "Rien dans vos bibliothèques ne correspond.",
     "noResults": "Aucun résultat pour « {{q}} »",
     "differentSpelling": "Essayez une autre orthographe ou une recherche plus courte."
+  },
+  "sso": {
+    "theProvider": "le fournisseur",
+    "or": "ou",
+    "signInWith": "Se connecter avec {{provider}}",
+    "inBrowser": "Pour vous connecter avec {{provider}}, ouvrez Pley dans votre navigateur.",
+    "notice": {
+      "linked": "Votre compte {{provider}} est lié : vous pouvez désormais vous connecter avec.",
+      "off": "L’authentification unique est désactivée sur ce serveur.",
+      "expired": "Cette connexion a pris trop de temps, ou a été lancée dans un autre navigateur. Réessayez.",
+      "denied": "La connexion a été annulée sur {{provider}}.",
+      "provider": "{{provider}} n’a pas terminé la connexion. Le journal du serveur en donne la raison.",
+      "invalid": "La réponse de {{provider}} n’a pas pu être vérifiée. Le journal du serveur en donne la raison.",
+      "unknown": "Aucun compte ici n’est lié à ce compte {{provider}}. Connectez-vous avec votre mot de passe, puis liez-le depuis la page de votre compte.",
+      "disabled": "Ce compte est désactivé.",
+      "group": "Ce compte {{provider}} n’est pas autorisé à utiliser ce serveur.",
+      "signin": "Reconnectez-vous ici pour lier votre compte.",
+      "taken": "Ce compte {{provider}} est déjà lié à un autre compte ici.",
+      "twoStep": "Ce serveur demande la connexion en deux étapes, que votre compte n’a pas encore configurée. Connectez-vous avec votre mot de passe pour la configurer.",
+      "busy": "Trop de connexions ont échoué depuis cet appareil. Réessayez dans quelques minutes.",
+      "error": "Une erreur s’est produite. Réessayez."
+    },
+    "account": {
+      "title": "Authentification unique",
+      "signsInWith": "Se connecte avec {{provider}}.",
+      "signsInWithAs": "Se connecte avec {{provider}} en tant que <email>{{email}}</email>.",
+      "offer": "Connectez-vous avec votre compte {{provider}} plutôt qu’avec un mot de passe.",
+      "noPassword": "Ce compte n’a pas de mot de passe : il se connecte uniquement avec {{provider}}. Un administrateur peut lui en donner un.",
+      "inBrowser": "Ouvrez Pley dans votre navigateur pour lier ou délier votre compte {{provider}}.",
+      "elsewhere": "La liaison se fait sur <address>{{address}}</address>, où {{provider}} renvoie les personnes.",
+      "passwordHint": "Modifier la façon dont ce compte se connecte demande son mot de passe.",
+      "code": "Code de votre application d’authentification",
+      "link": "Lier votre compte {{provider}}",
+      "continueTo": "Continuer vers {{provider}}",
+      "unlink": "Délier",
+      "unlinkFrom": "Délier {{provider}}",
+      "unlinked": "Délié de {{provider}}"
+    }
   }
 }

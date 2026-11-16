@@ -558,19 +558,20 @@ async fn accounts_from_single_sign_on_need_a_password_from_an_administrator() {
 }
 
 #[tokio::test]
-async fn single_sign_on_routes_are_gone() {
+async fn single_sign_on_is_off_until_an_administrator_turns_it_on() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
-    for (method, uri) in
-        [(Method::GET, "/api/auth/sso/start"), (Method::GET, "/api/me/sso"), (Method::DELETE, "/api/users/1/sso")]
-    {
-        let reply = app.call(method, uri, Some(&admin), None, &[]).await;
-        assert_eq!(reply.status, StatusCode::NOT_FOUND, "{uri}: {}", reply.text());
-        assert_eq!(reply.body["message"], json!("no such endpoint"), "{uri}");
-    }
     let server = app.call(Method::GET, "/api/server", None, None, &[]).await;
     assert_eq!(server.status, StatusCode::OK);
-    assert!(server.body.get("sso").is_none(), "{}", server.text());
+    assert!(server.body["sso"].is_null(), "no sign-in button: {}", server.text());
+    let start = app.call(Method::GET, "/api/auth/sso/start", None, None, &[]).await;
+    assert_eq!(start.status, StatusCode::SEE_OTHER);
+    assert_eq!(start.headers[axum::http::header::LOCATION], "/login?sso=off");
+    assert_eq!(app.get("/api/me/sso", &admin).await.body, json!({"enabled": false}));
+    let client = app.call(Method::GET, "/api/auth/sso/client", None, None, &[]).await;
+    assert_eq!(client.status, StatusCode::NOT_FOUND, "no client metadata document");
+    let unlinked = app.delete("/api/users/1/sso", &admin).await;
+    assert_eq!(unlinked.status, StatusCode::NOT_FOUND, "{}", unlinked.text());
 }
 
 #[tokio::test]

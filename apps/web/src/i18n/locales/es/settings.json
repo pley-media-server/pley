@@ -130,6 +130,42 @@
       "title": "Aplicaciones",
       "thirdParty": "Aplicaciones de otros editores",
       "thirdPartyHint": "Las aplicaciones de Pley siempre pueden iniciar sesión. Actívalo para que la gente pueda permitir aplicaciones de otros editores; desactivarlo cierra su sesión."
+    },
+    "sso": {
+      "title": "Inicio de sesión único",
+      "description": "Inicia sesión con un proveedor de OpenID Connect: Authentik, Keycloak, Authelia, Pocket ID, Google, Microsoft y similares. Cada persona vincula su cuenta en la página de su cuenta.",
+      "enabled": "Iniciar sesión con un proveedor",
+      "enabledHint": "La página de inicio de sesión lo ofrece junto a la contraseña, en el navegador, donde también inician sesión las apps. La ventana de la app de escritorio inicia sesión con contraseña.",
+      "publicUrl": "Dirección pública",
+      "publicUrlHint": "Donde se abre Pley, como https://pley.example.com. Los inicios de sesión se hacen ahí: el proveedor devuelve a la gente a esa dirección.",
+      "name": "Nombre del proveedor",
+      "nameHint": "En el botón: Iniciar sesión con Authentik.",
+      "issuer": "Emisor",
+      "issuerHint": "La URL del emisor tal como la muestra el proveedor, con la barra final si la tiene. La de Google es https://accounts.google.com.",
+      "test": "Probar el proveedor",
+      "clientId": "ID de cliente",
+      "clientIdHint": "Se obtiene al registrar Pley en el proveedor. Déjalo vacío con proveedores que aceptan documentos de metadatos de cliente: leen el de Pley y no hay que registrar nada.",
+      "secret": "Secreto de cliente",
+      "secretHint": "Para clientes confidenciales. Los clientes públicos no tienen: los protege PKCE.",
+      "secretSaved": "Guardado (escribe otro para reemplazarlo)",
+      "secretNone": "Ninguno",
+      "removeSecret": "Quitar el secreto guardado",
+      "redirectUri": "URI de redirección",
+      "redirectUriHint": "Regístrala en el proveedor.",
+      "metadataDocument": "ID de cliente (documento de metadatos)",
+      "metadataDocumentHint": "El proveedor lee aquí el documento de metadatos de cliente de Pley: Pley tiene que ser accesible en una dirección https.",
+      "group": "Solo este grupo",
+      "groupHint": "Solo los miembros de este grupo en el proveedor pueden iniciar sesión (los envía en el claim groups). Vacío: cualquiera a quien deje pasar.",
+      "newAccounts": "Cuentas nuevas",
+      "newAccountsHint": "Quien el proveedor deje pasar y no tenga cuenta aquí recibe una, sin bibliotecas ni solicitudes hasta que se las des.",
+      "anyoneWarning": "Cualquiera que pueda iniciar sesión en este proveedor obtiene una cuenta aquí. Con un proveedor abierto a todos (Google, Microsoft), deja esto desactivado y vincula las cuentas, o define un grupo si el proveedor envía grupos.",
+      "twoStep": "Iniciar sesión con el proveedor sustituye al inicio de sesión en dos pasos de Pley: activa el del proveedor.",
+      "scopes": "Pley solo pide al proveedor quién inicia sesión: los ámbitos openid y email, profile cuando crea cuentas y groups cuando comprueba un grupo. No guarda ningún token del proveedor.",
+      "adminClaim": "Administradores según un claim",
+      "adminClaimHint": "El claim que dice quién administra Pley: groups, roles, uno anidado como realm_access.roles o uno con espacio de nombres. En cada inicio de sesión con el proveedor, una cuenta pasa a ser administradora cuando lo contiene con el valor de abajo, y deja de serlo cuando no. Vacío: eliges a los administradores aquí.",
+      "adminValue": "Valor de los administradores",
+      "adminValueHint": "El grupo o el rol que hace a alguien administrador. Vacío: el claim tiene que ser true.",
+      "adminWarning": "Quien reciba esto del proveedor obtiene aquí todos los permisos de administrador, e inicia sesión sin el inicio de sesión en dos pasos de Pley. Iniciar sesión sin ello le quita esos permisos, pero nunca al último administrador."
     }
   },
   "watchingHours": {
@@ -451,7 +487,8 @@
       "disabled": "Desactivado",
       "pin": "PIN",
       "twoStep": "2FA",
-      "twoStepMissing": "2FA sin configurar"
+      "twoStepMissing": "2FA sin configurar",
+      "sso": "SSO"
     },
     "deleteTitle": "¿Eliminar el usuario?",
     "deleteMessage": "<name>{{name}}</name> perderá el acceso, y se eliminarán su historial de reproducción y sus ajustes.",
@@ -531,7 +568,16 @@
         "access": "Acceso",
         "devices": "Dispositivos"
       },
-      "tabNeedsLook": "Algo aquí necesita revisión"
+      "tabNeedsLook": "Algo aquí necesita revisión",
+      "adminFromProvider": "Sigue el claim {{claim}} del proveedor: se vuelve a fijar cada vez que esta cuenta inicia sesión con él."
+    },
+    "sso": {
+      "title": "Inicio de sesión único",
+      "withPassword": "También inicia sesión con contraseña.",
+      "withoutPassword": "Sin contraseña: solo inicia sesión con el proveedor.",
+      "passwordFirst": "Ponle primero una contraseña a la cuenta, o no podrá iniciar sesión",
+      "unlink": "Desvincular",
+      "unlinked": "{{name}} ya no usa el inicio de sesión único y se ha cerrado su sesión en todas partes"
     }
   },
   "invites": {

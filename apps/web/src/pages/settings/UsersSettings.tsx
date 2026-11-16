@@ -11,7 +11,9 @@ import {
   useRatingSystems,
   useResetUserTwoStep,
   useServer,
+  useSettings,
   useSignOutEverywhere,
+  useUnlinkUserSso,
   useUpdateUser,
   useUserDevices,
   useUsers,
@@ -58,6 +60,40 @@ function SwitchRow({
       </div>
       <Toggle checked={checked} onChange={onChange} label={label} disabled={disabled} />
     </div>
+  );
+}
+
+/**
+ * A user's identity at the single sign-on provider, which an administrator
+ * can unlink (an account lost or taken over there). An account without a
+ * password needs one first, or it couldn't sign in at all.
+ */
+function SingleSignOnLink({ user }: { user: User }) {
+  const { t } = useTranslation("settings");
+  const unlink = useUnlinkUserSso();
+  const toast = useToast();
+  return (
+    <section className="flex items-center justify-between gap-3">
+      <div>
+        <h3 className="text-sm font-medium">{t("users.sso.title")}</h3>
+        <p className="text-xs text-subtle">{user.has_password ? t("users.sso.withPassword") : t("users.sso.withoutPassword")}</p>
+      </div>
+      <Button
+        size="sm"
+        variant="ghost"
+        loading={unlink.isPending}
+        disabled={!user.has_password}
+        title={user.has_password ? undefined : t("users.sso.passwordFirst")}
+        onClick={() =>
+          unlink.mutate(user.id, {
+            onSuccess: () => toast.success(t("users.sso.unlinked", { name: user.name })),
+            onError: (e) => toast.error(errorMessage(e)),
+          })
+        }
+      >
+        {t("users.sso.unlink")}
+      </Button>
+    </section>
   );
 }
 
@@ -270,6 +306,9 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
   const toast = useToast();
   const isNew = user == null;
   const self = user?.id === me.id;
+  // A claim at the provider decides who administers Pley: it sets the role again at each sign-in through it.
+  const settings = useSettings();
+  const adminClaim = settings.data?.sso_enabled ? settings.data.sso_admin_claim : undefined;
 
   const [kind, setKind] = useState<Kind>("regular");
   const [username, setUsername] = useState("");
@@ -567,7 +606,13 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
             <div className="space-y-2">
               <SwitchRow
                 label={t("users.dialog.administrator")}
-                description={managed ? t("users.dialog.managedNotAdmin") : t("users.dialog.adminHint")}
+                description={
+                  managed
+                    ? t("users.dialog.managedNotAdmin")
+                    : user?.sso && adminClaim
+                      ? t("users.dialog.adminFromProvider", { claim: adminClaim })
+                      : t("users.dialog.adminHint")
+                }
                 checked={isAdmin && !managed}
                 onChange={setIsAdmin}
                 disabled={managed || (self && isAdmin) || (lastAdmin && isAdmin)}
@@ -623,7 +668,8 @@ function UserDialog({ user, open, onClose, onDelete }: { user: User | null; open
                 </div>
               </Field>
             )}
-            {!isNew && user?.two_step && !self ? <TwoStepReset user={user} /> : null}
+            {!isNew && user?.sso ? <SingleSignOnLink user={user} /> : null}
+        {!isNew && user?.two_step && !self ? <TwoStepReset user={user} /> : null}
           </div>
         ) : null}
         {tab === "access" ? (
@@ -704,6 +750,7 @@ function UserRow({ user, self, libraries, onOpen }: { user: User; self: boolean;
                 <Lock className="size-3" /> {t("users.badges.pin")}
               </Badge>
             ) : null}
+            {user.sso ? <Badge tone="info">{t("users.badges.sso")}</Badge> : null}
             {user.two_step ? (
               <Badge tone="success">
                 <ShieldCheck className="size-3" /> {t("users.badges.twoStep")}
