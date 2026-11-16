@@ -1852,6 +1852,20 @@ impl LiveTv {
             .ok_or_else(|| AppError::not_found(format!("channel {id} not found")))
     }
 
+    /// The channel after channel `id` (`forward`), or before it, in its
+    /// group as the guide lists it, round at the group's ends: channel up
+    /// and down where no player keeps an order of its own (a cast to a
+    /// Google Cast or AirPlay device). `None` when `id` isn't shown, or
+    /// is its group's only channel.
+    pub async fn beside(&self, id: i64, forward: bool) -> Result<Option<i64>, AppError> {
+        let lineup = self.lineup().await?;
+        let Some(group) = lineup.shown().find(|c| c.id == id).map(|c| c.group_name.clone()) else {
+            return Ok(None);
+        };
+        let ids: Vec<i64> = lineup.shown().filter(|c| c.group_name == group).map(|c| c.id).collect();
+        Ok(beside_in(&ids, id, forward))
+    }
+
     /// The groups `user` sees, and how many channels in all, marked and watched lately.
     pub async fn groups(&self, user: &AuthUser) -> Result<Groups, AppError> {
         let lineup = self.lineup().await?;
@@ -2585,9 +2599,31 @@ fn describe(e: &reqwest::Error) -> String {
     }
 }
 
+/// The channel after `id` among `ids` (`forward`), or before it, round at
+/// the ends; `None` when `id` isn't among them or is alone.
+fn beside_in(ids: &[i64], id: i64, forward: bool) -> Option<i64> {
+    let at = ids.iter().position(|c| *c == id)?;
+    let n = ids.len();
+    let next = if forward { (at + 1) % n } else { (at + n - 1) % n };
+    (next != at).then(|| ids[next])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn channel_up_and_down_go_round_their_group() {
+        let ids = [4, 9, 2];
+        assert_eq!(beside_in(&ids, 9, true), Some(2));
+        assert_eq!(beside_in(&ids, 9, false), Some(4));
+        // Round at the ends.
+        assert_eq!(beside_in(&ids, 2, true), Some(4));
+        assert_eq!(beside_in(&ids, 4, false), Some(2));
+        // Alone in its group, or not in it.
+        assert_eq!(beside_in(&[7], 7, true), None);
+        assert_eq!(beside_in(&ids, 5, true), None);
+    }
 
     #[test]
     fn a_channel_missing_from_the_guide_is_matched_by_its_id_written_otherwise_then_its_name() {

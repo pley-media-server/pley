@@ -9,6 +9,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Live TV channels play on Google Cast and AirPlay devices from Watch on…,
+  and the remote changes channel there.
+
 ### Fixed
 
 - Play on… lists Google Cast and AirPlay devices only where Pley listens

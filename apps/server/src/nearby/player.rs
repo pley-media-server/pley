@@ -17,6 +17,9 @@ pub struct Media {
     /// HLS of fMP4 segments, which some players are told of (Google's
     /// takes MPEG-TS otherwise).
     pub fmp4: bool,
+    /// A Live TV channel: it plays from the live edge, and has no end or
+    /// place (`start_ms` is left out).
+    pub live: bool,
 }
 
 /// A text track the player shows, as WebVTT.

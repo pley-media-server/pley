@@ -12,7 +12,7 @@ mod history;
 mod import;
 pub(crate) mod items;
 mod libraries;
-mod livetv;
+pub(crate) mod livetv;
 mod oauth;
 pub(crate) mod people;
 pub(crate) mod playback;

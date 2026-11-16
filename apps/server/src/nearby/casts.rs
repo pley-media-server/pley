@@ -23,6 +23,7 @@ use crate::auth::{AuthUser, CurrentToken};
 use crate::catalog::ItemRow;
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
+use crate::livetv::tuner::{ViewerKind, WatchAs};
 use crate::network::{Kind, Listener};
 use crate::playback::{Control, Method, PlaybackMode, PlaybackRequest, Pool};
 use crate::state::AppState;
@@ -91,18 +92,9 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
     let base = base_url(state, device.address).ok_or_else(unreachable)?;
     let choosing = async {
         match device.protocol {
-            Protocol::Cast => Ok(crate::cast::device::choose(state, &device).await),
+            Protocol::Cast => Ok::<_, AppError>(crate::cast::device::choose(state, &device).await),
             Protocol::AirPlay => {
-                // A device that wants a PIN is paired first, from Play on….
-                let ready = crate::airplay::device::ready(state, &device)
-                    .await
-                    .map_err(|_| AppError::ConflictAs("cast_failed", "the device didn't answer".to_owned()))?;
-                if !ready {
-                    return Err(AppError::ConflictAs(
-                        PAIRING_NEEDED,
-                        "the device wants a PIN: pair with it first".to_owned(),
-                    ));
-                }
+                paired(state, &device).await?;
                 Ok(crate::airplay::device::choose(&device))
             }
         }
@@ -172,16 +164,7 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
             tracing::info!("a cast to a device on the network gave way to a newer one");
             return Ok(());
         }
-        Err(tried) => {
-            return Err(match tried {
-                Tried::Superseded => unreachable!(),
-                Tried::Refused | Tried::Failed | Tried::Lost => {
-                    AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned())
-                }
-                Tried::TimedOut => too_late(&device),
-                Tried::Error(err) => err,
-            });
-        }
+        Err(tried) => return Err(failed(tried, &device)),
     };
     // The cast that played there leaves the device to this one, and ends
     // its session.
@@ -193,6 +176,189 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
     let cast = Following { state: state.clone(), user_id: user.id, device, session_id, duration_ms, start_ms, cast_id };
     tokio::spawn(cast.follow(player, events, commands, ours));
     Ok(())
+}
+
+/// Plays Live TV channel `channel_id` on `device` as `user`: a viewer of
+/// the channel started as Pley's own players start one, with keyed
+/// addresses, and its live playlist loaded into the device's player.
+/// Returns once it plays, or didn't start; then the server follows it until
+/// it ends. A channel plays from its live edge, with no pause or place, as
+/// it does in Pley's own players: the remotes change channel and set a Cast
+/// device's volume. A cast playing on the device goes on until this one
+/// plays, and a newer one takes this one's place, as with [`start`]. The
+/// viewer is the device's: the channel it watched for `user` before ends
+/// as this one starts, which frees its provider connection.
+pub async fn start_channel(state: &AppState, user: &AuthUser, device: Found, channel_id: i64) -> ApiResult<()> {
+    let deadline = tokio::time::Instant::now() + state.config.cast_within;
+    // What the caller may watch is checked first: a channel refused asks
+    // for no pairing, and stops nothing loading on the device.
+    state.live.check_access(user).await?;
+    state.live.channel(user, channel_id).await?;
+    let base = base_url(state, device.address).ok_or_else(unreachable)?;
+    if device.protocol == Protocol::AirPlay {
+        tokio::time::timeout_at(deadline, paired(state, &device)).await.map_err(|_| too_late(&device))??;
+    }
+    // The viewer starts before the cast takes the device: a source with
+    // every connection in use leaves what loads there alone, and a cast
+    // that gives way, or doesn't play, always knows which viewer to end.
+    let (watching, channel) =
+        crate::api::livetv::start_watching(state, user, channel_id, watch_as(&device)).await.map_err(full)?;
+    let session_id = watching.session_id.clone();
+    let key = device.key();
+    let commands = state.events.subscribe();
+    let ours = CancellationToken::new();
+    let cast_id = state.nearby.casts.fetch_add(1, Ordering::Relaxed);
+    if let Some((_, before)) = state.nearby.pending.lock().insert(key.clone(), (cast_id, ours.clone())) {
+        before.cancel();
+    }
+    let launched = Mutex::new(None);
+    let tuned = tokio::select! {
+        biased;
+        () = ours.cancelled() => Err(Tried::Superseded),
+        () = tokio::time::sleep_until(deadline) => Err(Tried::TimedOut),
+        tuned = tune(state, &device, &base, &watching.url, channel.name, &launched) => tuned,
+    };
+    if tuned.is_err() {
+        state.live.tuners.leave(&session_id, user);
+    }
+    // Google's player left open by a try that didn't play is closed, as
+    // in [`start`].
+    let free = || !ours.is_cancelled() && !state.nearby.playing.lock().contains_key(&key);
+    let loaded = launched.lock().clone();
+    if matches!(tuned, Err(Tried::Refused | Tried::Failed | Tried::TimedOut))
+        && let Some(app_session) = loaded
+        && free()
+    {
+        crate::cast::player::close(device.address, &app_session, free).await;
+    }
+    forget(&state.nearby.pending, &key, cast_id);
+    let (player, events) = match tuned {
+        Ok(started) => started,
+        Err(Tried::Superseded) => {
+            tracing::info!("a channel's cast to a device on the network gave way to a newer cast");
+            return Ok(());
+        }
+        Err(tried) => return Err(failed(tried, &device)),
+    };
+    if let Some((_, before)) = state.nearby.playing.lock().insert(key, (cast_id, ours.clone())) {
+        before.cancel();
+    }
+    tracing::info!("channel {channel_id} is cast to a device on the network ({:?})", device.protocol);
+    let watching = Watching { state: state.clone(), user: user.clone(), device, session_id, channel_id, cast_id };
+    tokio::spawn(watching.follow(player, events, commands, ours));
+    Ok(())
+}
+
+/// [`start_channel`], boxed: a cast's channel change starts one from its
+/// follower, which that start spawns.
+fn change_channel(
+    state: AppState,
+    user: AuthUser,
+    device: Found,
+    channel_id: i64,
+) -> std::pin::Pin<Box<dyn std::future::Future<Output = ApiResult<()>> + Send>> {
+    Box::pin(async move { start_channel(&state, &user, device, channel_id).await })
+}
+
+/// The viewer of a channel's cast: the device's own, with its name, kind
+/// and controls, and keyed addresses it opens without signing in.
+fn watch_as(device: &Found) -> WatchAs {
+    WatchAs {
+        client_id: Some(device.key()),
+        kind: ViewerKind::Hls,
+        keyed: true,
+        // Read by the start, from the account.
+        admin: false,
+        take_over: None,
+        home: None,
+        controls: device.protocol.live_controls(),
+        device: Some(device.name.clone()),
+        device_id: Some(device.key()),
+        device_kind: device.kind(),
+    }
+}
+
+/// Loads a channel's live playlist (`url`, the viewer's) into the device's
+/// player: the player and its events.
+async fn tune(
+    state: &AppState,
+    device: &Found,
+    base: &str,
+    url: &str,
+    title: String,
+    launched: &Mutex<Option<String>>,
+) -> Result<(Player, tokio::sync::mpsc::Receiver<Event>), Tried> {
+    let media = Media {
+        url: format!("{base}{url}"),
+        content_type: "application/x-mpegurl".to_owned(),
+        start_ms: 0,
+        title,
+        subtitle: None,
+        fmp4: false,
+        live: true,
+    };
+    let started = match connect(state, device).await {
+        Ok(connected) => connected.start(&media, launched).await,
+        Err(failure) => Err(failure),
+    };
+    started.map_err(|failure| {
+        tracing::warn!("a channel's cast to {} didn't start: {failure:?}", device.address);
+        tried_of(failure)
+    })
+}
+
+/// Whether an AirPlay device takes a cast: one that wants a PIN is paired
+/// first, from Play on….
+async fn paired(state: &AppState, device: &Found) -> ApiResult<()> {
+    let ready = crate::airplay::device::ready(state, device)
+        .await
+        .map_err(|_| AppError::ConflictAs("cast_failed", "the device didn't answer".to_owned()))?;
+    if !ready {
+        return Err(AppError::ConflictAs(PAIRING_NEEDED, "the device wants a PIN: pair with it first".to_owned()));
+    }
+    Ok(())
+}
+
+/// Connects to the device, its player not started yet.
+async fn connect(state: &AppState, device: &Found) -> Result<super::player::Connected, Failure> {
+    match device.protocol {
+        Protocol::Cast => crate::cast::device::connect(device).await,
+        Protocol::AirPlay => crate::airplay::device::connect(state, device).await,
+    }
+}
+
+/// Why a try at a cast didn't play, from why the device's player didn't
+/// start.
+fn tried_of(failure: Failure) -> Tried {
+    match failure {
+        Failure::Refused(_) => Tried::Refused,
+        Failure::NotStarted(_) => Tried::Failed,
+        Failure::Lost => Tried::Lost,
+        Failure::NeedsPairing => {
+            Tried::Error(AppError::ConflictAs(PAIRING_NEEDED, "the device wants a PIN: pair with it first".to_owned()))
+        }
+    }
+}
+
+/// The answer to a cast that didn't play.
+/// Every connection of the channel's source in use, as Play on… says it: a
+/// cast takes none over, so the connections watching are no use to it, and
+/// its own code tells the apps from the other conflicts a cast may meet.
+fn full(err: AppError) -> AppError {
+    match err {
+        AppError::ConflictWith(message, _) => AppError::ConflictAs("connections_full", message),
+        err => err,
+    }
+}
+
+fn failed(tried: Tried, device: &Found) -> AppError {
+    match tried {
+        Tried::Refused | Tried::Failed | Tried::Lost | Tried::Superseded => {
+            AppError::ConflictAs("cast_failed", "the device didn't play it".to_owned())
+        }
+        Tried::TimedOut => too_late(device),
+        Tried::Error(err) => err,
+    }
 }
 
 /// Why a cast's attempt didn't play.
@@ -353,6 +519,7 @@ impl Attempt<'_> {
             title,
             subtitle,
             fmp4,
+            live: false,
         };
 
         // A Cast device asks for the subtitles once, as the stream loads,
@@ -373,13 +540,7 @@ impl Attempt<'_> {
                 tracing::warn!("a cast's subtitles weren't read whole in time: they start where they are");
             }
         };
-        let connect = async {
-            match device.protocol {
-                Protocol::Cast => crate::cast::device::connect(device).await,
-                Protocol::AirPlay => crate::airplay::device::connect(state, device).await,
-            }
-        };
-        let ((), connected) = tokio::join!(read, connect);
+        let ((), connected) = tokio::join!(read, connect(state, device));
         drop(session);
         let started = match connected {
             Ok(connected) => connected.start(&media, self.launched).await,
@@ -389,15 +550,7 @@ impl Attempt<'_> {
             Ok((player, events)) => Ok((player, events, info.session_id.clone(), info.duration_ms)),
             Err(failure) => {
                 tracing::warn!("a cast to {} didn't start: {failure:?}", device.address);
-                Err(match failure {
-                    Failure::Refused(_) => Tried::Refused,
-                    Failure::NotStarted(_) => Tried::Failed,
-                    Failure::Lost => Tried::Lost,
-                    Failure::NeedsPairing => Tried::Error(AppError::ConflictAs(
-                        PAIRING_NEEDED,
-                        "the device wants a PIN: pair with it first".to_owned(),
-                    )),
-                })
+                Err(tried_of(failure))
             }
         }
     }
@@ -764,6 +917,132 @@ impl Following {
         end_session(&state, &session_id);
         forget(&state.nearby.playing, &device.key(), cast_id);
         tracing::info!("a cast to a device on the network ended: {ended:?}");
+    }
+}
+
+/// Whether a cast newer than `cast_id` to the device of `key` is starting
+/// or plays.
+fn newer_on(state: &AppState, key: &str, cast_id: u64) -> bool {
+    let newer = |casts: &Mutex<HashMap<String, (u64, CancellationToken)>>| {
+        casts.lock().get(key).is_some_and(|(id, _)| *id != cast_id)
+    };
+    newer(&state.nearby.pending) || newer(&state.nearby.playing)
+}
+
+/// Follows a channel's cast until it ends: the remotes' channel changes
+/// and volume passed on, and the device stopped when the viewer is stopped
+/// in Pley or its connection taken over.
+struct Watching {
+    state: AppState,
+    user: AuthUser,
+    device: Found,
+    /// The viewer's session.
+    session_id: String,
+    channel_id: i64,
+    cast_id: u64,
+}
+
+impl Watching {
+    async fn follow(
+        self,
+        player: Player,
+        mut events: tokio::sync::mpsc::Receiver<Event>,
+        mut commands: tokio::sync::broadcast::Receiver<ServerEvent>,
+        ours: CancellationToken,
+    ) {
+        let Watching { state, user, device, session_id, channel_id, cast_id } = self;
+        let key = device.key();
+        let mut ask = tokio::time::interval(ASK_EVERY);
+        player.ask_volume().await;
+        // Where the last channel change went: the next goes on from there,
+        // though it may still be starting.
+        let mut tuned = channel_id;
+        let ended = loop {
+            tokio::select! {
+                biased;
+                () = ours.cancelled() => {
+                    // Another cast took the device: a channel change too.
+                    player.leave();
+                    break None;
+                }
+                event = events.recv() => match event {
+                    // Live goes on at its edge: there is no place to keep.
+                    Some(Event::Status { .. }) => {}
+                    Some(Event::Volume(percent)) => {
+                        if state.live.tuners.report_volume(&session_id, percent) {
+                            state.events.send(ServerEvent::SessionsChanged { user_id: user.id });
+                        }
+                    }
+                    Some(Event::Ended(ended)) => break Some(ended),
+                    None => break Some(Ended::Lost),
+                },
+                command = commands.recv() => match command {
+                    Ok(ServerEvent::PlayerCommand { session_id: sid, command, volume, .. }) if sid == session_id => {
+                        match command {
+                            // A new cast of the channel beside, which takes
+                            // this one's place once it plays.
+                            Control::Next | Control::Previous => {
+                                match state.live.beside(tuned, command == Control::Next).await {
+                                    Ok(Some(next)) => {
+                                        tuned = next;
+                                        let change = change_channel(state.clone(), user.clone(), device.clone(), next);
+                                        tokio::spawn(async move {
+                                            if let Err(err) = change.await {
+                                                tracing::warn!("a cast's channel change didn't play: {err}");
+                                            }
+                                        });
+                                    }
+                                    Ok(None) => {}
+                                    Err(err) => tracing::warn!("a cast's channel change found no channel: {err}"),
+                                }
+                            }
+                            Control::Volume => {
+                                if let Some(volume) = volume {
+                                    player.set_volume(volume).await;
+                                }
+                            }
+                            _ => {}
+                        }
+                    }
+                    // Stopped in Pley, or its connection taken over: the
+                    // device stops at once.
+                    Ok(
+                        ServerEvent::SessionStopped { session_id: sid, .. }
+                        | ServerEvent::LiveTakenOver { session_id: sid, .. },
+                    ) if sid == session_id => {
+                        if !ours.is_cancelled() {
+                            player.stop().await;
+                        }
+                        break None;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                        player.stop().await;
+                        break None;
+                    }
+                    _ => {}
+                },
+                _ = ask.tick() => {
+                    if state.live.tuners.present(&session_id).is_none() {
+                        // A channel change ends the viewer as it starts:
+                        // the device goes on with this one until the new
+                        // one plays, and stops should it not. The new
+                        // viewer starts a moment before its cast is
+                        // pending.
+                        if newer_on(&state, &key, cast_id) || state.live.tuners.watching_on(user.id, &key) {
+                            continue;
+                        }
+                        if !ours.is_cancelled() {
+                            player.stop().await;
+                        }
+                        break None;
+                    }
+                    player.status().await;
+                }
+            }
+        };
+        state.live.tuners.leave(&session_id, &user);
+        forget(&state.nearby.playing, &key, cast_id);
+        tracing::info!("a channel's cast to a device on the network ended: {ended:?}");
     }
 }
 

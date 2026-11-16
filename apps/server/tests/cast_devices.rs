@@ -166,7 +166,8 @@ async fn serve(
                     Some(reply("web-5", "media", json!({"type": "LOAD_FAILED", "requestId": id})))
                 }
                 Some("LOAD") => {
-                    at = payload["currentTime"].as_f64().unwrap();
+                    // A live stream names no place: it starts at its edge.
+                    at = payload["currentTime"].as_f64().unwrap_or(0.0);
                     Some(reply("web-5", "media", status(&id, "PLAYING", at)))
                 }
                 Some("GET_STATUS") if message.destination == "web-5" => {
@@ -284,7 +285,7 @@ async fn home_members_see_cast_devices_and_others_dont() {
     let cast = devices.body.as_array().unwrap().iter().find(|d| d["receiver_id"] == "cast:dev").cloned();
     let cast = cast.expect("the Cast device is listed");
     assert_eq!((cast["device_id"].clone(), cast["protocol"].clone()), (json!("cast:dev"), json!("cast")));
-    assert_eq!((cast["kind"].clone(), cast["casts"].clone()), (json!("tv"), json!(["item"])));
+    assert_eq!((cast["kind"].clone(), cast["casts"].clone()), (json!("tv"), json!(["item", "live"])));
 
     let (friend, _) = w.app.user(&w.admin, "friend", json!({"home": false})).await;
     let theirs = w.app.get("/api/remote/devices?nearby=1", &friend).await;
@@ -383,7 +384,7 @@ async fn only_airplay_devices_pair_and_only_administrators_list_pairings() {
 }
 
 #[tokio::test]
-async fn only_movies_and_episodes_are_cast() {
+async fn only_movies_episodes_and_channels_are_cast() {
     let w = world().await;
     w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
     let playlist = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"playlist_id": 1})).await;
@@ -484,6 +485,123 @@ async fn a_cast_plays_on_the_device_as_a_session_the_remotes_control() {
     tokio::time::timeout(Duration::from_secs(5), kept).await.expect("the last place is kept");
     let (to, close) = next(&mut w.sent, "STOP").await;
     assert_eq!((to.as_str(), close["sessionId"].clone()), ("receiver-0", json!("s-1")));
+}
+
+/// A stand-in IPTV provider: two News channels and one of Sport, each
+/// sending MPEG-TS packets for as long as it is read.
+async fn provider() -> String {
+    use axum::routing::get;
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base = format!("http://{}", listener.local_addr().unwrap());
+    let playlist = format!(
+        "#EXTM3U\n\
+         #EXTINF:-1 tvg-chno=\"1\" group-title=\"News\",One\n{base}/live/1.ts\n\
+         #EXTINF:-1 tvg-chno=\"2\" group-title=\"Sport\",Sport\n{base}/live/2.ts\n\
+         #EXTINF:-1 tvg-chno=\"3\" group-title=\"News\",Three\n{base}/live/3.ts\n"
+    );
+    let app = axum::Router::new().route("/list.m3u", get(move || async move { playlist })).route(
+        "/live/{n}",
+        get(|| async {
+            let packets = futures::stream::unfold((), |()| async {
+                tokio::time::sleep(Duration::from_millis(20)).await;
+                let mut chunk = vec![0u8; 188 * 10];
+                for packet in chunk.chunks_mut(188) {
+                    packet[0] = 0x47;
+                }
+                Some((Ok::<_, std::io::Error>(bytes::Bytes::from(chunk)), ()))
+            });
+            ([(axum::http::header::CONTENT_TYPE, "video/mp2t")], axum::body::Body::from_stream(packets))
+        }),
+    );
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    base
+}
+
+/// The world's Live TV channels, by name, read from a stand-in provider.
+async fn channels(w: &World) -> std::collections::HashMap<String, i64> {
+    let base = provider().await;
+    let source = json!({"name": "Provider", "kind": "m3u", "url": format!("{base}/list.m3u"), "max_connections": 1});
+    let added = w.app.post("/api/live/sources", &w.admin, source).await;
+    assert_eq!(added.status, StatusCode::CREATED, "{}", added.text());
+    let read = async {
+        loop {
+            let channels = w.app.get("/api/live/channels", &w.admin).await.body;
+            if channels.as_array().is_some_and(|c| c.len() == 3) {
+                let named = channels.as_array().unwrap().iter();
+                return named.map(|c| (c["name"].as_str().unwrap().to_owned(), c["id"].as_i64().unwrap())).collect();
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(10), read).await.expect("the channels are read")
+}
+
+/// The Live TV session on the device, once it watches `channel`.
+async fn watching(w: &World, channel: i64) -> Value {
+    let found = async {
+        loop {
+            let live = sessions(w).await.into_iter().find(|s| s["kind"] == "live" && s["channel"]["id"] == channel);
+            if let Some(live) = live {
+                return live;
+            }
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(10), found).await.expect("the device watches the channel")
+}
+
+#[tokio::test]
+async fn a_channel_plays_on_the_device_and_the_remote_changes_it() {
+    let mut w = world().await;
+    let channels = channels(&w).await;
+    let (one, three) = (channels["One"], channels["Three"]);
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"channel_id": one})).await;
+    assert_eq!(cast.status, StatusCode::NO_CONTENT, "{}", cast.text());
+
+    // Google's player is given the channel's keyed live playlist, from its
+    // live edge.
+    let (_, load) = next(&mut w.sent, "LOAD").await;
+    let url = load["media"]["contentId"].as_str().unwrap();
+    assert!(url.starts_with("http://pley.test:7539/api/live/media/pley_mk_") && url.ends_with("/index.m3u8"), "{url}");
+    assert_eq!(load["media"]["streamType"], "LIVE");
+    assert_eq!(load["media"]["metadata"]["title"], "One");
+    assert!(load.get("currentTime").is_none(), "{load}");
+
+    // The remotes see the channel on the device: channel up and down and
+    // the volume, no pause.
+    let session = watching(&w, one).await;
+    assert_eq!((session["device_id"].clone(), session["device_kind"].clone()), (json!("cast:dev"), json!("tv")));
+    assert_eq!(session["controls"], json!(["next", "previous", "volume"]));
+    let id = session["session_id"].as_str().unwrap().to_owned();
+    let pause = w.app.post(&format!("/api/sessions/{id}/command"), &w.admin, json!({"command": "pause"})).await;
+    assert_eq!(pause.status, StatusCode::CONFLICT);
+
+    // Channel up goes to the next News channel, past the Sport one, on the
+    // source's one connection: the one before ends as it starts.
+    let up = w.app.post(&format!("/api/sessions/{id}/command"), &w.admin, json!({"command": "next"})).await;
+    assert_eq!(up.status, StatusCode::ACCEPTED);
+    let (_, load) = next(&mut w.sent, "LOAD").await;
+    assert_eq!(load["media"]["metadata"]["title"], "Three");
+    let session = watching(&w, three).await;
+    let settled = async {
+        while sessions(&w).await.len() != 1 {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    };
+    tokio::time::timeout(Duration::from_secs(10), settled).await.expect("one channel on the device");
+
+    // Channel up again goes round to the first.
+    let id = session["session_id"].as_str().unwrap().to_owned();
+    w.app.post(&format!("/api/sessions/{id}/command"), &w.admin, json!({"command": "next"})).await;
+    assert_eq!(next(&mut w.sent, "LOAD").await.1["media"]["metadata"]["title"], "One");
+    let session = watching(&w, one).await;
+
+    // Stopped in Pley: the device stops at once.
+    let id = session["session_id"].as_str().unwrap().to_owned();
+    let stopped = w.app.delete(&format!("/api/sessions/{id}"), &w.admin).await;
+    assert!(stopped.status.is_success(), "{}", stopped.text());
+    next(&mut w.sent, "STOP").await;
 }
 
 #[tokio::test]
@@ -1087,4 +1205,46 @@ async fn the_remote_sets_the_devices_volume() {
         tokio::time::sleep(Duration::from_millis(100)).await;
     }
     panic!("the session's volume didn't follow the device's");
+}
+
+#[tokio::test]
+async fn a_channel_cast_says_when_every_connection_is_in_use() {
+    let w = world().await;
+    let channels = channels(&w).await;
+    // The source's one connection is watched here, on Sport.
+    let watch = w.app.post(&format!("/api/live/channels/{}/watch", channels["Sport"]), &w.admin, json!({})).await;
+    assert_eq!(watch.status, StatusCode::OK, "{}", watch.text());
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"channel_id": channels["One"]})).await;
+    // A cast takes no connection over: Play on… says they are all in use.
+    assert_eq!(cast.status, StatusCode::CONFLICT, "{}", cast.text());
+    assert_eq!(cast.body["code"], "connections_full");
+}
+
+#[tokio::test]
+async fn a_refused_channel_cast_leaves_a_cast_loading_on_the_device_be() {
+    let mut w = world().await;
+    let channels = channels(&w).await;
+    // The source's one connection is watched here, on Sport.
+    let watch = w.app.post(&format!("/api/live/channels/{}/watch", channels["Sport"]), &w.admin, json!({})).await;
+    assert_eq!(watch.status, StatusCode::OK, "{}", watch.text());
+    w.app.get("/api/remote/devices?nearby=1", &w.admin).await;
+    // A film loads, the device taking its time to answer; meanwhile casts
+    // of a channel that isn't there, and of one with no connection free,
+    // are refused without stopping it.
+    w.fake.slow_status_ms.store(3_000, Ordering::SeqCst);
+    let (app, admin, film, sent) = (&w.app, w.admin.as_str(), w.film, &mut w.sent);
+    let (loaded, (gone, full)) =
+        tokio::join!(app.post("/api/remote/devices/cast:dev/cast", admin, json!({"item_id": film})), async {
+            assert_eq!(next(sent, "GET_STATUS").await.0, "receiver-0");
+            let gone = app.post("/api/remote/devices/cast:dev/cast", admin, json!({"channel_id": 999_999})).await;
+            let full =
+                app.post("/api/remote/devices/cast:dev/cast", admin, json!({"channel_id": channels["One"]})).await;
+            (gone, full)
+        });
+    assert_eq!(gone.status, StatusCode::NOT_FOUND, "{}", gone.text());
+    assert_eq!((full.status, full.body["code"].clone()), (StatusCode::CONFLICT, json!("connections_full")));
+    assert_eq!(loaded.status, StatusCode::NO_CONTENT, "{}", loaded.text());
+    let film_on_device = sessions(&w).await.into_iter().any(|s| s["device_id"] == "cast:dev" && s["kind"] != "live");
+    assert!(film_on_device, "the film plays on");
 }
