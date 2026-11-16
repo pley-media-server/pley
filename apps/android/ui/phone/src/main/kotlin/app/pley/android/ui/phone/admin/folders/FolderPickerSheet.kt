@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -81,11 +83,13 @@ internal fun FolderPickerSheet(browser: FolderBrowser, onSelect: (String) -> Uni
             )
             PleyIconButton(PleyIcons.Pencil, stringResource(R.string.admin_folders_path_label), onClick = { typing = true })
         }
-        Box(Modifier.fillMaxWidth().height(LIST_HEIGHT), contentAlignment = Alignment.Center) {
+        // As tall as LIST_HEIGHT where the sheet has room, else what's left above
+        // the actions (a small phone, landscape, large text), which stay in view.
+        Box(Modifier.fillMaxWidth().weight(1f, fill = false).height(LIST_HEIGHT), contentAlignment = Alignment.Center) {
             when (val load = shown.load) {
                 AdminLoad.Loading -> DelayedSpinner(stringResource(R.string.admin_loading))
                 is AdminLoad.Failed -> Column(
-                    Modifier.padding(24.dp),
+                    Modifier.verticalScroll(rememberScrollState()).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
@@ -163,7 +167,7 @@ internal fun FolderPickerSheet(browser: FolderBrowser, onSelect: (String) -> Uni
     }
 }
 
-/** How tall the list of folders is, so the sheet doesn't jump as folders open. */
+/** How tall the list of folders is where there's room, so the sheet doesn't jump as folders open. */
 private val LIST_HEIGHT = 360.dp
 
 internal const val FOLDER_PICKER = "pley.admin.folders"

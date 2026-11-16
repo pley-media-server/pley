@@ -493,7 +493,8 @@ private fun LabelsSheet(
         }
         if (matches.isNotEmpty() || isNew) {
             val suggestions = stringResource(R.string.admin_users_label_suggestions)
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 280.dp).padding(top = 4.dp).semantics { contentDescription = suggestions }) {
+            // Shorter where the sheet has less room (the keyboard up, landscape): Save stays in view.
+            LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false).heightIn(max = 280.dp).padding(top = 4.dp).semantics { contentDescription = suggestions }) {
                 items(matches, key = { "known:" + it.label }) { use ->
                     SuggestionRow(
                         use.label,
@@ -593,7 +594,8 @@ internal fun LibrariesSheet(
             }
         }
         if (!allNow && libraries.isNotEmpty()) {
-            LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp).padding(top = 8.dp)) {
+            // Shorter where the sheet has less room (landscape, large text): Save stays in view.
+            LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false).heightIn(max = 360.dp).padding(top = 8.dp)) {
                 items(libraries, key = { it.id }) { library ->
                     val on = library.id in chosen
                     Row(
