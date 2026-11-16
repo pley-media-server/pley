@@ -572,15 +572,12 @@ them), the next episode, and Find subtitles.
 - **Playing.** By address, through uMediaServer
   (`luna://com.webos.media`), the pipeline the web app's `<video>` used;
   LG documents it only for webOS OSE. The app calls it from a registration
-  of its own, named as LG's media clients are
-  (`com.webos.media.client.pley<process id>`), which a native app's role
-  file allows: from the anonymous registration the TV's other services
-  get, a load failed at once with the bus's "Message status unknown.", as
-  uMediaServer crashed. Where the hub refuses the name, the registration is
-  anonymous. Each pipeline loaded is marked foreground
-  (`notifyForeground`), as the TV's native players do. The pipeline takes
-  only an address, no request headers, so the app plays from
-  [keyed addresses](API.md#keyed-urls), and a live channel's `stream.ts`
+  of its own, with a name of the form LG's media clients take
+  (`com.webos.media.client.pley<process id>`), or anonymously where the
+  hub refuses that name; the log says which. Each pipeline loaded is
+  marked foreground (`notifyForeground`), as the TV's native players do.
+  The pipeline takes only an address, no request headers, so the app
+  plays from [keyed addresses](API.md#keyed-urls), and a live channel's `stream.ts`
   from the app's own relay on the loopback address. The start position
   goes in the load (`option.transmission.playTime.start`), since a seek
   after loading buffers from the beginning first; a live channel gets

@@ -516,9 +516,10 @@ impl Device for WebosDevice {
         let f = self.facts();
         let firmware = f.build.clone().or(f.firmware.clone()).unwrap_or_else(|| "unknown".into());
         // Made at the first playback and kept: what it loaded goes when it does.
+        // Without a thread of its own, it plays from the services' registration.
         let luna = self.inner.media_luna.get_or_init(|| {
             self.inner.luna.as_ref()?;
-            Luna::start_as(&ums::client_name(std::process::id()))
+            Luna::start_as(&ums::client_name(std::process::id())).or_else(|| self.inner.luna.clone())
         });
         Box::new(UmsEngine::new(
             luna.clone(),

@@ -11,11 +11,12 @@
 //! owns it: uMediaServer unloads it when that client goes, so one
 //! registration plays everything.
 //!
-//! That registration has a name, [`client_name`], as LG's own media clients
-//! do (`com.webos.media.client.` and an id of their own), which the app's role
-//! file lets it take. From an anonymous client, a `load` failed at once on
-//! TVs with the bus's "Message status unknown.", uMediaServer having crashed.
-//! Where the hub refuses the name, the registration is anonymous.
+//! That registration has a name, [`client_name`], of the form LG's own media
+//! clients take (`com.webos.media.client.` and an id of their own); where the
+//! hub refuses it, the registration is anonymous. Loads from the anonymous
+//! registration the TV's other services use failed at once on TVs, with the
+//! bus's "Message status unknown." (the service called went away before
+//! answering) and uMediaServer crashing.
 
 pub mod acb;
 pub mod machine;

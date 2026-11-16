@@ -156,7 +156,8 @@ impl Luna {
             status: Mutex::new(Status::Starting),
         });
         let thread_shared = shared.clone();
-        std::thread::Builder::new().name("pley-luna".into()).spawn(move || run(api, rx, thread_shared, name)).ok()?;
+        let thread = if name.is_some() { "pley-luna-media" } else { "pley-luna" };
+        std::thread::Builder::new().name(thread.into()).spawn(move || run(api, rx, thread_shared, name)).ok()?;
         Some(Luna { shared })
     }
 
@@ -462,12 +463,16 @@ fn run(api: &'static Api, rx: Receiver<Request>, shared: Arc<Shared>, name: Opti
         let registered = match (register(api, name.as_deref(), context), &name) {
             (Err(why), Some(name)) => {
                 crate::log::line(&format!(
-                    "luna: the hub refused the name {}: {why}; registering anonymously",
+                    "luna: registering as {} failed: {why}; registering anonymously",
                     name.to_string_lossy()
                 ));
                 register(api, None, context)
             }
-            (registered, _) => registered,
+            (Ok(handle), Some(name)) => {
+                crate::log::line(&format!("luna: registered as {}", name.to_string_lossy()));
+                Ok(handle)
+            }
+            (registered, None) => registered,
         };
         let (handle, failed) = match registered {
             Ok(handle) => (handle, None),

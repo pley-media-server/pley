@@ -10,9 +10,9 @@ describes how they are made.
 
 ### Fixed
 
-- Videos and music play on LG TVs where pressing Play failed at once with
-  "the TV's player gave up (Message status unknown.)": the app talks to
-  the TV's media pipeline the way the TV's own media apps do.
+- For TVs where pressing Play failed at once with "the TV's player gave
+  up (Message status unknown.)", the app talks to the TV's media pipeline
+  the way LG's own media apps do.
 
 ## [0.1.10] - 2026-11-16
 
