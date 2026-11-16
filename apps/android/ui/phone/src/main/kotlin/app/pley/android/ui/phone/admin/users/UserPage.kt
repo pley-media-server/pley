@@ -123,12 +123,14 @@ internal fun UserAccountPage(id: Long) {
     }
 
     val self by model.self.collectAsStateWithLifecycle()
+    val lost by model.lost.collectAsStateWithLifecycle()
     val twoStepRequired = server.valueOrNull?.twoStepRequired == true
     AdminPage(
         title = load.valueOrNull?.user?.name ?: stringResource(R.string.admin_section_users),
         load = load,
         onRetry = model.page::reload,
         tag = USER_PAGE,
+        lost = lost,
     ) { page ->
         val user = page.user
         val idle = busy == 0
@@ -211,6 +213,7 @@ internal fun UserAccountPage(id: Long) {
     }
 
     val user = load.valueOrNull?.user ?: return
+    if (lost) return
     val close = { dialog = null }
     when (val open = dialog) {
         UserDialog.Rename -> TextEntryDialog(

@@ -77,7 +77,8 @@ internal fun NewUserPage() {
     AdminEvents(model)
 
     val managed = form.managed
-    AdminPage(title = stringResource(R.string.admin_users_add), load = load, onRetry = model.libraries::reload, tag = NEW_USER_PAGE) { libraries ->
+    val lost by model.lost.collectAsStateWithLifecycle()
+    AdminPage(title = stringResource(R.string.admin_users_add), load = load, onRetry = model.libraries::reload, tag = NEW_USER_PAGE, lost = lost) { libraries ->
         item(key = "kind") {
             Column(Modifier.adminWidth, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SegmentedControl(
@@ -184,6 +185,7 @@ internal fun NewUserPage() {
         }
     }
 
+    if (lost) return
     val close = { dialog = null }
     when (dialog) {
         NewUserDialog.Username -> TextEntryDialog(

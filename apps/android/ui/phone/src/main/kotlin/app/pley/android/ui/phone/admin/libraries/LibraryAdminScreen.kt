@@ -81,7 +81,8 @@ internal fun LibraryAdminScreen(id: String) {
         else -> stringResource(R.string.admin_libraries_title)
     }
     val current = form
-    AdminPage(title = title, load = load, onRetry = vm.page::reload, tag = LIBRARY_PAGE) { page ->
+    val lost by vm.lost.collectAsStateWithLifecycle()
+    AdminPage(title = title, load = load, onRetry = vm.page::reload, tag = LIBRARY_PAGE, lost = lost) { page ->
         if (current == null) return@AdminPage
         val defaultName = resources.getString(kindDefaultName(current.kind))
         item(key = "details") {
@@ -138,6 +139,7 @@ internal fun LibraryAdminScreen(id: String) {
         }
     }
 
+    if (lost) return
     FolderPickerSheet(vm.folders, onSelect = vm::addPath)
     if (current == null) return
     when (dialog) {

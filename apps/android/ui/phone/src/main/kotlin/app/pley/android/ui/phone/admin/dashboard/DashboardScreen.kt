@@ -89,6 +89,7 @@ import app.pley.android.screens.admin.valueOrNull
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.account.absolute
 import app.pley.android.ui.phone.admin.AdminEvents
+import app.pley.android.ui.phone.admin.AdminLost
 import app.pley.android.ui.phone.admin.WhileShown
 import app.pley.android.ui.phone.admin.adminWidth
 import app.pley.android.ui.phone.kit.Avatar
@@ -147,6 +148,7 @@ internal fun DashboardScreen(id: String?) {
     val removing by model.removing.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val origin by model.origin.collectAsStateWithLifecycle()
+    val lost by model.lost.collectAsStateWithLifecycle()
 
     var stopping by remember { mutableStateOf<DashboardSession?>(null) }
     var cleaning by rememberSaveable { mutableStateOf(false) }
@@ -155,6 +157,10 @@ internal fun DashboardScreen(id: String?) {
     val metrics = LocalPhoneMetrics.current
     Column(Modifier.fillMaxSize().testTag(DASHBOARD_PAGE)) {
         PleyTopAppBar(title = stringResource(R.string.admin_section_dashboard), onBack = navigator::back, scrolled = { list.canScrollBackward })
+        if (lost) {
+            AdminLost()
+            return@Column
+        }
         LazyColumn(
             state = list,
             modifier = Modifier.fillMaxSize(),
@@ -181,6 +187,7 @@ internal fun DashboardScreen(id: String?) {
         }
     }
 
+    if (lost) return
     stopping?.let { session ->
         StopDialog(
             session = session,

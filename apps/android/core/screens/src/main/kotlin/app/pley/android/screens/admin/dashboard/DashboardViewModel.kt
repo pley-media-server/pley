@@ -143,9 +143,10 @@ class DashboardViewModel(
         awaitCancellation()
     }
 
+    /** Reads with [read] every [ms]; not once the phone can no longer manage the server. */
     private suspend fun every(ms: Long, read: suspend () -> Unit): Nothing {
         while (true) {
-            read()
+            if (!lost.value) read()
             delay(ms)
         }
     }
@@ -170,6 +171,7 @@ class DashboardViewModel(
             throw e
         } catch (e: Exception) {
             into.value = AdminLoad.Failed(e, into.value.valueOrNull)
+            refused(e, reading = true)
         }
     }
 
@@ -204,7 +206,7 @@ class DashboardViewModel(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                failed(e)
+                if (!refused(e, reading = true)) failed(e)
             } finally {
                 loadingMoreNow.value = false
             }

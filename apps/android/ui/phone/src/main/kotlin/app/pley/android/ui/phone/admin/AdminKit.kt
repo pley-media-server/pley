@@ -44,13 +44,17 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.PleyShape
+import app.pley.android.designsystem.icon.PleyIcons
+import app.pley.android.screens.PleyKey
 import app.pley.android.screens.admin.AdminDone
 import app.pley.android.screens.admin.AdminLoad
 import app.pley.android.screens.admin.AdminViewModel
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.kit.DelayedSpinner
+import app.pley.android.ui.phone.kit.EmptyState
 import app.pley.android.ui.phone.kit.ErrorState
 import app.pley.android.ui.phone.kit.PleyTopAppBar
+import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
@@ -72,7 +76,8 @@ internal val ADMIN_MAX_WIDTH: Dp = 640.dp
  * then what [load] read: a spinner while it reads, the error with Retry
  * when it couldn't, else [content] in a column as wide as Settings', its
  * groups 28 dp apart. What was shown stays shown when reading it again
- * fails (the toast says why).
+ * fails (the toast says why). Once the phone can no longer manage the
+ * server ([lost]), the page says so instead ([AdminLost]).
  */
 @Composable
 internal fun <T> AdminPage(
@@ -80,6 +85,7 @@ internal fun <T> AdminPage(
     load: AdminLoad<T>,
     onRetry: () -> Unit,
     tag: String,
+    lost: Boolean,
     modifier: Modifier = Modifier,
     actions: @Composable RowScope.() -> Unit = {},
     content: LazyListScope.(T) -> Unit,
@@ -87,19 +93,39 @@ internal fun <T> AdminPage(
     val navigator = LocalPhoneNavigator.current
     val list = rememberLazyListState()
     Column(modifier.fillMaxSize().testTag(tag)) {
-        PleyTopAppBar(title = title, onBack = navigator::back, scrolled = { list.canScrollBackward }, actions = actions)
+        PleyTopAppBar(title = title, onBack = navigator::back, scrolled = { list.canScrollBackward }, actions = if (lost) ({}) else actions)
         val value = when (load) {
             is AdminLoad.Ready -> load.value
             is AdminLoad.Failed -> load.stale
             AdminLoad.Loading -> null
         }
         when {
+            lost -> AdminLost()
             value != null -> AdminColumn(list) { content(value) }
             load is AdminLoad.Failed -> ErrorState(stringResource(R.string.admin_load_failed), load.error, onRetry)
             else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 DelayedSpinner(stringResource(R.string.admin_loading))
             }
         }
+    }
+}
+
+/**
+ * What a page of managing the server shows once the phone can no longer
+ * manage it ([AdminViewModel.lost]): why, and a way back to Me, which
+ * then says what would let it (an administrator's account, signing in
+ * again), rather than a page that keeps failing.
+ */
+@Composable
+internal fun AdminLost() {
+    val navigator = LocalPhoneNavigator.current
+    Box(Modifier.fillMaxSize().testTag(ADMIN_LOST), contentAlignment = Alignment.Center) {
+        EmptyState(
+            title = stringResource(R.string.admin_lost_title),
+            body = stringResource(R.string.admin_lost_body),
+            icon = PleyIcons.Lock,
+            action = { PrimaryButton(stringResource(R.string.admin_lost_action), onClick = { navigator.open(PleyKey.Me) }) },
+        )
     }
 }
 
@@ -277,5 +303,6 @@ internal fun numberProblem(range: LongRange): (String) -> String? {
     return { text -> if (numberIn(text, range) == null) words else null }
 }
 
+internal const val ADMIN_LOST = "pley.admin.lost"
 internal const val TEXT_ENTRY_FIELD = "pley.admin.entry.field"
 internal const val TEXT_ENTRY_SAVE = "pley.admin.entry.save"

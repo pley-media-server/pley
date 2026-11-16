@@ -158,7 +158,7 @@ class LibraryAdminViewModel(admin: ServerAdmin, private val libraryId: Long?) : 
     suspend fun watchScans() {
         while (true) {
             delay(LibraryAdmin.SCAN_POLL_MS)
-            if (page.state.value.valueOrNull?.scanning == true) page.reload()
+            if (!lost.value && page.state.value.valueOrNull?.scanning == true) page.reload()
         }
     }
 

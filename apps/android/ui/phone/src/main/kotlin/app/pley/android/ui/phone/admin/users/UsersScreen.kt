@@ -78,6 +78,7 @@ private fun UsersList() {
     val ratingSystems by model.ratingSystems.state.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
     val add = { navigator.open(PleyKey.Manage(AdminSection.Users, PleyKey.Manage.NEW)) }
+    val lost by model.lost.collectAsStateWithLifecycle()
     AdminEvents(model)
     ShownAgain(model::shownAgain)
     AdminPage(
@@ -85,6 +86,7 @@ private fun UsersList() {
         load = load,
         onRetry = model.users::reload,
         tag = USERS_PAGE,
+        lost = lost,
         actions = { PleyIconButton(PleyIcons.UserPlus, stringResource(R.string.admin_users_add), onClick = add, modifier = Modifier.testTag(USERS_ADD)) },
     ) { users ->
         item(key = "intro") {

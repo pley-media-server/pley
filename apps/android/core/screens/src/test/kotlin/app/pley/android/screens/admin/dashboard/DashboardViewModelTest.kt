@@ -93,6 +93,21 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun onceTheServerRefusesThePhoneNothingIsReadAgain() = runTest {
+        val server = server()
+        val page = model(server)
+        backgroundScope.launch { page.keepFresh() }
+        runCurrent()
+        // The role was taken away: every read is refused from now on.
+        server.failWith = ApiException(403, "forbidden", "administrator rights required")
+        advanceTimeBy(5_001)
+        assertTrue(page.lost.value)
+        val calls = server.calls.size
+        advanceTimeBy(60_000)
+        assertEquals("no read spins on a refusal", calls, server.calls.size)
+    }
+
+    @Test
     fun resourcesKeepTheirSamplesAndAddOnlyTheNewOnes() = runTest {
         val server = server()
         var next = 1_000L

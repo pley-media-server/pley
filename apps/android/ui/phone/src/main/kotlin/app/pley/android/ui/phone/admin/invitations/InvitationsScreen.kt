@@ -109,12 +109,14 @@ private fun InvitationsList() {
     AdminEvents(model) { done -> if (done.what == InvitationsViewModel.DELETED) resources.getString(R.string.admin_invitations_deleted) else null }
     ShownAgain(model::shownAgain)
     val now by model.now.collectAsStateWithLifecycle()
+    val lost by model.lost.collectAsStateWithLifecycle()
     val words = formatWords()
     AdminPage(
         title = stringResource(R.string.admin_section_invitations),
         load = load,
         onRetry = model.invitations::reload,
         tag = INVITATIONS_PAGE,
+        lost = lost,
         actions = { PleyIconButton(PleyIcons.MailPlus, stringResource(R.string.admin_invitations_new), onClick = add, modifier = Modifier.testTag(INVITATIONS_ADD)) },
     ) { invitations ->
         item(key = "intro") {
@@ -155,6 +157,7 @@ private fun InvitationsList() {
             }
         }
     }
+    if (lost) return
     deleting?.let { invitation ->
         ConfirmDialog(
             title = stringResource(R.string.admin_invitations_delete_title),
@@ -248,9 +251,16 @@ private fun NewInvitationPage() {
     val navigator = LocalPhoneNavigator.current
     var dialog by remember { mutableStateOf<NewInvitationDialog?>(null) }
     var problem by remember { mutableStateOf<NewInvitationProblem?>(null) }
+    val lost by model.lost.collectAsStateWithLifecycle()
     AdminEvents(model)
 
-    AdminPage(title = stringResource(R.string.admin_invitations_new), load = load, onRetry = model.libraries::reload, tag = NEW_INVITATION_PAGE) { libraries ->
+    AdminPage(
+        title = stringResource(R.string.admin_invitations_new),
+        load = load,
+        onRetry = model.libraries::reload,
+        tag = NEW_INVITATION_PAGE,
+        lost = lost,
+    ) { libraries ->
         item(key = "intro") {
             Text(
                 stringResource(R.string.admin_invitations_intro),
@@ -321,6 +331,7 @@ private fun NewInvitationPage() {
         }
     }
 
+    if (lost) return
     val close = { dialog = null }
     when (dialog) {
         NewInvitationDialog.Expiry -> ChoiceSheet(
