@@ -906,25 +906,24 @@ settings and Live TV's channels and tuners are managed there too, and the
 page says where they are. Moving from Plex, which signs in to Plex, and
 forgetting AirPlay pairings are done in the web app as well. The app asks
 for the `server` scope as it signs in, where the server offers it
-([API.md](API.md#scopes)); an
-administrator signed in before then is offered to sign in again, and
-anyone else sees nothing of it. Nor does a phone that a cast switched to
-an administrator's profile, whoever signed it in: the caster gave their
-PIN on their own phone, and the server gives such a phone none of their
-rights over others. Manage server is back once the administrator
-switches to their profile on the phone itself, which takes their PIN, or
-signs in to it again. TVs don't manage
-the server: they sign in with a code, and the server never gives the
-scope to a code.
+([API.md](API.md#scopes)); an administrator signed in before then is
+offered to sign in again, and anyone else sees nothing of it. Nor does a
+phone that a cast switched to an administrator's profile, whoever signed
+it in: the caster gave their PIN on their own phone, and the server gives
+such a phone none of their rights over others. Manage server is back once
+the administrator switches to their profile on the phone itself, which
+takes their PIN, or signs in to it again. TVs don't manage the server:
+they sign in with a code, and the server never gives the scope to a code.
 
 - **Dashboard**: what plays, where, and what plays it (a Pley app, an app
   through the Plex or Jellyfin API, Google Cast or AirPlay), whether it
   plays, is paused or is buffering, its time moving on while it plays, and
   its transcode; stopping a stream, with a message for its screen where
-  the player shows one (Pley's own apps); the server's and the machine's CPU and memory over the
-  last minutes; recently played, by everyone, with removing a play; the
-  transcoder's jobs; scans, intro detection and seek previews under way;
-  the server, its storage and the database's health, and cleaning up.
+  the player shows one (Pley's own apps); the server's and the machine's
+  CPU and memory over the last minutes; recently played, by everyone, with
+  removing a play; the transcoder's jobs; scans, intro detection and seek
+  previews under way; the server, its storage and the database's health,
+  and cleaning up.
 - **Libraries**: the libraries in everyone's order, dragged to reorder,
   scanned one or all with their progress; a library's page with its kind,
   name and folders, picked on the server or typed, then scanning, a full
@@ -948,11 +947,25 @@ scope to a code.
 
 A value is sent as it is chosen, as the phone's own Settings save theirs;
 what is made or set together (a library, an account, an invitation) has
-one button. What can't be undone asks first. The server's refusals show
-in its own words, and the page then shows what the server has. Lists that
-change (what plays, scans, the machine's load) are read again
-every few seconds while they show, and a list is read again as it shows
-after a page above it.
+one button. What can't be undone, or takes something from an account at
+once, asks first, where the web stages it until Save: deleting, signing
+out, taking the administrator's role away, disabling an account and
+removing a PIN. The server's refusals show in its own words, and the page
+then shows what the server has; a new password or PIN the server refuses
+stays in its dialog to be changed. Lists that change (what plays, scans,
+the machine's load) are read again every few seconds while they show, and
+a list is read again as it shows after a page above it. When the
+dashboard can't read them, it says from what time its numbers are and
+why, until the server answers again.
+
+Once the server no longer lets the phone manage it (the role taken away
+in the web app, the scope gone, or another profile switched to), a page
+says so in place of what it read, with a way back to Me, and reads
+nothing more; Me then says what would let the phone manage it again.
+Nothing of managing the server is kept on the phone: a page reads the
+server when it opens, the libraries' list that every screen browses is
+saved without their folders, and a password or PIN typed is never kept
+in the app's saved state.
 
 ### Offline and downloads
 
