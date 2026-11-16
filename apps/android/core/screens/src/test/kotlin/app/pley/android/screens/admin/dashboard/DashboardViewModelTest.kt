@@ -93,6 +93,21 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun onceTheServerRefusesThePhoneNothingIsReadAgain() = runTest {
+        val server = server()
+        val page = model(server)
+        backgroundScope.launch { page.keepFresh() }
+        runCurrent()
+        // The role was taken away: every read is refused from now on.
+        server.failWith = ApiException(403, "forbidden", "administrator rights required")
+        advanceTimeBy(5_001)
+        assertTrue(page.lost.value)
+        val calls = server.calls.size
+        advanceTimeBy(60_000)
+        assertEquals("no read spins on a refusal", calls, server.calls.size)
+    }
+
+    @Test
     fun resourcesKeepTheirSamplesAndAddOnlyTheNewOnes() = runTest {
         val server = server()
         var next = 1_000L
@@ -122,6 +137,48 @@ class DashboardViewModelTest {
         page.readActivity()
         assertEquals(AdminLoad.Failed(down, page.activity.value.valueOrNull), page.activity.value)
         assertEquals(2, page.activity.value.valueOrNull?.sessions?.size)
+    }
+
+    @Test
+    fun liveNumbersThatStopUpdatingSaySinceWhenAndRecover() = runTest {
+        val server = server()
+        var now = 1_700_000_000L
+        val page = DashboardViewModel(server, flowOf("http://nas:7539"), nowSeconds = { now }, compute = main.dispatcher)
+        page.readActivity()
+        page.readTranscoder()
+        assertNull(page.stale.value)
+
+        // The server goes away: what shows is from the last answers, the oldest of them.
+        val down = ApiException(503, "unavailable", "busy")
+        now += 5
+        page.readTranscoder()
+        server.fail("GET /api/activity", down)
+        server.fail("GET /api/transcoder", down)
+        now += 5
+        page.readTranscoder()
+        page.readActivity()
+        assertEquals(DashboardStale(since = 1_700_000_000L, error = down), page.stale.value)
+        // Still shown, as it was.
+        assertEquals(2, page.activity.value.valueOrNull?.sessions?.size)
+
+        // One answers again: the other is still from before.
+        server.answer("GET /api/activity", activity("s1"))
+        now += 5
+        page.readActivity()
+        assertEquals(1_700_000_005L, page.stale.value?.since)
+        server.answer("GET /api/transcoder", """{ "available": true, "max_jobs": 4, "running_processes": 0, "hw_processes": 0, "max_hw_jobs": 0, "work_dir_bytes": 0, "counters": {}, "jobs": [] }""")
+        page.readTranscoder()
+        assertNull(page.stale.value)
+    }
+
+    @Test
+    fun aReadThatNeverAnsweredSaysSoInItsOwnPlace() = runTest {
+        val server = server()
+        server.fail("GET /api/system/resources", ApiException(503, "unavailable", "busy"))
+        val page = model(server)
+        page.readResources()
+        assertTrue(page.resources.value is AdminLoad.Failed)
+        assertNull("nothing shown is stale", page.stale.value)
     }
 
     @Test

@@ -80,6 +80,14 @@
     <string name="admin_users_pin_set">Ce profil a un code PIN. Saisissez-en un nouveau pour le changer.</string>
     <string name="admin_users_pin_hint">Facultatif, de 4 à 8 chiffres. Nécessaire pour basculer vers ce profil.</string>
     <string name="admin_users_remove_pin">Supprimer le code PIN</string>
+    <string name="admin_users_remove_pin_title">Supprimer le code PIN de %1$s ?</string>
+    <string name="admin_users_remove_pin_message">Tout le foyer pourra alors passer au profil de %1$s sans code PIN, jusqu’à ce qu’un nouveau soit défini.</string>
+    <string name="admin_users_remove_admin_title">Retirer à %1$s son rôle d’administrateur ?</string>
+    <string name="admin_users_remove_admin_message">%1$s ne pourra plus gérer le serveur, ni depuis l’application web ni depuis les applications Pley. Seule l’application web peut lui redonner ce rôle.</string>
+    <string name="admin_users_remove_admin_action">Le retirer</string>
+    <string name="admin_users_disable_title">Désactiver %1$s ?</string>
+    <string name="admin_users_disable_message">%1$s est déconnecté partout, et ne peut ni se connecter ni rien lire tant que le compte n’est pas réactivé.</string>
+    <string name="admin_users_disable_action">Désactiver</string>
     <string name="admin_users_enter_username">Saisissez un nom d’utilisateur.</string>
     <string name="admin_users_pin_digits">Le code PIN doit comporter de 4 à 8 chiffres.</string>
     <string name="admin_users_pick_library">Choisissez au moins une bibliothèque, ou autorisez-les toutes.</string>

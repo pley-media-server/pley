@@ -120,7 +120,7 @@ class UsersViewModelTest {
         val page = UsersViewModel(server, session)
         val users = (page.users.state.value as AdminLoad.Ready).value
         assertEquals(listOf("Ann", "Bea"), users.map { it.name })
-        assertEquals(1L, page.selfId)
+        assertEquals(1L, page.selfId.value)
         assertEquals("http://nas:7539/api/users/1/avatar?v=2", page.avatar(users[0]))
         assertNull(page.avatar(users[1]))
         assertEquals(listOf("Movies", "Shows"), page.libraries.state.value.valueOrNull?.map { it.name })
@@ -138,7 +138,7 @@ class UsersViewModelTest {
         val server = server(user(1, "Ann", admin = true), user(2, "Bea"), user(3, "Cid", admin = true, disabled = true))
         val ann = UserViewModel(server, session, 1)
         val page = ann.page.state.value.valueOrNull!!
-        assertTrue(ann.self.value)
+        assertTrue(page.self)
         // One's own devices and apps stay in the web app: they aren't asked for.
         assertEquals(emptyList<Any>(), ann.devices.state.value.valueOrNull)
         assertEquals(emptyList<Any>(), ann.apps.state.value.valueOrNull)
@@ -148,9 +148,31 @@ class UsersViewModelTest {
         assertEquals(0, page.otherAdmins)
         assertTrue(page.lastAdmin)
         val bea = UserViewModel(server, session, 2)
-        assertFalse(bea.self.value)
+        assertFalse(bea.page.state.value.valueOrNull!!.self)
         assertFalse(bea.page.state.value.valueOrNull!!.lastAdmin)
         assertEquals(1, bea.devices.state.value.valueOrNull?.size)
+    }
+
+    @Test
+    fun oneselfIsKnownRightAfterTheAppIsRecreated() = runTest {
+        val server = server(user(1, "Ann", admin = true), user(2, "Bea"))
+        // Recreated: the session reads its sign-in back, then who it is.
+        val starting = MutableStateFlow<Session?>(null)
+        val ann = UserViewModel(server, starting, 1)
+        val list = UsersViewModel(server, starting)
+        assertEquals("nothing shown as anyone's yet", AdminLoad.Loading, ann.page.state.value)
+        assertNull(list.selfId.value)
+        starting.value = Session("http://nas:7539", me = null, scopes = setOf("server"))
+        assertEquals(AdminLoad.Loading, ann.page.state.value)
+
+        starting.value = session.value
+        val page = ann.page.state.value.valueOrNull!!
+        assertTrue(page.self)
+        assertEquals(1L, list.selfId.value)
+        // Never asked for as someone else's.
+        assertEquals(emptyList<Any>(), ann.devices.state.value.valueOrNull)
+        assertTrue(server.callsTo("GET /api/users/1/devices").isEmpty())
+        assertTrue(server.callsTo("GET /api/users/1/apps").isEmpty())
     }
 
     @Test
@@ -216,6 +238,20 @@ class UsersViewModelTest {
         // With an age limit, as the server makes such an account: it may not ask.
         UserViewModel(server, session, 4).removeAdmin()
         assertEquals("""{"is_admin":false,"request_access":"off"}""", body(server, "PATCH /api/users/4").toString())
+    }
+
+    @Test
+    fun aPasswordOrPinSaysWhetherTheServerTookIt() = runTest {
+        val bea = user(2, "Bea")
+        val server = server(user(1, "Ann", admin = true), bea).apply { patches(2, bea) }
+        val page = UserViewModel(server, session, 2)
+        val took = mutableListOf<Boolean>()
+        page.setPassword("a long new one") { took += it }
+        page.setPin("4321") { took += it }
+        // The server refuses a common password: the dialog stays open with it.
+        server.fail("PATCH /api/users/2", ApiException(400, "bad_request", "that password is too common"))
+        page.setPassword("password1") { took += it }
+        assertEquals(listOf(true, true, false), took)
     }
 
     @Test

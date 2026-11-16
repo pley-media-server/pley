@@ -16,6 +16,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,9 +75,35 @@ private sealed interface UserDialog {
     data object Requests : UserDialog
     data object TwoStep : UserDialog
     data object SignOutEverywhere : UserDialog
-    data class SignOutApp(val app: UserApp) : UserDialog
+    data class SignOutApp(val appId: Long) : UserDialog
     data object Delete : UserDialog
 }
+
+/** Keeps what is open over the page when the phone turns: a name, and an app's id. */
+private val UserDialogSaver: Saver<UserDialog?, String> = Saver(
+    save = { dialog ->
+        when (dialog) {
+            is UserDialog.SignOutApp -> "app:${dialog.appId}"
+            null -> null
+            else -> dialog.toString()
+        }
+    },
+    restore = { saved ->
+        if (saved.startsWith("app:")) {
+            saved.removePrefix("app:").toLongOrNull()?.let(UserDialog::SignOutApp)
+        } else {
+            listOf(
+                UserDialog.Rename,
+                UserDialog.Password,
+                UserDialog.Pin,
+                UserDialog.Requests,
+                UserDialog.TwoStep,
+                UserDialog.SignOutEverywhere,
+                UserDialog.Delete,
+            ).firstOrNull { it.toString() == saved }
+        }
+    },
+)
 
 /**
  * One account (the web's user dialog), each change sent as it is made.
@@ -102,7 +130,7 @@ internal fun UserAccountPage(id: Long) {
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     val resources = LocalResources.current
-    var dialog by remember { mutableStateOf<UserDialog?>(null) }
+    var dialog by rememberSaveable(stateSaver = UserDialogSaver) { mutableStateOf<UserDialog?>(null) }
 
     LaunchedEffect(deleted) {
         val name = deleted ?: return@LaunchedEffect
@@ -121,19 +149,23 @@ internal fun UserAccountPage(id: Long) {
         }
     }
 
-    val self by model.self.collectAsStateWithLifecycle()
+    val lost by model.lost.collectAsStateWithLifecycle()
     val twoStepRequired = server.valueOrNull?.twoStepRequired == true
     AdminPage(
         title = load.valueOrNull?.user?.name ?: stringResource(R.string.admin_section_users),
         load = load,
         onRetry = model.page::reload,
         tag = USER_PAGE,
+        lost = lost,
     ) { page ->
         val user = page.user
+        val self = page.self
         val idle = busy == 0
         item(key = "header") { Header(user, model.avatar(user)) }
         item(key = "profile") { ProfileGroup(user, self, idle, onRename = { dialog = UserDialog.Rename }, onPassword = { dialog = UserDialog.Password }) }
-        item(key = "roles") { RolesGroup(page, self, idle, model) }
+        item(key = "roles") {
+            RolesGroup(page, self, idle, onRemoveAdmin = model::removeAdmin, onHome = model::setHome, onDisabled = model::setDisabled)
+        }
         val requests = requestsShown(user)
         if (requests != null) {
             item(key = "requests") {
@@ -152,7 +184,7 @@ internal fun UserAccountPage(id: Long) {
             AccessGroup(
                 access = accessOf(user),
                 libraries = libraries.valueOrNull,
-                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey),
+                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey, ratingSystems is AdminLoad.Loading),
                 onLibraries = model::setLibraries,
                 onAgeLimit = model::setAgeLimit,
                 onLabels = model::setLabels,
@@ -164,19 +196,7 @@ internal fun UserAccountPage(id: Long) {
             )
         }
         if (!self && !user.asAdmin) {
-            item(key = "pin") {
-                SettingsGroup(
-                    null,
-                    Modifier.adminWidth,
-                    footer = stringResource(if (user.hasPin) R.string.admin_users_pin_set else R.string.admin_users_pin_hint),
-                ) {
-                    SettingsRow(stringResource(R.string.admin_users_pin), icon = PleyIcons.Lock, enabled = idle, onClick = { dialog = UserDialog.Pin })
-                    if (user.hasPin) {
-                        RowDivider()
-                        SettingsRow(stringResource(R.string.admin_users_remove_pin), icon = PleyIcons.LockOpen, enabled = idle, onClick = model::removePin)
-                    }
-                }
-            }
+            item(key = "pin") { PinGroup(user, idle, onPin = { dialog = UserDialog.Pin }, onRemovePin = model::removePin) }
         }
         if (user.twoStep && !self && !user.asAdmin) {
             item(key = "two-step") {
@@ -201,7 +221,7 @@ internal fun UserAccountPage(id: Long) {
                 val signedIn = devices.valueOrNull.orEmpty().isNotEmpty() || apps.valueOrNull.orEmpty().isNotEmpty()
                 DevicesGroup(devices, showSignOut = signedIn, onSignOut = { dialog = UserDialog.SignOutEverywhere })
             }
-            item(key = "apps") { AppsGroup(apps, user, onSignOut = { dialog = UserDialog.SignOutApp(it) }) }
+            item(key = "apps") { AppsGroup(apps, user, onSignOut = { dialog = UserDialog.SignOutApp(it.id) }) }
         }
         if (!self) {
             item(key = "delete") {
@@ -220,6 +240,7 @@ internal fun UserAccountPage(id: Long) {
     }
 
     val user = load.valueOrNull?.user ?: return
+    if (lost) return
     val close = { dialog = null }
     when (val open = dialog) {
         UserDialog.Rename -> TextEntryDialog(
@@ -240,10 +261,9 @@ internal fun UserAccountPage(id: Long) {
                 entry = Entry.Secret,
                 hint = if (user.managed) stringResource(R.string.admin_users_managed_password_hint) else null,
                 check = { typed -> passwordProblem(typed, user.username)?.let(words) },
-                onSave = {
-                    close()
-                    model.setPassword(it)
-                },
+                // Open until the server takes it: one it refuses (too common) is still there to change.
+                busy = busy > 0,
+                onSave = { model.setPassword(it) { took -> if (took && dialog == UserDialog.Password) close() } },
                 onDismiss = close,
             )
         }
@@ -252,13 +272,11 @@ internal fun UserAccountPage(id: Long) {
             TextEntryDialog(
                 title = stringResource(R.string.admin_users_pin),
                 initial = "",
-                entry = Entry.Number,
+                entry = Entry.Pin,
                 hint = stringResource(if (user.hasPin) R.string.admin_users_pin_set else R.string.admin_users_pin_hint),
                 check = { typed -> if (pinOk(typed)) null else digits },
-                onSave = {
-                    close()
-                    model.setPin(it)
-                },
+                busy = busy > 0,
+                onSave = { model.setPin(it) { took -> if (took && dialog == UserDialog.Pin) close() } },
                 onDismiss = close,
             )
         }
@@ -292,17 +310,19 @@ internal fun UserAccountPage(id: Long) {
             },
             onDismiss = close,
         )
-        is UserDialog.SignOutApp -> ConfirmDialog(
-            title = stringResource(R.string.admin_users_apps_sign_out, open.app.label),
-            body = null,
-            confirmLabel = stringResource(R.string.admin_users_sign_out),
-            destructive = true,
-            onConfirm = {
-                close()
-                model.signOutApp(open.app)
-            },
-            onDismiss = close,
-        )
+        is UserDialog.SignOutApp -> apps.valueOrNull?.firstOrNull { it.id == open.appId }?.let { app ->
+            ConfirmDialog(
+                title = stringResource(R.string.admin_users_apps_sign_out, app.label),
+                body = null,
+                confirmLabel = stringResource(R.string.admin_users_sign_out),
+                destructive = true,
+                onConfirm = {
+                    close()
+                    model.signOutApp(app)
+                },
+                onDismiss = close,
+            )
+        }
         UserDialog.Delete -> ConfirmDialog(
             title = stringResource(R.string.admin_users_delete_title),
             body = stringResource(R.string.admin_users_delete_message, user.name),
@@ -378,16 +398,26 @@ private fun ProfileGroup(user: UserAccount, self: Boolean, idle: Boolean, onRena
 /**
  * Administrator, home member, disabled. Off limits where the server
  * would refuse: making an administrator (the web app does), one's own
- * role or account, the last administrator's.
+ * role or account, the last administrator's. Taking the role away and
+ * disabling ask first (the web stages them until Save): either takes
+ * something from the account at once.
  */
 @Composable
-private fun RolesGroup(page: UserPage, self: Boolean, idle: Boolean, model: UserViewModel) {
+internal fun RolesGroup(
+    page: UserPage,
+    self: Boolean,
+    idle: Boolean,
+    onRemoveAdmin: () -> Unit,
+    onHome: (Boolean) -> Unit,
+    onDisabled: (Boolean) -> Unit,
+) {
     val user = page.user
+    var asking by rememberSaveable { mutableStateOf<RoleChange?>(null) }
     SettingsGroup(null, Modifier.adminWidth) {
         SwitchRow(
             stringResource(R.string.admin_users_administrator),
             checked = user.asAdmin,
-            onChange = { on -> if (!on) model.removeAdmin() },
+            onChange = { on -> if (!on) asking = RoleChange.RemoveAdmin },
             subtitle = stringResource(
                 when {
                     user.managed -> R.string.admin_users_managed_not_admin
@@ -403,7 +433,7 @@ private fun RolesGroup(page: UserPage, self: Boolean, idle: Boolean, model: User
         SwitchRow(
             stringResource(R.string.admin_users_home),
             checked = user.home,
-            onChange = model::setHome,
+            onChange = onHome,
             subtitle = stringResource(R.string.admin_users_home_hint),
             enabled = idle,
         )
@@ -411,10 +441,79 @@ private fun RolesGroup(page: UserPage, self: Boolean, idle: Boolean, model: User
         SwitchRow(
             stringResource(R.string.admin_users_disabled),
             checked = user.disabled,
-            onChange = model::setDisabled,
+            // Enabling it again gives back what it had: nothing to ask.
+            onChange = { on -> if (on) asking = RoleChange.Disable else onDisabled(false) },
             subtitle = stringResource(R.string.admin_users_disabled_hint),
             enabled = idle && !self && !(page.lastAdmin && !user.disabled),
             modifier = Modifier.testTag(USER_DISABLED),
+        )
+    }
+    val close = { asking = null }
+    when (asking) {
+        RoleChange.RemoveAdmin -> ConfirmDialog(
+            title = stringResource(R.string.admin_users_remove_admin_title, user.name),
+            body = stringResource(R.string.admin_users_remove_admin_message, user.name),
+            confirmLabel = stringResource(R.string.admin_users_remove_admin_action),
+            destructive = true,
+            onConfirm = {
+                close()
+                onRemoveAdmin()
+            },
+            onDismiss = close,
+        )
+        RoleChange.Disable -> ConfirmDialog(
+            title = stringResource(R.string.admin_users_disable_title, user.name),
+            body = stringResource(R.string.admin_users_disable_message, user.name),
+            confirmLabel = stringResource(R.string.admin_users_disable_action),
+            destructive = true,
+            onConfirm = {
+                close()
+                onDisabled(true)
+            },
+            onDismiss = close,
+        )
+        null -> Unit
+    }
+}
+
+/** The changes of [RolesGroup] that ask first. */
+private enum class RoleChange { RemoveAdmin, Disable }
+
+/**
+ * The profile's PIN: a new one ([onPin]), and Remove PIN, which asks
+ * first, as anyone in the household can then switch to the profile.
+ */
+@Composable
+internal fun PinGroup(user: UserAccount, idle: Boolean, onPin: () -> Unit, onRemovePin: () -> Unit) {
+    var asking by rememberSaveable { mutableStateOf(false) }
+    SettingsGroup(
+        null,
+        Modifier.adminWidth,
+        footer = stringResource(if (user.hasPin) R.string.admin_users_pin_set else R.string.admin_users_pin_hint),
+    ) {
+        SettingsRow(stringResource(R.string.admin_users_pin), icon = PleyIcons.Lock, enabled = idle, onClick = onPin)
+        if (user.hasPin) {
+            RowDivider()
+            SettingsRow(
+                stringResource(R.string.admin_users_remove_pin),
+                icon = PleyIcons.LockOpen,
+                enabled = idle,
+                onClick = { asking = true },
+                modifier = Modifier.testTag(USER_REMOVE_PIN),
+            )
+        }
+    }
+    if (asking) {
+        ConfirmDialog(
+            title = stringResource(R.string.admin_users_remove_pin_title, user.name),
+            body = stringResource(R.string.admin_users_remove_pin_message, user.name),
+            confirmLabel = stringResource(R.string.admin_users_remove_pin),
+            destructive = true,
+            onConfirm = {
+                asking = false
+                onRemovePin()
+            },
+            onDismiss = { asking = false },
         )
     }
 }
@@ -577,5 +676,6 @@ internal const val USER_PAGE = "pley.admin.users.user"
 internal const val USER_PASSWORD = "pley.admin.users.user.password"
 internal const val USER_ADMIN = "pley.admin.users.user.admin"
 internal const val USER_DISABLED = "pley.admin.users.user.disabled"
+internal const val USER_REMOVE_PIN = "pley.admin.users.user.removePin"
 internal const val USER_SIGN_OUT_EVERYWHERE = "pley.admin.users.user.signout"
 internal const val USER_DELETE = "pley.admin.users.user.delete"

@@ -11,6 +11,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
@@ -22,6 +23,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.model.RequestAccess
+import app.pley.android.screens.admin.AdminLoad
 import app.pley.android.screens.admin.users.AccountKind
 import app.pley.android.screens.admin.users.NewUserProblem
 import app.pley.android.screens.admin.users.NewUserViewModel
@@ -66,7 +68,7 @@ internal fun NewUserPage() {
     val navigator = LocalPhoneNavigator.current
     val shell = LocalPhoneShell.current
     val resources = LocalResources.current
-    var dialog by remember { mutableStateOf<NewUserDialog?>(null) }
+    var dialog by rememberSaveable { mutableStateOf<NewUserDialog?>(null) }
     var problem by remember { mutableStateOf<NewUserProblem?>(null) }
 
     LaunchedEffect(created) {
@@ -77,7 +79,8 @@ internal fun NewUserPage() {
     AdminEvents(model)
 
     val managed = form.managed
-    AdminPage(title = stringResource(R.string.admin_users_add), load = load, onRetry = model.libraries::reload, tag = NEW_USER_PAGE) { libraries ->
+    val lost by model.lost.collectAsStateWithLifecycle()
+    AdminPage(title = stringResource(R.string.admin_users_add), load = load, onRetry = model.libraries::reload, tag = NEW_USER_PAGE, lost = lost) { libraries ->
         item(key = "kind") {
             Column(Modifier.adminWidth, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 SegmentedControl(
@@ -151,7 +154,7 @@ internal fun NewUserPage() {
             AccessGroup(
                 access = form.access,
                 libraries = libraries,
-                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey),
+                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey, ratingSystems is AdminLoad.Loading),
                 onLibraries = { all, ids -> model.edit { it.copy(access = it.access.copy(allLibraries = all, libraryIds = ids)) } },
                 onAgeLimit = { access -> model.edit { it.copy(access = access) } },
                 onLabels = { show, hide -> model.edit { it.copy(access = it.access.copy(showLabels = show, hideLabels = hide)) } },
@@ -184,6 +187,7 @@ internal fun NewUserPage() {
         }
     }
 
+    if (lost) return
     val close = { dialog = null }
     when (dialog) {
         NewUserDialog.Username -> TextEntryDialog(
@@ -225,7 +229,7 @@ internal fun NewUserPage() {
             TextEntryDialog(
                 title = stringResource(R.string.admin_users_pin),
                 initial = form.pin,
-                entry = Entry.Number,
+                entry = Entry.Pin,
                 hint = stringResource(R.string.admin_users_pin_hint),
                 // Empty takes the PIN away again: it is optional.
                 check = { typed -> if (typed.isEmpty() || pinOk(typed)) null else digits },

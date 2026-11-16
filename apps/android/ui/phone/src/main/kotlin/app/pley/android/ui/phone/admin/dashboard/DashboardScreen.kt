@@ -82,6 +82,7 @@ import app.pley.android.screens.admin.AdminDone
 import app.pley.android.screens.admin.AdminLoad
 import app.pley.android.screens.admin.dashboard.DashboardHistory
 import app.pley.android.screens.admin.dashboard.DashboardPlay
+import app.pley.android.screens.admin.dashboard.DashboardStale
 import app.pley.android.screens.admin.dashboard.DashboardViewModel
 import app.pley.android.screens.admin.dashboard.dashboardTranscodeSummary
 import app.pley.android.screens.admin.dashboard.sessionArt
@@ -89,6 +90,7 @@ import app.pley.android.screens.admin.valueOrNull
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.account.absolute
 import app.pley.android.ui.phone.admin.AdminEvents
+import app.pley.android.ui.phone.admin.AdminLost
 import app.pley.android.ui.phone.admin.WhileShown
 import app.pley.android.ui.phone.admin.adminWidth
 import app.pley.android.ui.phone.kit.Avatar
@@ -100,6 +102,10 @@ import app.pley.android.ui.phone.kit.TonalButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 import app.pley.android.ui.phone.shell.LocalPhoneShell
 import app.pley.android.ui.phone.theme.LocalPhoneMetrics
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 import kotlinx.coroutines.delay
 
 /**
@@ -147,21 +153,29 @@ internal fun DashboardScreen(id: String?) {
     val removing by model.removing.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val origin by model.origin.collectAsStateWithLifecycle()
+    val lost by model.lost.collectAsStateWithLifecycle()
+    val stale by model.stale.collectAsStateWithLifecycle()
 
-    var stopping by remember { mutableStateOf<DashboardSession?>(null) }
+    // The id of the session being stopped: the question stays when the phone turns.
+    var stopping by rememberSaveable { mutableStateOf<String?>(null) }
     var cleaning by rememberSaveable { mutableStateOf(false) }
 
     val list = rememberLazyListState()
     val metrics = LocalPhoneMetrics.current
     Column(Modifier.fillMaxSize().testTag(DASHBOARD_PAGE)) {
         PleyTopAppBar(title = stringResource(R.string.admin_section_dashboard), onBack = navigator::back, scrolled = { list.canScrollBackward })
+        if (lost) {
+            AdminLost()
+            return@Column
+        }
         LazyColumn(
             state = list,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = metrics.marginStart, end = metrics.marginEnd, bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            nowPlaying(activity, origin, onOpen = { navigator.open(opens(it)) }, onStop = { stopping = it })
+            stale?.let { item(key = "stale", contentType = "stale") { StaleBanner(it, Modifier.padding(top = 8.dp)) } }
+            nowPlaying(activity, origin, live = stale == null, onOpen = { navigator.open(opens(it)) }, onStop = { stopping = it.sessionId })
             item(key = "resources", contentType = "heading") { SectionHeading(stringResource(R.string.admin_dashboard_resources), PleyIcons.Gauge) }
             item(key = "resources.body", contentType = "resources") { ResourcesBody(usage) }
             recentlyPlayed(
@@ -181,7 +195,9 @@ internal fun DashboardScreen(id: String?) {
         }
     }
 
-    stopping?.let { session ->
+    if (lost) return
+    // Gone from the list (it ended meanwhile): nothing left to ask.
+    activity.valueOrNull?.sessions?.firstOrNull { it.sessionId == stopping }?.let { session ->
         StopDialog(
             session = session,
             onStop = { message ->
@@ -212,9 +228,42 @@ private fun opens(item: ItemSummary): PleyKey = when (item.kind) {
     else -> PleyKey.Item(item.id)
 }
 
+/**
+ * Says the live numbers stopped updating ([stale]): from what time they
+ * are, and why, until the server answers again.
+ */
+@Composable
+internal fun StaleBanner(stale: DashboardStale, modifier: Modifier = Modifier) {
+    val locale = formatWords().locale
+    val time = remember(stale.since, locale) {
+        DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(Instant.ofEpochSecond(stale.since).atZone(ZoneId.systemDefault()))
+    }
+    Row(
+        modifier
+            .adminWidth
+            .padding(bottom = 8.dp)
+            .clip(PleyShape.Card)
+            .background(PleyColors.Amber.copy(alpha = 0.08f))
+            .padding(16.dp)
+            .testTag(STALE_BANNER),
+    ) {
+        Icon(PleyIcons.ServerOff, contentDescription = null, size = 18.dp, tint = PleyColors.Amber)
+        Spacer(Modifier.width(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(stringResource(R.string.admin_dashboard_stale_title, time), style = MaterialTheme.typography.bodyMedium, color = PleyColors.Fg)
+            Text(
+                errorSentence(stale.error).asString() + " " + stringResource(R.string.admin_dashboard_stale_text),
+                style = MaterialTheme.typography.bodySmall,
+                color = PleyColors.Muted,
+            )
+        }
+    }
+}
+
 private fun LazyListScope.nowPlaying(
     activity: AdminLoad<DashboardActivity>,
     origin: String,
+    live: Boolean,
     onOpen: (ItemSummary) -> Unit,
     onStop: (DashboardSession) -> Unit,
 ) {
@@ -230,7 +279,7 @@ private fun LazyListScope.nowPlaying(
         }
         sessions.isEmpty() -> item(key = "playing.none", contentType = "line") { QuietLine(stringResource(R.string.admin_dashboard_nobody_watching)) }
         else -> items(sessions, key = { "session:" + it.sessionId }, contentType = { "session" }) { session ->
-            SessionCard(session, receivedAtMs, origin, onOpen = { onOpen(session.item) }, onStop = { onStop(session) }, modifier = Modifier.animateItem())
+            SessionCard(session, receivedAtMs, origin, onOpen = { onOpen(session.item) }, onStop = { onStop(session) }, modifier = Modifier.animateItem(), live = live)
         }
     }
 }
@@ -246,7 +295,9 @@ internal fun Loading() {
  * Someone's playback, as the web's SessionCard: its picture, what, where
  * and what plays it, whether it plays, who, how far, and how it plays.
  * While it plays, its time moves on each second from when the list came
- * ([receivedAtMs], by [clockMs]), as the web's does between reads.
+ * ([receivedAtMs], by [clockMs]), as the web's does between reads; not
+ * while the list isn't [live] (reading it again fails), when it stays
+ * where the list last had it.
  */
 @Composable
 internal fun SessionCard(
@@ -257,6 +308,7 @@ internal fun SessionCard(
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
     clockMs: () -> Long = ::dashboardClockMs,
+    live: Boolean = true,
 ) {
     val words = formatWords()
     val item = session.item
@@ -264,9 +316,10 @@ internal fun SessionCard(
     val art = remember(item, origin) { ArtworkImage(sessionArt(item).map { absolute(it, origin) }) }
     val duration = item.durationMs ?: 0L
     val playing = session.state == "playing"
-    val nowMs by produceState(clockMs(), playing, receivedAtMs) {
-        value = clockMs()
-        while (playing) {
+    val ticking = playing && live
+    val nowMs by produceState(if (live) clockMs() else receivedAtMs, ticking, receivedAtMs) {
+        value = if (live) clockMs() else receivedAtMs
+        while (ticking) {
             delay(1_000)
             value = clockMs()
         }
@@ -564,7 +617,7 @@ private fun PlayLine(play: DashboardPlay, origin: String, removing: Boolean, onO
                 Text(play.user.name, style = MaterialTheme.typography.bodySmall, color = PleyColors.Muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
         }
-        PleyIconButton(PleyIcons.X, stringResource(R.string.admin_dashboard_remove), onClick = onRemove, enabled = !removing, tint = PleyColors.Muted)
+        PleyIconButton(PleyIcons.X, stringResource(R.string.admin_dashboard_remove, row.title), onClick = onRemove, enabled = !removing, tint = PleyColors.Muted)
     }
 }
 
@@ -579,3 +632,4 @@ internal const val STOP_BUTTON = "pley.admin.dashboard.stop"
 internal const val STOP_CONFIRM = "pley.admin.dashboard.stop.confirm"
 internal const val STOP_MESSAGE = "pley.admin.dashboard.stop.message"
 internal const val STATE_ICON = "pley.admin.dashboard.state"
+internal const val STALE_BANNER = "pley.admin.dashboard.stale"

@@ -1,7 +1,6 @@
 package app.pley.android.screens.admin.users
 
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.pley.android.data.ServerAdmin
@@ -21,11 +20,10 @@ import app.pley.android.screens.admin.AdminViewModel
 import app.pley.android.screens.admin.valueOrNull
 import app.pley.android.screens.screensGraph
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
@@ -35,8 +33,12 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 
-/** An account's page: the account, and whether another enabled administrator is left besides it. */
-data class UserPage(val user: UserAccount, val otherAdmins: Int) {
+/**
+ * An account's page: the account, whether another enabled administrator
+ * is left besides it, and whether it is the signed-in administrator's own
+ * ([self]).
+ */
+data class UserPage(val user: UserAccount, val otherAdmins: Int, val self: Boolean = false) {
     /** Pley always keeps one enabled administrator. */
     val lastAdmin: Boolean get() = user.isAdmin && otherAdmins == 0
 }
@@ -50,7 +52,8 @@ data class UserPage(val user: UserAccount, val otherAdmins: Int) {
  * The server refuses changes to the administrator's own password, PIN,
  * two-step sign-in, sign-ins, disabling and deleting, and to an app their
  * own name, devices and apps too, which stay in the web app's Account;
- * the page doesn't offer them on one's own account ([self]). From an app
+ * the page doesn't offer them on one's own account ([UserPage.self]),
+ * which it waits to know before showing anything. From an app
  * it also makes no administrator, nor changes another one's password, PIN
  * or two-step sign-in: the web app does, as either would take whoever
  * holds the phone into it as an administrator.
@@ -63,7 +66,7 @@ class UserViewModel(
     val page = resource {
         val all = get(ListSerializer(UserAccount.serializer()), USERS)
         val user = all.firstOrNull { it.id == id } ?: throw ApiException(404, "not_found", "user not found")
-        UserPage(user, all.count { it.isAdmin && !it.disabled && it.id != id })
+        UserPage(user, all.count { it.isAdmin && !it.disabled && it.id != id }, self = isSelf())
     }
     val libraries = resource { get(ListSerializer(Library.serializer()), LIBRARIES) }
     val server = resource { get(ServerInfo.serializer(), SERVER) }
@@ -81,11 +84,13 @@ class UserViewModel(
      */
     val deleted: StateFlow<String?> = gone.asStateFlow()
 
-    /** The account is the signed-in administrator's own, once the session knows who that is. */
-    val self: StateFlow<Boolean> =
-        session.map { it?.me?.id == id }.stateIn(viewModelScope, SharingStarted.Eagerly, isSelf())
-
-    private fun isSelf(): Boolean = session.value?.me?.id == id
+    /**
+     * Whether the account is the signed-in administrator's own, once the
+     * session knows who that is: right after the app is recreated it reads
+     * its sign-in back first, and until then every account would look like
+     * someone else's (offering to disable or delete one's own).
+     */
+    private suspend fun isSelf(): Boolean = session.mapNotNull { it?.me }.first().id == id
 
     /** [user]'s picture, on the signed-in server. */
     fun avatar(user: UserAccount): String? = avatarOf(user, session.value?.issuer)
@@ -102,12 +107,14 @@ class UserViewModel(
     /**
      * A new password, which signs the account out everywhere; a managed
      * profile's makes it an account. Its devices and apps are read again,
-     * as the server has just signed them out.
+     * as the server has just signed them out. [done]: whether the server
+     * took it (a common password it refuses isn't).
      */
-    fun setPassword(password: String) = patch(buildJsonObject { put("password", password) }, said = SAVED) {
-        devices.reload()
-        apps.reload()
-    }
+    fun setPassword(password: String, done: (Boolean) -> Unit = {}) =
+        patch(buildJsonObject { put("password", password) }, said = SAVED, done = done) {
+            devices.reload()
+            apps.reload()
+        }
 
     /**
      * No longer an administrator (the web app makes one). The account is
@@ -176,7 +183,8 @@ class UserViewModel(
         if (body.isNotEmpty()) patch(body, then = labels::reload)
     }
 
-    fun setPin(pin: String) = patch(buildJsonObject { put("pin", pin) })
+    /** A new PIN; [done]: whether the server took it. */
+    fun setPin(pin: String, done: (Boolean) -> Unit = {}) = patch(buildJsonObject { put("pin", pin) }, done = done)
 
     fun removePin() = patch(buildJsonObject { put("pin", JsonNull) })
 
@@ -219,16 +227,17 @@ class UserViewModel(
     /**
      * Sends [body] to the account; what the server answers is shown. A
      * refusal reads the account again, so the page shows what it has.
-     * [then] runs after, whatever the answer.
+     * [then] runs after, whatever the answer; [done] says which it was.
      */
-    private fun patch(body: JsonObject, said: String? = null, then: () -> Unit = {}) {
-        val user = user ?: return
+    private fun patch(body: JsonObject, said: String? = null, done: (Boolean) -> Unit = {}, then: () -> Unit = {}) {
+        val user = user ?: return done(false)
         var took = false
         change(
             said = said?.let { AdminDone(it, listOf(user.name)) },
             after = {
                 if (!took) page.reload()
                 then()
+                done(took)
             },
         ) {
             val answer = send("PATCH", UserAccount.serializer(), listOf("api", "users", id), body)

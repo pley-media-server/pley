@@ -33,6 +33,12 @@ interface ServerAdmin {
     /** The administrators' routes for the signed-in profile; throws when signed out. */
     suspend fun api(): AdminApi
 
+    /**
+     * Asks the server again who the profile is, after it refused to let the
+     * app manage it (the role taken away elsewhere): [access] then says so.
+     */
+    suspend fun recheck() {}
+
     /** No server to manage: TVs, and tests that don't make one. */
     object None : ServerAdmin {
         override val access: Flow<AdminAccess> = flowOf(AdminAccess.None)
@@ -55,10 +61,12 @@ interface ServerAdmin {
 
 /** [ServerAdmin] for the session [sessions] holds, through [cache]'s clients. */
 internal class SessionServerAdmin(
-    sessions: SessionRepository,
+    private val sessions: SessionRepository,
     private val cache: ResourceCache,
 ) : ServerAdmin {
     override val access: Flow<AdminAccess> = sessions.session.map(ServerAdmin::accessOf).distinctUntilChanged()
 
     override suspend fun api(): AdminApi = cache.api(cache.profile()).admin
+
+    override suspend fun recheck() = sessions.refresh()
 }

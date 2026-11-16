@@ -49,6 +49,13 @@ class FakeServerAdmin(access: AdminAccess = AdminAccess.Manages) : ServerAdmin {
 
     override suspend fun api(): AdminApi = api
 
+    /** How many times the pages asked who the profile is again ([ServerAdmin.recheck]). */
+    var rechecks = 0
+
+    override suspend fun recheck() {
+        rechecks += 1
+    }
+
     private val api = object : AdminApi {
         override suspend fun <T> get(answer: DeserializationStrategy<T>, path: List<Any>, query: List<Pair<String, String?>>): T =
             PleyJson.decodeFromJsonElement(answer, reply("GET", path, null, query) ?: JsonObject(emptyMap()))

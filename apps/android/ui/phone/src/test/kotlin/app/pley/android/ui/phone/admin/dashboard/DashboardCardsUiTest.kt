@@ -9,7 +9,12 @@ import androidx.compose.ui.test.performTextReplacement
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.admin.DashboardSession
+import app.pley.android.network.OfflineException
+import app.pley.android.screens.admin.dashboard.DashboardStale
 import app.pley.android.ui.phone.theme.PhoneTheme
+import java.io.IOException
+import java.time.LocalDateTime
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -92,6 +97,31 @@ class DashboardCardsUiTest {
         clock = 20_000L
         compose.mainClock.advanceTimeBy(2_000)
         compose.onNodeWithText("bea · 1:00 / 10:00").assertExists()
+    }
+
+    @Test
+    fun aPlayingSessionStaysWhereTheListHadItWhileTheListIsntUpdating() {
+        var clock = 10_000L
+        compose.mainClock.autoAdvance = false
+        compose.setContent {
+            PhoneTheme {
+                SessionCard(session("cast"), receivedAtMs = 10_000, origin = "", onOpen = {}, onStop = {}, clockMs = { clock }, live = false)
+            }
+        }
+        clock = 40_000L
+        compose.mainClock.advanceTimeBy(2_000)
+        compose.onNodeWithText("bea · 1:02 / 10:00").assertExists()
+    }
+
+    @Test
+    fun numbersThatStoppedUpdatingSaySinceWhenAndWhy() {
+        val since = LocalDateTime.of(2026, 11, 15, 14, 32).atZone(ZoneId.systemDefault()).toEpochSecond()
+        compose.setContent {
+            PhoneTheme { StaleBanner(DashboardStale(since, OfflineException(IOException("down")))) }
+        }
+        // The time as the language shown writes it ("2:32 PM").
+        compose.onNodeWithText("Not updating: these numbers are from 2:32", substring = true).assertExists()
+        compose.onNodeWithText("They update again once the server answers.", substring = true).assertExists()
     }
 
     @Test

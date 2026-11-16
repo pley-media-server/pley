@@ -62,6 +62,7 @@ import app.pley.android.screens.admin.valueOrNull
 import app.pley.android.screens.playlists.Playlists
 import app.pley.android.ui.phone.R
 import app.pley.android.ui.phone.admin.AdminEvents
+import app.pley.android.ui.phone.admin.AdminLost
 import app.pley.android.ui.phone.admin.WhileShown
 import app.pley.android.ui.phone.admin.adminWidth
 import app.pley.android.ui.phone.home.kindIcon
@@ -97,6 +98,7 @@ private fun LibrariesList() {
     val vm: LibrariesAdminViewModel = viewModel(factory = LibrariesAdminViewModel.factory)
     val load by vm.libraries.state.collectAsStateWithLifecycle()
     val scans by vm.scans.state.collectAsStateWithLifecycle()
+    val lost by vm.lost.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
     val resources = LocalResources.current
     val list = rememberLazyListState()
@@ -108,10 +110,11 @@ private fun LibrariesList() {
             title = stringResource(R.string.admin_libraries_title),
             onBack = navigator::back,
             scrolled = { list.canScrollBackward },
-            actions = { PleyIconButton(PleyIcons.Plus, stringResource(R.string.admin_libraries_add), onClick = add) },
+            actions = { if (!lost) PleyIconButton(PleyIcons.Plus, stringResource(R.string.admin_libraries_add), onClick = add) },
         )
         val libraries = load.valueOrNull
         when {
+            lost -> AdminLost()
             libraries != null -> LibraryList(libraries, scans.valueOrNull.orEmpty(), list, vm, add)
             load is AdminLoad.Failed -> ErrorState(stringResource(R.string.admin_libraries_couldnt_load), (load as AdminLoad.Failed).error, vm.libraries::reload)
             else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -281,7 +284,7 @@ private fun LibraryCard(
         Box(Modifier.heightIn(min = 48.dp), contentAlignment = Alignment.Center) {
             PleyIconButton(
                 PleyIcons.ScanSearch,
-                stringResource(R.string.admin_libraries_scan),
+                stringResource(R.string.admin_libraries_scan_library, library.name),
                 onClick = onScan,
                 enabled = !running,
                 modifier = Modifier.testTag(LIBRARY_SCAN + library.id),

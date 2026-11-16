@@ -6,6 +6,7 @@
     <string name="admin_invitations_empty_title">No invitations yet</string>
     <string name="admin_invitations_empty_description">Create a link and send it to someone. You choose which libraries they can see and an optional age limit.</string>
     <string name="admin_invitations_copy_link">Copy link</string>
+    <string name="admin_invitations_copy_link_of">Copy the link of invitation %1$s</string>
     <string name="admin_invitations_copied">Copied</string>
     <string name="admin_invitations_status_used">Used</string>
     <string name="admin_invitations_status_expired">Expired</string>
@@ -23,7 +24,7 @@
     <string name="admin_invitations_expired">expired %1$s</string>
     <string name="admin_invitations_never_expires">never expires</string>
     <string name="admin_invitations_created">created %1$s</string>
-    <string name="admin_invitations_delete">Delete invitation</string>
+    <string name="admin_invitations_delete">Delete invitation %1$s</string>
     <string name="admin_invitations_delete_title">Delete invitation?</string>
     <string name="admin_invitations_delete_message">The link stops working. Accounts already created with it are kept.</string>
     <string name="admin_invitations_delete_action">Delete</string>

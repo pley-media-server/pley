@@ -36,6 +36,7 @@ import app.pley.android.model.ServerInfo
 import app.pley.android.model.admin.RatingSystems
 import app.pley.android.model.admin.UserAccount
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.admin.AdminLoad
 import app.pley.android.screens.admin.AdminSection
 import app.pley.android.screens.admin.users.UsersViewModel
 import app.pley.android.screens.admin.users.mustSetUpTwoStep
@@ -78,6 +79,8 @@ private fun UsersList() {
     val ratingSystems by model.ratingSystems.state.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
     val add = { navigator.open(PleyKey.Manage(AdminSection.Users, PleyKey.Manage.NEW)) }
+    val lost by model.lost.collectAsStateWithLifecycle()
+    val selfId by model.selfId.collectAsStateWithLifecycle()
     AdminEvents(model)
     ShownAgain(model::shownAgain)
     AdminPage(
@@ -85,6 +88,7 @@ private fun UsersList() {
         load = load,
         onRetry = model.users::reload,
         tag = USERS_PAGE,
+        lost = lost,
         actions = { PleyIconButton(PleyIcons.UserPlus, stringResource(R.string.admin_users_add), onClick = add, modifier = Modifier.testTag(USERS_ADD)) },
     ) { users ->
         item(key = "intro") {
@@ -112,11 +116,12 @@ private fun UsersList() {
                         if (i > 0) RowDivider()
                         UserRow(
                             user = user,
-                            self = user.id == model.selfId,
+                            self = user.id == selfId,
                             picture = model.avatar(user),
                             libraries = libraries.valueOrNull,
                             server = server.valueOrNull,
                             systems = ratingSystems.valueOrNull,
+                            systemsLoading = ratingSystems is AdminLoad.Loading,
                             onOpen = { navigator.open(PleyKey.Manage(AdminSection.Users, user.id.toString())) },
                         )
                     }
@@ -134,6 +139,7 @@ private fun UserRow(
     libraries: List<Library>?,
     server: ServerInfo?,
     systems: RatingSystems?,
+    systemsLoading: Boolean,
     onOpen: () -> Unit,
 ) {
     Row(
@@ -166,7 +172,7 @@ private fun UserRow(
                     Text(extra, style = MaterialTheme.typography.bodySmall, color = PleyColors.Subtle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-            UserTags(user, libraries, server, systems, Modifier.padding(top = 6.dp))
+            UserTags(user, libraries, server, systems, systemsLoading, Modifier.padding(top = 6.dp))
         }
         Spacer(Modifier.width(12.dp))
         Icon(PleyIcons.ChevronRight, contentDescription = null, size = 20.dp, tint = PleyColors.Subtle)
@@ -175,14 +181,21 @@ private fun UserRow(
 
 /** An account's tags, as the web's badges: role, home, disabled, access, PIN, two-step sign-in. */
 @Composable
-private fun UserTags(user: UserAccount, libraries: List<Library>?, server: ServerInfo?, systems: RatingSystems?, modifier: Modifier = Modifier) {
+private fun UserTags(
+    user: UserAccount,
+    libraries: List<Library>?,
+    server: ServerInfo?,
+    systems: RatingSystems?,
+    systemsLoading: Boolean,
+    modifier: Modifier = Modifier,
+) {
     FlowRow(modifier, horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         if (user.isAdmin) Tag(stringResource(R.string.admin_users_badge_admin), TagTone.Accent)
         if (user.managed) Tag(stringResource(R.string.admin_users_badge_managed), TagTone.Info)
         if (user.home) Tag(stringResource(R.string.admin_users_badge_home))
         if (user.disabled) Tag(stringResource(R.string.admin_users_badge_disabled), TagTone.Danger)
         if (!user.isAdmin && !user.allLibraries) Tag(librariesLabel(false, user.libraryIds, libraries))
-        if (!user.isAdmin) ageTag(systems, user.maxAgeSystem, user.maxAge, user.birthMonth)?.let { Tag(it) }
+        if (!user.isAdmin) ageTag(systems, user.maxAgeSystem, user.maxAge, user.birthMonth, loading = systemsLoading)?.let { Tag(it) }
         if (user.hasPin) Tag(stringResource(R.string.admin_users_badge_pin), icon = PleyIcons.Lock)
         if (user.twoStep) {
             Tag(stringResource(R.string.admin_users_badge_two_step), TagTone.Success, PleyIcons.ShieldCheck)

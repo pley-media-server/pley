@@ -3,6 +3,8 @@
     <!-- Managing the server: the dashboard (apps/web/src/pages/settings/DashboardSettings.tsx, ResourcesSection.tsx, StorageSection.tsx). -->
     <string name="admin_dashboard_now_playing">Now playing</string>
     <string name="admin_dashboard_nobody_watching">Nobody is watching anything right now.</string>
+    <string name="admin_dashboard_stale_title">Not updating: these numbers are from %1$s</string>
+    <string name="admin_dashboard_stale_text">They update again once the server answers.</string>
     <string name="admin_dashboard_method_direct">Direct Play</string>
     <string name="admin_dashboard_method_remux">Remux</string>
     <string name="admin_dashboard_method_transcode">Transcode</string>
@@ -102,7 +104,7 @@
     <string name="admin_dashboard_recently_played">Recently played</string>
     <string name="admin_dashboard_nothing_played">Nothing has been played to the end yet.</string>
     <string name="admin_dashboard_show_more">Show more</string>
-    <string name="admin_dashboard_remove">Remove from history</string>
+    <string name="admin_dashboard_remove">Remove %1$s from history</string>
     <string name="admin_dashboard_library_scans">Library scans</string>
     <string name="admin_dashboard_scan_queued">Queued</string>
     <string name="admin_dashboard_scan_walking">Finding files</string>

@@ -96,7 +96,7 @@ class LibrariesAdminViewModel(admin: ServerAdmin) : AdminViewModel(admin) {
         shown = true
         while (true) {
             delay(LibraryAdmin.SCAN_POLL_MS)
-            if (scanning().isNotEmpty()) poll()
+            if (!lost.value && scanning().isNotEmpty()) poll()
         }
     }
 
@@ -111,7 +111,8 @@ class LibrariesAdminViewModel(admin: ServerAdmin) : AdminViewModel(admin) {
             admin().readScans()
         } catch (e: CancellationException) {
             throw e
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            refused(e, reading = true)
             return
         }
         scans.set(now)

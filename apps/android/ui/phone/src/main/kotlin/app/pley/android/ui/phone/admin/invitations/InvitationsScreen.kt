@@ -21,6 +21,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +48,7 @@ import app.pley.android.model.admin.RatingSystems
 import app.pley.android.model.format.FormatWords
 import app.pley.android.model.format.formatRelative
 import app.pley.android.screens.PleyKey
+import app.pley.android.screens.admin.AdminLoad
 import app.pley.android.screens.admin.AdminSection
 import app.pley.android.screens.admin.invitations.EXPIRY_DAYS
 import app.pley.android.screens.admin.invitations.InvitationState
@@ -104,17 +106,20 @@ private fun InvitationsList() {
     val navigator = LocalPhoneNavigator.current
     val resources = LocalResources.current
     val copy = rememberCopy()
-    var deleting by remember { mutableStateOf<Invitation?>(null) }
+    // The code of the link being deleted: the question stays when the phone turns.
+    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     val add = { navigator.open(PleyKey.Manage(AdminSection.Invitations, PleyKey.Manage.NEW)) }
     AdminEvents(model) { done -> if (done.what == InvitationsViewModel.DELETED) resources.getString(R.string.admin_invitations_deleted) else null }
     ShownAgain(model::shownAgain)
     val now by model.now.collectAsStateWithLifecycle()
+    val lost by model.lost.collectAsStateWithLifecycle()
     val words = formatWords()
     AdminPage(
         title = stringResource(R.string.admin_section_invitations),
         load = load,
         onRetry = model.invitations::reload,
         tag = INVITATIONS_PAGE,
+        lost = lost,
         actions = { PleyIconButton(PleyIcons.MailPlus, stringResource(R.string.admin_invitations_new), onClick = add, modifier = Modifier.testTag(INVITATIONS_ADD)) },
     ) { invitations ->
         item(key = "intro") {
@@ -147,15 +152,17 @@ private fun InvitationsList() {
                             words = words,
                             libraries = libraries.valueOrNull,
                             systems = ratingSystems.valueOrNull,
+                            systemsLoading = ratingSystems is AdminLoad.Loading,
                             onCopy = model.link(invitation)?.let { link -> { copy(link) } },
-                            onDelete = { deleting = invitation },
+                            onDelete = { deleting = invitation.code },
                         )
                     }
                 }
             }
         }
     }
-    deleting?.let { invitation ->
+    if (lost) return
+    load.valueOrNull?.firstOrNull { it.code == deleting }?.let { invitation ->
         ConfirmDialog(
             title = stringResource(R.string.admin_invitations_delete_title),
             body = stringResource(R.string.admin_invitations_delete_message),
@@ -183,6 +190,7 @@ private fun InvitationRow(
     words: FormatWords,
     libraries: List<Library>?,
     systems: RatingSystems?,
+    systemsLoading: Boolean,
     onCopy: (() -> Unit)?,
     onDelete: () -> Unit,
 ) {
@@ -199,7 +207,7 @@ private fun InvitationRow(
                     InvitationState.Expired -> Tag(stringResource(R.string.admin_invitations_status_expired), TagTone.Danger)
                 }
                 Tag(librariesLabel(invitation.allLibraries, invitation.libraryIds, libraries))
-                ageTag(systems, invitation.maxAgeSystem, invitation.maxAge)?.let { Tag(it) }
+                ageTag(systems, invitation.maxAgeSystem, invitation.maxAge, loading = systemsLoading)?.let { Tag(it) }
             }
             val expires = invitation.expiresAt
             val line = listOfNotNull(
@@ -222,9 +230,9 @@ private fun InvitationRow(
             )
         }
         if (state == InvitationState.Active && onCopy != null) {
-            PleyIconButton(PleyIcons.Copy, stringResource(R.string.admin_invitations_copy_link), onClick = onCopy, tint = PleyColors.Muted)
+            PleyIconButton(PleyIcons.Copy, stringResource(R.string.admin_invitations_copy_link_of, invitation.code), onClick = onCopy, tint = PleyColors.Muted)
         }
-        PleyIconButton(PleyIcons.Trash2, stringResource(R.string.admin_invitations_delete), onClick = onDelete, tint = PleyColors.Muted)
+        PleyIconButton(PleyIcons.Trash2, stringResource(R.string.admin_invitations_delete, invitation.code), onClick = onDelete, tint = PleyColors.Muted)
     }
 }
 
@@ -246,11 +254,18 @@ private fun NewInvitationPage() {
     val busy by model.busy.collectAsStateWithLifecycle()
     val created by model.created.collectAsStateWithLifecycle()
     val navigator = LocalPhoneNavigator.current
-    var dialog by remember { mutableStateOf<NewInvitationDialog?>(null) }
+    var dialog by rememberSaveable { mutableStateOf<NewInvitationDialog?>(null) }
     var problem by remember { mutableStateOf<NewInvitationProblem?>(null) }
+    val lost by model.lost.collectAsStateWithLifecycle()
     AdminEvents(model)
 
-    AdminPage(title = stringResource(R.string.admin_invitations_new), load = load, onRetry = model.libraries::reload, tag = NEW_INVITATION_PAGE) { libraries ->
+    AdminPage(
+        title = stringResource(R.string.admin_invitations_new),
+        load = load,
+        onRetry = model.libraries::reload,
+        tag = NEW_INVITATION_PAGE,
+        lost = lost,
+    ) { libraries ->
         item(key = "intro") {
             Text(
                 stringResource(R.string.admin_invitations_intro),
@@ -291,7 +306,7 @@ private fun NewInvitationPage() {
             AccessGroup(
                 access = form.access,
                 libraries = libraries,
-                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey),
+                sources = AccessSources(ratingSystems.valueOrNull, labels.valueOrNull, metadataKeys.valueOrNull?.tmdbKey, ratingSystems is AdminLoad.Loading),
                 onLibraries = { all, ids -> model.edit { it.copy(access = it.access.copy(allLibraries = all, libraryIds = ids)) } },
                 onAgeLimit = { access -> model.edit { it.copy(access = access) } },
                 onLabels = { show, hide -> model.edit { it.copy(access = it.access.copy(showLabels = show, hideLabels = hide)) } },
@@ -321,6 +336,7 @@ private fun NewInvitationPage() {
         }
     }
 
+    if (lost) return
     val close = { dialog = null }
     when (dialog) {
         NewInvitationDialog.Expiry -> ChoiceSheet(

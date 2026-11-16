@@ -24,7 +24,7 @@ data class Library(
     val id: Long,
     val name: String,
     val kind: LibraryKind,
-    /** Where the server keeps the media: empty for an app's token, but for one that manages the server. */
+    /** Where the server keeps the media: empty for an app's token, but for one that manages the server; never saved on the device. */
     val paths: List<String> = emptyList(),
     /** Top-level items: movies, shows or artists. */
     val itemCount: Int = 0,

@@ -15,6 +15,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -100,6 +101,63 @@ class AdminViewModelTest {
         assertTrue(done.isEmpty())
         assertEquals(2, server.callsTo("GET /api/names").size)
         assertEquals(AdminLoad.Ready(listOf("Ann")), page.names.state.value)
+    }
+
+    @Test
+    fun aReadTheServerRefusesMeansThePhoneNoLongerManagesIt() = runTest {
+        val server = FakeServerAdmin()
+        server.answer("GET /api/names", """["Ann"]""")
+        val page = Names(server)
+        val errors = mutableListOf<Throwable>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { page.errors.collect { errors += it } }
+        assertFalse(page.lost.value)
+
+        // The role was taken away in the web app: the next read is refused.
+        server.fail("GET /api/names", ApiException(403, "forbidden", "administrator rights required"))
+        page.names.reload()
+        assertTrue(page.lost.value)
+        assertTrue("said by the page, not toasted", errors.isEmpty())
+        assertEquals("Me is told to ask who the profile is", 1, server.rechecks)
+        // What follows isn't toasted either, nor asked about again.
+        server.fail("PUT /api/names", ApiException(403, "forbidden", "administrator rights required"))
+        page.rename("Bea").join()
+        page.names.reload()
+        assertTrue(errors.isEmpty())
+        assertEquals(1, server.rechecks)
+    }
+
+    @Test
+    fun aChangeTheServerRefusesOnItsOwnIsSaidAndTheReadAfterTells() = runTest {
+        val server = FakeServerAdmin()
+        server.answer("GET /api/names", """["Ann"]""")
+        // A 403 of the change's own (making an administrator, from an app): still managing.
+        val own = ApiException(403, "forbidden", "administrators are made in the web app")
+        server.fail("PUT /api/names", own)
+        val page = Names(server)
+        val errors = mutableListOf<Throwable>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { page.errors.collect { errors += it } }
+        page.rename("Bea").join()
+        assertEquals(listOf<Throwable>(own), errors)
+        assertFalse(page.lost.value)
+
+        // A scope the sign-in hasn't any more: lost, whatever the call.
+        server.fail("PUT /api/names", ApiException(403, "insufficient_scope", "this app may not do that", scope = "server"))
+        page.rename("Cid").join()
+        assertTrue(page.lost.value)
+        assertEquals(1, errors.size)
+    }
+
+    @Test
+    fun anotherProfileOnThePhoneMeansItNoLongerManagesTheServer() = runTest {
+        // The session reads as None for a moment as the app starts: that isn't losing it.
+        val server = FakeServerAdmin(AdminAccess.None).apply { answer("GET /api/names", """["Ann"]""") }
+        val page = Names(server)
+        assertFalse(page.lost.value)
+        server.accessState.value = AdminAccess.Manages
+        assertFalse(page.lost.value)
+        // A cast moved the phone to another profile.
+        server.accessState.value = AdminAccess.None
+        assertTrue(page.lost.value)
     }
 
     @Test

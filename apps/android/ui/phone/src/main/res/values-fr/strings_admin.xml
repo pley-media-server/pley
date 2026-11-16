@@ -19,6 +19,9 @@
     <string name="admin_not_admin_title">Seuls les administrateurs gèrent le serveur</string>
     <string name="admin_not_admin_body">Connectez-vous avec un compte administrateur pour le gérer depuis ce téléphone.</string>
     <string name="admin_load_failed">Impossible de charger cette page</string>
+    <string name="admin_lost_title">Vous ne pouvez plus gérer ce serveur</string>
+    <string name="admin_lost_body">Le serveur ne laisse plus ce téléphone le gérer : le rôle d’administrateur du compte ou l’autorisation de cette connexion a été retiré, ou un autre profil est connecté.</string>
+    <string name="admin_lost_action">Retour à Moi</string>
     <string name="admin_loading">Chargement…</string>
     <string name="admin_save">Enregistrer</string>
     <string name="admin_cancel">Annuler</string>

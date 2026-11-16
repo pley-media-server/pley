@@ -20,6 +20,9 @@
     <string name="admin_not_admin_title">Only administrators manage the server</string>
     <string name="admin_not_admin_body">Sign in with an administrator\'s account to manage it from this phone.</string>
     <string name="admin_load_failed">Couldn\'t load this page</string>
+    <string name="admin_lost_title">You can no longer manage this server</string>
+    <string name="admin_lost_body">The server stopped letting this phone manage it: the account\'s administrator role or this sign-in\'s permission was taken away, or another profile is signed in.</string>
+    <string name="admin_lost_action">Back to Me</string>
     <string name="admin_loading">Loading…</string>
     <string name="admin_save">Save</string>
     <string name="admin_cancel">Cancel</string>

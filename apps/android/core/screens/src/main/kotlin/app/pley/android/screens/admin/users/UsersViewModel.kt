@@ -1,6 +1,7 @@
 package app.pley.android.screens.admin.users
 
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
 import app.pley.android.data.ServerAdmin
@@ -11,7 +12,10 @@ import app.pley.android.model.admin.RatingSystems
 import app.pley.android.model.admin.UserAccount
 import app.pley.android.screens.admin.AdminViewModel
 import app.pley.android.screens.screensGraph
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.serialization.builtins.ListSerializer
 
 /**
@@ -28,8 +32,8 @@ class UsersViewModel(admin: ServerAdmin, private val session: StateFlow<Session?
     /** What the rows' age limits are shown in ("Up to PG-13"). */
     val ratingSystems = resource { get(RatingSystems.serializer(), RATING_SYSTEMS) }
 
-    /** The signed-in account, marked "(you)". */
-    val selfId: Long? get() = session.value?.me?.id
+    /** The signed-in account, marked "(you)"; `null` until the session knows who it is, right after the app is recreated. */
+    val selfId: StateFlow<Long?> = session.map { it?.me?.id }.stateIn(viewModelScope, SharingStarted.Eagerly, session.value?.me?.id)
 
     /** [user]'s picture, on the signed-in server. */
     fun avatar(user: UserAccount): String? = avatarOf(user, session.value?.issuer)
