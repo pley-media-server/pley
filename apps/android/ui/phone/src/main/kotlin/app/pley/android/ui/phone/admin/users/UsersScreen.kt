@@ -79,6 +79,7 @@ private fun UsersList() {
     val navigator = LocalPhoneNavigator.current
     val add = { navigator.open(PleyKey.Manage(AdminSection.Users, PleyKey.Manage.NEW)) }
     val lost by model.lost.collectAsStateWithLifecycle()
+    val selfId by model.selfId.collectAsStateWithLifecycle()
     AdminEvents(model)
     ShownAgain(model::shownAgain)
     AdminPage(
@@ -114,7 +115,7 @@ private fun UsersList() {
                         if (i > 0) RowDivider()
                         UserRow(
                             user = user,
-                            self = user.id == model.selfId,
+                            self = user.id == selfId,
                             picture = model.avatar(user),
                             libraries = libraries.valueOrNull,
                             server = server.valueOrNull,

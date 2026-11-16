@@ -122,7 +122,6 @@ internal fun UserAccountPage(id: Long) {
         }
     }
 
-    val self by model.self.collectAsStateWithLifecycle()
     val lost by model.lost.collectAsStateWithLifecycle()
     val twoStepRequired = server.valueOrNull?.twoStepRequired == true
     AdminPage(
@@ -133,6 +132,7 @@ internal fun UserAccountPage(id: Long) {
         lost = lost,
     ) { page ->
         val user = page.user
+        val self = page.self
         val idle = busy == 0
         item(key = "header") { Header(user, model.avatar(user)) }
         item(key = "profile") { ProfileGroup(user, self, idle, onRename = { dialog = UserDialog.Rename }, onPassword = { dialog = UserDialog.Password }) }
