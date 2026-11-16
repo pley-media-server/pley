@@ -213,21 +213,22 @@ function Slide({ featured: { item, from } }: { featured: Featured }) {
           {detail.summary}
         </p>
       ) : null}
-      <div className="mt-6 flex items-center justify-center gap-3 sm:justify-start">
+      <div className="mt-6 flex flex-wrap items-center justify-center gap-2 sm:justify-start sm:gap-3">
         <button
           type="button"
           onClick={() => void play(item)}
-          className="inline-flex h-12 items-center gap-2.5 rounded-md bg-white px-6 text-[15px] font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-white/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98] sm:px-7 sm:text-base"
+          className="inline-flex h-12 items-center gap-2 whitespace-nowrap rounded-md bg-white px-4 sm:gap-2.5 text-[15px] font-semibold text-black shadow-lg shadow-black/30 transition hover:bg-white/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent active:scale-[0.98] sm:px-7 sm:text-base"
         >
           <Play className="size-5 fill-current" aria-hidden />
           {resume ? t("common:actions.resume") : t("common:actions.play")}
+          {/* Not on phones, where it crowds the buttons and Continue Watching just below says it too. */}
           {resume ? (
-            <span className="font-normal text-black/60">{formatRemaining(item.user_state.position_ms, item.duration_ms)}</span>
+            <span className="hidden font-normal text-black/60 sm:inline">{formatRemaining(item.user_state.position_ms, item.duration_ms)}</span>
           ) : null}
         </button>
         <Link
           to={itemUrl(item.id)}
-          className="inline-flex h-12 items-center gap-2.5 rounded-md bg-white/15 px-5 text-[15px] font-semibold text-white ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-6 sm:text-base"
+          className="inline-flex h-12 items-center gap-2 whitespace-nowrap rounded-md bg-white/15 px-4 sm:gap-2.5 text-[15px] font-semibold text-white ring-1 ring-white/15 backdrop-blur-md transition hover:bg-white/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent sm:px-6 sm:text-base"
         >
           <Info className="size-5" aria-hidden />
           {t("home.banner.moreInfo")}

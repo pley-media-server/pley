@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Changed
+
+- The home banner's More info button reads Más info in Spanish.
+
 ## [0.1.14] - 2026-11-16
 
 ### Added

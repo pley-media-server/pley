@@ -11,6 +11,9 @@ describes how they are made.
 
 ### Fixed
 
+- On a phone, the home banner's buttons keep to one line: Resume leaves
+  out the time left, which Continue Watching shows just below, and More
+  info reads Más info in Spanish.
 - Play on… lists Google Cast and AirPlay devices only where Pley listens
   on an address of their network. Behind a reverse proxy, with Pley
   listening on its own computer alone, it listed them all and every cast
