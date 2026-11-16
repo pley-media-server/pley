@@ -1,11 +1,23 @@
 package app.pley.android.ui.phone.admin.dashboard
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.unit.dp
 import app.pley.android.model.ItemKind
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.admin.DashboardSession
@@ -15,6 +27,7 @@ import app.pley.android.ui.phone.theme.PhoneTheme
 import java.io.IOException
 import java.time.LocalDateTime
 import java.time.ZoneId
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -25,7 +38,8 @@ import org.robolectric.annotation.Config
 /**
  * The dashboard's Now playing, as the web's: where a session plays and
  * what plays it, whether it plays, its time moving on while it plays, and
- * Stop's message offered only where the player shows one.
+ * Stop's message offered only where the player shows one; and the banner
+ * that says the numbers stopped updating.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(qualifiers = "w412dp-h915dp-xxhdpi")
@@ -122,6 +136,29 @@ class DashboardCardsUiTest {
         // The time as the language shown writes it ("2:32 PM").
         compose.onNodeWithText("Not updating: these numbers are from 2:32", substring = true).assertExists()
         compose.onNodeWithText("They update again once the server answers.", substring = true).assertExists()
+    }
+
+    @Test
+    fun theBannerStaysInViewWhereverThePageIsScrolled() {
+        var stale by mutableStateOf<DashboardStale?>(null)
+        val list = LazyListState()
+        compose.setContent {
+            PhoneTheme {
+                Column(Modifier.fillMaxSize()) {
+                    StaleSlot(stale)
+                    LazyColumn(Modifier.fillMaxSize(), state = list) {
+                        items(40, key = { it }) { Text("Row $it", Modifier.height(48.dp)) }
+                    }
+                }
+            }
+        }
+        compose.onNodeWithTag(STALE_BANNER).assertDoesNotExist()
+        compose.onNodeWithText("Row 0").assertIsDisplayed()
+        stale = DashboardStale(0, OfflineException(IOException("down")))
+        compose.onNodeWithTag(STALE_BANNER).assertIsDisplayed()
+        compose.onNodeWithText("Row 0").assertIsDisplayed()
+        compose.runOnIdle { runBlocking { list.scrollToItem(30) } }
+        compose.onNodeWithTag(STALE_BANNER).assertIsDisplayed()
     }
 
     @Test

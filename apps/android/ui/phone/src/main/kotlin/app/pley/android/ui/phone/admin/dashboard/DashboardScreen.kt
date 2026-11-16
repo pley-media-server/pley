@@ -168,13 +168,13 @@ internal fun DashboardScreen(id: String?) {
             AdminLost()
             return@Column
         }
+        StaleSlot(stale)
         LazyColumn(
             state = list,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = metrics.marginStart, end = metrics.marginEnd, bottom = 32.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            stale?.let { item(key = "stale", contentType = "stale") { StaleBanner(it, Modifier.padding(top = 8.dp)) } }
             nowPlaying(activity, origin, live = stale == null, onOpen = { navigator.open(opens(it)) }, onStop = { stopping = it.sessionId })
             item(key = "resources", contentType = "heading") { SectionHeading(stringResource(R.string.admin_dashboard_resources), PleyIcons.Gauge) }
             item(key = "resources.body", contentType = "resources") { ResourcesBody(usage) }
@@ -226,6 +226,22 @@ internal fun DashboardScreen(id: String?) {
 private fun opens(item: ItemSummary): PleyKey = when (item.kind) {
     ItemKind.Track -> item.parentId?.let { PleyKey.Album(it, trackId = item.id) } ?: PleyKey.Item(item.id)
     else -> PleyKey.Item(item.id)
+}
+
+/**
+ * Under the top bar, above the list: the [StaleBanner] once the live
+ * numbers stop updating, nothing while they update. It stays in view
+ * wherever the list is scrolled, as every live number on the page
+ * stopped; at the top of the list, it would come in above the screen, as
+ * the list keeps what it showed in place.
+ */
+@Composable
+internal fun StaleSlot(stale: DashboardStale?) {
+    if (stale == null) return
+    val metrics = LocalPhoneMetrics.current
+    Box(Modifier.fillMaxWidth().padding(start = metrics.marginStart, end = metrics.marginEnd, top = 8.dp), contentAlignment = Alignment.TopCenter) {
+        StaleBanner(stale)
+    }
 }
 
 /**
