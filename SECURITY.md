@@ -226,13 +226,17 @@ Apps sign in on Pley's own page with OAuth 2.1.
   another administrator's account: their role, password, PIN, two-step
   sign-in, name, libraries and limits, whether it is disabled, their
   devices and apps, or the account itself; it only reads such an account,
-  its devices and apps. Making
-  an administrator, or a PIN set on one whose role was taken and then
-  given back, would take whoever holds the token into the web app as an
-  administrator; the rest would let them lock the other administrators
-  out. The role is checked again in the transaction that writes the
-  change, so an account made an administrator meanwhile is left as it
-  is. On the consent page, `server` is a box the administrator ticks,
+  its devices and apps. Making an administrator, or a PIN set on one whose
+  role was taken and then given back, would take whoever holds the token
+  into the web app as an administrator; the rest would let them lock the
+  other administrators out. The role is checked again in the transaction
+  that writes the change, so an account made an administrator meanwhile is
+  left as it is. Such a token does set passwords and PINs on accounts that
+  aren't administrators', and makes accounts, so whoever holds it may know
+  them: making one of those accounts an administrator in the web app would
+  let that person in as one. Before you do, give the account a new
+  password, which signs it out everywhere, and remove or change its PIN.
+  On the consent page, `server` is a box the administrator ticks,
   unticked to begin with: the app works without it. `approvals` is listed
   with the rest of what the app needs, allowed with it or not at all, as
   Pley's apps without it ask to sign in again on their requests screens.
