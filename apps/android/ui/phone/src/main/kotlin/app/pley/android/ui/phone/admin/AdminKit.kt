@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.KeyboardActionHandler
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -37,6 +38,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -199,7 +201,8 @@ internal enum class Entry {
  * (its [label] above, [hint] under it), Save and Cancel. [check] answers
  * what's wrong with what is typed, which keeps Save from it and shows
  * under the field; `null` when it's fine. Save hands over what was typed,
- * trimmed but for a secret ([Entry.Secret], [Entry.Pin]). [busy]: what
+ * trimmed but for a secret ([Entry.Secret], [Entry.Pin]); so does the
+ * keyboard's Done, but for [multiLine]. [busy]: what
  * was saved is on its way, and Save waits (a dialog the server may refuse
  * stays open until it answers, so what was typed isn't lost).
  *
@@ -243,6 +246,10 @@ internal fun TextEntryDialog(
         hint != null -> ({ Text(hint) })
         else -> null
     }
+    val save = {
+        tried = true
+        if (problem == null && !busy) onSave(typed)
+    }
     val keyboard = KeyboardOptions(
         keyboardType = when (entry) {
             Entry.Number -> KeyboardType.Number
@@ -251,15 +258,15 @@ internal fun TextEntryDialog(
             Entry.Address -> KeyboardType.Uri
             Entry.Text -> KeyboardType.Text
         },
+        imeAction = if (multiLine) ImeAction.Default else ImeAction.Done,
     )
+    // The keyboard's Done saves: in landscape, the keyboard covers the dialog's buttons.
+    val done: KeyboardActionHandler? = if (multiLine) null else KeyboardActionHandler { save() }
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(
-                onClick = {
-                    tried = true
-                    if (problem == null) onSave(typed)
-                },
+                onClick = save,
                 enabled = !busy,
                 colors = ButtonDefaults.textButtonColors(contentColor = PleyColors.AccentBright),
                 modifier = Modifier.testTag(TEXT_ENTRY_SAVE),
@@ -281,6 +288,7 @@ internal fun TextEntryDialog(
                     supportingText = supporting,
                     isError = showProblem,
                     keyboardOptions = keyboard,
+                    onKeyboardAction = done,
                     shape = PleyShape.Field,
                     colors = colors,
                 )
@@ -293,6 +301,7 @@ internal fun TextEntryDialog(
                     isError = showProblem,
                     lineLimits = if (multiLine) TextFieldLineLimits.MultiLine(maxHeightInLines = 5) else TextFieldLineLimits.SingleLine,
                     keyboardOptions = keyboard,
+                    onKeyboardAction = done,
                     shape = PleyShape.Field,
                     colors = colors,
                 )
