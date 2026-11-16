@@ -699,6 +699,14 @@ pub async fn first_character(
 
 // ------------------------------------------------------------------ metadata
 
+/// The most keys `/library/metadata/{keys}` takes, as many as an edit or a
+/// playlist does.
+const MAX_METADATA_KEYS: usize = 5000;
+
+/// The most of them one answer carries: each costs lookups, a smart
+/// collection's or playlist's a listing.
+const METADATA_PER_ANSWER: usize = 500;
+
 /// `/library/metadata/{keys}`: items, and the collections and playlists
 /// their keys name.
 pub async fn metadata(
@@ -707,27 +715,42 @@ pub async fn metadata(
     Extension(info): Extension<Arc<PlexInfo>>,
     Path(ids): Path<String>,
     params: Params,
+    page: Page,
 ) -> PlexResult<Node> {
-    // Each key once: a smart collection's or playlist's costs a listing.
+    // Each key once, and one past the most to refuse the list.
     let mut seen = std::collections::HashSet::new();
-    let keys: Vec<Key> = ids
+    let mut keys: Vec<Key> = ids
         .split(',')
         .filter_map(|i| i.trim().parse::<i64>().ok())
         .filter(|i| seen.insert(*i))
-        .take(500)
+        .take(MAX_METADATA_KEYS + 1)
         .map(Key::of)
         .collect();
+    if keys.len() > MAX_METADATA_KEYS {
+        return Err(PlexError::BadRequest(format!("at most {MAX_METADATA_KEYS} items are asked for at once")));
+    }
     match keys[..] {
         [Key::Collection(id)] => return super::lists::collection_details(&state, &user, &info, id, &params).await,
         [Key::Playlist(id)] => return super::lists::playlist_container_of(&state, &user, id).await,
         _ => {}
+    }
+    // More than one answer carries come by pages (python-plexapi asks for
+    // them with `X-Plex-Container-Start` and `-Size` while `totalSize` says
+    // there are more); fewer come whole, whatever the page, as they did.
+    let asked = keys.len();
+    let paged = asked > METADATA_PER_ANSWER;
+    let start = if paged { page.start.min(asked) } else { 0 };
+    if paged {
+        let size = page.size.unwrap_or(METADATA_PER_ANSWER).min(METADATA_PER_ANSWER);
+        keys = keys.into_iter().skip(start).take(size).collect();
     }
     let ids: Vec<i64> = keys.iter().filter_map(|k| if let Key::Item(id) = k { Some(*id) } else { None }).collect();
     let (lists, list_library) = super::lists::list_nodes(&state, &user, &keys).await?;
     let rows = catalog::items_by_ids(&state.db, user.id, &ids).await?;
     let libraries = visible_libraries(&state, &user).await?;
     let rows: Vec<ItemRow> = rows.into_iter().filter(|r| libraries.iter().any(|l| l.id == r.library_id)).collect();
-    if rows.is_empty() && lists.is_empty() {
+    // A page may find none of its keys; the others may be on another.
+    if rows.is_empty() && lists.is_empty() && !paged {
         return Err(PlexError::NotFound);
     }
     let lib = match rows.first() {
@@ -757,8 +780,8 @@ pub async fn metadata(
         }
     }
     nodes.extend(lists);
-    let total = nodes.len();
-    Ok(list_container(lib, &info, nodes, total, &Page::default()))
+    let total = if paged { asked } else { nodes.len() };
+    Ok(list_container(lib, &info, nodes, total, &Page { start, size: None }))
 }
 
 /// `/library/metadata/{key}/children`: a show's seasons, …, a collection's

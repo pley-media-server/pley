@@ -485,6 +485,45 @@ async fn recently_added_shows_are_those_with_the_newest_episodes() {
 }
 
 #[tokio::test]
+async fn more_items_than_one_answer_carries_come_by_pages() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    app.media_file("movies/Film (2001)/Film (2001).mkv", 1024);
+    let movies = app.library(&admin, "Movies", "movies", "movies").await;
+    sqlx::query(
+        "WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 600)
+         INSERT INTO items (library_id, kind, key, title, sort_title, added_at, updated_at)
+         SELECT ?, 'movie', 'movie:more:' || i, 'More ' || i, 'more ' || i, 0, 0 FROM n",
+    )
+    .bind(movies)
+    .execute(&app.state.db.write)
+    .await
+    .unwrap();
+    let ids: Vec<i64> =
+        sqlx::query_scalar("SELECT id FROM items WHERE kind = 'movie'").fetch_all(&app.state.db.read).await.unwrap();
+    assert_eq!(ids.len(), 601);
+    let uri = format!("/library/metadata/{}", ids.iter().map(i64::to_string).collect::<Vec<_>>().join(","));
+    let counts = |found: &Value| (found["size"].clone(), found["totalSize"].clone(), found["offset"].clone());
+    // Without a page, as many as an answer carries, and how many there are.
+    assert_eq!(counts(&app.plex_json(&uri, &admin).await), (json!(500), json!(601), json!(0)));
+    // python-plexapi's pages.
+    let mut seen = Vec::new();
+    for start in (0..=600).step_by(100) {
+        let start = start.to_string();
+        let headers = [("x-plex-container-start", start.as_str()), ("x-plex-container-size", "100")];
+        let found = app.plex(Method::GET, &uri, &admin, &headers).await;
+        assert_eq!(found.status, StatusCode::OK, "{}", found.text());
+        seen.extend(plex_titles(&found.body["MediaContainer"]));
+    }
+    assert_eq!(seen.len(), 601);
+    // A page past the end is empty, and too many keys are refused.
+    let past = app.plex(Method::GET, &uri, &admin, &[("x-plex-container-start", "700")]).await;
+    assert_eq!(counts(&past.body["MediaContainer"]), (json!(0), json!(601), json!(601)));
+    let many = format!("/library/metadata/{}", (1..=5001).map(|i| i.to_string()).collect::<Vec<_>>().join(","));
+    assert_eq!(app.plex(Method::GET, &many, &admin, &[]).await.status, StatusCode::BAD_REQUEST);
+}
+
+#[tokio::test]
 async fn last_episode_date_added_sorts_shows_by_their_newest_episode() {
     let app = TestApp::new().await;
     let admin = app.setup_admin().await;
@@ -517,3 +556,4 @@ async fn last_episode_date_added_sorts_shows_by_their_newest_episode() {
     // Merged across libraries, a film by its own date.
     assert_eq!(titles("/library/all?sort=episode.addedAt:desc".into()).await, ["Old", "Film", "New"]);
     assert_eq!(titles("/library/all?sort=addedAt:desc".into()).await, ["Film", "New", "Old"]);
+}
