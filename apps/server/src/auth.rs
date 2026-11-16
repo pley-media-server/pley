@@ -1059,13 +1059,6 @@ impl AuthService {
         Ok(ended.is_some())
     }
 
-    /// Revokes every compatibility token of `user_id`.
-    pub async fn end_compatibility_tokens(&self, user_id: i64) -> Result<(), AppError> {
-        let ended = compatibility::delete_for(&self.db, user_id).await?;
-        self.forget_compatibility_tokens(&ended);
-        Ok(())
-    }
-
     /// Drop the cached compatibility tokens with these ids (ended).
     fn forget_compatibility_tokens(&self, ids: &[i64]) {
         self.epoch.fetch_add(1, Ordering::SeqCst);
@@ -1128,13 +1121,6 @@ impl AuthService {
             self.forget_grants(&[grant_id]);
         }
         Ok(ended.is_some())
-    }
-
-    /// Ends the apps acting as `user_id` or allowed by them; their grants.
-    pub async fn end_apps(&self, user_id: i64) -> Result<Vec<i64>, AppError> {
-        let ended = grants::delete_for(&self.db, user_id).await?;
-        self.forget_grants(&ended);
-        Ok(ended)
     }
 
     /// Ends the grants of every app but `clients`; their ids.

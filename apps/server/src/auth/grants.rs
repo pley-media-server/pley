@@ -730,12 +730,9 @@ pub async fn delete_of_user(conn: &mut SqliteConnection, grant_id: i64, user_id:
     Ok(deleted.rows_affected() > 0)
 }
 
-/// Ends the grants acting as `user_id` or allowed by them; their ids.
-pub async fn delete_for(db: &Db, user_id: i64) -> Result<Vec<i64>, AppError> {
-    delete_for_within(&mut *db.write.acquire().await?, user_id).await
-}
-
-/// [`delete_for`], within `conn`'s transaction.
+/// Ends the grants acting as `user_id` or allowed by them, within `conn`'s
+/// transaction; their ids. Whoever commits it has the cache forget them
+/// ([`super::AuthService::forget_user`]).
 pub async fn delete_for_within(conn: &mut SqliteConnection, user_id: i64) -> Result<Vec<i64>, AppError> {
     Ok(sqlx::query_scalar("DELETE FROM app_grants WHERE user_id = ? OR approved_by = ? RETURNING id")
         .bind(user_id)
@@ -1263,7 +1260,7 @@ mod tests {
         assert_eq!(delete_except_clients(&db, &[ANDROID]).await.unwrap(), [allowed.grant_id]);
         assert!(delete(&db, bob.grant_id).await.unwrap());
         assert!(!delete(&db, bob.grant_id).await.unwrap());
-        assert_eq!(delete_for(&db, 1).await.unwrap(), [own.grant_id]);
+        assert_eq!(delete_for_within(&mut db.write.acquire().await.unwrap(), 1).await.unwrap(), [own.grant_id]);
         assert_eq!(grants(&db).await, 0);
         issue(&db, grant(OTHER, "library")).await.unwrap();
         assert_eq!(delete_except_clients(&db, &[]).await.unwrap().len(), 1);
