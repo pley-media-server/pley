@@ -11,6 +11,8 @@ describes how they are made.
 
 ### Fixed
 
+- The Live TV guide's times no longer show through the top bar's Your
+  devices menu.
 - Play on… lists Google Cast and AirPlay devices only where Pley listens
   on an address of their network. Behind a reverse proxy, with Pley
   listening on its own computer alone, it listed them all and every cast
