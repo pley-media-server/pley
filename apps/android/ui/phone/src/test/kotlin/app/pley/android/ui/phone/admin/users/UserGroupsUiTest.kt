@@ -86,7 +86,7 @@ class UserGroupsUiTest {
             PhoneTheme { PinGroup(cid.copy(isAdmin = false), idle = true, onPin = {}, onRemovePin = { sent += "pin off" }) }
         }
         compose.onNodeWithTag(USER_REMOVE_PIN).performClick()
-        compose.onNodeWithText("Remove Cid's PIN?").assertExists()
+        compose.onNodeWithText("Remove the PIN for Cid?").assertExists()
         compose.onNodeWithText("Anyone in the household can then switch to Cid without a PIN, until a new one is set.").assertExists()
         assertEquals(emptyList<String>(), sent)
         compose.onNode(hasText("Remove PIN") and hasAnyAncestor(isDialog())).performClick()

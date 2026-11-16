@@ -80,7 +80,7 @@
     <string name="admin_users_pin_set">This profile has a PIN. Enter a new one to change it.</string>
     <string name="admin_users_pin_hint">Optional, 4 to 8 digits. Needed to switch to this profile.</string>
     <string name="admin_users_remove_pin">Remove PIN</string>
-    <string name="admin_users_remove_pin_title">Remove %1$s\'s PIN?</string>
+    <string name="admin_users_remove_pin_title">Remove the PIN for %1$s?</string>
     <string name="admin_users_remove_pin_message">Anyone in the household can then switch to %1$s without a PIN, until a new one is set.</string>
     <string name="admin_users_remove_admin_title">Take away %1$s\'s administrator role?</string>
     <string name="admin_users_remove_admin_message">%1$s can no longer manage the server, from the web app or from Pley\'s apps. Only the web app can make them an administrator again.</string>
