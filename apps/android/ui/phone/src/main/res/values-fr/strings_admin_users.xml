@@ -64,7 +64,7 @@
     <string name="admin_users_admin_hint">Peut gérer les bibliothèques, les utilisateurs et les paramètres du serveur.</string>
     <string name="admin_users_managed_not_admin">Les profils gérés ne peuvent pas être administrateurs.</string>
     <string name="admin_users_admin_in_web">Seule l’application web de Pley fait d’un compte un administrateur.</string>
-    <string name="admin_users_admin_sign_in">Le mot de passe, le code PIN et la connexion en deux étapes d’un administrateur se changent dans l’application web de Pley.</string>
+    <string name="admin_users_other_admin">Le rôle, la connexion, les appareils et le compte d’un autre administrateur se changent dans l’application web de Pley.</string>
     <string name="admin_users_home">Membre de ce foyer</string>
     <string name="admin_users_home_hint">Affiché dans le sélecteur de profil, pour que les membres du foyer puissent basculer de l’un à l’autre.</string>
     <string name="admin_users_disabled">Désactivé</string>
@@ -82,9 +82,6 @@
     <string name="admin_users_remove_pin">Supprimer le code PIN</string>
     <string name="admin_users_remove_pin_title">Supprimer le code PIN de %1$s ?</string>
     <string name="admin_users_remove_pin_message">Tout le foyer pourra alors passer au profil de %1$s sans code PIN, jusqu’à ce qu’un nouveau soit défini.</string>
-    <string name="admin_users_remove_admin_title">Retirer à %1$s son rôle d’administrateur ?</string>
-    <string name="admin_users_remove_admin_message">%1$s ne pourra plus gérer le serveur, ni depuis l’application web ni depuis les applications Pley. Seule l’application web peut lui redonner ce rôle.</string>
-    <string name="admin_users_remove_admin_action">Le retirer</string>
     <string name="admin_users_disable_title">Désactiver %1$s ?</string>
     <string name="admin_users_disable_message">%1$s est déconnecté partout, et ne peut ni se connecter ni rien lire tant que le compte n’est pas réactivé.</string>
     <string name="admin_users_disable_action">Désactiver</string>

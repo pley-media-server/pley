@@ -10,7 +10,7 @@
 //! transactions on the writer (see [`crate::db`]); [`super::AuthService`]
 //! wraps it and forgets cached tokens.
 
-use sqlx::{Sqlite, Transaction};
+use sqlx::{Sqlite, SqliteConnection, Transaction};
 
 use super::scopes::Scopes;
 use super::{SESSION_TTL_SECS, hash_token, new_token};
@@ -718,12 +718,29 @@ pub async fn delete_of_token(db: &Db, token_hash: &str) -> Result<Option<i64>, A
     .await?)
 }
 
+/// Ends grant `grant_id` when it acts as `user_id` or they allowed it,
+/// within `conn`'s transaction; whether it did.
+pub async fn delete_of_user(conn: &mut SqliteConnection, grant_id: i64, user_id: i64) -> Result<bool, AppError> {
+    let deleted = sqlx::query("DELETE FROM app_grants WHERE id = ? AND (user_id = ? OR approved_by = ?)")
+        .bind(grant_id)
+        .bind(user_id)
+        .bind(user_id)
+        .execute(conn)
+        .await?;
+    Ok(deleted.rows_affected() > 0)
+}
+
 /// Ends the grants acting as `user_id` or allowed by them; their ids.
 pub async fn delete_for(db: &Db, user_id: i64) -> Result<Vec<i64>, AppError> {
+    delete_for_within(&mut *db.write.acquire().await?, user_id).await
+}
+
+/// [`delete_for`], within `conn`'s transaction.
+pub async fn delete_for_within(conn: &mut SqliteConnection, user_id: i64) -> Result<Vec<i64>, AppError> {
     Ok(sqlx::query_scalar("DELETE FROM app_grants WHERE user_id = ? OR approved_by = ? RETURNING id")
         .bind(user_id)
         .bind(user_id)
-        .fetch_all(&db.write)
+        .fetch_all(conn)
         .await?)
 }
 

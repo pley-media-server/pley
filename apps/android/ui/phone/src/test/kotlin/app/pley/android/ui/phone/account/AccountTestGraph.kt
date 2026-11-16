@@ -21,8 +21,8 @@ import app.pley.android.data.PeopleRepository
 import app.pley.android.data.PlayItem
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.PlaylistsRepository
-import app.pley.android.data.ServerAdmin
 import app.pley.android.data.SearchRepository
+import app.pley.android.data.ServerAdmin
 import app.pley.android.data.ServersRepository
 import app.pley.android.data.Session
 import app.pley.android.data.SessionRepository
@@ -84,7 +84,7 @@ class AccountTestGraph : ScreensGraph {
     val history = MutableStateFlow<Loadable<HistoryPage>>(Loadable.Ready(HistoryPage(20, (1..15L).map(::play)), fresh = true))
     val removed = mutableListOf<Long>()
 
-    /** Whether the profile manages the server (Me's Manage server row): not unless a test says so. */
+    /** The server Manage server's pages manage, and whether Me's row shows: none unless a test gives one. */
     var admin: ServerAdmin = ServerAdmin.None
 
     override val device = DeviceProfile(FormFactor.Phone, fireTv = false, tier = Tier.T2, model = "test", totalRamBytes = 8L shl 30, lowRam = false)

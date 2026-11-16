@@ -64,7 +64,7 @@
     <string name="admin_users_admin_hint">Puede gestionar las bibliotecas, los usuarios y los ajustes del servidor.</string>
     <string name="admin_users_managed_not_admin">Los perfiles gestionados no pueden ser administradores.</string>
     <string name="admin_users_admin_in_web">Solo la aplicación web de Pley convierte una cuenta en administradora.</string>
-    <string name="admin_users_admin_sign_in">La contraseña, el PIN y el inicio de sesión en dos pasos de un administrador se cambian en la aplicación web de Pley.</string>
+    <string name="admin_users_other_admin">El rol, el inicio de sesión, los dispositivos y la cuenta de otro administrador se cambian en la aplicación web de Pley.</string>
     <string name="admin_users_home">Miembro de este hogar</string>
     <string name="admin_users_home_hint">Se muestra en el selector de perfiles, para que los miembros del hogar puedan cambiar entre ellos.</string>
     <string name="admin_users_disabled">Desactivado</string>
@@ -82,9 +82,6 @@
     <string name="admin_users_remove_pin">Quitar el PIN</string>
     <string name="admin_users_remove_pin_title">¿Quitar el PIN de %1$s?</string>
     <string name="admin_users_remove_pin_message">Cualquiera del hogar podrá cambiar al perfil de %1$s sin PIN, hasta que se ponga uno nuevo.</string>
-    <string name="admin_users_remove_admin_title">¿Quitarle a %1$s el rol de administrador?</string>
-    <string name="admin_users_remove_admin_message">%1$s ya no podrá gestionar el servidor, ni desde la aplicación web ni desde las aplicaciones de Pley. Solo la aplicación web puede volver a hacerle administrador.</string>
-    <string name="admin_users_remove_admin_action">Quitárselo</string>
     <string name="admin_users_disable_title">¿Desactivar a %1$s?</string>
     <string name="admin_users_disable_message">Se cierra la sesión de %1$s en todas partes, y no puede iniciar sesión ni reproducir nada hasta que la cuenta se vuelva a activar.</string>
     <string name="admin_users_disable_action">Desactivar</string>

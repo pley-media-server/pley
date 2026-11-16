@@ -1148,16 +1148,30 @@ impl AuthService {
     /// is `keep_session_hash`, then every app acting as them or allowed by
     /// them, and every compatibility token of theirs.
     pub async fn sign_out_everywhere(&self, user_id: i64, keep_session_hash: Option<&str>) -> Result<(), AppError> {
-        sqlx::query("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?")
-            .bind(user_id)
-            .bind(keep_session_hash.unwrap_or_default())
-            .execute(&self.db.write)
-            .await?;
-        self.end_apps(user_id).await?;
-        self.end_compatibility_tokens(user_id).await?;
+        let mut tx = self.db.write.begin().await?;
+        sign_out_within(&mut tx, user_id, keep_session_hash).await?;
+        tx.commit().await?;
         self.forget_user(user_id);
         Ok(())
     }
+}
+
+/// [`AuthService::sign_out_everywhere`] within `conn`'s transaction: what it
+/// deletes. Whoever commits it then has the caches forget the user
+/// ([`AuthService::forget_user`]), which covers every grant and token gone.
+pub async fn sign_out_within(
+    conn: &mut sqlx::SqliteConnection,
+    user_id: i64,
+    keep_session_hash: Option<&str>,
+) -> Result<(), AppError> {
+    sqlx::query("DELETE FROM sessions WHERE user_id = ? AND token_hash != ?")
+        .bind(user_id)
+        .bind(keep_session_hash.unwrap_or_default())
+        .execute(&mut *conn)
+        .await?;
+    grants::delete_for_within(conn, user_id).await?;
+    compatibility::delete_for_within(conn, user_id).await?;
+    Ok(())
 }
 
 /// SQL that is true when the account of the `users` row `alias` signs in

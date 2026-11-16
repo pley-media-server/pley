@@ -13,10 +13,11 @@ describes how they are made.
 - Administrators manage the server's dashboard, libraries, users and
   invitations from a phone or tablet, in Me → Manage server, once they
   tick Manage the server as the phone signs in. A phone signed in before,
-  or without it ticked, asks to sign in again for it. Taking an
-  administrator's role away, disabling an account and removing a PIN ask
-  first; the dashboard says when its numbers stopped updating, and a page
-  says so when the phone can no longer manage the server.
+  or without it ticked, asks to sign in again for it. Another
+  administrator's account is only shown there: the web app changes it.
+  Disabling an account and removing a PIN ask first; the dashboard says
+  when its numbers stopped updating, and a page says so when the phone can
+  no longer manage the server.
 - Play on… lists Google Cast and AirPlay devices for movies and episodes.
   An AirPlay device asks once for the code it shows; on an Apple TV the
   code goes as its fourth digit is typed.

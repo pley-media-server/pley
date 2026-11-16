@@ -116,15 +116,22 @@ pub async fn reset_user(
     if id == admin.id {
         return Err(AppError::bad_request("turn your own two-step sign-in off in Account"));
     }
-    if admin.app.is_some() && crate::accounts::user(&state.db, id).await?.is_some_and(|user| user.is_admin) {
-        return Err(AppError::forbidden(super::accounts::ADMINS_SIGN_IN_IN_THE_WEB_APP));
-    }
-    if !state.two_step.turn_off(id).await? {
-        return Err(AppError::not_found("this user doesn't use two-step sign-in"));
-    }
-    if state.auth.two_step_required() {
+    // Turned off, and the account signed out with it, in one transaction:
+    // an app's only while the account isn't another administrator's.
+    let mut tx = state.db.write.begin().await?;
+    super::accounts::not_another_administrator(&mut tx, &admin, id).await?;
+    let turned_off = state.two_step.turn_off_within(&mut tx, id).await?;
+    let signs_out = turned_off && state.auth.two_step_required();
+    if signs_out {
         state.oauth.forget_user(id);
-        state.auth.sign_out_everywhere(id, None).await?;
+        crate::auth::sign_out_within(&mut tx, id, None).await?;
+    }
+    tx.commit().await?;
+    if signs_out {
+        state.auth.forget_user(id);
+    }
+    if !turned_off {
+        return Err(AppError::not_found("this user doesn't use two-step sign-in"));
     }
     tracing::info!("'{}' turned off two-step sign-in for user {id}", admin.username);
     Ok(StatusCode::NO_CONTENT)

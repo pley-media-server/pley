@@ -493,11 +493,17 @@ impl TwoStep {
 
     /// Turns two-step sign-in off for `user_id`; whether it was on.
     pub async fn turn_off(&self, user_id: i64) -> sqlx::Result<bool> {
-        self.pending.remove(&user_id);
         let mut tx = self.db.write.begin().await?;
-        let removed = sqlx::query("DELETE FROM two_step WHERE user_id = ?").bind(user_id).execute(&mut *tx).await?;
-        sqlx::query("DELETE FROM recovery_codes WHERE user_id = ?").bind(user_id).execute(&mut *tx).await?;
+        let removed = self.turn_off_within(&mut tx, user_id).await?;
         tx.commit().await?;
+        Ok(removed)
+    }
+
+    /// [`TwoStep::turn_off`] within `conn`'s transaction.
+    pub async fn turn_off_within(&self, conn: &mut sqlx::SqliteConnection, user_id: i64) -> sqlx::Result<bool> {
+        self.pending.remove(&user_id);
+        let removed = sqlx::query("DELETE FROM two_step WHERE user_id = ?").bind(user_id).execute(&mut *conn).await?;
+        sqlx::query("DELETE FROM recovery_codes WHERE user_id = ?").bind(user_id).execute(&mut *conn).await?;
         Ok(removed.rows_affected() > 0)
     }
 

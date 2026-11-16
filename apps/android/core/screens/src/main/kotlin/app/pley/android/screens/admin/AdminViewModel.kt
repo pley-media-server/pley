@@ -115,7 +115,8 @@ abstract class AdminViewModel(protected val admin: ServerAdmin) : ViewModel() {
      * Whether [error] says the phone can no longer manage the server, which
      * then shows ([lost]). A read's 403 does; a change's only for a missing
      * scope, as the server refuses some changes with a 403 of their own
-     * (making an administrator), and the read after it tells.
+     * (making an administrator, changing another administrator's account),
+     * and the read after it tells.
      */
     internal fun refused(error: Throwable, reading: Boolean): Boolean {
         val gone = error is ApiException && error.status == 403 && (reading || error.needsScope)
