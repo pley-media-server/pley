@@ -533,10 +533,13 @@ sub apiBuild(job as object, answer as object)
         job.request.content = nodesContent(tiles)
         answer.data = { shown: tiles.Count() }
     else if job.build = "collections"
-        ' The tiles themselves too: a library's Collections tab groups them
-        ' by category and filters them as it's asked.
         tiles = pageCollectionTiles(data.collections, server)
         job.request.content = nodesContent(tiles)
+        answer.data = { shown: tiles.Count() }
+    else if job.build = "collectionTiles"
+        ' A library's Collections tab: the tiles themselves, no nodes, as it
+        ' groups them by category and filters them as it's asked.
+        tiles = pageCollectionTiles(data.collections, server)
         answer.data = { shown: tiles.Count(), tiles: tiles }
     else if job.build = "person"
         ' A person's page: a row of titles per role.

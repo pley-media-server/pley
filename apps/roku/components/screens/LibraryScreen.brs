@@ -206,7 +206,7 @@ sub showTab(wanted as string)
     else if wanted = "collections"
         if m.collections = invalid
             showMessage(t("common.states.loading"))
-            if m.collectionTiles = invalid then uiRequest({ method: "GET", path: "/api/libraries/" + urlValue(m.library.id) + "/collections", build: "collections" }, "onCollections")
+            if m.collectionTiles = invalid then uiRequest({ method: "GET", path: "/api/libraries/" + urlValue(m.library.id) + "/collections", build: "collectionTiles" }, "onCollections")
             if m.categories = invalid then uiGet("/api/collection-categories", "onCategories")
         else
             m.grid.content = m.collections
