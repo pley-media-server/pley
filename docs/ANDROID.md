@@ -672,12 +672,19 @@ from, each opening its own collection
 
 The Collections tab groups a library's collections under their categories,
 in the order administrators gave them, Other among them as the server
-sends it, without headings when only one group shows. The Category chip, there when there is more than one
-category to choose, narrows it to one; how a collection was made matters
-only to administrators, so the apps don't filter by it. On a TV, collections of several categories are a row
-for each; of one, a grid. A collection's page shows its category.
-Managing categories and choosing the rows of Home and Recommended are in
-the web and desktop apps.
+sends it, without headings when only one group shows. The Category chip,
+there when there is more than one category to choose, narrows it to one;
+how a collection was made matters only to administrators, so the apps
+don't filter by it. On a TV, collections of several categories are a row
+for each; of one, a grid. A collection's page shows its category, unless
+that is Other, which only says it has none. Managing categories and
+choosing the rows of Home and Recommended are in the web and desktop
+apps.
+
+A Pley from before categories has none to give
+(`GET /api/collection-categories` answers 404): the tab shows every
+collection in one grid, as it did, and Recommended the server's own
+rows, with no row of collections after them.
 
 Audiobook libraries are in the web and desktop apps: the server gives this
 app none, nor their books on Home, in search or in history
