@@ -2,7 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { namedCategory, type Category, type Collection } from "@/api/lists";
-import { mockApi, renderWithProviders, testUser } from "@/test/render";
+import { encodeId } from "@/lib/ids";
+import { LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { CollectionsTab, groupByCategory, isOfType } from "./CollectionsTab";
 
 const highlights: Category = { id: 1, key: "highlights", title: "Highlights", from_label: null, position: 0 };
@@ -107,6 +108,28 @@ describe("CollectionsTab", () => {
     expect(screen.getByText("No collections match these filters")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Clear filters" })[0]!);
     expect(screen.getAllByRole("region")).toHaveLength(4);
+  });
+
+  it("keeps the filters in the address, for Back to find them", async () => {
+    const user = userEvent.setup();
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+    });
+    renderWithProviders(
+      <>
+        <CollectionsTab libraryId={1} kind="movies" />
+        <LocationDisplay />
+      </>,
+      { route: `/library/1?tab=collections&category=${encodeId(seasonal.id)}` },
+    );
+    expect(await screen.findByText("1 collection")).toBeInTheDocument();
+    expect(screen.getByLabelText("Category")).toHaveValue(String(seasonal.id));
+
+    await user.selectOptions(screen.getByLabelText("Type"), "smart");
+    expect(screen.getByTestId("location")).toHaveTextContent(`/library/1?tab=collections&category=${encodeId(seasonal.id)}&type=smart`);
+    await user.click(screen.getAllByRole("button", { name: "Clear filters" })[0]!);
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/library\/1\?tab=collections$/);
   });
 
   it("heads no group when there is only one", async () => {
