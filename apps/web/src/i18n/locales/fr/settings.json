@@ -957,7 +957,7 @@
       "watchHistory": "Historique de visionnage",
       "watchHistoryHint": "Titres vus, points de reprise, notes et chaque lecture.",
       "collections": "Collections et listes de lecture",
-      "collectionsHint": "Les collections dans leur ordre, avec leurs étiquettes, et les listes de lecture de chacun. Les intelligentes restent sur Plex.",
+      "collectionsHint": "Les collections dans leur ordre, avec leurs étiquettes, et les listes de lecture de chacun. Les collections intelligentes viennent aussi quand Pley sait suivre leurs règles ; les listes de lecture intelligentes restent sur Plex.",
       "edits": "Correspondances et modifications",
       "editsHint": "Les titres associés comme dans Plex, et les champs modifiés dans Plex comme modifications dans Pley. Kometa verrouille les champs qu’il définit : ses changements viennent aussi.",
       "start": "Lancer l’import"

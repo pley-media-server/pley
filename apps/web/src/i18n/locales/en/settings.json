@@ -929,7 +929,7 @@
       "watchHistory": "Watch history",
       "watchHistoryHint": "Watched titles, resume points, ratings and every play.",
       "collections": "Collections and playlists",
-      "collectionsHint": "Collections in their order, with their labels, and each person's playlists. Smart ones stay behind.",
+      "collectionsHint": "Collections in their order, with their labels, and each person's playlists. Smart collections come too where Pley can follow their rules; smart playlists stay behind.",
       "edits": "Matches and edits",
       "editsHint": "Titles matched as Plex has them, and fields edited in Plex as edits in Pley. Kometa locks the fields it sets, so its changes come too.",
       "start": "Start the import"

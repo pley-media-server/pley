@@ -957,7 +957,7 @@
       "watchHistory": "Historial de visionado",
       "watchHistoryHint": "Títulos vistos, puntos de reanudación, valoraciones y cada reproducción.",
       "collections": "Colecciones y listas de reproducción",
-      "collectionsHint": "Las colecciones en su orden, con sus etiquetas, y las listas de reproducción de cada uno. Las inteligentes se quedan en Plex.",
+      "collectionsHint": "Las colecciones en su orden, con sus etiquetas, y las listas de reproducción de cada uno. Las colecciones inteligentes también vienen cuando Pley puede seguir sus reglas; las listas de reproducción inteligentes se quedan en Plex.",
       "edits": "Coincidencias y ediciones",
       "editsHint": "Los títulos asociados como en Plex, y los campos editados en Plex como ediciones en Pley. Kometa bloquea los campos que define, así que sus cambios también se traen.",
       "start": "Empezar la importación"
