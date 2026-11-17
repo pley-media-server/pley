@@ -31,6 +31,9 @@ describes how they are made.
 
 ### Fixed
 
+- Stop in Pley stops a Google Cast device every time. The connection
+  closed so abruptly that the device could lose the stop, most often
+  with Pley on Windows.
 - The Live TV guide's times no longer show through the top bar's Your
   devices menu.
 - Play on… lists Google Cast and AirPlay devices only where Pley listens
