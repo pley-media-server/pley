@@ -187,7 +187,8 @@ pub async fn start(state: &AppState, user: &AuthUser, device: Found, mut cast: C
 /// device's volume. A cast playing on the device goes on until this one
 /// plays, and a newer one takes this one's place, as with [`start`]. The
 /// viewer is the device's: the channel it watched for `user` before ends
-/// as this one starts, which frees its provider connection.
+/// as this one starts, which frees its provider connection and ends its
+/// playlist, so the device plays only what it loaded of it meanwhile.
 pub async fn start_channel(state: &AppState, user: &AuthUser, device: Found, channel_id: i64) -> ApiResult<()> {
     let deadline = tokio::time::Instant::now() + state.config.cast_within;
     // What the caller may watch is checked first: a channel refused asks
@@ -1023,11 +1024,11 @@ impl Watching {
                 },
                 _ = ask.tick() => {
                     if state.live.tuners.present(&session_id).is_none() {
-                        // A channel change ends the viewer as it starts:
-                        // the device goes on with this one until the new
-                        // one plays, and stops should it not. The new
-                        // viewer starts a moment before its cast is
-                        // pending.
+                        // A channel change ends the viewer, and its
+                        // playlist, as it starts: the device plays what it
+                        // loaded of this one until the new one plays, and
+                        // stops should it not. The new viewer starts a
+                        // moment before its cast is pending.
                         if newer_on(&state, &key, cast_id) || state.live.tuners.watching_on(user.id, &key) {
                             continue;
                         }

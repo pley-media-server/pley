@@ -4129,8 +4129,10 @@ would.
   in the channel's group, as the guide lists it, round at its ends, cast
   as a new channel to the device. The device's viewer is the device's
   own: a new channel's ends the one before as it starts, which frees its
-  connection, and the device plays the last one until the new one plays
-  (stopping should it not). The cast ends when the device stops, another
+  connection and ends its playlist, so until the new one plays the device
+  has only what it loaded of the last one, and may show an error. Should
+  the new one not play, the server stops the device, unless it already
+  stopped on the last one. The cast ends when the device stops, another
   app takes the device over, the viewer is stopped in Pley or its
   connection taken over (the device stops then), or the device fetches
   nothing for 45 seconds.
