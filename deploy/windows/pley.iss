@@ -246,8 +246,9 @@ begin
   Result := AddressesWith(Port);
 end;
 
-// A setting saved in pley.toml in Dir (Key = "value"), lowercase, or '' when
-// there is none.
+// A compatibility API's setting saved in pley.toml in Dir (Key = "value" or
+// 'value'), lowercase, with 'off' for every value Pley takes as off (an
+// empty one too), or '' when there is none.
 function SavedSetting(const Dir, Key: String): String;
 var
   Lines: TArrayOfString;
@@ -270,7 +271,11 @@ begin
     if Hash > 0 then
       Line := Copy(Line, 1, Hash - 1);
     StringChangeEx(Line, '"', '', True);
-    Result := Lowercase(Trim(Line));
+    StringChangeEx(Line, '''', '', True);
+    Line := Lowercase(Trim(Line));
+    if (Line = '') or (Line = 'off') or (Line = 'none') or (Line = 'false') or (Line = '0') then
+      Line := 'off';
+    Result := Line;
   end;
 end;
 
