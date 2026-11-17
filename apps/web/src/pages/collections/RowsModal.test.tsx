@@ -123,6 +123,9 @@ describe("HomeRowsModal", () => {
     renderWithProviders(<HomeRowsModal open onClose={vi.fn()} />);
 
     expect(await screen.findByText("Movies, Kids")).toBeInTheDocument();
+    // "Recently Added in Movies" names its library already.
+    const list = screen.getByRole("list");
+    expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent(/^Recently Added in Movies$/);
     await user.click(screen.getByRole("button", { name: "Move Christmas up" }));
     await waitFor(() =>
       expect(requests.find((r) => r.method === "PUT")?.body).toEqual({

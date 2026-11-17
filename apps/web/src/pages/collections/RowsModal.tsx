@@ -286,10 +286,14 @@ export function HomeRowsModal({ open, onClose }: { open: boolean; onClose: () =>
   const rows: Row[] = list.map((r) => ({
     key: r.key,
     title: r.title,
-    detail: r.library_ids
-      .map(libraryName)
-      .filter((n): n is string => !!n)
-      .join(", "),
+    // An untouched Recently Added is titled "Recently Added in <library>"
+    // by the server already.
+    detail: r.key.startsWith("recently_added:")
+      ? ""
+      : r.library_ids
+          .map(libraryName)
+          .filter((n): n is string => !!n)
+          .join(", "),
     // A music or audiobook library's Recently Added is no collection: it stays.
     removable: r.collection_ids.length > 0,
   }));
