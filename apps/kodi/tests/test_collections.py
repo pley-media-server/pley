@@ -105,6 +105,59 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(win.made[L.slot(L.LIBRARY_ROWS, 2)].position, (0, 272))
         self.assertEqual(win.made[L.slot(L.LIBRARY_ROWS, 0)].position[1], -2 * L.HEIGHT)
 
+    def test_a_refresh_keeps_the_row_and_the_collection(self):
+        rising = collection(15, "Starfall Rising", FRANCHISES)
+        win, page = self.library([RECENT, MINE, SAGA, rising, NEWER])
+        # Franchises, the third row: Starfall Saga, Starfall Rising.
+        row = L.slot_list(L.LIBRARY_ROWS, 2, "poster")
+        win.focused = row
+        win.made[row].selected = 1
+        page.focused(row)
+        # A collection added before the one focused (Starfall Rising).
+        origins = collection(14, "Starfall Origins", FRANCHISES)
+        win.session.get = lambda path, **query: {"collections": [RECENT, MINE, origins, SAGA, rising, NEWER]} if "libraries" in path else {"categories": CATEGORIES}
+        page.refresh()
+        self.assertEqual([li.label for li in win.made[row].items], ["Starfall Origins", "Starfall Saga", "Starfall Rising"])
+        self.assertEqual((win.focused, win.made[row].selected), (row, 2))
+        # The row stays where focus brought it, the rows above out of sight.
+        self.assertEqual(win.made[L.slot(L.LIBRARY_ROWS, 2)].position, (0, 272))
+        self.assertEqual(win.made[L.slot(L.LIBRARY_ROWS, 0)].position[1], -2 * L.HEIGHT)
+        # Its category gone, and one group left: the grid, not the hidden row.
+        win.session.get = lambda path, **query: {"collections": [RECENT]} if "libraries" in path else {"categories": CATEGORIES}
+        page.refresh()
+        self.assertEqual(win.focused, L.grid_list(L.LIBRARY_GRID, "grid"))
+        # On the grid, focus stays among the collections shown (not the
+        # Library tab's titles).
+        snow = collection(16, "Snow Days")
+        win.session.get = lambda path, **query: {"collections": [MINE, snow]} if "libraries" in path else {"categories": CATEGORIES}
+        page.refresh()
+        grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]
+        grid.selected = 1
+        win.session.get = lambda path, **query: {"collections": [MINE, snow, collection(17, "Tea Time")]} if "libraries" in path else {"categories": CATEGORIES}
+        page.refresh()
+        self.assertEqual((win.focused, grid.selected), (L.grid_list(L.LIBRARY_GRID, "grid"), 1))
+        # Rows again: off the grid that went.
+        win.session.get = lambda path, **query: {"collections": COLLECTIONS} if "libraries" in path else {"categories": CATEGORIES}
+        page.refresh()
+        self.assertEqual(win.focused, L.slot_list(L.LIBRARY_ROWS, 0, "poster"))
+
+    def test_recommended_keeps_its_row_on_a_refresh(self):
+        # Marking a title watched from a row's menu refreshes the page at once.
+        win, page = self.library()
+        films = [{"id": n, "kind": "movie", "title": "Film %d" % n} for n in range(1, 4)]
+        hubs = [{"key": "collection:%d" % n, "title": "Row %d" % n, "library_id": 4, "collection_ids": [n], "items": films} for n in (10, 11, 12)]
+        win.session.get = lambda path, **query: {"hubs": hubs}
+        page.tab = "recommended"
+        page.load()
+        page.draw()
+        row = L.slot_list(L.LIBRARY_ROWS, 2, "poster")
+        win.focused = row
+        win.made[row].selected = 3  # its See all
+        page.focused(row)
+        page.refresh()
+        self.assertEqual((win.focused, win.made[row].selected), (row, 3))
+        self.assertEqual(win.made[L.slot(L.LIBRARY_ROWS, 2)].position, (0, 200))
+
     def test_one_group_is_the_grid_without_a_heading(self):
         win, page = self.library([MINE, dict(NEWER, category=ref(OTHER))])
         grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]

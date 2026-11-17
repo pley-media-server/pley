@@ -2328,7 +2328,7 @@ class Library(Screen):
                 win.put(L.LIBRARY_EMPTY, T("no_matches") if self.filtered else T("library_empty"))
         elif self.tab == "recommended":
             self.rows.fill(self.hubs or [])
-            self.rows.place(None, 200)
+            self.rows.place(None, self.rows_top())
             if not self.hubs:
                 win.put(L.LIBRARY_EMPTY, T("nothing_yet"))
         else:
@@ -2365,7 +2365,7 @@ class Library(Screen):
             if len(self.groups) > 1
             else []
         )
-        self.rows.place(None, 272)
+        self.rows.place(None, self.rows_top())
         if not self.collections:
             win.put(L.LIBRARY_EMPTY, T("no_collections"))
 
@@ -2388,8 +2388,12 @@ class Library(Screen):
             return
         found = self.rows.find(control_id)
         if found is not None:
-            top = 200 if self.tab == "recommended" else 272
-            self.rows.place(found[0] or None, top, top)
+            self.rows.place(found[0] or None, self.rows_top(), self.rows_top())
+
+    def rows_top(self) -> int:
+        """Where the rows start: under the tabs on Recommended, under the
+        chips on Collections."""
+        return 200 if self.tab == "recommended" else 272
 
     def switch(self, tab: str) -> None:
         if tab == self.tab:
@@ -2630,13 +2634,40 @@ class Library(Screen):
                 self.win.tile_menu(found[2], continue_watching=found[1]["key"].startswith("continue"))
 
     def refresh(self) -> None:
-        focus = self.win.getFocusId()
-        at = self.win.c(focus).getSelectedPosition() if focus in [L.grid_list(L.LIBRARY_GRID, s) for s in L.GRID_SHAPES] else -1
+        win = self.win
+        focus = win.getFocusId()
+        at = win.c(focus).getSelectedPosition() if focus in [L.grid_list(L.LIBRARY_GRID, s) for s in L.GRID_SHAPES] else -1
+        found = self.rows.selected(focus) if self.tab != "all" else None
+        in_row = win.c(focus).getSelectedPosition() if found is not None else -1
         self.load()
         self.draw()
+        if found is not None:
+            return self.keep_row(found, in_row)
         if at >= 0:
-            self.win.setFocusId(focus)
-            self.win.c(focus).selectItem(min(at, max(len(self.items) - 1, 0)))
+            shown = self.items if self.tab == "all" else self.groups[0][1] if len(self.groups) == 1 else []
+            if self.tab == "collections" and not shown:
+                # The collections are rows now, or gone: not the hidden grid.
+                return win.setFocusId(self.first())
+            win.setFocusId(focus)
+            win.c(focus).selectItem(min(at, max(len(shown) - 1, 0)))
+
+    def keep_row(self, found: tuple, at: int) -> None:
+        """Focus back on the row it was on (by its key), placed as it was,
+        and on the same tile, or its neighbour when it went: drawing again
+        put the rows back from the top. The page's first when the row went."""
+        _, row, item = found
+        i = next((n for n, r in enumerate(self.rows.rows) if r["key"] == row["key"]), None)
+        if i is None:
+            return self.win.setFocusId(self.first())
+        now = self.rows.rows[i]
+        ids = [x.get("id") for x in now["items"]]
+        last = len(ids) - (0 if now.get("see_all") is not None else 1)
+        if item.get("kind") == "seeall":
+            at = last
+        elif item.get("id") in ids:
+            at = ids.index(item.get("id"))
+        self.rows.place(i or None, self.rows_top(), self.rows_top())
+        self.rows.focus(i, max(min(at, last), 0))
 
 
 def collection_line(collection: dict) -> str:
