@@ -3,8 +3,9 @@
 ' sorted and filtered as the chips at the right say, with the A to Z beside
 ' it when sorted by title) and Collections (GET …/collections, grouped by
 ' GET /api/collection-categories as the web's tab: a row a category when
-' there are several, else a grid, filtered by Category for this visit). The tab, sort and filters it was left on are kept on the Roku for
-' each server, profile and library (lib/Library.brs), and it opens on them
+' there are several, else a grid, filtered by Category for this visit).
+' The tab, sort and filters it was left on are kept on the Roku for each
+' server, profile and library (lib/Library.brs), and it opens on them
 ' again.
 
 sub init()

@@ -3,8 +3,8 @@
      Library tab its sort and filters, chosen in a panel at the right. The
      Library tab is a grid of posters loaded a page at a time, with the A to
      Z beside it when sorted by title; Recommended is the library's rows;
-     Collections its collections by category, with their Type and
-     Category filters at the right. -->
+     Collections its collections by category, with the Category filter
+     at the right. -->
 <component name="LibraryScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
