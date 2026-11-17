@@ -160,8 +160,12 @@ def row_shape(hub: dict, library_kind=None) -> str:
 
 
 def see_all_of(hub: dict):
-    """The library a row's "See all" opens (recently added, released, top
-    rated), or None."""
+    """Where a row's "See all" goes (the web's hubLink): its collections
+    ({"collection_ids": […]}, one, or several of the same title on Home),
+    else the library of a music or audiobook library's newest (its id), or
+    None."""
+    if hub.get("collection_ids"):
+        return {"collection_ids": list(hub["collection_ids"])}
     if hub.get("library_id") is None:
         return None
     if any(hub.get("key", "").startswith(p) for p in ("recently_added", "recently_released", "top_rated")):

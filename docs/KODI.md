@@ -92,6 +92,19 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   or filtered by resolution or dynamic range, posters show "4K" and their
   dynamic range ("DV", "HDR+", "HDR", "HLG"). The tab a library was
   left on is kept; its sort and filters start afresh each time it opens.
+- **A library's Collections tab** groups its collections by category, a
+  row each, in the order administrators chose, Other included; with one
+  group they are a grid. The Category chip shows one category's. A
+  collection's page says its category under its name, unless it is
+  Other. In Kodi's lists each category is a folder.
+- **Rows of collections:** a row's See all opens its collection. On Home,
+  a row of collections of one title from several libraries opens them
+  together, all their titles, with the libraries they come from under the
+  name; in Kodi's lists, Home's row is that folder, with a folder for each
+  library's own collection.
+- **Managing collections** (categories, a collection's category, which are
+  rows on Home and on Recommended, and their order) is on the web and the
+  desktop app; the add-on shows the result.
 - **Library order** is the profile's, saved for all its devices: Sort
   libraries in the profile's menu, or a library's menu key.
 - **Search** asks the server for up to 200 titles, 200 people and 200

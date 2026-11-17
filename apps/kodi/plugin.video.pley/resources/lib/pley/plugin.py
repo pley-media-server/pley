@@ -18,7 +18,7 @@ import xbmc
 import xbmcgui
 import xbmcplugin
 
-from . import api, asking, kodi, listing, livetv, playback, requests
+from . import api, asking, categories, kodi, listing, livetv, playback, requests
 
 PAGE = 300
 
@@ -62,12 +62,15 @@ class Plugin(asking.Asking):
         except api.ApiError:
             return {"signed_in": False, "server": None}
 
-    def folder(self, title: str, params: dict, icon: str = "DefaultFolder.png", last: bool = False) -> None:
-        li = xbmcgui.ListItem(title, offscreen=True)
+    def folder(self, title: str, params: dict, icon: str = "DefaultFolder.png", last: bool = False, first: bool = False, label2: str = "") -> None:
+        li = xbmcgui.ListItem(title, label2, offscreen=True)
         li.setArt({"icon": icon, "thumb": icon})
         if last:
             # After the items, however they're sorted ("Next page").
             li.setProperty("SpecialSort", "bottom")
+        elif first:
+            # Before them (a merged collection's libraries).
+            li.setProperty("SpecialSort", "top")
         xbmcplugin.addDirectoryItem(self.handle, self.url(**params), li, isFolder=True)
 
     def action(self, title: str, params: dict, icon: str = "DefaultAddonService.png") -> None:
@@ -240,7 +243,11 @@ class Plugin(asking.Asking):
             self.requests_summary,
         )
         for hub in home.get("hubs", []):
-            self.folder(hub["title"], {"route": "hub", "key": hub["key"]}, "DefaultRecentlyAddedMovies.png")
+            # A row of collections opens them, all their titles (the web's
+            # row title and See all); the others are their own titles.
+            ids = hub.get("collection_ids") or []
+            params = {"route": "collection", "ids": ",".join(str(i) for i in ids)} if ids else {"route": "hub", "key": hub["key"]}
+            self.folder(hub["title"], params, "DefaultRecentlyAddedMovies.png")
         if livetv.available(live):
             # Where it has channels, after Home's rows as in the web's sidebar.
             self.folder(kodi.text("live_tv"), {"route": "live"}, "DefaultPVRChannels.png")
@@ -292,8 +299,28 @@ class Plugin(asking.Asking):
         self.end()
 
     def route_collections(self) -> None:
+        """A library's collections, as its Collections tab has them: a
+        folder for each category (Other last) when they are in more than
+        one, else the collections; `category` lists one's."""
+        library = self.params["id"]
         client = self.client()
-        for collection in client.get("/api/libraries/%s/collections" % self.params["id"]).get("collections", []):
+        found, every = api.together(
+            lambda: client.get("/api/libraries/%s/collections" % library),
+            lambda: client.get("/api/collection-categories"),
+        )
+        collections = found.get("collections", [])
+        listed = every.get("categories", [])
+        choice = categories.chosen(categories.parse(self.params.get("category")), categories.groups(collections, listed))
+        groups = categories.shown(collections, listed, choice)
+        if choice == categories.ALL and len(groups) > 1:
+            for category, of in groups:
+                params = {"route": "collections", "id": library, "category": categories.key(category)}
+                self.folder(categories.title(category), params, "DefaultSets.png", label2=kodi.count("collections", len(of)))
+            xbmcplugin.addSortMethod(self.handle, xbmcplugin.SORT_METHOD_UNSORTED)
+            return self.end()
+        if choice != categories.ALL and groups:
+            xbmcplugin.setPluginCategory(self.handle, categories.title(groups[0][0]))
+        for collection in [c for _, of in groups for c in of]:
             li = xbmcgui.ListItem(collection["title"], offscreen=True)
             li.setArt(
                 {
@@ -310,7 +337,26 @@ class Plugin(asking.Asking):
         self.end()
 
     def route_collection(self) -> None:
-        self.items(self.client().get("/api/collections/%s" % self.params["id"], summaries=1).get("items", []))
+        """A collection's titles, its name and category as the listing's;
+        `ids`: a Home row of several of one title (one a library's), all
+        their titles, after a folder for each library's own."""
+        client = self.client()
+        ids = [i for i in (self.params.get("ids") or "").split(",") if i.isdigit()]
+        if len(ids) > 1:
+            found, libraries = api.together(
+                lambda: client.get("/api/collections/merged", ids=",".join(ids), summaries=1),
+                lambda: client.get("/api/libraries"),
+            )
+            names = {lib["id"]: lib.get("name") for lib in libraries}
+            for part in found.get("collections", []):
+                name = names.get(part.get("library_id"))
+                if name:
+                    self.folder(kodi.text("collection_in_library") % name, {"route": "collection", "id": part["id"]}, "DefaultSets.png", first=True)
+            xbmcplugin.setPluginCategory(self.handle, found.get("title") or "")
+        else:
+            found = client.get("/api/collections/%s" % (ids[0] if ids else self.params["id"]), summaries=1)
+            xbmcplugin.setPluginCategory(self.handle, " · ".join(p for p in (found.get("title"), categories.said(found)) if p))
+        self.items(found.get("items", []))
         self.end()
 
     def route_playlists(self) -> None:

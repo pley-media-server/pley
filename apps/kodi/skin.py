@@ -834,6 +834,8 @@ def library() -> ET.Element:
             chip(L.LIBRARY_GENRE_ON, "check", ""),
             chip(L.LIBRARY_YEAR, None, L.word(30111)),
             chip(L.LIBRARY_YEAR_ON, "check", ""),
+            chip(L.LIBRARY_CATEGORY, None, L.word(30577)),
+            chip(L.LIBRARY_CATEGORY_ON, "check", ""),
             control("label", L.LIBRARY_COUNT, width="auto", height=80, font=L.FONT_LABEL, textcolor=L.MUTED, aligny="center", label=""),
         ],
         gap=20,
@@ -842,14 +844,16 @@ def library() -> ET.Element:
     content = [
         label(L.GUTTER, 64, 900, 68, L.FONT_PAGE, L.FG, id_=L.LIBRARY_TITLE),
         grouplist(L.LIBRARY_TABS, 1000, 58, L.WIDTH - L.SAFE_X - 1000, 80, tabs, gap=16, align="right", navigation=down),
-        group(None, 0, 0, L.WIDTH, L.HEIGHT, [controls], visible=is_("pley.library.tab", "all")),
+        group(None, 0, 0, L.WIDTH, L.HEIGHT, [controls], visible="!" + is_("pley.library.tab", "recommended")),
         group(
             None,
             0,
             0,
             L.WIDTH,
             L.HEIGHT,
-            grid(L.LIBRARY_GRID, 272, nav(onup=str(L.LIBRARY_CONTROLS), onleft=str(L.RAIL))),
+            # Down from the controls, past a grid that isn't shown, to the
+            # Collections tab's categories.
+            grid(L.LIBRARY_GRID, 272, nav(onup=str(L.LIBRARY_CONTROLS), ondown=str(L.slot(L.LIBRARY_ROWS, 0)), onleft=str(L.RAIL))),
             visible="!" + is_("pley.library.tab", "recommended"),
         ),
         label(L.GUTTER, 320, 1400, 120, L.FONT_BODY_LARGE, L.MUTED, id_=L.LIBRARY_EMPTY, wrap=True, aligny="top"),
@@ -859,8 +863,10 @@ def library() -> ET.Element:
             0,
             L.WIDTH,
             L.HEIGHT,
-            rows(L.LIBRARY_ROWS, L.LIBRARY_SLOTS, ("poster", "landscape", "square"), str(L.LIBRARY_TABS)),
-            visible=is_("pley.library.tab", "recommended"),
+            # Up from the first row: the Collections tab's chips, or, where
+            # they aren't shown (Recommended), past them to the tabs.
+            rows(L.LIBRARY_ROWS, L.LIBRARY_SLOTS, ("poster", "landscape", "square"), str(L.LIBRARY_CONTROLS)),
+            visible="!" + is_("pley.library.tab", "all"),
         ),
     ]
     return group(L.SCREENS["library"], 0, 0, L.WIDTH, L.HEIGHT, content, visible=is_("pley.screen", "library"))
