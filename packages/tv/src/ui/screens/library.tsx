@@ -852,6 +852,9 @@ function CollectionsTab(p: { entry: Entry; library: Library; initial: boolean; f
       elRef={(el) => (chipsRef.current = el)}
       onEnter={(dir) => (dir === "down" ? chipsRef.current?.querySelector<HTMLElement>("[data-f]") ?? null : null)}
       onEdge={(dir) => {
+        // Up goes to the tabs, as from the Library tab's chips: by geometry, the rows' box of no height at the page's top
+        // is nearer, and would take focus back down into them.
+        if (dir === "up") return p.focusTab();
         // The rows are placed in a box of no height of its own, which a move by geometry passes over, as from the tabs to Recommended's.
         const rows = dir === "down" ? document.querySelector<HTMLElement>(".collections-rows .page-scroll") : null;
         if (!rows) return false;

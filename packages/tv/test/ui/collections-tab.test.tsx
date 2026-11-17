@@ -127,6 +127,35 @@ describe("the Collections tab's focus", () => {
     expect(t.focused()).toBe("collections/10");
   });
 
+  it("goes up from the chips to the tabs, not back into the rows", async () => {
+    // jsdom lays nothing out: the page as a browser lays it out, the rows' box of no height at the page's top.
+    const original = Element.prototype.getBoundingClientRect;
+    const at = (x: number, y: number, w: number, h: number) => ({ x, y, width: w, height: h, left: x, top: y, right: x + w, bottom: y + h, toJSON: () => ({}) }) as DOMRect;
+    Element.prototype.getBoundingClientRect = function (this: Element) {
+      const fid = this.getAttribute("data-fid") ?? "";
+      const cls = this.getAttribute("class") ?? "";
+      if (cls.indexOf("library-tabs") >= 0) return at(589, 29, 323, 40);
+      if (fid.indexOf("tab/") === 0) return at(fid === "tab/collections" ? 806 : fid === "tab/library" ? 724 : 589, 29, 100, 40);
+      if (cls.indexOf("library-chips") >= 0) return at(96, 80, 816, 40);
+      if (fid === "chip/category") return at(96, 80, 89, 40);
+      if (cls.indexOf("page-scroll") >= 0) return at(0, 0, 960, 0);
+      if (cls.indexOf("row-track-group") >= 0) return at(0, 174, 960, 210);
+      if (fid.indexOf("collections/") === 0) return at(96, 174, 108, 162);
+      return at(0, 0, 0, 0);
+    };
+    try {
+      const highlights: CollectionCategory = { id: 1, key: "highlights", title: "Highlights" };
+      const t = setup([collection(10, highlights), collection(11, FRANCHISES)], Promise.resolve({ categories: [highlights, FRANCHISES] }), "collections");
+      await t.settle();
+      expect(t.el("chip/category")).not.toBeNull();
+      act(() => void t.focus.focus(t.el("chip/category")!));
+      act(() => void t.focus.move("up"));
+      expect(t.focused()).toBe("tab/collections");
+    } finally {
+      Element.prototype.getBoundingClientRect = original;
+    }
+  });
+
   it("moves to the collections when clearing the category takes the chips away", async () => {
     // Every collection is of one category, chosen: cleared, there is nothing left to choose.
     const t = setup([collection(10, FRANCHISES), collection(11, FRANCHISES)], Promise.resolve({ categories: [FRANCHISES] }), "library", {
