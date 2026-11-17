@@ -345,7 +345,7 @@ class TvLibraryFocusTest {
         compose.press(Key.DirectionDown)
         waitUntil { exists(hasAnyAncestor(hasTestTag(TestTags.LIBRARY_GRID)) and isFocused()) }
         graph.categoryList.value = Loadable.Ready(
-            listOf(CollectionCategory(1, "highlights", "Highlights"), CollectionCategory(2, "franchises", "Franchises")),
+            listOf(CollectionCategory(1, "highlights", "Highlights"), CollectionCategory(3, "other", "Other"), CollectionCategory(2, "franchises", "Franchises")),
             fresh = true,
         )
         // A row per category takes the grid's place: focus stays on the tab, on the Category chip above them,

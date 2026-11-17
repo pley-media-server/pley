@@ -66,11 +66,13 @@ class CollectionsPaneTest {
     fun anotherCategoryStartsAtTheTop() {
         val resources = ApplicationProvider.getApplicationContext<android.content.Context>().resources
         val tiles = PhoneTiles { resources }
+        // As a server sends them: Other before Franchises, and Other the category of those without one.
+        val other = CategoryRef(3, "other", "Other")
         val franchises = CategoryRef(2, "franchises", "Franchises")
-        val collections = (1..24).map { n -> CollectionSummary(n.toLong(), 1, "Saga %02d".format(n), category = franchises, itemCount = 2) } +
-            (25..48).map { n -> CollectionSummary(n.toLong(), 1, "Shelf %02d".format(n), itemCount = 2) }
+        val collections = (1..24).map { n -> CollectionSummary(n.toLong(), 1, "Shelf %02d".format(n), category = other, itemCount = 2) } +
+            (25..48).map { n -> CollectionSummary(n.toLong(), 1, "Saga %02d".format(n), category = franchises, itemCount = 2) }
         val shown = collections.map { it.tile(tiles.collection(it, LibraryKind.Movies, "")) }
-        val categories = listOf(CollectionCategory(2, "franchises", "Franchises"))
+        val categories = listOf(CollectionCategory(3, "other", "Other"), CollectionCategory(2, "franchises", "Franchises"))
         var chosen by mutableStateOf<CategoryChoice>(CategoryChoice.All)
         compose.setContent {
             Page {
@@ -83,11 +85,11 @@ class CollectionsPaneTest {
                 )
             }
         }
-        // Down to the last of Other, then Franchises chosen: its first collections show, not its last.
+        // Down to the last of Franchises, then Other chosen: its first collections show, not its last.
         compose.onNode(hasScrollToIndexAction() and SemanticsMatcher.keyIsDefined(SemanticsProperties.VerticalScrollAxisRange)).performScrollToIndex(49)
-        assertTrue(top("Shelf 48") > 0f)
-        compose.runOnIdle { chosen = CategoryChoice.Of(2) }
-        val first = top("Saga 01")
-        assertTrue("$first", first > 0f && first < top("Saga 04"))
+        assertTrue(top("Saga 48") > 0f)
+        compose.runOnIdle { chosen = CategoryChoice.Of(3) }
+        val first = top("Shelf 01")
+        assertTrue("$first", first > 0f && first < top("Shelf 04"))
     }
 }
