@@ -17,6 +17,7 @@ import app.pley.android.model.LibraryKind
 import app.pley.android.model.LibrarySort
 import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SortOrder
+import app.pley.android.network.ApiException
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
 import app.pley.android.screens.collection.CategoryChoice
@@ -411,6 +412,24 @@ class LibraryViewModelTest {
         val view = vm.state.value.collections.valueOrNull!!
         assertEquals(CollectionTile(9, 4, FakeTile(9, "Alien Collection", TileLook.Poster, "4 movies")), view.groups.single().collections.single())
         assertFalse(view.headed)
+        job.cancel()
+    }
+
+    @Test
+    fun aServerWithoutCategoriesShowsEveryCollectionAsBefore() = runTest(dispatcher) {
+        // A server from before categories: 404 for GET /api/collection-categories, no category on a collection.
+        collections.categoryList.value = Loadable.Failed(ApiException(404, "not_found", "no such endpoint"))
+        collections.lists.value = mapOf(
+            1L to listOf(CollectionSummary(9, 1, "Alien Collection", automatic = true, itemCount = 4), CollectionSummary(10, 1, "Favourites", itemCount = 2)),
+        )
+        val vm = viewModel(tab = LibraryTab.Collections)
+        val job = launch { vm.state.collect {} }
+        advanceUntilIdle()
+        // The tab doesn't wait on: one group, no heading, no Category filter.
+        val view = vm.state.value.collections.valueOrNull!!
+        assertEquals(listOf(9L, 10L), view.groups.single().collections.map { it.id })
+        assertFalse(view.headed)
+        assertFalse(view.categoryOffered)
         job.cancel()
     }
 

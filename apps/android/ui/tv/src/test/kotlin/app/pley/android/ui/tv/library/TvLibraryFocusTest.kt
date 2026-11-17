@@ -33,6 +33,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryKind
+import app.pley.android.network.ApiException
 import app.pley.android.screens.LibraryTab
 import app.pley.android.screens.PleyKey
 import app.pley.android.testing.screens.onboarding.FakeOnboardingSource
@@ -365,6 +366,34 @@ class TvLibraryFocusTest {
         assertEquals("Alien Collection", focusedTitle())
         compose.press(Key.DirectionUp)
         assertTrue(exists(hasText("Franchises") and isFocused()))
+    }
+
+    @Test
+    fun aServerWithoutCategoriesShowsTheCollectionsInAGrid() {
+        // A server from before categories answers GET /api/collection-categories 404.
+        graph.categoryList.value = Loadable.Failed(ApiException(404, "not_found", "no such endpoint"))
+        graph.collectionList.value = Loadable.Ready(
+            listOf(CollectionSummary(7, 1, "Family Night", itemCount = 5), CollectionSummary(8, 1, "Alien Collection", automatic = true, itemCount = 4)),
+            fresh = true,
+        )
+        graph.sources.libraryList.value = Loadable.Ready(listOf(movies), fresh = true)
+        graph.left[1] = "tab=collections"
+        val onboarding = FakeOnboardingSource().apply { active.value = "http://s" }
+        compose.setContent {
+            CompositionLocalProvider(LocalOnboardingSource provides onboarding) {
+                TvApp(Source(movies), onExit = {}, reducedMotion = true)
+            }
+        }
+        waitUntil { exists(isFocused()) }
+        compose.press(Key.DirectionLeft)
+        while (!exists(hasTestTag("${TestTags.TV_RAIL}.library:1") and isFocused())) compose.press(Key.DirectionDown)
+        compose.press(Key.DirectionCenter)
+        // The tab opens as it did before categories: every collection in the grid, the first focused, no Category chip.
+        waitUntil { focusedTitle() == "Family Night" }
+        assertTrue(exists(hasAnyAncestor(hasTestTag(TestTags.LIBRARY_GRID)) and isFocused()))
+        compose.press(Key.DirectionRight)
+        assertEquals("Alien Collection", focusedTitle())
+        assertTrue(!exists(hasText("Category")))
     }
 
     private companion object {
