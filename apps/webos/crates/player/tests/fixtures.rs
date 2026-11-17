@@ -19,9 +19,10 @@ use pley_fixtures::{FixtureServer, ids};
 use pley_player::controller::{Phase, PlaybackController};
 use pley_player::env::{HeldQuality, PlayerEnv};
 use pley_player::live::{LivePhase, LiveSession, TroubleKind};
+use pley_player::nextup::next_after;
 use pley_player::server::PlayerServer;
 use pley_player::sim::{SIM_LOAD_MS, SimClock, SimEngine, SimHandle};
-use pley_player::{PlayRequest, Reporter};
+use pley_player::{PlayRequest, Queue, Reporter};
 
 struct Fixed(String);
 
@@ -155,6 +156,20 @@ fn the_next_episode_plays_after_the_credits_countdown() {
     run.advance(11_000);
     assert_eq!(run.c.state().item_id, ids::SHOW_S1E2);
     assert!(run.sim.loads().len() >= 2);
+}
+
+#[test]
+fn next_on_the_merged_page_follows_its_movies_and_skips_its_shows() {
+    let server = FixtureServer::start();
+    let api = env(&server).server;
+    let queue = Queue::Collections(vec![ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS]);
+    let merged = api.merged_collection(&[ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS]).unwrap();
+    let movies: Vec<i64> = merged.items.iter().filter(|i| i.kind == ItemKind::Movie).map(|i| i.id).collect();
+    assert!(movies.len() > 1);
+    let next = |id| next_after(api.as_ref(), id, ItemKind::Movie, Some(queue.clone())).unwrap().map(|i| i.id);
+    assert_eq!(next(movies[0]), Some(movies[1]));
+    // The shows are skipped: after the last movie there is nothing.
+    assert_eq!(next(*movies.last().unwrap()), None);
 }
 
 /// The first `n` bytes the TV's player reads at `url` (plain HTTP), past the answer's head.

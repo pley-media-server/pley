@@ -1226,7 +1226,7 @@ impl PlaybackController {
         let (client_id, keyed) = (self.env.client_id.clone(), self.env.keyed_urls);
         let caps = self.caps.clone();
         let local = self.local();
-        let has_next = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue));
+        let has_next = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue.as_ref()));
         let file = Some(&asked.choices.file);
         let (audio, subtitles) = (!audio_streams(file).is_empty(), !subtitle_streams(file).is_empty());
         let controls = video_controls_with_tracks(has_next, audio, subtitles, !local);
@@ -1908,7 +1908,7 @@ impl PlaybackController {
         self.clock.position_ms = duration;
         self.state.skip_label = None;
         self.changed();
-        let has = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue));
+        let has = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue.as_ref()));
         if !has {
             self.phase(Phase::Ended);
             return;
@@ -2164,7 +2164,7 @@ impl PlaybackController {
             playing: self.want_play && !self.ended,
             position_ms: self.live_position(),
             duration_ms: (duration > 0).then_some(duration),
-            has_next: self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue)),
+            has_next: self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue.as_ref())),
         };
         match remote_action(&player, command) {
             RemoteAction::Play => {
@@ -2720,7 +2720,7 @@ impl PlaybackController {
                 from_start: false,
                 audio_index: if self.audio_picked { self.audio.as_ref().map(|a| a.index) } else { None },
                 subtitle_index: self.subtitle.as_ref().map(|s| s.index),
-                queue: self.current.queue,
+                queue: self.current.queue.clone(),
             },
             quality: self.quality.id.to_string(),
             playing: self.want_play,
@@ -2770,7 +2770,7 @@ impl PlaybackController {
     // ---------------------------------------------------------------- Up Next
 
     fn on_credits(&mut self) {
-        let has = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue));
+        let has = self.item.as_ref().is_some_and(|d| has_next(d.kind, self.current.queue.as_ref()));
         if !has || self.state.up_next.is_some() {
             return;
         }
@@ -2784,7 +2784,7 @@ impl PlaybackController {
         };
         self.next_lookup += 1;
         let lookup = self.next_lookup;
-        let queue = self.current.queue;
+        let queue = self.current.queue.clone();
         let server = self.env.server.clone();
         self.spawn(move || Done::Next { lookup, purpose, result: next_after(server.as_ref(), id, kind, queue) });
     }
@@ -2879,7 +2879,7 @@ impl PlaybackController {
             from_start: false,
             audio_index: None,
             subtitle_index: None,
-            queue: self.current.queue,
+            queue: self.current.queue.clone(),
         };
         // The next title plays at normal speed.
         if self.state.speed != 1.0 {

@@ -9,7 +9,7 @@ use pley_core::device::Drive;
 use pley_core::model::{LibraryQuery, LibrarySort, NewPlaylist, PlaylistKind, RangeFilter, ResolutionFilter};
 use pley_core::store::keys;
 use pley_fixtures::{Mode, ServerEvent, ids};
-use pley_shell::{BackgroundSession, LibraryTab, Route};
+use pley_shell::{BackgroundSession, LibraryTab, PlayQueue, Route};
 use pley_ui::{Id, theme};
 
 /// An entry's card on a playlist's page.
@@ -526,6 +526,18 @@ fn the_merged_page_shows_both_libraries_and_opens_each() {
     press(&mut app, &[Key::Right, Key::Right, Key::Right, Key::Ok]);
     assert_eq!(app.route(), Some(&Route::Collection { id: ids::HOLIDAY_SHOWS }));
     assert!(app.until(|a| a.shows("Seasonal")), "a collection's page names its category");
+}
+
+#[test]
+fn the_merged_pages_play_queues_every_librarys_collection() {
+    let mut app = TestApp::start();
+    app.open(Route::MergedCollection { ids: vec![ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS] });
+    let play = app.id(&["buttons", "play"]);
+    assert!(app.until(|a| a.focused() == Some(play)));
+    app.press(Key::Ok);
+    // A movie, with Next going on through the whole page rather than its own library's collection.
+    let queue = Some(PlayQueue::Collections(vec![ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS]));
+    assert!(matches!(app.route(), Some(Route::Player(r)) if r.queue == queue), "{:?}", app.route());
 }
 
 #[test]

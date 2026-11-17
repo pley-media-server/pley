@@ -464,8 +464,8 @@ impl CollectionScreen {
     }
 
     /// Plays the collection: movies from the first (or a random one) with the collection as the
-    /// queue; a collection of shows plays the first (or a random) show's next episode.
-    /// On the merged page, Next and Previous follow the title's own library's collection.
+    /// queue; a collection of shows plays the first (or a random) show's next episode. The merged
+    /// page's queue is all of its collections, so Next goes on through every library's movies.
     fn play(&mut self, cx: &mut AppCx, shuffle: bool) {
         let Some(shown) = self.shown.clone() else { return };
         let items = &shown.detail.items;
@@ -475,12 +475,12 @@ impl CollectionScreen {
         };
         let item = &items[pick];
         let queue = if shown.is_merged() {
-            shown.parts.iter().find(|p| p.library_id == item.library_id).map(|p| PlayQueue::Collection(p.id))
+            PlayQueue::Collections(shown.parts.iter().map(|p| p.id).collect())
         } else {
-            Some(PlayQueue::Collection(self.id))
+            PlayQueue::Collection(self.id)
         };
         if item.kind != ItemKind::Show {
-            cx.play(PlayRequest { queue, ..PlayRequest::item(item.id) });
+            cx.play(PlayRequest { queue: Some(queue), ..PlayRequest::item(item.id) });
             return;
         }
         let show = item.id;

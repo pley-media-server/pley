@@ -99,10 +99,12 @@ impl SettingsSection {
 }
 
 /// Where a playback's Next and Previous go: a playlist's or a collection's order.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum PlayQueue {
     Playlist(i64),
     Collection(i64),
+    /// Several libraries' same-titled collections, in the merged page's order.
+    Collections(Vec<i64>),
 }
 
 /// A video to play, as the player opens with it (the TV app's `PlayRequest`,

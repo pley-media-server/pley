@@ -57,9 +57,10 @@ pub fn player_request(r: &PlayRequest) -> pley_player::PlayRequest {
         from_start: r.from_start,
         audio_index: r.audio_index,
         subtitle_index: r.subtitle_index,
-        queue: r.queue.map(|q| match q {
-            PlayQueue::Playlist(id) => pley_player::Queue::Playlist(id),
-            PlayQueue::Collection(id) => pley_player::Queue::Collection(id),
+        queue: r.queue.as_ref().map(|q| match q {
+            PlayQueue::Playlist(id) => pley_player::Queue::Playlist(*id),
+            PlayQueue::Collection(id) => pley_player::Queue::Collection(*id),
+            PlayQueue::Collections(ids) => pley_player::Queue::Collections(ids.clone()),
         }),
     }
 }
