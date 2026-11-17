@@ -359,6 +359,7 @@
     "delete": "Eliminar {{title}}",
     "moveUp": "Subir {{title}}",
     "moveDown": "Bajar {{title}}",
+    "moved": "{{title}} pasó a la posición {{position}} de {{total}}",
     "fromLabel": "De la etiqueta {{label}}",
     "pleys": "De Pley"
   },
@@ -367,6 +368,7 @@
     "moveUp": "Subir {{title}}",
     "moveDown": "Bajar {{title}}",
     "remove": "Quitar {{title}}",
+    "moved": "{{title}} pasó a la posición {{position}} de {{total}}",
     "recommendedTitle": "Filas de Recomendado",
     "recommendedHint": "Las colecciones que se muestran como filas en Recomendado de esta biblioteca, después de Seguir viendo, para todos.",
     "restore": "Restaurar las de Pley",

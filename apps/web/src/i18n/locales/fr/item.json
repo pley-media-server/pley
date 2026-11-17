@@ -359,6 +359,7 @@
     "delete": "Supprimer {{title}}",
     "moveUp": "Monter {{title}}",
     "moveDown": "Descendre {{title}}",
+    "moved": "Catégorie {{title}} déplacée en position {{position}} sur {{total}}",
     "fromLabel": "De l’étiquette {{label}}",
     "pleys": "De Pley"
   },
@@ -367,6 +368,7 @@
     "moveUp": "Monter {{title}}",
     "moveDown": "Descendre {{title}}",
     "remove": "Retirer {{title}}",
+    "moved": "Rangée {{title}} déplacée en position {{position}} sur {{total}}",
     "recommendedTitle": "Rangées des recommandations",
     "recommendedHint": "Les collections affichées en rangées dans les recommandations de cette bibliothèque, après Reprendre la lecture, pour tout le monde.",
     "restore": "Rétablir celles de Pley",

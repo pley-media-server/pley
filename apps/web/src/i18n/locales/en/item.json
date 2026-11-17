@@ -345,6 +345,7 @@
     "delete": "Delete {{title}}",
     "moveUp": "Move {{title}} up",
     "moveDown": "Move {{title}} down",
+    "moved": "{{title}} moved to position {{position}} of {{total}}",
     "fromLabel": "From the label {{label}}",
     "pleys": "Pley's"
   },
@@ -353,6 +354,7 @@
     "moveUp": "Move {{title}} up",
     "moveDown": "Move {{title}} down",
     "remove": "Take {{title}} off",
+    "moved": "{{title}} moved to position {{position}} of {{total}}",
     "recommendedTitle": "Recommended rows",
     "recommendedHint": "The collections shown as rows on this library's Recommended tab, after Continue Watching, for everyone.",
     "restore": "Restore Pley's",
