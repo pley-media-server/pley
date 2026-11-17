@@ -7,9 +7,9 @@
 //! backdrop (else its poster) and a 436 dp hero (text column 96–560 from y 58: what it is, its
 //! title, its facts, its summary, then Play and Shuffle at its foot), then its titles as a grid of
 //! seven columns whose focused row's wells settle at y 58; the backdrop darkens toward Bg 92 % as
-//! the grid comes up. Its category is a badge beside "Collection". The merged page is the same
-//! page: its facts count its movies and shows, and a button after Shuffle for each library opens
-//! that library's own collection.
+//! the grid comes up. Its category, unless Other, is a badge beside "Collection". The merged page
+//! is the same page: its facts count its movies and shows, and a button after Shuffle for each
+//! library opens that library's own collection.
 
 use std::rc::Rc;
 
@@ -506,7 +506,7 @@ impl CollectionScreen {
             bx += Badge::new(t!("library.collections.smart"), BadgeStyle::Outline).show(ui, Point::new(bx, badge_y)).w
                 + 8.0;
         }
-        if let Some(category) = &detail.category {
+        if let Some(category) = detail.named_category() {
             Badge::new(&category.title, BadgeStyle::Outline).show(ui, Point::new(bx, badge_y));
         }
         y += row_h + 10.0;

@@ -613,3 +613,14 @@ fn a_server_before_categories_shows_every_collection_in_one_grid() {
     app.press(Key::Down);
     assert_eq!(app.focused(), Some(grid.with(0u64)));
 }
+
+#[test]
+fn a_collections_page_names_its_category_but_never_other() {
+    let mut app = TestApp::start();
+    // One of the shows library's collections without a category: the server sends it as Other.
+    app.open(Route::Collection { id: SHOWS_OTHER[0] });
+    assert!(app.until(|a| a.shows("Collection") && a.shows("Play") && a.shows_part("TV Shows")));
+    assert!(!app.shows("Other"), "the page named Other, which only says it has no category");
+    app.open(Route::Collection { id: ids::HOLIDAY_SHOWS });
+    assert!(app.until(|a| a.shows("Seasonal")), "a real category isn't named");
+}

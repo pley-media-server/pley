@@ -279,7 +279,7 @@ pub struct CollectionSummary {
     pub sort: CollectionSort,
     /// Smart collections: the library filter that fills them.
     pub smart_filter: Option<String>,
-    /// Its category; `None`: Other (and every collection of a server without categories).
+    /// Its category, Other for one without; `None` from a server without categories.
     #[serde(default)]
     pub category: Option<CategoryRef>,
     /// Items this profile can see.
@@ -298,12 +298,20 @@ pub struct CollectionSummary {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CategoryRef {
     pub id: i64,
-    /// `highlights` or `franchises` for Pley's own; `None` for an administrator's.
+    /// `highlights`, `other` or `franchises` for Pley's own; `None` for an administrator's.
     #[serde(default)]
     pub key: Option<String>,
     /// In the profile's language for Pley's own.
     #[serde(default, deserialize_with = "nd")]
     pub title: String,
+}
+
+impl CollectionSummary {
+    /// The category its page names: none for Other, which only says it has none (the web's
+    /// `namedCategory`).
+    pub fn named_category(&self) -> Option<&CategoryRef> {
+        self.category.as_ref().filter(|c| c.key.as_deref() != Some("other"))
+    }
 }
 
 /// A category of collections, shared by every library (`GET /api/collection-categories`).
@@ -651,5 +659,17 @@ mod tests {
         )
         .unwrap();
         assert_eq!(c.category.map(|c| c.title), Some("Franchises".to_string()));
+    }
+
+    #[test]
+    fn a_collection_names_its_category_but_not_other() {
+        let with = |key: Option<&str>| CollectionSummary {
+            category: Some(CategoryRef { id: 3, key: key.map(str::to_string), title: "T".into() }),
+            ..CollectionSummary::default()
+        };
+        assert!(with(Some("other")).named_category().is_none());
+        assert!(with(Some("franchises")).named_category().is_some());
+        assert!(with(None).named_category().is_some(), "an administrator's");
+        assert!(CollectionSummary::default().named_category().is_none(), "a server without categories");
     }
 }
