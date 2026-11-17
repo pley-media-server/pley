@@ -73,9 +73,9 @@ details.
 - Text answers over 1 KiB are compressed when the request accepts it; media,
   images and the event stream never are.
 - A request still running after 30 minutes answers `408`.
-- The compatibility APIs, when they answer on the same port (the
-  Plex-compatible one does by default), answer only requests that are their
-  own (a path only one has, or its headers or token on a path both have).
+- The compatibility APIs, when they answer on the same port (both do by
+  default), answer only requests that are their own (a path only one has,
+  or its headers or token on a path both have).
   `/api/…` and `/.well-known/…` always belong to this API.
 
 ## Authentication
@@ -4813,7 +4813,7 @@ interface Network {
   plex_on_web: boolean;   // the Plex-compatible API answers its clients on Pley's port;
                           // never with addresses in `plex`
   jellyfin: string[];     // the Jellyfin-compatible API on addresses of its own ("0.0.0.0:8096");
-                          // [] = on Pley's port (jellyfin_on_web) or off (the default)
+                          // [] = on Pley's port (jellyfin_on_web, the default) or off
   jellyfin_on_web: boolean; // the Jellyfin-compatible API answers its apps on Pley's port;
                           // never with addresses in `jellyfin`
   discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses)

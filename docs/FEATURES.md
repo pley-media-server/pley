@@ -229,8 +229,7 @@ The Plex-compatible API, on Pley's own port by default (or 32400), for
 as Tautulli: browsing with their filters, editing, collections, playlists,
 play queues, sessions, history and notifications.
 
-The Jellyfin-compatible API, off until it is turned on, on Pley's own port
-or one of its own (8096):
+The Jellyfin-compatible API, on Pley's own port by default (or 8096):
 Jellyfin's apps and others built on its API browse the libraries, play as
 they are or as HLS from Pley's transcoder, with subtitles, skip intro and
 credits, and keep watch state, favorites (My List) and ratings with Pley's

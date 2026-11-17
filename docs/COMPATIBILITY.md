@@ -9,7 +9,7 @@ APIs, so that apps and tools written for them work with Pley:
   direct-play clients. It is on by default, on Pley's own port.
 - the **Jellyfin-compatible API**, for Jellyfin's apps and others built on
   its API (Findroid, JellyCon, Plezy, Infuse), and activity monitors such
-  as Tracearr. It is off until an administrator turns it on.
+  as Tracearr. It is on by default, on Pley's own port.
 
 Both use the same libraries, users, watch state and playback sessions as
 Pley's own API, so what is watched or changed in one shows up in the others.
@@ -27,8 +27,8 @@ tool at Pley, and for anyone extending the APIs.
 
 ## Turning them on
 
-**Settings → Network** sets each API: off, on Pley's port, or on a port of
-its own.
+Both APIs answer on Pley's port by default. **Settings → Network** sets
+each one: off, on Pley's port, or on a port of its own.
 
 - **On Pley's port**: the API answers on Pley's own address, behind a
   reverse proxy's HTTPS too. Apps and tools connect to the address the web
@@ -42,7 +42,7 @@ The same is set elsewhere as:
 
 | Where | Plex-compatible API | Jellyfin-compatible API |
 |---|---|---|
-| Command line | `--plex-bind web` (the default), `--plex-bind 0.0.0.0:32400` or `--plex-bind off` | `--jellyfin-bind off` (the default), `--jellyfin-bind web` or `--jellyfin-bind 0.0.0.0:8096` |
+| Command line | `--plex-bind web` (the default), `--plex-bind 0.0.0.0:32400` or `--plex-bind off` | `--jellyfin-bind web` (the default), `--jellyfin-bind 0.0.0.0:8096` or `--jellyfin-bind off` |
 | Environment | `PLEY_PLEX_BIND` | `PLEY_JELLYFIN_BIND` |
 | `pley.toml` | `plex_bind = "web"` | `jellyfin_bind = "web"` |
 
@@ -53,7 +53,8 @@ retried every 30 seconds, and Settings → Network shows why Pley isn't
 listening there.
 
 On Pley's port, a request that names itself the Plex-compatible API's (an
-`X-Plex-…` header, or such a parameter in the query) goes to that API; the
+`X-Plex-…` header, such a parameter in the query, or a path with Plex's `:`
+segments, such as a player's `/audio/:/transcode/…`) goes to that API; the
 rest is told apart as each API's section says. `/api/…` and
 `/.well-known/…` are always Pley's own.
 
@@ -61,7 +62,7 @@ rest is told apart as each API's section says. `/api/…` and
 
 | Port | What answers there |
 |---|---|
-| TCP 7539, Pley's port | The Plex-compatible API (its default), and the Jellyfin-compatible API when it is on Pley's port |
+| TCP 7539, Pley's port | The Plex- and Jellyfin-compatible APIs (their default) |
 | TCP 32400 | The Plex-compatible API, only when given a port of its own |
 | TCP 8096 | The Jellyfin-compatible API, only when given a port of its own |
 
@@ -621,7 +622,8 @@ Requests are told apart like this:
   request carries: players fetch streams and pictures without a header, and
   a path Pley doesn't answer gets Jellyfin's `404`, not a page. A request
   that names itself the Plex-compatible API's goes to that one while it is
-  on Pley's port too: their paths meet (`/library`, `/system`, `/devices`).
+  on Pley's port too: their paths meet (`/library`, `/system`, `/devices`,
+  `/audio`).
 - A path both have (`/Library`, `/Playlists`, `/Search`) goes to it only
   with a Jellyfin app's `Authorization: MediaBrowser …` header or token,
   which browsers asking for the web app never send. Those answers vary with
