@@ -39,7 +39,7 @@ async fn shelf() -> Shelf {
 
 /// An app's event stream hears of a library made after it opened at once,
 /// as on a server without audiobooks, and never of an audiobook library's
-/// scans.
+/// scans, one made after it opened too.
 #[tokio::test]
 async fn an_apps_events_follow_new_libraries_but_not_audiobooks() {
     use futures::StreamExt;
@@ -58,6 +58,8 @@ async fn an_apps_events_follow_new_libraries_but_not_audiobooks() {
     let r = w.app.post(&format!("/api/libraries/{}/scan", w.books), &w.admin, json!({"force": true})).await;
     assert_eq!(r.status, StatusCode::ACCEPTED);
     w.app.wait_for_scans().await;
+    w.app.media_file("new books/Another Writer/New Book.m4b", 512);
+    let new_books = w.app.library(&w.admin, "New Books", "audiobooks", "new books").await;
     w.app.media_file("more/Second Film (2002)/Second Film (2002).mkv", 2048);
     let more = w.app.library(&w.admin, "More", "movies", "more").await;
 
@@ -80,7 +82,7 @@ async fn an_apps_events_follow_new_libraries_but_not_audiobooks() {
         }
     };
     tokio::time::timeout(std::time::Duration::from_secs(10), read).await.expect("the new library's scan_finished");
-    assert!(!events.iter().any(|e| e["library_id"] == w.books), "{events:?}");
+    assert!(!events.iter().any(|e| e["library_id"] == w.books || e["library_id"] == new_books), "{events:?}");
 }
 
 /// The smallest JPEG Pley's image code reads: one white pixel.

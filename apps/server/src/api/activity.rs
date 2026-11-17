@@ -207,7 +207,14 @@ pub async fn events(
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
     let slot = StreamSlot::take(token.as_deref())?;
     // Events about libraries the user can't open aren't theirs to see.
-    let libraries = Arc::new(parking_lot::RwLock::new(access::heard_libraries(&state.db, &user).await?));
+    let libraries = Arc::new(parking_lot::RwLock::new(access::account_library_ids(&state.db, &user).await?));
+    // Nor are those of libraries the request doesn't get (audiobooks, for
+    // an app that doesn't show them). A library's kind never changes: each
+    // is asked about once, at its first event, so one added since the
+    // stream opened is known before its scan is heard. A request that gets
+    // audiobooks never asks.
+    let withheld = Arc::new(parking_lot::Mutex::new(HashMap::<i64, bool>::new()));
+    let asker = (!user.audiobooks()).then(|| Arc::new((state.db.clone(), user.clone())));
     // Requests' events go to an app's stream only with `requests`, and
     // those for managers to managers' streams, while the session is one.
     let asks = user.allowed(Scope::Requests);
@@ -264,8 +271,8 @@ pub async fn events(
                     ended.cancel();
                     break;
                 };
-                if let Ok(heard) = access::heard_libraries(&state.db, &user).await {
-                    *libraries.write() = heard;
+                if let Ok(ids) = access::account_library_ids(&state.db, &user).await {
+                    *libraries.write() = ids;
                 }
                 // An account made an administrator, or no longer one.
                 manager.store(user.manages_requests(), Ordering::Relaxed);
@@ -296,16 +303,33 @@ pub async fn events(
         // the streams of that id on that device. The filter holds the
         // receiver for as long as the stream lasts.
         .filter(move |event| event.receiver_only().is_none_or(|to| receiver.as_ref().is_some_and(|r| r.is(to))))
-        .filter(move |event| {
-            let (open, withheld) = &*libraries.read();
-            event
-                .library_id()
-                .is_none_or(|id| open.as_ref().is_none_or(|ids| ids.contains(&id)) && !withheld.contains(&id))
-        })
-        .map(move |event| {
-            let _ = (&gone, &slot);
-            Ok(Event::default().json_data(event).unwrap_or_else(|_| Event::default().comment("encode error")))
+        .filter(move |event| match (event.library_id(), &*libraries.read()) {
+            (Some(id), Some(ids)) => ids.contains(&id),
+            _ => true,
         });
+    let stream = futures::StreamExt::filter_map(stream, move |event| {
+        let ask = event.library_id().and_then(|id| Some((id, asker.clone()?, withheld.clone())));
+        async move {
+            let Some((id, asker, withheld)) = ask else {
+                return Some(event);
+            };
+            let known = withheld.lock().get(&id).copied();
+            let withholds = match known {
+                Some(withholds) => withholds,
+                None => match access::withholds(&asker.0, &asker.1, id).await {
+                    Ok(withholds) => *withheld.lock().entry(id).or_insert(withholds),
+                    // Heard, as on a server without audiobooks (what an app
+                    // shows, not what it may open), and asked again next time.
+                    Err(_) => false,
+                },
+            };
+            (!withholds).then_some(event)
+        }
+    })
+    .map(move |event| {
+        let _ = (&gone, &slot);
+        Ok(Event::default().json_data(event).unwrap_or_else(|_| Event::default().comment("encode error")))
+    });
     // The stream never ends on its own and the web UI keeps one open while
     // someone is signed in: end it when the server stops, or the graceful
     // shutdown would wait for it.
