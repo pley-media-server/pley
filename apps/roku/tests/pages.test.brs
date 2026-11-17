@@ -137,6 +137,13 @@ sub test_pages_collections_by_category()
         keys.Push(group.key)
     end for
     tkEqual(keys, ["1", "2", "3", "5", "9"], "without the list: the collections' own, in the order they come")
+    ' A server from before categories: GET /api/collection-categories
+    ' answers 404 and collections have none, so they're one group, the
+    ' plain grid as before.
+    older = pageCollectionTiles([{ id: 1, title: "Dune Collection", item_count: 2 }, { id: 2, title: "Favourites", item_count: 5 }], server)
+    groups = pageCollectionGroups(older, [], "")
+    tkEqual(groups.Count(), 1, "one group: the grid, no Category chip")
+    tkEqual(groups[0].tiles.Count(), 2, "every collection in it")
     tkEqual(pageCollection({ id: 2, title: "Dune", category: { id: 2, key: "franchises", title: "Franchises" }, items: [] }, server).category, "Franchises")
     tkEqual(pageCollection({ id: 3, title: "Mine", category: { id: 3, key: "other", title: "Other" }, items: [] }, server).category, "", "Other only says it has none: no badge")
     tkEqual(pageCollection({ id: 4, title: "Christmas", category: { id: 5, key: invalid, title: "Seasonal" }, items: [] }, server).category, "Seasonal", "an administrator's category")

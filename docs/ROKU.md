@@ -186,10 +186,12 @@ nor their books on Home, in search or in history.
   comes under Other): a row each, named for its category, or a grid when
   only one group shows. Where there are two groups or more, Category at
   the right of the tabs chooses one of them in a panel (All categories,
-  then each of the library's), for that visit. Managing
-  categories, a collection's category and which collections are rows on
-  Home and the Recommended tab are in the web and desktop apps; this app
-  shows what they set.
+  then each of the library's), for that visit. Without the list (`404`
+  from a server older than categories), the collections' own categories
+  stand in, so such a server's collections, which have none, are the
+  grid as before. Managing categories, a collection's category and which
+  collections are rows on Home and the Recommended tab are in the web
+  and desktop apps; this app shows what they set.
 - **A to Z:** sorted by title with more than 30 titles, "#" and A to Z
   stand in a column right of the grid, the letter of the title in focus
   marked and the letters no title starts with dimmed. Right from the
@@ -888,7 +890,9 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   the requests showed), chooses Español in Settings → Language for the
   account (Home asked for again in it) and Automatic again, and checks
   that a server
-  without requests is asked nothing but the summary. The fake server also
+  without requests is asked nothing but the summary, and that one without
+  categories (`404`) shows a library's collections as a grid that opens
+  them. The fake server also
   checks that a video's reports say which audio and subtitles play, and
   music's don't.
 - **brs-node limits:** its own fonts, no video or audio (Skip intro, Up
