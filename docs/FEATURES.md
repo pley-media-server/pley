@@ -130,7 +130,8 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   HDR on models that play them, with the subtitles picked, keeps their
   place, and the remote controls them as it does Pley's own players. An
   AirPlay device that asks for a code is paired once, with the code it
-  shows, and administrators forget pairings in Settings → Network
+  shows. Administrators turn casting to these devices on in Settings →
+  Network, where it's off by default, and forget pairings there
   ([API.md](API.md#casting)).
 
 ## Live TV

@@ -1108,6 +1108,10 @@
       "report": "Ver lo que se trajo"
     }
   },
+  "castDevices": {
+    "label": "Reproducir en dispositivos Google Cast y AirPlay",
+    "hint": "Reproducir en… ofrece al hogar los Chromecast, Google TV, Apple TV y otros dispositivos Google Cast y AirPlay de la red del servidor, y Pley reproduce en ellos. Desactivado, Pley no los busca."
+  },
   "airplay": {
     "title": "Dispositivos AirPlay",
     "description": "El servidor está vinculado con estos. Si olvidas uno, el próximo envío a él volverá a pedir su código; quita también Pley de la lista del propio dispositivo.",

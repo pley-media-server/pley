@@ -1097,6 +1097,12 @@ export interface Settings {
    */
   require_two_step?: boolean;
   /**
+   * Pley lists the Google Cast and AirPlay devices on its network in the
+   * household's Play on… and casts to them; off, it doesn't look for any.
+   * Off by default. Absent from servers before it.
+   */
+  cast_devices?: boolean;
+  /**
    * Addresses with a port pley is reached at through a reverse proxy that
    * leaves the port out of `Host` (`https://media.example.com:9999`).
    * Absent from servers before it.

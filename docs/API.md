@@ -4001,8 +4001,10 @@ would.
   such cast: it isn't offered across profiles. A progress report naming
   another profile's session (one that left with this profile's token as
   its device switched) is answered `204` and kept for neither.
-- **Google Cast devices.** Chromecasts, Google TVs and TVs with Cast
-  built in that show video are listed too, for home members whose remote
+- **Google Cast devices.** While the administrator has them on
+  (Settings → Network, `cast_devices`, off by default), Chromecasts,
+  Google TVs and TVs with Cast built in that show video are listed too,
+  for home members whose remote
   asks with `nearby=1` (a remote that doesn't know them leaves it out),
   through the web app or one of Pley's own apps: they are the home's, as
   its TVs are, and an app other than Pley's own gets none, nor casts or
@@ -4013,7 +4015,10 @@ would.
   when the list is asked for and the last look is over 30 seconds old,
   and keeps one that stops answering for 5 minutes; a cast to, or a
   pairing with, one it doesn't keep (from a list older than that) looks
-  again first, as the list would. It doesn't look
+  again first, as the list would. With them turned off it lists none
+  and doesn't look, and a cast to or a pairing with one answers `404`,
+  as for a device it doesn't know; casts already playing go on until they
+  end. It doesn't look
   while discovery is off (Settings → Network, `--no-discovery`), and then
   lists none, nor from a Docker bridge network, which the announcements
   don't reach. It lists them only while its web port listens on an
@@ -4804,6 +4809,8 @@ interface Settings {
                                     // turning it on signs out everyone without it, who sets it up at their
                                     // next sign-in. Only an administrator who uses it may turn it on (else
                                     // 400), and only while the server can use its secret.key (else 400)
+  cast_devices: boolean;            // Google Cast and AirPlay devices are listed and cast to (default false):
+                                    // off, the server doesn't look for them ([Casting](#casting))
   proxy_addresses: string[];        // addresses with a port Pley is reached at through a reverse proxy that
                                     // drops the port from `Host` ("https://media.example.com:9999"; see
                                     // Discovery). http or https with a port and no path, one per scheme and

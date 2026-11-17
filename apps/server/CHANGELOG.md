@@ -39,6 +39,9 @@ describes how they are made.
   beside the Plex one (`/JELLYFIN=` for a silent install), ticked unless
   Pley has the API off. An update keeps what Settings → Network set for
   either API, a port of its own included.
+- Casting to Google Cast and AirPlay devices has a switch in Settings →
+  Network, off by default and on updated servers too: Play on… lists
+  those devices once an administrator turns it on.
 
 ### Fixed
 
