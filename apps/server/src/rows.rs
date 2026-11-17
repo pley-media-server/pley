@@ -50,7 +50,7 @@ pub async fn recommended(db: &Db, user: &AuthUser, lib: &LibraryRow, language: &
     let names = Names::load(db, language).await?;
     let mut rows = Vec::new();
     for row in collections::recommended_rows(db, lib.id).await? {
-        let Some(mut items) = collections::visible_items(db, user, &row).await? else { continue };
+        let Some(mut items) = collections::visible_items(db, user, &row, Some(ROW_SIZE)).await? else { continue };
         items.truncate(ROW_SIZE);
         if items.is_empty() {
             continue;
@@ -165,7 +165,7 @@ async fn home_rows(db: &Db, user: &AuthUser, language: &'static str, merge: bool
             Planned::Collections(rows) => {
                 let mut lists = Vec::new();
                 for row in &rows {
-                    lists.push(collections::visible_items(db, user, row).await?.unwrap_or_default());
+                    lists.push(collections::visible_items(db, user, row, Some(ROW_SIZE)).await?.unwrap_or_default());
                 }
                 let libraries: Vec<i64> = rows.iter().map(|r| r.library_id).collect();
                 Row {

@@ -1488,9 +1488,24 @@ pub(crate) fn valid_smart_filter(lib: &LibraryRow, filter: &str) -> bool {
 /// What a smart collection's filter finds in `lib`, as `user_id` may see it,
 /// in its order. A filter Pley can't apply finds nothing.
 pub(crate) async fn smart_items(db: &Db, user_id: i64, lib: &LibraryRow, filter: &str) -> sqlx::Result<Vec<ItemRow>> {
+    smart_items_up_to(db, user_id, lib, filter, None).await
+}
+
+/// [`smart_items`], the first `most` of them when it's given (a row's
+/// worth): fewer read, rather than all of them cut afterwards.
+pub(crate) async fn smart_items_up_to(
+    db: &Db,
+    user_id: i64,
+    lib: &LibraryRow,
+    filter: &str,
+    most: Option<usize>,
+) -> sqlx::Result<Vec<ItemRow>> {
     let params = filter_params(filter);
     let Some(kind) = smart_kind(lib, &params) else { return Ok(Vec::new()) };
-    let Ok(query) = SectionQuery::new(lib.id, kind, &params) else { return Ok(Vec::new()) };
+    let Ok(mut query) = SectionQuery::new(lib.id, kind, &params) else { return Ok(Vec::new()) };
+    if let Some(most) = most {
+        query.cap = Some(query.cap.map_or(most, |cap| cap.min(most)));
+    }
     Ok(query.page(db, user_id, &Page::default()).await?.0)
 }
 
@@ -2631,6 +2646,31 @@ mod tests {
                     let expected = in_memory(&db, user, &query, &page).await;
                     assert_eq!(found, expected, "user {user}, {pairs:?}, {page:?}");
                 }
+            }
+        }
+    }
+
+    /// A row reads only its first titles of a smart collection, the
+    /// filter's own `limit` still holding when it is smaller.
+    #[tokio::test]
+    async fn a_smart_collection_gives_a_row_its_first_titles_alone() {
+        let dir = crate::testing::tempdir();
+        let db = listing_fixture(dir.path()).await;
+        let lib = crate::library::get_library(&db, 1).await.unwrap().unwrap();
+        let ids = |rows: Vec<ItemRow>| rows.into_iter().map(|r| r.id).collect::<Vec<_>>();
+        // In SQL, and in memory (a release date is compared there).
+        let filters = [
+            "sort=titleSort",
+            "unwatched=1&sort=rating:desc",
+            "sort=titleSort&limit=2",
+            "originallyAvailableAt!=-1&sort=originallyAvailableAt:desc",
+        ];
+        for filter in filters {
+            let all = ids(smart_items(&db, 1, &lib, filter).await.unwrap());
+            assert!(all.len() > 1, "{filter}: {all:?}");
+            for most in [0, 1, 3] {
+                let first = ids(smart_items_up_to(&db, 1, &lib, filter, Some(most)).await.unwrap());
+                assert_eq!(first, all[..most.min(all.len())], "{filter}, {most}");
             }
         }
     }
