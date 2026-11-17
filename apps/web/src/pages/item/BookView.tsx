@@ -50,10 +50,11 @@ export function BookView({ item }: { item: ItemDetail }) {
   const heard = list.length ? heardMs(list) : 0;
   const finished = list.length > 0 && list.every((p) => p.user_state.watched);
   const started = !finished && heard > 0;
-  // The player holds this book part way through: Play and Pause act on it
-  // there. Heard to the end of what it was given, or the book since marked
-  // listened, Play starts the book where the server says, as from elsewhere.
-  const playingThis = audio.current?.parent_id === item.id && (audio.playing || (!audio.ended && !finished));
+  // The player holds this book part way through (a finished book heard
+  // again too, whose parts all stay heard): Play and Pause act on it there.
+  // Once it has heard the end of what it was given, Play starts the book
+  // where the server says it goes on, as from anywhere else.
+  const playingThis = audio.current?.parent_id === item.id && !audio.ended;
 
   const playPart = (i: number, fromStartOfPart = false) => {
     const part = list[i];
@@ -124,7 +125,7 @@ export function BookView({ item }: { item: ItemDetail }) {
             >
               {playingThis && audio.playing
                 ? t("book.pause")
-                : started
+                : started || (playingThis && finished)
                   ? t("book.resume")
                   : finished
                     ? t("book.listenAgain")
@@ -224,8 +225,7 @@ function Chapters({ part, parts }: { part: ChildItem; parts: ChildItem[] }) {
   const detail = useItem(part.id);
   const chapters: Chapter[] = detail.data?.files[0]?.chapters ?? [];
   if (detail.isPending || chapters.length < 2) return null;
-  // Heard to its end, the player's session is over: a chapter starts another.
-  const here = audio.current?.id === part.id && !audio.ended;
+  const here = audio.current?.id === part.id;
   const nowMs = here ? time.position * 1000 : part.user_state.watched ? -1 : part.user_state.position_ms;
   const at = (c: Chapter) => {
     if (here) audio.seek(c.start_ms / 1000);

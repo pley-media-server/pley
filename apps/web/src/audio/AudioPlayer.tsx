@@ -142,6 +142,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const queueRef = useLatest(queue);
   const indexRef = useLatest(index);
   const sleepRef = useLatest(sleep);
+  const endedRef = useLatest(ended);
 
   const current = queue[index] ?? null;
   const book = current?.kind === "part";
@@ -603,14 +604,28 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (i + 1 < queueRef.current.length) goTo(i + 1);
   }, [goTo, indexRef, queueRef]);
 
-  const seek = useCallback((seconds: number) => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const target = Math.max(0, seconds);
-    audio.currentTime = target;
-    if (sessionRef.current) sessionRef.current.positionMs = Math.round(target * 1000);
-    setTime((t) => ({ ...t, position: target }));
-  }, []);
+  const seek = useCallback(
+    (seconds: number) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const target = Math.max(0, seconds);
+      if (endedRef.current) {
+        // Heard to its end, the track's session is over: it starts again
+        // there, with one of its own (a chapter chosen, the seek bar, back),
+        // unless that is its end still (skipped forward), where it would
+        // only end again.
+        if (Number.isFinite(audio.duration) && target >= audio.duration - 1) return;
+        setTime((t) => ({ ...t, position: target }));
+        goTo(indexRef.current);
+        startAtRef.current = Math.round(target * 1000);
+        return;
+      }
+      setTime((t) => ({ ...t, position: target }));
+      audio.currentTime = target;
+      if (sessionRef.current) sessionRef.current.positionMs = Math.round(target * 1000);
+    },
+    [goTo, endedRef, indexRef],
+  );
 
   /** The track before, or this one from its start a few seconds in (true: it started over). */
   const prev = useCallback((): boolean => {

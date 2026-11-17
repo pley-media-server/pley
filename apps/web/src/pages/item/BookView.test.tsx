@@ -1,6 +1,6 @@
 import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from "vitest";
 import type { ItemDetail, ItemSummary } from "@/api/types";
 import { AudioPlayerProvider, useAudioPlayer } from "@/audio/AudioPlayer";
 import { makeItem } from "@/test/fixtures";
@@ -107,8 +107,9 @@ describe("a book's page", () => {
 });
 
 describe("a book's Play, with a part of it in the player", () => {
+  let play: MockInstance<HTMLMediaElement["play"]>;
   beforeEach(() => {
-    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
     vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
     vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
   });
@@ -174,10 +175,28 @@ describe("a book's Play, with a part of it in the player", () => {
     await waitFor(() => expect(starts(requests)).toMatchObject([{ item_id: 32 }, { item_id: 31, start_ms: 0 }]));
   });
 
-  it("starts a finished book from its start, though the player holds it part way", async () => {
+  it("pauses and resumes a finished book heard again in the player, where it is", async () => {
     const requests = playable([part(31, 1, heard), part(32, 2, heard)], part(31, 1, heard));
     const { container } = show(book());
-    await playPart(container, "Play Chapter 2");
+    const audio = await playPart(container, "Play Chapter 2");
+    act(() => {
+      audio.dispatchEvent(new Event("play"));
+    });
+    expect(screen.getByRole("button", { name: "Pause" })).toBeInTheDocument();
+    act(() => {
+      audio.dispatchEvent(new Event("pause"));
+    });
+    // Its parts all stay heard; it still goes on where it was paused.
+    const before = play.mock.calls.length;
+    await userEvent.click(screen.getByRole("button", { name: "Resume" }));
+    expect(play.mock.calls.length).toBe(before + 1);
+    expect(starts(requests)).toMatchObject([{ item_id: 32 }]);
+  });
+
+  it("starts a finished book again from its first part once the player has heard it to the end", async () => {
+    const requests = playable([part(31, 1, heard), part(32, 2, heard)], part(31, 1, heard));
+    const { container } = show(book());
+    end(await playPart(container, "Play Chapter 2"));
     await userEvent.click(screen.getByRole("button", { name: "Listen again" }));
     await waitFor(() => expect(starts(requests)).toMatchObject([{ item_id: 32 }, { item_id: 31, start_ms: 0 }]));
   });
