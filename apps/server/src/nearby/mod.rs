@@ -67,6 +67,17 @@ impl Protocol {
         }
     }
 
+    /// The commands a cast of a Live TV channel takes: channel up and down,
+    /// which the server makes, and a Cast device's volume. A channel plays
+    /// as it airs, as it does in Pley's own players: no pause or seek.
+    pub fn live_controls(self) -> crate::playback::Controls {
+        use crate::playback::Control;
+        match self {
+            Protocol::Cast => [Control::Next, Control::Previous, Control::Volume].into(),
+            Protocol::AirPlay => [Control::Next, Control::Previous].into(),
+        }
+    }
+
     /// Its players show text subtitles from beside what they play:
     /// `streamed`, it comes as an HLS stream. An AirPlay device shows only
     /// those a stream's playlist names, so not beside a file played as it is.

@@ -118,6 +118,9 @@ struct Viewer {
     device_kind: DeviceKind,
     /// Commands sent to it lately (remote control).
     commands: CommandWindow,
+    /// Its device's volume, 0 to 100, where its player says it (a cast to
+    /// a Google Cast device).
+    volume: Option<u8>,
     /// Cancelled when it is stopped from elsewhere: a stream reader's
     /// response ends, though others still watch the channel.
     stopped: CancellationToken,
@@ -166,6 +169,7 @@ pub struct RemoteViewer {
     pub started_at: i64,
     /// When its player last asked for the channel (unix ms).
     pub seen_at_ms: i64,
+    pub volume: Option<u8>,
 }
 
 impl From<&Viewer> for RemoteViewer {
@@ -180,6 +184,7 @@ impl From<&Viewer> for RemoteViewer {
             controls: v.controls.clone(),
             started_at: v.started_at,
             seen_at_ms: now_ms() - v.last_seen.elapsed().as_millis() as i64,
+            volume: v.volume,
         }
     }
 }
@@ -802,6 +807,7 @@ impl Tuners {
                     device_id: device_id.unwrap_or_else(|| format!("session-{session_id}")),
                     device_kind,
                     commands: CommandWindow::default(),
+                    volume: None,
                     stopped: CancellationToken::new(),
                 },
             );
@@ -1037,6 +1043,15 @@ impl Tuners {
         viewers.get(session_id).filter(|v| is_there(&viewers, v)).map(RemoteViewer::from)
     }
 
+    /// Whether `user_id` has a viewer of `client_id` there: a device's newer
+    /// viewer, started as the one before ends.
+    pub fn watching_on(&self, user_id: i64, client_id: &str) -> bool {
+        let viewers = self.viewers.lock();
+        viewers
+            .values()
+            .any(|v| v.user_id == user_id && v.client_id.as_deref() == Some(client_id) && is_there(&viewers, v))
+    }
+
     /// Counts a remote's command to viewer `session_id`: whether it may go
     /// ([`CommandWindow::take`]), or `None` when the viewer is no longer
     /// there (stopped, taken over or swept since the remote looked it up).
@@ -1046,6 +1061,16 @@ impl Tuners {
             return None;
         }
         viewers.get_mut(session_id).map(|v| v.commands.take())
+    }
+
+    /// Keeps viewer `session_id`'s volume, as its player says it: whether it
+    /// changed.
+    pub fn report_volume(&self, session_id: &str, percent: u8) -> bool {
+        let mut viewers = self.viewers.lock();
+        let Some(viewer) = viewers.get_mut(session_id) else { return false };
+        let changed = viewer.volume != Some(percent);
+        viewer.volume = Some(percent);
+        changed
     }
 
     /// Ends viewer `session_id` from elsewhere (`DELETE /api/sessions/{id}`):
@@ -1777,6 +1802,7 @@ mod tests {
             device_id: "session-s".into(),
             device_kind: DeviceKind::Other,
             commands: CommandWindow::default(),
+            volume: None,
             stopped: CancellationToken::new(),
         }
     }

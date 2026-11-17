@@ -76,8 +76,10 @@ extension PleyAPI {
     /// profile's) or what the profile can't see, `409` `not_castable` for
     /// what the device doesn't take, `403` for a channel without Live TV,
     /// `429` past 10 a second; for a Google Cast or an AirPlay device,
-    /// `409` `cast_failed`, `cast_unreachable`, or `pairing_needed`
-    /// (`pairingNeeded`) for an AirPlay device that wants its code first.
+    /// `409` `cast_failed`, `cast_unreachable`, `connections_full` for a
+    /// channel whose source has every connection in use, or
+    /// `pairing_needed` (`pairingNeeded`) for an AirPlay device that wants
+    /// its code first.
     /// It waits `deviceTimeout` for the answer.
     public func cast(_ target: CastTarget, to receiverId: String) async throws {
         _ = try await client.send("POST", "/api/remote/devices/\(try Self.receiverPath(receiverId))/cast",

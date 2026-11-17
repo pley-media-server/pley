@@ -228,7 +228,7 @@ pub struct WatchInfo {
 
 /// Starts `user` watching channel `id` as `how` asks; whether the account
 /// is an administrator's and who is in the home are read here.
-async fn start_watching(
+pub(crate) async fn start_watching(
     state: &AppState,
     user: &AuthUser,
     id: i64,

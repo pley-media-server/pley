@@ -223,7 +223,7 @@ fn load_request(media: &Media) -> Value {
         "contentId": media.url,
         "contentUrl": media.url,
         "contentType": media.content_type,
-        "streamType": "BUFFERED",
+        "streamType": if media.live { "LIVE" } else { "BUFFERED" },
         "metadata": {"metadataType": 0, "title": media.title},
     });
     if media.fmp4 {
@@ -243,13 +243,17 @@ fn load_request(media: &Media) -> Value {
         }]);
         active.push(1);
     }
-    json!({
+    let mut load = json!({
         "type": "LOAD",
         "media": info,
         "autoplay": true,
-        "currentTime": media.start_ms.max(0) as f64 / 1000.0,
         "activeTrackIds": active,
-    })
+    });
+    // A live stream starts at its live edge, which no time names.
+    if !media.live {
+        load["currentTime"] = json!(media.start_ms.max(0) as f64 / 1000.0);
+    }
+    load
 }
 
 /// Google's player, running on the device of a receiver status: its
@@ -343,6 +347,7 @@ mod tests {
                 name: "English".into(),
             }),
             fmp4: false,
+            live: false,
         };
         let load = load_request(&media);
         assert_eq!(load["media"]["contentId"], media.url);
@@ -443,7 +448,16 @@ mod tests {
             title: "Heat".into(),
             subtitle: None,
             fmp4: false,
+            live: false,
         }
+    }
+
+    #[test]
+    fn a_live_channel_loads_at_its_live_edge() {
+        let load = load_request(&Media { live: true, start_ms: 0, ..media() });
+        assert_eq!(load["media"]["streamType"], "LIVE");
+        assert!(load.get("currentTime").is_none());
+        assert_eq!(load_request(&media())["media"]["streamType"], "BUFFERED");
     }
 
     fn pair() -> (Connection, mpsc::Receiver<Incoming>, Device) {

@@ -94,6 +94,7 @@
     <!-- Refused by a Google Cast or AirPlay device, said under the chooser's devices. -->
     <string name="play_on_unreachable">%1$s can\'t reach this server.</string>
     <string name="play_on_failed">%1$s didn\'t play it.</string>
+    <string name="play_on_connections_full">%1$s can\'t play the channel: all Live TV connections are in use.</string>
     <!-- An AirPlay device the server hasn't paired with: it shows a code, typed on the pad, once for the household. -->
     <string name="play_on_pair_title">Pair with %1$s</string>
     <string name="play_on_code_title">Type the code %1$s shows</string>

@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Play on… lists Google Cast and AirPlay devices for Live TV channels too.
+
 ### Changed
 
 - The home banner's More info button reads Más info in Spanish.

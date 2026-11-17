@@ -87,6 +87,31 @@ describe("PlayOn", () => {
     ]);
   });
 
+  it("offers Cast and AirPlay devices for a channel when they take one", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item", "live"], protocol: "cast" });
+    // An older server's: titles alone.
+    const appleTv = makeReceiver({ receiver_id: "airplay:a1b2c3d4e5f6", device_id: "airplay:a1b2c3d4e5f6", name: "Den Apple TV", casts: ["item"], protocol: "airplay" });
+    serve(undefined, [tv, castDevice, appleTv]);
+    const user = userEvent.setup();
+    renderWithProviders(
+      <>
+        <PlayOn kind="live" label="Watch on…" cast={() => ({ channel_id: 3 })} />
+        <PlayOn kind="item" label="Shuffle on…" cast={() => ({ playlist_id: 2 })} />
+      </>,
+    );
+
+    await user.click(await screen.findByRole("button", { name: "Watch on…" }));
+    const items = within(screen.getByRole("menu", { name: "Watch on…" })).getAllByRole("menuitem");
+    expect(items.map((i) => i.getAttribute("aria-label"))).toEqual(["Living room TV", "Bedroom TV"]);
+    await user.keyboard("{Escape}");
+
+    // Still not music or a playlist.
+    await user.click(screen.getByRole("button", { name: "Shuffle on…" }));
+    expect(within(screen.getByRole("menu", { name: "Shuffle on…" })).getAllByRole("menuitem").map((i) => i.getAttribute("aria-label"))).toEqual([
+      "Living room TV",
+    ]);
+  });
+
   it("says why a Cast device didn't play it", async () => {
     const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item"], protocol: "cast" });
     mockApi({
@@ -97,6 +122,18 @@ describe("PlayOn", () => {
     renderWithProviders(<PlayOn kind="item" video cast={() => ({ item_id: 7 })} />);
     await choose("Play on…", "Bedroom TV");
     expect(await screen.findByText("Bedroom TV can't reach this server")).toBeInTheDocument();
+  });
+
+  it("says when every Live TV connection is in use", async () => {
+    const castDevice = makeReceiver({ receiver_id: "cast:9f8e", device_id: "cast:9f8e", name: "Bedroom TV", casts: ["item", "live"], protocol: "cast" });
+    mockApi({
+      "GET /api/sessions": () => [],
+      "GET /api/remote/devices": () => [castDevice],
+      "POST /api/remote/devices/cast%3A9f8e/cast": () => apiError(409, "connections_full", "Provider allows one connection at once, and it is in use: watching News."),
+    });
+    renderWithProviders(<PlayOn kind="live" cast={() => ({ channel_id: 3 })} />);
+    await choose("Play on…", "Bedroom TV");
+    expect(await screen.findByText("Bedroom TV can't play the channel: all Live TV connections are in use")).toBeInTheDocument();
   });
 
   it("says where a cast is starting, and that it plays, however long the device takes", async () => {

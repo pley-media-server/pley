@@ -340,7 +340,8 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
     /// the receiver returned, until it ends ([`Event::Ended`], then nothing).
     pub async fn start(mut self, media: &Media) -> Result<(Player, mpsc::Receiver<Event>), Failure> {
         let item = uuid();
-        let insert = insert(&item, &media.url, media.start_ms);
+        // A live stream starts at its live edge, which no place names.
+        let insert = insert(&item, &media.url, (!media.live).then_some(media.start_ms));
         let lost = |_| Failure::Lost;
         self.command(insert).await.map_err(lost)?;
         let date_range = dict([
@@ -416,7 +417,7 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
                         Some(Command::Seek(ms)) => {
                             let next = uuid();
                             let moved = async {
-                                self.command(insert(&next, &url, ms)).await?;
+                                self.command(insert(&next, &url, Some(ms))).await?;
                                 let remove = dict([
                                     ("type", "removePlayQueueItem".into()),
                                     ("item", dict([("uuid", playing.item.clone().into())])),
@@ -508,19 +509,14 @@ impl<S: AsyncRead + AsyncWrite + Unpin + Send + 'static> Session<S> {
     }
 }
 
-fn insert(item: &str, url: &str, start_ms: i64) -> Value {
-    dict([
-        ("type", "insertPlayQueueItem".into()),
-        (
-            "item",
-            dict([
-                ("uuid", item.into()),
-                ("mediaType", "file".into()),
-                ("Content-Location", url.into()),
-                ("Start-Position", cm_time(start_ms)),
-            ]),
-        ),
-    ])
+fn insert(item: &str, url: &str, start_ms: Option<i64>) -> Value {
+    let (uuid, kind, location) =
+        (("uuid", item.into()), ("mediaType", "file".into()), ("Content-Location", url.into()));
+    let fields = match start_ms {
+        Some(start_ms) => dict([uuid, kind, location, ("Start-Position", cm_time(start_ms))]),
+        None => dict([uuid, kind, location]),
+    };
+    dict([("type", "insertPlayQueueItem".into()), ("item", fields)])
 }
 
 fn rate(rate: f64) -> Value {
@@ -625,6 +621,14 @@ mod tests {
     }
 
     #[test]
+    fn a_live_channel_is_queued_without_a_place() {
+        let queued = |start| insert("A", "http://pley/x.m3u8", start).into_dictionary().unwrap();
+        let item = |d: &plist::Dictionary| d["item"].as_dictionary().unwrap().clone();
+        assert_eq!(read_time(&item(&queued(Some(5_000)))["Start-Position"]), Some(5_000));
+        assert!(!item(&queued(None)).contains_key("Start-Position"));
+    }
+
+    #[test]
     fn what_the_device_says_reads_as_a_state_a_place_and_an_end() {
         let told = read_notice(&info(61.5, 5400.0, 1.0));
         assert_eq!(
@@ -707,6 +711,7 @@ mod tests {
             title: "1917".into(),
             subtitle: None,
             fmp4: true,
+            live: false,
         };
         let starting = tokio::spawn(async move { session.start(&media).await });
         let (_, insert) = next_command(&mut device).await;
@@ -779,6 +784,7 @@ mod tests {
             title: "1917".into(),
             subtitle: None,
             fmp4: false,
+            live: false,
         };
         let starting = tokio::spawn(async move { session.start(&media).await });
         tell.send(Some(info(1.0, 100.0, 1.0))).await.unwrap();

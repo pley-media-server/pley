@@ -206,6 +206,27 @@ private func playOnTheTv(_ app: AppModel, controls: [Control] = [.play, .pause, 
         #expect(app.shell.toast?.text == "Kitchen TV didn't play it")
     }
 
+    @Test func googleCastAndAirPlayDevicesTakeAChannelWhenTheyTakeLiveTV() async throws {
+        let server = try await fixture()
+        defer { server.stop() }
+        let app = try await signedIn(server)
+        let model = RemoteModel(app: app)
+        server.addReceiver("cast:kitchen", deviceId: "cast:kitchen", name: "Kitchen TV", casts: ["item", "live"],
+                           castProtocol: "cast")
+        // From a server that casts no channel to it.
+        server.addReceiver("airplay:den", deviceId: "airplay:den", name: "Den Apple TV", casts: ["item"],
+                           castProtocol: "airplay")
+        await model.reload()
+        #expect(model.takers(.channel(4)).map(\.id) == ["cast:kitchen"])
+        // With every connection in use it says so: a cast takes none over.
+        let kitchen = try #require(model.devices.first(where: { $0.id == "cast:kitchen" }))
+        server.refuseCasts(status: 409, code: "connections_full")
+        await model.cast(.channel(4), to: kitchen)
+        #expect(app.shell.toast?.text == "Kitchen TV can't play the channel: all Live TV connections are in use")
+        // Music and playlists still go to Pley's own apps alone.
+        #expect(model.takers(.playlist(3)).isEmpty)
+    }
+
     @Test func playOnTakesOneCastAtATimeAndSaysWhereItStarts() async throws {
         let server = try await fixture()
         defer { server.stop() }

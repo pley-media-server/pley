@@ -4006,7 +4006,7 @@ would.
   its TVs are, and an app other than Pley's own gets none, nor casts or
   pairs there. They are listed with
   `receiver_id` and `device_id` `cast:<its id>`, `kind` `tv`, `casts`
-  `["item"]` and `protocol: "cast"`, which remotes show under the name.
+  `["item", "live"]` and `protocol: "cast"`, which remotes show under the name.
   The server finds them by mDNS (`_googlecast._tcp`) on its own network,
   when the list is asked for and the last look is over 30 seconds old,
   and keeps one that stops answering for 5 minutes; a cast to, or a
@@ -4022,7 +4022,8 @@ would.
   A Cast device at the address of a receiver
   in the same list that takes `item` is left out: it is the same TV, and
   the Pley app stands for it. One whose Pley app is on a profile the
-  caller can't cast to stays listed. A cast there names a movie or an episode,
+  caller can't cast to stays listed. A cast there names a Live TV
+  channel (`channel_id`, below), or a movie or an episode,
   as `item_id`, with `start_ms`, `audio_index` and `subtitle_index` as
   above (without `start_ms` it starts where Play would: the resume
   point, or the beginning once watched); `profile_id`, if given, is the
@@ -4036,7 +4037,7 @@ would.
   profile's `profile_id`, a `device_id`
   or an item the caller can't see; `400` for a `start_ms` out of range or
   a track the item doesn't have; `409` `{ code: "not_castable" }` for
-  anything but a movie or an episode, `409` `{ code:
+  anything but a movie, an episode or a channel, `409` `{ code:
   "cast_failed" }` when the device didn't play it, and `409` `{ code:
   "cast_unreachable" }` when Pley doesn't listen on an address the device
   can reach (at once, for a home member's cast to any device, while Pley
@@ -4112,6 +4113,29 @@ would.
   so. The
   session has the controls `play`, `pause`, `seek` and `skip`; the
   device keeps its volume to itself. It ends as a Cast device's does.
+- **Live TV on Google Cast and AirPlay devices.** A cast of a channel
+  (`channel_id`) to either kind of device starts a viewer of the
+  caller's, as `POST /api/live/channels/{id}/watch` with `keyed_urls`
+  would (Live TV's access and the channel's: `403` and `404` as there;
+  it takes no connection over, so with every one of the source's in use
+  it answers `409` `{ code: "connections_full" }`), and
+  gives the device its live playlist, which every device plays as it is
+  (H.264 and AAC). It answers `204` once the device plays, and fails as
+  a title's cast does. The channel plays from its live edge, as in
+  Pley's own players: the viewer is listed as any (`kind: "live"`, the
+  device's `device_id` and name), with the controls `next` and
+  `previous`, and `volume` on a Cast device, and no pause or seek. The
+  server makes `next` and `previous` itself: the channel after or before
+  in the channel's group, as the guide lists it, round at its ends, cast
+  as a new channel to the device. The device's viewer is the device's
+  own: a new channel's ends the one before as it starts, which frees its
+  connection and ends its playlist, so until the new one plays the device
+  has only what it loaded of the last one, and may show an error. Should
+  the new one not play, the server stops the device, unless it already
+  stopped on the last one. The cast ends when the device stops, another
+  app takes the device over, the viewer is stopped in Pley or its
+  connection taken over (the device stops then), or the device fetches
+  nothing for 45 seconds.
 
 ### Watch state on other devices
 

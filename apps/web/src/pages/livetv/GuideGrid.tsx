@@ -162,7 +162,9 @@ export function GuideGrid({
   }, [start, viewFrom, viewTo]);
 
   return (
-    <div className="relative h-full">
+    // Its own stacking context: the times' and Now's layers stay inside the guide,
+    // under the top bar's menus.
+    <div className="relative isolate h-full">
       <div
         ref={scrollRef}
         onScroll={onScroll}

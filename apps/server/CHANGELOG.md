@@ -26,12 +26,16 @@ describes how they are made.
   says how much is listened and lists its parts or chapters. Its player
   follows the chapter playing, skips back 15 seconds and on 30, plays from
   0.75× to 3×, and has a sleep timer.
+- Live TV channels play on Google Cast and AirPlay devices from Watch on…,
+  and the remote changes channel there.
 
 ### Fixed
 
 - On a phone, the home banner's buttons keep to one line: Resume leaves
   out the time left, which Continue Watching shows just below, and More
   info reads Más info in Spanish.
+- The Live TV guide's times no longer show through the top bar's Your
+  devices menu.
 - Play on… lists Google Cast and AirPlay devices only where Pley listens
   on an address of their network. Behind a reverse proxy, with Pley
   listening on its own computer alone, it listed them all and every cast

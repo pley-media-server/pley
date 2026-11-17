@@ -408,8 +408,10 @@ public struct RemoteDevice: Codable, Hashable, Sendable, Identifiable {
     public func takes(_ kind: CastKind) -> Bool { casts.contains(kind) }
 
     /// Whether it plays `target` when cast to: it takes its kind, and a
-    /// device the server plays on itself takes a movie or an episode alone.
-    public func takes(_ target: CastTarget) -> Bool { takes(target.kind) && (target.video || castProtocol == nil) }
+    /// device the server plays on itself takes a movie, an episode or a channel alone.
+    public func takes(_ target: CastTarget) -> Bool {
+        takes(target.kind) && (target.video || target.kind == .live || castProtocol == nil)
+    }
 }
 
 /// What the server answers when it has an AirPlay device show its code
