@@ -66,12 +66,16 @@ pub async fn library_ids(db: &Db, user: &AuthUser) -> sqlx::Result<Option<Vec<i6
     Ok(Some(open.into_iter().filter(|id| !withheld.contains(id)).collect()))
 }
 
-/// The libraries whose events a request hears: those the account may open
-/// (`None`: all of them), less those it doesn't get. Kept apart, unlike
-/// [`library_ids`], so that an event stream hears of a library added after
-/// it last looked at once, as it does on a server without audiobooks.
-pub async fn heard_libraries(db: &Db, user: &AuthUser) -> sqlx::Result<(Option<Vec<i64>>, Vec<i64>)> {
-    Ok((account_library_ids(db, user).await?, withheld(&db.read, user).await?))
+/// Whether library `id` is one the request doesn't get, whatever the
+/// account may open: an audiobook library, unless it gets audiobooks.
+pub async fn withholds(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<bool> {
+    if user.audiobooks() {
+        return Ok(false);
+    }
+    sqlx::query_scalar("SELECT EXISTS (SELECT 1 FROM libraries WHERE id = ? AND kind = 'audiobooks')")
+        .bind(id)
+        .fetch_one(&db.read)
+        .await
 }
 
 /// Libraries the request doesn't get, whatever the account may open:
@@ -84,8 +88,9 @@ async fn withheld<'e, E: sqlx::SqliteExecutor<'e>>(db: E, user: &AuthUser) -> sq
 }
 
 /// Library ids the account may open, whatever the request; `None` means
-/// all of them.
-async fn account_library_ids(db: &Db, user: &AuthUser) -> sqlx::Result<Option<Vec<i64>>> {
+/// all of them. An event stream hears those, less what [`withholds`] says,
+/// so that it hears of a library added after it last looked at once.
+pub async fn account_library_ids(db: &Db, user: &AuthUser) -> sqlx::Result<Option<Vec<i64>>> {
     if sees_all(user) {
         return Ok(None);
     }

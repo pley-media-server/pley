@@ -39,48 +39,72 @@ async fn shelf() -> Shelf {
 
 /// An app's event stream hears of a library made after it opened at once,
 /// as on a server without audiobooks, and never of an audiobook library's
-/// scans.
+/// scans, one made after it opened (and after it was first read) too. The
+/// web app's stream hears them all.
 #[tokio::test]
 async fn an_apps_events_follow_new_libraries_but_not_audiobooks() {
-    use futures::StreamExt;
-
     let w = shelf().await;
     let (token, _) = w.app.app_token(1, "library").await;
-    let request = axum::http::Request::builder()
-        .uri("/api/events")
-        .header("authorization", format!("Bearer {token}"))
-        .body(axum::body::Body::empty())
-        .unwrap();
-    let response = tower::ServiceExt::oneshot(w.app.api.clone(), request).await.unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    let mut stream = response.into_body().into_data_stream();
+    let mut app = Events::open(&w.app, &token).await;
+    let mut web = Events::open(&w.app, &w.admin).await;
 
-    let r = w.app.post(&format!("/api/libraries/{}/scan", w.books), &w.admin, json!({"force": true})).await;
-    assert_eq!(r.status, StatusCode::ACCEPTED);
-    w.app.wait_for_scans().await;
+    for library in [w.books, w.films] {
+        let r = w.app.post(&format!("/api/libraries/{library}/scan"), &w.admin, json!({"force": true})).await;
+        assert_eq!(r.status, StatusCode::ACCEPTED);
+        w.app.wait_for_scans().await;
+    }
+    // Read, so the stream has looked at the libraries before the next is made.
+    app.until(|e| e["type"] == "scan_finished" && e["library_id"] == w.films).await;
+    w.app.media_file("new books/Another Writer/New Book.m4b", 512);
+    let new_books = w.app.library(&w.admin, "New Books", "audiobooks", "new books").await;
     w.app.media_file("more/Second Film (2002)/Second Film (2002).mkv", 2048);
     let more = w.app.library(&w.admin, "More", "movies", "more").await;
 
-    let mut events: Vec<Value> = Vec::new();
-    let mut pending = String::new();
-    let read = async {
-        while let Some(chunk) = stream.next().await {
-            pending.push_str(&String::from_utf8_lossy(&chunk.unwrap()));
-            while let Some(end) = pending.find("\n\n") {
-                let frame: String = pending.drain(..end + 2).collect();
-                for line in frame.lines() {
-                    if let Some(data) = line.strip_prefix("data:") {
-                        events.push(serde_json::from_str(data.trim()).unwrap());
+    app.until(|e| e["type"] == "scan_finished" && e["library_id"] == more).await;
+    assert!(!app.seen.iter().any(|e| e["library_id"] == w.books || e["library_id"] == new_books), "{:?}", app.seen);
+    web.until(|e| e["type"] == "scan_finished" && e["library_id"] == new_books).await;
+    assert!(web.seen.iter().any(|e| e["type"] == "scan_finished" && e["library_id"] == w.books));
+}
+
+/// An event stream as a test reads it: the events seen so far.
+struct Events {
+    body: axum::body::BodyDataStream,
+    pending: String,
+    seen: Vec<Value>,
+}
+
+impl Events {
+    async fn open(app: &TestApp, token: &str) -> Self {
+        let request = axum::http::Request::builder()
+            .uri("/api/events")
+            .header("authorization", format!("Bearer {token}"))
+            .body(axum::body::Body::empty())
+            .unwrap();
+        let response = tower::ServiceExt::oneshot(app.api.clone(), request).await.unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        Events { body: response.into_body().into_data_stream(), pending: String::new(), seen: Vec::new() }
+    }
+
+    /// Reads until an event `done` says so has come, within 10 seconds.
+    async fn until(&mut self, done: impl Fn(&Value) -> bool) {
+        use futures::StreamExt;
+
+        let read = async {
+            while !self.seen.iter().any(&done) {
+                let chunk = self.body.next().await.expect("the stream is open").unwrap();
+                self.pending.push_str(&String::from_utf8_lossy(&chunk));
+                while let Some(end) = self.pending.find("\n\n") {
+                    let frame: String = self.pending.drain(..end + 2).collect();
+                    for line in frame.lines() {
+                        if let Some(data) = line.strip_prefix("data:") {
+                            self.seen.push(serde_json::from_str(data.trim()).unwrap());
+                        }
                     }
                 }
             }
-            if events.iter().any(|e| e["type"] == "scan_finished" && e["library_id"] == more) {
-                return;
-            }
-        }
-    };
-    tokio::time::timeout(std::time::Duration::from_secs(10), read).await.expect("the new library's scan_finished");
-    assert!(!events.iter().any(|e| e["library_id"] == w.books), "{events:?}");
+        };
+        tokio::time::timeout(std::time::Duration::from_secs(10), read).await.expect("the event awaited");
+    }
 }
 
 /// The smallest JPEG Pley's image code reads: one white pixel.

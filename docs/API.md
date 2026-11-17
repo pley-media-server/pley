@@ -1715,11 +1715,13 @@ open only some libraries see those, in that order.
 app's window, which show them. A request with an app's token, an
 administrator's included, gets no audiobook library: none in
 `/api/libraries` or among Home's rows, `404` from a library's own routes,
-no `continue_listening` on Home, and no book or part in search or
-history. The orders it sends (both `PUT`s above) list the libraries it
-gets, and audiobook libraries keep their places among them. A book asked
-for by its id is answered as to anyone who may see it. The compatibility
-APIs list none ([COMPATIBILITY.md](COMPATIBILITY.md)).
+no `continue_listening` on Home, no book or part in search or history,
+and no scan or change of an audiobook library in `/api/events`, one
+added since the stream opened too. The orders it sends (both `PUT`s
+above) list the libraries it gets, and audiobook libraries keep their
+places among them. A book asked for by its id is answered as to anyone
+who may see it. The compatibility APIs list none
+([COMPATIBILITY.md](COMPATIBILITY.md)).
 
 **`GET /api/libraries/{id}/items`** query:
 
