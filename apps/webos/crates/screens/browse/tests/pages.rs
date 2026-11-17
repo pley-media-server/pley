@@ -8,7 +8,7 @@ use pley_base::{Cmd, Key, Rect};
 use pley_core::device::Drive;
 use pley_core::model::{LibraryQuery, LibrarySort, NewPlaylist, PlaylistKind, RangeFilter, ResolutionFilter};
 use pley_core::store::keys;
-use pley_fixtures::{ServerEvent, ids};
+use pley_fixtures::{Mode, ServerEvent, ids};
 use pley_shell::{BackgroundSession, LibraryTab, Route};
 use pley_ui::{Id, theme};
 
@@ -559,4 +559,28 @@ fn a_held_up_stays_in_the_collections_rows_and_a_press_reaches_the_chip() {
     assert_eq!(app.focused(), Some(first), "a held Up left the rows");
     app.press(Key::Up);
     assert_eq!(app.focused(), Some(app.id(&["collection-chips", "category"])));
+}
+
+#[test]
+fn down_from_the_tabs_while_the_collections_come_ends_on_the_first_collection() {
+    let mut app = TestApp::start();
+    app.open(Route::Library { id: ids::MOVIES, tab: Some(LibraryTab::Recommended), sort: None });
+    assert!(app.until(|a| a.shows("Recently Added")));
+    let tab = app.id(&["tabs", "recommended"]);
+    app.ui.request_focus(tab);
+    app.advance(0.2);
+    // The Collections tab while the server is slow: Down reaches a placeholder of the grid.
+    app.server.set_mode(Mode::Slow).unwrap();
+    press(&mut app, &[Key::Right, Key::Right, Key::Ok]);
+    app.press(Key::Down);
+    assert!(!app.shows("Highlights"), "the collections came before Down");
+    assert_ne!(app.focused(), Some(app.id(&["tabs", "collections"])), "Down stayed on the tabs");
+    app.server.set_mode(Mode::Normal).unwrap();
+    // The rows come: the placeholder is gone, and focus goes to the first category's first
+    // collection rather than whichever tile was nearest.
+    assert!(app.until(|a| a.shows("Highlights") && a.shows("Franchises")));
+    app.advance(0.5);
+    let rows = app.id(&["collections-grid"]);
+    let first = rows.with(ids::CATEGORY_HIGHLIGHTS as u64).with("row").with(ids::SMART_COLLECTION as u64);
+    assert_eq!(app.focused(), Some(first));
 }

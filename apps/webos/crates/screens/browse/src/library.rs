@@ -1248,6 +1248,8 @@ struct CollectionsTab {
     panel_open: bool,
     /// Focus goes to the collections on the next frame: the chip that opened the panel is gone.
     focus_collections: bool,
+    /// The collections showed as rows last frame.
+    rows_shown: bool,
     panel_list: ListState,
 }
 
@@ -1270,6 +1272,7 @@ impl CollectionsTab {
             column: ColumnState::default(),
             panel_open: false,
             focus_collections: false,
+            rows_shown: false,
             panel_list: ListState::default(),
         }
     }
@@ -1377,7 +1380,12 @@ impl CollectionsTab {
             ui.request_focus(ui.id("collections-grid").with(0u64));
         }
         let count: usize = self.groups.iter().map(|g| g.cells.len()).sum();
-        let open = if known && self.groups.len() > 1 { self.rows(ui, initial) } else { self.grid(ui, known, initial) };
+        let rows = known && self.groups.len() > 1;
+        // Focus on a placeholder, or in a grid the server's changes turned into rows, has no tile
+        // there to stay on: it goes to the first row's first collection rather than the nearest.
+        let refocus = rows && !self.rows_shown && ui.focused_in(ui.id("collections-grid")).is_some();
+        self.rows_shown = rows;
+        let open = if rows { self.rows(ui, initial, refocus) } else { self.grid(ui, known, initial) };
         if known {
             self.chips(ui, count);
         }
@@ -1408,16 +1416,20 @@ impl CollectionsTab {
         at.map(|c| Route::Collection { id: c.collection.id })
     }
 
-    /// Several groups: a headed row of each, the focused one's header under the chips.
-    fn rows(&mut self, ui: &mut Ui, initial: bool) -> Option<Route> {
+    /// Several groups: a headed row of each, the focused one's header under the chips; `refocus`
+    /// moves focus to the first collection.
+    fn rows(&mut self, ui: &mut Ui, initial: bool, refocus: bool) -> Option<Route> {
         let height = TileKind::Poster.row_height(true);
         let sections: Vec<Section> =
             self.groups.iter().map(|g| Section::new(g.key, height, Some(COLLECTION_ROWS_Y))).collect();
         let column_id = ui.id("collections-grid");
+        let g = &self.groups[0];
+        let first = column_id.with(g.key).with("row").with(self.cells[g.cells[0]].collection.id as u64);
         if initial {
-            let g = &self.groups[0];
-            let first = self.cells[g.cells[0]].collection.id as u64;
-            ui.initial_focus(column_id.with(g.key).with("row").with(first));
+            ui.initial_focus(first);
+        }
+        if refocus {
+            ui.request_focus(first);
         }
         let mut open = None;
         let cells = &self.cells;
