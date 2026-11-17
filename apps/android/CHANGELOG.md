@@ -8,6 +8,10 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Play on… lists Google Cast and AirPlay devices for Live TV channels too.
+
 ## [0.1.14] - 2026-11-16
 
 ### Added

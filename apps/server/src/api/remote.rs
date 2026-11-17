@@ -238,7 +238,7 @@ async fn playing_live(state: &AppState, user: &AuthUser) -> ApiResult<Vec<Playin
             tracks: TrackOptions::default(),
             quality: None,
             qualities: Vec::new(),
-            volume: None,
+            volume: viewer.volume,
             markers: Vec::new(),
             started_at: viewer.started_at,
             reported_at_ms: viewer.seen_at_ms,
@@ -1004,7 +1004,7 @@ pub async fn devices(
             device_id: d.key(),
             kind: d.kind(),
             name: Some(d.name),
-            casts: BTreeSet::from([CastKind::Item]),
+            casts: BTreeSet::from([CastKind::Item, CastKind::Live]),
             profile: None,
             protocol: Some(d.protocol.word()),
             switches: false,
@@ -1156,19 +1156,29 @@ pub async fn pair(
 }
 
 /// A cast to a Google Cast or AirPlay device ([`crate::cast`],
-/// [`crate::airplay`]): a movie or an
-/// episode, by a home member, played by the server on the device.
+/// [`crate::airplay`]): a movie, an episode or a Live TV channel, by a home
+/// member, played by the server on the device.
 async fn cast_to_device(state: &AppState, user: &AuthUser, id: &str, body: Cast) -> ApiResult<StatusCode> {
     let device = nearby_device(state, user, id, crate::nearby::casts::unreachable).await?;
     if body.profile_id.is_some_and(|p| p != user.id) || body.device_id.is_some() {
         return Err(AppError::not_found("no such device"));
     }
+    let not_castable =
+        || AppError::ConflictAs("not_castable", "this device plays movies, episodes and channels".to_owned());
+    if let (None, None, Some(channel_id)) = (body.item_id, body.playlist_id, body.channel_id) {
+        // Started apart from the request, as a title's cast is.
+        let (state, user) = (state.clone(), user.clone());
+        let started =
+            tokio::spawn(async move { crate::nearby::casts::start_channel(&state, &user, device, channel_id).await });
+        started.await.map_err(|err| AppError::Internal(anyhow::anyhow!("a cast's start failed: {err}")))??;
+        return Ok(StatusCode::NO_CONTENT);
+    }
     let (Some(item_id), None, None) = (body.item_id, body.playlist_id, body.channel_id) else {
-        return Err(AppError::ConflictAs("not_castable", "this device plays movies and episodes".to_owned()));
+        return Err(not_castable());
     };
     let row = item_or_404(state, user.id, item_id).await?;
     if !WITH_TRACKS.contains(&row.kind.as_str()) {
-        return Err(AppError::ConflictAs("not_castable", "this device plays movies and episodes".to_owned()));
+        return Err(not_castable());
     }
     if body.start_ms.is_some_and(|start| !(0..=MAX_UNKNOWN_SEEK_MS).contains(&start)) {
         return Err(AppError::bad_request(format!("start_ms must be between 0 and {MAX_UNKNOWN_SEEK_MS}")));

@@ -188,6 +188,23 @@
         }
       }
     },
+    "%@ can't play the channel: all Live TV connections are in use" : {
+      "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ no puede reproducir el canal: todas las conexiones de TV en vivo están en uso"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ne peut pas lire la chaîne : toutes les connexions TV en direct sont utilisées"
+          }
+        }
+      }
+    },
     "%@ can't reach this server" : {
       "comment" : "The remote and Play on…: devices, buttons and what VoiceOver says of them.",
       "localizations" : {

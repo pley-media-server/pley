@@ -107,8 +107,8 @@ internal data class CastTarget(
     /** What a device must take to be offered: Live TV for a channel, titles for the rest. */
     val kind: CastKind get() = if (channelId != null) CastKind.Live else CastKind.Item
 
-    /** Whether [device] is offered: it takes [kind], and a device the server plays on itself takes a movie or an episode alone. */
-    fun goesTo(device: OtherDevice): Boolean = device.takes(kind) && (video || device.protocol == null)
+    /** Whether [device] is offered: it takes [kind], and a device the server plays on itself takes a movie, an episode or a channel alone. */
+    fun goesTo(device: OtherDevice): Boolean = device.takes(kind) && (video || kind == CastKind.Live || device.protocol == null)
 
     /** The body of the cast, [shuffle]d when asked. */
     fun request(shuffle: Boolean): CastRequest = CastRequest(

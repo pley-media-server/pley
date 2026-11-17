@@ -110,11 +110,11 @@ export function otherDevices(receivers: RemoteDevice[], sessions: RemoteSession[
 
 /**
  * The devices that take `kind` when cast to, in the list's order. Devices the
- * server plays on itself (Cast devices) take movies and episodes alone: only
- * with `video`.
+ * server plays on itself (Google Cast and AirPlay) take movies, episodes and
+ * channels alone: titles only with `video`, channels when they list `live`.
  */
 export function castTargets(devices: OtherDevice[], kind: CastKind, video = false): OtherDevice[] {
-  return devices.filter((d) => d.receiver?.casts.includes(kind) && (video || !d.protocol));
+  return devices.filter((d) => d.receiver?.casts.includes(kind) && (video || kind === "live" || !d.protocol));
 }
 
 /** A page's wish for the header's remote to open on a device: one cast just went there. */

@@ -180,6 +180,7 @@ extension Words {
         switch (status, code) {
         case (409, "cast_unreachable"): localized("\(device) can't reach this server")
         case (409, "cast_failed"): localized("\(device) didn't play it")
+        case (409, "connections_full"): localized("\(device) can't play the channel: all Live TV connections are in use")
         case (409, "pairing_failed"): pairingFailed(device)
         case (404, _): localized("\(device) isn't on any more")
         case (409, _): localized("\(device) can't play that")

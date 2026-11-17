@@ -242,6 +242,7 @@ private fun castText(e: Exception, refusal: CastRefusal, name: String): UiText =
     CastRefusal.TooMany -> UiText.res(R.string.remote_too_many)
     CastRefusal.Unreachable -> UiText.res(R.string.play_on_unreachable, name)
     CastRefusal.Failed -> UiText.res(R.string.play_on_failed, name)
+    CastRefusal.ConnectionsFull -> UiText.res(R.string.play_on_connections_full, name)
     CastRefusal.WrongPin -> UiText.res(R.string.play_on_wrong_pin)
     CastRefusal.PinLocked -> UiText.res(R.string.play_on_pin_locked)
     // The server's sentence: how long to wait, for one.

@@ -312,6 +312,21 @@ class PlayOnUiTest {
     }
 
     @Test
+    fun aGoogleCastOrAirPlayDeviceTakesAChannelWhenItSaysItTakesLiveTv() {
+        val castTv = castTv().let { it.copy(receiver = it.receiver?.copy(casts = listOf(CastKind.Item, CastKind.Live))) }
+        // The Apple TV comes from a server that casts no channel to it.
+        shell(castTv, appleTv())
+        choose(CastTarget(channelId = 7))
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).assertExists()
+        compose.onNodeWithTag(PLAY_ON_DEVICE + APPLE_TV).assertDoesNotExist()
+        // With every connection in use it says so: a cast takes none over.
+        graph.castRefusals += ApiException(409, "connections_full", "Provider allows one connection at once, and it is in use: watching News.")
+        compose.onNodeWithTag(PLAY_ON_DEVICE + CAST_TV).performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Bedroom Chromecast can't play the channel: all Live TV connections are in use.").assertExists()
+    }
+
+    @Test
     fun aCastStartingOnADeviceShowsASpinnerOnItsRowUntilTheDeviceTakesIt() {
         shell(castTv(), livingRoom())
         choose(CastTarget(itemId = 101, video = true))

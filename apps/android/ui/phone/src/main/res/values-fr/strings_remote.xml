@@ -74,6 +74,7 @@
     <string name="remote_airplay">AirPlay</string>
     <string name="play_on_unreachable">%1$s n’arrive pas à joindre ce serveur.</string>
     <string name="play_on_failed">%1$s ne l’a pas lu.</string>
+    <string name="play_on_connections_full">%1$s ne peut pas lire la chaîne : toutes les connexions TV en direct sont utilisées.</string>
     <string name="play_on_pair_title">Associer %1$s</string>
     <string name="play_on_code_title">Saisissez le code affiché sur %1$s</string>
     <string name="play_on_code_body">Tout votre foyer pourra ensuite y lire.</string>

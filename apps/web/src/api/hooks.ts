@@ -1080,6 +1080,8 @@ export function castError(err: unknown, device: string): string {
   // A Cast device the server couldn't reach, or that didn't play the stream.
   if (isApiError(err, 409) && err.code === "cast_unreachable") return t("remote.castUnreachable", { device });
   if (isApiError(err, 409) && err.code === "cast_failed") return t("remote.castFailed", { device });
+  // A channel, when every connection of its source is in use: a cast takes none over.
+  if (isApiError(err, 409) && err.code === "connections_full") return t("remote.connectionsFull", { device });
   // Play on… had closed when the device asked for pairing: picked again, it asks for the PIN.
   if (isApiError(err, 409) && err.code === "pairing_needed") return t("remote.pairFirst", { device });
   if (isApiError(err, 409)) return t("remote.cantPlay", { device });
