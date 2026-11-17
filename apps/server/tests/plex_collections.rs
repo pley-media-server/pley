@@ -112,11 +112,12 @@ async fn items_added_to_a_collection_or_playlist_are_taken_whole_or_refused() {
     assert_eq!(w.titles(&format!("/library/metadata/{collection}/children")).await, ["Alien"]);
     assert_eq!(w.titles(&format!("/playlists/{playlist}/items")).await, ["Alien"]);
     let db = &w.app.state.db.read;
-    let lists: (i64, i64) =
-        sqlx::query_as("SELECT (SELECT COUNT(*) FROM collections), (SELECT COUNT(*) FROM playlists)")
-            .fetch_one(db)
-            .await
-            .unwrap();
+    let lists: (i64, i64) = sqlx::query_as(
+        "SELECT (SELECT COUNT(*) FROM collections WHERE builtin IS NULL), (SELECT COUNT(*) FROM playlists)",
+    )
+    .fetch_one(db)
+    .await
+    .unwrap();
     assert_eq!(lists, (1, 1));
     // As many as a playlist holds are taken (ids of no item add nothing).
     let most = items(&[w.brazil].into_iter().chain(100_000..104_999).collect::<Vec<i64>>());
@@ -129,7 +130,10 @@ async fn items_added_to_a_collection_or_playlist_are_taken_whole_or_refused() {
 async fn collections_and_playlists_have_keys_of_their_own() {
     let w = world().await;
     let collection = w.collection("Two Films", &[w.alien, w.brazil]).await;
-    let id: i64 = sqlx::query_scalar("SELECT id FROM collections").fetch_one(&w.app.state.db.read).await.unwrap();
+    let id: i64 = sqlx::query_scalar("SELECT id FROM collections WHERE builtin IS NULL")
+        .fetch_one(&w.app.state.db.read)
+        .await
+        .unwrap();
     assert_eq!(collection, 1_000_000_000 + id);
     assert!(collection > w.alien.max(w.brazil), "not an item's id");
 
@@ -146,8 +150,10 @@ async fn collections_and_playlists_have_keys_of_their_own() {
     let uploaded =
         w.app.plex_upload(Method::POST, &format!("/library/metadata/{collection}/posters"), &w.admin, png()).await;
     assert_eq!(uploaded.status, StatusCode::OK, "{}", uploaded.text());
-    let own: Option<String> =
-        sqlx::query_scalar("SELECT poster FROM collections").fetch_one(&w.app.state.db.read).await.unwrap();
+    let own: Option<String> = sqlx::query_scalar("SELECT poster FROM collections WHERE builtin IS NULL")
+        .fetch_one(&w.app.state.db.read)
+        .await
+        .unwrap();
     assert!(own.is_some());
     let untouched: i64 =
         sqlx::query_scalar("SELECT COUNT(*) FROM item_overrides").fetch_one(&w.app.state.db.read).await.unwrap();

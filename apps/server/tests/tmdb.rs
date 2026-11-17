@@ -269,8 +269,9 @@ async fn movies_are_matched_and_described() {
 
     // Both films are in the TMDB collection.
     let collections = app.get(&format!("/api/libraries/{lib}/collections"), &admin).await;
-    assert_eq!(titles(&collections.body["collections"]), ["Alien Collection"]);
-    assert_eq!(collections.body["collections"][0]["item_count"], json!(2));
+    let collections = common::own_collections(&collections.body);
+    assert_eq!(titles(&collections), ["Alien Collection"]);
+    assert_eq!(collections[0]["item_count"], json!(2));
 
     // A film TMDB doesn't know is not looked up again by every scan; a
     // forced scan tries again.

@@ -229,6 +229,19 @@ async fn insert(
     .bind(labels_pending)
     .fetch_one(&state.db.write)
     .await?;
+    // Its rows: a movie or TV library's collections Pley makes, or a music
+    // or audiobook library's Recently Added, last on Home.
+    if kind.is_audio() {
+        let mut conn = state.db.write.acquire().await?;
+        let position = crate::collections::next_home_position(&mut conn).await?;
+        sqlx::query("UPDATE libraries SET home_position = ? WHERE id = ?")
+            .bind(position)
+            .bind(id)
+            .execute(&mut *conn)
+            .await?;
+    } else {
+        crate::collections::restore_defaults(&state.db, id).await?;
+    }
     Ok(id)
 }
 
@@ -508,7 +521,23 @@ pub struct Hub {
     pub key: String,
     pub title: String,
     pub library_id: Option<i64>,
+    /// The collections a row of collections shows (several when it's
+    /// collections of one title from different libraries); empty for the
+    /// others.
+    pub collection_ids: Vec<i64>,
     pub items: Vec<ItemSummary>,
+}
+
+impl Hub {
+    pub fn of_row(row: crate::rows::Row, summaries: bool) -> Hub {
+        Hub {
+            key: row.key,
+            title: row.title,
+            library_id: row.library_id,
+            collection_ids: row.collection_ids,
+            items: row.items.iter().map(|r| r.to_summary_with(summaries)).collect(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -525,45 +554,46 @@ pub async fn hubs(
     let lib = visible_library(&state, &user, id).await?;
     let language = i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await?;
     let kind = lib.kind();
-    let video = !kind.is_audio();
-    let top = kind.top_level_kind();
     let db = &state.db;
-    // The hubs don't depend on each other: fetched at the same time.
-    let (continuing, added, released, rated) = tokio::try_join!(
-        // Video-only hubs are empty for music and audiobooks, which have
-        // books to continue instead.
-        async {
-            match kind {
-                LibraryKind::Audiobooks => catalog::continue_listening(db, user.id, Some(lib.id), 20).await,
-                _ if video => catalog::continue_watching(db, user.id, Some(lib.id), 20).await,
-                _ => Ok(Vec::new()),
-            }
-        },
-        catalog::recently_added(db, user.id, lib.id, kind.as_str(), 30),
-        async { if video { catalog::recently_released(db, user.id, lib.id, top, 30).await } else { Ok(Vec::new()) } },
-        async { if video { catalog::top_rated(db, user.id, lib.id, top, 30).await } else { Ok(Vec::new()) } },
-    )?;
-    let added_title = match kind {
-        LibraryKind::Music => "hubs.recentlyAddedAlbums",
-        LibraryKind::Audiobooks => "hubs.recentlyAddedBooks",
-        LibraryKind::Shows => "hubs.recentlyAddedShows",
-        LibraryKind::Movies => "hubs.recentlyAdded",
-    };
     let hub = |key: &str, title: &str, rows: Vec<catalog::ItemRow>| Hub {
         key: format!("{key}:{id}"),
         title: i18n::t(language, title),
         library_id: Some(id),
+        collection_ids: Vec::new(),
         items: rows.iter().map(|r| r.to_summary()).collect(),
     };
-    let mut hubs = vec![
-        match kind {
-            LibraryKind::Audiobooks => hub("continue_listening", "hubs.continueListening", continuing),
-            _ => hub("continue_watching", "hubs.continueWatching", continuing),
-        },
-        hub("recently_added", added_title, added),
-        hub("recently_released", "hubs.recentlyReleased", released),
-        hub("top_rated", "hubs.topRated", rated),
-    ];
+    let mut hubs = match kind {
+        // Music and audiobooks have no collections: their rows are
+        // built in.
+        LibraryKind::Music | LibraryKind::Audiobooks => {
+            let (continuing, added) = tokio::try_join!(
+                async {
+                    match kind {
+                        LibraryKind::Audiobooks => catalog::continue_listening(db, user.id, Some(lib.id), 20).await,
+                        _ => Ok(Vec::new()),
+                    }
+                },
+                catalog::recently_added(db, user.id, lib.id, kind.as_str(), crate::rows::ROW_SIZE as i64),
+            )?;
+            let added_title =
+                if kind == LibraryKind::Music { "hubs.recentlyAddedAlbums" } else { "hubs.recentlyAddedBooks" };
+            vec![
+                hub("continue_listening", "hubs.continueListening", continuing),
+                hub("recently_added", added_title, added),
+            ]
+        }
+        // Movies and TV: Continue Watching, then the collections that are
+        // rows here.
+        LibraryKind::Movies | LibraryKind::Shows => {
+            let (continuing, rows) = tokio::try_join!(
+                catalog::continue_watching(db, user.id, Some(lib.id), 20),
+                crate::rows::recommended(db, &user, &lib, language),
+            )?;
+            let mut hubs = vec![hub("continue_watching", "hubs.continueWatching", continuing)];
+            hubs.extend(rows.into_iter().map(|row| Hub::of_row(row, false)));
+            hubs
+        }
+    };
     hubs.retain(|h| !h.items.is_empty());
     Ok(Json(Hubs { hubs }))
 }

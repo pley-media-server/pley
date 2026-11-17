@@ -319,7 +319,8 @@ async fn each_scope_sees_and_changes_what_it_allows() {
     let edited = app.get(&format!("/api/items/{}", w.film), &w.admin).await;
     assert_eq!(edited.body["title"], "Changed");
     let collections = app.get(&format!("/api/libraries/{}/collections", w.movies), &w.admin).await;
-    assert_eq!(common::titles(&collections.body["collections"]), ["Mine"]);
+    let titles = common::titles(&collections.body["collections"]);
+    assert!(titles.contains(&"Mine".to_owned()), "{titles:?}");
     assert_eq!(w.delete_bobs_play(&manage).await, StatusCode::OK);
     assert_eq!(count(&app.plex_json("/status/sessions/history/all", &activity).await), 1);
 

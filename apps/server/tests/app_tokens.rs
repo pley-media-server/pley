@@ -79,6 +79,14 @@ const ADMIN: &[(&str, &str)] = &[
     ("POST", "/api/collections/{id}/items"),
     ("DELETE", "/api/collections/{id}/items/{item_id}"),
     ("PUT", "/api/collections/{id}/order"),
+    ("POST", "/api/libraries/{id}/collections/defaults"),
+    ("PUT", "/api/libraries/{id}/rows/order"),
+    ("POST", "/api/collection-categories"),
+    ("PUT", "/api/collection-categories/order"),
+    ("PATCH", "/api/collection-categories/{id}"),
+    ("DELETE", "/api/collection-categories/{id}"),
+    ("GET", "/api/home/rows"),
+    ("PUT", "/api/home/rows/order"),
     ("PATCH", "/api/items/{id}"),
     ("GET", "/api/items/{id}/matches"),
     ("POST", "/api/items/{id}/match"),
@@ -597,10 +605,13 @@ async fn an_administrators_app_sees_everything_but_administers_nothing() {
     assert_eq!(empty.status, StatusCode::CREATED, "{:?}", empty.body);
     let collection = empty.body["id"].as_i64().unwrap();
     let titles = |reply: common::Reply| common::titles(&reply.body["collections"]);
+    // Administrators see every collection, Pley's own, still empty, too.
     let listed = titles(app.get(&format!("/api/libraries/{movies}/collections"), &admin).await);
-    assert_eq!(listed, ["Empty"]);
+    assert_eq!(listed, ["Empty", "Recently Added", "Recently Released", "Top Rated", "Top Unwatched"]);
+    // The app, like anyone else, only those with something to show: the
+    // films here have no dates or ratings.
     let listed = titles(app.get(&format!("/api/libraries/{movies}/collections"), &token).await);
-    assert!(listed.is_empty(), "{listed:?}");
+    assert_eq!(listed, ["Recently Added"]);
     assert_eq!(app.get(&format!("/api/collections/{collection}"), &token).await.status, StatusCode::NOT_FOUND);
 
     // Administration, and turning into a session.

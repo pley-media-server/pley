@@ -435,4 +435,59 @@ mod tests {
         );
         db.close().await;
     }
+
+    /// Home's and Recommended's built-in rows become collections Pley makes
+    /// in each movie and TV library, in the order Home showed the libraries;
+    /// TMDB's collections are Franchises.
+    #[tokio::test]
+    async fn the_built_in_rows_become_collections() {
+        let dir = crate::testing::tempdir();
+        let path = dir.path().join("pley.db");
+        let pool = database_before(57, &path).await;
+        for sql in [
+            "INSERT INTO libraries (id, name, kind, paths, created_at, position, labels_pending)
+             VALUES (3, 'Music', 'music', '[]', 0, 0, 0), (5, 'Films', 'movies', '[]', 0, 1, 0),
+                    (6, 'Shows', 'shows', '[]', 0, 1, 0)",
+            "INSERT INTO collections (id, library_id, title, sort_title, tmdb_id, created_at, updated_at)
+             VALUES (1, 5, 'Alien Collection', 'alien collection', 8091, 0, 0),
+                    (2, 5, 'Mine', 'mine', NULL, 0, 0)",
+        ] {
+            sqlx::query(sqlx::AssertSqlSafe(sql)).execute(&pool).await.unwrap();
+        }
+        pool.close().await;
+
+        let db = Db::open(&path).await.unwrap();
+        type Made = (i64, String, Option<String>, Option<String>, Option<i64>, Option<i64>);
+        let made: Vec<Made> = sqlx::query_as(
+            "SELECT c.library_id, c.title, c.builtin, k.key, c.home_position, c.recommended_position
+             FROM collections c LEFT JOIN collection_categories k ON k.id = c.category_id
+             ORDER BY c.library_id, c.recommended_position IS NULL, c.recommended_position, c.id",
+        )
+        .fetch_all(&db.read)
+        .await
+        .unwrap();
+        let highlights = Some("highlights".to_owned());
+        let row = |library: i64, title: &str, builtin: &str, home: Option<i64>, at: i64| {
+            (library, title.to_owned(), Some(builtin.to_owned()), highlights.clone(), home, Some(at))
+        };
+        assert_eq!(
+            made,
+            [
+                row(5, "Recently Added", "recently_added", Some(1), 0),
+                row(5, "Recently Released", "recently_released", None, 1),
+                row(5, "Top Rated", "top_rated", None, 2),
+                row(5, "Top Unwatched", "top_unwatched", None, 3),
+                (5, "Alien Collection".into(), None, Some("franchises".into()), None, None),
+                (5, "Mine".into(), None, None, None, None),
+                row(6, "Recently Added Shows", "recently_added", Some(2), 0),
+                row(6, "Recently Released", "recently_released", None, 1),
+                row(6, "Top Rated", "top_rated", None, 2),
+                row(6, "Top Unwatched", "top_unwatched", None, 3),
+            ]
+        );
+        let music: Option<i64> =
+            sqlx::query_scalar("SELECT home_position FROM libraries WHERE id = 3").fetch_one(&db.read).await.unwrap();
+        assert_eq!(music, Some(0));
+        db.close().await;
+    }
 }

@@ -5,6 +5,7 @@ mod activity;
 mod admin;
 pub(crate) mod auth;
 mod browse;
+mod categories;
 pub(crate) mod collections;
 mod compatibility_tokens;
 pub(crate) mod editing;
@@ -102,6 +103,14 @@ pub fn router(state: AppState) -> Router {
         .route("/collections/{id}/items/{item_id}", delete(collections::remove_item))
         .route("/collections/{id}/order", put(collections::reorder))
         .route("/collections/{id}/images/{kind}", get(collections::image))
+        .route("/collections/merged", get(collections::merged))
+        .route("/libraries/{id}/collections/defaults", post(collections::restore_defaults))
+        .route("/libraries/{id}/rows/order", put(collections::order_recommended))
+        .route("/collection-categories", get(categories::list).post(categories::create))
+        .route("/collection-categories/order", put(categories::reorder))
+        .route("/collection-categories/{id}", patch(categories::rename).delete(categories::delete))
+        .route("/home/rows", get(collections::home_rows))
+        .route("/home/rows/order", put(collections::order_home))
         .route("/playlists", get(playlists::list).post(playlists::create))
         .route("/playlists/{id}", get(playlists::get).patch(playlists::rename).delete(playlists::delete))
         .route("/playlists/{id}/items", post(playlists::add))

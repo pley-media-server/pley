@@ -13,6 +13,7 @@ pub mod bandwidth;
 pub mod bonjour;
 pub mod cast;
 pub mod catalog;
+pub mod categories;
 pub mod collections;
 pub mod config;
 pub mod db;
@@ -54,6 +55,7 @@ pub mod ratings;
 pub mod related;
 pub mod requests;
 pub mod resources;
+pub mod rows;
 pub mod schedule;
 pub mod search;
 #[cfg(windows)]

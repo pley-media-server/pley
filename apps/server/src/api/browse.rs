@@ -23,10 +23,8 @@ pub async fn home(
 ) -> ApiResult<Json<Hubs>> {
     let language = i18n::for_user(&state.db, user.id, &state.settings.get().language, &headers).await?;
     let summaries = wants_summaries(&query);
-    // A row for each library the user may open, in their order.
-    let libraries = crate::access::visible_libraries(&state.db, &user).await?;
     // Every hub at the same time: they don't depend on each other.
-    let (continue_rows, listening, my_list, recent) = tokio::try_join!(
+    let (continue_rows, listening, my_list, rows) = tokio::try_join!(
         catalog::continue_watching(&state.db, user.id, None, 20),
         // Only for who gets audiobooks (`AuthUser::audiobooks`).
         async {
@@ -37,43 +35,33 @@ pub async fn home(
             }
         },
         catalog::watchlist(&state.db, user.id, Some(20)),
-        futures::future::try_join_all(libraries.iter().map(|lib| catalog::recently_added(
-            &state.db,
-            user.id,
-            lib.id,
-            lib.kind().as_str(),
-            20
-        )),),
+        // Then the rows administrators put on Home.
+        crate::rows::home(&state.db, &user, language),
     )?;
     let mut hubs = vec![
         Hub {
             key: "continue_watching".into(),
             title: i18n::t(language, "hubs.continueWatching"),
             library_id: None,
+            collection_ids: Vec::new(),
             items: continue_rows.iter().map(|r| r.to_summary_with(summaries)).collect(),
         },
         Hub {
             key: "continue_listening".into(),
             title: i18n::t(language, "hubs.continueListening"),
             library_id: None,
+            collection_ids: Vec::new(),
             items: listening.iter().map(|r| r.to_summary_with(summaries)).collect(),
         },
         Hub {
             key: "my_list".into(),
             title: i18n::t(language, "hubs.myList"),
             library_id: None,
+            collection_ids: Vec::new(),
             items: my_list.iter().map(|r| r.to_summary_with(summaries)).collect(),
         },
     ];
-    for (lib, rows) in libraries.iter().zip(recent) {
-        hubs.push(Hub {
-            key: format!("recently_added:{}", lib.id),
-            // "in" reads right whatever the library is called.
-            title: i18n::t_with(language, "hubs.recentlyAddedIn", &[("library", &lib.name)]),
-            library_id: Some(lib.id),
-            items: rows.iter().map(|r| r.to_summary_with(summaries)).collect(),
-        });
-    }
+    hubs.extend(rows.into_iter().map(|row| Hub::of_row(row, summaries)));
     hubs.retain(|h| !h.items.is_empty());
     Ok(Json(Hubs { hubs }))
 }

@@ -182,10 +182,11 @@ impl TestApp {
         r.body["id"].as_i64().unwrap()
     }
 
+    /// The library's collections, leaving out the four Pley makes in it.
     async fn collections(&self, library: i64, token: &str) -> Value {
         let r = self.get(&format!("/api/libraries/{library}/collections"), token).await;
         assert_eq!(r.status, StatusCode::OK, "{:?}", r.body);
-        r.body["collections"].clone()
+        common::own_collections(&r.body)
     }
 
     /// What the metadata agent does after matching a movie.
@@ -296,10 +297,8 @@ async fn collections_are_curated_by_admins() {
     let later = app.post(&format!("/api/libraries/{movies}/collections"), &admin, json!({"title": "Later"})).await;
     let later = later.body["id"].as_i64().unwrap();
     assert_eq!(app.get(&format!("/api/collections/{later}"), &bob).await.status, StatusCode::NOT_FOUND);
-    let for_bob = app.get(&format!("/api/libraries/{movies}/collections"), &bob).await;
-    assert_eq!(titles(&for_bob.body["collections"]), vec!["Favourites"]);
-    let for_admin = app.get(&format!("/api/libraries/{movies}/collections"), &admin).await;
-    assert_eq!(titles(&for_admin.body["collections"]), vec!["Favourites", "Later"]);
+    assert_eq!(titles(&app.collections(movies, &bob).await), vec!["Favourites"]);
+    assert_eq!(titles(&app.collections(movies, &admin).await), vec!["Favourites", "Later"]);
 
     assert_eq!(app.delete(&format!("/api/collections/{id}"), &admin).await.status, StatusCode::NO_CONTENT);
     assert_eq!(app.get(&format!("/api/collections/{id}"), &admin).await.status, StatusCode::NOT_FOUND);

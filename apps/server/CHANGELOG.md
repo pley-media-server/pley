@@ -11,6 +11,12 @@ describes how they are made.
 
 ### Added
 
+- Collections have categories: Highlights, Franchises and administrators'
+  own. Administrators choose which collections are rows on Home and on a
+  library's Recommended tab, and in what order; Recently Added, Recently
+  Released, Top Rated and a new Top Unwatched are collections in each
+  movie and TV library, and collections of the same title are one row on
+  Home.
 - Audiobook libraries, in the web and desktop apps: books from `.m4b`
   files or folders of audio files, found as Audiobookshelf finds them
   (`Author/Series/Book`, with `CD 1` folders inside a book, and a book in

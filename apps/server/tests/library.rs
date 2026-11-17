@@ -163,14 +163,14 @@ async fn libraries_are_listed_in_the_order_administrators_choose() {
     assert_eq!(theirs.status, StatusCode::FORBIDDEN, "only administrators choose it");
     assert_eq!(library_names(&app, &admin).await, ["Music", "TV", "Movies"]);
 
-    // Everyone sees that order, with only the libraries they may open, and
-    // so do the home page's rows of each library.
+    // Everyone sees that order, with only the libraries they may open. Home
+    // keeps the order administrators give its rows.
     assert_eq!(library_names(&app, &bob).await, ["Music", "TV", "Movies"]);
     let (kid, _) = app.user(&admin, "kid", json!({"all_libraries": false, "library_ids": [movies, music]})).await;
     assert_eq!(library_names(&app, &kid).await, ["Music", "Movies"]);
-    let rows = ["Recently Added in Music", "Recently Added in TV", "Recently Added in Movies"];
+    let rows = ["Recently Added in TV", "Recently Added in Movies", "Recently Added in Music"];
     assert_eq!(titles(&app.get("/api/hubs/home", &admin).await.body["hubs"]), rows);
-    assert_eq!(titles(&app.get("/api/hubs/home", &kid).await.body["hubs"]), [rows[0], rows[2]]);
+    assert_eq!(titles(&app.get("/api/hubs/home", &kid).await.body["hubs"]), [rows[1], rows[2]]);
 
     // New libraries still go last; a deleted one leaves the others in place.
     app.media_file("anime/Akira (1988).mkv", 1024);
@@ -211,7 +211,8 @@ async fn each_profile_may_list_its_libraries_in_its_own_order() {
     let (kid, kid_id) = app.user(&admin, "kid", json!({"all_libraries": false, "library_ids": [movies, music]})).await;
 
     // An app with the play scope sorts its profile's libraries: theirs
-    // alone, on every list (the libraries, Home's rows, Jellyfin's views).
+    // alone, on every list (the libraries, Jellyfin's views). Home's rows
+    // keep the order administrators give them.
     let (app_token, _) = app.app_token(bob_id, "library play").await;
     let mut events = app.state.events.subscribe();
     let mine = app.put("/api/me/libraries/order", &app_token, json!({"ids": [music, movies, tv]})).await;
@@ -219,7 +220,7 @@ async fn each_profile_may_list_its_libraries_in_its_own_order() {
     assert_eq!(names(&mine.body), ["Music", "Movies", "TV"], "the answer is the new order");
     assert_eq!(library_names(&app, &bob).await, ["Music", "Movies", "TV"]);
     assert_eq!(library_names(&app, &admin).await, ["TV", "Movies", "Music"], "others keep the shared order");
-    let rows = ["Recently Added in Music", "Recently Added in Movies", "Recently Added in TV"];
+    let rows = ["Recently Added in TV", "Recently Added in Movies", "Recently Added in Music"];
     assert_eq!(titles(&app.get("/api/hubs/home", &bob).await.body["hubs"]), rows);
     let shared = app.get("/api/libraries?order=shared", &bob).await;
     assert_eq!(names(&shared.body), ["TV", "Movies", "Music"], "the shared order, asked for");
@@ -906,7 +907,8 @@ async fn library_hubs_show_what_has_content() {
             format!("continue_watching:{movies}"),
             format!("recently_added:{movies}"),
             format!("recently_released:{movies}"),
-            format!("top_rated:{movies}")
+            format!("top_rated:{movies}"),
+            format!("top_unwatched:{movies}")
         ]
     );
     let hub = |key: &str| hubs["hubs"].as_array().unwrap().iter().find(|h| h["key"] == key).unwrap().clone();

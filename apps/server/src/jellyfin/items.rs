@@ -415,7 +415,14 @@ async fn list(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, q: &Q) -> 
             Ok(page.apply(rows))
         }
         Some((Kind::Collection, id)) => {
-            let (_, rows) = crate::collections::get(&state.db, user, id).await?.ok_or(JfError::NotFound)?;
+            let (_, rows) = crate::collections::get(
+                &state.db,
+                user,
+                id,
+                crate::i18n::server_language(&state.settings.get().language),
+            )
+            .await?
+            .ok_or(JfError::NotFound)?;
             Ok(paged(visible(rows)))
         }
         Some((Kind::Playlist, id)) => {
@@ -475,7 +482,14 @@ async fn lists(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, q: &Q) ->
             if q.get("parentId").is_some_and(|p| jellyfin.ids.number(Kind::Library, p) != Some(lib.id)) {
                 continue;
             }
-            for c in crate::collections::list(&state.db, user, lib.id).await? {
+            for c in crate::collections::list_shared(
+                &state.db,
+                user,
+                lib.id,
+                crate::i18n::server_language(&state.settings.get().language),
+            )
+            .await?
+            {
                 let tag = collection_tag(jellyfin, c.updated_at, user);
                 let mut collection = list_item(
                     jellyfin,
@@ -796,7 +810,14 @@ async fn other(state: &AppState, jellyfin: &Jellyfin, user: &AuthUser, kind: Kin
             Ok(item)
         }
         Kind::Collection => {
-            let (c, _) = crate::collections::get(&state.db, user, id).await?.ok_or(JfError::NotFound)?;
+            let (c, _) = crate::collections::get(
+                &state.db,
+                user,
+                id,
+                crate::i18n::server_language(&state.settings.get().language),
+            )
+            .await?
+            .ok_or(JfError::NotFound)?;
             let tag = collection_tag(jellyfin, c.updated_at, user);
             let mut collection = list_item(
                 jellyfin,

@@ -605,6 +605,12 @@ impl PlexTokens {
     }
 }
 
+/// The collections of `/api/libraries/{id}/collections`' answer but the four
+/// Pley makes in each movie and TV library.
+pub fn own_collections(listed: &Value) -> Value {
+    Value::Array(listed["collections"].as_array().unwrap().iter().filter(|c| c["builtin"].is_null()).cloned().collect())
+}
+
 pub fn titles(items: &Value) -> Vec<String> {
     items.as_array().map(|a| a.iter().map(|i| i["title"].as_str().unwrap().to_owned()).collect()).unwrap_or_default()
 }

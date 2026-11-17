@@ -109,7 +109,13 @@ pub async fn section_collections(
 ) -> PlexResult<Node> {
     let (lib, _) = library_for(&state, &user, &id).await?;
     let search = Search::parse(&params)?;
-    let all = collections::list(&state.db, &super::collections_viewer(&user), lib.id).await?;
+    let all = collections::list_shared(
+        &state.db,
+        &super::collections_viewer(&user),
+        lib.id,
+        crate::i18n::server_language(&state.settings.get().language),
+    )
+    .await?;
     let ids: Vec<i64> = all.iter().map(|c| c.id).collect();
     let labels = labels::for_collections(&state.db, &ids).await?;
     let (rows, total) = page.apply(search.apply(all, &labels));
@@ -128,7 +134,13 @@ pub async fn section_collections(
 
 /// Labels of the collections of `lib` the user sees (filter choices).
 pub(super) async fn collection_labels(state: &AppState, user: &AuthUser, lib: &LibraryRow) -> PlexResult<Vec<String>> {
-    let all = collections::list(&state.db, &super::collections_viewer(user), lib.id).await?;
+    let all = collections::list_shared(
+        &state.db,
+        &super::collections_viewer(user),
+        lib.id,
+        crate::i18n::server_language(&state.settings.get().language),
+    )
+    .await?;
     let ids: Vec<i64> = all.iter().map(|c| c.id).collect();
     let mut found: Vec<String> = labels::for_collections(&state.db, &ids).await?.into_values().flatten().collect();
     found.sort_by_key(|l| l.to_lowercase());
@@ -141,8 +153,14 @@ pub(super) async fn collection_for(
     user: &AuthUser,
     id: i64,
 ) -> PlexResult<(CollectionDto, Vec<ItemRow>, LibraryRow, Vec<LibraryRow>)> {
-    let (collection, items) =
-        collections::get(&state.db, &super::collections_viewer(user), id).await?.ok_or(PlexError::NotFound)?;
+    let (collection, items) = collections::get(
+        &state.db,
+        &super::collections_viewer(user),
+        id,
+        crate::i18n::server_language(&state.settings.get().language),
+    )
+    .await?
+    .ok_or(PlexError::NotFound)?;
     let libraries = visible_libraries(state, user).await?;
     let lib = libraries.iter().find(|l| l.id == collection.library_id).cloned().ok_or(PlexError::NotFound)?;
     Ok((collection, items, lib, libraries))

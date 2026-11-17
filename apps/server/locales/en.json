@@ -9,7 +9,12 @@
     "recentlyAddedAlbums": "Recently Added Albums",
     "recentlyAddedBooks": "Recently Added Books",
     "recentlyReleased": "Recently Released",
-    "topRated": "Top Rated"
+    "topRated": "Top Rated",
+    "topUnwatched": "Top Unwatched"
+  },
+  "collections": {
+    "highlights": "Highlights",
+    "franchises": "Franchises"
   },
   "tray": {
     "open": "&Open Pley",

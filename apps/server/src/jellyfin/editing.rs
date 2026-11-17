@@ -356,7 +356,10 @@ async fn edit_item(
 /// A collection's name, overview and sort name, and its labels (`Tags`):
 /// Pley keeps every edit of a collection.
 async fn edit_collection(state: &AppState, user: &AuthUser, id: i64, body: &Body) -> JfResult<StatusCode> {
-    let (collection, _) = collections::get(&state.db, user, id).await?.ok_or(JfError::NotFound)?;
+    let (collection, _) =
+        collections::get(&state.db, user, id, crate::i18n::server_language(&state.settings.get().language))
+            .await?
+            .ok_or(JfError::NotFound)?;
     let name = text(body, "Name").filter(|n| !n.is_empty() && *n != collection.title);
     let name: Option<String> = name.map(|n| n.chars().take(200).collect());
     let overview = text(body, "Overview").filter(|o| Some(o.as_str()) != collection.summary.as_deref());

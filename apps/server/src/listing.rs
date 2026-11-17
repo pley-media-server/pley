@@ -1459,6 +1459,11 @@ fn filter_params(filter: &str) -> Params {
     )
 }
 
+/// How a smart filter orders what it finds.
+pub(crate) fn smart_sort(filter: &str) -> Vec<(SortField, bool)> {
+    parse_sort(filter_params(filter).get("sort"))
+}
+
 /// The kind a smart filter lists in `lib`, when the library has it.
 fn smart_kind(lib: &LibraryRow, params: &Params) -> Option<&'static str> {
     let kind = params.get("type").and_then(kind_for_number).unwrap_or(lib.kind().top_level_kind());

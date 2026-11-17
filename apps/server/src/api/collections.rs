@@ -15,7 +15,13 @@ use crate::catalog::ItemSummary;
 use crate::collections::{self, CollectionDto, CollectionRef};
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
+use crate::i18n;
 use crate::state::AppState;
+
+/// The language the user reads the server's words in.
+async fn language(state: &AppState, user: &AuthUser, headers: &HeaderMap) -> ApiResult<&'static str> {
+    i18n::for_user(&state.db, user.id, &state.settings.get().language, headers).await
+}
 
 /// `Some(None)` for an explicit `null`, `None` when the field is absent.
 fn nullable<'de, D: Deserializer<'de>, T: Deserialize<'de>>(d: D) -> Result<Option<Option<T>>, D::Error> {
@@ -38,10 +44,12 @@ pub struct CollectionList {
 pub async fn list(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     Path(library_id): Path<i64>,
 ) -> ApiResult<Json<CollectionList>> {
     visible_library(&state, &user, library_id).await?;
-    Ok(Json(CollectionList { collections: collections::list(&state.db, &user, library_id).await? }))
+    let language = language(&state, &user, &headers).await?;
+    Ok(Json(CollectionList { collections: collections::list(&state.db, &user, library_id, language).await? }))
 }
 
 #[derive(Serialize)]
@@ -51,8 +59,14 @@ pub struct CollectionDetail {
     items: Vec<ItemSummary>,
 }
 
-async fn detail(state: &AppState, user: &AuthUser, id: i64, summaries: bool) -> ApiResult<CollectionDetail> {
-    let (collection, items) = collections::get(&state.db, user, id)
+async fn detail(
+    state: &AppState,
+    user: &AuthUser,
+    id: i64,
+    summaries: bool,
+    language: &'static str,
+) -> ApiResult<CollectionDetail> {
+    let (collection, items) = collections::get(&state.db, user, id, language)
         .await?
         .ok_or_else(|| AppError::not_found(format!("collection {id} not found")))?;
     Ok(CollectionDetail { collection, items: items.iter().map(|r| r.to_summary_with(summaries)).collect() })
@@ -61,10 +75,68 @@ async fn detail(state: &AppState, user: &AuthUser, id: i64, summaries: bool) -> 
 pub async fn get(
     State(state): State<AppState>,
     user: AuthUser,
+    headers: HeaderMap,
     Path(id): Path<i64>,
     Query(query): Query<HashMap<String, String>>,
 ) -> ApiResult<Json<CollectionDetail>> {
-    Ok(Json(detail(&state, &user, id, super::wants_summaries(&query)).await?))
+    let language = language(&state, &user, &headers).await?;
+    Ok(Json(detail(&state, &user, id, super::wants_summaries(&query), language).await?))
+}
+
+#[derive(Serialize)]
+pub struct MergedCollections {
+    title: String,
+    collections: Vec<MergedPart>,
+    items: Vec<ItemSummary>,
+}
+
+#[derive(Serialize)]
+pub struct MergedPart {
+    id: i64,
+    library_id: i64,
+}
+
+/// `GET /api/collections/merged?ids=1,2`: collections of one title shown as
+/// one row on Home, together, in the row's order. Each is checked as
+/// `/api/collections/{id}` checks it; those the user can't see are left
+/// out, and none answers 404.
+pub async fn merged(
+    State(state): State<AppState>,
+    user: AuthUser,
+    headers: HeaderMap,
+    Query(query): Query<HashMap<String, String>>,
+) -> ApiResult<Json<MergedCollections>> {
+    let ids: Vec<i64> = query
+        .get("ids")
+        .map(|ids| ids.split(',').filter_map(|id| id.trim().parse().ok()).take(50).collect())
+        .unwrap_or_default();
+    let language = language(&state, &user, &headers).await?;
+    let mut shown = Vec::new();
+    let mut lists = Vec::new();
+    let mut title = None;
+    for row in collections::rows(&state.db, &ids).await? {
+        if let Some((dto, items)) = collections::get(&state.db, &user, row.id, language).await?
+            && !items.is_empty()
+        {
+            title.get_or_insert(dto.title);
+            lists.push(items);
+            shown.push(row);
+        }
+    }
+    let Some(title) = title else { return Err(AppError::not_found("collections not found")) };
+    // The user's library order, as the row has them.
+    let libraries = crate::access::visible_libraries(&state.db, &user).await?;
+    let place = |library_id: i64| libraries.iter().position(|l| l.id == library_id).unwrap_or(usize::MAX);
+    let mut pairs: Vec<_> = shown.into_iter().zip(lists).collect();
+    pairs.sort_by_key(|(row, _)| place(row.library_id));
+    let (shown, lists): (Vec<_>, Vec<_>) = pairs.into_iter().unzip();
+    let items = crate::rows::merged(&state.db, &shown, lists, usize::MAX).await?;
+    let summaries = super::wants_summaries(&query);
+    Ok(Json(MergedCollections {
+        title,
+        collections: shown.iter().map(|r| MergedPart { id: r.id, library_id: r.library_id }).collect(),
+        items: items.iter().map(|r| r.to_summary_with(summaries)).collect(),
+    }))
 }
 
 #[derive(Deserialize)]
@@ -78,6 +150,9 @@ pub struct NewCollection {
     /// `genre=Comedy&unwatched=1&sort=year:desc`) whose items it shows.
     #[serde(default)]
     smart_filter: Option<String>,
+    /// Its category; none (Other) when absent or null.
+    #[serde(default)]
+    category_id: Option<i64>,
 }
 
 /// A smart filter that names something to find in `lib`.
@@ -92,10 +167,14 @@ fn smart_filter(lib: &crate::library::LibraryRow, filter: &str) -> ApiResult<Str
 pub async fn create(
     State(state): State<AppState>,
     AdminUser(admin): AdminUser,
+    headers: HeaderMap,
     Path(library_id): Path<i64>,
     Json(body): Json<NewCollection>,
 ) -> ApiResult<(StatusCode, Json<CollectionDetail>)> {
     let lib = visible_library(&state, &admin, library_id).await?;
+    if let Some(category) = body.category_id {
+        known_category(&state, category).await?;
+    }
     // They hold movies and shows (`collections::add_items`).
     if lib.kind().is_audio() {
         return Err(AppError::bad_request("collections are for movie and TV libraries"));
@@ -115,8 +194,19 @@ pub async fn create(
             id
         }
     };
+    if body.category_id.is_some() {
+        collections::set_category(&state.db, id, body.category_id).await?;
+    }
     state.events.send(ServerEvent::LibraryChanged { library_id });
-    Ok((StatusCode::CREATED, Json(detail(&state, &admin, id, false).await?)))
+    let language = language(&state, &admin, &headers).await?;
+    Ok((StatusCode::CREATED, Json(detail(&state, &admin, id, false, language).await?)))
+}
+
+async fn known_category(state: &AppState, id: i64) -> ApiResult<()> {
+    if !crate::categories::exists(&state.db, id).await? {
+        return Err(AppError::bad_request("category_id must be a category's id"));
+    }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -130,6 +220,16 @@ pub struct CollectionPatch {
     /// A new filter for a smart collection.
     #[serde(default)]
     smart_filter: Option<String>,
+    /// Its category, `null` for none (Other): an administrator's choice,
+    /// which labels don't change afterwards.
+    #[serde(default, deserialize_with = "nullable")]
+    category_id: Option<Option<i64>>,
+    /// A row on Home (joining a row of the same title, else last) or not.
+    #[serde(default)]
+    on_home: Option<bool>,
+    /// A row on its library's Recommended tab (last) or not.
+    #[serde(default)]
+    on_recommended: Option<bool>,
 }
 
 async fn library_of(state: &AppState, id: i64) -> ApiResult<i64> {
@@ -141,10 +241,14 @@ async fn library_of(state: &AppState, id: i64) -> ApiResult<i64> {
 pub async fn update(
     State(state): State<AppState>,
     AdminUser(admin): AdminUser,
+    headers: HeaderMap,
     Path(id): Path<i64>,
     Json(body): Json<CollectionPatch>,
 ) -> ApiResult<Json<CollectionDetail>> {
     let library_id = library_of(&state, id).await?;
+    if let Some(Some(category)) = body.category_id {
+        known_category(&state, category).await?;
+    }
     let title = body.title.as_deref().map(clean_title).transpose()?;
     if let Some(sort) = &body.sort
         && !matches!(sort.as_str(), "release" | "title" | "custom")
@@ -163,8 +267,91 @@ pub async fn update(
     }
     collections::update(&state.db, id, title.as_deref(), summary.as_ref().map(|s| s.as_deref()), body.sort.as_deref())
         .await?;
+    if let Some(category) = body.category_id {
+        collections::set_category(&state.db, id, category).await?;
+    }
+    if let Some(on) = body.on_home {
+        collections::set_on_home(&state.db, id, on).await?;
+    }
+    if let Some(on) = body.on_recommended {
+        collections::set_on_recommended(&state.db, id, on).await?;
+    }
     state.events.send(ServerEvent::LibraryChanged { library_id });
-    Ok(Json(detail(&state, &admin, id, false).await?))
+    let language = language(&state, &admin, &headers).await?;
+    Ok(Json(detail(&state, &admin, id, false, language).await?))
+}
+
+#[derive(Serialize)]
+pub struct Restored {
+    restored: u64,
+}
+
+/// `POST /api/libraries/{id}/collections/defaults`: makes again the
+/// collections Pley makes in a movie or TV library that were deleted.
+pub async fn restore_defaults(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    Path(library_id): Path<i64>,
+) -> ApiResult<Json<Restored>> {
+    let lib = visible_library(&state, &admin, library_id).await?;
+    if lib.kind().is_audio() {
+        return Err(AppError::bad_request("collections are for movie and TV libraries"));
+    }
+    let restored = collections::restore_defaults(&state.db, library_id).await?;
+    state.events.send(ServerEvent::LibraryChanged { library_id });
+    Ok(Json(Restored { restored }))
+}
+
+#[derive(Deserialize)]
+pub struct CollectionIds {
+    collection_ids: Vec<i64>,
+}
+
+/// `PUT /api/libraries/{id}/rows/order`: the order of the library's
+/// Recommended tab, by its collections that are rows there.
+pub async fn order_recommended(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    Path(library_id): Path<i64>,
+    Json(body): Json<CollectionIds>,
+) -> ApiResult<StatusCode> {
+    visible_library(&state, &admin, library_id).await?;
+    collections::order_recommended(&state.db, library_id, &body.collection_ids).await?;
+    state.events.send(ServerEvent::LibraryChanged { library_id });
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Serialize)]
+pub struct HomeRows {
+    rows: Vec<crate::rows::HomeRow>,
+}
+
+/// `GET /api/home/rows`: Home's rows after Continue Watching and My List, as
+/// administrators arrange them: every library's, empty or not.
+pub async fn home_rows(
+    State(state): State<AppState>,
+    AdminUser(admin): AdminUser,
+    headers: HeaderMap,
+) -> ApiResult<Json<HomeRows>> {
+    let language = language(&state, &admin, &headers).await?;
+    Ok(Json(HomeRows { rows: crate::rows::home_arrangement(&state.db, language).await? }))
+}
+
+#[derive(Deserialize)]
+pub struct RowKeys {
+    rows: Vec<String>,
+}
+
+/// `PUT /api/home/rows/order`: these rows (by `key`) first in this order,
+/// the rest after.
+pub async fn order_home(
+    State(state): State<AppState>,
+    _admin: AdminUser,
+    Json(body): Json<RowKeys>,
+) -> ApiResult<StatusCode> {
+    crate::rows::order_home(&state.db, &body.rows).await?;
+    state.events.send(ServerEvent::LibrariesChanged);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 pub async fn delete(State(state): State<AppState>, _admin: AdminUser, Path(id): Path<i64>) -> ApiResult<StatusCode> {

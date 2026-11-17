@@ -9,7 +9,12 @@
     "recentlyAddedAlbums": "Albums ajoutés récemment",
     "recentlyAddedBooks": "Livres ajoutés récemment",
     "recentlyReleased": "Sorties récentes",
-    "topRated": "Les mieux notés"
+    "topRated": "Les mieux notés",
+    "topUnwatched": "Les mieux notés à voir"
+  },
+  "collections": {
+    "highlights": "À la une",
+    "franchises": "Sagas"
   },
   "tray": {
     "open": "&Ouvrir Pley",

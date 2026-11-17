@@ -103,6 +103,14 @@ pub async fn get_library(db: &Db, id: i64) -> sqlx::Result<Option<LibraryRow>> {
         .await
 }
 
+/// Music and audiobook libraries whose Recently Added is a row on Home,
+/// with its place among Home's rows (see `crate::rows`).
+pub async fn home_positions(db: &Db) -> sqlx::Result<Vec<(i64, i64)>> {
+    sqlx::query_as("SELECT id, home_position FROM libraries WHERE home_position IS NOT NULL ORDER BY home_position, id")
+        .fetch_all(&db.read)
+        .await
+}
+
 /// Every library, in the order administrators chose (see [`set_order`]).
 pub async fn list_libraries(db: &Db) -> sqlx::Result<Vec<LibraryRow>> {
     sqlx::query_as(

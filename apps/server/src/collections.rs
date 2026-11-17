@@ -13,6 +13,8 @@ use sqlx::FromRow;
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemRow, VISIBLE, me_cte};
 use crate::db::Db;
+use crate::i18n;
+use crate::library::LibraryKind;
 use crate::store::Store;
 use crate::util::{now, sort_title};
 
@@ -20,6 +22,127 @@ use crate::util::{now, sort_title};
 /// collection holding a single film is clutter).
 const MIN_AUTOMATIC: i64 = 2;
 const IMAGES: &str = "https://image.tmdb.org/t/p";
+
+/// The collections Pley makes in each movie and TV library: what were its
+/// built-in rows. Smart collections like any other, which administrators
+/// can change, delete and restore ([`restore_defaults`]).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Builtin {
+    RecentlyAdded,
+    RecentlyReleased,
+    TopRated,
+    TopUnwatched,
+}
+
+impl Builtin {
+    pub const ALL: [Builtin; 4] =
+        [Builtin::RecentlyAdded, Builtin::RecentlyReleased, Builtin::TopRated, Builtin::TopUnwatched];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Builtin::RecentlyAdded => "recently_added",
+            Builtin::RecentlyReleased => "recently_released",
+            Builtin::TopRated => "top_rated",
+            Builtin::TopUnwatched => "top_unwatched",
+        }
+    }
+
+    pub fn parse(key: &str) -> Option<Builtin> {
+        Builtin::ALL.into_iter().find(|b| b.key() == key)
+    }
+
+    /// Its name (the server's words), by the library's kind.
+    pub fn title_key(self, kind: LibraryKind) -> &'static str {
+        match self {
+            Builtin::RecentlyAdded if kind == LibraryKind::Shows => "hubs.recentlyAddedShows",
+            Builtin::RecentlyAdded => "hubs.recentlyAdded",
+            Builtin::RecentlyReleased => "hubs.recentlyReleased",
+            Builtin::TopRated => "hubs.topRated",
+            Builtin::TopUnwatched => "hubs.topUnwatched",
+        }
+    }
+
+    /// Its filter: what the built-in row showed, its 100 first. Shows came
+    /// to Recently Added by their newest episode.
+    pub fn filter(self, kind: LibraryKind) -> &'static str {
+        match self {
+            Builtin::RecentlyAdded if kind == LibraryKind::Shows => "sort=episode.addedAt:desc,id:desc&limit=100",
+            Builtin::RecentlyAdded => "sort=addedAt:desc,id:desc&limit=100",
+            Builtin::RecentlyReleased => "originallyAvailableAt!=-1&sort=originallyAvailableAt:desc&limit=100",
+            Builtin::TopRated => "rating!=-1&sort=rating:desc,titleSort&limit=100",
+            Builtin::TopUnwatched => "unwatched=1&rating!=-1&sort=rating:desc,titleSort&limit=100",
+        }
+    }
+
+    /// Its place on the library's Recommended tab, as the rows were.
+    fn position(self) -> i64 {
+        Builtin::ALL.iter().position(|b| *b == self).unwrap_or_default() as i64
+    }
+}
+
+/// What collections are called for one user: built-in ones named in their
+/// language until an administrator renames them, and the categories.
+pub struct Names {
+    language: &'static str,
+    kinds: HashMap<i64, LibraryKind>,
+    categories: HashMap<i64, crate::categories::CategoryRef>,
+}
+
+impl Names {
+    pub async fn load(db: &Db, language: &'static str) -> sqlx::Result<Names> {
+        let kinds: Vec<(i64, String)> = sqlx::query_as("SELECT id, kind FROM libraries").fetch_all(&db.read).await?;
+        let categories = crate::categories::list(db, language).await?;
+        Ok(Names {
+            language,
+            kinds: kinds
+                .into_iter()
+                .map(|(id, kind)| (id, LibraryKind::parse(&kind).unwrap_or(LibraryKind::Movies)))
+                .collect(),
+            categories: categories.into_iter().map(|c| (c.id, c.into_ref())).collect(),
+        })
+    }
+
+    fn kind(&self, library_id: i64) -> LibraryKind {
+        self.kinds.get(&library_id).copied().unwrap_or(LibraryKind::Movies)
+    }
+
+    /// A built-in collection still called what Pley called it.
+    fn untouched(&self, row: &CollectionRow) -> Option<Builtin> {
+        let builtin = row.builtin.as_deref().and_then(Builtin::parse)?;
+        (row.title == i18n::t("en", builtin.title_key(self.kind(row.library_id)))).then_some(builtin)
+    }
+
+    pub(crate) fn title(&self, row: &CollectionRow) -> String {
+        match self.untouched(row) {
+            Some(builtin) => i18n::t(self.language, builtin.title_key(self.kind(row.library_id))),
+            None => row.title.clone(),
+        }
+    }
+
+    /// Its title as a row on Home, where Recently Added says which library
+    /// (and so doesn't join other libraries' until it's renamed alike).
+    pub(crate) fn home_title(&self, row: &CollectionRow, library: &str) -> String {
+        match self.untouched(row) {
+            Some(Builtin::RecentlyAdded) => {
+                i18n::t_with(self.language, "hubs.recentlyAddedIn", &[("library", library)])
+            }
+            _ => self.title(row),
+        }
+    }
+
+    /// Which row on Home it is part of, the same in every language:
+    /// collections of the same title, an untouched Recently Added on its
+    /// own.
+    pub(crate) fn home_group(&self, row: &CollectionRow) -> String {
+        match self.untouched(row) {
+            // Titles never hold a NUL, so this is no collection's title.
+            Some(Builtin::RecentlyAdded) => format!("\0recently_added:{}", row.library_id),
+            // Untouched or not, the stored title, which is English for an
+            // untouched one, as its title is in English.
+            _ => row.title.to_lowercase(),
+        }
+    }
+}
 
 /// `belongs_to_collection` of a TMDB movie.
 #[derive(Debug, Clone, Deserialize)]
@@ -33,23 +156,27 @@ pub struct TmdbCollection {
 }
 
 #[derive(Debug, Clone, FromRow)]
-struct CollectionRow {
-    id: i64,
-    library_id: i64,
-    title: String,
+pub(crate) struct CollectionRow {
+    pub(crate) id: i64,
+    pub(crate) library_id: i64,
+    pub(crate) title: String,
     sort_title: String,
     summary: Option<String>,
     tmdb_id: Option<i64>,
     poster: Option<String>,
     backdrop: Option<String>,
-    sort: String,
-    smart_filter: Option<String>,
+    pub(crate) sort: String,
+    pub(crate) smart_filter: Option<String>,
+    category_id: Option<i64>,
+    pub(crate) home_position: Option<i64>,
+    recommended_position: Option<i64>,
+    pub(crate) builtin: Option<String>,
     created_at: i64,
     updated_at: i64,
 }
 
-const COLUMNS: &str =
-    "id, library_id, title, sort_title, summary, tmdb_id, poster, backdrop, sort, smart_filter, created_at, updated_at";
+const COLUMNS: &str = "id, library_id, title, sort_title, summary, tmdb_id, poster, backdrop, sort, smart_filter,
+    category_id, home_position, recommended_position, builtin, created_at, updated_at";
 
 #[derive(Debug, Clone, Serialize)]
 pub struct CollectionDto {
@@ -68,6 +195,15 @@ pub struct CollectionDto {
     /// A smart collection's filter: the section listing query (Plex's syntax)
     /// whose items it shows. `None` for collections that hold items.
     pub smart_filter: Option<String>,
+    /// Its category, if it has one (else it's listed under Other).
+    pub category: Option<crate::categories::CategoryRef>,
+    /// Where it is a row, in what order (lowest first): Home, and its
+    /// library's Recommended tab. `None`: not a row there.
+    pub home_position: Option<i64>,
+    pub recommended_position: Option<i64>,
+    /// One of the collections Pley makes in each library
+    /// ([`Builtin`]); `None` for the rest.
+    pub builtin: Option<String>,
     /// Items this user can see.
     pub item_count: i64,
     /// The collection's own artwork, else its first visible item's.
@@ -78,14 +214,21 @@ pub struct CollectionDto {
 }
 
 impl CollectionRow {
-    fn into_dto(self, item_count: i64) -> CollectionDto {
+    fn into_dto(self, item_count: i64, names: &Names) -> CollectionDto {
+        let untouched = names.untouched(&self).is_some();
+        let title = names.title(&self);
         CollectionDto {
+            // Pley's own, named in the user's language, sort by that name.
+            sort_title: if untouched { crate::util::sort_title(&title) } else { self.sort_title },
+            title,
+            category: self.category_id.and_then(|id| names.categories.get(&id).cloned()),
+            home_position: self.home_position,
+            recommended_position: self.recommended_position,
+            builtin: self.builtin,
             poster_url: format!("/api/collections/{}/images/poster?v={}", self.id, self.updated_at),
             backdrop_url: format!("/api/collections/{}/images/backdrop?v={}", self.id, self.updated_at),
             id: self.id,
             library_id: self.library_id,
-            title: self.title,
-            sort_title: self.sort_title,
             summary: self.summary,
             automatic: self.tmdb_id.is_some(),
             sort: self.sort,
@@ -124,8 +267,28 @@ fn listed(row: &CollectionRow, count: i64, user: &AuthUser) -> bool {
     if row.tmdb_id.is_some() { count >= MIN_AUTOMATIC } else { count > 0 || user.is_admin }
 }
 
-/// Collections of a library (the caller checked library access).
-pub async fn list(db: &Db, user: &AuthUser, library_id: i64) -> sqlx::Result<Vec<CollectionDto>> {
+/// [`list`] as the Plex- and Jellyfin-compatible APIs show it: without
+/// Pley's own four, which stand for those servers' built-in rows there.
+pub async fn list_shared(
+    db: &Db,
+    user: &AuthUser,
+    library_id: i64,
+    language: &'static str,
+) -> sqlx::Result<Vec<CollectionDto>> {
+    let mut all = list(db, user, library_id, language).await?;
+    all.retain(|c| c.builtin.is_none());
+    Ok(all)
+}
+
+/// Collections of a library (the caller checked library access), named in
+/// `language`.
+pub async fn list(
+    db: &Db,
+    user: &AuthUser,
+    library_id: i64,
+    language: &'static str,
+) -> sqlx::Result<Vec<CollectionDto>> {
+    let names = Names::load(db, language).await?;
     let rows: Vec<CollectionRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
         "SELECT {COLUMNS} FROM collections WHERE library_id = ? ORDER BY sort_title COLLATE NOCASE, id"
     )))
@@ -144,13 +307,50 @@ pub async fn list(db: &Db, user: &AuthUser, library_id: i64) -> sqlx::Result<Vec
             }
         }
     }
-    Ok(rows
+    let mut listed: Vec<CollectionDto> = rows
         .into_iter()
         .filter_map(|r| {
             let count = counts.get(&r.id).copied().unwrap_or(0);
-            listed(&r, count, user).then(|| r.into_dto(count))
+            listed(&r, count, user).then(|| r.into_dto(count, &names))
         })
-        .collect())
+        .collect();
+    // By title as the user reads it: Pley's own are named in their language.
+    listed.sort_by_cached_key(|c| (c.sort_title.to_lowercase(), c.id));
+    Ok(listed)
+}
+
+/// A library's collections that are rows on its Recommended tab, in order.
+pub(crate) async fn recommended_rows(db: &Db, library_id: i64) -> sqlx::Result<Vec<CollectionRow>> {
+    sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {COLUMNS} FROM collections WHERE library_id = ? AND recommended_position IS NOT NULL
+         ORDER BY recommended_position, sort_title COLLATE NOCASE, id"
+    )))
+    .bind(library_id)
+    .fetch_all(&db.read)
+    .await
+}
+
+/// Every collection that is a row on Home, in order.
+pub(crate) async fn home_rows(db: &Db) -> sqlx::Result<Vec<CollectionRow>> {
+    sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {COLUMNS} FROM collections WHERE home_position IS NOT NULL
+         ORDER BY home_position, sort_title COLLATE NOCASE, id"
+    )))
+    .fetch_all(&db.read)
+    .await
+}
+
+/// Collections by id, those that exist, in the order of `ids`.
+pub(crate) async fn rows(db: &Db, ids: &[i64]) -> sqlx::Result<Vec<CollectionRow>> {
+    let mut out = Vec::new();
+    for id in ids {
+        if let Some(row) = row(db, *id).await?
+            && !out.iter().any(|r: &CollectionRow| r.id == row.id)
+        {
+            out.push(row);
+        }
+    }
+    Ok(out)
 }
 
 async fn row(db: &Db, id: i64) -> sqlx::Result<Option<CollectionRow>> {
@@ -178,10 +378,23 @@ async fn ordered_ids(db: &Db, id: i64, sort: &str) -> sqlx::Result<Vec<i64>> {
     .await
 }
 
-/// The collection and its visible items, if the user may see it. Library
-/// access is checked here too.
-pub async fn get(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<Option<(CollectionDto, Vec<ItemRow>)>> {
+/// The collection and its visible items, if the user may see it, named in
+/// `language`. Library access is checked here too.
+pub async fn get(
+    db: &Db,
+    user: &AuthUser,
+    id: i64,
+    language: &'static str,
+) -> sqlx::Result<Option<(CollectionDto, Vec<ItemRow>)>> {
     let Some(row) = row(db, id).await? else { return Ok(None) };
+    let Some(items) = visible_items(db, user, &row).await? else { return Ok(None) };
+    let count = items.len() as i64;
+    Ok(Some((row.into_dto(count, &Names::load(db, language).await?), items)))
+}
+
+/// What a collection shows the user, in its order: `None` when they may not
+/// see it (no access to its library, or nothing in it for them).
+pub(crate) async fn visible_items(db: &Db, user: &AuthUser, row: &CollectionRow) -> sqlx::Result<Option<Vec<ItemRow>>> {
     if !crate::access::can_open_library(db, user, row.library_id).await? {
         return Ok(None);
     }
@@ -191,13 +404,12 @@ pub async fn get(db: &Db, user: &AuthUser, id: i64) -> sqlx::Result<Option<(Coll
             Some(lib) => crate::listing::smart_items(db, user.id, &lib, filter).await?,
             None => Vec::new(),
         },
-        None => catalog::items_by_ids(db, user.id, &ordered_ids(db, id, &row.sort).await?).await?,
+        None => catalog::items_by_ids(db, user.id, &ordered_ids(db, row.id, &row.sort).await?).await?,
     };
     if items.is_empty() && !(user.is_admin && row.tmdb_id.is_none()) {
         return Ok(None);
     }
-    let count = items.len() as i64;
-    Ok(Some((row.into_dto(count), items)))
+    Ok(Some(items))
 }
 
 #[derive(Debug, Clone, Serialize, FromRow)]
@@ -419,7 +631,7 @@ pub async fn artwork(
     kind: &str,
 ) -> sqlx::Result<Option<Result<PathBuf, i64>>> {
     let Some(row) = row(db, id).await? else { return Ok(None) };
-    let Some((_, items)) = get(db, user, id).await? else { return Ok(None) };
+    let Some(items) = visible_items(db, user, &row).await? else { return Ok(None) };
     let poster = kind == "poster";
     let own = if poster { row.poster } else { row.backdrop };
     if let Some(path) = own.and_then(|r| store.path(&r)).filter(|p| p.is_file()) {
@@ -427,6 +639,141 @@ pub async fn artwork(
     }
     let with_art = items.iter().find(|i| if poster { i.has_poster } else { i.has_backdrop });
     Ok(with_art.or(items.first()).map(|i| Err(i.id)))
+}
+
+/// Makes the collections Pley makes in a movie or TV library ([`Builtin`])
+/// that it doesn't have: all of them for a new library, those deleted for
+/// "Restore". Each goes under Highlights, last on the library's Recommended
+/// tab, and Recently Added last on Home, as a new library's row was.
+/// Returns how many were made.
+pub async fn restore_defaults(db: &Db, library_id: i64) -> sqlx::Result<u64> {
+    let Some(lib) = crate::library::get_library(db, library_id).await? else { return Ok(0) };
+    let kind = lib.kind();
+    if !matches!(kind, LibraryKind::Movies | LibraryKind::Shows) {
+        return Ok(0);
+    }
+    let now = now();
+    let mut tx = db.write.begin().await?;
+    let mut made = 0;
+    for builtin in Builtin::ALL {
+        let title = i18n::t("en", builtin.title_key(kind));
+        let home = if builtin == Builtin::RecentlyAdded { Some(next_home_position(&mut tx).await?) } else { None };
+        made += sqlx::query(
+            "INSERT INTO collections (library_id, title, sort_title, sort, smart_filter, builtin, category_id,
+                category_from, home_position, recommended_position, created_at, updated_at)
+             SELECT ?, ?, ?, 'release', ?, ?, (SELECT id FROM collection_categories WHERE key = 'highlights'), 'pley',
+                ?, (SELECT COALESCE(MAX(recommended_position) + 1, ?) FROM collections WHERE library_id = ?), ?, ?
+             WHERE NOT EXISTS (SELECT 1 FROM collections WHERE library_id = ? AND builtin = ?)",
+        )
+        .bind(library_id)
+        .bind(&title)
+        .bind(sort_title(&title))
+        .bind(builtin.filter(kind))
+        .bind(builtin.key())
+        .bind(home)
+        .bind(builtin.position())
+        .bind(library_id)
+        .bind(now)
+        .bind(now)
+        .bind(library_id)
+        .bind(builtin.key())
+        .execute(&mut *tx)
+        .await?
+        .rows_affected();
+    }
+    tx.commit().await?;
+    Ok(made)
+}
+
+/// After every row on Home: collections' and music and audiobook
+/// libraries' Recently Added.
+pub(crate) async fn next_home_position(tx: &mut sqlx::SqliteConnection) -> sqlx::Result<i64> {
+    sqlx::query_scalar(
+        "SELECT COALESCE(MAX(p) + 1, 0) FROM (SELECT home_position AS p FROM collections
+         UNION ALL SELECT home_position FROM libraries)",
+    )
+    .fetch_one(&mut *tx)
+    .await
+}
+
+/// Puts a collection under a category (`None`: Other), as an
+/// administrator's choice, which labels don't change afterwards.
+pub async fn set_category(db: &Db, id: i64, category_id: Option<i64>) -> sqlx::Result<()> {
+    sqlx::query("UPDATE collections SET category_id = ?, category_from = 'admin', updated_at = ? WHERE id = ?")
+        .bind(category_id)
+        .bind(now())
+        .bind(id)
+        .execute(&db.write)
+        .await?;
+    Ok(())
+}
+
+/// Shows a collection as a row on Home or takes it off. On Home it joins
+/// the row of collections of the same title, else comes last.
+pub async fn set_on_home(db: &Db, id: i64, on: bool) -> sqlx::Result<()> {
+    let position = match (on, row(db, id).await?) {
+        (false, _) | (_, None) => None,
+        (true, Some(row)) if row.home_position.is_some() => row.home_position,
+        (true, Some(row)) => {
+            // The row it joins is found as Home groups rows (any language
+            // does: the grouping is the same in all of them).
+            let names = Names::load(db, "en").await?;
+            let group = names.home_group(&row);
+            let shared = home_rows(db)
+                .await?
+                .iter()
+                .filter(|other| other.id != id && names.home_group(other) == group)
+                .filter_map(|other| other.home_position)
+                .min();
+            match shared {
+                Some(position) => Some(position),
+                None => next_home_position(&mut *db.write.acquire().await?).await.map(Some)?,
+            }
+        }
+    };
+    sqlx::query("UPDATE collections SET home_position = ?, updated_at = ? WHERE id = ?")
+        .bind(position)
+        .bind(now())
+        .bind(id)
+        .execute(&db.write)
+        .await?;
+    Ok(())
+}
+
+/// Shows a collection as a row on its library's Recommended tab (last) or
+/// takes it off.
+pub async fn set_on_recommended(db: &Db, id: i64, on: bool) -> sqlx::Result<()> {
+    let sql = if on {
+        "UPDATE collections SET recommended_position = COALESCE(recommended_position,
+            (SELECT COALESCE(MAX(c.recommended_position) + 1, 0) FROM collections c
+             WHERE c.library_id = collections.library_id)), updated_at = ? WHERE id = ?"
+    } else {
+        "UPDATE collections SET recommended_position = NULL, updated_at = ? WHERE id = ?"
+    };
+    sqlx::query(sql).bind(now()).bind(id).execute(&db.write).await?;
+    Ok(())
+}
+
+/// The order of a library's Recommended tab: `ids` (its collections that
+/// are rows there) first in this order, the others after as they were.
+pub async fn order_recommended(db: &Db, library_id: i64, ids: &[i64]) -> sqlx::Result<()> {
+    let mut tx = db.write.begin().await?;
+    let current: Vec<i64> = sqlx::query_scalar(
+        "SELECT id FROM collections WHERE library_id = ? AND recommended_position IS NOT NULL
+         ORDER BY recommended_position, sort_title, id",
+    )
+    .bind(library_id)
+    .fetch_all(&mut *tx)
+    .await?;
+    let listed: Vec<i64> = ids.iter().copied().filter(|id| current.contains(id)).collect();
+    for (position, id) in crate::playlists::merged_order(&current, &listed).iter().enumerate() {
+        sqlx::query("UPDATE collections SET recommended_position = ? WHERE id = ?")
+            .bind(position as i64)
+            .bind(id)
+            .execute(&mut *tx)
+            .await?;
+    }
+    tx.commit().await
 }
 
 async fn download(store: &Store, remote: &str, size: &str) -> Option<String> {
@@ -454,8 +801,9 @@ pub async fn link_tmdb(db: &Db, store: &Store, item_id: i64, found: Option<&Tmdb
     let mut linked = None;
     if let Some(c) = found {
         let (id, poster, backdrop): (i64, Option<String>, Option<String>) = sqlx::query_as(
-            "INSERT INTO collections (library_id, title, sort_title, tmdb_id, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)
+            "INSERT INTO collections (library_id, title, sort_title, tmdb_id, category_id, category_from,
+                created_at, updated_at)
+             VALUES (?, ?, ?, ?, (SELECT id FROM collection_categories WHERE key = 'franchises'), 'pley', ?, ?)
              ON CONFLICT(library_id, tmdb_id) WHERE tmdb_id IS NOT NULL DO UPDATE SET
                 title = CASE WHEN collections.edited THEN collections.title ELSE excluded.title END,
                 sort_title = CASE WHEN collections.edited THEN collections.sort_title ELSE excluded.sort_title END

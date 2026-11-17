@@ -164,7 +164,10 @@ async fn playlist_rows(state: &AppState, user: &AuthUser, id: i64) -> PlexResult
 /// What a collection holds, as the user may see it, in its order: shows
 /// become their episodes.
 async fn collection_rows(state: &AppState, user: &AuthUser, id: i64) -> PlexResult<Vec<ItemRow>> {
-    let (_, items) = crate::collections::get(&state.db, user, id).await?.ok_or(PlexError::NotFound)?;
+    let (_, items) =
+        crate::collections::get(&state.db, user, id, crate::i18n::server_language(&state.settings.get().language))
+            .await?
+            .ok_or(PlexError::NotFound)?;
     let ids: Vec<i64> = items.iter().map(|r| r.id).collect();
     Ok(playlists::expand(&state.db, user, &ids).await?)
 }
