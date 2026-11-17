@@ -63,7 +63,7 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
   const categories = useCategories();
   const [creating, setCreating] = useState(false);
   const [sorting, setSorting] = useState(false);
-  const [type, setType] = useState<CollectionType>("all");
+  const [chosenType, setType] = useState<CollectionType>("all");
   const [chosenCategory, setCategory] = useState<CategoryChoice>("all");
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const gap = width > 0 && width < 640 ? 12 : 18;
@@ -71,6 +71,8 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
   const colWidth = width > 0 ? (width - gap * (cols - 1)) / cols : CARD_WIDTH;
   const noun = collectionNoun(kind);
   const list = collections.data ?? [];
+  // How a collection was made matters only to whoever manages them.
+  const type = user.is_admin ? chosenType : "all";
   const shown = list.filter((c) => isOfType(c, type));
   // Offered when there is more than one to choose between.
   const usedCategories = groupByCategory(list, categories.data ?? []);
@@ -93,13 +95,15 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
       <div className="mb-4 flex min-h-8 flex-wrap items-center gap-2">
         {list.length > 0 ? (
           <>
-            <Select aria-label={t("collections.type")} value={type} onChange={(e) => setType(e.target.value as CollectionType)}>
-              {TYPES.map((v) => (
-                <option key={v} value={v}>
-                  {t(`collections.types.${v}`)}
-                </option>
-              ))}
-            </Select>
+            {user.is_admin ? (
+              <Select aria-label={t("collections.type")} value={type} onChange={(e) => setType(e.target.value as CollectionType)}>
+                {TYPES.map((v) => (
+                  <option key={v} value={v}>
+                    {t(`collections.types.${v}`)}
+                  </option>
+                ))}
+              </Select>
+            ) : null}
             {usedCategories.length > 1 || category !== "all" ? (
               <Select
                 aria-label={t("collections.category")}

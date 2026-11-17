@@ -21,7 +21,8 @@ describes how they are made.
   categories, and its `visible_library`, `visible_home` and
   `visible_shared` place collections on Home and Recommended.
 - A library's Collections tab groups collections by category and filters
-  them by type and category, and administrators arrange the rows on Home
+  them by category (and, for administrators, by how they were made), and
+  administrators arrange the rows on Home
   and the Recommended tab and restore Pley's own collections. The
   Recommended tab no longer ends with a row of every collection.
 - The Plex import brings smart collections whose filters Pley can apply,

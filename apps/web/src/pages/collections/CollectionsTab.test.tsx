@@ -74,11 +74,10 @@ describe("CollectionsTab", () => {
 
   it("lists collections under their categories and filters them", async () => {
     const user = userEvent.setup();
-    renderTab();
+    renderTab(true);
     const sections = await screen.findAllByRole("region");
     expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Franchises", "Seasonal", "Other"]);
     expect(within(sections[2]!).getAllByText("Christmas").length).toBeGreaterThan(0);
-    expect(screen.queryByRole("button", { name: "Categories" })).not.toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("Type"), "smart");
     expect(screen.getAllByRole("region").map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Seasonal"]);
@@ -96,5 +95,13 @@ describe("CollectionsTab", () => {
   it("offers administrators the categories", async () => {
     renderTab(true);
     expect(await screen.findByRole("button", { name: "Categories" })).toBeInTheDocument();
+  });
+
+  it("offers others the categories to filter by, not how collections were made", async () => {
+    renderTab();
+    await screen.findAllByRole("region");
+    expect(screen.queryByLabelText("Type")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Category")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Categories" })).not.toBeInTheDocument();
   });
 });
