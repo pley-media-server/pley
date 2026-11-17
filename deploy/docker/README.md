@@ -73,7 +73,7 @@ All in `.env`; [.env.example](.env.example) explains each one.
 | `compose.nvidia.yaml` | NVIDIA hardware transcoding |
 | `compose.proxy.yaml` | A reverse proxy in Docker: no published port |
 | `compose.plex.yaml` | The [Plex-compatible API](../../docs/COMPATIBILITY.md) on port 32400 (without it, it answers on Pley's port) |
-| `compose.jellyfin.yaml` | The [Jellyfin-compatible API](../../docs/COMPATIBILITY.md) on port 8096 (without it, Settings → Network can turn it on, on Pley's port) |
+| `compose.jellyfin.yaml` | The [Jellyfin-compatible API](../../docs/COMPATIBILITY.md) on port 8096 (without it, it answers on Pley's port) |
 
 Your own changes go in `compose.override.yaml` next to `compose.yaml` (git
 ignores it). Compose reads it by itself unless `COMPOSE_FILE` is set; then

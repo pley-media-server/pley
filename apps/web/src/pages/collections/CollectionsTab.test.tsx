@@ -1,8 +1,9 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { Category, Collection } from "@/api/lists";
-import { mockApi, renderWithProviders, testUser } from "@/test/render";
+import { namedCategory, type Category, type Collection } from "@/api/lists";
+import { encodeId } from "@/lib/ids";
+import { LocationDisplay, mockApi, renderWithProviders, testUser } from "@/test/render";
 import { CollectionsTab, groupByCategory, isOfType } from "./CollectionsTab";
 
 const highlights: Category = { id: 1, key: "highlights", title: "Highlights", from_label: null, position: 0 };
@@ -60,6 +61,13 @@ describe("groupByCategory", () => {
   });
 });
 
+describe("namedCategory", () => {
+  it("names a collection's category, but not Other, which only says it has none", () => {
+    expect(namedCategory(collections[2]!)?.title).toBe("Seasonal");
+    expect(namedCategory(collections[3]!)).toBeNull();
+  });
+});
+
 describe("isOfType", () => {
   it("tells collections made by hand, smart ones and TMDB's apart", () => {
     const of = (type: Parameters<typeof isOfType>[1]) => collections.filter((c) => isOfType(c, type)).map((c) => c.id);
@@ -89,14 +97,88 @@ describe("CollectionsTab", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "smart");
     expect(screen.getAllByRole("region").map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Seasonal"]);
 
+    // One group shown has no heading: the filter says which it is.
     await user.selectOptions(screen.getByLabelText("Category"), String(seasonal.id));
-    expect(screen.getAllByRole("region").map((s) => s.getAttribute("aria-label"))).toEqual(["Seasonal"]);
+    expect(screen.queryAllByRole("region")).toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: /Seasonal/ })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Christmas").length).toBeGreaterThan(0);
     expect(screen.getByText("1 collection")).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("Type"), "tmdb");
     expect(screen.getByText("No collections match these filters")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Clear filters" })[0]!);
     expect(screen.getAllByRole("region")).toHaveLength(4);
+  });
+
+  it("keeps the filters in the address, for Back to find them", async () => {
+    const user = userEvent.setup();
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+    });
+    renderWithProviders(
+      <>
+        <CollectionsTab libraryId={1} kind="movies" />
+        <LocationDisplay />
+      </>,
+      { route: `/library/1?tab=collections&category=${encodeId(seasonal.id)}` },
+    );
+    expect(await screen.findByText("1 collection")).toBeInTheDocument();
+    expect(screen.getByLabelText("Category")).toHaveValue(String(seasonal.id));
+
+    await user.selectOptions(screen.getByLabelText("Type"), "smart");
+    expect(screen.getByTestId("location")).toHaveTextContent(`/library/1?tab=collections&category=${encodeId(seasonal.id)}&type=smart`);
+    await user.click(screen.getAllByRole("button", { name: "Clear filters" })[0]!);
+    expect(screen.getByTestId("location")).toHaveTextContent(/^\/library\/1\?tab=collections$/);
+  });
+
+  it("lets a chosen category go once it's gone, showing them all", async () => {
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+    });
+    renderWithProviders(
+      <>
+        <CollectionsTab libraryId={1} kind="movies" />
+        <LocationDisplay />
+      </>,
+      { route: `/library/1?tab=collections&category=${encodeId(9)}` },
+    );
+    expect(await screen.findAllByRole("region")).toHaveLength(4);
+    expect(screen.getByLabelText("Category")).toHaveValue("all");
+    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(/^\/library\/1\?tab=collections$/));
+  });
+
+  it("heads no group when there is only one", async () => {
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections: [collection(4, "Favourites"), collection(5, "Westerns")] }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+    });
+    renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />);
+    expect(await screen.findAllByText("Westerns")).not.toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: /Other/ })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("region")).toHaveLength(0);
+    // Nothing to choose between: no Category filter either.
+    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
+  });
+
+  it("waits for the categories before grouping", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const categories = new Promise((resolve) => (answer = resolve));
+    const requests = mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections }),
+      "GET /api/collection-categories": () => categories,
+    });
+    renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />);
+    await waitFor(() => expect(requests.some((r) => r.path === "/api/libraries/1/collections")).toBe(true));
+    await screen.findByText("4 collections");
+    // Not everything under Other while they're on their way.
+    expect(screen.queryByText("Favourites")).not.toBeInTheDocument();
+
+    answer({ categories: [highlights, franchises, seasonal] });
+    const sections = await screen.findAllByRole("region");
+    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Franchises", "Seasonal", "Other"]);
   });
 
   it("offers administrators the categories", async () => {

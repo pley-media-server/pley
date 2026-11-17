@@ -429,21 +429,28 @@ pub async fn get(
     language: &'static str,
 ) -> sqlx::Result<Option<(CollectionDto, Vec<ItemRow>)>> {
     let Some(row) = row(db, id).await? else { return Ok(None) };
-    let Some(items) = visible_items(db, user, &row).await? else { return Ok(None) };
+    let Some(items) = visible_items(db, user, &row, None).await? else { return Ok(None) };
     let count = items.len() as i64;
     Ok(Some((row.into_dto(count, &Names::load(db, language).await?), items)))
 }
 
 /// What a collection shows the user, in its order: `None` when they may not
-/// see it (no access to its library, or nothing in it for them).
-pub(crate) async fn visible_items(db: &Db, user: &AuthUser, row: &CollectionRow) -> sqlx::Result<Option<Vec<ItemRow>>> {
+/// see it (no access to its library, or nothing in it for them). A smart
+/// collection's first `most` alone when it's given, as a row shows them:
+/// its filter may find a whole library.
+pub(crate) async fn visible_items(
+    db: &Db,
+    user: &AuthUser,
+    row: &CollectionRow,
+    most: Option<usize>,
+) -> sqlx::Result<Option<Vec<ItemRow>>> {
     if !crate::access::can_open_library(db, user, row.library_id).await? {
         return Ok(None);
     }
     let items = match &row.smart_filter {
         // What the filter finds, in the filter's order.
         Some(filter) => match crate::library::get_library(db, row.library_id).await? {
-            Some(lib) => crate::listing::smart_items(db, user.id, &lib, filter).await?,
+            Some(lib) => crate::listing::smart_items_up_to(db, user.id, &lib, filter, most).await?,
             None => Vec::new(),
         },
         None => catalog::items_by_ids(db, user.id, &ordered_ids(db, row.id, &row.sort).await?).await?,
@@ -673,7 +680,7 @@ pub async fn artwork(
     kind: &str,
 ) -> sqlx::Result<Option<Result<PathBuf, i64>>> {
     let Some(row) = row(db, id).await? else { return Ok(None) };
-    let Some(items) = visible_items(db, user, &row).await? else { return Ok(None) };
+    let Some(items) = visible_items(db, user, &row, None).await? else { return Ok(None) };
     let poster = kind == "poster";
     let own = if poster { row.poster } else { row.backdrop };
     if let Some(path) = own.and_then(|r| store.path(&r)).filter(|p| p.is_file()) {

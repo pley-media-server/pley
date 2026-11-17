@@ -32,8 +32,8 @@ protect your server.
   compatibility APIs take only tokens made for other apps. Make one per app
   or tool in **Account → Tokens for other apps**, allow only what it needs,
   limit it to the addresses the tool runs at, and revoke what isn't used.
-  Turn an API off (`plex_bind = "off"`; the Jellyfin-compatible one is off
-  by default) if nothing needs it.
+  Turn an API off (`plex_bind = "off"`, `jellyfin_bind = "off"`, or
+  **Settings → Network**) if nothing needs it.
 - **Mount media read-only**, run Pley as an unprivileged user, and don't let
   untrusted people write to library folders. The Docker setup does the first
   two and more: a read-only image, no capabilities, the port on 127.0.0.1
@@ -432,9 +432,11 @@ other apps (`pley_ct_…`), never with a session's
   what it hears within bounds; and keeps none of it, so no device can
   make it hold more.
 - Pley looks for Google Cast and AirPlay devices (`_googlecast._tcp`,
-  `_airplay._tcp`) only when a home member's remote lists devices, or
-  casts to or pairs with a device Pley doesn't keep, at most every 30
-  seconds, by one mDNS query from a port of its own; only while its web
+  `_airplay._tcp`) only while an administrator has casting to them on
+  (Settings → Network, off by default; turned off, it doesn't look, and
+  forgets the devices it found); only when a home member's remote lists
+  devices, or casts to or pairs with a device Pley doesn't keep, at most
+  every 30 seconds, by one mDNS query from a port of its own; only while its web
   port listens beyond this computer, where a device can fetch a cast;
   and only while discovery is on: turned off in Settings → Network (or
   with `--no-discovery`), it doesn't look, and forgets the devices it

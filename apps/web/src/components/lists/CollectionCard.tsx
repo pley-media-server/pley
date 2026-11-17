@@ -14,18 +14,16 @@ export function CollectionCard({
   collection,
   width,
   noun,
-  fixed,
 }: {
   collection: Collection;
   width: number;
   noun: [string, string];
-  fixed?: boolean;
 }) {
   const { t } = useTranslation("components");
   const to = collectionUrl(collection.id);
   const count = collection.item_count;
   return (
-    <div className="group/card min-w-0" style={fixed ? { width } : undefined}>
+    <div className="group/card min-w-0">
       <Link
         to={to}
         aria-label={collection.title}

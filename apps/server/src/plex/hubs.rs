@@ -6,8 +6,8 @@
 //! `visible_library`, `visible_home` and `visible_shared` use: Pley's own
 //! collections go by Plex's identifiers for its built-in rows (and some of
 //! Pley's own where Plex has none), others by Plex's
-//! `custom.collection.<section>.<key>`. Pley has one Home for everyone, so
-//! Plex's owner's and shared Homes are one.
+//! `custom.collection.<section>.<key>`. Pley has one Home for everyone,
+//! which its administrators see too: Plex's owner's Home is it.
 
 use axum::extract::{Path, State};
 
@@ -212,9 +212,12 @@ pub async fn managed(
             .attr("promotedToRecommended", one_or_zero(recommended))
             .attr("promotedToOwnHome", one_or_zero(home))
             .attr("promotedToSharedHome", one_or_zero(home));
-        if row.builtin.is_none() {
-            hub = hub.attr("deletable", "1").attr("metadataItemId", keys::collection(row.id));
-        }
+        // Plex's built-in hubs say they can't be removed: python-plexapi
+        // takes a hub that doesn't say as one that can.
+        hub = match row.builtin {
+            Some(_) => hub.attr("deletable", "0"),
+            None => hub.attr("deletable", "1").attr("metadataItemId", keys::collection(row.id)),
+        };
         mc.push(hub);
     }
     Ok(mc)
@@ -231,21 +234,20 @@ fn visible(params: &Params, name: &str) -> Option<bool> {
 }
 
 /// Puts a collection on, or takes it off, Recommended and Home as the
-/// parameters say; those not given leave it as it was. Plex's two Homes are
-/// Pley's one: setting either puts it there, clearing both takes it off.
+/// parameters say; those not given leave it as it was. Pley's one Home is
+/// the one its administrators see too, so Plex's owner's Home decides; the
+/// friends' counts only when the owner's isn't given. python-plexapi and
+/// Kometa send both, the one they don't change as they last read it (the
+/// same, here): were either to keep a collection on Home, `demoteHome()` or
+/// Kometa's `visible_home: false` would never take it off.
 async fn promote_as(state: &AppState, row: &CollectionRow, params: &Params) -> PlexResult<()> {
     let recommended = promoted(params, "promotedToRecommended").or(visible(params, "recommendationsVisibility"));
     if let Some(on) = recommended {
         collections::set_on_recommended(&state.db, row.id, on).await?;
     }
-    let was = row.home_position.is_some();
-    let own = promoted(params, "promotedToOwnHome");
-    let shared = promoted(params, "promotedToSharedHome");
-    let home = match (visible(params, "homeVisibility"), own, shared) {
-        (Some(on), _, _) => Some(on),
-        (None, None, None) => None,
-        (None, own, shared) => Some(own.unwrap_or(was) || shared.unwrap_or(was)),
-    };
+    let home = visible(params, "homeVisibility")
+        .or(promoted(params, "promotedToOwnHome"))
+        .or(promoted(params, "promotedToSharedHome"));
     if let Some(on) = home {
         collections::set_on_home(&state.db, row.id, on).await?;
     }

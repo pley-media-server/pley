@@ -3,6 +3,7 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { connectionLost, eventsLive, serverAnswers, setConnectionLost, setEventsLive } from "@/lib/connection";
 import { isApiError } from "./client";
 import { ACTIVITY_POLL_MS, keys } from "./hooks";
+import { listKeys } from "./lists";
 import { liveKeys } from "./livetv";
 import { patchBadges, patchTitles, refetchBadges, requestKeys, requestQueries, titleShown, type TitleKind } from "./requests";
 import type { Activity, Id, Library, ServerEvent } from "./types";
@@ -248,6 +249,10 @@ export function useServerEvents(userId: Id | null) {
       pendingWatchState = null;
       if (libraries.length > 0) {
         for (const id of libraries) void qc.invalidateQueries({ queryKey: keys.library(id) });
+        // A collection's page, a Home row's of several libraries, and Home's
+        // rows show a library's collections too.
+        void qc.invalidateQueries({ queryKey: ["collection"] });
+        void qc.invalidateQueries({ queryKey: listKeys.homeRows });
         void qc.invalidateQueries({ queryKey: keys.libraries });
         void qc.invalidateQueries({ queryKey: ["hubs"] });
         void qc.invalidateQueries({ queryKey: ["item"] });
@@ -378,6 +383,12 @@ export function useServerEvents(userId: Id | null) {
         case "libraries_changed":
           void qc.invalidateQueries({ queryKey: keys.libraries });
           void qc.invalidateQueries({ queryKey: ["hubs"] });
+          // Also said for collections' categories, which every library's
+          // collections name, and for Home's order of rows.
+          void qc.invalidateQueries({ queryKey: listKeys.categories });
+          void qc.invalidateQueries({ queryKey: ["library"], predicate: (q) => q.queryKey[2] === "collections" });
+          void qc.invalidateQueries({ queryKey: ["collection"] });
+          void qc.invalidateQueries({ queryKey: listKeys.homeRows });
           break;
         // A device that takes casts coming or going says so too.
         case "sessions_changed":

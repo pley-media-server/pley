@@ -36,6 +36,12 @@ export interface Collection {
 
 export type Builtin = "recently_added" | "recently_released" | "top_rated" | "top_unwatched";
 
+/** The category a collection's page names: none for Other, which only
+ * says it has none. */
+export function namedCategory(c: Pick<Collection, "category">): CategoryRef | null {
+  return c.category.key === "other" ? null : c.category;
+}
+
 export interface CategoryRef {
   id: Id;
   /** Pley's own (`highlights`, `franchises`); `null`: an administrator's. */
