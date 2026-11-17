@@ -10,6 +10,7 @@ import app.pley.android.data.LibraryQuery
 import app.pley.android.data.LibraryViews
 import app.pley.android.data.Loadable
 import app.pley.android.data.Settings
+import app.pley.android.model.CollectionCategory
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionSummary
 import app.pley.android.model.Hubs
@@ -18,6 +19,7 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.MergedCollection
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
@@ -93,6 +95,14 @@ class FakeCollections : CollectionsRepository {
 
     override fun collection(collectionId: Long): Flow<Loadable<CollectionDetail>> =
         details.map { all -> all[collectionId]?.let { Loadable.Ready(it, fresh = true) } ?: Loadable.Loading }
+
+    val categoryList = MutableStateFlow<Loadable<List<CollectionCategory>>>(Loadable.Ready(emptyList(), fresh = true))
+    val mergedPages = MutableStateFlow<Map<List<Long>, MergedCollection>>(emptyMap())
+
+    override fun categories(): Flow<Loadable<List<CollectionCategory>>> = categoryList
+
+    override fun merged(collectionIds: List<Long>): Flow<Loadable<MergedCollection>> =
+        mergedPages.map { all -> all[collectionIds]?.let { Loadable.Ready(it, fresh = true) } ?: Loadable.Loading }
 }
 
 /** Views kept by library, as a test sets and reads them. */

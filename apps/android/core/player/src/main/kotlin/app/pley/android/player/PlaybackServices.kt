@@ -71,6 +71,9 @@ sealed interface PlayQueue {
     data class Playlist(val playlistId: Long) : PlayQueue
 
     data class Collection(val collectionId: Long) : PlayQueue
+
+    /** A Home row of several collections of one title, played through in the row's order. */
+    data class MergedCollection(val collectionIds: List<Long>) : PlayQueue
 }
 
 /**

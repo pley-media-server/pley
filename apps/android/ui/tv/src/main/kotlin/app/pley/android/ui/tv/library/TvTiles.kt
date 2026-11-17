@@ -82,6 +82,9 @@ internal fun tvCountOf(resources: Resources, @PluralsRes plural: Int, n: Int, of
 
 private fun digits(resources: Resources): NumberFormat = NumberFormat.getIntegerInstance(resources.configuration.locales[0])
 
+/** "1,500": [n] in the digits of [resources]' language, on its own (a badge). */
+internal fun tvDigits(resources: Resources, n: Int): String = digits(resources).format(n)
+
 /** The noun of a filtered listing of a library of [kind]: "23 of 1,500 movies". */
 @PluralsRes
 internal fun tvItemsOfPlural(kind: LibraryKind?): Int = when (kind) {

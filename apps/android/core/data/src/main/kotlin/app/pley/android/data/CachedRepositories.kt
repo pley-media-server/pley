@@ -2,6 +2,8 @@
 
 package app.pley.android.data
 
+import app.pley.android.model.CollectionCategories
+import app.pley.android.model.CollectionCategory
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionList
 import app.pley.android.model.CollectionSummary
@@ -15,6 +17,7 @@ import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibraryIds
 import app.pley.android.model.MaybeItem
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PleyJson
 import app.pley.android.model.SearchResults
@@ -225,6 +228,16 @@ internal class CachedCollections(private val cache: ResourceCache) : Collections
     override fun collection(collectionId: Long): Flow<Loadable<CollectionDetail>> = cache.observe(
         Resource(SnapshotKeys.collection(collectionId), CollectionDetail.serializer(), detail = true) { api, _ ->
             api.collection(collectionId)
+        },
+    )
+
+    override fun categories(): Flow<Loadable<List<CollectionCategory>>> = cache.observe(
+        Resource(SnapshotKeys.CATEGORIES, CollectionCategories.serializer()) { api, _ -> api.collectionCategories() },
+    ).map { it.map(CollectionCategories::categories) }
+
+    override fun merged(collectionIds: List<Long>): Flow<Loadable<MergedCollection>> = cache.observe(
+        Resource(SnapshotKeys.merged(collectionIds), MergedCollection.serializer(), detail = true) { api, _ ->
+            api.mergedCollection(collectionIds)
         },
     )
 }

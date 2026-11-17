@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -102,7 +103,13 @@ private fun LibraryPage(state: LibraryUiState<ArtworkTileModel>, vm: LibraryView
                     when (state.params.tab) {
                         LibraryTab.Recommended -> RecommendedPane(state, vm, skeleton)
                         LibraryTab.Library -> LibraryPane(state, vm, skeleton)
-                        LibraryTab.Collections -> CollectionsPane(state.collections, state.kind, onRetry = vm::retry, skeleton = skeleton)
+                        LibraryTab.Collections -> CollectionsPane(
+                            state.collections,
+                            state.kind,
+                            onRetry = vm::retry,
+                            skeleton = skeleton,
+                            filters = remember(vm) { CollectionFilters(vm::collectionCategory, vm::clearCollectionFilters) },
+                        )
                     }
                 }
             }

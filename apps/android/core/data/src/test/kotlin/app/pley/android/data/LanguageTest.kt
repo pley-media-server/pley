@@ -13,6 +13,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -251,4 +252,13 @@ class LanguageTest {
     }
 
     private val alex: Me = Fixtures.decode("me/app_token.json")
+
+    @Test
+    fun whatTheServerWordsIsReadAgainInTheNewLanguage() {
+        // Rows' titles, categories' names and a merged page's title come in the language asked for.
+        for (key in listOf(SnapshotKeys.HOME, SnapshotKeys.CATEGORIES, SnapshotKeys.libraryHubs(1), SnapshotKeys.collections(1), SnapshotKeys.collection(5), SnapshotKeys.merged(listOf(5, 6)))) {
+            assertTrue(key, SnapshotKeys.isWorded(key))
+        }
+        assertFalse(SnapshotKeys.isWorded(SnapshotKeys.filters(1)))
+    }
 }

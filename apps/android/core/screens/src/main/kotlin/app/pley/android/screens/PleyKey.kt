@@ -58,6 +58,10 @@ sealed interface PleyKey : NavKey {
     @Serializable
     data class Collection(val collectionId: Long) : PleyKey
 
+    /** A Home row of several libraries' collections of one title, opened together. */
+    @Serializable
+    data class MergedCollection(val collectionIds: List<Long>) : PleyKey
+
     /** A movie, show, season, episode or extra. */
     @Serializable
     data class Item(val itemId: Long) : PleyKey

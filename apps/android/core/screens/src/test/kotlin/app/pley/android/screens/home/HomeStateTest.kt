@@ -51,6 +51,15 @@ class HomeStateTest {
     }
 
     @Test
+    fun seeAllOpensTheRowsCollectionOrItsMergedPage() {
+        assertEquals(PleyKey.Collection(7), seeAllOf(Hub("recently_added:1", "Recently Added", 1, listOf(OVERGROWTH), collectionIds = listOf(7))))
+        assertEquals(
+            PleyKey.MergedCollection(listOf(7, 12)),
+            seeAllOf(Hub("collections:7,12", "Award Winners", null, listOf(OVERGROWTH), collectionIds = listOf(7, 12))),
+        )
+    }
+
+    @Test
     fun nothingSavedAndNothingYetIsLoading() {
         assertSame(HomeState.Loading, homeState(Loadable.Loading, Loadable.Loading, scanning = false, origin = ""))
         assertSame(HomeState.Loading, homeState(Loadable.Loading, libraries, scanning = false, origin = ""))

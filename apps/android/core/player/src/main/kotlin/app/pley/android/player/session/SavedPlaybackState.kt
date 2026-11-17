@@ -43,6 +43,7 @@ data class SavedPlaybackState(
         when (queue) {
             is PlayQueue.Playlist -> putLong(PLAYLIST, queue.playlistId)
             is PlayQueue.Collection -> putLong(COLLECTION, queue.collectionId)
+            is PlayQueue.MergedCollection -> putLongArray(MERGED, queue.collectionIds.toLongArray())
             null -> Unit
         }
         drivePath?.let { putString(DRIVE, it) }
@@ -57,6 +58,7 @@ data class SavedPlaybackState(
         private const val QUALITY = "pley.quality"
         private const val PLAYLIST = "pley.playlist"
         private const val COLLECTION = "pley.collection"
+        private const val MERGED = "pley.merged"
         private const val DRIVE = "pley.drive"
 
         /** What [toBundle] saved; `null` when [bundle] holds none. */
@@ -70,7 +72,9 @@ data class SavedPlaybackState(
                 audioIndex = long(AUDIO),
                 subtitleIndex = long(SUBTITLE),
                 quality = bundle.getString(QUALITY) ?: QualityPreset.ORIGINAL_ID,
-                queue = long(PLAYLIST)?.let { PlayQueue.Playlist(it) } ?: long(COLLECTION)?.let { PlayQueue.Collection(it) },
+                queue = long(PLAYLIST)?.let { PlayQueue.Playlist(it) }
+                    ?: long(COLLECTION)?.let { PlayQueue.Collection(it) }
+                    ?: bundle.getLongArray(MERGED)?.let { PlayQueue.MergedCollection(it.toList()) },
                 drivePath = bundle.getString(DRIVE),
             )
         }

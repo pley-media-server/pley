@@ -1,5 +1,6 @@
 package app.pley.android.data
 
+import app.pley.android.model.CollectionCategory
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionSummary
 import app.pley.android.model.DynamicRangeFilter
@@ -10,11 +11,13 @@ import app.pley.android.model.ItemSummary
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryFilters
 import app.pley.android.model.LibrarySort
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.ResolutionFilter
 import app.pley.android.model.SearchResults
 import app.pley.android.model.SortOrder
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 
 /** The libraries this profile may see, in the server's order (the profile's own, once it chose one). */
 interface LibrariesRepository {
@@ -151,6 +154,12 @@ interface CollectionsRepository {
     fun collections(libraryId: Long): Flow<Loadable<List<CollectionSummary>>>
 
     fun collection(collectionId: Long): Flow<Loadable<CollectionDetail>>
+
+    /** The categories collections are grouped by, in order. */
+    fun categories(): Flow<Loadable<List<CollectionCategory>>> = flowOf(Loadable.Ready(emptyList(), fresh = true))
+
+    /** A Home row of several collections of one title ([collectionIds], in the row's order): every title in them. */
+    fun merged(collectionIds: List<Long>): Flow<Loadable<MergedCollection>> = flowOf(Loadable.Loading)
 }
 
 /** What this profile watched, newest first; entries can be removed. */

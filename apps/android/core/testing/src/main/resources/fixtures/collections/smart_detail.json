@@ -6,6 +6,7 @@
   "automatic": false,
   "sort": "title",
   "smart_filter": "genre=Science%20Fiction&unwatched=1&sort=year:desc",
+  "category": { "id": 3, "key": "other", "title": "Other" },
   "item_count": 2,
   "poster_url": "/api/collections/803/images/poster?v=1761310000",
   "backdrop_url": "/api/collections/803/images/backdrop?v=1761310000",

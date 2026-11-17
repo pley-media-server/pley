@@ -22,6 +22,7 @@ class PleyKeyTest {
         PleyKey.Library(3, LibraryTab.Recommended),
         PleyKey.Collections(3),
         PleyKey.Collection(12),
+        PleyKey.MergedCollection(listOf(12, 34)),
         PleyKey.Item(4567),
         PleyKey.Person(89),
         PleyKey.Artist(700),

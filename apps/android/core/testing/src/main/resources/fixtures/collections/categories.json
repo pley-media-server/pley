@@ -1,0 +1,8 @@
+{
+  "categories": [
+    { "id": 1, "key": "highlights", "title": "Highlights", "from_label": null, "position": 0 },
+    { "id": 3, "key": "other", "title": "Other", "from_label": null, "position": 1 },
+    { "id": 2, "key": "franchises", "title": "Franchises", "from_label": null, "position": 2 },
+    { "id": 5, "key": null, "title": "Seasonal", "from_label": "Seasonal", "position": 3 }
+  ]
+}

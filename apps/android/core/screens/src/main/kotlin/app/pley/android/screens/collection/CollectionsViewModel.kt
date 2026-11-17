@@ -85,6 +85,6 @@ class CollectionsViewModel<T : Any>(
             )
         }
 
-    private fun tile(c: app.pley.android.model.CollectionSummary, library: Library, origin: String) =
-        CollectionTile(c.id, c.itemCount, tiles.collection(c, library.kind, origin))
+    private fun tile(c: app.pley.android.model.CollectionSummary, library: Library, origin: String): CollectionTile<T> =
+        c.tile(tiles.collection(c, library.kind, origin))
 }

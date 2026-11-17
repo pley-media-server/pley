@@ -31,6 +31,7 @@ class NextUp(private val api: PleyApi, private val local: LocalMedia = LocalMedi
     suspend fun after(itemId: Long, kind: ItemKind, queue: PlayQueue?, fromDownload: Boolean = false): ItemSummary? = when (queue) {
         is PlayQueue.Playlist -> nextIn(api.playlist(queue.playlistId).entries.map { it.item }, itemId)
         is PlayQueue.Collection -> nextIn(api.collection(queue.collectionId).items, itemId)
+        is PlayQueue.MergedCollection -> nextIn(api.mergedCollection(queue.collectionIds).items, itemId)
         null -> when {
             kind != ItemKind.Episode -> null
             fromDownload -> nextAway(itemId)

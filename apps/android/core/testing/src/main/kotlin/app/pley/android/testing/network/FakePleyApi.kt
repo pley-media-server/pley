@@ -4,6 +4,7 @@ import app.pley.android.model.Added
 import app.pley.android.model.Approval
 import app.pley.android.model.Asked
 import app.pley.android.model.CastRequest
+import app.pley.android.model.CollectionCategories
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.Decline
 import app.pley.android.model.DiscoverDetail
@@ -58,6 +59,7 @@ import app.pley.android.model.SpeedSample
 import app.pley.android.model.SubtitleResults
 import app.pley.android.model.SubtitleTrack
 import app.pley.android.model.Me
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.NewPlaylist
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaybackInfo
@@ -206,6 +208,12 @@ class FakePleyApi(val issuer: String = "http://127.0.0.1:7539") : PleyApi {
     override suspend fun collection(id: Long): CollectionDetail = respond("collection", id) {
         fixture(if (id == 803L) "collections/smart_detail.json" else "collections/detail.json")
     }
+
+    override suspend fun collectionCategories(): CollectionCategories =
+        respond("collectionCategories") { fixture("collections/categories.json") }
+
+    override suspend fun mergedCollection(ids: List<Long>): MergedCollection =
+        respond("mergedCollection", ids.joinToString(",")) { fixture("collections/merged.json") }
 
     override fun collectionImageUrl(id: Long, kind: ImageKind, width: Int?, version: String?): String =
         urls.collectionImageUrl(id, kind, width, version)

@@ -5,12 +5,15 @@ import app.pley.android.data.Loadable
 import app.pley.android.data.PlayItem
 import app.pley.android.data.PlayTarget
 import app.pley.android.data.valueOrNull
+import app.pley.android.model.CategoryRef
 import app.pley.android.model.CollectionDetail
 import app.pley.android.model.CollectionSort
 import app.pley.android.model.CollectionSummary
 import app.pley.android.model.ItemKind
 import app.pley.android.model.Library
 import app.pley.android.model.LibraryKind
+import app.pley.android.model.MergedCollection
+import app.pley.android.model.MergedPart
 import app.pley.android.player.PlayQueue
 import app.pley.android.player.PlayRequest
 import app.pley.android.screens.PlayerLauncher
@@ -72,8 +75,14 @@ class CollectionViewModelTest {
     @Test
     fun aCollectionSaysWhatItHoldsInWords() = runTest(dispatcher) {
         collections.details.value = mapOf(
-            5L to CollectionDetail(5, 1, "Alien Collection", automatic = true, sort = CollectionSort.Release, itemCount = 2, items = listOf(movie(1), movie(2))),
-            6L to CollectionDetail(6, 1, "Nineties comedies", smartFilter = "genre=Comedy&decade=1990&sort=year", itemCount = 0),
+            5L to CollectionDetail(
+                5, 1, "Alien Collection", automatic = true, sort = CollectionSort.Release,
+                category = CategoryRef(2, "franchises", "Franchises"), itemCount = 2, items = listOf(movie(1), movie(2)),
+            ),
+            6L to CollectionDetail(
+                6, 1, "Nineties comedies", smartFilter = "genre=Comedy&decade=1990&sort=year",
+                category = CategoryRef(3, "other", "Other"), itemCount = 0,
+            ),
         )
         val tmdb = viewModel(5)
         val smart = viewModel(6)
@@ -84,11 +93,14 @@ class CollectionViewModelTest {
         assertTrue(page.automatic)
         assertFalse(page.smart)
         assertEquals("Movies", page.libraryName)
+        assertEquals("Franchises", page.category)
         assertEquals(listOf(UiText.res(R.string.collection_order_release)), page.noteTexts)
         assertTrue(page.movies)
         assertTrue(page.canShuffle)
         val filtered = smart.state.value.valueOrNull!!
         assertTrue(filtered.smart)
+        // Other only says it has none: the page names no category.
+        assertEquals(null, filtered.category)
         assertEquals(
             listOf(UiText.res(R.string.library_filter_genre, "Comedy"), UiText.res(R.string.library_filter_decade, "1990"), UiText.res(R.string.library_filter_year_asc)),
             filtered.noteTexts,
@@ -96,6 +108,30 @@ class CollectionViewModelTest {
         assertFalse(filtered.canPlay)
         job.cancel()
         job2.cancel()
+    }
+
+    @Test
+    fun aMergedPageShowsItsLibrariesAndPlaysThroughTheRow() = runTest(dispatcher) {
+        val ids = listOf(5L, 8L)
+        collections.mergedPages.value = mapOf(
+            ids to MergedCollection(
+                "Award Winners",
+                listOf(MergedPart(5, 1), MergedPart(8, 2), MergedPart(9, 42)),
+                listOf(movie(1), movie(10, kind = ItemKind.Show, libraryId = 2), movie(2)),
+            ),
+        )
+        val vm = MergedCollectionViewModel(ids, CollectionDeps(collections, libraries, playItem, player, MutableStateFlow("http://pley"), dispatcher, Random(1)), FakeTiles)
+        val job = launch { vm.state.collect {} }
+        advanceUntilIdle()
+        val page = vm.state.value.valueOrNull!!
+        assertEquals("Award Winners", page.title)
+        assertEquals(2, page.movies)
+        assertEquals(1, page.shows)
+        // A library this profile doesn't know is left out.
+        assertEquals(listOf(MergedSource(5, "Movies"), MergedSource(8, "Shows")), page.sources)
+        vm.play(shuffle = false)
+        assertEquals(PlayRequest(itemId = 1, queue = PlayQueue.MergedCollection(ids)), played.last())
+        job.cancel()
     }
 
     @Test

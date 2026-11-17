@@ -8,6 +8,7 @@ import app.pley.android.model.ItemDetail
 import app.pley.android.model.ItemList
 import app.pley.android.model.Library
 import app.pley.android.model.MaybeItem
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.CastKind
 import app.pley.android.model.ServerEvent
@@ -375,12 +376,13 @@ internal class ServerLiveUpdates(
         /** Whether the answer under [key], holding [value], shows something of [libraryId]. */
         fun affects(libraryId: Long, key: String, value: Any?): Boolean {
             if (SnapshotKeys.libraryOf(key) == libraryId) return true
-            if (key == SnapshotKeys.HOME || key == SnapshotKeys.LIBRARIES) return true
+            if (key == SnapshotKeys.HOME || key == SnapshotKeys.LIBRARIES || key == SnapshotKeys.CATEGORIES) return true
             return when (value) {
                 is ItemDetail -> value.libraryId == libraryId
                 is ItemList -> value.items.any { it.libraryId == libraryId }
                 is MaybeItem -> value.item?.libraryId == libraryId
                 is CollectionDetail -> value.libraryId == libraryId
+                is MergedCollection -> value.collections.any { it.libraryId == libraryId }
                 is PlaylistDetail -> value.entries.any { it.item.libraryId == libraryId }
                 is Hubs -> value.hubs.any { h -> h.libraryId == libraryId || h.items.any { it.libraryId == libraryId } }
                 else -> false

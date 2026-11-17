@@ -11,6 +11,7 @@ import app.pley.android.model.ItemList
 import app.pley.android.model.ItemSummary
 import app.pley.android.model.ItemsPage
 import app.pley.android.model.MaybeItem
+import app.pley.android.model.MergedCollection
 import app.pley.android.model.PersonDetail
 import app.pley.android.model.PlaylistDetail
 import app.pley.android.model.SearchResults
@@ -48,6 +49,7 @@ internal class ItemPatch(
         is MaybeItem -> value.item?.let(summary)?.let { if (it === value.item) value else MaybeItem(it) } ?: value
         is SearchResults -> items(value.items).let { if (it === value.items) value else value.copy(items = it) }
         is CollectionDetail -> items(value.items).let { if (it === value.items) value else value.copy(items = it) }
+        is MergedCollection -> items(value.items).let { if (it === value.items) value else value.copy(items = it) }
         is PlaylistDetail -> {
             var changed = false
             val entries = value.entries.map { e ->

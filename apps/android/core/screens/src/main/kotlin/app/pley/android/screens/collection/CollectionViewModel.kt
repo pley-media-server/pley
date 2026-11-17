@@ -79,6 +79,8 @@ data class CollectionPage<T : Any>(
     val automatic: Boolean,
     /** Filled by a filter: the "Smart" badge. */
     val smart: Boolean,
+    /** Its category's name, in the user's language for Pley's own; `null`: Other, which isn't shown. */
+    val category: String?,
     val count: Int,
     val libraryId: Long,
     /** `null` while the libraries aren't known. */
@@ -109,8 +111,8 @@ sealed interface CollectionEvent {
 
 /**
  * One collection's page (design spec §4.9), shared by phones and TVs:
- * the backdrop and poster, the TMDB and Smart badges, what it holds in
- * words, Play and Shuffle, then its items.
+ * the backdrop and poster, its category, the TMDB and Smart badges, what
+ * it holds in words, Play and Shuffle, then its items.
  *
  * Play plays a collection of movies from its first, through the rest in
  * order (a [PlayQueue.Collection]); Shuffle from a random one. A
@@ -187,6 +189,8 @@ class CollectionViewModel<T : Any>(
             summary = detail.summary?.takeIf { it.isNotBlank() },
             automatic = detail.automatic,
             smart = !detail.smartFilter.isNullOrEmpty(),
+            // Other only says it has none, so the page doesn't name it.
+            category = detail.category?.takeIf { it.key != "other" }?.title,
             count = detail.itemCount,
             libraryId = detail.libraryId,
             libraryName = libraryName,

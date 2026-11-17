@@ -662,6 +662,23 @@ its best file, a show by its best episode.
   sorted by bitrate, each also shows its bitrate and size. Recommended
   rows, collections, playlists, search and Home show none.
 
+A movie or show library's Recommended tab shows the rows administrators
+chose for it, and Home those chosen for Home, where collections of the same
+title in several libraries are one row. A row's title on a phone, and its
+See all, open the collection it shows; a merged row opens its collections
+together, every title in the row's order, with the libraries they come
+from, each opening its own collection
+([API.md](API.md#collections)).
+
+The Collections tab groups a library's collections under their categories,
+in the order administrators gave them, Other among them as the server
+sends it, without headings when only one group shows. The Category chip, there when there is more than one
+category to choose, narrows it to one; how a collection was made matters
+only to administrators, so the apps don't filter by it. On a TV, collections of several categories are a row
+for each; of one, a grid. A collection's page shows its category.
+Managing categories and choosing the rows of Home and Recommended are in
+the web and desktop apps.
+
 Audiobook libraries are in the web and desktop apps: the server gives this
 app none, nor their books on Home, in search or in history
 ([API.md](API.md#libraries)).

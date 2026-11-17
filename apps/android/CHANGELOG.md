@@ -11,10 +11,16 @@ describes how they are made.
 ### Added
 
 - Play on… lists Google Cast and AirPlay devices for Live TV channels too.
+- A library's Collections are grouped by category, and can be narrowed
+  to one category; a collection's page shows its category.
+- A row's See all opens the collection it shows, and a Home row of
+  collections of the same title in several libraries opens them together.
 
 ### Changed
 
 - The home banner's More info button reads Más info in Spanish.
+- Recommended no longer ends with a row of every collection: it shows
+  the rows administrators chose.
 
 ## [0.1.14] - 2026-11-16
 

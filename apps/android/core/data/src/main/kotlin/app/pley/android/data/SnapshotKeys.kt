@@ -12,6 +12,9 @@ object SnapshotKeys {
     /** GET /api/libraries. */
     const val LIBRARIES = "libraries"
 
+    /** The categories collections are grouped by: GET /api/collection-categories. */
+    const val CATEGORIES = "categories"
+
     /** GET /api/playlists. */
     const val PLAYLISTS = "playlists"
 
@@ -59,8 +62,13 @@ object SnapshotKeys {
 
     fun libraryHubs(libraryId: Long) = "libhubs:$libraryId"
 
-    /** Whether [key] holds words the server writes in the language asked for: the rows' titles of Home and of a library. */
-    fun isWorded(key: String): Boolean = key == HOME || key.startsWith("libhubs:")
+    /**
+     * Whether [key] holds words the server writes in the language asked for:
+     * the rows' titles of Home and of a library, Pley's own categories'
+     * names, on their own and with collections, and a merged page's title.
+     */
+    fun isWorded(key: String): Boolean =
+        key == HOME || key == CATEGORIES || listOf("libhubs:", "collections:", "collection:", "merged:").any(key::startsWith)
 
     /** The first items of a library's listing, for the first frame. */
     fun libraryHead(libraryId: Long, query: LibraryQuery) = "library:$libraryId:${queryKey(query)}:head"
@@ -70,6 +78,9 @@ object SnapshotKeys {
     fun collections(libraryId: Long) = "collections:$libraryId"
 
     fun collection(collectionId: Long) = "collection:$collectionId"
+
+    /** A Home row's collections together, by their ids in the row's order. */
+    fun merged(collectionIds: List<Long>) = "merged:${collectionIds.joinToString(",")}"
 
     fun item(itemId: Long) = "item:$itemId"
 
