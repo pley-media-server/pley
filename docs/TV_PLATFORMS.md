@@ -274,16 +274,19 @@ title in the row's order, with a chip for each library they come from,
 which opens that library's collection. Play there plays the movies one
 after another, or, with none, a show's next episode.
 
-The Collections tab groups a library's collections under their
-categories, Other among them, in the order administrators gave them: a row for
-each, or a grid without a heading when only one group shows. The Category
-chip, there when there is more than one category to choose, narrows it to
-one; how a collection was made matters only to administrators, so the TV
+The Collections tab groups a library's collections under their categories,
+Other among them, in the order administrators gave them: a row for each,
+or a grid without a heading when only one group shows. The Category chip,
+there when there is more than one category to choose, narrows it to one;
+how a collection was made matters only to administrators, so the TV
 doesn't filter by it. A collection's page shows its category beside
-"Collection", unless it's Other. Managing categories and choosing the rows of Home and
-Recommended are in the web and desktop apps. The grouping is pinned by
-`packages/tv/test/fixtures/collections.json`, which the native app runs
-too.
+"Collection", unless it's Other. Managing categories and choosing the rows
+of Home and Recommended are in the web and desktop apps. The grouping is
+pinned by `packages/tv/test/fixtures/collections.json`, which the native
+app runs too. A server from before categories answers
+`GET /api/collection-categories` with `404`: its collections show as they
+did, in one grid, and its rows' See all opens the library in the row's
+order.
 
 ### Requests
 
