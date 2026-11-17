@@ -1,4 +1,4 @@
-import { useState, type DragEvent } from "react";
+import { useLayoutEffect, useRef, useState, type DragEvent, type RefObject } from "react";
 
 /** `ids` with the one at `from` moved to `to` (unchanged when `from` is out of range). */
 export function moved<T>(ids: readonly T[], from: number, to: number): T[] {
@@ -88,4 +88,44 @@ export function useDragReorder<K>(keys: readonly K[], onMove: (from: number, to:
   };
 
   return { dragging: from >= 0 ? from : null, rowProps, listProps, dropMark };
+}
+
+/** The row button that last changed a list: an arrow, or the one that takes the row off. */
+export type RowButton = "up" | "down" | "remove";
+
+/**
+ * Keeps the focus in a list whose rows are moved, or taken off, with their
+ * own buttons. At either end of the list the arrow that moved a row stops
+ * working, and a row taken off takes its button away: the focus would fall
+ * out of the list (and out of a dialog around it). It goes to the moved row's
+ * other arrow, or to the same button of the row that took the removed one's
+ * place, as Settings → Libraries does. Rows carry `data-row` (their key), and
+ * their buttons `data-row-button` ("up", "down" or "remove").
+ */
+export function useRowFocus(listRef: RefObject<HTMLElement | null>, keys: readonly string[]) {
+  const pressed = useRef<{ key: string; index: number; button: RowButton } | null>(null);
+  const order = keys.join("\n");
+
+  useLayoutEffect(() => {
+    const target = pressed.current;
+    const list = listRef.current;
+    if (!target || !list) return;
+    const focused = document.activeElement;
+    const lost = !focused || focused === document.body || (list.contains(focused) && focused.matches(":disabled"));
+    const rows = Array.from(list.querySelectorAll<HTMLElement>("[data-row]"));
+    const row =
+      rows.find((r) => r.dataset.row === target.key) ??
+      (target.button === "remove" ? rows[Math.min(target.index, rows.length - 1)] : undefined);
+    // A row taken off is gone only once the list is loaded again.
+    if (target.button === "remove" && row?.dataset.row === target.key) return;
+    pressed.current = null;
+    if (!lost || !row) return;
+    const buttons = Array.from(row.querySelectorAll<HTMLButtonElement>("[data-row-button]")).filter((b) => !b.disabled);
+    (buttons.find((b) => b.dataset.rowButton === target.button) ?? buttons[0])?.focus();
+  }, [listRef, order]);
+
+  /** Called before a row's button changes the list; with `null` for a change by dragging. */
+  return (row: { key: string; index: number; button: RowButton } | null) => {
+    pressed.current = row;
+  };
 }

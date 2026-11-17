@@ -22,9 +22,10 @@
 # plex_bind = "0.0.0.0:32400"
 
 # Jellyfin-compatible API, for Jellyfin's apps and others that use its API
-# (docs/COMPATIBILITY.md). "off" (the default) turns it off. "web" answers on
-# Pley's own port, telling its apps' requests from browsers'. Addresses give
-# it a port of its own instead (Jellyfin's is 8096), several as with bind.
+# (docs/COMPATIBILITY.md). "web" (the default) answers on Pley's own port,
+# telling its apps' requests from browsers'. "off" turns it off. Addresses
+# give it a port of its own instead (Jellyfin's is 8096), several as with
+# bind.
 # jellyfin_bind = "web"
 # jellyfin_bind = "0.0.0.0:8096"
 

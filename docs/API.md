@@ -73,9 +73,9 @@ details.
 - Text answers over 1 KiB are compressed when the request accepts it; media,
   images and the event stream never are.
 - A request still running after 30 minutes answers `408`.
-- The compatibility APIs, when they answer on the same port (the
-  Plex-compatible one does by default), answer only requests that are their
-  own (a path only one has, or its headers or token on a path both have).
+- The compatibility APIs, when they answer on the same port (both do by
+  default), answer only requests that are their own (a path only one has,
+  or its headers or token on a path both have).
   `/api/…` and `/.well-known/…` always belong to this API.
 
 ## Authentication
@@ -530,9 +530,9 @@ interface PlaybackInfo {
 **`summaries=1`.** Lists leave out synopses (a big library's would be
 several times larger). `summaries=1` in the query of `GET /api/hubs/home`,
 `/api/libraries/{id}/items`, `/api/items/{id}/children`,
-`/api/collections/{id}`, `/api/playlists/{id}` and `/api/search` brings
-every item's `summary`, for clients whose information page shows only what
-lists carry (Kodi).
+`/api/collections/{id}`, `/api/collections/merged`, `/api/playlists/{id}`
+and `/api/search` brings every item's `summary`, for clients whose
+information page shows only what lists carry (Kodi).
 
 ---
 
@@ -2111,9 +2111,9 @@ interface Collection {
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/libraries/{id}/collections` | `library` | `{ collections: Collection[] }` by title |
-| POST | `/api/libraries/{id}/collections` | `admin` | `{ title, summary?, item_ids?: Id[], smart_filter?, category_id? }` → `201` `Collection & { items: ItemSummary[] }`; `400` for music and audiobook libraries |
+| POST | `/api/libraries/{id}/collections` | `admin` | `{ title, summary?, item_ids?: Id[], smart_filter?, category_id? }` → `201` `Collection & { items: ItemSummary[] }`; `400` for music and audiobook libraries, or a `category_id` that is no category's |
 | GET | `/api/collections/{id}` | `library` | `Collection & { items: ItemSummary[] }` in the collection's order |
-| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab |
+| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab; `400` for a `category_id` that is no category's |
 | DELETE | `/api/collections/{id}` | `admin` | `204` (an automatic one comes back when its movies are refreshed) |
 | POST | `/api/collections/{id}/items` | `admin` | `{ item_ids: Id[] }` → `{ added: number }`. Only movies and shows of the same library; `400` if none could be added |
 | DELETE | `/api/collections/{id}/items/{item_id}` | `admin` | `204` |
@@ -2168,22 +2168,25 @@ interface Category {
 After Continue Watching (and My List on Home), Home and each movie and TV
 library's Recommended tab show the collections administrators put there,
 in the order they chose, each a row of its 30 first titles as the user
-may see them. Each library starts with Pley's four on its Recommended tab
-and its Recently Added on Home; a music or audiobook library's Recently
-Added is a row on Home of its own.
+may see them. Each movie and TV library starts with Pley's collections
+but Top Unwatched on its Recommended tab and its Recently Added on Home;
+a music or audiobook library's Recently Added is a row on Home of its
+own.
 
-On Home, collections of the same title in different libraries are one
-row, keyed `collections:<id>,<id>`, its titles in their common order when
-they share one (a smart collection's sort, or newest or by title), else
-one library's after another's. A row of one collection is keyed
+On Home, collections of the same title (case aside), in different
+libraries or in one, are one row, keyed `collections:<id>,<id>`: each of
+its titles once, in their common order when they share one (a smart
+collection's sort, or newest or by title; a film library's newest first
+and a TV library's, shows by their newest episode, are one), else one
+collection's after another's. A row of one collection is keyed
 `collection:<id>`, or `recently_added:<library_id>` (and likewise
 `recently_released:`, `top_rated:`, `top_unwatched:`) for Pley's own, as
 the rows were before they were collections. An untouched Recently Added
-is called "Recently Added in <library>" there.
+is called "Recently Added in <library>" there, and is a row of its own.
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/collections/merged?ids=` | `library` | `{ title, collections: { id, library_id }[], items: ItemSummary[] }`: a Home row of several collections, all its titles in the row's order; those the user can't see are left out, `404` if none is left |
+| GET | `/api/collections/merged?ids=` | `library` | `{ title, collections: { id, library_id }[], items: ItemSummary[] }`: a Home row of several collections (`ids` its `collection_ids`, comma-separated; the first 50 count), all its titles in the row's order; those the user can't see are left out, `404` if none is left |
 | GET | `/api/home/rows` | `admin` | `{ rows: { key, title, collection_ids: Id[], library_ids: Id[] }[] }`: Home's rows after My List, every library's, empty or not |
 | PUT | `/api/home/rows/order` | `admin` | `{ rows: string[] }` (keys) → `204`: these first in this order, the rest after |
 | PUT | `/api/libraries/{id}/rows/order` | `admin` | `{ collection_ids: Id[] }` → `204`: the Recommended tab's order, as above |
@@ -4077,8 +4080,10 @@ would.
   such cast: it isn't offered across profiles. A progress report naming
   another profile's session (one that left with this profile's token as
   its device switched) is answered `204` and kept for neither.
-- **Google Cast devices.** Chromecasts, Google TVs and TVs with Cast
-  built in that show video are listed too, for home members whose remote
+- **Google Cast devices.** While the administrator has them on
+  (Settings → Network, `cast_devices`, off by default), Chromecasts,
+  Google TVs and TVs with Cast built in that show video are listed too,
+  for home members whose remote
   asks with `nearby=1` (a remote that doesn't know them leaves it out),
   through the web app or one of Pley's own apps: they are the home's, as
   its TVs are, and an app other than Pley's own gets none, nor casts or
@@ -4089,7 +4094,10 @@ would.
   when the list is asked for and the last look is over 30 seconds old,
   and keeps one that stops answering for 5 minutes; a cast to, or a
   pairing with, one it doesn't keep (from a list older than that) looks
-  again first, as the list would. It doesn't look
+  again first, as the list would. With them turned off it lists none
+  and doesn't look, and a cast to or a pairing with one answers `404`,
+  as for a device it doesn't know; casts already playing go on until they
+  end. It doesn't look
   while discovery is off (Settings → Network, `--no-discovery`), and then
   lists none, nor from a Docker bridge network, which the announcements
   don't reach. It lists them only while its web port listens on an
@@ -4805,7 +4813,7 @@ interface Network {
   plex_on_web: boolean;   // the Plex-compatible API answers its clients on Pley's port;
                           // never with addresses in `plex`
   jellyfin: string[];     // the Jellyfin-compatible API on addresses of its own ("0.0.0.0:8096");
-                          // [] = on Pley's port (jellyfin_on_web) or off (the default)
+                          // [] = on Pley's port (jellyfin_on_web, the default) or off
   jellyfin_on_web: boolean; // the Jellyfin-compatible API answers its apps on Pley's port;
                           // never with addresses in `jellyfin`
   discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses)
@@ -4880,6 +4888,8 @@ interface Settings {
                                     // turning it on signs out everyone without it, who sets it up at their
                                     // next sign-in. Only an administrator who uses it may turn it on (else
                                     // 400), and only while the server can use its secret.key (else 400)
+  cast_devices: boolean;            // Google Cast and AirPlay devices are listed and cast to (default false):
+                                    // off, the server doesn't look for them ([Casting](#casting))
   proxy_addresses: string[];        // addresses with a port Pley is reached at through a reverse proxy that
                                     // drops the port from `Host` ("https://media.example.com:9999"; see
                                     // Discovery). http or https with a port and no path, one per scheme and
@@ -5147,7 +5157,7 @@ interface ImportProgress {
     edits: Record<string, number>;        // locked fields brought as edits, by field ("title", "content_rating")
     collections_made: number;
     collection_items: number;             // titles put in collections, new or found again
-    smart_left: number;                   // smart collections whose filter Pley can't apply, and smart playlists: not brought
+    smart_left: number;                   // smart collections and playlists not brought: a filter Pley can't apply, a collection of that title that isn't smart, a smart playlist
     bring: { watch_history: boolean; collections: boolean; edits: boolean };   // as chosen
     started_at: number;                   // with finished_at, how long it took; 0 in reports from before
     // How long each step that ran took, in order; the one it stopped in,
@@ -5216,17 +5226,19 @@ interface ImportProgress {
     names by Plex's id (labels, genres, people…) named, and without what
     only shapes Plex's answer. It goes to the smart collection Pley has by
     that title, or a new one; one Pley has by that title that isn't smart
-    is left as it is. A filter Pley can't apply (on episodes of shows,
-    say, or a field Pley doesn't read) isn't brought, and is counted in
-    `smart_left` with smart playlists, which aren't brought. A label
-    filter finds the titles Plex's labels were brought to.
+    is left as it is, and the smart one counted in `smart_left`. A filter
+    Pley can't apply (on episodes of shows, say, or a field Pley doesn't
+    read) isn't brought, and is counted in `smart_left` with smart
+    playlists, which aren't brought. A label filter finds the titles
+    Plex's labels were brought to.
   - Plex's arrangement of each library's rows carries over to the
     collections brought and to Pley's own (Recently Added, Recently
     Released, Top Rated, Top Unwatched, where Plex has them): which are
-    on Recommended and on Home (Plex's two Homes are Pley's one), and
-    their order. Home is in Plex's order, library after library, before
-    the rows Plex didn't show; two Plex libraries brought into one keep
-    a row either shows. Plex's rows Pley doesn't have are left out.
+    on Recommended and on Home (on either of Plex's two Homes is on
+    Pley's one), and their order. Home is in Plex's order, library after
+    library, before the rows Plex didn't show; two Plex libraries brought
+    into one keep a row either shows. Plex's rows Pley doesn't have are
+    left out.
 - **Watch history** (`bring.watch_history`): watched, resume points,
   ratings and plays, merged as below.
 - **What's merged.** Labels are added to titles, never removed. A date

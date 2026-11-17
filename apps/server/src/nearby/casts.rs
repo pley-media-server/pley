@@ -577,9 +577,15 @@ async fn shows_text_subtitles(state: &AppState, user_id: i64, row: &ItemRow, cas
 
 /// The devices on the server's network that a cast can send to Pley's web
 /// port ([`base_url`]), as [`super::NearbyDevices::listed`] finds them.
-/// None, without a look, while no device can reach Pley ([`reaches_pley`]).
-/// The log says once that devices were left out.
+/// None, without a look, while casting to them is off ([`turned_on`]) or no
+/// device can reach Pley ([`reaches_pley`]). The log says once that devices
+/// were left out.
 pub async fn reachable(state: &AppState) -> Vec<Found> {
+    if !turned_on(state) {
+        // Pley keeps none it may not cast to, the device it was told of too.
+        state.nearby.forget_while_off(None, false);
+        return Vec::new();
+    }
     let fixed = state.config.cast_fixed.found();
     let discovery = state.network.wanted().discovery;
     if !reaches_pley(state) {
@@ -607,6 +613,13 @@ fn say_unreachable(state: &AppState) {
              listens on no address of their network (Settings → Network)"
         );
     }
+}
+
+/// Whether the administrator turned casting to Google Cast and AirPlay
+/// devices on ([`crate::settings::Settings::cast_devices`]): off, Pley
+/// neither looks for them nor lists, casts to or pairs with one.
+pub fn turned_on(state: &AppState) -> bool {
+    state.settings.get().cast_devices
 }
 
 /// Whether a device on the network may reach Pley's web port at all: Pley
@@ -1138,6 +1151,7 @@ mod tests {
         // Pley listens on no network: a test listens nowhere at all.
         for discovery in [true, false] {
             let state = server(|config| config.discovery = discovery).await;
+            cast_devices(&state, true).await;
             assert!(!reaches_pley(&state));
             state.nearby.found.lock().insert(tv.key(), (tv.clone(), Instant::now()));
             assert!(reachable(&state).await.is_empty(), "none listed");
@@ -1146,6 +1160,35 @@ mod tests {
             assert_eq!(state.nearby.found.lock().is_empty(), !discovery, "discovery {discovery}");
             assert_eq!(state.nearby.said_unreachable.load(Ordering::Relaxed), discovery, "discovery {discovery}");
         }
+    }
+
+    /// Turns casting to the devices on the network on or off, as the
+    /// administrator does.
+    async fn cast_devices(state: &AppState, on: bool) {
+        let patch = crate::settings::SettingsPatch { cast_devices: Some(on), ..Default::default() };
+        state.settings.update(&state.db, patch).await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn turned_off_pley_forgets_the_devices_found_and_lists_none() {
+        let tv = Found {
+            id: "tv".into(),
+            name: "Living room TV".into(),
+            model: None,
+            address: "192.0.2.20:8009".parse().unwrap(),
+            video: true,
+            protocol: Protocol::Cast,
+        };
+        // Told where the device reaches Pley, so that only the setting
+        // keeps it out.
+        let state = server(|config| config.cast_fixed.server = Some("http://pley.test:7539".into())).await;
+        assert!(!turned_on(&state), "off on a new server");
+        state.nearby.found.lock().insert(tv.key(), (tv.clone(), Instant::now()));
+        assert!(reachable(&state).await.is_empty(), "none listed");
+        assert!(state.nearby.found.lock().is_empty(), "forgotten");
+        assert!(state.nearby.looked.lock().is_none(), "nor looked for");
+        cast_devices(&state, true).await;
+        assert!(turned_on(&state));
     }
 
     #[tokio::test]

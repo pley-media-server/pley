@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { Layers, Plus, Tags } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useCategories, useCollections, type Category, type CategoryRef, type Collection } from "@/api/lists";
@@ -10,6 +10,7 @@ import { ItemGridSkeleton } from "@/components/ItemGrid";
 import { CollectionCard, collectionNoun } from "@/components/lists/CollectionCard";
 import { Button, EmptyState, Select } from "@/components/ui";
 import { useElementWidth } from "@/lib/hooks";
+import { decodeId, encodeId } from "@/lib/ids";
 import { CategoriesModal } from "./CategoriesModal";
 import { CollectionFormModal } from "./CollectionFormModal";
 import { collectionUrl } from "@/lib/urls";
@@ -35,6 +36,19 @@ export function isOfType(c: Collection, type: CollectionType): boolean {
 
 /** The category filter: every one, or one category's id. */
 type CategoryChoice = "all" | Id;
+
+/**
+ * The filters are in the address (`type`, `category`), so that Back from a
+ * collection finds them as they were.
+ */
+function filtersOf(params: URLSearchParams): { type: CollectionType; category: CategoryChoice } {
+  const type = params.get("type");
+  const category = params.get("category");
+  return {
+    type: TYPES.find((t) => t === type) ?? "all",
+    category: decodeId(category) ?? "all",
+  };
+}
 
 export interface CollectionGroup {
   category: CategoryRef;
@@ -63,8 +77,20 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
   const categories = useCategories();
   const [creating, setCreating] = useState(false);
   const [sorting, setSorting] = useState(false);
-  const [chosenType, setType] = useState<CollectionType>("all");
-  const [chosenCategory, setCategory] = useState<CategoryChoice>("all");
+  const [params, setParams] = useSearchParams();
+  const { type: chosenType, category: chosenCategory } = filtersOf(params);
+  const choose = (filters: { type?: CollectionType; category?: CategoryChoice }) => {
+    const next = new URLSearchParams(params);
+    if (filters.type) {
+      if (filters.type === "all") next.delete("type");
+      else next.set("type", filters.type);
+    }
+    if (filters.category) {
+      if (filters.category === "all") next.delete("category");
+      else next.set("category", encodeId(filters.category));
+    }
+    setParams(next, { replace: true });
+  };
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const gap = width > 0 && width < 640 ? 12 : 18;
   const cols = width > 0 ? Math.max(2, Math.floor((width + gap) / (CARD_WIDTH + gap))) : 6;
@@ -76,11 +102,27 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
   const shown = list.filter((c) => isOfType(c, type));
   // Offered when there is more than one to choose between.
   const usedCategories = groupByCategory(list, categories.data ?? []);
-  // A category deleted or emptied since it was chosen filters nothing.
+  // A category deleted or emptied since it was chosen filters nothing, and
+  // leaves the address, as in the other apps: it doesn't come back chosen.
   const category =
     chosenCategory === "all" || usedCategories.some((g) => g.category.id === chosenCategory) ? chosenCategory : "all";
+  const gone = collections.isSuccess && categories.isSuccess && category !== chosenCategory;
+  useEffect(() => {
+    if (!gone) return;
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("category");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [gone, setParams]);
   const groups = groupByCategory(shown, categories.data ?? []).filter((g) => category === "all" || g.category.id === category);
   const count = groups.reduce((n, g) => n + g.collections.length, 0);
+  // One group shown needs no heading: the Category filter, when there is
+  // one, says which it is.
+  const headed = groups.length > 1;
   const filtered = type !== "all" || category !== "all";
   const newButton = (variant: "primary" | "secondary") => (
     <Button variant={variant} size={variant === "primary" ? "md" : "sm"} icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
@@ -94,7 +136,7 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
         {list.length > 0 ? (
           <>
             {user.is_admin ? (
-              <Select aria-label={t("collections.type")} value={type} onChange={(e) => setType(e.target.value as CollectionType)}>
+              <Select aria-label={t("collections.type")} value={type} onChange={(e) => choose({ type: e.target.value as CollectionType })}>
                 {TYPES.map((v) => (
                   <option key={v} value={v}>
                     {t(`collections.types.${v}`)}
@@ -108,7 +150,7 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
                 value={String(category)}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setCategory(v === "all" ? v : Number(v));
+                  choose({ category: v === "all" ? v : Number(v) });
                 }}
               >
                 <option value="all">{t("collections.allCategories")}</option>
@@ -120,14 +162,7 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
               </Select>
             ) : null}
             {filtered ? (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setType("all");
-                  setCategory("all");
-                }}
-              >
+              <Button size="sm" variant="ghost" onClick={() => choose({ type: "all", category: "all" })}>
                 {t("collections.clearFilters")}
               </Button>
             ) : null}
@@ -144,7 +179,9 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
         ) : null}
       </div>
       <div ref={ref}>
-        {collections.isPending ? (
+        {/* Without the categories every collection would show under Other
+            for a moment; if they fail, it does. */}
+        {collections.isPending || categories.isPending ? (
           <ItemGridSkeleton aspect="poster" cardWidth={CARD_WIDTH} />
         ) : collections.isError ? (
           <EmptyState
@@ -168,25 +205,18 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
         ) : count === 0 ? (
           <EmptyState
             title={t("collections.noMatches")}
-            action={
-              <Button
-                onClick={() => {
-                  setType("all");
-                  setCategory("all");
-                }}
-              >
-                {t("collections.clearFilters")}
-              </Button>
-            }
+            action={<Button onClick={() => choose({ type: "all", category: "all" })}>{t("collections.clearFilters")}</Button>}
           />
         ) : (
           <div className="space-y-10">
             {groups.map((g) => (
-              <section key={g.category.id} aria-label={g.category.title}>
-                <h2 className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
-                  {g.category.title}
-                  <span className="text-sm font-normal tabular-nums text-muted">{g.collections.length}</span>
-                </h2>
+              <section key={g.category.id} aria-label={headed ? g.category.title : undefined}>
+                {headed ? (
+                  <h2 className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
+                    {g.category.title}
+                    <span className="text-sm font-normal tabular-nums text-muted">{g.collections.length}</span>
+                  </h2>
+                ) : null}
                 <div
                   className="grid"
                   style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: gap, rowGap: gap < 18 ? 18 : 26 }}

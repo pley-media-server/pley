@@ -448,13 +448,13 @@ async fn kometa_places_collections_on_pleys_pages() {
     let api_home = w.app.get("/api/hubs/home", &w.admin).await;
     assert!(api_home.body["hubs"].as_array().unwrap().iter().any(|h| h["key"] == json!(format!("collection:{id}"))));
 
-    // Clearing one Home while the other stays keeps it on Home; clearing
-    // both takes it off.
-    let own_off = format!("{manage}/{identifier}?promotedToOwnHome=0");
-    assert_eq!(w.send(Method::PUT, &own_off).await.status, StatusCode::OK);
+    // The owner's Home is Pley's: clearing the friends' alone keeps it on
+    // Home, clearing the owner's takes it off.
+    let shared_off = format!("{manage}/{identifier}?promotedToOwnHome=1&promotedToSharedHome=0");
+    assert_eq!(w.send(Method::PUT, &shared_off).await.status, StatusCode::OK);
     assert!(w.app.get(&format!("/api/collections/{id}"), &w.admin).await.body["home_position"].is_i64());
-    let both_off = format!("{manage}/{identifier}?promotedToOwnHome=0&promotedToSharedHome=0");
-    assert_eq!(w.send(Method::PUT, &both_off).await.status, StatusCode::OK);
+    let own_off = format!("{manage}/{identifier}?promotedToOwnHome=0&promotedToSharedHome=1");
+    assert_eq!(w.send(Method::PUT, &own_off).await.status, StatusCode::OK);
     assert!(w.app.get(&format!("/api/collections/{id}"), &w.admin).await.body["home_position"].is_null());
 
     // A built-in hub is hidden, not deleted.
@@ -480,4 +480,93 @@ async fn kometa_places_collections_on_pleys_pages() {
     assert_eq!(w.send(Method::DELETE, &format!("{manage}/{identifier}")).await.status, StatusCode::OK);
     assert_eq!(w.app.plex_json(&format!("{manage}?metadataItemId={made}"), &w.admin).await["size"], json!(0));
     assert_eq!(w.app.get(&format!("/api/collections/{id}"), &w.admin).await.status, StatusCode::OK);
+}
+
+/// A hub's `(promotedToRecommended, promotedToOwnHome, promotedToSharedHome)`
+/// as the hub management listing gives them.
+async fn hub_flags(w: &World, identifier: &str) -> (bool, bool, bool) {
+    let hubs = w.app.plex_json(&format!("/hubs/sections/{}/manage", w.movies), &w.admin).await;
+    let hub = hubs["Hub"].as_array().unwrap().iter().find(|h| h["identifier"] == json!(identifier)).cloned();
+    let hub = hub.unwrap_or_else(|| panic!("{identifier} isn't listed: {hubs:?}"));
+    let flag = |name: &str| hub[name] == json!("1");
+    (flag("promotedToRecommended"), flag("promotedToOwnHome"), flag("promotedToSharedHome"))
+}
+
+/// python-plexapi's `ManagedHub.updateVisibility`: every flag sent, those it
+/// doesn't change as it last read them, then the hub read again.
+async fn update_visibility(
+    w: &World,
+    identifier: &str,
+    recommended: Option<bool>,
+    home: Option<bool>,
+    shared: Option<bool>,
+) -> (bool, bool, bool) {
+    let (r, h, s) = hub_flags(w, identifier).await;
+    let n = |v: Option<bool>, was: bool| u8::from(v.unwrap_or(was));
+    let uri = format!(
+        "/hubs/sections/{}/manage/{identifier}?promotedToRecommended={}&promotedToOwnHome={}&promotedToSharedHome={}",
+        w.movies,
+        n(recommended, r),
+        n(home, h),
+        n(shared, s)
+    );
+    assert_eq!(w.send(Method::PUT, &uri).await.status, StatusCode::OK, "{uri}");
+    hub_flags(w, identifier).await
+}
+
+/// Pley's one Home is the one its administrators see: Plex's own Home
+/// decides, as python-plexapi's `promoteHome()` and `demoteHome()` and
+/// Kometa's `visible_home` set it, each sending the friends' Home as it read
+/// it.
+#[tokio::test]
+async fn the_owners_home_puts_a_hub_on_home_and_takes_it_off() {
+    let w = world().await;
+    // python-plexapi's own test of hub management, on Pley's Recently Added.
+    let hub = "movie.recentlyadded";
+    assert_eq!(hub_flags(&w, hub).await, (true, true, true));
+    update_visibility(&w, hub, Some(false), None, None).await;
+    assert_eq!(update_visibility(&w, hub, None, Some(false), None).await, (false, false, false), "demoteHome()");
+    assert_eq!(update_visibility(&w, hub, None, None, Some(false)).await, (false, false, false), "demoteShared()");
+    update_visibility(&w, hub, Some(true), None, None).await;
+    assert_eq!(update_visibility(&w, hub, None, Some(true), None).await, (true, true, true), "promoteHome()");
+    // Only the friends' Home changes nothing: Pley's is the owner's too.
+    assert_eq!(update_visibility(&w, hub, None, None, Some(false)).await, (true, true, true), "demoteShared()");
+
+    // Kometa's `visible_home` alone, as it posts it: the other flags as read.
+    let made = w.collection("Christmas", &[w.alien, w.brazil]).await;
+    let manage = format!("/hubs/sections/{}/manage?metadataItemId={made}", w.movies);
+    let kometa = |home: u8, shared: u8| {
+        format!("{manage}&promotedToRecommended=0&promotedToOwnHome={home}&promotedToSharedHome={shared}")
+    };
+    assert_eq!(w.send(Method::POST, &kometa(1, 0)).await.status, StatusCode::OK);
+    let identifier = format!("custom.collection.{}.{made}", w.movies);
+    assert_eq!(hub_flags(&w, &identifier).await, (false, true, true));
+    // Out of season, `visible_home: false`.
+    assert_eq!(w.send(Method::POST, &kometa(0, 1)).await.status, StatusCode::OK);
+    assert_eq!(w.app.plex_json(&manage, &w.admin).await["size"], json!(0), "off Home, and so not listed");
+    let id = made - 1_000_000_000;
+    assert!(w.app.get(&format!("/api/collections/{id}"), &w.admin).await.body["home_position"].is_null());
+
+    // Plex's built-in hubs say they can't be removed, which python-plexapi
+    // reads before it tries; a collection's can.
+    let on_recommended = format!("{manage}&promotedToRecommended=1&promotedToOwnHome=0&promotedToSharedHome=0");
+    assert_eq!(w.send(Method::POST, &on_recommended).await.status, StatusCode::OK);
+    let hubs = w.app.plex_json(&format!("/hubs/sections/{}/manage", w.movies), &w.admin).await;
+    let deletable: Vec<(&str, &str)> = hubs["Hub"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|h| (h["identifier"].as_str().unwrap(), h["deletable"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        deletable,
+        // Recently Added came back last, when it was put back.
+        [
+            ("movie.recentlyreleased", "0"),
+            ("movie.toprated", "0"),
+            ("movie.recentlyadded", "0"),
+            (identifier.as_str(), "1"),
+            ("movie.topunwatched", "0")
+        ]
+    );
 }
