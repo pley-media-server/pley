@@ -401,7 +401,7 @@ behind it.
   when there are two or more), Clear
   filters and how many show. How a collection was made matters to
   administrators, on the web, so there is no filter by it. A collection's page: its backdrop and poster, its
-  category, title, badges, "12 movies" with how it is
+  category (none for Other, which only says it has none), title, badges, "12 movies" with how it is
   sorted or, for a smart one, its filter in words ("Comedy · Unwatched ·
   Year, newest first"), its summary, **Play** and **Shuffle**, then its
   titles. Play plays a collection of movies in its order as a queue;

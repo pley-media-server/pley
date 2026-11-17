@@ -182,9 +182,10 @@ struct CollectionScreensTests {
         let page = CollectionModel(app: app, collectionId: 801)
         await page.load()
         #expect(page.category == "Franchises")
+        // Other only says it has none: its page names no category.
         let other = CollectionModel(app: app, collectionId: 802)
         await other.load()
-        #expect(other.category == "Other")
+        #expect(other.detail?.collection.category?.key == "other" && other.category == nil)
     }
 
     @Test func groupsFollowTheServersCategories() {

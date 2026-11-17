@@ -227,8 +227,14 @@ public final class CollectionModel: ObservableObject {
     public var summary: String? { detail?.collection.summary.flatMap { $0.isEmpty ? nil : $0 } }
     public var smart: Bool { detail?.collection.smart ?? false }
     public var automatic: Bool { detail?.collection.automatic ?? false }
-    /// Its category's title (the server's Other among them).
-    public var category: String? { detail?.collection.category.map(\.title).flatMap { $0.isEmpty ? nil : $0 } }
+    /// Its category's title; `nil` for Other, which only says it has none
+    /// (the page names a category only when it has one, as the web's).
+    public var category: String? {
+        guard let category = detail?.collection.category, category.key != "other", !category.title.isEmpty else {
+            return nil
+        }
+        return category.title
+    }
 
     /// What it holds and in which order, in words: its filter's ("Genre:
     /// Comedy", "Newest first"), else its order ("By release date").
