@@ -36,6 +36,10 @@ describes how they are made.
   nothing turned on first. Settings → Network still moves it to a port of
   its own or turns it off, and a server whose settings turned it off keeps
   it off.
+- The Windows installer's Network page has a Jellyfin-compatible API box
+  beside the Plex one (`/JELLYFIN=` for a silent install), ticked by
+  default. An update keeps what Settings → Network set for either API,
+  a port of its own included, instead of putting it back on Pley's port.
 
 ### Fixed
 

@@ -155,7 +155,7 @@ var
   // AdapterList's order.
   AdapterIps, AdapterNames, AdapterKinds: TStringList;
   PortEdit: TNewEdit;
-  PlexCheck, DiscoveryCheck: TNewCheckBox;
+  PlexCheck, JellyfinCheck, DiscoveryCheck: TNewCheckBox;
   FirewallPage: TWizardPage;
   PrivateCheck, DomainCheck, PublicCheck: TNewCheckBox;
   SubnetRadio, AnyRadio: TNewRadioButton;
@@ -243,12 +243,75 @@ begin
   Result := AddressesWith(Port);
 end;
 
-function PlexBind: String;
+// A setting saved in pley.toml in Dir (Key = "value"), lowercase, or '' when
+// there is none.
+function SavedSetting(const Dir, Key: String): String;
+var
+  Lines: TArrayOfString;
+  I, Hash: Integer;
+  Line: String;
 begin
-  if PlexCheck.Checked then
-    Result := 'web'
+  Result := '';
+  if (Dir = '') or not LoadStringsFromFile(AddBackslash(Dir) + 'pley.toml', Lines) then
+    Exit;
+  for I := 0 to GetArrayLength(Lines) - 1 do
+  begin
+    Line := Trim(Lines[I]);
+    if CompareText(Copy(Line, 1, Length(Key)), Key) <> 0 then
+      continue;
+    Line := Trim(Copy(Line, Length(Key) + 1, MaxInt));
+    if Copy(Line, 1, 1) <> '=' then
+      continue;
+    Line := Copy(Line, 2, MaxInt);
+    Hash := Pos('#', Line);
+    if Hash > 0 then
+      Line := Copy(Line, 1, Hash - 1);
+    StringChangeEx(Line, '"', '', True);
+    Result := Lowercase(Trim(Line));
+  end;
+end;
+
+// Where a compatibility API was saved to listen, when it has a port of its
+// own (Settings, Network): '' when it is on Pley's port, off, or not saved.
+function OwnPort(const Key: String): String;
+begin
+  Result := SavedSetting(DataDir(''), Key);
+  if (Result = 'web') or (Result = 'off') then
+    Result := '';
+end;
+
+// A ticked API stays on the port of its own an administrator gave it, and
+// is otherwise on Pley's.
+function ApiBind(Check: TNewCheckBox; const Key: String): String;
+begin
+  if not Check.Checked then
+    Result := 'off'
+  else if OwnPort(Key) <> '' then
+    Result := AddQuotes(OwnPort(Key))
   else
-    Result := 'off';
+    Result := 'web';
+end;
+
+// Whether a compatibility API is on: as pley.toml in the data folder says,
+// which Settings, Network may have changed since the last install, else as
+// that install chose, else on.
+function ApiOn(const Key, Choice: String): Boolean;
+var
+  Saved: String;
+begin
+  Saved := SavedSetting(DataDir(''), Key);
+  if Saved <> '' then
+    Result := Saved <> 'off'
+  else
+    Result := GetPreviousData(Choice, 'yes') = 'yes';
+end;
+
+function ApiWhere(const Key: String): String;
+begin
+  if OwnPort(Key) <> '' then
+    Result := 'on ' + OwnPort(Key)
+  else
+    Result := 'on Pley''s port';
 end;
 
 // Whether other devices may reach pley.
@@ -578,6 +641,7 @@ begin
   PortLabel.FocusControl := PortEdit;
   Top := Top + PortEdit.Height + ScaleY(14);
   PlexCheck := AddCheck(NetworkPage, Top, 'Plex-compatible API, for Plex tools (on Pley''s port)', '');
+  JellyfinCheck := AddCheck(NetworkPage, Top, 'Jellyfin-compatible API, for Jellyfin''s apps (on Pley''s port)', '');
 
   FirewallPage := CreateCustomPage(NetworkPage.ID, 'Windows Firewall', 'Which devices may reach Pley');
   Top := 0;
@@ -665,7 +729,8 @@ begin
   if AdaptersRadio.Checked then
     CheckAdapters(Ips);
   PortEdit.Text := CmdParam('PORT', GetPreviousData('Port', '7539'));
-  PlexCheck.Checked := Flag('PLEX', GetPreviousData('Plex', 'yes') = 'yes');
+  PlexCheck.Checked := Flag('PLEX', ApiOn('plex_bind', 'Plex'));
+  JellyfinCheck.Checked := Flag('JELLYFIN', ApiOn('jellyfin_bind', 'Jellyfin'));
 
   // Private and domain networks, from devices on them, unless told otherwise.
   Firewall := Lowercase(CmdParam('FIREWALL', GetPreviousData('Firewall', 'private,domain')));
@@ -716,6 +781,7 @@ begin
   SetPreviousData(PreviousDataKey, 'Addresses', ChosenIps);
   SetPreviousData(PreviousDataKey, 'Port', Port);
   SetPreviousData(PreviousDataKey, 'Plex', YesNo(PlexCheck.Checked));
+  SetPreviousData(PreviousDataKey, 'Jellyfin', YesNo(JellyfinCheck.Checked));
   if Profiles = '' then
     SetPreviousData(PreviousDataKey, 'Firewall', 'none')
   else
@@ -937,7 +1003,9 @@ begin
   else
     S := S + 'This computer only (127.0.0.1:' + Port + ')';
   if PlexCheck.Checked then
-    S := S + NewLine + Space + 'Plex-compatible API, on Pley''s port';
+    S := S + NewLine + Space + 'Plex-compatible API, ' + ApiWhere('plex_bind');
+  if JellyfinCheck.Checked then
+    S := S + NewLine + Space + 'Jellyfin-compatible API, ' + ApiWhere('jellyfin_bind');
   if Profiles = '' then
     S := S + NewLine + Space + 'Not let through Windows Firewall'
   else if AnyRadio.Checked then
@@ -1158,7 +1226,8 @@ begin
     DelTree(ExpandConstant('{app}\ffmpeg'), True, True, True);
   if CurStep <> ssPostInstall then
     Exit;
-  Options := '--data-dir ' + AddQuotes(DataDir('')) + ' --bind ' + BindAddress + ' --plex-bind ' + PlexBind + FfmpegOptions;
+  Options := '--data-dir ' + AddQuotes(DataDir('')) + ' --bind ' + BindAddress + ' --plex-bind ' +
+    ApiBind(PlexCheck, 'plex_bind') + ' --jellyfin-bind ' + ApiBind(JellyfinCheck, 'jellyfin_bind') + FfmpegOptions;
   SetStatus('Opening Windows Firewall...');
   Firewall;
   if Failure = '' then
@@ -1207,6 +1276,12 @@ procedure CurPageChanged(CurPageID: Integer);
 var
   Text: String;
 begin
+  // Where each API is, in the data folder chosen.
+  if CurPageID = NetworkPage.ID then
+  begin
+    PlexCheck.Caption := 'Plex-compatible API, for Plex tools (' + ApiWhere('plex_bind') + ')';
+    JellyfinCheck.Caption := 'Jellyfin-compatible API, for Jellyfin''s apps (' + ApiWhere('jellyfin_bind') + ')';
+  end;
   if CurPageID <> wpFinished then
     Exit;
   if Failure <> '' then
