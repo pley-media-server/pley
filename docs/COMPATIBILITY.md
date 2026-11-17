@@ -564,9 +564,13 @@ none, then the other collections shown anywhere as
 `custom.collection.<section>.<key>`; with `metadataItemId`, that
 collection's alone. `promotedToRecommended` (or `recommendationsVisibility`)
 shows a collection on the section's Recommended. Pley has one Home for
-everyone: `promotedToOwnHome` and `promotedToSharedHome` (or
-`homeVisibility`) are both it, so either puts a collection there, and
-clearing both takes it off; Plex's Home only for its owner can't be had.
+everyone, which administrators see too: `promotedToOwnHome` (or
+`homeVisibility`) puts a collection there or takes it off, and the listing
+gives `promotedToSharedHome` as the same. python-plexapi and Kometa send
+both Homes, the one they don't change as they read it, so
+`promotedToSharedHome` counts only without `promotedToOwnHome`: Kometa's
+`visible_home` places a collection on Home, and `visible_shared` alone
+doesn't. A Home only for Plex's owner, or only for friends, can't be had.
 `POST …/manage?metadataItemId=` and `PUT …/manage/{identifier}` set them,
 `PUT …/move?after=` orders Recommended (Home's order is set in Pley), and
 `DELETE …/manage/{identifier}` takes a collection off both (Pley's own are

@@ -19,8 +19,8 @@ describes how they are made.
   movie and TV library (Top Unwatched isn't a row until an administrator
   adds it), and collections of the same title are one row on Home.
 - Kometa's group labels, such as Seasonal, put collections under
-  categories, and its `visible_library`, `visible_home` and
-  `visible_shared` place collections on Home and Recommended.
+  categories, and its `visible_library` and `visible_home` place
+  collections on Recommended and Home.
 - A library's Collections tab groups collections by category and filters
   them by category (and, for administrators, by how they were made), and
   administrators arrange the rows on Home
