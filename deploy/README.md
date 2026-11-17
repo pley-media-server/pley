@@ -166,8 +166,9 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   announces Pley on. Allow them, or type the server's address in the app.
   A container is found only on the host's network (`--network host`, or
   Unraid's `br0`).
-- **Google Cast devices** (Chromecasts, Google TVs) are found by mDNS too,
-  and the server connects to them on **TCP 8009**, and once to each on
+- **Google Cast devices** (Chromecasts, Google TVs), once casting to them
+  is turned on in **Settings → Network**, are found by mDNS too, and the
+  server connects to them on **TCP 8009**, and once to each on
   **TCP 8008** to learn its model; they fetch the stream from the web
   port, so Pley lists them, and looks for them, only while that port
   listens on the local network, not on this computer alone behind a

@@ -51,6 +51,9 @@ describes how they are made.
 
 - Home's rows keep the order administrators give them, whatever order
   the libraries are listed in, shared or a profile's own.
+- Casting to Google Cast and AirPlay devices has a switch in Settings →
+  Network, off by default and on updated servers too: Play on… lists
+  those devices once an administrator turns it on.
 
 ### Fixed
 
