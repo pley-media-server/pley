@@ -174,6 +174,86 @@ pub async fn exists(db: &Db, id: i64) -> sqlx::Result<bool> {
     Ok(row(db, id).await?.is_some())
 }
 
+/// The longest name a category has.
+pub const MAX_TITLE: usize = 100;
+
+/// Labels tools put on every collection they manage, which name no group:
+/// Kometa's (`PMM` in its older versions).
+const TOOL_LABELS: [&str; 2] = ["Kometa", "PMM"];
+
+/// Puts a collection under the category its group label names, as Kometa
+/// labels them ("Seasonal", "Decade"): its one label besides a tool's. None,
+/// or several, leave it without one. Only a category that is unset or came
+/// from a label changes: an administrator's choice and Pley's own stay.
+pub async fn place_by_labels(db: &Db, collection_id: i64) -> sqlx::Result<()> {
+    let from: Option<Option<String>> = sqlx::query_scalar("SELECT category_from FROM collections WHERE id = ?")
+        .bind(collection_id)
+        .fetch_optional(&db.read)
+        .await?;
+    let Some(from) = from else { return Ok(()) };
+    if from.as_deref().is_some_and(|f| f != "label") {
+        return Ok(());
+    }
+    let labels = crate::labels::for_collections(db, &[collection_id]).await?.remove(&collection_id).unwrap_or_default();
+    let groups: Vec<&String> =
+        labels.iter().filter(|l| !TOOL_LABELS.iter().any(|t| t.eq_ignore_ascii_case(l))).collect();
+    let category = match groups.as_slice() {
+        [label] => Some(for_label(db, label).await?),
+        _ => None,
+    };
+    // Unless an administrator chose one meanwhile.
+    sqlx::query(
+        "UPDATE collections SET category_id = ?, category_from = ?
+         WHERE id = ? AND (category_from IS NULL OR category_from = 'label')",
+    )
+    .bind(category)
+    .bind(category.map(|_| "label"))
+    .bind(collection_id)
+    .execute(&db.write)
+    .await?;
+    Ok(())
+}
+
+/// The category of a group label: the one made from it (renamed or not),
+/// else one of that name (Pley's own in any language included), which then
+/// keeps the label, else a new one, last. Another request making the same
+/// one meanwhile is found the second time round.
+async fn for_label(db: &Db, label: &str) -> sqlx::Result<i64> {
+    let wanted = label.to_lowercase();
+    let title: String = label.chars().take(MAX_TITLE).collect();
+    for _ in 0..2 {
+        let categories = list(db, "en").await?;
+        if let Some(made) =
+            categories.iter().find(|c| c.from_label.as_ref().is_some_and(|f| f.to_lowercase() == wanted))
+        {
+            return Ok(made.id);
+        }
+        for language in i18n::LANGUAGES {
+            let named = list(db, language).await?.into_iter().find(|c| c.title.to_lowercase() == title.to_lowercase());
+            if let Some(found) = named {
+                if found.key.is_none() && found.from_label.is_none() {
+                    sqlx::query("UPDATE collection_categories SET from_label = ? WHERE id = ? AND from_label IS NULL")
+                        .bind(label)
+                        .bind(found.id)
+                        .execute(&db.write)
+                        .await?;
+                }
+                return Ok(found.id);
+            }
+        }
+        sqlx::query(
+            "INSERT OR IGNORE INTO collection_categories (title, from_label, position, created_at)
+             VALUES (?, ?, (SELECT COALESCE(MAX(position) + 1, 0) FROM collection_categories), ?)",
+        )
+        .bind(&title)
+        .bind(label)
+        .bind(now())
+        .execute(&db.write)
+        .await?;
+    }
+    Err(sqlx::Error::RowNotFound)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -210,5 +290,76 @@ mod tests {
         assert_eq!(titles, ["By decade", "Highlights", "Franchises", "Holidays"]);
         delete(&db, holidays).await.unwrap().unwrap();
         assert!(!exists(&db, holidays).await.unwrap());
+    }
+
+    async fn category_of(db: &Db, collection: i64) -> (Option<String>, Option<String>) {
+        sqlx::query_as(
+            "SELECT COALESCE(k.title, k.key), c.category_from FROM collections c
+             LEFT JOIN collection_categories k ON k.id = c.category_id WHERE c.id = ?",
+        )
+        .bind(collection)
+        .fetch_one(&db.read)
+        .await
+        .unwrap()
+    }
+
+    #[tokio::test]
+    async fn group_labels_put_collections_under_categories() {
+        let dir = crate::testing::tempdir();
+        let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
+        sqlx::query("INSERT INTO libraries (id, name, kind, paths, created_at) VALUES (1, 'M', 'movies', '[]', 0)")
+            .execute(&db.write)
+            .await
+            .unwrap();
+        sqlx::query(
+            "INSERT INTO collections (id, library_id, title, sort_title, created_at, updated_at)
+             VALUES (10, 1, 'Christmas', 'christmas', 0, 0), (11, 1, 'Halloween', 'halloween', 0, 0),
+                    (12, 1, 'Mine', 'mine', 0, 0)",
+        )
+        .execute(&db.write)
+        .await
+        .unwrap();
+        let labels = |l: &[&str]| l.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+        let set = |id: i64, add: Vec<String>, remove: Vec<String>| {
+            let db = &db;
+            async move { crate::labels::edit_collection(db, id, &add, &remove).await.unwrap() }
+        };
+
+        set(10, labels(&["Kometa", "Seasonal"]), vec![]).await;
+        assert_eq!(category_of(&db, 10).await, (Some("Seasonal".into()), Some("label".into())));
+        // Renamed, it still takes what Kometa labels "Seasonal".
+        let seasonal = list(&db, "en").await.unwrap().into_iter().find(|c| c.title == "Seasonal").unwrap().id;
+        rename(&db, seasonal, "Holidays").await.unwrap().unwrap();
+        set(11, labels(&["PMM", "seasonal"]), vec![]).await;
+        assert_eq!(category_of(&db, 11).await.0.as_deref(), Some("Holidays"));
+        // A label naming Pley's own category puts it there.
+        set(12, labels(&["Franchises"]), vec![]).await;
+        assert_eq!(category_of(&db, 12).await.0.as_deref(), Some("franchises"));
+        // Two group labels, or none, name no category.
+        set(10, labels(&["Decade"]), vec![]).await;
+        assert_eq!(category_of(&db, 10).await, (None, None));
+        set(10, vec![], labels(&["Decade"])).await;
+        assert_eq!(category_of(&db, 10).await.0.as_deref(), Some("Holidays"));
+        // An administrator's choice stays.
+        sqlx::query("UPDATE collections SET category_id = NULL, category_from = 'admin' WHERE id = 11")
+            .execute(&db.write)
+            .await
+            .unwrap();
+        set(11, labels(&["Decade"]), labels(&["seasonal"])).await;
+        assert_eq!(category_of(&db, 11).await, (None, Some("admin".into())));
+    }
+
+    #[tokio::test]
+    async fn a_label_finds_its_category_whatever_its_case_and_long_ones_are_cut() {
+        let dir = crate::testing::tempdir();
+        let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
+        let summer = for_label(&db, "Été").await.unwrap();
+        rename(&db, summer, "Summer").await.unwrap().unwrap();
+        assert_eq!(for_label(&db, "été").await.unwrap(), summer);
+        let long = "L".repeat(115);
+        let made = for_label(&db, &long).await.unwrap();
+        let title = get(&db, made, "en").await.unwrap().unwrap().title;
+        assert_eq!(title.chars().count(), MAX_TITLE);
+        assert_eq!(for_label(&db, &long).await.unwrap(), made);
     }
 }

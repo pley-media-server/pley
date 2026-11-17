@@ -132,9 +132,17 @@ pub async fn edit(db: &Db, item_id: i64, add: &[String], remove: &[String]) -> s
     edit_labels(db, On::Items, item_id, add, remove).await
 }
 
-/// Adds `add` to collection `id` and removes `remove`, as [`edit`].
+/// Adds `add` to collection `id` and removes `remove`, as [`edit`], and
+/// puts it under the category its group label names
+/// ([`crate::categories::place_by_labels`]).
 pub async fn edit_collection(db: &Db, id: i64, add: &[String], remove: &[String]) -> sqlx::Result<()> {
-    edit_labels(db, On::Collections, id, add, remove).await
+    edit_labels(db, On::Collections, id, add, remove).await?;
+    // The labels are set either way: a category that couldn't be placed
+    // (a database error) is placed the next time they change.
+    if let Err(e) = crate::categories::place_by_labels(db, id).await {
+        tracing::warn!("collection {id}'s category from its labels: {e}");
+    }
+    Ok(())
 }
 
 async fn edit_labels(db: &Db, on: On, owner_id: i64, add: &[String], remove: &[String]) -> sqlx::Result<()> {

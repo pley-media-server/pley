@@ -10,6 +10,7 @@
 
 mod collection_search;
 mod edit;
+mod hubs;
 mod keys;
 mod library;
 mod lists;
@@ -301,15 +302,15 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
         .route("/library/media/{id}/chapterImages/{n}", get(playback::chapter_image))
         .route("/library/parts/{id}/{version}/{file}", get(playback::part_file))
         .route("/library/streams/{id}", get(playback::stream_file))
-        .route("/hubs", get(library::hubs))
+        .route("/hubs", get(hubs::home))
         .route("/hubs/search", get(library::hub_search))
         .route("/hubs/continueWatching/items", get(library::continue_watching))
         .route("/hubs/home/recentlyAdded", get(library::home_recently_added))
-        .route("/hubs/sections/{id}", get(library::section_hubs))
+        .route("/hubs/sections/{id}", get(hubs::section))
         .route("/hubs/sections/{id}/continueWatching/items", get(library::section_continue_watching))
-        .route("/hubs/sections/{id}/manage", get(lists::managed_hubs).post(lists::promote_hub))
-        .route("/hubs/sections/{id}/manage/{identifier}", put(lists::change_hub).delete(lists::change_hub))
-        .route("/hubs/sections/{id}/manage/{identifier}/move", put(lists::change_hub))
+        .route("/hubs/sections/{id}/manage", get(hubs::managed).post(hubs::promote))
+        .route("/hubs/sections/{id}/manage/{identifier}", put(hubs::change).delete(hubs::unpromote))
+        .route("/hubs/sections/{id}/manage/{identifier}/move", put(hubs::move_hub))
         .route("/search", get(library::search))
         .route("/photo/_/transcode", get(library::photo_transcode))
         .route("/_/timeline", any(playback::timeline))

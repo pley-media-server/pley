@@ -241,8 +241,7 @@ What Pley doesn't do for it:
   or subtitle language, Plex's `hdr` and `dovi`, country or network: their
   searches answer `400` and Kometa reports that collection's error, rather
   than acting on the whole library;
-- collection modes and promoting collections to home pages, which Pley
-  doesn't have (changes answer `400`);
+- collection modes, which Pley doesn't have (changes answer `400`);
 - what Kometa does through plex.tv: playlists' `sync_to_users`,
   `plex_watchlist`, and what it asks a Plex Pass for.
 
@@ -306,9 +305,9 @@ them.
   `/library/metadata/{key}`, and `/library/collections/{id}` and
   `/playlists/{id}` take the plain ids too. Media and parts use the media
   file id. Stream ids are `file id × 10000 + stream index`.
-- **Order.** Sections, and the home hubs of each, come in the user's library
-  order in Pley (Settings → Libraries), else the administrators' order; new
-  ones come last.
+- **Order.** Sections come in the user's library order in Pley (Settings →
+  Libraries), else the administrators' order; new ones come last. Hubs
+  come in the order administrators give Home's and each library's rows.
 - **Types.** Movies and episodes are `Video` elements, shows, seasons,
   artists and albums are `Directory` elements, and tracks are `Track`
   elements, with the API's `type` values.
@@ -383,7 +382,7 @@ them.
 | Server | `/`, `/identity`, `/servers`, `/accounts` (listed, never changed), `/myplex/account`, `/system`, `/prefs`, `/:/prefs` (`PUT` answers `403`: no token changes the server's settings), `/media/providers`, `/:/websockets/notifications`; `/clients`, `/devices`, `/activities`, `/butler` and `/updater/status` answer empty containers |
 | Sections | `/library`, `/library/sections` (`allowSync="1"` for a token with `manage`: Kometa takes a section without it for a read-only token), `/library/sections/{id}`, `…/all`, `…/albums`, `…/recentlyAdded`, `…/onDeck`, `…/search`, `…/firstCharacter`, `…/collections`, `…/{genre,year,decade,contentRating,studio,actor,director,writer,producer,label}` (filter choices), `…/prefs` (no settings; `PUT` answers `403`), `…/refresh` and `/library/sections/all/refresh` (`manage`); `…/emptyTrash` and `…/analyze` are accepted and change nothing |
 | Items | `/library/metadata/{id}` (up to 5,000 comma-separated ids, more than 500 by pages with `X-Plex-Container-Start` and `-Size`; a collection's or playlist's key answers as `/library/collections/{key}` or `/playlists/{key}` does, and `…/children`, its pictures and `…/refresh` reach it too), `…/extras` (trailers and other bonus material as `clip`s with the API's `extraType` and `subtype`), `…/children`, `…/allLeaves`, `…/grandchildren`, `…/related` ("More Like This" hub), `…/similar` (the same items), `…/thumb[/{version}]`, `…/art[/{version}]`, `…/posters` and `…/arts` (the picture shown, a `Photo` named `upload://…` when it was set by hand and `metadata://…` when it is the metadata agent's), `…/file?url=` (the picture a `Photo` names), `…/themes`, `…/clearLogos` and `…/squareArts` (none), `…/refresh` (`manage`) |
-| Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/sections/{id}/manage` (empty: Pley promotes collections to no hubs, so `POST` promoting one and `PUT …/manage/{identifier}[/move]` answer `400`), `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
+| Lists | `/library/all`, `/library/onDeck`, `/library/recentlyAdded`, `/hubs`, `/hubs/sections/{id}`, `/hubs/continueWatching/items`, `/hubs/sections/{id}/continueWatching/items`, `/hubs/sections/{id}/manage` (see [Hubs](#hubs)), `/hubs/home/recentlyAdded`, `/hubs/search`, `/search`, `PUT /actions/removeFromContinueWatching?ratingKey=` (the movie, or the episode's show, leaves the user's Continue Watching until it is played again, as `DELETE /api/continue-watching/{id}`) |
 | Collections | `/library/sections/{id}/collections` (also `…/all?type=18`), `/library/collections/{id}` (`includePreferences=1`), `…/children`, `…/{thumb,art,composite}[/{version}]`, `PUT …/prefs`, `PUT …/items/{item}/move?after=`, `PUT …/refresh` (changes nothing: a collection has no metadata of its own to fetch); changes under [Editing](#editing). Pley's own four collections in each library (Recently Added and the like) aren't listed: they stand for Plex's built-in rows |
 | Playlists | `GET`/`POST /playlists` (`?type=&title=&uri=…/library/metadata/1,2`, or `smart=1&uri=…/library/sections/{id}/all?…` for a smart playlist of that listing; `?smart=0\|1` filters the list), `GET`/`PUT` (`?title.value=` or `?title=`)/`DELETE /playlists/{id}`, `GET`/`PUT /playlists/{id}/items` (`?uri=`), `DELETE /playlists/{id}/items/{playlistItemID}`, `PUT …/{playlistItemID}/move?after=`, `/playlists/{id}/composite/{version}` |
 | Previews | `/library/parts/{id}/indexes/sd` (BIF), `/library/parts/{id}/indexes/sd/{offset}` (the frame at `offset` ms), `/library/media/{id}/chapterImages/{n}` |
@@ -537,6 +536,44 @@ validates collection searches against. A section's `label` choices name
 its collections' labels too, and `/library/sections/{id}/label?type=18`
 names only those.
 
+A collection's group label puts it under a category in Pley
+([API.md](API.md#categories)): its one label besides `Kometa` (or `PMM`),
+such as Kometa's `Seasonal` or `Decade`, names the category, made when
+there is none of that name. The category follows the labels as they
+change, unless an administrator chose one in Pley. A category made from a
+label keeps taking that label's collections after it is renamed; deleted,
+it comes back the next time the label is set. This holds for the
+Jellyfin-compatible API's tags on collections too.
+
+### Hubs
+
+`/hubs` (Home) and `/hubs/sections/{id}` (a section's Recommended) show
+the rows administrators choose in Pley
+([API.md](API.md#rows)), after Continue Watching. Collections of one title
+in different sections are rows of their own here, side by side, as Plex
+has them; Plex's apps put them together. A hub holds up to 30 titles
+(`count`, 12 when it isn't given).
+
+`/hubs/sections/{id}/manage` is hub management, as Kometa's
+`visible_library`, `visible_home` and `visible_shared` use it. It lists the
+section's hubs: Pley's own four collections by Plex's identifiers for its
+built-in rows (`movie.recentlyadded`, `movie.recentlyreleased`,
+`movie.topunwatched`, `tv.recentlyadded`, `tv.recentlyaired`,
+`tv.toprated`) and `movie.toprated` and `tv.topunwatched` where Plex has
+none, then the other collections shown anywhere as
+`custom.collection.<section>.<key>`; with `metadataItemId`, that
+collection's alone. `promotedToRecommended` (or `recommendationsVisibility`)
+shows a collection on the section's Recommended. Pley has one Home for
+everyone: `promotedToOwnHome` and `promotedToSharedHome` (or
+`homeVisibility`) are both it, so either puts a collection there, and
+clearing both takes it off; Plex's Home only for its owner can't be had.
+`POST …/manage?metadataItemId=` and `PUT …/manage/{identifier}` set them,
+`PUT …/move?after=` orders Recommended (Home's order is set in Pley), and
+`DELETE …/manage/{identifier}` takes a collection off both (Pley's own are
+hidden, not deleted: `400`); moving one that isn't on Recommended leaves
+it off. It needs `manage`, to read it too: it names collections others may
+not see.
+
 ### Tested
 
 The server's tests (`apps/server/tests/plex*.rs`, `compatibility_tokens.rs`
@@ -553,8 +590,7 @@ playback and sessions, editing, collections, playlists and play queues.
   search or history.
 - Accounts: they are listed, never made, changed or deleted.
 - Collection modes (`collectionMode`): Pley has none.
-- Promoting collections to home pages and recommendations (hub
-  management), theme music, logos and square art: changes answer `400`.
+- Theme music, logos and square art: changes answer `400`.
 - Artwork from addresses on other hosts (upload the file instead), and
   per-item preferences (`/prefs`).
 - Filters on descendants (`episode.title` on shows) and on `hdr`, `dovi`,

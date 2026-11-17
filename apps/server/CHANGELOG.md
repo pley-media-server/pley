@@ -17,6 +17,9 @@ describes how they are made.
   Released, Top Rated and a new Top Unwatched are collections in each
   movie and TV library, and collections of the same title are one row on
   Home.
+- Kometa's group labels, such as Seasonal, put collections under
+  categories, and its `visible_library`, `visible_home` and
+  `visible_shared` place collections on Home and Recommended.
 - Audiobook libraries, in the web and desktop apps: books from `.m4b`
   files or folders of audio files, found as Audiobookshelf finds them
   (`Author/Series/Book`, with `CD 1` folders inside a book, and a book in

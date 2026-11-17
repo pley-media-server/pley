@@ -2135,6 +2135,10 @@ A library's collections are grouped by category: Pley's own, Highlights
 (`franchises`, TMDB's), named in each user's language, and
 administrators' own. They are shared by every library, in the order
 administrators choose. A collection without one is listed under Other.
+Group labels set through the compatibility APIs, such as Kometa's
+`Seasonal`, put collections under categories too, made as they are needed
+([COMPATIBILITY.md](COMPATIBILITY.md#searching-and-filtering)); a category an
+administrator chose for a collection stays.
 
 ```ts
 interface Category {

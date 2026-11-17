@@ -884,7 +884,7 @@ pub async fn all_leaves(
 
 // ------------------------------------------------------------------ on deck, recently added, hubs
 
-async fn continue_rows(
+pub(super) async fn continue_rows(
     state: &AppState,
     user: &AuthUser,
     libraries: &[LibraryRow],
@@ -945,7 +945,12 @@ pub async fn section_continue_watching(
     section_on_deck(state, user, info, id, params, page).await
 }
 
-async fn recent_rows(state: &AppState, user: &AuthUser, lib: &LibraryRow, limit: i64) -> PlexResult<Vec<ItemRow>> {
+pub(super) async fn recent_rows(
+    state: &AppState,
+    user: &AuthUser,
+    lib: &LibraryRow,
+    limit: i64,
+) -> PlexResult<Vec<ItemRow>> {
     Ok(catalog::recently_added(&state.db, user.id, lib.id, lib.kind().as_str(), limit).await?)
 }
 
@@ -1014,7 +1019,7 @@ pub async fn section_recently_added(
     Ok(list_container(Some(&lib), &info, nodes, total, &page))
 }
 
-fn hub(identifier: String, title: String, hub_type: &str, key: Option<String>, items: Vec<Node>) -> Node {
+pub(super) fn hub(identifier: String, title: String, hub_type: &str, key: Option<String>, items: Vec<Node>) -> Node {
     let ids: Vec<String> = items
         .iter()
         .filter_map(|n| match n.get("ratingKey") {
@@ -1089,118 +1094,11 @@ pub async fn similar(
     Ok(list_container(None, &info, nodes, total, &Page::default()))
 }
 
-fn hub_type(rows: &[ItemRow]) -> &'static str {
+pub(super) fn hub_type(rows: &[ItemRow]) -> &'static str {
     match rows.first() {
         Some(first) if rows.iter().all(|r| r.kind == first.kind) => plex_type(&first.kind),
         _ => "mixed",
     }
-}
-
-pub async fn hubs(State(state): State<AppState>, PlexUser(user): PlexUser, params: Params) -> PlexResult<Node> {
-    let count = params.parse::<i64>("count").unwrap_or(12).clamp(1, 100);
-    let mut libraries = visible_libraries(&state, &user).await?;
-    if let Some(ids) = params.get("contentDirectoryID") {
-        let wanted: Vec<i64> = ids.split(',').filter_map(|i| i.trim().parse().ok()).collect();
-        libraries.retain(|l| wanted.contains(&l.id));
-    }
-    let sections = Sections::new(&libraries);
-    let detail = listing_detail(&params);
-    let mut hubs = Vec::new();
-    let rows = continue_rows(&state, &user, &libraries, None, count).await?;
-    if !rows.is_empty() {
-        let t = hub_type(&rows);
-        let items = item_nodes(&state, &rows, &sections, detail).await?;
-        hubs.push(hub(
-            "home.continue".into(),
-            "Continue Watching".into(),
-            t,
-            Some("/hubs/continueWatching/items".into()),
-            items,
-        ));
-    }
-    for lib in &libraries {
-        let rows = recent_rows(&state, &user, lib, count).await?;
-        if rows.is_empty() {
-            continue;
-        }
-        let area = match section_type(lib) {
-            "movie" => "movies",
-            "show" => "television",
-            _ => "music",
-        };
-        let t = hub_type(&rows);
-        let items = item_nodes(&state, &rows, &sections, detail).await?;
-        hubs.push(hub(
-            format!("home.{area}.recent"),
-            format!("Recently Added in {}", lib.name),
-            t,
-            Some(format!("/library/sections/{}/recentlyAdded", lib.id)),
-            items,
-        ));
-    }
-    if let Some(identifiers) = params.get("identifier") {
-        let wanted: Vec<&str> = identifiers.split(',').collect();
-        hubs.retain(
-            |h| matches!(h.get("hubIdentifier"), Some(super::xml::Value::Str(id)) if wanted.contains(&id.as_str())),
-        );
-    }
-    let mut mc = Node::container()
-        .attr("size", hubs.len())
-        .attr("allowSync", false)
-        .attr("identifier", "com.plexapp.plugins.library");
-    mc.extend(hubs);
-    Ok(mc)
-}
-
-pub async fn section_hubs(
-    State(state): State<AppState>,
-    PlexUser(user): PlexUser,
-    Path(id): Path<String>,
-    params: Params,
-) -> PlexResult<Node> {
-    let (lib, libraries) = library_for(&state, &user, &id).await?;
-    let count = params.parse::<i64>("count").unwrap_or(12).clamp(1, 100);
-    let sections = Sections::new(&libraries);
-    let detail = listing_detail(&params);
-    let prefix = match section_type(&lib) {
-        "movie" => "movie",
-        "show" => "tv",
-        _ => "music",
-    };
-    let top = lib.kind().top_level_kind();
-    let mut candidates: Vec<(String, String, Option<String>, Vec<ItemRow>)> = Vec::new();
-    if top != "artist" {
-        let rows = continue_rows(&state, &user, &libraries, Some(lib.id), count).await?;
-        candidates.push((format!("{prefix}.inprogress"), "Continue Watching".into(), None, rows));
-    }
-    candidates.push((
-        format!("{prefix}.recentlyadded"),
-        "Recently Added".into(),
-        Some(format!("/library/sections/{}/recentlyAdded", lib.id)),
-        recent_rows(&state, &user, &lib, count).await?,
-    ));
-    if top != "artist" {
-        let rows = catalog::recently_released(&state.db, user.id, lib.id, top, count).await?;
-        candidates.push((format!("{prefix}.recentlyreleased"), "Recently Released".into(), None, rows));
-        let rows = catalog::top_rated(&state.db, user.id, lib.id, top, count).await?;
-        candidates.push((format!("{prefix}.toprated"), "Top Rated".into(), None, rows));
-    }
-    let mut mc = Node::container()
-        .attr("allowSync", false)
-        .attr("librarySectionID", lib.id)
-        .attr("librarySectionTitle", &lib.name);
-    let mut size = 0;
-    for (identifier, title, key, rows) in candidates {
-        if rows.is_empty() {
-            continue;
-        }
-        let t = hub_type(&rows);
-        let items = item_nodes(&state, &rows, &sections, detail).await?;
-        mc.push(hub(identifier, title, t, key, items));
-        size += 1;
-    }
-    mc.set("size", size);
-    Ok(mc)
 }
 
 // ------------------------------------------------------------------ search

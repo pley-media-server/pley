@@ -126,9 +126,34 @@ impl Planned {
 /// Home's rows after Continue Watching and My List, in order; empty ones
 /// left out. Only libraries the user may open count.
 pub async fn home(db: &Db, user: &AuthUser, language: &'static str) -> sqlx::Result<Vec<Row>> {
+    home_rows(db, user, language, true).await
+}
+
+/// [`home`] with collections of one title as rows of their own, side by
+/// side, as Plex's Home has them (its apps put them together on screen).
+pub async fn home_apart(db: &Db, user: &AuthUser, language: &'static str) -> sqlx::Result<Vec<Row>> {
+    home_rows(db, user, language, false).await
+}
+
+async fn home_rows(db: &Db, user: &AuthUser, language: &'static str, merge: bool) -> sqlx::Result<Vec<Row>> {
     let libraries = crate::access::visible_libraries(db, user).await?;
+    let mut planned = plan(db, &libraries, language).await?;
+    if !merge {
+        let names = Names::load(db, language).await?;
+        let name = |id: i64| libraries.iter().find(|l| l.id == id).map(|l| l.name.as_str()).unwrap_or_default();
+        planned = planned
+            .into_iter()
+            .flat_map(|(title, plan)| match plan {
+                Planned::Collections(rows) if rows.len() > 1 => rows
+                    .into_iter()
+                    .map(|row| (names.home_title(&row, name(row.library_id)), Planned::Collections(vec![row])))
+                    .collect(),
+                plan => vec![(title, plan)],
+            })
+            .collect();
+    }
     let mut out = Vec::new();
-    for (title, plan) in plan(db, &libraries, language).await? {
+    for (title, plan) in planned {
         let row = match plan {
             Planned::Library(lib) => Row {
                 key: format!("recently_added:{}", lib.id),

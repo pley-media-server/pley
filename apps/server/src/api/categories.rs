@@ -8,14 +8,11 @@ use axum::http::{HeaderMap, StatusCode};
 use serde::{Deserialize, Serialize};
 
 use crate::auth::{AdminUser, AuthUser};
-use crate::categories::{self, Category, Refused};
+use crate::categories::{self, Category, MAX_TITLE, Refused};
 use crate::error::{ApiResult, AppError};
 use crate::events::ServerEvent;
 use crate::i18n;
 use crate::state::AppState;
-
-/// The longest name a category may have.
-const MAX_TITLE: usize = 100;
 
 #[derive(Serialize)]
 pub struct CategoryList {

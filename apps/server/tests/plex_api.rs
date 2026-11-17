@@ -325,8 +325,10 @@ async fn sections_and_hubs_follow_the_library_order() {
         assert_eq!(directory_titles(&sections), wanted);
         let providers = app.plex_json("/media/providers", token).await;
         assert_eq!(directory_titles(&providers["MediaProvider"][0]["Feature"][0]), wanted);
+        // Home keeps the order administrators give its rows.
         let hubs = app.plex_json("/hubs", token).await;
-        let rows: Vec<String> = wanted.iter().map(|name| format!("Recently Added in {name}")).collect();
+        let home: Vec<&str> = ["Movies", "TV", "Music"].into_iter().filter(|name| wanted.contains(name)).collect();
+        let rows: Vec<String> = home.iter().map(|name| format!("Recently Added in {name}")).collect();
         assert_eq!(titles(&hubs["Hub"]), rows);
     }
 }

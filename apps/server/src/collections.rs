@@ -169,7 +169,7 @@ pub(crate) struct CollectionRow {
     pub(crate) smart_filter: Option<String>,
     category_id: Option<i64>,
     pub(crate) home_position: Option<i64>,
-    recommended_position: Option<i64>,
+    pub recommended_position: Option<i64>,
     pub(crate) builtin: Option<String>,
     created_at: i64,
     updated_at: i64,
@@ -317,6 +317,16 @@ pub async fn list(
     // By title as the user reads it: Pley's own are named in their language.
     listed.sort_by_cached_key(|c| (c.sort_title.to_lowercase(), c.id));
     Ok(listed)
+}
+
+/// Every collection of a library, as stored.
+pub(crate) async fn library_rows(db: &Db, library_id: i64) -> sqlx::Result<Vec<CollectionRow>> {
+    sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {COLUMNS} FROM collections WHERE library_id = ? ORDER BY sort_title COLLATE NOCASE, id"
+    )))
+    .bind(library_id)
+    .fetch_all(&db.read)
+    .await
 }
 
 /// A library's collections that are rows on its Recommended tab, in order.
