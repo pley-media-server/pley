@@ -4,10 +4,11 @@ import PleyData
 import PleyModel
 import PleyNetwork
 
-/// A library's page: its tabs (Recommended, its rows; Library, every title sorted and filtered; Collections, not for music),
-/// opened on the tab and view it was left in on this device, or on the view
-/// See all asks for. A tab reads only once shown. Save as… keeps the
-/// Library tab's filters and order as a smart playlist.
+/// A library's page: its tabs (Recommended, its rows; Library, every title
+/// sorted and filtered; Collections, not for music), opened on the tab and
+/// view it was left in on this device, or on the view See all asks for. A
+/// tab reads only once shown. Save as… keeps the Library tab's filters and
+/// order as a smart playlist.
 /// The Library tab's grid reads 100 titles at a time (`LibraryGrid`); sorted
 /// by title with more than 30 and at most 2,000 titles it reads them all
 /// for the A to Z (`alpha`).

@@ -3,11 +3,12 @@ import PleyScreens
 import SwiftUI
 
 /// A library's page for the sofa: Recommended, Library and Collections
-/// (not for music) as buttons across the top. Recommended ends with the
-/// library's collections. On Library a row of Sort, the order, Filter (with
-/// Clear while filtered) and Save as Smart Playlist, a row of letters when
-/// sorted by title, and the grid, read 100 titles at a time. Each row is a
-/// focus section, so up and down go from one to the next.
+/// (not for music) as buttons across the top. Recommended has the rows of
+/// collections administrators put there. On Library a row of Sort, the
+/// order, Filter (with Clear while filtered) and Save as Smart Playlist, a
+/// row of letters when sorted by title, and the grid, read 100 titles at a
+/// time. Each row is a focus section, so up and down go from one to the
+/// next.
 struct LibraryView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: LibraryModel

@@ -13,7 +13,8 @@ public struct HomeRow: Identifiable, Hashable, Sendable {
     public let title: String
     public let shape: RowShape
     public let tiles: [Tile]
-    /// Where See all goes: the library, listed as the row is; `nil` for rows without one.
+    /// Where See all goes (`ShellModel.seeAll`): its collection, the merged page of several,
+    /// or the library listed as the row is; `nil` for rows without one.
     public let seeAll: Screen?
 
     public var id: String { key }

@@ -2,13 +2,12 @@ import PleyModel
 import PleyScreens
 import SwiftUI
 
-/// A library's page: Recommended (its own rows, then its collections),
-/// Library (every title, sorted and filtered, in a grid read 100 at a time)
-/// and Collections (not for music). Sort is a menu with the order beside
-/// it; the filters are a sheet on iPhone and a menu on iPad and Mac; More
-/// has Save as Smart Playlist. Sorted by title, a strip of letters down the
-/// side jumps through the grid. The page opens as it was left, or as See
-/// all asks.
+/// A library's page: Recommended (its rows, the collections administrators put
+/// there), Library (every title, sorted and filtered, in a grid read 100 at a
+/// time) and Collections (not for music). Sort is a menu with the order beside
+/// it; the filters are a sheet on iPhone and a menu on iPad and Mac; More has
+/// Save as Smart Playlist. Sorted by title, a strip of letters down the side
+/// jumps through the grid. The page opens as it was left, or as See all asks.
 struct LibraryView: View {
     @ObservedObject private var app: AppModel
     @StateObject private var model: LibraryModel
