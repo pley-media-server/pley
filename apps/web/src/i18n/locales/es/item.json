@@ -376,6 +376,7 @@
     "restored_one": "{{count, number}} colección restaurada",
     "restored_many": "{{count, number}} de colecciones restauradas",
     "restored_other": "{{count, number}} colecciones restauradas",
+    "nothingToRestore": "Nada que restaurar: las colecciones de Pley están todas",
     "noRows": "Aún no hay filas.",
     "add": "Añadir una fila",
     "pick": "Elige una colección",

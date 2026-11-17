@@ -229,7 +229,10 @@ export function RecommendedRowsModal({ open, onClose, libraryId }: { open: boole
           loading={restore.isPending}
           onClick={() =>
             restore.mutate(libraryId, {
-              onSuccess: ({ restored }) => toast.success(t("rows.restored", { count: restored })),
+              onSuccess: ({ restored }) =>
+                restored
+                  ? toast.success(t("rows.restored", { count: restored }))
+                  : toast.info(t("rows.nothingToRestore")),
               onError,
             })
           }

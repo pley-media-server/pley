@@ -376,6 +376,7 @@
     "restored_one": "{{count, number}} collection rétablie",
     "restored_many": "{{count, number}} de collections rétablies",
     "restored_other": "{{count, number}} collections rétablies",
+    "nothingToRestore": "Rien à rétablir : les collections de Pley sont toutes là",
     "noRows": "Aucune rangée pour l’instant.",
     "add": "Ajouter une rangée",
     "pick": "Choisissez une collection",

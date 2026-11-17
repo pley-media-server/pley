@@ -102,6 +102,23 @@ describe("RecommendedRowsModal", () => {
     await waitFor(() => expect(within(list).queryByText("Recently Added")).not.toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Take Favourites off" })).toHaveFocus();
   });
+
+  it("says when Pley's collections are all there to restore", async () => {
+    const user = userEvent.setup();
+    let restored = 0;
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections: [collection(1, "Recently Added", 0)] }),
+      "POST /api/libraries/1/collections/defaults": () => ({ restored }),
+    });
+    renderWithProviders(<RecommendedRowsModal open onClose={vi.fn()} libraryId={1} />);
+    await screen.findByRole("list", { name: "Recommended rows" });
+
+    await user.click(screen.getByRole("button", { name: "Restore Pley's" }));
+    expect(await screen.findByText("Nothing to restore: Pley's collections are all here")).toBeInTheDocument();
+    restored = 2;
+    await user.click(screen.getByRole("button", { name: "Restore Pley's" }));
+    expect(await screen.findByText("2 collections restored")).toBeInTheDocument();
+  });
 });
 
 describe("HomeRowsModal", () => {

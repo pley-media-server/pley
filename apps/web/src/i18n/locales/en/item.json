@@ -361,6 +361,7 @@
     "restore": "Restore Pley's",
     "restored_one": "{{count, number}} collection restored",
     "restored_other": "{{count, number}} collections restored",
+    "nothingToRestore": "Nothing to restore: Pley's collections are all here",
     "noRows": "No rows yet.",
     "add": "Add a row",
     "pick": "Choose a collection",
