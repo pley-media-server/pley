@@ -152,13 +152,11 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
 
 ## Firewall and remote access
 
-- **TCP 7539** is the only port that must be reachable. The Plex-compatible
-  API answers there too, unless you give it a port of its own (Plex's is
-  32400; `--plex-bind 0.0.0.0:32400`, or **Settings → Network**). The
-  Jellyfin-compatible API is off until you turn it on in **Settings →
-  Network**, where it answers on this port or one of its own (Jellyfin's is
-  8096; `--jellyfin-bind 0.0.0.0:8096` on the command line). A port of its
-  own needs letting in too: [Ports and firewalls](../docs/COMPATIBILITY.md#ports-and-firewalls)
+- **TCP 7539** is the only port that must be reachable. The Plex- and
+  Jellyfin-compatible APIs answer there too, unless you give one a port of
+  its own (Plex's is 32400, Jellyfin's 8096; `--plex-bind 0.0.0.0:32400`,
+  `--jellyfin-bind 0.0.0.0:8096`, or **Settings → Network**, which also
+  turns them off). A port of its own needs letting in too: [Ports and firewalls](../docs/COMPATIBILITY.md#ports-and-firewalls)
   says how for Docker, Unraid, Synology and the rest.
 - **UDP 7539** lets the apps find servers on the local network, and
   **UDP 5353** (mDNS) lets Apple's find them by Bonjour, once it's turned
@@ -166,8 +164,9 @@ containers and SSH sessions never show it; `--no-tray` turns it off.
   announces Pley on. Allow them, or type the server's address in the app.
   A container is found only on the host's network (`--network host`, or
   Unraid's `br0`).
-- **Google Cast devices** (Chromecasts, Google TVs) are found by mDNS too,
-  and the server connects to them on **TCP 8009**, and once to each on
+- **Google Cast devices** (Chromecasts, Google TVs), once casting to them
+  is turned on in **Settings → Network**, are found by mDNS too, and the
+  server connects to them on **TCP 8009**, and once to each on
   **TCP 8008** to learn its model; they fetch the stream from the web
   port, so Pley lists them, and looks for them, only while that port
   listens on the local network, not on this computer alone behind a

@@ -150,6 +150,28 @@ describe("HomePage", () => {
     expect(screen.queryByRole("link", { name: "Add a library" })).not.toBeInTheDocument();
   });
 
+  it("says when the libraries are empty", async () => {
+    serve({ libraries: [{ ...movies, item_count: 0 }], home: [] });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByText("Nothing here yet")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Manage libraries" })).toBeInTheDocument();
+  });
+
+  it("says when no rows are on Home, and offers administrators to arrange them", async () => {
+    serve({ home: [] });
+    renderWithProviders(<HomePage />);
+    expect(await screen.findByText("Nothing on Home")).toBeInTheDocument();
+    expect(screen.queryByText(/Your libraries are empty/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Arrange Home" })).toBeInTheDocument();
+  });
+
+  it("doesn't offer others to arrange an empty Home", async () => {
+    serve({ home: [] });
+    renderWithProviders(<HomePage />, { user: { ...testUser, is_admin: false } });
+    expect(await screen.findByText("Nothing on Home")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Arrange Home" })).not.toBeInTheDocument();
+  });
+
   it("says when the libraries are still being scanned", async () => {
     serve({ libraries: [{ ...movies, scanning: true }], home: [] });
     renderWithProviders(<HomePage />);

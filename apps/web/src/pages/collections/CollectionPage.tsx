@@ -4,7 +4,14 @@ import { Link, useNavigate, useParams } from "react-router";
 import { ArrowUpDown, ChevronDown, ChevronUp, GripVertical, Layers, Pencil, Play, Shuffle, Trash2, X } from "lucide-react";
 import { errorMessage, isApiError } from "@/api/client";
 import { useLibraries } from "@/api/hooks";
-import { useCollection, useDeleteCollection, useRemoveFromCollection, useReorderCollection, type CollectionDetail } from "@/api/lists";
+import {
+  namedCategory,
+  useCollection,
+  useDeleteCollection,
+  useRemoveFromCollection,
+  useReorderCollection,
+  type CollectionDetail,
+} from "@/api/lists";
 import { useAuth } from "@/auth";
 import { Artwork } from "@/components/Artwork";
 import { CardSkeleton, MediaCard } from "@/components/cards";
@@ -64,6 +71,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
   const [managing, setManaging] = useState(false);
   const returnTo = collectionUrl(c.id);
   const movies = c.items.some((i) => i.kind === "movie");
+  const category = namedCategory(c);
 
   const onPlay = (shuffle: boolean) => {
     if (movies) return startQueue(c.items, { shuffle, returnTo });
@@ -105,7 +113,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
               <Layers className="size-3.5" /> {t("collection.label")}
               {c.automatic ? <Badge>TMDB</Badge> : null}
               {c.smart_filter ? <Badge tone="accent">{t("smart")}</Badge> : null}
-              {c.category ? <Badge>{c.category.title}</Badge> : null}
+              {category ? <Badge>{category.title}</Badge> : null}
             </div>
             <h1 className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl">{c.title}</h1>
             <MetaLine

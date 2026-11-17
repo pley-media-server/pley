@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp, GripVertical, Plus, RotateCcw, X } from "lucide-react";
 import { errorMessage } from "@/api/client";
@@ -13,7 +13,7 @@ import {
   type Collection,
 } from "@/api/lists";
 import type { Id } from "@/api/types";
-import { moved, useDragReorder } from "@/components/lists/reorder";
+import { moved, useDragReorder, useRowFocus, type RowButton } from "@/components/lists/reorder";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
 import { Button, IconButton, Select, Spinner } from "@/components/ui";
@@ -40,55 +40,94 @@ function RowList({
   onRemove: (row: Row) => void;
 }) {
   const { t } = useTranslation("item");
-  const drag = useDragReorder(
-    rows.map((r) => r.key),
-    (from, to) => onMove(from, to),
-  );
+  const keys = rows.map((r) => r.key);
+  const listRef = useRef<HTMLOListElement>(null);
+  const pressed = useRowFocus(listRef, keys);
+  // Read out to screen readers after each move.
+  const [note, setNote] = useState("");
+  const move = (from: number, to: number) => {
+    const row = rows[from];
+    if (!row || to < 0 || to >= rows.length || to === from) return;
+    setNote(t("rows.moved", { title: row.title, position: to + 1, total: rows.length }));
+    onMove(from, to);
+  };
+  const drag = useDragReorder(keys, (from, to) => {
+    pressed(null);
+    move(from, to);
+  });
+  const press = (row: Row, index: number, button: RowButton) => {
+    pressed({ key: row.key, index, button });
+    if (button === "remove") onRemove(row);
+    else move(index, button === "up" ? index - 1 : index + 1);
+  };
   return (
-    <ol aria-label={label} className="space-y-2" {...drag.listProps}>
-      {rows.map((row, i) => {
-        const mark = drag.dropMark(i);
-        return (
-          <li key={row.key} {...drag.rowProps(i, { handle: true })} className={cn("relative transition-opacity", drag.dragging === i && "opacity-40")}>
-            {mark ? (
-              <span aria-hidden className={cn("absolute inset-x-0 flex h-2 items-center", mark === "before" ? "-top-2" : "-bottom-2")}>
-                <span className="h-0.5 w-full rounded-full bg-accent" />
-              </span>
-            ) : null}
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 py-1.5 pl-1.5 pr-1">
-              <span
-                draggable
-                data-drag-handle
-                title={t("rows.drag")}
-                aria-hidden
-                className="shrink-0 cursor-grab rounded p-1 text-subtle transition-colors hover:text-fg active:cursor-grabbing"
-              >
-                <GripVertical className="size-4" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-medium">{row.title}</div>
-                {row.detail ? <div className="truncate text-xs text-muted">{row.detail}</div> : null}
+    <>
+      <ol ref={listRef} aria-label={label} className="space-y-2" {...drag.listProps}>
+        {rows.map((row, i) => {
+          const mark = drag.dropMark(i);
+          return (
+            <li
+              key={row.key}
+              data-row={row.key}
+              {...drag.rowProps(i, { handle: true })}
+              className={cn("relative transition-opacity", drag.dragging === i && "opacity-40")}
+            >
+              {mark ? (
+                <span aria-hidden className={cn("absolute inset-x-0 flex h-2 items-center", mark === "before" ? "-top-2" : "-bottom-2")}>
+                  <span className="h-0.5 w-full rounded-full bg-accent" />
+                </span>
+              ) : null}
+              <div className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 py-1.5 pl-1.5 pr-1">
+                <span
+                  draggable
+                  data-drag-handle
+                  title={t("rows.drag")}
+                  aria-hidden
+                  className="shrink-0 cursor-grab rounded p-1 text-subtle transition-colors hover:text-fg active:cursor-grabbing"
+                >
+                  <GripVertical className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium">{row.title}</div>
+                  {row.detail ? <div className="truncate text-xs text-muted">{row.detail}</div> : null}
+                </div>
+                <IconButton
+                  label={t("rows.moveUp", { title: row.title })}
+                  size="sm"
+                  data-row-button="up"
+                  disabled={i === 0}
+                  onClick={() => press(row, i, "up")}
+                >
+                  <ChevronUp className="size-4" />
+                </IconButton>
+                <IconButton
+                  label={t("rows.moveDown", { title: row.title })}
+                  size="sm"
+                  data-row-button="down"
+                  disabled={i === rows.length - 1}
+                  onClick={() => press(row, i, "down")}
+                >
+                  <ChevronDown className="size-4" />
+                </IconButton>
+                <IconButton
+                  label={t("rows.remove", { title: row.title })}
+                  size="sm"
+                  className="hover:text-danger!"
+                  data-row-button="remove"
+                  disabled={!row.removable}
+                  onClick={() => press(row, i, "remove")}
+                >
+                  <X className="size-4" />
+                </IconButton>
               </div>
-              <IconButton label={t("rows.moveUp", { title: row.title })} size="sm" disabled={i === 0} onClick={() => onMove(i, i - 1)}>
-                <ChevronUp className="size-4" />
-              </IconButton>
-              <IconButton label={t("rows.moveDown", { title: row.title })} size="sm" disabled={i === rows.length - 1} onClick={() => onMove(i, i + 1)}>
-                <ChevronDown className="size-4" />
-              </IconButton>
-              <IconButton
-                label={t("rows.remove", { title: row.title })}
-                size="sm"
-                className="hover:text-danger!"
-                disabled={!row.removable}
-                onClick={() => onRemove(row)}
-              >
-                <X className="size-4" />
-              </IconButton>
-            </div>
-          </li>
-        );
-      })}
-    </ol>
+            </li>
+          );
+        })}
+      </ol>
+      <p role="status" className="sr-only">
+        {note}
+      </p>
+    </>
   );
 }
 
@@ -190,7 +229,10 @@ export function RecommendedRowsModal({ open, onClose, libraryId }: { open: boole
           loading={restore.isPending}
           onClick={() =>
             restore.mutate(libraryId, {
-              onSuccess: ({ restored }) => toast.success(t("rows.restored", { count: restored })),
+              onSuccess: ({ restored }) =>
+                restored
+                  ? toast.success(t("rows.restored", { count: restored }))
+                  : toast.info(t("rows.nothingToRestore")),
               onError,
             })
           }
@@ -247,10 +289,14 @@ export function HomeRowsModal({ open, onClose }: { open: boolean; onClose: () =>
   const rows: Row[] = list.map((r) => ({
     key: r.key,
     title: r.title,
-    detail: r.library_ids
-      .map(libraryName)
-      .filter((n): n is string => !!n)
-      .join(", "),
+    // An untouched Recently Added is titled "Recently Added in <library>"
+    // by the server already.
+    detail: r.key.startsWith("recently_added:")
+      ? ""
+      : r.library_ids
+          .map(libraryName)
+          .filter((n): n is string => !!n)
+          .join(", "),
     // A music or audiobook library's Recently Added is no collection: it stays.
     removable: r.collection_ids.length > 0,
   }));

@@ -33,7 +33,7 @@ whether to delete the data folder too (no by default).
 |---|---|---|
 | How Pley runs | Service, service as a user of its own, or notification area (below) | Service |
 | Data folder | Where Pley keeps its database, artwork and settings; optionally a Pley you already use to copy from (stop it first) | `C:\ProgramData\pley`, or `%LOCALAPPDATA%\pley` in the notification area |
-| Network | Only this computer, this computer and the networks you tick, or every network; the port; the Plex-compatible API | Only this computer (`127.0.0.1`), port 7539, Plex-compatible API on |
+| Network | Only this computer, this computer and the networks you tick, or every network; the port; the Plex- and Jellyfin-compatible APIs | Only this computer (`127.0.0.1`), port 7539, both APIs on |
 | Windows Firewall | The kinds of network to let Pley through on, from which devices, and whether Pley's apps can find the server | Private and domain networks, devices on them, apps can find it |
 
 How Pley runs:
@@ -60,8 +60,9 @@ Good to know:
   Pley's TCP and UDP through on any port: the web port, the apps' broadcast
   and Bonjour's (UDP 5353), by which Apple's apps find the server once
   Bonjour is turned on in **Settings → Network**.
-- The Jellyfin-compatible API, for Jellyfin's apps, is off. **Settings →
-  Network** turns it on, on Pley's port or one of its own.
+- The Plex- and Jellyfin-compatible APIs answer on Pley's port. **Settings
+  → Network** gives either a port of its own (Plex's 32400, Jellyfin's
+  8096) or turns it off, and an update keeps what is set there.
 - FFmpeg comes with the installer, in `ffmpeg\` next to Pley. Releases carry
   pley-ffmpeg's Windows build: FFmpeg 9 with NVENC, Quick Sync, AMF and
   Vulkan tone mapping, and the patches for Intel GPUs the Docker image's
@@ -109,7 +110,8 @@ pley-server-0.0.1-windows-x86_64-setup.exe /VERYSILENT /SUPPRESSMSGBOXES /MODE=s
 | `/COPYDATA=` | A data folder to copy first | none |
 | `/LISTEN=` | `local`, `all`, or the addresses of the networks to listen on, separated by commas | `local` |
 | `/PORT=` | The port | `7539` |
-| `/PLEX=` | `yes` or `no`: the Plex-compatible API, on Pley's port | `yes` |
+| `/PLEX=` | `yes` or `no`: the Plex-compatible API, on Pley's port unless Settings → Network gave it one of its own | `yes` |
+| `/JELLYFIN=` | `yes` or `no`: the same for the Jellyfin-compatible API | `yes` |
 | `/FIREWALL=` | `private`, `domain`, `public` (separated by commas), or `none` | `private,domain` |
 | `/FROM=` | `subnet` (devices on those networks) or `any` (a VPN too) | `subnet` |
 | `/DISCOVERY=` | `yes` or `no`: Pley's apps can find the server | `yes` |
@@ -134,7 +136,7 @@ $env:PLEY_SHARE_PASSWORD = [Net.NetworkCredential]::new('', (Read-Host 'NAS pass
 What Setup runs, from an administrator's terminal:
 
 ```
-pley --data-dir C:\ProgramData\pley --bind 127.0.0.1:7539 --plex-bind web ^
+pley --data-dir C:\ProgramData\pley --bind 127.0.0.1:7539 --plex-bind web --jellyfin-bind web ^
   --ffmpeg "C:\Program Files\pley-server\ffmpeg\ffmpeg.exe" ^
   --ffprobe "C:\Program Files\pley-server\ffmpeg\ffprobe.exe" service install
 ```

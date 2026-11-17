@@ -1,9 +1,9 @@
 //! The Jellyfin-compatible API (docs/COMPATIBILITY.md): Jellyfin's apps and
 //! the apps built for it (Plezy, Findroid, Jellyfin for Android TV and for
 //! Kodi, Feishin, Infuse, Streamyfin) sign in to Pley and browse, play and
-//! keep their watch state in it, as each user may. It is off unless an
-//! administrator turns it on (Settings → Network), on Pley's own port or on
-//! a port of its own.
+//! keep their watch state in it, as each user may. It is on Pley's own port
+//! by default; Settings → Network turns it off or gives it a port of its
+//! own.
 //!
 //! Its clients sign in with a password (`/Users/AuthenticateByName`) for a
 //! token for other apps ([`crate::auth::compatibility`]): such tokens work
@@ -649,9 +649,10 @@ fn is_jellyfin_request(request: &Request) -> bool {
 
 /// While the API answers on Pley's port, its requests go to it and the
 /// rest to Pley. Answers to the shared paths vary with what decides. A
-/// request that names itself the Plex-compatible API's (`X-Plex-…`) is left
-/// to that API while it is on Pley's port too: its paths and this one's
-/// meet (`/library`, `/system`, `/devices`).
+/// request that names itself the Plex-compatible API's (`X-Plex-…`, or a
+/// path with its `:` segments) is left to that API while it is on Pley's
+/// port too: its paths and this one's meet (`/library`, `/system`,
+/// `/devices`, `/audio`).
 pub async fn on_web_port(State(api): State<OnWebPort>, request: Request, next: Next) -> Response {
     if !api.state.network.jellyfin_on_web() || (api.state.network.plex_on_web() && crate::plex::names_itself(&request))
     {

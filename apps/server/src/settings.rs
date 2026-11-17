@@ -116,6 +116,12 @@ pub struct Settings {
     /// and is signed out everywhere until then. Off by default; only an
     /// administrator who uses it may turn it on.
     pub require_two_step: bool,
+    /// Pley looks for Google Cast and AirPlay devices on its network, lists
+    /// them in the household's Play on…, and plays casts on them (see
+    /// [`crate::nearby`]). Off by default: with it off, no device is
+    /// listed, cast to or paired with, and Pley doesn't look for any. Casts
+    /// already playing when it is turned off go on until they end.
+    pub cast_devices: bool,
     /// Addresses with a port that pley is reached at through a reverse
     /// proxy which leaves the port out of `Host` (nginx's `$host`, Nginx
     /// Proxy Manager's default): `https://media.example.com:9999`. A request
@@ -240,6 +246,7 @@ impl Default for Settings {
             library_work_max_cpu: 50,
             third_party_apps: false,
             require_two_step: false,
+            cast_devices: false,
             proxy_addresses: Vec::new(),
             opensubtitles_api_key: String::new(),
             opensubtitles_username: String::new(),
@@ -615,6 +622,7 @@ pub struct SettingsPatch {
     pub library_work_max_cpu: Option<u8>,
     pub third_party_apps: Option<bool>,
     pub require_two_step: Option<bool>,
+    pub cast_devices: Option<bool>,
     pub proxy_addresses: Option<Vec<String>>,
     pub opensubtitles_api_key: Option<String>,
     pub opensubtitles_username: Option<String>,
@@ -806,6 +814,9 @@ impl SettingsStore {
         }
         if let Some(v) = patch.require_two_step {
             next.require_two_step = v;
+        }
+        if let Some(v) = patch.cast_devices {
+            next.cast_devices = v;
         }
         if let Some(v) = patch.proxy_addresses {
             let mut addresses: Vec<String> = Vec::new();
@@ -1045,6 +1056,7 @@ mod tests {
         let unset = Settings::default();
         assert_eq!((unset.max_video_transcodes, unset.max_transcodes), (4, 4), "four streams of any kind, as ever");
         assert!(unset.transcode_video, "video is transcoded unless turned off");
+        assert!(!unset.cast_devices, "no Cast or AirPlay device until turned on");
         // Video transcodes are never more than all the streams: a limit above the total comes down to it.
         let both = serde_json::json!({"max_transcodes": 3, "max_video_transcodes": 5});
         let lowered = store.update(&db, patch(both)).await.unwrap();

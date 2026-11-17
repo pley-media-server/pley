@@ -19,8 +19,8 @@ describes how they are made.
   movie and TV library (Top Unwatched isn't a row until an administrator
   adds it), and collections of the same title are one row on Home.
 - Kometa's group labels, such as Seasonal, put collections under
-  categories, and its `visible_library`, `visible_home` and
-  `visible_shared` place collections on Home and Recommended.
+  categories, and its `visible_library` and `visible_home` place
+  collections on Recommended and Home.
 - A library's Collections tab groups collections by category and filters
   them by category (and, for administrators, by how they were made), and
   administrators arrange the rows on Home
@@ -47,8 +47,26 @@ describes how they are made.
 - Live TV channels play on Google Cast and AirPlay devices from Watch on…,
   and the remote changes channel there.
 
+### Changed
+
+- Home's rows keep the order administrators give them, whatever order
+  the libraries are listed in, shared or a profile's own.
+- The Jellyfin-compatible API is on by default, on Pley's port as the
+  Plex-compatible one is, on servers that update too. It stays off where it
+  is set off, as on a server whose Settings → Network was saved before,
+  which saved it off. Settings → Network turns it on or off.
+- The Windows installer's Network page has a Jellyfin-compatible API box
+  beside the Plex one (`/JELLYFIN=` for a silent install), ticked unless
+  Pley has the API off. An update keeps what Settings → Network set for
+  either API, a port of its own included.
+- Casting to Google Cast and AirPlay devices has a switch in Settings →
+  Network, off by default and on updated servers too: Play on… lists
+  those devices once an administrator turns it on.
+
 ### Fixed
 
+- Plex apps play music they transcode with the Jellyfin-compatible API on
+  Pley's port too.
 - Stop in Pley stops a Google Cast device every time. The connection
   closed so abruptly that the device could lose the stop, most often
   with Pley on Windows.
