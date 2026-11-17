@@ -50,16 +50,21 @@ export function BookView({ item }: { item: ItemDetail }) {
   const heard = list.length ? heardMs(list) : 0;
   const finished = list.length > 0 && list.every((p) => p.user_state.watched);
   const started = !finished && heard > 0;
-  const playingThis = audio.current?.parent_id === item.id;
+  // The player holds this book part way through: Play and Pause act on it
+  // there. Heard to the end of what it was given, or the book since marked
+  // listened, Play starts the book where the server says, as from elsewhere.
+  const playingThis = audio.current?.parent_id === item.id && (audio.playing || (!audio.ended && !finished));
 
   const playPart = (i: number, fromStartOfPart = false) => {
     const part = list[i];
     if (!part) return;
-    if (audio.current?.id === part.id && !fromStartOfPart) {
+    const inPlayer = audio.current?.id === part.id;
+    if (inPlayer && !audio.ended && !fromStartOfPart) {
       audio.toggle();
       return;
     }
-    const at = fromStartOfPart || part.user_state.watched ? 0 : part.user_state.position_ms;
+    // The part the player just heard to its end starts again from the start.
+    const at = fromStartOfPart || inPlayer || part.user_state.watched ? 0 : part.user_state.position_ms;
     audio.playQueue(list, i, { startAtMs: at });
   };
 
@@ -219,7 +224,8 @@ function Chapters({ part, parts }: { part: ChildItem; parts: ChildItem[] }) {
   const detail = useItem(part.id);
   const chapters: Chapter[] = detail.data?.files[0]?.chapters ?? [];
   if (detail.isPending || chapters.length < 2) return null;
-  const here = audio.current?.id === part.id;
+  // Heard to its end, the player's session is over: a chapter starts another.
+  const here = audio.current?.id === part.id && !audio.ended;
   const nowMs = here ? time.position * 1000 : part.user_state.watched ? -1 : part.user_state.position_ms;
   const at = (c: Chapter) => {
     if (here) audio.seek(c.start_ms / 1000);

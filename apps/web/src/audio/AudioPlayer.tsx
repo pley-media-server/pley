@@ -28,6 +28,11 @@ export interface AudioPlayerApi {
   index: number;
   current: ItemSummary | null;
   playing: boolean;
+  /**
+   * The current track was heard to its end and nothing came after it: the
+   * queue ran out, or a sleep timer stopped the book at the end of a part.
+   */
+  ended: boolean;
   loading: boolean;
   volume: number;
   muted: boolean;
@@ -121,6 +126,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   // Bumped whenever playback of the current index must (re)start.
   const [playToken, setPlayToken] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [ended, setEnded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shuffle, setShuffle] = useState(false);
@@ -157,6 +163,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     startAtRef.current = 0;
     fallbackRef.current = null;
     recoveries.current.recreate = 0;
+    setEnded(false);
     setIndex(i);
     setPlayToken((t) => t + 1);
   }, []);
@@ -365,7 +372,10 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     if (!audio) return;
     // The element reads 0 while a session (re)starts: only trust it once it has media.
     const hasMedia = () => !!sessionRef.current && audio.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
-    const onPlay = () => setPlaying(true);
+    const onPlay = () => {
+      setPlaying(true);
+      setEnded(false);
+    };
     const onPause = () => {
       setPlaying(false);
       const s = sessionRef.current;
@@ -410,10 +420,14 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       if (timer && ("until" in timer ? Date.now() >= timer.until : timer.itemId === queueRef.current[i]?.id)) {
         setSleepState(null);
         setPlaying(false);
+        setEnded(true);
         return;
       }
       if (i + 1 < queueRef.current.length) goTo(i + 1);
-      else setPlaying(false);
+      else {
+        setPlaying(false);
+        setEnded(true);
+      }
     };
     const onError = () => {
       // hls.js reports its own errors; a reset element has no src.
@@ -741,6 +755,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setOriginal([]);
     setIndex(0);
     setPlaying(false);
+    setEnded(false);
     setError(null);
     setSleepState(null);
     invalidateWatchState(qc);
@@ -752,6 +767,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       index,
       current,
       playing,
+      ended,
       loading,
       volume,
       muted,
@@ -786,6 +802,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
       index,
       current,
       playing,
+      ended,
       loading,
       volume,
       muted,
