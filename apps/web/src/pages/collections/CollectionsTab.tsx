@@ -147,7 +147,9 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
         ) : null}
       </div>
       <div ref={ref}>
-        {collections.isPending ? (
+        {/* Without the categories every collection would show under Other
+            for a moment; if they fail, it does. */}
+        {collections.isPending || categories.isPending ? (
           <ItemGridSkeleton aspect="poster" cardWidth={CARD_WIDTH} />
         ) : collections.isError ? (
           <EmptyState

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { namedCategory, type Category, type Collection } from "@/api/lists";
@@ -120,6 +120,24 @@ describe("CollectionsTab", () => {
     expect(screen.queryAllByRole("region")).toHaveLength(0);
     // Nothing to choose between: no Category filter either.
     expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
+  });
+
+  it("waits for the categories before grouping", async () => {
+    let answer: (value: unknown) => void = () => {};
+    const categories = new Promise((resolve) => (answer = resolve));
+    const requests = mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections }),
+      "GET /api/collection-categories": () => categories,
+    });
+    renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />);
+    await waitFor(() => expect(requests.some((r) => r.path === "/api/libraries/1/collections")).toBe(true));
+    await screen.findByText("4 collections");
+    // Not everything under Other while they're on their way.
+    expect(screen.queryByText("Favourites")).not.toBeInTheDocument();
+
+    answer({ categories: [highlights, franchises, seasonal] });
+    const sections = await screen.findAllByRole("region");
+    expect(sections.map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Franchises", "Seasonal", "Other"]);
   });
 
   it("offers administrators the categories", async () => {
