@@ -384,9 +384,24 @@ impl Plex {
 
     /// The labels used in library `section`.
     pub async fn labels(&self, server: &Server, section: &str) -> PlexResult<Vec<Tag>> {
-        let c: Container<Tag> =
-            self.server_json(server, &format!("/library/sections/{}/label", encode_segment(section)), &[]).await?;
+        self.tags(server, section, "label", None).await
+    }
+
+    /// The tags of `field` (`label`, `genre`, `actor`…) used in library
+    /// `section`, by items of Plex's `kind` when given.
+    pub async fn tags(&self, server: &Server, section: &str, field: &str, kind: Option<&str>) -> PlexResult<Vec<Tag>> {
+        let path = format!("/library/sections/{}/{}", encode_segment(section), encode_segment(field));
+        let query: Vec<(&str, String)> = kind.map(|k| ("type", k.to_owned())).into_iter().collect();
+        let c: Container<Tag> = self.server_json(server, &path, &query).await?;
         Ok(c.media_container.directory)
+    }
+
+    /// Library `section`'s rows, in their order on its Recommended tab, and
+    /// where each is shown.
+    pub async fn hubs(&self, server: &Server, section: &str) -> PlexResult<Vec<Hub>> {
+        let path = format!("/hubs/sections/{}/manage", encode_segment(section));
+        let c: Container<()> = self.server_json(server, &path, &[]).await?;
+        Ok(c.media_container.hub)
     }
 
     /// The server's devices, which name the plays in its history.
@@ -638,6 +653,23 @@ pub struct MediaContainer<T> {
     pub metadata: Vec<Item>,
     #[serde(default, rename = "Device")]
     pub device: Vec<Device>,
+    #[serde(default, rename = "Hub")]
+    pub hub: Vec<Hub>,
+}
+
+/// A row of a library, as its administrators arrange them: Plex's own
+/// (`movie.recentlyadded`) or a collection's
+/// (`custom.collection.<section>.<ratingKey>`).
+#[derive(Debug, Default, Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Hub {
+    pub identifier: String,
+    #[serde(deserialize_with = "flag")]
+    pub promoted_to_recommended: bool,
+    #[serde(deserialize_with = "flag")]
+    pub promoted_to_own_home: bool,
+    #[serde(deserialize_with = "flag")]
+    pub promoted_to_shared_home: bool,
 }
 
 #[derive(Debug, Deserialize)]
@@ -658,7 +690,7 @@ pub struct Location {
     pub path: String,
 }
 
-/// A label, as a library lists them.
+/// A tag (a label, a genre, a person…), as a library lists them.
 #[derive(Debug, Deserialize)]
 pub struct Tag {
     #[serde(deserialize_with = "text")]
@@ -737,6 +769,9 @@ pub struct Item {
     // Collections' and playlists'.
     #[serde(deserialize_with = "flag")]
     pub smart: bool,
+    /// A smart one's filter, a listing's address:
+    /// `server://…/library/sections/1/all?type=1&label=86523`.
+    pub content: Option<String>,
     /// 0 by release, 1 by title, 2 in its own order.
     #[serde(deserialize_with = "opt_num")]
     pub collection_sort: Option<i64>,

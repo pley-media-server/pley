@@ -20,6 +20,9 @@ describes how they are made.
 - Kometa's group labels, such as Seasonal, put collections under
   categories, and its `visible_library`, `visible_home` and
   `visible_shared` place collections on Home and Recommended.
+- The Plex import brings smart collections whose filters Pley can apply,
+  puts collections under categories by their group labels, and keeps
+  which rows Plex showed on Home and Recommended, in Plex's order.
 - Audiobook libraries, in the web and desktop apps: books from `.m4b`
   files or folders of audio files, found as Audiobookshelf finds them
   (`Author/Series/Book`, with `CD 1` folders inside a book, and a book in

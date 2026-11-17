@@ -29,25 +29,10 @@ fn language(state: &AppState) -> &'static str {
     i18n::server_language(&state.settings.get().language)
 }
 
-/// Plex's name for one of Pley's own collections in a library of `kind`, or
-/// one in its style where Plex has none (`movie.toprated`,
-/// `tv.topunwatched`).
-fn builtin_identifier(kind: LibraryKind, builtin: Builtin) -> String {
-    let prefix = if kind == LibraryKind::Shows { "tv" } else { "movie" };
-    let name = match (kind, builtin) {
-        (_, Builtin::RecentlyAdded) => "recentlyadded",
-        (LibraryKind::Shows, Builtin::RecentlyReleased) => "recentlyaired",
-        (_, Builtin::RecentlyReleased) => "recentlyreleased",
-        (_, Builtin::TopRated) => "toprated",
-        (_, Builtin::TopUnwatched) => "topunwatched",
-    };
-    format!("{prefix}.{name}")
-}
-
 /// A collection's hub identifier.
 fn identifier(lib: &LibraryRow, row: &CollectionRow) -> String {
     match row.builtin.as_deref().and_then(Builtin::parse) {
-        Some(builtin) => builtin_identifier(lib.kind(), builtin),
+        Some(builtin) => builtin.plex_identifier(lib.kind()),
         None => format!("custom.collection.{}.{}", lib.id, keys::collection(row.id)),
     }
 }

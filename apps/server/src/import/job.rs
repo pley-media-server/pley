@@ -1510,10 +1510,12 @@ impl Run {
 
         if bring.collections {
             self.step(Step::Collections, paired.len() as u64);
+            let mut rows = Arrangement::default();
             for library in paired {
-                self.collections(library, matches).await?;
+                self.collections(library, matches, &mut rows).await?;
                 self.advance(1);
             }
+            self.arrange(rows).await?;
         }
 
         if bring.watch_history {
@@ -2451,68 +2453,116 @@ impl Run {
         Ok(())
     }
 
-    /// Library `library`'s collections that aren't smart, with the titles
-    /// found in Pley, in Plex's order: one Pley has by the same title gets
-    /// those it lacks, else one is made, with Plex's order and labels. Pley's
-    /// own TMDB collections aren't found again: their refresh keeps only
-    /// what TMDB puts in them.
-    async fn collections(&mut self, library: &Paired, matches: &Matches) -> ImportResult<()> {
+    /// Library `library`'s collections, in Plex's order. One that isn't
+    /// smart brings the titles found in Pley: one Pley has by the same title
+    /// gets those it lacks, else one is made, with Plex's order and labels.
+    /// A smart one brings its filter, when Pley can apply it: to the smart
+    /// one Pley has by the same title, else to a new one; one Pley has by
+    /// that title that isn't smart is left as it is. Pley's own TMDB
+    /// collections aren't found again: their refresh keeps only what TMDB
+    /// puts in them. Then Plex's arrangement of the library's rows.
+    async fn collections(&mut self, library: &Paired, matches: &Matches, rows: &mut Arrangement) -> ImportResult<()> {
         if !matches!(library.kind, LibraryKind::Movies | LibraryKind::Shows) {
             return Ok(());
         }
         let db = self.state.db.clone();
+        let Some(lib) = get_library(&db, library.library_id).await? else { return Ok(()) };
         let mut found = Vec::new();
         let mut pager = Pager::new(&format!("/library/sections/{}/collections", library.key), &[]);
         while let Some(items) = pager.next(self).await? {
             found.extend(items);
         }
+        // Plex's collections by their `ratingKey`, as Pley's.
+        let mut brought: HashMap<String, i64> = HashMap::new();
+        let mut tags = Tags::default();
         for collection in found {
-            if collection.smart {
-                // Once: the second round meets it again.
-                if !self.again {
-                    self.report.smart_left += 1;
-                }
-                continue;
-            }
             let title = cut(&collection.title, MAX_TITLE);
             if title.is_empty() || !is_key(&collection.rating_key) {
                 continue;
             }
-            let mut ids = Vec::new();
-            let mut pager = Pager::new(&format!("/library/collections/{}/children", collection.rating_key), &[]);
-            while let Some(items) = pager.next(self).await? {
-                ids.extend(items.iter().filter_map(|i| matches.get(&i.rating_key)));
-            }
-            if ids.is_empty() {
-                continue;
-            }
-            let existing: Option<i64> = sqlx::query_scalar(
-                "SELECT id FROM collections WHERE library_id = ? AND title = ? COLLATE NOCASE AND smart_filter IS NULL
-                 AND tmdb_id IS NULL ORDER BY id LIMIT 1",
-            )
-            .bind(library.library_id)
-            .bind(&title)
-            .fetch_optional(&db.read)
-            .await?;
-            let id = match existing {
-                Some(id) => id,
-                None => {
-                    let summary = collection.summary.as_deref().map(|s| cut(s, MAX_SUMMARY)).filter(|s| !s.is_empty());
-                    let id = crate::collections::create(&db, library.library_id, &title, summary.as_deref()).await?;
-                    let sort = match collection.collection_sort {
-                        Some(1) => "title",
-                        Some(2) => "custom",
-                        _ => "release",
-                    };
-                    if sort != "release" {
-                        crate::collections::update(&db, id, None, None, Some(sort)).await?;
+            let summary = collection.summary.as_deref().map(|s| cut(s, MAX_SUMMARY)).filter(|s| !s.is_empty());
+            let id = if collection.smart {
+                let filter = match &collection.content {
+                    Some(content) => self.smart_filter(library, content, &mut tags).await?,
+                    None => None,
+                };
+                let filter =
+                    filter.filter(|f| f.len() <= MAX_SMART_FILTER && crate::listing::valid_smart_filter(&lib, f));
+                let existing: Option<(i64, bool)> = sqlx::query_as(
+                    "SELECT id, smart_filter IS NOT NULL FROM collections WHERE library_id = ? AND title = ? COLLATE NOCASE
+                     AND tmdb_id IS NULL AND builtin IS NULL ORDER BY smart_filter IS NULL, id LIMIT 1",
+                )
+                .bind(library.library_id)
+                .bind(&title)
+                .fetch_optional(&db.read)
+                .await?;
+                match (filter, existing) {
+                    (Some(filter), Some((id, true))) => {
+                        crate::collections::set_smart_filter(&db, id, &filter).await?;
+                        id
                     }
-                    self.report.collections_made += 1;
-                    id
+                    (Some(filter), None) => {
+                        let id =
+                            crate::collections::create(&db, library.library_id, &title, summary.as_deref()).await?;
+                        crate::collections::set_smart_filter(&db, id, &filter).await?;
+                        self.report.collections_made += 1;
+                        id
+                    }
+                    // Once: the second round meets it again.
+                    _ => {
+                        if !self.again {
+                            self.report.smart_left += 1;
+                        }
+                        continue;
+                    }
                 }
+            } else {
+                let mut ids = Vec::new();
+                let mut pager = Pager::new(&format!("/library/collections/{}/children", collection.rating_key), &[]);
+                while let Some(items) = pager.next(self).await? {
+                    ids.extend(items.iter().filter_map(|i| matches.get(&i.rating_key)));
+                }
+                let existing: Option<i64> = sqlx::query_scalar(
+                    "SELECT id FROM collections WHERE library_id = ? AND title = ? COLLATE NOCASE AND smart_filter IS NULL
+                     AND tmdb_id IS NULL ORDER BY id LIMIT 1",
+                )
+                .bind(library.library_id)
+                .bind(&title)
+                .fetch_optional(&db.read)
+                .await?;
+                if ids.is_empty() {
+                    // Still Plex's, for its place among the rows: the second
+                    // round, with only the titles found since, meets every
+                    // collection the first brought.
+                    if let Some(id) = existing {
+                        brought.insert(collection.rating_key.clone(), id);
+                    }
+                    continue;
+                }
+                let id = match existing {
+                    Some(id) => id,
+                    None => {
+                        let id =
+                            crate::collections::create(&db, library.library_id, &title, summary.as_deref()).await?;
+                        let sort = match collection.collection_sort {
+                            Some(1) => "title",
+                            Some(2) => "custom",
+                            _ => "release",
+                        };
+                        if sort != "release" {
+                            crate::collections::update(&db, id, None, None, Some(sort)).await?;
+                        }
+                        self.report.collections_made += 1;
+                        id
+                    }
+                };
+                self.report.collection_items +=
+                    crate::collections::add_items(&db, id, library.library_id, &ids).await?;
+                id
             };
-            self.report.collection_items += crate::collections::add_items(&db, id, library.library_id, &ids).await?;
+            brought.insert(collection.rating_key.clone(), id);
             // Listings leave labels out: the collection's own page has them.
+            // A group's label puts it under that category.
             if let Ok(Some(page)) = self.plex.metadata(&self.server, &collection.rating_key).await {
                 let labels = kept_labels(&page);
                 if !labels.is_empty() {
@@ -2520,6 +2570,115 @@ impl Run {
                 }
             }
         }
+        self.hubs(library, &brought, rows).await
+    }
+
+    /// The Pley smart filter of Plex's smart collection `content`: its
+    /// query, without what only shapes Plex's answer, and with the tags it
+    /// names by Plex's id (`label=86523`) named as Pley names them
+    /// (`label=Christmas Movies`). `None` when it names a tag Plex doesn't
+    /// list.
+    async fn smart_filter(&mut self, library: &Paired, content: &str, tags: &mut Tags) -> ImportResult<Option<String>> {
+        let query = content_query(content);
+        for (key, _) in &query {
+            let field = filter_field(key);
+            if TAG_FILTERS.contains(&field) && !tags.contains_key(field) {
+                // Without the list (too long, say), filters on the field
+                // aren't brought: the rest of the import goes on.
+                let listed = match self.plex.tags(&self.server, &library.key, field, None).await {
+                    Ok(listed) => listed,
+                    Err(e) => {
+                        tracing::debug!("the Plex import couldn't list library {}'s {field}: {e:#}", library.key);
+                        Vec::new()
+                    }
+                };
+                tags.insert(field.to_owned(), listed.into_iter().map(|t| (t.key, t.title)).collect());
+            }
+        }
+        Ok(smart_filter(&query, tags))
+    }
+
+    /// Plex's arrangement of library `library`'s rows, where Pley has them:
+    /// its collections and the built-in rows Pley has as collections
+    /// (Recently Added, Recently Released, Top Rated, Top Unwatched) go on
+    /// Recommended and Home as Plex has them, in Plex's order. Plex's two
+    /// Homes are Pley's one. A Plex server that doesn't say leaves Pley's
+    /// as they are.
+    async fn hubs(
+        &mut self,
+        library: &Paired,
+        brought: &HashMap<String, i64>,
+        rows: &mut Arrangement,
+    ) -> ImportResult<()> {
+        let hubs = match self.plex.hubs(&self.server, &library.key).await {
+            Ok(hubs) => hubs,
+            Err(e) => {
+                tracing::debug!("the Plex import couldn't read how library {}'s rows are arranged: {e:#}", library.key);
+                return Ok(());
+            }
+        };
+        let db = self.state.db.clone();
+        let builtins: Vec<(i64, String)> =
+            sqlx::query_as("SELECT id, builtin FROM collections WHERE library_id = ? AND builtin IS NOT NULL")
+                .bind(library.library_id)
+                .fetch_all(&db.read)
+                .await?;
+        let collection_prefix = format!("custom.collection.{}.", library.key);
+        for hub in hubs {
+            let id = match hub.identifier.strip_prefix(&collection_prefix) {
+                Some(key) => brought.get(key).copied(),
+                None => builtins
+                    .iter()
+                    .find(|(_, builtin)| {
+                        crate::collections::Builtin::parse(builtin)
+                            .is_some_and(|b| b.plex_identifier(library.kind) == hub.identifier)
+                    })
+                    .map(|(id, _)| *id),
+            };
+            let Some(id) = id else { continue };
+            // Two Plex libraries brought into one: a row either shows stays.
+            let recommended = rows.recommended.get(&library.library_id).is_some_and(|ids| ids.contains(&id));
+            let home = rows.home.contains(&id);
+            if hub.promoted_to_recommended || !recommended {
+                crate::collections::set_on_recommended(&db, id, hub.promoted_to_recommended).await?;
+            }
+            if hub.promoted_to_own_home || hub.promoted_to_shared_home || !home {
+                crate::collections::set_on_home(&db, id, hub.promoted_to_own_home || hub.promoted_to_shared_home)
+                    .await?;
+            }
+            if hub.promoted_to_recommended && !recommended {
+                rows.recommended.entry(library.library_id).or_default().push(id);
+            }
+            if (hub.promoted_to_own_home || hub.promoted_to_shared_home) && !home {
+                rows.home.push(id);
+            }
+        }
+        Ok(())
+    }
+
+    /// Puts the rows Plex's arrangement showed in Plex's order: each
+    /// library's Recommended, then Home, each library's after the one
+    /// before it as Plex orders Home. Rows Plex didn't show follow, as they
+    /// were.
+    async fn arrange(&mut self, rows: Arrangement) -> ImportResult<()> {
+        let db = self.state.db.clone();
+        for (library_id, ids) in &rows.recommended {
+            crate::collections::order_recommended(&db, *library_id, ids).await?;
+            self.state.events.send(ServerEvent::LibraryChanged { library_id: *library_id });
+        }
+        if rows.home.is_empty() {
+            return Ok(());
+        }
+        let place = |ids: &[i64]| ids.iter().filter_map(|id| rows.home.iter().position(|h| h == id)).min();
+        let mut arranged: Vec<(usize, String)> = crate::rows::home_arrangement(&db, "en")
+            .await?
+            .into_iter()
+            .map(|row| (place(&row.collection_ids).unwrap_or(usize::MAX), row.key))
+            .collect();
+        arranged.sort_by_key(|(at, _)| *at);
+        let keys: Vec<String> = arranged.into_iter().map(|(_, key)| key).collect();
+        crate::rows::order_home(&db, &keys).await?;
+        self.state.events.send(ServerEvent::LibrariesChanged);
         Ok(())
     }
 
@@ -2900,6 +3059,71 @@ fn locked_edits(item: &Item) -> Vec<(&'static str, String)> {
         .collect()
 }
 
+/// The longest smart filter Pley keeps, as its API does.
+const MAX_SMART_FILTER: usize = 2000;
+
+/// Plex's filters whose values are the library's tags by Plex's id
+/// (`label=86523`), as `/library/sections/{key}/{field}` lists them; Pley's
+/// name them. A content rating's id is the rating itself, and Pley doesn't
+/// filter by country.
+const TAG_FILTERS: &[&str] = &["genre", "label", "actor", "director", "writer", "producer"];
+
+/// A library's tags by field, each by Plex's id: their names.
+type Tags = HashMap<String, HashMap<String, String>>;
+
+/// Where Plex showed the rows the import brought, in its order.
+#[derive(Default)]
+struct Arrangement {
+    /// Each Pley library's rows on Recommended.
+    recommended: BTreeMap<i64, Vec<i64>>,
+    /// The rows on Home, library after library.
+    home: Vec<i64>,
+}
+
+/// A filter's field: `show.label!=` filters on `label`.
+fn filter_field(key: &str) -> &str {
+    let key = key.trim_end_matches(['!', '=', '<', '>']);
+    key.rsplit_once('.').map_or(key, |(_, field)| field)
+}
+
+/// The query of a smart collection's `content`, decoded, without what
+/// only shapes Plex's answer (`includeGuids`, `X-Plex-…`).
+fn content_query(content: &str) -> Vec<(String, String)> {
+    let Some((_, query)) = content.split_once('?') else { return Vec::new() };
+    query
+        .split('&')
+        .filter(|pair| !pair.is_empty())
+        .map(|pair| {
+            let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
+            (crate::util::percent_decode(key, true), crate::util::percent_decode(value, true))
+        })
+        .filter(|(key, _)| crate::listing::is_smart_filter_param(key))
+        .collect()
+}
+
+/// `query` as a smart filter, with the tags of [`TAG_FILTERS`] by name.
+/// `None` when it names one `tags` doesn't have, or a name with a comma,
+/// which in a filter separates names.
+fn smart_filter(query: &[(String, String)], tags: &Tags) -> Option<String> {
+    let encode = |text: &str| url::form_urlencoded::byte_serialize(text.as_bytes()).collect::<String>();
+    let mut pairs = Vec::new();
+    for (key, value) in query {
+        let field = filter_field(key);
+        let value = if TAG_FILTERS.contains(&field) {
+            let names = tags.get(field)?;
+            let named: Option<Vec<&str>> = value
+                .split(',')
+                .map(|id| names.get(id.trim()).map(String::as_str).filter(|n| !n.contains(',')))
+                .collect();
+            named?.join(",")
+        } else {
+            value.clone()
+        };
+        pairs.push(format!("{}={}", encode(key), encode(&value)));
+    }
+    (!pairs.is_empty()).then(|| pairs.join("&"))
+}
+
 /// A collection's labels from its page, as Pley keeps them.
 fn kept_labels(page: &Item) -> Vec<String> {
     let labels: Vec<String> = page
@@ -3002,6 +3226,33 @@ impl Pager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn smart_collections_name_their_tags() {
+        let tags: Tags = HashMap::from([
+            ("label".into(), HashMap::from([("86523".into(), "Christmas Movies".into()), ("7".into(), "A, B".into())])),
+            ("actor".into(), HashMap::from([("42".into(), "Ann Actor".into())])),
+        ]);
+        let filter = |content: &str| smart_filter(&content_query(content), &tags);
+        let content = "server://m/com.plexapp.plugins.library/library/sections/1/all?type=1&sort=titleSort&label=86523";
+        assert_eq!(filter(content).as_deref(), Some("type=1&sort=titleSort&label=Christmas+Movies"));
+        // Operators, prefixes and lists; Plex's own parameters left out.
+        assert_eq!(
+            filter("/all?show.label!=86523&actor=42,42&decade=1980&includeGuids=1&X-Plex-Token=t").as_deref(),
+            Some("show.label%21=Christmas+Movies&actor=Ann+Actor%2CAnn+Actor&decade=1980")
+        );
+        // Encoded operators, as Kometa writes them.
+        assert_eq!(filter("/all?label%21%3D=86523").as_deref(), Some("label%21%3D=Christmas+Movies"));
+        // Content ratings are named by themselves, even one no title has.
+        assert_eq!(filter("/all?contentRating!=06").as_deref(), Some("contentRating%21=06"));
+        // A tag Plex doesn't list, one Pley's filters can't name, or one of a
+        // field whose list wasn't read.
+        assert_eq!(filter("/all?label=1"), None);
+        assert_eq!(filter("/all?label=7"), None);
+        assert_eq!(filter("/all?genre=3"), None);
+        assert_eq!(filter("/all"), None);
+        assert_eq!(filter_field("episode.originallyAvailableAt>>="), "originallyAvailableAt");
+    }
 
     #[tokio::test]
     async fn a_title_or_profile_gone_since_is_skipped() {

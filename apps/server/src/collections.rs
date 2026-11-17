@@ -51,6 +51,20 @@ impl Builtin {
         Builtin::ALL.into_iter().find(|b| b.key() == key)
     }
 
+    /// Plex's name for its row in a library of `kind`, or one in Plex's
+    /// style where Plex has none (`movie.toprated`, `tv.topunwatched`).
+    pub fn plex_identifier(self, kind: LibraryKind) -> String {
+        let prefix = if kind == LibraryKind::Shows { "tv" } else { "movie" };
+        let name = match (kind, self) {
+            (_, Builtin::RecentlyAdded) => "recentlyadded",
+            (LibraryKind::Shows, Builtin::RecentlyReleased) => "recentlyaired",
+            (_, Builtin::RecentlyReleased) => "recentlyreleased",
+            (_, Builtin::TopRated) => "toprated",
+            (_, Builtin::TopUnwatched) => "topunwatched",
+        };
+        format!("{prefix}.{name}")
+    }
+
     /// Its name (the server's words), by the library's kind.
     pub fn title_key(self, kind: LibraryKind) -> &'static str {
         match self {

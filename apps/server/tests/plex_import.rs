@@ -299,7 +299,9 @@ async fn fake_plex() -> String {
                     "210" => json!({"ratingKey": "210", "type": "season", "title": "The First", "summary": "",
                                     "Field": [{"name": "title", "locked": true}, {"name": "summary", "locked": true}]}),
                     "5000" => json!({"ratingKey": "5000", "type": "collection", "title": "Space",
-                                     "Label": [{"tag": "Kometa"}]}),
+                                     "Label": [{"tag": "Kometa"}, {"tag": "Franchises"}]}),
+                    "5002" => json!({"ratingKey": "5002", "type": "collection", "title": "Scary Movies",
+                                     "Label": [{"tag": "Kometa"}, {"tag": "Seasonal"}]}),
                     _ => return container(json!({ "Metadata": [] })),
                 };
                 container(json!({ "Metadata": [page] }))
@@ -311,11 +313,48 @@ async fn fake_plex() -> String {
                 let list = if section == "1" {
                     json!([{"ratingKey": "5000", "type": "collection", "title": "Space", "smart": "0",
                             "collectionSort": "2", "summary": "In space."},
-                           {"ratingKey": "5001", "type": "collection", "title": "Unwatched", "smart": "1"}])
+                           {"ratingKey": "5001", "type": "collection", "title": "Unwatched", "smart": "1"},
+                           // Labels by Plex's id, and what only shapes Plex's answer.
+                           {"ratingKey": "5002", "type": "collection", "title": "Scary Movies", "smart": "1",
+                            "content": "server://m/com.plexapp.plugins.library/library/sections/1/all?type=1&sort=titleSort&push=1&label=10&pop=1&includeGuids=1"},
+                           // A label Plex no longer lists, and a filter on what Pley doesn't read.
+                           {"ratingKey": "5003", "type": "collection", "title": "Gone", "smart": "1",
+                            "content": "server://m/com.plexapp.plugins.library/library/sections/1/all?type=1&label=99"},
+                           {"ratingKey": "5004", "type": "collection", "title": "Atmos", "smart": "1",
+                            "content": "server://m/com.plexapp.plugins.library/library/sections/1/all?type=1&atmos=1"},
+                           // Genres Plex doesn't list: the import goes on without it.
+                           {"ratingKey": "5005", "type": "collection", "title": "Comedies", "smart": "1",
+                            "content": "server://m/com.plexapp.plugins.library/library/sections/1/all?type=1&genre=3"}])
                 } else {
                     json!([])
                 };
                 container(json!({ "Metadata": list }))
+            }),
+        )
+        // The rows' arrangement: Plex's own, Pley's collections and one Pley
+        // doesn't have.
+        .route(
+            "/hubs/sections/{section}/manage",
+            get(|Path(section): Path<String>| async move {
+                let hubs = if section == "1" {
+                    json!([
+                        {"identifier": "movie.recentlyreleased", "promotedToRecommended": true,
+                         "promotedToOwnHome": false, "promotedToSharedHome": false},
+                        {"identifier": "custom.collection.1.5002", "promotedToRecommended": false,
+                         "promotedToOwnHome": true, "promotedToSharedHome": false},
+                        {"identifier": "movie.genre", "promotedToRecommended": true,
+                         "promotedToOwnHome": true, "promotedToSharedHome": true},
+                        {"identifier": "custom.collection.1.5000", "promotedToRecommended": "1",
+                         "promotedToOwnHome": "0", "promotedToSharedHome": "0"},
+                        {"identifier": "movie.recentlyadded", "promotedToRecommended": true,
+                         "promotedToOwnHome": true, "promotedToSharedHome": true},
+                        {"identifier": "movie.topunwatched", "promotedToRecommended": false,
+                         "promotedToOwnHome": false, "promotedToSharedHome": false}
+                    ])
+                } else {
+                    json!([])
+                };
+                container(json!({ "Hub": hubs }))
             }),
         )
         .route(
@@ -831,9 +870,10 @@ async fn brings_libraries_people_and_what_they_watched() {
         .unwrap();
     assert_eq!(season, "The First");
 
-    // Collections and playlists, smart ones left out.
-    assert_eq!((&report["collections_made"], &report["collection_items"]), (&json!(1), &json!(2)));
-    assert_eq!(report["smart_left"], 2);
+    // Collections and playlists: smart collections with the filters Pley
+    // can apply, smart playlists left out.
+    assert_eq!((&report["collections_made"], &report["collection_items"]), (&json!(2), &json!(2)));
+    assert_eq!(report["smart_left"], 5, "Unwatched, Gone, Atmos, Comedies and the Recent playlist");
     // Pley's TMDB collection isn't Plex's: a collection is made beside it.
     assert_eq!(
         one(
@@ -857,7 +897,44 @@ async fn brings_libraries_people_and_what_they_watched() {
             .await
             .unwrap();
     assert_eq!(order, [brazil, alien]);
-    assert_eq!(pley::labels::for_collections(&app.state.db, &[space]).await.unwrap()[&space], ["Kometa"]);
+    let (scary, filter): (i64, String) =
+        sqlx::query_as("SELECT id, smart_filter FROM collections WHERE title = 'Scary Movies'")
+            .fetch_one(&app.state.db.read)
+            .await
+            .unwrap();
+    assert_eq!(filter, "type=1&sort=titleSort&push=1&label=Scary&pop=1", "labels by name");
+    // Group labels place them: under Franchises, and a category of their own.
+    let category = |id: i64| {
+        let db = app.state.db.read.clone();
+        async move {
+            sqlx::query_scalar::<_, String>(
+                "SELECT COALESCE(g.key, g.title) FROM collections c JOIN collection_categories g ON g.id = c.category_id
+                 WHERE c.id = ?",
+            )
+            .bind(id)
+            .fetch_one(&db)
+            .await
+            .unwrap()
+        }
+    };
+    assert_eq!(category(space).await, "franchises");
+    assert_eq!(category(scary).await, "Seasonal");
+    // Plex's arrangement: Recommended in its order, the rows Plex hid taken
+    // off; Home in its order before Pley's others.
+    let recommended: Vec<String> = sqlx::query_scalar(
+        "SELECT COALESCE(builtin, title) FROM collections WHERE library_id = ? AND recommended_position IS NOT NULL
+         ORDER BY recommended_position",
+    )
+    .bind(movies)
+    .fetch_all(&app.state.db.read)
+    .await
+    .unwrap();
+    assert_eq!(recommended[..3], ["recently_released", "Space", "recently_added"]);
+    assert!(!recommended.iter().any(|r| r == "top_unwatched" || r == "Scary Movies"), "{recommended:?}");
+    let home = app.get("/api/home/rows", &admin).await.body;
+    let home: Vec<&str> = home["rows"].as_array().unwrap().iter().map(|r| r["key"].as_str().unwrap()).collect();
+    assert_eq!(home[..2], [format!("collection:{scary}"), format!("recently_added:{movies}")]);
+    assert!(!home.contains(&format!("recently_released:{movies}").as_str()), "{home:?}");
     assert_eq!(report["profiles"][0]["playlists"], 1);
     let favourites: Vec<String> = sqlx::query_scalar(
         "SELECT i.title FROM playlist_items e JOIN playlists p ON p.id = e.playlist_id JOIN items i ON i.id = e.item_id
@@ -1459,10 +1536,21 @@ async fn plex_data_comes_before_metadata_and_titles_found_by_id_after_it() {
         sqlx::query_scalar("SELECT id FROM items WHERE tmdb_id = 289").fetch_one(&app.state.db.read).await.unwrap();
     assert_eq!(one(&app, "SELECT COUNT(*) FROM play_history WHERE item_id = ?", casablanca).await, 1);
     // And put in the playlist made before it was found: still one playlist,
-    // and the smart ones left out once.
+    // and the smart ones not brought counted once (Unwatched, Gone, Atmos,
+    // Comedies and the Recent playlist), the one brought made once.
     assert_eq!(one(&app, "SELECT COUNT(*) FROM playlist_items WHERE item_id = ?", casablanca).await, 1);
     assert_eq!(done["report"]["profiles"][0]["playlists"], 1);
-    assert_eq!(done["report"]["smart_left"], 2);
+    assert_eq!(done["report"]["smart_left"], 5);
+    assert_eq!(one(&app, "SELECT COUNT(*) FROM collections WHERE title = 'Scary Movies' AND id > ?", 0).await, 1);
+    // The second round kept Plex's arrangement.
+    let recommended: Vec<String> = sqlx::query_scalar(
+        "SELECT COALESCE(builtin, title) FROM collections WHERE recommended_position IS NOT NULL
+         ORDER BY recommended_position LIMIT 3",
+    )
+    .fetch_all(&app.state.db.read)
+    .await
+    .unwrap();
+    assert_eq!(recommended, ["recently_released", "Space", "recently_added"]);
 }
 
 #[tokio::test]

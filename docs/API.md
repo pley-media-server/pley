@@ -5142,7 +5142,7 @@ interface ImportProgress {
     edits: Record<string, number>;        // locked fields brought as edits, by field ("title", "content_rating")
     collections_made: number;
     collection_items: number;             // titles put in collections, new or found again
-    smart_left: number;                   // smart collections and playlists, not brought
+    smart_left: number;                   // smart collections whose filter Pley can't apply, and smart playlists: not brought
     bring: { watch_history: boolean; collections: boolean; edits: boolean };   // as chosen
     started_at: number;                   // with finished_at, how long it took; 0 in reports from before
     // How long each step that ran took, in order; the one it stopped in,
@@ -5198,14 +5198,30 @@ interface ImportProgress {
   rating with Plex's country ("nz/R") read as that country's, unless Pley has one for that field; each
   title's own page is read for them, a few at a time. Tools such as
   Kometa lock what they set, so `edits` counts them by field.
-- **Collections and playlists** (`bring.collections`). Collections that
-  aren't smart, of movie and show libraries, with their titles found in
-  Pley, their order and labels; everyone's playlists of video or music,
-  as their own. One Pley has by the same title (and library, or person
-  and kind) gets the titles it lacks; nothing is reordered or removed.
-  Pley's own TMDB collections aren't found again this way. A person's
-  `playlists` counts those made or added to. Smart ones are counted in
-  `smart_left`.
+- **Collections and playlists** (`bring.collections`). Collections of
+  movie and show libraries, with their titles found in Pley, their order
+  and labels; everyone's playlists of video or music, as their own. One
+  Pley has by the same title (and library, or person and kind) gets the
+  titles it lacks; nothing is reordered or removed. Pley's own TMDB
+  collections aren't found again this way. A person's `playlists` counts
+  those made or added to. A collection's group label puts it under a
+  category, as Kometa's do through the Plex API
+  ([COMPATIBILITY.md](COMPATIBILITY.md)).
+  - A smart collection brings its filter: Plex's query, with the tags it
+    names by Plex's id (labels, genres, people…) named, and without what
+    only shapes Plex's answer. It goes to the smart collection Pley has by
+    that title, or a new one; one Pley has by that title that isn't smart
+    is left as it is. A filter Pley can't apply (on episodes of shows,
+    say, or a field Pley doesn't read) isn't brought, and is counted in
+    `smart_left` with smart playlists, which aren't brought. A label
+    filter finds the titles Plex's labels were brought to.
+  - Plex's arrangement of each library's rows carries over to the
+    collections brought and to Pley's own (Recently Added, Recently
+    Released, Top Rated, Top Unwatched, where Plex has them): which are
+    on Recommended and on Home (Plex's two Homes are Pley's one), and
+    their order. Home is in Plex's order, library after library, before
+    the rows Plex didn't show; two Plex libraries brought into one keep
+    a row either shows. Plex's rows Pley doesn't have are left out.
 - **Watch history** (`bring.watch_history`): watched, resume points,
   ratings and plays, merged as below.
 - **What's merged.** Labels are added to titles, never removed. A date

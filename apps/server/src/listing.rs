@@ -311,6 +311,14 @@ const NOT_FILTERS: &[&str] = &[
     "asyncAugmentMetadata",
 ];
 
+/// Whether a smart filter keeps a parameter of Plex's query: its filters,
+/// what they list (`type`), their order and how many (`sort`, `limit`), but
+/// not what only shapes Plex's answer (`includeGuids`, `X-Plex-Token`).
+pub(crate) fn is_smart_filter_param(key: &str) -> bool {
+    let plex_own = key.len() > 7 && key.get(..7).is_some_and(|p| p.eq_ignore_ascii_case("x-plex-"));
+    matches!(key, "type" | "sort" | "limit") || !(plex_own || NOT_FILTERS.contains(&key))
+}
+
 /// Fields of the query string Pley doesn't keep the data for or doesn't read
 /// yet. A filter on one is refused rather than ignored: a tool changing what
 /// the filter finds would otherwise change the whole library.
