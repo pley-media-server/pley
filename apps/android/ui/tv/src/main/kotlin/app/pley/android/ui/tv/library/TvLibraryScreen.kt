@@ -580,14 +580,19 @@ private fun TvCollectionsTab(
 /** The item id of a grid tile's focus key ("grid/<id>"); `null` for any other key. */
 private fun gridTileId(key: String): Long? = key.removePrefix("grid/").takeIf { it.length < key.length }?.toLongOrNull()
 
-/** Up out of this group goes to [target] (the tabs), not to whatever is geometrically nearest. */
+/**
+ * Up out of this group goes to [target] (the tabs, or the chips above),
+ * not to whatever is geometrically nearest. Focus is sent there in place
+ * of the move, not after cancelling it: a cancelled move goes on to the
+ * next thing above, and where the nearest is a group (the chips), on past
+ * it to the tabs.
+ */
 internal fun Modifier.upTo(target: FocusRequester): Modifier = focusProperties {
     val inner = onExit
     onExit = {
         inner()
-        if (requestedFocusDirection == FocusDirection.Up) {
+        if (requestedFocusDirection == FocusDirection.Up && !runCatching { target.requestFocus() }.getOrDefault(false)) {
             cancelFocusChange()
-            runCatching { target.requestFocus() }
         }
     }
 }.focusGroup()

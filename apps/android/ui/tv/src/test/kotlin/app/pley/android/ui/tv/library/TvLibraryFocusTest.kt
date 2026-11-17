@@ -320,6 +320,53 @@ class TvLibraryFocusTest {
         assertEquals("Alien Collection", focusedTitle())
     }
 
+    @Test
+    fun collectionsByCategoryKeepFocusAsTheyArriveAndUpReachesTheChip() {
+        library()
+        val highlights = CategoryRef(1, "highlights", "Highlights")
+        val franchises = CategoryRef(2, "franchises", "Franchises")
+        // The categories are slow to come: the tab shows its skeleton meanwhile.
+        graph.categoryList.value = Loadable.Loading
+        graph.collectionList.value = Loadable.Ready(
+            listOf(
+                CollectionSummary(7, 1, "Family Night", category = highlights, itemCount = 5),
+                CollectionSummary(8, 1, "Alien Collection", automatic = true, category = franchises, itemCount = 4),
+            ),
+            fresh = true,
+        )
+        // Up to the chips, up to the tabs, right to Collections.
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionUp)
+        compose.press(Key.DirectionRight)
+        compose.press(Key.DirectionCenter)
+        waitUntil { !exists(hasText(title(1))) }
+        // Down into the skeleton while it loads.
+        compose.press(Key.DirectionDown)
+        waitUntil { exists(hasAnyAncestor(hasTestTag(TestTags.LIBRARY_GRID)) and isFocused()) }
+        graph.categoryList.value = Loadable.Ready(
+            listOf(CollectionCategory(1, "highlights", "Highlights"), CollectionCategory(2, "franchises", "Franchises")),
+            fresh = true,
+        )
+        // A row per category takes the grid's place: focus stays on the tab, on the Category chip above them,
+        // where Down from the tabs lands, and goes on down to the first collection.
+        waitUntil { exists(hasText("Franchises")) && exists(isFocused()) }
+        assertTrue(exists(hasText("Category") and isFocused()))
+        compose.press(Key.DirectionDown)
+        assertEquals("Family Night", focusedTitle())
+        // And Up from the first row comes back to the chip, not past it to the tabs.
+        compose.press(Key.DirectionUp)
+        assertTrue(exists(hasText("Category") and isFocused()))
+        // So does Up from the grid of one category.
+        compose.press(Key.DirectionCenter)
+        waitUntil { exists(hasText("All categories")) }
+        compose.onAllNodes(hasText("Franchises") and hasClickAction()).onFirst().performSemanticsAction(SemanticsActions.OnClick)
+        waitUntil { exists(hasText("Clear filters")) && exists(hasText("Franchises") and isFocused()) }
+        compose.press(Key.DirectionDown)
+        assertEquals("Alien Collection", focusedTitle())
+        compose.press(Key.DirectionUp)
+        assertTrue(exists(hasText("Franchises") and isFocused()))
+    }
+
     private companion object {
         const val WITHIN_MS = 5_000L
         const val TOTAL = 120
