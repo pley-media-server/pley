@@ -193,6 +193,23 @@
       }
     },
     {
+      "name": "the only category left, chosen: the filter stays offered, to clear it",
+      "collections": [
+        { "id": 10, "category": 2 },
+        { "id": 11, "category": 2 }
+      ],
+      "chosen": 2,
+      "out": {
+        "groups": [{ "key": "2", "title": "Franchises", "ids": [10, 11] }],
+        "choices": ["2"],
+        "category": 2,
+        "headed": false,
+        "offered": true,
+        "count": 2,
+        "total": 2
+      }
+    },
+    {
       "name": "a chosen category left with no collections chooses every one",
       "collections": [
         { "id": 10, "category": 2 },
