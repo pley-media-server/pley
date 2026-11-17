@@ -73,9 +73,9 @@ details.
 - Text answers over 1 KiB are compressed when the request accepts it; media,
   images and the event stream never are.
 - A request still running after 30 minutes answers `408`.
-- The compatibility APIs, when they answer on the same port (the
-  Plex-compatible one does by default), answer only requests that are their
-  own (a path only one has, or its headers or token on a path both have).
+- The compatibility APIs, when they answer on the same port (both do by
+  default), answer only requests that are their own (a path only one has,
+  or its headers or token on a path both have).
   `/api/…` and `/.well-known/…` always belong to this API.
 
 ## Authentication

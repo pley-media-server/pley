@@ -1,9 +1,9 @@
 //! The Jellyfin-compatible API (docs/COMPATIBILITY.md): Jellyfin's apps and
 //! the apps built for it (Plezy, Findroid, Jellyfin for Android TV and for
 //! Kodi, Feishin, Infuse, Streamyfin) sign in to Pley and browse, play and
-//! keep their watch state in it, as each user may. It is off unless an
-//! administrator turns it on (Settings → Network), on Pley's own port or on
-//! a port of its own.
+//! keep their watch state in it, as each user may. It is on Pley's own port
+//! by default; Settings → Network turns it off or gives it a port of its
+//! own.
 //!
 //! Its clients sign in with a password (`/Users/AuthenticateByName`) for a
 //! token for other apps ([`crate::auth::compatibility`]): such tokens work

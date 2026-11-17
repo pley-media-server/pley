@@ -32,19 +32,18 @@ describes how they are made.
 ### Changed
 
 - The Jellyfin-compatible API is on by default, on Pley's port as the
-  Plex-compatible one is, so Jellyfin's apps connect to Pley's address with
-  nothing turned on first. Settings → Network still moves it to a port of
-  its own or turns it off, and a server whose settings turned it off keeps
-  it off.
+  Plex-compatible one is, on servers that update too. It stays off where it
+  is set off, as on a server whose Settings → Network was saved before,
+  which saved it off. Settings → Network turns it on or off.
 - The Windows installer's Network page has a Jellyfin-compatible API box
-  beside the Plex one (`/JELLYFIN=` for a silent install), ticked by
-  default. An update keeps what Settings → Network set for either API,
-  a port of its own included, instead of putting it back on Pley's port.
+  beside the Plex one (`/JELLYFIN=` for a silent install), ticked unless
+  Pley has the API off. An update keeps what Settings → Network set for
+  either API, a port of its own included.
 
 ### Fixed
 
-- Plex apps transcoding music play it with the Jellyfin-compatible API on
-  Pley's port too, where that API answered their requests for the music.
+- Plex apps play music they transcode with the Jellyfin-compatible API on
+  Pley's port too.
 - Stop in Pley stops a Google Cast device every time. The connection
   closed so abruptly that the device could lose the stop, most often
   with Pley on Windows.

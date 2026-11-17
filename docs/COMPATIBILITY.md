@@ -9,7 +9,7 @@ APIs, so that apps and tools written for them work with Pley:
   direct-play clients. It is on by default, on Pley's own port.
 - the **Jellyfin-compatible API**, for Jellyfin's apps and others built on
   its API (Findroid, JellyCon, Plezy, Infuse), and activity monitors such
-  as Tracearr. It is off until an administrator turns it on.
+  as Tracearr. It is on by default, on Pley's own port.
 
 Both use the same libraries, users, watch state and playback sessions as
 Pley's own API, so what is watched or changed in one shows up in the others.
