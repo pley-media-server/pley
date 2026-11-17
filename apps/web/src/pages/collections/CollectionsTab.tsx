@@ -81,6 +81,9 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
     chosenCategory === "all" || usedCategories.some((g) => g.category.id === chosenCategory) ? chosenCategory : "all";
   const groups = groupByCategory(shown, categories.data ?? []).filter((g) => category === "all" || g.category.id === category);
   const count = groups.reduce((n, g) => n + g.collections.length, 0);
+  // One group shown needs no heading: the Category filter, when there is
+  // one, says which it is.
+  const headed = groups.length > 1;
   const filtered = type !== "all" || category !== "all";
   const newButton = (variant: "primary" | "secondary") => (
     <Button variant={variant} size={variant === "primary" ? "md" : "sm"} icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
@@ -182,11 +185,13 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
         ) : (
           <div className="space-y-10">
             {groups.map((g) => (
-              <section key={g.category.id} aria-label={g.category.title}>
-                <h2 className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
-                  {g.category.title}
-                  <span className="text-sm font-normal tabular-nums text-muted">{g.collections.length}</span>
-                </h2>
+              <section key={g.category.id} aria-label={headed ? g.category.title : undefined}>
+                {headed ? (
+                  <h2 className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
+                    {g.category.title}
+                    <span className="text-sm font-normal tabular-nums text-muted">{g.collections.length}</span>
+                  </h2>
+                ) : null}
                 <div
                   className="grid"
                   style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: gap, rowGap: gap < 18 ? 18 : 26 }}

@@ -96,14 +96,30 @@ describe("CollectionsTab", () => {
     await user.selectOptions(screen.getByLabelText("Type"), "smart");
     expect(screen.getAllByRole("region").map((s) => s.getAttribute("aria-label"))).toEqual(["Highlights", "Seasonal"]);
 
+    // One group shown has no heading: the filter says which it is.
     await user.selectOptions(screen.getByLabelText("Category"), String(seasonal.id));
-    expect(screen.getAllByRole("region").map((s) => s.getAttribute("aria-label"))).toEqual(["Seasonal"]);
+    expect(screen.queryAllByRole("region")).toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: /Seasonal/ })).not.toBeInTheDocument();
+    expect(screen.getAllByText("Christmas").length).toBeGreaterThan(0);
     expect(screen.getByText("1 collection")).toBeInTheDocument();
 
     await user.selectOptions(screen.getByLabelText("Type"), "tmdb");
     expect(screen.getByText("No collections match these filters")).toBeInTheDocument();
     await user.click(screen.getAllByRole("button", { name: "Clear filters" })[0]!);
     expect(screen.getAllByRole("region")).toHaveLength(4);
+  });
+
+  it("heads no group when there is only one", async () => {
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections: [collection(4, "Favourites"), collection(5, "Westerns")] }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+    });
+    renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />);
+    expect(await screen.findAllByText("Westerns")).not.toHaveLength(0);
+    expect(screen.queryByRole("heading", { name: /Other/ })).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("region")).toHaveLength(0);
+    // Nothing to choose between: no Category filter either.
+    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
   });
 
   it("offers administrators the categories", async () => {
