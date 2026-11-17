@@ -7,7 +7,8 @@ import fixture from "../fixtures/collections.json";
 interface Case {
   name: string;
   categories?: CollectionCategory[];
-  collections: { id: number; category: number; title?: string }[];
+  /** `category` left out: a server older than categories names none. */
+  collections: { id: number; category?: number; title?: string }[];
   chosen: CategoryChoice;
   out: {
     groups: { key: string; title: string; ids: number[] }[];
@@ -23,7 +24,8 @@ interface Case {
 const all = fixture.categories as CollectionCategory[];
 
 /** A collection of the case, its category named as the server names it. */
-function collection(c: Case["collections"][number]): { id: number; category: CategoryRef } {
+function collection(c: Case["collections"][number]): { id: number; category?: CategoryRef } {
+  if (c.category === undefined) return { id: c.id };
   const known = all.find((x) => x.id === c.category);
   return { id: c.id, category: { id: c.category, key: known?.key ?? null, title: c.title ?? known?.title ?? "" } };
 }

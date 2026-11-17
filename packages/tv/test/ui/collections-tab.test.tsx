@@ -1,6 +1,7 @@
 import { render } from "preact";
 import { act } from "preact/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { ApiError } from "../../src/api/client";
 import type { Collection, CollectionCategory, Library, User } from "../../src/api/types";
 import type { KeyValue } from "../../src/auth/tokens";
 import type { Platform } from "../../src/platform";
@@ -124,6 +125,28 @@ describe("the Collections tab's focus", () => {
     act(() => void t.focus.focus(placeholder!));
     answer({ categories: [] });
     await t.settle();
+    expect(t.focused()).toBe("collections/10");
+  });
+
+  it("shows every collection in one grid on a server from before categories", async () => {
+    // Its collections name no category, and its GET /api/collection-categories answers 404 "no such endpoint":
+    // no categories, the tab as it was.
+    const older = (id: number): Collection => {
+      const c = collection(id, OTHER) as { category?: CollectionCategory };
+      delete c.category;
+      return c as Collection;
+    };
+    const gone = Promise.reject(new ApiError(404, "not_found", "no such endpoint"));
+    gone.catch(() => undefined);
+    const t = setup([older(10), older(11)], gone, "collections");
+    await t.settle();
+    expect(t.el("collections/10")).not.toBeNull();
+    expect(t.el("collections/11")).not.toBeNull();
+    expect(t.el("collections/cell0")).toBeNull();
+    // No chips and no headings: one grid, the count alone.
+    expect(t.el("chip/category")).toBeNull();
+    expect(document.querySelector(".collections-rows")).toBeNull();
+    expect(document.querySelector(".collections-count")?.textContent).toBe("2 collections");
     expect(t.focused()).toBe("collections/10");
   });
 

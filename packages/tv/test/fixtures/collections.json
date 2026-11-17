@@ -141,6 +141,21 @@
       }
     },
     {
+      "name": "a server older than categories: its collections name none and its categories answer 404, one group without a heading or filter",
+      "categories": [],
+      "collections": [{ "id": 60 }, { "id": 61 }],
+      "chosen": "all",
+      "out": {
+        "groups": [{ "key": "0", "title": "", "ids": [60, 61] }],
+        "choices": ["0"],
+        "category": "all",
+        "headed": false,
+        "offered": false,
+        "count": 2,
+        "total": 2
+      }
+    },
+    {
       "name": "one category chosen",
       "collections": [
         { "id": 10, "category": 2 },

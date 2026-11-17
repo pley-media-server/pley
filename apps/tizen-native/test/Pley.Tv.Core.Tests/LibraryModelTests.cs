@@ -379,6 +379,21 @@ public class LibraryModelTests
     }
 
     [Fact]
+    public void A_server_from_before_categories_shows_every_collection_in_one_grid()
+    {
+        // Its GET /api/collection-categories answers 404 "no such endpoint": no categories, the tab as it was.
+        data.SetCollections(1, LibraryKit.Collection(10, "Alien Collection", 4), LibraryKit.Collection(11, "Loose", 2));
+        data.CategoriesFailure = new ApiException(404, "not_found", "no such endpoint");
+        var model = Model(tab: LibraryTab.Collections);
+        var view = Assert.IsType<Loadable<CollectionsView>.Ready>(model.State.Value.Collections).Data;
+        Assert.False(view.Headed);
+        Assert.Equal(new long[] { 10, 11 }, Assert.Single(view.Groups).Collections.Select(c => c.Id));
+        Assert.Empty(LibraryText.CollectionChips(model.State.Value));
+        Assert.Null(LibraryText.CollectionsMessage(model.State.Value));
+        Assert.Equal("2 collections", LibraryText.CollectionsCountLine(model.State.Value));
+    }
+
+    [Fact]
     public void The_category_chip_narrows_the_collections_and_clear_filters_shows_them_all()
     {
         data.SetCollections(1, Of(10, Franchises), Of(11, Other), Of(12, Highlights));

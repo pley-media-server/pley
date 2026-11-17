@@ -37,7 +37,9 @@ public class CollectionGroupsTests
         var categories = c.TryGetProperty("categories", out var own) ? own.EnumerateArray().Select(Category).ToList() : all;
         var tiles = c.GetProperty("collections").EnumerateArray().Select(x =>
         {
-            var id = x.GetProperty("category").GetInt64();
+            // Left out: a server older than categories names none.
+            if (!x.TryGetProperty("category", out var given)) return new CollectionTile(x.GetProperty("id").GetInt64(), 1, Tile);
+            var id = given.GetInt64();
             var known = all.FirstOrDefault(k => k.Id == id);
             var title = x.TryGetProperty("title", out var t) ? t.GetString()! : known?.Title ?? "";
             return new CollectionTile(x.GetProperty("id").GetInt64(), 1, Tile, new CategoryRef(id, known?.Key, title));
