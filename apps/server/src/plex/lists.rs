@@ -458,7 +458,7 @@ pub async fn create_collection(
         params.parse("sectionId").ok_or_else(|| PlexError::BadRequest("sectionId is required".into()))?;
     let lib =
         visible_libraries(&state, &admin).await?.into_iter().find(|l| l.id == section).ok_or(PlexError::NotFound)?;
-    if lib.kind() == LibraryKind::Music {
+    if lib.kind().is_audio() {
         return Err(PlexError::BadRequest("collections are for movie and TV libraries".into()));
     }
     let uri = params.get("uri").unwrap_or_default();
@@ -661,10 +661,11 @@ pub async fn create(State(state): State<AppState>, PlexUser(user): PlexUser, par
             .ok_or_else(|| PlexError::BadRequest("a smart playlist needs a section listing as uri".into()))?;
         let lib =
             visible_libraries(&state, &user).await?.into_iter().find(|l| l.id == section).ok_or(PlexError::NotFound)?;
+        let kind =
+            Kind::of_library(lib.kind()).ok_or_else(|| PlexError::BadRequest(playlists::SMART_LIBRARIES.into()))?;
         if !crate::listing::valid_smart_filter(&lib, &filter) {
             return Err(PlexError::BadRequest("that listing finds nothing to play".into()));
         }
-        let kind = if lib.kind() == LibraryKind::Music { Kind::Audio } else { Kind::Video };
         let id = playlists::create_smart(&state.db, &user, &title, kind, section, &filter).await?;
         return playlist_container_of(&state, &user, id).await;
     }

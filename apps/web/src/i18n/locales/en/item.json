@@ -30,13 +30,16 @@
     "collections_one": "{{count, number}} collection",
     "collections_other": "{{count, number}} collections",
     "items_one": "{{count, number}} item",
-    "items_other": "{{count, number}} items"
+    "items_other": "{{count, number}} items",
+    "parts_one": "{{count, number}} part",
+    "parts_other": "{{count, number}} parts"
   },
   "sectionError": {
     "albums": "Couldn't load the albums: {{error}}",
     "tracks": "Couldn't load the tracks: {{error}}",
     "seasons": "Couldn't load the seasons: {{error}}",
-    "episodes": "Couldn't load the episodes: {{error}}"
+    "episodes": "Couldn't load the episodes: {{error}}",
+    "parts": "Couldn't load the parts: {{error}}"
   },
   "summary": {
     "readMore": "Read more"
@@ -293,5 +296,26 @@
     "loadError": "Couldn't load your playlists",
     "empty": "No playlists yet",
     "emptyHint": "Make one here, or use “Add to playlist” on a movie, show, album or episode (also when right-clicking a poster)."
+  },
+  "book": {
+    "kind": "Audiobook",
+    "and": "and",
+    "by": "by {{names}}",
+    "readBy": "Read by {{names}}",
+    "seriesPlace": "{{series}}, book {{number, number}}",
+    "progress": "Listened",
+    "pause": "Pause",
+    "resume": "Resume",
+    "listenAgain": "Listen again",
+    "fromStart": "From start",
+    "upTo": "Up to {{part}}",
+    "parts": "Parts",
+    "chapters": "Chapters",
+    "heard": "Finished",
+    "markListened": "Mark as listened",
+    "markUnlistened": "Mark as not listened",
+    "listened": "Listened",
+    "unlistened": "Not listened",
+    "percentListened": "{{percent}} listened"
   }
 }

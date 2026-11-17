@@ -199,5 +199,18 @@
     "failed": "Playback failed",
     "noHls": "This browser can't play HLS streams",
     "noSound": "No sound output: check the speakers or headphones"
+  },
+  "book": {
+    "speed": "Speed: {{rate}}",
+    "sleep": "Sleep timer",
+    "sleepIn": "Sleep timer: {{time}} left",
+    "sleepAtEnd": "Sleep timer: pausing at the end",
+    "sleepEndOfChapter": "End of chapter",
+    "sleepEndOfPart": "End of part",
+    "sleepOff": "Turn off the timer",
+    "back_one": "Back {{count}} second",
+    "back_other": "Back {{count}} seconds",
+    "forward_one": "Forward {{count}} second",
+    "forward_other": "Forward {{count}} seconds"
   }
 }

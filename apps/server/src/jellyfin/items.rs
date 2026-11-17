@@ -86,7 +86,8 @@ pub fn routes() -> Router<AppState> {
 /// The most items a page has: clients asking for more get this many.
 const MAX_LIMIT: usize = 1000;
 
-/// Libraries the user can see.
+/// Libraries the user can see. Audiobooks aren't among them: the API has
+/// no audiobook items to give Jellyfin's apps (`AuthUser::audiobooks`).
 pub async fn libraries(state: &AppState, user: &AuthUser) -> JfResult<Vec<LibraryRow>> {
     Ok(crate::access::visible_libraries(&state.db, user).await?)
 }

@@ -12,6 +12,7 @@ use crate::auth::AuthUser;
 use crate::catalog::{self, ItemRow, ItemSummary, VISIBLE, me_cte};
 use crate::db::Db;
 use crate::error::AppError;
+use crate::library::LibraryKind;
 use crate::util::now;
 
 /// Most entries a playlist can hold.
@@ -47,7 +48,22 @@ impl Kind {
             _ => None,
         }
     }
+
+    /// The kind of a smart playlist of a library of `kind`: `None` for
+    /// audiobooks, whose parts no playlist holds, so that it would play
+    /// nothing.
+    pub fn of_library(kind: LibraryKind) -> Option<Kind> {
+        match kind {
+            LibraryKind::Movies | LibraryKind::Shows => Some(Kind::Video),
+            LibraryKind::Music => Some(Kind::Audio),
+            LibraryKind::Audiobooks => None,
+        }
+    }
 }
+
+/// Why a smart playlist of a library without a kind of its own
+/// ([`Kind::of_library`]) is refused.
+pub const SMART_LIBRARIES: &str = "smart playlists are for movie, TV and music libraries";
 
 #[derive(Debug, Clone, FromRow)]
 struct PlaylistRow {

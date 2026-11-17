@@ -11,6 +11,21 @@ describes how they are made.
 
 ### Added
 
+- Audiobook libraries, in the web and desktop apps: books from `.m4b`
+  files or folders of audio files, found as Audiobookshelf finds them
+  (`Author/Series/Book`, with `CD 1` folders inside a book, and a book in
+  several `.m4b` files kept as one). Their authors, narrators, series,
+  summary and cover come from the files' tags, including the series tags
+  Libation, tone and Audiobookshelf write, else from their folders. `.m4b`
+  files' chapters are read, and they play directly where `.m4a` does.
+- Play on an audiobook goes on in the part heard last, where it was left,
+  and books part way through are in a new Continue Listening row on Home
+  and in their library. A part is finished only in its last 30 seconds,
+  not at 90 % as a film is.
+- In the web app, audiobook libraries can be added, and a book's page
+  says how much is listened and lists its parts or chapters. Its player
+  follows the chapter playing, skips back 15 seconds and on 30, plays from
+  0.75× to 3×, and has a sleep timer.
 - Live TV channels play on Google Cast and AirPlay devices from Watch on…,
   and the remote changes channel there.
 

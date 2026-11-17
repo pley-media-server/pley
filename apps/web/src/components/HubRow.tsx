@@ -18,6 +18,8 @@ const MIN_WIDTHS: Record<CardAspect, [number, number]> = {
 const GAPS: [number, number] = [14, 16];
 
 export function hubAspect(hub: Hub): CardAspect {
+  // Books keep their square covers in Continue Listening.
+  if (hub.key.startsWith("continue_listening")) return "square";
   if (hub.key.startsWith("continue")) return "thumb";
   const first = hub.items[0];
   return first ? aspectFor(first) : "poster";

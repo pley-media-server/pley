@@ -60,6 +60,9 @@ pub struct Filter {
     /// An item: itself, or the episodes or tracks under it.
     pub item_id: Option<i64>,
     pub library_id: Option<i64>,
+    /// Only plays in these libraries, the ones the request gets
+    /// ([`crate::access::library_ids`]); `None`: any.
+    pub libraries: Option<Vec<i64>>,
     /// Played at or after (unix seconds).
     pub since: Option<i64>,
     pub offset: i64,
@@ -95,6 +98,10 @@ pub async fn list(db: &Db, viewer_id: i64, filter: &Filter) -> sqlx::Result<(Vec
     if filter.since.is_some() {
         conditions.push_str(" AND h.viewed_at >= ?");
     }
+    let libraries = filter.libraries.as_ref().map(|ids| serde_json::to_string(ids).unwrap_or_default());
+    if libraries.is_some() {
+        conditions.push_str(" AND i.library_id IN (SELECT value FROM json_each(?))");
+    }
     let from = format!(
         "FROM play_history h JOIN users u ON u.id = h.user_id JOIN items i ON i.id = h.item_id
          LEFT JOIN items p ON p.id = i.parent_id LEFT JOIN items gp ON gp.id = i.grandparent_id
@@ -106,6 +113,9 @@ pub async fn list(db: &Db, viewer_id: i64, filter: &Filter) -> sqlx::Result<(Vec
             let mut query = $query.bind(viewer_id);
             for value in [filter.user_id, filter.item_id, filter.library_id, filter.since].into_iter().flatten() {
                 query = query.bind(value);
+            }
+            if let Some(libraries) = &libraries {
+                query = query.bind(libraries.as_str());
             }
             query
         }};

@@ -37,6 +37,9 @@ pub async fn list(
         user_id,
         item_id: parse("item_id"),
         library_id: parse("library_id"),
+        // An app's leave out audiobooks (`AuthUser::audiobooks`); the
+        // listing checks the rest of what the account may see.
+        libraries: if user.audiobooks() { None } else { crate::access::library_ids(&state.db, &user).await? },
         since: parse("since"),
         offset: parse("offset").unwrap_or(0).max(0),
         limit: parse("limit").unwrap_or(50).clamp(1, 200),

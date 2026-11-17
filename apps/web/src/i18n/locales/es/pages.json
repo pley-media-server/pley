@@ -85,13 +85,15 @@
     "namePlaceholder": {
       "movies": "Nombre, por ejemplo Películas infantiles",
       "shows": "Nombre, por ejemplo Series infantiles",
-      "music": "Nombre, por ejemplo Música infantil"
+      "music": "Nombre, por ejemplo Música infantil",
+      "audiobooks": "Nombre, por ejemplo Audiolibros infantiles"
     },
     "folderOf": "Carpeta de {{name}}",
     "where": {
       "movies": "¿Dónde están tus películas?",
       "shows": "¿Dónde están tus series?",
-      "music": "¿Dónde está tu música?"
+      "music": "¿Dónde está tu música?",
+      "audiobooks": "¿Dónde están tus audiolibros?"
     },
     "browseFor": "Explorar para {{name}}",
     "addFolder": "Añadir otra carpeta",
@@ -451,7 +453,10 @@
       "shows_other": "{{count, number}} series",
       "music_one": "{{count, number}} artista",
       "music_many": "{{count, number}} artistas",
-      "music_other": "{{count, number}} artistas"
+      "music_other": "{{count, number}} artistas",
+      "audiobooks_one": "{{count, number}} libro",
+      "audiobooks_many": "{{count, number}} libros",
+      "audiobooks_other": "{{count, number}} libros"
     },
     "countOf": {
       "movies_one": "{{shown, number}} de {{count, number}} película",
@@ -462,11 +467,15 @@
       "shows_other": "{{shown, number}} de {{count, number}} series",
       "music_one": "{{shown, number}} de {{count, number}} artista",
       "music_many": "{{shown, number}} de {{count, number}} artistas",
-      "music_other": "{{shown, number}} de {{count, number}} artistas"
+      "music_other": "{{shown, number}} de {{count, number}} artistas",
+      "audiobooks_one": "{{shown, number}} de {{count, number}} libro",
+      "audiobooks_many": "{{shown, number}} de {{count, number}} libros",
+      "audiobooks_other": "{{shown, number}} de {{count, number}} libros"
     },
     "all": {
       "movies": "Todas las películas",
-      "shows": "Todas las series"
+      "shows": "Todas las series",
+      "audiobooks": "Todos los libros"
     },
     "sortBy": "Ordenar por",
     "ascending": "Ascendente",

@@ -200,8 +200,8 @@ fn extension(path: &Path) -> String {
 pub fn is_media_file(path: &Path, kind: LibraryKind) -> bool {
     let ext = extension(path);
     match kind {
-        LibraryKind::Music => AUDIO_EXTENSIONS.contains(&ext.as_str()),
-        _ => VIDEO_EXTENSIONS.contains(&ext.as_str()),
+        LibraryKind::Music | LibraryKind::Audiobooks => AUDIO_EXTENSIONS.contains(&ext.as_str()),
+        LibraryKind::Movies | LibraryKind::Shows => VIDEO_EXTENSIONS.contains(&ext.as_str()),
     }
 }
 
@@ -565,9 +565,7 @@ impl<'a> Walker<'a> {
             Err(err) => return found.cannot_read(path, &err),
         };
         if file_type.is_dir() {
-            if SKIP_DIRS.contains(&lower.as_str())
-                || (self.kind != LibraryKind::Music && SAMPLE_DIRS.contains(&lower.as_str()))
-            {
+            if SKIP_DIRS.contains(&lower.as_str()) || (!self.kind.is_audio() && SAMPLE_DIRS.contains(&lower.as_str())) {
                 return;
             }
             if name.to_str().is_none() {
@@ -624,7 +622,7 @@ impl<'a> Walker<'a> {
             Ok(meta) => meta,
             Err(err) => return found.cannot_read(path, &err),
         };
-        if self.kind != LibraryKind::Music && is_sample(&path, meta.len()) {
+        if !self.kind.is_audio() && is_sample(&path, meta.len()) {
             return;
         }
         let root = &self.roots[folder.root];
@@ -632,7 +630,7 @@ impl<'a> Walker<'a> {
             root: root.clone(),
             size: meta.len() as i64,
             mtime: meta.modified().map(system_time_secs).unwrap_or(0),
-            extra: if self.kind == LibraryKind::Music { None } else { extra_of(&path, root) },
+            extra: if self.kind.is_audio() { None } else { extra_of(&path, root) },
             path,
         };
         found.media.push((folder.root, file));
@@ -738,7 +736,7 @@ mod tests {
                     if SKIP_DIRS.contains(&name.as_str()) {
                         return false;
                     }
-                    if kind != LibraryKind::Music && SAMPLE_DIRS.contains(&name.as_str()) {
+                    if !kind.is_audio() && SAMPLE_DIRS.contains(&name.as_str()) {
                         return false;
                     }
                     if entry.file_name().to_str().is_none() {
@@ -782,7 +780,7 @@ mod tests {
                     out.unreadable.push(path.to_path_buf());
                     continue;
                 };
-                if kind != LibraryKind::Music && is_sample(path, meta.len()) {
+                if !kind.is_audio() && is_sample(path, meta.len()) {
                     continue;
                 }
                 out.media.push(FoundFile {
@@ -790,7 +788,7 @@ mod tests {
                     root: root.clone(),
                     size: meta.len() as i64,
                     mtime: meta.modified().map(system_time_secs).unwrap_or(0),
-                    extra: if kind == LibraryKind::Music { None } else { extra_of(path, root) },
+                    extra: if kind.is_audio() { None } else { extra_of(path, root) },
                 });
             }
         }

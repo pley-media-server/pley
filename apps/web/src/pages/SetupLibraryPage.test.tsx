@@ -57,8 +57,8 @@ const row = (over: Partial<LibraryRow>): LibraryRow => ({ key: 0, kind: "movies"
 
 describe("startingRows", () => {
   it("suggests each type not added yet", () => {
-    expect(startingRows([], name).map((r) => r.kind)).toEqual(["movies", "shows", "music"]);
-    expect(startingRows([movies], name).map((r) => r.kind)).toEqual(["shows", "music"]);
+    expect(startingRows([], name).map((r) => r.kind)).toEqual(["movies", "shows", "music", "audiobooks"]);
+    expect(startingRows([movies], name).map((r) => r.kind)).toEqual(["shows", "music", "audiobooks"]);
   });
 });
 
@@ -86,12 +86,12 @@ describe("rowProblems", () => {
 describe("insertRow", () => {
   const rows = startingRows([], name);
   it("puts a row after the others of its type", () => {
-    expect(insertRow(rows, row({ key: 9, kind: "movies" })).map((r) => r.key)).toEqual([0, 9, 1, 2]);
-    expect(insertRow(rows, row({ key: 9, kind: "music" })).map((r) => r.key)).toEqual([0, 1, 2, 9]);
+    expect(insertRow(rows, row({ key: 9, kind: "movies" })).map((r) => r.key)).toEqual([0, 9, 1, 2, 3]);
+    expect(insertRow(rows, row({ key: 9, kind: "music" })).map((r) => r.key)).toEqual([0, 1, 2, 9, 3]);
   });
 
   it("puts it where its type comes when there's none of it", () => {
-    expect(insertRow(startingRows([movies], name), row({ key: 9, kind: "movies" })).map((r) => r.kind)).toEqual(["movies", "shows", "music"]);
+    expect(insertRow(startingRows([movies], name), row({ key: 9, kind: "movies" })).map((r) => r.kind)).toEqual(["movies", "shows", "music", "audiobooks"]);
   });
 });
 
@@ -133,13 +133,13 @@ describe("SetupLibraryPage", () => {
     const requests = renderStep();
     await user.type(await screen.findByLabelText("Folder for Movies"), "/media/Movies");
     await user.click(within(screen.getByRole("group", { name: "Add another library:" })).getByRole("button", { name: "Music" }));
-    await user.type(second(screen.getAllByLabelText("Name of this Music library")), "Audiobooks");
+    await user.type(second(screen.getAllByLabelText("Name of this Music library")), "Podcasts");
     await user.click(screen.getByRole("button", { name: "Start watching" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Choose a folder for this library, or remove it.");
     expect(created(requests)).toHaveLength(0);
 
     // Removed, it's no longer asked for.
-    await user.click(screen.getByRole("button", { name: "Remove Audiobooks" }));
+    await user.click(screen.getByRole("button", { name: "Remove Podcasts" }));
     await user.click(screen.getByRole("button", { name: "Start watching" }));
     expect(await screen.findByTestId("location")).toHaveTextContent(/^\/$/);
     expect(created(requests)).toEqual([{ name: "Movies", kind: "movies", paths: ["/media/Movies"] }]);

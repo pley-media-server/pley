@@ -4,8 +4,9 @@ What Pley does, in full. The [README](../README.md) has the short version.
 
 ## Libraries
 
-- Movies, TV shows and music, scanned incrementally and rescanned when files
-  change. An offline drive isn't mistaken for deleted media.
+- Movies, TV shows, music and audiobooks, scanned incrementally and
+  rescanned when files change. An offline drive isn't mistaken for deleted
+  media.
 - Common naming schemes: `Movie (2019)`, release names, `{tmdb-123}` hints,
   editions (`{edition-Director's Cut}`), `S01E02`, `1x02`, date-based and
   anime episodes, and extras (`Trailers/` folders,
@@ -18,6 +19,57 @@ What Pley does, in full. The [README](../README.md) has the short version.
 - Moving from Plex: its libraries, its Home users as profiles with their
   restrictions, labels, dates added, and what everyone watched
   ([MOVING_FROM_PLEX.md](MOVING_FROM_PLEX.md)).
+
+### Audiobooks
+
+Audiobook libraries are in the web and desktop apps. The other apps and
+the Plex- and Jellyfin-compatible APIs don't get them.
+
+- Books are found as Audiobookshelf finds them. A book is a folder of
+  audio files (with `CD 1`, `Disc 2`… folders inside it if it has them),
+  an `.m4b` file, or `.m4b` files of the same `album` tag in one folder.
+  Files directly in the library's folder are books of their own; other
+  files side by side in a folder are parts of one book, `.m4b` files
+  excepted.
+- Folders are read as `Author/Book`, `Author/Series/Book`,
+  `Author/Book/Book.m4b` or `Author/Book.m4b`: of the folders above a
+  book's own, the first is its author's and the second its series'. A
+  folder at the top of the library is a book's own (`Book/01.mp3`), but
+  one with an `.m4b` in it is its author's (`Author/Book.m4b`), unless
+  it is named as the book or the file is. A book's folder may begin with
+  its place in the series (`Book 2 - Title`, `2.5 - Novella`), end with
+  its year (`Title (2007)`), and name its narrator in braces
+  (`Title {Narrator B}`), as Audiobookshelf's do. An `.m4b` without an
+  `album` tag is named by its file.
+- A book's parts play by disc and number (their tags', or the one their
+  files' names begin with), then in their files' names' order, numbers
+  read as numbers: `Part 2` before `Part 10`.
+- A book is what its first part says, by its tags, which win over its
+  folders: `album` is the book, `album_artist` or `artist` its authors
+  (`;`, `&` or `/` between several), `composer` or `narrator` its
+  narrators, `series` and `series-part` (or `part`, as Libation and tone
+  write it) its series, or else a `grouping` as Audiobookshelf writes it
+  (`Series #2`, `Series, Book 2`), `description` or `synopsis` its
+  summary (`comment` without them). A scan reads them again when the
+  book's files change.
+- The cover is a picture named after an `.m4b` beside it, `cover.jpg` or
+  `folder.jpg` in the book's folder, or else the one inside its files.
+  Books side by side in their author's or their series' folder don't take
+  its pictures.
+- An `.m4b` file's chapters are read, and it plays directly where `.m4a`
+  does.
+- Play on a book goes on in the part heard last, where it was left. A part
+  is finished only in its last 30 seconds, not at 90 % as a film is.
+  Books part way through are in Continue Listening, on Home and in their
+  library.
+- A book's page has its writers, narrators and series, how much of it is
+  listened to and how much is left, and its parts, or the chapters of a
+  book in one file, each played from where it starts. The player's bar
+  runs through the chapter playing, named under the book. The player goes back 15 seconds and on 30, plays from
+  0.75× to 3× (kept for every book), and has a sleep timer: 15 to 60
+  minutes, or the end of the chapter or part.
+- Books have no metadata from an online source, no pages of their writers
+  or narrators, no series as collections and no downloads.
 
 ## Metadata
 

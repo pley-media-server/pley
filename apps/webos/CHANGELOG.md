@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- For TVs where pressing Play failed at once with "the TV's player gave
+  up (Message status unknown.)", the app talks to the TV's media pipeline
+  the way LG's own media apps do.
+
 ## [0.1.10] - 2026-11-16
 
 ### Fixed

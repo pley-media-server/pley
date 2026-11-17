@@ -545,7 +545,7 @@ impl MarkerService {
                     self.movie(id).await?;
                 }
             }
-            LibraryKind::Music => {}
+            LibraryKind::Music | LibraryKind::Audiobooks => {}
         }
         Ok(())
     }

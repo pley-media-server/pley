@@ -151,7 +151,8 @@
     "nothing": "Nothing to play",
     "nothingYet": "Nothing to play yet",
     "albumEmpty": "This album has no tracks",
-    "artistEmpty": "No tracks found for this artist"
+    "artistEmpty": "No tracks found for this artist",
+    "bookEmpty": "This audiobook has no parts"
   },
   "remote": {
     "unknownDevice": "Unknown device",

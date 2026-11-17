@@ -8,8 +8,15 @@
 //! [`UmsEngine`] runs its calls on the luna thread, makes and places the
 //! exported window (on the controller's thread, which is the window's), and
 //! hands the controller its events. The luna client that loaded a pipeline
-//! owns it: uMediaServer unloads it when that client goes, so the app's one
+//! owns it: uMediaServer unloads it when that client goes, so one
 //! registration plays everything.
+//!
+//! That registration has a name, [`client_name`], of the form LG's own media
+//! clients take (`com.webos.media.client.` and an id of their own); where the
+//! hub refuses it, the registration is anonymous. Loads from the anonymous
+//! registration the TV's other services use failed at once on TVs, with the
+//! bus's "Message status unknown." (the service called went away before
+//! answering) and uMediaServer crashing.
 
 pub mod acb;
 pub mod machine;
@@ -34,6 +41,11 @@ use crate::sdl::ExportedWindow;
 use acb::Acb;
 use machine::{Action, Config, Failure, Input, Machine, Method, PlaneKind};
 use plane::{Plane, PlaneMemory};
+
+/// The bus name the engine's registration takes, for process `pid`.
+pub fn client_name(pid: u32) -> String {
+    format!("com.webos.media.client.pley{pid}")
+}
 
 /// How long a command's answer may take.
 const CALL_TIMEOUT: Duration = Duration::from_secs(5);

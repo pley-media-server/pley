@@ -102,6 +102,11 @@ pub fn media(media_id: &str) -> Value {
     json!({ "mediaId": media_id })
 }
 
+/// `notifyForeground`'s payload, which names the media as its connection.
+pub fn foreground(media_id: &str) -> Value {
+    json!({ "connectionId": media_id })
+}
+
 /// `seek`'s payload: milliseconds from the start.
 pub fn seek(media_id: &str, position_ms: u64) -> Value {
     json!({ "mediaId": media_id, "position": position_ms })
@@ -266,6 +271,7 @@ mod tests {
     fn commands_name_the_media() {
         assert_eq!(uri("load"), "luna://com.webos.media/load");
         assert_eq!(media("_m1"), json!({ "mediaId": "_m1" }));
+        assert_eq!(foreground("_m1"), json!({ "connectionId": "_m1" }));
         assert_eq!(seek("_m1", 61_000), json!({ "mediaId": "_m1", "position": 61_000 }));
         assert_eq!(rate("_m1", 1.5), json!({ "mediaId": "_m1", "playRate": 1.5, "audioOutput": true }));
         assert_eq!(audio_track("_m1", 2), json!({ "mediaId": "_m1", "type": "audio", "index": 2 }));

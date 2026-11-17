@@ -63,6 +63,7 @@ pub fn kinds_of(lib: &LibraryRow) -> &'static [&'static str] {
         LibraryKind::Movies => &["movie"],
         LibraryKind::Shows => &["show", "season", "episode"],
         LibraryKind::Music => &["artist", "album", "track"],
+        LibraryKind::Audiobooks => &["audiobook", "part"],
     }
 }
 

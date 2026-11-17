@@ -571,9 +571,13 @@ them), the next episode, and Find subtitles.
   build (`video-plane.json` in the data folder).
 - **Playing.** By address, through uMediaServer
   (`luna://com.webos.media`), the pipeline the web app's `<video>` used;
-  LG documents it only for webOS OSE. The pipeline takes only an address,
-  no request headers, so the app plays from
-  [keyed addresses](API.md#keyed-urls), and a live channel's `stream.ts`
+  LG documents it only for webOS OSE. The app calls it from a registration
+  of its own, with a name of the form LG's media clients take
+  (`com.webos.media.client.pley<process id>`), or anonymously where the
+  hub refuses that name; the log says which. Each pipeline loaded is
+  marked foreground (`notifyForeground`), as the TV's native players do.
+  The pipeline takes only an address, no request headers, so the app
+  plays from [keyed addresses](API.md#keyed-urls), and a live channel's `stream.ts`
   from the app's own relay on the loopback address. The start position
   goes in the load (`option.transmission.playTime.start`), since a seek
   after loading buffers from the beginning first; a live channel gets
@@ -585,8 +589,9 @@ them), the next episode, and Find subtitles.
   declared, and refuses an H.264 stream declared at 4K 60.
 - **The TV's services** (settings, configuration, Home, the screen saver)
   go through luna-service2 on a thread of the app's own, with one
-  anonymous registration, every call bounded by a timeout. The main thread
-  never waits on luna, the network or the disk.
+  anonymous registration (LG's SDL holds the app's id), every call bounded
+  by a timeout; the media pipeline has its own, on a thread of its own. The
+  main thread never waits on luna, the network or the disk.
 - **Coming and going.** When the TV hides the app, a video stops where it
   was and, when the app shows, comes back there paused, with the controls
   showing, as in the Samsung and Android apps; music pauses and plays
@@ -873,6 +878,9 @@ keep a release's.
   sign-in lasts until the TV restarts.
 - **No subtitle upload or delete:** the TV has no files to send, so
   subtitles are searched for and downloaded only.
+- **No audiobooks:** the server gives the app no audiobook library, nor
+  their books on Home, in search or in history. They are in the web and
+  desktop apps.
 
 ## References
 

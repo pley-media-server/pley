@@ -75,7 +75,17 @@ fn a_film_loads_plays_and_ends() {
     assert_eq!(m.position_ms(t0), 60_000);
 
     m.input(Input::Loaded { serial, answer: Ok("_m1".into()) }, t0);
-    assert_eq!(m.take_actions(), [Action::Subscribe { serial, media_id: "_m1".into() }]);
+    assert_eq!(
+        m.take_actions(),
+        [
+            Action::Call { serial, method: Method::NotifyForeground, payload: json!({ "connectionId": "_m1" }) },
+            Action::Subscribe { serial, media_id: "_m1".into() },
+        ]
+    );
+    // A pipeline that won't be marked foreground still plays.
+    let refused = Failure { code: -1, message: "Unknown method".into() };
+    m.input(Input::Answered { serial, method: Method::NotifyForeground, error: Some(refused) }, t0);
+    assert!(m.take_events().is_empty() && m.take_actions().is_empty());
     msg(&mut m, serial, json!({ "subscribed": true, "returnValue": true }), t0);
     msg(&mut m, serial, json!({ "loadCompleted": { "mediaId": "_m1" } }), t0);
     assert_eq!(m.take_events(), [EngineEvent::Loaded { duration_ms: Some(7_200_000) }]);
@@ -353,7 +363,9 @@ fn a_load_answered_after_its_session_closed_is_unloaded() {
     m.input(Input::Answered { serial: first, method: Method::Unload, error: None }, t0);
     assert_eq!(m.take_actions(), [Action::DestroyWindow { serial: first }]);
     m.input(Input::Loaded { serial: second, answer: Ok("_new".into()) }, t0);
-    assert_eq!(m.take_actions(), [Action::Subscribe { serial: second, media_id: "_new".into() }]);
+    let actions = m.take_actions();
+    assert_eq!(calls(&actions), [(Method::NotifyForeground, json!({ "connectionId": "_new" }))]);
+    assert_eq!(actions.last(), Some(&Action::Subscribe { serial: second, media_id: "_new".into() }));
 }
 
 #[test]
@@ -488,6 +500,11 @@ fn a_live_channel_has_no_duration_and_no_start() {
     assert_eq!(m.take_events(), [EngineEvent::Loaded { duration_ms: None }]);
     msg(&mut m, serial, json!({ "sourceInfo": { "programInfo": [{ "duration": 30_000 }] } }), t0);
     assert!(m.take_events().is_empty());
+}
+
+#[test]
+fn the_engine_registers_as_one_of_umediaservers_clients() {
+    assert_eq!(super::client_name(4242), "com.webos.media.client.pley4242");
 }
 
 #[test]

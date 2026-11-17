@@ -43,6 +43,10 @@ and browse for Bonjour's `_pley._tcp`. On iPhone, iPad and Apple TV they
 play sound in the background (the `audio` background mode), for music and
 Picture in Picture; it needs no entitlement.
 
+They show no audiobooks: the server gives them no audiobook library, nor
+their books on Home, in search or in history. Audiobooks are in the web
+and desktop apps.
+
 ## Screens
 
 Both apps have the same screens, each built for its device. Signed in,

@@ -47,6 +47,7 @@ const PLANE_RECT: Rect = Rect { x: 0.0, y: 0.0, w: 1920.0, h: 1080.0 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Method {
     Load,
+    NotifyForeground,
     Play,
     Pause,
     Seek,
@@ -62,6 +63,7 @@ impl Method {
     pub fn name(self) -> &'static str {
         match self {
             Method::Load => "load",
+            Method::NotifyForeground => "notifyForeground",
             Method::Play => "play",
             Method::Pause => "pause",
             Method::Seek => "seek",
@@ -666,6 +668,14 @@ impl Machine {
             Ok(id) => {
                 let s = self.session.as_mut().expect("the current session");
                 s.media_id = Some(id.clone());
+                // The app shows what it loads, so it is marked foreground, as
+                // the TV's native players mark theirs (uMediaServer shows no
+                // background video). A refusal changes nothing.
+                self.actions.push(Action::Call {
+                    serial,
+                    method: Method::NotifyForeground,
+                    payload: payload::foreground(&id),
+                });
                 self.actions.push(Action::Subscribe { serial, media_id: id });
             }
             Err(e) => {

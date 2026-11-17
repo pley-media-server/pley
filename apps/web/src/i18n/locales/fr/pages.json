@@ -85,13 +85,15 @@
     "namePlaceholder": {
       "movies": "Nom, par exemple Films pour enfants",
       "shows": "Nom, par exemple Séries pour enfants",
-      "music": "Nom, par exemple Musique pour enfants"
+      "music": "Nom, par exemple Musique pour enfants",
+      "audiobooks": "Nom, par exemple Livres audio pour enfants"
     },
     "folderOf": "Dossier de {{name}}",
     "where": {
       "movies": "Où sont vos films ?",
       "shows": "Où sont vos séries ?",
-      "music": "Où est votre musique ?"
+      "music": "Où est votre musique ?",
+      "audiobooks": "Où sont vos livres audio ?"
     },
     "browseFor": "Parcourir pour {{name}}",
     "addFolder": "Ajouter un autre dossier",
@@ -451,7 +453,10 @@
       "shows_other": "{{count, number}} séries",
       "music_one": "{{count, number}} artiste",
       "music_many": "{{count, number}} d’artistes",
-      "music_other": "{{count, number}} artistes"
+      "music_other": "{{count, number}} artistes",
+      "audiobooks_one": "{{count, number}} livre",
+      "audiobooks_many": "{{count, number}} de livres",
+      "audiobooks_other": "{{count, number}} livres"
     },
     "countOf": {
       "movies_one": "{{shown, number}} sur {{count, number}} film",
@@ -462,11 +467,15 @@
       "shows_other": "{{shown, number}} sur {{count, number}} séries",
       "music_one": "{{shown, number}} sur {{count, number}} artiste",
       "music_many": "{{shown, number}} sur {{count, number}} d’artistes",
-      "music_other": "{{shown, number}} sur {{count, number}} artistes"
+      "music_other": "{{shown, number}} sur {{count, number}} artistes",
+      "audiobooks_one": "{{shown, number}} sur {{count, number}} livre",
+      "audiobooks_many": "{{shown, number}} sur {{count, number}} de livres",
+      "audiobooks_other": "{{shown, number}} sur {{count, number}} livres"
     },
     "all": {
       "movies": "Tous les films",
-      "shows": "Toutes les séries"
+      "shows": "Toutes les séries",
+      "audiobooks": "Tous les livres"
     },
     "sortBy": "Trier par",
     "ascending": "Croissant",
