@@ -5147,7 +5147,7 @@ interface ImportProgress {
     edits: Record<string, number>;        // locked fields brought as edits, by field ("title", "content_rating")
     collections_made: number;
     collection_items: number;             // titles put in collections, new or found again
-    smart_left: number;                   // smart collections whose filter Pley can't apply, and smart playlists: not brought
+    smart_left: number;                   // smart collections and playlists not brought: a filter Pley can't apply, a collection of that title that isn't smart, a smart playlist
     bring: { watch_history: boolean; collections: boolean; edits: boolean };   // as chosen
     started_at: number;                   // with finished_at, how long it took; 0 in reports from before
     // How long each step that ran took, in order; the one it stopped in,
@@ -5216,17 +5216,19 @@ interface ImportProgress {
     names by Plex's id (labels, genres, people…) named, and without what
     only shapes Plex's answer. It goes to the smart collection Pley has by
     that title, or a new one; one Pley has by that title that isn't smart
-    is left as it is. A filter Pley can't apply (on episodes of shows,
-    say, or a field Pley doesn't read) isn't brought, and is counted in
-    `smart_left` with smart playlists, which aren't brought. A label
-    filter finds the titles Plex's labels were brought to.
+    is left as it is, and the smart one counted in `smart_left`. A filter
+    Pley can't apply (on episodes of shows, say, or a field Pley doesn't
+    read) isn't brought, and is counted in `smart_left` with smart
+    playlists, which aren't brought. A label filter finds the titles
+    Plex's labels were brought to.
   - Plex's arrangement of each library's rows carries over to the
     collections brought and to Pley's own (Recently Added, Recently
     Released, Top Rated, Top Unwatched, where Plex has them): which are
-    on Recommended and on Home (Plex's two Homes are Pley's one), and
-    their order. Home is in Plex's order, library after library, before
-    the rows Plex didn't show; two Plex libraries brought into one keep
-    a row either shows. Plex's rows Pley doesn't have are left out.
+    on Recommended and on Home (on either of Plex's two Homes is on
+    Pley's one), and their order. Home is in Plex's order, library after
+    library, before the rows Plex didn't show; two Plex libraries brought
+    into one keep a row either shows. Plex's rows Pley doesn't have are
+    left out.
 - **Watch history** (`bring.watch_history`): watched, resume points,
   ratings and plays, merged as below.
 - **What's merged.** Labels are added to titles, never removed. A date
