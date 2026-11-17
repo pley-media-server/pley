@@ -284,6 +284,15 @@ function pageMergedLibraries(page as object, libraries as dynamic) as object
     return out
 end function
 
+' The merged page's buttons for each library's own collection, as
+' pageMergedLibraries: none when only one is left (the others had nothing
+' the profile may see), since "Movies only" would be the page itself.
+function pageMergedButtons(page as object, libraries as dynamic) as object
+    out = pageMergedLibraries(page, libraries)
+    if out.Count() < 2 then return []
+    return out
+end function
+
 ' What a collection's page says under its title: "5 movies · Movies · By
 ' release date". library ({ name, kind }) is invalid while the libraries
 ' aren't known, and its titles are counted as titles.

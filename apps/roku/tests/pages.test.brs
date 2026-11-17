@@ -162,6 +162,13 @@ sub test_pages_merged_collection()
     tkEqual(pageMergedFacts(page, libraries), "1 movie · 2 shows · Movies · TV Shows", "a library it can't see is left out")
     tkEqual(pageMergedFacts(page, invalid), "1 movie · 2 shows", "the libraries not known yet")
     tkEqual(pageMergedLibraries(page, libraries), [{ id: 8, name: "Movies" }, { id: 9, name: "TV Shows" }])
+    tkEqual(pageMergedButtons(page, libraries), [{ id: 8, name: "Movies" }, { id: 9, name: "TV Shows" }], "a button for each library's own")
+    tkEqual(pageMergedButtons(page, invalid), [], "none until the libraries are known")
+    ' The other library's collection had nothing this profile may see: the
+    ' one left is the page itself.
+    alone = pageMergedCollection({ title: "Christmas", collections: [{ id: 8, library_id: 1 }], items: [contentTestMovie()] }, "http://nas:7539")
+    tkEqual(pageMergedFacts(alone, libraries), "1 movie · Movies", "its library is still said")
+    tkEqual(pageMergedButtons(alone, libraries), [], "no Movies only")
 end sub
 
 sub test_pages_collection_of_movies_plays_them_in_order()

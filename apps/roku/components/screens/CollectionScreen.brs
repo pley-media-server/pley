@@ -180,7 +180,8 @@ sub layoutText()
 end sub
 
 ' Play with something to play; Shuffle with two titles or more; on the
-' merged page, each library's own collection once the libraries are known.
+' merged page, each library's own collection once the libraries are known
+' (lib/Pages.brs pageMergedButtons).
 sub showButtons()
     playable = m.collection.shows.Count()
     if m.collection.movies then playable = m.collection.queue.Count()
@@ -200,7 +201,7 @@ sub showButtons()
         opens.Push(0)
     end for
     if m.ids <> invalid
-        for each library in pageMergedLibraries(m.collection, m.libraries)
+        for each library in pageMergedButtons(m.collection, m.libraries)
             actions.Push("collection")
             opens.Push(library.id)
             labels.Push(t("titles.collection.onlyLibrary", { library: library.name }))

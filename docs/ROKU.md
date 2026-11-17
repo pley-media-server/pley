@@ -136,7 +136,8 @@ A Home row made of collections of one title in several libraries (its
 (`GET /api/collections/merged`): "Collection", the title, what they hold
 and the libraries they come from ("3 movies · 2 shows · Movies · Kids"),
 Play and Shuffle as above, a button for each library's own collection
-("Movies only"), then all their posters.
+("Movies only"; none when only one of them has titles the profile may
+see), then all their posters.
 
 A person's page has their photo, their name and what of theirs is in the
 libraries ("3 movies · 2 shows in your libraries"), then a row for each
