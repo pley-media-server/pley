@@ -47,7 +47,7 @@ async fn its_clients_and_browsers_share_pleys_port() {
 
 #[tokio::test]
 async fn it_shares_pleys_port_with_the_jellyfin_api() {
-    let app = TestApp::with_config(|config| config.jellyfin_on_web = true).await;
+    let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let plex = app.plex_token(&admin).await;
     let jellyfin = app.jellyfin_token(&admin).await;

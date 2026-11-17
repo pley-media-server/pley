@@ -108,7 +108,7 @@ you pick one; *Automatic* takes the GPU's.
   8096): on *Bridge*, add a Port and a Variable to the container, as
   [Ports and firewalls](../../docs/COMPATIBILITY.md#ports-and-firewalls)
   says; on **br0** or **Host**, choose it in **Settings → Network**. On
-  Pley's port, the default for Plex's, nothing needs adding.
+  Pley's port, the default for both, nothing needs adding.
 - **Apps finding Pley by themselves** needs the container on your network:
   set *Network Type* to **br0** (Pley gets an address of its own) or
   **Host**. On the default *Bridge*, type the server's address in the apps.

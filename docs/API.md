@@ -4727,7 +4727,7 @@ interface Network {
   plex_on_web: boolean;   // the Plex-compatible API answers its clients on Pley's port;
                           // never with addresses in `plex`
   jellyfin: string[];     // the Jellyfin-compatible API on addresses of its own ("0.0.0.0:8096");
-                          // [] = on Pley's port (jellyfin_on_web) or off (the default)
+                          // [] = on Pley's port (jellyfin_on_web, the default) or off
   jellyfin_on_web: boolean; // the Jellyfin-compatible API answers its apps on Pley's port;
                           // never with addresses in `jellyfin`
   discovery: boolean;     // answer Pley's apps on the networks (never on loopback addresses)

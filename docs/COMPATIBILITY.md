@@ -27,8 +27,8 @@ tool at Pley, and for anyone extending the APIs.
 
 ## Turning them on
 
-**Settings → Network** sets each API: off, on Pley's port, or on a port of
-its own.
+Both APIs answer on Pley's port by default. **Settings → Network** sets
+each one: off, on Pley's port, or on a port of its own.
 
 - **On Pley's port**: the API answers on Pley's own address, behind a
   reverse proxy's HTTPS too. Apps and tools connect to the address the web
@@ -42,7 +42,7 @@ The same is set elsewhere as:
 
 | Where | Plex-compatible API | Jellyfin-compatible API |
 |---|---|---|
-| Command line | `--plex-bind web` (the default), `--plex-bind 0.0.0.0:32400` or `--plex-bind off` | `--jellyfin-bind off` (the default), `--jellyfin-bind web` or `--jellyfin-bind 0.0.0.0:8096` |
+| Command line | `--plex-bind web` (the default), `--plex-bind 0.0.0.0:32400` or `--plex-bind off` | `--jellyfin-bind web` (the default), `--jellyfin-bind 0.0.0.0:8096` or `--jellyfin-bind off` |
 | Environment | `PLEY_PLEX_BIND` | `PLEY_JELLYFIN_BIND` |
 | `pley.toml` | `plex_bind = "web"` | `jellyfin_bind = "web"` |
 
@@ -61,7 +61,7 @@ rest is told apart as each API's section says. `/api/…` and
 
 | Port | What answers there |
 |---|---|
-| TCP 7539, Pley's port | The Plex-compatible API (its default), and the Jellyfin-compatible API when it is on Pley's port |
+| TCP 7539, Pley's port | The Plex- and Jellyfin-compatible APIs (their default) |
 | TCP 32400 | The Plex-compatible API, only when given a port of its own |
 | TCP 8096 | The Jellyfin-compatible API, only when given a port of its own |
 

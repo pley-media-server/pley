@@ -50,7 +50,7 @@ example, `--plex-bind` is also `PLEY_PLEX_BIND` and `plex_bind`.
 |---|---|---|
 | `--bind` | `0.0.0.0:7539` | Listen address (7539 spells PLEY on a keypad); several separated by commas |
 | `--plex-bind` | `web` (Pley's own port) | [Plex-compatible API](COMPATIBILITY.md): `off`, or addresses of its own (`0.0.0.0:32400`), several as with `--bind` |
-| `--jellyfin-bind` | `off` | [Jellyfin-compatible API](COMPATIBILITY.md): `web` (Pley's own port), or addresses of its own (`0.0.0.0:8096`), several as with `--bind` |
+| `--jellyfin-bind` | `web` (Pley's own port) | [Jellyfin-compatible API](COMPATIBILITY.md): `off`, or addresses of its own (`0.0.0.0:8096`), several as with `--bind` |
 | `--data-dir` | `%LOCALAPPDATA%\pley`, `~/Library/Application Support/pley`, `~/.local/share/pley` | Database, caches and artwork ([STORAGE.md](STORAGE.md)) |
 | `--ffmpeg`, `--ffprobe` | from `PATH` | Passed to the transcoder |
 | `--transcoder-url` | | Use a transcoder running elsewhere instead of starting one |

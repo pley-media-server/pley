@@ -29,6 +29,14 @@ describes how they are made.
 - Live TV channels play on Google Cast and AirPlay devices from Watch on…,
   and the remote changes channel there.
 
+### Changed
+
+- The Jellyfin-compatible API is on by default, on Pley's port as the
+  Plex-compatible one is, so Jellyfin's apps connect to Pley's address with
+  nothing turned on first. Settings → Network still moves it to a port of
+  its own or turns it off, and a server whose settings turned it off keeps
+  it off.
+
 ### Fixed
 
 - The Live TV guide's times no longer show through the top bar's Your

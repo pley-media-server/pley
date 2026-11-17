@@ -32,8 +32,8 @@ protect your server.
   compatibility APIs take only tokens made for other apps. Make one per app
   or tool in **Account → Tokens for other apps**, allow only what it needs,
   limit it to the addresses the tool runs at, and revoke what isn't used.
-  Turn an API off (`plex_bind = "off"`; the Jellyfin-compatible one is off
-  by default) if nothing needs it.
+  Turn an API off (`plex_bind = "off"`, `jellyfin_bind = "off"`, or
+  **Settings → Network**) if nothing needs it.
 - **Mount media read-only**, run Pley as an unprivileged user, and don't let
   untrusted people write to library folders. The Docker setup does the first
   two and more: a read-only image, no capabilities, the port on 127.0.0.1
