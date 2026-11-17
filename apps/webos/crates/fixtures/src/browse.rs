@@ -93,7 +93,7 @@ pub(crate) fn routes() -> Vec<Route> {
         }),
         locked("GET", "/api/collection-categories", Need::Scope(LIBRARY), |_, state| {
             if state.before_categories {
-                return Err(not_found("no route"));
+                return Err(not_found("no such endpoint"));
             }
             let categories: Vec<_> = CATEGORIES
                 .iter()
