@@ -155,6 +155,9 @@ pub(crate) struct State {
     pub cast_tickets: HashMap<String, crate::cast::Ticket>,
     /// Collections a test took away: no library lists them.
     pub hidden_collections: Vec<i64>,
+    /// A Pley from before categories: no `GET /api/collection-categories`, and collections name
+    /// none.
+    pub before_categories: bool,
 }
 
 impl State {

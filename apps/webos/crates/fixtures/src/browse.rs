@@ -85,10 +85,16 @@ pub(crate) fn routes() -> Vec<Route> {
                 .map(|c| views::collection_summary(catalog, c))
                 .filter(|c| c.item_count > 0)
                 .collect();
+            if state.before_categories {
+                list.iter_mut().for_each(|c| c.category = None);
+            }
             list.sort_by_key(|c| c.title.to_lowercase());
             Ok(json(200, &json!({ "collections": list })))
         }),
-        locked("GET", "/api/collection-categories", Need::Scope(LIBRARY), |_, _| {
+        locked("GET", "/api/collection-categories", Need::Scope(LIBRARY), |_, state| {
+            if state.before_categories {
+                return Err(not_found("no route"));
+            }
             let categories: Vec<_> = CATEGORIES
                 .iter()
                 .enumerate()
@@ -118,7 +124,11 @@ pub(crate) fn routes() -> Vec<Route> {
             let id = cx.id(0)?;
             let collection = cx.catalog().collection(id).ok_or_else(|| not_found("collection not found"))?;
             let opts = ListOpts { summaries: cx.summaries(), ..ListOpts::default() };
-            let detail = views::collection_detail(cx.catalog(), collection, state.profile(cx.caller().profile), opts);
+            let mut detail =
+                views::collection_detail(cx.catalog(), collection, state.profile(cx.caller().profile), opts);
+            if state.before_categories {
+                detail.base.category = None;
+            }
             Ok(json(200, &detail))
         }),
         free("GET", "/api/collections/*/images/*", Need::Scope(LIBRARY), |cx| {

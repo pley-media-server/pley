@@ -584,3 +584,20 @@ fn down_from_the_tabs_while_the_collections_come_ends_on_the_first_collection() 
     let first = rows.with(ids::CATEGORY_HIGHLIGHTS as u64).with("row").with(ids::SMART_COLLECTION as u64);
     assert_eq!(app.focused(), Some(first));
 }
+
+#[test]
+fn a_server_before_categories_shows_every_collection_in_one_grid() {
+    let mut app = TestApp::start();
+    app.server.set_before_categories();
+    app.open(Route::Library { id: ids::MOVIES, tab: Some(LibraryTab::Collections), sort: None });
+    // The categories' 404 doesn't hold the tab up: every collection in one grid, no headings and
+    // no Category chip.
+    assert!(app.until(|a| a.shows("26 collections")));
+    assert!(!app.shows("Other") && !app.shows("Highlights") && !app.shows("Category"));
+    let grid = app.id(&["collections-grid"]);
+    assert!(app.until(|a| a.focused() == Some(grid.with(0u64))), "the first collection takes focus");
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(app.id(&["tabs", "collections"])), "something stands between the grid and the tabs");
+    app.press(Key::Down);
+    assert_eq!(app.focused(), Some(grid.with(0u64)));
+}

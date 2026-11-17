@@ -291,6 +291,7 @@ impl FixtureServer {
             casts_sent: Default::default(),
             cast_tickets: Default::default(),
             hidden_collections: Vec::new(),
+            before_categories: false,
         };
         let libraries: Vec<(i64, i64)> = catalog.libraries.iter().map(|l| (l.id, l.item_count)).collect();
         let shared = Arc::new(Shared {
@@ -475,6 +476,12 @@ impl FixtureServer {
     /// them.
     pub fn hide_collections(&self, ids: &[i64]) {
         lock(&self.shared.state).hidden_collections.extend_from_slice(ids);
+    }
+
+    /// A Pley from before collections had categories: `GET /api/collection-categories`, a route
+    /// it hasn't, answers 404, and collections name no category.
+    pub fn set_before_categories(&self) {
+        lock(&self.shared.state).before_categories = true;
     }
 
     /// What asking does for `profile`: `auto`, `ask` or `off`.
