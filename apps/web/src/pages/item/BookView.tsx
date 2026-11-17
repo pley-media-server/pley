@@ -50,16 +50,22 @@ export function BookView({ item }: { item: ItemDetail }) {
   const heard = list.length ? heardMs(list) : 0;
   const finished = list.length > 0 && list.every((p) => p.user_state.watched);
   const started = !finished && heard > 0;
-  const playingThis = audio.current?.parent_id === item.id;
+  // The player holds this book part way through (a finished book heard
+  // again too, whose parts all stay heard): Play and Pause act on it there.
+  // Once it has heard the end of what it was given, Play starts the book
+  // where the server says it goes on, as from anywhere else.
+  const playingThis = audio.current?.parent_id === item.id && !audio.ended;
 
   const playPart = (i: number, fromStartOfPart = false) => {
     const part = list[i];
     if (!part) return;
-    if (audio.current?.id === part.id && !fromStartOfPart) {
+    const inPlayer = audio.current?.id === part.id;
+    if (inPlayer && !audio.ended && !fromStartOfPart) {
       audio.toggle();
       return;
     }
-    const at = fromStartOfPart || part.user_state.watched ? 0 : part.user_state.position_ms;
+    // The part the player just heard to its end starts again from the start.
+    const at = fromStartOfPart || inPlayer || part.user_state.watched ? 0 : part.user_state.position_ms;
     audio.playQueue(list, i, { startAtMs: at });
   };
 
@@ -119,7 +125,7 @@ export function BookView({ item }: { item: ItemDetail }) {
             >
               {playingThis && audio.playing
                 ? t("book.pause")
-                : started
+                : started || (playingThis && finished)
                   ? t("book.resume")
                   : finished
                     ? t("book.listenAgain")

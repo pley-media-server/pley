@@ -263,3 +263,76 @@ describe("AudioPlayer paused", () => {
     expect(reports(requests)).toHaveLength(paused + 3);
   });
 });
+
+/** The last track alone, and what the bar does with it. */
+function LastTrack() {
+  const player = useAudioPlayer();
+  return (
+    <>
+      <button type="button" onClick={() => player.playQueue(tracks.slice(1))}>
+        Last
+      </button>
+      <button type="button" onClick={() => player.seek(60)}>
+        Seek
+      </button>
+      <button type="button" onClick={() => player.prev()}>
+        Previous
+      </button>
+      <button type="button" onClick={() => player.skipBy(30)}>
+        Forward
+      </button>
+    </>
+  );
+}
+
+describe("AudioPlayer once its queue has run out", () => {
+  beforeEach(() => {
+    vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue(undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => undefined);
+    vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** The last track, heard to its end: its session is over. */
+  async function ended() {
+    const requests = serve();
+    const { container } = renderWithProviders(
+      <AudioPlayerProvider>
+        <LastTrack />
+      </AudioPlayerProvider>,
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Last" }));
+    const audio = container.querySelector("audio")!;
+    await waitFor(() => expect(audio.getAttribute("src")).toBe("/api/playback/t1/file"));
+    Object.defineProperty(audio, "duration", { configurable: true, get: () => 180 });
+    audio.currentTime = 180;
+    act(() => {
+      audio.dispatchEvent(new Event("ended"));
+    });
+    return requests;
+  }
+
+  const startsAt = (requests: FakeRequest[]) =>
+    starts(requests).map((r) => (r.body as { item_id: number; start_ms: number }).start_ms);
+
+  it("starts the track again where it is sent, with a session of its own", async () => {
+    const requests = await ended();
+    await userEvent.click(screen.getByRole("button", { name: "Seek" }));
+    await waitFor(() => expect(startsAt(requests)).toEqual([0, 60_000]));
+  });
+
+  it("starts the track over on Previous", async () => {
+    const requests = await ended();
+    await userEvent.click(screen.getByRole("button", { name: "Previous" }));
+    await waitFor(() => expect(startsAt(requests)).toEqual([0, 0]));
+  });
+
+  it("starts nothing when skipped forward, at its end still", async () => {
+    const requests = await ended();
+    await userEvent.click(screen.getByRole("button", { name: "Forward" }));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(startsAt(requests)).toEqual([0]);
+  });
+});
