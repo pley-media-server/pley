@@ -132,6 +132,24 @@ describe("CollectionsTab", () => {
     expect(screen.getByTestId("location")).toHaveTextContent(/^\/library\/1\?tab=collections$/);
   });
 
+  it("lets a chosen category go once it's gone, showing them all", async () => {
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+    });
+    renderWithProviders(
+      <>
+        <CollectionsTab libraryId={1} kind="movies" />
+        <LocationDisplay />
+      </>,
+      { route: `/library/1?tab=collections&category=${encodeId(9)}` },
+    );
+    expect(await screen.findAllByRole("region")).toHaveLength(4);
+    expect(screen.getByLabelText("Category")).toHaveValue("all");
+    expect(screen.queryByRole("button", { name: "Clear filters" })).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(/^\/library\/1\?tab=collections$/));
+  });
+
   it("heads no group when there is only one", async () => {
     mockApi({
       "GET /api/libraries/1/collections": () => ({ collections: [collection(4, "Favourites"), collection(5, "Westerns")] }),

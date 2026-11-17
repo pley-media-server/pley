@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router";
 import { Layers, Plus, Tags } from "lucide-react";
@@ -102,9 +102,22 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
   const shown = list.filter((c) => isOfType(c, type));
   // Offered when there is more than one to choose between.
   const usedCategories = groupByCategory(list, categories.data ?? []);
-  // A category deleted or emptied since it was chosen filters nothing.
+  // A category deleted or emptied since it was chosen filters nothing, and
+  // leaves the address, as in the other apps: it doesn't come back chosen.
   const category =
     chosenCategory === "all" || usedCategories.some((g) => g.category.id === chosenCategory) ? chosenCategory : "all";
+  const gone = collections.isSuccess && categories.isSuccess && category !== chosenCategory;
+  useEffect(() => {
+    if (!gone) return;
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("category");
+        return next;
+      },
+      { replace: true },
+    );
+  }, [gone, setParams]);
   const groups = groupByCategory(shown, categories.data ?? []).filter((g) => category === "all" || g.category.id === category);
   const count = groups.reduce((n, g) => n + g.collections.length, 0);
   // One group shown needs no heading: the Category filter, when there is
