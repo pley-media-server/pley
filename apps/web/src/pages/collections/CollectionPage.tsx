@@ -105,6 +105,7 @@ function CollectionView({ collection: c }: { collection: CollectionDetail }) {
               <Layers className="size-3.5" /> {t("collection.label")}
               {c.automatic ? <Badge>TMDB</Badge> : null}
               {c.smart_filter ? <Badge tone="accent">{t("smart")}</Badge> : null}
+              {c.category ? <Badge>{c.category.title}</Badge> : null}
             </div>
             <h1 className="text-3xl font-bold leading-tight tracking-tight text-balance sm:text-4xl">{c.title}</h1>
             <MetaLine

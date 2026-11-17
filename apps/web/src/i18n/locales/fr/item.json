@@ -272,7 +272,11 @@
       "release": "Date de sortie",
       "title": "Titre",
       "custom": "Personnalisé"
-    }
+    },
+    "category": "Catégorie",
+    "categoryHint": "L’onglet Collections les regroupe par catégorie.",
+    "onRecommended": "Afficher dans les recommandations de la bibliothèque",
+    "onHome": "Afficher sur l’accueil"
   },
   "collections": {
     "loadError": "Impossible de charger les collections",
@@ -280,7 +284,19 @@
     "moviesHint": "Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque.",
     "moviesHintAdmin": "Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque. Vous pouvez aussi créer les vôtres.",
     "showsHintAdmin": "Regroupez des séries dans vos propres collections.",
-    "noneHere": "Cette bibliothèque n’a pas encore de collection."
+    "noneHere": "Cette bibliothèque n’a pas encore de collection.",
+    "other": "Autres",
+    "type": "Type",
+    "types": {
+      "all": "Tous les types",
+      "manual": "Faites à la main",
+      "smart": "Intelligentes",
+      "tmdb": "De TMDB"
+    },
+    "category": "Catégorie",
+    "allCategories": "Toutes les catégories",
+    "clearFilters": "Effacer les filtres",
+    "noMatches": "Aucune collection ne correspond à ces filtres"
   },
   "playlist": {
     "loadError": "Impossible de charger cette playlist",
@@ -331,5 +347,37 @@
     "listened": "Écouté",
     "unlistened": "Non écouté",
     "percentListened": "{{percent}} écouté"
+  },
+  "categories": {
+    "manage": "Catégories",
+    "title": "Catégories",
+    "hint": "Les collections sont regroupées par catégorie, dans cet ordre, dans chaque bibliothèque. Celles qui n’en ont pas sont sous Autres.",
+    "newName": "Nouvelle catégorie",
+    "deleteTitle": "Supprimer la catégorie ?",
+    "deleteMessage": "« {{title}} » sera supprimée. Ses collections restent, sous Autres.",
+    "drag": "Faites glisser pour réordonner",
+    "rename": "Renommer {{title}}",
+    "delete": "Supprimer {{title}}",
+    "moveUp": "Monter {{title}}",
+    "moveDown": "Descendre {{title}}",
+    "fromLabel": "De l’étiquette {{label}}",
+    "pleys": "De Pley"
+  },
+  "rows": {
+    "drag": "Faites glisser pour réordonner",
+    "moveUp": "Monter {{title}}",
+    "moveDown": "Descendre {{title}}",
+    "remove": "Retirer {{title}}",
+    "recommendedTitle": "Rangées des recommandations",
+    "recommendedHint": "Les collections affichées en rangées dans les recommandations de cette bibliothèque, après Reprendre la lecture, pour tout le monde.",
+    "restore": "Rétablir celles de Pley",
+    "restored_one": "{{count, number}} collection rétablie",
+    "restored_many": "{{count, number}} de collections rétablies",
+    "restored_other": "{{count, number}} collections rétablies",
+    "noRows": "Aucune rangée pour l’instant.",
+    "add": "Ajouter une rangée",
+    "pick": "Choisissez une collection",
+    "homeTitle": "Rangées de l’accueil",
+    "homeHint": "Les rangées de l’accueil après Reprendre la lecture et Ma liste, pour tout le monde. Les collections du même titre dans plusieurs bibliothèques forment une seule rangée. Ajoutez une collection à l’accueil depuis sa fenêtre Modifier."
   }
 }

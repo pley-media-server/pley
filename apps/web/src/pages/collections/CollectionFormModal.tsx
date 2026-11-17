@@ -1,11 +1,18 @@
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { errorMessage } from "@/api/client";
-import { useCreateCollection, useUpdateCollection, type Collection, type CollectionDetail, type CollectionSort } from "@/api/lists";
+import {
+  useCategories,
+  useCreateCollection,
+  useUpdateCollection,
+  type Collection,
+  type CollectionDetail,
+  type CollectionSort,
+} from "@/api/lists";
 import type { Id } from "@/api/types";
 import { Modal } from "@/components/Modal";
 import { useToast } from "@/components/Toast";
-import { Button, Field, Select, TextInput } from "@/components/ui";
+import { Button, Field, Select, TextInput, Toggle } from "@/components/ui";
 
 const SORTS: CollectionSort[] = ["release", "title", "custom"];
 
@@ -31,7 +38,13 @@ export function CollectionFormModal({
   const [title, setTitle] = useState(collection?.title ?? "");
   const [summary, setSummary] = useState(collection?.summary ?? "");
   const [sort, setSort] = useState<CollectionSort>(collection?.sort ?? "release");
+  const categories = useCategories(open);
+  // "" is Other: no category.
+  const [category, setCategory] = useState(collection?.category ? String(collection.category.id) : "");
+  const [onHome, setOnHome] = useState(collection ? collection.home_position != null : false);
+  const [onRecommended, setOnRecommended] = useState(collection ? collection.recommended_position != null : false);
   const busy = create.isPending || update.isPending;
+  const categoryId = category ? Number(category) : null;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -46,6 +59,9 @@ export function CollectionFormModal({
           title: name !== collection.title ? name : undefined,
           summary: text !== collection.summary ? text : undefined,
           sort: sort !== collection.sort ? sort : undefined,
+          category_id: categoryId !== (collection.category?.id ?? null) ? categoryId : undefined,
+          on_home: onHome !== (collection.home_position != null) ? onHome : undefined,
+          on_recommended: onRecommended !== (collection.recommended_position != null) ? onRecommended : undefined,
         },
         {
           onSuccess: () => {
@@ -57,11 +73,24 @@ export function CollectionFormModal({
       );
     } else {
       create.mutate(
-        { libraryId, title: name, summary: text },
+        { libraryId, title: name, summary: text, category_id: categoryId },
         {
           onSuccess: (created) => {
-            onClose();
-            onCreated?.(created);
+            // Rows are set apart from making it, before the form closes: a
+            // failure is said while something is still here to say it.
+            const rows =
+              onHome || onRecommended
+                ? update
+                    .mutateAsync({ id: created.id, on_home: onHome || undefined, on_recommended: onRecommended || undefined })
+                    .then(
+                      () => undefined,
+                      (err: unknown) => toast.error(errorMessage(err)),
+                    )
+                : Promise.resolve();
+            void rows.then(() => {
+              onClose();
+              onCreated?.(created);
+            });
           },
           onError: (err) => toast.error(errorMessage(err)),
         },
@@ -99,6 +128,20 @@ export function CollectionFormModal({
             className="w-full resize-y rounded-md border border-border bg-surface-2 px-3 py-2 text-sm text-fg placeholder:text-subtle transition-colors focus:border-accent focus:outline-none"
           />
         </Field>
+        <Field label={t("collectionForm.category")} htmlFor="collection-category" hint={t("collectionForm.categoryHint")}>
+          <Select id="collection-category" className="w-full" value={category} onChange={(e) => setCategory(e.target.value)}>
+            {(categories.data ?? []).map((c) => (
+              <option key={c.id} value={String(c.id)}>
+                {c.title}
+              </option>
+            ))}
+            <option value="">{t("collections.other")}</option>
+          </Select>
+        </Field>
+        <div className="space-y-3">
+          <RowToggle id="collection-on-recommended" label={t("collectionForm.onRecommended")} checked={onRecommended} onChange={setOnRecommended} />
+          <RowToggle id="collection-on-home" label={t("collectionForm.onHome")} checked={onHome} onChange={setOnHome} />
+        </div>
         {collection && !collection.smart_filter ? (
           <Field
             label={t("collectionForm.order")}
@@ -116,5 +159,16 @@ export function CollectionFormModal({
         ) : null}
       </form>
     </Modal>
+  );
+}
+
+function RowToggle({ id, label, checked, onChange }: { id: string; label: string; checked: boolean; onChange: (on: boolean) => void }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <label htmlFor={id} className="text-sm font-medium text-fg">
+        {label}
+      </label>
+      <Toggle id={id} label={label} checked={checked} onChange={onChange} />
+    </div>
   );
 }

@@ -258,7 +258,11 @@
       "release": "Release date",
       "title": "Title",
       "custom": "Custom"
-    }
+    },
+    "category": "Category",
+    "categoryHint": "Collections are grouped by category on the Collections tab.",
+    "onRecommended": "Show on the library's Recommended tab",
+    "onHome": "Show on Home"
   },
   "collections": {
     "loadError": "Couldn't load collections",
@@ -266,7 +270,19 @@
     "moviesHint": "Movies of the same TMDB collection are grouped here once two of them are in this library.",
     "moviesHintAdmin": "Movies of the same TMDB collection are grouped here once two of them are in this library. You can also make your own.",
     "showsHintAdmin": "Group shows into collections of your own.",
-    "noneHere": "There are no collections in this library yet."
+    "noneHere": "There are no collections in this library yet.",
+    "other": "Other",
+    "type": "Type",
+    "types": {
+      "all": "All types",
+      "manual": "Made by hand",
+      "smart": "Smart",
+      "tmdb": "From TMDB"
+    },
+    "category": "Category",
+    "allCategories": "All categories",
+    "clearFilters": "Clear filters",
+    "noMatches": "No collections match these filters"
   },
   "playlist": {
     "loadError": "Couldn't load this playlist",
@@ -317,5 +333,36 @@
     "listened": "Listened",
     "unlistened": "Not listened",
     "percentListened": "{{percent}} listened"
+  },
+  "categories": {
+    "manage": "Categories",
+    "title": "Categories",
+    "hint": "Collections are grouped by these, in this order, in every library. Those without one are under Other.",
+    "newName": "New category",
+    "deleteTitle": "Delete category?",
+    "deleteMessage": "\"{{title}}\" will be deleted. Its collections stay, under Other.",
+    "drag": "Drag to reorder",
+    "rename": "Rename {{title}}",
+    "delete": "Delete {{title}}",
+    "moveUp": "Move {{title}} up",
+    "moveDown": "Move {{title}} down",
+    "fromLabel": "From the label {{label}}",
+    "pleys": "Pley's"
+  },
+  "rows": {
+    "drag": "Drag to reorder",
+    "moveUp": "Move {{title}} up",
+    "moveDown": "Move {{title}} down",
+    "remove": "Take {{title}} off",
+    "recommendedTitle": "Recommended rows",
+    "recommendedHint": "The collections shown as rows on this library's Recommended tab, after Continue Watching, for everyone.",
+    "restore": "Restore Pley's",
+    "restored_one": "{{count, number}} collection restored",
+    "restored_other": "{{count, number}} collections restored",
+    "noRows": "No rows yet.",
+    "add": "Add a row",
+    "pick": "Choose a collection",
+    "homeTitle": "Home rows",
+    "homeHint": "The rows on Home after Continue Watching and My List, for everyone. Collections of the same title in several libraries are one row. Put a collection on Home from its Edit window."
   }
 }

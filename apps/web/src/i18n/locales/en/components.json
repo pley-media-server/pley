@@ -122,7 +122,6 @@
     "switchFailed": "Couldn't switch to the remote's profile"
   },
   "collectionCard": {
-    "collections": "Collections",
     "movies_one": "{{count, number}} movie",
     "movies_other": "{{count, number}} movies",
     "shows_one": "{{count, number}} show",

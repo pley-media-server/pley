@@ -511,6 +511,8 @@ export interface Hub {
   key: string;
   title: string;
   library_id: Id | null;
+  /** The collections a row of collections shows: opening it opens them. */
+  collection_ids?: Id[];
   items: ItemSummary[];
 }
 

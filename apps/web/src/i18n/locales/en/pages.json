@@ -423,7 +423,8 @@
       "onMyList": "On your list",
       "moreInfo": "More info",
       "show": "Show {{title}}"
-    }
+    },
+    "arrangeRows": "Arrange Home"
   },
   "library": {
     "tabs": {
@@ -493,7 +494,8 @@
     "scan": "Scan library",
     "cantLoadRecommendations": "Couldn't load recommendations",
     "nothingToRecommend": "Nothing to recommend yet",
-    "nothingToRecommendHint": "Recommendations appear once the library has some items."
+    "nothingToRecommendHint": "Recommendations appear once the library has some items.",
+    "arrangeRows": "Arrange rows"
   },
   "person": {
     "documentTitle": "Cast & crew",

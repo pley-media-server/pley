@@ -1,33 +1,87 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
-import { Layers, Plus } from "lucide-react";
+import { Layers, Plus, Tags } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useCollections } from "@/api/lists";
+import { useCategories, useCollections, type Category, type Collection } from "@/api/lists";
 import type { Id, LibraryKind } from "@/api/types";
 import { useAuth } from "@/auth";
 import { ItemGridSkeleton } from "@/components/ItemGrid";
 import { CollectionCard, collectionNoun } from "@/components/lists/CollectionCard";
-import { Button, EmptyState } from "@/components/ui";
+import { Button, EmptyState, Select } from "@/components/ui";
 import { useElementWidth } from "@/lib/hooks";
+import { CategoriesModal } from "./CategoriesModal";
 import { CollectionFormModal } from "./CollectionFormModal";
 import { collectionUrl } from "@/lib/urls";
 
 const CARD_WIDTH = 160;
 
-/** The "Collections" tab of a movie or TV library. */
+export type CollectionType = "all" | "manual" | "smart" | "tmdb";
+const TYPES: CollectionType[] = ["all", "manual", "smart", "tmdb"];
+
+/** Whether a collection is of `type`: made by hand, filled by a filter, or TMDB's. */
+export function isOfType(c: Collection, type: CollectionType): boolean {
+  switch (type) {
+    case "all":
+      return true;
+    case "smart":
+      return c.smart_filter != null;
+    case "tmdb":
+      return c.automatic;
+    case "manual":
+      return c.smart_filter == null && !c.automatic;
+  }
+}
+
+/** The category filter: every one, one category's id, or Other (none). */
+type CategoryChoice = "all" | "other" | Id;
+
+export interface CollectionGroup {
+  /** `null`: Other. */
+  category: Category | null;
+  collections: Collection[];
+}
+
+/** `collections` by category, in the categories' order, Other last; empty ones left out. */
+export function groupByCategory(collections: Collection[], categories: Category[]): CollectionGroup[] {
+  const groups: CollectionGroup[] = categories.map((category) => ({
+    category,
+    collections: collections.filter((c) => c.category?.id === category.id),
+  }));
+  const known = new Set(categories.map((c) => c.id));
+  // One of a category not listed yet (made since) goes with Other.
+  groups.push({ category: null, collections: collections.filter((c) => !c.category || !known.has(c.category.id)) });
+  return groups.filter((g) => g.collections.length > 0);
+}
+
+/** The "Collections" tab of a movie or TV library: its collections by category. */
 export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: LibraryKind }) {
   const { t } = useTranslation(["item", "common"]);
   const user = useAuth();
   const navigate = useNavigate();
   const collections = useCollections(libraryId);
+  const categories = useCategories();
   const [creating, setCreating] = useState(false);
+  const [sorting, setSorting] = useState(false);
+  const [type, setType] = useState<CollectionType>("all");
+  const [chosenCategory, setCategory] = useState<CategoryChoice>("all");
   const [ref, width] = useElementWidth<HTMLDivElement>();
   const gap = width > 0 && width < 640 ? 12 : 18;
   const cols = width > 0 ? Math.max(2, Math.floor((width + gap) / (CARD_WIDTH + gap))) : 6;
   const colWidth = width > 0 ? (width - gap * (cols - 1)) / cols : CARD_WIDTH;
   const noun = collectionNoun(kind);
   const list = collections.data ?? [];
+  const shown = list.filter((c) => isOfType(c, type));
+  // Offered when there is more than one to choose between.
+  const usedCategories = groupByCategory(list, categories.data ?? []);
+  // A category deleted or emptied since it was chosen filters nothing.
+  const category =
+    chosenCategory === "all" || usedCategories.some((g) => (g.category?.id ?? "other") === chosenCategory) ? chosenCategory : "all";
+  const groups = groupByCategory(shown, categories.data ?? []).filter((g) =>
+    category === "all" ? true : category === "other" ? g.category === null : g.category?.id === category,
+  );
+  const count = groups.reduce((n, g) => n + g.collections.length, 0);
+  const filtered = type !== "all" || category !== "all";
   const newButton = (variant: "primary" | "secondary") => (
     <Button variant={variant} size={variant === "primary" ? "md" : "sm"} icon={<Plus className="size-4" />} onClick={() => setCreating(true)}>
       {t("collectionForm.new")}
@@ -36,9 +90,62 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
 
   return (
     <div className="px-4 pt-5 sm:px-8">
-      <div className="mb-4 flex min-h-8 items-center justify-between gap-3">
-        <span className="text-sm tabular-nums text-muted">{collections.data ? t("counts.collections", { count: list.length }) : ""}</span>
-        {user.is_admin && list.length > 0 ? newButton("secondary") : null}
+      <div className="mb-4 flex min-h-8 flex-wrap items-center gap-2">
+        {list.length > 0 ? (
+          <>
+            <Select aria-label={t("collections.type")} value={type} onChange={(e) => setType(e.target.value as CollectionType)}>
+              {TYPES.map((v) => (
+                <option key={v} value={v}>
+                  {t(`collections.types.${v}`)}
+                </option>
+              ))}
+            </Select>
+            {usedCategories.length > 1 || category !== "all" ? (
+              <Select
+                aria-label={t("collections.category")}
+                value={String(category)}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setCategory(v === "all" || v === "other" ? v : Number(v));
+                }}
+              >
+                <option value="all">{t("collections.allCategories")}</option>
+                {usedCategories.map((g) =>
+                  g.category ? (
+                    <option key={g.category.id} value={String(g.category.id)}>
+                      {g.category.title}
+                    </option>
+                  ) : (
+                    <option key="other" value="other">
+                      {t("collections.other")}
+                    </option>
+                  ),
+                )}
+              </Select>
+            ) : null}
+            {filtered ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setType("all");
+                  setCategory("all");
+                }}
+              >
+                {t("collections.clearFilters")}
+              </Button>
+            ) : null}
+          </>
+        ) : null}
+        <span className="text-sm tabular-nums text-muted">{collections.data ? t("counts.collections", { count }) : ""}</span>
+        {user.is_admin && list.length > 0 ? (
+          <div className="ml-auto flex items-center gap-2">
+            <Button size="sm" variant="ghost" icon={<Tags className="size-4" />} onClick={() => setSorting(true)}>
+              {t("categories.manage")}
+            </Button>
+            {newButton("secondary")}
+          </div>
+        ) : null}
       </div>
       <div ref={ref}>
         {collections.isPending ? (
@@ -62,25 +169,52 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
             }
             action={user.is_admin ? newButton("primary") : undefined}
           />
+        ) : count === 0 ? (
+          <EmptyState
+            title={t("collections.noMatches")}
+            action={
+              <Button
+                onClick={() => {
+                  setType("all");
+                  setCategory("all");
+                }}
+              >
+                {t("collections.clearFilters")}
+              </Button>
+            }
+          />
         ) : (
-          <div
-            className="grid"
-            style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: gap, rowGap: gap < 18 ? 18 : 26 }}
-          >
-            {list.map((c) => (
-              <CollectionCard key={c.id} collection={c} width={colWidth} noun={noun} />
+          <div className="space-y-10">
+            {groups.map((g) => (
+              <section key={g.category?.id ?? "other"} aria-label={g.category?.title ?? t("collections.other")}>
+                <h2 className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
+                  {g.category?.title ?? t("collections.other")}
+                  <span className="text-sm font-normal tabular-nums text-muted">{g.collections.length}</span>
+                </h2>
+                <div
+                  className="grid"
+                  style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`, columnGap: gap, rowGap: gap < 18 ? 18 : 26 }}
+                >
+                  {g.collections.map((c) => (
+                    <CollectionCard key={c.id} collection={c} width={colWidth} noun={noun} />
+                  ))}
+                </div>
+              </section>
             ))}
           </div>
         )}
       </div>
       {user.is_admin ? (
-        <CollectionFormModal
-          key={creating ? "open" : "closed"}
-          open={creating}
-          onClose={() => setCreating(false)}
-          libraryId={libraryId}
-          onCreated={(c) => void navigate(collectionUrl(c.id))}
-        />
+        <>
+          <CollectionFormModal
+            key={creating ? "open" : "closed"}
+            open={creating}
+            onClose={() => setCreating(false)}
+            libraryId={libraryId}
+            onCreated={(c) => void navigate(collectionUrl(c.id))}
+          />
+          <CategoriesModal open={sorting} onClose={() => setSorting(false)} />
+        </>
       ) : null}
     </div>
   );

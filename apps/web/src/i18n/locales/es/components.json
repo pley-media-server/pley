@@ -127,7 +127,6 @@
     "switchFailed": "No se pudo cambiar al perfil del control remoto"
   },
   "collectionCard": {
-    "collections": "Colecciones",
     "movies_one": "{{count, number}} película",
     "movies_many": "{{count, number}} películas",
     "movies_other": "{{count, number}} películas",

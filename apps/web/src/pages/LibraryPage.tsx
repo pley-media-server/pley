@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router";
 import { useTranslation } from "react-i18next";
-import { ArrowDownWideNarrow, ArrowUpNarrowWide, FolderSearch, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, FolderSearch, RefreshCw, Rows3, Sparkles } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useLibrary, useLibraryFilters, useLibraryHubs, useLibraryItems, useScanLibrary } from "@/api/hooks";
 import type { LibraryKind, LibrarySort, SortOrder } from "@/api/types";
@@ -9,13 +9,13 @@ import { useAuth } from "@/auth";
 import { HubRow, HubRowSkeleton } from "@/components/HubRow";
 import { TmdbKeyNotice } from "@/components/MetadataNotice";
 import { ItemGrid, ItemGridSkeleton } from "@/components/ItemGrid";
-import { CollectionsRow } from "@/components/lists/CollectionCard";
 import { LibraryIcon } from "@/components/Sidebar";
 import { useToast } from "@/components/Toast";
 import { Button, EmptyState, IconButton, Select } from "@/components/ui";
 import { NotFoundPage } from "./NotFoundPage";
 import { SaveFiltersModal } from "./SaveFiltersModal";
 import { CollectionsTab } from "./collections/CollectionsTab";
+import { RecommendedRowsModal } from "./collections/RowsModal";
 import type { CardAspect } from "@/components/cards";
 import { cn } from "@/lib/cn";
 import { RANGE_FILTER_LABELS, rangeFilterOf, RESOLUTION_LABELS, resolutionOf } from "@/lib/format";
@@ -130,7 +130,21 @@ export function LibraryPage() {
 
 function RecommendedTab({ libraryId, kind }: { libraryId: number; kind: LibraryKind }) {
   const { t } = useTranslation(["pages", "common"]);
+  const user = useAuth();
   const hubs = useLibraryHubs(libraryId);
+  const [arranging, setArranging] = useState(false);
+  // Music and audiobook libraries have no collections to arrange.
+  const arrange =
+    user.is_admin && kind !== "music" && kind !== "audiobooks" ? (
+      <>
+        <div className="flex justify-end px-4 sm:px-8">
+          <Button size="sm" variant="ghost" icon={<Rows3 className="size-4" />} onClick={() => setArranging(true)}>
+            {t("library.arrangeRows")}
+          </Button>
+        </div>
+        <RecommendedRowsModal open={arranging} onClose={() => setArranging(false)} libraryId={libraryId} />
+      </>
+    ) : null;
   if (hubs.isPending) {
     return (
       <div className="space-y-10 pt-6">
@@ -150,14 +164,21 @@ function RecommendedTab({ libraryId, kind }: { libraryId: number; kind: LibraryK
   }
   const visible = hubs.data.hubs.filter((h) => h.items.length > 0);
   if (!visible.length) {
-    return <EmptyState title={t("library.nothingToRecommend")} description={t("library.nothingToRecommendHint")} />;
+    return (
+      <div className="pt-4">
+        {arrange}
+        <EmptyState title={t("library.nothingToRecommend")} description={t("library.nothingToRecommendHint")} />
+      </div>
+    );
   }
   return (
-    <div className="space-y-10 pt-6">
-      {visible.map((hub) => (
-        <HubRow key={hub.key} hub={hub} />
-      ))}
-      <CollectionsRow libraryId={libraryId} kind={kind} />
+    <div className={arrange ? "pt-4" : "pt-6"}>
+      {arrange}
+      <div className={cn("space-y-10", arrange && "pt-2")}>
+        {visible.map((hub) => (
+          <HubRow key={hub.key} hub={hub} />
+        ))}
+      </div>
     </div>
   );
 }

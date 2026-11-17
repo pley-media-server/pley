@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Hub } from "@/api/types";
 import { makeItem } from "@/test/fixtures";
-import { fitCards, hubAspect } from "./HubRow";
+import { fitCards, hubAspect, hubLink } from "./HubRow";
+import { collectionUrl, libraryUrl } from "@/lib/urls";
+import { encodeId } from "@/lib/ids";
 
 describe("fitCards", () => {
   it("fits whole cards into the row", () => {
@@ -34,5 +36,19 @@ describe("hubAspect", () => {
     expect(hubAspect(hub("recently_added_2", [makeItem({ kind: "episode" })]))).toBe("thumb");
     expect(hubAspect(hub("recently_added_3", [makeItem({ kind: "album" })]))).toBe("square");
     expect(hubAspect(hub("empty", []))).toBe("poster");
+  });
+});
+
+describe("hubLink", () => {
+  const hub = (key: string, library_id: number | null, collection_ids?: number[]): Hub => ({ key, title: key, library_id, collection_ids, items: [] });
+
+  it("opens a row's collection, or all of a row's collections", () => {
+    expect(hubLink(hub("recently_added:1", 1, [4]))).toBe(collectionUrl(4));
+    expect(hubLink(hub("collections:4,9", null, [4, 9]))).toBe(`/collection?ids=${encodeId(4)},${encodeId(9)}`);
+  });
+
+  it("opens a music library's newest, which no collection holds", () => {
+    expect(hubLink(hub("recently_added:3", 3, []))).toBe(libraryUrl(3, "tab=library&sort=added&order=desc"));
+    expect(hubLink(hub("continue_watching", null, []))).toBeNull();
   });
 });

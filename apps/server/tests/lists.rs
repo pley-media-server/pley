@@ -341,8 +341,14 @@ async fn automatic_collections_follow_tmdb() {
     app.link(m["First"], Some(&saga)).await;
     assert_eq!(titles(&app.collections(movies, &admin).await), vec!["The Saga"]);
 
-    // Films matched elsewhere leave; an emptied collection is removed.
+    // Films matched elsewhere leave; an emptied collection is removed. One
+    // left with a single film stays listed for administrators while it is a
+    // row, so they can take it off.
+    let row = app.patch(&format!("/api/collections/{id}"), &admin, json!({"on_recommended": true})).await;
+    assert_eq!(row.status, StatusCode::OK, "{:?}", row.body);
     app.link(m["First"], None).await;
+    assert_eq!(titles(&app.collections(movies, &admin).await), vec!["The Saga"]);
+    app.patch(&format!("/api/collections/{id}"), &admin, json!({"on_recommended": false})).await;
     assert_eq!(app.collections(movies, &admin).await, json!([]));
     let of_second = app.get(&format!("/api/items/{}/collections", m["Second"]), &admin).await;
     assert_eq!(of_second.body["collections"], json!([]));

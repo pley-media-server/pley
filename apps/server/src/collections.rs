@@ -277,8 +277,14 @@ async fn visible_counts(db: &Db, user_id: i64, ids: &[i64]) -> sqlx::Result<Hash
 }
 
 /// Whether a collection with `count` visible items is listed for the user.
+/// Administrators also see a TMDB collection that is down to one title
+/// while it is a row on Home or Recommended, so they can take it off.
 fn listed(row: &CollectionRow, count: i64, user: &AuthUser) -> bool {
-    if row.tmdb_id.is_some() { count >= MIN_AUTOMATIC } else { count > 0 || user.is_admin }
+    if row.tmdb_id.is_some() {
+        count >= MIN_AUTOMATIC || (user.is_admin && (row.home_position.is_some() || row.recommended_position.is_some()))
+    } else {
+        count > 0 || user.is_admin
+    }
 }
 
 /// [`list`] as the Plex- and Jellyfin-compatible APIs show it: without

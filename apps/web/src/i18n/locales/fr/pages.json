@@ -425,7 +425,8 @@
       "onMyList": "Dans votre liste",
       "moreInfo": "Plus d’infos",
       "show": "Afficher {{title}}"
-    }
+    },
+    "arrangeRows": "Organiser l’accueil"
   },
   "library": {
     "tabs": {
@@ -503,7 +504,8 @@
     "scan": "Analyser la bibliothèque",
     "cantLoadRecommendations": "Impossible de charger les recommandations",
     "nothingToRecommend": "Rien à recommander pour l’instant",
-    "nothingToRecommendHint": "Les recommandations apparaissent dès que la bibliothèque contient quelques éléments."
+    "nothingToRecommendHint": "Les recommandations apparaissent dès que la bibliothèque contient quelques éléments.",
+    "arrangeRows": "Organiser les rangées"
   },
   "person": {
     "documentTitle": "Distribution et équipe",

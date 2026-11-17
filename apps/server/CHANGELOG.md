@@ -20,6 +20,10 @@ describes how they are made.
 - Kometa's group labels, such as Seasonal, put collections under
   categories, and its `visible_library`, `visible_home` and
   `visible_shared` place collections on Home and Recommended.
+- A library's Collections tab groups collections by category and filters
+  them by type and category, and administrators arrange the rows on Home
+  and the Recommended tab and restore Pley's own collections. The
+  Recommended tab no longer ends with a row of every collection.
 - The Plex import brings smart collections whose filters Pley can apply,
   puts collections under categories by their group labels, and keeps
   which rows Plex showed on Home and Recommended, in Plex's order.

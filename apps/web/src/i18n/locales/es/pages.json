@@ -425,7 +425,8 @@
       "onMyList": "En tu lista",
       "moreInfo": "Más info",
       "show": "Mostrar {{title}}"
-    }
+    },
+    "arrangeRows": "Organizar Inicio"
   },
   "library": {
     "tabs": {
@@ -503,7 +504,8 @@
     "scan": "Analizar biblioteca",
     "cantLoadRecommendations": "No se pudieron cargar las recomendaciones",
     "nothingToRecommend": "Aún no hay nada que recomendar",
-    "nothingToRecommendHint": "Las recomendaciones aparecen cuando la biblioteca tiene algunos elementos."
+    "nothingToRecommendHint": "Las recomendaciones aparecen cuando la biblioteca tiene algunos elementos.",
+    "arrangeRows": "Organizar filas"
   },
   "person": {
     "documentTitle": "Reparto y equipo",

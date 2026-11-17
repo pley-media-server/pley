@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { useTranslation } from "react-i18next";
-import { Clapperboard, FolderPlus } from "lucide-react";
+import { Clapperboard, FolderPlus, Rows3 } from "lucide-react";
 import { errorMessage } from "@/api/client";
 import { useHomeHubs, useLibraries } from "@/api/hooks";
 import { useAuth } from "@/auth";
@@ -12,6 +12,7 @@ import { pickFeatured } from "@/lib/featured";
 import { useDocumentTitle } from "@/lib/hooks";
 import { HomeBanner, HomeBannerSkeleton, ROWS_OVERLAP } from "./HomeBanner";
 import { HomeProgress } from "./HomeProgress";
+import { HomeRowsModal } from "./collections/RowsModal";
 
 export function HomePage() {
   const { t } = useTranslation(["pages", "common"]);
@@ -20,6 +21,7 @@ export function HomePage() {
   const libs = useLibraries();
   const hubs = useHomeHubs();
   const featured = useMemo(() => pickFeatured(hubs.data ?? []), [hubs.data]);
+  const [arranging, setArranging] = useState(false);
 
   if (libs.data && libs.data.length === 0) {
     return (
@@ -96,6 +98,14 @@ export function HomePage() {
         {visible.map((hub) => (
           <HubRow key={hub.key} hub={hub} />
         ))}
+        {user.is_admin ? (
+          <div className="flex justify-center px-4 sm:px-8">
+            <Button size="sm" variant="ghost" icon={<Rows3 className="size-4" />} onClick={() => setArranging(true)}>
+              {t("home.arrangeRows")}
+            </Button>
+            <HomeRowsModal open={arranging} onClose={() => setArranging(false)} />
+          </div>
+        ) : null}
       </div>
     </>
   );

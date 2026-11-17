@@ -272,7 +272,11 @@
       "release": "Fecha de estreno",
       "title": "Título",
       "custom": "Personalizado"
-    }
+    },
+    "category": "Categoría",
+    "categoryHint": "La pestaña Colecciones las agrupa por categoría.",
+    "onRecommended": "Mostrar en Recomendado de la biblioteca",
+    "onHome": "Mostrar en Inicio"
   },
   "collections": {
     "loadError": "No se pudieron cargar las colecciones",
@@ -280,7 +284,19 @@
     "moviesHint": "Las películas de una misma colección de TMDB se agrupan aquí en cuanto haya dos en esta biblioteca.",
     "moviesHintAdmin": "Las películas de una misma colección de TMDB se agrupan aquí en cuanto haya dos en esta biblioteca. También puedes crear las tuyas.",
     "showsHintAdmin": "Agrupa series en tus propias colecciones.",
-    "noneHere": "Esta biblioteca aún no tiene colecciones."
+    "noneHere": "Esta biblioteca aún no tiene colecciones.",
+    "other": "Otras",
+    "type": "Tipo",
+    "types": {
+      "all": "Todos los tipos",
+      "manual": "Hechas a mano",
+      "smart": "Inteligentes",
+      "tmdb": "De TMDB"
+    },
+    "category": "Categoría",
+    "allCategories": "Todas las categorías",
+    "clearFilters": "Quitar filtros",
+    "noMatches": "Ninguna colección coincide con estos filtros"
   },
   "playlist": {
     "loadError": "No se pudo cargar esta lista de reproducción",
@@ -331,5 +347,37 @@
     "listened": "Escuchado",
     "unlistened": "No escuchado",
     "percentListened": "{{percent}} escuchado"
+  },
+  "categories": {
+    "manage": "Categorías",
+    "title": "Categorías",
+    "hint": "Las colecciones se agrupan por estas categorías, en este orden, en todas las bibliotecas. Las que no tienen ninguna van en Otras.",
+    "newName": "Nueva categoría",
+    "deleteTitle": "¿Eliminar la categoría?",
+    "deleteMessage": "Se eliminará «{{title}}». Sus colecciones se quedan, en Otras.",
+    "drag": "Arrastra para reordenar",
+    "rename": "Renombrar {{title}}",
+    "delete": "Eliminar {{title}}",
+    "moveUp": "Subir {{title}}",
+    "moveDown": "Bajar {{title}}",
+    "fromLabel": "De la etiqueta {{label}}",
+    "pleys": "De Pley"
+  },
+  "rows": {
+    "drag": "Arrastra para reordenar",
+    "moveUp": "Subir {{title}}",
+    "moveDown": "Bajar {{title}}",
+    "remove": "Quitar {{title}}",
+    "recommendedTitle": "Filas de Recomendado",
+    "recommendedHint": "Las colecciones que se muestran como filas en Recomendado de esta biblioteca, después de Seguir viendo, para todos.",
+    "restore": "Restaurar las de Pley",
+    "restored_one": "{{count, number}} colección restaurada",
+    "restored_many": "{{count, number}} de colecciones restauradas",
+    "restored_other": "{{count, number}} colecciones restauradas",
+    "noRows": "Aún no hay filas.",
+    "add": "Añadir una fila",
+    "pick": "Elige una colección",
+    "homeTitle": "Filas de Inicio",
+    "homeHint": "Las filas de Inicio después de Seguir viendo y Mi lista, para todos. Las colecciones con el mismo título en varias bibliotecas son una sola fila. Pon una colección en Inicio desde su ventana Editar."
   }
 }

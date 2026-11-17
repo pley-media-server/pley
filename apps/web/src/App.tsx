@@ -190,6 +190,7 @@ const router = createBrowserRouter([
           { path: "item/:id", element: <ItemPage /> },
           { path: "person/:id", element: <PersonPage /> },
           { path: "collection/:id", ...onDemand(() => import("@/pages/collections/CollectionPage"), (m) => m.CollectionPage) },
+          { path: "collection", ...onDemand(() => import("@/pages/collections/MergedCollectionPage"), (m) => m.MergedCollectionPage) },
           { path: "playlists", ...onDemand(() => import("@/pages/playlists/PlaylistsPage"), (m) => m.PlaylistsPage) },
           { path: "playlists/:id", ...onDemand(() => import("@/pages/playlists/PlaylistPage"), (m) => m.PlaylistPage) },
           {

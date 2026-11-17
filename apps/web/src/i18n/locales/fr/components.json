@@ -127,7 +127,6 @@
     "switchFailed": "Impossible de passer au profil de la télécommande"
   },
   "collectionCard": {
-    "collections": "Collections",
     "movies_one": "{{count, number}} film",
     "movies_many": "{{count, number}} de films",
     "movies_other": "{{count, number}} films",

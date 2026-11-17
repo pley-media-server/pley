@@ -17,6 +17,14 @@ export interface Collection {
   /** A smart collection's filter (a library listing in Plex's syntax, see
    * `lib/smartFilter`); it holds no items of its own. */
   smart_filter: string | null;
+  /** Its category; `null`: Other. */
+  category: CategoryRef | null;
+  /** Which of Pley's own it is, made in each movie and TV library. */
+  builtin: Builtin | null;
+  /** Its place among Home's rows; `null`: not a row there. */
+  home_position: number | null;
+  /** Its place on its library's Recommended tab; `null`: not a row there. */
+  recommended_position: number | null;
   /** Items the user can see. */
   item_count: number;
   /** The collection's own artwork, else its first item's. */
@@ -24,6 +32,37 @@ export interface Collection {
   backdrop_url: string;
   created_at: Timestamp;
   updated_at: Timestamp;
+}
+
+export type Builtin = "recently_added" | "recently_released" | "top_rated" | "top_unwatched";
+
+export interface CategoryRef {
+  id: Id;
+  /** Pley's own (`highlights`, `franchises`); `null`: an administrator's. */
+  key: string | null;
+  /** In the user's language for Pley's own. */
+  title: string;
+}
+
+export interface Category extends CategoryRef {
+  /** The group label it was made from (Kometa's `Seasonal`). */
+  from_label: string | null;
+  position: number;
+}
+
+/** A row of Home as administrators arrange them. */
+export interface HomeRow {
+  key: string;
+  title: string;
+  collection_ids: Id[];
+  library_ids: Id[];
+}
+
+/** A Home row of several libraries' collections of one title. */
+export interface MergedCollection {
+  title: string;
+  collections: { id: Id; library_id: Id }[];
+  items: ItemSummary[];
 }
 
 export interface CollectionDetail extends Collection {
@@ -77,6 +116,9 @@ export const listKeys = {
   collections: (libraryId: Id) => ["library", libraryId, "collections"] as const,
   collection: (id: Id) => ["collection", id] as const,
   itemCollections: (itemId: Id) => ["item", itemId, "collections"] as const,
+  merged: (ids: Id[]) => ["collection", "merged", ids.join(",")] as const,
+  categories: ["collection-categories"] as const,
+  homeRows: ["home", "rows"] as const,
   playlists: ["playlists"] as const,
   playlist: (id: Id) => ["playlists", id] as const,
 };
@@ -111,10 +153,29 @@ export function useItemCollections(itemId: Id, enabled = true) {
   });
 }
 
+/** A Home row of several collections, all its titles. */
+export function useMergedCollection(ids: Id[]) {
+  return useQuery({
+    queryKey: listKeys.merged(ids),
+    queryFn: ({ signal }) => api.get<MergedCollection>(`/api/collections/merged?ids=${ids.join(",")}`, { signal }),
+    enabled: ids.length > 0,
+  });
+}
+
+/** The rows a change to a collection may change: its library's Recommended
+ * tab, Home and Home's arrangement. */
+function rowsChanged(qc: QueryClient, libraryId: Id) {
+  void qc.invalidateQueries({ queryKey: ["library", libraryId, "hubs"] });
+  void qc.invalidateQueries({ queryKey: ["hubs", "home"] });
+  void qc.invalidateQueries({ queryKey: listKeys.homeRows });
+}
+
 function collectionChanged(qc: QueryClient, c: Pick<Collection, "id" | "library_id">) {
   void qc.invalidateQueries({ queryKey: listKeys.collection(c.id) });
   void qc.invalidateQueries({ queryKey: listKeys.collections(c.library_id) });
+  void qc.invalidateQueries({ queryKey: ["collection", "merged"] });
   void qc.invalidateQueries({ queryKey: ["item"], predicate: (q) => q.queryKey[2] === "collections" });
+  rowsChanged(qc, c.library_id);
 }
 
 export function useCreateCollection() {
@@ -129,6 +190,7 @@ export function useCreateCollection() {
       summary?: string | null;
       item_ids?: Id[];
       smart_filter?: string;
+      category_id?: Id | null;
     }) =>
       api.post<CollectionDetail>(`/api/libraries/${libraryId}/collections`, body),
     onSuccess: (data) => {
@@ -141,8 +203,19 @@ export function useCreateCollection() {
 export function useUpdateCollection() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: Id; title?: string; summary?: string | null; sort?: CollectionSort }) =>
-      api.patch<CollectionDetail>(`/api/collections/${id}`, body),
+    mutationFn: ({
+      id,
+      ...body
+    }: {
+      id: Id;
+      title?: string;
+      summary?: string | null;
+      sort?: CollectionSort;
+      /** `null`: Other. */
+      category_id?: Id | null;
+      on_home?: boolean;
+      on_recommended?: boolean;
+    }) => api.patch<CollectionDetail>(`/api/collections/${id}`, body),
     onSuccess: (data) => {
       qc.setQueryData(listKeys.collection(data.id), data);
       collectionChanged(qc, data);
@@ -191,6 +264,131 @@ export function useReorderCollection() {
       );
     },
     onSettled: (_data, _err, { collection }) => collectionChanged(qc, collection),
+  });
+}
+
+/** Makes again those of Pley's four collections a library no longer has. */
+export function useRestoreDefaultCollections() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (libraryId: Id) => api.post<{ restored: number }>(`/api/libraries/${libraryId}/collections/defaults`, {}),
+    onSuccess: (_data, libraryId) => {
+      void qc.invalidateQueries({ queryKey: listKeys.collections(libraryId) });
+      rowsChanged(qc, libraryId);
+    },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Categories
+// ---------------------------------------------------------------------------
+
+export function useCategories(enabled = true) {
+  return useQuery({
+    queryKey: listKeys.categories,
+    queryFn: () => api.get<{ categories: Category[] }>("/api/collection-categories"),
+    enabled,
+    select: (d) => d.categories,
+  });
+}
+
+/** A category's change shows in every library's collections. */
+function categoriesChanged(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: listKeys.categories });
+  void qc.invalidateQueries({ queryKey: ["library"], predicate: (q) => q.queryKey[2] === "collections" });
+  void qc.invalidateQueries({ queryKey: ["collection"] });
+}
+
+export function useCreateCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (title: string) => api.post<Category>("/api/collection-categories", { title }),
+    onSuccess: () => categoriesChanged(qc),
+  });
+}
+
+export function useRenameCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, title }: { id: Id; title: string }) => api.patch<Category>(`/api/collection-categories/${id}`, { title }),
+    onSuccess: () => categoriesChanged(qc),
+  });
+}
+
+export function useDeleteCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: Id) => api.del<void>(`/api/collection-categories/${id}`),
+    onSuccess: () => categoriesChanged(qc),
+  });
+}
+
+/** Shows the new order right away. */
+export function useOrderCategories() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: Id[]) => api.put<void>("/api/collection-categories/order", { ids }),
+    onMutate: async (ids) => {
+      // A refetch already on its way would put the old order back.
+      await qc.cancelQueries({ queryKey: listKeys.categories });
+      qc.setQueryData<{ categories: Category[] }>(listKeys.categories, (old) =>
+        old ? { categories: reordered(old.categories, ids, (c) => c.id) } : old,
+      );
+    },
+    onSettled: () => categoriesChanged(qc),
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Rows
+// ---------------------------------------------------------------------------
+
+/** Home's rows as administrators arrange them. */
+export function useHomeRows(enabled = true) {
+  return useQuery({
+    queryKey: listKeys.homeRows,
+    queryFn: () => api.get<{ rows: HomeRow[] }>("/api/home/rows"),
+    enabled,
+    select: (d) => d.rows,
+  });
+}
+
+/** Home's order, by the rows' keys; shows it right away. */
+export function useOrderHomeRows() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (rows: string[]) => api.put<void>("/api/home/rows/order", { rows }),
+    onMutate: async (rows) => {
+      await qc.cancelQueries({ queryKey: listKeys.homeRows });
+      qc.setQueryData<{ rows: HomeRow[] }>(listKeys.homeRows, (old) => (old ? { rows: reordered(old.rows, rows, (r) => r.key) } : old));
+    },
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: listKeys.homeRows });
+      void qc.invalidateQueries({ queryKey: ["hubs", "home"] });
+    },
+  });
+}
+
+/** A library's Recommended order, by its collections' ids. */
+export function useOrderRecommended() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ libraryId, ids }: { libraryId: Id; ids: Id[] }) =>
+      api.put<void>(`/api/libraries/${libraryId}/rows/order`, { collection_ids: ids }),
+    onMutate: async ({ libraryId, ids }) => {
+      await qc.cancelQueries({ queryKey: listKeys.collections(libraryId) });
+      qc.setQueryData<{ collections: Collection[] }>(listKeys.collections(libraryId), (old) => {
+        if (!old) return old;
+        const place = new Map(ids.map((id, i) => [id, i]));
+        return {
+          collections: old.collections.map((c) => (place.has(c.id) ? { ...c, recommended_position: place.get(c.id) ?? null } : c)),
+        };
+      });
+    },
+    onSettled: (_data, _err, { libraryId }) => {
+      void qc.invalidateQueries({ queryKey: listKeys.collections(libraryId) });
+      void qc.invalidateQueries({ queryKey: ["library", libraryId, "hubs"] });
+    },
   });
 }
 
@@ -290,7 +488,7 @@ export function useReorderPlaylist() {
 }
 
 /** `list` in the order of `ids` (unlisted ones keep their order after them). */
-export function reordered<T>(list: T[], ids: Id[], idOf: (t: T) => Id): T[] {
+export function reordered<T, K = Id>(list: T[], ids: K[], idOf: (t: T) => K): T[] {
   const byId = new Map(list.map((t) => [idOf(t), t]));
   const first = ids.map((id) => byId.get(id)).filter((t): t is T => t !== undefined);
   const listed = new Set(ids);
