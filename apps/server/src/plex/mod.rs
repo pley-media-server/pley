@@ -120,14 +120,22 @@ pub fn is_plex_request(request: &Request) -> bool {
     names_itself(request) || only_plex(path)
 }
 
-/// Whether `request` says it is for this API: an `X-Plex-…` header, or
-/// such a parameter in the query. The Jellyfin-compatible API leaves these
+/// Whether `request` says it is for this API: an `X-Plex-…` header, such a
+/// parameter in the query, or a path with Plex's `:` segments
+/// (`/:/timeline`, `/audio/:/transcode/…`), which no other API has and
+/// players ask for without either. The Jellyfin-compatible API leaves these
 /// to it on pley's port.
 pub fn names_itself(request: &Request) -> bool {
     request.headers().keys().any(|name| name.as_str().starts_with("x-plex-"))
         || request.uri().query().is_some_and(|query| {
             query.split('&').any(|pair| pair.get(..7).is_some_and(|key| key.eq_ignore_ascii_case("x-plex-")))
         })
+        || has_colon_segment(request.uri().path())
+}
+
+/// Plex's `:` segments: `/:/…`, `/video/:/…`, or a path ending in `/:`.
+fn has_colon_segment(path: &str) -> bool {
+    path.contains("/:/") || path.ends_with("/:")
 }
 
 fn only_plex(path: &str) -> bool {
@@ -344,7 +352,7 @@ fn router(state: AppState, info: Arc<PlexInfo>) -> Router {
 /// axum cannot route, and clients add trailing slashes. Rewrite both.
 fn normalize(mut req: Request) -> Request {
     let path = req.uri().path();
-    let colon = path.contains("/:/") || path.ends_with("/:");
+    let colon = has_colon_segment(path);
     let trailing = path.len() > 1 && path.ends_with('/');
     if !colon && !trailing {
         return req;

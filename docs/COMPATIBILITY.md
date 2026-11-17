@@ -53,7 +53,8 @@ retried every 30 seconds, and Settings → Network shows why Pley isn't
 listening there.
 
 On Pley's port, a request that names itself the Plex-compatible API's (an
-`X-Plex-…` header, or such a parameter in the query) goes to that API; the
+`X-Plex-…` header, such a parameter in the query, or a path with Plex's `:`
+segments, such as a player's `/audio/:/transcode/…`) goes to that API; the
 rest is told apart as each API's section says. `/api/…` and
 `/.well-known/…` are always Pley's own.
 
@@ -581,7 +582,8 @@ Requests are told apart like this:
   request carries: players fetch streams and pictures without a header, and
   a path Pley doesn't answer gets Jellyfin's `404`, not a page. A request
   that names itself the Plex-compatible API's goes to that one while it is
-  on Pley's port too: their paths meet (`/library`, `/system`, `/devices`).
+  on Pley's port too: their paths meet (`/library`, `/system`, `/devices`,
+  `/audio`).
 - A path both have (`/Library`, `/Playlists`, `/Search`) goes to it only
   with a Jellyfin app's `Authorization: MediaBrowser …` header or token,
   which browsers asking for the web app never send. Those answers vary with

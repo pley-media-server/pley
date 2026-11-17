@@ -649,9 +649,10 @@ fn is_jellyfin_request(request: &Request) -> bool {
 
 /// While the API answers on Pley's port, its requests go to it and the
 /// rest to Pley. Answers to the shared paths vary with what decides. A
-/// request that names itself the Plex-compatible API's (`X-Plex-…`) is left
-/// to that API while it is on Pley's port too: its paths and this one's
-/// meet (`/library`, `/system`, `/devices`).
+/// request that names itself the Plex-compatible API's (`X-Plex-…`, or a
+/// path with its `:` segments) is left to that API while it is on Pley's
+/// port too: its paths and this one's meet (`/library`, `/system`,
+/// `/devices`, `/audio`).
 pub async fn on_web_port(State(api): State<OnWebPort>, request: Request, next: Next) -> Response {
     if !api.state.network.jellyfin_on_web() || (api.state.network.plex_on_web() && crate::plex::names_itself(&request))
     {

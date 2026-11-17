@@ -43,6 +43,8 @@ describes how they are made.
 
 ### Fixed
 
+- Plex apps transcoding music play it with the Jellyfin-compatible API on
+  Pley's port too, where that API answered their requests for the music.
 - Stop in Pley stops a Google Cast device every time. The connection
   closed so abruptly that the device could lose the stop, most often
   with Pley on Windows.

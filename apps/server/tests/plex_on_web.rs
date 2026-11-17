@@ -68,9 +68,15 @@ async fn it_shares_pleys_port_with_the_jellyfin_api() {
     // Without a header, a path only Jellyfin's apps ask for this way is its.
     let info = app.call(Method::GET, "/System/Info/Public", None, None, &[]).await;
     assert_eq!(info.body["ProductName"], "Jellyfin Server", "{}", info.text());
-    // And Plex's own paths are Plex's.
+    // And Plex's own paths are Plex's: those with its `:` segments too, such
+    // as a player's music segments, which share `/audio` with Jellyfin's
+    // paths and come without a header.
     let identity = app.call(Method::GET, "/identity", None, None, &[]).await;
     assert!(identity.text().contains("machineIdentifier"), "{}", identity.text());
+    for path in ["/audio/:/transcode/universal/session/abc/base/00001.ts", "/audio/:/transcode/universal/start.m3u8"] {
+        let reply = app.call(Method::GET, path, None, None, &[]).await;
+        assert_eq!(header(&reply, header::CONTENT_SECURITY_POLICY), "default-src 'none'; sandbox", "{path}: Plex's");
+    }
     // A token of either works on both.
     let sections = app.call(Method::GET, "/library/sections", None, None, &[("x-plex-token", &jellyfin)]).await;
     assert_eq!(sections.status, StatusCode::OK);
