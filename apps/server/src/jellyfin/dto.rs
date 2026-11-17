@@ -125,6 +125,9 @@ pub fn collection_type(lib: &LibraryRow) -> &'static str {
         LibraryKind::Movies => "movies",
         LibraryKind::Shows => "tvshows",
         LibraryKind::Music => "music",
+        // Jellyfin's own; the API lists no audiobook library (see
+        // `AuthUser::audiobooks`).
+        LibraryKind::Audiobooks => "books",
     }
 }
 

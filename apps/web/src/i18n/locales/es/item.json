@@ -38,13 +38,17 @@
     "collections_other": "{{count, number}} colecciones",
     "items_one": "{{count, number}} elemento",
     "items_many": "{{count, number}} elementos",
-    "items_other": "{{count, number}} elementos"
+    "items_other": "{{count, number}} elementos",
+    "parts_one": "{{count, number}} parte",
+    "parts_many": "{{count, number}} de partes",
+    "parts_other": "{{count, number}} partes"
   },
   "sectionError": {
     "albums": "No se pudieron cargar los álbumes: {{error}}",
     "tracks": "No se pudieron cargar las pistas: {{error}}",
     "seasons": "No se pudieron cargar las temporadas: {{error}}",
-    "episodes": "No se pudieron cargar los episodios: {{error}}"
+    "episodes": "No se pudieron cargar los episodios: {{error}}",
+    "parts": "No se pudieron cargar las partes: {{error}}"
   },
   "summary": {
     "readMore": "Leer más"
@@ -306,5 +310,26 @@
     "loadError": "No se pudieron cargar tus listas de reproducción",
     "empty": "Aún no hay listas de reproducción",
     "emptyHint": "Crea una aquí o usa “Añadir a una lista de reproducción” en una película, serie, álbum o episodio (también con clic derecho en un póster)."
+  },
+  "book": {
+    "kind": "Audiolibro",
+    "and": "y",
+    "by": "de {{names}}",
+    "readBy": "Narrado por {{names}}",
+    "seriesPlace": "{{series}}, libro {{number, number}}",
+    "progress": "Escuchado",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "listenAgain": "Volver a escuchar",
+    "fromStart": "Desde el principio",
+    "upTo": "Vas por {{part}}",
+    "parts": "Partes",
+    "chapters": "Capítulos",
+    "heard": "Terminado",
+    "markListened": "Marcar como escuchado",
+    "markUnlistened": "Marcar como no escuchado",
+    "listened": "Escuchado",
+    "unlistened": "No escuchado",
+    "percentListened": "{{percent}} escuchado"
   }
 }

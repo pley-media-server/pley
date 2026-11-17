@@ -878,6 +878,9 @@ keep a release's.
   sign-in lasts until the TV restarts.
 - **No subtitle upload or delete:** the TV has no files to send, so
   subtitles are searched for and downloaded only.
+- **No audiobooks:** the server gives the app no audiobook library, nor
+  their books on Home, in search or in history. They are in the web and
+  desktop apps.
 
 ## References
 

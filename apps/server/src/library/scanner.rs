@@ -4,7 +4,8 @@
 //! the library folders, diffs the files against the database (size + mtime),
 //! probes new/changed files through the transcoder with bounded concurrency,
 //! writes items in short transactions, removes vanished files (unless their
-//! drive is offline), refreshes sidecar artwork, subtitles and NFO files (whose
+//! drive is offline), gives the audiobooks it touched what their first parts
+//! say, refreshes sidecar artwork, subtitles and NFO files (whose
 //! ids decide a title's match, and whose fields win over the online source's),
 //! recomputes counts and finally lets the metadata agent enrich new items.
 //!
@@ -12,7 +13,7 @@
 //! edits wait for: whatever takes time (matching sidecar files, deciding
 //! what changed) is done before taking it, and only changes are written.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -20,12 +21,12 @@ use std::time::{Duration, Instant};
 use futures::StreamExt;
 use parking_lot::Mutex;
 use pley_transcoder_api::{MediaInfo, StreamKind};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use sqlx::SqliteConnection;
 use tokio::sync::mpsc;
 
 use super::nfo::{self, Nfo, NfoFields, NfoIds, NfoKind};
-use super::parse::{EpisodeName, parse_episode, parse_movie, parse_track};
+use super::parse::{AudiobookName, EpisodeName, parse_audiobook, parse_episode, parse_movie, parse_track};
 use super::sidecar::{ExternalSub, Sidecars};
 use super::walk::{Extra, ExtraKind, FoundFile, Walked, walk};
 use super::{LibraryKind, LibraryRow, get_library, list_libraries};
@@ -542,6 +543,26 @@ impl Scanner {
             .filter(|f| !seen.contains(&f.path) && !walked.maybe_unavailable(Path::new(&f.path)))
             .map(|f| f.id)
             .collect();
+        // A book whose files go or change may begin with another part after
+        // the scan, or with none: it is read again (see `read_books`).
+        let mut books = HashSet::new();
+        if kind == LibraryKind::Audiobooks {
+            let files: Vec<i64> = removed
+                .iter()
+                .copied()
+                .chain(to_process.iter().filter_map(|f| existing_by_path.get(path_str(&f.path).as_str()).map(|k| k.id)))
+                .collect();
+            if !files.is_empty() {
+                let parents: Vec<i64> = sqlx::query_scalar(
+                    "SELECT DISTINCT i.parent_id FROM media_files f JOIN items i ON i.id = f.item_id
+                     WHERE f.id IN (SELECT value FROM json_each(?)) AND i.kind = 'part' AND i.parent_id IS NOT NULL",
+                )
+                .bind(serde_json::to_string(&files)?)
+                .fetch_all(&self.db.read)
+                .await?;
+                books.extend(parents);
+            }
+        }
 
         phases.diff = phase.elapsed();
 
@@ -634,6 +655,21 @@ impl Scanner {
         let mut tx = self.db.write.begin().await?;
         cleanup_orphans(&mut tx, library_id).await?;
         tx.commit().await?;
+        if kind == LibraryKind::Audiobooks {
+            books.extend(writer.containers.values());
+            // And books a scan stopped part way made but never read: their
+            // files are unchanged since, so nothing above names them.
+            // `read_books` always gives a book its writers.
+            let unread: Vec<i64> = sqlx::query_scalar(
+                "SELECT id FROM items
+                 WHERE library_id = ? AND kind = 'audiobook' AND authors IS NULL AND metadata_locked = 0",
+            )
+            .bind(library_id)
+            .fetch_all(&self.db.read)
+            .await?;
+            books.extend(unread);
+            self.read_books(lib, books).await?;
+        }
         writing += phase.elapsed();
 
         // Sidecar subtitles and local artwork can change without their video
@@ -644,9 +680,9 @@ impl Scanner {
         let (subtitles, artwork) = {
             let sidecars = sidecars.clone();
             crate::util::blocking(move || {
-                // Music has no subtitles (scans don't look for them).
-                let subtitles =
-                    if kind == LibraryKind::Music { Vec::new() } else { subtitle_changes(unchanged, &sidecars) };
+                // Music and audiobooks have no subtitles (scans don't look
+                // for them).
+                let subtitles = if kind.is_audio() { Vec::new() } else { subtitle_changes(unchanged, &sidecars) };
                 Ok((subtitles, artwork_changes(rows, &sidecars)))
             })
             .await?
@@ -680,7 +716,7 @@ impl Scanner {
             );
         }
         // NFO files too, before what they set is applied below.
-        if kind != LibraryKind::Music {
+        if !kind.is_audio() {
             self.read_nfos(lib, &sidecars, &mut walked).await?;
         }
         phases.sidecars = phase.elapsed();
@@ -701,6 +737,46 @@ impl Scanner {
         self.events.send(ServerEvent::LibraryChanged { library_id });
         phases.write = writing;
         Ok((totals, phases, processed, total))
+    }
+
+    /// Gives `books` what their first parts say of them: their titles,
+    /// writers, series and the rest. A scan reads a book's files in any
+    /// order, and one file added later (untagged, say) must not decide it.
+    /// The tags are the ones stored when the files were read; like
+    /// artwork, this is worked out without the writer, and only changes are
+    /// written.
+    async fn read_books(&self, lib: &LibraryRow, books: HashSet<i64>) -> anyhow::Result<()> {
+        if books.is_empty() {
+            return Ok(());
+        }
+        let firsts: Vec<FirstPart> =
+            sqlx::query_as(FIRST_PARTS).bind(serde_json::to_string(&books)?).fetch_all(&self.db.read).await?;
+        let roots = lib.paths();
+        let names = crate::util::blocking(move || {
+            Ok(firsts
+                .into_iter()
+                .filter_map(|first| {
+                    let tags =
+                        first.media_info.as_deref().and_then(|info| serde_json::from_str::<StoredTags>(info).ok());
+                    let path = PathBuf::from(first.path);
+                    // The library's folder the file was found in, the deepest
+                    // when one is in another.
+                    let root =
+                        roots.iter().filter(|root| path.starts_with(root)).max_by_key(|root| root.as_os_str().len())?;
+                    Some((first.book, parse_audiobook(&path, root, &tags.map(|t| t.tags).unwrap_or_default())))
+                })
+                .collect::<Vec<_>>())
+        })
+        .await?;
+        let at = now();
+        for chunk in names.chunks(CHANGE_BATCH) {
+            let mut tx = self.db.write.begin().await?;
+            for (book, name) in chunk {
+                save_book(&mut tx, *book, name, at).await?;
+            }
+            tx.commit().await?;
+        }
+        Ok(())
     }
 
     /// Reads the NFO files of the library's movies, shows, seasons and
@@ -805,6 +881,8 @@ struct NewItem {
     kind: &'static str,
     key: String,
     title: String,
+    /// What it sorts by, when its title's [`sort_title`] isn't it.
+    sort_title: Option<String>,
     original_title: Option<String>,
     year: Option<i32>,
     idx: Option<i32>,
@@ -825,6 +903,7 @@ impl NewItem {
             kind,
             key,
             title,
+            sort_title: None,
             original_title: None,
             year: None,
             idx: None,
@@ -865,8 +944,9 @@ impl<'a> Writer<'a> {
             (None, LibraryKind::Movies) => self.write_movie(conn, file, duration).await?,
             (None, LibraryKind::Shows) => self.write_episode(conn, file, duration).await?,
             (None, LibraryKind::Music) => self.write_track(conn, file, info.as_ref(), duration).await?,
+            (None, LibraryKind::Audiobooks) => self.write_part(conn, file, info.as_ref(), duration).await?,
         };
-        let subs = if self.kind == LibraryKind::Music { Vec::new() } else { self.sidecars.subtitles(&file.path) };
+        let subs = if self.kind.is_audio() { Vec::new() } else { self.sidecars.subtitles(&file.path) };
         upsert_file(conn, self.library_id, item_id, file, info.as_ref(), &subs, probed).await
     }
 
@@ -946,7 +1026,7 @@ impl<'a> Writer<'a> {
                 .await?;
                 Ok(row.map(|(id, kind, parent)| if kind == "season" { parent.unwrap_or(id) } else { id }))
             }
-            LibraryKind::Music => Ok(None),
+            LibraryKind::Music | LibraryKind::Audiobooks => Ok(None),
         }
     }
 
@@ -1050,6 +1130,124 @@ impl<'a> Writer<'a> {
     }
 }
 
+impl Writer<'_> {
+    /// An audiobook's file: a part of its book, which is made when it's
+    /// new. What the book says (its title, writers, series…) comes after the
+    /// scan's writes, from its first part (see [`Scanner::read_books`]).
+    async fn write_part(
+        &mut self,
+        conn: &mut SqliteConnection,
+        file: &FoundFile,
+        info: Option<&MediaInfo>,
+        duration: Option<i64>,
+    ) -> anyhow::Result<i64> {
+        let empty = Default::default();
+        let tags = info.map(|i| &i.tags).unwrap_or(&empty);
+        let name = parse_audiobook(&file.path, &file.root, tags);
+        let book_id = self.book(conn, &name).await?;
+
+        let mut part = NewItem::new("part", format!("part:{}", path_str(&file.path)), name.part_title);
+        // Parts sort by their files' names (see `library::part_order`).
+        part.sort_title = Some(name.part_sort);
+        part.parent_id = Some(book_id);
+        part.idx = name.part;
+        part.disc = name.disc;
+        part.year = name.year;
+        part.duration_ms = duration;
+        Ok(upsert_item(conn, self.library_id, &part).await?)
+    }
+
+    /// The book `name`'s file is a part of: one that exists is left as it
+    /// is, a new one is made with what `name` says.
+    async fn book(&mut self, conn: &mut SqliteConnection, name: &AudiobookName) -> anyhow::Result<i64> {
+        let key = format!("audiobook:{}", name.book_key);
+        if let Some(id) = self.containers.get(&key) {
+            return Ok(*id);
+        }
+        let known: Option<i64> = sqlx::query_scalar("SELECT id FROM items WHERE library_id = ? AND key = ?")
+            .bind(self.library_id)
+            .bind(&key)
+            .fetch_optional(&mut *conn)
+            .await?;
+        let id = match known {
+            Some(id) => id,
+            None => {
+                let mut book = NewItem::new("audiobook", key.clone(), name.title.clone());
+                book.year = name.year;
+                book.path = name.book_dir.as_deref().map(path_str);
+                upsert_item(conn, self.library_id, &book).await?
+            }
+        };
+        self.containers.insert(key, id);
+        Ok(id)
+    }
+}
+
+/// Of the books in a JSON array, the first part of each, with the tags
+/// read from its file: in the order parts play, of those whose files were
+/// read. Only the first parts' files are fetched whole.
+const FIRST_PARTS: &str = concat!(
+    "SELECT r.book, f.path, f.media_info FROM (
+        SELECT p.parent_id AS book, f.id AS file,
+               ROW_NUMBER() OVER (PARTITION BY p.parent_id ORDER BY f.media_info IS NULL, ",
+    super::part_order!(),
+    ") AS n
+        FROM items p JOIN media_files f ON f.item_id = p.id
+        WHERE p.parent_id IN (SELECT value FROM json_each(?)) AND p.kind = 'part') r
+     JOIN media_files f ON f.id = r.file
+     WHERE r.n = 1"
+);
+
+#[derive(sqlx::FromRow)]
+struct FirstPart {
+    book: i64,
+    path: String,
+    media_info: Option<String>,
+}
+
+/// The tags of a file's stored `MediaInfo`, without the rest of it.
+#[derive(Deserialize)]
+struct StoredTags {
+    #[serde(default)]
+    tags: BTreeMap<String, String>,
+}
+
+/// Writes what a book's first part says of it where that changed: its
+/// folder, and unless its details are locked, the rest.
+async fn save_book(conn: &mut SqliteConnection, id: i64, name: &AudiobookName, now: i64) -> anyhow::Result<()> {
+    let path = name.book_dir.as_deref().map(path_str);
+    sqlx::query("UPDATE items SET path = ?1, updated_at = ?2 WHERE id = ?3 AND path IS NOT ?1")
+        .bind(&path)
+        .bind(now)
+        .bind(id)
+        .execute(&mut *conn)
+        .await?;
+    let genres = name.genre.as_ref().map(|g| serde_json::json!([g]).to_string());
+    let authors = serde_json::to_string(&name.authors)?;
+    let narrators = (!name.narrators.is_empty()).then(|| serde_json::to_string(&name.narrators)).transpose()?;
+    sqlx::query(
+        "UPDATE items SET title = ?1, sort_title = ?2, year = ?3, genres = ?4, authors = ?5, narrators = ?6,
+                          series = ?7, series_index = ?8, summary = ?9, updated_at = ?10
+         WHERE id = ?11 AND metadata_locked = 0
+           AND (title IS NOT ?1 OR sort_title IS NOT ?2 OR year IS NOT ?3 OR genres IS NOT ?4 OR authors IS NOT ?5
+                OR narrators IS NOT ?6 OR series IS NOT ?7 OR series_index IS NOT ?8 OR summary IS NOT ?9)",
+    )
+    .bind(&name.title)
+    .bind(sort_title(&name.title))
+    .bind(name.year)
+    .bind(genres)
+    .bind(authors)
+    .bind(narrators)
+    .bind(&name.series)
+    .bind(name.series_index)
+    .bind(&name.summary)
+    .bind(now)
+    .bind(id)
+    .execute(&mut *conn)
+    .await?;
+    Ok(())
+}
+
 /// A season's title before metadata names it.
 fn season_title(number: i64) -> String {
     if number == 0 { "Specials".to_owned() } else { format!("Season {number}") }
@@ -1098,7 +1296,7 @@ async fn upsert_item(conn: &mut SqliteConnection, library_id: i64, item: &NewIte
     .bind(item.kind)
     .bind(&item.key)
     .bind(&item.title)
-    .bind(sort_title(&item.title))
+    .bind(item.sort_title.clone().unwrap_or_else(|| sort_title(&item.title)))
     .bind(&item.original_title)
     .bind(item.year)
     .bind(item.idx)
@@ -1171,13 +1369,13 @@ async fn upsert_file(
 
 async fn cleanup_orphans(conn: &mut SqliteConnection, library_id: i64) -> sqlx::Result<()> {
     sqlx::query(
-        "DELETE FROM items WHERE library_id = ? AND kind IN ('movie', 'episode', 'track', 'extra')
+        "DELETE FROM items WHERE library_id = ? AND kind IN ('movie', 'episode', 'track', 'part', 'extra')
          AND NOT EXISTS (SELECT 1 FROM media_files f WHERE f.item_id = items.id)",
     )
     .bind(library_id)
     .execute(&mut *conn)
     .await?;
-    for kinds in ["('season', 'album')", "('show', 'artist')"] {
+    for kinds in ["('season', 'album', 'audiobook')", "('show', 'artist')"] {
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "DELETE FROM items WHERE library_id = ? AND kind IN {kinds}
              AND NOT EXISTS (SELECT 1 FROM items c WHERE c.parent_id = items.id AND c.kind != 'extra')"
@@ -1216,7 +1414,7 @@ async fn update_counts(conn: &mut SqliteConnection, library_id: i64) -> sqlx::Re
          FROM (SELECT p.id,
                  (SELECT COUNT(*) FROM items t WHERE t.parent_id = p.id) AS leaves,
                  (SELECT SUM(t.duration_ms) FROM items t WHERE t.parent_id = p.id) AS duration
-               FROM items p WHERE p.library_id = ? AND p.kind = 'album') AS c
+               FROM items p WHERE p.library_id = ? AND p.kind IN ('album', 'audiobook')) AS c
          WHERE items.id = c.id AND (items.leaf_count IS NOT c.leaves OR items.duration_ms IS NOT c.duration)",
     ];
     for sql in statements {
@@ -1247,10 +1445,18 @@ fn subtitle_changes(files: Vec<(i64, PathBuf, String)>, sidecars: &Sidecars) -> 
 }
 
 /// Items and the files their local artwork is looked for next to.
-const ARTWORK_ROWS: &str = "SELECT i.id, i.kind, i.path, i.idx, i.poster, i.backdrop, i.thumb, p.path AS parent_path,
-        (SELECT f.path FROM media_files f WHERE f.item_id = i.id ORDER BY f.id LIMIT 1) AS file_path
+/// An audiobook's file is its first part's.
+const ARTWORK_ROWS: &str = concat!(
+    "SELECT i.id, i.kind, i.path, i.idx, i.poster, i.backdrop, i.thumb, p.path AS parent_path,
+        CASE WHEN i.kind = 'audiobook'
+             THEN (SELECT f.path FROM media_files f JOIN items c ON c.id = f.item_id
+                   WHERE c.parent_id = i.id ORDER BY ",
+    super::part_order!(),
+    " LIMIT 1)
+             ELSE (SELECT f.path FROM media_files f WHERE f.item_id = i.id ORDER BY f.id LIMIT 1) END AS file_path
      FROM items i LEFT JOIN items p ON p.id = i.parent_id
-     WHERE i.library_id = ? AND i.kind IN ('movie', 'show', 'season', 'episode', 'artist', 'album')";
+     WHERE i.library_id = ? AND i.kind IN ('movie', 'show', 'season', 'episode', 'artist', 'album', 'audiobook')"
+);
 
 #[derive(sqlx::FromRow)]
 struct ArtworkRow {
@@ -1305,6 +1511,16 @@ fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkCha
         sidecars.image(Path::new(dir), bases).map(|path| path_str(&path))
     };
     let strings = |names: &[&str]| names.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+    // Books side by side in a folder (an author's `.m4b` files of one
+    // series) share it: its pictures are none of theirs. Counted here, from
+    // the rows at hand, rather than per book in the query, as items have no
+    // index on their folders.
+    let mut book_dirs: HashMap<String, usize> = HashMap::new();
+    for row in rows.iter().filter(|r| r.kind == "audiobook") {
+        if let Some(path) = &row.path {
+            *book_dirs.entry(path.clone()).or_default() += 1;
+        }
+    }
     let mut changes = Vec::new();
     for row in rows {
         let file_stem_bases = |suffixes: &[&str]| -> Vec<String> {
@@ -1360,6 +1576,17 @@ fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkCha
                 let path = row.path.as_deref().unwrap_or_default();
                 (lookup(path, &strings(&["cover", "folder", "front", "album", "poster"])), None, None)
             }
+            "audiobook" => {
+                // `Book.m4b` beside `Book.jpg`, else the cover of the book's
+                // own folder; embedded art comes on request (see `catalog`).
+                let named =
+                    file_dir.as_deref().and_then(|dir| lookup(dir, &file_stem_bases(&["", "-cover", "-poster"])));
+                let own_folder = row.path.as_deref().filter(|path| book_dirs.get(*path) == Some(&1));
+                let poster = named.or_else(|| {
+                    own_folder.and_then(|path| lookup(path, &strings(&["cover", "folder", "front", "poster"])))
+                });
+                (poster, None, None)
+            }
             "episode" => {
                 let dir = file_dir.clone().unwrap_or_default();
                 (None, None, lookup(&dir, &file_stem_bases(&["-thumb", ""])))
@@ -1367,6 +1594,10 @@ fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkCha
             _ => (None, None, None),
         };
 
+        // An audiobook's local pictures are only the ones found for it: one
+        // its folder gave it before the folder was found to be another
+        // book's too, or its author's, goes.
+        let only_found = row.kind == "audiobook";
         let decide = |current: &Option<String>, local: Option<String>| -> Swap {
             let after = match (current, local) {
                 (Some(cur), Some(new)) if *cur == new => return None,
@@ -1375,7 +1606,8 @@ fn artwork_changes(rows: Vec<ArtworkRow>, sidecars: &Sidecars) -> Vec<ArtworkCha
                 // something else (downloaded art lives in the blob store).
                 (Some(cur), None)
                     if !crate::store::is_blob(cur)
-                        && !(Path::new(cur).exists() && super::walk::leads_to_its_kind(Path::new(cur))) =>
+                        && (only_found
+                            || !(Path::new(cur).exists() && super::walk::leads_to_its_kind(Path::new(cur)))) =>
                 {
                     None
                 }

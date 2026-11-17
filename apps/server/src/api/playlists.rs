@@ -69,24 +69,26 @@ pub struct NewPlaylist {
     library_id: Option<i64>,
 }
 
-/// A smart filter of a library the user may open.
+/// A smart filter of a library the user may open, and the kind of playlist
+/// it makes.
 async fn smart_filter_of(
     state: &AppState,
     user: &AuthUser,
     library_id: Option<i64>,
     filter: &str,
-) -> ApiResult<(LibraryRow, String)> {
+) -> ApiResult<(LibraryRow, Kind, String)> {
     let library_id = library_id.ok_or_else(|| AppError::bad_request("a smart playlist names its library_id"))?;
     let lib = crate::access::visible_libraries(&state.db, user)
         .await?
         .into_iter()
         .find(|l| l.id == library_id)
         .ok_or_else(|| AppError::not_found(format!("library {library_id} not found")))?;
+    let kind = Kind::of_library(lib.kind()).ok_or_else(|| AppError::bad_request(playlists::SMART_LIBRARIES))?;
     let filter = filter.trim().trim_start_matches('?');
     if filter.len() > 2000 || !crate::listing::valid_smart_filter(&lib, filter) {
         return Err(AppError::bad_request("smart_filter must be a library filter such as genre=Comedy&unwatched=1"));
     }
-    Ok((lib, filter.to_owned()))
+    Ok((lib, kind, filter.to_owned()))
 }
 
 pub async fn create(
@@ -96,8 +98,7 @@ pub async fn create(
 ) -> ApiResult<(StatusCode, Json<PlaylistDetail>)> {
     let title = clean_title(&body.title)?;
     if let Some(filter) = &body.smart_filter {
-        let (lib, filter) = smart_filter_of(&state, &user, body.library_id, filter).await?;
-        let kind = if lib.kind() == crate::library::LibraryKind::Music { Kind::Audio } else { Kind::Video };
+        let (lib, kind, filter) = smart_filter_of(&state, &user, body.library_id, filter).await?;
         let id = playlists::create_smart(&state.db, &user, &title, kind, lib.id, &filter).await?;
         return Ok((StatusCode::CREATED, Json(detail(&state, &user, id, false).await?)));
     }
@@ -139,7 +140,7 @@ pub async fn rename(
         if playlist.smart_filter.is_none() {
             return Err(AppError::bad_request("only smart playlists have a filter"));
         }
-        let (_, filter) = smart_filter_of(&state, &user, playlist.library_id, filter).await?;
+        let (_, _, filter) = smart_filter_of(&state, &user, playlist.library_id, filter).await?;
         playlists::set_smart_filter(&state.db, &user, id, &filter).await?;
     }
     if let Some(title) = &body.title {

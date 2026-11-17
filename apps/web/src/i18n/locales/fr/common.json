@@ -157,7 +157,8 @@
     "nothing": "Rien à lire",
     "nothingYet": "Rien à lire pour l’instant",
     "albumEmpty": "Cet album n’a aucun titre",
-    "artistEmpty": "Aucun titre trouvé pour cet artiste"
+    "artistEmpty": "Aucun titre trouvé pour cet artiste",
+    "bookEmpty": "Ce livre audio n’a aucune partie"
   },
   "remote": {
     "unknownDevice": "Appareil inconnu",

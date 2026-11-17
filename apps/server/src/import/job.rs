@@ -1030,6 +1030,8 @@ fn types(kind: LibraryKind) -> &'static [(u8, &'static str)] {
         LibraryKind::Movies => &[(1, "movie")],
         LibraryKind::Shows => &[(2, "show"), (4, "episode"), (3, "season")],
         LibraryKind::Music => &[(10, "track"), (9, "album"), (8, "artist")],
+        // Plex has no audiobook libraries: none is imported as one.
+        LibraryKind::Audiobooks => &[],
     }
 }
 
@@ -1041,6 +1043,7 @@ fn group_type(kind: LibraryKind) -> Option<u8> {
         LibraryKind::Movies => None,
         LibraryKind::Shows => Some(2),
         LibraryKind::Music => Some(8),
+        LibraryKind::Audiobooks => None,
     }
 }
 
@@ -1049,6 +1052,7 @@ fn leaf_type(kind: LibraryKind) -> u8 {
         LibraryKind::Movies => 1,
         LibraryKind::Shows => 4,
         LibraryKind::Music => 10,
+        LibraryKind::Audiobooks => 0,
     }
 }
 

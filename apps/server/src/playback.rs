@@ -180,8 +180,10 @@ fn listed(list: &[String], c: &str) -> bool {
 }
 
 impl Caps {
+    /// Whether the player opens container `c`. An `.m4b` audiobook is an
+    /// `.m4a` file by another name: a player of either opens it.
     fn container(&self, c: &str) -> bool {
-        listed(&self.containers, c)
+        listed(&self.containers, c) || (c.eq_ignore_ascii_case("m4b") && listed(&self.containers, "m4a"))
     }
     fn video(&self, c: &str) -> bool {
         listed(&self.video_codecs, c)
@@ -1408,7 +1410,7 @@ fn hls_copyable(codec: &str, format: SegmentFormat, h264_only: bool) -> bool {
 
 /// Containers the browser can play natively (used when a file was never probed).
 fn web_container(container: &str) -> bool {
-    matches!(container, "mp4" | "m4v" | "webm" | "mp3" | "m4a" | "flac" | "ogg" | "wav" | "aac")
+    matches!(container, "mp4" | "m4v" | "webm" | "mp3" | "m4a" | "m4b" | "flac" | "ogg" | "wav" | "aac")
 }
 
 pub fn decide(file: &FileRow, info: Option<&MediaInfo>, streams: &[MediaStream], req: &PlaybackRequest) -> Decision {
@@ -3590,6 +3592,18 @@ mod tests {
         let d = decide(&file("mka", 320_000), Some(&mp3), &mp3.streams, &request());
         assert_eq!(d.method, Method::Remux, "the audio is copied into HLS");
         assert_eq!(d.audio.unwrap().mode, AudioMode::Copy);
+    }
+
+    /// An audiobook's `.m4b` plays as the `.m4a` it is, where `.m4a` does.
+    #[test]
+    fn m4b_audiobooks_play_where_m4a_does() {
+        let aac = track("aac");
+        let mut req = request();
+        req.caps.containers = vec!["m4a".into()];
+        req.caps.audio_codecs = vec!["aac".into()];
+        assert_eq!(decide(&file("m4b", 64_000), Some(&aac), &aac.streams, &req).method, Method::Direct);
+        req.caps.containers = vec!["mp3".into()];
+        assert_ne!(decide(&file("m4b", 64_000), Some(&aac), &aac.streams, &req).method, Method::Direct);
     }
 
     #[test]

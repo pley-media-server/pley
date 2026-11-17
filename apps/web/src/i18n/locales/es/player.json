@@ -201,5 +201,20 @@
     "failed": "La reproducción falló",
     "noHls": "Este navegador no puede reproducir transmisiones HLS",
     "noSound": "No hay salida de sonido: revisa los altavoces o los auriculares"
+  },
+  "book": {
+    "speed": "Velocidad: {{rate}}",
+    "sleep": "Temporizador",
+    "sleepIn": "Temporizador: quedan {{time}}",
+    "sleepAtEnd": "Temporizador: pausa al final",
+    "sleepEndOfChapter": "Final del capítulo",
+    "sleepEndOfPart": "Final de la parte",
+    "sleepOff": "Desactivar el temporizador",
+    "back_one": "Retroceder {{count}} segundo",
+    "back_many": "Retroceder {{count}} segundos",
+    "back_other": "Retroceder {{count}} segundos",
+    "forward_one": "Avanzar {{count}} segundo",
+    "forward_many": "Avanzar {{count}} segundos",
+    "forward_other": "Avanzar {{count}} segundos"
   }
 }

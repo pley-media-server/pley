@@ -545,6 +545,9 @@ Exit key always exits
 
 - No playback speed.
 - No subtitle upload or delete.
+- No audiobooks, in this app or the native one: the server gives them no
+  audiobook library, nor their books on Home, in search or in history.
+  They are in the web and desktop apps.
 
 ## The native Samsung app
 

@@ -7,6 +7,7 @@ import { fullTitle } from "@/lib/format";
 import { useDocumentTitle } from "@/lib/hooks";
 import { NotFoundPage } from "../NotFoundPage";
 import { AlbumView, ArtistView } from "./MusicViews";
+import { BookView } from "./BookView";
 import { SeasonView } from "./SeasonView";
 import { ShowView } from "./ShowView";
 import { VideoItemView } from "./VideoItemView";
@@ -71,6 +72,10 @@ export function ItemPage() {
       return <ArtistView key={data.id} item={data} />;
     case "album":
       return <AlbumView key={data.id} item={data} highlightId={highlight} />;
+    case "audiobook":
+      return <BookView key={data.id} item={data} />;
+    case "part":
+      return data.parent_id ? <Navigate to={itemUrl(data.parent_id)} replace /> : <NotFoundPage />;
     case "extra":
       return data.parent_id ? <Navigate to={itemUrl(data.parent_id)} replace /> : <NotFoundPage />;
     case "track":

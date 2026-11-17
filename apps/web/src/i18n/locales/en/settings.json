@@ -371,7 +371,9 @@
       "shows_one": "{{count, number}} show",
       "shows_other": "{{count, number}} shows",
       "music_one": "{{count, number}} artist",
-      "music_other": "{{count, number}} artists"
+      "music_other": "{{count, number}} artists",
+      "audiobooks_one": "{{count, number}} book",
+      "audiobooks_other": "{{count, number}} books"
     },
     "scanned": "scanned {{when}}",
     "neverScanned": "never scanned",
@@ -413,6 +415,11 @@
         "label": "Music",
         "layout": "Artist/Album/01 - Track.flac",
         "defaultName": "Music"
+      },
+      "audiobooks": {
+        "label": "Audiobooks",
+        "layout": "Author/Book Title/01 - Chapter.mp3",
+        "defaultName": "Audiobooks"
       }
     },
     "form": {

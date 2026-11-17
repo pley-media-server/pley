@@ -169,6 +169,16 @@ impl AuthUser {
         }
     }
 
+    /// Whether this request gets audiobook libraries: Pley's own sign-in
+    /// (the web app, the desktop app's window), whose pages show books.
+    /// Other apps would show a book as a film or an album, and the
+    /// compatibility APIs have no books to give their clients, so these get
+    /// neither the libraries nor their books in lists, hubs, search and
+    /// history ([`crate::access::library_ids`]).
+    pub fn audiobooks(&self) -> bool {
+        self.app.is_none() && self.compatibility.is_none()
+    }
+
     /// Whether this request may use what `scope` allows: pley's own sign-in
     /// always, an app when its token has it.
     pub fn allowed(&self, scope: Scope) -> bool {

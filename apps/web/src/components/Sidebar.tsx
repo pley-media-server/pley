@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router";
-import { ArrowUpDown, Compass, Film, House, Inbox, List, ListMusic, ListVideo, LoaderCircle, Music, Plus, Settings, Tv, Tv2, X } from "lucide-react";
+import { ArrowUpDown, BookHeadphones, Compass, Film, House, Inbox, List, ListMusic, ListVideo, LoaderCircle, Music, Plus, Settings, Tv, Tv2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLibraries } from "@/api/hooks";
 import { useLiveSummary } from "@/api/livetv";
@@ -21,6 +21,7 @@ export function LibraryIcon({ kind, className }: { kind: LibraryKind; className?
   const cls = cn(className ?? "size-[18px]", "shrink-0");
   if (kind === "movies") return <Film className={cls} />;
   if (kind === "shows") return <Tv className={cls} />;
+  if (kind === "audiobooks") return <BookHeadphones className={cls} />;
   return <Music className={cls} />;
 }
 

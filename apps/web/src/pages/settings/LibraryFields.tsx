@@ -7,7 +7,7 @@ import { Button, Field, IconButton, TextInput } from "@/components/ui";
 import { cn } from "@/lib/cn";
 
 /** Each kind's label, recommended layout and default name are in `libraries.kinds`. */
-export const KINDS: LibraryKind[] = ["movies", "shows", "music"];
+export const KINDS: LibraryKind[] = ["movies", "shows", "music", "audiobooks"];
 
 /** A library being added or edited, as its fields show it. */
 export interface LibraryDraft {

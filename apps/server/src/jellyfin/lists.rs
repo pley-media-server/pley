@@ -376,7 +376,7 @@ async fn create_collection(
     let library = library.ok_or_else(|| {
         JfError::BadRequest("say which library the collection is in (parentId), or start it with a title".into())
     })?;
-    if library.kind() == crate::library::LibraryKind::Music {
+    if library.kind().is_audio() {
         return Err(JfError::BadRequest("collections are for movie and TV libraries".into()));
     }
     let id = collections::create(&state.db, library.id, &title, None).await?;
