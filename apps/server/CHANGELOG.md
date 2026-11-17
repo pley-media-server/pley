@@ -29,6 +29,12 @@ describes how they are made.
 - Live TV channels play on Google Cast and AirPlay devices from Watch on…,
   and the remote changes channel there.
 
+### Changed
+
+- Casting to Google Cast and AirPlay devices has a switch in Settings →
+  Network, off by default and on updated servers too: Play on… lists
+  those devices once an administrator turns it on.
+
 ### Fixed
 
 - Stop in Pley stops a Google Cast device every time. The connection

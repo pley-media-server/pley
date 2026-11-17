@@ -1063,6 +1063,10 @@
       "report": "See what came over"
     }
   },
+  "castDevices": {
+    "label": "Cast to Google Cast and AirPlay devices",
+    "hint": "The household's Play on… lists the Chromecasts, Google TVs, Apple TVs and other Google Cast and AirPlay devices on the server's network, and Pley plays on them. Off, Pley doesn't look for them."
+  },
   "airplay": {
     "title": "AirPlay devices",
     "description": "The server is paired with these. Forget one and the next cast to it asks for its code again; remove Pley from the device's own list too.",
