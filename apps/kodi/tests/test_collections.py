@@ -339,6 +339,7 @@ class ListsTest(unittest.TestCase):
             "/api/collection-categories": {"categories": CATEGORIES},
             "/api/collections/merged": {"title": "Christmas", "collections": [{"id": 20, "library_id": 4}, {"id": 21, "library_id": 8}], "items": []},
             "/api/collections/11": dict(SAGA, items=[]),
+            "/api/collections/12": dict(MINE, items=[]),
             "/api/libraries": [{"id": 4, "name": "Movies"}, {"id": 8, "name": "Kids"}],
         }
         test = self
@@ -380,6 +381,9 @@ class ListsTest(unittest.TestCase):
     def test_a_collection_and_a_merged_row(self):
         self.listed("route=collection&id=11")
         self.assertIn(("category", "Starfall Saga · Franchises"), xbmcplugin.calls)
+        # Other only says it has none: not named.
+        self.listed("route=collection&id=12")
+        self.assertIn(("category", "Rainy Sundays"), xbmcplugin.calls)
         found = self.listed("route=collection&ids=20,21")
         self.assertEqual(
             found,
