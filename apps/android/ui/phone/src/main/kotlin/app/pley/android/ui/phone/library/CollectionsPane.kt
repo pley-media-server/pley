@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -111,6 +112,15 @@ internal fun CollectionsPane(
             val width = cellWidth(columns, available)
             // About a screen composed ahead, and the posters of the next 1.5 screens asked for (headings have none).
             val grid = rememberItemGridState()
+            // Another category starts at the top, as a new sort or filter does on the Library tab.
+            val category = view?.category?.toString()
+            var shownCategory by rememberSaveable { mutableStateOf(category) }
+            LaunchedEffect(category) {
+                if (category != null && shownCategory != category) {
+                    shownCategory = category
+                    grid.scrollToItem(0)
+                }
+            }
             val density = LocalDensity.current
             val images = remember(view) {
                 view?.groups.orEmpty().flatMap { g -> (if (view?.headed == true) listOf(null) else emptyList()) + g.collections.map { it.tile.image } }
