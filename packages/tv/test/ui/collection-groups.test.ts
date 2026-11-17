@@ -54,6 +54,14 @@ describe("collections from a server older than categories", () => {
   });
 });
 
+describe("the category a collection's page names, as collections.json has it", () => {
+  for (const c of fixture.named as { name: string; category?: CategoryRef; named: string | null }[]) {
+    it(c.name, () => {
+      expect(namedCategory(c.category ? { category: c.category } : {})).toBe(c.named);
+    });
+  }
+});
+
 describe("the category a collection's page names", () => {
   it("is its category's title, but not Other's, and none without one", () => {
     expect(namedCategory({ category: { id: 2, key: "franchises", title: "Franchises" } })).toBe("Franchises");

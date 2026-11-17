@@ -155,6 +155,24 @@ public class CollectionModelTests
         Assert.Null(Model(7).State.Value.Value!.Category);
     }
 
+    public static IEnumerable<object[]> Named() =>
+        Fixtures.Load("collections").GetProperty("named").EnumerateArray().Select(c => new object[] { c.GetProperty("name").GetString()! });
+
+    /// <summary>The category beside "Collection", as packages/tv/test/fixtures/collections.json has it for both Samsung apps: never Other.</summary>
+    [Theory]
+    [MemberData(nameof(Named))]
+    public void A_collection_page_names_its_category_as_the_fixture_says(string name)
+    {
+        var c = Fixtures.Load("collections").GetProperty("named").EnumerateArray().Single(x => x.GetProperty("name").GetString() == name);
+        CategoryRef? category = null;
+        if (c.TryGetProperty("category", out var given))
+            category = new CategoryRef(given.GetProperty("id").GetInt64(), given.GetProperty("key").ValueKind == System.Text.Json.JsonValueKind.Null ? null : given.GetProperty("key").GetString(),
+                given.GetProperty("title").GetString()!);
+        var page = CollectionRules.Page(Detail(5, 1, "Alien Collection", new[] { Film(1, "Alien") }) with { Category = category }, new[] { Movies }, "https://pley.example.com");
+        var named = c.GetProperty("named");
+        Assert.Equal(named.ValueKind == System.Text.Json.JsonValueKind.Null ? null : named.GetString(), page.Category);
+    }
+
     MergedCollectionModel Merged(params long[] ids)
     {
         var model = new MergedCollectionModel(data, ids, scheduler, new Random(1));

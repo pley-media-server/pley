@@ -257,5 +257,11 @@
         "total": 0
       }
     }
+  ],
+  "named": [
+    { "name": "Pley's own category is named", "category": { "id": 2, "key": "franchises", "title": "Franchises" }, "named": "Franchises" },
+    { "name": "an administrator's category is named", "category": { "id": 5, "key": null, "title": "Seasonal" }, "named": "Seasonal" },
+    { "name": "Other only says it has none, in any language: not named", "category": { "id": 3, "key": "other", "title": "Autres" }, "named": null },
+    { "name": "a server older than categories names none", "named": null }
   ]
 }
