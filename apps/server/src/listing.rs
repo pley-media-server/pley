@@ -854,6 +854,14 @@ const EPISODE_ADDED_SQL: &str = "COALESCE(CASE i.kind
     WHEN 'season' THEN (SELECT MAX(e.added_at) FROM items e WHERE e.parent_id = i.id AND e.kind = 'episode')
     END, i.added_at)";
 
+/// A title's release date in unix seconds, as [`date_secs`] reads it, or
+/// NULL. Dates are written `YYYY-MM-DD`, as SQLite reads them, which also
+/// counts an impossible day (`2005-02-31`) on from the month's start as
+/// `date_secs` does; the pattern leaves out a year alone (`2010`), which
+/// SQLite would take for a day number.
+const RELEASED_SECS_SQL: &str = "(CASE WHEN i.release_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]*'
+    THEN unixepoch(substr(i.release_date, 1, 10)) END)";
+
 /// What [`sort_rows`] sorts by that rows don't carry, as [`sort_values`]
 /// loads it.
 #[derive(Debug, Default)]
@@ -1001,7 +1009,7 @@ enum Condition {
     All,
     /// A condition and its arguments; `state`: it reads the user's state `s`.
     Sql { sql: String, args: Vec<SqlArg>, state: bool },
-    /// Only [`Filter::matches`] can tell (Unicode case folding, calendar dates).
+    /// Only [`Filter::matches`] can tell (Unicode case folding).
     InMemory,
 }
 
@@ -1077,7 +1085,7 @@ impl Filter {
             (Level::Own, "addedAt") => self.date_sql("i.added_at", now),
             (Level::Own, "updatedAt") => self.date_sql("i.updated_at", now),
             (Level::Own, "lastViewedAt") => self.date_sql("s.last_played_at", now).reading_state(true),
-            (Level::Own, "originallyAvailableAt") => Condition::InMemory,
+            (Level::Own, "originallyAvailableAt") => self.date_sql(RELEASED_SECS_SQL, now),
             (Level::Own, "guid") => self.guid_sql(kind),
             (Level::Own, _) => Condition::none(),
         }
@@ -2536,6 +2544,18 @@ mod tests {
             vec![("title", "zzz"), ("or", "1"), ("title", "")],
             vec![("year>>", "2000"), ("rating>>", "7"), ("title!", "zeta")],
             vec![("actor!", "1"), ("contentRating", "PG"), ("lastViewedAt>>", "0")],
+            vec![("originallyAvailableAt>>", "2000-01-01")],
+            vec![("originallyAvailableAt<<", "2001-05-01")],
+            vec![("originallyAvailableAt", "2005-03-03")],
+            vec![("originallyAvailableAt", "2001-05-01")],
+            vec![("originallyAvailableAt!", "2001-05-01")],
+            vec![("originallyAvailableAt!", "-1")],
+            vec![("originallyAvailableAt>", "1999-12-31")],
+            vec![("originallyAvailableAt<", "1969-10-01")],
+            vec![("originallyAvailableAt>>", "-9999999999999y")],
+            vec![("originallyAvailableAt>>", "-30d")],
+            vec![("originallyAvailableAt>>", "soon")],
+            vec![("originallyAvailableAt", "0")],
         ];
         // Only the in-memory path can check these.
         let memory_only: Vec<Vec<(&str, &str)>> = vec![
@@ -2543,8 +2563,6 @@ mod tests {
             vec![("title", "İ")],
             vec![("studio", "Étude")],
             vec![("title", "alpha,ÉCOLE")],
-            vec![("originallyAvailableAt>>", "2000-01-01")],
-            vec![("originallyAvailableAt", "2005-03-03")],
             vec![("title", "alpha"), ("or", "1"), ("title", "é")],
         ];
         movie_filters.extend(memory_only.iter().cloned());
@@ -2566,6 +2584,7 @@ mod tests {
             vec![("guid", "tvdb://073739")],
             vec![("guid", "tvdb://73739,tvdb://1")],
             vec![("label", "kids")],
+            vec![("originallyAvailableAt<<", "2000-01-01")],
         ];
         let season_filters: Vec<Vec<(&str, &str)>> = vec![
             vec![],
@@ -2576,6 +2595,7 @@ mod tests {
             vec![("show.index", "1")],
             vec![("index", "1")],
             vec![("season.title", "2")],
+            vec![("originallyAvailableAt>>", "2000-01-01")],
         ];
         let episode_filters: Vec<Vec<(&str, &str)>> = vec![
             vec![],
@@ -2594,6 +2614,7 @@ mod tests {
             vec![("index", "1")],
             vec![("viewCount>>", "0")],
             vec![("addedAt", "5001")],
+            vec![("originallyAvailableAt", "2004-09-22")],
         ];
         let mut compared = 0;
         for user in [1, 2] {
@@ -2672,6 +2693,42 @@ mod tests {
                 let first = ids(smart_items_up_to(&db, 1, &lib, filter, Some(most)).await.unwrap());
                 assert_eq!(first, all[..most.min(all.len())], "{filter}, {most}");
             }
+        }
+    }
+
+    /// Release dates in SQL are the dates `date_secs` reads.
+    #[tokio::test]
+    async fn release_dates_in_sql_are_read_as_in_memory() {
+        let dir = crate::testing::tempdir();
+        let db = Db::open(&dir.path().join("pley.db")).await.unwrap();
+        let dates = [
+            "2001-05-01",
+            "1969-12-31",
+            "0000-01-01",
+            "9999-12-31",
+            "2024-02-29",
+            "2005-02-31",
+            "2023-04-31",
+            "2024-13-01",
+            "2024-00-10",
+            "2024-01-00",
+            "2024-01-32",
+            "2024-05-01T12:30:00Z",
+            "2024-05-01 and more",
+            "2010",
+            "2010-05",
+            "20100501",
+            "2010-5-01",
+            "2010-05-1",
+            " 2010-05-01",
+            "",
+            "soon",
+        ];
+        let sql = format!("SELECT {RELEASED_SECS_SQL} FROM (SELECT ? AS release_date) i");
+        for date in dates {
+            let found: Option<i64> =
+                sqlx::query_scalar(sqlx::AssertSqlSafe(sql.as_str())).bind(date).fetch_one(&db.read).await.unwrap();
+            assert_eq!(found, date_secs(date), "{date:?}");
         }
     }
 }
