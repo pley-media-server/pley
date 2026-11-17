@@ -29,7 +29,9 @@ extension Walk {
         libraryTab("Collections")
         let tile = app.buttons.matching(NSPredicate(
             format: "identifier BEGINSWITH 'tile.collection.' AND label BEGINSWITH 'Test collection'")).firstMatch
-        wait(tile, "Test collection in Collections").tap()
+        // It is under Other, after Pley's own under Highlights, which can fill the screen.
+        wait(element("library.collections"), "Movies' collections")
+        scroll(to: tile, "Test collection in Collections").tap()
         wait(button("collection.play"), "the collection's Play")
         XCTAssertTrue(element("collection.title").label.contains("Test collection"), "the collection's title")
         shot("16-collection")
