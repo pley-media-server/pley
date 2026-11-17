@@ -94,11 +94,11 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   left on is kept; its sort and filters start afresh each time it opens.
 - **A library's Collections tab** groups its collections by category, a
   row each, in the order administrators chose, Other included; with one
-  group they are a grid. The Category chip shows one category's. A
-  collection's page says its category under its name, unless it is
-  Other. In Kodi's lists each category is a folder. A server from before
-  categories (its `GET /api/collection-categories` answers 404) shows
-  them in one grid.
+  group they are a grid, and with more than the window's ten rows one
+  grid by title. The Category chip shows one category's. A collection's
+  page says its category under its name, unless it is Other. In Kodi's
+  lists each category is a folder. A server from before categories (its
+  `GET /api/collection-categories` answers 404) shows them in one grid.
 - **Rows of collections:** a row's See all opens its collection. On Home,
   a row of collections of one title from several libraries opens them
   together, all their titles, with the libraries they come from under the
