@@ -4,14 +4,14 @@
 //! libraries are one row. Music and audiobook libraries, which have no
 //! collections, keep a built-in Recently Added row.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemRow};
 use crate::collections::{self, Builtin, CollectionRow, Names};
 use crate::db::Db;
 use crate::i18n;
-use crate::library::LibraryRow;
+use crate::library::{LibraryKind, LibraryRow};
 use crate::listing::{self, SortField};
 
 /// How many titles a row shows; its collection has them all.
@@ -50,7 +50,7 @@ pub async fn recommended(db: &Db, user: &AuthUser, lib: &LibraryRow, language: &
     let names = Names::load(db, language).await?;
     let mut rows = Vec::new();
     for row in collections::recommended_rows(db, lib.id).await? {
-        let Some(mut items) = collections::visible_items(db, user, &row).await? else { continue };
+        let Some(mut items) = collections::visible_items(db, user, &row, Some(ROW_SIZE)).await? else { continue };
         items.truncate(ROW_SIZE);
         if items.is_empty() {
             continue;
@@ -165,7 +165,7 @@ async fn home_rows(db: &Db, user: &AuthUser, language: &'static str, merge: bool
             Planned::Collections(rows) => {
                 let mut lists = Vec::new();
                 for row in &rows {
-                    lists.push(collections::visible_items(db, user, row).await?.unwrap_or_default());
+                    lists.push(collections::visible_items(db, user, row, Some(ROW_SIZE)).await?.unwrap_or_default());
                 }
                 let libraries: Vec<i64> = rows.iter().map(|r| r.library_id).collect();
                 Row {
@@ -256,34 +256,51 @@ pub async fn order_home(db: &Db, keys: &[String]) -> sqlx::Result<()> {
     tx.commit().await
 }
 
-/// How a collection orders its titles, when it's an order titles of other
-/// libraries can be put in too; `None` for a hand-made order.
-fn order_of(row: &CollectionRow) -> Option<Vec<(SortField, bool)>> {
-    match (&row.smart_filter, row.sort.as_str()) {
-        (Some(filter), _) => Some(listing::smart_sort(filter)),
-        (None, "title") => Some(vec![(SortField::Title, false), (SortField::Year, false)]),
-        (None, "custom") => None,
-        (None, _) => Some(vec![(SortField::Released, false), (SortField::Year, false)]),
+/// How a collection of a library of `kind` orders its titles, when it's an
+/// order titles of other libraries can be put in too; `None` for a
+/// hand-made order. A film has no episodes, so when it was added is when
+/// its newest episode was: a film library's newest first is a TV
+/// library's (shows by their newest episode) too.
+fn order_of(row: &CollectionRow, kind: Option<LibraryKind>) -> Option<Vec<(SortField, bool)>> {
+    let mut order = match (&row.smart_filter, row.sort.as_str()) {
+        (Some(filter), _) => listing::smart_sort(filter),
+        (None, "title") => vec![(SortField::Title, false), (SortField::Year, false)],
+        (None, "custom") => return None,
+        (None, _) => vec![(SortField::Released, false), (SortField::Year, false)],
+    };
+    if kind == Some(LibraryKind::Movies) {
+        for (field, _) in &mut order {
+            if *field == SortField::Added {
+                *field = SortField::EpisodeAdded;
+            }
+        }
     }
+    Some(order)
 }
 
-/// The titles of collections shown as one row, up to `limit`: in their
-/// common order when they have one (newest first, best rated first…),
-/// else one collection's after another's, in `rows`' order.
+/// The titles of collections shown as one row, up to `limit`, each once
+/// (collections of one library may share some): in their common order
+/// when they have one (newest first, best rated first…), else one
+/// collection's after another's, in `rows`' order.
 pub(crate) async fn merged(
     db: &Db,
     rows: &[CollectionRow],
     lists: Vec<Vec<ItemRow>>,
     limit: usize,
 ) -> sqlx::Result<Vec<ItemRow>> {
-    let orders: Vec<_> = rows.iter().map(order_of).collect();
     let mut items: Vec<ItemRow> = lists.into_iter().flatten().collect();
-    if rows.len() > 1
-        && let Some(Some(order)) = orders.first()
-        && orders.iter().all(|o| o.as_ref() == Some(order))
-    {
-        let values = listing::sort_values(db, &items, order).await?;
-        listing::sort_rows(&mut items, order, &values);
+    if rows.len() > 1 {
+        let kinds: HashMap<i64, LibraryKind> =
+            crate::library::list_libraries(db).await?.iter().map(|l| (l.id, l.kind())).collect();
+        let orders: Vec<_> = rows.iter().map(|r| order_of(r, kinds.get(&r.library_id).copied())).collect();
+        if let Some(Some(order)) = orders.first()
+            && orders.iter().all(|o| o.as_ref() == Some(order))
+        {
+            let values = listing::sort_values(db, &items, order).await?;
+            listing::sort_rows(&mut items, order, &values);
+        }
+        let mut seen = HashSet::new();
+        items.retain(|item| seen.insert(item.id));
     }
     items.truncate(limit);
     Ok(items)

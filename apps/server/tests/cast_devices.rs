@@ -238,6 +238,9 @@ async fn world_where(adjust: impl FnOnce(&mut pley::config::Config)) -> World {
     })
     .await;
     let admin = app.setup_admin().await;
+    // Off until the administrator turns it on.
+    let on = app.put("/api/settings", &admin, json!({"cast_devices": true})).await;
+    assert_eq!(on.status, StatusCode::OK, "{}", on.text());
     app.media_file("movies/Film (2001)/Film (2001).mp4", 2048);
     let movies = app.library(&admin, "Movies", "movies", "movies").await;
     let film = app.ids(movies, &admin).await["Film"];
@@ -295,6 +298,43 @@ async fn home_members_see_cast_devices_and_others_dont() {
     // A device no look found is as unknown.
     let unknown = w.app.post("/api/remote/devices/cast:elsewhere/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(unknown.status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn devices_are_listed_and_cast_to_only_while_the_administrator_has_them_on() {
+    let w = world().await;
+    assert!(lists_cast(&w, &w.admin, "/api/remote/devices?nearby=1").await);
+    let off = w.app.put("/api/settings", &w.admin, json!({"cast_devices": false})).await;
+    assert_eq!((off.status, off.body["cast_devices"].clone()), (StatusCode::OK, json!(false)));
+    // Off: the device the server knew of is gone from the lists, and as
+    // unknown to a remote that listed it before.
+    assert!(!lists_cast(&w, &w.admin, "/api/remote/devices?nearby=1").await);
+    let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
+    assert_eq!(cast.status, StatusCode::NOT_FOUND, "{}", cast.text());
+    let pairing = w.app.post("/api/remote/devices/cast:dev/pairing", &w.admin, json!({})).await;
+    assert_eq!(pairing.status, StatusCode::NOT_FOUND, "{}", pairing.text());
+    // Only an administrator turns it on.
+    let (member, _) = w.app.user(&w.admin, "member", json!({"home": true})).await;
+    let refused = w.app.put("/api/settings", &member, json!({"cast_devices": true})).await;
+    assert_eq!(refused.status, StatusCode::FORBIDDEN);
+    let on = w.app.put("/api/settings", &w.admin, json!({"cast_devices": true})).await;
+    assert_eq!(on.status, StatusCode::OK);
+    assert!(lists_cast(&w, &member, "/api/remote/devices?nearby=1").await);
+}
+
+#[tokio::test]
+async fn a_new_server_casts_to_no_device() {
+    let (address, ..) = fake_device().await;
+    let app = TestApp::with_config(|config| {
+        config.cast_fixed.device = Some(address);
+        config.cast_fixed.server = Some("http://pley.test:7539".into());
+        config.cast_fixed.setup = None;
+    })
+    .await;
+    let admin = app.setup_admin().await;
+    assert_eq!(app.get("/api/settings", &admin).await.body["cast_devices"], json!(false));
+    let devices = app.get("/api/remote/devices?nearby=1", &admin).await;
+    assert!(devices.body.as_array().unwrap().iter().all(|d| d["protocol"].is_null()), "{}", devices.text());
 }
 
 /// An event stream of `token`'s, as receiver `query` describes, connected

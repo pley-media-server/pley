@@ -401,6 +401,9 @@
     "scanningHint": "Les nouveaux éléments apparaîtront ici dès qu’ils seront trouvés.",
     "emptyHint": "Vos bibliothèques sont vides. Ajoutez des médias dans leurs dossiers et lancez une analyse.",
     "manage": "Gérer les bibliothèques",
+    "noRows": "Rien sur l’accueil",
+    "noRowsHint": "Ce que vous regardez et ce qui est dans Ma liste s’affichent ici. Vos bibliothèques sont dans le menu.",
+    "noRowsHintAdmin": "Ajoutez des collections à l’accueil depuis leur fenêtre Modifier, comme les Ajouts récents de chaque bibliothèque.",
     "firstScan": {
       "queued": "{{library}} : en attente",
       "walking": "Analyse de {{library}} : recherche des fichiers",

@@ -9,7 +9,7 @@ APIs, so that apps and tools written for them work with Pley:
   direct-play clients. It is on by default, on Pley's own port.
 - the **Jellyfin-compatible API**, for Jellyfin's apps and others built on
   its API (Findroid, JellyCon, Plezy, Infuse), and activity monitors such
-  as Tracearr. It is off until an administrator turns it on.
+  as Tracearr. It is on by default, on Pley's own port.
 
 Both use the same libraries, users, watch state and playback sessions as
 Pley's own API, so what is watched or changed in one shows up in the others.
@@ -27,8 +27,8 @@ tool at Pley, and for anyone extending the APIs.
 
 ## Turning them on
 
-**Settings → Network** sets each API: off, on Pley's port, or on a port of
-its own.
+Both APIs answer on Pley's port by default. **Settings → Network** sets
+each one: off, on Pley's port, or on a port of its own.
 
 - **On Pley's port**: the API answers on Pley's own address, behind a
   reverse proxy's HTTPS too. Apps and tools connect to the address the web
@@ -42,7 +42,7 @@ The same is set elsewhere as:
 
 | Where | Plex-compatible API | Jellyfin-compatible API |
 |---|---|---|
-| Command line | `--plex-bind web` (the default), `--plex-bind 0.0.0.0:32400` or `--plex-bind off` | `--jellyfin-bind off` (the default), `--jellyfin-bind web` or `--jellyfin-bind 0.0.0.0:8096` |
+| Command line | `--plex-bind web` (the default), `--plex-bind 0.0.0.0:32400` or `--plex-bind off` | `--jellyfin-bind web` (the default), `--jellyfin-bind 0.0.0.0:8096` or `--jellyfin-bind off` |
 | Environment | `PLEY_PLEX_BIND` | `PLEY_JELLYFIN_BIND` |
 | `pley.toml` | `plex_bind = "web"` | `jellyfin_bind = "web"` |
 
@@ -53,7 +53,8 @@ retried every 30 seconds, and Settings → Network shows why Pley isn't
 listening there.
 
 On Pley's port, a request that names itself the Plex-compatible API's (an
-`X-Plex-…` header, or such a parameter in the query) goes to that API; the
+`X-Plex-…` header, such a parameter in the query, or a path with Plex's `:`
+segments, such as a player's `/audio/:/transcode/…`) goes to that API; the
 rest is told apart as each API's section says. `/api/…` and
 `/.well-known/…` are always Pley's own.
 
@@ -61,7 +62,7 @@ rest is told apart as each API's section says. `/api/…` and
 
 | Port | What answers there |
 |---|---|
-| TCP 7539, Pley's port | The Plex-compatible API (its default), and the Jellyfin-compatible API when it is on Pley's port |
+| TCP 7539, Pley's port | The Plex- and Jellyfin-compatible APIs (their default) |
 | TCP 32400 | The Plex-compatible API, only when given a port of its own |
 | TCP 8096 | The Jellyfin-compatible API, only when given a port of its own |
 
@@ -564,15 +565,19 @@ none, then the other collections shown anywhere as
 `custom.collection.<section>.<key>`; with `metadataItemId`, that
 collection's alone. `promotedToRecommended` (or `recommendationsVisibility`)
 shows a collection on the section's Recommended. Pley has one Home for
-everyone: `promotedToOwnHome` and `promotedToSharedHome` (or
-`homeVisibility`) are both it, so either puts a collection there, and
-clearing both takes it off; Plex's Home only for its owner can't be had.
+everyone, which administrators see too: `promotedToOwnHome` (or
+`homeVisibility`) puts a collection there or takes it off, and the listing
+gives `promotedToSharedHome` as the same. python-plexapi and Kometa send
+both Homes, the one they don't change as they read it, so
+`promotedToSharedHome` counts only without `promotedToOwnHome`: Kometa's
+`visible_home` places a collection on Home, and `visible_shared` alone
+doesn't. A Home only for Plex's owner, or only for friends, can't be had.
 `POST …/manage?metadataItemId=` and `PUT …/manage/{identifier}` set them,
 `PUT …/move?after=` orders Recommended (Home's order is set in Pley), and
-`DELETE …/manage/{identifier}` takes a collection off both (Pley's own are
-hidden, not deleted: `400`); moving one that isn't on Recommended leaves
-it off. It needs `manage`, to read it too: it names collections others may
-not see.
+`DELETE …/manage/{identifier}` takes a collection off both (Pley's own,
+listed `deletable="0"`, are hidden, not deleted: `400`); moving one that
+isn't on Recommended leaves it off. It needs `manage`, to read it too: it
+names collections others may not see.
 
 ### Tested
 
@@ -617,7 +622,8 @@ Requests are told apart like this:
   request carries: players fetch streams and pictures without a header, and
   a path Pley doesn't answer gets Jellyfin's `404`, not a page. A request
   that names itself the Plex-compatible API's goes to that one while it is
-  on Pley's port too: their paths meet (`/library`, `/system`, `/devices`).
+  on Pley's port too: their paths meet (`/library`, `/system`, `/devices`,
+  `/audio`).
 - A path both have (`/Library`, `/Playlists`, `/Search`) goes to it only
   with a Jellyfin app's `Authorization: MediaBrowser …` header or token,
   which browsers asking for the web app never send. Those answers vary with

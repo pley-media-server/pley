@@ -59,7 +59,7 @@ pub struct Cli {
     #[arg(long, env = "PLEY_PLEX_BIND", global = true)]
     pub plex_bind: Option<String>,
 
-    /// Where the Jellyfin-compatible API listens: `off` (default), `web` on Pley's own port, or
+    /// Where the Jellyfin-compatible API listens: `web` (default) on Pley's own port, `off`, or
     /// addresses of its own (`0.0.0.0:8096`), several separated by commas
     #[arg(long, env = "PLEY_JELLYFIN_BIND", global = true)]
     pub jellyfin_bind: Option<String>,
@@ -266,17 +266,16 @@ impl Config {
             None => vec![SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_PORT)],
             Some(value) => parse_binds(&value)?,
         };
-        // By default on pley's own port: wherever pley is reached, through
-        // its reverse proxy's HTTPS too.
+        // Both APIs are on pley's own port by default: wherever pley is
+        // reached, through its reverse proxy's HTTPS too.
         let plex_bind = cli.plex_bind.clone().or(file.plex_bind);
         let plex_on_web = plex_bind.as_deref().is_none_or(is_web);
         let plex_binds = match plex_bind {
             Some(value) if !is_off(&value) && !is_web(&value) => parse_binds(&value)?,
             _ => Vec::new(),
         };
-        // Off unless an administrator turns it on.
         let jellyfin_bind = cli.jellyfin_bind.clone().or(file.jellyfin_bind);
-        let jellyfin_on_web = jellyfin_bind.as_deref().is_some_and(is_web);
+        let jellyfin_on_web = jellyfin_bind.as_deref().is_none_or(is_web);
         let jellyfin_binds = match jellyfin_bind {
             Some(value) if !is_off(&value) && !is_web(&value) => parse_binds(&value)?,
             _ => Vec::new(),
@@ -348,7 +347,7 @@ impl Config {
             plex_on_web: true,
             jellyfin_bind: None,
             jellyfin_extra_binds: Vec::new(),
-            jellyfin_on_web: false,
+            jellyfin_on_web: true,
             file_warnings: Vec::new(),
             data_dir: data_dir.to_path_buf(),
             transcode_dir: data_dir.join("transcode"),
@@ -770,11 +769,11 @@ mod tests {
     }
 
     #[test]
-    fn the_jellyfin_api_is_off_unless_turned_on() {
+    fn the_jellyfin_api_is_on_pleys_port_unless_moved_or_turned_off() {
         let dir = tempfile::tempdir().unwrap();
         let mut args = cli(dir.path());
         let config = Config::load(&args).unwrap();
-        assert!(!config.jellyfin_on_web, "off by default");
+        assert!(config.jellyfin_on_web, "on Pley's port by default");
         assert_eq!(config.jellyfin_bind, None);
         for (value, on_web, bind) in [
             ("web", true, None),
@@ -871,10 +870,10 @@ mod tests {
         // Each API is saved under its own key.
         std::fs::write(dir.path().join("pley.toml"), "plex_bind = \"0.0.0.0:32400\"\n").unwrap();
         let config = Config::load(&cli(dir.path())).unwrap();
-        assert_eq!((config.plex_bind, config.jellyfin_on_web), (Some("0.0.0.0:32400".parse().unwrap()), false));
+        assert_eq!((config.plex_bind, config.jellyfin_on_web), (Some("0.0.0.0:32400".parse().unwrap()), true));
         save_listen(&config.config_file, &crate::network::Listen::of(&config), config.network_fixed).unwrap();
         let text = std::fs::read_to_string(&config.config_file).unwrap();
-        assert!(text.contains("plex_bind = \"0.0.0.0:32400\"") && text.contains("jellyfin_bind = \"off\""), "{text}");
+        assert!(text.contains("plex_bind = \"0.0.0.0:32400\"") && text.contains("jellyfin_bind = \"web\""), "{text}");
     }
 
     /// Command line options as if none were given (built directly, so the
@@ -907,7 +906,7 @@ mod tests {
         let config = Config::load(&cli(dir.path())).unwrap();
         assert_eq!(config.bind, SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), DEFAULT_PORT));
         assert_eq!((config.plex_bind, config.plex_on_web), (None, true));
-        assert_eq!((config.jellyfin_bind, config.jellyfin_on_web), (None, false));
+        assert_eq!((config.jellyfin_bind, config.jellyfin_on_web), (None, true));
         assert_eq!(config.data_dir, dir.path());
         assert_eq!(config.transcode_dir, dir.path().join("transcode"));
         assert_eq!(config.db_path(), dir.path().join("pley.db"));
