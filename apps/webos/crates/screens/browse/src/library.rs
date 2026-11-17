@@ -1423,7 +1423,8 @@ impl CollectionsTab {
         let cells = &self.cells;
         let groups = &mut self.groups;
         let clip = Some(COLLECTION_ROWS_Y - theme::ROWS_CLIP_ABOVE);
-        RowColumn::new(COLLECTION_ROWS_Y).clip_above(clip).show(
+        // A held Up stays in the rows, as in the grid; the chips take a press of its own.
+        RowColumn::new(COLLECTION_ROWS_Y).clip_above(clip).held_stop(Dirs::UP).show(
             ui,
             column_id,
             &mut self.column,

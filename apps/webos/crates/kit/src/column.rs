@@ -13,7 +13,7 @@
 
 use pley_base::Rect;
 use pley_ui::theme;
-use pley_ui::{Group, Id, Ui, nudge};
+use pley_ui::{Dirs, Group, Id, Ui, nudge};
 
 use crate::look::PAGE_SCROLL;
 
@@ -85,12 +85,18 @@ pub struct RowColumn {
     top: f32,
     clip_above: Option<f32>,
     gap: f32,
+    held_stops: Dirs,
 }
 
 impl RowColumn {
     /// Sections from `top`, [`theme::ROW_GAP`] apart, clipped above y 160 once the page moves.
     pub fn new(top: f32) -> RowColumn {
-        RowColumn { top, clip_above: Some(theme::FOCUSED_ROW_HEADER_Y - theme::ROWS_CLIP_ABOVE), gap: theme::ROW_GAP }
+        RowColumn {
+            top,
+            clip_above: Some(theme::FOCUSED_ROW_HEADER_Y - theme::ROWS_CLIP_ABOVE),
+            gap: theme::ROW_GAP,
+            held_stops: Dirs::NONE,
+        }
     }
 
     /// The clip line (`None`: never clipped).
@@ -101,6 +107,12 @@ impl RowColumn {
     /// The space between sections.
     pub fn gap(self, gap: f32) -> RowColumn {
         RowColumn { gap, ..self }
+    }
+
+    /// Sides a held key stops at, where a press leaves the page: the Collections tab's Up to its
+    /// chips, as [`crate::PosterGrid::held_stop`] for a grid.
+    pub fn held_stop(self, dirs: Dirs) -> RowColumn {
+        RowColumn { held_stops: dirs, ..self }
     }
 
     /// The clip line: once the page has moved, the area above it is the info block's.
@@ -196,7 +208,7 @@ impl RowColumn {
         out.shift = shown;
 
         let mut body = |ui: &mut Ui| {
-            ui.group(id, Group::column(), |ui| {
+            ui.group(id, Group::column().held_stop(self.held_stops), |ui| {
                 for i in d0..d1 {
                     let sid = id.with(sections[i].key);
                     ui.group(sid, Group::free(), |ui| draw(ui, i, tops[i] - shown));

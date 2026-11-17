@@ -543,3 +543,20 @@ fn a_recommended_rows_see_all_opens_its_collection() {
     app.press(Key::Ok);
     assert_eq!(app.route(), Some(&Route::Collection { id: ids::SMART_COLLECTION }));
 }
+
+#[test]
+fn a_held_up_stays_in_the_collections_rows_and_a_press_reaches_the_chip() {
+    let mut app = TestApp::start();
+    app.open(Route::Library { id: ids::MOVIES, tab: Some(LibraryTab::Collections), sort: None });
+    assert!(app.until(|a| a.shows("Highlights") && a.shows("Franchises")));
+    let rows = app.id(&["collections-grid"]);
+    let first = rows.with(ids::CATEGORY_HIGHLIGHTS as u64).with("row").with(ids::SMART_COLLECTION as u64);
+    assert!(app.until(|a| a.focused() == Some(first)));
+    press(&mut app, &[Key::Down, Key::Down]);
+    assert_ne!(app.focused(), Some(first));
+    // Held, Up glides back to the first row and stays there, as in a library's grid.
+    app.hold(Key::Up, 1.5);
+    assert_eq!(app.focused(), Some(first), "a held Up left the rows");
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(app.id(&["collection-chips", "category"])));
+}

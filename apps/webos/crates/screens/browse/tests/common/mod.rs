@@ -88,6 +88,14 @@ impl TestApp {
         self.advance(0.15);
     }
 
+    /// Holds `key` down for `secs`, then lets it go.
+    pub fn hold(&mut self, key: Key, secs: f64) {
+        self.frame(vec![InputEvent::Key(KeyEvent { key, pressed: true, repeat: false, code: 0 })]);
+        self.advance(secs);
+        self.frame(vec![InputEvent::Key(KeyEvent { key, pressed: false, repeat: false, code: 0 })]);
+        self.advance(0.15);
+    }
+
     /// Lets `secs` pass on the app's clock, drawing frames as it goes.
     pub fn advance(&mut self, secs: f64) {
         let end = self.time + secs;
