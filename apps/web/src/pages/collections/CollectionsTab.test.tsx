@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import type { Category, Collection } from "@/api/lists";
+import { namedCategory, type Category, type Collection } from "@/api/lists";
 import { mockApi, renderWithProviders, testUser } from "@/test/render";
 import { CollectionsTab, groupByCategory, isOfType } from "./CollectionsTab";
 
@@ -57,6 +57,13 @@ describe("groupByCategory", () => {
       "Franchises",
       "Seasonal",
     ]);
+  });
+});
+
+describe("namedCategory", () => {
+  it("names a collection's category, but not Other, which only says it has none", () => {
+    expect(namedCategory(collections[2]!)?.title).toBe("Seasonal");
+    expect(namedCategory(collections[3]!)).toBeNull();
   });
 });
 
