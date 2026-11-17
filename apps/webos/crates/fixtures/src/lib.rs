@@ -290,6 +290,7 @@ impl FixtureServer {
             added_subtitles: Default::default(),
             casts_sent: Default::default(),
             cast_tickets: Default::default(),
+            hidden_collections: Vec::new(),
         };
         let libraries: Vec<(i64, i64)> = catalog.libraries.iter().map(|l| (l.id, l.item_count)).collect();
         let shared = Arc::new(Shared {
@@ -468,6 +469,12 @@ impl FixtureServer {
     /// answers `503 unavailable`.
     pub fn set_requests(&self, on: bool) {
         lock(&self.shared.state).requests.enabled = on;
+    }
+
+    /// Takes `ids` out of their libraries' lists of collections, as if an administrator deleted
+    /// them.
+    pub fn hide_collections(&self, ids: &[i64]) {
+        lock(&self.shared.state).hidden_collections.extend_from_slice(ids);
     }
 
     /// What asking does for `profile`: `auto`, `ask` or `off`.

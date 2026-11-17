@@ -31,6 +31,8 @@ pub mod snapshot_keys {
     pub const ME: &str = "me";
     /// The libraries.
     pub const LIBRARIES: &str = "libraries";
+    /// The categories of collections.
+    pub const COLLECTION_CATEGORIES: &str = "collection-categories";
     /// The playlists.
     pub const PLAYLISTS: &str = "playlists";
     /// My List.
@@ -74,6 +76,12 @@ pub mod snapshot_keys {
     /// A collection and its items.
     pub fn collection(id: i64) -> String {
         format!("collection:{id}")
+    }
+
+    /// Several libraries' same-titled collections, opened as one.
+    pub fn merged_collection(ids: &[i64]) -> String {
+        let ids = ids.iter().map(i64::to_string).collect::<Vec<_>>().join(",");
+        format!("merged:{ids}")
     }
 
     /// An item's details.

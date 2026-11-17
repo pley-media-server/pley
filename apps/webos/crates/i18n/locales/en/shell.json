@@ -35,6 +35,7 @@
     "pin": "Enter the PIN",
     "library": "Library {{id}}",
     "collection": "Collection {{id}}",
+    "mergedCollection": "Collections {{ids}}",
     "playlist": "Playlist {{id}}",
     "addToPlaylist": "Add “{{title}}” to a playlist",
     "newPlaylist": "New playlist",

@@ -9,7 +9,7 @@ use std::hash::{DefaultHasher, Hash, Hasher};
 
 use serde_json::json;
 
-use crate::catalog::Catalog;
+use crate::catalog::{CATEGORIES, Catalog};
 use crate::household::Profile;
 use crate::http::{Response, lock};
 use crate::model::{
@@ -74,19 +74,45 @@ pub(crate) fn routes() -> Vec<Route> {
             let hubs = library_hubs(cx, library, state.profile(cx.caller().profile));
             Ok(json(200, &json!({ "hubs": hubs })))
         }),
-        locked("GET", "/api/libraries/*/collections", Need::Scope(LIBRARY), |cx, _| {
+        locked("GET", "/api/libraries/*/collections", Need::Scope(LIBRARY), |cx, state| {
             let id = cx.id(0)?;
             let catalog = cx.catalog();
             catalog.library(id).ok_or_else(|| not_found(&format!("library {id} not found")))?;
             let mut list: Vec<_> = catalog
                 .collections()
                 .iter()
-                .filter(|c| c.library_id == id)
+                .filter(|c| c.library_id == id && !state.hidden_collections.contains(&c.id))
                 .map(|c| views::collection_summary(catalog, c))
                 .filter(|c| c.item_count > 0)
                 .collect();
             list.sort_by_key(|c| c.title.to_lowercase());
             Ok(json(200, &json!({ "collections": list })))
+        }),
+        locked("GET", "/api/collection-categories", Need::Scope(LIBRARY), |_, _| {
+            let categories: Vec<_> = CATEGORIES
+                .iter()
+                .enumerate()
+                .map(|(i, (id, key, title))| {
+                    json!({ "id": id, "key": key, "title": title, "from_label": null, "position": i })
+                })
+                .collect();
+            Ok(json(200, &json!({ "categories": categories })))
+        }),
+        // Before `/api/collections/*`, which would take "merged" for an id.
+        locked("GET", "/api/collections/merged", Need::Scope(LIBRARY), |cx, state| {
+            let ids: Vec<i64> = cx.query("ids").unwrap_or("").split(',').filter_map(|v| v.parse().ok()).collect();
+            let catalog = cx.catalog();
+            let profile = state.profile(cx.caller().profile);
+            let opts = ListOpts { summaries: cx.summaries(), ..ListOpts::default() };
+            let found: Vec<_> = ids.iter().filter_map(|id| catalog.collection(*id)).collect();
+            let Some(first) = found.first() else { return Err(not_found("collection not found")) };
+            let parts: Vec<_> = found.iter().map(|c| json!({ "id": c.id, "library_id": c.library_id })).collect();
+            let items: Vec<_> = found
+                .iter()
+                .flat_map(|c| views::collection_items(catalog, c))
+                .map(|i| views::summary(catalog, i, profile, opts))
+                .collect();
+            Ok(json(200, &json!({ "title": first.title, "collections": parts, "items": items })))
         }),
         locked("GET", "/api/collections/*", Need::Scope(LIBRARY), |cx, state| {
             let id = cx.id(0)?;
@@ -518,6 +544,7 @@ fn hub(
         key,
         title,
         library_id: library,
+        collection_ids: Vec::new(),
         items: items.into_iter().map(|i| views::summary(catalog, i, profile, opts)).collect(),
     }
 }
@@ -553,6 +580,17 @@ fn home_hubs(cx: &Cx<'_>, profile: &mut Profile) -> Vec<Hub> {
             ));
         }
     }
+    // Holiday Favourites of the movies and the shows libraries: one row of both.
+    let holiday = [ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS];
+    let items: Vec<&ItemDetail> = holiday
+        .iter()
+        .filter_map(|id| catalog.collection(*id))
+        .flat_map(|c| views::collection_items(catalog, c))
+        .collect();
+    let key = format!("collections:{},{}", holiday[0], holiday[1]);
+    let mut row = hub(catalog, key, "Holiday Favourites".into(), None, items, profile, opts);
+    row.collection_ids = holiday.to_vec();
+    hubs.push(row);
     hubs
 }
 
@@ -609,6 +647,13 @@ fn library_hubs(cx: &Cx<'_>, library: &Library, profile: &Profile) -> Vec<Hub> {
         });
         rated.truncate(30);
         hubs.push(hub(catalog, format!("top_rated:{id}"), "Top Rated".into(), Some(id), rated, profile, opts));
+        // The library's collections an administrator put on its Recommended tab: the smart one.
+        for c in catalog.collections().iter().filter(|c| c.library_id == id && c.smart_filter.is_some()) {
+            let items = views::collection_items(catalog, c).into_iter().take(30).collect();
+            let mut row = hub(catalog, format!("collection:{}", c.id), c.title.clone(), Some(id), items, profile, opts);
+            row.collection_ids = vec![c.id];
+            hubs.push(row);
+        }
     }
     hubs.retain(|h| !h.items.is_empty());
     hubs

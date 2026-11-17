@@ -12,7 +12,7 @@ use pley_core::format::{
 use pley_core::model::{Hub, ItemDetail, ItemKind, ItemSummary, Library, LibraryKind, LibrarySort};
 use pley_i18n::t;
 use pley_kit::TileKind;
-use pley_shell::{PlayRequest, Route};
+use pley_shell::{LibraryTab, PlayRequest, Route};
 
 /// A row's tiles (`rowShape`, `HomeState.kt:137-157`): Continue Watching wide, a music library's
 /// rows square, a row starting with an episode wide, of artists, albums or tracks square, the
@@ -45,10 +45,15 @@ pub fn see_all_sort(hub: &Hub) -> Option<LibrarySort> {
     }
 }
 
-/// Where a row's "See all" goes: its library, sorted as the row is. Only a library's own rows
-/// have one.
-pub fn see_all_of(hub: &Hub) -> Option<(i64, LibrarySort)> {
-    Some((hub.library_id?, see_all_sort(hub)?))
+/// Where a row's "See all" goes: the collection it shows, or the merged page of several
+/// libraries' same-titled ones; from a server before collections were rows, its library sorted
+/// as the row is. Continue Watching and My List have none.
+pub fn see_all_of(hub: &Hub) -> Option<Route> {
+    if let Some(route) = Route::of_collections(&hub.collection_ids) {
+        return Some(route);
+    }
+    let sort = see_all_sort(hub)?;
+    Some(Route::Library { id: hub.library_id?, tab: Some(LibraryTab::Library), sort: Some(sort) })
 }
 
 /// The hero (`heroOf`, `HomeState.kt:178-188`): the first title of Continue Watching, else the
@@ -473,7 +478,7 @@ mod tests {
     }
 
     fn hub(key: &str, library: Option<i64>, items: Vec<ItemSummary>) -> Hub {
-        Hub { key: key.into(), title: key.into(), library_id: library, items }
+        Hub { key: key.into(), title: key.into(), library_id: library, items, ..Hub::default() }
     }
 
     fn library(id: i64, kind: LibraryKind, count: i64) -> Library {
@@ -495,12 +500,25 @@ mod tests {
 
     #[test]
     fn see_all_goes_to_the_rows_library_in_the_rows_order() {
-        assert_eq!(see_all_of(&hub("recently_added:1", Some(1), vec![])), Some((1, LibrarySort::Added)));
-        assert_eq!(see_all_of(&hub("recently_released:2", Some(2), vec![])), Some((2, LibrarySort::Release)));
-        assert_eq!(see_all_of(&hub("top_rated:2", Some(2), vec![])), Some((2, LibrarySort::Rating)));
+        let library = |id, sort| Some(Route::Library { id, tab: Some(LibraryTab::Library), sort: Some(sort) });
+        assert_eq!(see_all_of(&hub("recently_added:1", Some(1), vec![])), library(1, LibrarySort::Added));
+        assert_eq!(see_all_of(&hub("recently_released:2", Some(2), vec![])), library(2, LibrarySort::Release));
+        assert_eq!(see_all_of(&hub("top_rated:2", Some(2), vec![])), library(2, LibrarySort::Rating));
         assert_eq!(see_all_of(&hub("continue_watching", None, vec![])), None);
         assert_eq!(see_all_of(&hub("my_list", None, vec![])), None);
         assert_eq!(see_all_of(&hub("recently_added", None, vec![])), None);
+    }
+
+    #[test]
+    fn see_all_opens_the_rows_collection_or_the_merged_page() {
+        let mut one = hub("recently_added:1", Some(1), vec![]);
+        one.collection_ids = vec![7];
+        assert_eq!(see_all_of(&one), Some(Route::Collection { id: 7 }));
+        let mut merged = hub("collections:7,9", None, vec![]);
+        merged.collection_ids = vec![7, 9];
+        assert_eq!(see_all_of(&merged), Some(Route::MergedCollection { ids: vec![7, 9] }));
+        // A collection's row without a library sort has nowhere else to go.
+        assert_eq!(see_all_of(&hub("collection:7", Some(1), vec![])), None);
     }
 
     #[test]

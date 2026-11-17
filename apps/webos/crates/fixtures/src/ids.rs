@@ -80,6 +80,16 @@ pub const TRACK: i64 = 62_001;
 /// A smart collection of the movies library: its comedies of the 1990s.
 pub const SMART_COLLECTION: i64 = 1;
 pub const COLLECTION: i64 = 2;
+/// "Holiday Favourites" in the movies and the shows libraries: one row on Home, opened as the
+/// merged page.
+pub const HOLIDAY_MOVIES: i64 = 30;
+pub const HOLIDAY_SHOWS: i64 = 31;
+
+/// The categories of collections: Pley's three (Other among them), then an administrator's.
+pub const CATEGORY_HIGHLIGHTS: i64 = 1;
+pub const CATEGORY_FRANCHISES: i64 = 2;
+pub const CATEGORY_SEASONAL: i64 = 3;
+pub const CATEGORY_OTHER: i64 = 4;
 
 /// Alex's playlists: movies, tracks, and a smart one (the library's
 /// unwatched comedies).

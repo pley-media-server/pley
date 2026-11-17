@@ -9,14 +9,15 @@
 //! row at y 136;
 //! the jump control sits at x 872, level with that row. The view (sort, order, filters) and the
 //! tab are kept per server, profile and library, read off the main thread before the page shows
-//! (500 ms at most); a row's See all opens the Library tab in its order, kept only once changed.
+//! (500 ms at most); a row's See all opens its collection, or for a row that is none (a server
+//! before collections were rows) the Library tab in its order, kept only once changed.
 
 use std::time::{Duration, Instant};
 
 use pley_base::{Icon, Point, Size, TextOpts};
 use pley_core::model::{
-    CollectionList, CollectionSummary, Hub, Hubs, Library, LibraryFilters, LibraryKind, LibraryQuery, LibrarySort,
-    RangeFilter, ResolutionFilter, SortOrder,
+    CollectionCategories, CollectionGroup, CollectionList, CollectionSummary, Hub, Hubs, Library, LibraryFilters,
+    LibraryKind, LibraryQuery, LibrarySort, RangeFilter, ResolutionFilter, SortOrder, group_by_category,
 };
 use pley_core::store::{keys, snapshot_keys};
 use pley_core::{ApiError, Promise};
@@ -251,7 +252,10 @@ impl Screen for LibraryScreen {
         let down = match shown {
             LibraryTab::Library => ui.id("chips").with("sort"),
             LibraryTab::Recommended => ui.id("rows"),
-            LibraryTab::Collections => ui.id("collections-grid"),
+            LibraryTab::Collections => match &self.collections {
+                Some(col) if col.has_chip() => ui.id("collection-chips").with("category"),
+                _ => ui.id("collections-grid"),
+            },
         };
         let chosen_tab = self.header(ui, &library, tabs, shown, down);
         let low = ui.tier() == Tier::Low;
@@ -284,7 +288,6 @@ impl Screen for LibraryScreen {
                         }
                         self.show_tab(cx, LibraryTab::Library);
                     }
-                    Some(RecommendedOut::Collections) => self.show_tab(cx, LibraryTab::Collections),
                     None => {}
                 }
             }
@@ -301,8 +304,9 @@ impl Screen for LibraryScreen {
     }
 
     fn back(&mut self, _cx: &mut AppCx) -> bool {
-        match (&mut self.grid, self.tab) {
-            (Some(grid), Some(LibraryTab::Library)) => grid.close_panel(),
+        match self.tab {
+            Some(LibraryTab::Library) => self.grid.as_mut().is_some_and(GridTab::close_panel),
+            Some(LibraryTab::Collections) => self.collections.as_mut().is_some_and(CollectionsTab::close_panel),
             _ => false,
         }
     }
@@ -316,10 +320,9 @@ impl Screen for LibraryScreen {
                 }
                 if let Some(r) = &mut self.recommended {
                     r.hubs.invalidate();
-                    r.collections.invalidate();
                 }
                 if let Some(c) = &mut self.collections {
-                    c.list.invalidate();
+                    c.invalidate();
                 }
             }
             AppEvent::Shown => {
@@ -329,10 +332,9 @@ impl Screen for LibraryScreen {
                 }
                 if let Some(r) = &mut self.recommended {
                     r.hubs.revalidate(cx.now);
-                    r.collections.revalidate(cx.now);
                 }
                 if let Some(c) = &mut self.collections {
-                    c.list.revalidate(cx.now);
+                    c.revalidate(cx.now);
                 }
             }
             _ => {}
@@ -348,7 +350,11 @@ impl Screen for LibraryScreen {
     }
 
     fn modal(&self) -> bool {
-        self.tab == Some(LibraryTab::Library) && self.grid.as_ref().is_some_and(|g| g.panel.is_some())
+        match self.tab {
+            Some(LibraryTab::Library) => self.grid.as_ref().is_some_and(|g| g.panel.is_some()),
+            Some(LibraryTab::Collections) => self.collections.as_ref().is_some_and(|c| c.panel_open),
+            _ => false,
+        }
     }
 }
 
@@ -982,10 +988,24 @@ struct RecRow {
     title: String,
     kind: TileKind,
     cells: Vec<Cell>,
-    see_all: Option<LibrarySort>,
+    see_all: Option<SeeAll>,
     continue_watching: bool,
     /// Where the row is scrolled and focused, kept when the rows come again.
     state: RowState,
+}
+
+/// Where a Recommended row's See all goes.
+#[derive(Clone, Debug, PartialEq)]
+enum SeeAll {
+    /// The row's collection (or the merged page of several).
+    Open(Route),
+    /// The Library tab in this order.
+    Sort(LibrarySort),
+}
+
+/// A Recommended row's See all: its collections, else the Library tab in the row's order.
+fn see_all_of(hub: &Hub) -> Option<SeeAll> {
+    Route::of_collections(&hub.collection_ids).map(SeeAll::Open).or_else(|| see_all_sort(&hub.key).map(SeeAll::Sort))
 }
 
 /// A collection as a tile shows it.
@@ -1015,17 +1035,13 @@ impl CollectionCell {
 enum RecommendedOut {
     Open(Route),
     SeeAll(LibrarySort),
-    Collections,
 }
 
-/// The Recommended tab: the library's rows, then its collections.
+/// The Recommended tab: the library's rows (the collections administrators put there).
 struct RecommendedTab {
     hubs: Resource<Hubs>,
-    collections: Resource<CollectionList>,
     rows: Vec<RecRow>,
-    collection_cells: Vec<CollectionCell>,
     column: ColumnState,
-    collections_state: RowState,
     rest: Rest,
     /// Whether the first tile took focus from the tab once the rows came.
     placed: bool,
@@ -1034,16 +1050,10 @@ struct RecommendedTab {
 impl RecommendedTab {
     fn new(library: &Library) -> RecommendedTab {
         let id = library.id;
-        let music = library.kind == LibraryKind::Music;
         RecommendedTab {
             hubs: Resource::new(Some(snapshot_keys::library_hubs(id)), move |api| api.library_hubs(id)),
-            collections: Resource::new(Some(snapshot_keys::collections(id)), move |api| {
-                if music { Ok(CollectionList::default()) } else { api.library_collections(id) }
-            }),
             rows: Vec::new(),
-            collection_cells: Vec::new(),
             column: ColumnState::default(),
-            collections_state: RowState::default(),
             rest: Rest::default(),
             placed: false,
         }
@@ -1059,6 +1069,7 @@ impl RecommendedTab {
             .filter(|h| !h.items.is_empty())
             .map(|hub| {
                 let continue_watching = hub.continue_watching();
+                let see_all = see_all_of(&hub);
                 let kind = if continue_watching {
                     TileKind::Landscape
                 } else if music {
@@ -1072,7 +1083,7 @@ impl RecommendedTab {
                     None => Vec::new(),
                 };
                 RecRow {
-                    see_all: see_all_sort(&hub.key),
+                    see_all,
                     state: states.remove(&hub.key).unwrap_or_default(),
                     key: hub.key,
                     title: hub.title,
@@ -1094,12 +1105,6 @@ impl RecommendedTab {
     ) -> Option<RecommendedOut> {
         if self.hubs.update(cx) {
             self.build_rows(ui, cx, library);
-        }
-        if self.collections.update(cx) {
-            let px = ui.image_px(TileKind::Poster.size().w);
-            let list = self.collections.value().map(|c| c.collections.clone()).unwrap_or_default();
-            self.collection_cells =
-                list.into_iter().map(|c| CollectionCell::new(cx, c, Some(library.kind), px)).collect();
         }
         match self.hubs.state() {
             Load::Loading => {
@@ -1126,13 +1131,12 @@ impl RecommendedTab {
                 let r = column_message(ui, ui.id("state"), CHIPS_Y, title, &problem, Some(t!("library.retry")));
                 if r.is_some_and(|r| r.activated) {
                     self.hubs.invalidate();
-                    self.collections.invalidate();
                 }
                 return None;
             }
             _ => {}
         }
-        if self.rows.is_empty() && self.collection_cells.is_empty() {
+        if self.rows.is_empty() {
             let title = t!("library.messages.recommendedEmptyTitle");
             column_message(ui, ui.id("state"), CHIPS_Y, title, t!("library.messages.recommendedEmptyBody"), None);
             if initial {
@@ -1140,90 +1144,56 @@ impl RecommendedTab {
             }
             return None;
         }
-        let mut sections: Vec<Section> = self
+        let sections: Vec<Section> = self
             .rows
             .iter()
             .enumerate()
             .map(|(i, r)| Section::new(i as u64, r.kind.row_height(true), Some(CHIPS_Y)))
             .collect();
-        let with_collections = !self.collection_cells.is_empty();
-        if with_collections {
-            sections.push(Section::new(u64::MAX, TileKind::Poster.row_height(true), Some(CHIPS_Y)));
-        }
         let column_id = ui.id("rows");
         if initial {
-            let first = column_id.with(0u64);
-            let target = match self.rows.first() {
-                Some(r) => first.with(r.key.as_str()).with(r.cells[0].item.id as u64),
-                None => {
-                    column_id.with(u64::MAX).with("collections").with(self.collection_cells[0].collection.id as u64)
-                }
-            };
+            let r = &self.rows[0];
+            let target = column_id.with(0u64).with(r.key.as_str()).with(r.cells[0].item.id as u64);
             ui.initial_focus(target);
             place(ui, &mut self.placed, tab_id, target);
         }
         let mut out = None;
         let mut focused_at = None;
         let rows = &mut self.rows;
-        let cols = &self.collection_cells;
-        let cols_state = &mut self.collections_state;
         RowColumn::new(CHIPS_Y).clip_above(Some(CHIPS_Y - theme::ROWS_CLIP_ABOVE)).show(
             ui,
             column_id,
             &mut self.column,
             &sections,
             |ui, i, top| {
-                if let Some(row) = rows.get_mut(i) {
-                    let len = row.cells.len() + row.see_all.is_some() as usize;
-                    let row_id = ui.id(row.key.as_str());
-                    let (cells, kind) = (&row.cells, row.kind);
-                    let r = Row::new(kind, top).header(&row.title).show(
-                        ui,
-                        row_id,
-                        &mut row.state,
-                        len,
-                        |k| cells.get(k).map_or(u64::MAX, |c| c.item.id as u64),
-                        |ui, slot| match cells.get(slot.index) {
-                            Some(cell) => cell.tile(kind).paint(ui, slot),
-                            None => Tile::see_all(kind, t!("library.seeAll")).paint(ui, slot),
-                        },
-                    );
-                    if let Some(k) = r.activated {
-                        out = match (row.cells.get(k), row.see_all) {
-                            (Some(cell), _) => Some(RecommendedOut::Open(page_of(&cell.item))),
-                            (None, Some(sort)) => Some(RecommendedOut::SeeAll(sort)),
-                            (None, None) => out.take(),
-                        };
-                    }
-                    if let Some(cell) = r.actions.and_then(|k| row.cells.get(k)) {
-                        cx.tile_actions(cell.item.id, row.continue_watching);
-                    }
-                    if let Some(k) = r.focused.filter(|k| *k < row.cells.len()) {
-                        focused_at = Some((i, k));
-                    }
-                } else {
-                    let row_id = ui.id("collections");
-                    let header = t!("library.collections.title");
-                    let r = Row::new(TileKind::Poster, top).header(header).long_press(false).show(
-                        ui,
-                        row_id,
-                        cols_state,
-                        cols.len() + 1,
-                        |k| cols.get(k).map_or(u64::MAX, |c| c.collection.id as u64),
-                        |ui, slot| match cols.get(slot.index) {
-                            Some(c) => Tile::new(TileKind::Poster, &c.collection.title)
-                                .subtitle(&c.subtitle)
-                                .art(&c.art)
-                                .paint(ui, slot),
-                            None => Tile::see_all(TileKind::Poster, t!("library.seeAll")).paint(ui, slot),
-                        },
-                    );
-                    if let Some(k) = r.activated {
-                        out = Some(match cols.get(k) {
-                            Some(c) => RecommendedOut::Open(Route::Collection { id: c.collection.id }),
-                            None => RecommendedOut::Collections,
-                        });
-                    }
+                let Some(row) = rows.get_mut(i) else { return };
+                let len = row.cells.len() + row.see_all.is_some() as usize;
+                let row_id = ui.id(row.key.as_str());
+                let (cells, kind) = (&row.cells, row.kind);
+                let r = Row::new(kind, top).header(&row.title).show(
+                    ui,
+                    row_id,
+                    &mut row.state,
+                    len,
+                    |k| cells.get(k).map_or(u64::MAX, |c| c.item.id as u64),
+                    |ui, slot| match cells.get(slot.index) {
+                        Some(cell) => cell.tile(kind).paint(ui, slot),
+                        None => Tile::see_all(kind, t!("library.seeAll")).paint(ui, slot),
+                    },
+                );
+                if let Some(k) = r.activated {
+                    out = match (row.cells.get(k), &row.see_all) {
+                        (Some(cell), _) => Some(RecommendedOut::Open(page_of(&cell.item))),
+                        (None, Some(SeeAll::Open(route))) => Some(RecommendedOut::Open(route.clone())),
+                        (None, Some(SeeAll::Sort(sort))) => Some(RecommendedOut::SeeAll(*sort)),
+                        (None, None) => out.take(),
+                    };
+                }
+                if let Some(cell) = r.actions.and_then(|k| row.cells.get(k)) {
+                    cx.tile_actions(cell.item.id, row.continue_watching);
+                }
+                if let Some(k) = r.focused.filter(|k| *k < row.cells.len()) {
+                    focused_at = Some((i, k));
                 }
             },
         );
@@ -1234,21 +1204,135 @@ impl RecommendedTab {
     }
 }
 
-/// The Collections tab: the count, then a grid of the library's collections (skeletons while they
-/// come); its messages where the Library tab's are.
+/// The Collections tab's filter by category: every one, or one group's (by its id).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+enum CategoryChoice {
+    #[default]
+    All,
+    Is(Option<i64>),
+}
+
+impl CategoryChoice {
+    fn of(group: &CollectionGroup) -> CategoryChoice {
+        CategoryChoice::Is(group.id)
+    }
+}
+
+/// A group of the Collections tab as it shows: its heading and its collections, by their place in
+/// the list.
+struct ShownGroup {
+    key: u64,
+    title: String,
+    cells: Vec<usize>,
+    state: RowState,
+}
+
+/// The Collections tab (the web's `CollectionsTab`): a Category chip with the count, then
+/// the library's collections by category in the categories' order: a headed row for
+/// each, or one grid without a heading when a single group shows. Skeletons while they come; its
+/// messages where the Library tab's are.
 struct CollectionsTab {
     list: Resource<CollectionList>,
+    /// The server's categories; a server without them (or one that failed) groups every
+    /// collection under Other, which shows as one grid.
+    categories: Resource<CollectionCategories>,
     cells: Vec<CollectionCell>,
+    category: CategoryChoice,
+    /// The categories with collections, for the Category panel.
+    used: Vec<(CategoryChoice, String)>,
+    groups: Vec<ShownGroup>,
+    /// The groups need working out again (the list, the categories or a filter changed).
+    regroup: bool,
     grid: GridState,
+    column: ColumnState,
+    panel_open: bool,
+    /// Focus goes to the collections on the next frame: the chip that opened the panel is gone.
+    focus_collections: bool,
+    panel_list: ListState,
 }
+
+/// The rows' top on the Collections tab: under the chips, its header where the grid's wells are.
+const COLLECTION_ROWS_Y: f32 = GRID_TOP + theme::GRID_CONTENT_TOP;
 
 impl CollectionsTab {
     fn new(library: i64) -> CollectionsTab {
         CollectionsTab {
             list: Resource::new(Some(snapshot_keys::collections(library)), move |api| api.library_collections(library)),
+            categories: Resource::new(Some(snapshot_keys::COLLECTION_CATEGORIES.to_string()), |api| {
+                api.collection_categories()
+            }),
             cells: Vec::new(),
+            category: CategoryChoice::All,
+            used: Vec::new(),
+            groups: Vec::new(),
+            regroup: true,
             grid: GridState::default(),
+            column: ColumnState::default(),
+            panel_open: false,
+            focus_collections: false,
+            panel_list: ListState::default(),
         }
+    }
+
+    fn close_panel(&mut self) -> bool {
+        std::mem::take(&mut self.panel_open)
+    }
+
+    /// The Category chip shows when there are categories to choose between, or one is chosen.
+    fn has_chip(&self) -> bool {
+        self.used.len() > 1 || self.category != CategoryChoice::All
+    }
+
+    fn invalidate(&mut self) {
+        self.list.invalidate();
+        self.categories.invalidate();
+    }
+
+    fn revalidate(&mut self, now: f64) {
+        self.list.revalidate(now);
+        self.categories.revalidate(now);
+    }
+
+    fn set_category(&mut self, category: CategoryChoice) {
+        if category != self.category {
+            self.category = category;
+            self.regroup = true;
+            self.grid = GridState::default();
+            self.column = ColumnState::default();
+        }
+    }
+
+    /// Works the groups out from the list, the categories and the filter, keeping each row's
+    /// place.
+    fn work_out_groups(&mut self) {
+        self.regroup = false;
+        let categories = self.categories.value().map_or(&[][..], |c| c.categories.as_slice());
+        let all: Vec<&CollectionSummary> = self.cells.iter().map(|c| &c.collection).collect();
+        self.used = group_by_category(all.iter().copied(), categories)
+            .iter()
+            .map(|g| (CategoryChoice::of(g), g.title.to_string()))
+            .collect();
+        // A category emptied or deleted since it was chosen filters nothing.
+        if !self.used.iter().any(|(c, _)| *c == self.category) {
+            self.category = CategoryChoice::All;
+        }
+        let mut states: std::collections::HashMap<u64, RowState> =
+            self.groups.drain(..).map(|g| (g.key, g.state)).collect();
+        let index = |c: &CollectionSummary| self.cells.iter().position(|x| x.collection.id == c.id).unwrap_or(0);
+        self.groups = group_by_category(all.iter().copied(), categories)
+            .into_iter()
+            .filter(|g| self.category == CategoryChoice::All || CategoryChoice::of(g) == self.category)
+            .map(|g| {
+                // The untitled group of a server without categories: past every category's id.
+                let key = g.id.map_or(u64::MAX, |id| id as u64);
+                ShownGroup {
+                    key,
+                    title: g.title.to_string(),
+                    cells: g.collections.iter().map(|c| index(c)).collect(),
+                    state: states.remove(&key).unwrap_or_default(),
+                }
+            })
+            .collect();
     }
 
     fn ui(&mut self, ui: &mut Ui, cx: &mut AppCx, library: &Library, initial: bool, tab_id: Id) -> Option<Route> {
@@ -1256,17 +1340,26 @@ impl CollectionsTab {
             let px = ui.image_px(TileKind::LibraryGrid.size().w);
             let list = self.list.value().map_or(&[][..], |c| c.collections.as_slice());
             self.cells = list.iter().map(|c| CollectionCell::new(cx, c.clone(), Some(library.kind), px)).collect();
+            self.regroup = true;
+        }
+        if self.categories.update(cx) {
+            self.regroup = true;
+        }
+        // The categories wait for their answer (saved or fresh), unless they can't be had.
+        let categories_known = self.categories.value().is_some() || self.categories.error().is_some();
+        if self.regroup && categories_known {
+            self.work_out_groups();
         }
         if let Load::Failed { error, stale: None } = self.list.state() {
             let title = failed_title(error, t!("library.messages.collectionsFailed"));
             let problem = error.problem();
             let r = column_message(ui, ui.id("state"), STATE_TOP, title, &problem, Some(t!("library.retry")));
             if r.is_some_and(|r| r.activated) {
-                self.list.invalidate();
+                self.invalidate();
             }
             return None;
         }
-        let known = self.list.value().is_some();
+        let known = self.list.value().is_some() && categories_known;
         if known && self.cells.is_empty() {
             let body = if library.kind == LibraryKind::Shows {
                 t!("library.messages.collectionsEmptyShows")
@@ -1280,32 +1373,146 @@ impl CollectionsTab {
             }
             return None;
         }
-        if known {
-            let count = collections_label(self.cells.len());
-            let y = CHIPS_Y + (theme::BUTTON_HEIGHT - theme::CAPTION.line_height) / 2.0;
-            ui.text(Point::new(theme::GUTTER, y), &count, &theme::CAPTION, &TextOpts::line(600.0), theme::MUTED);
+        if std::mem::take(&mut self.focus_collections) {
+            ui.request_focus(ui.id("collections-grid").with(0u64));
         }
+        let count: usize = self.groups.iter().map(|g| g.cells.len()).sum();
+        let open = if known && self.groups.len() > 1 { self.rows(ui, initial) } else { self.grid(ui, known, initial) };
+        if known {
+            self.chips(ui, count);
+        }
+        open.or(self.panels(ui))
+    }
+
+    /// One group: a grid without a heading (skeletons while the list comes).
+    fn grid(&mut self, ui: &mut Ui, known: bool, initial: bool) -> Option<Route> {
         let grid_id = ui.id("collections-grid");
         if initial {
             ui.initial_focus(grid_id.with(0u64));
         }
         let cells = &self.cells;
-        let len = if known { cells.len() } else { UNKNOWN_CELLS };
-        // A held Up stays in the grid; the tabs take a press of its own.
+        let shown = self.groups.first().map_or(&[][..], |g| g.cells.as_slice());
+        let len = if known { shown.len() } else { UNKNOWN_CELLS };
+        // A held Up stays in the grid; the chips take a press of its own.
         let r = PosterGrid::new(TileKind::LibraryGrid, GRID_TOP).long_press(false).held_stop(Dirs::UP).show(
             ui,
             grid_id,
             &mut self.grid,
             len,
-            |ui, slot| match cells.get(slot.index) {
-                Some(c) => Tile::new(TileKind::LibraryGrid, &c.collection.title)
-                    .subtitle(&c.subtitle)
-                    .art(&c.art)
-                    .count(&c.count)
-                    .paint(ui, slot),
+            |ui, slot| match shown.get(slot.index).and_then(|i| cells.get(*i)) {
+                Some(c) => collection_tile(c, TileKind::LibraryGrid).paint(ui, slot),
                 None => Tile::skeleton(TileKind::LibraryGrid).paint(ui, slot),
             },
         );
-        r.activated.and_then(|i| cells.get(i)).map(|c| Route::Collection { id: c.collection.id })
+        let at = r.activated.and_then(|i| shown.get(i)).and_then(|i| cells.get(*i));
+        at.map(|c| Route::Collection { id: c.collection.id })
     }
+
+    /// Several groups: a headed row of each, the focused one's header under the chips.
+    fn rows(&mut self, ui: &mut Ui, initial: bool) -> Option<Route> {
+        let height = TileKind::Poster.row_height(true);
+        let sections: Vec<Section> =
+            self.groups.iter().map(|g| Section::new(g.key, height, Some(COLLECTION_ROWS_Y))).collect();
+        let column_id = ui.id("collections-grid");
+        if initial {
+            let g = &self.groups[0];
+            let first = self.cells[g.cells[0]].collection.id as u64;
+            ui.initial_focus(column_id.with(g.key).with("row").with(first));
+        }
+        let mut open = None;
+        let cells = &self.cells;
+        let groups = &mut self.groups;
+        let clip = Some(COLLECTION_ROWS_Y - theme::ROWS_CLIP_ABOVE);
+        RowColumn::new(COLLECTION_ROWS_Y).clip_above(clip).show(
+            ui,
+            column_id,
+            &mut self.column,
+            &sections,
+            |ui, i, top| {
+                let group = &mut groups[i];
+                let header = group.title.as_str();
+                let shown = &group.cells;
+                let r = Row::new(TileKind::Poster, top).header(header).long_press(false).show(
+                    ui,
+                    ui.id("row"),
+                    &mut group.state,
+                    shown.len(),
+                    |k| cells[shown[k]].collection.id as u64,
+                    |ui, slot| collection_tile(&cells[shown[slot.index]], TileKind::Poster).paint(ui, slot),
+                );
+                if let Some(k) = r.activated {
+                    open = Some(Route::Collection { id: cells[shown[k]].collection.id });
+                }
+            },
+        );
+        open
+    }
+
+    /// Category (when there are categories to choose between, or one is chosen), then the count.
+    fn chips(&mut self, ui: &mut Ui, count: usize) {
+        let mut x = theme::GUTTER;
+        if self.has_chip() {
+            let label = match self.category {
+                CategoryChoice::All => t!("library.collections.category"),
+                chosen => self.used.iter().find(|(c, _)| *c == chosen).map_or("", |(_, t)| t.as_str()),
+            };
+            let button = Button::chip(label)
+                .icon(Icon::Layers)
+                .selected(self.category != CategoryChoice::All)
+                .max_label_width(CHIP_LABEL_MAX);
+            let chips_id = ui.id("collection-chips");
+            let mut acted = false;
+            ui.group(chips_id, Group::row().edge(Dir::Left, Edge::Out).edge(Dir::Right, Edge::Stop), |ui| {
+                acted = button.show(ui, chips_id.with("category"), Point::new(x, CHIPS_Y)).activated;
+            });
+            x += button.size(ui).w + COUNT_GAP;
+            if acted {
+                self.panel_open = true;
+                self.panel_list = ListState::at(self.initial_line());
+            }
+        }
+        let text = collections_label(count);
+        let room = theme::CANVAS_W - theme::SAFE_X - x;
+        if ui.measure(&text, &theme::CAPTION, &TextOpts::line(f32::MAX)).w <= room {
+            let y = CHIPS_Y + (theme::BUTTON_HEIGHT - theme::CAPTION.line_height) / 2.0;
+            ui.text(Point::new(x, y), &text, &theme::CAPTION, &TextOpts::line(room), theme::MUTED);
+        }
+    }
+
+    /// The line in force: All categories, then the categories.
+    fn initial_line(&self) -> usize {
+        self.used.iter().position(|(c, _)| *c == self.category).map_or(0, |i| i + 1)
+    }
+
+    /// Draws the Category panel (or the panel sliding out); a choice closes it.
+    fn panels(&mut self, ui: &mut Ui) -> Option<Route> {
+        let open = self.panel_open;
+        let initial = self.initial_line();
+        let list_id = ui.id("collections-panel-list");
+        let (category, used, state) = (self.category, &self.used, &mut self.panel_list);
+        let mut chosen = None;
+        SidePanel::new().back_closes(false).show(ui, ui.id("collections-panel"), open, |ui, area| {
+            let all = ListRow::new(t!("library.collections.allCategories"));
+            let mut lines = vec![Line::Row(all.checked(category == CategoryChoice::All))];
+            for (c, title) in used {
+                lines.push(Line::Row(ListRow::new(title).checked(*c == category)));
+            }
+            let title = t!("library.collections.category");
+            chosen = titled_panel_lines(ui, list_id, area, state, title, &lines, Some(initial));
+        });
+        let chosen = chosen.filter(|_| open)?;
+        let category = chosen.checked_sub(1).and_then(|i| self.used.get(i)).map_or(CategoryChoice::All, |u| u.0);
+        self.set_category(category);
+        self.panel_open = false;
+        // All categories, when the server left only one: the chip goes, so focus goes to the
+        // collections rather than back to it, once the panel no longer holds it.
+        self.focus_collections = !self.has_chip();
+        None
+    }
+}
+
+/// A collection's tile: its title, its size and its picture, the size on the grid's well too.
+fn collection_tile(c: &CollectionCell, kind: TileKind) -> Tile<'_> {
+    let tile = Tile::new(kind, &c.collection.title).subtitle(&c.subtitle).art(&c.art);
+    if kind == TileKind::LibraryGrid { tile.count(&c.count) } else { tile }
 }

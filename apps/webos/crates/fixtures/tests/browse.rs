@@ -178,7 +178,23 @@ fn home_search_and_collections() {
     let api = Api::alex(&server);
     let hubs = api.get("/api/hubs/home").json();
     let keys: Vec<&str> = hubs["hubs"].as_array().unwrap().iter().map(|h| h["key"].as_str().unwrap()).collect();
-    assert_eq!(keys, ["continue_watching", "my_list", "recently_added:1", "recently_added:2", "recently_added:3"]);
+    assert_eq!(
+        keys,
+        [
+            "continue_watching",
+            "my_list",
+            "recently_added:1",
+            "recently_added:2",
+            "recently_added:3",
+            "collections:30,31"
+        ]
+    );
+    // Holiday Favourites: both libraries' collections, one row opened as the merged page.
+    assert_eq!(hubs["hubs"][5]["collection_ids"], json!([ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS]));
+    let merged = api.get(&format!("/api/collections/merged?ids={},{}", ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS)).json();
+    assert_eq!(merged["title"], "Holiday Favourites");
+    assert_eq!(merged["collections"][1]["library_id"], ids::SHOWS);
+    assert_eq!(merged["items"], hubs["hubs"][5]["items"]);
     assert_eq!(hubs["hubs"][0]["items"][0]["id"], 7, "the last played first");
     assert_eq!(hubs["hubs"][0]["items"][1]["id"], ids::SHOW_S1E2);
     assert!(hubs["hubs"][0]["library_id"].is_null());
@@ -210,6 +226,14 @@ fn home_search_and_collections() {
     let smart = list.iter().find(|c| c["id"] == ids::SMART_COLLECTION).unwrap();
     assert!(smart["item_count"].as_i64().unwrap() > 0);
     assert_eq!(smart["smart_filter"], "genre=Comedy&decade=1990");
+    assert_eq!(smart["category"]["key"], "highlights");
+    let categories = api.get("/api/collection-categories").json();
+    let titles: Vec<&str> =
+        categories["categories"].as_array().unwrap().iter().map(|c| c["title"].as_str().unwrap()).collect();
+    assert_eq!(titles, ["Highlights", "Other", "Franchises", "Seasonal"]);
+    // One without a category comes with Other as its category, never none.
+    assert!(list.iter().all(|c| c["category"]["id"].is_i64()));
+    assert!(list.iter().any(|c| c["category"]["key"] == "other"));
     let detail = api.get(&format!("/api/collections/{}", ids::COLLECTION)).json();
     assert_eq!(detail["items"].as_array().unwrap().len() as i64, detail["item_count"].as_i64().unwrap());
     let part_of = api.get(&format!("/api/items/{}/collections", detail["items"][0]["id"])).json();

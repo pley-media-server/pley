@@ -8,6 +8,18 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- A library's Collections tab groups collections by category and filters
+  them by category, and a collection's page shows its category.
+- See all on a row of Home or Recommended opens its collection; a Home
+  row of collections from several libraries opens them together.
+
+### Changed
+
+- A library's Recommended tab no longer ends with a row of all its
+  collections.
+
 ### Fixed
 
 - For TVs where pressing Play failed at once with "the TV's player gave

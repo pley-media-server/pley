@@ -134,7 +134,9 @@
     "byRelease": "Por fecha de estreno",
     "byTitle": "Por título",
     "customOrder": "Orden personalizado",
-    "retry": "Reintentar"
+    "retry": "Reintentar",
+    "category": "Categoría",
+    "allCategories": "Todas las categorías"
   },
   "smartFilter": {
     "genre": "Género: {{value}}",

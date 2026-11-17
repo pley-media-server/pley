@@ -323,6 +323,7 @@ pub(crate) struct Hub {
     pub key: String,
     pub title: String,
     pub library_id: Option<i64>,
+    pub collection_ids: Vec<i64>,
     pub items: Vec<ItemSummary>,
 }
 
@@ -336,11 +337,20 @@ pub(crate) struct CollectionSummary {
     pub automatic: bool,
     pub sort: &'static str,
     pub smart_filter: Option<String>,
+    pub category: Option<CategoryRef>,
     pub item_count: i64,
     pub poster_url: String,
     pub backdrop_url: String,
     pub created_at: i64,
     pub updated_at: i64,
+}
+
+/// A collection's category as the collection names it.
+#[derive(Clone, Debug, Serialize)]
+pub(crate) struct CategoryRef {
+    pub id: i64,
+    pub key: Option<&'static str>,
+    pub title: &'static str,
 }
 
 /// A collection with its items.

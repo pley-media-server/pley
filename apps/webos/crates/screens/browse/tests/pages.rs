@@ -8,8 +8,8 @@ use pley_base::{Cmd, Key, Rect};
 use pley_core::device::Drive;
 use pley_core::model::{LibraryQuery, LibrarySort, NewPlaylist, PlaylistKind, RangeFilter, ResolutionFilter};
 use pley_core::store::keys;
-use pley_fixtures::ids;
-use pley_shell::{BackgroundSession, Route};
+use pley_fixtures::{ServerEvent, ids};
+use pley_shell::{BackgroundSession, LibraryTab, Route};
 use pley_ui::{Id, theme};
 
 /// An entry's card on a playlist's page.
@@ -414,4 +414,132 @@ fn collections_open_a_collection() {
     app.press(Key::Ok);
     assert!(app.until(|a| matches!(a.route(), Some(Route::Collection { .. }))));
     assert!(app.until(|a| a.shows("Collection") && a.shows("Play")));
+}
+
+#[test]
+fn a_librarys_collections_show_by_category_and_filter_by_category() {
+    let mut app = TestApp::start();
+    app.open(Route::Library { id: ids::MOVIES, tab: Some(LibraryTab::Collections), sort: None });
+    // A headed row for each category in the categories' order, the server's Other among them.
+    assert!(app.until(|a| ["Highlights", "Other", "Franchises"].iter().all(|h| a.shows(h))));
+    assert!(app.shows("26 collections"));
+    assert!(!app.shows("Type") && !app.shows("All types"), "the apps don't filter by how a collection was made");
+    let rows = app.id(&["collections-grid"]);
+    let first = rows.with(ids::CATEGORY_HIGHLIGHTS as u64).with("row").with(ids::SMART_COLLECTION as u64);
+    assert!(app.until(|a| a.focused() == Some(first)), "the first category's first collection takes focus");
+    press(&mut app, &[Key::Down; 3]);
+    assert!(app.until(|a| a.shows("Seasonal")), "no Seasonal row last");
+    press(&mut app, &[Key::Up; 3]);
+    assert_eq!(app.focused(), Some(first));
+    // Up to the one chip, which keeps focus left and right; up again to the tabs, and down back.
+    let chip = app.id(&["collection-chips", "category"]);
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(chip));
+    app.press(Key::Right);
+    assert_eq!(app.focused(), Some(chip));
+    app.press(Key::Up);
+    assert_eq!(app.focused(), Some(app.id(&["tabs", "collections"])));
+    app.press(Key::Down);
+    assert_eq!(app.focused(), Some(chip));
+    // The panel lists the categories in the server's order, Other where it is.
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("All categories")), "no Category panel");
+    let at = |t: &str| app.list.texts().collect::<Vec<_>>().iter().rposition(|x| *x == t);
+    let order = ["All categories", "Highlights", "Other", "Franchises", "Seasonal"].map(at);
+    assert!(order.iter().all(Option::is_some) && order.is_sorted(), "{order:?}");
+    // Seasonal: one group left, a grid without headings, the chip named for it.
+    press(&mut app, &[Key::Down, Key::Down, Key::Down, Key::Down, Key::Ok]);
+    assert!(app.until(|a| a.shows("7 collections") && !a.shows("Franchises")), "Seasonal didn't filter");
+    assert!(app.shows("Holiday Favourites") && !app.shows("Highlights"), "one group has no heading");
+    assert_eq!(app.focused(), Some(chip));
+    app.press(Key::Down);
+    assert_eq!(app.focused(), Some(app.id(&["collections-grid"]).with(0u64)), "the grid is under the chip");
+    // All categories shows them all again.
+    app.press(Key::Up);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("All categories")));
+    press(&mut app, &[Key::Up; 3]);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("Highlights") && a.shows("Franchises")), "the filter wasn't cleared");
+}
+
+/// The shows library's own collections: four of Other, then Holiday Favourites in Seasonal.
+const SHOWS_OTHER: [i64; 4] = [ids::COLLECTION + 24, ids::COLLECTION + 25, ids::COLLECTION + 26, ids::COLLECTION + 27];
+
+#[test]
+fn clearing_a_category_that_was_the_last_to_choose_from_moves_focus_to_the_collections() {
+    let mut app = TestApp::start();
+    app.open(Route::Library { id: ids::SHOWS, tab: Some(LibraryTab::Collections), sort: None });
+    assert!(app.until(|a| a.shows("Seasonal") && a.shows("Other")));
+    let chip = app.id(&["collection-chips", "category"]);
+    app.ui.request_focus(chip);
+    app.advance(0.2);
+    // Seasonal; then the server's other collections go, so Seasonal is the only category left.
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("All categories")));
+    press(&mut app, &[Key::Down, Key::Down, Key::Ok]);
+    assert!(app.until(|a| a.shows("1 collection") && !a.shows("Other")));
+    assert_eq!(app.focused(), Some(chip));
+    app.server.hide_collections(&SHOWS_OTHER);
+    app.server.emit(ServerEvent::LibrariesChanged);
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("All categories") && !a.shows("Other")), "the list didn't change");
+    // All categories: nothing left to choose between, so the chip goes and focus moves on.
+    press(&mut app, &[Key::Up, Key::Ok]);
+    app.advance(0.5);
+    assert!(app.until(|a| !a.shows("All categories")));
+    let grid = app.id(&["collections-grid"]);
+    assert_eq!(app.focused(), Some(grid.with(0u64)), "focus was lost with the chip");
+}
+
+#[test]
+fn a_chosen_category_emptied_by_the_server_moves_focus_from_its_chip() {
+    let mut app = TestApp::start();
+    app.open(Route::Library { id: ids::SHOWS, tab: Some(LibraryTab::Collections), sort: None });
+    assert!(app.until(|a| a.shows("Seasonal") && a.shows("Other")));
+    let chip = app.id(&["collection-chips", "category"]);
+    app.ui.request_focus(chip);
+    app.advance(0.2);
+    // Other, then the server takes its collections away: the filter goes, and the chip with it.
+    app.press(Key::Ok);
+    assert!(app.until(|a| a.shows("All categories")));
+    press(&mut app, &[Key::Down, Key::Ok]);
+    assert!(app.until(|a| a.shows("4 collections")));
+    assert_eq!(app.focused(), Some(chip));
+    app.server.hide_collections(&SHOWS_OTHER);
+    app.server.emit(ServerEvent::LibrariesChanged);
+    assert!(app.until(|a| a.shows("1 collection") && a.shows("Holiday Favourites")));
+    app.advance(0.5);
+    let grid = app.id(&["collections-grid"]);
+    assert_eq!(app.focused(), Some(grid.with(0u64)), "focus was lost with the chip");
+}
+
+#[test]
+fn the_merged_page_shows_both_libraries_and_opens_each() {
+    let mut app = TestApp::start();
+    app.open(Route::MergedCollection { ids: vec![ids::HOLIDAY_MOVIES, ids::HOLIDAY_SHOWS] });
+    assert!(app.until(|a| a.shows("Holiday Favourites") && a.shows("Movies") && a.shows("TV Shows")));
+    assert!(app.shows_part("4 movies") && app.shows_part("4 shows"), "the facts count both");
+    let play = app.id(&["buttons", "play"]);
+    assert!(app.until(|a| a.focused() == Some(play)), "Play takes focus");
+    // Play, Shuffle, then each library's own collection.
+    press(&mut app, &[Key::Right, Key::Right, Key::Right, Key::Ok]);
+    assert_eq!(app.route(), Some(&Route::Collection { id: ids::HOLIDAY_SHOWS }));
+    assert!(app.until(|a| a.shows("Seasonal")), "a collection's page names its category");
+}
+
+#[test]
+fn a_recommended_rows_see_all_opens_its_collection() {
+    let mut app = TestApp::start();
+    app.open(Route::Library { id: ids::MOVIES, tab: Some(LibraryTab::Recommended), sort: None });
+    assert!(app.until(|a| a.shows("Recently Added")));
+    // The row of a collection, the last, ends with See all, which opens the collection.
+    let rows = app.id(&["rows"]);
+    let key = format!("collection:{}", ids::SMART_COLLECTION);
+    let see_all: Vec<Id> = (0..8u64).map(|i| rows.with(i).with(key.as_str()).with(u64::MAX)).collect();
+    press(&mut app, &[Key::Down; 8]);
+    press(&mut app, &[Key::Right; 40]);
+    assert!(app.focused().is_some_and(|f| see_all.contains(&f)), "no See all on the collection's row");
+    app.press(Key::Ok);
+    assert_eq!(app.route(), Some(&Route::Collection { id: ids::SMART_COLLECTION }));
 }

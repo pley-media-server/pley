@@ -35,6 +35,7 @@ pub fn screen(route: &Route, cx: &mut AppCx) -> Option<Box<dyn Screen>> {
         Route::Library { id, tab, sort } => Box::new(LibraryScreen::new(*id, *tab, *sort)),
         Route::Collections { library_id } => Box::new(CollectionsScreen::new(*library_id)),
         Route::Collection { id } => Box::new(CollectionScreen::new(*id)),
+        Route::MergedCollection { ids } => Box::new(CollectionScreen::merged(ids.clone())),
         Route::Playlists => Box::new(PlaylistsScreen::new()),
         Route::Playlist { id } => Box::new(PlaylistScreen::new(*id)),
         Route::AddToPlaylist { item_ids, title } => Box::new(AddToPlaylistScreen::new(item_ids.clone(), title.clone())),
