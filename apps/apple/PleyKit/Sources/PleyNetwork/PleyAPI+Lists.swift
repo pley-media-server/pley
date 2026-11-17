@@ -17,6 +17,19 @@ extension PleyAPI {
         try await client.get("/api/collections/\(id)", as: CollectionDetail.self)
     }
 
+    /// `GET /api/collections/merged?ids=`: a Home row of several
+    /// collections, every title in the row's order.
+    public func mergedCollection(_ ids: [Int]) async throws -> MergedCollection {
+        try await client.get("/api/collections/merged",
+                             query: [URLQueryItem(name: "ids", value: ids.map(String.init).joined(separator: ","))],
+                             as: MergedCollection.self)
+    }
+
+    /// `GET /api/collection-categories`: the categories, in their order.
+    public func collectionCategories() async throws -> [CollectionCategory] {
+        try await client.get("/api/collection-categories", as: CollectionCategoryList.self).categories
+    }
+
     // MARK: Playlists
 
     /// `GET /api/playlists`: the profile's playlists, by title.

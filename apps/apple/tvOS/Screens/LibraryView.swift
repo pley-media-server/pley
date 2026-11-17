@@ -82,7 +82,7 @@ struct LibraryView: View {
 
     @ViewBuilder private var recommended: some View {
         if let rows = model.rows {
-            if rows.isEmpty && model.collections.cards.isEmpty {
+            if rows.isEmpty {
                 StateView(kind: .empty(symbol: "sparkles", text: LibraryModel.emptyTitle, action: nil))
             } else {
                 ScrollView {
@@ -93,7 +93,6 @@ struct LibraryView: View {
                                 app.shell.open(item: tile.item)
                             }
                         }
-                        CollectionsRow(app: app, model: model.collections)
                     }
                 }
                 .scrollClipDisabled()

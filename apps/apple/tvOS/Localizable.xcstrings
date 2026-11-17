@@ -690,6 +690,40 @@
         }
       }
     },
+    "Category" : {
+      "comment" : "A library's collections: the filter by category.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Categoría"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catégorie"
+          }
+        }
+      }
+    },
+    "Category: %@" : {
+      "comment" : "What VoiceOver says of a collection's category, or the Category filter's button: \"Category: Franchises\".",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Categoría: %@"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Catégorie : %@"
+          }
+        }
+      }
+    },
     "Channel number" : {
       "comment" : "Live player on Apple TV: opens the number pad, and its title before a digit is typed.",
       "localizations" : {
@@ -809,19 +843,19 @@
         }
       }
     },
-    "Collections" : {
-      "comment" : "A library's Recommended tab: the row of its collections.",
+    "Collection" : {
+      "comment" : "Above the title of a Home row's collections from several libraries, opened together.",
       "localizations" : {
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Colecciones"
+            "value" : "Colección"
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Collections"
+            "value" : "Collection"
           }
         }
       }
@@ -2644,6 +2678,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ouvre sa page"
+          }
+        }
+      }
+    },
+    "Opens this library's collection" : {
+      "comment" : "VoiceOver's hint on a library's name on the page of collections from several libraries.",
+      "localizations" : {
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abre la colección de esta biblioteca"
+          }
+        },
+        "fr" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ouvre la collection de cette bibliothèque"
           }
         }
       }

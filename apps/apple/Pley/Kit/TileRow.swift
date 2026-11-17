@@ -1,8 +1,8 @@
 import PleyScreens
 import SwiftUI
 
-/// A row of tiles: its title (a heading for VoiceOver), See all when it
-/// has one, and the tiles in a line that scrolls sideways and makes only
+/// A row of tiles: its title (a heading for VoiceOver; with See all, it
+/// opens the same page), See all when it has one, and the tiles in a line that scrolls sideways and makes only
 /// the tiles near the screen.
 struct TileRow: View {
     let app: AppModel
@@ -43,9 +43,13 @@ struct TileRow: View {
         let heading = Metrics.headingLayout(stacked: typeSize.isAccessibilitySize)
         VStack(alignment: .leading, spacing: 10) {
             heading {
+                // The title opens what See all does: VoiceOver reads it as
+                // the heading, See all is the button.
                 Text(title)
                     .font(.title3.bold())
                     .accessibilityAddTraits(.isHeader)
+                    .contentShape(Rectangle())
+                    .onTapGesture { seeAll?() }
                 if !typeSize.isAccessibilitySize { Spacer() }
                 if let seeAll {
                     Button("See all", action: seeAll)

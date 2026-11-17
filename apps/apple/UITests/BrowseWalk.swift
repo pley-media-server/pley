@@ -14,12 +14,12 @@ extension Walk {
     /// How the library page says its titles are listed.
     var listing: String { wait(element("library.listing"), "how the titles are listed").label }
 
-    /// Home's first See all goes to its library, listed newest first.
+    /// Home's first See all opens the row's collection (Recently Added's).
     func seeAll() {
         let seeAll = app.buttons.matching(NSPredicate(format: "identifier ENDSWITH '.seeAll'")).firstMatch
         wait(seeAll, "See all").tap()
-        wait(element("library.sort"), "the library's Sort")
-        XCTAssertTrue(listing.hasPrefix("Date added, descending"), "See all lists newest first: \(listing)")
+        wait(button("collection.play"), "the row's collection")
+        XCTAssertFalse(element("collection.title").label.isEmpty, "the collection's title")
         shot("08-see-all")
         wait(app.navigationBars.buttons["Home"], "Back").tap()
         seeHome("the same")

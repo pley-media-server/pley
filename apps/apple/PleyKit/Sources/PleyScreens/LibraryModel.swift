@@ -4,8 +4,7 @@ import PleyData
 import PleyModel
 import PleyNetwork
 
-/// A library's page: its tabs (Recommended, its rows then its collections;
-/// Library, every title sorted and filtered; Collections, not for music),
+/// A library's page: its tabs (Recommended, its rows; Library, every title sorted and filtered; Collections, not for music),
 /// opened on the tab and view it was left in on this device, or on the view
 /// See all asks for. A tab reads only once shown. Save as… keeps the
 /// Library tab's filters and order as a smart playlist.
@@ -41,7 +40,7 @@ public final class LibraryModel: ObservableObject {
     @Published public private(set) var alpha: AlphaIndex?
     /// Why the last read failed while something still shows.
     @Published public private(set) var notice: String?
-    /// Its collections: the Collections tab, and the Recommended tab's last row.
+    /// Its collections: the Collections tab.
     public let collections: CollectionsModel
 
     public let app: AppModel
@@ -52,7 +51,7 @@ public final class LibraryModel: ObservableObject {
     /// The tab being shown after a change of sort or filter.
     private var changing: Task<Void, Never>?
     private var listener: AnyCancellable?
-    /// The collections' changes show on the page too (Recommended's last row).
+    /// The collections' changes show on the page too (the Collections tab).
     private var forwarding: AnyCancellable?
 
     public init(app: AppModel, libraryId: Int, view: String? = nil) {
@@ -117,7 +116,6 @@ public final class LibraryModel: ObservableObject {
         switch params.tab {
         case .recommended:
             await loadRows()
-            if library?.kind != .music { await collections.load() }
         case .collections:
             await collections.load()
         case .library:
@@ -200,7 +198,6 @@ public final class LibraryModel: ObservableObject {
         switch params.tab {
         case .recommended:
             if rows == nil { await loadRows() }
-            if library?.kind != .music, !collections.loaded { await collections.load() }
         case .collections:
             if !collections.loaded { await collections.load() }
         case .library:

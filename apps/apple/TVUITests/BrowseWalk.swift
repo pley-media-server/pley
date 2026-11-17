@@ -23,17 +23,13 @@ extension Walk {
                                 timeout: 10) == .completed
     }
 
-    /// Home's first See all goes to its library, listed newest first.
+    /// Home's first See all opens the row's collection (Recently Added's).
     func seeAll() {
         let seeAll = app.buttons.matching(NSPredicate(format: "identifier ENDSWITH '.seeAll'")).firstMatch
         select(seeAll, "See all", first: [.down, .right])
-        let sort = wait(element("library.sort"), "the library's Sort")
-        // Assistive technology reads the menus by name, not only what they show.
-        XCTAssertEqual(sort.label, "Sort", "Sort has its name")
-        let filter = element("library.filter")
-        if filter.exists { XCTAssertEqual(filter.label, "Filter", "Filter has its name") }
+        wait(element("collection.title"), "the row's collection")
+        wait(button("collection.play", or: "Play"), "the collection's Play")
         shot("08-see-all")
-        XCTAssertTrue(valueBecomes(sort, "Date added"), "See all lists newest first")
         remote.press(.menu)
         seeHome("the same")
     }
@@ -128,6 +124,10 @@ extension Walk {
     /// say it has the focus, so the walk counts presses: up from the first
     /// tile is Sort, and a menu opens on its first item.
     func sortAndFilter() {
+        // Assistive technology reads the menus by name, not only what they show.
+        XCTAssertEqual(wait(element("library.sort"), "the library's Sort").label, "Sort", "Sort has its name")
+        let filter = element("library.filter")
+        if filter.exists { XCTAssertEqual(filter.label, "Filter", "Filter has its name") }
         toFirstTile()
         press(.up)
         press(.select)

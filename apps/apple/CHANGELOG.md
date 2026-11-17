@@ -8,6 +8,10 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- A library's collections are grouped by category, with a filter by
+  category, and a collection's page shows its category. A row's
+  title and See all open its collection, and a Home row of same-titled
+  collections from several libraries opens them together.
 - Play on… lists Google Cast and AirPlay devices for movies, episodes and
   Live TV channels, and says "Starting on…" until the device plays. An
   AirPlay device asks once for the code it shows; on an Apple TV the code
@@ -150,6 +154,7 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- A library's Recommended tab no longer ends with a row of every collection.
 - Requests: a sign-in from before the app could ask says "Sign in again to ask for movies
   and shows" without a second line, and its button reads Sign in.
 - A title's page on iPhone, iPad and Mac: Resume and From start share the
