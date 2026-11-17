@@ -907,8 +907,7 @@ async fn library_hubs_show_what_has_content() {
             format!("continue_watching:{movies}"),
             format!("recently_added:{movies}"),
             format!("recently_released:{movies}"),
-            format!("top_rated:{movies}"),
-            format!("top_unwatched:{movies}")
+            format!("top_rated:{movies}")
         ]
     );
     let hub = |key: &str| hubs["hubs"].as_array().unwrap().iter().find(|h| h["key"] == key).unwrap().clone();

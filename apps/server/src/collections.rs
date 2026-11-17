@@ -88,9 +88,12 @@ impl Builtin {
         }
     }
 
-    /// Its place on the library's Recommended tab, as the rows were.
-    fn position(self) -> i64 {
-        Builtin::ALL.iter().position(|b| *b == self).unwrap_or_default() as i64
+    /// Its place on the library's Recommended tab, as the rows were, or
+    /// none for Top Unwatched: for anyone who hasn't watched the best rated
+    /// yet, as on a new server, it would be Top Rated again. Administrators
+    /// can add it.
+    fn position(self) -> Option<i64> {
+        (self != Builtin::TopUnwatched).then(|| Builtin::ALL.iter().position(|b| *b == self).unwrap_or_default() as i64)
     }
 }
 
@@ -674,7 +677,8 @@ pub async fn artwork(
 /// Makes the collections Pley makes in a movie or TV library ([`Builtin`])
 /// that it doesn't have: all of them for a new library, those deleted for
 /// "Restore". Each goes under Highlights, last on the library's Recommended
-/// tab, and Recently Added last on Home, as a new library's row was.
+/// tab (all but Top Unwatched), and Recently Added last on Home, as a new
+/// library's row was.
 /// Returns how many were made.
 pub async fn restore_defaults(db: &Db, library_id: i64) -> sqlx::Result<u64> {
     let Some(lib) = crate::library::get_library(db, library_id).await? else { return Ok(0) };
@@ -692,7 +696,8 @@ pub async fn restore_defaults(db: &Db, library_id: i64) -> sqlx::Result<u64> {
             "INSERT INTO collections (library_id, title, sort_title, sort, smart_filter, builtin, category_id,
                 category_from, home_position, recommended_position, created_at, updated_at)
              SELECT ?, ?, ?, 'release', ?, ?, (SELECT id FROM collection_categories WHERE key = 'highlights'), 'pley',
-                ?, (SELECT COALESCE(MAX(recommended_position) + 1, ?) FROM collections WHERE library_id = ?), ?, ?
+                ?, CASE WHEN ? IS NOT NULL THEN (SELECT COALESCE(MAX(recommended_position) + 1, ?)
+                    FROM collections WHERE library_id = ?) END, ?, ?
              WHERE NOT EXISTS (SELECT 1 FROM collections WHERE library_id = ? AND builtin = ?)",
         )
         .bind(library_id)
@@ -701,6 +706,7 @@ pub async fn restore_defaults(db: &Db, library_id: i64) -> sqlx::Result<u64> {
         .bind(builtin.filter(kind))
         .bind(builtin.key())
         .bind(home)
+        .bind(builtin.position())
         .bind(builtin.position())
         .bind(library_id)
         .bind(now)

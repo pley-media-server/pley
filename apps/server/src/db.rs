@@ -470,19 +470,23 @@ mod tests {
         let row = |library: i64, title: &str, builtin: &str, home: Option<i64>, at: i64| {
             (library, title.to_owned(), Some(builtin.to_owned()), highlights.clone(), home, Some(at))
         };
+        // Not a Recommended row: it would repeat Top Rated.
+        let unwatched = |library: i64| {
+            (library, "Top Unwatched".to_owned(), Some("top_unwatched".to_owned()), highlights.clone(), None, None)
+        };
         assert_eq!(
             made,
             [
                 row(5, "Recently Added", "recently_added", Some(1), 0),
                 row(5, "Recently Released", "recently_released", None, 1),
                 row(5, "Top Rated", "top_rated", None, 2),
-                row(5, "Top Unwatched", "top_unwatched", None, 3),
                 (5, "Alien Collection".into(), None, Some("franchises".into()), None, None),
                 (5, "Mine".into(), None, None, None, None),
+                unwatched(5),
                 row(6, "Recently Added Shows", "recently_added", Some(2), 0),
                 row(6, "Recently Released", "recently_released", None, 1),
                 row(6, "Top Rated", "top_rated", None, 2),
-                row(6, "Top Unwatched", "top_unwatched", None, 3),
+                unwatched(6),
             ]
         );
         let music: Option<i64> =

@@ -51,6 +51,8 @@ WHERE tmdb_id IS NOT NULL;
 
 -- Pley's collections for every movie and TV library, and the Home row of
 -- every library's Recently Added, in the libraries' order as Home had them.
+-- Top Unwatched isn't a Recommended row: until the best rated are watched
+-- it is Top Rated again.
 CREATE TEMP TABLE library_rows AS
 SELECT id, kind, ROW_NUMBER() OVER (ORDER BY position, name COLLATE NOCASE, id) - 1 AS row
 FROM libraries;
@@ -72,7 +74,7 @@ JOIN (SELECT 'recently_added' AS builtin, 'Recently Added' AS title, 'recently a
              'originallyAvailableAt!=-1&sort=originallyAvailableAt:desc&limit=100', 1
       UNION ALL SELECT 'top_rated', 'Top Rated', 'top rated', 'rating!=-1&sort=rating:desc,titleSort&limit=100', 2
       UNION ALL SELECT 'top_unwatched', 'Top Unwatched', 'top unwatched',
-             'unwatched=1&rating!=-1&sort=rating:desc,titleSort&limit=100', 3) d
+             'unwatched=1&rating!=-1&sort=rating:desc,titleSort&limit=100', NULL) d
 WHERE l.kind IN ('movies', 'shows');
 
 UPDATE libraries SET home_position = (SELECT row FROM library_rows WHERE library_rows.id = libraries.id)

@@ -83,7 +83,10 @@ async fn a_new_library_has_pleys_collections_as_its_rows() {
     let f = w.films;
     assert!(at(&format!("recently_added:{f}")) < at(&format!("recently_released:{f}")));
     assert!(at(&format!("recently_released:{f}")) < at(&format!("top_rated:{f}")));
-    assert!(at(&format!("top_rated:{f}")) < at(&format!("top_unwatched:{f}")));
+    // Top Unwatched would repeat Top Rated until the best rated are watched.
+    assert!(!shown.contains(&format!("top_unwatched:{f}")), "{shown:?}");
+    let unwatched = made.iter().find(|c| c["builtin"] == "top_unwatched").unwrap();
+    assert_eq!(unwatched["recommended_position"], Value::Null);
     let released = hub(&hubs.body, &format!("recently_released:{f}")).unwrap();
     assert_eq!(released["title"], "Recently Released");
     assert_eq!(titles(&released["items"]), ["Heat", "Brazil", "Alien"]);
@@ -172,9 +175,14 @@ async fn administrators_arrange_home_and_recommended() {
     let shown: Vec<_> = keys(&home.body).into_iter().filter(|k| k.starts_with("recently_added:")).collect();
     assert_eq!(shown, [rows[1].clone(), rows[0].clone()]);
 
-    // Recommended: the top rated first, and Top Unwatched no longer a row.
+    // Recommended: Top Unwatched added, then the top rated first and Top
+    // Unwatched no longer a row.
     let rated = builtin(&w, w.films, "top_rated").await;
     let unwatched = builtin(&w, w.films, "top_unwatched").await;
+    let on = w.app.patch(&format!("/api/collections/{unwatched}"), &w.admin, json!({"on_recommended": true})).await;
+    assert_eq!(on.status, StatusCode::OK, "{:?}", on.body);
+    let hubs = w.app.get(&format!("/api/libraries/{}/hubs", w.films), &w.admin).await;
+    assert_eq!(keys(&hubs.body).last(), Some(&format!("top_unwatched:{}", w.films)));
     let off = w.app.patch(&format!("/api/collections/{unwatched}"), &w.admin, json!({"on_recommended": false})).await;
     assert_eq!(off.status, StatusCode::OK, "{:?}", off.body);
     let ordered = w

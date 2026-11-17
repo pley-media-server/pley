@@ -2074,7 +2074,9 @@ Groups of movies or shows of one library, shared by every user.
   change like any other: Recently Added (Recently Added Shows in a TV
   library), Recently Released, Top Rated and Top Unwatched, smart
   collections in the Highlights category (`builtin` says which). They are
-  named in each user's language until an administrator renames them.
+  named in each user's language until an administrator renames them. All
+  but Top Unwatched start as rows on the library's Recommended tab: until
+  the best rated are watched, Top Unwatched is Top Rated again.
 - *Automatic* collections mirror TMDB's movie collections: each matched
   movie is filed under its `belongs_to_collection` (with that collection's
   poster and backdrop), and collections left empty are dropped. One is
