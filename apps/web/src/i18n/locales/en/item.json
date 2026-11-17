@@ -271,7 +271,6 @@
     "moviesHintAdmin": "Movies of the same TMDB collection are grouped here once two of them are in this library. You can also make your own.",
     "showsHintAdmin": "Group shows into collections of your own.",
     "noneHere": "There are no collections in this library yet.",
-    "other": "Other",
     "type": "Type",
     "types": {
       "all": "All types",

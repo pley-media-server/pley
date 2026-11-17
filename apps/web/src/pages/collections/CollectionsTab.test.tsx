@@ -8,6 +8,8 @@ import { CollectionsTab, groupByCategory, isOfType } from "./CollectionsTab";
 const highlights: Category = { id: 1, key: "highlights", title: "Highlights", from_label: null, position: 0 };
 const franchises: Category = { id: 2, key: "franchises", title: "Franchises", from_label: null, position: 1 };
 const seasonal: Category = { id: 3, key: null, title: "Seasonal", from_label: "Seasonal", position: 2 };
+const other: Category = { id: 4, key: "other", title: "Other", from_label: null, position: 3 };
+const ref = ({ id, key, title }: Category) => ({ id, key, title });
 
 function collection(id: number, title: string): Collection {
   return {
@@ -18,7 +20,7 @@ function collection(id: number, title: string): Collection {
     automatic: false,
     sort: "release",
     smart_filter: null,
-    category: null,
+    category: ref(other),
     builtin: null,
     home_position: null,
     recommended_position: null,
@@ -31,25 +33,30 @@ function collection(id: number, title: string): Collection {
 }
 
 const collections: Collection[] = [
-  { ...collection(1, "Alien Collection"), automatic: true, category: franchises },
-  { ...collection(2, "Recently Added"), smart_filter: "sort=addedAt:desc", builtin: "recently_added", category: highlights },
-  { ...collection(3, "Christmas"), smart_filter: "label=Christmas", category: seasonal },
+  { ...collection(1, "Alien Collection"), automatic: true, category: ref(franchises) },
+  { ...collection(2, "Recently Added"), smart_filter: "sort=addedAt:desc", builtin: "recently_added", category: ref(highlights) },
+  { ...collection(3, "Christmas"), smart_filter: "label=Christmas", category: ref(seasonal) },
   collection(4, "Favourites"),
 ];
 
 describe("groupByCategory", () => {
-  it("groups in the categories' order, Other last, empty ones left out", () => {
-    const groups = groupByCategory(collections, [highlights, franchises, seasonal, { ...seasonal, id: 9, title: "Empty" }]);
-    expect(groups.map((g) => [g.category?.title ?? null, g.collections.map((c) => c.id)])).toEqual([
+  it("groups in the categories' order, Other where it is, empty ones left out", () => {
+    const groups = groupByCategory(collections, [highlights, other, franchises, seasonal, { ...seasonal, id: 9, title: "Empty" }]);
+    expect(groups.map((g) => [g.category.title, g.collections.map((c) => c.id)])).toEqual([
       ["Highlights", [2]],
+      ["Other", [4]],
       ["Franchises", [1]],
       ["Seasonal", [3]],
-      [null, [4]],
     ]);
   });
 
-  it("puts one of a category it doesn't know under Other", () => {
-    expect(groupByCategory([collections[2]!], [highlights]).map((g) => g.category)).toEqual([null]);
+  it("puts one of a category it doesn't know yet after the rest", () => {
+    expect(groupByCategory(collections, [other, highlights]).map((g) => g.category.title)).toEqual([
+      "Other",
+      "Highlights",
+      "Franchises",
+      "Seasonal",
+    ]);
   });
 });
 
@@ -67,7 +74,7 @@ describe("CollectionsTab", () => {
   function renderTab(isAdmin = false) {
     mockApi({
       "GET /api/libraries/1/collections": () => ({ collections }),
-      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal] }),
+      "GET /api/collection-categories": () => ({ categories: [highlights, franchises, seasonal, other] }),
     });
     renderWithProviders(<CollectionsTab libraryId={1} kind="movies" />, { user: { ...testUser, is_admin: isAdmin } });
   }

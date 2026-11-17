@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { Layers, Plus, Tags } from "lucide-react";
 import { errorMessage } from "@/api/client";
-import { useCategories, useCollections, type Category, type Collection } from "@/api/lists";
+import { useCategories, useCollections, type Category, type CategoryRef, type Collection } from "@/api/lists";
 import type { Id, LibraryKind } from "@/api/types";
 import { useAuth } from "@/auth";
 import { ItemGridSkeleton } from "@/components/ItemGrid";
@@ -33,25 +33,25 @@ export function isOfType(c: Collection, type: CollectionType): boolean {
   }
 }
 
-/** The category filter: every one, one category's id, or Other (none). */
-type CategoryChoice = "all" | "other" | Id;
+/** The category filter: every one, or one category's id. */
+type CategoryChoice = "all" | Id;
 
 export interface CollectionGroup {
-  /** `null`: Other. */
-  category: Category | null;
+  category: CategoryRef;
   collections: Collection[];
 }
 
-/** `collections` by category, in the categories' order, Other last; empty ones left out. */
+/** `collections` by the category the server gives each (Other for those
+ * without one), in the categories' order; empty ones left out. */
 export function groupByCategory(collections: Collection[], categories: Category[]): CollectionGroup[] {
-  const groups: CollectionGroup[] = categories.map((category) => ({
-    category,
-    collections: collections.filter((c) => c.category?.id === category.id),
-  }));
-  const known = new Set(categories.map((c) => c.id));
-  // One of a category not listed yet (made since) goes with Other.
-  groups.push({ category: null, collections: collections.filter((c) => !c.category || !known.has(c.category.id)) });
-  return groups.filter((g) => g.collections.length > 0);
+  const groups = new Map<Id, CollectionGroup>(categories.map((category) => [category.id, { category, collections: [] }]));
+  for (const c of collections) {
+    // One of a category not listed yet (made since) comes after the rest.
+    const group = groups.get(c.category.id) ?? { category: c.category, collections: [] };
+    groups.set(c.category.id, group);
+    group.collections.push(c);
+  }
+  return [...groups.values()].filter((g) => g.collections.length > 0);
 }
 
 /** The "Collections" tab of a movie or TV library: its collections by category. */
@@ -78,10 +78,8 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
   const usedCategories = groupByCategory(list, categories.data ?? []);
   // A category deleted or emptied since it was chosen filters nothing.
   const category =
-    chosenCategory === "all" || usedCategories.some((g) => (g.category?.id ?? "other") === chosenCategory) ? chosenCategory : "all";
-  const groups = groupByCategory(shown, categories.data ?? []).filter((g) =>
-    category === "all" ? true : category === "other" ? g.category === null : g.category?.id === category,
-  );
+    chosenCategory === "all" || usedCategories.some((g) => g.category.id === chosenCategory) ? chosenCategory : "all";
+  const groups = groupByCategory(shown, categories.data ?? []).filter((g) => category === "all" || g.category.id === category);
   const count = groups.reduce((n, g) => n + g.collections.length, 0);
   const filtered = type !== "all" || category !== "all";
   const newButton = (variant: "primary" | "secondary") => (
@@ -110,21 +108,15 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
                 value={String(category)}
                 onChange={(e) => {
                   const v = e.target.value;
-                  setCategory(v === "all" || v === "other" ? v : Number(v));
+                  setCategory(v === "all" ? v : Number(v));
                 }}
               >
                 <option value="all">{t("collections.allCategories")}</option>
-                {usedCategories.map((g) =>
-                  g.category ? (
-                    <option key={g.category.id} value={String(g.category.id)}>
-                      {g.category.title}
-                    </option>
-                  ) : (
-                    <option key="other" value="other">
-                      {t("collections.other")}
-                    </option>
-                  ),
-                )}
+                {usedCategories.map((g) => (
+                  <option key={g.category.id} value={String(g.category.id)}>
+                    {g.category.title}
+                  </option>
+                ))}
               </Select>
             ) : null}
             {filtered ? (
@@ -190,9 +182,9 @@ export function CollectionsTab({ libraryId, kind }: { libraryId: Id; kind: Libra
         ) : (
           <div className="space-y-10">
             {groups.map((g) => (
-              <section key={g.category?.id ?? "other"} aria-label={g.category?.title ?? t("collections.other")}>
+              <section key={g.category.id} aria-label={g.category.title}>
                 <h2 className="mb-3 flex items-baseline gap-2 text-lg font-semibold tracking-tight">
-                  {g.category?.title ?? t("collections.other")}
+                  {g.category.title}
                   <span className="text-sm font-normal tabular-nums text-muted">{g.collections.length}</span>
                 </h2>
                 <div

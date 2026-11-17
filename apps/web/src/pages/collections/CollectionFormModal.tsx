@@ -39,12 +39,14 @@ export function CollectionFormModal({
   const [summary, setSummary] = useState(collection?.summary ?? "");
   const [sort, setSort] = useState<CollectionSort>(collection?.sort ?? "release");
   const categories = useCategories(open);
-  // "" is Other: no category.
-  const [category, setCategory] = useState(collection?.category ? String(collection.category.id) : "");
+  // A new one starts under Other, as the server lists one without a category.
+  const [category, setCategory] = useState(collection ? String(collection.category.id) : "");
   const [onHome, setOnHome] = useState(collection ? collection.home_position != null : false);
   const [onRecommended, setOnRecommended] = useState(collection ? collection.recommended_position != null : false);
   const busy = create.isPending || update.isPending;
-  const categoryId = category ? Number(category) : null;
+  const other = categories.data?.find((c) => c.key === "other");
+  const chosen = category || (other ? String(other.id) : "");
+  const categoryId = chosen ? Number(chosen) : null;
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -59,7 +61,7 @@ export function CollectionFormModal({
           title: name !== collection.title ? name : undefined,
           summary: text !== collection.summary ? text : undefined,
           sort: sort !== collection.sort ? sort : undefined,
-          category_id: categoryId !== (collection.category?.id ?? null) ? categoryId : undefined,
+          category_id: categoryId !== collection.category.id ? categoryId : undefined,
           on_home: onHome !== (collection.home_position != null) ? onHome : undefined,
           on_recommended: onRecommended !== (collection.recommended_position != null) ? onRecommended : undefined,
         },
@@ -129,13 +131,12 @@ export function CollectionFormModal({
           />
         </Field>
         <Field label={t("collectionForm.category")} htmlFor="collection-category" hint={t("collectionForm.categoryHint")}>
-          <Select id="collection-category" className="w-full" value={category} onChange={(e) => setCategory(e.target.value)}>
+          <Select id="collection-category" className="w-full" value={chosen} onChange={(e) => setCategory(e.target.value)}>
             {(categories.data ?? []).map((c) => (
               <option key={c.id} value={String(c.id)}>
                 {c.title}
               </option>
             ))}
-            <option value="">{t("collections.other")}</option>
           </Select>
         </Field>
         <div className="space-y-3">

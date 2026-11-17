@@ -173,7 +173,7 @@ export function RecommendedRowsModal({ open, onClose, libraryId }: { open: boole
   const all = collections.data ?? [];
   const shown = recommendedRows(all);
   const others = all.filter((c) => c.recommended_position == null);
-  const rows: Row[] = shown.map((c) => ({ key: String(c.id), title: c.title, detail: c.category?.title, removable: true }));
+  const rows: Row[] = shown.map((c) => ({ key: String(c.id), title: c.title, detail: c.category.key === "other" ? undefined : c.category.title, removable: true }));
   const onError = (e: unknown) => toast.error(errorMessage(e));
 
   return (

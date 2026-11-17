@@ -213,7 +213,11 @@ async fn categories_group_collections() {
     let w = world().await;
     let got = w.app.get("/api/collection-categories", &w.admin).await;
     let names: Vec<_> = got.body["categories"].as_array().unwrap().iter().map(|c| c["title"].clone()).collect();
-    assert_eq!(names, [json!("Highlights"), json!("Franchises")]);
+    // Other comes before Franchises, the long list TMDB fills.
+    assert_eq!(names, [json!("Highlights"), json!("Other"), json!("Franchises")]);
+    let other = got.body["categories"][1]["id"].as_i64().unwrap();
+    let refused = w.app.delete(&format!("/api/collection-categories/{other}"), &w.admin).await;
+    assert_eq!(refused.status, StatusCode::BAD_REQUEST, "{:?}", refused.body);
 
     let made = w.app.post("/api/collection-categories", &w.admin, json!({"title": "Holidays"})).await;
     assert_eq!(made.status, StatusCode::CREATED, "{:?}", made.body);
@@ -237,8 +241,21 @@ async fn categories_group_collections() {
 
     let gone = w.app.delete(&format!("/api/collection-categories/{holidays}"), &w.admin).await;
     assert_eq!(gone.status, StatusCode::NO_CONTENT);
+    // Its collections are under Other, which the server sends as their category.
     let got = w.app.get(&format!("/api/collections/{id}"), &w.admin).await;
-    assert!(got.body["category"].is_null(), "{:?}", got.body);
+    assert_eq!(got.body["category"]["key"], "other", "{:?}", got.body);
+    assert_eq!(got.body["category"]["id"], other);
+
+    // Put in Other, a collection has none, and stays an administrator's choice.
+    let put = w.app.patch(&format!("/api/collections/{id}"), &w.admin, json!({"category_id": other})).await;
+    assert_eq!(put.status, StatusCode::OK, "{:?}", put.body);
+    assert_eq!(put.body["category"]["key"], "other");
+    let kept: Option<i64> = sqlx::query_scalar("SELECT category_id FROM collections WHERE id = ?")
+        .bind(id)
+        .fetch_one(&w.app.state.db.read)
+        .await
+        .unwrap();
+    assert_eq!(kept, None);
 
     let (viewer, _) = w.app.user(&w.admin, "viewer", json!({})).await;
     assert_eq!(w.app.get("/api/collection-categories", &viewer).await.status, StatusCode::OK);

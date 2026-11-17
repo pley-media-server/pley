@@ -17,8 +17,8 @@ export interface Collection {
   /** A smart collection's filter (a library listing in Plex's syntax, see
    * `lib/smartFilter`); it holds no items of its own. */
   smart_filter: string | null;
-  /** Its category; `null`: Other. */
-  category: CategoryRef | null;
+  /** Its category: Pley's Other (`key` "other") when it has none. */
+  category: CategoryRef;
   /** Which of Pley's own it is, made in each movie and TV library. */
   builtin: Builtin | null;
   /** Its place among Home's rows; `null`: not a row there. */

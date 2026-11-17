@@ -2096,7 +2096,7 @@ interface Collection {
   automatic: boolean;               // from TMDB
   sort: "release" | "title" | "custom";
   smart_filter: string | null;      // smart collections: the library filter that fills them
-  category: { id: Id; key: string | null; title: string } | null;   // null: Other
+  category: { id: Id; key: string | null; title: string };   // Other (key "other") when it has none
   builtin: "recently_added" | "recently_released" | "top_rated" | "top_unwatched" | null;
   home_position: number | null;     // a row on Home, in this place; null: not one
   recommended_position: number | null;   // a row on its library's Recommended tab
@@ -2113,7 +2113,7 @@ interface Collection {
 | GET | `/api/libraries/{id}/collections` | `library` | `{ collections: Collection[] }` by title |
 | POST | `/api/libraries/{id}/collections` | `admin` | `{ title, summary?, item_ids?: Id[], smart_filter?, category_id? }` → `201` `Collection & { items: ItemSummary[] }`; `400` for music and audiobook libraries |
 | GET | `/api/collections/{id}` | `library` | `Collection & { items: ItemSummary[] }` in the collection's order |
-| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null: Other), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab |
+| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab |
 | DELETE | `/api/collections/{id}` | `admin` | `204` (an automatic one comes back when its movies are refreshed) |
 | POST | `/api/collections/{id}/items` | `admin` | `{ item_ids: Id[] }` → `{ added: number }`. Only movies and shows of the same library; `400` if none could be added |
 | DELETE | `/api/collections/{id}/items/{item_id}` | `admin` | `204` |
@@ -2133,10 +2133,13 @@ removed or reordered (`400`); change the filter instead.
 ### Categories
 
 A library's collections are grouped by category: Pley's own, Highlights
-(`key` `highlights`, the collections Pley makes) and Franchises
-(`franchises`, TMDB's), named in each user's language, and
-administrators' own. They are shared by every library, in the order
-administrators choose. A collection without one is listed under Other.
+(`key` `highlights`, the collections Pley makes), Other (`other`, for
+collections without one) and Franchises (`franchises`, TMDB's), named in
+each user's language, and administrators' own. They are shared by every
+library, in the order administrators choose; a new server puts Other just
+before Franchises. A collection without a category is sent with Other as
+its `category`, so an app groups collections by `category` in the order
+of this list, Other included; put in Other, it has none.
 Group labels set through the compatibility APIs, such as Kometa's
 `Seasonal`, put collections under categories too, made as they are needed
 ([COMPATIBILITY.md](COMPATIBILITY.md#searching-and-filtering)); a category an
@@ -2145,7 +2148,7 @@ administrator chose for a collection stays.
 ```ts
 interface Category {
   id: Id;
-  key: "highlights" | "franchises" | null;   // null: an administrator's
+  key: "highlights" | "other" | "franchises" | null;   // null: an administrator's
   title: string;
   from_label: string | null;        // the group label it was made from
   position: number;
@@ -2157,7 +2160,7 @@ interface Category {
 | GET | `/api/collection-categories` | `library` | `{ categories: Category[] }` in order |
 | POST | `/api/collection-categories` | `admin` | `{ title }` (1 to 100 characters) → `201` `Category`, last; `409` if a category has that name, Pley's own in any language included |
 | PATCH | `/api/collection-categories/{id}` | `admin` | `{ title }` → `Category`; `400` for Pley's own, `409` as above |
-| DELETE | `/api/collection-categories/{id}` | `admin` | `204`; its collections are left without one; `400` for Pley's own |
+| DELETE | `/api/collection-categories/{id}` | `admin` | `204`; its collections are left without one, under Other; `400` for Pley's own |
 | PUT | `/api/collection-categories/order` | `admin` | `{ ids: Id[] }` → `204`: these first in this order, the rest after |
 
 ### Rows

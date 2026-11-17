@@ -11,8 +11,9 @@ describes how they are made.
 
 ### Added
 
-- Collections have categories: Highlights, Franchises and administrators'
-  own. Administrators choose which collections are rows on Home and on a
+- Collections have categories: Highlights, Franchises, Other (for those
+  without one) and administrators' own, in an order administrators choose.
+  Administrators choose which collections are rows on Home and on a
   library's Recommended tab, and in what order; Recently Added, Recently
   Released, Top Rated and a new Top Unwatched are collections in each
   movie and TV library (Top Unwatched isn't a row until an administrator

@@ -254,7 +254,7 @@ mod tests {
             automatic: false,
             sort: "release".into(),
             smart_filter: None,
-            category: None,
+            category: crate::categories::CategoryRef { id: 3, key: Some("other".into()), title: "Other".into() },
             home_position: None,
             recommended_position: None,
             builtin: None,

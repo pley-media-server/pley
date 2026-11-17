@@ -14,7 +14,8 @@
   },
   "collections": {
     "highlights": "Highlights",
-    "franchises": "Franchises"
+    "franchises": "Franchises",
+    "other": "Other"
   },
   "tray": {
     "open": "&Open Pley",

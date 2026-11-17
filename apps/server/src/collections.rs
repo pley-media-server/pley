@@ -103,13 +103,22 @@ pub struct Names {
     language: &'static str,
     kinds: HashMap<i64, LibraryKind>,
     categories: HashMap<i64, crate::categories::CategoryRef>,
+    /// Where collections without a category are listed.
+    other: crate::categories::CategoryRef,
 }
 
 impl Names {
     pub async fn load(db: &Db, language: &'static str) -> sqlx::Result<Names> {
         let kinds: Vec<(i64, String)> = sqlx::query_as("SELECT id, kind FROM libraries").fetch_all(&db.read).await?;
         let categories = crate::categories::list(db, language).await?;
+        let other = categories
+            .iter()
+            .find(|c| c.key.as_deref() == Some(crate::categories::OTHER))
+            .cloned()
+            .ok_or(sqlx::Error::RowNotFound)?
+            .into_ref();
         Ok(Names {
+            other,
             language,
             kinds: kinds
                 .into_iter()
@@ -212,8 +221,8 @@ pub struct CollectionDto {
     /// A smart collection's filter: the section listing query (Plex's syntax)
     /// whose items it shows. `None` for collections that hold items.
     pub smart_filter: Option<String>,
-    /// Its category, if it has one (else it's listed under Other).
-    pub category: Option<crate::categories::CategoryRef>,
+    /// Its category: Other when it has none.
+    pub category: crate::categories::CategoryRef,
     /// Where it is a row, in what order (lowest first): Home, and its
     /// library's Recommended tab. `None`: not a row there.
     pub home_position: Option<i64>,
@@ -238,7 +247,7 @@ impl CollectionRow {
             // Pley's own, named in the user's language, sort by that name.
             sort_title: if untouched { crate::util::sort_title(&title) } else { self.sort_title },
             title,
-            category: self.category_id.and_then(|id| names.categories.get(&id).cloned()),
+            category: self.category_id.and_then(|id| names.categories.get(&id)).unwrap_or(&names.other).clone(),
             home_position: self.home_position,
             recommended_position: self.recommended_position,
             builtin: self.builtin,
@@ -732,9 +741,10 @@ pub(crate) async fn next_home_position(tx: &mut sqlx::SqliteConnection) -> sqlx:
     .await
 }
 
-/// Puts a collection under a category (`None`: Other), as an
+/// Puts a collection under a category (`None`, or Other's id: none), as an
 /// administrator's choice, which labels don't change afterwards.
 pub async fn set_category(db: &Db, id: i64, category_id: Option<i64>) -> sqlx::Result<()> {
+    let category_id = crate::categories::stored(db, category_id).await?;
     sqlx::query("UPDATE collections SET category_id = ?, category_from = 'admin', updated_at = ? WHERE id = ?")
         .bind(category_id)
         .bind(now())

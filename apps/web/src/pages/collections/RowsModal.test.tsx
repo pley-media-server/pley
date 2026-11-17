@@ -15,7 +15,7 @@ function collection(id: number, title: string, recommended: number | null): Coll
     automatic: false,
     sort: "release",
     smart_filter: null,
-    category: null,
+    category: { id: 3, key: "other", title: "Other" },
     builtin: null,
     home_position: null,
     recommended_position: recommended,

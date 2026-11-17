@@ -14,7 +14,8 @@
   },
   "collections": {
     "highlights": "À la une",
-    "franchises": "Sagas"
+    "franchises": "Sagas",
+    "other": "Autres"
   },
   "tray": {
     "open": "&Ouvrir Pley",

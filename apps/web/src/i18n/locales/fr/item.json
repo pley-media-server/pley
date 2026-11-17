@@ -285,7 +285,6 @@
     "moviesHintAdmin": "Les films d’une même collection TMDB sont regroupés ici dès que deux d’entre eux sont dans cette bibliothèque. Vous pouvez aussi créer les vôtres.",
     "showsHintAdmin": "Regroupez des séries dans vos propres collections.",
     "noneHere": "Cette bibliothèque n’a pas encore de collection.",
-    "other": "Autres",
     "type": "Type",
     "types": {
       "all": "Tous les types",

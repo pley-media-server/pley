@@ -1,8 +1,9 @@
 //! Categories of collections, by which a library's collections are grouped:
-//! Pley's own (Highlights, the collections Pley makes; Franchises, TMDB's),
-//! named in each language, and administrators' own. Shared by every library,
-//! in an order administrators choose. A collection has one category or none
-//! (listed under Other).
+//! Pley's own (Highlights, the collections Pley makes; Franchises, TMDB's;
+//! Other, for collections without one), named in each language, and
+//! administrators' own. Shared by every library, in an order administrators
+//! choose. A collection has one category or none, and none is sent as Other,
+//! so apps group by what the server sends.
 
 use serde::Serialize;
 use sqlx::FromRow;
@@ -15,8 +16,8 @@ use crate::util::now;
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct CategoryRef {
     pub id: i64,
-    /// `highlights` or `franchises` for Pley's own; `None` for one an
-    /// administrator made.
+    /// `highlights`, `franchises` or `other` for Pley's own; `None` for one
+    /// an administrator made.
     pub key: Option<String>,
     /// In the user's language for Pley's own.
     pub title: String,
@@ -47,6 +48,10 @@ struct Row {
     from_label: Option<String>,
     position: i64,
 }
+
+/// The key of Other, where collections without a category are listed. It
+/// stands for none: a collection put in it is left without one.
+pub const OTHER: &str = "other";
 
 /// The words for Pley's own categories.
 fn builtin_title(language: &str, key: &str) -> String {
@@ -174,6 +179,15 @@ pub async fn exists(db: &Db, id: i64) -> sqlx::Result<bool> {
     Ok(row(db, id).await?.is_some())
 }
 
+/// What a collection keeps for category `id`: none for Other.
+pub async fn stored(db: &Db, id: Option<i64>) -> sqlx::Result<Option<i64>> {
+    let Some(id) = id else { return Ok(None) };
+    Ok(match row(db, id).await? {
+        Some(r) if r.key.as_deref() == Some(OTHER) => None,
+        _ => Some(id),
+    })
+}
+
 /// The longest name a category has.
 pub const MAX_TITLE: usize = 100;
 
@@ -198,7 +212,8 @@ pub async fn place_by_labels(db: &Db, collection_id: i64) -> sqlx::Result<()> {
     let groups: Vec<&String> =
         labels.iter().filter(|l| !TOOL_LABELS.iter().any(|t| t.eq_ignore_ascii_case(l))).collect();
     let category = match groups.as_slice() {
-        [label] => Some(for_label(db, label).await?),
+        // A label named Other finds Pley's Other, which is none.
+        [label] => stored(db, Some(for_label(db, label).await?)).await?,
         _ => None,
     };
     // Unless an administrator chose one meanwhile.
@@ -265,13 +280,22 @@ mod tests {
         let en: Vec<_> = list(&db, "en").await.unwrap().into_iter().map(|c| (c.key, c.title)).collect();
         assert_eq!(
             en,
-            [(Some("highlights".into()), "Highlights".into()), (Some("franchises".into()), "Franchises".into())]
+            [
+                (Some("highlights".into()), "Highlights".into()),
+                (Some("other".into()), "Other".into()),
+                (Some("franchises".into()), "Franchises".into())
+            ]
         );
         let fr: Vec<_> = list(&db, "fr").await.unwrap().into_iter().map(|c| c.title).collect();
-        assert_eq!(fr, ["À la une", "Sagas"]);
-        let highlights = list(&db, "en").await.unwrap()[0].id;
-        assert_eq!(rename(&db, highlights, "Mine").await.unwrap(), Err(Refused::Builtin));
-        assert_eq!(delete(&db, highlights).await.unwrap(), Err(Refused::Builtin));
+        assert_eq!(fr, ["À la une", "Autres", "Sagas"]);
+        for builtin in list(&db, "en").await.unwrap() {
+            assert_eq!(rename(&db, builtin.id, "Mine").await.unwrap(), Err(Refused::Builtin));
+            assert_eq!(delete(&db, builtin.id).await.unwrap(), Err(Refused::Builtin));
+        }
+        // Other stands for none.
+        let other = list(&db, "en").await.unwrap()[1].id;
+        assert_eq!(stored(&db, Some(other)).await.unwrap(), None);
+        assert_eq!(stored(&db, Some(other + 1)).await.unwrap(), Some(other + 1));
     }
 
     #[tokio::test]
@@ -287,7 +311,7 @@ mod tests {
         rename(&db, decades, "By decade").await.unwrap().unwrap();
         reorder(&db, &[decades]).await.unwrap();
         let titles: Vec<_> = list(&db, "en").await.unwrap().into_iter().map(|c| c.title).collect();
-        assert_eq!(titles, ["By decade", "Highlights", "Franchises", "Holidays"]);
+        assert_eq!(titles, ["By decade", "Highlights", "Other", "Franchises", "Holidays"]);
         delete(&db, holidays).await.unwrap().unwrap();
         assert!(!exists(&db, holidays).await.unwrap());
     }
@@ -335,6 +359,9 @@ mod tests {
         // A label naming Pley's own category puts it there.
         set(12, labels(&["Franchises"]), vec![]).await;
         assert_eq!(category_of(&db, 12).await.0.as_deref(), Some("franchises"));
+        // But a label naming Other leaves it without one, as Other stands for none.
+        set(12, labels(&["other"]), labels(&["Franchises"])).await;
+        assert_eq!(category_of(&db, 12).await, (None, None));
         // Two group labels, or none, name no category.
         set(10, labels(&["Decade"]), vec![]).await;
         assert_eq!(category_of(&db, 10).await, (None, None));
