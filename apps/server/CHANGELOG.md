@@ -47,6 +47,11 @@ describes how they are made.
 - Live TV channels play on Google Cast and AirPlay devices from Watch on…,
   and the remote changes channel there.
 
+### Changed
+
+- Home's rows keep the order administrators give them, whatever order
+  the libraries are listed in, shared or a profile's own.
+
 ### Fixed
 
 - Stop in Pley stops a Google Cast device every time. The connection
