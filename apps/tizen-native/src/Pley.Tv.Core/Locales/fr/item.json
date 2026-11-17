@@ -209,6 +209,7 @@
     "nothingToPlay": "Rien à lire : cette série n’a pas encore d’épisode",
     "byRelease": "Par date de sortie",
     "byTitle": "Par titre",
-    "customOrder": "Ordre personnalisé"
+    "customOrder": "Ordre personnalisé",
+    "from": "Dans"
   }
 }

@@ -18,6 +18,14 @@ public abstract record PageKey
     public sealed record Library(long LibraryId, LibraryTab? Tab = null, string? View = null) : PageKey;
     public sealed record Collections(long LibraryId) : PageKey;
     public sealed record Collection(long CollectionId) : PageKey;
+
+    /// <summary>A Home row of several libraries' collections of one title, together.</summary>
+    public sealed record MergedCollection(IReadOnlyList<long> CollectionIds) : PageKey
+    {
+        public bool Equals(MergedCollection? other) => other != null && CollectionIds.SequenceEqual(other.CollectionIds);
+
+        public override int GetHashCode() => CollectionIds.Aggregate(17, (h, id) => h * 31 + id.GetHashCode());
+    }
     public sealed record Item(long ItemId) : PageKey;
     public sealed record Person(long PersonId) : PageKey;
     public sealed record Search(string Query = "") : PageKey;

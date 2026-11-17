@@ -353,7 +353,7 @@ sealed class HomeScreen : ShellPage
                 Tree.Focus,
                 row.SeeAll is { } more ? (LibraryText.SeeAll, () =>
                 {
-                    if (!Shell.Open(new PageKey.Library(more.LibraryId, LibraryTab.Library, more.View))) Shell.Toast(Strings.T("home.comesNext"));
+                    if (!Shell.Open(more)) Shell.Toast(Strings.T("home.comesNext"));
                 }) : null);
             column.Add(view);
             rowViews.Add(view);

@@ -12,10 +12,15 @@ namespace Pley.Tv.Tizen.Screens;
 
 /// <summary>
 /// A collection's page on TV (design spec §4.9; the Android app's TvCollectionScreen): the item
-/// page's top, a backdrop with the text column at x = 96 ("Collection" and its TMDB or Smart
-/// badge, the title, what it holds in words, the summary, then Play with focus and Shuffle), and
-/// its titles in a grid below, which scrolls up over the backdrop as focus moves down, the
-/// backdrop dimming under it.
+/// page's top, a backdrop with the text column at x = 96 ("Collection" and its category, TMDB or
+/// Smart badges, the title, what it holds in words, the summary, then Play with focus and
+/// Shuffle), and its titles in a grid below, which scrolls up over the backdrop as focus moves
+/// down, the backdrop dimming under it.
+///
+/// The merged page (a Home row of several libraries' collections of one title; the Android app's
+/// TvMergedCollectionScreen) is drawn the same way without a backdrop: how many movies and shows
+/// in place of the facts, and under Play "From" and a chip for each library, which opens that
+/// library's collection.
 /// </summary>
 sealed class CollectionScreen : ShellPage
 {
@@ -27,12 +32,16 @@ sealed class CollectionScreen : ShellPage
     /// <summary>Under a round button, the room its label takes while it has focus.</summary>
     const float ButtonLabelRoom = 24;
     const float BadgeHeight = 18;
+    /// <summary>A category badge's widest, its name cut short beyond.</summary>
+    const float CategoryBadgeWidth = 200;
+    /// <summary>The merged page's library chips: their height, and the room under them.</summary>
+    const float ChipHeight = 40, SourcesGap = 20;
     /// <summary>The grid's top at rest, its wells a row's gap under the hero, and once focus is in it, its focused row's wells at y = 58.</summary>
     const float GridTop = HeroHeight + GridView.RowGap - GridView.TileRoom, GridTopScrolled = HeroTop - GridView.TileRoom;
     /// <summary>The dimming over the backdrop once the grid has passed over it.</summary>
     const float Dim = 0.92f;
 
-    readonly CollectionModel model;
+    readonly ICollectionPageModel model;
     readonly Images images;
     readonly KeyRepeatGate gate;
     readonly Action<PageKey> go;
@@ -44,6 +53,9 @@ sealed class CollectionScreen : ShellPage
     readonly View heroText = new View();
     readonly View buttons = new View();
     readonly FocusGroup buttonGroup = new FocusGroup(Axis.Row, "buttons");
+    readonly View sources = new View();
+    readonly FocusGroup sourceGroup = new FocusGroup(Axis.Row, "sources");
+    IReadOnlyList<MergedSource> shownSources = Array.Empty<MergedSource>();
     readonly View body = new View { WidthResizePolicy = ResizePolicyType.FillToParent, HeightResizePolicy = ResizePolicyType.FillToParent };
     readonly Timer messageTimer = new Timer((uint)CollectionText.MessageMs);
     ButtonView? play;
@@ -60,8 +72,8 @@ sealed class CollectionScreen : ShellPage
     FocusItem? waitingOn;
     bool waiting;
 
-    public CollectionScreen(TvShell shell, CollectionModel model, Images images, KeyRepeatGate gate, Action<PageKey> go)
-        : base(shell, new PageKey.Collection(model.CollectionId), "collection")
+    public CollectionScreen(TvShell shell, ICollectionPageModel model, Images images, KeyRepeatGate gate, Action<PageKey> go)
+        : base(shell, model.Key, "collection")
     {
         this.model = model;
         this.images = images;
@@ -81,10 +93,12 @@ sealed class CollectionScreen : ShellPage
         hero.Position = new Position(Ui.Dp(PleyTv.Gutter), Ui.Dp(HeroTop));
         hero.Add(heroText);
         hero.Add(buttons);
+        hero.Add(sources);
         scroller.Add(hero);
         View.Add(scroller);
         View.Add(body);
         buttonGroup.Exit = d => d == Direction.Left && Scrolling.Left(gate, Shell.FocusRail);
+        sourceGroup.Exit = d => d == Direction.Left && Scrolling.Left(gate, Shell.FocusRail);
         Group.ChildFocused += i => Scroll(grid != null && Group.Children[i] == grid.Group);
         messageTimer.Tick += (s, e) =>
         {
@@ -159,6 +173,13 @@ sealed class CollectionScreen : ShellPage
         var hadFocus = Tree.Current != null && Within(Group, Tree.Current);
         Group.Clear();
         buttonGroup.Clear();
+        sourceGroup.Clear();
+        shownSources = Array.Empty<MergedSource>();
+        foreach (var child in sources.Children.ToList())
+        {
+            sources.Remove(child);
+            child.Dispose();
+        }
         foreach (var child in body.Children.ToList())
         {
             body.Remove(child);
@@ -249,11 +270,13 @@ sealed class CollectionScreen : ShellPage
         }
         var bottom = ShowText(page);
         ShowButtons(page, bottom);
+        ShowSources(page);
         ShowGrid(page);
         if (first)
         {
             Group.Clear();
             Group.Add(buttonGroup);
+            if (page.Merged) Group.Add(sourceGroup);
             if (grid != null) Group.Add(grid.Group);
         }
         // Play has focus once the page comes, else Shuffle; not once someone has gone to the rail meanwhile.
@@ -289,6 +312,11 @@ sealed class CollectionScreen : ShellPage
         var label = Text.Label(CollectionText.Label, PleyType.Label, PleyColors.Muted);
         label.Size = new global::Tizen.NUI.Size(label.NaturalSize.Width + 2, Text.LineHeight(PleyType.Label));
         Place(label, label.SizeWidth / Ui.Scale, label.SizeHeight / Ui.Scale);
+        if (page.Category is { } category)
+        {
+            var badge = Badge(category, CategoryBadgeWidth);
+            Place(badge, badge.SizeWidth / Ui.Scale, BadgeHeight);
+        }
         if (page.Automatic)
         {
             var badge = Badge(CollectionText.Tmdb);
@@ -325,13 +353,17 @@ sealed class CollectionScreen : ShellPage
         return style.Line * lines;
     }
 
-    /// <summary>A TMDB or Smart badge (the Android app's QualityBadge): Badge text in Muted, a 1 dp Outline edge, 6 either side.</summary>
-    static View Badge(string text)
+    /// <summary>
+    /// A category, TMDB or Smart badge (the Android app's QualityBadge): Badge text in Muted, a 1 dp
+    /// Outline edge, 6 either side; no wider than <paramref name="widest"/> dp, the text cut short.
+    /// </summary>
+    static View Badge(string text, float widest = float.MaxValue)
     {
         var t = Text.Label(text, PleyType.Badge, PleyColors.Muted);
+        t.Ellipsis = true;
         var box = new View
         {
-            Size = new global::Tizen.NUI.Size(t.NaturalSize.Width + Ui.Dp(12), Ui.Dp(BadgeHeight)),
+            Size = new global::Tizen.NUI.Size(Math.Min(t.NaturalSize.Width + Ui.Dp(12), Ui.Dp(widest)), Ui.Dp(BadgeHeight)),
             BorderlineWidth = Ui.Dp(1),
             BorderlineColor = PleyColors.Outline,
             BorderlineOffset = -1,
@@ -351,7 +383,7 @@ sealed class CollectionScreen : ShellPage
     void ShowButtons(CollectionPage page, bool isEmpty)
     {
         var height = HeroHeight - HeroTop;
-        var y = height - (isEmpty ? PleyType.Body.Line : 0) - 12 - ButtonLabelRoom - PleyTv.ButtonHeight;
+        var y = height - (isEmpty ? PleyType.Body.Line : 0) - 12 - ButtonLabelRoom - PleyTv.ButtonHeight - (page.Merged ? ChipHeight + SourcesGap : 0);
         buttons.Position = new Position(0, Ui.Dp(y));
         if (play == null || shuffle == null)
         {
@@ -382,6 +414,43 @@ sealed class CollectionScreen : ShellPage
             empty = null;
         }
         if (empty != null) empty.PositionY = Ui.Dp(height - PleyType.Body.Line);
+    }
+
+    /// <summary>
+    /// The merged page's libraries, under the buttons and the room for Shuffle's label: "From" in
+    /// Label Muted, then a chip for each, 10 apart, which opens that library's collection.
+    /// </summary>
+    void ShowSources(CollectionPage page)
+    {
+        if (!page.Merged || page.Sources.SequenceEqual(shownSources)) return;
+        var focused = Tree.Current?.Parent == sourceGroup ? sourceGroup.Children.ToList().IndexOf(Tree.Current) : -1;
+        shownSources = page.Sources;
+        foreach (var child in sources.Children.ToList())
+        {
+            sources.Remove(child);
+            child.Dispose();
+        }
+        sourceGroup.Clear();
+        sources.PositionY = Ui.Dp(HeroHeight - HeroTop - SourcesGap - ChipHeight);
+        var from = Text.Label(CollectionText.From, PleyType.Label, PleyColors.Muted);
+        from.Size = new global::Tizen.NUI.Size(from.NaturalSize.Width + 2, Text.LineHeight(PleyType.Label));
+        from.PositionY = Ui.Dp((ChipHeight - PleyType.Label.Line) / 2);
+        sources.Add(from);
+        var x = from.SizeWidth / Ui.Scale + 10;
+        foreach (var source in page.Sources)
+        {
+            var key = new PageKey.Collection(source.CollectionId);
+            var chip = new ButtonView(source.LibraryName, ButtonKind.Text, () => go(key), maxWidth: 220) { Rest = PleyColors.Surface3 };
+            chip.PositionX = Ui.Dp(x);
+            sources.Add(chip);
+            sourceGroup.Add(chip.Item);
+            x += chip.WidthDp + 10;
+        }
+        if (focused >= 0)
+        {
+            if (sourceGroup.Children.Count > 0) Tree.Focus((FocusItem)sourceGroup.Children[Math.Min(focused, sourceGroup.Children.Count - 1)]);
+            else if (!Tree.Enter(buttonGroup)) Shell.FocusRail();
+        }
     }
 
     void Say(string? text)

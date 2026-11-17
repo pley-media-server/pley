@@ -126,6 +126,16 @@ sealed class FakeCollections : ICollectionSource
         return Details.TryGetValue(id, out var d) ? Task.FromResult(d) : new TaskCompletionSource<CollectionDetail>().Task;
     }
 
+    /// <summary>Merged pages by their ids joined with commas ("7,9").</summary>
+    public Dictionary<string, MergedCollection> Merges { get; } = new Dictionary<string, MergedCollection>();
+    public int MergeAsks { get; private set; }
+
+    public Task<MergedCollection> Merged(IReadOnlyList<long> ids)
+    {
+        MergeAsks++;
+        return Merges.TryGetValue(string.Join(",", ids), out var m) ? Task.FromResult(m) : new TaskCompletionSource<MergedCollection>().Task;
+    }
+
     public Task<ItemSummary?> OnDeck(long id)
     {
         Resolved.Add(id);

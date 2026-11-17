@@ -40,7 +40,9 @@
       "year": "Todos",
       "resolution": "Todas",
       "dynamicRange": "Todos"
-    }
+    },
+    "category": "Categoría",
+    "allCategories": "Todas las categorías"
   },
   "anyHdr": "Cualquier HDR",
   "bitrateUnknown": "Tasa de bits desconocida",

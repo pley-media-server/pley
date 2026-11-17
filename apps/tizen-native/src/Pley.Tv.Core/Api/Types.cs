@@ -239,6 +239,24 @@ public sealed record Hub
     public string Title { get; init; } = "";
     public long? LibraryId { get; init; }
     public IReadOnlyList<ItemSummary> Items { get; init; } = new ItemSummary[0];
+    /// <summary>
+    /// The collection the row shows, or the several of one title it merges (a Home row of
+    /// several libraries'); none for other rows, or from a server older than collections' rows.
+    /// </summary>
+    public IReadOnlyList<long> CollectionIds { get; init; } = new long[0];
+}
+
+/// <summary>A collection's category, as a collection names it.</summary>
+/// <param name="Key">"highlights", "other" or "franchises" for Pley's own; null for one an administrator made.</param>
+/// <param name="Title">In the profile's language for Pley's own.</param>
+public record CategoryRef(long Id, string? Key, string Title);
+
+/// <summary>A category of collections (<c>GET /api/collection-categories</c>), in the server's order.</summary>
+public sealed record CollectionCategory(long Id, string? Key, string Title) : CategoryRef(Id, Key, Title)
+{
+    /// <summary>The Plex label it was made from, if any.</summary>
+    public string? FromLabel { get; init; }
+    public int Position { get; init; }
 }
 
 public record Collection
@@ -256,6 +274,8 @@ public record Collection
     public long ItemCount { get; init; }
     public string PosterUrl { get; init; } = "";
     public string BackdropUrl { get; init; } = "";
+    /// <summary>The category the Collections tab groups it under: the server's Other when it has none; null from a server older than categories.</summary>
+    public CategoryRef? Category { get; init; }
 }
 
 public record Playlist
