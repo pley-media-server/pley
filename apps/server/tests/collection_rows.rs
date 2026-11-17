@@ -161,6 +161,42 @@ async fn collections_of_one_title_are_one_row_on_home() {
     assert_eq!(none.status, StatusCode::NOT_FOUND);
 }
 
+/// A film library's Recently Added and a TV library's, named alike, are one
+/// row of the newest first: a show by its newest episode, as on its own.
+#[tokio::test]
+async fn recently_added_of_films_and_shows_named_alike_is_one_row_newest_first() {
+    let w = world().await;
+    w.app.media_file("tv/Old Show (2001)/Season 01/Old Show - S01E01 - Pilot.mkv", 1024);
+    w.app.media_file("tv/New Show (2020)/Season 01/New Show - S01E01 - Pilot.mkv", 1024);
+    let tv = w.app.library(&w.admin, "TV", "shows", "tv").await;
+    // Newest first: Brazil, New Show, Heat, Old Show, Alien.
+    for (title, kind, added) in [
+        ("Alien", "movie", 100),
+        ("Old Show", "episode", 200),
+        ("Heat", "movie", 300),
+        ("New Show", "episode", 400),
+        ("Brazil", "movie", 500),
+    ] {
+        let sql = if kind == "movie" {
+            "UPDATE items SET added_at = ? WHERE title = ? AND kind = 'movie'"
+        } else {
+            "UPDATE items SET added_at = ? WHERE kind = 'episode' AND grandparent_id = (SELECT id FROM items WHERE title = ?)"
+        };
+        sqlx::query(sql).bind(added).bind(title).execute(&w.app.state.db.write).await.unwrap();
+    }
+    let ids = [builtin(&w, w.films, "recently_added").await, builtin(&w, tv, "recently_added").await];
+    for id in ids {
+        let renamed = w.app.patch(&format!("/api/collections/{id}"), &w.admin, json!({"title": "New"})).await;
+        assert_eq!(renamed.status, StatusCode::OK, "{:?}", renamed.body);
+    }
+    let home = w.app.get("/api/hubs/home", &w.admin).await;
+    let key = format!("collections:{},{}", ids[0], ids[1]);
+    let row = hub(&home.body, &key).unwrap_or_else(|| panic!("{key} in {:?}", keys(&home.body)));
+    assert_eq!(titles(&row["items"]), ["Brazil", "New Show", "Heat", "Old Show", "Alien"]);
+    let page = w.app.get(&format!("/api/collections/merged?ids={},{}", ids[0], ids[1]), &w.admin).await;
+    assert_eq!(titles(&page.body["items"]), ["Brazil", "New Show", "Heat", "Old Show", "Alien"]);
+}
+
 #[tokio::test]
 async fn administrators_arrange_home_and_recommended() {
     let w = world().await;

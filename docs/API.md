@@ -2174,8 +2174,9 @@ Added is a row on Home of its own.
 
 On Home, collections of the same title in different libraries are one
 row, keyed `collections:<id>,<id>`, its titles in their common order when
-they share one (a smart collection's sort, or newest or by title), else
-one library's after another's. A row of one collection is keyed
+they share one (a smart collection's sort, or newest or by title; a film
+library's newest first and a TV library's, shows by their newest
+episode, are one), else one library's after another's. A row of one collection is keyed
 `collection:<id>`, or `recently_added:<library_id>` (and likewise
 `recently_released:`, `top_rated:`, `top_unwatched:`) for Pley's own, as
 the rows were before they were collections. An untouched Recently Added

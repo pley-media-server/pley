@@ -11,7 +11,7 @@ use crate::catalog::{self, ItemRow};
 use crate::collections::{self, Builtin, CollectionRow, Names};
 use crate::db::Db;
 use crate::i18n;
-use crate::library::LibraryRow;
+use crate::library::{LibraryKind, LibraryRow};
 use crate::listing::{self, SortField};
 
 /// How many titles a row shows; its collection has them all.
@@ -256,15 +256,26 @@ pub async fn order_home(db: &Db, keys: &[String]) -> sqlx::Result<()> {
     tx.commit().await
 }
 
-/// How a collection orders its titles, when it's an order titles of other
-/// libraries can be put in too; `None` for a hand-made order.
-fn order_of(row: &CollectionRow) -> Option<Vec<(SortField, bool)>> {
-    match (&row.smart_filter, row.sort.as_str()) {
-        (Some(filter), _) => Some(listing::smart_sort(filter)),
-        (None, "title") => Some(vec![(SortField::Title, false), (SortField::Year, false)]),
-        (None, "custom") => None,
-        (None, _) => Some(vec![(SortField::Released, false), (SortField::Year, false)]),
+/// How a collection of a library of `kind` orders its titles, when it's an
+/// order titles of other libraries can be put in too; `None` for a
+/// hand-made order. A film has no episodes, so when it was added is when
+/// its newest episode was: a film library's newest first is a TV
+/// library's (shows by their newest episode) too.
+fn order_of(row: &CollectionRow, kind: Option<LibraryKind>) -> Option<Vec<(SortField, bool)>> {
+    let mut order = match (&row.smart_filter, row.sort.as_str()) {
+        (Some(filter), _) => listing::smart_sort(filter),
+        (None, "title") => vec![(SortField::Title, false), (SortField::Year, false)],
+        (None, "custom") => return None,
+        (None, _) => vec![(SortField::Released, false), (SortField::Year, false)],
+    };
+    if kind == Some(LibraryKind::Movies) {
+        for (field, _) in &mut order {
+            if *field == SortField::Added {
+                *field = SortField::EpisodeAdded;
+            }
+        }
     }
+    Some(order)
 }
 
 /// The titles of collections shown as one row, up to `limit`: in their
@@ -276,14 +287,17 @@ pub(crate) async fn merged(
     lists: Vec<Vec<ItemRow>>,
     limit: usize,
 ) -> sqlx::Result<Vec<ItemRow>> {
-    let orders: Vec<_> = rows.iter().map(order_of).collect();
     let mut items: Vec<ItemRow> = lists.into_iter().flatten().collect();
-    if rows.len() > 1
-        && let Some(Some(order)) = orders.first()
-        && orders.iter().all(|o| o.as_ref() == Some(order))
-    {
-        let values = listing::sort_values(db, &items, order).await?;
-        listing::sort_rows(&mut items, order, &values);
+    if rows.len() > 1 {
+        let kinds: HashMap<i64, LibraryKind> =
+            crate::library::list_libraries(db).await?.iter().map(|l| (l.id, l.kind())).collect();
+        let orders: Vec<_> = rows.iter().map(|r| order_of(r, kinds.get(&r.library_id).copied())).collect();
+        if let Some(Some(order)) = orders.first()
+            && orders.iter().all(|o| o.as_ref() == Some(order))
+        {
+            let values = listing::sort_values(db, &items, order).await?;
+            listing::sort_rows(&mut items, order, &values);
+        }
     }
     items.truncate(limit);
     Ok(items)
