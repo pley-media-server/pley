@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use serde_json::{Value, json};
-use tokio::io::{AsyncRead, AsyncWrite};
+use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::mpsc;
 use tokio_rustls::rustls;
 use tokio_util::sync::CancellationToken;
@@ -35,6 +35,9 @@ const SILENT_AT_MOST: Duration = Duration::from_secs(20);
 const CONNECT_WITHIN: Duration = Duration::from_secs(10);
 /// Messages waiting to go, and come in, at most.
 const QUEUE: usize = 64;
+/// How long a connection Pley closes waits for the device to close its
+/// end, at most.
+const CLOSE_WITHIN: Duration = Duration::from_secs(2);
 
 /// A message that came in: from whom, on what, saying what.
 #[derive(Debug, Clone)]
@@ -107,6 +110,9 @@ impl Connection {
                                 break;
                             }
                         }
+                        // Then Pley's end closes, so that the device, having
+                        // read all of it, closes its own.
+                        let _ = tokio::time::timeout(CLOSE_WITHIN, writer.shutdown()).await;
                         break;
                     }
                     message = outgoing.recv() => match message {
@@ -127,13 +133,15 @@ impl Connection {
         let done = closed.clone();
         let pong = out.clone();
         tokio::spawn(async move {
-            loop {
+            let closing = loop {
                 let read = tokio::select! {
-                    () = done.cancelled() => break,
+                    () = done.cancelled() => break true,
                     read = tokio::time::timeout(SILENT_AT_MOST, frame::read(&mut reader)) => read,
                 };
-                let Ok(Ok(Some(message))) = read else { break };
-                let Ok(payload @ Value::Object(_)) = serde_json::from_str::<Value>(&message.payload) else { break };
+                let Ok(Ok(Some(message))) = read else { break false };
+                let Ok(payload @ Value::Object(_)) = serde_json::from_str::<Value>(&message.payload) else {
+                    break false;
+                };
                 if message.namespace == NS_HEARTBEAT {
                     if payload["type"] == "PING" {
                         let _ = pong.try_send(self::message(&message.source, NS_HEARTBEAT, &json!({"type": "PONG"})));
@@ -142,14 +150,22 @@ impl Connection {
                 }
                 let incoming = Incoming { source: message.source, namespace: message.namespace, payload };
                 let sent = tokio::select! {
-                    () = done.cancelled() => break,
+                    () = done.cancelled() => break true,
                     sent = incoming_tx.send(incoming) => sent,
                 };
                 if sent.is_err() {
-                    break;
+                    break true;
                 }
-            }
+            };
             done.cancel();
+            drop((incoming_tx, pong));
+            // Closed by Pley: what the device still sends is read until it
+            // closes its end too. A socket closed with data unread is reset,
+            // and a reset can lose what Pley sent last, a STOP, before the
+            // device reads it.
+            if closing {
+                let _ = tokio::time::timeout(CLOSE_WITHIN, tokio::io::copy(&mut reader, &mut tokio::io::sink())).await;
+            }
         });
         let connection = Connection { out, closed, next_request: Arc::new(AtomicU64::new(1)) };
         (connection, received)
