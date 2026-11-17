@@ -83,8 +83,8 @@ import kotlinx.coroutines.delay
 
 /**
  * A collection's page on TV (design spec §4.9): the item page's top, a
- * backdrop with the text column at x = 96 ("Collection", its category and
- * its TMDB or Smart badge, the title, what it holds in words, the summary, then Play
+ * backdrop with the text column at x = 96 ("Collection", its TMDB or Smart
+ * badge and its category, the title, what it holds in words, the summary, then Play
  * with focus and Shuffle), and its titles in a grid below, which scrolls
  * up over the backdrop as focus moves down, the backdrop dimming under it.
  */
@@ -178,9 +178,10 @@ private fun Hero(page: CollectionPage<ArtworkTileModel>, vm: CollectionViewModel
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Icon(PleyIcons.Layers, contentDescription = null, size = 18.dp, tint = PleyColors.Muted)
             BasicText(stringResource(R.string.tv_collection_label), style = PleyType.Tv.Label.copy(color = PleyColors.Muted))
-            page.category?.let { QualityBadge(it, TileStyle.Tv) }
             if (page.automatic) QualityBadge(stringResource(R.string.tv_collection_tmdb), TileStyle.Tv)
             if (page.smart) QualityBadge(stringResource(R.string.tv_collection_smart), TileStyle.Tv)
+            // Last, as on the web, and shortened to the room left: an administrator's category can be long.
+            page.category?.let { QualityBadge(it, TileStyle.Tv, Modifier.weight(1f, fill = false)) }
         }
         Spacer(Modifier.height(10.dp))
         BasicText(

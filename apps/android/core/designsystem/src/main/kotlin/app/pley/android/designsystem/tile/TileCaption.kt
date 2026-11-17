@@ -84,6 +84,6 @@ fun QualityBadge(
         modifier.heightIn(min = style.badgeHeight).then(look).padding(horizontal = 6.dp),
         contentAlignment = Alignment.Center,
     ) {
-        BasicText(text, style = textStyle, maxLines = 1, softWrap = false)
+        BasicText(text, style = textStyle, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
     }
 }

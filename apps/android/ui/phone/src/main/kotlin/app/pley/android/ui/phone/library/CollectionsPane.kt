@@ -210,7 +210,13 @@ private fun GroupHeading(group: CollectionGroup<ArtworkTileModel>) {
         verticalAlignment = Alignment.Bottom,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(group.category?.title.orEmpty(), style = MaterialTheme.typography.titleMedium, color = PleyColors.Fg)
+        // A long name wraps beside its count, which stays inside the margins.
+        Text(
+            group.category?.title.orEmpty(),
+            style = MaterialTheme.typography.titleMedium,
+            color = PleyColors.Fg,
+            modifier = Modifier.weight(1f, fill = false),
+        )
         Text(digits(LocalResources.current, group.collections.size), style = MaterialTheme.typography.labelMedium, color = PleyColors.Muted)
     }
 }
