@@ -12,6 +12,10 @@ describes how they are made.
 
 - Play on… lists Google Cast and AirPlay devices for Live TV channels too.
 
+### Changed
+
+- The home banner's More info button reads Más info in Spanish.
+
 ## [0.1.14] - 2026-11-16
 
 ### Added
