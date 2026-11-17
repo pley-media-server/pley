@@ -197,6 +197,37 @@ async fn recently_added_of_films_and_shows_named_alike_is_one_row_newest_first()
     assert_eq!(titles(&page.body["items"]), ["Brazil", "New Show", "Heat", "Old Show", "Alien"]);
 }
 
+/// Collections of one title in one library, such as an administrator's Top
+/// Rated beside Pley's, are one row on Home that shows each title once.
+#[tokio::test]
+async fn a_row_of_collections_of_one_title_shows_each_title_once() {
+    let w = world().await;
+    let ids = w.app.ids(w.films, &w.admin).await;
+    let made = w
+        .app
+        .post(
+            &format!("/api/libraries/{}/collections", w.films),
+            &w.admin,
+            json!({"title": "Top Rated", "item_ids": [ids["Heat"], ids["Alien"]]}),
+        )
+        .await;
+    assert_eq!(made.status, StatusCode::CREATED, "{:?}", made.body);
+    let mine = made.body["id"].as_i64().unwrap();
+    let rated = builtin(&w, w.films, "top_rated").await;
+    for id in [rated, mine] {
+        let on = w.app.patch(&format!("/api/collections/{id}"), &w.admin, json!({"on_home": true})).await;
+        assert_eq!(on.status, StatusCode::OK, "{:?}", on.body);
+    }
+    let home = w.app.get("/api/hubs/home", &w.admin).await;
+    let key = format!("collections:{rated},{mine}");
+    let row = hub(&home.body, &key).unwrap_or_else(|| panic!("{key} in {:?}", keys(&home.body)));
+    assert_eq!(row["library_id"], json!(w.films));
+    assert_eq!(titles(&row["items"]), ["Alien", "Heat", "Brazil"]);
+    let page = w.app.get(&format!("/api/collections/merged?ids={rated},{mine}"), &w.admin).await;
+    assert_eq!(page.body["collections"].as_array().unwrap().len(), 2, "{:?}", page.body);
+    assert_eq!(titles(&page.body["items"]), ["Alien", "Heat", "Brazil"]);
+}
+
 #[tokio::test]
 async fn administrators_arrange_home_and_recommended() {
     let w = world().await;

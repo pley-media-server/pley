@@ -4,7 +4,7 @@
 //! libraries are one row. Music and audiobook libraries, which have no
 //! collections, keep a built-in Recently Added row.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::auth::AuthUser;
 use crate::catalog::{self, ItemRow};
@@ -278,9 +278,10 @@ fn order_of(row: &CollectionRow, kind: Option<LibraryKind>) -> Option<Vec<(SortF
     Some(order)
 }
 
-/// The titles of collections shown as one row, up to `limit`: in their
-/// common order when they have one (newest first, best rated first…),
-/// else one collection's after another's, in `rows`' order.
+/// The titles of collections shown as one row, up to `limit`, each once
+/// (collections of one library may share some): in their common order
+/// when they have one (newest first, best rated first…), else one
+/// collection's after another's, in `rows`' order.
 pub(crate) async fn merged(
     db: &Db,
     rows: &[CollectionRow],
@@ -298,6 +299,8 @@ pub(crate) async fn merged(
             let values = listing::sort_values(db, &items, order).await?;
             listing::sort_rows(&mut items, order, &values);
         }
+        let mut seen = HashSet::new();
+        items.retain(|item| seen.insert(item.id));
     }
     items.truncate(limit);
     Ok(items)

@@ -2172,15 +2172,16 @@ may see them. Each library starts with Pley's four on its Recommended tab
 and its Recently Added on Home; a music or audiobook library's Recently
 Added is a row on Home of its own.
 
-On Home, collections of the same title in different libraries are one
-row, keyed `collections:<id>,<id>`, its titles in their common order when
-they share one (a smart collection's sort, or newest or by title; a film
-library's newest first and a TV library's, shows by their newest
-episode, are one), else one library's after another's. A row of one collection is keyed
+On Home, collections of the same title (case aside), in different
+libraries or in one, are one row, keyed `collections:<id>,<id>`: each of
+its titles once, in their common order when they share one (a smart
+collection's sort, or newest or by title; a film library's newest first
+and a TV library's, shows by their newest episode, are one), else one
+collection's after another's. A row of one collection is keyed
 `collection:<id>`, or `recently_added:<library_id>` (and likewise
 `recently_released:`, `top_rated:`, `top_unwatched:`) for Pley's own, as
 the rows were before they were collections. An untouched Recently Added
-is called "Recently Added in <library>" there.
+is called "Recently Added in <library>" there, and is a row of its own.
 
 | Method | Path | Who | What |
 |---|---|---|---|
