@@ -7,10 +7,29 @@ both show them; managing categories is on the web."""
 
 from __future__ import annotations
 
+from . import api
+
 # The Category filter's choice besides a category's id.
 ALL = "all"
 # Pley's Other: the category the server sends for a collection without one.
 OTHER_KEY = "other"
+# What a collection from a server from before categories is in: it names
+# none, so they all make one group, shown as one grid with nothing to name.
+NONE = {"id": None, "key": OTHER_KEY, "title": ""}
+
+
+def listed(client) -> list:
+    """GET /api/collection-categories: the categories in order. A server
+    from before them answers 404: none, and its collections name none
+    (NONE), so they are one grid as they were there (the add-on updates
+    apart from it)."""
+    try:
+        found = client.get("/api/collection-categories")
+    except api.ApiError as e:
+        if e.status == 404:
+            return []
+        raise
+    return found.get("categories", []) if isinstance(found, dict) else []
 
 
 def groups(collections: list, categories: list) -> list:
@@ -19,7 +38,7 @@ def groups(collections: list, categories: list) -> list:
     own. Empty groups left out."""
     out = {category["id"]: (category, []) for category in categories}
     for collection in collections:
-        category = collection["category"]
+        category = collection.get("category") or NONE
         out.setdefault(category["id"], (category, []))[1].append(collection)
     return [(category, found) for category, found in out.values() if found]
 

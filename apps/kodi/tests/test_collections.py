@@ -7,7 +7,7 @@ from unittest import mock
 
 import support  # noqa: F401
 import xbmcplugin
-from pley import categories, kodi, plugin, tiles, window
+from pley import api, categories, kodi, plugin, tiles, window
 from pley import layout as L
 from test_window import Dialogs, FakeWindow
 
@@ -161,6 +161,38 @@ class WindowTest(unittest.TestCase):
         self.assertEqual(win.focused, L.grid_list(L.LIBRARY_GRID, "grid"))
         self.assertTrue(win.made[win.focused].visible)
 
+    def test_a_server_from_before_categories(self):
+        # It has no categories (404) and its collections name none: one grid,
+        # as before, and the tab stays open.
+        old = [{k: v for k, v in c.items() if k != "category"} for c in (SAGA, MINE)]
+        win = FakeWindow()
+        win.libraries = [{"id": 4, "kind": "movies", "name": "Movies"}]
+        win.me = {}
+
+        def get(path, **query):
+            if path == "/api/collection-categories":
+                raise api.ApiError(404, "not_found", "no such endpoint")
+            return {"collections": old}
+
+        win.session.get = get
+        page = window.Library(win, win.libraries[0], None)
+        page.tab = "collections"
+        page.load()
+        page.draw()
+        grid = win.made[L.grid_list(L.LIBRARY_GRID, "grid")]
+        self.assertEqual(([li.label for li in grid.items], grid.visible), (["Starfall Saga", "Rainy Sundays"], True))
+        self.assertFalse(win.made[L.LIBRARY_CATEGORY].visible or win.made[L.LIBRARY_CATEGORY_ON].visible)
+        # A collection's page names no category.
+        self.assertEqual(window.collection_line(dict(old[0], summary="Every film.")), "Every film.")
+
+        # Another refusal still says what went wrong.
+        def broken(path, **query):
+            raise api.ApiError(500, "internal", "broken")
+
+        win.session.get = broken
+        with self.assertRaises(api.ApiError):
+            page.load()
+
     def test_no_collections_no_chips(self):
         win, page = self.library([])
         for chip in (L.LIBRARY_CATEGORY, L.LIBRARY_CATEGORY_ON):
@@ -249,7 +281,7 @@ class ListsTest(unittest.TestCase):
         self.addCleanup(kodi.clear_property, kodi.PROXY)
         xbmcplugin.calls.clear()
         self.asked = []
-        answers = {
+        self.answers = answers = {
             "/api/libraries/4/collections": {"collections": COLLECTIONS},
             "/api/collection-categories": {"categories": CATEGORIES},
             "/api/collections/merged": {"title": "Christmas", "collections": [{"id": 20, "library_id": 4}, {"id": 21, "library_id": 8}], "items": []},
@@ -261,6 +293,8 @@ class ListsTest(unittest.TestCase):
         class Client:
             def get(self, path, **query):
                 test.asked.append((path, query))
+                if path not in answers:
+                    raise api.ApiError(404, "not_found", "no such endpoint")
                 return answers[path]
 
         patch = mock.patch.object(plugin.Plugin, "client", return_value=Client())
@@ -283,6 +317,12 @@ class ListsTest(unittest.TestCase):
         self.assertIn(("category", "Other"), xbmcplugin.calls)
         # A category gone since: every one's folders.
         self.assertEqual(len(self.listed("route=collections&id=4&category=3")), 4)
+
+    def test_a_server_from_before_categories_lists_its_collections(self):
+        del self.answers["/api/collection-categories"]
+        self.answers["/api/libraries/4/collections"] = {"collections": [{k: v for k, v in c.items() if k != "category"} for c in COLLECTIONS]}
+        self.assertEqual([label for label, _ in self.listed("route=collections&id=4")], ["Recently Added", "Starfall Saga", "Rainy Sundays", "Harvest"])
+        self.assertIn(("end", True), xbmcplugin.calls)
 
     def test_a_collection_and_a_merged_row(self):
         self.listed("route=collection&id=11")

@@ -304,12 +304,11 @@ class Plugin(asking.Asking):
         one, else the collections; `category` lists one's."""
         library = self.params["id"]
         client = self.client()
-        found, every = api.together(
+        found, listed = api.together(
             lambda: client.get("/api/libraries/%s/collections" % library),
-            lambda: client.get("/api/collection-categories"),
+            lambda: categories.listed(client),
         )
         collections = found.get("collections", [])
-        listed = every.get("categories", [])
         choice = categories.chosen(categories.parse(self.params.get("category")), categories.groups(collections, listed))
         groups = categories.shown(collections, listed, choice)
         if choice == categories.ALL and len(groups) > 1:

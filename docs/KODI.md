@@ -96,7 +96,9 @@ python apps/kodi/package.py        # dist/plugin.video.pley-<version>.zip
   row each, in the order administrators chose, Other included; with one
   group they are a grid. The Category chip shows one category's. A
   collection's page says its category under its name, unless it is
-  Other. In Kodi's lists each category is a folder.
+  Other. In Kodi's lists each category is a folder. A server from before
+  categories (its `GET /api/collection-categories` answers 404) shows
+  them in one grid.
 - **Rows of collections:** a row's See all opens its collection. On Home,
   a row of collections of one title from several libraries opens them
   together, all their titles, with the libraries they come from under the

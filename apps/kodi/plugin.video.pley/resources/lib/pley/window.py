@@ -2241,12 +2241,11 @@ class Library(Screen):
                 if h.get("items")
             ]
         else:
-            found, every = api.together(
+            found, self.categories = api.together(
                 lambda: self.session.get("/api/libraries/%d/collections" % lib),
-                lambda: self.session.get("/api/collection-categories"),
+                lambda: categories.listed(self.session),
             )
             self.collections = found.get("collections", [])
-            self.categories = every.get("categories", [])
 
     def collection_groups(self) -> list:
         """The Collections tab's groups, filtered by Category."""
