@@ -361,7 +361,8 @@
     "moveDown": "Bajar {{title}}",
     "moved": "{{title}} pasó a la posición {{position}} de {{total}}",
     "fromLabel": "De la etiqueta {{label}}",
-    "pleys": "De Pley"
+    "pleys": "De Pley",
+    "taken": "Ya hay otra categoría con este nombre."
   },
   "rows": {
     "drag": "Arrastra para reordenar",

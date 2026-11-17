@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { Check, ChevronDown, ChevronUp, GripVertical, Pencil, Plus, Trash2, X } from "lucide-react";
-import { errorMessage } from "@/api/client";
+import { errorMessage, isApiError } from "@/api/client";
 import {
   useCategories,
   useCreateCategory,
@@ -18,6 +19,11 @@ import { cn } from "@/lib/cn";
 
 /** The longest name a category takes, as the server says. */
 const MAX_TITLE = 100;
+
+/** Why a name wasn't taken: one in use (Pley's own, in any language, included) is said in the reader's. */
+function categoryError(err: unknown, t: TFunction<["item", "common"]>): string {
+  return isApiError(err, 409) ? t("categories.taken") : errorMessage(err);
+}
 
 /**
  * Administrators: the categories collections are grouped in, shared by every
@@ -61,7 +67,7 @@ export function CategoriesModal({ open, onClose }: { open: boolean; onClose: () 
     if (!name) return;
     create.mutate(name, {
       onSuccess: () => setTitle(""),
-      onError: (err) => toast.error(errorMessage(err)),
+      onError: (err) => toast.error(categoryError(err, t)),
     });
   };
 
@@ -168,7 +174,7 @@ function CategoryRow({
       { id: c.id, title: name },
       {
         onSuccess: () => setEditing(false),
-        onError: (err) => toast.error(errorMessage(err)),
+        onError: (err) => toast.error(categoryError(err, t)),
       },
     );
   };

@@ -347,7 +347,8 @@
     "moveDown": "Move {{title}} down",
     "moved": "{{title}} moved to position {{position}} of {{total}}",
     "fromLabel": "From the label {{label}}",
-    "pleys": "Pley's"
+    "pleys": "Pley's",
+    "taken": "Another category already has this name."
   },
   "rows": {
     "drag": "Drag to reorder",
