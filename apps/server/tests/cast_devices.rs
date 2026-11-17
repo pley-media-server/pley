@@ -311,7 +311,7 @@ async fn devices_are_listed_and_cast_to_only_while_the_administrator_has_them_on
     assert!(!lists_cast(&w, &w.admin, "/api/remote/devices?nearby=1").await);
     let cast = w.app.post("/api/remote/devices/cast:dev/cast", &w.admin, json!({"item_id": w.film})).await;
     assert_eq!(cast.status, StatusCode::NOT_FOUND, "{}", cast.text());
-    let pairing = w.app.post("/api/remote/devices/airplay:a1b2c3d4e5f6/pairing", &w.admin, json!({})).await;
+    let pairing = w.app.post("/api/remote/devices/cast:dev/pairing", &w.admin, json!({})).await;
     assert_eq!(pairing.status, StatusCode::NOT_FOUND, "{}", pairing.text());
     // Only an administrator turns it on.
     let (member, _) = w.app.user(&w.admin, "member", json!({"home": true})).await;
