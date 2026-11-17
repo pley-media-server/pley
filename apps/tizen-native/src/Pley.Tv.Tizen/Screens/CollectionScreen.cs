@@ -27,8 +27,11 @@ sealed class CollectionScreen : ShellPage
     /// <summary>The text column: x 96 to 560, in the backdrop's 85 % scrim.</summary>
     const float TextColumn = PleyTv.TextColumnEnd - PleyTv.Gutter;
     const float HeroTop = 58;
-    /// <summary>The page's top, to the grid's first row of wells (design spec §4.3: what is below starts at 452).</summary>
-    const float HeroHeight = 452 - 16;
+    /// <summary>
+    /// The page's top, to the grid's first row of wells (design spec §4.3: what is below starts at
+    /// 452); the merged page's, without a backdrop or a summary, shorter, as the Android app's.
+    /// </summary>
+    const float CollectionHeroHeight = 452 - 16, MergedHeroHeight = 360;
     /// <summary>Under a round button, the room its label takes while it has focus.</summary>
     const float ButtonLabelRoom = 24;
     const float BadgeHeight = 18;
@@ -36,12 +39,16 @@ sealed class CollectionScreen : ShellPage
     const float CategoryBadgeWidth = 200;
     /// <summary>The merged page's library chips: their height, and the room under them.</summary>
     const float ChipHeight = 40, SourcesGap = 20;
-    /// <summary>The grid's top at rest, its wells a row's gap under the hero, and once focus is in it, its focused row's wells at y = 58.</summary>
-    const float GridTop = HeroHeight + GridView.RowGap - GridView.TileRoom, GridTopScrolled = HeroTop - GridView.TileRoom;
+    /// <summary>Once focus is in the grid, its focused row's wells at y = 58.</summary>
+    const float GridTopScrolled = HeroTop - GridView.TileRoom;
     /// <summary>The dimming over the backdrop once the grid has passed over it.</summary>
     const float Dim = 0.92f;
 
     readonly ICollectionPageModel model;
+    /// <summary>The page's top, to the grid's first row of wells: a collection's, or the merged page's.</summary>
+    readonly float heroHeight;
+    /// <summary>The grid's top at rest: its wells a row's gap under the hero.</summary>
+    float GridTop => heroHeight + GridView.RowGap - GridView.TileRoom;
     readonly Images images;
     readonly KeyRepeatGate gate;
     readonly Action<PageKey> go;
@@ -76,6 +83,7 @@ sealed class CollectionScreen : ShellPage
         : base(shell, model.Key, "collection")
     {
         this.model = model;
+        heroHeight = model.Key is PageKey.MergedCollection ? MergedHeroHeight : CollectionHeroHeight;
         this.images = images;
         this.gate = gate;
         this.go = go;
@@ -382,7 +390,7 @@ sealed class CollectionScreen : ShellPage
     /// </summary>
     void ShowButtons(CollectionPage page, bool isEmpty)
     {
-        var height = HeroHeight - HeroTop;
+        var height = heroHeight - HeroTop;
         var y = height - (isEmpty ? PleyType.Body.Line : 0) - 12 - ButtonLabelRoom - PleyTv.ButtonHeight - (page.Merged ? ChipHeight + SourcesGap : 0);
         buttons.Position = new Position(0, Ui.Dp(y));
         if (play == null || shuffle == null)
@@ -431,7 +439,7 @@ sealed class CollectionScreen : ShellPage
             child.Dispose();
         }
         sourceGroup.Clear();
-        sources.PositionY = Ui.Dp(HeroHeight - HeroTop - SourcesGap - ChipHeight);
+        sources.PositionY = Ui.Dp(heroHeight - HeroTop - SourcesGap - ChipHeight);
         var from = Text.Label(CollectionText.From, PleyType.Label, PleyColors.Muted);
         from.Size = new global::Tizen.NUI.Size(from.NaturalSize.Width + 2, Text.LineHeight(PleyType.Label));
         from.PositionY = Ui.Dp((ChipHeight - PleyType.Label.Line) / 2);
@@ -529,7 +537,7 @@ sealed class CollectionScreen : ShellPage
     {
         if (!scrolled) return 0;
         var row = grid == null ? 0 : position / Math.Max(1, grid.Columns);
-        return row > 0 ? Dim : Dim * Math.Min(1f, (GridTop - GridTopScrolled) / HeroHeight);
+        return row > 0 ? Dim : Dim * Math.Min(1f, (GridTop - GridTopScrolled) / heroHeight);
     }
 
     void Dimming()
