@@ -31,6 +31,9 @@ describes how they are made.
 
 ### Fixed
 
+- Stop in Pley stops a Google Cast device every time. The connection
+  closed so abruptly that the device could lose the stop, most often
+  with Pley on Windows.
 - On a phone, the home banner's buttons keep to one line: Resume leaves
   out the time left, which Continue Watching shows just below, and More
   info reads Más info in Spanish.
