@@ -130,7 +130,8 @@ the Plex- and Jellyfin-compatible APIs don't get them.
   HDR on models that play them, with the subtitles picked, keeps their
   place, and the remote controls them as it does Pley's own players. An
   AirPlay device that asks for a code is paired once, with the code it
-  shows, and administrators forget pairings in Settings → Network
+  shows. Administrators turn casting to these devices on in Settings →
+  Network, where it's off by default, and forget pairings there
   ([API.md](API.md#casting)).
 
 ## Live TV
@@ -228,8 +229,7 @@ The Plex-compatible API, on Pley's own port by default (or 32400), for
 as Tautulli: browsing with their filters, editing, collections, playlists,
 play queues, sessions, history and notifications.
 
-The Jellyfin-compatible API, off until it is turned on, on Pley's own port
-or one of its own (8096):
+The Jellyfin-compatible API, on Pley's own port by default (or 8096):
 Jellyfin's apps and others built on its API browse the libraries, play as
 they are or as HLS from Pley's transcoder, with subtitles, skip intro and
 credits, and keep watch state, favorites (My List) and ratings with Pley's

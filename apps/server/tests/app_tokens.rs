@@ -1062,6 +1062,8 @@ async fn only_home_members_through_pleys_own_apps_reach_the_devices_on_the_netwo
     })
     .await;
     let admin = app.setup_admin().await;
+    let on = app.put("/api/settings", &admin, json!({"cast_devices": true})).await;
+    assert_eq!(on.status, StatusCode::OK, "{}", on.text());
     app.media_file("movies/Film (2020).mkv", 2048);
     let movies = app.library(&admin, "Movies", "movies", "movies").await;
     let film = app.ids(movies, &admin).await["Film"];

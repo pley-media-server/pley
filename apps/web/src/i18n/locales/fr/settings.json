@@ -1108,6 +1108,10 @@
       "report": "Voir ce qui a été transféré"
     }
   },
+  "castDevices": {
+    "label": "Lire sur les appareils Google Cast et AirPlay",
+    "hint": "Lire sur… propose au foyer les Chromecast, Google TV, Apple TV et autres appareils Google Cast et AirPlay du réseau du serveur, et Pley y lit. Désactivé, Pley ne les cherche pas."
+  },
   "airplay": {
     "title": "Appareils AirPlay",
     "description": "Le serveur est associé à ces appareils. Oubliez-en un, et le prochain envoi vers lui redemandera son code ; retirez aussi Pley de la liste de l’appareil.",
