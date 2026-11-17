@@ -9,9 +9,10 @@ and versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - A library's collections are grouped by category, with a filter by
-  category, and a collection's page shows its category. A row's
-  title and See all open its collection, and a Home row of same-titled
-  collections from several libraries opens them together.
+  category, and a collection's page shows its category. A row's See
+  all, and on iPhone, iPad and Mac its title, opens its collection, and
+  a Home row of same-titled collections from several libraries opens
+  them together.
 - Play on… lists Google Cast and AirPlay devices for movies, episodes and
   Live TV channels, and says "Starting on…" until the device plays. An
   AirPlay device asks once for the code it shows; on an Apple TV the code

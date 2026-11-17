@@ -178,16 +178,18 @@ behind it.
   scanned, or nothing in them yet. Home's rows after Continue Watching
   and My List are the collections administrators put there, in their
   order; same-titled collections of several libraries are one row. A
-  row's title and **See all** open its collection, or, for a row of
-  several, a page of them together: their title, how many movies and
-  shows, the libraries they come from (each opening its own collection),
-  Play and Shuffle, then every title in the row's order. Rows from an
-  older server that a library can list (Recently Added, Recently
-  Released, Top Rated) open the library listed the same way. Leaving Continue Watching takes the tile
-  out at once. After it loads, Home reads the first three Continue
-  Watching titles' details, which starts the server reading their video
-  ahead. iPhone and iPad pull to refresh, the Mac has Reload (⌘R).
-  Choosing a tile opens its page. On Apple TV, above the rows, what the
+  row's **See all**, and on iPhone, iPad and Mac its title (Apple TV
+  can't focus a title), opens its collection, or, for a row of several,
+  a page of them together: their title, how many movies and shows, the
+  libraries they come from (each opening its own collection), Play and
+  Shuffle, then every title in the row's order. A music library's
+  Recently Added, which isn't a collection, and an older server's rows
+  that a library can list (Recently Added, Recently Released, Top Rated)
+  open the library listed as the row is. Leaving Continue Watching takes
+  the tile out at once. After it loads, Home reads the first three
+  Continue Watching titles' details, which starts the server reading
+  their video ahead. iPhone and iPad pull to refresh, the Mac has Reload
+  (⌘R). Choosing a tile opens its page. On Apple TV, above the rows, what the
   tile with the focus is: its title (a show's, for an episode), the
   episode, the year, rating, running time and quality, the time left, and
   once the focus rests 0.3 s, its summary in three lines.
@@ -212,9 +214,9 @@ behind it.
   and the profile's other devices follow. "Use the Server's Order" goes
   back to the server's.
 - **A library**: **Recommended** (its rows: Continue Watching, then the
-  collections administrators put there), **Library** (every title, in a grid) and **Collections**
-  (not for music). The grid reads 100 titles at a time, the page
-  showing and the next once it is 70 % through, keeps at most 2,000
+  collections administrators put there), **Library** (every title, in a
+  grid) and **Collections** (not for music). The grid reads 100 titles
+  at a time, the page showing and the next once it is 70 % through, keeps at most 2,000
   titles, and lets go of the pages furthest away. **Sort** offers the
   library's sorts (title, year, date added, rating, your rating, release
   date, duration for movies, last played, bitrate), each with its own
