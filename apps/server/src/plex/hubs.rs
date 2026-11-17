@@ -212,9 +212,12 @@ pub async fn managed(
             .attr("promotedToRecommended", one_or_zero(recommended))
             .attr("promotedToOwnHome", one_or_zero(home))
             .attr("promotedToSharedHome", one_or_zero(home));
-        if row.builtin.is_none() {
-            hub = hub.attr("deletable", "1").attr("metadataItemId", keys::collection(row.id));
-        }
+        // Plex's built-in hubs say they can't be removed: python-plexapi
+        // takes a hub that doesn't say as one that can.
+        hub = match row.builtin {
+            Some(_) => hub.attr("deletable", "0"),
+            None => hub.attr("deletable", "1").attr("metadataItemId", keys::collection(row.id)),
+        };
         mc.push(hub);
     }
     Ok(mc)

@@ -546,4 +546,27 @@ async fn the_owners_home_puts_a_hub_on_home_and_takes_it_off() {
     assert_eq!(w.app.plex_json(&manage, &w.admin).await["size"], json!(0), "off Home, and so not listed");
     let id = made - 1_000_000_000;
     assert!(w.app.get(&format!("/api/collections/{id}"), &w.admin).await.body["home_position"].is_null());
+
+    // Plex's built-in hubs say they can't be removed, which python-plexapi
+    // reads before it tries; a collection's can.
+    let on_recommended = format!("{manage}&promotedToRecommended=1&promotedToOwnHome=0&promotedToSharedHome=0");
+    assert_eq!(w.send(Method::POST, &on_recommended).await.status, StatusCode::OK);
+    let hubs = w.app.plex_json(&format!("/hubs/sections/{}/manage", w.movies), &w.admin).await;
+    let deletable: Vec<(&str, &str)> = hubs["Hub"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|h| (h["identifier"].as_str().unwrap(), h["deletable"].as_str().unwrap()))
+        .collect();
+    assert_eq!(
+        deletable,
+        // Recently Added came back last, when it was put back.
+        [
+            ("movie.recentlyreleased", "0"),
+            ("movie.toprated", "0"),
+            ("movie.recentlyadded", "0"),
+            (identifier.as_str(), "1"),
+            ("movie.topunwatched", "0")
+        ]
+    );
 }

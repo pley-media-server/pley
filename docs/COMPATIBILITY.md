@@ -573,10 +573,10 @@ both Homes, the one they don't change as they read it, so
 doesn't. A Home only for Plex's owner, or only for friends, can't be had.
 `POST …/manage?metadataItemId=` and `PUT …/manage/{identifier}` set them,
 `PUT …/move?after=` orders Recommended (Home's order is set in Pley), and
-`DELETE …/manage/{identifier}` takes a collection off both (Pley's own are
-hidden, not deleted: `400`); moving one that isn't on Recommended leaves
-it off. It needs `manage`, to read it too: it names collections others may
-not see.
+`DELETE …/manage/{identifier}` takes a collection off both (Pley's own,
+listed `deletable="0"`, are hidden, not deleted: `400`); moving one that
+isn't on Recommended leaves it off. It needs `manage`, to read it too: it
+names collections others may not see.
 
 ### Tested
 
