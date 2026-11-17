@@ -875,11 +875,14 @@ bun run images    # the nine-patch focus, watched-mark and globe images
   pictures, which burns them in, and picks its subtitles from the
   player's menu; it jumps down a library with its A to Z,
   sorts it by bitrate and filters it by resolution, saves another's
-  filters as a smart playlist, plays a collection of movies and a smart
-  one of shows, and an artist's tracks, makes a playlist, plays a track
-  from Now Playing's Up next, shuffles the queue and puts its order back,
-  steps the music's sleep timer through its choices, plays a track from
-  under an album's "Disc 2", opens the See all of Search's Discover row,
+  filters as a smart playlist, shows a library's collections by category
+  and one category alone, plays a collection of movies and a smart one
+  of shows, opens a Home row of two libraries' collections together and
+  one library's from it, plays an artist's tracks, makes a playlist,
+  plays a track from Now Playing's Up next, shuffles the queue and puts
+  its order back, steps the music's sleep timer through its choices,
+  plays a track from under an album's "Disc 2", opens the See all of
+  Search's Discover row,
   asks for a movie and three seasons from Discover, approves a request,
   opens a title from its ready-to-watch card on Home (which waited while
   the requests showed), chooses Español in Settings → Language for the

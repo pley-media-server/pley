@@ -7,7 +7,7 @@
 // by resolution with their quality badges, filters saved as a smart
 // playlist, a library's collections by category and filtered by one,
 // collections played (movies and a smart one of shows), a Home row of two
-// libraries' collections opened together, a
+// libraries' collections opened together and one library's from it, a
 // show's page, its episodes and a person's
 // page, music (an artist, an album, Now Playing), playlists, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite
@@ -574,7 +574,8 @@ async function walk() {
   await press("back");
   await settle();
   // The row under it: Fixture Favourites, a collection of each library;
-  // its See all opens them together, then Back to Home.
+  // its See all opens them together. Movies only, after Play and Shuffle,
+  // opens that library's own; Back to them, then to Home.
   since = mark();
   await press("down");
   await press("right", 4); // See all, after its three titles
@@ -582,6 +583,12 @@ async function walk() {
   await waitFor(/^GET \/api\/collections\/merged\?ids=4%2C3$/, since, "a Home row of two collections, opened together");
   await settle();
   shoot("collection-merged");
+  since = mark();
+  await press("down", 2); // Movies only
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/4$/, since, "a library's own collection, from the merged page");
+  await press("back");
+  await waitFor(/^GET \/api\/collections\/merged\?ids=4%2C3$/, since, "the merged page again");
   await press("back");
   await settle();
   seeAll.after = mark();
