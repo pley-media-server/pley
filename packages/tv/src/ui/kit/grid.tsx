@@ -102,7 +102,8 @@ export function PosterGrid(p: GridProps) {
       const i = r * cols + c;
       if (i >= p.count) break;
       cells.push(
-        <div key={i} class="grid-slot" data-index={i} style={`left:${GUTTER + c * (spec.w + 14)}px;top:${rowY(r)}px`}>
+        // The cells' box comes after the hero in the content, so a slot's top is counted from under it.
+        <div key={i} class="grid-slot" data-index={i} style={`left:${GUTTER + c * (spec.w + 14)}px;top:${rowY(r) - heroH}px`}>
           {p.cell(i, place(i))}
         </div>,
       );

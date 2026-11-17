@@ -186,6 +186,8 @@ describes how they are made.
 
 ### Fixed
 
+- A collection's page shows its titles under Play and Shuffle, where they
+  were drawn below the screen.
 - Live TV's channel up or down, still finding the next channel when another
   is picked from the list or the app is hidden, no longer changes channel
   a moment later.
