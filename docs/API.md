@@ -530,9 +530,9 @@ interface PlaybackInfo {
 **`summaries=1`.** Lists leave out synopses (a big library's would be
 several times larger). `summaries=1` in the query of `GET /api/hubs/home`,
 `/api/libraries/{id}/items`, `/api/items/{id}/children`,
-`/api/collections/{id}`, `/api/playlists/{id}` and `/api/search` brings
-every item's `summary`, for clients whose information page shows only what
-lists carry (Kodi).
+`/api/collections/{id}`, `/api/collections/merged`, `/api/playlists/{id}`
+and `/api/search` brings every item's `summary`, for clients whose
+information page shows only what lists carry (Kodi).
 
 ---
 
@@ -2111,9 +2111,9 @@ interface Collection {
 | Method | Path | Who | What |
 |---|---|---|---|
 | GET | `/api/libraries/{id}/collections` | `library` | `{ collections: Collection[] }` by title |
-| POST | `/api/libraries/{id}/collections` | `admin` | `{ title, summary?, item_ids?: Id[], smart_filter?, category_id? }` → `201` `Collection & { items: ItemSummary[] }`; `400` for music and audiobook libraries |
+| POST | `/api/libraries/{id}/collections` | `admin` | `{ title, summary?, item_ids?: Id[], smart_filter?, category_id? }` → `201` `Collection & { items: ItemSummary[] }`; `400` for music and audiobook libraries, or a `category_id` that is no category's |
 | GET | `/api/collections/{id}` | `library` | `Collection & { items: ItemSummary[] }` in the collection's order |
-| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab |
+| PATCH | `/api/collections/{id}` | `admin` | `{ title?, summary? (null clears), sort?, smart_filter?, category_id? (null, or Other's id: none), on_home?, on_recommended? }` → `Collection & { items }`. `on_home: true` puts it on Home with a collection of the same title (case aside) when there is one, else last; `on_recommended: true` last on its library's Recommended tab; `400` for a `category_id` that is no category's |
 | DELETE | `/api/collections/{id}` | `admin` | `204` (an automatic one comes back when its movies are refreshed) |
 | POST | `/api/collections/{id}/items` | `admin` | `{ item_ids: Id[] }` → `{ added: number }`. Only movies and shows of the same library; `400` if none could be added |
 | DELETE | `/api/collections/{id}/items/{item_id}` | `admin` | `204` |
@@ -2168,9 +2168,10 @@ interface Category {
 After Continue Watching (and My List on Home), Home and each movie and TV
 library's Recommended tab show the collections administrators put there,
 in the order they chose, each a row of its 30 first titles as the user
-may see them. Each library starts with Pley's four on its Recommended tab
-and its Recently Added on Home; a music or audiobook library's Recently
-Added is a row on Home of its own.
+may see them. Each movie and TV library starts with Pley's collections
+but Top Unwatched on its Recommended tab and its Recently Added on Home;
+a music or audiobook library's Recently Added is a row on Home of its
+own.
 
 On Home, collections of the same title (case aside), in different
 libraries or in one, are one row, keyed `collections:<id>,<id>`: each of
@@ -2185,7 +2186,7 @@ is called "Recently Added in <library>" there, and is a row of its own.
 
 | Method | Path | Who | What |
 |---|---|---|---|
-| GET | `/api/collections/merged?ids=` | `library` | `{ title, collections: { id, library_id }[], items: ItemSummary[] }`: a Home row of several collections, all its titles in the row's order; those the user can't see are left out, `404` if none is left |
+| GET | `/api/collections/merged?ids=` | `library` | `{ title, collections: { id, library_id }[], items: ItemSummary[] }`: a Home row of several collections (`ids` its `collection_ids`, comma-separated; the first 50 count), all its titles in the row's order; those the user can't see are left out, `404` if none is left |
 | GET | `/api/home/rows` | `admin` | `{ rows: { key, title, collection_ids: Id[], library_ids: Id[] }[] }`: Home's rows after My List, every library's, empty or not |
 | PUT | `/api/home/rows/order` | `admin` | `{ rows: string[] }` (keys) → `204`: these first in this order, the rest after |
 | PUT | `/api/libraries/{id}/rows/order` | `admin` | `{ collection_ids: Id[] }` → `204`: the Recommended tab's order, as above |
