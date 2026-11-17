@@ -14,6 +14,9 @@ describes how they are made.
   to one category; a collection's page shows its category.
 - A row's See all opens the collection it shows, and a Home row of
   collections of the same title in several libraries opens them together.
+
+### Changed
+
 - Recommended no longer ends with a row of every collection: it shows
   the rows administrators chose.
 
