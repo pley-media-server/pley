@@ -373,6 +373,8 @@ impl MetadataAgent {
             LibraryKind::Movies => "movie",
             LibraryKind::Shows => "show",
             LibraryKind::Music => "album",
+            // No source of audiobooks' metadata yet: their tags are it.
+            LibraryKind::Audiobooks => return false,
         })
     }
 
@@ -387,6 +389,7 @@ impl MetadataAgent {
             LibraryKind::Movies => "movie",
             LibraryKind::Shows => "show",
             LibraryKind::Music => return self.providers.refresh_music_library(lib, force, progress).await,
+            LibraryKind::Audiobooks => return Ok(()),
         };
         let items: Vec<Candidate> = sqlx::query_as(
             "SELECT id, kind, title, year, tmdb_id, imdb_id, tvdb_id, poster, backdrop FROM items

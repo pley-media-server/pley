@@ -375,7 +375,10 @@
       "shows_other": "{{count, number}} séries",
       "music_one": "{{count, number}} artiste",
       "music_many": "{{count, number}} d’artistes",
-      "music_other": "{{count, number}} artistes"
+      "music_other": "{{count, number}} artistes",
+      "audiobooks_one": "{{count, number}} livre",
+      "audiobooks_many": "{{count, number}} de livres",
+      "audiobooks_other": "{{count, number}} livres"
     },
     "scanned": "analysée {{when}}",
     "neverScanned": "jamais analysée",
@@ -417,6 +420,11 @@
         "label": "Musique",
         "layout": "Artiste/Album/01 - Titre.flac",
         "defaultName": "Musique"
+      },
+      "audiobooks": {
+        "label": "Livres audio",
+        "layout": "Auteur/Titre du livre/01 - Chapitre.mp3",
+        "defaultName": "Livres audio"
       }
     },
     "form": {

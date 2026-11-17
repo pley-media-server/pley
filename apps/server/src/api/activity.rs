@@ -207,7 +207,7 @@ pub async fn events(
 ) -> ApiResult<Sse<impl Stream<Item = Result<Event, Infallible>>>> {
     let slot = StreamSlot::take(token.as_deref())?;
     // Events about libraries the user can't open aren't theirs to see.
-    let libraries = Arc::new(parking_lot::RwLock::new(access::library_ids(&state.db, &user).await?));
+    let libraries = Arc::new(parking_lot::RwLock::new(access::heard_libraries(&state.db, &user).await?));
     // Requests' events go to an app's stream only with `requests`, and
     // those for managers to managers' streams, while the session is one.
     let asks = user.allowed(Scope::Requests);
@@ -264,8 +264,8 @@ pub async fn events(
                     ended.cancel();
                     break;
                 };
-                if let Ok(ids) = access::library_ids(&state.db, &user).await {
-                    *libraries.write() = ids;
+                if let Ok(heard) = access::heard_libraries(&state.db, &user).await {
+                    *libraries.write() = heard;
                 }
                 // An account made an administrator, or no longer one.
                 manager.store(user.manages_requests(), Ordering::Relaxed);
@@ -296,9 +296,11 @@ pub async fn events(
         // the streams of that id on that device. The filter holds the
         // receiver for as long as the stream lasts.
         .filter(move |event| event.receiver_only().is_none_or(|to| receiver.as_ref().is_some_and(|r| r.is(to))))
-        .filter(move |event| match (event.library_id(), &*libraries.read()) {
-            (Some(id), Some(ids)) => ids.contains(&id),
-            _ => true,
+        .filter(move |event| {
+            let (open, withheld) = &*libraries.read();
+            event
+                .library_id()
+                .is_none_or(|id| open.as_ref().is_none_or(|ids| ids.contains(&id)) && !withheld.contains(&id))
         })
         .map(move |event| {
             let _ = (&gone, &slot);

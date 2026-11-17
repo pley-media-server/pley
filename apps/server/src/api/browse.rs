@@ -26,8 +26,16 @@ pub async fn home(
     // A row for each library the user may open, in their order.
     let libraries = crate::access::visible_libraries(&state.db, &user).await?;
     // Every hub at the same time: they don't depend on each other.
-    let (continue_rows, my_list, recent) = tokio::try_join!(
+    let (continue_rows, listening, my_list, recent) = tokio::try_join!(
         catalog::continue_watching(&state.db, user.id, None, 20),
+        // Only for who gets audiobooks (`AuthUser::audiobooks`).
+        async {
+            if user.audiobooks() {
+                catalog::continue_listening(&state.db, user.id, None, 20).await
+            } else {
+                Ok(Vec::new())
+            }
+        },
         catalog::watchlist(&state.db, user.id, Some(20)),
         futures::future::try_join_all(libraries.iter().map(|lib| catalog::recently_added(
             &state.db,
@@ -43,6 +51,12 @@ pub async fn home(
             title: i18n::t(language, "hubs.continueWatching"),
             library_id: None,
             items: continue_rows.iter().map(|r| r.to_summary_with(summaries)).collect(),
+        },
+        Hub {
+            key: "continue_listening".into(),
+            title: i18n::t(language, "hubs.continueListening"),
+            library_id: None,
+            items: listening.iter().map(|r| r.to_summary_with(summaries)).collect(),
         },
         Hub {
             key: "my_list".into(),
@@ -97,10 +111,13 @@ pub async fn search(
     // Up to `limit` of each: titles, people and channels.
     let limit = query.get("limit").and_then(|l| l.parse::<i64>().ok()).unwrap_or(40).clamp(1, 200);
     // Titles and people at the same time.
-    let (rows, people) = tokio::try_join!(
+    let (mut rows, people, libraries) = tokio::try_join!(
         crate::search::items(&state.db, user.id, q, limit),
-        crate::search::people(&state.db, user.id, q, limit)
+        crate::search::people(&state.db, user.id, q, limit),
+        crate::access::library_ids(&state.db, &user)
     )?;
+    // Titles of libraries the request doesn't get (an app's audiobooks).
+    rows.retain(|r| libraries.as_ref().is_none_or(|ids| ids.contains(&r.library_id)));
     let summaries = wants_summaries(&query);
     let channels = if !q.is_empty() && state.live.may_watch(&user).await {
         state.live.browse(&user, &crate::livetv::Category::All, q, 0, limit as usize, None).await?.channels

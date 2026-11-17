@@ -57,6 +57,7 @@ fn label(row: &ItemRow) -> String {
             row.title
         ),
         "track" => format!("{} — {}", row.grandparent_title.as_deref().unwrap_or("?"), row.title),
+        "part" => format!("{} — {}", row.parent_title.as_deref().unwrap_or("?"), row.title),
         _ => match row.year {
             Some(y) => format!("{} ({y})", row.title),
             None => row.title.clone(),
@@ -189,10 +190,11 @@ pub async fn start(
     // fMP4 segments only from a transcoder that makes them.
     req.fmp4_segments = state.transcoder.info().is_some_and(|info| info.capabilities.fmp4_segments);
     let settings = state.settings.get();
-    // Music has no video: a track is converted as ever, also one never
-    // analysed, whose streams aren't known to be sound alone.
-    req.copy_video_only = !settings.transcode_video && row.kind != "track";
-    if !matches!(row.kind.as_str(), "movie" | "episode" | "track" | "extra") {
+    // Music and audiobooks have no video: a track or part is converted as
+    // ever, also one never analysed, whose streams aren't known to be sound
+    // alone.
+    req.copy_video_only = !settings.transcode_video && !matches!(row.kind.as_str(), "track" | "part");
+    if !matches!(row.kind.as_str(), "movie" | "episode" | "track" | "part" | "extra") {
         return Err(AppError::bad_request("this item cannot be played directly"));
     }
     let files = catalog::files_for_item(&state.db, row.id).await?;
@@ -1667,7 +1669,7 @@ pub(crate) async fn serve_library_file(
     };
     let mut response = Response::new(body);
     *response.status_mut() = status;
-    let content_type = mime_guess::from_path(path).first_raw().unwrap_or("application/octet-stream");
+    let content_type = stream_type(std::path::Path::new(path));
     let headers = response.headers_mut();
     headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(content_type));
     headers.insert(header::CONTENT_LENGTH, HeaderValue::from(count));
@@ -2234,6 +2236,15 @@ async fn cache_subtitles(path: &std::path::Path, data: &[u8]) {
         let _ = tokio::fs::remove_file(&tmp).await;
         tracing::debug!("subtitles not cached in {}: {err}", path.display());
     }
+}
+
+/// The type a file is sent as. `.m4b` audiobooks are sent as the MP4
+/// audio they are: browsers play `audio/mp4`, and don't know `audio/m4b`.
+fn stream_type(path: &std::path::Path) -> &'static str {
+    if path.extension().is_some_and(|e| e.eq_ignore_ascii_case("m4b")) {
+        return "audio/mp4";
+    }
+    mime_guess::from_path(path).first_raw().unwrap_or("application/octet-stream")
 }
 
 #[cfg(test)]

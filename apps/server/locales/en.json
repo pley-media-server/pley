@@ -1,11 +1,13 @@
 {
   "hubs": {
     "continueWatching": "Continue Watching",
+    "continueListening": "Continue Listening",
     "myList": "My List",
     "recentlyAddedIn": "Recently Added in {{library}}",
     "recentlyAdded": "Recently Added",
     "recentlyAddedShows": "Recently Added Shows",
     "recentlyAddedAlbums": "Recently Added Albums",
+    "recentlyAddedBooks": "Recently Added Books",
     "recentlyReleased": "Recently Released",
     "topRated": "Top Rated"
   },

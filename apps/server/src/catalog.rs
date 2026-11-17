@@ -4,7 +4,7 @@
 use std::collections::{HashMap, HashSet};
 
 use futures::TryStreamExt;
-use pley_transcoder_api::{MediaInfo, MediaStream};
+use pley_transcoder_api::{Chapter, MediaInfo, MediaStream};
 use serde::Serialize;
 use sqlx::FromRow;
 
@@ -68,12 +68,14 @@ SELECT i.id, i.library_id, i.kind, i.title, i.sort_title, i.year, i.idx, i.disc,
        gp.updated_at AS grandparent_updated_at,
        COALESCE(s.position_ms, 0) AS position_ms, COALESCE(s.watched, 0) AS watched,
        COALESCE(s.play_count, 0) AS play_count, s.last_played_at, s.rating AS user_rating,
-       i.leaf_count, i.child_count,
+       i.leaf_count, i.child_count, i.authors,
        CASE i.kind
          WHEN 'show' THEN (SELECT COUNT(*) FROM items e JOIN user_item_state us ON us.item_id = e.id
                            WHERE e.grandparent_id = i.id AND e.kind = 'episode' AND us.user_id = (SELECT uid FROM me) AND us.watched = 1)
          WHEN 'season' THEN (SELECT COUNT(*) FROM items e JOIN user_item_state us ON us.item_id = e.id
                              WHERE e.parent_id = i.id AND us.user_id = (SELECT uid FROM me) AND us.watched = 1)
+         WHEN 'audiobook' THEN (SELECT COUNT(*) FROM items e JOIN user_item_state us ON us.item_id = e.id
+                                WHERE e.parent_id = i.id AND us.user_id = (SELECT uid FROM me) AND us.watched = 1)
          ELSE NULL END AS viewed_leaf_count
 FROM items i
 LEFT JOIN items p ON p.id = i.parent_id
@@ -122,6 +124,10 @@ pub struct ItemRow {
     pub leaf_count: Option<i64>,
     pub child_count: Option<i64>,
     pub viewed_leaf_count: Option<i64>,
+    /// An audiobook's writers, a JSON array (see `library::parse`); absent
+    /// from queries that don't select it.
+    #[sqlx(default)]
+    pub authors: Option<String>,
 }
 
 /// Null fields are left out of the JSON: lists of thousands of items are
@@ -186,6 +192,9 @@ pub struct ItemSummary {
     /// What the title's files are like, in library listings.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub media: Option<MediaSummary>,
+    /// An audiobook's writers, for the line under its cover.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authors: Option<Vec<String>>,
 }
 
 /// A title's best file (a show's files on average), for library listings:
@@ -418,6 +427,35 @@ pub struct ChapterDto {
     /// Picture of the chapter, cut from the seek previews once they exist.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub thumb_url: Option<String>,
+    /// Its place among the file's chapters as the probe listed them, which
+    /// its picture is named by.
+    #[serde(skip)]
+    pub probed_index: usize,
+}
+
+/// The most chapters a file is listed with: a book's tags may hold
+/// thousands.
+const MAX_CHAPTERS: usize = 1000;
+
+/// A file's chapters by start, at most [`MAX_CHAPTERS`] of them. Probes list
+/// them as the file does, and taggers write a book's out of order; players
+/// go through them in order.
+fn chapters_in_order(chapters: Vec<Chapter>) -> Vec<ChapterDto> {
+    let mut chapters: Vec<ChapterDto> = chapters
+        .into_iter()
+        .enumerate()
+        .map(|(n, c)| ChapterDto {
+            start_ms: c.start_ms,
+            end_ms: c.end_ms,
+            title: c.title,
+            thumb_url: None,
+            probed_index: n,
+        })
+        .collect();
+    // Stable: chapters starting together keep the file's order.
+    chapters.sort_by_key(|c| c.start_ms);
+    chapters.truncate(MAX_CHAPTERS);
+    chapters
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -456,6 +494,45 @@ pub struct ItemDetail {
     pub crew: Vec<crate::people::Credit>,
     /// In the user's My List (movies and shows).
     pub in_watchlist: bool,
+    /// Who wrote and reads an audiobook, and its series.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub book: Option<BookDetail>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, PartialEq)]
+pub struct BookDetail {
+    pub authors: Vec<String>,
+    pub narrators: Vec<String>,
+    pub series: Option<String>,
+    /// The book's place in its series: 2, or 2.5 between two books.
+    pub series_index: Option<f64>,
+}
+
+impl BookDetail {
+    /// The book `id`'s, as the scan stored them (names as JSON arrays).
+    async fn of(db: &Db, id: i64) -> sqlx::Result<Option<Self>> {
+        #[derive(FromRow)]
+        struct Row {
+            authors: Option<String>,
+            narrators: Option<String>,
+            series: Option<String>,
+            series_index: Option<f64>,
+        }
+        let row: Option<Row> =
+            sqlx::query_as("SELECT authors, narrators, series, series_index FROM items WHERE id = ?")
+                .bind(id)
+                .fetch_optional(&db.read)
+                .await?;
+        let names = |json: Option<String>| -> Vec<String> {
+            json.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default()
+        };
+        Ok(row.map(|r| BookDetail {
+            authors: names(r.authors),
+            narrators: names(r.narrators),
+            series: r.series,
+            series_index: r.series_index,
+        }))
+    }
 }
 
 pub fn image_url(id: i64, kind: &str, version: i64) -> String {
@@ -473,9 +550,10 @@ impl ItemRow {
             Some(own("poster"))
         } else {
             match self.kind.as_str() {
-                // Albums fall back to embedded cover art, extracted on first request.
-                "album" => Some(own("poster")),
-                "track" => parent("poster"),
+                // Albums and audiobooks fall back to embedded cover art,
+                // extracted on first request.
+                "album" | "audiobook" => Some(own("poster")),
+                "track" | "part" => parent("poster"),
                 "season" if self.parent_has_poster => parent("poster"),
                 "episode" if self.grandparent_has_poster => grandparent("poster"),
                 _ => None,
@@ -492,7 +570,7 @@ impl ItemRow {
         };
         let thumb_url = matches!(self.kind.as_str(), "movie" | "episode" | "extra").then(|| own("thumb"));
         let watched = match self.kind.as_str() {
-            "show" | "season" => {
+            "show" | "season" | "audiobook" => {
                 let leaves = self.leaf_count.unwrap_or(0);
                 leaves > 0 && self.viewed_leaf_count.unwrap_or(0) >= leaves
             }
@@ -533,6 +611,7 @@ impl ItemRow {
             release_date: self.release_date.clone(),
             extra_type: self.extra_type.clone(),
             media: None,
+            authors: self.authors.as_deref().and_then(|a| serde_json::from_str(a).ok()),
         }
     }
 
@@ -633,10 +712,7 @@ impl FileRow {
             selected_audio: None,
             audio_picked: false,
             selected_subtitle: None,
-            chapters: chapters
-                .into_iter()
-                .map(|c| ChapterDto { start_ms: c.start_ms, end_ms: c.end_ms, title: c.title, thumb_url: None })
-                .collect(),
+            chapters: chapters_in_order(chapters),
         }
     }
 }
@@ -1091,6 +1167,7 @@ pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
     let credits_of = if row.kind == "season" { row.parent_id.unwrap_or(row.id) } else { row.id };
     let (cast, crew) =
         crate::people::for_item(db, credits_of).await?.into_iter().partition(|c| c.role == crate::people::Role::Actor);
+    let book = if row.kind == "audiobook" { BookDetail::of(db, row.id).await? } else { None };
     let mut summary = row.to_summary();
     summary.summary = row.summary;
     Ok(ItemDetail {
@@ -1112,6 +1189,7 @@ pub async fn item_detail(db: &Db, row: ItemRow) -> sqlx::Result<ItemDetail> {
         cast,
         crew,
         in_watchlist: false,
+        book,
     })
 }
 
@@ -1194,6 +1272,20 @@ pub async fn count_matching(db: &Db, user_id: i64, q: &ItemsQuery<'_>) -> sqlx::
 
 pub const WATCHED_THRESHOLD: f64 = 0.9;
 const MIN_RESUME_MS: i64 = 15_000;
+/// An audiobook's part is finished this close to its end, not at
+/// [`WATCHED_THRESHOLD`]: the last tenth of a book in one file is an hour.
+const PART_END_MS: i64 = 30_000;
+
+/// Whether `position_ms` of `duration_ms` finishes an item of `kind`.
+pub fn finishes(kind: &str, position_ms: i64, duration_ms: i64) -> bool {
+    if duration_ms <= 0 {
+        return false;
+    }
+    if kind == "part" {
+        return position_ms >= duration_ms - PART_END_MS.min(duration_ms / 10);
+    }
+    position_ms as f64 >= duration_ms as f64 * WATCHED_THRESHOLD
+}
 
 /// The place kept for one at `position_ms`: none until 15 s in.
 pub fn resume_point(position_ms: i64) -> i64 {
@@ -1232,7 +1324,12 @@ pub async fn record_progress(
     let now = now();
     let position_ms = position_ms.max(0);
     let back = show_again(db, user_id, "", item_id).await?;
-    if duration_ms > 0 && position_ms as f64 >= duration_ms as f64 * WATCHED_THRESHOLD {
+    let kind: String = sqlx::query_scalar("SELECT kind FROM items WHERE id = ?")
+        .bind(item_id)
+        .fetch_optional(&db.read)
+        .await?
+        .unwrap_or_default();
+    if finishes(&kind, position_ms, duration_ms) {
         let mut tx = db.write.begin().await?;
         // Reports keep coming after the threshold: a play counts once, until
         // the item is resumed or played again (which sets a position).
@@ -1363,7 +1460,7 @@ pub async fn set_last_played(
         .await?;
     }
     if changed > 0 {
-        let children = matches!(kind, "show" | "season" | "album" | "artist");
+        let children = matches!(kind, "show" | "season" | "album" | "artist" | "audiobook");
         state_changed(db, events, user_id, item_id, children).await?;
     }
     Ok(())
@@ -1396,7 +1493,7 @@ pub fn valid_rating(value: f64) -> Option<f64> {
 fn leaves_clause(kind: &str) -> &'static str {
     match kind {
         "show" => "SELECT id FROM items WHERE grandparent_id = ?3 AND kind = 'episode'",
-        "season" | "album" => "SELECT id FROM items WHERE parent_id = ?3",
+        "season" | "album" | "audiobook" => "SELECT id FROM items WHERE parent_id = ?3",
         "artist" => "SELECT id FROM items WHERE grandparent_id = ?3 AND kind = 'track'",
         _ => "SELECT id FROM items WHERE id = ?3",
     }
@@ -1470,7 +1567,7 @@ pub async fn set_watched(
         .await?;
     }
     if changes || back {
-        let children = matches!(kind, "show" | "season" | "album" | "artist");
+        let children = matches!(kind, "show" | "season" | "album" | "artist" | "audiobook");
         state_changed(db, events, user_id, item_id, children).await?;
     }
     Ok(left_watchlist)
@@ -1659,11 +1756,13 @@ pub async fn continue_watching(
     items_by_ids(db, user_id, &ids).await
 }
 
-/// Episode to start when pressing Play on a show or season.
+/// Episode to start when pressing Play on a show or season; the part of an
+/// audiobook, which then starts where it was left.
 pub async fn on_deck(db: &Db, user_id: i64, item: &ItemRow) -> sqlx::Result<Option<i64>> {
     let (show_id, season_id) = match item.kind.as_str() {
         "show" => (item.id, None),
         "season" => (item.parent_id.unwrap_or_default(), Some(item.id)),
+        "audiobook" => return Ok(next_of(&book_parts(db, user_id, item.id).await?)),
         _ => return Ok(None),
     };
     let mut episodes = show_episodes(db, user_id, show_id).await?;
@@ -1672,23 +1771,84 @@ pub async fn on_deck(db: &Db, user_id: i64, item: &ItemRow) -> sqlx::Result<Opti
             sqlx::query_scalar("SELECT id FROM items WHERE parent_id = ?").bind(season).fetch_all(&db.read).await?;
         episodes.retain(|e| in_season.contains(&e.id));
     }
+    Ok(next_of(&episodes))
+}
+
+/// Of episodes or parts in order: the one part way through that was played
+/// last, else the one after the last finished, else the first not finished,
+/// else the first.
+fn next_of(episodes: &[EpisodeState]) -> Option<i64> {
     let in_progress =
         episodes.iter().filter(|e| e.position_ms > 0 && !e.watched).max_by_key(|e| e.last_played_at).map(|e| e.id);
-    Ok(in_progress
-        .or_else(|| next_after_last_watched(&episodes))
+    in_progress
+        .or_else(|| next_after_last_watched(episodes))
         .or_else(|| episodes.iter().find(|e| !e.watched).map(|e| e.id))
-        .or_else(|| episodes.first().map(|e| e.id)))
+        .or_else(|| episodes.first().map(|e| e.id))
+}
+
+/// An audiobook's parts in order with the user's state.
+async fn book_parts(db: &Db, user_id: i64, book_id: i64) -> sqlx::Result<Vec<EpisodeState>> {
+    sqlx::query_as(concat!(
+        "SELECT p.id, COALESCE(s.watched, 0) AS watched, COALESCE(s.position_ms, 0) AS position_ms,
+                COALESCE(s.play_count, 0) AS play_count, s.last_played_at
+         FROM items p LEFT JOIN user_item_state s ON s.item_id = p.id AND s.user_id = ?
+         WHERE p.parent_id = ? AND p.kind = 'part'
+         ORDER BY ",
+        crate::library::part_order!()
+    ))
+    .bind(user_id)
+    .bind(book_id)
+    .fetch_all(&db.read)
+    .await
+}
+
+/// Audiobooks the user is part way through, the one listened to last
+/// first: a book with a part started (also one heard again), or a part
+/// finished and another still to hear. Books they finished, or took out of
+/// Continue Watching, are left out.
+pub async fn continue_listening(
+    db: &Db,
+    user_id: i64,
+    library_id: Option<i64>,
+    limit: i64,
+) -> sqlx::Result<Vec<ItemRow>> {
+    let scope = if library_id.is_some() { "AND i.library_id = ?" } else { "" };
+    // The books with a part heard first, from the user's own state: the
+    // rest is asked of those alone, not of every book on each Home.
+    let sql = format!(
+        "{SUMMARY_SELECT} WHERE {VISIBLE} AND i.kind = 'audiobook' {scope}
+           AND i.id IN (SELECT p.parent_id FROM user_item_state ps JOIN items p ON p.id = ps.item_id
+                        WHERE ps.user_id = (SELECT uid FROM me) AND p.kind = 'part'
+                          AND (ps.position_ms > 0 OR ps.watched = 1))
+           AND (EXISTS (SELECT 1 FROM items p JOIN user_item_state ps ON ps.item_id = p.id
+                        WHERE p.parent_id = i.id AND ps.user_id = (SELECT uid FROM me) AND ps.position_ms > 0)
+                OR (EXISTS (SELECT 1 FROM items p JOIN user_item_state ps ON ps.item_id = p.id
+                            WHERE p.parent_id = i.id AND ps.user_id = (SELECT uid FROM me) AND ps.watched = 1)
+                    AND EXISTS (SELECT 1 FROM items p LEFT JOIN user_item_state ps
+                                  ON ps.item_id = p.id AND ps.user_id = (SELECT uid FROM me)
+                                WHERE p.parent_id = i.id AND COALESCE(ps.watched, 0) = 0)))
+           AND NOT EXISTS (SELECT 1 FROM continue_watching_hidden h
+                           WHERE h.user_id = (SELECT uid FROM me) AND h.item_id = i.id)
+         ORDER BY (SELECT MAX(ps.last_played_at) FROM items p JOIN user_item_state ps ON ps.item_id = p.id
+                   WHERE p.parent_id = i.id AND ps.user_id = (SELECT uid FROM me)) DESC
+         LIMIT ?"
+    );
+    let mut q = sqlx::query_as::<_, ItemRow>(sqlx::AssertSqlSafe(sql.as_str())).bind(user_id);
+    if let Some(lib) = library_id {
+        q = q.bind(lib);
+    }
+    q.bind(limit).fetch_all(&db.read).await
 }
 
 // ------------------------------------------------------------------ Continue Watching and My List
 
 /// The title a Continue Watching row stands for, which taking it out hides:
-/// a movie itself, an episode's (or a season's) show. `None` for what is
-/// never in Continue Watching.
+/// a movie itself, an episode's (or a season's) show, a part's audiobook.
+/// `None` for what is never in Continue Watching.
 pub fn continue_watching_title(row: &ItemRow) -> Option<i64> {
     match row.kind.as_str() {
-        "movie" | "show" => Some(row.id),
-        "season" => row.parent_id,
+        "movie" | "show" | "audiobook" => Some(row.id),
+        "season" | "part" => row.parent_id,
         "episode" => row.grandparent_id,
         _ => None,
     }
@@ -1715,7 +1875,12 @@ pub async fn hide_from_continue_watching(db: &Db, events: &EventBus, user_id: i6
 /// if they took it out; whether one did. Looked up first, since every
 /// progress report asks.
 async fn show_again(db: &Db, user_id: i64, kind: &str, item_id: i64) -> sqlx::Result<bool> {
-    let titles = format!("SELECT COALESCE(grandparent_id, id) FROM items WHERE id IN ({})", leaves_clause(kind));
+    // An episode's show, an audiobook's part's book, a movie itself.
+    let titles = format!(
+        "SELECT CASE WHEN kind = 'part' THEN parent_id ELSE COALESCE(grandparent_id, id) END
+         FROM items WHERE id IN ({})",
+        leaves_clause(kind)
+    );
     let hidden: bool = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
         "SELECT EXISTS (SELECT 1 FROM continue_watching_hidden WHERE user_id = ?1 AND item_id IN ({titles}))"
     )))
@@ -1782,7 +1947,8 @@ pub async fn in_watchlist(db: &Db, user_id: i64, item_id: i64) -> sqlx::Result<b
         .await
 }
 
-/// The episode/track following `item` (crossing season/disc boundaries).
+/// The episode, track or audiobook part following `item` (crossing season
+/// and disc boundaries).
 pub async fn next_item(db: &Db, item: &ItemRow) -> sqlx::Result<Option<i64>> {
     match item.kind.as_str() {
         "episode" => {
@@ -1801,6 +1967,17 @@ pub async fn next_item(db: &Db, item: &ItemRow) -> sqlx::Result<Option<i64>> {
                     .bind(item.parent_id)
                     .fetch_all(&db.read)
                     .await?;
+            Ok(ids.iter().position(|id| *id == item.id).and_then(|i| ids.get(i + 1)).copied())
+        }
+        // In the order of [`book_parts`].
+        "part" => {
+            let ids: Vec<i64> = sqlx::query_scalar(concat!(
+                "SELECT id FROM items WHERE parent_id = ? AND kind = 'part' ORDER BY ",
+                crate::library::part_order!()
+            ))
+            .bind(item.parent_id)
+            .fetch_all(&db.read)
+            .await?;
             Ok(ids.iter().position(|id| *id == item.id).and_then(|i| ids.get(i + 1)).copied())
         }
         _ => Ok(None),
@@ -1837,7 +2014,11 @@ pub async fn recently_added(
             items_by_ids(db, user_id, &ids).await
         }
         kind => {
-            let item_kind = if kind == "music" { "album" } else { "movie" };
+            let item_kind = match kind {
+                "music" => "album",
+                "audiobooks" => "audiobook",
+                _ => "movie",
+            };
             sqlx::query_as(sqlx::AssertSqlSafe(format!(
                 "{SUMMARY_SELECT} WHERE {VISIBLE} AND i.library_id = ? AND i.kind = ? ORDER BY i.added_at DESC, i.id DESC LIMIT ?"
             )))
@@ -1957,6 +2138,7 @@ impl ItemRow {
             leaf_count: None,
             child_count: None,
             viewed_leaf_count: None,
+            authors: None,
         }
     }
 }
@@ -2305,5 +2487,23 @@ mod tests {
         assert_eq!(choices(&["dolby_vision"]), [] as [&str; 0]);
         assert_eq!(choices(&[]), [] as [&str; 0]);
         assert_eq!(choices(&["", "sdr"]), [] as [&str; 0]);
+    }
+
+    /// A book's chapters as a tagger wrote them, out of order: listed by
+    /// start, each with its place as probed (its picture's name), and no
+    /// more than a thousand.
+    #[test]
+    fn chapters_come_by_start_and_bounded() {
+        let chapter =
+            |start_ms: i64, title: &str| Chapter { start_ms, end_ms: start_ms + 1_000, title: Some(title.to_owned()) };
+        let listed = chapters_in_order(vec![chapter(2_000, "Three"), chapter(0, "One"), chapter(1_000, "Two")]);
+        let order: Vec<(&str, usize)> =
+            listed.iter().map(|c| (c.title.as_deref().unwrap_or_default(), c.probed_index)).collect();
+        assert_eq!(order, [("One", 1), ("Two", 2), ("Three", 0)]);
+
+        let many: Vec<Chapter> = (0..1_500).rev().map(|n| chapter(n * 1_000, "Part")).collect();
+        let listed = chapters_in_order(many);
+        assert_eq!(listed.len(), MAX_CHAPTERS);
+        assert_eq!((listed[0].start_ms, listed[999].start_ms), (0, 999_000), "the first thousand");
     }
 }

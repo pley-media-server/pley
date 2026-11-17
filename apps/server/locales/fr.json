@@ -1,11 +1,13 @@
 {
   "hubs": {
     "continueWatching": "Reprendre la lecture",
+    "continueListening": "Reprendre l’écoute",
     "myList": "Ma liste",
     "recentlyAddedIn": "Ajouts récents dans {{library}}",
     "recentlyAdded": "Ajouts récents",
     "recentlyAddedShows": "Séries ajoutées récemment",
     "recentlyAddedAlbums": "Albums ajoutés récemment",
+    "recentlyAddedBooks": "Livres ajoutés récemment",
     "recentlyReleased": "Sorties récentes",
     "topRated": "Les mieux notés"
   },

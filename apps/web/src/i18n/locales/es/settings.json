@@ -375,7 +375,10 @@
       "shows_other": "{{count, number}} series",
       "music_one": "{{count, number}} artista",
       "music_many": "{{count, number}} de artistas",
-      "music_other": "{{count, number}} artistas"
+      "music_other": "{{count, number}} artistas",
+      "audiobooks_one": "{{count, number}} libro",
+      "audiobooks_many": "{{count, number}} de libros",
+      "audiobooks_other": "{{count, number}} libros"
     },
     "scanned": "analizada {{when}}",
     "neverScanned": "nunca analizada",
@@ -417,6 +420,11 @@
         "label": "Música",
         "layout": "Artista/Álbum/01 - Pista.flac",
         "defaultName": "Música"
+      },
+      "audiobooks": {
+        "label": "Audiolibros",
+        "layout": "Autor/Título del libro/01 - Capítulo.mp3",
+        "defaultName": "Audiolibros"
       }
     },
     "form": {

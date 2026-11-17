@@ -182,7 +182,7 @@ export interface LoginResponse {
   recovery_codes?: string[];
 }
 
-export type LibraryKind = "movies" | "shows" | "music";
+export type LibraryKind = "movies" | "shows" | "music" | "audiobooks";
 
 export interface Library {
   id: Id;
@@ -197,7 +197,18 @@ export interface Library {
   labels_pending?: boolean;
 }
 
-export type ItemKind = "movie" | "show" | "season" | "episode" | "artist" | "album" | "track" | "extra";
+export type ItemKind =
+  | "movie"
+  | "show"
+  | "season"
+  | "episode"
+  | "artist"
+  | "album"
+  | "track"
+  /** A book read aloud, with its files as parts. */
+  | "audiobook"
+  | "part"
+  | "extra";
 
 export interface UserState {
   position_ms: number;
@@ -238,6 +249,8 @@ export interface ItemSummary {
   extra_type?: string | null;
   /** What the title's files are like: in listings sorted by bitrate. */
   media?: MediaSummary | null;
+  /** An audiobook's writers. */
+  authors?: string[] | null;
 }
 
 /** A title's best file (a show's files on average). */
@@ -279,6 +292,16 @@ export interface ItemDetail extends ItemSummary {
   crew?: Credit[];
   /** On the user's My List (movies and shows). */
   in_watchlist?: boolean;
+  /** Who wrote and reads an audiobook, and its series (audiobooks only). */
+  book?: Book;
+}
+
+export interface Book {
+  authors: string[];
+  narrators: string[];
+  series: string | null;
+  /** The book's place in its series: 2, or 2.5 between two books. */
+  series_index: number | null;
 }
 
 export type CreditRole = "actor" | "creator" | "director" | "writer" | "producer";

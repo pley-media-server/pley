@@ -32,10 +32,17 @@ export interface PlayOptions extends Omit<PlayUrlOptions, "startMs"> {
   shuffle?: boolean;
 }
 
+/** Where a book's part goes on: where it was left, unless it was heard to the end. */
+function resumeAt(part: ItemSummary | undefined): number {
+  if (!part || part.user_state.watched) return 0;
+  return part.user_state.position_ms;
+}
+
 /**
  * Returns `play(item)` which does the right thing for every kind:
  * video → player page (resuming), show/season → on-deck episode,
- * album/artist/track → global audio queue. It resolves to whether
+ * album/artist/track → global audio queue, audiobook → its parts, from
+ * where it was left. It resolves to whether
  * something plays; when nothing does, it has said why.
  */
 export function usePlayItem() {
@@ -85,6 +92,25 @@ export function usePlayItem() {
               return false;
             }
             audio?.playQueue(tracks, 0, { shuffle: opts.shuffle });
+            return true;
+          }
+          case "audiobook":
+          case "part": {
+            // A book plays its parts in order, from the one it was left in
+            // (or the one chosen), where it was left.
+            const bookId = item.kind === "audiobook" ? item.id : item.parent_id;
+            if (!bookId) return false;
+            const [parts, deck] = await Promise.all([
+              fetchChildren(qc, bookId),
+              item.kind === "audiobook" ? fetchOnDeck(qc, bookId) : Promise.resolve(item),
+            ]);
+            if (!parts.length) {
+              toast.info(t("play.bookEmpty"));
+              return false;
+            }
+            const i = Math.max(0, parts.findIndex((p) => p.id === deck?.id));
+            const part = parts[i];
+            audio?.playQueue(parts, i, { startAtMs: opts.fromStart ? 0 : resumeAt(part) });
             return true;
           }
           case "track": {

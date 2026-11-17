@@ -28,6 +28,7 @@ const SORTS_BY_KIND: Record<LibraryKind, LibrarySort[]> = {
   movies: ["title", "year", "added", "rating", "user_rating", "release", "duration", "last_played", "bitrate"],
   shows: ["title", "year", "added", "rating", "user_rating", "release", "last_played", "bitrate"],
   music: ["title", "added", "user_rating", "last_played"],
+  audiobooks: ["title", "year", "added", "user_rating", "duration", "last_played"],
 };
 
 function defaultOrder(sort: LibrarySort): SortOrder {
@@ -87,7 +88,10 @@ export function LibraryPage() {
           </div>
         </div>
         <div className="flex rounded-lg bg-surface-2 p-1" role="tablist">
-          {(kind === "music" ? (["recommended", "library"] as const) : (["recommended", "library", "collections"] as const)).map((name) => (
+          {(kind === "music" || kind === "audiobooks"
+            ? (["recommended", "library"] as const)
+            : (["recommended", "library", "collections"] as const)
+          ).map((name) => (
             <button
               key={name}
               type="button"
@@ -108,7 +112,7 @@ export function LibraryPage() {
       {kind === "movies" ? <TmdbKeyNotice className="mx-4 mt-4 sm:mx-8" /> : null}
       {tab === "recommended" ? (
         <RecommendedTab libraryId={libId} kind={kind} />
-      ) : tab === "collections" && kind !== "music" ? (
+      ) : tab === "collections" && kind !== "music" && kind !== "audiobooks" ? (
         <CollectionsTab libraryId={libId} kind={kind} />
       ) : (
         <LibraryTab
@@ -198,7 +202,7 @@ function LibraryTab({
   const items = useLibraryItems(libraryId, query, ready);
   const filters = useLibraryFilters(libraryId, ready && kind !== "music");
 
-  const aspect: CardAspect = kind === "music" ? "square" : "poster";
+  const aspect: CardAspect = kind === "music" || kind === "audiobooks" ? "square" : "poster";
   const [cardWidth, setCardWidth] = useLocalStorage<number>(`pley.cardWidth.${aspect}`, aspect === "square" ? 170 : 160);
   const filtered = watched !== undefined || !!genre || year !== undefined || !!resolution || !!dynamicRange;
   const clearFilters = { watched: null, genre: null, year: null, resolution: null, dynamic_range: null };

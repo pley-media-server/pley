@@ -85,13 +85,15 @@
     "namePlaceholder": {
       "movies": "Name, such as Kids Movies",
       "shows": "Name, such as Kids Shows",
-      "music": "Name, such as Kids Music"
+      "music": "Name, such as Kids Music",
+      "audiobooks": "Name, such as Kids Audiobooks"
     },
     "folderOf": "Folder for {{name}}",
     "where": {
       "movies": "Where are your movies?",
       "shows": "Where are your shows?",
-      "music": "Where is your music?"
+      "music": "Where is your music?",
+      "audiobooks": "Where are your audiobooks?"
     },
     "browseFor": "Browse for {{name}}",
     "addFolder": "Add another folder",
@@ -446,7 +448,9 @@
       "shows_one": "{{count, number}} show",
       "shows_other": "{{count, number}} shows",
       "music_one": "{{count, number}} artist",
-      "music_other": "{{count, number}} artists"
+      "music_other": "{{count, number}} artists",
+      "audiobooks_one": "{{count, number}} book",
+      "audiobooks_other": "{{count, number}} books"
     },
     "countOf": {
       "movies_one": "{{shown, number}} of {{count, number}} movie",
@@ -454,11 +458,14 @@
       "shows_one": "{{shown, number}} of {{count, number}} show",
       "shows_other": "{{shown, number}} of {{count, number}} shows",
       "music_one": "{{shown, number}} of {{count, number}} artist",
-      "music_other": "{{shown, number}} of {{count, number}} artists"
+      "music_other": "{{shown, number}} of {{count, number}} artists",
+      "audiobooks_one": "{{shown, number}} of {{count, number}} book",
+      "audiobooks_other": "{{shown, number}} of {{count, number}} books"
     },
     "all": {
       "movies": "All movies",
-      "shows": "All shows"
+      "shows": "All shows",
+      "audiobooks": "All books"
     },
     "sortBy": "Sort by",
     "ascending": "Ascending",

@@ -96,7 +96,8 @@ pub async fn create(
     Json(body): Json<NewCollection>,
 ) -> ApiResult<(StatusCode, Json<CollectionDetail>)> {
     let lib = visible_library(&state, &admin, library_id).await?;
-    if lib.kind() == crate::library::LibraryKind::Music {
+    // They hold movies and shows (`collections::add_items`).
+    if lib.kind().is_audio() {
         return Err(AppError::bad_request("collections are for movie and TV libraries"));
     }
     let title = clean_title(&body.title)?;

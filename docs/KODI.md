@@ -579,6 +579,9 @@ add-on's changelog.
   profile's; a title's Details, the library's letter bar and a
   person's page; downloads; playing a video playlist through (a title in
   one opens its page).
+- No audiobooks: the server gives the add-on no audiobook library, nor
+  their books on Home, in search or in history. They are in the web and
+  desktop apps.
 - Picture subtitles picked in Kodi's player during a converted stream don't
   show; the profile's choice is burned in from the start.
 - Discover and the requests open in Kodi's lists, not Pley's own screens.

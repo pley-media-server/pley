@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import { Check, Clapperboard, Music, TriangleAlert, Tv } from "lucide-react";
+import { BookHeadphones, Check, Clapperboard, Music, TriangleAlert, Tv } from "lucide-react";
 import { Trans, useTranslation } from "react-i18next";
 import { useLibraries, useRatingSystems } from "@/api/hooks";
 import type { Id, LibraryKind } from "@/api/types";
@@ -45,7 +45,7 @@ export interface AccessValue {
 /** Ages a limit can be set to: 21 is the oldest any rating is for. */
 const AGES = Array.from({ length: BIRTHDAY_LIMIT_ENDS + 1 }, (_, age) => age);
 
-const KIND_ICON: Record<LibraryKind, typeof Tv> = { movies: Clapperboard, shows: Tv, music: Music };
+const KIND_ICON: Record<LibraryKind, typeof Tv> = { movies: Clapperboard, shows: Tv, music: Music, audiobooks: BookHeadphones };
 
 /**
  * Library access (all, or a chosen set), an age limit, picked as a rating of

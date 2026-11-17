@@ -538,6 +538,10 @@ other apps (`pley_ct_…`), never with a session's
   20,000 for a summary, 50 genres, 100 entries a file) and ids are checked
   for their shape. Addresses in them, pictures' included, are never
   fetched.
+- An audiobook's tags get the same limits, cut before they are read: 500
+  characters for a title, a name, a series or a genre, 20,000 for a
+  summary, names read from a tag's first 2,000 characters and 50 at
+  most, and a place in a series from 0 to 10,000.
 - Subtitles from OpenSubtitles come over HTTPS only, never redirected to
   plain HTTP.
 - A file's attached fonts (for burned-in ASS subtitles) are taken up to

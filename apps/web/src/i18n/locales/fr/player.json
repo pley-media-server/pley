@@ -201,5 +201,20 @@
     "failed": "La lecture a échoué",
     "noHls": "Ce navigateur ne peut pas lire les flux HLS",
     "noSound": "Aucune sortie audio : vérifiez les haut-parleurs ou le casque"
+  },
+  "book": {
+    "speed": "Vitesse : {{rate}}",
+    "sleep": "Minuteur de veille",
+    "sleepIn": "Minuteur de veille : encore {{time}}",
+    "sleepAtEnd": "Minuteur de veille : pause à la fin",
+    "sleepEndOfChapter": "Fin du chapitre",
+    "sleepEndOfPart": "Fin de la partie",
+    "sleepOff": "Arrêter le minuteur",
+    "back_one": "Reculer de {{count}} seconde",
+    "back_many": "Reculer de {{count}} secondes",
+    "back_other": "Reculer de {{count}} secondes",
+    "forward_one": "Avancer de {{count}} seconde",
+    "forward_many": "Avancer de {{count}} secondes",
+    "forward_other": "Avancer de {{count}} secondes"
   }
 }

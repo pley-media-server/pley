@@ -37,6 +37,8 @@ export function aspectFor(item: Pick<ItemSummary, "kind">): CardAspect {
     case "artist":
     case "album":
     case "track":
+    case "audiobook":
+    case "part":
       return "square";
     default:
       return "poster";
@@ -68,6 +70,8 @@ export interface MediaCardProps {
 }
 
 export function defaultCardTitles(item: ItemSummary, continueStyle = false): { title: string; subtitle: string } {
+  // A book is known by its writers, in Continue Listening too.
+  if (item.kind === "audiobook") return { title: item.title, subtitle: (item.authors ?? []).join(", ") };
   if (continueStyle) {
     if (item.kind === "episode") {
       return {

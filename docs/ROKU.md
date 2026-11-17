@@ -150,7 +150,9 @@ it. A playlist's entries move with the Options key's Move.
 
 A library has the tabs Recommended, Library and Collections (a music
 library has no Collections), and opens on the tab, sort and filters it was
-left on, kept on the Roku for each server, profile and library.
+left on, kept on the Roku for each server, profile and library. Audiobook
+libraries are in the web and desktop apps: the server gives this app none,
+nor their books on Home, in search or in history.
 
 - **Library** is a grid of posters, 70 at a time as the focus comes near
   the next ones; places a jump passes over show empty frames until their

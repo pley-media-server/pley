@@ -157,7 +157,8 @@
     "nothing": "No hay nada que reproducir",
     "nothingYet": "Aún no hay nada que reproducir",
     "albumEmpty": "Este álbum no tiene pistas",
-    "artistEmpty": "No se encontraron pistas de este artista"
+    "artistEmpty": "No se encontraron pistas de este artista",
+    "bookEmpty": "Este audiolibro no tiene partes"
   },
   "remote": {
     "unknownDevice": "Dispositivo desconocido",

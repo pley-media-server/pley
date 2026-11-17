@@ -659,6 +659,10 @@ its best file, a show by its best episode.
   sorted by bitrate, each also shows its bitrate and size. Recommended
   rows, collections, playlists, search and Home show none.
 
+Audiobook libraries are in the web and desktop apps: the server gives this
+app none, nor their books on Home, in search or in history
+([API.md](API.md#libraries)).
+
 ### Search
 
 Search asks the server for up to 200 titles, 200 people and 200 Live TV

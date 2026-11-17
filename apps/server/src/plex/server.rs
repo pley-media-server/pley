@@ -292,17 +292,19 @@ pub async fn history(
     page: Page,
 ) -> PlexResult<Node> {
     let account = params.parse::<i64>("accountID");
+    let libraries = visible_libraries(&state, &user).await?;
     let filter = history::Filter {
         user_id: if super::sees_everyone(&user) { account } else { Some(user.id) },
         item_id: params.parse::<i64>("metadataItemID"),
         library_id: params.parse::<i64>("librarySectionID"),
+        // Plays of the sections listed: none of an audiobook.
+        libraries: Some(libraries.iter().map(|l| l.id).collect()),
         // `viewedAt>=…` arrives as the key `viewedAt>`.
         since: params.parse::<i64>("viewedAt>").or_else(|| params.parse::<i64>("viewedAt")),
         offset: page.start as i64,
         limit: page.size.map(|s| s as i64).unwrap_or(1_000).clamp(0, 10_000),
     };
     let (records, total) = history::list(&state.db, user.id, &filter).await?;
-    let libraries = visible_libraries(&state, &user).await?;
     let rows: Vec<_> = records.iter().map(|r| r.item.clone()).collect();
     let detail = Detail { guids: false, full: false, media: false, markers: false, labels: false };
     let nodes = item_nodes(&state, &rows, &Sections::new(&libraries), detail).await?;

@@ -15,6 +15,11 @@ use crate::people::{PersonSummary, photo_url};
 /// What a search looks at before choosing what to show, at most.
 const CANDIDATES: i64 = 300;
 
+/// Kinds of items search never finds: extras, and audiobooks' parts, which
+/// are their book's files ("Chapter 1", "01", or the book's own title for a
+/// book in one file) and would crowd out what the [`CANDIDATES`] are for.
+const UNSEARCHED: &str = "('extra', 'part')";
+
 /// How alike a title or name must be to the search to be found when its
 /// words find nothing (see [`super::text::similarity`]).
 const NEAR: f32 = 0.8;
@@ -144,10 +149,11 @@ async fn read(db: &Db, changes: Changes) -> sqlx::Result<Held> {
         sqlx::query_as("SELECT term, doc FROM temp.search_title_words").fetch_all(&mut *conn).await?;
     let name_words: Vec<(String, i64)> =
         sqlx::query_as("SELECT term, doc FROM temp.search_name_words").fetch_all(&mut *conn).await?;
-    let titles: Vec<(i64, String, Option<String>)> =
-        sqlx::query_as("SELECT id, title, original_title FROM items WHERE kind != 'extra'")
-            .fetch_all(&mut *conn)
-            .await?;
+    let titles: Vec<(i64, String, Option<String>)> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT id, title, original_title FROM items WHERE kind NOT IN {UNSEARCHED}"
+    )))
+    .fetch_all(&mut *conn)
+    .await?;
     let names: Vec<(i64, String)> = sqlx::query_as(
         "SELECT id, name FROM people WHERE EXISTS (SELECT 1 FROM item_people c WHERE c.person_id = people.id)",
     )
@@ -198,8 +204,8 @@ fn unless_unreadable<T: Default>(result: sqlx::Result<T>) -> sqlx::Result<T> {
 }
 
 /// Titles `user_id` may see that `input` finds, at most `limit`: by kind
-/// (movies, shows, seasons, episodes, then music), the closest matches
-/// first in each.
+/// (movies, shows, seasons, episodes, then music, then audiobooks), the
+/// closest matches first in each.
 ///
 /// Every word of `input` begins a word of the title (or of its original
 /// title); a year at the end narrows them to that year's; a word the
@@ -235,7 +241,7 @@ async fn matching_items(db: &Db, user_id: i64, reading: &Reading, year: Option<i
     let sql = format!(
         "{ME_CTE} SELECT i.id FROM items_fts f JOIN items i ON i.id = f.rowid
              LEFT JOIN items p ON p.id = i.parent_id LEFT JOIN items gp ON gp.id = i.grandparent_id
-         WHERE items_fts MATCH ? AND i.kind != 'extra' AND {VISIBLE} {years}
+         WHERE items_fts MATCH ? AND i.kind NOT IN {UNSEARCHED} AND {VISIBLE} {years}
          ORDER BY f.rank LIMIT ?"
     );
     let mut q = sqlx::query_scalar(sqlx::AssertSqlSafe(sql)).bind(user_id).bind(fts);
@@ -246,7 +252,7 @@ async fn matching_items(db: &Db, user_id: i64, reading: &Reading, year: Option<i
 }
 
 /// Where a kind of item comes in search results: movies, shows, seasons
-/// and episodes, then music.
+/// and episodes, then music, then audiobooks.
 fn search_order(kind: &str) -> u8 {
     match kind {
         "movie" => 0,
@@ -256,7 +262,8 @@ fn search_order(kind: &str) -> u8 {
         "artist" => 4,
         "album" => 5,
         "track" => 6,
-        _ => 7,
+        "audiobook" => 7,
+        _ => 8,
     }
 }
 
@@ -270,7 +277,7 @@ fn search_order(kind: &str) -> u8 {
 fn rank_items(rows: &mut Vec<ItemRow>, query: &Query, near: bool, limit: usize) {
     let text = query.text();
     let depth = |kind: &str| match kind {
-        "movie" | "show" | "artist" => 0,
+        "movie" | "show" | "artist" | "audiobook" => 0,
         "album" | "season" => 1,
         _ => 2,
     };

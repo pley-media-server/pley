@@ -38,13 +38,17 @@
     "collections_other": "{{count, number}} collections",
     "items_one": "{{count, number}} élément",
     "items_many": "{{count, number}} d’éléments",
-    "items_other": "{{count, number}} éléments"
+    "items_other": "{{count, number}} éléments",
+    "parts_one": "{{count, number}} partie",
+    "parts_many": "{{count, number}} de parties",
+    "parts_other": "{{count, number}} parties"
   },
   "sectionError": {
     "albums": "Impossible de charger les albums : {{error}}",
     "tracks": "Impossible de charger les titres : {{error}}",
     "seasons": "Impossible de charger les saisons : {{error}}",
-    "episodes": "Impossible de charger les épisodes : {{error}}"
+    "episodes": "Impossible de charger les épisodes : {{error}}",
+    "parts": "Impossible de charger les parties : {{error}}"
   },
   "summary": {
     "readMore": "Lire la suite"
@@ -306,5 +310,26 @@
     "loadError": "Impossible de charger vos playlists",
     "empty": "Aucune playlist pour l’instant",
     "emptyHint": "Créez-en une ici, ou utilisez « Ajouter à une playlist » sur un film, une série, un album ou un épisode (aussi d’un clic droit sur une affiche)."
+  },
+  "book": {
+    "kind": "Livre audio",
+    "and": "et",
+    "by": "de {{names}}",
+    "readBy": "Lu par {{names}}",
+    "seriesPlace": "{{series}}, tome {{number, number}}",
+    "progress": "Écouté",
+    "pause": "Pause",
+    "resume": "Reprendre",
+    "listenAgain": "Réécouter",
+    "fromStart": "Depuis le début",
+    "upTo": "Vous en êtes à {{part}}",
+    "parts": "Parties",
+    "chapters": "Chapitres",
+    "heard": "Terminé",
+    "markListened": "Marquer comme écouté",
+    "markUnlistened": "Marquer comme non écouté",
+    "listened": "Écouté",
+    "unlistened": "Non écouté",
+    "percentListened": "{{percent}} écouté"
   }
 }
