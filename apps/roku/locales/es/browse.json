@@ -266,6 +266,8 @@
     "needsNewer": "Para ordenar las bibliotecas, el servidor necesita una versión más reciente de Pley."
   },
   "collections": {
-    "none": "Aún no hay colecciones."
+    "none": "Aún no hay colecciones.",
+    "category": "Categoría",
+    "allCategories": "Todas las categorías"
   }
 }

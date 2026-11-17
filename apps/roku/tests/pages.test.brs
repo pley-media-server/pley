@@ -102,6 +102,68 @@ sub test_pages_collections_and_seasons_as_tiles()
     tkEqual(seasons[1].subtitle, "1 episode")
 end sub
 
+' The Collections tab's groups and its Category filter, as the web's
+' groupByCategory: by the category the server gives each, Other one of
+' them, in the categories' order.
+sub test_pages_collections_by_category()
+    server = "http://nas:7539"
+    collections = [
+        { id: 1, title: "Recently Added", item_count: 30, smart_filter: "sort=addedAt:desc", automatic: false, category: { id: 1, key: "highlights", title: "Highlights" } },
+        { id: 2, title: "Dune Collection", item_count: 2, smart_filter: invalid, automatic: true, category: { id: 2, key: "franchises", title: "Franchises" } },
+        { id: 3, title: "Favourites", item_count: 5, smart_filter: invalid, automatic: false, category: { id: 3, key: "other", title: "Other" } },
+        { id: 6, title: "Kids", item_count: 4, smart_filter: invalid, automatic: false, category: { id: 3, key: "other", title: "Other" } },
+        { id: 4, title: "Christmas", item_count: 9, smart_filter: invalid, automatic: false, category: { id: 5, key: invalid, title: "Seasonal" } },
+        { id: 5, title: "New one", item_count: 1, smart_filter: invalid, automatic: false, category: { id: 9, key: invalid, title: "Made since" } }
+    ]
+    tiles = pageCollectionTiles(collections, server)
+    tkEqual(tiles[2].categoryId, 3, "Other, as the server sends it")
+    tkEqual(pageCollectionTile({ id: 7, title: "Old", category: invalid }, server).categoryId, 0, "none, from a server from before categories")
+    tkEqual(tiles[4].categoryTitle, "Seasonal")
+    categories = pageCategories({ categories: [{ id: 5, key: invalid, title: "Seasonal", position: 0 }, { id: 1, key: "highlights", title: "Highlights" }, { id: 3, key: "other", title: "Other" }, { id: 2, key: "franchises", title: "Franchises" }, { id: 6, title: "Unused" }, { id: 0, title: "Odd" }] })
+    tkEqual(categories, [{ id: 5, title: "Seasonal" }, { id: 1, title: "Highlights" }, { id: 3, title: "Other" }, { id: 2, title: "Franchises" }, { id: 6, title: "Unused" }])
+    tkEqual(pageCategories(invalid), [])
+    groups = pageCollectionGroups(tiles, categories, "")
+    keys = []
+    for each group in groups
+        keys.Push(group.key + ":" + group.title + ":" + group.tiles.Count().ToStr())
+    end for
+    tkEqual(keys, ["5:Seasonal:1", "1:Highlights:1", "3:Other:2", "2:Franchises:1", "9:Made since:1"], "in the categories' order, Other where the list puts it, empty ones left out, one not listed after the rest")
+    tkEqual(pageCollectionGroups(tiles, categories, "3")[0].tiles.Count(), 2, "Other alone")
+    tkEqual(pageCollectionGroups(tiles, categories, "1")[0].title, "Highlights")
+    tkEqual(pageCollectionGroups(tiles, categories, "6"), [], "an empty category")
+    tkEqual(pageCollectionGroups([], categories, ""), [])
+    keys = []
+    for each group in pageCollectionGroups(tiles, [], "")
+        keys.Push(group.key)
+    end for
+    tkEqual(keys, ["1", "2", "3", "5", "9"], "without the list: the collections' own, in the order they come")
+    tkEqual(pageCollection({ id: 2, title: "Dune", category: { id: 2, key: "franchises", title: "Franchises" }, items: [] }, server).category, "Franchises")
+    tkEqual(pageCollection({ id: 3, title: "Mine", category: { id: 3, key: "other", title: "Other" }, items: [] }, server).category, "", "Other only says it has none: no badge")
+    tkEqual(pageCollection({ id: 4, title: "Christmas", category: { id: 5, key: invalid, title: "Seasonal" }, items: [] }, server).category, "Seasonal", "an administrator's category")
+    tkEqual(pageCollection({ id: 3, title: "Old", category: invalid, items: [] }, server).category, "", "none from a server from before categories")
+end sub
+
+' A Home row of several collections, opened together.
+sub test_pages_merged_collection()
+    data = {
+        title: "Christmas",
+        collections: [{ id: 8, library_id: 1 }, { id: 9, library_id: 2 }, { id: 10, library_id: 7 }],
+        items: [contentTestMovie(), { id: 99, kind: "show", title: "Holiday Show" }, { id: 98, kind: "show", title: "Another" }]
+    }
+    page = pageMergedCollection(data, "http://nas:7539")
+    tkEqual(page.title, "Christmas")
+    tkEqual(page.shown, 3)
+    tkEqual(page.movieCount, 1)
+    tkEqual(page.showCount, 2)
+    tkTrue(page.movies, "its movies play")
+    tkEqual(page.category, "")
+    tkEqual(page.collections, [{ id: 8, libraryId: 1 }, { id: 9, libraryId: 2 }, { id: 10, libraryId: 7 }])
+    libraries = [{ id: 1, name: "Movies", kind: "movies" }, { id: 2, name: "TV Shows", kind: "shows" }]
+    tkEqual(pageMergedFacts(page, libraries), "1 movie · 2 shows · Movies · TV Shows", "a library it can't see is left out")
+    tkEqual(pageMergedFacts(page, invalid), "1 movie · 2 shows", "the libraries not known yet")
+    tkEqual(pageMergedLibraries(page, libraries), [{ id: 8, name: "Movies" }, { id: 9, name: "TV Shows" }])
+end sub
+
 sub test_pages_collection_of_movies_plays_them_in_order()
     detail = {
         id: 3, library_id: 1, title: "Dune Collection", summary: "Both parts.", automatic: true, sort: "release", smart_filter: invalid, item_count: 2,
@@ -265,6 +327,8 @@ sub test_pages_in_french()
     tkEqual(seasons[1].subtitle, "1 épisode")
     collection = pageCollection({ id: 3, title: "Dune", sort: "release", item_count: 2, items: [] }, "http://nas:7539")
     tkEqual(pageCollectionFacts(collection, { name: "Films", kind: "movies" }), "2 films · Films · Par date de sortie")
+    tkEqual(t("browse.collections.allCategories"), "Toutes les catégories")
+    tkEqual(t("titles.collection.onlyLibrary", { library: "Films" }), "Films uniquement")
     nb = Chr(160)
     tkEqual(pageFilterNotes("type=1&genre=Drame&unwatched=1&sort=year%3Adesc&limit=20"), ["Genre" + nb + ": Drame", "Non vu", "Les plus récents d’abord", "20 au maximum"])
     tkEqual(pageFilterNotes("year%3E%3E=2019&decade=1980&contentRating=PG-13&inProgress=0&mediaHeight=2160"), ["Après 2019", "Années 1980", "Classification" + nb + ": PG-13", "Pas en cours", "mediaHeight" + nb + ": 2160"])
@@ -286,6 +350,8 @@ sub test_pages_in_spanish()
     tkEqual(extras[0].subtitle, "Tráiler · 3 min")
     tkEqual(extras[1].subtitle, "Detrás de cámaras")
     tkEqual(pageCollectionTile({ id: 3, title: "Dune", item_count: 2 }, "http://nas:7539").subtitle, "2 títulos")
+    tkEqual(t("browse.collections.category"), "Categoría")
+    tkEqual(t("titles.collection.onlyLibrary", { library: "Películas" }), "Solo Películas")
     tkEqual(pagePlaylistLine({ kind: "video", item_count: 12, duration_ms: 12000000, smart_filter: invalid }), "12 títulos · 3 h 20 min")
     tkEqual(pagePlaylistLine({ kind: "audio", item_count: 1, duration_ms: 200000, smart_filter: invalid }), "1 pista · 3 min")
     tkEqual(pagePlaylistLine({ kind: "video", item_count: 40, duration_ms: 0, smart_filter: "genre=Drama" }), "Inteligente · 40 títulos")

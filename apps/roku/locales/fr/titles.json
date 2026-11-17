@@ -100,7 +100,8 @@
       "release": "Par date de sortie",
       "title": "Par titre",
       "custom": "Ordre personnalisé"
-    }
+    },
+    "onlyLibrary": "{{library}} uniquement"
   },
   "smartFilter": {
     "genre": "Genre : {{value}}",

@@ -123,12 +123,20 @@ Lovelace, Alan Turing"; a show's "Created by").
 ### Collections, people, artists and playlists
 
 A collection's page has its backdrop, "Collection" with a TMDB or Smart
-badge, its title, what it holds ("5 movies · Movies · By release date";
-a smart collection's filter in words), its summary, Play and Shuffle (two
-titles or more), then its posters, which Down slides the page up to. Play
-plays a collection of movies in its order, Up Next bringing on each next,
-and Shuffle in any order; a collection of shows plays the first show's
-next episode, and Shuffle a random show's.
+badge and its category (none for Other, which only says it has none),
+its title, what it holds ("5 movies · Movies · By release date"; a smart
+collection's filter in words), its summary, Play and Shuffle (two titles
+or more), then its posters, which Down slides the page up to. Play plays
+a collection of movies in its order, Up Next bringing on each next, and
+Shuffle in any order; a collection of shows plays the first show's next
+episode, and Shuffle a random show's.
+
+A Home row made of collections of one title in several libraries (its
+`collection_ids` name more than one) opens them together
+(`GET /api/collections/merged`): "Collection", the title, what they hold
+and the libraries they come from ("3 movies · 2 shows · Movies · Kids"),
+Play and Shuffle as above, a button for each library's own collection
+("Movies only"), then all their posters.
 
 A person's page has their photo, their name and what of theirs is in the
 libraries ("3 movies · 2 shows in your libraries"), then a row for each
@@ -163,11 +171,24 @@ nor their books on Home, in search or in history.
   Sorted by bitrate, its bitrate and size take the year's place under the
   poster ("42 Mbps · 23.4 GB"). Otherwise, and in rows, collections,
   playlists and search, posters have no quality badges.
-- **See all** ends the rows of a library's newest, newly released and top
-  rated titles, on Home and on a library's Recommended tab. It shows the
-  library's Library tab in the row's order (date added, release date or
-  rating, newest or best first), nothing filtered, for that visit: the
-  sort and filters kept stay as they were until changed there.
+- **See all** ends each row of collections, on Home and on a library's
+  Recommended tab, where the web's row title and See all go: it opens the
+  row's collection, or the page of the collections of one title in several
+  libraries (above). Roku's row titles can't take the focus, so See all
+  stands for both. A music library's newest, which isn't a collection,
+  ends with See all too: the library's Library tab, newest added first,
+  nothing filtered, for that visit (the sort and filters kept stay as they
+  were until changed there).
+- **Collections** groups the library's collections under their categories
+  (`GET /api/collection-categories`), in the categories' order, Other
+  among them where the server puts it (a collection without a category
+  comes under Other): a row each, named for its category, or a grid when
+  only one group shows. Where there are two groups or more, Category at
+  the right of the tabs chooses one of them in a panel (All categories,
+  then each of the library's), for that visit. Managing
+  categories, a collection's category and which collections are rows on
+  Home and the Recommended tab are in the web and desktop apps; this app
+  shows what they set.
 - **A to Z:** sorted by title with more than 30 titles, "#" and A to Z
   stand in a column right of the grid, the letter of the title in focus
   marked and the letters no title starts with dimmed. Right from the

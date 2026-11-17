@@ -533,9 +533,11 @@ sub apiBuild(job as object, answer as object)
         job.request.content = nodesContent(tiles)
         answer.data = { shown: tiles.Count() }
     else if job.build = "collections"
+        ' The tiles themselves too: a library's Collections tab groups them
+        ' by category and filters them as it's asked.
         tiles = pageCollectionTiles(data.collections, server)
         job.request.content = nodesContent(tiles)
-        answer.data = { shown: tiles.Count() }
+        answer.data = { shown: tiles.Count(), tiles: tiles }
     else if job.build = "person"
         ' A person's page: a row of titles per role.
         page = pagePerson(data, server)
@@ -576,6 +578,13 @@ sub apiBuild(job as object, answer as object)
         ' A collection's page: its titles as tiles, what it says of itself
         ' and what Play plays.
         page = pageCollection(data, server)
+        job.request.content = nodesContent(page.tiles)
+        page.Delete("tiles")
+        answer.data = page
+    else if job.build = "merged"
+        ' A Home row of several collections: their titles, as a
+        ' collection's page shows them.
+        page = pageMergedCollection(data, server)
         job.request.content = nodesContent(page.tiles)
         page.Delete("tiles")
         answer.data = page

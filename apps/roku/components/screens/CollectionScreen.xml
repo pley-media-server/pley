@@ -1,10 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A collection: its backdrop, "Collection" with its TMDB or Smart
-     badge, its title, what it holds (how many titles, the library, its
-     order or what its filter keeps) and its summary, Play and Shuffle,
-     then its titles' posters. The text is laid out top to bottom, leaving
-     out what a collection doesn't have; Down slides the page up to the
-     posters. -->
+<!-- A collection: its backdrop, "Collection" with its TMDB, Smart and
+     category badges, its title, what it holds (how many titles, the
+     library, its order or what its filter keeps) and its summary, Play
+     and Shuffle, then its titles' posters. The text is laid out top to
+     bottom, leaving out what a collection doesn't have; Down slides the
+     page up to the posters. A Home row of several collections of one
+     title shows them together, as one: what they hold and the libraries
+     they come from, and after Play and Shuffle a button for each
+     library's own collection. -->
 <component name="CollectionScreen" extends="Group">
     <interface>
         <field id="route" type="string" />
@@ -41,6 +44,11 @@
                         <Group id="smart" visible="false">
                             <Rectangle id="smartBack" height="40" color="0x2E3440FF" />
                             <Label id="smartText" translation="[14, 0]" height="40" vertAlign="center" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
+                        </Group>
+                        <!-- Its category, cut short past 560 pixels. -->
+                        <Group id="category" visible="false">
+                            <Rectangle id="categoryBack" height="40" color="0x2E3440FF" />
+                            <Label id="categoryText" translation="[14, 0]" height="40" vertAlign="center" color="0xEBEBEBFF" font="font:SmallestBoldSystemFont" />
                         </Group>
                     </Group>
                     <Label id="heading" width="1100" wrap="true" maxLines="2" color="0xEBEBEBFF" font="font:ExtraLargeBoldSystemFont" />

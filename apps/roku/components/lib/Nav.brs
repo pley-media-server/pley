@@ -60,8 +60,9 @@ end function
 ' library's title when a library this account can open has it whole,
 ' since its page would offer only Open (a show partly there opens its
 ' page, where more seasons can be asked for); See all, its list, or
-' TMDB's results for its words (a library row's See all is its screen's
-' to open: invalid here).
+' TMDB's results for its words, or its collections (one's page, or the
+' merged page of several); a library row's See all is its screen's to
+' open: invalid here.
 function navForTile(tile as object) as dynamic
     kind = httpString(tile.kind)
     if kind = "discover" or kind = "askMore"
@@ -75,6 +76,9 @@ function navForTile(tile as object) as dynamic
     end if
     if kind = "more"
         if httpString(tile.sort) <> "" then return invalid
+        collections = httpArray(tile.collections)
+        if collections.Count() = 1 then return { to: "collection", params: { id: collections[0], title: httpString(tile.rowTitle) } }
+        if collections.Count() > 1 then return { to: "collection", params: { ids: collections, title: httpString(tile.rowTitle) } }
         query = httpString(tile.query)
         list = httpString(tile.list)
         if query <> "" then return { to: "discoverList", params: { query: query } }

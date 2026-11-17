@@ -114,7 +114,64 @@ function pageCollectionTile(collection as object, server as string) as object
     subtitle = ""
     count = httpNumber(collection.item_count, -1)
     if count >= 0 then subtitle = fmtCount(count, "")
-    return { title: httpSentence(collection.title), subtitle: subtitle, image: image, wide: false, progress: 0.0, watched: false, itemId: id, kind: "collection" }
+    category = pageCategoryOf(collection)
+    return { title: httpSentence(collection.title), subtitle: subtitle, image: image, wide: false, progress: 0.0, watched: false, itemId: id, kind: "collection", categoryId: category.id, categoryTitle: category.title }
+end function
+
+' A collection's category: { id, title } (Other is one the server sends),
+' id 0 for none, from a server from before categories.
+function pageCategoryOf(collection as object) as object
+    category = httpObject(collection.category)
+    if category = invalid then return { id: 0, title: "" }
+    return { id: httpNumber(category.id, 0), title: httpSentence(category.title) }
+end function
+
+' The category a collection's page names, as the web's: none for Other.
+function pageCategoryBadge(collection as object) as string
+    category = httpObject(collection.category)
+    if category = invalid or httpString(category.key) = "other" then return ""
+    return httpSentence(category.title)
+end function
+
+' The categories (GET /api/collection-categories), in their order:
+' [{ id, title }].
+function pageCategories(data as dynamic) as object
+    out = []
+    answer = httpObject(data)
+    if answer = invalid then return out
+    for each category in httpArray(answer.categories)
+        if GetInterface(category, "ifAssociativeArray") <> invalid and httpNumber(category.id, 0) > 0 then out.Push({ id: httpNumber(category.id, 0), title: httpSentence(category.title) })
+    end for
+    return out
+end function
+
+' A library's collection tiles by the category the server gives each (Other
+' is one of them), as the web's Collections tab groups them: [{ key (the
+' category's id), title, tiles }] in the categories' order, empty groups
+' left out. One of a category not listed (made since, or every one when
+' the list didn't come) comes after the rest, under its own title.
+' category keeps one group ("" for every one).
+function pageCollectionGroups(tiles as object, categories as object, category as string) as object
+    groups = []
+    at = {}
+    for each one in categories
+        key = one.id.ToStr()
+        at[key] = groups.Count()
+        groups.Push({ key: key, title: one.title, tiles: [] })
+    end for
+    for each tile in tiles
+        key = tile.categoryId.ToStr()
+        if not at.DoesExist(key)
+            at[key] = groups.Count()
+            groups.Push({ key: key, title: tile.categoryTitle, tiles: [] })
+        end if
+        groups[at[key]].tiles.Push(tile)
+    end for
+    out = []
+    for each group in groups
+        if group.tiles.Count() > 0 and (category = "" or category = group.key) then out.Push(group)
+    end for
+    return out
 end function
 
 function pageCollectionTiles(collections as dynamic, server as string) as object
@@ -127,7 +184,9 @@ end function
 
 ' A collection's page (GET /api/collections/{id}): { title, summary,
 ' automatic (it mirrors a TMDB collection: the "TMDB" badge), smart (a
-' filter fills it: "Smart"), count, libraryId, notes (what its filter
+' filter fills it: "Smart"), category (its badge: "" for Other, which
+' only says it has none, and from a server from before categories),
+' count, libraryId, notes (what its filter
 ' keeps, else its order, in words), backdrop, movies, queue, shows,
 ' shown, tiles }. A collection of movies plays them in its order (queue:
 ' their Up Next cards); one of shows plays a show's next episode (shows:
@@ -165,6 +224,7 @@ function pageCollection(detail as object, server as string) as object
         summary: httpClean(detail.summary, 600, false),
         automatic: httpTrue(detail.automatic),
         smart: filter <> "",
+        category: pageCategoryBadge(detail),
         count: httpNumber(detail.item_count, tiles.Count()),
         libraryId: httpNumber(detail.library_id, 0),
         notes: notes,
@@ -175,6 +235,53 @@ function pageCollection(detail as object, server as string) as object
         shown: tiles.Count(),
         tiles: tiles
     }
+end function
+
+' A Home row of several collections of one title, in different libraries
+' (GET /api/collections/merged): { title, collections ([{ id, libraryId
+' }]), movieCount, showCount, and what pageCollection gives to play and
+' show }.
+function pageMergedCollection(data as object, server as string) as object
+    page = pageCollection({ title: data.title, items: data.items, sort: invalid }, server)
+    page.notes = []
+    page.collections = []
+    for each one in httpArray(data.collections)
+        if GetInterface(one, "ifAssociativeArray") <> invalid and httpNumber(one.id, 0) > 0 then page.collections.Push({ id: httpNumber(one.id, 0), libraryId: httpNumber(one.library_id, 0) })
+    end for
+    page.movieCount = 0
+    page.showCount = 0
+    for each item in httpArray(data.items)
+        kind = ""
+        if GetInterface(item, "ifAssociativeArray") <> invalid then kind = httpString(item.kind)
+        if kind = "movie" then page.movieCount = page.movieCount + 1
+        if kind = "show" then page.showCount = page.showCount + 1
+    end for
+    return page
+end function
+
+' What the merged page says under its title, as the web's: "3 movies · 2
+' shows · Movies · Kids' Movies", the libraries once they're known
+' ([{ id, name }], invalid until then).
+function pageMergedFacts(page as object, libraries as dynamic) as string
+    parts = []
+    if page.movieCount > 0 then parts.Push(fmtCount(page.movieCount, "movies"))
+    if page.showCount > 0 then parts.Push(fmtCount(page.showCount, "shows"))
+    for each library in pageMergedLibraries(page, libraries)
+        parts.Push(library.name)
+    end for
+    return parts.Join(" · ")
+end function
+
+' The libraries the merged page's collections come from, in its order,
+' each with its collection: [{ id (the collection's), name }].
+function pageMergedLibraries(page as object, libraries as dynamic) as object
+    out = []
+    for each one in page.collections
+        for each library in httpArray(libraries)
+            if library.id = one.libraryId then out.Push({ id: one.id, name: library.name })
+        end for
+    end for
+    return out
 end function
 
 ' What a collection's page says under its title: "5 movies · Movies · By

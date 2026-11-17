@@ -5,7 +5,9 @@
 // subtitles picked in its menu, the Options key, a library's grid, its A
 // to Z and the pages a jump passes over, a sort by bitrate and a filter
 // by resolution with their quality badges, filters saved as a smart
-// playlist, collections played (movies and a smart one of shows), a
+// playlist, a library's collections by category and filtered by one,
+// collections played (movies and a smart one of shows), a Home row of two
+// libraries' collections opened together, a
 // show's page, its episodes and a person's
 // page, music (an artist, an album, Now Playing), playlists, Live TV (its
 // guide, a channel watched, the next one, the channel list, a favourite
@@ -571,6 +573,17 @@ async function walk() {
   shoot("see-all");
   await press("back");
   await settle();
+  // The row under it: Fixture Favourites, a collection of each library;
+  // its See all opens them together, then Back to Home.
+  since = mark();
+  await press("down");
+  await press("right", 4); // See all, after its three titles
+  await press("select");
+  await waitFor(/^GET \/api\/collections\/merged\?ids=4%2C3$/, since, "a Home row of two collections, opened together");
+  await settle();
+  shoot("collection-merged");
+  await press("back");
+  await settle();
   seeAll.after = mark();
   // Live TV: the categories and the guide of every channel (a page, its
   // programmes for those channels), OK on what's on now watches the
@@ -724,7 +737,24 @@ async function walk() {
   await press("right"); // Collections
   await press("select");
   await waitFor(/^GET \/api\/libraries\/2\/collections$/, since, "a library's collections");
+  await waitFor(/^GET \/api\/collection-categories$/, since, "the collections' categories");
+  await settle();
   shoot("library-collections");
+  // Category: its first, from the chip at the right of the tabs, leaves
+  // Fixture Dramas alone; All categories again.
+  await press("right"); // Category
+  await press("select");
+  await sleep(500);
+  await press("down"); // the first category
+  await press("select");
+  await settle();
+  shoot("library-collections-category");
+  await press("select"); // Category again
+  await sleep(500);
+  await press("up"); // All categories
+  await press("select");
+  await settle();
+  await press("left"); // the tabs, on Collections
   // Its smart collection of shows: Play asks for the show's next episode
   // and plays it. Back to the collections, then the tabs.
   await press("down"); // the collections
