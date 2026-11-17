@@ -67,6 +67,8 @@ describes how they are made.
 
 - Plex apps play music they transcode with the Jellyfin-compatible API on
   Pley's port too.
+- Kometa's smart collections for labels with `+`, `&` or `,` in their
+  name, such as Disney+ Movies, list their movies instead of nothing.
 - Stop in Pley stops a Google Cast device every time. The connection
   closed so abruptly that the device could lose the stop, most often
   with Pley on Windows.

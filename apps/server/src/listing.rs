@@ -319,6 +319,43 @@ pub(crate) fn is_smart_filter_param(key: &str) -> bool {
     matches!(key, "type" | "sort" | "limit") || !(plex_own || NOT_FILTERS.contains(&key))
 }
 
+/// Fields whose filter choices are names (`/library/sections/{id}/label`)
+/// and whose values may be those choices' keys.
+const NAMED_FIELDS: &[&str] = &["genre", "label", "contentRating", "studio"];
+
+/// What a name can't hold in a filter choice's key: tools such as Kometa put
+/// the key into a query string as it is, where `+` reads as a space, `&`, `=`
+/// and `#` end the value, `%` starts an escape and `,` separates values. `~`
+/// starts a key of this kind ([`choice_key`]).
+const UNSAFE_IN_KEY: &[char] = &['+', '&', '=', '#', '%', ',', '~'];
+
+/// A filter choice's `key`: the name itself, or, when it holds a character
+/// [`UNSAFE_IN_KEY`] names, `~` and its bytes in hex, which pass through a
+/// query string whether a tool encodes the key or not. Plex's keys are tag
+/// ids; Pley keeps these names without one.
+pub(crate) fn choice_key(name: &str) -> String {
+    if !name.contains(UNSAFE_IN_KEY) {
+        return name.to_owned();
+    }
+    let mut key = String::with_capacity(1 + name.len() * 2);
+    key.push('~');
+    for byte in name.bytes() {
+        key.push_str(&format!("{byte:02x}"));
+    }
+    key
+}
+
+/// The name a filter value names: a [`choice_key`] read back, or the value as
+/// it came.
+pub(crate) fn choice_name(value: &str) -> String {
+    let decoded = value.strip_prefix('~').filter(|hex| !hex.is_empty() && hex.len() % 2 == 0).and_then(|hex| {
+        let bytes: Option<Vec<u8>> =
+            (0..hex.len()).step_by(2).map(|i| u8::from_str_radix(hex.get(i..i + 2)?, 16).ok()).collect();
+        String::from_utf8(bytes?).ok()
+    });
+    decoded.unwrap_or_else(|| value.to_owned())
+}
+
 /// Fields of the query string Pley doesn't keep the data for or doesn't read
 /// yet. A filter on one is refused rather than ignored: a tool changing what
 /// the filter finds would otherwise change the whole library.
@@ -608,7 +645,12 @@ impl Filter {
             None if prefixed || op != Op::Is || UNREAD_FIELDS.contains(&field) => return Err(refused()),
             None => return Ok(None),
         }
-        let values: Vec<String> = value.split(',').map(|v| v.trim().to_owned()).filter(|v| !v.is_empty()).collect();
+        let named = NAMED_FIELDS.contains(&field);
+        let values: Vec<String> = value
+            .split(',')
+            .map(|v| if named { choice_name(v.trim()) } else { v.trim().to_owned() })
+            .filter(|v| !v.is_empty())
+            .collect();
         if values.len() > MAX_VALUES {
             return Err(FilterError(format!("{raw_key} names {MAX_VALUES} values at most")));
         }
@@ -1527,6 +1569,21 @@ pub(crate) async fn smart_count(db: &Db, user_id: i64, lib: &LibraryRow, filter:
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_choice_key_passes_through_a_query_string_and_reads_back() {
+        assert_eq!(choice_key("Science Fiction"), "Science Fiction");
+        for name in ["Disney+ Movies", "Action & Adventure", "R&B, Soul", "100%", "~41", "Café+"] {
+            let key = choice_key(name);
+            assert!(key.starts_with('~') && key[1..].chars().all(|c| c.is_ascii_hexdigit()), "{key}");
+            assert_eq!(choice_name(&key), name);
+        }
+        // What isn't such a key is a name.
+        for value in ["~", "~4", "~zz", "~ff", "Plain"] {
+            assert_eq!(choice_name(value), value);
+        }
+    }
+
     use super::*;
 
     fn params(pairs: &[(&str, &str)]) -> Params {

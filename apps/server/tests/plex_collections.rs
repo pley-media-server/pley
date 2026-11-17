@@ -570,3 +570,36 @@ async fn the_owners_home_puts_a_hub_on_home_and_takes_it_off() {
         ]
     );
 }
+
+#[tokio::test]
+async fn a_label_with_a_plus_in_its_name_fills_a_smart_collection() {
+    let w = world().await;
+    let section = format!("/library/sections/{}/all", w.movies);
+    // As Kometa labels the movies a streaming service has.
+    for (id, label) in [(w.alien, "Disney+ Movies"), (w.brazil, "Disney+ Movies"), (w.alien, "Space")] {
+        let labelled = format!("{section}?type=1&id={id}&label[].tag.tag={}", encode(label));
+        assert_eq!(w.send(Method::PUT, &labelled).await.status, StatusCode::OK);
+    }
+
+    // A name a query string would break has a key that passes through one;
+    // other names are their own keys.
+    let choices = w.app.plex_json(&format!("/library/sections/{}/label?type=1", w.movies), &w.admin).await;
+    assert_eq!(directory_titles(&choices), ["Disney+ Movies", "Space"]);
+    let key_of = |n: usize| choices["Directory"][n]["key"].as_str().unwrap().to_owned();
+    let disney = key_of(0);
+    assert!(disney.chars().all(|c| c.is_ascii_alphanumeric() || c == '~'), "{disney}");
+    assert_eq!(key_of(1), "Space");
+
+    // Kometa puts the key into the smart filter as it is.
+    let listing = format!("server://m/com.plexapp.plugins.library{section}?type=1&sort=titleSort&label={disney}");
+    let uri =
+        format!("/library/collections?type=1&title=Disney&smart=1&sectionId={}&uri={}", w.movies, encode(&listing));
+    let made = w.send(Method::POST, &uri).await;
+    assert_eq!(made.status, StatusCode::OK, "{}", made.text());
+    let smart = key(&made.body["MediaContainer"]["Metadata"][0]);
+    assert_eq!(w.titles(&format!("/library/collections/{smart}/children")).await, ["Alien", "Brazil"]);
+
+    // python-plexapi encodes it; the name itself is still taken.
+    assert_eq!(w.titles(&format!("{section}?type=1&label={}", encode(&disney))).await, ["Alien", "Brazil"]);
+    assert_eq!(w.titles(&format!("{section}?type=1&label!={}", encode("Disney+ Movies"))).await, ["Casablanca"]);
+}

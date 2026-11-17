@@ -502,6 +502,14 @@ matches either, `and=1` both, and `push=1` … `pop=1` group them, as in
 `push=1&genre=Comedy&or=1&genre=Horror&pop=1&year>>=1980`. `and` binds
 tighter than `or`, and groups nest eight deep at most.
 
+Genres, labels, content ratings and studios are filtered by name, or by
+the `key` their filter choices list (`/library/sections/{id}/label` and the
+like). A choice's key is its name, unless the name holds a character a query
+string would break (`+`, `&`, `=`, `#`, `%`, `,`) or `~`: then it is `~` and
+the name's UTF-8 bytes in hex (`Disney+ Movies` is `~4469736e65792b204d6f76696573`),
+which comes through whether a tool encodes it or, as Kometa does in a smart
+collection's filter, puts it in as it is.
+
 Filters on ancestors work (`artist.id=5` on albums, `show.title=…` on
 episodes). A filter Pley can't apply answers `400` (`Pley can't filter by
 hdr`) rather than being ignored, as a tool acting on what it finds would

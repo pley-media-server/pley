@@ -119,8 +119,11 @@ impl Search {
                 ("label", _) => return Err(bad("labels of collections are filtered with = and !=")),
                 _ => return Err(bad(&format!("collections can't be filtered by `{raw_key}`"))),
             };
-            let values: Vec<String> =
-                value.split(',').map(|v| v.trim().to_lowercase()).filter(|v| !v.is_empty()).collect();
+            let values: Vec<String> = value
+                .split(',')
+                .map(|v| crate::listing::choice_name(v.trim()).to_lowercase())
+                .filter(|v| !v.is_empty())
+                .collect();
             if values.is_empty() || values.len() > MAX_VALUES {
                 return Err(bad(&format!("`{raw_key}` names 1 to {MAX_VALUES} values")));
             }

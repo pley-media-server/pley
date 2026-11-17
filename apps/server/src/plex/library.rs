@@ -647,7 +647,7 @@ pub async fn filter_choices(
         mc.push(
             Node::new("Directory")
                 .attr("fastKey", format!("/library/sections/{}/all?type={n}&{filter}={}", lib.id, encode(&value)))
-                .attr("key", value.clone())
+                .attr("key", crate::listing::choice_key(&value))
                 .attr("title", value)
                 .attr("type", filter.clone()),
         );
