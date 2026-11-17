@@ -215,6 +215,21 @@ export interface Hub {
   title: string;
   library_id: Id | null;
   items: ItemSummary[];
+  /** The collections the row shows: one, or on Home several of one title in different libraries; none (or missing, from an older server) for Continue Watching and My List. */
+  collection_ids?: Id[];
+}
+
+/** A collection's category as the collection names it; `key` is Pley's own ("highlights", "other", "franchises"), `null` an administrator's. */
+export interface CategoryRef {
+  id: Id;
+  key: string | null;
+  title: string;
+}
+
+/** A category of collections, shared by every library, in the order administrators chose (`GET /api/collection-categories`). */
+export interface CollectionCategory extends CategoryRef {
+  from_label?: string | null;
+  position?: number;
 }
 
 export interface Collection {
@@ -225,6 +240,15 @@ export interface Collection {
   item_count: number;
   poster_url: string;
   backdrop_url: string;
+  /** Its category: the server's Other (`key` "other") when it has none; missing from a server older than categories. */
+  category?: CategoryRef;
+}
+
+/** A Home row of several libraries' collections of one title (`GET /api/collections/merged`), every title in the row's order. */
+export interface MergedCollection {
+  title: string;
+  collections: { id: Id; library_id: Id }[];
+  items: ItemSummary[];
 }
 
 export interface Playlist {

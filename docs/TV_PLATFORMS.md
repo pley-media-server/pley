@@ -263,6 +263,28 @@ takes no casts: whoever stands at the TV is choosing, and a cast would
 choose for them. The rules are in `packages/tv/test/fixtures/tracks.json`
 too.
 
+### Collections
+
+A movie or show library's Recommended tab shows the rows administrators
+chose for it, and Home those chosen for Home, where collections of the
+same title in several libraries are one row ([API.md](API.md#rows)). A
+row's See all opens the collection it shows (a row's title takes no
+focus on the TV); a merged row opens its collections together, every
+title in the row's order, with a chip for each library they come from,
+which opens that library's collection. Play there plays the movies one
+after another, or, with none, a show's next episode.
+
+The Collections tab groups a library's collections under their
+categories, Other among them, in the order administrators gave them: a row for
+each, or a grid without a heading when only one group shows. The Category
+chip, there when there is more than one category to choose, narrows it to
+one; how a collection was made matters only to administrators, so the TV
+doesn't filter by it. A collection's page shows its category beside
+"Collection", unless it's Other. Managing categories and choosing the rows of Home and
+Recommended are in the web and desktop apps. The grouping is pinned by
+`packages/tv/test/fixtures/collections.json`, which the native app runs
+too.
+
 ### Requests
 
 Where the server takes requests ([API.md](API.md#requests)), the rail has

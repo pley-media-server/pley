@@ -5,7 +5,7 @@ import { TokenError, type OAuthError } from "../../src/auth/tokens";
 import type { HttpRequest, Transport } from "../../src/net/transport";
 import { NetworkError } from "../../src/net/transport";
 import { shuffled } from "../../src/player/music";
-import { featuredLabel, featuredOf, heroOf, rowKind, seeAllOf, seeAllSort } from "../../src/ui/screens/home";
+import { collectionOf, featuredLabel, featuredOf, heroOf, rowKind, seeAllOf, seeAllSort } from "../../src/ui/screens/home";
 import { castAndCrew } from "../../src/ui/screens/item";
 import { openingTab } from "../../src/ui/screens/library";
 import featured from "../fixtures/featured.json";
@@ -198,6 +198,14 @@ describe("Home", () => {
   it("offers See all for a library's newest only", () => {
     expect(seeAllOf(movies)).toBe(1);
     expect(seeAllOf(cw)).toBeNull();
+  });
+
+  it("opens the collection a row shows, or the merged page of several", () => {
+    expect(collectionOf({ ...movies, collection_ids: [12] })).toEqual({ name: "collection", id: 12 });
+    expect(collectionOf({ ...movies, key: "collections:12,31", library_id: null, collection_ids: [12, 31] })).toEqual({ name: "mergedCollection", ids: [12, 31] });
+    // Continue Watching, and a server older than collections' rows.
+    expect(collectionOf({ ...cw, collection_ids: [] })).toBeNull();
+    expect(collectionOf(movies)).toBeNull();
   });
 
   it("lists a row's See all in the row's order", () => {

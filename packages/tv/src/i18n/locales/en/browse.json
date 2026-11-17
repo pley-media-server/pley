@@ -175,7 +175,10 @@
     "byRelease": "By release date",
     "byTitle": "By title",
     "customOrder": "Custom order",
-    "empty": "Nothing in this collection yet."
+    "empty": "Nothing in this collection yet.",
+    "category": "Category",
+    "allCategories": "All categories",
+    "from": "From"
   },
   "person": {
     "rows": {
