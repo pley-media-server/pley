@@ -87,6 +87,11 @@ public final class CollectionsModel: ObservableObject {
     @Published public private(set) var state: State = .loading
     @Published public private(set) var collections: [CollectionSummary] = []
     @Published public private(set) var categories: [CollectionCategory] = []
+    /// Every group, those with a collection in them. Made after each read
+    /// (and a change of kind), not each time a view asks: every card's
+    /// words are made with them, and the tab asks for them several times a
+    /// drawing.
+    @Published private var allGroups: [CollectionGroup] = []
     /// Why the last read failed while cards still show.
     @Published public private(set) var notice: String?
     @Published public var category: CategoryChoice = .all
@@ -94,7 +99,9 @@ public final class CollectionsModel: ObservableObject {
     public let app: AppModel
     public let libraryId: Int
     /// The library's kind, for the counts' nouns.
-    public var kind: LibraryKind?
+    public var kind: LibraryKind? {
+        didSet { if kind != oldValue { regroup() } }
+    }
 
     public init(app: AppModel, libraryId: Int, kind: LibraryKind? = nil) {
         self.app = app
@@ -107,11 +114,6 @@ public final class CollectionsModel: ObservableObject {
 
     /// Every collection's card, by title.
     public var cards: [CollectionCard] { collections.map { CollectionCard($0, kind: kind) } }
-
-    /// Every group, those with a collection in them.
-    private var allGroups: [CollectionGroup] {
-        CollectionGroup.of(collections, categories: categories, kind: kind)
-    }
 
     /// The groups the Category filter offers: those with a category.
     public var categoryChoices: [CollectionGroup] { allGroups.filter { $0.choice != nil } }
@@ -164,12 +166,17 @@ public final class CollectionsModel: ObservableObject {
             let (collections, categories) = try await (found, order)
             self.collections = collections
             self.categories = categories ?? self.categories
+            regroup()
             state = .loaded
             notice = nil
         } catch is CancellationError {
         } catch {
             if state == .loaded { notice = describe(error) } else { state = .failed(describe(error)) }
         }
+    }
+
+    private func regroup() {
+        allGroups = CollectionGroup.of(collections, categories: categories, kind: kind)
     }
 }
 
