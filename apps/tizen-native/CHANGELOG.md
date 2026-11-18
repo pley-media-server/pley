@@ -8,6 +8,12 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Fixed
+
+- Audio above 48 kHz (AAC 5.1 at 96 kHz, say) plays clean: the TV decodes
+  up to 48 kHz and garbled it without an error, so the server now converts
+  such a track to 48 kHz.
+
 ## [0.1.11] - 2026-11-18
 
 ### Added

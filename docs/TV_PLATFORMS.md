@@ -530,6 +530,11 @@ and field reports:
   a file's audio tracks without its TrueHD, and the E-AC-3 (Atmos) beside it
   plays instead. The native app switches to a track by its place in the
   player's list, once the player is ready, and Info shows the one playing.
+  Samsung's specifications list sample rates up to 48 kHz, and AAC 5.1 at
+  96 kHz played as it is comes out garbled, the player saying nothing. Both
+  apps say so in their report (`audio_max_sample_rate`), and the server
+  converts a decoded track above it to 48 kHz; one passed through to a
+  receiver stays as it is (`packages/tv/test/fixtures/audio-rate.json`).
 - **`<video>` and MSE** stop H.264 at 1080p; 4K and 8K need AVPlay.
 - **AVPlay sends no request headers** but a cookie and a User-Agent, so
   the app plays from [keyed addresses](API.md#keyed-urls).

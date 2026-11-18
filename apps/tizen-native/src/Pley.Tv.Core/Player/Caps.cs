@@ -55,6 +55,8 @@ public sealed record ClientCaps
     public IReadOnlyList<DolbyVisionCaps> DolbyVisionProfiles { get; init; } = new DolbyVisionCaps[0];
     public IReadOnlyList<string> AudioDecode { get; init; } = new string[0];
     public IReadOnlyList<string> AudioPassthrough { get; init; } = new string[0];
+    /// <summary>The highest sample rate the TV decodes audio at, in Hz; null: not checked.</summary>
+    public int? AudioMaxSampleRate { get; init; }
     public IReadOnlyList<string> SubtitleCodecs { get; init; } = new string[0];
     /// <summary>The player draws picture subtitles from the server's .mks of them.</summary>
     public bool PictureSubtitlesSideload { get; init; }
