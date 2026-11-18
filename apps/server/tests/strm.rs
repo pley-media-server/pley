@@ -121,7 +121,10 @@ struct Fake {
     http: reqwest::Client,
     /// It is too old to read an address (`remote_inputs`).
     old: Arc<AtomicBool>,
+    /// What it read to probe, in order. As the transcoder, it keeps what it
+    /// found by address, and answers for one it knows without reading.
     probes: Arc<Mutex<Vec<String>>>,
+    known: Arc<Mutex<Vec<String>>>,
     jobs: Arc<Mutex<Vec<JobRequest>>>,
     conversions: Arc<Mutex<Vec<JobRequest>>>,
     subtitles: Arc<Mutex<Vec<SubtitleRequest>>>,
@@ -183,6 +186,9 @@ async fn start_fake() -> (Fake, String) {
             // As FFprobe: it reads the start of what it is given, and finds
             // media there or not.
             post(|State(fake): State<Fake>, Json(req): Json<ProbeRequest>| async move {
+                if fake.known.lock().contains(&req.path) {
+                    return Json(probed()).into_response();
+                }
                 fake.probes.lock().push(req.path.clone());
                 if !req.path.starts_with("http://") {
                     return error(StatusCode::NOT_FOUND, "not_found");
@@ -190,7 +196,10 @@ async fn start_fake() -> (Fake, String) {
                 let read = fake.http.get(&req.path).header(header::RANGE, "bytes=0-3").send().await;
                 match read {
                     Ok(answer) if answer.status().is_success() => match answer.bytes().await {
-                        Ok(bytes) if bytes.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]) => Json(probed()).into_response(),
+                        Ok(bytes) if bytes.starts_with(&[0x1A, 0x45, 0xDF, 0xA3]) => {
+                            fake.known.lock().push(req.path.clone());
+                            Json(probed()).into_response()
+                        }
                         _ => error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed"),
                     },
                     _ => error(StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg_failed"),
@@ -395,7 +404,7 @@ async fn playing_it_finds_what_its_media_is_once_and_plays_it_through_pley() {
     // of the one the file names.
     let probes = w.fake.probes.lock().clone();
     assert_eq!(probes.len(), 1);
-    assert!(probes[0].starts_with(&format!("{}/api/strm/", w.own)) && probes[0].ends_with("/media.mkv"), "{probes:?}");
+    assert!(probes[0].starts_with(&format!("{}/api/strm/", w.own)) && probes[0].ends_with(".mkv"), "{probes:?}");
     assert!(!probes[0].contains(SECRET) && !probes[0].contains("film") && !probes[0].contains(&w.remote_base));
     // The address was asked as the file says to.
     let asked_with = w.remote.headers.lock().clone();
@@ -446,8 +455,16 @@ async fn a_stream_and_its_subtitles_are_made_from_pleys_own_address() {
     assert_eq!(started.status, StatusCode::OK, "{}", started.body);
     assert_eq!((&started.body["method"], &started.body["hls"]), (&json!("remux"), &json!(true)));
     let job = w.fake.jobs.lock()[0].clone();
-    let address = w.fake.probes.lock()[0].clone();
-    assert_eq!(job.input, address, "the same address as it was probed at: what the transcoder keeps of it stays");
+    // Pley's own address for the file, the same for as long as it names its
+    // address (the transcoder keeps what it read of it by that address);
+    // the look at it was probed at one beside it, of its own.
+    let address = job.input.clone();
+    let probe = w.fake.probes.lock()[0].clone();
+    let folder = |address: &str| address.rsplit_once('/').unwrap().0.to_owned();
+    assert!(
+        address.ends_with("/media.mkv") && folder(&address) == folder(&probe) && probe != address,
+        "{address} {probe}"
+    );
     assert_eq!(job.media.as_ref().and_then(|m| m.container.as_deref()), Some("mkv"));
 
     // The transcoder reads the media there, with ranges...
@@ -603,7 +620,8 @@ async fn what_was_found_stays_until_the_file_names_another_address() {
     assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::OK);
     let probes = w.fake.probes.lock().clone();
     assert_eq!(probes.len(), 2);
-    assert_ne!(probes[0], probes[1], "pley's own address for it changes with it");
+    let folder = |address: &str| address.rsplit_once('/').unwrap().0.to_owned();
+    assert_ne!(folder(&probes[0]), folder(&probes[1]), "pley's own address for it changes with it");
     assert_eq!(w.kept("Film").await.0.as_deref(), Some("mkv"));
 
     // Where it redirects to is asked directly for a while: not through the
@@ -618,11 +636,13 @@ async fn what_was_found_stays_until_the_file_names_another_address() {
     }
     assert_eq!(w.remote.redirected.load(Ordering::SeqCst), through);
 
-    // Every file scanned again: looked at again when it next plays.
+    // Every file scanned again: what was kept goes, and it is probed again
+    // when it next plays (the transcoder answers with what it knows of a
+    // file that didn't change, as for one on disk).
     w.scan(true).await;
     assert_eq!(w.kept("Film").await, (Some("strm".into()), 0, None));
     assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::OK);
-    assert_eq!(w.fake.probes.lock().len(), 3);
+    assert_eq!(w.kept("Film").await, (Some("mkv".into()), media().len() as i64, Some(60_000)));
 }
 
 /// What a scan kept of a file's media says nothing of what its address
@@ -640,7 +660,8 @@ async fn what_is_handed_out_was_read_at_the_address_the_file_names_now() {
     let named = std::fs::read_to_string(app.media.path().join(rel)).unwrap();
 
     // The file written again, naming the same address: its name may lead
-    // elsewhere than when it was read, so it is read again, once.
+    // elsewhere than when it was read, so it is read again, once, whatever
+    // the transcoder knows of Pley's address for it.
     w.strm(rel, &format!("# written again\n{named}"));
     for _ in 0..2 {
         assert_eq!(app.get(&stream, admin).await.bytes.len(), media().len());

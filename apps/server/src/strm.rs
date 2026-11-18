@@ -37,7 +37,7 @@ use std::io::Read;
 use std::net::{IpAddr, SocketAddr};
 use std::path::Path;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 
 use axum::body::Body;
@@ -309,6 +309,12 @@ pub struct Link {
     /// link (this address, of the internet or of this network as `public`
     /// has it), and its size: none until then ([`look`]).
     seen: Mutex<Option<(Arc<MediaInfo>, i64)>>,
+    /// Names the address a look at it is probed at ([`Relay::look_address`]):
+    /// this link's alone, so the transcoder reads it rather than answer
+    /// with what it knows of the file's other address.
+    nonce: String,
+    /// Whether the transcoder read media at that address, through this link.
+    read: AtomicBool,
     /// When it was last used ([`Relay::links`] forgets the oldest).
     used: AtomicI64,
 }
@@ -342,6 +348,8 @@ const GLANCE: Duration = Duration::from_millis(2500);
 /// How long a look at a file's media may take: an address slower than that
 /// to say what it holds is taken as one that doesn't answer.
 const LOOK: Duration = Duration::from_secs(45);
+/// What the name of a look's address starts with ([`Relay::look_address`]).
+const LOOK_NAME: &str = "look-";
 
 #[derive(Default)]
 struct Links {
@@ -492,6 +500,12 @@ impl Relay {
                     len: AtomicU64::new(0),
                     resolved: Mutex::new(None),
                     seen: Mutex::new(None),
+                    nonce: {
+                        let mut nonce = [0u8; 8];
+                        getrandom::fill(&mut nonce).expect("the system's random numbers");
+                        hex::encode(nonce)
+                    },
+                    read: AtomicBool::new(false),
                     used: AtomicI64::new(0),
                 });
                 let mut links = self.links.lock();
@@ -524,13 +538,26 @@ impl Relay {
     /// server's own, which says nothing of the one the file names. It ends
     /// like that one, for what tells formats apart by their name.
     async fn address(&self, state: &AppState, link: &Link) -> Result<String, Failed> {
+        self.address_named(state, link, "media").await
+    }
+
+    /// Where the transcoder probes `link`'s media for a look at it
+    /// ([`look`]): an address of this link's own. The transcoder keeps what
+    /// it probed by address, and would answer for [`Relay::address`], which
+    /// stays the same for as long as the file names its address, without
+    /// reading anything through this link.
+    async fn look_address(&self, state: &AppState, link: &Link) -> Result<String, Failed> {
+        self.address_named(state, link, &format!("{LOOK_NAME}{}", link.nonce)).await
+    }
+
+    async fn address_named(&self, state: &AppState, link: &Link, name: &str) -> Result<String, Failed> {
         let told = self.address.lock().clone();
         let base = match told {
             Some(base) => base,
             None => own_address(state).await.ok_or(Failed::NoWayIn)?,
         };
         let ext = link.target.extension().map(|ext| format!(".{ext}")).unwrap_or_default();
-        Ok(format!("{base}/api/strm/{}/media{ext}", link.key))
+        Ok(format!("{base}/api/strm/{}/{name}{ext}", link.key))
     }
 
     /// The client `link`'s address is asked with: once it is found to be on
@@ -597,7 +624,10 @@ impl Relay {
         let resolved = link.resolved.lock().clone().filter(|(_, at)| at.elapsed() < RESOLVED_FOR);
         if let Some((url, _)) = resolved {
             match Self::get(client, link, &url, range).await {
-                Ok(response) if answers(response.status()) => return Ok(response),
+                Ok(response) if answers(response.status()) => {
+                    note_size(link, &response);
+                    return Ok(response);
+                }
                 _ => *link.resolved.lock() = None,
             }
         }
@@ -791,7 +821,9 @@ async fn from_transcoder(state: &AppState, peer: Option<IpAddr>, headers: &Heade
     // on one address only is reached there by its own transcoder too) from
     // an address it listens on.
     let own = |listener: crate::network::Listener| {
-        listener.kind == crate::network::Kind::Web && listener.address.ip().to_canonical() == peer
+        listener.kind == crate::network::Kind::Web
+            && listener.error.is_none()
+            && listener.address.ip().to_canonical() == peer
     };
     if peer.is_loopback() || state.network.listeners().into_iter().any(own) {
         return true;
@@ -811,14 +843,24 @@ async fn from_transcoder(state: &AppState, peer: Option<IpAddr>, headers: &Heade
 pub async fn relay(
     axum::extract::State(state): axum::extract::State<AppState>,
     crate::auth::PeerIp(peer): crate::auth::PeerIp,
-    axum::extract::Path((key, _name)): axum::extract::Path<(String, String)>,
+    axum::extract::Path((key, name)): axum::extract::Path<(String, String)>,
     request: axum::extract::Request,
 ) -> ApiResult<Response> {
     if !from_transcoder(&state, peer, request.headers()).await {
         return Err(AppError::not_found("not found"));
     }
     let link = state.strm.by_key(&key).ok_or_else(|| AppError::not_found("not found"))?;
-    Ok(state.strm.respond(&link, request.method(), request.headers(), "application/octet-stream").await?)
+    // A look's address is one link's: another made for the file since (the
+    // file was written again) isn't the one being looked at.
+    let look = name.strip_prefix(LOOK_NAME).map(|rest| rest.split('.').next().unwrap_or(rest));
+    if look.is_some_and(|nonce| nonce != link.nonce) {
+        return Err(AppError::not_found("not found"));
+    }
+    let response = state.strm.respond(&link, request.method(), request.headers(), "application/octet-stream").await?;
+    if look.is_some() && response.status().is_success() {
+        link.read.store(true, Ordering::Relaxed);
+    }
+    Ok(response)
 }
 
 /// What the transcoder is given to read `file`: its path, or for a `.strm`
@@ -986,7 +1028,7 @@ pub async fn glance(state: &AppState, item_id: i64) -> bool {
 /// media (remembered for a moment), or any other error.
 async fn look(state: &AppState, file: &FileRow, link: &Arc<Link>) -> Result<FileRow, Result<Failed, AppError>> {
     remote_inputs(state).map_err(Err)?;
-    let address = state.strm.address(state, link).await.map_err(Ok)?;
+    let address = state.strm.look_address(state, link).await.map_err(Ok)?;
     let first_byte = HeaderValue::from_static("bytes=0-0");
     let info = match tokio::time::timeout(LOOK, state.transcoder.probe_now(&address)).await {
         Ok(Ok(info)) => info,
@@ -1007,9 +1049,9 @@ async fn look(state: &AppState, file: &FileRow, link: &Arc<Link>) -> Result<File
     {
         return Err(Ok(Failed::NotMedia));
     }
-    // (A transcoder that had probed it before answers without asking it again.)
-    if link.media_len().is_none() {
-        let _ = state.strm.fetch(link, Some(&first_byte)).await;
+    // Read through this link, not answered from what a transcoder knew.
+    if !link.read.load(Ordering::Relaxed) {
+        return Err(Ok(Failed::NotMedia));
     }
     let size = link.media_len().and_then(|len| i64::try_from(len).ok()).unwrap_or(0);
     *link.seen.lock() = Some((Arc::new(info.clone()), size));
@@ -1040,7 +1082,9 @@ fn bitrate_of(info: &MediaInfo, size: i64) -> Option<i64> {
 }
 
 /// Keeps what `file`'s media was found to be, for as long as the file
-/// names the address it was found at.
+/// names the address it was found at. Nothing is written, or said to the
+/// apps, when it is what was kept already (a look after the server
+/// started).
 async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, size: i64) -> sqlx::Result<()> {
     let (video, audio) = (info.video(), info.default_audio());
     let bitrate = bitrate_of(info, size);
@@ -1048,9 +1092,9 @@ async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, s
     let now = crate::util::now();
     let mut tx = state.db.write.begin().await?;
     let kept = sqlx::query(
-        "UPDATE media_files SET container = ?, duration_ms = ?, bitrate = ?, width = ?, height = ?, video_codec = ?,
-            dynamic_range = ?, audio_codec = ?, media_info = ?, size = ?, updated_at = ?
-         WHERE id = ? AND link_key = ?",
+        "UPDATE media_files SET container = ?1, duration_ms = ?2, bitrate = ?3, width = ?4, height = ?5,
+            video_codec = ?6, dynamic_range = ?7, audio_codec = ?8, media_info = ?9, size = ?10, updated_at = ?11
+         WHERE id = ?12 AND link_key = ?13 AND (media_info IS NOT ?9 OR size IS NOT ?10)",
     )
     .bind(&info.container)
     .bind(info.duration_ms)
