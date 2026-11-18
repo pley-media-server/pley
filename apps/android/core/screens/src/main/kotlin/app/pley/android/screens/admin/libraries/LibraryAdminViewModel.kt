@@ -40,6 +40,8 @@ data class LibraryForm(
     val name: String = "",
     val kind: LibraryKind = LibraryKind.Movies,
     val paths: List<String> = emptyList(),
+    /** Pley makes the library's collections from TMDB; only a film library shows and sends it. */
+    val tmdbCollections: Boolean = true,
     /** Saving was tried without a folder: said before anything is sent, as the web does. */
     val noFolder: Boolean = false,
 )
@@ -80,7 +82,9 @@ class LibraryAdminViewModel(admin: ServerAdmin, private val libraryId: Long?) : 
             viewModelScope.launch {
                 val first = page.state.first { it is AdminLoad.Ready } as AdminLoad.Ready
                 val library = first.value.library ?: return@launch
-                if (formNow.value == null) formNow.value = LibraryForm(library.name, library.kind, library.paths)
+                if (formNow.value == null) {
+                    formNow.value = LibraryForm(library.name, library.kind, library.paths, tmdbCollections = library.tmdbCollections)
+                }
             }
         }
     }
@@ -101,14 +105,27 @@ class LibraryAdminViewModel(admin: ServerAdmin, private val libraryId: Long?) : 
 
     fun removePath(path: String) = edit { it.copy(paths = it.paths - path) }
 
+    /** Whether Pley makes the library's collections from TMDB (a film library's). */
+    fun setTmdbCollections(on: Boolean) = edit { it.copy(tmdbCollections = on) }
+
     /** The form differs from the library as saved (a new one's always can be sent). */
     fun changed(form: LibraryForm, library: Library?): Boolean =
-        library == null || form.name.trim() != library.name || form.paths != library.paths
+        library == null ||
+            form.name.trim() != library.name ||
+            form.paths != library.paths ||
+            form.tmdbCollections != library.tmdbCollections
 
     /**
-     * Makes the library, or saves its name and folders; a name left empty
-     * is the kind's [defaultName], as the web does. Without a folder,
-     * nothing is sent and the form says so.
+     * Saving [form] turns the library's collections from TMDB off, which
+     * removes them, edits and all: the page asks before it [save]s.
+     */
+    fun asksFirst(form: LibraryForm, library: Library?): Boolean =
+        library?.tmdbCollections == true && !form.tmdbCollections
+
+    /**
+     * Makes the library, or saves its name, folders and collections from
+     * TMDB; a name left empty is the kind's [defaultName], as the web does.
+     * Without a folder, nothing is sent and the form says so.
      */
     fun save(defaultName: String) {
         val form = formNow.value ?: return
@@ -121,13 +138,18 @@ class LibraryAdminViewModel(admin: ServerAdmin, private val libraryId: Long?) : 
         val close: () -> Unit = { if (ok) done.trySend(Unit) }
         if (libraryId == null) {
             change(said = AdminDone(LibraryAdmin.ADDED, listOf(name)), after = close) {
-                val body = PleyJson.encodeToJsonElement(NewLibrary.serializer(), NewLibrary(name, form.kind, form.paths))
+                // Only a film library shows the switch: another kind keeps the server's default.
+                val tmdbCollections = form.tmdbCollections || form.kind != LibraryKind.Movies
+                val body = PleyJson.encodeToJsonElement(NewLibrary.serializer(), NewLibrary(name, form.kind, form.paths, tmdbCollections))
                 send("POST", Library.serializer(), LibraryAdmin.LIBRARIES, body)
                 ok = true
             }
         } else {
             change(said = AdminDone(LibraryAdmin.UPDATED), after = close) {
-                val body = PleyJson.encodeToJsonElement(LibraryChange.serializer(), LibraryChange(name, form.paths))
+                // Sent only when it changes: turning it on reads the library's metadata again.
+                val saved = page.state.value.valueOrNull?.library?.tmdbCollections
+                val tmdbCollections = form.tmdbCollections.takeIf { it != saved }
+                val body = PleyJson.encodeToJsonElement(LibraryChange.serializer(), LibraryChange(name, form.paths, tmdbCollections))
                 send("PATCH", Library.serializer(), listOf("api", "libraries", libraryId), body)
                 ok = true
             }

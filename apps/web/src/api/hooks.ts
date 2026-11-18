@@ -520,6 +520,7 @@ export interface LibraryInput {
   name: string;
   kind: LibraryKind;
   paths: string[];
+  tmdb_collections?: boolean;
 }
 
 export function useCreateLibrary() {
@@ -537,7 +538,7 @@ export function useCreateLibrary() {
 export function useUpdateLibrary() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, ...body }: { id: Id; name?: string; paths?: string[]; labels_pending?: false }) =>
+    mutationFn: ({ id, ...body }: { id: Id; name?: string; paths?: string[]; labels_pending?: false; tmdb_collections?: boolean }) =>
       api.patch<Library>(`/api/libraries/${id}`, body),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: keys.libraries });

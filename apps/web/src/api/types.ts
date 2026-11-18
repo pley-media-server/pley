@@ -195,6 +195,8 @@ export interface Library {
   scanning: boolean;
   /** A Plex import is bringing Plex's labels to it: profiles with labels they never see don't see it yet. */
   labels_pending?: boolean;
+  /** Pley makes collections from TMDB in it (a movie library's); missing from servers older than the switch. */
+  tmdb_collections?: boolean;
 }
 
 export type ItemKind =

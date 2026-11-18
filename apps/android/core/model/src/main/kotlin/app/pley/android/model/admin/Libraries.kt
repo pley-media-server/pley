@@ -30,19 +30,26 @@ data class LibraryScan(
     val running: Boolean get() = phase != ScanPhase.Done
 }
 
-/** POST /api/libraries: a new library, scanned at once. */
+/** POST /api/libraries: a new library, scanned at once; [tmdbCollections] only matters to a film library. */
 @Serializable
 data class NewLibrary(
     val name: String,
     val kind: LibraryKind,
     val paths: List<String>,
+    val tmdbCollections: Boolean = true,
 )
 
-/** PATCH /api/libraries/{id}: its name and folders (each left out when `null`); new folders are scanned. */
+/**
+ * PATCH /api/libraries/{id}: its name, folders and whether Pley makes its
+ * collections from TMDB (each left out when `null`); new folders are
+ * scanned. Turning [tmdbCollections] off removes the ones Pley made, edited
+ * or not; turning it on reads the library's metadata again.
+ */
 @Serializable
 data class LibraryChange(
     val name: String? = null,
     val paths: List<String>? = null,
+    val tmdbCollections: Boolean? = null,
 )
 
 /** POST /api/libraries/{id}/scan; [force] probes every file again and refreshes the metadata. */

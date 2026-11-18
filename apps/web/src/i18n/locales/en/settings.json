@@ -440,6 +440,10 @@
       "typePath": "…or type a folder path",
       "folderPath": "Folder path",
       "layout": "Recommended layout: <path>{{layout}}</path>",
+      "tmdbCollections": "Make collections from TMDB",
+      "tmdbCollectionsHint": "Groups films TMDB puts in a series, such as the Alien films, under Box sets. Turn it off if another tool, such as Kometa, makes this library's collections.",
+      "tmdbCollectionsOffTitle": "Remove collections from TMDB?",
+      "tmdbCollectionsOffMessage": "Pley's collections from TMDB in <name>{{name}}</name> will be removed, with any changes made to them, such as their artwork or where they show. Turning this back on makes them again as TMDB has them.",
       "nothingMounted": "Pley runs in a container, and no media folder is mounted into it yet. Mount yours at <path>/media</path> (with Docker, <path>-v /your/media:/media:ro</path>), then restart the container."
     }
   },

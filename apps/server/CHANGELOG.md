@@ -23,6 +23,10 @@ describes how they are made.
   intro detection aren't made for it
   ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md#strm-files)).
   Administrators turn them off in Settings → Server.
+- A movie library can do without collections from TMDB, for another
+  tool such as Kometa to make them: Make collections from TMDB, in the
+  library's settings, removes them when turned off, edits and all, and
+  makes them again when turned back on.
 
 ### Changed
 

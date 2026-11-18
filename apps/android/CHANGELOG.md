@@ -8,6 +8,11 @@ describes how they are made.
 
 ## [Unreleased]
 
+### Added
+
+- Manage server → Libraries can turn off a film library's collections from
+  TMDB.
+
 ## [0.1.15] - 2026-11-18
 
 ### Added

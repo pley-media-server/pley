@@ -29,6 +29,7 @@ import app.pley.android.designsystem.PleyColors
 import app.pley.android.designsystem.icon.Icon
 import app.pley.android.designsystem.icon.PleyIcons
 import app.pley.android.model.Library
+import app.pley.android.model.LibraryKind
 import app.pley.android.screens.admin.libraries.LibraryAdminViewModel
 import app.pley.android.screens.admin.libraries.LibraryForm
 import app.pley.android.screens.admin.libraries.LibraryPage
@@ -39,6 +40,7 @@ import app.pley.android.ui.phone.account.ChoiceSheet
 import app.pley.android.ui.phone.account.RowDivider
 import app.pley.android.ui.phone.account.SettingsGroup
 import app.pley.android.ui.phone.account.SettingsRow
+import app.pley.android.ui.phone.account.SwitchRow
 import app.pley.android.ui.phone.admin.AdminEvents
 import app.pley.android.ui.phone.admin.WhileShown
 import app.pley.android.ui.phone.admin.AdminPage
@@ -52,12 +54,13 @@ import app.pley.android.ui.phone.kit.PrimaryButton
 import app.pley.android.ui.phone.shell.LocalPhoneNavigator
 
 /** What the library's page has open over it. */
-private enum class LibraryDialog { Kind, Name, Path, Delete }
+private enum class LibraryDialog { Kind, Name, Path, TmdbCollectionsOff, Delete }
 
 /**
  * A library's page, or a new library's (the web's library form): its kind
- * (a new one's), name and folders, picked on the server or typed, sent
- * together with Add library or Save changes; then, for a library, Scan,
+ * (a new one's), name and folders, picked on the server or typed, and
+ * for films whether Pley makes collections from TMDB, sent together with
+ * Add library or Save changes (turning that off asks first); then, for a library, Scan,
  * Force full rescan and Delete, which asks first. The page closes once the
  * library is made, saved or deleted.
  */
@@ -114,10 +117,26 @@ internal fun LibraryAdminScreen(id: String) {
                 onRemove = vm::removePath,
             )
         }
+        // TMDB groups films only: the switch shows for a film library, and for a new one once Movies is picked.
+        if (current.kind == LibraryKind.Movies) {
+            item(key = "collections") {
+                SettingsGroup(null, Modifier.adminWidth) {
+                    SwitchRow(
+                        stringResource(R.string.admin_libraries_tmdb_collections),
+                        checked = current.tmdbCollections,
+                        onChange = vm::setTmdbCollections,
+                        subtitle = stringResource(R.string.admin_libraries_tmdb_collections_hint),
+                        modifier = Modifier.testTag(LIBRARY_TMDB_COLLECTIONS),
+                    )
+                }
+            }
+        }
         item(key = "save") {
             PrimaryButton(
                 stringResource(if (vm.isNew) R.string.admin_libraries_add_title else R.string.admin_libraries_save_changes),
-                onClick = { vm.save(defaultName) },
+                onClick = {
+                    if (vm.asksFirst(current, library)) dialog = LibraryDialog.TmdbCollectionsOff else vm.save(defaultName)
+                },
                 enabled = busy == 0 && vm.changed(current, library),
                 modifier = Modifier.adminWidth.testTag(LIBRARY_SAVE),
             )
@@ -168,6 +187,17 @@ internal fun LibraryAdminScreen(id: String) {
             onSave = { path ->
                 vm.addPath(path)
                 dialog = null
+            },
+            onDismiss = { dialog = null },
+        )
+        LibraryDialog.TmdbCollectionsOff -> ConfirmDialog(
+            title = stringResource(R.string.admin_libraries_tmdb_collections_off_title),
+            body = stringResource(R.string.admin_libraries_tmdb_collections_off_message, library?.name.orEmpty()),
+            confirmLabel = stringResource(R.string.admin_libraries_tmdb_collections_off_confirm),
+            destructive = true,
+            onConfirm = {
+                dialog = null
+                vm.save(resources.getString(kindDefaultName(current.kind)))
             },
             onDismiss = { dialog = null },
         )
@@ -267,6 +297,7 @@ internal const val LIBRARY_PAGE = "pley.admin.library"
 internal const val LIBRARY_KIND = "pley.admin.library.kind"
 internal const val LIBRARY_NAME = "pley.admin.library.name"
 internal const val LIBRARY_BROWSE = "pley.admin.library.browse"
+internal const val LIBRARY_TMDB_COLLECTIONS = "pley.admin.library.tmdb_collections"
 internal const val LIBRARY_SAVE = "pley.admin.library.save"
 internal const val LIBRARY_SCAN_ROW = "pley.admin.library.scan"
 internal const val LIBRARY_RESCAN_ROW = "pley.admin.library.rescan"

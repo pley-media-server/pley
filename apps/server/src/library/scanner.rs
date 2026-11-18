@@ -247,6 +247,12 @@ impl Scanner {
         self.request(ScanRequest { library_id, force: false, files: true, metadata: false }, false);
     }
 
+    /// Fetches every title's metadata in a library again, without scanning
+    /// its files: what TMDB says of them, their collections included.
+    pub fn enqueue_refresh(&self, library_id: i64) {
+        self.request(ScanRequest { library_id, force: true, files: false, metadata: true }, false);
+    }
+
     /// Fetches metadata for a library's titles that have none, without
     /// walking its folders again.
     pub fn enqueue_metadata(&self, library_id: i64) {
@@ -2375,6 +2381,7 @@ mod tests {
             created_at: 0,
             scanned_at,
             labels_pending: false,
+            tmdb_collections: true,
         }
     }
 

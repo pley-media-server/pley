@@ -287,6 +287,63 @@ async fn movies_are_matched_and_described() {
     assert_eq!(lookups(), 4);
 }
 
+/// A library can leave its collections to another tool: turned off, Pley's
+/// from TMDB go, edited ones too, and no refresh makes them; turned on, the
+/// metadata is read again and they are back as TMDB has them.
+#[tokio::test]
+async fn a_library_can_go_without_collections_from_tmdb() {
+    let (app, _tmdb, admin, lib) = world().await;
+    use_key(&app, &admin, KEY).await;
+    let collections = || async {
+        let listed = app.get(&format!("/api/libraries/{lib}/collections"), &admin).await;
+        common::own_collections(&listed.body)
+    };
+    let path = format!("/api/libraries/{lib}");
+    let switch = |on: bool| app.patch(&path, &admin, json!({"tmdb_collections": on}));
+    assert_eq!(app.get(&format!("/api/libraries/{lib}"), &admin).await.body["tmdb_collections"], json!(true));
+    assert_eq!(titles(&collections().await), ["Alien Collection"]);
+
+    let off = switch(false).await;
+    assert_eq!((off.status, off.body["tmdb_collections"].clone()), (StatusCode::OK, json!(false)));
+    assert_eq!(titles(&collections().await), Vec::<String>::new());
+    app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({"force": true})).await;
+    app.wait_for_scans().await;
+    assert_eq!(titles(&collections().await), Vec::<String>::new(), "a refresh makes none");
+
+    switch(true).await;
+    app.wait_for_scans().await;
+    let back = collections().await;
+    assert_eq!(titles(&back), ["Alien Collection"]);
+    assert_eq!(back[0]["item_count"], json!(2));
+
+    // One an administrator edited goes too, and comes back as TMDB has it.
+    let id = back[0]["id"].as_i64().unwrap();
+    let edited = app.patch(&format!("/api/collections/{id}"), &admin, json!({"summary": "Ours."})).await;
+    assert_eq!(edited.status, StatusCode::OK, "{:?}", edited.body);
+    switch(false).await;
+    assert_eq!(titles(&collections().await), Vec::<String>::new());
+    switch(true).await;
+    app.wait_for_scans().await;
+    let remade = collections().await;
+    assert_eq!(titles(&remade), ["Alien Collection"]);
+    assert_ne!(remade[0]["summary"], json!("Ours."));
+
+    // A library can be made without them.
+    app.media_file("more/Alien³ (1992).mkv", 1024);
+    let made = app
+        .post(
+            "/api/libraries",
+            &admin,
+            json!({"name": "More", "kind": "movies", "paths": [app.media_path("more")], "tmdb_collections": false}),
+        )
+        .await;
+    assert_eq!((made.status, made.body["tmdb_collections"].clone()), (StatusCode::CREATED, json!(false)));
+    app.wait_for_scans().await;
+    let more = made.body["id"].as_i64().unwrap();
+    let listed = app.get(&format!("/api/libraries/{more}/collections"), &admin).await;
+    assert_eq!(titles(&common::own_collections(&listed.body)), Vec::<String>::new());
+}
+
 #[tokio::test]
 async fn certifications_follow_the_region_and_edits_survive_refreshes() {
     let (app, _tmdb, admin, lib) = world().await;

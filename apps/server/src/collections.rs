@@ -571,6 +571,18 @@ pub async fn delete(db: &Db, id: i64) -> sqlx::Result<bool> {
     Ok(deleted > 0)
 }
 
+/// Removes a library's collections from TMDB, once it no longer makes them:
+/// all of them, edited or not, since another tool (such as Kometa) makes
+/// them instead and one kept would sit beside its own. Returns how many went.
+pub async fn drop_tmdb(db: &Db, library_id: i64) -> sqlx::Result<u64> {
+    let dropped = sqlx::query("DELETE FROM collections WHERE library_id = ? AND tmdb_id IS NOT NULL")
+        .bind(library_id)
+        .execute(&db.write)
+        .await?
+        .rows_affected();
+    Ok(dropped)
+}
+
 /// How many of `item_ids` are movies or shows of the library (what a
 /// collection of it can hold).
 pub async fn eligible(db: &Db, library_id: i64, item_ids: &[i64]) -> sqlx::Result<i64> {
@@ -834,7 +846,8 @@ async fn download(store: &Store, remote: &str, size: &str) -> Option<String> {
 }
 
 /// Put a movie into its TMDB collection (creating it), take it out of any
-/// other automatic one, and drop automatic collections left empty.
+/// other automatic one, and drop automatic collections left empty; nothing
+/// in a library that doesn't make them.
 pub async fn link_tmdb(db: &Db, store: &Store, item_id: i64, found: Option<&TmdbCollection>) -> anyhow::Result<()> {
     let library_id: i64 =
         sqlx::query_scalar("SELECT library_id FROM items WHERE id = ?").bind(item_id).fetch_one(&db.read).await?;
@@ -843,6 +856,15 @@ pub async fn link_tmdb(db: &Db, store: &Store, item_id: i64, found: Option<&Tmdb
     // Membership changes in one transaction: a concurrent refresh must not
     // drop a collection between its creation and its first item.
     let mut tx = db.write.begin().await?;
+    // Asked under the writer, so a library turned off meanwhile (see
+    // `drop_tmdb`) gets none back from a refresh already under way.
+    let makes: bool = sqlx::query_scalar("SELECT tmdb_collections FROM libraries WHERE id = ?")
+        .bind(library_id)
+        .fetch_one(&mut *tx)
+        .await?;
+    if !makes {
+        return Ok(());
+    }
     sqlx::query(
         "DELETE FROM collection_items WHERE item_id = ?
          AND collection_id IN (SELECT id FROM collections WHERE tmdb_id IS NOT NULL AND tmdb_id != ?)",

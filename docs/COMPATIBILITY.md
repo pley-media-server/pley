@@ -236,6 +236,12 @@ Kometa takes Pley's address and a token under `plex` in its `config.yml`
 (`url: http://pley.local:7539`, `token: …`). The token may Manage
 libraries and See everyone's activity (Kometa reads where files are, for
 its asset folders and overlays), and is best limited to Kometa's address.
+Pley and Kometa's `franchise` default both make collections from TMDB's,
+so a library with both has two of each; keep one. Turning off Make
+collections from TMDB in the library's settings (Settings → Libraries)
+leaves them to Kometa, with its posters and the films its addons put in
+them; leaving `franchise` out of Kometa's `collection_files` keeps Pley's,
+under Box sets.
 What Pley doesn't do for it:
 
 - collections and overlays on what Pley doesn't filter by, such as audio

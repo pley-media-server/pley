@@ -32,6 +32,12 @@ data class Library(
     val scannedAt: Long? = null,
     /** A scan is queued or running right now. */
     val scanning: Boolean = false,
+    /**
+     * Pley makes collections from TMDB in it (a film library's); off where
+     * another tool, such as Kometa, makes them. An older server doesn't
+     * say, and always makes them.
+     */
+    val tmdbCollections: Boolean = true,
 )
 
 /** `{ ids }`: the body of PUT /api/me/libraries/order, every library the profile may open once, in its order. */

@@ -60,6 +60,11 @@
     <string name="admin_libraries_type_path">…ou saisissez le chemin d’un dossier</string>
     <string name="admin_libraries_folder_path">Chemin du dossier</string>
     <string name="admin_libraries_layout">Organisation recommandée : %1$s</string>
+    <string name="admin_libraries_tmdb_collections">Créer les collections depuis TMDB</string>
+    <string name="admin_libraries_tmdb_collections_hint">Regroupe sous Sagas les films que TMDB range dans une même série, comme les films Alien. Désactivez cette option si un autre outil, comme Kometa, crée les collections de cette bibliothèque.</string>
+    <string name="admin_libraries_tmdb_collections_off_title">Retirer les collections TMDB ?</string>
+    <string name="admin_libraries_tmdb_collections_off_message">Les collections que Pley a créées depuis TMDB dans %1$s seront retirées, avec les modifications qui leur ont été apportées, comme leurs illustrations ou l\'endroit où elles apparaissent. Réactiver cette option les recrée telles que TMDB les présente.</string>
+    <string name="admin_libraries_tmdb_collections_off_confirm">Retirer</string>
     <string name="admin_libraries_phase_queued">En attente</string>
     <string name="admin_libraries_phase_walking">Recherche des fichiers</string>
     <string name="admin_libraries_phase_probing">Analyse des médias</string>
