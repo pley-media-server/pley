@@ -346,14 +346,18 @@ pub(crate) fn choice_key(name: &str) -> String {
 }
 
 /// The name a filter value names: a [`choice_key`] read back, or the value as
-/// it came.
+/// it came. Only a key [`choice_key`] would make is read back, so a name that
+/// merely looks like one (`~41`) stays itself.
 pub(crate) fn choice_name(value: &str) -> String {
     let decoded = value.strip_prefix('~').filter(|hex| !hex.is_empty() && hex.len() % 2 == 0).and_then(|hex| {
         let bytes: Option<Vec<u8>> =
             (0..hex.len()).step_by(2).map(|i| u8::from_str_radix(hex.get(i..i + 2)?, 16).ok()).collect();
         String::from_utf8(bytes?).ok()
     });
-    decoded.unwrap_or_else(|| value.to_owned())
+    match decoded {
+        Some(name) if choice_key(&name).eq_ignore_ascii_case(value) => name,
+        _ => value.to_owned(),
+    }
 }
 
 /// Fields of the query string Pley doesn't keep the data for or doesn't read
@@ -1569,6 +1573,7 @@ pub(crate) async fn smart_count(db: &Db, user_id: i64, lib: &LibraryRow, filter:
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
     #[test]
     fn a_choice_key_passes_through_a_query_string_and_reads_back() {
@@ -1577,14 +1582,15 @@ mod tests {
             let key = choice_key(name);
             assert!(key.starts_with('~') && key[1..].chars().all(|c| c.is_ascii_hexdigit()), "{key}");
             assert_eq!(choice_name(&key), name);
+            // A tool that spells the hex in capitals means the same key.
+            assert_eq!(choice_name(&key.to_uppercase()), name);
         }
-        // What isn't such a key is a name.
-        for value in ["~", "~4", "~zz", "~ff", "Plain"] {
+        // What isn't such a key is a name, one that only looks like a key
+        // (`~41` would be "A", which is its own key) included.
+        for value in ["~", "~4", "~zz", "~ff", "~41", "~4142", "Plain"] {
             assert_eq!(choice_name(value), value);
         }
     }
-
-    use super::*;
 
     fn params(pairs: &[(&str, &str)]) -> Params {
         Params(pairs.iter().map(|(k, v)| ((*k).to_owned(), (*v).to_owned())).collect())
