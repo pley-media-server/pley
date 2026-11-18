@@ -7,6 +7,7 @@ import { apiError, mockApi, testQueryClient } from "@/test/render";
 import { makeDetail, makeRequest, makeRequestList, makeShowDetail, makeSummary, makeTitle } from "@/test/requests";
 import { LOST_AFTER_MS, onServerEvent, READING_REFRESH_MS, setReceiver, useServerEvents } from "./events";
 import { keys, useActivity } from "./hooks";
+import { listKeys } from "./lists";
 import { EVERY_REQUEST, requestKeys, type DiscoverPage, type DiscoverTitle } from "./requests";
 import type { Activity, Library, ServerEvent } from "./types";
 
@@ -220,6 +221,37 @@ describe("useServerEvents", () => {
     });
     expect(invalidated(client, keys.library(1))).toBe(true);
     expect(invalidated(client, keys.homeHubs)).toBe(true);
+  });
+
+  it("refreshes collections, their categories and Home's rows when the libraries changed", () => {
+    const { client, source } = setup();
+    client.setQueryData(listKeys.categories, { categories: [] });
+    client.setQueryData(listKeys.collections(1), { collections: [] });
+    client.setQueryData(listKeys.collection(4), { id: 4 });
+    client.setQueryData(listKeys.merged([4, 9]), { title: "Christmas" });
+    client.setQueryData(listKeys.homeRows, { rows: [] });
+
+    act(() => source().send({ type: "libraries_changed" }));
+    expect(invalidated(client, listKeys.categories)).toBe(true);
+    expect(invalidated(client, listKeys.collections(1))).toBe(true);
+    expect(invalidated(client, listKeys.collection(4))).toBe(true);
+    expect(invalidated(client, listKeys.merged([4, 9]))).toBe(true);
+    expect(invalidated(client, listKeys.homeRows)).toBe(true);
+  });
+
+  it("refreshes a changed library's collection pages and Home's rows with it", () => {
+    const { client, source } = setup();
+    client.setQueryData(listKeys.collection(4), { id: 4 });
+    client.setQueryData(listKeys.merged([4, 9]), { title: "Christmas" });
+    client.setQueryData(listKeys.homeRows, { rows: [] });
+
+    act(() => source().send({ type: "library_changed", library_id: 1 }));
+    act(() => {
+      vi.advanceTimersByTime(1500);
+    });
+    expect(invalidated(client, listKeys.collection(4))).toBe(true);
+    expect(invalidated(client, listKeys.merged([4, 9]))).toBe(true);
+    expect(invalidated(client, listKeys.homeRows)).toBe(true);
   });
 
   it("refreshes everything after a reconnect, not on the first connection", () => {

@@ -73,6 +73,52 @@ describe("RecommendedRowsModal", () => {
     await user.click(screen.getByRole("button", { name: "Add a row" }));
     await waitFor(() => expect(requests.find((r) => r.path === "/api/collections/3")?.body).toEqual({ on_recommended: true }));
   });
+
+  it("keeps the focus on the rows moved or taken off from the keyboard, and says where they went", async () => {
+    const user = userEvent.setup();
+    let collections = [collection(1, "Recently Added", 0), collection(2, "Top Rated", 1), collection(3, "Favourites", 2)];
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections }),
+      "PUT /api/libraries/1/rows/order": (req) => {
+        const ids = (req.body as { collection_ids: number[] }).collection_ids;
+        collections = collections.map((c) => ({ ...c, recommended_position: ids.indexOf(c.id) }));
+        return undefined;
+      },
+      "PATCH /api/collections/1": () => {
+        collections = collections.map((c) => (c.id === 1 ? { ...c, recommended_position: null } : c));
+        return { ...collections[0], items: [] };
+      },
+    });
+    renderWithProviders(<RecommendedRowsModal open onClose={vi.fn()} libraryId={1} />);
+    const list = await screen.findByRole("list", { name: "Recommended rows" });
+
+    // At the top, Move up stops working: the focus goes to Move down.
+    await user.click(screen.getByRole("button", { name: "Move Top Rated up" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Move Top Rated down" })).toHaveFocus());
+    expect(screen.getByRole("status")).toHaveTextContent("Top Rated moved to position 1 of 3");
+
+    // Taken off, a row hands the focus to the one that takes its place.
+    await user.click(screen.getByRole("button", { name: "Take Recently Added off" }));
+    await waitFor(() => expect(within(list).queryByText("Recently Added")).not.toBeInTheDocument());
+    expect(screen.getByRole("button", { name: "Take Favourites off" })).toHaveFocus();
+  });
+
+  it("says when Pley's collections are all there to restore", async () => {
+    const user = userEvent.setup();
+    let restored = 0;
+    mockApi({
+      "GET /api/libraries/1/collections": () => ({ collections: [collection(1, "Recently Added", 0)] }),
+      "POST /api/libraries/1/collections/defaults": () => ({ restored }),
+    });
+    renderWithProviders(<RecommendedRowsModal open onClose={vi.fn()} libraryId={1} />);
+    await screen.findByRole("list", { name: "Recommended rows" });
+
+    await user.click(screen.getByRole("button", { name: "Restore Pley's" }));
+    expect(await screen.findByText("Nothing to restore: Pley's collections are all here")).toBeInTheDocument();
+    restored = 2;
+    await user.click(screen.getByRole("button", { name: "Restore Pley's" }));
+    expect(await screen.findByText("2 collections restored")).toBeInTheDocument();
+  });
 });
 
 describe("HomeRowsModal", () => {
@@ -94,6 +140,9 @@ describe("HomeRowsModal", () => {
     renderWithProviders(<HomeRowsModal open onClose={vi.fn()} />);
 
     expect(await screen.findByText("Movies, Kids")).toBeInTheDocument();
+    // "Recently Added in Movies" names its library already.
+    const list = screen.getByRole("list");
+    expect(within(list).getAllByRole("listitem")[0]).toHaveTextContent(/^Recently Added in Movies$/);
     await user.click(screen.getByRole("button", { name: "Move Christmas up" }));
     await waitFor(() =>
       expect(requests.find((r) => r.method === "PUT")?.body).toEqual({

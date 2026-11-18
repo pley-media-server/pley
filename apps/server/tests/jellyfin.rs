@@ -1097,15 +1097,7 @@ async fn on_pleys_port_its_requests_go_to_it_and_the_rest_to_pley() {
     let token = app.jellyfin_token(&admin).await;
     let product = |reply: &Reply| reply.body["ProductName"].clone();
 
-    // Off by default: Pley's port answers as Pley.
-    let off = app.call(Method::GET, "/System/Info/Public", None, None, &[]).await;
-    assert_eq!(product(&off), Value::Null);
-
-    // A port nothing listens on: this app serves no port of its own.
-    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
-    let web = format!("127.0.0.1:{port}");
-    let on = json!({"web": [&web], "jellyfin": [], "jellyfin_on_web": true, "discovery": false});
-    assert_eq!(app.put("/api/network", &admin, on).await.status, StatusCode::OK);
+    // On by default.
     for path in ["/System/Info/Public", "/system/info/public"] {
         let reply = app.call(Method::GET, path, None, None, &[]).await;
         assert_eq!(product(&reply), json!("Jellyfin Server"), "{path}");
@@ -1124,15 +1116,22 @@ async fn on_pleys_port_its_requests_go_to_it_and_the_rest_to_pley() {
     assert_eq!(health.status, StatusCode::OK);
     assert_eq!(app.call(Method::GET, "/api/auth/me", None, None, &emby).await.status, StatusCode::UNAUTHORIZED);
 
-    // Off again.
+    // Turned off, Pley's port answers as Pley. A port nothing listens on:
+    // this app serves no port of its own.
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let web = format!("127.0.0.1:{port}");
     let off = json!({"web": [&web], "jellyfin": [], "jellyfin_on_web": false, "discovery": false});
     assert_eq!(app.put("/api/network", &admin, off).await.status, StatusCode::OK);
     assert_eq!(product(&app.call(Method::GET, "/System/Info/Public", None, None, &[]).await), Value::Null);
+    // And on again.
+    let on = json!({"web": [&web], "jellyfin": [], "jellyfin_on_web": true, "discovery": false});
+    assert_eq!(app.put("/api/network", &admin, on).await.status, StatusCode::OK);
+    assert_eq!(product(&app.call(Method::GET, "/System/Info/Public", None, None, &[]).await), json!("Jellyfin Server"));
 }
 
 #[tokio::test]
 async fn every_part_of_the_api_is_reached_on_pleys_port() {
-    let app = TestApp::with_config(|config| config.jellyfin_on_web = true).await;
+    let app = TestApp::new().await;
     let admin = app.setup_admin().await;
     let token = app.jellyfin_token(&admin).await;
     let x = "00000000000000000000000000000000";
