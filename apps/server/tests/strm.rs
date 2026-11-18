@@ -328,6 +328,7 @@ async fn world_with(more: impl FnOnce(&std::path::Path, &str)) -> World {
     });
     app.state.strm.listen_at(&own);
     let admin = app.setup_admin().await;
+    read_strm_files(&app).await;
     let movies = app.media.path().join("movies");
     std::fs::create_dir_all(movies.join("Film (2020)")).unwrap();
     std::fs::write(
@@ -344,6 +345,12 @@ async fn world_with(more: impl FnOnce(&std::path::Path, &str)) -> World {
 
 async fn world() -> World {
     world_with(|_, _| {}).await
+}
+
+/// `.strm` files are off until an administrator turns them on.
+async fn read_strm_files(app: &TestApp) {
+    let on = pley::settings::SettingsPatch { strm_files: Some(true), ..Default::default() };
+    app.state.settings.update(&app.state.db, on).await.unwrap();
 }
 
 /// A player that plays the media as it is, and one that plays no Matroska.
@@ -723,6 +730,7 @@ async fn a_transcoder_too_old_to_read_an_address_says_so() {
     app.state.transcoder.start();
     assert!(app.state.transcoder.wait_ready(Duration::from_secs(10)).await);
     let admin = app.setup_admin().await;
+    read_strm_files(&app).await;
     std::fs::create_dir_all(app.media.path().join("movies")).unwrap();
     std::fs::write(app.media.path().join("movies/Film (2020).strm"), format!("{remote}/dl/x/film.mkv")).unwrap();
     let library = app.library(&admin, "Movies", "movies", "movies").await;
@@ -730,6 +738,21 @@ async fn a_transcoder_too_old_to_read_an_address_says_so() {
     let started = app.post("/api/playback", &admin, json!({"item_id": film, "caps": plays_mkv()})).await;
     assert_eq!(started.status, StatusCode::NOT_IMPLEMENTED, "{}", started.body);
     assert!(fake.probes.lock().is_empty());
+}
+
+#[tokio::test]
+async fn a_server_lists_none_until_they_are_turned_on() {
+    let app = TestApp::new().await;
+    let admin = app.setup_admin().await;
+    std::fs::create_dir_all(app.media.path().join("movies")).unwrap();
+    std::fs::write(app.media.path().join("movies/Film (2020).strm"), "http://192.0.2.1/film.mkv").unwrap();
+    let library = app.library(&admin, "Movies", "movies", "movies").await;
+    assert!(app.ids(library, &admin).await.is_empty());
+    assert_eq!(app.get("/api/settings", &admin).await.body["strm_files"], json!(false));
+
+    app.put("/api/settings", &admin, json!({"strm_files": true})).await;
+    app.wait_for_scans().await;
+    assert_eq!(app.ids(library, &admin).await.keys().collect::<Vec<_>>(), ["Film"]);
 }
 
 #[tokio::test]

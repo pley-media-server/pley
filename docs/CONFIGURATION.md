@@ -176,9 +176,10 @@ decide the match again.
 A `.strm` file is a text file that names where a video is, instead of
 being one: Kodi, Jellyfin and Emby read them, and tools that list what a
 hosting service, a cloud drive or another server holds write them. Pley
-reads them in movie and TV libraries unless an administrator turns them
-off (Settings → Server → Library scanning). Turned off, they leave the
-libraries as deleted files would, and Pley asks none of their addresses.
+reads them in movie and TV libraries once an administrator turns them on
+(Settings → Server → Library scanning). Off, Pley lists none of them and
+asks none of their addresses; turned off again, they leave the libraries
+as deleted files would.
 
 ```
 Movies/Alien (1979)/Alien (1979).strm
