@@ -9,6 +9,8 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.13] - 2026-11-18
+
 ### Added
 
 - Collections have categories: Highlights, Franchises, Other (for those
@@ -1127,7 +1129,8 @@ On Intel graphics:
 - First release with a version of its own (builds before it carried 0.2.0,
   the version every app shared).
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-16...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[0.1.13]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.12]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
 [0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-14
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
