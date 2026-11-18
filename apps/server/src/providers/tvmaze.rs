@@ -214,12 +214,13 @@ impl Tvmaze {
         {
             return Ok(Some(id));
         }
-        let request = self.api.http.get(format!("{}/search/shows", self.base)).query(&[("q", show.title.as_str())]);
+        let title = crate::util::composed(&show.title);
+        let request = self.api.http.get(format!("{}/search/shows", self.base)).query(&[("q", title.as_str())]);
         let results: Vec<SearchResult> = match self.api.json(request).await {
             Err(ProviderError::NotFound) => Vec::new(),
             other => other?,
         };
-        Ok(best_match(&results, &show.title, show.year))
+        Ok(best_match(&results, &title, show.year))
     }
 
     /// The show TVmaze has for another site's id. TVmaze answers with a

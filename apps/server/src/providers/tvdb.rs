@@ -297,7 +297,8 @@ impl Tvdb {
                 Err(err) => return Err(err),
             }
         }
-        let mut query = vec![("query", show.title.clone()), ("type", "series".to_owned())];
+        let title = crate::util::composed(&show.title);
+        let mut query = vec![("query", title.clone()), ("type", "series".to_owned())];
         if let Some(year) = show.year {
             query.push(("year", year.to_string()));
         }
@@ -305,7 +306,7 @@ impl Tvdb {
         if results.is_empty() && show.year.is_some() {
             results = self.search(auth, &query[..2]).await?;
         }
-        Ok(best_match(&results, &show.title, show.year))
+        Ok(best_match(&results, &title, show.year))
     }
 
     async fn search(&self, auth: &Credentials, query: &[(&str, String)]) -> Result<Vec<SearchResult>, ProviderError> {

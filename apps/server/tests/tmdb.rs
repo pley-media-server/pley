@@ -37,6 +37,7 @@ fn movie(id: i64) -> Option<Value> {
         679 => ("Aliens", "1986-07-18", 137, "tt0090605", true),
         8077 => ("Alien³", "1992-05-22", 114, "tt0103644", true),
         99_999 => ("Alien Nation", "1988-10-07", 91, "tt0094631", false),
+        4497 => ("Br\u{fc}no", "2009-07-10", 81, "tt0889583", false),
         _ => return None,
     };
     Some(json!({
@@ -86,6 +87,9 @@ fn answer(path: &str, query: &[(String, String)]) -> Option<Value> {
             ],
             Some("Aliens") => vec![search_result(679, "Aliens", "1986-07-18", 30.0)],
             Some("Alien Nation") => vec![search_result(99_999, "Alien Nation", "1988-10-07", 90.0)],
+            // TMDB finds titles written composed, "\u{fc}" one character, and
+            // nothing for "u" and an accent apart.
+            Some("Br\u{fc}no") => vec![search_result(4497, "Br\u{fc}no", "2009-07-10", 20.0)],
             _ => vec![],
         }}),
         "/search/tv" => json!({"results": match param("query") {
@@ -285,6 +289,24 @@ async fn movies_are_matched_and_described() {
     app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({"force": true})).await;
     app.wait_for_scans().await;
     assert_eq!(lookups(), 4);
+}
+
+/// A Mac's disks give a name's accents apart from their letters ("u" and a
+/// diaeresis), and names copied from one keep them so.
+#[tokio::test]
+async fn a_name_with_its_accents_apart_is_found_on_tmdb() {
+    let (app, tmdb, admin, lib) = world().await;
+    app.media_file("movies/Bru\u{308}no (2009)/Bru\u{308}no (2009).mkv", 1024);
+    app.post(&format!("/api/libraries/{lib}/scan"), &admin, json!({})).await;
+    app.wait_for_scans().await;
+    assert!(app.ids(lib, &admin).await.contains_key("Br\u{fc}no"), "composed before TMDB is asked");
+    use_key(&app, &admin, KEY).await;
+
+    let ids = app.ids(lib, &admin).await;
+    let bruno = app.get(&format!("/api/items/{}", ids["Br\u{fc}no"]), &admin).await.body;
+    assert_eq!(bruno["tmdb_id"], json!(4497));
+    let searches = tmdb.requested("/search/movie");
+    assert!(searches.iter().any(|s| s.contains("query=Br%C3%BCno")), "{searches:?}");
 }
 
 #[tokio::test]
