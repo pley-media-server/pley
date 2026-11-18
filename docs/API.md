@@ -369,8 +369,9 @@ interface Marker {
 interface MediaFile {
   id: Id;
   path: string;                     // the file name only, except for administrators (not their apps' tokens)
-  size: number;                     // bytes
+  size: number;                     // bytes (a `.strm` file's media's; 0 until it is known)
   container: string | null;         // "mkv" | "mp4" | "webm" | "avi" | "mp3" | "flac" | ...
+                                    // ("strm": a `.strm` file whose media isn't known yet)
   duration_ms: number | null;
   bitrate: number | null;           // bits per second
   width: number | null;
@@ -2264,6 +2265,7 @@ one of an audiobook library is refused (`400`).
 | GET | `/api/playback/{session_id}/v{k}.m3u8`, `…/v{k}-{n}.ts`, `…/v{k}-init.mp4`, `…/v{k}-{n}.m4s` | `play` | a smaller size's playlist, init segment and segments, laid out as `index.m3u8`'s |
 | GET | `/api/media/{key}/{file}` | `public` (the key) | a keyed session's media ([Keyed URLs](#keyed-urls)) |
 | GET | `/api/files/{id}/stream` | `play` | the raw file, with `Range` (direct play) |
+| GET | `/api/strm/{key}/{name}` | the transcoder (the key) | a `.strm` file's media, with `Range` ([.strm files](#strm-files)) |
 | GET | `/api/files/{id}/subtitles/{index}.vtt?offset_ms=` | `play` | WebVTT of a text subtitle track |
 | GET | `/api/files/{id}/subtitles/{index}.mks?at=` | `play` | a picture subtitle track in a Matroska file of its own (`video/x-matroska`) |
 | GET | `/api/files/{id}/subtitles/{index}.sup` | `play` | a PGS track as a `.sup` file (Kodi's) |
@@ -2997,6 +2999,37 @@ become:
 The player's details (`GET /api/playback/{session}`) say what became of it:
 `transcode.dolby_vision` (`"kept"`, `"converted to 8.1"`) and
 `transcode.hdr10plus_stripped`.
+
+### .strm files
+
+A `.strm` file in a movie or TV library names the address its media is at
+([CONFIGURATION.md](CONFIGURATION.md#strm-files)). To an app it is a
+`MediaFile` like any other, and nothing in the API gives the address.
+
+- `MediaFile.path` is the `.strm` file's. Until the media is known,
+  `container` is `"strm"`, `size` is 0 and `streams` holds only the
+  subtitle files beside it.
+- `GET /api/items/{id}` of a movie, an episode or an extra finds what the
+  media is when it isn't known, waiting up to 2.5 s for it; a play request
+  and `POST /api/conversions` wait for it as long as it takes. Then
+  `container`, `size`, the sizes and codecs and `streams` are the media's,
+  as for a file.
+- A play request decides as for a file. A direct play's address
+  (`/api/files/{id}/stream`, or a keyed session's `file.{ext}`) gives the
+  media through Pley, with `Range`, as the `Content-Type` of its container,
+  with `Cache-Control: private, no-store` and no `ETag`. A stream is made
+  by the transcoder as for a file.
+- Errors: `404` when the file names nothing to play, the address has
+  nothing there (`404`, `410`) or what it gives isn't video or audio;
+  `503` when the address doesn't answer or answers anything else; `501`
+  when the transcoder is too old to read an address
+  (`capabilities.remote_inputs`). The message says which.
+- `GET /api/files/{id}/trickplay` answers `404` for good, an item's
+  `thumb` isn't grabbed from the video, and `POST /api/items/{id}/prefetch`
+  reads nothing.
+- `GET /api/strm/{key}/{name}` is where the transcoder reads the media:
+  Pley asks the address and passes the bytes on. It answers the transcoder
+  only ([SECURITY.md](../SECURITY.md#strm-files)), `404` to anyone else.
 
 ## Downloads
 

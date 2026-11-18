@@ -523,6 +523,44 @@ other apps (`pley_ct_…`), never with a session's
   privileges, never impersonation, restricted or not
   ([deploy/windows/README.md](deploy/windows/README.md#security)).
 
+### .strm files
+
+A `.strm` file names an address, and whoever can write in a library folder
+can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
+
+- Only `http` and `https` addresses are read: never a path, `file:` or
+  another protocol, so a `.strm` file can't hand out a file of the server's
+  computer. The file is read up to 64 KiB, and a link to it is followed
+  only to another `.strm` file.
+- The address never leaves the server. Apps and both compatibility APIs
+  get the file's name, never what it names; players read the media through
+  Pley; the transcoder and FFmpeg are given an address of Pley's own
+  (`/api/strm/{key}/…`), so no password or token in an address reaches a
+  command line. The log names the `.strm` file, never the address.
+- Pley's own address for a file's media carries a key derived from the
+  server's `secret.key`, and answers the transcoder only: a request from
+  this computer (or the host of a transcoder run elsewhere), and not one
+  that came through a proxy. A key read in a log opens nothing from
+  anywhere else.
+- An address on the internet can't lead to one of the server's network or
+  computer: not by a redirect, and not by a name that resolves to a private
+  address later (the resolver gives its public addresses only, to the
+  connection itself). An address the file names on the network directly is
+  asked: that is where a NAS or a download service is. A name given for
+  one is held to the network from then on, so it can't turn into a host on
+  the internet that redirects back in. So someone who can
+  write in a library folder can have Pley ask an address of the network
+  for video or audio, as a link in a library can lead to a video anywhere
+  on the disk. With a proxy configured for Pley (`HTTPS_PROXY`), the proxy
+  resolves names, and only redirects to addresses written as numbers are
+  refused.
+- What an address gives is handed to a player only once FFprobe read it as
+  video or audio, as that format's `Content-Type` whatever the address
+  calls it, and never as a page (`X-Content-Type-Options: nosniff`).
+- Nothing asks an address until someone opens or plays its item: a scan
+  reads the files only. An address that fails isn't asked again for 20
+  seconds by a playback, or for 10 minutes by a page opening.
+
 ### Untrusted media
 
 - What FFmpeg hands back for one picture or subtitle track is capped at

@@ -11,6 +11,17 @@ describes how they are made.
 
 ### Added
 
+- `.strm` files in movie and TV libraries, as Kodi, Jellyfin and Emby read
+  them: a text file that names the `http` or `https` address a video is at
+  is listed, played, converted and downloaded like a video on disk, on
+  every app and through both compatibility APIs. The address, and any
+  password in it, never leaves the server: players read the video through
+  Pley. A scan doesn't ask the address; what the video is (tracks, length,
+  size, 4K and HDR) is found when its page is first opened or it is
+  played, and kept. Kodi's `|User-Agent=…` headers are sent, an address on
+  the internet can't lead to one of your network, and seek previews and
+  intro detection aren't made for it
+  ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md#strm-files)).
 - Collections have categories: Highlights, Franchises, Other (for those
   without one) and administrators' own, in an order administrators choose.
   Administrators choose which collections are rows on Home and on a

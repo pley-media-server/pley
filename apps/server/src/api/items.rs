@@ -22,7 +22,11 @@ pub(crate) async fn item_or_404(state: &AppState, user_id: i64, id: i64) -> ApiR
 }
 
 pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i64>) -> ApiResult<Json<ItemDetail>> {
-    let row = item_or_404(&state, user.id, id).await?;
+    let mut row = item_or_404(&state, user.id, id).await?;
+    // What a `.strm` file's media is is found as its item is first opened.
+    if matches!(row.kind.as_str(), "movie" | "episode" | "extra") && crate::strm::glance(&state, id).await {
+        row = item_or_404(&state, user.id, id).await?;
+    }
     let scope = streams::scope(&row);
     let resume = resume_ms(&row);
     let mut detail = catalog::item_detail(&state.db, row).await?;
@@ -51,7 +55,7 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
     if matches!(detail.summary.kind.as_str(), "movie" | "episode") {
         for file in catalog::files_for_item(&state.db, detail.summary.id).await? {
             state.trickplay.request(&file);
-            if file.video_codec.is_some() {
+            if file.video_codec.is_some() && !file.is_strm() {
                 state.transcoder.prefetch_soon(&file.path, resume);
             }
             let Some(dto) = detail.files.iter_mut().find(|f| f.id == file.id) else { continue };
@@ -66,7 +70,9 @@ pub async fn get(State(state): State<AppState>, user: AuthUser, Path(id): Path<i
     }
     if state.transcoder.is_available() {
         for file in &detail.files {
-            if remux_candidate(file.container.as_deref(), &file.streams) {
+            // (A `.strm` file's media has its keyframes read when it plays.)
+            let strm = crate::library::walk::is_strm(std::path::Path::new(&file.path));
+            if !strm && remux_candidate(file.container.as_deref(), &file.streams) {
                 let transcoder = state.transcoder.clone();
                 let path = file.path.clone();
                 tokio::spawn(async move {
@@ -110,7 +116,7 @@ pub async fn prefetch(State(state): State<AppState>, user: AuthUser, Path(id): P
     if let Some(item) = target {
         let start = resume_ms(&item);
         for file in catalog::files_for_item(&state.db, item.id).await? {
-            if file.video_codec.is_some() {
+            if file.video_codec.is_some() && !file.is_strm() {
                 state.transcoder.prefetch_soon(&file.path, start);
             }
         }
@@ -517,6 +523,10 @@ async fn generate_thumb(state: &AppState, item_id: i64) -> ApiResult<PathBuf> {
         .into_iter()
         .next()
         .ok_or_else(|| AppError::not_found("no media file"))?;
+    // A `.strm` file's media is read only to play it ([`crate::strm`]).
+    if file.is_strm() {
+        return Err(AppError::not_found("no frame grab"));
+    }
     let fingerprint = state.store.fingerprint_of(file.id, &file.path, file.fingerprint.as_deref()).await?;
     let dir = state.store.media_dir(&fingerprint).ok_or_else(|| AppError::not_found("no media folder"))?;
     let target = dir.join("thumb.jpg");

@@ -27,6 +27,9 @@ const VIDEO_EXTENSIONS: &[&str] = &[
 ];
 const AUDIO_EXTENSIONS: &[&str] =
     &["mp3", "flac", "m4a", "aac", "ogg", "oga", "opus", "wav", "wma", "aiff", "aif", "ape", "wv", "mka", "m4b", "dsf"];
+/// Files that name the address their media is at, as Kodi, Jellyfin and
+/// Emby read them ([`crate::strm`]): videos of a movie or show library.
+const STRM_EXTENSIONS: &[&str] = &["strm"];
 pub const IMAGE_EXTENSIONS: &[&str] = &["jpg", "jpeg", "png", "webp", "tbn"];
 pub const SUBTITLE_EXTENSIONS: &[&str] = &["srt", "ass", "ssa", "vtt", "sub", "sup", "smi"];
 /// Metadata files that Kodi, Jellyfin, Radarr, Sonarr and others write next
@@ -201,8 +204,15 @@ pub fn is_media_file(path: &Path, kind: LibraryKind) -> bool {
     let ext = extension(path);
     match kind {
         LibraryKind::Music | LibraryKind::Audiobooks => AUDIO_EXTENSIONS.contains(&ext.as_str()),
-        LibraryKind::Movies | LibraryKind::Shows => VIDEO_EXTENSIONS.contains(&ext.as_str()),
+        LibraryKind::Movies | LibraryKind::Shows => {
+            VIDEO_EXTENSIONS.contains(&ext.as_str()) || STRM_EXTENSIONS.contains(&ext.as_str())
+        }
     }
+}
+
+/// Whether `path` is named as a `.strm` file ([`crate::strm`]).
+pub fn is_strm(path: &Path) -> bool {
+    STRM_EXTENSIONS.contains(&extension(path).as_str())
 }
 
 /// Whether a file with this extension is a sidecar file: a picture,
@@ -211,10 +221,10 @@ fn is_sidecar(ext: &str) -> bool {
     IMAGE_EXTENSIONS.contains(&ext) || SUBTITLE_EXTENSIONS.contains(&ext) || NFO_EXTENSIONS.contains(&ext)
 }
 
-/// What kind of file an extension names: video, audio, picture, subtitles
-/// or NFO file (`None`: something else).
+/// What kind of file an extension names: video, audio, picture, subtitles,
+/// NFO file or `.strm` file (`None`: something else).
 fn file_kind(ext: &str) -> Option<u8> {
-    [VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS, NFO_EXTENSIONS]
+    [VIDEO_EXTENSIONS, AUDIO_EXTENSIONS, IMAGE_EXTENSIONS, SUBTITLE_EXTENSIONS, NFO_EXTENSIONS, STRM_EXTENSIONS]
         .iter()
         .position(|list| list.contains(&ext))
         .map(|kind| kind as u8)

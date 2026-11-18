@@ -11,8 +11,15 @@ pub fn now_ms() -> i64 {
 }
 
 /// Stable cache key for a file: hash of path, size and modification time, so a
-/// replaced file never hits stale caches.
+/// replaced file never hits stale caches. An address ([`crate::source`]) is
+/// its own key: whoever gives it names the version of its media in it.
 pub fn file_key(path: &Path) -> std::io::Result<String> {
+    if crate::source::is_remote(path) {
+        let mut hasher = Sha256::new();
+        hasher.update(b"address:");
+        hasher.update(path.to_string_lossy().as_bytes());
+        return Ok(hex::encode(&hasher.finalize()[..16]));
+    }
     let meta = std::fs::metadata(path)?;
     let mtime = meta.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_nanos()).unwrap_or(0);
     let mut hasher = Sha256::new();
@@ -77,8 +84,36 @@ pub const MEDIA_DEMUXERS: &str = concat!(
 /// Input options for a library file: only [`MEDIA_DEMUXERS`] may open it.
 pub const MEDIA_INPUT_OPTIONS: [&str; 2] = ["-format_whitelist", MEDIA_DEMUXERS];
 
-/// `file:` prefixed path so ffmpeg never interprets it as a protocol or option.
+/// Input options for an address ([`crate::source`]): the same demuxers, over
+/// plain HTTP and nothing else, asked again from where a connection was cut
+/// (the media comes from further away than the address), and given up on
+/// after a minute of nothing rather than waited for without end.
+const REMOTE_INPUT_OPTIONS: [&str; 12] = [
+    "-format_whitelist",
+    MEDIA_DEMUXERS,
+    "-protocol_whitelist",
+    "http,tcp",
+    "-reconnect",
+    "1",
+    "-reconnect_on_network_error",
+    "1",
+    "-reconnect_delay_max",
+    "4",
+    "-rw_timeout",
+    "60000000",
+];
+
+/// The input options for `path`: a library file's, or an address's.
+pub fn input_options(path: &Path) -> &'static [&'static str] {
+    if crate::source::is_remote(path) { &REMOTE_INPUT_OPTIONS } else { &MEDIA_INPUT_OPTIONS }
+}
+
+/// `file:` prefixed path so ffmpeg never interprets it as a protocol or
+/// option; an address ([`crate::source`]) as it is.
 pub fn input_arg(path: &Path) -> OsString {
+    if crate::source::is_remote(path) {
+        return path.as_os_str().to_owned();
+    }
     let mut arg = OsString::from("file:");
     arg.push(path.as_os_str());
     arg
@@ -289,7 +324,22 @@ mod tests {
         assert_eq!(input_arg(Path::new("/m/a.mkv")), OsString::from("file:/m/a.mkv"));
         // A file named like an option or a protocol stays a file.
         assert_eq!(input_arg(Path::new("-i")), OsString::from("file:-i"));
-        assert_eq!(input_arg(Path::new("http://x")), OsString::from("file:http://x"));
+        assert_eq!(input_arg(Path::new("https://x")), OsString::from("file:https://x"));
+        assert_eq!(input_arg(Path::new("concat:a|b")), OsString::from("file:concat:a|b"));
+        assert_eq!(input_options(Path::new("/m/a.mkv")), MEDIA_INPUT_OPTIONS);
+    }
+
+    #[test]
+    fn an_address_is_given_as_it_is_and_kept_to_plain_http() {
+        let address = Path::new("http://127.0.0.1:7539/api/strm/0a1b/media.mkv");
+        assert_eq!(input_arg(address), OsString::from(address));
+        let options = input_options(address);
+        assert!(options.windows(2).any(|w| w == ["-protocol_whitelist", "http,tcp"]), "{options:?}");
+        assert!(options.windows(2).any(|w| w == ["-format_whitelist", MEDIA_DEMUXERS]), "{options:?}");
+        // Its own key, with no file to look at; another address, another key.
+        let key = file_key(address).unwrap();
+        assert_eq!((key.len(), file_key(address).unwrap()), (32, key.clone()));
+        assert_ne!(file_key(Path::new("http://127.0.0.1:7539/api/strm/0a1c/media.mkv")).unwrap(), key);
     }
 
     #[test]

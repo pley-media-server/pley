@@ -179,6 +179,7 @@ pub fn router(state: AppState) -> Router {
         .route("/playback/{session}/{file}", get(playback::hls_file))
         .route("/media/{key}/{file}", get(playback::keyed_media))
         .route("/files/{id}/stream", get(playback::stream_file))
+        .route("/strm/{key}/{name}", get(crate::strm::relay))
         .route("/conversions", post(playback::convert))
         .route("/live", get(livetv::summary))
         .route("/live/channels", get(livetv::channels))
@@ -442,7 +443,7 @@ pub(crate) fn wants_summaries(query: &HashMap<String, String>) -> bool {
 /// Authorization header are never logged.
 pub(crate) fn loggable_uri(uri: &axum::http::Uri) -> String {
     // A keyed media address carries its session's key in the path.
-    let keyed = ["/api/media/", "/api/live/media/"]
+    let keyed = ["/api/media/", "/api/live/media/", "/api/strm/"]
         .into_iter()
         .find_map(|prefix| uri.path().strip_prefix(prefix).map(|rest| (prefix, rest)));
     let path = match keyed {
@@ -544,6 +545,7 @@ mod tests {
         // A keyed media address's key is in its path.
         assert_eq!(loggable_uri(&"/api/media/pley_mk_abc/12.ts".parse().unwrap()), "/api/media/…/12.ts");
         assert_eq!(loggable_uri(&"/api/media/pley_mk_abc".parse().unwrap()), "/api/media/…");
+        assert_eq!(loggable_uri(&"/api/strm/0a1b2c/media.mkv".parse().unwrap()), "/api/strm/…/media.mkv");
         assert_eq!(loggable_uri(&"/api/live/media/pley_mk_abc/s12.ts".parse().unwrap()), "/api/live/media/…/s12.ts");
     }
 

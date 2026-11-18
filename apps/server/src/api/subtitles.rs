@@ -94,11 +94,13 @@ pub async fn search(
 /// What OpenSubtitles is asked for a file: its hash, and its film's or
 /// show's ids, or else their title.
 async fn search_for(state: &AppState, row: &ItemRow, file: &FileRow, languages: Vec<String>) -> ApiResult<Search> {
+    // (A `.strm` file's own hash says nothing of the media it names.)
     let hash =
         tokio::time::timeout(HASH_TIME, state.store.fingerprint_of(file.id, &file.path, file.fingerprint.as_deref()))
             .await
             .ok()
-            .and_then(Result::ok);
+            .and_then(Result::ok)
+            .filter(|_| !file.is_strm());
     let ids = |id: i64| async move {
         sqlx::query_as::<_, (Option<i64>, Option<String>, String, Option<i64>)>(
             "SELECT tmdb_id, imdb_id, title, year FROM items WHERE id = ?",

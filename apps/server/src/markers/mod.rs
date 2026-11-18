@@ -210,6 +210,10 @@ struct EpisodeFileRow {
 
 impl EpisodeFileRow {
     fn into_file(self, chromaprint: bool) -> Option<EpisodeFile> {
+        // A `.strm` file's media is read only to play it ([`crate::strm`]).
+        if crate::library::walk::is_strm(std::path::Path::new(&self.path)) {
+            return None;
+        }
         let duration_ms = self.duration_ms.filter(|d| *d > 0)?;
         let info: Option<MediaInfo> = self.media_info.as_deref().and_then(|j| serde_json::from_str(j).ok());
         let current = self.version.is_some_and(|v| v >= ALGORITHM_VERSION)
@@ -334,6 +338,7 @@ impl MarkerService {
              JOIN media_files f ON f.item_id = e.id
              LEFT JOIN marker_analysis a ON a.file_id = f.id
              WHERE f.id IN ({}) AND e.kind = 'episode' AND e.parent_id IS NOT NULL AND f.duration_ms > 0
+               AND f.link_size IS NULL
                AND (a.file_id IS NULL OR a.version < ? OR a.size != f.size OR a.mtime != f.mtime
                     OR (a.fingerprinted = 0 AND ?))",
             vec!["?"; files.len()].join(", ")
@@ -517,6 +522,7 @@ impl MarkerService {
                      JOIN media_files f ON f.item_id = e.id
                      LEFT JOIN marker_analysis a ON a.file_id = f.id
                      WHERE e.library_id = ? AND e.kind = 'episode' AND e.parent_id IS NOT NULL AND f.duration_ms > 0
+                       AND f.link_size IS NULL
                        AND (a.file_id IS NULL OR a.version < ? OR a.size != f.size OR a.mtime != f.mtime
                             OR (a.fingerprinted = 0 AND ?))",
                 )

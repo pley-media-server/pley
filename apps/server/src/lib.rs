@@ -65,6 +65,7 @@ pub mod setup;
 pub mod state;
 pub mod store;
 pub mod streams;
+pub mod strm;
 pub mod subtitles;
 #[cfg(test)]
 mod testing;

@@ -736,7 +736,9 @@ impl JobManager {
         // Until its process takes over (see `spawn`).
         let _starting = self.background.start();
         let input = PathBuf::from(&req.input);
+        // An address ([`crate::source`]) is there or not once it is read.
         match tokio::fs::metadata(&input).await {
+            _ if crate::source::is_remote(&input) => {}
             Ok(m) if m.is_file() => {}
             Ok(_) => return Err(ApiError::BadRequest(format!("{} is not a file", req.input))),
             Err(_) => return Err(ApiError::NotFound(format!("input not found: {}", req.input))),
@@ -1229,7 +1231,12 @@ impl JobManager {
     /// since the server keeps the media info it was given.
     async fn with_hdr10_metadata(&self, input: &Path, media: &MediaInfo) -> MediaInfo {
         let mut known = media.clone();
-        let stamp = tokio::fs::metadata(input).await.ok().map(|m| (m.len(), m.modified().ok()));
+        // An address names the version of its media itself.
+        let stamp = if crate::source::is_remote(input) {
+            Some((0, None))
+        } else {
+            tokio::fs::metadata(input).await.ok().map(|m| (m.len(), m.modified().ok()))
+        };
         let read_before = stamp.and_then(|stamp| {
             let cache = self.hdr10_metadata.lock();
             cache.get(input).filter(|(was, _)| *was == stamp).map(|(_, has)| *has)
@@ -4578,6 +4585,41 @@ mod tests {
             }
         };
         tokio::time::timeout(Duration::from_secs(30), stopped).await.expect("its process stops");
+    }
+
+    /// A job whose input is an address ([`crate::source`]) is made as its
+    /// file's would be: probed, its keyframes read from the Cues, its video
+    /// copied from wherever the player asks. Needs FFmpeg on the PATH
+    /// (skipped otherwise).
+    #[tokio::test(flavor = "multi_thread")]
+    async fn a_job_reads_an_address_as_it_reads_a_file() {
+        use pley_transcoder_api::VideoRequest;
+        let dir = crate::testing::tempdir();
+        let Some((input, jobs)) = with_ffmpeg(dir.path(), "320x180") else { return };
+        let served = crate::source::tests::serve(&input).await;
+        let copy = |input: String| JobRequest {
+            input,
+            video: Some(VideoRequest { mode: VideoMode::Copy, ..Default::default() }),
+            segment_seconds: Some(2.0),
+            ..Default::default()
+        };
+        let of_file = jobs.create(copy(input.to_string_lossy().into_owned())).await.unwrap();
+        let created = jobs.create(copy(served.url.clone())).await.unwrap();
+        assert_eq!(created.video.as_ref().map(|v| v.mode), Some(VideoMode::Copy), "{:?}", created.warnings);
+        assert_eq!((created.segment_count, created.duration_ms), (of_file.segment_count, of_file.duration_ms));
+        let job = jobs.get(&created.id).unwrap();
+        // The end first: a range of the address, not all that comes before.
+        let last = created.segment_count - 1;
+        let segment = jobs.segment(&job, last).await.unwrap();
+        assert!((first_video_pts(&segment) - f64::from(last) * 2.0).abs() < 1.5, "{}", first_video_pts(&segment));
+        let segment = jobs.segment(&job, 0).await.unwrap();
+        assert!(first_video_pts(&segment) < 1.5);
+        jobs.remove(&created.id).await;
+        jobs.remove(&of_file.id).await;
+        // One that answers with no media fails as a file's probe does.
+        let nothing = crate::source::tests::serve(&dir.path().join("none.mkv")).await;
+        let gone = jobs.create(copy(nothing.url.clone())).await;
+        assert!(matches!(gone, Err(ApiError::Failed(_))), "{gone:?}");
     }
 
     #[tokio::test(flavor = "multi_thread")]

@@ -119,13 +119,17 @@ impl Conversions {
         if !self.ff.caps.ffmpeg_available {
             return Err(ApiError::Failed("ffmpeg is not available on the transcoder host".into()));
         }
-        let meta = match tokio::fs::metadata(&req.input).await {
-            Ok(meta) if meta.is_file() => meta,
+        // An address ([`crate::source`]) names the version of its media itself.
+        let (size, modified_ms) = match tokio::fs::metadata(&req.input).await {
+            _ if crate::source::is_remote(Path::new(&req.input)) => (0, 0),
+            Ok(meta) if meta.is_file() => {
+                let modified = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok());
+                (meta.len(), modified.map_or(0, |d| d.as_millis()))
+            }
             Ok(_) => return Err(ApiError::BadRequest(format!("{} is not a file", req.input))),
             Err(_) => return Err(ApiError::NotFound(format!("input not found: {}", req.input))),
         };
-        let modified = meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok());
-        let id = conversion_id(&req, meta.len(), modified.map_or(0, |d| d.as_millis()));
+        let id = conversion_id(&req, size, modified_ms);
         let duration_ms = req.media.as_ref().and_then(|m| m.duration_ms).unwrap_or(0);
         let conversion = {
             let mut items = self.items.lock();

@@ -505,11 +505,13 @@ impl Scanner {
             Phases { folders: walked.folders, files: walked.media.len(), walk: phase.elapsed(), ..Default::default() };
 
         phase = Instant::now();
-        let existing: Vec<KnownFile> =
-            sqlx::query_as("SELECT id, path, size, mtime, probed, external_subs FROM media_files WHERE library_id = ?")
-                .bind(library_id)
-                .fetch_all(&self.db.read)
-                .await?;
+        let existing: Vec<KnownFile> = sqlx::query_as(
+            "SELECT id, path, COALESCE(link_size, size) AS size, mtime, probed, external_subs
+                 FROM media_files WHERE library_id = ?",
+        )
+        .bind(library_id)
+        .fetch_all(&self.db.read)
+        .await?;
         let existing_by_path: HashMap<&str, &KnownFile> = existing.iter().map(|f| (f.path.as_str(), f)).collect();
 
         let mut to_process = Vec::new();
@@ -577,7 +579,7 @@ impl Scanner {
             self.transcoder.wait_ready(Duration::from_secs(90)).await;
         }
 
-        let mut writer = Writer::new(lib, &sidecars);
+        let mut writer = Writer::new(lib, &sidecars, force);
         let mut batch: Vec<(FoundFile, ProbeOutcome)> = Vec::with_capacity(WRITE_BATCH);
         let mut processed = 0u64;
         let mut last_emit = Instant::now();
@@ -590,6 +592,13 @@ impl Scanner {
             let mut results = futures::stream::iter(files.into_iter().map(|file| {
                 let transcoder = transcoder.clone();
                 async move {
+                    // What a `.strm` file names isn't asked by a scan (see
+                    // `crate::strm`): only the file is read.
+                    if super::walk::is_strm(&file.path) {
+                        let path = file.path.clone();
+                        let key = crate::util::blocking(move || Ok(crate::strm::key_of(&path))).await.ok().flatten();
+                        return (file, ProbeOutcome::Link(key));
+                    }
                     let outcome = match transcoder.probe(&path_str(&file.path)).await {
                         Ok(info) => ProbeOutcome::Ok(Box::new(info)),
                         // ffprobe ran and cannot read the file: don't retry every scan.
@@ -852,6 +861,7 @@ impl Scanner {
 struct KnownFile {
     id: i64,
     path: String,
+    /// The file's own size: a `.strm` file's, not its media's.
     size: i64,
     mtime: i64,
     probed: bool,
@@ -865,6 +875,10 @@ enum ProbeOutcome {
     Unavailable,
     /// ffprobe rejected the file: store it as probed so we don't retry every scan.
     Failed,
+    /// A `.strm` file, with the key of the address it names
+    /// ([`crate::strm::Target::key`]; `None`: it names nothing to play). Its
+    /// media is looked at when it is first opened or played.
+    Link(Option<String>),
 }
 
 /// Writes items for scanned files, caching container ids for the scan.
@@ -873,6 +887,8 @@ struct Writer<'a> {
     kind: LibraryKind,
     sidecars: &'a Sidecars,
     containers: HashMap<String, i64>,
+    /// A scan of every file again, changed or not.
+    force: bool,
 }
 
 struct NewItem {
@@ -919,8 +935,8 @@ impl NewItem {
 }
 
 impl<'a> Writer<'a> {
-    fn new(lib: &LibraryRow, sidecars: &'a Sidecars) -> Self {
-        Self { library_id: lib.id, kind: lib.kind(), sidecars, containers: HashMap::new() }
+    fn new(lib: &LibraryRow, sidecars: &'a Sidecars, force: bool) -> Self {
+        Self { library_id: lib.id, kind: lib.kind(), sidecars, containers: HashMap::new(), force }
     }
 
     async fn write(
@@ -929,10 +945,11 @@ impl<'a> Writer<'a> {
         file: &FoundFile,
         outcome: ProbeOutcome,
     ) -> anyhow::Result<()> {
-        let (info, probed) = match outcome {
-            ProbeOutcome::Ok(info) => (Some(*info), true),
-            ProbeOutcome::Unavailable => (None, false),
-            ProbeOutcome::Failed => (None, true),
+        let (info, probed, link) = match outcome {
+            ProbeOutcome::Ok(info) => (Some(*info), true, None),
+            ProbeOutcome::Unavailable => (None, false, None),
+            ProbeOutcome::Failed => (None, true, None),
+            ProbeOutcome::Link(key) => (None, true, Some(key)),
         };
         let duration = info.as_ref().and_then(|i| i.duration_ms);
         let item_id = match (&file.extra, self.kind) {
@@ -947,7 +964,10 @@ impl<'a> Writer<'a> {
             (None, LibraryKind::Audiobooks) => self.write_part(conn, file, info.as_ref(), duration).await?,
         };
         let subs = if self.kind.is_audio() { Vec::new() } else { self.sidecars.subtitles(&file.path) };
-        upsert_file(conn, self.library_id, item_id, file, info.as_ref(), &subs, probed).await
+        match link {
+            Some(key) => upsert_link(conn, self.library_id, item_id, file, key.as_deref(), &subs, self.force).await,
+            None => upsert_file(conn, self.library_id, item_id, file, info.as_ref(), &subs, probed).await,
+        }
     }
 
     async fn container(&mut self, conn: &mut SqliteConnection, item: NewItem) -> anyhow::Result<i64> {
@@ -1362,6 +1382,59 @@ async fn upsert_file(
     .bind(probed)
     .bind(now)
     .bind(now)
+    .execute(conn)
+    .await?;
+    Ok(())
+}
+
+/// [`upsert_file`] for a `.strm` file, which names the address `link_key`
+/// tells from others. What was found of its media when it was played (its
+/// streams, its length, its size: see [`crate::strm::ready`]) stays for as
+/// long as the file names that address, unless every file is scanned again
+/// (`force`); else it is unknown until the file is opened or played, and
+/// its container reads `strm` meanwhile.
+async fn upsert_link(
+    conn: &mut SqliteConnection,
+    library_id: i64,
+    item_id: i64,
+    file: &FoundFile,
+    link_key: Option<&str>,
+    subs: &[ExternalSub],
+    force: bool,
+) -> anyhow::Result<()> {
+    let now = now();
+    sqlx::query(
+        "INSERT INTO media_files (id, item_id, library_id, path, size, link_size, link_key, mtime, container,
+                                  external_subs, probed, added_at, updated_at)
+         VALUES ((SELECT last + 1 FROM file_ids), ?1, ?2, ?3, 0, ?4, ?5, ?6, 'strm', ?7, 1, ?8, ?8)
+         ON CONFLICT(path) DO UPDATE SET
+            item_id = excluded.item_id, library_id = excluded.library_id, link_size = excluded.link_size,
+            link_key = excluded.link_key, mtime = excluded.mtime, external_subs = excluded.external_subs,
+            probed = 1, updated_at = excluded.updated_at,
+            size = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.size ELSE 0 END,
+            container = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.container
+                             ELSE 'strm' END,
+            duration_ms = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.duration_ms END,
+            bitrate = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.bitrate END,
+            width = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.width END,
+            height = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.height END,
+            video_codec = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.video_codec END,
+            dynamic_range = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9
+                                 THEN media_files.dynamic_range END,
+            audio_codec = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.audio_codec END,
+            media_info = CASE WHEN media_files.link_key IS excluded.link_key AND NOT ?9 THEN media_files.media_info END,
+            fingerprint = CASE WHEN media_files.link_size = excluded.link_size AND media_files.mtime = excluded.mtime
+                               THEN media_files.fingerprint END",
+    )
+    .bind(item_id)
+    .bind(library_id)
+    .bind(path_str(&file.path))
+    .bind(file.size)
+    .bind(link_key)
+    .bind(file.mtime)
+    .bind(serde_json::to_string(subs)?)
+    .bind(now)
+    .bind(force)
     .execute(conn)
     .await?;
     Ok(())

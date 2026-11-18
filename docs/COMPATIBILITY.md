@@ -317,6 +317,11 @@ them.
   metadata found, in the API's usual form: `imdb://`, `tmdb://` (movies and
   shows), `tvdb://` (shows) and `mbid://` (artists and albums). The `guid`
   filter finds items by any of them.
+- **.strm files.** A `Part` of a `.strm` file
+  ([CONFIGURATION.md](CONFIGURATION.md#strm-files)) has the file's path as
+  its `file` and gives the media through Pley at its `key`; the address
+  the file names is never given. `container` and `size` are the media's
+  once it has been opened or played (`strm` and 0 before).
 - **Editions.** Movies whose versions are tagged with an edition
   (`{edition-Director's Cut}` in the file or folder name) carry the default
   version's `editionTitle`.
@@ -742,6 +747,12 @@ address is read the same way: without codecs, H.264 and AAC; without
 dynamic ranges, HDR10, HDR10+ and HLG as they are, and no Dolby Vision
 without a base layer.
 
+- A `.strm` file ([CONFIGURATION.md](CONFIGURATION.md#strm-files)) is a
+  media source like a file's: `Protocol` is `File`, `IsRemote` is false and
+  `Path` is the `.strm` file's name, never the address it names, which
+  Jellyfin's own server gives its apps. `PlaybackInfo` finds what the
+  media is when it isn't known, as Jellyfin does, and
+  `/Videos/{id}/stream` and `/Items/{id}/Download` give it through Pley.
 - The video is copied when its codec is listed and within its limits:
   H.264 and HEVC in either kind of segment, VP9 and AV1 in fMP4 only.
   Otherwise it is converted, to HEVC Main 10 where HDR stays HDR (the app
