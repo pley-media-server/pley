@@ -581,7 +581,8 @@
       "episode": "Épisodes",
       "artist": "Artistes",
       "album": "Albums",
-      "track": "Titres"
+      "track": "Titres",
+      "audiobook": "Livres audio"
     },
     "showFewer": "Voir moins",
     "showAll": "Tout voir ({{n, number}})",

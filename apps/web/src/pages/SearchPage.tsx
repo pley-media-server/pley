@@ -19,7 +19,7 @@ import { discoverUrl } from "@/lib/urls";
 import { ScrollRowSkeleton, TitleCards } from "./requests/shared";
 
 /** The groups of results, in order, each titled in `search.groups`. */
-const GROUPS = ["movie", "show", "season", "episode", "artist", "album", "track"] as const satisfies readonly ItemKind[];
+const GROUPS = ["movie", "show", "season", "episode", "artist", "album", "track", "audiobook"] as const satisfies readonly ItemKind[];
 
 /** Rows of a group shown until it's opened: the closest matches come first. */
 const SHOWN_ROWS = 2;

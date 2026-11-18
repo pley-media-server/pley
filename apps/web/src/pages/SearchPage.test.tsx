@@ -41,6 +41,25 @@ describe("SearchPage", () => {
     expect(requests.some((r) => r.path.startsWith("/api/discover"))).toBe(false);
   });
 
+  it("lists the audiobooks found, after the music", async () => {
+    mockApi({
+      "GET /api/search": () => ({
+        items: [
+          makeItem({ id: 1, kind: "track", title: "Harbour" }),
+          makeItem({ id: 2, kind: "audiobook", title: "Harbour Lights" }),
+        ],
+      }),
+    });
+    search("harbour");
+
+    expect(await screen.findByRole("heading", { name: "Audiobooks 1" })).toBeInTheDocument();
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(["Tracks 1", "Audiobooks 1"]);
+    const books = screen.getByRole("heading", { name: "Audiobooks 1" }).closest("section") as HTMLElement;
+    // A card without a cover names its book on the cover's place too.
+    expect(within(books).getAllByText("Harbour Lights")).not.toHaveLength(0);
+  });
+
   it("adds what TMDB has that the libraries don't, where this account may ask", async () => {
     const requests = mockApi({
       "GET /api/search": () => ({ items: [makeItem({ id: 2, title: "Dune", year: 2021 })] }),

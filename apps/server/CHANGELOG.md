@@ -43,7 +43,7 @@ describes how they are made.
 - In the web app, audiobook libraries can be added, and a book's page
   says how much is listened and lists its parts or chapters. Its player
   follows the chapter playing, skips back 15 seconds and on 30, plays from
-  0.75× to 3×, and has a sleep timer.
+  0.75× to 3×, and has a sleep timer. Search finds books by their title.
 - Live TV channels play on Google Cast and AirPlay devices from Watch on…,
   and the remote changes channel there.
 
