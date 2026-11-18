@@ -592,7 +592,7 @@
     "cantSearchTmdb": "No se pudo buscar en TMDB: {{error}}",
     "nothingThere": "Tampoco hay nada ahí. Prueba con otra ortografía o una búsqueda más corta.",
     "emptyTitle": "Busca en tus bibliotecas",
-    "emptyHint": "Encuentra películas, series, episodios, personas, artistas, álbumes, pistas y canales de TV en vivo. Pulsa / en cualquier lugar para ir al cuadro de búsqueda.",
+    "emptyHint": "Encuentra películas, series, episodios, personas, artistas, álbumes, pistas, audiolibros y canales de TV en vivo. Pulsa / en cualquier lugar para ir al cuadro de búsqueda.",
     "cantSearch": "No se pudo buscar en tus bibliotecas",
     "resultsFor": "Resultados de «{{q}}»",
     "nothingInLibraries": "Nada en tus bibliotecas coincide.",
