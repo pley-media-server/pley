@@ -46,6 +46,9 @@ struct Remote {
     redirected: Arc<AtomicUsize>,
     /// The headers of the last request for the media.
     headers: Arc<Mutex<HeaderMap>>,
+    /// Requests for the media kept behind a name and password that came
+    /// without them.
+    unsigned: Arc<AtomicUsize>,
 }
 
 fn ranged(bytes: &[u8], headers: &HeaderMap) -> Response {
@@ -93,6 +96,17 @@ async fn start_remote() -> (Remote, String) {
             }),
         )
         .route("/page", get(|headers: HeaderMap| async move { ranged(b"<html>not a film</html>", &headers) }))
+        .route(
+            "/private/film.mkv",
+            get(|State(remote): State<Remote>, headers: HeaderMap| async move {
+                // "viewer:s3cr3t-t0ken", as Basic sends it.
+                if headers.get(header::AUTHORIZATION).is_none_or(|sent| sent != "Basic dmlld2VyOnMzY3IzdC10MGtlbg==") {
+                    remote.unsigned.fetch_add(1, Ordering::SeqCst);
+                    return StatusCode::UNAUTHORIZED.into_response();
+                }
+                ranged(&media(), &headers)
+            }),
+        )
         .with_state(remote.clone());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let base = format!("http://{}", listener.local_addr().unwrap());
@@ -609,6 +623,66 @@ async fn what_was_found_stays_until_the_file_names_another_address() {
     assert_eq!(w.kept("Film").await, (Some("strm".into()), 0, None));
     assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::OK);
     assert_eq!(w.fake.probes.lock().len(), 3);
+}
+
+/// What a scan kept of a file's media says nothing of what its address
+/// gives now: the bytes are handed out only once they were read as media
+/// through the link they come by.
+#[tokio::test]
+async fn what_is_handed_out_was_read_at_the_address_the_file_names_now() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::OK);
+    let stream = format!("/api/files/{}/stream", app.file_of(w.movies["Film"]).await);
+    assert_eq!(app.get(&stream, admin).await.bytes.len(), media().len());
+    assert_eq!(w.fake.probes.lock().len(), 1);
+    let rel = "movies/Film (2020)/Film (2020).strm";
+    let named = std::fs::read_to_string(app.media.path().join(rel)).unwrap();
+
+    // The file written again, naming the same address: its name may lead
+    // elsewhere than when it was read, so it is read again, once.
+    w.strm(rel, &format!("# written again\n{named}"));
+    for _ in 0..2 {
+        assert_eq!(app.get(&stream, admin).await.bytes.len(), media().len());
+        assert_eq!(w.fake.probes.lock().len(), 2);
+    }
+    // What is kept still says what it is: a page or a playback asks nothing.
+    assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::OK);
+    assert_eq!(w.fake.probes.lock().len(), 2);
+
+    // The file names another address, before any scan sees it: what is
+    // there is no video, and isn't handed out for the one that was.
+    w.strm(rel, &format!("{}/page", w.remote_base));
+    assert_eq!(w.kept("Film").await.0.as_deref(), Some("mkv"), "no scan saw it yet");
+    let served = app.get(&stream, admin).await;
+    assert_eq!(served.status, StatusCode::NOT_FOUND, "{}", served.text());
+    assert!(!served.mentions("not a film"));
+    assert_eq!(w.fake.probes.lock().len(), 3, "it was read, and isn't media");
+    let part = app.call(Method::GET, &stream, Some(admin), None, &[("range", "bytes=0-9")]).await;
+    assert_eq!(part.status, StatusCode::NOT_FOUND);
+    assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::NOT_FOUND, "nor played as what it was");
+}
+
+#[tokio::test]
+async fn a_name_and_password_in_the_address_go_with_every_request() {
+    let w = world_with(|movies, remote| {
+        let address = remote.replace("http://", &format!("http://viewer:{SECRET}@"));
+        std::fs::write(movies.join("Private (2015).strm"), format!("{address}/private/film.mkv")).unwrap();
+    })
+    .await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    let started = w.play("Private", plays_mkv()).await;
+    assert_eq!(started.status, StatusCode::OK, "{}", started.body);
+    let stream = format!("/api/files/{}/stream", app.file_of(w.movies["Private"]).await);
+    for first in [0, 40_000, 90_000, 140_000] {
+        let range = format!("bytes={first}-{}", first + 9);
+        let part = app.call(Method::GET, &stream, Some(admin), None, &[("range", &range)]).await;
+        assert_eq!((part.status, &part.bytes[..]), (StatusCode::PARTIAL_CONTENT, &media()[first..first + 10]));
+    }
+    assert_eq!(w.remote.unsigned.load(Ordering::SeqCst), 0, "never asked without them");
+    assert_eq!(w.kept("Private").await, (Some("mkv".into()), media().len() as i64, Some(60_000)));
+    let item = app.get(&format!("/api/items/{}", w.movies["Private"]), admin).await;
+    assert!(!item.mentions(SECRET) && !item.mentions("viewer"), "{}", item.text());
 }
 
 #[tokio::test]

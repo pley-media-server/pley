@@ -18,7 +18,10 @@
 //!   (a library of links to a hosting service would ask it thousands of
 //!   times): what the media is (its streams, its length, its size) is found
 //!   the first time its item is opened ([`glance`]) or played ([`ready`]),
-//!   and kept for as long as the file names that address. Seek previews,
+//!   and kept for as long as the file names that address. What an address
+//!   gives is handed to a player as it is only once it was read as video
+//!   or audio at the address the file names now, reached as it is reached
+//!   now ([`serve`]): again after the file changes or the server starts. Seek previews,
 //!   intro detection and frame grabs, which read a whole file, aren't made
 //!   for it.
 //! * **Addresses on the internet stay there.** An address on the internet
@@ -139,8 +142,8 @@ impl Target {
 
 /// What a `.strm` file's bytes name (see the module's documentation).
 pub fn parse(bytes: &[u8]) -> Result<Target, Refused> {
-    let text = decode(bytes).ok_or(Refused::NotAnAddress)?;
-    let line = text.lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('#')).ok_or(Refused::Empty)?;
+    let line = first_line(bytes)?;
+    let line = line.as_str();
     if line.len() > MAX_ADDRESS {
         return Err(Refused::NotAnAddress);
     }
@@ -163,19 +166,28 @@ pub fn parse(bytes: &[u8]) -> Result<Target, Refused> {
     Ok(Target { url, headers })
 }
 
-/// A `.strm` file's text: UTF-8, or UTF-16 with a byte order mark (what
-/// Windows' Notepad calls Unicode), without the mark.
-fn decode(bytes: &[u8]) -> Option<String> {
+/// The first line of a `.strm` file that isn't empty or a comment (`#`),
+/// trimmed. The file is UTF-8, or UTF-16 with a byte order mark (what
+/// Windows' Notepad calls Unicode); only that line has to be text, so a
+/// comment in another encoding (a title with an accent) doesn't matter.
+fn first_line(bytes: &[u8]) -> Result<String, Refused> {
     let utf16 = |unit: fn([u8; 2]) -> u16| {
         let units: Vec<u16> = bytes[2..].as_chunks::<2>().0.iter().map(|pair| unit(*pair)).collect();
-        String::from_utf16(&units).ok()
+        let text = String::from_utf16_lossy(&units);
+        let line = text.lines().map(str::trim).find(|l| !l.is_empty() && !l.starts_with('#'));
+        line.map(str::to_owned).ok_or(Refused::Empty)
     };
     match bytes {
         [0xFF, 0xFE, ..] => utf16(u16::from_le_bytes),
         [0xFE, 0xFF, ..] => utf16(u16::from_be_bytes),
         _ => {
-            let text = std::str::from_utf8(bytes).ok()?;
-            Some(text.strip_prefix('\u{feff}').unwrap_or(text).to_owned())
+            let bytes = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(bytes);
+            let line = bytes
+                .split(|b| matches!(b, b'\n' | b'\r'))
+                .map(<[u8]>::trim_ascii)
+                .find(|l| !l.is_empty() && !l.starts_with(b"#"))
+                .ok_or(Refused::Empty)?;
+            std::str::from_utf8(line).map(str::to_owned).map_err(|_| Refused::NotAnAddress)
         }
     }
 }
@@ -293,6 +305,10 @@ pub struct Link {
     /// Where the address last redirected to, and when: asked there for a
     /// while, rather than through the address once more for each range.
     resolved: Mutex<Option<(Url, Instant)>>,
+    /// What its media was found to be when it was read through this very
+    /// link (this address, of the internet or of this network as `public`
+    /// has it), and its size: none until then ([`look`]).
+    seen: Mutex<Option<(Arc<MediaInfo>, i64)>>,
     /// When it was last used ([`Relay::links`] forgets the oldest).
     used: AtomicI64,
 }
@@ -307,6 +323,10 @@ impl Link {
     pub fn target_key(&self) -> String {
         self.target.key()
     }
+
+    fn seen(&self) -> Option<(Arc<MediaInfo>, i64)> {
+        self.seen.lock().clone()
+    }
 }
 
 /// How long a redirect's end is asked directly.
@@ -319,6 +339,9 @@ const FAILED_FOR: Duration = Duration::from_secs(20);
 const FAILED_TO_OPEN_FOR: Duration = Duration::from_secs(10 * 60);
 /// How long opening an item waits for what its `.strm` files' media is.
 const GLANCE: Duration = Duration::from_millis(2500);
+/// How long a look at a file's media may take: an address slower than that
+/// to say what it holds is taken as one that doesn't answer.
+const LOOK: Duration = Duration::from_secs(45);
 
 #[derive(Default)]
 struct Links {
@@ -468,6 +491,7 @@ impl Relay {
                     public: tokio::sync::OnceCell::new(),
                     len: AtomicU64::new(0),
                     resolved: Mutex::new(None),
+                    seen: Mutex::new(None),
                     used: AtomicI64::new(0),
                 });
                 let mut links = self.links.lock();
@@ -582,9 +606,13 @@ impl Relay {
             tracing::debug!("{}: its address answered {}", link.path, response.status());
             return Err(Failed::Answered(response.status()));
         }
-        if response.url() != &link.target.url {
+        // Not for an address with a name and password: those are sent to
+        // the address itself only, so where it leads would be asked without.
+        let target = &link.target.url;
+        if target.username().is_empty() && target.password().is_none() && response.url() != target {
             *link.resolved.lock() = Some((response.url().clone(), Instant::now()));
         }
+        note_size(link, &response);
         Ok(response)
     }
 
@@ -611,9 +639,6 @@ impl Relay {
             StatusCode::OK => length,
             _ => range.and_then(|(_, total)| total),
         };
-        if let Some(total) = total.filter(|total| *total > 0) {
-            link.len.store(total, Ordering::Relaxed);
-        }
         let ranges = status == StatusCode::PARTIAL_CONTENT
             || told(header::ACCEPT_RANGES).is_some_and(|unit| unit.eq_ignore_ascii_case("bytes"));
 
@@ -656,6 +681,19 @@ impl Relay {
         }
         *response.body_mut() = Body::from_stream(upstream.bytes_stream());
         Ok(response)
+    }
+}
+
+/// Keeps the media's size, when `response` says it: all of it is that
+/// long, or a part of it says how long the whole is.
+fn note_size(link: &Link, response: &reqwest::Response) {
+    let told = |name: HeaderName| response.headers().get(name).and_then(|v| v.to_str().ok());
+    let total = match response.status() {
+        StatusCode::OK => told(header::CONTENT_LENGTH).and_then(|length| length.parse().ok()),
+        _ => told(header::CONTENT_RANGE).and_then(content_range).and_then(|(_, total)| total),
+    };
+    if let Some(total) = total.filter(|total| *total > 0) {
+        link.len.store(total, Ordering::Relaxed);
     }
 }
 
@@ -749,7 +787,13 @@ async fn from_transcoder(state: &AppState, peer: Option<IpAddr>, headers: &Heade
     }
     // Without a connection (tests), the key alone.
     let Some(peer) = peer.map(|ip| ip.to_canonical()) else { return true };
-    if peer.is_loopback() {
+    // This computer: by its own name for itself, or (a server that listens
+    // on one address only is reached there by its own transcoder too) from
+    // an address it listens on.
+    let own = |listener: crate::network::Listener| {
+        listener.kind == crate::network::Kind::Web && listener.address.ip().to_canonical() == peer
+    };
+    if peer.is_loopback() || state.network.listeners().into_iter().any(own) {
         return true;
     }
     match transcoder_host(state) {
@@ -783,24 +827,41 @@ pub async fn input(state: &AppState, file: &FileRow) -> ApiResult<String> {
     if !file.is_strm() {
         return Ok(file.path.clone());
     }
-    if !state.transcoder.info().is_some_and(|info| info.capabilities.remote_inputs) {
-        return Err(if state.transcoder.is_available() {
-            AppError::NotImplemented("the transcoder is too old to read a .strm file's media".into())
-        } else {
-            AppError::Unavailable("the transcoder isn't running: try again in a moment".into())
-        });
-    }
+    remote_inputs(state)?;
     let link = state.strm.link(&file.path).await.map_err(Failed::from)?;
     Ok(state.strm.address(state, &link).await?)
 }
 
+/// Whether the transcoder reads an address: an older one doesn't.
+fn remote_inputs(state: &AppState) -> ApiResult<()> {
+    if state.transcoder.info().is_some_and(|info| info.capabilities.remote_inputs) {
+        return Ok(());
+    }
+    Err(if state.transcoder.is_available() {
+        AppError::NotImplemented("the transcoder is too old to read a .strm file's media".into())
+    } else {
+        AppError::Unavailable("the transcoder isn't running: try again in a moment".into())
+    })
+}
+
 /// A `.strm` file's media as a player's direct play or download gets it:
 /// the bytes, with ranges, said to be what the file was found to hold.
-/// Only once it was found to hold video or audio ([`ready`]).
+///
+/// Only once FFprobe read video or audio through the very link the bytes
+/// come by: the address the file names now, of the internet or of this
+/// network as it was then. What a scan kept isn't enough: the file may name
+/// another address since, or its name resolve elsewhere since the server
+/// started, and what is there would be handed out unread.
 pub async fn serve(state: &AppState, file: &FileRow, method: &Method, headers: &HeaderMap) -> ApiResult<Response> {
-    let file = ready(state, file.clone()).await?;
     let link = state.strm.link(&file.path).await.map_err(Failed::from)?;
-    let name = format!("media.{}", file.container.as_deref().unwrap_or_default());
+    let info = match link.seen() {
+        Some((info, _)) => info,
+        None => {
+            find(state, file.clone(), &link, Wanted::Seen).await?;
+            link.seen().ok_or(Failed::NotMedia)?.0
+        }
+    };
+    let name = format!("media.{}", info.container.as_deref().unwrap_or_default());
     let content_type = match mime_guess::from_path(&name).first_raw() {
         Some(kind) if kind.starts_with("video/") || kind.starts_with("audio/") => kind,
         _ => "application/octet-stream",
@@ -825,21 +886,62 @@ pub fn download_name(file: &FileRow) -> String {
 /// played since it named its address, found now (the transcoder probes it
 /// through the server) and kept. Any other file as it is.
 pub async fn ready(state: &AppState, file: FileRow) -> ApiResult<FileRow> {
-    if !file.is_strm() || file.media_info.is_some() {
+    if !file.is_strm() {
         return Ok(file);
     }
+    let link = state.strm.link(&file.path).await.map_err(Failed::from)?;
+    match known(state, &file, &link).await? {
+        Some(known) => Ok(known),
+        None => find(state, file, &link, Wanted::Details).await,
+    }
+}
+
+/// `file` with what its media is, when that is known without a look: what
+/// is kept, when it is of the address the file names now, or for a file
+/// that names another since its scan, what a look through `link` found.
+async fn known(state: &AppState, file: &FileRow, link: &Link) -> sqlx::Result<Option<FileRow>> {
+    let key: Option<Option<String>> = sqlx::query_scalar("SELECT link_key FROM media_files WHERE id = ?")
+        .bind(file.id)
+        .fetch_optional(&state.db.read)
+        .await?;
+    let scanned = key.flatten().is_some_and(|key| key == link.target_key());
+    Ok(match link.seen() {
+        _ if scanned => file.media_info.is_some().then(|| file.clone()),
+        Some((info, size)) => Some(described(file, &info, size)),
+        None => None,
+    })
+}
+
+/// What a look at a file's media is for ([`find`]).
+#[derive(Clone, Copy, PartialEq)]
+enum Wanted {
+    /// Its details, to show or to decide a playback by: those kept do.
+    Details,
+    /// Its bytes handed out as they are: only a look through the link
+    /// they come by does ([`serve`]).
+    Seen,
+}
+
+/// Has `file`'s media looked at through `link`, one look at a time, and
+/// not again for a moment where it failed.
+async fn find(state: &AppState, file: FileRow, link: &Arc<Link>, wanted: Wanted) -> ApiResult<FileRow> {
     let relay = &state.strm;
     let turn = relay.probing.lock().entry(file.id).or_default().clone();
     let _one_at_a_time = turn.lock().await;
     // Found by the request that had the turn before this one?
     let file = crate::catalog::file(&state.db, file.id).await?.ok_or_else(|| AppError::not_found("file not found"))?;
-    if file.media_info.is_some() {
-        return Ok(file);
+    let found = match (wanted, link.seen()) {
+        (Wanted::Seen, Some((info, size))) => Some(described(&file, &info, size)),
+        (Wanted::Seen, None) => None,
+        (Wanted::Details, _) => known(state, &file, link).await?,
+    };
+    if let Some(found) = found {
+        return Ok(found);
     }
     if let Some((_, failed)) = relay.failed.lock().get(&file.id).filter(|(at, _)| at.elapsed() < FAILED_FOR) {
         return Err((*failed).into());
     }
-    let found = look(state, &file).await;
+    let found = look(state, &file, link).await;
     // The turns nobody waits for any more.
     relay.probing.lock().retain(|_, turn| Arc::strong_count(turn) > 1);
     match found {
@@ -882,18 +984,21 @@ pub async fn glance(state: &AppState, item_id: i64) -> bool {
 
 /// [`ready`]'s look at `file`'s media. A failure of the address or its
 /// media (remembered for a moment), or any other error.
-async fn look(state: &AppState, file: &FileRow) -> Result<FileRow, Result<Failed, AppError>> {
-    let link = state.strm.link(&file.path).await.map_err(|why| Ok(Failed::Refused(why)))?;
-    let address = input(state, file).await.map_err(Err)?;
-    let info = match state.transcoder.probe_now(&address).await {
-        Ok(info) => info,
+async fn look(state: &AppState, file: &FileRow, link: &Arc<Link>) -> Result<FileRow, Result<Failed, AppError>> {
+    remote_inputs(state).map_err(Err)?;
+    let address = state.strm.address(state, link).await.map_err(Ok)?;
+    let first_byte = HeaderValue::from_static("bytes=0-0");
+    let info = match tokio::time::timeout(LOOK, state.transcoder.probe_now(&address)).await {
+        Ok(Ok(info)) => info,
         // FFprobe read it and found no media: what the address answered
         // says why, when it wasn't media at all.
-        Err(TranscoderError::Api { code, .. }) if code == "ffmpeg_failed" => {
-            let asked = state.strm.fetch(&link, Some(&HeaderValue::from_static("bytes=0-0"))).await;
+        Ok(Err(TranscoderError::Api { code, .. })) if code == "ffmpeg_failed" => {
+            let asked = state.strm.fetch(link, Some(&first_byte)).await;
             return Err(Ok(asked.err().unwrap_or(Failed::NotMedia)));
         }
-        Err(other) => return Err(Err(other.into())),
+        // An address too slow to tell what it holds, as one that doesn't answer.
+        Err(_) | Ok(Err(TranscoderError::Api { status: 504, .. })) => return Err(Ok(Failed::Unreachable)),
+        Ok(Err(other)) => return Err(Err(other.into())),
     };
     if !info
         .streams
@@ -902,19 +1007,43 @@ async fn look(state: &AppState, file: &FileRow) -> Result<FileRow, Result<Failed
     {
         return Err(Ok(Failed::NotMedia));
     }
+    // (A transcoder that had probed it before answers without asking it again.)
+    if link.media_len().is_none() {
+        let _ = state.strm.fetch(link, Some(&first_byte)).await;
+    }
     let size = link.media_len().and_then(|len| i64::try_from(len).ok()).unwrap_or(0);
-    save(state, file, &link, &info, size).await.map_err(|err| Err(err.into()))
+    *link.seen.lock() = Some((Arc::new(info.clone()), size));
+    save(state, file, link, &info, size).await.map_err(|err| Err(err.into()))?;
+    Ok(described(file, &info, size))
+}
+
+/// `file` as its media was found to be.
+fn described(file: &FileRow, info: &MediaInfo, size: i64) -> FileRow {
+    let (video, audio) = (info.video(), info.default_audio());
+    let mut found = file.clone();
+    found.container = info.container.clone();
+    found.duration_ms = info.duration_ms;
+    found.bitrate = bitrate_of(info, size);
+    found.width = video.and_then(|v| v.width);
+    found.height = video.and_then(|v| v.height);
+    found.video_codec = video.map(|v| v.codec.clone());
+    found.audio_codec = audio.map(|a| a.codec.clone());
+    found.media_info = serde_json::to_string(info).ok();
+    found.size = size;
+    found
+}
+
+/// The media's bitrate: the whole's, or without one (an address that
+/// didn't say its size when it was probed) the one its size and length make.
+fn bitrate_of(info: &MediaInfo, size: i64) -> Option<i64> {
+    info.bitrate.or_else(|| info.duration_ms.filter(|ms| *ms > 0 && size > 0).map(|ms| size.saturating_mul(8000) / ms))
 }
 
 /// Keeps what `file`'s media was found to be, for as long as the file
 /// names the address it was found at.
-async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, size: i64) -> sqlx::Result<FileRow> {
+async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, size: i64) -> sqlx::Result<()> {
     let (video, audio) = (info.video(), info.default_audio());
-    // Without a bitrate of the whole (an address that didn't say its size
-    // when it was probed), the one its size and length make.
-    let bitrate = info
-        .bitrate
-        .or_else(|| info.duration_ms.filter(|ms| *ms > 0 && size > 0).map(|ms| size.saturating_mul(8000) / ms));
+    let bitrate = bitrate_of(info, size);
     let json = serde_json::to_string(info).map_err(|err| sqlx::Error::Encode(Box::new(err)))?;
     let now = crate::util::now();
     let mut tx = state.db.write.begin().await?;
@@ -941,13 +1070,14 @@ async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, s
     .rows_affected()
         > 0;
     if kept {
+        // The item is as long as its file, as a scan has it for a file on disk.
         sqlx::query(
-            "UPDATE items SET duration_ms = ?, updated_at = ? WHERE id = ? AND duration_ms IS NULL AND ? IS NOT NULL",
+            "UPDATE items SET duration_ms = ?1, updated_at = ?2
+             WHERE id = ?3 AND ?1 IS NOT NULL AND duration_ms IS NOT ?1",
         )
         .bind(info.duration_ms)
         .bind(now)
         .bind(file.item_id)
-        .bind(info.duration_ms)
         .execute(&mut *tx)
         .await?;
         // Listings show an item's files (sizes, bitrates, 4K and HDR badges).
@@ -964,18 +1094,7 @@ async fn save(state: &AppState, file: &FileRow, link: &Link, info: &MediaInfo, s
         tracing::info!("{}: its media is {} now", file.path, info.container.as_deref().unwrap_or("known"));
         state.events.send(crate::events::ServerEvent::LibraryChanged { library_id: file.library_id });
     }
-    // As it is kept, or (a file changed since its scan) for this playback.
-    let mut found = file.clone();
-    found.container = info.container.clone();
-    found.duration_ms = info.duration_ms;
-    found.bitrate = bitrate;
-    found.width = video.and_then(|v| v.width);
-    found.height = video.and_then(|v| v.height);
-    found.video_codec = video.map(|v| v.codec.clone());
-    found.audio_codec = audio.map(|a| a.codec.clone());
-    found.media_info = Some(json);
-    found.size = size;
-    Ok(found)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -1020,6 +1139,9 @@ mod tests {
             assert_eq!(address(broken), Err(Refused::NotAnAddress), "{broken}");
         }
         assert_eq!(parse(&[0xC3, 0x28, b'h']), Err(Refused::NotAnAddress), "not text");
+        // Only the address has to be text: a comment in another encoding doesn't matter.
+        let latin1 = [b"#EXTINF:-1,Am\xE9lie\r\n".as_slice(), b"http://host/film.mkv\r\n"].concat();
+        assert_eq!(parse(&latin1).unwrap().url.as_str(), "http://host/film.mkv");
         assert_eq!(address(&format!("http://host/{}", "a".repeat(MAX_ADDRESS))), Err(Refused::NotAnAddress));
     }
 

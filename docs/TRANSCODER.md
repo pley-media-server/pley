@@ -262,14 +262,17 @@ reaches FFmpeg's command line.
   fonts) are kept by it, so the caller changes it when its media changes.
 - The readers of the transcoder's own (a Matroska file's Cues, an MP4's
   sample tables, subtitle tracks through the Cues, attached fonts) read it
-  with ranged requests, one connection at a time. An address that takes no
-  ranges, or sends a chunked answer, has no index read: a remux of it is a
-  transcode.
+  with ranged requests, one connection at a time: each asks for a bounded
+  range (64 KiB after a seek, up to 8 MiB while the reading goes straight
+  on) and reads it out, so the caller can keep its connection to where the
+  media is. An address that takes no ranges, or sends a chunked answer,
+  has no index read: a remux of it is a transcode.
 - No packet scan is run for it (`POST /v1/keyframes` answers `404`): only
   what its own index gives is used. Thumbnails, covers, seek previews,
   read-ahead, fingerprints and frame statistics answer `not_found`.
-- A subtitle track that FFmpeg has to read the whole media for is given
-  20 minutes.
+- A picture track read through the Cues is given 10 minutes, and a track
+  that FFmpeg has to read the whole media for two hours: the media's size
+  isn't known without asking.
 
 `POST /v1/thumbnail` returns `image/jpeg`:
 

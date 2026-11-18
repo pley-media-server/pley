@@ -3017,7 +3017,9 @@ A `.strm` file in a movie or TV library names the address its media is at
 - A play request decides as for a file. A direct play's address
   (`/api/files/{id}/stream`, or a keyed session's `file.{ext}`) gives the
   media through Pley, with `Range`, as the `Content-Type` of its container,
-  with `Cache-Control: private, no-store` and no `ETag`. A stream is made
+  with `Cache-Control: private, no-store` and no `ETag`. Its first request
+  after the file changed or the server started waits for the media to be
+  read once more. A stream is made
   by the transcoder as for a file.
 - Errors: `404` when the file names nothing to play, the address has
   nothing there (`404`, `410`) or what it gives isn't video or audio;
@@ -3029,7 +3031,10 @@ A `.strm` file in a movie or TV library names the address its media is at
   reads nothing.
 - `GET /api/strm/{key}/{name}` is where the transcoder reads the media:
   Pley asks the address and passes the bytes on. It answers the transcoder
-  only ([SECURITY.md](../SECURITY.md#strm-files)), `404` to anyone else.
+  only ([SECURITY.md](../SECURITY.md#strm-files)), `404` to anyone else. A
+  transcoder run elsewhere is given the address the server has towards
+  its host, and is answered when it asks from the host `transcoder_url`
+  names.
 
 ## Downloads
 

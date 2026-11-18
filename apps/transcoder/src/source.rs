@@ -8,6 +8,11 @@
 //! Only plain HTTP, which is all the server's own address takes: no TLS, no
 //! redirects, no chunked bodies. An address that answers otherwise can't be
 //! read here, and a job then does what it does for a file with no index.
+//!
+//! Each request asks for a bounded range, small at first and growing while
+//! the reading goes straight on, and what is left of one is read out before
+//! the next: whoever relays the media can then keep its own connection to
+//! where the media is, rather than give one up at every seek.
 
 use std::fs::File;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
@@ -80,9 +85,14 @@ const MAX_HEAD: u64 = 16 * 1024;
 /// A seek this far ahead reads past what is between rather than asking
 /// again: a request costs the server one of its own to where the media is.
 const READ_PAST: u64 = 256 * 1024;
+/// How much a request asks for after a seek (a block of subtitles, an
+/// element's head), and the most one asks for once the reading has gone
+/// straight on for a while (a file's Cues, its sample tables).
+const FIRST_ASKED: u64 = 64 * 1024;
+const MOST_ASKED: u64 = 8 * 1024 * 1024;
 
-/// An address read with ranged requests: one from where the reading is, read
-/// on until a seek leaves it.
+/// An address read with ranged requests: one from where the reading is, the
+/// next when it is read out or a seek leaves it.
 pub struct Remote {
     /// `host:port`, as connected to and as the `Host` header.
     authority: String,
@@ -91,6 +101,8 @@ pub struct Remote {
     len: u64,
     pos: u64,
     body: Option<Body>,
+    /// How much the next request asks for.
+    asked: u64,
 }
 
 /// A response being read: `left` bytes of it to come.
@@ -117,14 +129,16 @@ impl Remote {
             Some(colon) if !authority[colon..].contains(']') => authority.to_owned(),
             _ => format!("{authority}:80"),
         };
-        let mut remote = Self { authority: with_port, target: target.to_owned(), len: 0, pos: 0, body: None };
-        remote.len = remote.request(0)?;
+        let mut remote =
+            Self { authority: with_port, target: target.to_owned(), len: 0, pos: 0, body: None, asked: FIRST_ASKED };
+        remote.len = remote.request(0, FIRST_ASKED)?;
         Ok(remote)
     }
 
-    /// Asks for everything from `from` on, and gives the size of the whole.
-    fn request(&mut self, from: u64) -> std::io::Result<u64> {
+    /// Asks for `want` bytes from `from` on, and gives the size of the whole.
+    fn request(&mut self, from: u64, want: u64) -> std::io::Result<u64> {
         self.body = None;
+        let until = from.saturating_add(want.max(1) - 1);
         let mut last = None;
         let mut stream = None;
         for addr in self.authority.to_socket_addrs()? {
@@ -142,7 +156,7 @@ impl Remote {
         let _ = stream.set_nodelay(true);
         write!(
             stream,
-            "GET {} HTTP/1.1\r\nHost: {}\r\nRange: bytes={from}-\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n",
+            "GET {} HTTP/1.1\r\nHost: {}\r\nRange: bytes={from}-{until}\r\nAccept-Encoding: identity\r\nConnection: close\r\n\r\n",
             self.target, self.authority
         )?;
         let mut stream = BufReader::with_capacity(64 * 1024, stream);
@@ -188,6 +202,17 @@ impl Remote {
         self.body = Some(Body { stream, left });
         Ok(len)
     }
+
+    /// Leaves the response being read for a seek elsewhere: the little left
+    /// of it is read out, so that it ends rather than is cut.
+    fn leave(&mut self) {
+        if let Some(mut body) = self.body.take()
+            && body.left <= FIRST_ASKED
+        {
+            let _ = std::io::copy(&mut (&mut body.stream).take(body.left), &mut std::io::sink());
+        }
+        self.asked = FIRST_ASKED;
+    }
 }
 
 /// `bytes first-last/len`, as numbers.
@@ -205,7 +230,7 @@ impl Read for Remote {
         // Once more from where it stopped, when a connection is cut short.
         for attempt in 0..2 {
             if self.body.is_none() {
-                self.request(self.pos)?;
+                self.request(self.pos, self.asked.max(buf.len() as u64))?;
             }
             let Some(body) = self.body.as_mut() else { break };
             let want = buf.len().min(usize::try_from(body.left).unwrap_or(usize::MAX));
@@ -215,11 +240,19 @@ impl Read for Remote {
                     body.left -= n as u64;
                     self.pos += n as u64;
                     if body.left == 0 {
+                        // Read out: the reading goes straight on, so more next time.
                         self.body = None;
+                        self.asked = (self.asked * 2).min(MOST_ASKED);
                     }
                     return Ok(n);
                 }
-                Err(err) if attempt == 0 && err.kind() != std::io::ErrorKind::TimedOut => self.body = None,
+                // (A read that timed out is `WouldBlock` on Unix.)
+                Err(err)
+                    if attempt == 0
+                        && !matches!(err.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock) =>
+                {
+                    self.body = None
+                }
                 Err(err) => return Err(err),
             }
         }
@@ -246,7 +279,7 @@ impl Seek for Remote {
                     self.body = None;
                 }
             }
-            _ => self.body = None,
+            _ => self.leave(),
         }
         self.pos = target;
         Ok(target)
@@ -390,6 +423,26 @@ pub mod tests {
             assert_eq!(source.read(&mut buf).unwrap(), 0);
             assert!(source.seek(SeekFrom::Current(-3_000_000)).is_err());
             assert_eq!(requests.load(Ordering::Relaxed), before + 4);
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn reading_straight_on_asks_for_more_each_time() {
+        let dir = crate::testing::tempdir();
+        let file = dir.path().join("film.bin");
+        let data = numbered(900_000);
+        std::fs::write(&file, &data).unwrap();
+        let served = serve(&file).await;
+        let (path, requests) = (served.path(), served.requests.clone());
+        tokio::task::spawn_blocking(move || {
+            let mut source = std::io::BufReader::with_capacity(64 * 1024, Source::open(&path).unwrap());
+            let mut read = Vec::new();
+            source.read_to_end(&mut read).unwrap();
+            assert!(read == data);
+            // 64 KiB, then 128, 256 and 512: not a request for each 64 KiB read.
+            assert_eq!(requests.load(Ordering::Relaxed), 4);
         })
         .await
         .unwrap();

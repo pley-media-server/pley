@@ -575,7 +575,9 @@ impl Scanner {
         // of the probing time.
         phase = Instant::now();
         let mut writing = Duration::ZERO;
-        if !to_process.is_empty() && !self.transcoder.is_available() {
+        // (Not for `.strm` files, which a scan doesn't probe.)
+        let to_probe = to_process.iter().any(|file| !super::walk::is_strm(&file.path));
+        if to_probe && !self.transcoder.is_available() {
             self.transcoder.wait_ready(Duration::from_secs(90)).await;
         }
 

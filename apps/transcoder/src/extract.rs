@@ -1366,8 +1366,18 @@ fn picture_read_time(bytes: u64) -> Duration {
 /// How long reading a picture track through the Cues of the file at `path`
 /// may take: see [`picture_read_time`].
 fn picture_read_timeout(path: &Path) -> Duration {
+    if crate::source::is_remote(path) {
+        return REMOTE_PICTURE_READ_TIME;
+    }
     picture_read_time(std::fs::metadata(path).map(|m| m.len()).unwrap_or(0))
 }
+
+/// How long reading a picture track through the Cues of an address
+/// ([`crate::source`]) may take, and how long FFmpeg may take to read all of
+/// one: what a big film's takes from a slow host, its size not being known
+/// without asking.
+const REMOTE_PICTURE_READ_TIME: Duration = Duration::from_secs(10 * 60);
+const REMOTE_PASS_TIME: Duration = Duration::from_secs(2 * 3600);
 
 /// The picture subtitles read through the Cues first: from this long before
 /// where the player is (what shows there may have started a while before)
@@ -1658,6 +1668,9 @@ fn mark_written(parts: &[&Path]) {
 /// How long FFmpeg may take to read the whole file at `path`: see
 /// [`pass_timeout`].
 fn whole_file_timeout(path: &Path) -> Duration {
+    if crate::source::is_remote(path) {
+        return REMOTE_PASS_TIME;
+    }
     pass_timeout(std::fs::metadata(path).map(|m| m.len()).unwrap_or(0))
 }
 

@@ -540,7 +540,7 @@ impl MarkerService {
                     "SELECT DISTINCT f.item_id FROM media_files f
                      JOIN items i ON i.id = f.item_id
                      LEFT JOIN marker_analysis a ON a.file_id = f.id
-                     WHERE f.library_id = ? AND i.kind = 'movie'
+                     WHERE f.library_id = ? AND i.kind = 'movie' AND f.link_size IS NULL
                        AND (a.file_id IS NULL OR a.version < ? OR a.size != f.size OR a.mtime != f.mtime)",
                 )
                 .bind(library_id)

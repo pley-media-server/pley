@@ -555,8 +555,12 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   resolves names, and only redirects to addresses written as numbers are
   refused.
 - What an address gives is handed to a player only once FFprobe read it as
-  video or audio, as that format's `Content-Type` whatever the address
-  calls it, and never as a page (`X-Content-Type-Options: nosniff`).
+  video or audio at the address the file names now, reached as it is
+  reached now: it is read again after the file changes or the server
+  starts, so neither a file rewritten since nor a name that resolves
+  elsewhere since hands out anything unread. It is sent as that format's
+  `Content-Type` whatever the address calls it, and never as a page
+  (`X-Content-Type-Options: nosniff`).
 - Nothing asks an address until someone opens or plays its item: a scan
   reads the files only. An address that fails isn't asked again for 20
   seconds by a playback, or for 10 minutes by a page opening.
