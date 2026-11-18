@@ -549,7 +549,9 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   connection itself). An address the file names on the network directly is
   asked: that is where a NAS or a download service is. A name given for
   one is held to the network from then on, so it can't turn into a host on
-  the internet that redirects back in. So someone who can
+  the internet that redirects back in. A name only a redirect gives is
+  taken for one on the internet however it resolves, since whoever answers
+  for it could make it resolve to the network. So someone who can
   write in a library folder can have Pley ask an address of the network
   for video or audio, as a link in a library can lead to a video anywhere
   on the disk. With a proxy configured for Pley (`HTTPS_PROXY`), the proxy

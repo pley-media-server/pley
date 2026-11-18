@@ -31,7 +31,9 @@
 //!   video. An address the file itself names on this network is
 //!   asked, that being where a NAS or a download service is, and its name
 //!   is held to this network from then on: it can't become a host on the
-//!   internet that redirects back in.
+//!   internet that redirects back in. A name only a redirect gives is of
+//!   the internet, however it resolves: its owner could make it resolve
+//!   here.
 //! * **An administrator's choice.** With `.strm` files turned off
 //!   (`strm_files`, Settings → Server), scans leave them out and nothing
 //!   asks what they name.
@@ -347,8 +349,10 @@ impl Link {
 const RESOLVED_FOR: Duration = Duration::from_secs(10 * 60);
 /// The most redirects an address is followed through.
 const REDIRECTS: usize = 10;
-/// How long the transcoder's host's addresses are kept ([`transcoder_ips`]).
+/// How long the transcoder's host's addresses are kept ([`transcoder_ips`]),
+/// and how soon a request from another address has them looked up again.
 const TRANSCODER_LOOKUP_FOR: Duration = Duration::from_secs(60);
+const TRANSCODER_LOOKUP_AGAIN: Duration = Duration::from_secs(5);
 /// The `.strm` files remembered as read; the least recently used go first.
 const LINKS_KEPT: usize = 4096;
 /// How long a file whose media wasn't found isn't asked again when it is
@@ -590,9 +594,11 @@ impl Relay {
     }
 
     /// Whether `url` is of this network or computer: written so in
-    /// numbers, or a name with no address on the internet, which is held to
-    /// this network from then on ([`Inside`]).
-    async fn of_network(&self, url: &Url) -> Result<bool, Failed> {
+    /// numbers, or a name held to it ([`Inside`]). A name a `.strm` file
+    /// itself names (`named`) with no address on the internet is held from
+    /// then on. Any other, one a redirect gives, is of the internet however
+    /// it resolves: whoever answers for it could make it resolve here.
+    async fn of_network(&self, url: &Url, named: bool) -> Result<bool, Failed> {
         let name = match url.host() {
             Some(url::Host::Ipv4(_) | url::Host::Ipv6(_)) => return Ok(written_as_private(url)),
             Some(url::Host::Domain(name)) => name.to_ascii_lowercase(),
@@ -600,6 +606,9 @@ impl Relay {
         };
         if self.inside.lock().contains(&name) {
             return Ok(true);
+        }
+        if !named {
+            return Ok(false);
         }
         let port = url.port_or_known_default().unwrap_or(80);
         let found: Vec<SocketAddr> =
@@ -622,11 +631,11 @@ impl Relay {
     async fn ask(&self, link: &Link, url: &Url, range: Option<&HeaderValue>) -> Result<reqwest::Response, Failed> {
         let public = *link
             .public
-            .get_or_try_init(|| async { Ok::<_, Failed>(!self.of_network(&link.target.url).await?) })
+            .get_or_try_init(|| async { Ok::<_, Failed>(!self.of_network(&link.target.url, true).await?) })
             .await?;
         let mut url = url.clone();
         for _ in 0..=REDIRECTS {
-            if public || !self.of_network(&url).await? {
+            if public || !self.of_network(&url, false).await? {
                 return Self::get(&self.public, link, &url, range).await;
             }
             let response = Self::get(&self.any, link, &url, range).await?;
@@ -818,11 +827,11 @@ fn transcoder_host(state: &AppState) -> Option<(String, u16)> {
 }
 
 /// The addresses of the transcoder's host (`transcoder_url`): looked up
-/// once a minute, not for each of its requests.
-async fn transcoder_ips(state: &AppState) -> Vec<IpAddr> {
+/// again once those known are `older` than that, not for each request.
+async fn transcoder_ips(state: &AppState, older: Duration) -> Vec<IpAddr> {
     let Some((host, port)) = transcoder_host(state) else { return Vec::new() };
     if let Some((at, ips)) = &*state.strm.transcoder_ips.lock()
-        && at.elapsed() < TRANSCODER_LOOKUP_FOR
+        && at.elapsed() < older
     {
         return ips.clone();
     }
@@ -851,7 +860,7 @@ async fn own_address(state: &AppState) -> Option<String> {
         None => None,
         // No packet is sent: connecting a UDP socket only picks the route.
         Some((_, port)) => {
-            let there = SocketAddr::new(*transcoder_ips(state).await.first()?, port);
+            let there = SocketAddr::new(*transcoder_ips(state, TRANSCODER_LOOKUP_FOR).await.first()?, port);
             let socket = std::net::UdpSocket::bind(if there.is_ipv4() { "0.0.0.0:0" } else { "[::]:0" }).ok()?;
             socket.connect(there).ok()?;
             Some(socket.local_addr().ok()?.ip().to_canonical())
@@ -903,7 +912,10 @@ async fn from_transcoder(state: &AppState, peer: Option<IpAddr>, headers: &Heade
     if peer.is_loopback() || state.network.listeners().into_iter().any(own) {
         return true;
     }
-    transcoder_ips(state).await.contains(&peer)
+    // A transcoder whose address changed (a container started again) is
+    // looked up again, a few seconds on.
+    transcoder_ips(state, TRANSCODER_LOOKUP_FOR).await.contains(&peer)
+        || transcoder_ips(state, TRANSCODER_LOOKUP_AGAIN).await.contains(&peer)
 }
 
 /// `GET /api/strm/{key}/{name}`: a `.strm` file's media, for the
@@ -1359,7 +1371,7 @@ mod tests {
 
     /// The client for addresses on the internet follows a redirect to
     /// neither an address of this computer written in numbers nor one named
-    /// by a name; the client for addresses of this network follows both.
+    /// by a name; the client for addresses of this network follows none.
     #[tokio::test]
     async fn the_internets_client_follows_no_redirect_inside() {
         use axum::routing::get;
@@ -1397,25 +1409,29 @@ mod tests {
         let addr = listener.local_addr().unwrap();
         let to = |location: String| get(move || async move { (StatusCode::FOUND, [(header::LOCATION, location)]) });
         let app = axum::Router::new()
-            .route("/numbers", to(format!("http://127.0.0.1:{}/name", addr.port())))
+            .route("/numbers", to(format!("http://127.0.0.1:{}/inside", addr.port())))
             .route("/name", to(format!("http://localhost:{}/inside", addr.port())))
             .route("/inside", get(|| async { "of this network" }));
         tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
 
         let dir = tempfile::tempdir().unwrap();
         let relay = Relay::new(dir.path());
-        let file = dir.path().join("Film.strm");
-        std::fs::write(&file, format!("http://{addr}/numbers")).unwrap();
-        let link = relay.link(file.to_str().unwrap()).await.unwrap();
-        let answer = relay.fetch(&link, None).await.unwrap();
-        assert_eq!(answer.text().await.unwrap(), "of this network");
-        assert!(relay.inside.lock().contains("localhost"), "a name of this network is held to it");
-        // An address on the internet, wherever it was reached from, is
-        // asked with the client that reaches nothing else.
-        for (address, inside) in [("http://93.184.216.34/", false), ("http://10.0.0.2/", true), ("http://[::1]/", true)]
-        {
-            assert_eq!(relay.of_network(&Url::parse(address).unwrap()).await, Ok(inside), "{address}");
-        }
+        let fetch = async |name: &str, address: String| {
+            let file = dir.path().join(format!("{name}.strm"));
+            std::fs::write(&file, address).unwrap();
+            let link = relay.link(file.to_str().unwrap()).await.unwrap();
+            Ok::<_, Failed>(relay.fetch(&link, None).await?.text().await.unwrap())
+        };
+        // To an address of this network written in numbers.
+        assert_eq!(fetch("Numbers", format!("http://{addr}/numbers")).await.as_deref(), Ok("of this network"));
+        // A name only a redirect gives is asked as one on the internet, with
+        // the client that reaches nothing here.
+        assert_eq!(fetch("Name", format!("http://{addr}/name")).await, Err(Failed::Unreachable));
+        assert!(!relay.inside.lock().contains("localhost"));
+        // A name a file gives for this network is held to it, and followed.
+        let named = format!("http://localhost:{}/name", addr.port());
+        assert_eq!(fetch("Named", named).await.as_deref(), Ok("of this network"));
+        assert!(relay.inside.lock().contains("localhost"));
     }
 
     #[tokio::test]

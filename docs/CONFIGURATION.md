@@ -223,6 +223,8 @@ Shows/The Expanse/Season 01/The Expanse - S01E01.strm
   to an address of your own network or of the server's computer, also
   when an address of your network sent Pley there. An
   address the file itself names on your network (a NAS, a download
-  service) is asked as it is ([SECURITY.md](../SECURITY.md#strm-files)).
+  service) is asked as it is. It may redirect to another address of your
+  network written as a number, or to a name the `.strm` files give
+  ([SECURITY.md](../SECURITY.md#strm-files)).
 - A link that stops answering leaves its item in the library: playing it
   says the address didn't answer, or has nothing there any more.
