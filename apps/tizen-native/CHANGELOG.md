@@ -8,6 +8,8 @@ describes how they are made.
 
 ## [Unreleased]
 
+## [0.1.11] - 2026-11-18
+
 ### Added
 
 - A library's Collections are grouped by category, and can be narrowed
@@ -527,7 +529,8 @@ describes how they are made.
 
 - The version of the builds made by hand before the app had releases.
 
-[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-16...HEAD
+[Unreleased]: https://github.com/pley-media-server/pley/compare/release-2026-11-18...HEAD
+[0.1.11]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-18
 [0.1.10]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-16
 [0.1.9]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-12
 [0.1.8]: https://github.com/pley-media-server/pley/releases/tag/release-2026-11-08
