@@ -22,6 +22,7 @@ describes how they are made.
   the internet can't lead to one of your network, and seek previews and
   intro detection aren't made for it
   ([docs/CONFIGURATION.md](../../docs/CONFIGURATION.md#strm-files)).
+  Administrators turn them off in Settings → Server.
 
 ## [0.1.13] - 2026-11-18
 

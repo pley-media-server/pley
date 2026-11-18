@@ -727,3 +727,39 @@ async fn a_transcoder_too_old_to_read_an_address_says_so() {
     assert_eq!(started.status, StatusCode::NOT_IMPLEMENTED, "{}", started.body);
     assert!(fake.probes.lock().is_empty());
 }
+
+#[tokio::test]
+async fn turned_off_they_leave_the_libraries_and_nothing_asks_their_addresses() {
+    let w = world().await;
+    let (app, admin) = (&w.app, w.admin.as_str());
+    assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::OK);
+    let relayed = w.fake.probes.lock()[0].strip_prefix(&w.own).unwrap().to_owned();
+    let stream = format!("/api/files/{}/stream", app.file_of(w.movies["Film"]).await);
+    assert_eq!(app.call(Method::GET, &relayed, None, None, &[]).await.status, StatusCode::OK);
+
+    // Off, before a scan leaves the file out: nothing reads its address.
+    let off = pley::settings::SettingsPatch { strm_files: Some(false), ..Default::default() };
+    app.state.settings.update(&app.state.db, off).await.unwrap();
+    let asked = w.remote.asked.load(Ordering::SeqCst);
+    let refused = w.play("Film", plays_mkv()).await;
+    assert_eq!(refused.status, StatusCode::NOT_FOUND);
+    assert!(refused.text().contains("turned off"), "{}", refused.text());
+    assert_eq!(app.get(&stream, admin).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(app.call(Method::GET, &relayed, None, None, &[]).await.status, StatusCode::NOT_FOUND);
+    assert_eq!(w.remote.asked.load(Ordering::SeqCst), asked);
+
+    // Turned on or off in the settings, the movie library is scanned again.
+    let on = app.put("/api/settings", admin, json!({"strm_files": true})).await;
+    assert_eq!((on.status, &on.body["strm_files"]), (StatusCode::OK, &json!(true)));
+    assert_eq!(w.play("Film", plays_mkv()).await.status, StatusCode::OK);
+    let off = app.put("/api/settings", admin, json!({"strm_files": false})).await;
+    assert_eq!((off.status, &off.body["strm_files"]), (StatusCode::OK, &json!(false)));
+    app.wait_for_scans().await;
+    assert!(
+        app.ids(w.library, admin).await.is_empty(),
+        "a library of .strm files only isn't taken for an unmounted drive"
+    );
+    app.put("/api/settings", admin, json!({"strm_files": true})).await;
+    app.wait_for_scans().await;
+    assert_eq!(app.ids(w.library, admin).await.keys().collect::<Vec<_>>(), ["Film"]);
+}

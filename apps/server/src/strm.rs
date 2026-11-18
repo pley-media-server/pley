@@ -31,6 +31,9 @@
 //!   asked, that being where a NAS or a download service is, and its name
 //!   is held to this network from then on: it can't become a host on the
 //!   internet that redirects back in.
+//! * **An administrator's choice.** With `.strm` files turned off
+//!   (`strm_files`, Settings → Server), scans leave them out and nothing
+//!   asks what they name.
 
 use std::collections::{HashMap, HashSet};
 use std::io::Read;
@@ -256,6 +259,8 @@ pub enum Failed {
     NotMedia,
     /// The server has no address the transcoder can read it at.
     NoWayIn,
+    /// The administrator turned `.strm` files off.
+    TurnedOff,
 }
 
 impl From<Refused> for Failed {
@@ -284,6 +289,7 @@ impl From<Failed> for AppError {
                 "the transcoder can't reach this server to read a .strm file's media: it needs the server's address"
                     .into(),
             ),
+            Failed::TurnedOff => AppError::NotFound(".strm files are turned off on this server".into()),
         }
     }
 }
@@ -846,7 +852,7 @@ pub async fn relay(
     axum::extract::Path((key, name)): axum::extract::Path<(String, String)>,
     request: axum::extract::Request,
 ) -> ApiResult<Response> {
-    if !from_transcoder(&state, peer, request.headers()).await {
+    if !on(&state) || !from_transcoder(&state, peer, request.headers()).await {
         return Err(AppError::not_found("not found"));
     }
     let link = state.strm.by_key(&key).ok_or_else(|| AppError::not_found("not found"))?;
@@ -870,8 +876,21 @@ pub async fn input(state: &AppState, file: &FileRow) -> ApiResult<String> {
         return Ok(file.path.clone());
     }
     remote_inputs(state)?;
-    let link = state.strm.link(&file.path).await.map_err(Failed::from)?;
+    let link = link(state, file).await?;
     Ok(state.strm.address(state, &link).await?)
+}
+
+/// Whether the administrator has `.strm` files on.
+fn on(state: &AppState) -> bool {
+    state.settings.get().strm_files
+}
+
+/// The link of `file`, a `.strm` file, as it names it now.
+async fn link(state: &AppState, file: &FileRow) -> ApiResult<Arc<Link>> {
+    if !on(state) {
+        return Err(Failed::TurnedOff.into());
+    }
+    Ok(state.strm.link(&file.path).await.map_err(Failed::from)?)
 }
 
 /// Whether the transcoder reads an address: an older one doesn't.
@@ -895,7 +914,7 @@ fn remote_inputs(state: &AppState) -> ApiResult<()> {
 /// another address since, or its name resolve elsewhere since the server
 /// started, and what is there would be handed out unread.
 pub async fn serve(state: &AppState, file: &FileRow, method: &Method, headers: &HeaderMap) -> ApiResult<Response> {
-    let link = state.strm.link(&file.path).await.map_err(Failed::from)?;
+    let link = link(state, file).await?;
     let info = match link.seen() {
         Some((info, _)) => info,
         None => {
@@ -931,7 +950,7 @@ pub async fn ready(state: &AppState, file: FileRow) -> ApiResult<FileRow> {
     if !file.is_strm() {
         return Ok(file);
     }
-    let link = state.strm.link(&file.path).await.map_err(Failed::from)?;
+    let link = link(state, &file).await?;
     match known(state, &file, &link).await? {
         Some(known) => Ok(known),
         None => find(state, file, &link, Wanted::Details).await,
@@ -1010,7 +1029,8 @@ pub async fn glance(state: &AppState, item_id: i64) -> bool {
         let tried = |id: &i64| failed.get(id).is_some_and(|(at, _)| at.elapsed() < FAILED_TO_OPEN_FOR);
         files.into_iter().filter(|f| f.is_strm() && f.media_info.is_none() && !tried(&f.id)).collect()
     };
-    if unknown.is_empty() || !state.transcoder.info().is_some_and(|info| info.capabilities.remote_inputs) {
+    if unknown.is_empty() || !on(state) || !state.transcoder.info().is_some_and(|info| info.capabilities.remote_inputs)
+    {
         return false;
     }
     let state = state.clone();

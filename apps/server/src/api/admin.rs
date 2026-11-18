@@ -84,6 +84,15 @@ pub async fn put_settings(
     if crate::providers::settings_changed(&state.db, &before, &after).await? {
         state.scanner.enqueue_all(false).await?;
     }
+    // `.strm` files turned on or off: movie and show libraries list them, or
+    // stop, at once.
+    if before.strm_files != after.strm_files {
+        for lib in crate::library::list_libraries(&state.db).await? {
+            if matches!(lib.kind(), crate::library::LibraryKind::Movies | crate::library::LibraryKind::Shows) {
+                state.scanner.enqueue(lib.id, false);
+            }
+        }
+    }
     // Requests turned on or off, other limits, another TMDB key: every app
     // fetches its summary again.
     if before.requests != after.requests

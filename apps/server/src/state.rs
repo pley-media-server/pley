@@ -146,8 +146,8 @@ impl AppState {
             events.clone(),
             metadata.clone(),
             store.clone(),
+            settings.clone(),
             hold.clone(),
-            &config,
         );
         // Discover's pictures, from TMDB's picture server (none in tests
         // without endpoints).

@@ -1058,6 +1058,11 @@ export interface Settings {
    * episodes, over the online source's. Absent from servers before it.
    */
   read_nfo?: boolean;
+  /**
+   * Movie and TV libraries list their `.strm` files and play what they
+   * name. Off: scans leave them out. Absent from servers before it.
+   */
+  strm_files?: boolean;
   hwaccel: HwAccel;
   hardware_decoding: boolean;
   tonemapping: ToneMapping;

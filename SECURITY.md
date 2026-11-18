@@ -561,6 +561,8 @@ can write one ([CONFIGURATION.md](docs/CONFIGURATION.md#strm-files)).
   elsewhere since hands out anything unread. It is sent as that format's
   `Content-Type` whatever the address calls it, and never as a page
   (`X-Content-Type-Options: nosniff`).
+- An administrator can turn `.strm` files off (`strm_files`): scans then
+  leave them out, and nothing asks their addresses.
 - Nothing asks an address until someone opens or plays its item: a scan
   reads the files only. An address that fails isn't asked again for 20
   seconds by a playback, or for 10 minutes by a page opening.

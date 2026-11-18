@@ -3021,11 +3021,12 @@ A `.strm` file in a movie or TV library names the address its media is at
   after the file changed or the server started waits for the media to be
   read once more. A stream is made
   by the transcoder as for a file.
-- Errors: `404` when the file names nothing to play, the address has
-  nothing there (`404`, `410`) or what it gives isn't video or audio;
-  `503` when the address doesn't answer or answers anything else; `501`
-  when the transcoder is too old to read an address
-  (`capabilities.remote_inputs`). The message says which.
+- Errors: `404` when the file names nothing to play, `.strm` files are
+  turned off (`strm_files`), the address has nothing there (`404`, `410`)
+  or what it gives isn't video or audio; `503` when the address doesn't
+  answer or answers anything else; `501` when the transcoder is too old
+  to read an address (`capabilities.remote_inputs`). The message says
+  which.
 - `GET /api/files/{id}/trickplay` answers `404` for good, an item's
   `thumb` isn't grabbed from the video, and `POST /api/items/{id}/prefetch`
   reads nothing.
@@ -4893,6 +4894,8 @@ interface Settings {
   music_metadata: boolean;          // MusicBrainz + Cover Art Archive for music libraries (default true)
   read_nfo: boolean;                // read NFO files next to movies, shows, seasons and episodes (default
                                     // true; see CONFIGURATION.md). A change scans every library
+  strm_files: boolean;              // movie and TV libraries list and play .strm files (default true; see
+                                    // .strm files). A change scans those libraries
   hwaccel: "auto" | "none" | "nvenc" | "qsv" | "amf" | "vaapi" | "videotoolbox" | "vulkan";
   hardware_decoding: boolean;       // decode on the GPU when possible
   tonemapping: "auto" | "libplacebo" | "opencl" | "zscale" | "none"; // HDR10/HLG/Dolby Vision to SDR

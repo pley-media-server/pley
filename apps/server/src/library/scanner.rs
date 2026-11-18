@@ -30,11 +30,11 @@ use super::parse::{AudiobookName, EpisodeName, parse_audiobook, parse_episode, p
 use super::sidecar::{ExternalSub, Sidecars};
 use super::walk::{Extra, ExtraKind, FoundFile, Walked, walk};
 use super::{LibraryKind, LibraryRow, get_library, list_libraries};
-use crate::config::Config;
 use crate::db::Db;
 use crate::events::{EventBus, ScanPhase, ServerEvent};
 use crate::metadata::MetadataAgent;
 use crate::schedule::LibraryHold;
+use crate::settings::SettingsStore;
 use crate::store::Store;
 use crate::transcoder::{Transcoder, TranscoderError};
 use crate::util::{Pace, normalize_key, now, path_str, sort_title};
@@ -105,6 +105,7 @@ pub struct Scanner {
     events: EventBus,
     metadata: Arc<MetadataAgent>,
     store: Arc<Store>,
+    settings: Arc<SettingsStore>,
     /// Held through a library's first scan (see [`crate::schedule`]).
     hold: Arc<LibraryHold>,
     queue: mpsc::UnboundedSender<ScanRequest>,
@@ -198,10 +199,9 @@ impl Scanner {
         events: EventBus,
         metadata: Arc<MetadataAgent>,
         store: Arc<Store>,
+        settings: Arc<SettingsStore>,
         hold: Arc<LibraryHold>,
-        config: &Config,
     ) -> Arc<Self> {
-        let _ = config;
         let (tx, rx) = mpsc::unbounded_channel();
         let scanner = Arc::new(Self {
             db,
@@ -209,6 +209,7 @@ impl Scanner {
             events,
             metadata,
             store,
+            settings,
             hold,
             queue: tx,
             status: Mutex::default(),
@@ -517,7 +518,9 @@ impl Scanner {
         let mut to_process = Vec::new();
         let mut unchanged = Vec::new();
         let mut seen = HashSet::new();
-        for file in &walked.media {
+        // `.strm` files turned off: left out, so those listed before go.
+        let strm_files = self.settings.get().strm_files;
+        for file in walked.media.iter().filter(|f| strm_files || !super::walk::is_strm(&f.path)) {
             let key = path_str(&file.path);
             match existing_by_path.get(key.as_str()) {
                 Some(known) if !force && known.size == file.size && known.mtime == file.mtime && known.probed => {
