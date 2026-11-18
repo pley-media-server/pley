@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CircleAlert, CircleCheck, Info, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -29,6 +29,16 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation("components");
   const [toasts, setToasts] = useState<Toast[]>([]);
   const nextId = useRef(1);
+  // Each toast's timer, stopped when the toasts go (a test's end, say), so
+  // none fires after.
+  const timers = useRef(new Set<number>());
+  useEffect(() => {
+    const pending = timers.current;
+    return () => {
+      for (const timer of pending) window.clearTimeout(timer);
+      pending.clear();
+    };
+  }, []);
 
   const dismiss = useCallback((id: number) => {
     setToasts((list) => list.filter((x) => x.id !== id));
@@ -38,7 +48,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     (tone: ToastTone, message: ReactNode, options?: ToastOptions) => {
       const id = nextId.current++;
       setToasts((list) => [...list.slice(-3), { id, tone, message }]);
-      window.setTimeout(() => dismiss(id), options?.duration ?? (tone === "error" ? 6000 : 3500));
+      const timer = window.setTimeout(
+        () => {
+          timers.current.delete(timer);
+          dismiss(id);
+        },
+        options?.duration ?? (tone === "error" ? 6000 : 3500),
+      );
+      timers.current.add(timer);
     },
     [dismiss],
   );
